@@ -44,6 +44,7 @@ import scalaz.effect.Errors._
  * `SafeApp`.
  */
 sealed abstract class IO[E, A] { self =>
+
   /**
    * Maps an `IO[E, A]` into an `IO[E, B]` by applying the specified `A => B` function
    * to the output of this action. Repeated applications of `map`
@@ -81,7 +82,7 @@ sealed abstract class IO[E, A] { self =>
    */
   final def flatMap[B](f0: A => IO[E, B]): IO[E, B] = (self.tag : @switch) match {
     case IO.Tags.Fail => self.asInstanceOf[IO[E, B]]
-    case _ => IO.FlatMap(self, f0)
+    case _            => IO.FlatMap(self, f0)
   }
 
   /**
@@ -241,8 +242,9 @@ sealed abstract class IO[E, A] { self =>
     bracket0((r: FiberResult[E, B], a: A) => r match {
       case FiberResult.Failed(_) => release(a)
       case FiberResult.Interrupted(_) => release(a)
-      case _ => IO.unit
-    })(use)
+          case _                            => IO.unit
+      }
+    )(use)
 
   /**
    * Runs the specified cleanup action if this action errors, providing the
@@ -251,8 +253,9 @@ sealed abstract class IO[E, A] { self =>
   final def onError(cleanup: Throwable \/ E => IO[E, Unit]): IO[E, A] = IO.unit[E].bracket0((r: FiberResult[E, A], a: Unit) => r match {
     case FiberResult.Failed(e) => cleanup(Disjunction.right(e))
     case FiberResult.Interrupted(e) => cleanup(Disjunction.left(e))
-    case _ => IO.unit
-  })(_ => self)
+          case _                            => IO.unit
+      }
+    )(_ => self)
 
   /**
    * Supervises this action, which ensures that any fibers that are forked
@@ -446,12 +449,12 @@ sealed abstract class IO[E, A] { self =>
 
 object IO extends IOInstances {
   object Tags {
-    final val FlatMap           = 0
-    final val Point             = 1
-    final val Strict            = 2
-    final val SyncEffect        = 3
-    final val Fail              = 4
-    final val AsyncEffect       = 5
+    final val FlatMap         = 0
+    final val Point           = 1
+    final val Strict          = 2
+    final val SyncEffect      = 3
+    final val Fail            = 4
+    final val AsyncEffect     = 5
     final val AsyncIOEffect     = 6
     final val Attempt           = 7
     final val Fork              = 8

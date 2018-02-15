@@ -4,8 +4,8 @@ package scalaz.effect
 import scalaz.data.Disjunction._
 
 object Errors {
-  final case class LostRace(loser: Fiber[_, _] \/ Fiber[_, _]) extends
-    Exception("Lost a race to " + loser.fold(_ => "right")(_ => "left"))
+  final case class LostRace(loser: Fiber[_, _] \/ Fiber[_, _])
+      extends Exception("Lost a race to " + loser.fold(_ => "right")(_ => "left"))
 
   final case class InterruptedException(value: Any) extends
     Exception("The action was interrupted due to a user-defined error: " + value.toString())

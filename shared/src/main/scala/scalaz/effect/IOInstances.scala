@@ -2,7 +2,7 @@
 package scalaz
 package effect
 
-import scalaz.typeclass.{BindClass, MonadClass}
+import scalaz.typeclass.{ BindClass, MonadClass }
 
 trait IOInstances {
   implicit def monad[E]: Monad[IO[E, ?]] = instanceOf(new MonadClass[IO[E, ?]] with BindClass.DeriveFlatten[IO[E, ?]] {

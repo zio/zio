@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference
  * }}}
  */
 final class IORef[A] private (private val value : AtomicReference[A]) extends AnyVal {
+
   /**
    * Reads the value from the `IORef`.
    */
@@ -113,6 +114,7 @@ final class IORef[A] private (private val value : AtomicReference[A]) extends An
 }
 
 object IORef {
+
   /**
    * Creates a new `IORef` with the specified value.
    */
