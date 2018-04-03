@@ -57,7 +57,7 @@ class IODeepFlatMapBenchmark {
 
   @Benchmark
   def scalazDeepFlatMap(): BigInt = {
-    def fib(n: Int): IO[Throwable, BigInt] =
+    def fib(n: Int): IO[Void, BigInt] =
       if (n <= 1) IO.point[Throwable, BigInt](n)
       else
         fib(n - 1).flatMap { a =>
