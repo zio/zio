@@ -13,7 +13,7 @@ package ioeffect
 sealed abstract class AsyncReturn[A] { self =>
   import AsyncReturn._
 
-  final def fold[Z](later: => Z, now: A => Z, maybeLater: Canceler => Z): Z =
+  final def fold[Z](later: =>Z, now: A => Z, maybeLater: Canceler => Z): Z =
     self match {
       case Now(v)        => now(v)
       case MaybeLater(c) => maybeLater(c)

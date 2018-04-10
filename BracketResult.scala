@@ -2,7 +2,6 @@
 package scalaz
 package ioeffect
 
-
 /**
  * A lightweight description of the result of executing a fiber. The result is
  * either completed with a value, failed because of an uncaught error thrown
@@ -19,7 +18,9 @@ sealed trait BracketResult[A] { self =>
 
   final def failed: Boolean = !succeeded
 
-  final def fold[Z](completed: A => Z, failed: Throwable => Z, interrupted: Throwable => Z): Z = self match {
+  final def fold[Z](completed: A => Z,
+                    failed: Throwable => Z,
+                    interrupted: Throwable => Z): Z = self match {
     case Completed(v)   => completed(v)
     case Failed(e)      => failed(e)
     case Interrupted(e) => interrupted(e)
