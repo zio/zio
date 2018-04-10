@@ -7,8 +7,10 @@ import java.util.concurrent.atomic.AtomicReference
 import MVarInternal._
 import scala.concurrent.ExecutionContext
 
-private[ioeffect] final class MVarImpl[A](threadPool: (=> Unit) => Unit, val state: AtomicReference[MVarState[A]])
-    extends MVar[A] {
+private[ioeffect] final class MVarImpl[A](
+  threadPool: (=>Unit) => Unit,
+  val state: AtomicReference[MVarState[A]]
+) extends MVar[A] {
   final def peek: IO[Maybe[A]] = IO.sync {
     state.get match {
       case Surplus(head, _) => Maybe.just(head)
@@ -174,20 +176,23 @@ private[ioeffect] final class MVarImpl[A](threadPool: (=> Unit) => Unit, val sta
     value
   }
 
-  private final def doPut(v: A,
-                          readers: Vector[Callback[A]],
-                          takers: Vector[Callback[A]]): (MVarState[A], Action[Unit]) = {
+  private final def doPut(
+    v: A,
+    readers: Vector[Callback[A]],
+    takers: Vector[Callback[A]]
+  ): (MVarState[A], Action[Unit]) = {
     val result: Try[A] = \/-(v)
 
     if (takers.length == 0) (Surplus(v, Vector()), UnitAction)
     else {
       val taker = takers(0)
 
-      (if (takers.length == 1) empty[A] else Deficit(takers.tail, Vector()), () => {
-        readers.foreach(reader => reader(result))
-        taker(result)
-        AsyncReturn.later[Unit]
-      })
+      (if (takers.length == 1) empty[A] else Deficit(takers.tail, Vector()),
+       () => {
+         readers.foreach(reader => reader(result))
+         taker(result)
+         AsyncReturn.later[Unit]
+       })
     }
   }
 
@@ -204,7 +209,7 @@ private[ioeffect] final class MVarImpl[A](threadPool: (=> Unit) => Unit, val sta
         case Surplus(head, tail) =>
           removed = true
 
-          Surplus(head, tail.filter(_._2 eq putter))
+          Surplus(head, tail.filter(_._2.eq(putter)))
         case Deficit(_, _) => oldState
       }
 
@@ -228,7 +233,7 @@ private[ioeffect] final class MVarImpl[A](threadPool: (=> Unit) => Unit, val sta
         case Deficit(takers, readers) =>
           removed = true
 
-          Deficit(takers.filter(_ eq taker), readers)
+          Deficit(takers.filter(_.eq(taker)), readers)
       }
 
       if (state.compareAndSet(oldState, newState)) loop = false
@@ -251,7 +256,7 @@ private[ioeffect] final class MVarImpl[A](threadPool: (=> Unit) => Unit, val sta
         case Deficit(takers, readers) =>
           removed = true
 
-          Deficit(takers, readers.filter(_ eq reader))
+          Deficit(takers, readers.filter(_.eq(reader)))
       }
 
       if (state.compareAndSet(oldState, newState)) loop = false
@@ -278,8 +283,11 @@ private[ioeffect] object MVarInternal {
 
   sealed abstract class MVarState[+A]
 
-  final case class Surplus[A](head: A, tail: Vector[(A, Callback[Unit])])                extends MVarState[A]
-  final case class Deficit[A](takers: Vector[Callback[A]], readers: Vector[Callback[A]]) extends MVarState[A]
+  final case class Surplus[A](head: A, tail: Vector[(A, Callback[Unit])])
+      extends MVarState[A]
+  final case class Deficit[A](takers: Vector[Callback[A]],
+                              readers: Vector[Callback[A]])
+      extends MVarState[A]
 
   def empty[A]: MVarState[A] = Deficit[A](Vector(), Vector())
 
@@ -288,14 +296,18 @@ private[ioeffect] object MVarInternal {
 
 trait MVarFunctions {
   def newMVar[A](a: A)(ec: ExecutionContext): IO[MVar[A]] = IO.sync {
-    new MVarImpl[A](u => ec.execute(new Runnable {
-      def run(): Unit = u
-    }), new AtomicReference[MVarState[A]](one(a)))
+    new MVarImpl[A](u =>
+                      ec.execute(new Runnable {
+                        def run(): Unit = u
+                      }),
+                    new AtomicReference[MVarState[A]](one(a)))
   }
 
   def newEmptyMVar[A](ec: ExecutionContext): IO[MVar[A]] = IO.sync {
-    new MVarImpl[A](u => ec.execute(new Runnable {
-      def run(): Unit = u
-    }), new AtomicReference[MVarState[A]](empty[A]))
+    new MVarImpl[A](u =>
+                      ec.execute(new Runnable {
+                        def run(): Unit = u
+                      }),
+                    new AtomicReference[MVarState[A]](empty[A]))
   }
 }
