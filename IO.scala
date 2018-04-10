@@ -5,7 +5,6 @@ package ioeffect
 import scala.annotation.switch
 import scala.concurrent.duration.Duration
 
-
 /**
  * An `IO[A]` ("Eye-Oh of A") is an immutable data structure that describes an
  * effectful action that may throw an exception (`Throwable`), run forever, or
@@ -126,22 +125,26 @@ sealed abstract class IO[A] { self =>
    * then the action will be terminated with some error.
    */
   final def race(that: IO[A]): IO[A] = raceWith(that) {
-    case -\/((a, fiber)) => fiber.interrupt(Errors.LostRace(\/-(fiber))).const(a)
-    case \/-((a, fiber)) => fiber.interrupt(Errors.LostRace(-\/(fiber))).const(a)
+    case -\/((a, fiber)) =>
+      fiber.interrupt(Errors.LostRace(\/-(fiber))).const(a)
+    case \/-((a, fiber)) =>
+      fiber.interrupt(Errors.LostRace(-\/(fiber))).const(a)
   }
 
   /**
    * Races this action with the specified action, invoking the
    * specified finisher as soon as one value or the other has been computed.
    */
-  final def raceWith[B, C](that: IO[B])(finish: (A, Fiber[B]) \/ (B, Fiber[A]) => IO[C]): IO[C] =
+  final def raceWith[B, C](
+    that: IO[B]
+  )(finish: (A, Fiber[B]) \/ (B, Fiber[A]) => IO[C]): IO[C] =
     IO.Race[A, B, C](self, that, finish)
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
-  final def orElse(that: => IO[A]): IO[A] =
+  final def orElse(that: =>IO[A]): IO[A] =
     self.attempt.flatMap(_.fold(_ => that, IO.now))
 
   /**
@@ -204,7 +207,9 @@ sealed abstract class IO[A] { self =>
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
-  final def bracket0[B](release: (BracketResult[B], A) => IO[Unit])(use: A => IO[B]): IO[B] =
+  final def bracket0[B](
+    release: (BracketResult[B], A) => IO[Unit]
+  )(use: A => IO[B]): IO[B] =
     IO.Bracket(this, release, use)
 
   /**
@@ -293,18 +298,18 @@ sealed abstract class IO[A] { self =>
    * Maps this action to the specified constant while preserving the
    * effects of this action.
    */
-  final def const[B](b: => B): IO[B] = self.map(_ => b)
+  final def const[B](b: =>B): IO[B] = self.map(_ => b)
 
   /**
    * A variant of `flatMap` that ignores the value produced by this action.
    */
-  final def *>[B](io: => IO[B]): IO[B] = self.flatMap(_ => io)
+  final def *>[B](io: =>IO[B]): IO[B] = self.flatMap(_ => io)
 
   /**
    * Sequences the specified action after this action, but ignores the
    * value produced by the action.
    */
-  final def <*[B](io: => IO[B]): IO[A] = self.flatMap(io.const(_))
+  final def <*[B](io: =>IO[B]): IO[A] = self.flatMap(io.const(_))
 
   /**
    * Repeats this action forever (until the first error).
@@ -314,7 +319,7 @@ sealed abstract class IO[A] { self =>
   /**
    * Retries continuously until this action succeeds.
    */
-  final def retry: IO[A] = self orElse retry
+  final def retry: IO[A] = self.orElse(retry)
 
   /**
    * Retries this action the specified number of times, until the first success.
@@ -322,7 +327,7 @@ sealed abstract class IO[A] { self =>
    */
   final def retryN(n: Int): IO[A] =
     if (n <= 1) self
-    else self orElse (retryN(n - 1))
+    else self.orElse(retryN(n - 1))
 
   /**
    * Retries continuously until the action succeeds or the specified duration
@@ -330,8 +335,10 @@ sealed abstract class IO[A] { self =>
    */
   final def retryFor(duration: Duration): IO[A] =
     IO.absolve(
-      retry.attempt race (IO.sleep(duration) *>
-        IO.now(-\/(Errors.TimeoutException(duration))))
+      retry.attempt.race(
+        IO.sleep(duration) *>
+          IO.now(-\/(Errors.TimeoutException(duration)))
+      )
     )
 
   /**
@@ -398,7 +405,8 @@ object IO extends IOInstances with RTS {
     final val Sleep           = 12
     final val Supervise       = 13
   }
-  final case class FlatMap[A0, A](io: IO[A0], flatMapper: A0 => IO[A]) extends IO[A] {
+  final case class FlatMap[A0, A](io: IO[A0], flatMapper: A0 => IO[A])
+      extends IO[A] {
     override final def tag = Tags.FlatMap
   }
 
@@ -418,7 +426,9 @@ object IO extends IOInstances with RTS {
     override final def tag = Tags.Fail
   }
 
-  final case class AsyncEffect[A](register: (Throwable \/ A => Unit) => AsyncReturn[A]) extends IO[A] {
+  final case class AsyncEffect[A](
+    register: (Throwable \/ A => Unit) => AsyncReturn[A]
+  ) extends IO[A] {
     override final def tag = Tags.AsyncEffect
   }
 
@@ -426,12 +436,16 @@ object IO extends IOInstances with RTS {
     override final def tag = Tags.Attempt
   }
 
-  final case class Fork[A](value: IO[A], handler: Maybe[Throwable => IO[Unit]]) extends IO[Fiber[A]] {
+  final case class Fork[A](value: IO[A], handler: Maybe[Throwable => IO[Unit]])
+      extends IO[Fiber[A]] {
     override final def tag = Tags.Fork
   }
 
-  final case class Race[A0, A1, A](left: IO[A0], right: IO[A1], finish: (A0, Fiber[A1]) \/ (A1, Fiber[A0]) => IO[A])
-      extends IO[A] {
+  final case class Race[A0, A1, A](
+    left: IO[A0],
+    right: IO[A1],
+    finish: (A0, Fiber[A1]) \/ (A1, Fiber[A0]) => IO[A]
+  ) extends IO[A] {
     override final def tag = Tags.Race
   }
 
@@ -439,7 +453,9 @@ object IO extends IOInstances with RTS {
     override final def tag = Tags.Suspend
   }
 
-  final case class Bracket[A, B](acquire: IO[A], release: (BracketResult[B], A) => IO[Unit], use: A => IO[B])
+  final case class Bracket[A, B](acquire: IO[A],
+                                 release: (BracketResult[B], A) => IO[Unit],
+                                 use: A => IO[B])
       extends IO[B] {
     override final def tag = Tags.Bracket
   }
@@ -466,7 +482,7 @@ object IO extends IOInstances with RTS {
    * function to capture effectful code. The result is undefined but may
    * include runtime errors.
    */
-  final def point[A](a: => A): IO[A] = Point(() => a)
+  final def point[A](a: =>A): IO[A] = Point(() => a)
 
   /**
    * Raises the specified error. The moral equivalent of `throw` for pure code.
@@ -488,7 +504,8 @@ object IO extends IOInstances with RTS {
    * forked by the action are killed with the specified error upon the action's
    * own termination.
    */
-  final def supervise[A](io: IO[A], error: Throwable): IO[A] = Supervise(io, error)
+  final def supervise[A](io: IO[A], error: Throwable): IO[A] =
+    Supervise(io, error)
 
   /**
    * Flattens a nested action.
@@ -503,7 +520,7 @@ object IO extends IOInstances with RTS {
    * will be undefined and most likely involve the physical explosion of your
    * computer in a heap of rubble.
    */
-  final def suspend[A](io: => IO[A]): IO[A] = Suspend(() => io)
+  final def suspend[A](io: =>IO[A]): IO[A] = Suspend(() => io)
 
   /**
    * Imports a synchronous effect into a pure `IO` value. If the thunk returns
@@ -513,17 +530,18 @@ object IO extends IOInstances with RTS {
    * def putStrLn(line: String): IO[Unit] = IO.sync(println(line))
    * }}}
    */
-  final def sync[A](effect: => A): IO[A] = SyncEffect(() => effect)
+  final def sync[A](effect: =>A): IO[A] = SyncEffect(() => effect)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
    * the more expressive variant of this function.
    */
-  final def async[A](register: (Throwable \/ A => Unit) => Unit): IO[A] = AsyncEffect { callback =>
-    register(callback)
+  final def async[A](register: (Throwable \/ A => Unit) => Unit): IO[A] =
+    AsyncEffect { callback =>
+      register(callback)
 
-    AsyncReturn.later[A]
-  }
+      AsyncReturn.later[A]
+    }
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -533,7 +551,9 @@ object IO extends IOInstances with RTS {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def async0[A](register: (Throwable \/ A => Unit) => AsyncReturn[A]): IO[A] = AsyncEffect(register)
+  final def async0[A](
+    register: (Throwable \/ A => Unit) => AsyncReturn[A]
+  ): IO[A] = AsyncEffect(register)
 
   /**
    * Returns a computation that will never produce anything. The moral
@@ -558,6 +578,7 @@ object IO extends IOInstances with RTS {
   final def require[A](t: Throwable): IO[Maybe[A]] => IO[A] =
     (io: IO[Maybe[A]]) => io.flatMap(_.cata(IO.now[A], IO.fail[A](t)))
 
-  private final val Never: IO[Any] = IO.async[Any] { (k: (Throwable \/ Any) => Unit) =>
+  private final val Never
+    : IO[Any] = IO.async[Any] { (k: (Throwable \/ Any) => Unit) =>
     }
 }

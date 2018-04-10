@@ -30,5 +30,6 @@ trait SafeApp extends RTS {
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
    */
-  final def main(args0: Array[String]): Unit = unsafePerformIO(run(args0.toList))
+  final def main(args0: Array[String]): Unit =
+    unsafePerformIO(run(args0.toList))
 }
