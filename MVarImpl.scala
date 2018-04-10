@@ -27,7 +27,7 @@ private[ioeffect] final class MVarImpl[A](
 
       val oldState = state.get
 
-      val newState = oldState match {
+      val newState: MVarState[A] = oldState match {
         case Surplus(value0, putters) =>
           if (putters.length == 0) {
             finish = () => AsyncReturn.now(value0)
@@ -149,7 +149,7 @@ private[ioeffect] final class MVarImpl[A](
     while (loop) {
       val oldState = state.get
 
-      val newState = oldState match {
+      val newState: MVarState[A] = oldState match {
         case Deficit(_, _) =>
           value = Maybe.empty[A]
 
@@ -281,7 +281,7 @@ private[ioeffect] object MVarInternal {
 
   type Try[A] = Throwable \/ A
 
-  sealed abstract class MVarState[+A]
+  sealed abstract class MVarState[A]
 
   final case class Surplus[A](head: A, tail: Vector[(A, Callback[Unit])])
       extends MVarState[A]
