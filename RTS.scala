@@ -90,7 +90,8 @@ trait RTS {
    */
   final val YieldMaxOpCount = 1048576
 
-  lazy val scheduledExecutor: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+  lazy val scheduledExecutor: ScheduledExecutorService =
+    Executors.newScheduledThreadPool(1)
 
   final def submit[A](block: =>A): Unit = {
     threadPool.submit(new Runnable {
@@ -694,9 +695,9 @@ private object RTS {
       }
     }
 
-    final def fork[A](io: IO[A],
-                      handler: Throwable => IO[Unit]): FiberContext[A] = {
-      val context = new FiberContext[A](rts, handler)
+    final def fork[B](io: IO[B],
+                      handler: Throwable => IO[Unit]): FiberContext[B] = {
+      val context = new FiberContext[B](rts, handler)
 
       rts.submit(context.evaluate(io))
 
@@ -745,7 +746,7 @@ private object RTS {
      *
      * @param value The value produced by the asynchronous computation.
      */
-    private final def resumeAsync[A](value: Try[Any]): Unit =
+    private final def resumeAsync(value: Try[Any]): Unit =
       if (resumeAsync()) {
         // TODO: CPS transform
         // Take care not to overflow the stack in cases of 'deeply' nested
@@ -755,11 +756,11 @@ private object RTS {
         } else resumeEvaluate(value)
       }
 
-    private final def raceWith[A, B, C](
+    private final def raceWith[AA, B, C](
       unhandled: Throwable => IO[Unit],
-      leftIO: IO[A],
+      leftIO: IO[AA],
       rightIO: IO[B],
-      finish: (A, Fiber[B]) \/ (B, Fiber[A]) => IO[C]
+      finish: (AA, Fiber[B]) \/ (B, Fiber[AA]) => IO[C]
     ): IO[C] = {
       import RaceState._
 
@@ -768,8 +769,8 @@ private object RTS {
 
       // TODO: Interrupt raced fibers if parent is interrupted?
 
-      val leftWins  = (w: A, l: Fiber[B]) => finish(-\/((w, l)))
-      val rightWins = (w: B, l: Fiber[A]) => finish(\/-((w, l)))
+      val leftWins  = (w: AA, l: Fiber[B]) => finish(-\/((w, l)))
+      val rightWins = (w: B, l: Fiber[AA]) => finish(\/-((w, l)))
 
       IO.flatten(IO.async0[IO[C]] { resume =>
         val state = new AtomicReference[RaceState](Started)
@@ -857,8 +858,8 @@ private object RTS {
     final def enterSupervision: IO[Unit] = IO.sync {
       supervising += 1
 
-      def newWeakSet[A]: Set[A] =
-        Collections.newSetFromMap[A](new WeakHashMap[A, java.lang.Boolean]())
+      def newWeakSet[B]: Set[B] =
+        Collections.newSetFromMap[B](new WeakHashMap[B, java.lang.Boolean]())
 
       val set = newWeakSet[FiberContext[_]]
 
