@@ -407,38 +407,38 @@ object IO extends IOInstances with RTS {
   }
   final case class FlatMap[A0, A](io: IO[A0], flatMapper: A0 => IO[A])
       extends IO[A] {
-    override final def tag = Tags.FlatMap
+    override final def tag: Int = Tags.FlatMap
   }
 
   final case class Point[A](value: () => A) extends IO[A] {
-    override final def tag = Tags.Point
+    override final def tag: Int = Tags.Point
   }
 
   final case class Strict[A](value: A) extends IO[A] {
-    override final def tag = Tags.Strict
+    override final def tag: Int = Tags.Strict
   }
 
   final case class SyncEffect[A](effect: () => A) extends IO[A] {
-    override final def tag = Tags.SyncEffect
+    override final def tag: Int = Tags.SyncEffect
   }
 
   final case class Fail[A](failure: Throwable) extends IO[A] {
-    override final def tag = Tags.Fail
+    override final def tag: Int = Tags.Fail
   }
 
   final case class AsyncEffect[A](
     register: (Throwable \/ A => Unit) => AsyncReturn[A]
   ) extends IO[A] {
-    override final def tag = Tags.AsyncEffect
+    override final def tag: Int = Tags.AsyncEffect
   }
 
   final case class Attempt[A](value: IO[A]) extends IO[Throwable \/ A] {
-    override final def tag = Tags.Attempt
+    override final def tag: Int = Tags.Attempt
   }
 
   final case class Fork[A](value: IO[A], handler: Maybe[Throwable => IO[Unit]])
       extends IO[Fiber[A]] {
-    override final def tag = Tags.Fork
+    override final def tag: Int = Tags.Fork
   }
 
   final case class Race[A0, A1, A](
@@ -446,30 +446,30 @@ object IO extends IOInstances with RTS {
     right: IO[A1],
     finish: (A0, Fiber[A1]) \/ (A1, Fiber[A0]) => IO[A]
   ) extends IO[A] {
-    override final def tag = Tags.Race
+    override final def tag: Int = Tags.Race
   }
 
   final case class Suspend[A](value: () => IO[A]) extends IO[A] {
-    override final def tag = Tags.Suspend
+    override final def tag: Int = Tags.Suspend
   }
 
   final case class Bracket[A, B](acquire: IO[A],
                                  release: (BracketResult[B], A) => IO[Unit],
                                  use: A => IO[B])
       extends IO[B] {
-    override final def tag = Tags.Bracket
+    override final def tag: Int = Tags.Bracket
   }
 
   final case class Uninterruptible[A](io: IO[A]) extends IO[A] {
-    override final def tag = Tags.Uninterruptible
+    override final def tag: Int = Tags.Uninterruptible
   }
 
   final case class Sleep(duration: Duration) extends IO[Unit] {
-    override final def tag = Tags.Sleep
+    override final def tag: Int = Tags.Sleep
   }
 
   final case class Supervise[A](value: IO[A], error: Throwable) extends IO[A] {
-    override final def tag = Tags.Supervise
+    override final def tag: Int = Tags.Supervise
   }
 
   /**
