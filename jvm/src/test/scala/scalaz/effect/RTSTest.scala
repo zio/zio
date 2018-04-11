@@ -11,9 +11,7 @@ import scalaz.data.Disjunction._
 
 import scalaz.effect.Errors.UnhandledError
 
-class RTSSpec(implicit ee : ExecutionEnv) extends Specification
-    with AroundTimeout
-    with RTS {
+class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
   override def defaultHandler[E]: Throwable => IO[E, Unit] = _ => IO.unit[E]
 
@@ -114,7 +112,9 @@ class RTSSpec(implicit ee : ExecutionEnv) extends Specification
   def testEvalOfAttemptOfFail = {
     unsafePerformIO(IO.fail[Throwable, Int](ExampleError).attempt[Throwable]) must_=== -\/(ExampleError)
 
-    unsafePerformIO(IO.suspend(IO.suspend(IO.fail[Throwable, Int](ExampleError)).attempt[Throwable])) must_=== -\/(ExampleError)
+    unsafePerformIO(IO.suspend(IO.suspend(IO.fail[Throwable, Int](ExampleError)).attempt[Throwable])) must_=== -\/(
+      ExampleError
+    )
   }
 
   def testAttemptOfDeepSyncEffectError =
@@ -138,23 +138,27 @@ class RTSSpec(implicit ee : ExecutionEnv) extends Specification
   def testEvalOfFailEnsuring = {
     var finalized = false
 
-    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Throwable, Unit] { finalized = true; () })) must (throwA(ExampleError))
+    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Throwable, Unit] { finalized = true; () })) must (throwA(
+      ExampleError
+    ))
     finalized must_=== true
   }
 
   def testEvalOfFailOnError = {
     var finalized = false
 
-    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).onError(_ => IO.sync[Throwable, Unit] { finalized = true; () })) must (throwA(ExampleError))
+    unsafePerformIO(
+      IO.fail[Throwable, Unit](ExampleError).onError(_ => IO.sync[Throwable, Unit] { finalized = true; () })
+    ) must (throwA(ExampleError))
 
     finalized must_=== true
   }
 
   def testErrorInFinalizerCannotBeCaught = {
     val nested: IO[Throwable, Int] =
-      IO.fail[Throwable, Int](ExampleError).ensuring(
-        IO.fail[Throwable, Unit](new Error("e2"))).ensuring(
-          IO.fail[Throwable, Unit](new Error("e3")))
+      IO.fail[Throwable, Int](ExampleError)
+        .ensuring(IO.fail[Throwable, Unit](new Error("e2")))
+        .ensuring(IO.fail[Throwable, Unit](new Error("e3")))
 
     unsafePerformIO(nested) must (throwA(UnhandledError(ExampleError)))
   }
@@ -163,8 +167,9 @@ class RTSSpec(implicit ee : ExecutionEnv) extends Specification
     var reported: Throwable = null
 
     unsafePerformIO {
-      IO.point[Throwable, Int](42).ensuring(IO.fail[Throwable, Unit](ExampleError)).
-        fork0(e => IO.sync[Throwable, Unit] { reported = e; () })
+      IO.point[Throwable, Int](42)
+        .ensuring(IO.fail[Throwable, Unit](ExampleError))
+        .fork0(e => IO.sync[Throwable, Unit] { reported = e; () })
     }
 
     // FIXME: Is this an issue with thread synchronization?
@@ -189,19 +194,25 @@ class RTSSpec(implicit ee : ExecutionEnv) extends Specification
       (throwA(UnhandledError(ExampleError)))
 
   def testBracketRethrownCaughtErrorInAcquisition = {
-    lazy val actual = unsafePerformIO(IO.absolve(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit).attempt[Throwable]))
+    lazy val actual = unsafePerformIO(
+      IO.absolve(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit).attempt[Throwable])
+    )
 
     actual must (throwA(UnhandledError(ExampleError)))
   }
 
   def testBracketRethrownCaughtErrorInRelease = {
-    lazy val actual = unsafePerformIO(IO.absolve(IO.unit.bracket_(IO.fail[Throwable, Unit](ExampleError))(IO.unit).attempt[Throwable]))
+    lazy val actual = unsafePerformIO(
+      IO.absolve(IO.unit.bracket_(IO.fail[Throwable, Unit](ExampleError))(IO.unit).attempt[Throwable])
+    )
 
     actual must (throwA(UnhandledError(ExampleError)))
   }
 
   def testBracketRethrownCaughtErrorInUsage = {
-    lazy val actual = unsafePerformIO(IO.absolve(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable]))
+    lazy val actual = unsafePerformIO(
+      IO.absolve(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable])
+    )
 
     actual must (throwA(UnhandledError(ExampleError)))
   }
