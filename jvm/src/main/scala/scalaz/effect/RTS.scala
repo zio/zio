@@ -515,7 +515,7 @@ private object RTS {
 
                           eval = false
 
-                        case _ =>
+                        case AsyncReturn.Later() =>
                           eval = false
                       }
                     } finally enterAsyncEnd()
@@ -793,7 +793,7 @@ private object RTS {
           case AsyncReturn.Now(tryA) => callback(right, leftWins)(tryA)
           case AsyncReturn.MaybeLater(cancel) =>
             canceler = cancel
-          case _ =>
+          case AsyncReturn.Later() =>
         }
 
         right.register(callback(left, rightWins)) match {
