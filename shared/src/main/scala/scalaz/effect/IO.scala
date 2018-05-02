@@ -12,7 +12,7 @@ import scalaz.data.Void
 import scalaz.effect.Errors._
 
 /**
- * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
+ * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable scalaz.data structure that
  * describes an effectful action that may fail with an `E`, run forever, or
  * produce a single `A` at some point in the future.
  *
@@ -219,7 +219,7 @@ sealed abstract class IO[E, A] { self =>
    * errors produced by the `release` action can be caught and ignored.
    *
    * {{{
-   * openFile("data.json").bracket(closeFile) { file =>
+   * openFile("scalaz.data.json").bracket(closeFile) { file =>
    *   for {
    *     header <- readHeader(file)
    *     ...
@@ -310,7 +310,7 @@ sealed abstract class IO[E, A] { self =>
    * Recovers from some or all of the error cases.
    *
    * {{{
-   * openFile("data.json").catchSome {
+   * openFile("scalaz.data.json").catchSome {
    *   case FileNotFoundException(_) => openFile("backup.json")
    * }
    * }}}
@@ -415,7 +415,7 @@ sealed abstract class IO[E, A] { self =>
    * value produced by the action.
    *
    * {{{
-   * readFile("data.json").peek(putStrLn)
+   * readFile("scalaz.data.json").peek(putStrLn)
    * }}}
    */
   final def peek[B](f: A => IO[E, B]): IO[E, A] = self.flatMap(a => f(a).const(a))
