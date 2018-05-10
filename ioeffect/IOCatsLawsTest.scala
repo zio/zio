@@ -14,18 +14,13 @@ import cats.implicits._
 
 import scala.util.control.NonFatal
 
-class IOCatsLawsTest
-    extends FunSuite
-    with Matchers
-    with Checkers
-    with Discipline
-    with IOScalaCheckInstances {
+class IOCatsLawsTest extends FunSuite with Matchers with Checkers with Discipline with IOScalaCheckInstances {
 
   /**
    * Silences `System.err`, only printing the output in case exceptions are
    * thrown by the executed `thunk`.
    */
-  def silenceSystemErr[A](thunk: =>A): A = synchronized {
+  def silenceSystemErr[A](thunk: => A): A = synchronized {
     // Silencing System.err
     val oldErr    = System.err
     val outStream = new ByteArrayOutputStream()
@@ -56,6 +51,5 @@ class IOCatsLawsTest
       }
   }
 
-  checkAllAsync("Effect[Task]",
-                implicit e => EffectTests[Task].effect[Int, Int, Int])
+  checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
 }
