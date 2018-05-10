@@ -29,8 +29,7 @@ trait IOScalaCheckInstances extends TestInstances {
         }
     }
 
-  implicit def arbitraryIO[A](implicit A: Arbitrary[A],
-                              CG: Cogen[A]): Arbitrary[Task[A]] = {
+  implicit def arbitraryIO[A](implicit A: Arbitrary[A], CG: Cogen[A]): Arbitrary[Task[A]] = {
     import Arbitrary._
     def genPure: Gen[Task[A]] =
       arbitrary[A].map(IO.now)
