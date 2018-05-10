@@ -18,8 +18,7 @@ import scalaz.Maybe
  * } yield ()
  * }}}
  */
-final class IORef[A] private (private val value: AtomicReference[A])
-    extends AnyVal {
+final class IORef[A] private (private val value: AtomicReference[A]) extends AnyVal {
 
   /**
    * Reads the value from the `IORef`.

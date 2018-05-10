@@ -104,7 +104,7 @@ trait RTS {
   lazy val scheduledExecutor: ScheduledExecutorService =
     Executors.newScheduledThreadPool(1)
 
-  final def submit[A](block: =>A): Unit = {
+  final def submit[A](block: => A): Unit = {
     threadPool.submit(new Runnable {
       def run: Unit = { block; () }
     })
@@ -112,7 +112,7 @@ trait RTS {
     ()
   }
 
-  final def schedule[E, A](block: =>A, duration: Duration): Async[E, Unit] =
+  final def schedule[E, A](block: => A, duration: Duration): Async[E, Unit] =
     if (duration == Duration.Zero) {
       submit(block)
 
@@ -154,8 +154,7 @@ private object RTS {
     final def apply(v: Any): IO[Any, Any] = IO.now(v)
   }
 
-  final case class Finalizer[E](finalizer: ExitResult[E, Any] => IO[Void, Unit])
-      extends Function[Any, IO[E, Any]] {
+  final case class Finalizer[E](finalizer: ExitResult[E, Any] => IO[Void, Unit]) extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = IO.now(v)
   }
 
@@ -197,9 +196,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS,
-                                 val unhandled: Throwable => IO[Void, Unit])
-      extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Void, Unit]) extends Fiber[E, A] {
     import java.util.{ Collections, Set, WeakHashMap }
 
     import FiberStatus._
@@ -610,11 +607,7 @@ private object RTS {
                   case IO.Tags.Race =>
                     val io = curIo.asInstanceOf[IO.Race[E, Any, Any, Any]]
 
-                    curIo = raceWith(unhandled,
-                                     io.left,
-                                     io.right,
-                                     io.finishLeft,
-                                     io.finishRight)
+                    curIo = raceWith(unhandled, io.left, io.right, io.finishLeft, io.finishRight)
 
                   case IO.Tags.Suspend =>
                     val io = curIo.asInstanceOf[IO.Suspend[E, Any]]
@@ -967,8 +960,7 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(reentrancy, resume, _, joiners, killers)
-            if (id == reentrancy) =>
+        case AsyncRegion(reentrancy, resume, _, joiners, killers) if (id == reentrancy) =>
           if (!status.compareAndSet(
                 oldStatus,
                 AsyncRegion(reentrancy, resume, Some(c), joiners, killers)
@@ -1071,34 +1063,29 @@ private object RTS {
       }
     }
 
-    def changeError[E1, E2, A1](f: E2 => ExitResult[E1, A1],
-                                cb: Callback[E1, A1]): Callback[E2, A1] = {
+    def changeError[E1, E2, A1](f: E2 => ExitResult[E1, A1], cb: Callback[E1, A1]): Callback[E2, A1] = {
       case ExitResult.Completed(a)  => cb(ExitResult.Completed(a))
       case ExitResult.Terminated(t) => cb(ExitResult.Terminated(t))
       case ExitResult.Failed(e2)    => cb(f(e2))
     }
     @tailrec
-    private final def kill0[E2](t: Throwable,
-                                cb: Callback[E, Unit]): Async[E2, Unit] = {
+    private final def kill0[E2](t: Throwable, cb: Callback[E, Unit]): Async[E2, Unit] = {
       killed = true
 
       val oldStatus = status.get
 
       oldStatus match {
         case Executing(joiners, killers) =>
-          if (!status.compareAndSet(oldStatus,
-                                    Interrupting(t, joiners, cb :: killers)))
+          if (!status.compareAndSet(oldStatus, Interrupting(t, joiners, cb :: killers)))
             kill0(t, cb)
           else Async.later[E2, Unit]
 
         case Interrupting(t, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus,
-                                    Interrupting(t, joiners, cb :: killers)))
+          if (!status.compareAndSet(oldStatus, Interrupting(t, joiners, cb :: killers)))
             kill0(t, cb)
           else Async.later[E2, Unit]
 
-        case AsyncRegion(_, resume, cancelOpt, joiners, killers)
-            if (resume > 0 && noInterrupt == 0) =>
+        case AsyncRegion(_, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
           val v = ExitResult.Terminated[E, A](t)
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(t, cb)
@@ -1127,8 +1114,7 @@ private object RTS {
           }
 
         case AsyncRegion(_, _, _, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus,
-                                    Interrupting(t, joiners, cb :: killers)))
+          if (!status.compareAndSet(oldStatus, Interrupting(t, joiners, cb :: killers)))
             kill0(t, cb)
           else Async.later[E2, Unit]
 
@@ -1142,14 +1128,12 @@ private object RTS {
 
       oldStatus match {
         case Executing(joiners, killers) =>
-          if (!status.compareAndSet(oldStatus,
-                                    Executing(cb :: joiners, killers)))
+          if (!status.compareAndSet(oldStatus, Executing(cb :: joiners, killers)))
             join0(cb)
           else Async.later[E, A]
 
         case Interrupting(t, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus,
-                                    Interrupting(t, cb :: joiners, killers)))
+          if (!status.compareAndSet(oldStatus, Interrupting(t, cb :: joiners, killers)))
             join0(cb)
           else Async.later[E, A]
 
@@ -1178,8 +1162,7 @@ private object RTS {
 
   sealed trait FiberStatus[E, A]
   object FiberStatus {
-    final case class Executing[E, A](joiners: List[Callback[E, A]],
-                                     killers: List[Callback[E, Unit]])
+    final case class Executing[E, A](joiners: List[Callback[E, A]], killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
     final case class Interrupting[E, A](error: Throwable,
                                         joiners: List[Callback[E, A]],
@@ -1191,8 +1174,7 @@ private object RTS {
                                        joiners: List[Callback[E, A]],
                                        killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
-    final case class Done[E, A](value: ExitResult[E, A])
-        extends FiberStatus[E, A]
+    final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A]
 
     def Initial[E, A]: Executing[E, A] = Executing[E, A](Nil, Nil)
   }
@@ -1202,8 +1184,7 @@ private object RTS {
   final def SuccessUnit[E]: ExitResult[E, Unit] =
     _SuccessUnit.asInstanceOf[ExitResult[E, Unit]]
 
-  final def combineCancelers(c1: Throwable => Unit,
-                             c2: Throwable => Unit): Throwable => Unit =
+  final def combineCancelers(c1: Throwable => Unit, c2: Throwable => Unit): Throwable => Unit =
     if (c1 == null) {
       if (c2 == null) null
       else c2
