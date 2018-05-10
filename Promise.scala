@@ -22,8 +22,7 @@ import Promise.internal._
  * } yield value
  * }}}
  */
-class Promise[E, A] private (private val state: AtomicReference[State[E, A]])
-    extends AnyVal {
+class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
@@ -146,8 +145,7 @@ object Promise {
 
   private[ioeffect] object internal {
     sealed trait State[E, A]
-    final case class Pending[E, A](joiners: List[ExitResult[E, A] => Unit])
-        extends State[E, A]
-    final case class Done[E, A](value: ExitResult[E, A]) extends State[E, A]
+    final case class Pending[E, A](joiners: List[ExitResult[E, A] => Unit]) extends State[E, A]
+    final case class Done[E, A](value: ExitResult[E, A])                    extends State[E, A]
   }
 }

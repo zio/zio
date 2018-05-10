@@ -23,9 +23,8 @@ object Async {
     def apply[E, A](): Async[E, A] = value.asInstanceOf[Later[E, A]]
   }
   // TODO: Optimize this common case to less overhead with opaque types
-  final case class Now[E, A](value: ExitResult[E, A]) extends Async[E, A]
-  final case class MaybeLater[E, A](interruptor: Interruptor)
-      extends Async[E, A]
+  final case class Now[E, A](value: ExitResult[E, A])         extends Async[E, A]
+  final case class MaybeLater[E, A](interruptor: Interruptor) extends Async[E, A]
 
   /**
    * Constructs an `Async` that represents an uninterruptible asynchronous
