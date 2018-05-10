@@ -36,7 +36,7 @@ object catz extends RTS {
       IO.async(kk)
     }
 
-    def suspend[A](thunk: =>Task[A]): Task[A] = IO.suspend(
+    def suspend[A](thunk: => Task[A]): Task[A] = IO.suspend(
       try {
         thunk
       } catch {
