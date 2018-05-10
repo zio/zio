@@ -150,7 +150,7 @@ sealed abstract class IO[E, A] { self =>
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
-  final def orElse(that: =>IO[E, A]): IO[E, A] =
+  final def orElse(that: => IO[E, A]): IO[E, A] =
     self.attempt.flatMap(_.fold(_ => that, IO.now))
 
   /**
@@ -335,18 +335,18 @@ sealed abstract class IO[E, A] { self =>
    * Maps this action to the specified constant while preserving the
    * effects of this action.
    */
-  final def const[B](b: =>B): IO[E, B] = self.map(_ => b)
+  final def const[B](b: => B): IO[E, B] = self.map(_ => b)
 
   /**
    * A variant of `flatMap` that ignores the value produced by this action.
    */
-  final def *>[B](io: =>IO[E, B]): IO[E, B] = self.flatMap(_ => io)
+  final def *>[B](io: => IO[E, B]): IO[E, B] = self.flatMap(_ => io)
 
   /**
    * Sequences the specified action after this action, but ignores the
    * value produced by the action.
    */
-  final def <*[B](io: =>IO[E, B]): IO[E, A] = self.flatMap(io.const(_))
+  final def <*[B](io: => IO[E, B]): IO[E, A] = self.flatMap(io.const(_))
 
   /**
    * Repeats this action forever (until the first error).
@@ -514,8 +514,7 @@ object IO extends IOInstances {
     final val Supervisor      = 16
     final val Run             = 17
   }
-  final case class FlatMap[E, A0, A](io: IO[E, A0], flatMapper: A0 => IO[E, A])
-      extends IO[E, A] {
+  final case class FlatMap[E, A0, A](io: IO[E, A0], flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override final def tag: Int = Tags.FlatMap
   }
 
@@ -547,13 +546,11 @@ object IO extends IOInstances {
     override final def tag: Int = Tags.AsyncIOEffect
   }
 
-  final case class Attempt[E1, E2, A](value: IO[E1, A])
-      extends IO[E2, E1 \/ A] {
+  final case class Attempt[E1, E2, A](value: IO[E1, A]) extends IO[E2, E1 \/ A] {
     override final def tag: Int = Tags.Attempt
   }
 
-  final case class Fork[E1, E2, A](value: IO[E1, A],
-                                   handler: Maybe[Throwable => IO[Void, Unit]])
+  final case class Fork[E1, E2, A](value: IO[E1, A], handler: Maybe[Throwable => IO[Void, Unit]])
       extends IO[E2, Fiber[E1, A]] {
     override final def tag: Int = Tags.Fork
   }
@@ -587,8 +584,7 @@ object IO extends IOInstances {
     override final def tag: Int = Tags.Sleep
   }
 
-  final case class Supervise[E, A](value: IO[E, A], error: Throwable)
-      extends IO[E, A] {
+  final case class Supervise[E, A](value: IO[E, A], error: Throwable) extends IO[E, A] {
     override final def tag: Int = Tags.Supervise
   }
 
@@ -600,8 +596,7 @@ object IO extends IOInstances {
     override final def tag: Int = Tags.Supervisor
   }
 
-  final case class Run[E1, E2, A](value: IO[E1, A])
-      extends IO[E2, ExitResult[E1, A]] {
+  final case class Run[E1, E2, A](value: IO[E1, A]) extends IO[E2, ExitResult[E1, A]] {
     override final def tag: Int = Tags.Run
   }
 
@@ -615,7 +610,7 @@ object IO extends IOInstances {
    * function to capture effectful code. The result is undefined but may
    * include duplicated effects.
    */
-  final def point[E, A](a: =>A): IO[E, A] = Point(() => a)
+  final def point[E, A](a: => A): IO[E, A] = Point(() => a)
 
   /**
    * Creates an `IO` value that represents failure with the specified error.
@@ -654,7 +649,7 @@ object IO extends IOInstances {
    * will be undefined and most likely involve the physical explosion of your
    * computer in a heap of rubble.
    */
-  final def suspend[E, A](io: =>IO[E, A]): IO[E, A] = Suspend(() => io)
+  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = Suspend(() => io)
 
   /**
    * Terminates the fiber executing this action, running all finalizers.
@@ -668,7 +663,7 @@ object IO extends IOInstances {
    * val nanoTime: IO[Void, Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def sync[E, A](effect: =>A): IO[E, A] = SyncEffect(() => effect)
+  final def sync[E, A](effect: => A): IO[E, A] = SyncEffect(() => effect)
 
   /**
    *
@@ -679,7 +674,7 @@ object IO extends IOInstances {
    * def putStrLn(line: String): IO[Throwable, Unit] = IO.syncThrowable(println(line))
    * }}}
    */
-  final def syncThrowable[A](effect: =>A): IO[Throwable, A] =
+  final def syncThrowable[A](effect: => A): IO[Throwable, A] =
     syncCatch(effect) {
       case t: Throwable => t
     }
@@ -693,7 +688,7 @@ object IO extends IOInstances {
    * def putStrLn(line: String): IO[Exception, Unit] = IO.syncException(println(line))
    * }}}
    */
-  final def syncException[A](effect: =>A): IO[Exception, A] =
+  final def syncException[A](effect: => A): IO[Exception, A] =
     syncCatch(effect) {
       case e: Exception => e
     }
@@ -704,7 +699,7 @@ object IO extends IOInstances {
    * user-defined function.
    */
   final def syncCatch[E, A](
-    effect: =>A
+    effect: => A
   )(f: PartialFunction[Throwable, E]): IO[E, A] =
     IO.absolve(IO.sync(try {
       val result = effect
@@ -771,8 +766,7 @@ object IO extends IOInstances {
    * value, then the specified error will be raised.
    */
   final def require[E, A](error: E): IO[E, Maybe[A]] => IO[E, A] =
-    (io: IO[E, Maybe[A]]) =>
-      io.flatMap(_.cata(IO.now[E, A](_), IO.fail[E, A](error)))
+    (io: IO[E, Maybe[A]]) => io.flatMap(_.cata(IO.now[E, A](_), IO.fail[E, A](error)))
 
   // TODO: Make this fast, generalize from `Unit` to `A: Semigroup`,
   // and use `IList` instead of `List`.

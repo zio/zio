@@ -23,9 +23,7 @@ sealed trait ExitResult[E, A] { self =>
 
   final def failed: Boolean = !succeeded
 
-  final def fold[Z](completed: A => Z,
-                    failed: E => Z,
-                    interrupted: Throwable => Z): Z = self match {
+  final def fold[Z](completed: A => Z, failed: E => Z, interrupted: Throwable => Z): Z = self match {
     case Completed(v)  => completed(v)
     case Failed(e)     => failed(e)
     case Terminated(e) => interrupted(e)
