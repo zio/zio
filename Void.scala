@@ -5,7 +5,10 @@ import scalaz.Leibniz.===
 import scalaz.Liskov.<~<
 
 trait VoidModule {
-  type Void
+
+  trait Tag extends Any
+
+  type Void <: Tag
 
   def absurd[A](v: Void): A
 
@@ -28,7 +31,9 @@ trait VoidSyntax {
 
 // NOTE: this is some next level black compiler magic
 // but without this object syntax doesn't resolve...
-object VoidModule extends VoidSyntax
+object VoidModule extends VoidSyntax {
+  implicit def void_<~<[A]: Void <~< A = Void.conforms[A]
+}
 
 private[ioeffect] object VoidImpl extends VoidModule with VoidSyntax {
   type Void = Nothing

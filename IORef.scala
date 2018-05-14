@@ -3,8 +3,6 @@ package scalaz.ioeffect
 
 import java.util.concurrent.atomic.AtomicReference
 
-import scalaz.Maybe
-
 /**
  * A mutable atomic reference for the `IO` monad. This is the `IO` equivalent of
  * a volatile `var`, augmented with atomic operations, which make it useful as a
@@ -86,32 +84,11 @@ final class IORef[A] private (private val value: AtomicReference[A]) extends Any
   }
 
   /**
-   * Attempts to atomically modify the `IORef` with the specified function, but
-   * aborts immediately under concurrent modification of the value by other
-   * fibers.
+   * Compares and sets the value of the `IORef` if and only if it is `eq` to the
+   * specified value. Returns whether or not the ref was modified.
    */
-  final def tryModify[E](f: A => A): IO[E, Maybe[A]] = IO.sync {
-    val current = value.get
-
-    val next = f(current)
-
-    if (value.compareAndSet(current, next)) Maybe.just(next)
-    else Maybe.empty
-  }
-
-  /**
-   * Attempts to atomically modify the `IORef` with the specified function, but
-   * aborts immediately under concurrent modification of the value by other
-   * fibers.
-   */
-  final def tryModifyFold[E, B](f: A => (B, A)): IO[E, Maybe[B]] = IO.sync {
-    val current = value.get
-
-    val tuple = f(current)
-
-    if (value.compareAndSet(current, tuple._2)) Maybe.just(tuple._1)
-    else Maybe.empty
-  }
+  final def compareAndSet[E](prev: A, next: A): IO[E, Boolean] =
+    IO.sync(value.compareAndSet(prev, next))
 }
 
 object IORef {
