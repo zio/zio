@@ -124,6 +124,9 @@ trait RTS {
         future.cancel(true); ()
       }
     }
+
+  final def submitCanceler[E, A](canceler: Throwable => IO[E, A]): Throwable => Unit =
+    th => submit(unsafePerformIO(canceler(th)))
 }
 
 private object RTS {
@@ -508,7 +511,7 @@ private object RTS {
                           eval = false
 
                         case Async.MaybeLaterIO(cancelerIo) =>
-                          awaitAsync(id, th => rts.submit(rts.unsafePerformIO(cancelerIo(th))))
+                          awaitAsync(id, rts.submitCanceler(cancelerIo))
 
                           eval = false
                       }
@@ -798,7 +801,7 @@ private object RTS {
           case Async.MaybeLater(cancel) =>
             c1 = cancel
           case Async.MaybeLaterIO(cancelIo) =>
-            c1 = th => rts.submit(rts.unsafePerformIO(cancelIo(th)))
+            c1 = rts.submitCanceler(cancelIo)
         }
 
         right.register(raceCallback[B, C](k, state, rightWins)) match {
@@ -807,7 +810,7 @@ private object RTS {
           case Async.MaybeLater(cancel) =>
             c2 = cancel
           case Async.MaybeLaterIO(cancelIo) =>
-            c2 = th => rts.submit(rts.unsafePerformIO(cancelIo(th)))
+            c2 = rts.submitCanceler(cancelIo)
         }
 
         val canceler = combineCancelers(c1, c2)
