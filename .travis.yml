@@ -1,0 +1,10 @@
+language: scala
+sudo: false
+scala:
+  - 2.12.4
+jdk:
+  - oraclejdk8
+before_install:
+  - export PATH=${PATH}:./vendor/bundle
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck test
