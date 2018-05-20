@@ -11,4 +11,7 @@ package object effect {
   type Task[A] = IO[Throwable, A]
 
   type Unexceptional[A] = IO[Nothing, A]
+
+  type Canceler     = Throwable => Unit
+  type PureCanceler = Throwable => IO[Void, Unit]
 }
