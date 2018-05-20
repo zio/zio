@@ -485,7 +485,7 @@ sealed abstract class IO[E, A] { self =>
   def tag: Int
 }
 
-object IO extends IOInstances {
+object IO {
   final object Tags {
     final val FlatMap         = 0
     final val Point           = 1

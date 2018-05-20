@@ -214,9 +214,9 @@ private object RTS {
     // to optimize further, to make forking a cheaper operation.
 
     // Accessed from within a single thread (not necessarily the same):
-    private[this] var noInterrupt                            = 0
+    private[this] var noInterrupt                               = 0
     private[this] var supervised: List[Set[FiberContext[_, _]]] = Nil
-    private[this] var supervising                            = 0
+    private[this] var supervising                               = 0
 
     private[this] val stack: Stack = new Stack()
 

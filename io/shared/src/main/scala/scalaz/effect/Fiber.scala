@@ -61,7 +61,7 @@ trait Fiber[E, A] { self =>
     }
 }
 
-object Fiber extends FiberInstances {
+object Fiber {
   final def empty[E, A](implicit M: Monoid[A]): Fiber[E, A] = Monoid[Fiber[E, A]].empty
   final def point[E, A](a: => A): Fiber[E, A]               = Applicative[Fiber[E, ?]].pure(a)
 }
