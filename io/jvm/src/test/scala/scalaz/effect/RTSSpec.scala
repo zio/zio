@@ -7,9 +7,6 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.Specification
 import org.specs2.specification.AroundTimeout
 
-import scalaz.Void
-import scalaz.data.Disjunction._
-
 import scalaz.effect.Errors.UnhandledError
 
 class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
@@ -18,7 +15,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def is = s2"""
   RTS synchronous correctness
-    widen Void                              $testWidenVoid
+    widen Nothing                           $testWidenNothing
     evaluation of point                     $testPoint
     point must be lazy                      $testPointIsLazy
     now must be eager                       $testNowIsEager
@@ -29,7 +26,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     deep effects                            $testEvalOfDeepSyncEffect
 
   RTS failure
-    error in sync effect                    $testEvalOfAttemptOfSyncEffectError
+    error in sync effect                    $testEvalOfRedeemOfSyncEffectError
     attempt . fail                          $testEvalOfAttemptOfFail
     deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
     deep attempt fail error                 $testAttemptOfDeepFailError
@@ -82,13 +79,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testPoint =
     unsafePerformIO(IO.point(1)) must_=== 1
 
-  def testWidenVoid = {
+  def testWidenNothing = {
     val op1 = IO.sync[RuntimeException, String]("1")
-    val op2 = IO.sync[Void, String]("2")
+    val op2 = IO.sync[Nothing, String]("2")
 
     val result: IO[RuntimeException, String] = for {
       r1 <- op1
-      r2 <- op2.widen[RuntimeException]
+      r2 <- op2.widenError[RuntimeException]
     } yield r1 + r2
 
     unsafePerformIO(result) must_=== "12"
@@ -126,22 +123,24 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(sumIo(1000)) must_=== sum(1000)
   }
 
-  def testEvalOfAttemptOfSyncEffectError =
-    unsafePerformIO(IO.syncThrowable(throw ExampleError).attempt[Throwable]) must_=== -\/(ExampleError)
+  def testEvalOfRedeemOfSyncEffectError =
+    unsafePerformIO(
+      IO.syncThrowable(throw ExampleError)
+        .redeem[Throwable, Option[Throwable]](e => IO.now(Some(e)))(_ => IO.now(None))
+    ) must_=== Some(ExampleError)
 
-  def testEvalOfAttemptOfFail = {
-    unsafePerformIO(IO.fail[Throwable, Int](ExampleError).attempt[Throwable]) must_=== -\/(ExampleError)
-
-    unsafePerformIO(IO.suspend(IO.suspend(IO.fail[Throwable, Int](ExampleError)).attempt[Throwable])) must_=== -\/(
+  def testEvalOfAttemptOfFail = Seq(
+    unsafePerformIO(IO.fail[Throwable, Int](ExampleError).attempt[Throwable]) must_=== Left(ExampleError),
+    unsafePerformIO(IO.suspend(IO.suspend(IO.fail[Throwable, Int](ExampleError)).attempt[Throwable])) must_=== Left(
       ExampleError
     )
-  }
+  )
 
   def testAttemptOfDeepSyncEffectError =
-    unsafePerformIO(deepErrorEffect(100).attempt[Throwable]) must_=== -\/(ExampleError)
+    unsafePerformIO(deepErrorEffect(100).attempt[Throwable]) must_=== Left(ExampleError)
 
   def testAttemptOfDeepFailError =
-    unsafePerformIO(deepErrorFail(100).attempt[Throwable]) must_=== -\/(ExampleError)
+    unsafePerformIO(deepErrorFail(100).attempt[Throwable]) must_=== Left(ExampleError)
 
   def testEvalOfUncaughtFail =
     unsafePerformIO(IO.fail[Throwable, Int](ExampleError)) must (throwA(UnhandledError(ExampleError)))
@@ -158,7 +157,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testEvalOfFailEnsuring = {
     var finalized = false
 
-    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Void, Unit] { finalized = true; () })) must (throwA(
+    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Nothing, Unit] { finalized = true; () })) must (throwA(
       UnhandledError(ExampleError)
     ))
     finalized must_=== true
@@ -166,9 +165,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testEvalOfFailOnError = {
     var finalized = false
+    val cleanup: Throwable => IO[Nothing, Unit] =
+      _ => IO.sync[Nothing, Unit] { finalized = true; () }
 
     unsafePerformIO(
-      IO.fail[Throwable, Unit](ExampleError).onError(_ => IO.sync[Void, Unit] { finalized = true; () })
+      IO.fail[Throwable, Unit](ExampleError).onError(cleanup)(cleanup)
     ) must (throwA(UnhandledError(ExampleError)))
 
     finalized must_=== true
@@ -187,9 +188,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     var reported: Throwable = null
 
     unsafePerformIO {
-      IO.point[Void, Int](42)
+      IO.point[Nothing, Int](42)
         .ensuring(IO.terminate(ExampleError))
-        .fork0(e => IO.sync[Void, Unit] { reported = e; () })
+        .fork0(e => IO.sync[Nothing, Unit] { reported = e; () })
     }
 
     // FIXME: Is this an issue with thread synchronization?
@@ -199,14 +200,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testExitResultIsUsageResult =
-    unsafePerformIO(IO.unit.bracket_(IO.unit[Void])(IO.point[Throwable, Int](42))) must_=== 42
+    unsafePerformIO(IO.unit.bracket_(IO.unit[Nothing])(IO.point[Throwable, Int](42))) must_=== 42
 
   def testBracketErrorInAcquisition =
     unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit)) must
       (throwA(UnhandledError(ExampleError)))
 
   def testBracketErrorInRelease =
-    unsafePerformIO(IO.unit[Void].bracket_(IO.terminate(ExampleError))(IO.unit[Void])) must
+    unsafePerformIO(IO.unit[Nothing].bracket_(IO.terminate(ExampleError))(IO.unit[Nothing])) must
       (throwA(ExampleError))
 
   def testBracketErrorInUsage =
@@ -223,7 +224,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInRelease = {
     lazy val actual = unsafePerformIO(
-      IO.unit[Void].bracket_(IO.terminate(ExampleError))(IO.unit[Void])
+      IO.unit[Nothing].bracket_(IO.terminate(ExampleError))(IO.unit[Nothing])
     )
 
     actual must (throwA(ExampleError))
@@ -238,7 +239,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.unit.bracket_(AsyncUnit[Void])(asyncExampleError[Unit])
+    val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
     val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
 
     unsafePerformIO(io1) must (throwA(UnhandledError(ExampleError)))
@@ -286,7 +287,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafePerformIO(
-      (0 until 1000).foldLeft(IO.async[Int, Int](k => k(ExitResult.Completed(42))))((acc, _) => IO.absolve(acc.attempt))
+      (0 until 1000)
+        .foldLeft(IO.async[Int, Int](k => k(ExitResult.Completed(42))))((acc, _) => IO.absolve(acc.attempt))
     ) must_=== 42
 
   def testDeepBindOfAsyncChainIsStackSafe = {
@@ -326,16 +328,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(IO.point(42).race(IO.never[Throwable, Int])) == 42
 
   def testRepeatedPar = {
-    def countdown(n: Int): IO[Void, Int] =
+    def countdown(n: Int): IO[Nothing, Int] =
       if (n == 0) IO.now(0)
-      else IO.now[Void, Int](1).par(IO.now[Void, Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
+      else IO.now[Nothing, Int](1).par(IO.now[Nothing, Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
 
     unsafePerformIO(countdown(50)) must_=== 150
   }
 
   def testPar =
     (0 to 1000).map { _ =>
-      unsafePerformIO(IO.now[Void, Int](1).par(IO.now[Void, Int](2)).flatMap(t => IO.now(t._1 + t._2))) must_=== 3
+      unsafePerformIO(IO.now[Nothing, Int](1).par(IO.now[Nothing, Int](2)).flatMap(t => IO.now(t._1 + t._2))) must_=== 3
     }
 
   def testDeadlockRegression = {
@@ -346,7 +348,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     val e = Executors.newSingleThreadExecutor()
 
     for (i <- (0 until 10000)) {
-      val t = IO.async[Void, Int] { cb =>
+      val t = IO.async[Nothing, Int] { cb =>
         val _ = e.submit[Unit](() => cb(ExitResult.Completed(1)))
       }
       unsafePerformIO(t)
