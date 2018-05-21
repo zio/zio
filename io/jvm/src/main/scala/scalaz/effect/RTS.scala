@@ -9,10 +9,6 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{ Executors, TimeUnit }
 import java.lang.{ Runnable, Runtime }
 
-import scalaz.data.Disjunction._
-import scalaz.data.Maybe
-import scalaz.Void
-
 /**
  * This trait provides a high-performance implementation of a runtime system for
  * the `IO` monad on the JVM.
@@ -148,15 +144,11 @@ private object RTS {
   final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
 
-  object Catcher extends Function[Any, IO[Any, Any]] {
-    final def apply(v: Any): IO[Any, Any] = IO.now(\/-(v))
-  }
-
   object IdentityCont extends Function[Any, IO[Any, Any]] {
     final def apply(v: Any): IO[Any, Any] = IO.now(v)
   }
 
-  final case class Finalizer[E](finalizer: ExitResult[E, Any] => IO[Void, Unit]) extends Function[Any, IO[E, Any]] {
+  final case class Finalizer[E](finalizer: ExitResult[E, Any] => IO[Nothing, Unit]) extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = IO.now(v)
   }
 
@@ -199,7 +191,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Void, Unit]) extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Nothing, Unit]) extends Fiber[E, A] {
     import FiberStatus._
     import java.util.{ Collections, Set, WeakHashMap }
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }
@@ -233,11 +225,11 @@ private object RTS {
      *
      * @param errors  The effectfully produced list of errors, in reverse order.
      */
-    final def dispatchErrors(errors: IO[Void, List[Throwable]]): IO[Void, Unit] =
+    final def dispatchErrors(errors: IO[Nothing, List[Throwable]]): IO[Nothing, Unit] =
       errors.flatMap(
         // Each error produced by a finalizer must be handled using the
         // context's unhandled exception handler:
-        _.reverse.map(unhandled).foldLeft(IO.unit[Void])(_ *> _)
+        _.reverse.map(unhandled).foldLeft(IO.unit[Nothing])(_ *> _)
       )
 
     /**
@@ -249,16 +241,16 @@ private object RTS {
      * @param err   The exception that is being thrown.
      */
     final def catchError[E2](err: E): IO[E2, List[Throwable]] = {
+      var errorHandler: Any => IO[Any, Any]  = null
       var finalizer: IO[E2, List[Throwable]] = null
       var body: ExitResult[E, Any]           = null
 
-      var caught = false
-
       // Unwind the stack, looking for exception handlers and coalescing
       // finalizers.
-      while (!caught && !stack.isEmpty) {
+      while ((errorHandler eq null) && !stack.isEmpty) {
         stack.pop() match {
-          case `Catcher` => caught = true
+          case a: IO.Attempt[_, _, _, _] =>
+            errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer[_] =>
             val f = f0.asInstanceOf[Finalizer[E]]
 
@@ -273,12 +265,13 @@ private object RTS {
         }
       }
 
-      // This may seem strange but we need to maintain the invariant that an
-      // empty stack means the exception was *not* caught. So if the exception
-      // was caught but the stack is empty, we make the stack non-empty. This
-      // lets us return only the finalizer, which will be null for common cases,
+      // We need to maintain the invariant that an empty stack means the
+      // exception was *not* caught.
+      // The stack will never be empty if the error was caught, because
+      // the error handler will be pushed onto the stack.
+      // This lets us return only the finalizer, which will be null for common cases,
       // and result in zero heap allocations for the happy path.
-      if (caught && stack.isEmpty) stack.push(IdentityCont)
+      if (errorHandler ne null) stack.push(errorHandler)
 
       finalizer
     }
@@ -439,7 +432,7 @@ private object RTS {
 
                     val error = io.error
 
-                    val finalizer = catchError[Void](error)
+                    val finalizer = catchError[Nothing](error)
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -463,25 +456,18 @@ private object RTS {
                       }
                     } else {
                       // Error caught:
-                      val value = -\/(error)
+                      val handled = nextInstr[E](error, stack)
 
                       if (finalizer eq null) {
-                        // No finalizer to run:
-                        curIo = nextInstr[E](value, stack)
-
-                        if (curIo eq null) {
-                          eval = false
-                          result = ExitResult.Completed(value)
-                        }
+                        curIo = handled
                       } else {
                         // Must run finalizer first:
                         val finalization = dispatchErrors(finalizer)
-                        val completer    = IO.now[E, Any](value)
 
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = ensuringUninterruptibleExit(finalization[E] *> completer)
+                        curIo = ensuringUninterruptibleExit(finalization[E]) *> handled
                       }
                     }
 
@@ -557,16 +543,16 @@ private object RTS {
                     } finally enterAsyncEnd()
 
                   case IO.Tags.Attempt =>
-                    val io = curIo.asInstanceOf[IO.Attempt[E, Any, Any]]
+                    val io = curIo.asInstanceOf[IO.Attempt[E, Any, Any, Any]]
 
                     curIo = io.value
 
-                    stack.push(Catcher)
+                    stack.push(io)
 
                   case IO.Tags.Fork =>
                     val io = curIo.asInstanceOf[IO.Fork[_, E, Any]]
 
-                    val optHandler = Maybe.toOption(io.handler)
+                    val optHandler = io.handler
 
                     val handler = if (optHandler eq None) unhandled else optHandler.get
 
@@ -597,7 +583,7 @@ private object RTS {
                     val ref = new AtomicReference[Any]()
 
                     val finalizer = Finalizer[E](
-                      rez => IO.suspend(if (ref.get != null) io.release(rez, ref.get) else IO.unit)
+                      rez => IO.suspend[Nothing, Unit](if (ref.get != null) io.release(rez, ref.get) else IO.unit)
                     )
 
                     stack.push(finalizer)
@@ -642,7 +628,7 @@ private object RTS {
 
                     val cause = io.cause
 
-                    val finalizer = interruptStack[Void](cause)
+                    val finalizer = interruptStack[Nothing](cause)
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
@@ -716,7 +702,7 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: Throwable => IO[Void, Unit]): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: Throwable => IO[Nothing, Unit]): FiberContext[E, A] = {
       val context = new FiberContext[E, A](rts, handler)
 
       rts.submit(context.evaluate(io))
@@ -785,7 +771,7 @@ private object RTS {
         if (won) resume(tryA.map(finish))
       }
 
-    private final def raceWith[A, B, C](unhandled: Throwable => IO[Void, Unit],
+    private final def raceWith[A, B, C](unhandled: Throwable => IO[Nothing, Unit],
                                         leftIO: IO[E, A],
                                         rightIO: IO[E, B],
                                         finishLeft: (A, Fiber[E, B]) => IO[E, C],
@@ -1036,14 +1022,14 @@ private object RTS {
                 try cancel(t)
                 catch {
                   case t: Throwable if (nonFatal(t)) =>
-                    fork(unhandled(t), unhandled)
+                    fork(unhandled(t)[E], unhandled)
                 }
             }
 
-            val finalizer = interruptStack[Void](t)
+            val finalizer = interruptStack[Nothing](t)
 
             if (finalizer ne null) {
-              fork[Void, Unit](dispatchErrors(finalizer), unhandled)
+              fork[Nothing, Unit](dispatchErrors(finalizer), unhandled)
             }
 
             purgeJoinersKillers(v, joiners, killers)
