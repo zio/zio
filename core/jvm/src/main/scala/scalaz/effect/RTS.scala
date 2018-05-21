@@ -5,8 +5,8 @@ import scala.annotation.switch
 import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.{Executors, TimeUnit}
-import java.lang.{Runnable, Runtime}
+import java.util.concurrent.{ Executors, TimeUnit }
+import java.lang.{ Runnable, Runtime }
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -124,7 +124,7 @@ trait RTS {
       }
     }
 
-  final def performed(canceler: PureCanceler): Canceler =
+  final def impureCanceler(canceler: PureCanceler): Canceler =
     th => unsafePerformIO(canceler(th))
 }
 
@@ -512,7 +512,7 @@ private object RTS {
                         case Async.MaybeLaterIO(pureCancel) =>
                           // As for the case above this stores an impure canceler
                           // obtained performing the pure canceler on the same thread
-                          awaitAsync(id, rts.performed(pureCancel))
+                          awaitAsync(id, rts.impureCanceler(pureCancel))
 
                           eval = false
                       }
@@ -802,7 +802,7 @@ private object RTS {
           case Async.MaybeLater(cancel) =>
             c1 = cancel
           case Async.MaybeLaterIO(pureCancel) =>
-            c1 = rts.performed(pureCancel)
+            c1 = rts.impureCanceler(pureCancel)
         }
 
         right.register(raceCallback[B, C](k, state, rightWins)) match {
@@ -811,7 +811,7 @@ private object RTS {
           case Async.MaybeLater(cancel) =>
             c2 = cancel
           case Async.MaybeLaterIO(pureCancel) =>
-            c2 = rts.performed(pureCancel)
+            c2 = rts.impureCanceler(pureCancel)
         }
 
         val canceler = combineCancelers(c1, c2)
