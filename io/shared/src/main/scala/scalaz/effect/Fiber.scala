@@ -39,12 +39,6 @@ trait Fiber[E, A] { self =>
   def interrupt[E2](t: Throwable): IO[E2, Unit]
 
   /**
-   * Monoidal composition of fibers.
-   */
-  final def <>(that: => Fiber[E, A])(mappend: (A, A) => A): Fiber[E, A] =
-    zipWith(that)(mappend(_, _))
-
-  /**
    * Zips this fiber with the specified fiber, combining their results using
    * the specified combiner function. Both joins and interruptions are performed
    * in sequential order from left to right.

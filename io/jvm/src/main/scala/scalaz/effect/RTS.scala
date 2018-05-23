@@ -145,6 +145,7 @@ private object RTS {
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
 
   object Catcher extends Function[Any, IO[Any, Any]] {
+    //                                             FIXME PR
     final def apply(v: Any): IO[Any, Any] = IO.now(Right(v))
   }
 
@@ -555,6 +556,7 @@ private object RTS {
                   case IO.Tags.Attempt =>
                     val io = curIo.asInstanceOf[IO.Attempt[E, Any, Any, Any]]
 
+                    // FIXME PR
                     curIo = io.value
 
                     stack.push(Catcher)

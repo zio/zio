@@ -110,8 +110,8 @@ sealed abstract class IO[E, A] { self =>
    */
   final def par[B](that: IO[E, B]): IO[E, (A, B)] =
     self
-      .attempt[E, Either[E, A]](Left.apply)(Right.apply)
-      .raceWith(that.attempt[E, Either[E, B]](Left.apply)(Right.apply))(
+      .attempt[E, Either[E, A]](IO.nowLeft)(IO.nowRight)
+      .raceWith(that.attempt[E, Either[E, B]](IO.nowLeft)(IO.nowRight))(
         {
           case (Left(e), fiberb) => fiberb.interrupt(TerminatedException(e)) *> IO.fail(e)
           case (Right(a), fiberb) => IO.absolveEither(fiberb.join).map((b: B) => (a, b))
@@ -143,14 +143,14 @@ sealed abstract class IO[E, A] { self =>
    * otherwise executes the specified action.
    */
   final def orElse(that: => IO[E, A]): IO[E, A] =
-    self.flatAttempt(_ => that)(IO.now)
+    self.attempt(_ => that)(IO.now)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
    * a "larger" error.
    */
   final def leftMap[E2](f: E => E2): IO[E2, A] =
-    self.flatAttempt[E2, A](e => IO.fail(f(e)))(IO.now)
+    self.attempt[E2, A](e => IO.fail(f(e)))(IO.now)
 
   /**
    * Widens the error type to any supertype. While `leftMap` suffices for this
@@ -167,33 +167,8 @@ sealed abstract class IO[E, A] { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it is guaranteed the `IO` action does not raise any errors.
    */
-  final def attempt[E2, B](err: E => B)(succ: A => B): IO[E2, B] =
-    (self.tag: @switch) match {
-      case IO.Tags.Point =>
-        val io = self.asInstanceOf[IO.Point[E, A]]
-
-        new IO.Point(() => succ(io.value()))
-
-      case IO.Tags.Strict =>
-        val io = self.asInstanceOf[IO.Strict[E, A]]
-
-        new IO.Strict(succ(io.value))
-
-      case IO.Tags.SyncEffect =>
-        val io = self.asInstanceOf[IO.SyncEffect[E, A]]
-
-        new IO.SyncEffect(() => succ(io.effect()))
-
-      case IO.Tags.Fail =>
-        val io = self.asInstanceOf[IO.Fail[E, A]]
-
-        new IO.Strict(err(io.error))
-
-      case _ => new IO.Attempt(self)
-    }
-
-  final def flatAttempt[E2, B](err: E => IO[E2, B])(succ: A => IO[E2, B]): IO[E2, B] =
-    IO.flatten(self.attempt(err)(succ))
+  final def attempt[E2, B](err: E => IO[E2, B])(succ: A => IO[E2, B]): IO[E2, B] =
+    new IO.Attempt(self, err, succ)
 
   /**
    * When this action represents acquisition of a resource (for example,
@@ -298,7 +273,7 @@ sealed abstract class IO[E, A] { self =>
    * }}}
    */
   final def catchAll[E2](h: E => IO[E2, A]): IO[E2, A] =
-    self.flatAttempt[E2, A](h)(IO.now)
+    self.attempt[E2, A](h)(IO.now)
 
   /**
    * Recovers from some or all of the error cases.
@@ -313,7 +288,7 @@ sealed abstract class IO[E, A] { self =>
     def tryRescue(t: E): IO[E, A] =
       if (pf.isDefinedAt(t)) pf(t) else IO.fail(t)
 
-    self.flatAttempt[E, A](tryRescue)(IO.now)
+    self.attempt[E, A](tryRescue)(IO.now)
   }
 
   /**
@@ -475,13 +450,36 @@ sealed abstract class IO[E, A] { self =>
 
 object IO {
 
-  type MaybeIO[E, A] = (IO[E, A], A => IO[E, A]) => IO[E, A]
-  object MaybeIO {
-    def empty[E, A]: MaybeIO[E, A] = (z, _) => z
-    def just[E, A](a: A): MaybeIO[E, A] = (_, f) => f(a)
+  trait Disj[A, B] {
+    def fold[Z](left: A => Z, right: B => Z): Z
   }
 
-  final case class FromEA[E, A](err: E => IO[E, A], succ: A => IO[E, A])
+  object Disj {
+    def either[A, B](e: Either[A, B]): Disj[A, B] =
+      new Disj[A, B]  {
+        def fold[Z](left: A => Z, right: B => Z): Z =
+          e.fold(left, right)
+      }
+    def option[B](o: Option[B]): Disj[Unit, B] =
+      new Disj[Unit, B]  {
+        def fold[Z](left: Unit => Z, right: B => Z): Z =
+          o.fold(left(()))(right)
+      }
+  }
+
+  @inline
+  private def nowLeft[E1, E2, A]: E2 => IO[E1, Either[E2, A]] =
+    nowLeftC.asInstanceOf[E2 => IO[E1, Either[E2, A]]]
+
+  private val nowLeftC: Any => IO[Any, Either[Any, Any]] =
+    e2 => IO.now[Any, Either[Any, Any]](Left(e2))
+
+  @inline
+  private def nowRight[E1, E2, A]: A => IO[E1, Either[E2, A]] =
+    nowRightC.asInstanceOf[A => IO[E1, Either[E2, A]]]
+
+  private val nowRightC: Any => IO[Any, Either[Any, Any]] =
+    a => IO.now[Any, Either[Any, Any]](Right(a))
 
   final object Tags {
     final val FlatMap         = 0
@@ -532,7 +530,9 @@ object IO {
     override def tag = Tags.AsyncIOEffect
   }
 
-  final class Attempt[E1, E2, A, B] private[IO] (val value: IO[E1, A]) extends IO[E2, B] {
+  final class Attempt[E1, E2, A, B] private[IO] (val value: IO[E1, A],
+                                                 val err: E1 => IO[E2, B],
+                                                 val succ: A => IO[E2, B]) extends IO[E2, B] {
     override def tag = Tags.Attempt
   }
 
@@ -682,13 +682,13 @@ object IO {
    * user-defined function.
    */
   final def syncCatch[E, A](effect: => A)(f: PartialFunction[Throwable, E]): IO[E, A] =
-    IO.absolveF[E, A](
+    IO.absolveEither[E, A](
       IO.sync(
         try {
           val result = effect
-          _.succ(result)
+          Right(result)
         } catch {
-          case t: Throwable if f.isDefinedAt(t) => _.err(f(t))
+          case t: Throwable if f.isDefinedAt(t) => Left(f(t))
         }
       )
     )
@@ -730,16 +730,12 @@ object IO {
    * Submerges the error case of a disjunction into the `IO`. The inverse
    * operation of `IO.attempt`.
    */
-  final def absolve[E, A, B](f: FromEA[E, A] => B => IO[E, A])(v: IO[E, B]): IO[E, A] =
-    v.flatMap(f(FromEA[E, A](IO.fail, IO.now)))
-
-  @inline
-  private def absolveF[E, A](sinner: IO[E, FromEA[E, A] => IO[E, A]]) =
-    IO.absolve[E, A, FromEA[E, A] => IO[E, A]](fea => f => f(fea))(sinner)
+  final def absolve[E, A, B](disj: B => Disj[E, A])(v: IO[E, B]): IO[E, A] =
+    v.flatMap(b => disj(b).fold[IO[E, A]](IO.fail, IO.now))
 
   @inline
   private def absolveEither[E, A](sinner: IO[E, Either[E, A]]) =
-    IO.absolve[E, A, Either[E, A]](fea => b => b.fold(fea.err, fea.succ))(sinner)
+    IO.absolve[E, A, Either[E, A]](Disj.either)(sinner)
 
   /**
    * Retrieves the supervisor associated with the fiber running the action
@@ -751,8 +747,8 @@ object IO {
    * Requires that the given `IO[E, Maybe[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
-  final def require[E, A](error: E): IO[E, MaybeIO[E, A]] => IO[E, A] =
-    (io: IO[E, MaybeIO[E, A]]) => io.flatMap(_(IO.fail[E, A](error), IO.now[E, A]))
+  final def require[E, A, B](error: E): IO[E, Disj[Unit, A]] => IO[E, A] =
+    (io: IO[E, Disj[Unit, A]]) => io.flatMap(_.fold[IO[E, A]](_ => IO.fail[E, A](error), IO.now[E, A]))
 
   def forkAll[E2](l: List[IO[E2, Unit]]): IO[E2, Unit] = l match {
     case Nil     => IO.unit[E2]
