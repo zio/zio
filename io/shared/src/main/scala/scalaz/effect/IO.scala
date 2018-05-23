@@ -467,18 +467,27 @@ object IO {
       }
   }
 
+  // Pre-allocate `Function` objects
+
+  @inline
+  private def eitherDisj[E, A]: Either[E, A] => Disj[E, A] =
+    _eitherDisj.asInstanceOf[Either[E, A] => Disj[E, A]]
+
+  private val _eitherDisj: Either[Any, Any] => Disj[Any, Any] =
+    Disj.either[Any, Any] _
+
   @inline
   private def nowLeft[E1, E2, A]: E2 => IO[E1, Either[E2, A]] =
-    nowLeftC.asInstanceOf[E2 => IO[E1, Either[E2, A]]]
+    _nowLeft.asInstanceOf[E2 => IO[E1, Either[E2, A]]]
 
-  private val nowLeftC: Any => IO[Any, Either[Any, Any]] =
+  private val _nowLeft: Any => IO[Any, Either[Any, Any]] =
     e2 => IO.now[Any, Either[Any, Any]](Left(e2))
 
   @inline
   private def nowRight[E1, E2, A]: A => IO[E1, Either[E2, A]] =
-    nowRightC.asInstanceOf[A => IO[E1, Either[E2, A]]]
+    _nowRight.asInstanceOf[A => IO[E1, Either[E2, A]]]
 
-  private val nowRightC: Any => IO[Any, Either[Any, Any]] =
+  private val _nowRight: Any => IO[Any, Either[Any, Any]] =
     a => IO.now[Any, Either[Any, Any]](Right(a))
 
   final object Tags {
@@ -735,7 +744,7 @@ object IO {
 
   @inline
   private def absolveEither[E, A](sinner: IO[E, Either[E, A]]) =
-    IO.absolve[E, A, Either[E, A]](Disj.either)(sinner)
+    IO.absolve[E, A, Either[E, A]](eitherDisj)(sinner)
 
   /**
    * Retrieves the supervisor associated with the fiber running the action
