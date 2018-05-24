@@ -113,10 +113,10 @@ sealed abstract class IO[E, A] { self =>
       .attempt[E, Either[E, A]](IO.nowLeft)(IO.nowRight)
       .raceWith(that.attempt[E, Either[E, B]](IO.nowLeft)(IO.nowRight))(
         {
-          case (Left(e), fiberb) => fiberb.interrupt(TerminatedException(e)) *> IO.fail(e)
+          case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail(e)
           case (Right(a), fiberb) => IO.absolveEither(fiberb.join).map((b: B) => (a, b))
         }, {
-          case (Left(e), fibera) => fibera.interrupt(TerminatedException(e)) *> IO.fail(e)
+          case (Left(e), fibera)  => fibera.interrupt(TerminatedException(e)) *> IO.fail(e)
           case (Right(b), fibera) => IO.absolveEither(fibera.join).map((a: A) => (a, b))
         }
       )
@@ -168,7 +168,16 @@ sealed abstract class IO[E, A] { self =>
    * it is guaranteed the `IO` action does not raise any errors.
    */
   final def attempt[E2, B](err: E => IO[E2, B])(succ: A => IO[E2, B]): IO[E2, B] =
-    new IO.Attempt(self, err, succ)
+    (self.tag: @switch) match {
+      case IO.Tags.Fail =>
+        val io = self.asInstanceOf[IO.Fail[E, A]]
+        err(io.error)
+
+      case _ => new IO.Attempt(self, succ)
+    }
+
+  private[effect] final def attemptEither[E2]: IO[E2, Either[E, A]] =
+    self.attempt[E2, Either[E, A]](IO.nowLeft)(IO.nowRight)
 
   /**
    * When this action represents acquisition of a resource (for example,
@@ -456,12 +465,12 @@ object IO {
 
   object Disj {
     def either[A, B](e: Either[A, B]): Disj[A, B] =
-      new Disj[A, B]  {
+      new Disj[A, B] {
         def fold[Z](left: A => Z, right: B => Z): Z =
           e.fold(left, right)
       }
     def option[B](o: Option[B]): Disj[Unit, B] =
-      new Disj[Unit, B]  {
+      new Disj[Unit, B] {
         def fold[Z](left: Unit => Z, right: B => Z): Z =
           o.fold(left(()))(right)
       }
@@ -539,9 +548,7 @@ object IO {
     override def tag = Tags.AsyncIOEffect
   }
 
-  final class Attempt[E1, E2, A, B] private[IO] (val value: IO[E1, A],
-                                                 val err: E1 => IO[E2, B],
-                                                 val succ: A => IO[E2, B]) extends IO[E2, B] {
+  final class Attempt[E1, E2, A, B] private[IO] (val value: IO[E1, A], val succ: A => IO[E2, B]) extends IO[E2, B] {
     override def tag = Tags.Attempt
   }
 
@@ -743,7 +750,7 @@ object IO {
     v.flatMap(b => disj(b).fold[IO[E, A]](IO.fail, IO.now))
 
   @inline
-  private def absolveEither[E, A](sinner: IO[E, Either[E, A]]) =
+  private[effect] def absolveEither[E, A](sinner: IO[E, Either[E, A]]) =
     IO.absolve[E, A, Either[E, A]](eitherDisj)(sinner)
 
   /**

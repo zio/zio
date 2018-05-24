@@ -144,9 +144,8 @@ private object RTS {
   final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
 
-  object Catcher extends Function[Any, IO[Any, Any]] {
-    //                                             FIXME PR
-    final def apply(v: Any): IO[Any, Any] = IO.now(Right(v))
+  class Catcher(succ: Any => IO[Any, Any]) extends Function[Any, IO[Any, Any]] {
+    final def apply(v: Any): IO[Any, Any] = succ(v)
   }
 
   object IdentityCont extends Function[Any, IO[Any, Any]] {
@@ -255,7 +254,7 @@ private object RTS {
       // finalizers.
       while (!caught && !stack.isEmpty) {
         stack.pop() match {
-          case `Catcher` => caught = true
+          case _: Catcher => caught = true
           case f0: Finalizer[_] =>
             val f = f0.asInstanceOf[Finalizer[E]]
 
@@ -556,10 +555,9 @@ private object RTS {
                   case IO.Tags.Attempt =>
                     val io = curIo.asInstanceOf[IO.Attempt[E, Any, Any, Any]]
 
-                    // FIXME PR
                     curIo = io.value
 
-                    stack.push(Catcher)
+                    stack.push(new Catcher(io.succ))
 
                   case IO.Tags.Fork =>
                     val io = curIo.asInstanceOf[IO.Fork[_, E, Any]]
