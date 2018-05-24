@@ -2,9 +2,6 @@ package scalaz.effect
 
 import org.specs2.Specification
 
-import scalaz._
-import Scalaz._
-
 class IORefSpec extends Specification with RTS {
 
   def is = "IORefSpec".title ^ s2"""
@@ -25,8 +22,8 @@ class IORefSpec extends Specification with RTS {
   def e1 = forall(Data.values) { v =>
     unsafePerformIO(
       for {
-        ref   <- IORef(v)
-        value <- ref.read[Void]
+        ref   <- IORef[Nothing, AnyRef](v)
+        value <- ref.read[Nothing]
       } yield value must beTheSameAs(v)
     )
   }
@@ -35,9 +32,9 @@ class IORefSpec extends Specification with RTS {
     case (current, update) =>
       unsafePerformIO(
         for {
-          ref   <- IORef(current)
-          _     <- ref.write(update)
-          value <- ref.read[Void]
+          ref   <- IORef[Nothing, AnyRef](current)
+          _     <- ref.write[Nothing](update)
+          value <- ref.read[Nothing]
         } yield value must beTheSameAs(update)
       )
   }
@@ -46,8 +43,8 @@ class IORefSpec extends Specification with RTS {
     case (current, update) =>
       unsafePerformIO(
         for {
-          ref   <- IORef(current)
-          value <- ref.modify[Void](_ => update)
+          ref   <- IORef[Nothing, AnyRef](current)
+          value <- ref.modify[Nothing](_ => update)
         } yield value must beTheSameAs(update)
       )
   }
@@ -56,9 +53,9 @@ class IORefSpec extends Specification with RTS {
     case (current, update) =>
       unsafePerformIO(
         for {
-          ref   <- IORef(current)
-          r     <- ref.modifyFold(_ => ("hello", update))
-          value <- ref.read[Void]
+          ref   <- IORef[Nothing, AnyRef](current)
+          r     <- ref.modifyFold[Nothing, AnyRef](_ => ("hello", update))
+          value <- ref.read[Nothing]
         } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
       )
   }
@@ -67,9 +64,9 @@ class IORefSpec extends Specification with RTS {
     case (current, update) =>
       unsafePerformIO(
         for {
-          ref   <- IORef(current)
-          _     <- ref.writeLater(update)
-          value <- ref.read[Void]
+          ref   <- IORef[Nothing, AnyRef](current)
+          _     <- ref.writeLater[Nothing](update)
+          value <- ref.read[Nothing]
         } yield value must beTheSameAs(update)
       )
   }
@@ -78,26 +75,28 @@ class IORefSpec extends Specification with RTS {
     case (current, update) =>
       unsafePerformIO(
         for {
-          ref     <- IORef(current)
-          success <- ref.tryWrite(update)
-          value   <- ref.read[Void]
+          ref     <- IORef[Nothing, AnyRef](current)
+          success <- ref.tryWrite[Nothing](update)
+          value   <- ref.read[Nothing]
         } yield (success must beTrue) and (value must beTheSameAs(update))
       )
   }
 
   def e7 = {
 
-    def tryWriteUntilFalse(ref: IORef[Int], update: Int): IO[Void, Boolean] =
-      ref.tryWrite(update).flatMap(success => if (!success) IO.point(success) else tryWriteUntilFalse(ref, update))
+    def tryWriteUntilFalse(ref: IORef[Int], update: Int): IO[Nothing, Boolean] =
+      ref
+        .tryWrite[Nothing](update)
+        .flatMap(success => if (!success) IO.point[Nothing, Boolean](success) else tryWriteUntilFalse(ref, update))
 
     unsafePerformIO(
       for {
-        ref     <- IORef[Void, Int](0)
-        f1      <- ref.write[Void](1).forever[Unit].fork[Void]
-        f2      <- ref.write[Void](2).forever[Unit].fork[Void]
+        ref     <- IORef[Nothing, Int](0)
+        f1      <- ref.write[Nothing](1).forever[Unit].fork[Nothing]
+        f2      <- ref.write[Nothing](2).forever[Unit].fork[Nothing]
         success <- tryWriteUntilFalse(ref, 3)
-        value   <- ref.read[Void]
-        _       <- (f1 <> f2).interrupt[Void](new Error("Terminated fiber"))
+        value   <- ref.read[Nothing]
+        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Nothing](new Error("Terminated fiber"))
       } yield (success must beFalse) and (value must be_!=(3))
     )
 
@@ -107,8 +106,8 @@ class IORefSpec extends Specification with RTS {
     case (current, update) =>
       unsafePerformIO(
         for {
-          ref     <- IORef(current)
-          success <- ref.compareAndSet[Void](current, update)
+          ref     <- IORef[Unit, Object](current)
+          success <- ref.compareAndSet[Unit](current, update)
           value   <- ref.read
         } yield (success must beTrue) and (value must beTheSameAs(update))
       )
@@ -118,8 +117,8 @@ class IORefSpec extends Specification with RTS {
     case (current, update) =>
       unsafePerformIO(
         for {
-          ref     <- IORef(current)
-          success <- ref.compareAndSet[Void](update, current)
+          ref     <- IORef[Nothing, AnyRef](current)
+          success <- ref.compareAndSet[Nothing](update, current)
           value   <- ref.read
         } yield (success must beFalse) and (value must beTheSameAs(current))
       )
