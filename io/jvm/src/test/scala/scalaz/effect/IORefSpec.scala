@@ -19,68 +19,59 @@ class IORefSpec extends Specification with RTS {
         false if the previous value and the current value have a different reference.          $e9
     """
 
-  def e1 = forall(Data.values) { v =>
+  val (current, update) = ("value", "new value")
+
+  def e1 =
     unsafePerformIO(
       for {
-        ref   <- IORef[Nothing, AnyRef](v)
-        value <- ref.read[Nothing]
-      } yield value must beTheSameAs(v)
+        ref   <- IORef[Nothing, String](current)
+        value <- ref.read
+      } yield value must beTheSameAs(current)
     )
-  }
 
-  def e2 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref   <- IORef[Nothing, AnyRef](current)
-          _     <- ref.write[Nothing](update)
-          value <- ref.read[Nothing]
-        } yield value must beTheSameAs(update)
-      )
-  }
+  def e2 =
+    unsafePerformIO(
+      for {
+        ref   <- IORef[Nothing, String](current)
+        _     <- ref.write[Nothing](update)
+        value <- ref.read
+      } yield value must beTheSameAs(update)
+    )
 
-  def e3 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref   <- IORef[Nothing, AnyRef](current)
-          value <- ref.modify[Nothing](_ => update)
-        } yield value must beTheSameAs(update)
-      )
-  }
+  def e3 =
+    unsafePerformIO(
+      for {
+        ref   <- IORef[Nothing, String](current)
+        value <- ref.modify(_ => update)
+      } yield value must beTheSameAs(update)
+    )
 
-  def e4 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref   <- IORef[Nothing, AnyRef](current)
-          r     <- ref.modifyFold[Nothing, AnyRef](_ => ("hello", update))
-          value <- ref.read[Nothing]
-        } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
-      )
-  }
+  def e4 =
+    unsafePerformIO(
+      for {
+        ref   <- IORef[Nothing, String](current)
+        r     <- ref.modifyFold[Nothing, String](_ => ("hello", update))
+        value <- ref.read
+      } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
+    )
 
-  def e5 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref   <- IORef[Nothing, AnyRef](current)
-          _     <- ref.writeLater[Nothing](update)
-          value <- ref.read[Nothing]
-        } yield value must beTheSameAs(update)
-      )
-  }
+  def e5 =
+    unsafePerformIO(
+      for {
+        ref   <- IORef[Nothing, String](current)
+        _     <- ref.writeLater[Nothing](update)
+        value <- ref.read
+      } yield value must beTheSameAs(update)
+    )
 
-  def e6 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref     <- IORef[Nothing, AnyRef](current)
-          success <- ref.tryWrite[Nothing](update)
-          value   <- ref.read[Nothing]
-        } yield (success must beTrue) and (value must beTheSameAs(update))
-      )
-  }
+  def e6 =
+    unsafePerformIO(
+      for {
+        ref     <- IORef[Nothing, String](current)
+        success <- ref.tryWrite[Nothing](update)
+        value   <- ref.read
+      } yield (success must beTrue) and (value must beTheSameAs(update))
+    )
 
   def e7 = {
 
@@ -102,36 +93,22 @@ class IORefSpec extends Specification with RTS {
 
   }
 
-  def e8 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref     <- IORef[Unit, Object](current)
-          success <- ref.compareAndSet[Unit](current, update)
-          value   <- ref.read
-        } yield (success must beTrue) and (value must beTheSameAs(update))
-      )
-  }
-
-  def e9 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref     <- IORef[Nothing, AnyRef](current)
-          success <- ref.compareAndSet[Nothing](update, current)
-          value   <- ref.read
-        } yield (success must beFalse) and (value must beTheSameAs(current))
-      )
-  }
-
-  object Data {
-    private case class Foo()
-    val values = List("hello", new Object, Foo())
-    val tuples = Seq(
-      "hello"       -> "hi",
-      new Object    -> new Object,
-      Foo()         -> Foo(),
-      List(1, 3, 5) -> List(2, 4, 6)
+  def e8 =
+    unsafePerformIO(
+      for {
+        ref     <- IORef[Nothing, String](current)
+        success <- ref.compareAndSet[Nothing](current, update)
+        value   <- ref.read
+      } yield (success must beTrue) and (value must beTheSameAs(update))
     )
-  }
+
+  def e9 =
+    unsafePerformIO(
+      for {
+        ref     <- IORef[Nothing, String](current)
+        success <- ref.compareAndSet[Nothing](update, current)
+        value   <- ref.read
+      } yield (success must beFalse) and (value must beTheSameAs(current))
+    )
+
 }
