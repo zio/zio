@@ -110,14 +110,14 @@ sealed abstract class IO[E, A] { self =>
    */
   final def par[B](that: IO[E, B]): IO[E, (A, B)] =
     self
-      .attempt[E, Either[E, A]](IO.nowLeft)(IO.nowRight)
-      .raceWith(that.attempt[E, Either[E, B]](IO.nowLeft)(IO.nowRight))(
+      .attemptEither[E]
+      .raceWith(that.attemptEither[E])(
         {
           case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail(e)
-          case (Right(a), fiberb) => IO.absolveEither(fiberb.join).map((b: B) => (a, b))
+          case (Right(a), fiberb) => IO.absolve(fiberb.join).map((b: B) => (a, b))
         }, {
           case (Left(e), fibera)  => fibera.interrupt(TerminatedException(e)) *> IO.fail(e)
-          case (Right(b), fibera) => IO.absolveEither(fibera.join).map((a: A) => (a, b))
+          case (Right(b), fibera) => IO.absolve(fibera.join).map((a: A) => (a, b))
         }
       )
 
@@ -176,7 +176,7 @@ sealed abstract class IO[E, A] { self =>
       case _ => new IO.Attempt(self, succ)
     }
 
-  private[effect] final def attemptEither[E2]: IO[E2, Either[E, A]] =
+  final def attemptEither[E2]: IO[E2, Either[E, A]] =
     self.attempt[E2, Either[E, A]](IO.nowLeft)(IO.nowRight)
 
   /**
@@ -459,32 +459,6 @@ sealed abstract class IO[E, A] { self =>
 
 object IO {
 
-  trait Disj[A, B] {
-    def fold[Z](left: A => Z, right: B => Z): Z
-  }
-
-  object Disj {
-    def either[A, B](e: Either[A, B]): Disj[A, B] =
-      new Disj[A, B] {
-        def fold[Z](left: A => Z, right: B => Z): Z =
-          e.fold(left, right)
-      }
-    def option[B](o: Option[B]): Disj[Unit, B] =
-      new Disj[Unit, B] {
-        def fold[Z](left: Unit => Z, right: B => Z): Z =
-          o.fold(left(()))(right)
-      }
-  }
-
-  // Pre-allocate `Function` objects
-
-  @inline
-  private def eitherDisj[E, A]: Either[E, A] => Disj[E, A] =
-    _eitherDisj.asInstanceOf[Either[E, A] => Disj[E, A]]
-
-  private val _eitherDisj: Either[Any, Any] => Disj[Any, Any] =
-    Disj.either[Any, Any] _
-
   @inline
   private def nowLeft[E1, E2, A]: E2 => IO[E1, Either[E2, A]] =
     _nowLeft.asInstanceOf[E2 => IO[E1, Either[E2, A]]]
@@ -698,7 +672,7 @@ object IO {
    * user-defined function.
    */
   final def syncCatch[E, A](effect: => A)(f: PartialFunction[Throwable, E]): IO[E, A] =
-    IO.absolveEither[E, A](
+    IO.absolve[E, A](
       IO.sync(
         try {
           val result = effect
@@ -746,12 +720,8 @@ object IO {
    * Submerges the error case of a disjunction into the `IO`. The inverse
    * operation of `IO.attempt`.
    */
-  final def absolve[E, A, B](disj: B => Disj[E, A])(v: IO[E, B]): IO[E, A] =
-    v.flatMap(b => disj(b).fold[IO[E, A]](IO.fail, IO.now))
-
-  @inline
-  private[effect] def absolveEither[E, A](sinner: IO[E, Either[E, A]]) =
-    IO.absolve[E, A, Either[E, A]](eitherDisj)(sinner)
+  final def absolve[E, A](v: IO[E, Either[E, A]]): IO[E, A] =
+    v.flatMap(_.fold[IO[E, A]](IO.fail, IO.now))
 
   /**
    * Retrieves the supervisor associated with the fiber running the action
@@ -763,8 +733,8 @@ object IO {
    * Requires that the given `IO[E, Maybe[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
-  final def require[E, A, B](error: E): IO[E, Disj[Unit, A]] => IO[E, A] =
-    (io: IO[E, Disj[Unit, A]]) => io.flatMap(_.fold[IO[E, A]](_ => IO.fail[E, A](error), IO.now[E, A]))
+  final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
+    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E, A](error))(IO.now[E, A]))
 
   def forkAll[E2](l: List[IO[E2, Unit]]): IO[E2, Unit] = l match {
     case Nil     => IO.unit[E2]

@@ -217,7 +217,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInAcquisition = {
     lazy val actual = unsafePerformIO(
-      IO.absolveEither(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit).attemptEither[Throwable])
+      IO.absolve(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit).attemptEither[Throwable])
     )
 
     actual must (throwA(UnhandledError(ExampleError)))
@@ -233,7 +233,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafePerformIO(
-      IO.absolveEither(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError)).attemptEither[Throwable])
+      IO.absolve(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError)).attemptEither[Throwable])
     )
 
     actual must (throwA(UnhandledError(ExampleError)))
@@ -245,8 +245,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
     unsafePerformIO(io1) must (throwA(UnhandledError(ExampleError)))
     unsafePerformIO(io2) must (throwA(UnhandledError(ExampleError)))
-    unsafePerformIO(IO.absolveEither(io1.attemptEither[Throwable])) must (throwA(UnhandledError(ExampleError)))
-    unsafePerformIO(IO.absolveEither(io2.attemptEither[Throwable])) must (throwA(UnhandledError(ExampleError)))
+    unsafePerformIO(IO.absolve(io1.attemptEither[Throwable])) must (throwA(UnhandledError(ExampleError)))
+    unsafePerformIO(IO.absolve(io2.attemptEither[Throwable])) must (throwA(UnhandledError(ExampleError)))
   }
 
   def testEvalOfDeepSyncEffect = {
@@ -284,12 +284,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     }) must_=== (())
 
   def testDeepAbsolveAttemptIsIdentity =
-    unsafePerformIO((0 until 1000).foldLeft(IO.point[Int, Int](42))((acc, _) => IO.absolveEither(acc.attemptEither))) must_=== 42
+    unsafePerformIO((0 until 1000).foldLeft(IO.point[Int, Int](42))((acc, _) => IO.absolve(acc.attemptEither))) must_=== 42
 
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafePerformIO(
       (0 until 1000)
-        .foldLeft(IO.async[Int, Int](k => k(ExitResult.Completed(42))))((acc, _) => IO.absolveEither(acc.attemptEither))
+        .foldLeft(IO.async[Int, Int](k => k(ExitResult.Completed(42))))((acc, _) => IO.absolve(acc.attemptEither))
     ) must_=== 42
 
   def testDeepBindOfAsyncChainIsStackSafe = {
