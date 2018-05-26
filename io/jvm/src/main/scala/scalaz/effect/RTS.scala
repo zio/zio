@@ -144,7 +144,7 @@ private object RTS {
   final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
 
-  class Catcher(succ: Any => IO[Any, Any]) extends Function[Any, IO[Any, Any]] {
+  class Catcher[E](val err: E => IO[Any, Any], val succ: Any => IO[Any, Any]) extends Function[Any, IO[Any, Any]] {
     final def apply(v: Any): IO[Any, Any] = succ(v)
   }
 
@@ -244,7 +244,8 @@ private object RTS {
      *
      * @param err   The exception that is being thrown.
      */
-    final def catchError[E2](err: E): IO[E2, List[Throwable]] = {
+    final def catchError[E2](err: E): (E => IO[Any, Any], IO[E2, List[Throwable]]) = {
+      var errorHandler: E => IO[Any, Any]    = null
       var finalizer: IO[E2, List[Throwable]] = null
       var body: ExitResult[E, Any]           = null
 
@@ -254,7 +255,9 @@ private object RTS {
       // finalizers.
       while (!caught && !stack.isEmpty) {
         stack.pop() match {
-          case _: Catcher => caught = true
+          case c: Catcher[_] =>
+            caught = true
+            errorHandler = c.err.asInstanceOf[E => IO[Any, Any]]
           case f0: Finalizer[_] =>
             val f = f0.asInstanceOf[Finalizer[E]]
 
@@ -276,7 +279,7 @@ private object RTS {
       // and result in zero heap allocations for the happy path.
       if (caught && stack.isEmpty) stack.push(IdentityCont)
 
-      finalizer
+      (errorHandler, finalizer)
     }
 
     /**
@@ -435,7 +438,7 @@ private object RTS {
 
                     val error = io.error
 
-                    val finalizer = catchError[Nothing](error)
+                    val (errorHandler, finalizer) = catchError[Nothing](error)
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -459,20 +462,22 @@ private object RTS {
                       }
                     } else {
                       // Error caught:
-                      val value = Left(error)
+                      // FIXME this cast is not safe, `err` is defined as `E => IO[E2, B]`
+                      val handledIo = errorHandler(error).asInstanceOf[IO[E, Any]]
 
                       if (finalizer eq null) {
                         // No finalizer to run:
-                        curIo = nextInstr[E](value, stack)
+                        curIo = handledIo
 
-                        if (curIo eq null) {
-                          eval = false
-                          result = ExitResult.Completed(value)
-                        }
+                        // This will never happen. Right?
+                        // if (curIo eq null) {
+                        //   eval = false
+                        //   result = ExitResult.Completed(handledIo)
+                        // }
                       } else {
                         // Must run finalizer first:
                         val finalization = dispatchErrors(finalizer)
-                        val completer    = IO.now[E, Any](value)
+                        val completer    = handledIo
 
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
@@ -557,7 +562,7 @@ private object RTS {
 
                     curIo = io.value
 
-                    stack.push(new Catcher(io.succ))
+                    stack.push(new Catcher(io.err, io.succ))
 
                   case IO.Tags.Fork =>
                     val io = curIo.asInstanceOf[IO.Fork[_, E, Any]]

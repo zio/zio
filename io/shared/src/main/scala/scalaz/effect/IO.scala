@@ -173,7 +173,7 @@ sealed abstract class IO[E, A] { self =>
         val io = self.asInstanceOf[IO.Fail[E, A]]
         err(io.error)
 
-      case _ => new IO.Attempt(self, succ)
+      case _ => new IO.Attempt(self, err, succ)
     }
 
   final def attemptEither[E2]: IO[E2, Either[E, A]] =
@@ -522,7 +522,10 @@ object IO {
     override def tag = Tags.AsyncIOEffect
   }
 
-  final class Attempt[E1, E2, A, B] private[IO] (val value: IO[E1, A], val succ: A => IO[E2, B]) extends IO[E2, B] {
+  final class Attempt[E1, E2, A, B] private[IO] (val value: IO[E1, A],
+                                                 val err: E1 => IO[E2, B],
+                                                 val succ: A => IO[E2, B])
+      extends IO[E2, B] {
     override def tag = Tags.Attempt
   }
 
