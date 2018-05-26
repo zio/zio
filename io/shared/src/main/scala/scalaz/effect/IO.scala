@@ -460,14 +460,14 @@ sealed abstract class IO[E, A] { self =>
 object IO {
 
   @inline
-  private def nowLeft[E1, E2, A]: E2 => IO[E1, Either[E2, A]] =
+  private final def nowLeft[E1, E2, A]: E2 => IO[E1, Either[E2, A]] =
     _nowLeft.asInstanceOf[E2 => IO[E1, Either[E2, A]]]
 
   private val _nowLeft: Any => IO[Any, Either[Any, Any]] =
     e2 => IO.now[Any, Either[Any, Any]](Left(e2))
 
   @inline
-  private def nowRight[E1, E2, A]: A => IO[E1, Either[E2, A]] =
+  private final def nowRight[E1, E2, A]: A => IO[E1, Either[E2, A]] =
     _nowRight.asInstanceOf[A => IO[E1, Either[E2, A]]]
 
   private val _nowRight: Any => IO[Any, Either[Any, Any]] =
