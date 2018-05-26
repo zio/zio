@@ -525,8 +525,13 @@ object IO {
   final class Attempt[E1, E2, A, B] private[IO] (val value: IO[E1, A],
                                                  val err: E1 => IO[E2, B],
                                                  val succ: A => IO[E2, B])
-      extends IO[E2, B] {
+      extends IO[E2, B]
+      with Function[Any, IO[Any, Any]] {
+
     override def tag = Tags.Attempt
+
+    final def apply(v: Any): IO[Any, Any] =
+      succ(v.asInstanceOf[A]).asInstanceOf[IO[Any, Any]]
   }
 
   final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[Throwable => IO[Nothing, Unit]])

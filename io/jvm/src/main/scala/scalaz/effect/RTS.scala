@@ -144,10 +144,6 @@ private object RTS {
   final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
 
-  class Catcher[E](val err: E => IO[Any, Any], val succ: Any => IO[Any, Any]) extends Function[Any, IO[Any, Any]] {
-    final def apply(v: Any): IO[Any, Any] = succ(v)
-  }
-
   object IdentityCont extends Function[Any, IO[Any, Any]] {
     final def apply(v: Any): IO[Any, Any] = IO.now(v)
   }
@@ -255,9 +251,9 @@ private object RTS {
       // finalizers.
       while (!caught && !stack.isEmpty) {
         stack.pop() match {
-          case c: Catcher[_] =>
+          case a: IO.Attempt[_, _, _, _] =>
             caught = true
-            errorHandler = c.err.asInstanceOf[E => IO[Any, Any]]
+            errorHandler = a.err.asInstanceOf[E => IO[Any, Any]]
           case f0: Finalizer[_] =>
             val f = f0.asInstanceOf[Finalizer[E]]
 
@@ -469,11 +465,6 @@ private object RTS {
                         // No finalizer to run:
                         curIo = handledIo
 
-                        // This will never happen. Right?
-                        // if (curIo eq null) {
-                        //   eval = false
-                        //   result = ExitResult.Completed(handledIo)
-                        // }
                       } else {
                         // Must run finalizer first:
                         val finalization = dispatchErrors(finalizer)
@@ -562,7 +553,7 @@ private object RTS {
 
                     curIo = io.value
 
-                    stack.push(new Catcher(io.err, io.succ))
+                    stack.push(io)
 
                   case IO.Tags.Fork =>
                     val io = curIo.asInstanceOf[IO.Fork[_, E, Any]]
