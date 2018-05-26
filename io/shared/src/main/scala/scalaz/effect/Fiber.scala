@@ -52,3 +52,11 @@ trait Fiber[E, A] { self =>
         self.interrupt(t) *> that.interrupt(t)
     }
 }
+
+object Fiber {
+  final def point[E, A](a: => A): Fiber[E, A] =
+    new Fiber[E, A] {
+      def join: IO[E, A]                            = IO.point(a)
+      def interrupt[E2](t: Throwable): IO[E2, Unit] = IO.unit[E2]
+    }
+}
