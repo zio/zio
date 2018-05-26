@@ -240,7 +240,7 @@ private object RTS {
      *
      * @param err   The exception that is being thrown.
      */
-    final def catchError[E2](err: E): (E => IO[Any, Any], IO[E2, List[Throwable]]) = {
+    final def catchError[E2](err: E): Any = {
       var errorHandler: E => IO[Any, Any]    = null
       var finalizer: IO[E2, List[Throwable]] = null
       var body: ExitResult[E, Any]           = null
@@ -273,9 +273,13 @@ private object RTS {
       // was caught but the stack is empty, we make the stack non-empty. This
       // lets us return only the finalizer, which will be null for common cases,
       // and result in zero heap allocations for the happy path.
-      if (caught && stack.isEmpty) stack.push(IdentityCont)
+      if (caught) {
+        if (stack.isEmpty) stack.push(IdentityCont)
+        (errorHandler, finalizer)
+      } else {
+        finalizer
+      }
 
-      (errorHandler, finalizer)
     }
 
     /**
@@ -434,7 +438,16 @@ private object RTS {
 
                     val error = io.error
 
-                    val (errorHandler, finalizer) = catchError[Nothing](error)
+                    var errorHandler: E => IO[Any, Any]         = null
+                    var finalizer: IO[Nothing, List[Throwable]] = null
+
+                    catchError[Nothing](error) match {
+                      case (c, f) =>
+                        errorHandler = c.asInstanceOf[E => IO[Any, Any]]
+                        if (f != null) finalizer = f.asInstanceOf[IO[Nothing, List[Throwable]]]
+                      case f =>
+                        if (f != null) finalizer = f.asInstanceOf[IO[Nothing, List[Throwable]]]
+                    }
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
