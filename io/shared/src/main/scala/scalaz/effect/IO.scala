@@ -110,8 +110,8 @@ sealed abstract class IO[E, A] { self =>
    */
   final def par[B](that: IO[E, B]): IO[E, (A, B)] =
     self
-      .attemptEither[E]
-      .raceWith(that.attemptEither[E])(
+      .attempt[E]
+      .raceWith(that.attempt[E])(
         {
           case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail(e)
           case (Right(a), fiberb) => IO.absolve(fiberb.join).map((b: B) => (a, b))
@@ -143,14 +143,14 @@ sealed abstract class IO[E, A] { self =>
    * otherwise executes the specified action.
    */
   final def orElse(that: => IO[E, A]): IO[E, A] =
-    self.attempt(_ => that)(IO.now)
+    self.redeem(_ => that)(IO.now)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
    * a "larger" error.
    */
   final def leftMap[E2](f: E => E2): IO[E2, A] =
-    self.attempt[E2, A](e => IO.fail(f(e)))(IO.now)
+    self.redeem[E2, A](e => IO.fail(f(e)))(IO.now)
 
   /**
    * Widens the error type to any supertype. While `leftMap` suffices for this
@@ -167,7 +167,7 @@ sealed abstract class IO[E, A] { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it is guaranteed the `IO` action does not raise any errors.
    */
-  final def attempt[E2, B](err: E => IO[E2, B])(succ: A => IO[E2, B]): IO[E2, B] =
+  final def redeem[E2, B](err: E => IO[E2, B])(succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
       case IO.Tags.Fail =>
         val io = self.asInstanceOf[IO.Fail[E, A]]
@@ -176,8 +176,8 @@ sealed abstract class IO[E, A] { self =>
       case _ => new IO.Attempt(self, err, succ)
     }
 
-  final def attemptEither[E2]: IO[E2, Either[E, A]] =
-    self.attempt[E2, Either[E, A]](IO.nowLeft)(IO.nowRight)
+  final def attempt[E2]: IO[E2, Either[E, A]] =
+    self.redeem[E2, Either[E, A]](IO.nowLeft)(IO.nowRight)
 
   /**
    * When this action represents acquisition of a resource (for example,
@@ -282,7 +282,7 @@ sealed abstract class IO[E, A] { self =>
    * }}}
    */
   final def catchAll[E2](h: E => IO[E2, A]): IO[E2, A] =
-    self.attempt[E2, A](h)(IO.now)
+    self.redeem[E2, A](h)(IO.now)
 
   /**
    * Recovers from some or all of the error cases.
@@ -297,7 +297,7 @@ sealed abstract class IO[E, A] { self =>
     def tryRescue(t: E): IO[E, A] =
       if (pf.isDefinedAt(t)) pf(t) else IO.fail(t)
 
-    self.attempt[E, A](tryRescue)(IO.now)
+    self.redeem[E, A](tryRescue)(IO.now)
   }
 
   /**
@@ -725,7 +725,7 @@ object IO {
 
   /**
    * Submerges the error case of a disjunction into the `IO`. The inverse
-   * operation of `IO.attempt`.
+   * operation of `IO.Attempt`.
    */
   final def absolve[E, A](v: IO[E, Either[E, A]]): IO[E, A] =
     v.flatMap(_.fold[IO[E, A]](IO.fail, IO.now))

@@ -27,9 +27,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   RTS failure
     error in sync effect                    $testEvalOfAttemptOfSyncEffectError
-    attempt . fail                          $testEvalOfAttemptOfFail
-    deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
-    deep attempt fail error                 $testAttemptOfDeepFailError
+    redeem . fail                           $testEvalOfAttemptOfFail
+    deep redeem sync effect error           $testAttemptOfDeepSyncEffectError
+    deep redeem fail error                  $testAttemptOfDeepFailError
     uncaught fail                           $testEvalOfUncaughtFail
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
@@ -53,9 +53,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     deep map of point                       $testDeepMapOfPoint
     deep map of now                         $testDeepMapOfNow
     deep map of sync effect                 $testDeepMapOfSyncEffectIsStackSafe
-    deep attempt                            $testDeepAttemptIsStackSafe
-    deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
-    deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
+    deep redeem                             $testDeepAttemptIsStackSafe
+    deep absolve/redeem is identity         $testDeepAbsolveAttemptIsIdentity
+    deep async absolve/redeem is identity   $testDeepAsyncAbsolveAttemptIsIdentity
 
   RTS asynchronous stack safety
     deep bind of async chain                $testDeepBindOfAsyncChainIsStackSafe
@@ -126,22 +126,22 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testEvalOfAttemptOfSyncEffectError =
     unsafePerformIO(
       IO.syncThrowable(throw ExampleError)
-        .attempt[Throwable, Option[Throwable]](e => IO.now(Some(e)))(_ => IO.now(None))
+        .redeem[Throwable, Option[Throwable]](e => IO.now(Some(e)))(_ => IO.now(None))
     ) must_=== Some(ExampleError)
 
   def testEvalOfAttemptOfFail = {
-    unsafePerformIO(IO.fail[Throwable, Int](ExampleError).attemptEither[Throwable]) must_=== Left(ExampleError)
+    unsafePerformIO(IO.fail[Throwable, Int](ExampleError).attempt[Throwable]) must_=== Left(ExampleError)
 
-    unsafePerformIO(IO.suspend(IO.suspend(IO.fail[Throwable, Int](ExampleError)).attemptEither[Throwable])) must_=== Left(
+    unsafePerformIO(IO.suspend(IO.suspend(IO.fail[Throwable, Int](ExampleError)).attempt[Throwable])) must_=== Left(
       ExampleError
     )
   }
 
   def testAttemptOfDeepSyncEffectError =
-    unsafePerformIO(deepErrorEffect(100).attemptEither[Throwable]) must_=== Left(ExampleError)
+    unsafePerformIO(deepErrorEffect(100).attempt[Throwable]) must_=== Left(ExampleError)
 
   def testAttemptOfDeepFailError =
-    unsafePerformIO(deepErrorFail(100).attemptEither[Throwable]) must_=== Left(ExampleError)
+    unsafePerformIO(deepErrorFail(100).attempt[Throwable]) must_=== Left(ExampleError)
 
   def testEvalOfUncaughtFail =
     unsafePerformIO(IO.fail[Throwable, Int](ExampleError)) must (throwA(UnhandledError(ExampleError)))
@@ -217,7 +217,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInAcquisition = {
     lazy val actual = unsafePerformIO(
-      IO.absolve(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit).attemptEither[Throwable])
+      IO.absolve(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit).attempt[Throwable])
     )
 
     actual must (throwA(UnhandledError(ExampleError)))
@@ -233,7 +233,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafePerformIO(
-      IO.absolve(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError)).attemptEither[Throwable])
+      IO.absolve(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable])
     )
 
     actual must (throwA(UnhandledError(ExampleError)))
@@ -245,8 +245,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
     unsafePerformIO(io1) must (throwA(UnhandledError(ExampleError)))
     unsafePerformIO(io2) must (throwA(UnhandledError(ExampleError)))
-    unsafePerformIO(IO.absolve(io1.attemptEither[Throwable])) must (throwA(UnhandledError(ExampleError)))
-    unsafePerformIO(IO.absolve(io2.attemptEither[Throwable])) must (throwA(UnhandledError(ExampleError)))
+    unsafePerformIO(IO.absolve(io1.attempt[Throwable])) must (throwA(UnhandledError(ExampleError)))
+    unsafePerformIO(IO.absolve(io2.attempt[Throwable])) must (throwA(UnhandledError(ExampleError)))
   }
 
   def testEvalOfDeepSyncEffect = {
@@ -280,16 +280,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testDeepAttemptIsStackSafe =
     unsafePerformIO((0 until 10000).foldLeft(IO.sync[Throwable, Unit](())) { (acc, _) =>
-      acc.attemptEither[Throwable].toUnit
+      acc.attempt[Throwable].toUnit
     }) must_=== (())
 
   def testDeepAbsolveAttemptIsIdentity =
-    unsafePerformIO((0 until 1000).foldLeft(IO.point[Int, Int](42))((acc, _) => IO.absolve(acc.attemptEither))) must_=== 42
+    unsafePerformIO((0 until 1000).foldLeft(IO.point[Int, Int](42))((acc, _) => IO.absolve(acc.attempt))) must_=== 42
 
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafePerformIO(
       (0 until 1000)
-        .foldLeft(IO.async[Int, Int](k => k(ExitResult.Completed(42))))((acc, _) => IO.absolve(acc.attemptEither))
+        .foldLeft(IO.async[Int, Int](k => k(ExitResult.Completed(42))))((acc, _) => IO.absolve(acc.attempt))
     ) must_=== 42
 
   def testDeepBindOfAsyncChainIsStackSafe = {
