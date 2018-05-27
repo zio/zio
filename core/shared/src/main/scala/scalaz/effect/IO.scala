@@ -776,7 +776,7 @@ object IO {
 
   def forkAll[E2](l: List[IO[E2, Unit]]): IO[E2, Unit] = l match {
     case Nil     => IO.unit[E2]
-    case x :: xs => x.fork.toUnit *> forkAll(xs)
+    case x :: xs => x.fork *> forkAll(xs)
   }
 
   private final val Never: IO[Nothing, Any] =
