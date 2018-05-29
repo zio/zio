@@ -68,6 +68,8 @@ trait RTS {
   }
 
   final def unsafeShutdownAndWait(timeout: Duration): Unit = {
+    scheduledExecutor.shutdown()
+    scheduledExecutor.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
     threadPool.shutdown()
     threadPool.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
     ()
