@@ -73,6 +73,14 @@ trait RTS {
     result.get
   }
 
+  final def unsafeShutdownAndWait(timeout: Duration): Unit = {
+    scheduledExecutor.shutdown()
+    scheduledExecutor.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
+    threadPool.shutdown()
+    threadPool.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
+    ()
+  }
+
   /**
    * The default handler for unhandled exceptions in the main fiber, and any
    * fibers it forks that recursively inherit the handler.
