@@ -15,4 +15,7 @@ package object ioeffect {
   type Void = Void.Void // required at this level for working Void
 
   val Void: VoidModule = VoidImpl
+
+  type Canceler     = Throwable => Unit
+  type PureCanceler = Throwable => IO[Void, Unit]
 }
