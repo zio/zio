@@ -11,20 +11,16 @@ package scalaz.ioeffect
  */
 sealed abstract class Async[E, A]
 object Async {
-  type Interruptor = Throwable => Unit
 
-  sealed abstract case class Later[E, A] private () extends Async[E, A]
-  object Later {
-    // @xuwei-k's trick with a fix by @hrhino. We eliminate allocation overhead
-    // but also preserve exhaustivity checking.
-    private[this] final class Later_[+E, +A] extends Later[E, A] // scalafix:ok DisableSyntax.covariant
-    private[this] val value: Later[Nothing, Nothing] =
-      new Later_[Nothing, Nothing]
-    def apply[E, A](): Async[E, A] = value.asInstanceOf[Later[E, A]]
-  }
+  val NoOpCanceler: Canceler         = _ => ()
+  val NoOpPureCanceler: PureCanceler = _ => IO.unit[Void]
+
+  private val _Later: Async[Nothing, Nothing] = MaybeLater(NoOpCanceler)
+
   // TODO: Optimize this common case to less overhead with opaque types
   final case class Now[E, A](value: ExitResult[E, A])         extends Async[E, A]
-  final case class MaybeLater[E, A](interruptor: Interruptor) extends Async[E, A]
+  final case class MaybeLater[E, A](canceler: Canceler)       extends Async[E, A]
+  final case class MaybeLaterIO[E, A](canceler: PureCanceler) extends Async[E, A]
 
   /**
    * Constructs an `Async` that represents an uninterruptible asynchronous
@@ -33,7 +29,7 @@ object Async {
    *
    * See `IO.async0` for more information.
    */
-  final def later[E, A]: Async[E, A] = Later()
+  final def later[E, A]: Async[E, A] = _Later.asInstanceOf[Async[E, A]]
 
   /**
    * Constructs an `Async` that represents a synchronous return. The
@@ -53,6 +49,9 @@ object Async {
    * results are no longer needed because the fiber computing them has been
    * terminated.
    */
-  final def maybeLater[E, A](interruptor: Interruptor): Async[E, A] =
-    MaybeLater(interruptor)
+  final def maybeLater[E, A](canceler: Canceler): Async[E, A] =
+    MaybeLater(canceler)
+
+  final def maybeLaterIO[E, A](canceler: PureCanceler): Async[E, A] =
+    MaybeLaterIO(canceler)
 }
