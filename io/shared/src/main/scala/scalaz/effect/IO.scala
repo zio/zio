@@ -623,7 +623,7 @@ object IO {
 
   /**
    * Lazily produces an `IO` value whose construction may have actional costs
-   * that should be be deferred until evaluation.
+   * that should be deferred until evaluation.
    *
    * Do not use this method to effectfully construct `IO` values. The results
    * will be undefined and most likely involve the physical explosion of your

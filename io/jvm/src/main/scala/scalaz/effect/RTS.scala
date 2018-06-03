@@ -455,16 +455,18 @@ private object RTS {
                       }
                     } else {
                       // Error caught:
-                      curIo = IO.now(error)
+                      val handled = nextInstr[E](error, stack)
 
-                      if (finalizer ne null) {
+                      if (finalizer eq null) {
+                        curIo = handled
+                      } else {
                         // Must run finalizer first:
                         val finalization = dispatchErrors(finalizer)
 
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = ensuringUninterruptibleExit(finalization[E]) *> curIo
+                        curIo = ensuringUninterruptibleExit(finalization[E]) *> handled
                       }
                     }
 
