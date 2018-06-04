@@ -160,12 +160,16 @@ sealed abstract class IO[E, A] { self =>
     self.asInstanceOf[IO[E2, A]]
 
   /**
-   * Executes this action, capturing both failure and success and returning
-   * the result in a `Disjunction`. This method is useful for recovering from
-   * `IO` actions that may fail.
+   * Lets define separate continuations for the case of failure (`err`) or
+   * success (`succ`). Executes this action and based on the result executes
+   * the next action, `err` or `succ`.
+   * This method is useful for recovering from `IO` actions that may fail
+   * just as `attempt` is, but it has better performance since no intermediate
+   * value is allocated and does not requiere subsequent calls
+   * to `flatMap` to define the next action.
    *
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
-   * it is guaranteed the `IO` action does not raise any errors.
+   * it will depend on the `IO`s returned by the given continuations.
    */
   final def redeem[E2, B](err: E => IO[E2, B])(succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
@@ -176,6 +180,14 @@ sealed abstract class IO[E, A] { self =>
       case _ => new IO.Attempt(self, err, succ)
     }
 
+  /**
+   * Executes this action, capturing both failure and success and returning
+   * the result in an `Either`. This method is useful for recovering from
+   * `IO` actions that may fail.
+   *
+   * The error parameter of the returned `IO` may be chosen arbitrarily, since
+   * it is guaranteed the `IO` action does not raise any errors.
+   */
   final def attempt[E2]: IO[E2, Either[E, A]] =
     self.redeem[E2, Either[E, A]](IO.nowLeft)(IO.nowRight)
 
@@ -246,8 +258,9 @@ sealed abstract class IO[E, A] { self =>
     )(use)
 
   /**
-   * Runs the specified cleanup action if this action errors, providing the
+   * Runs one of the specified cleanup actions if this action errors, providing the
    * error to the cleanup action. The cleanup action will not be interrupted.
+   * Cleanup actions for handled and unhandled errors can be provided separately.
    */
   final def onError(cleanupT: Throwable => IO[Nothing, Unit])(cleanupE: E => IO[Nothing, Unit]): IO[E, A] =
     IO.unit[E]
@@ -724,8 +737,8 @@ object IO {
   final def never[E, A]: IO[E, A] = Never.asInstanceOf[IO[E, A]]
 
   /**
-   * Submerges the error case of a disjunction into the `IO`. The inverse
-   * operation of `IO.Attempt`.
+   * Submerges the error case of an `Either` into the `IO`. The inverse
+   * operation of `IO.attempt`.
    */
   final def absolve[E, A](v: IO[E, Either[E, A]]): IO[E, A] =
     v.flatMap(_.fold[IO[E, A]](IO.fail, IO.now))
@@ -737,7 +750,7 @@ object IO {
   def supervisor[E]: IO[E, Throwable => IO[Nothing, Unit]] = new Supervisor()
 
   /**
-   * Requires that the given `IO[E, Maybe[A]]` contain a value. If there is no
+   * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =

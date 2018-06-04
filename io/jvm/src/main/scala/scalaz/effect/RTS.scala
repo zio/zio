@@ -265,10 +265,11 @@ private object RTS {
         }
       }
 
-      // This may seem strange but we need to maintain the invariant that an
-      // empty stack means the exception was *not* caught. So if the exception
-      // was caught but the stack is empty, we make the stack non-empty. This
-      // lets us return only the finalizer, which will be null for common cases,
+      // We need to maintain the invariant that an empty stack means the
+      // exception was *not* caught.
+      // The stack will never be empty if the error was caught, because
+      // the error handler will be pushed onto the stack.
+      // This lets us return only the finalizer, which will be null for common cases,
       // and result in zero heap allocations for the happy path.
       if (errorHandler ne null) stack.push(errorHandler)
 

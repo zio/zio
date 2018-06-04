@@ -26,10 +26,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     deep effects                            $testEvalOfDeepSyncEffect
 
   RTS failure
-    error in sync effect                    $testEvalOfAttemptOfSyncEffectError
-    redeem . fail                           $testEvalOfAttemptOfFail
-    deep redeem sync effect error           $testAttemptOfDeepSyncEffectError
-    deep redeem fail error                  $testAttemptOfDeepFailError
+    error in sync effect                    $testEvalOfRedeemOfSyncEffectError
+    attempt . fail                          $testEvalOfAttemptOfFail
+    deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
+    deep attempt fail error                 $testAttemptOfDeepFailError
     uncaught fail                           $testEvalOfUncaughtFail
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
@@ -53,9 +53,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     deep map of point                       $testDeepMapOfPoint
     deep map of now                         $testDeepMapOfNow
     deep map of sync effect                 $testDeepMapOfSyncEffectIsStackSafe
-    deep redeem                             $testDeepAttemptIsStackSafe
-    deep absolve/redeem is identity         $testDeepAbsolveAttemptIsIdentity
-    deep async absolve/redeem is identity   $testDeepAsyncAbsolveAttemptIsIdentity
+    deep attempt                            $testDeepAttemptIsStackSafe
+    deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
+    deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
 
   RTS asynchronous stack safety
     deep bind of async chain                $testDeepBindOfAsyncChainIsStackSafe
@@ -123,19 +123,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(sumIo(1000)) must_=== sum(1000)
   }
 
-  def testEvalOfAttemptOfSyncEffectError =
+  def testEvalOfRedeemOfSyncEffectError =
     unsafePerformIO(
       IO.syncThrowable(throw ExampleError)
         .redeem[Throwable, Option[Throwable]](e => IO.now(Some(e)))(_ => IO.now(None))
     ) must_=== Some(ExampleError)
 
-  def testEvalOfAttemptOfFail = {
-    unsafePerformIO(IO.fail[Throwable, Int](ExampleError).attempt[Throwable]) must_=== Left(ExampleError)
-
+  def testEvalOfAttemptOfFail = Seq(
+    unsafePerformIO(IO.fail[Throwable, Int](ExampleError).attempt[Throwable]) must_=== Left(ExampleError),
     unsafePerformIO(IO.suspend(IO.suspend(IO.fail[Throwable, Int](ExampleError)).attempt[Throwable])) must_=== Left(
       ExampleError
     )
-  }
+  )
 
   def testAttemptOfDeepSyncEffectError =
     unsafePerformIO(deepErrorEffect(100).attempt[Throwable]) must_=== Left(ExampleError)
