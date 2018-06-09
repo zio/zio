@@ -3,9 +3,7 @@
 package scalaz.effect
 
 import scalaz.effect.IOQueue.internal._
-import scalaz.{ Boolean, Int, Unit, Void }
 
-import scala.{ None, Some }
 import scala.collection.immutable.Queue
 
 /**
@@ -107,18 +105,18 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
         (IO.now(false), s)
     })
 
-  private final def removePutter(putter: Promise[_, Unit]): IO[Void, Unit] =
+  private final def removePutter(putter: Promise[_, Unit]): IO[Nothing, Unit] =
     ref
-      .modify[Void] {
+      .modify[Nothing] {
         case Surplus(values, putters) =>
           Surplus(values, putters.filterNot(_._2 == putter))
         case d => d
       }
       .toUnit
 
-  private final def removeTaker(taker: Promise[_, A]): IO[Void, Unit] =
+  private final def removeTaker(taker: Promise[_, A]): IO[Nothing, Unit] =
     ref
-      .modify[Void] {
+      .modify[Nothing] {
         case Deficit(takers) =>
           Deficit(takers.filterNot(_ == taker))
 

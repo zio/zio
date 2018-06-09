@@ -12,14 +12,14 @@ package object effect {
   type RuntimeException = java.lang.RuntimeException
   type Throwable        = java.lang.Throwable
 
-  implicit class IOVoidSyntax[A](val io: IO[Void, A]) extends AnyRef {
+  implicit class IONothingSyntax[A](val io: IO[Nothing, A]) extends AnyRef {
     def apply[E]: IO[E, A] = io.asInstanceOf[IO[E, A]]
   }
 
   type Task[A] = IO[Throwable, A]
 
-  type Unexceptional[A] = IO[Void, A]
+  type Unexceptional[A] = IO[Nothing, A]
 
   type Canceler     = Throwable => Unit
-  type PureCanceler = Throwable => IO[Void, Unit]
+  type PureCanceler = Throwable => IO[Nothing, Unit]
 }

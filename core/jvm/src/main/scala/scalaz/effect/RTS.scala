@@ -6,7 +6,6 @@ import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{ Executors, TimeUnit }
-import java.lang.{ Runnable, Runtime }
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -456,7 +455,7 @@ private object RTS {
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = ensuringUninterruptibleExit(finalization[E] *> completer)
+                        curIo = ensuringUninterruptibleExit(finalization.widenError[E] *> completer)
                       }
                     } else {
                       // Error caught:
@@ -471,7 +470,7 @@ private object RTS {
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = ensuringUninterruptibleExit(finalization[E]) *> handled
+                        curIo = ensuringUninterruptibleExit(finalization.widenError[E]) *> handled
                       }
                     }
 

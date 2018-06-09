@@ -184,13 +184,13 @@ class KleisliIOSpec extends Specification with RTS {
     unsafePerformIO(
       for {
         a <- fail[String, Int, Int]("error")(1).attempt
-      } yield a must_=== -\/("error")
+      } yield a must_=== Left("error")
     )
 
   def e18b =
     unsafePerformIO(
       for {
         a <- impure[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception)(9).attempt
-      } yield a must_=== -\/("error")
+      } yield a must_=== Left("error")
     )
 }
