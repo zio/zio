@@ -53,7 +53,7 @@ class IOMapBenchmark {
   @Benchmark
   def scalazMap(): BigInt = {
     @tailrec
-    def sumTo(t: IO[Void, BigInt], n: Int): IO[Void, BigInt] =
+    def sumTo(t: IO[Nothing, BigInt], n: Int): IO[Nothing, BigInt] =
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
