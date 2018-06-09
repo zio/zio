@@ -1,8 +1,6 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.effect
 
-import scalaz.Void
-
 /**
  * The `Async` class describes the return value of an asynchronous effect
  * that is imported into an `IO` value.
@@ -11,13 +9,13 @@ import scalaz.Void
  * asynchronous action, `now` which represents a synchronously computed value,
  * `maybeLater`, which represents an interruptible asynchronous action or `maybeLaterIO`
  * which represents an interruptible asynchronous action where the canceler has the
- * form `Throwable => IO[Void, Unit]`
+ * form `Throwable => IO[Nothing, Unit]`
  */
 sealed abstract class Async[E, A]
 object Async {
 
   val NoOpCanceler: Canceler         = _ => ()
-  val NoOpPureCanceler: PureCanceler = _ => IO.unit[Void]
+  val NoOpPureCanceler: PureCanceler = _ => IO.unit[Nothing]
 
   private val _Later: Async[Nothing, Nothing] = MaybeLater(NoOpCanceler)
 

@@ -1,14 +1,6 @@
-package scalaz
-package effect
-
-import java.lang.Object
-
-import scala.{ List, Seq }
-import scala.Predef.ArrowAssoc
+package scalaz.effect
 
 import org.specs2.Specification
-
-import Scalaz._
 
 class IORefSpec extends Specification with RTS {
 
@@ -27,117 +19,96 @@ class IORefSpec extends Specification with RTS {
         false if the previous value and the current value have a different reference.          $e9
     """
 
-  def e1 = forall(Data.values) { v =>
+  val (current, update) = ("value", "new value")
+
+  def e1 =
     unsafePerformIO(
       for {
-        ref   <- IORef(v)
-        value <- ref.read[Void]
-      } yield value must beTheSameAs(v)
+        ref   <- IORef[Nothing, String](current)
+        value <- ref.read
+      } yield value must beTheSameAs(current)
     )
-  }
 
-  def e2 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref   <- IORef(current)
-          _     <- ref.write(update)
-          value <- ref.read[Void]
-        } yield value must beTheSameAs(update)
-      )
-  }
+  def e2 =
+    unsafePerformIO(
+      for {
+        ref   <- IORef[Nothing, String](current)
+        _     <- ref.write[Nothing](update)
+        value <- ref.read
+      } yield value must beTheSameAs(update)
+    )
 
-  def e3 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref   <- IORef(current)
-          value <- ref.modify[Void](_ => update)
-        } yield value must beTheSameAs(update)
-      )
-  }
+  def e3 =
+    unsafePerformIO(
+      for {
+        ref   <- IORef[Nothing, String](current)
+        value <- ref.modify(_ => update)
+      } yield value must beTheSameAs(update)
+    )
 
-  def e4 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref   <- IORef(current)
-          r     <- ref.modifyFold(_ => ("hello", update))
-          value <- ref.read[Void]
-        } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
-      )
-  }
+  def e4 =
+    unsafePerformIO(
+      for {
+        ref   <- IORef[Nothing, String](current)
+        r     <- ref.modifyFold[Nothing, String](_ => ("hello", update))
+        value <- ref.read
+      } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
+    )
 
-  def e5 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref   <- IORef(current)
-          _     <- ref.writeLater(update)
-          value <- ref.read[Void]
-        } yield value must beTheSameAs(update)
-      )
-  }
+  def e5 =
+    unsafePerformIO(
+      for {
+        ref   <- IORef[Nothing, String](current)
+        _     <- ref.writeLater[Nothing](update)
+        value <- ref.read
+      } yield value must beTheSameAs(update)
+    )
 
-  def e6 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref     <- IORef(current)
-          success <- ref.tryWrite(update)
-          value   <- ref.read[Void]
-        } yield (success must beTrue) and (value must beTheSameAs(update))
-      )
-  }
+  def e6 =
+    unsafePerformIO(
+      for {
+        ref     <- IORef[Nothing, String](current)
+        success <- ref.tryWrite[Nothing](update)
+        value   <- ref.read
+      } yield (success must beTrue) and (value must beTheSameAs(update))
+    )
 
   def e7 = {
 
-    def tryWriteUntilFalse(ref: IORef[Int], update: Int): IO[Void, Boolean] =
-      ref.tryWrite(update).flatMap(success => if (!success) IO.point(success) else tryWriteUntilFalse(ref, update))
+    def tryWriteUntilFalse(ref: IORef[Int], update: Int): IO[Nothing, Boolean] =
+      ref
+        .tryWrite[Nothing](update)
+        .flatMap(success => if (!success) IO.point[Nothing, Boolean](success) else tryWriteUntilFalse(ref, update))
 
     unsafePerformIO(
       for {
-        ref     <- IORef[Void, Int](0)
-        f1      <- ref.write[Void](1).forever[Unit].fork[Void]
-        f2      <- ref.write[Void](2).forever[Unit].fork[Void]
+        ref     <- IORef[Nothing, Int](0)
+        f1      <- ref.write[Nothing](1).forever[Unit].fork[Nothing]
+        f2      <- ref.write[Nothing](2).forever[Unit].fork[Nothing]
         success <- tryWriteUntilFalse(ref, 3)
-        value   <- ref.read[Void]
-        _       <- (f1 <> f2).interrupt[Void](new Error("Terminated fiber"))
+        value   <- ref.read[Nothing]
+        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Nothing](new Error("Terminated fiber"))
       } yield (success must beFalse) and (value must be_!=(3))
     )
 
   }
 
-  def e8 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref     <- IORef(current)
-          success <- ref.compareAndSet[Void](current, update)
-          value   <- ref.read
-        } yield (success must beTrue) and (value must beTheSameAs(update))
-      )
-  }
-
-  def e9 = forall(Data.tuples) {
-    case (current, update) =>
-      unsafePerformIO(
-        for {
-          ref     <- IORef(current)
-          success <- ref.compareAndSet[Void](update, current)
-          value   <- ref.read
-        } yield (success must beFalse) and (value must beTheSameAs(current))
-      )
-  }
-
-  object Data {
-    private case class Foo()
-    val values = List("hello", new Object, Foo())
-    val tuples = Seq(
-      "hello"       -> "hi",
-      new Object    -> new Object,
-      Foo()         -> Foo(),
-      List(1, 3, 5) -> List(2, 4, 6)
+  def e8 =
+    unsafePerformIO(
+      for {
+        ref     <- IORef[Nothing, String](current)
+        success <- ref.compareAndSet[Nothing](current, update)
+        value   <- ref.read
+      } yield (success must beTrue) and (value must beTheSameAs(update))
     )
-  }
+
+  def e9 =
+    unsafePerformIO(
+      for {
+        ref     <- IORef[Nothing, String](current)
+        success <- ref.compareAndSet[Nothing](update, current)
+        value   <- ref.read
+      } yield (success must beFalse) and (value must beTheSameAs(current))
+    )
+
 }

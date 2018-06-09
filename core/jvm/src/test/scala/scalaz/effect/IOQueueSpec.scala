@@ -3,9 +3,7 @@ package scalaz.effect
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
-import scalaz.{ Int, String, Unit, Void }
 
-import scala.{ List, StringContext }
 import scala.collection.immutable.Range
 import scala.concurrent.duration._
 

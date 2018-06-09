@@ -1,8 +1,5 @@
 package scalaz.effect
 
-import scalaz.Void
-import scala.{ Boolean, Either, Left, PartialFunction, Right, Unit }
-
 /**
  * A `KleisliIO[E, A, B]` is an effectful function from `A` to `B`, which might
  * fail with an `E`.
@@ -35,29 +32,29 @@ import scala.{ Boolean, Either, Left, PartialFunction, Right, Unit }
  * Given the following two `KleisliIO`:
  *
  * {{{
- * val readLine = KleisliIO.impureVoid((_ : Unit) => scala.Console.readLine())
- * val printLine = KleisliIO.impureVoid((line: String) => println(line))
+ * val readLine = KleisliIO.impureNothing((_ : Unit) => scala.Console.readLine())
+ * val printLine = KleisliIO.impureNothing((line: String) => println(line))
  * }}}
  *
  * Then the following two programs are equivalent:
  *
  * {{{
  * // Program 1
- * val program1: IO[Void, Unit] =
+ * val program1: IO[Nothing, Unit] =
  *   for {
  *     name <- getStrLn
  *     _    <- putStrLn("Hello, " + name)
  *   } yield ())
  *
  * // Program 2
- * val program2: IO[Void, Unit] = (readLine >>> KleisliIO.lift("Hello, " + _) >>> printLine)(())
+ * val program2: IO[Nothing, Unit] = (readLine >>> KleisliIO.lift("Hello, " + _) >>> printLine)(())
  * }}}
  *
  * Similarly, the following two programs are equivalent:
  *
  * {{{
  * // Program 1
- * val program1: IO[Void, Unit] =
+ * val program1: IO[Nothing, Unit] =
  *   for {
  *     line1 <- getStrLn
  *     line2 <- getStrLn
@@ -65,7 +62,7 @@ import scala.{ Boolean, Either, Left, PartialFunction, Right, Unit }
  *   } yield ())
  *
  * // Program 2
- * val program2: IO[Void, Unit] =
+ * val program2: IO[Nothing, Unit] =
  *   (readLine.zipWith(readLine)("You wrote: " + _ + ", " + _) >>> printLine)(())
  * }}}
  *
@@ -256,7 +253,7 @@ object KleisliIO {
    * Lifts an impure function into `KleisliIO`, assuming any throwables are
    * non-recoverable and do not need to be converted into errors.
    */
-  final def impureVoid[A, B](f: A => B): KleisliIO[Void, A, B] = new Impure(f)
+  final def impureNothing[A, B](f: A => B): KleisliIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns a new effectful function that passes an `A` to the condition, and

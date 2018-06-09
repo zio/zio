@@ -1,7 +1,6 @@
 package scalaz.effect
 
 import org.specs2.Specification
-import scalaz.data.Disjunction.-\/
 
 class PromiseSpec extends Specification with RTS {
 
@@ -46,7 +45,7 @@ class PromiseSpec extends Specification with RTS {
         p <- Promise.make[String, Int]
         s <- p.error[String]("error in e3")
         v <- p.get.attempt[String]
-      } yield s must beTrue and (v must_=== -\/("error in e3"))
+      } yield s must beTrue and (v must_=== Left("error in e3"))
     )
 
   def e4 =
@@ -55,7 +54,7 @@ class PromiseSpec extends Specification with RTS {
         p <- Promise.make[String, Int]
         s <- p.done[String](ExitResult.Failed("error in e4"))
         v <- p.get.attempt[String]
-      } yield s must beTrue and (v must_=== -\/("error in e4"))
+      } yield s must beTrue and (v must_=== Left("error in e4"))
     )
 
   def e5 =
