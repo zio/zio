@@ -1,6 +1,4 @@
-![ZIO](ZIO.svg)
-
-# ZIO
+<img src="ZIO.svg" alt="ZIO" align="middle">
 
 The ZIO library provides a general-purpose effect monad and associated abstractions for purely functional Scala applications.
 
