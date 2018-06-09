@@ -48,7 +48,11 @@ class IOShallowAttemptBenchmark {
     def throwup(n: Int): Task[BigInt] =
       if (n == 0) throwup(n + 1).attempt.map(_.fold(_ => 0, a => a))
       else if (n == depth) Task(1)
-      else throwup(n + 1).attempt.map(_.fold(_ => 0, a => a)).flatMap(_ => Task.raiseError(new Error("Oh noes!")))
+      else
+        throwup(n + 1).attempt.flatMap {
+          case Left(_)  => Task.now(0)
+          case Right(_) => Task.raiseError(new Error("Oh noes!"))
+        }
 
     throwup(0).runSyncMaybe.right.get
   }
@@ -70,7 +74,11 @@ class IOShallowAttemptBenchmark {
     def throwup(n: Int): IO[BigInt] =
       if (n == 0) throwup(n + 1).attempt.map(_.fold(_ => 0, a => a))
       else if (n == depth) IO(1)
-      else throwup(n + 1).attempt.map(_.fold(_ => 0, a => a)).flatMap(_ => IO.raiseError(new Error("Oh noes!")))
+      else
+        throwup(n + 1).attempt.flatMap {
+          case Left(_)  => IO(0)
+          case Right(_) => IO.raiseError(new Error("Oh noes!"))
+        }
 
     throwup(0).unsafeRunSync()
   }
