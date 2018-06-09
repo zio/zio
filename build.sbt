@@ -5,7 +5,7 @@ lazy val root = project
   .settings(
     skip in publish := true
   )
-  .aggregate(ioJVM, ioJS)
+  .aggregate(ioJVM, ioJS, benchmarks)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val io = crossProject
@@ -21,3 +21,17 @@ lazy val io = crossProject
 lazy val ioJVM = io.jvm
 
 lazy val ioJS = io.js
+
+lazy val benchmarks = project.module
+  .dependsOn(ioJVM)
+  .enablePlugins(JmhPlugin)
+  .settings(
+    skip in publish := true,
+    libraryDependencies ++=
+      Seq(
+        "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
+        "io.monix"       %% "monix"         % "3.0.0-RC1",
+        "org.typelevel"  %% "cats-effect"   % "1.0.0-RC"
+      )
+  )
