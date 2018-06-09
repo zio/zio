@@ -1,4 +1,4 @@
-![ZIO](zio.svg)
+![ZIO](ZIO.svg)
 
 # ZIO
 
