@@ -1,6 +1,8 @@
-# scalaz-effect
+![ZIO](zio.svg)
 
-The `scalaz.effect` package provides a general-purpose effect monad and associated abstractions for purely functional Scala applications.
+# ZIO
+
+The ZIO library provides a general-purpose effect monad and associated abstractions for purely functional Scala applications.
 
 The package strives to deliver on the following design goals:
 
