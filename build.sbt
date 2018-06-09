@@ -5,11 +5,11 @@ lazy val root = project
   .settings(
     skip in publish := true
   )
-  .aggregate(ioJVM, ioJS)
+  .aggregate(coreJVM, coreJS, benchmarks)
   .enablePlugins(ScalaJSPlugin)
 
-lazy val io = crossProject
-  .in(file("io"))
+lazy val core = crossProject
+  .in(file("core"))
   .settings(stdSettings("effect"))
   .settings(
     libraryDependencies ++=
@@ -18,6 +18,20 @@ lazy val io = crossProject
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
 
-lazy val ioJVM = io.jvm
+lazy val coreJVM = core.jvm
 
-lazy val ioJS = io.js
+lazy val coreJS = core.js
+
+lazy val benchmarks = project.module
+  .dependsOn(coreJVM)
+  .enablePlugins(JmhPlugin)
+  .settings(
+    skip in publish := true,
+    libraryDependencies ++=
+      Seq(
+        "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
+        "io.monix"       %% "monix"         % "3.0.0-RC1",
+        "org.typelevel"  %% "cats-effect"   % "1.0.0-RC"
+      )
+  )
