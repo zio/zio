@@ -377,6 +377,18 @@ sealed abstract class IO[E, A] { self =>
     self *> IO.sleep(interval) *> repeat(interval)
 
   /**
+   * Repeats this action n time.
+   */
+  final def repeatN(n: Int): IO[E, A] = if (n <= 1) self else self *> repeatN(n - 1)
+
+  /**
+   * Repeats this action n time with a specified function, which computes
+   * a return value.
+   */
+  final def repeatNFold[B](n: Int)(b: B, f: (B, A) => B): IO[E, B] =
+    if (n < 1) IO.now(b) else self.flatMap(a => repeatNFold(n - 1)(f(b, a), f))
+
+  /**
    * Repeats this action continuously until the first error, with the specified
    * interval between the start of each full execution. Note that if the
    * execution of this action takes longer than the specified interval, then the
@@ -386,19 +398,26 @@ sealed abstract class IO[E, A] { self =>
   final def repeatFixed[B](interval: Duration): IO[E, B] =
     repeatFixed0(IO.sync(System.nanoTime()))(interval)
 
-  final def repeatFixed0[B](nanoTime: IO[Nothing, Long])(interval: Duration): IO[E, B] =
-    IO.flatten(nanoTime[E].flatMap { start =>
-      val gapNs = interval.toNanos
+  final def repeatFixed0[B](nanoTime: IO[Nothing, Long])(interval: Duration): IO[E, B] = {
+    val gapNs = interval.toNanos
 
-      def tick[B](n: Int): IO[E, B] =
-        self *> nanoTime[E].flatMap { now =>
-          val await = ((start + n * gapNs) - now).max(0L)
+    def tick(start: Long, n: Int): IO[E, B] =
+      self *> nanoTime.widenError[E].flatMap { now =>
+        val await = ((start + n * gapNs) - now).max(0L)
 
-          IO.sleep(await.nanoseconds) *> tick[B](n + 1)
-        }
+        IO.sleep(await.nanoseconds) *> tick(start, n + 1)
+      }
 
-      tick(1)
-    })
+    nanoTime.widenError[E].flatMap { start =>
+      tick(start, 1)
+    }
+  }
+
+  /**
+   * Repeats this action continuously until the function returns false.
+   */
+  final def doWhile(f: A => Boolean): IO[E, A] =
+    self.flatMap(a => if (f(a)) doWhile(f) else IO.now(a))
 
   /**
    * Maps this action to one producing unit, but preserving the effects of
@@ -758,7 +777,7 @@ object IO {
 
   def forkAll[E2](l: List[IO[E2, Unit]]): IO[E2, Unit] = l match {
     case Nil     => IO.unit[E2]
-    case x :: xs => x.fork.toUnit *> forkAll(xs)
+    case x :: xs => x.fork *> forkAll(xs)
   }
 
   private final val Never: IO[Nothing, Any] =

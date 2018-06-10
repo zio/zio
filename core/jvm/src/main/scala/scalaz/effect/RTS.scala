@@ -4,10 +4,8 @@ package scalaz.effect
 import scala.annotation.switch
 import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
-
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{ Executors, TimeUnit }
-import java.lang.{ Runnable, Runtime }
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -69,6 +67,8 @@ trait RTS {
   }
 
   final def unsafeShutdownAndWait(timeout: Duration): Unit = {
+    scheduledExecutor.shutdown()
+    scheduledExecutor.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
     threadPool.shutdown()
     threadPool.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
     ()
@@ -124,6 +124,9 @@ trait RTS {
         future.cancel(true); ()
       }
     }
+
+  final def impureCanceler(canceler: PureCanceler): Canceler =
+    th => unsafePerformIO(canceler(th))
 }
 
 private object RTS {
@@ -452,7 +455,7 @@ private object RTS {
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = ensuringUninterruptibleExit(finalization[E] *> completer)
+                        curIo = ensuringUninterruptibleExit(finalization.widenError[E] *> completer)
                       }
                     } else {
                       // Error caught:
@@ -467,7 +470,7 @@ private object RTS {
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = ensuringUninterruptibleExit(finalization[E]) *> handled
+                        curIo = ensuringUninterruptibleExit(finalization.widenError[E]) *> handled
                       }
                     }
 
@@ -507,7 +510,11 @@ private object RTS {
 
                           eval = false
 
-                        case Async.Later() =>
+                        case Async.MaybeLaterIO(pureCancel) =>
+                          // As for the case above this stores an impure canceler
+                          // obtained performing the pure canceler on the same thread
+                          awaitAsync(id, rts.impureCanceler(pureCancel))
+
                           eval = false
                       }
                     } finally enterAsyncEnd()
@@ -667,9 +674,9 @@ private object RTS {
                       value.register { (v: ExitResult[E, Any]) =>
                         k(ExitResult.Completed(v))
                       } match {
-                        case Async.Now(v)        => Async.Now(ExitResult.Completed(v))
-                        case Async.MaybeLater(c) => Async.MaybeLater(c)
-                        case Async.Later()       => Async.Later()
+                        case Async.Now(v)          => Async.Now(ExitResult.Completed(v))
+                        case Async.MaybeLater(c)   => Async.MaybeLater(c)
+                        case Async.MaybeLaterIO(c) => Async.MaybeLaterIO(c)
                       }
                     }
                 }
@@ -795,14 +802,17 @@ private object RTS {
             raceCallback[A, C](k, state, leftWins)(tryA)
           case Async.MaybeLater(cancel) =>
             c1 = cancel
-          case Async.Later() =>
+          case Async.MaybeLaterIO(pureCancel) =>
+            c1 = rts.impureCanceler(pureCancel)
         }
 
         right.register(raceCallback[B, C](k, state, rightWins)) match {
-          case Async.Now(tryA) => raceCallback[B, C](k, state, rightWins)(tryA)
+          case Async.Now(tryA) =>
+            raceCallback[B, C](k, state, rightWins)(tryA)
           case Async.MaybeLater(cancel) =>
             c2 = cancel
-          case _ =>
+          case Async.MaybeLaterIO(pureCancel) =>
+            c2 = rts.impureCanceler(pureCancel)
         }
 
         val canceler = combineCancelers(c1, c2)
