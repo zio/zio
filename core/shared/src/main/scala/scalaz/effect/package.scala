@@ -2,6 +2,8 @@
 
 package scalaz
 
+import scala.AnyRef
+
 package object effect {
 
   implicit class IONothingSyntax[A](val io: IO[Nothing, A]) extends AnyRef {
@@ -11,4 +13,7 @@ package object effect {
   type Task[A] = IO[Throwable, A]
 
   type Unexceptional[A] = IO[Nothing, A]
+
+  type Canceler     = Throwable => Unit
+  type PureCanceler = Throwable => IO[Nothing, Unit]
 }
