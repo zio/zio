@@ -395,13 +395,13 @@ sealed abstract class IO[E, A] { self =>
    * action will instead execute as quickly as possible, but not
    * necessarily at the specified interval.
    */
-  final def repeatFixed(interval: Duration): IO[E, A] =
+  final def repeatFixed[B](interval: Duration): IO[E, B] =
     repeatFixed0(IO.sync(System.nanoTime()))(interval)
 
-  final def repeatFixed0(nanoTime: IO[Nothing, Long])(interval: Duration): IO[E, A] = {
+  final def repeatFixed0[B](nanoTime: IO[Nothing, Long])(interval: Duration): IO[E, B] = {
     val gapNs = interval.toNanos
 
-    def tick(start: Long, n: Int): IO[E, A] =
+    def tick(start: Long, n: Int): IO[E, B] =
       self *> nanoTime.widenError[E].flatMap { now =>
         val await = ((start + n * gapNs) - now).max(0L)
 
