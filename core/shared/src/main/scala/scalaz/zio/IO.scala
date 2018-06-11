@@ -777,11 +777,11 @@ object IO {
 
   final def forkAll[E, E2, A](as: List[IO[E, A]]): IO[E2, Fiber[E, List[A]]] =
     as.foldRight(IO.point[E2, Fiber[E, List[A]]](Fiber.point(List.empty))) {
-      case (a, fiberAs) =>
+      case (a, as) =>
         for {
-          fiberA   <- a.fork
-          fiberAs0 <- fiberAs.map(_.zipWith(fiberA)((as, a) => a :: as))
-        } yield fiberAs0
+          fiberA  <- a.fork
+          fiberAs <- as
+        } yield fiberA.zipWith(fiberAs)(_ :: _)
     }
 
   private final val Never: IO[Nothing, Any] =
