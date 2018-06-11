@@ -69,6 +69,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     deep fork/join identity                 $testDeepForkJoinIsId
     interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
     race of value & never                   ${upTo(1.second)(testRaceOfValueNever)}
+    raceAll of values                       ${upTo(1.second)(testRaceAllOfValues)}
+    raceAll of failures                     ${upTo(1.second)(testRaceAllOfFailures)}
     par regression                          ${upTo(5.seconds)(testPar)}
     par of now values                       ${upTo(5.seconds)(testRepeatedPar)}
 
@@ -326,6 +328,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testRaceOfValueNever =
     unsafePerformIO(IO.point(42).race(IO.never[Throwable, Int])) == 42
+
+  def testRaceAllOfValues =
+    unsafePerformIO(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24))).attempt) == Right(24)
+
+  def testRaceAllOfFailures =
+    unsafePerformIO(IO.raceAll[Int, Void](List(IO.fail(42), IO.fail(24))).attempt) == Left(24)
 
   def testRepeatedPar = {
     def countdown(n: Int): IO[Nothing, Int] =
