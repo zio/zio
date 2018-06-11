@@ -43,8 +43,8 @@ Your main function can extend `SafeApp`, which provides a complete runtime
 system and allows your entire program to be purely functional.
 
 ```scala
-import scalaz.effect.{IO, SafeApp}
-import scalaz.effect.console._
+import scalaz.zio.{IO, SafeApp}
+import scalaz.zio.console._
 
 import java.io.IOException
 
@@ -323,7 +323,7 @@ The `race` and even `par` combinators are a specialization of a much-more powerf
 
 # Performance
 
-`scalaz.effect` has excellent performance, featuring a hand-optimized, low-level interpreter that achieves zero allocations for right-associated binds, and minimal allocations for left-associated binds.
+`scalaz.zio` has excellent performance, featuring a hand-optimized, low-level interpreter that achieves zero allocations for right-associated binds, and minimal allocations for left-associated binds.
 
 The `benchmarks` project may be used to compare `IO` with other effect monads, including `Future` (which is not an effect monad but is included for reference), Monix `Task`, and Cats `IO`.
 
