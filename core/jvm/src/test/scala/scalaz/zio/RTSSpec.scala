@@ -401,15 +401,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def AsyncUnit[E] = IO.async[E, Unit](_(ExitResult.Completed(())))
 
-  def testMergeAll = {
+  def testMergeAll =
     unsafePerformIO(
-      IO.mergeAll[Nothing, String, Int](List("a","aa","aaa","aaaa").map(IO.point(_)))(0, f = (b, a) => b + a.length)
+      IO.mergeAll[Nothing, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.point(_)))(0, f = (b, a) => b + a.length)
     ) must_=== 10
-  }
 
-  def testMergeAllEmpty = {
+  def testMergeAllEmpty =
     unsafePerformIO(
       IO.mergeAll[Nothing, Int, Int](List.empty)(0, _ + _)
     ) must_=== 0
-  }
 }
