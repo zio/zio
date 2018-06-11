@@ -780,6 +780,17 @@ object IO {
     case x :: xs => x.fork *> forkAll(xs)
   }
 
+  /**
+   * Races a traversable collection of `IO[E, A]` against each other. If all of
+   * them fail, the last error is returned.
+   *
+   * _Note_: if the collection is empty, there is no action that can either
+   * succeed or fail. Therefore, the only possible output is an IO action
+   * that never terminates.
+   */
+  def raceAll[E, A](t: TraversableOnce[IO[E, A]]): IO[E, A] =
+    t.foldLeft(IO.never[E, A])(_ race _)
+
   private final val Never: IO[Nothing, Any] =
     IO.async[Nothing, Any] { (k: (ExitResult[Nothing, Any]) => Unit) =>
       }
