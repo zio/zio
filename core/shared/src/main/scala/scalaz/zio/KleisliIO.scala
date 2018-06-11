@@ -69,13 +69,13 @@ package scalaz.zio
  * In both of these examples, the `KleisliIO` program is faster because it is
  * able to perform fusion of effectful functions.
  */
-sealed trait KleisliIO[E, A, B] extends (A => IO[E, B]) { self =>
+sealed trait KleisliIO[E, A, B] { self =>
 
   /**
    * Applies the effectful function with the specified value, returning the
    * output in `IO`.
    */
-  def apply(a: A): IO[E, B]
+  val run: A => IO[E, B]
 
   /**
    * Maps the output of this effectful function by the specified function.
@@ -189,17 +189,15 @@ object KleisliIO {
     final def unsafeCoerce[E2] = error.asInstanceOf[E2]
   }
 
-  private[zio] final class Pure[E, A, B](apply0: A => IO[E, B]) extends KleisliIO[E, A, B] {
-    override final def apply(a: A): IO[E, B] = apply0(a)
-  }
+  private[zio] final class Pure[E, A, B](val run: A => IO[E, B]) extends KleisliIO[E, A, B] {}
   private[zio] final class Impure[E, A, B](val apply0: A => B) extends KleisliIO[E, A, B] {
-    override final def apply(a: A): IO[E, B] =
+    val run: A => IO[E, B] = a =>
       IO.suspend {
         try IO.now[E, B](apply0(a))
         catch {
           case e: KleisliIOError[_] => IO.fail[E, B](e.unsafeCoerce[E])
         }
-      }
+    }
   }
 
   /**
@@ -326,7 +324,9 @@ object KleisliIO {
 
       case _ =>
         lazy val loop: KleisliIO[E, A, A] =
-          KleisliIO.pure((a: A) => check(a).flatMap((b: Boolean) => if (b) body(a).flatMap(loop) else IO.now(a)))
+          KleisliIO.pure(
+            (a: A) => check.run(a).flatMap((b: Boolean) => if (b) body.run(a).flatMap(loop.run) else IO.now(a))
+          )
 
         loop
     }
@@ -347,7 +347,7 @@ object KleisliIO {
    * See @KleisliIO.flatMap
    */
   final def flatMap[E, A, B, C](fa: KleisliIO[E, A, B], f: B => KleisliIO[E, A, C]): KleisliIO[E, A, C] =
-    new Pure((a: A) => fa(a).flatMap(b => f(b)(a)))
+    new Pure((a: A) => fa.run(a).flatMap(b => f(b).run(a)))
 
   /**
    * See KleisliIO.compose
@@ -358,7 +358,7 @@ object KleisliIO {
         new Impure(second.apply0.compose(first.apply0))
 
       case _ =>
-        new Pure((a: A) => first(a).flatMap(second))
+        new Pure((a: A) => first.run(a).flatMap(second.run))
     }
 
   /**
@@ -378,8 +378,8 @@ object KleisliIO {
         KleisliIO.pure(
           (a: A) =>
             for {
-              b <- l(a)
-              c <- r(a)
+              b <- l.run(a)
+              c <- r.run(a)
             } yield f(b, c)
         )
     }
@@ -396,7 +396,7 @@ object KleisliIO {
         })
       case _ =>
         KleisliIO.pure[E, Either[A, C], Either[B, C]] {
-          case Left(a)  => k(a).map[Either[B, C]](Left[B, C])
+          case Left(a)  => k.run(a).map[Either[B, C]](Left[B, C])
           case Right(c) => IO.now[E, Either[B, C]](Right(c))
         }
     }
@@ -414,7 +414,7 @@ object KleisliIO {
       case _ =>
         KleisliIO.pure[E, Either[C, A], Either[C, B]] {
           case Left(c)  => IO.now[E, Either[C, B]](Left(c))
-          case Right(a) => k(a).map[Either[C, B]](Right[C, B])
+          case Right(a) => k.run(a).map[Either[C, B]](Right[C, B])
         }
     }
 
@@ -431,8 +431,8 @@ object KleisliIO {
 
       case _ =>
         KleisliIO.pure[E, Either[A, C], B]({
-          case Left(a)  => l(a)
-          case Right(c) => r(c)
+          case Left(a)  => l.run(a)
+          case Right(c) => r.run(c)
         })
     }
 }
