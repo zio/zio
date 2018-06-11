@@ -33,94 +33,94 @@ class KleisliIOSpec extends Specification with RTS {
   def e1 =
     unsafePerformIO(
       for {
-        v <- lift[Void, Int, Int](_ + 1)(4)
+        v <- lift[Void, Int, Int](_ + 1).run(4)
       } yield v must_=== 5
     )
 
   def e2 =
     unsafePerformIO(
       for {
-        v <- identity[Void, Int](1)
+        v <- identity[Void, Int].run(1)
       } yield v must_=== 1
     )
 
   def e3 =
     unsafePerformIO(
       for {
-        v <- (lift[Void, Int, Int](_ + 1) >>> lift[Void, Int, Int](_ * 2))(6)
+        v <- (lift[Void, Int, Int](_ + 1) >>> lift[Void, Int, Int](_ * 2)).run(6)
       } yield v must_=== 14
     )
 
   def e4 =
     unsafePerformIO(
       for {
-        v <- (lift[Void, Int, Int](_ + 1) <<< lift[Void, Int, Int](_ * 2))(6)
+        v <- (lift[Void, Int, Int](_ + 1) <<< lift[Void, Int, Int](_ * 2)).run(6)
       } yield v must_=== 13
     )
 
   def e5 =
     unsafePerformIO(
       for {
-        v <- point[Void, Int, Int](1).zipWith[Int, Int](point[Void, Int, Int](2))((a, b) => a + b)(1)
+        v <- point[Void, Int, Int](1).zipWith[Int, Int](point[Void, Int, Int](2))((a, b) => a + b).run(1)
       } yield v must_=== 3
     )
 
   def e6 =
     unsafePerformIO(
       for {
-        v <- (lift[Void, Int, Int](_ + 1) &&& lift[Void, Int, Int](_ * 2))(6)
+        v <- (lift[Void, Int, Int](_ + 1) &&& lift[Void, Int, Int](_ * 2)).run(6)
       } yield (v._1 must_=== 7) and (v._2 must_=== 12)
     )
 
   def e7 =
     unsafePerformIO(
       for {
-        l <- (lift[Void, Int, Int](_ + 1) ||| lift[Void, Int, Int](_ * 2))(Left(25))
-        r <- (lift[Void, List[Int], Int](_.sum) ||| lift[Void, List[Int], Int](_.size))(Right(List(1, 3, 5, 2, 8)))
+        l <- (lift[Void, Int, Int](_ + 1) ||| lift[Void, Int, Int](_ * 2)).run(Left(25))
+        r <- (lift[Void, List[Int], Int](_.sum) ||| lift[Void, List[Int], Int](_.size)).run(Right(List(1, 3, 5, 2, 8)))
       } yield (l must_=== 26) and (r must_=== 5)
     )
 
   def e8 =
     unsafePerformIO(
       for {
-        v <- lift[Void, Int, Int](_ * 2).first(100)
+        v <- lift[Void, Int, Int](_ * 2).first.run(100)
       } yield (v._1 must_=== 200) and (v._2 must_=== 100)
     )
 
   def e9 =
     unsafePerformIO(
       for {
-        v <- lift[Void, Int, Int](_ * 2).second(100)
+        v <- lift[Void, Int, Int](_ * 2).second.run(100)
       } yield (v._1 must_=== 100) and (v._2 must_=== 200)
     )
   def e10 =
     unsafePerformIO(
       for {
-        v1 <- lift[Void, Int, Int](_ * 2).left[Int](Left(6))
-        v2 <- point[Void, Int, Int](1).left[String](Right("hi"))
+        v1 <- lift[Void, Int, Int](_ * 2).left[Int].run(Left(6))
+        v2 <- point[Void, Int, Int](1).left[String].run(Right("hi"))
       } yield (v1 must beLeft(12)) and (v2 must beRight("hi"))
     )
 
   def e11 =
     unsafePerformIO(
       for {
-        v1 <- lift[Void, Int, Int](_ * 2).right[String](Left("no value"))
-        v2 <- lift[Void, Int, Int](_ * 2).right[Int](Right(7))
+        v1 <- lift[Void, Int, Int](_ * 2).right[String].run(Left("no value"))
+        v2 <- lift[Void, Int, Int](_ * 2).right[Int].run(Right(7))
       } yield (v1 must beLeft("no value")) and (v2 must beRight(14))
     )
 
   def e12 =
     unsafePerformIO(
       for {
-        v <- lift[Void, Int, Int](_ * 2).asEffect(56)
+        v <- lift[Void, Int, Int](_ * 2).asEffect.run(56)
       } yield v must_=== 56
     )
 
   def e13 =
     unsafePerformIO(
       for {
-        v1 <- test(lift[Void, Array[Int], Boolean](_.sum > 10))(Array(1, 2, 5))
-        v2 <- test(lift[Void, Array[Int], Boolean](_.sum > 10))(Array(1, 2, 5, 6))
+        v1 <- test(lift[Void, Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
+        v2 <- test(lift[Void, Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
       } yield (v1 must beRight(Array(1, 2, 5))) and (v2 must beLeft(Array(1, 2, 5, 6)))
     )
 
@@ -129,10 +129,10 @@ class KleisliIOSpec extends Specification with RTS {
       for {
         v1 <- ifThenElse(lift[Void, Int, Boolean](_ > 0))(point[Void, Int, String]("is positive"))(
                point[Void, Int, String]("is negative")
-             )(-1)
+             ).run(-1)
         v2 <- ifThenElse(lift[Void, Int, Boolean](_ > 0))(point[Void, Int, String]("is positive"))(
                point[Void, Int, String]("is negative")
-             )(1)
+             ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
     )
 
@@ -141,17 +141,17 @@ class KleisliIOSpec extends Specification with RTS {
       for {
         v1 <- ifThenElse(pure[Void, Int, Boolean](a => IO.now(a > 0)))(point[Void, Int, String]("is positive"))(
                point[Void, Int, String]("is negative")
-             )(-1)
+             ).run(-1)
         v2 <- ifThenElse(pure[Void, Int, Boolean](a => IO.now(a > 0)))(point[Void, Int, String]("is positive"))(
                point[Void, Int, String]("is negative")
-             )(1)
+             ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
     )
 
   def e15a =
     unsafePerformIO(
       for {
-        v <- whileDo[Void, Int](lift[Void, Int, Boolean](_ < 10))(lift[Void, Int, Int](_ + 1))(1)
+        v <- whileDo[Void, Int](lift[Void, Int, Boolean](_ < 10))(lift[Void, Int, Int](_ + 1)).run(1)
       } yield v must_=== 10
     )
 
@@ -160,35 +160,35 @@ class KleisliIOSpec extends Specification with RTS {
       for {
         v <- whileDo[Void, Int](pure[Void, Int, Boolean](a => IO.now[Void, Boolean](a < 10)))(
               pure[Void, Int, Int](a => IO.sync[Void, Int](a + 1))
-            )(1)
+            ).run(1)
       } yield v must_=== 10
     )
 
   def e16 =
     unsafePerformIO(
       for {
-        v <- _1[Void, Int, String]((1, "hi"))
+        v <- _1[Void, Int, String].run((1, "hi"))
       } yield v must_=== 1
     )
 
   def e17 =
     unsafePerformIO(
       for {
-        v <- _2[Void, Int, String]((2, "hola"))
+        v <- _2[Void, Int, String].run((2, "hola"))
       } yield v must_=== "hola"
     )
 
   def e18a =
     unsafePerformIO(
       for {
-        a <- fail[String, Int, Int]("error")(1).attempt
+        a <- fail[String, Int, Int]("error").run(1).attempt
       } yield a must_=== Left("error")
     )
 
   def e18b =
     unsafePerformIO(
       for {
-        a <- impure[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception)(9).attempt
+        a <- impure[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).attempt
       } yield a must_=== Left("error")
     )
 }
