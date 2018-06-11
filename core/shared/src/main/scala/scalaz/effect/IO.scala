@@ -792,7 +792,7 @@ object IO {
     t.foldLeft(IO.never[E, A])(_ race _)
 
   /**
-   * Races a non-empty traversable collection of `IO[E, A]` against each other. 
+   * Races a non-empty traversable collection of `IO[E, A]` against each other.
    * If all of them fail, the last error is returned.
    */
   def raceAll1[E, A](h: IO[E, A], t: TraversableOnce[IO[E, A]]): IO[E, A] =
