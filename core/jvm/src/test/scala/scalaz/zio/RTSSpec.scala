@@ -71,6 +71,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     race of value & never                   ${upTo(1.second)(testRaceOfValueNever)}
     par regression                          ${upTo(5.seconds)(testPar)}
     par of now values                       ${upTo(5.seconds)(testRepeatedPar)}
+    mergeAll                                $testMergeAll
+    mergeAllEmpty                           $testMergeAllEmpty
 
   RTS regression tests
     regression 1                            $testDeadlockRegression
@@ -398,4 +400,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       } yield v1 + v2
 
   def AsyncUnit[E] = IO.async[E, Unit](_(ExitResult.Completed(())))
+
+  def testMergeAll = {
+    unsafePerformIO(
+      IO.mergeAll[Nothing, String, Int](List("a","aa","aaa","aaaa").map(IO.point(_)))(0, f = (b, a) => b + a.length)
+    ) must_=== 10
+  }
+
+  def testMergeAllEmpty = {
+    unsafePerformIO(
+      IO.mergeAll[Nothing, Int, Int](List.empty)(0, _ + _)
+    ) must_=== 0
+  }
 }
