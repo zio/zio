@@ -76,6 +76,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     par of now values                       ${upTo(5.seconds)(testRepeatedPar)}
     mergeAll                                $testMergeAll
     mergeAllEmpty                           $testMergeAllEmpty
+    reduceAll                               $testReduceAll
+    reduceAll Empty List                    $testReduceAllEmpty
 
   RTS regression tests
     regression 1                            $testDeadlockRegression
@@ -354,6 +356,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     (0 to 1000).map { _ =>
       unsafePerformIO(IO.now[Nothing, Int](1).par(IO.now[Nothing, Int](2)).flatMap(t => IO.now(t._1 + t._2))) must_=== 3
     }
+
+  def testReduceAll =
+    unsafePerformIO(
+      IO.reduceAll[Nothing, Int](IO.point(1), List(2, 3, 4).map(IO.point(_)))(_ + _)
+    ) must_=== 10
+
+  def testReduceAllEmpty =
+    unsafePerformIO(
+      IO.reduceAll[Nothing, Int](IO.point(1), Seq.empty)(_ + _)
+    ) must_=== 1
 
   def testDeadlockRegression = {
     import scalaz._

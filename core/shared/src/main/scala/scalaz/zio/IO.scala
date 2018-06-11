@@ -814,6 +814,12 @@ object IO {
   def raceAll1[E, A](h: IO[E, A], t: TraversableOnce[IO[E, A]]): IO[E, A] =
     h.race(raceAll(t))
 
+  def reduceAll[E, A](a: IO[E, A], as: TraversableOnce[IO[E, A]])(f: (A, A) => A): IO[E, A] =
+    as.foldLeft(a) {
+      case (l: IO[E, A], r: IO[E, A]) =>
+        l.par(r).map(o => f(o._1, o._2))
+    }
+
   private final val Never: IO[Nothing, Any] =
     IO.async[Nothing, Any] { (k: (ExitResult[Nothing, Any]) => Unit) =>
       }
