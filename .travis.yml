@@ -8,3 +8,8 @@ before_install:
   - export PATH=${PATH}:./vendor/bundle
 script:
   - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck test
+  - if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then sbt publish; fi
+env:
+  global:
+  - secure: hash_for_SONATYPE_USERNAME
+  - secure: hash_for_SONATYPE_PASSWORD
