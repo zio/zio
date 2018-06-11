@@ -785,4 +785,8 @@ object IO {
       }
 
   private final val Unit: IO[Nothing, Unit] = now(())
+
+  def mergeAll[E, A, B](in: TraversableOnce[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] = {
+    in.foldLeft(IO.point[E, B](zero))((acc, a) => acc.par(a).map(o => f(o._1, o._2)))
+  }
 }
