@@ -799,6 +799,8 @@ object IO {
   /**
    * Evaluate the elements of a traversable data structure in parallel
    * and collect the results.
+   *
+   * _Note_: ordering in the input collection is not preserved
    */
   def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
