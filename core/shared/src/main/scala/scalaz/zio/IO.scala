@@ -787,17 +787,10 @@ object IO {
     * return the results in a new `TraversableOnce[B]`.
     */
   def traverse[E, A, B, M[X] <: TraversableOnce[X]](in: M[A])(fn: A => IO[E, B])(
-    implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] = {
-
-    def loopList(l: List[A], b: mutable.Builder[B, M[B]]): IO[E, M[B]] = l match {
-      case Nil =>
-        now(b.result())
-      case h :: t =>
-        fn(h).flatMap(a => loopList(t, b += a))
-    }
-
-    loopList(in.toList, cbf(in))
-  }
+    implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
+    in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in))) { (io, b) =>
+      io.zipWith(fn(b))(_ += _)
+    }.map(_.result())
 
 
   private final val Never: IO[Nothing, Any] =
