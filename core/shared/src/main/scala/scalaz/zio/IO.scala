@@ -800,7 +800,7 @@ object IO {
    * Evaluate each effet in the structure from left to right, and collect 
    * the results.
    */
-  def sequence[E, A, B, M[X] <: TraversableOnce[X]](
+  def sequence[E, A, M[X] <: TraversableOnce[X]](
     in: M[IO[E, A]]
   )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, M[A]] =
     traverse(in)(identity)
