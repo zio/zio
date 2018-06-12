@@ -806,7 +806,7 @@ object IO {
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
     in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in)))(
-        (io, a) => io.par(fn(a)).map { case (builder, a) => builder += a }
+        (io, a) => io.par(fn(a)).flatMap { case (builder, a) => sync(builder += a) }
       )
       .map(_.result())
 
