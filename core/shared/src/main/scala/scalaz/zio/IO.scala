@@ -775,10 +775,14 @@ object IO {
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E, A](error))(IO.now[E, A]))
 
-  def forkAll[E2](l: List[IO[E2, Unit]]): IO[E2, Unit] = l match {
-    case Nil     => IO.unit[E2]
-    case x :: xs => x.fork *> forkAll(xs)
-  }
+  final def forkAll[E, E2, A](as: List[IO[E, A]]): IO[E2, Fiber[E, List[A]]] =
+    as.foldRight(IO.point[E2, Fiber[E, List[A]]](Fiber.point(List.empty))) {
+      case (a, as) =>
+        for {
+          fiberA  <- a.fork
+          fiberAs <- as
+        } yield fiberA.zipWith(fiberAs)(_ :: _)
+    }
 
   private final val Never: IO[Nothing, Any] =
     IO.async[Nothing, Any] { (k: (ExitResult[Nothing, Any]) => Unit) =>
