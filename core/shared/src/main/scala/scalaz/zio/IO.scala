@@ -808,8 +808,8 @@ object IO {
     for {
       ref <- IORef(cbf(in))
       _ <- in.foldLeft(unit[E])(
-        (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(_ += b) *> unit }
-      )
+            (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(_ += b) *> unit }
+          )
       builder <- ref.read
     } yield builder.result()
 
