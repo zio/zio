@@ -797,6 +797,18 @@ object IO {
       .map(_.result())
 
   /**
+   * Evaluate the elements of a traversable data structure in parallel
+   * and collect the results.
+   */
+  def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
+    in: M[A]
+  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
+    in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in)))(
+        (io, a) => io.par(fn(a)).map { case (builder, a) => builder += a }
+      )
+      .map(_.result())
+
+  /**
    * Races a traversable collection of `IO[E, A]` against each other. If all of
    * them fail, the last error is returned.
    *
