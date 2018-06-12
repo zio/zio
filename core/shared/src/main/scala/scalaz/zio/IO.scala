@@ -796,6 +796,24 @@ object IO {
     in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
       .map(_.result())
 
+  /**
+   * Races a traversable collection of `IO[E, A]` against each other. If all of
+   * them fail, the last error is returned.
+   *
+   * _Note_: if the collection is empty, there is no action that can either
+   * succeed or fail. Therefore, the only possible output is an IO action
+   * that never terminates.
+   */
+  def raceAll[E, A](t: TraversableOnce[IO[E, A]]): IO[E, A] =
+    t.foldLeft(IO.never[E, A])(_ race _)
+
+  /**
+   * Races a non-empty traversable collection of `IO[E, A]` against each other.
+   * If all of them fail, the last error is returned.
+   */
+  def raceAll1[E, A](h: IO[E, A], t: TraversableOnce[IO[E, A]]): IO[E, A] =
+    h.race(raceAll(t))
+
   private final val Never: IO[Nothing, Any] =
     IO.async[Nothing, Any] { (k: (ExitResult[Nothing, Any]) => Unit) =>
       }
