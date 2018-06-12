@@ -32,13 +32,13 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
 
   def t2 = {
     val list = List("1", "2", "3")
-    val res = unsafePerformIO(IO.traverse(list)(x => IO.point[String, Int](x.toInt)))
+    val res  = unsafePerformIO(IO.traverse(list)(x => IO.point[String, Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res = Try(unsafePerformIO(IO.traverse(list)(x => IO.point[String, Int](x.toInt))))
+    val res  = Try(unsafePerformIO(IO.traverse(list)(x => IO.point[String, Int](x.toInt))))
     res must beAFailedTry.withThrowable[NumberFormatException]
   }
 
