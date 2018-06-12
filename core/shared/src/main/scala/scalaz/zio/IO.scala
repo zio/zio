@@ -805,10 +805,13 @@ object IO {
   def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in)))(
-        (io, a) => io.par(fn(a)).flatMap { case (builder, a) => sync(builder += a) }
+    for {
+      ref <- IORef(cbf(in))
+      _ <- in.foldLeft(unit[E])(
+        (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(_ += b) *> unit }
       )
-      .map(_.result())
+      builder <- ref.read
+    } yield builder.result()
 
   /**
    * Races a traversable collection of `IO[E, A]` against each other. If all of
