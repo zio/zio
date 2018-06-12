@@ -85,7 +85,8 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
   final def interruptTake[E](t: Throwable): IO[E, Boolean] =
     IO.flatten(ref.modifyFold[E, IO[E, Boolean]] {
       case Deficit(takers) if takers.nonEmpty =>
-        val forked: IO[E, Unit] = IO.forkAll(takers.toList.map(_.interrupt[E](t).toUnit))
+        // TODO: use the composite fiber
+        val forked: IO[E, Unit] = IO.forkAll(takers.toList.map(_.interrupt[E](t))).toUnit
         (forked.const(true), Deficit(Queue.empty[Promise[_, A]]))
       case s =>
         (IO.now(false), s)
@@ -99,7 +100,8 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
   final def interruptOffer[E](t: Throwable): IO[E, Boolean] =
     IO.flatten(ref.modifyFold[E, IO[E, Boolean]] {
       case Surplus(_, putters) if putters.nonEmpty =>
-        val forked: IO[E, Unit] = IO.forkAll(putters.toList.map(_._2.interrupt[E](t).toUnit))
+        // TODO: use the composite fiber
+        val forked: IO[E, Unit] = IO.forkAll(putters.toList.map(_._2.interrupt[E](t))).toUnit
         (forked.const(true), Deficit(Queue.empty[Promise[_, A]]))
       case s =>
         (IO.now(false), s)
