@@ -3,8 +3,10 @@ package scalaz.zio
 
 import scala.annotation.switch
 import scala.concurrent.duration._
-
 import Errors._
+
+import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -783,6 +785,16 @@ object IO {
           fiberAs <- as
         } yield fiberA.zipWith(fiberAs)(_ :: _)
     }
+
+  /**
+   * Apply the function fn to each element of the `TraversableOnce[A]` and
+   * return the results in a new `TraversableOnce[B]`.
+   */
+  def traverse[E, A, B, M[X] <: TraversableOnce[X]](
+    in: M[A]
+  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
+    in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
+      .map(_.result())
 
   private final val Never: IO[Nothing, Any] =
     IO.async[Nothing, Any] { (k: (ExitResult[Nothing, Any]) => Unit) =>
