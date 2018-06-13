@@ -17,7 +17,7 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
    Create a list of String and pass an f: String => IO[String, Int]:
       `IO.traverse` fails with a NumberFormatException exception. $t3
    Create a list of Strings and pass an f: String => IO[String, Int]:
-      `IO.parTraverse` returns the list of Ints in any order. $t2
+      `IO.parTraverse` returns the list of Ints in any order. $t4
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
