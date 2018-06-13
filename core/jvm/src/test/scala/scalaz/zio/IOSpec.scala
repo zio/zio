@@ -47,9 +47,7 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
   def t4 = {
     val list = List("1", "2", "3")
     val res  = unsafePerformIO(IO.parTraverse(list)(x => IO.point[String, Int](x.toInt)))
-    res must contain(1)
-    res must contain(2)
-    res must contain(3)
+    res must containTheSameElementsAs(List(1,2,3))
   }
 
 }
