@@ -309,8 +309,7 @@ sealed abstract class IO[E, A] { self =>
    * }}}
    */
   final def catchSome(pf: PartialFunction[E, IO[E, A]]): IO[E, A] = {
-    def tryRescue(t: E): IO[E, A] =
-      if (pf.isDefinedAt(t)) pf(t) else IO.fail(t)
+    def tryRescue(t: E): IO[E, A] = pf.applyOrElse(t, (_: E) => IO.fail(t))
 
     self.redeem[E, A](tryRescue)(IO.now)
   }
@@ -718,9 +717,7 @@ object IO {
         try {
           val result = effect
           Right(result)
-        } catch {
-          case t: Throwable if f.isDefinedAt(t) => Left(f(t))
-        }
+        } catch f andThen (Left[E, A](_))
       )
     )
 
