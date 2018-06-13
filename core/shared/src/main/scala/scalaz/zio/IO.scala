@@ -806,12 +806,12 @@ object IO {
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
     for {
-      ref <- IORef(cbf(in))
+      ref <- IORef[E, List[B]](Nil)
       _ <- in.foldLeft(unit[E])(
-            (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(_ += b) *> unit }
+            (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(b :: _) *> unit }
           )
-      builder <- ref.read
-    } yield builder.result()
+      xs <- ref.read
+    } yield xs.foldLeft(cbf(in))(_ += _).result()
 
   /**
    * Races a traversable collection of `IO[E, A]` against each other. If all of
