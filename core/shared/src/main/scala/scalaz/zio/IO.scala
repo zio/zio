@@ -810,8 +810,8 @@ object IO {
       _ <- in.foldLeft(unit[E])(
             (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(b :: _) *> unit }
           )
-      xs <- ref.read
-    } yield xs.foldLeft(cbf(in))(_ += _).result()
+      bs <- ref.read
+    } yield bs.foldLeft(cbf(in))(_ += _).result()
 
   /**
    * Races a traversable collection of `IO[E, A]` against each other. If all of
