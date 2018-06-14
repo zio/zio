@@ -797,7 +797,7 @@ object IO {
       .map(_.result())
 
   /**
-   * Evaluate each effet in the structure from left to right, and collect
+   * Evaluate each effect in the structure from left to right, and collect
    * the results.
    */
   def sequence[E, A, M[X] <: TraversableOnce[X]](
