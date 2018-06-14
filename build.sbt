@@ -29,7 +29,7 @@ lazy val root = project
   .settings(
     skip in publish := true
   )
-  .aggregate(coreJVM, coreJS, benchmarks, microsite)
+  .aggregate(coreJVM, coreJS, interopJVM, interopJS, benchmarks, microsite)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject
@@ -45,6 +45,25 @@ lazy val core = crossProject
 lazy val coreJVM = core.jvm
 
 lazy val coreJS = core.js
+
+lazy val interop = crossProject
+  .in(file("interop"))
+  .settings(stdSettings("zio-interop"))
+  .dependsOn(core)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.scalaz"    %%% "scalaz-core"          % "7.2.+"     % Optional,
+      "org.typelevel" %%% "cats-effect"          % "1.0.0-RC2" % Optional,
+      "org.specs2"    %%% "specs2-core"          % "4.2.0"     % Test,
+      "org.specs2"    %%% "specs2-scalacheck"    % "4.2.0"     % Test,
+      "org.specs2"    %%% "specs2-matcher-extra" % "4.2.0"     % Test
+    ),
+    scalacOptions in Test ++= Seq("-Yrangepos")
+  )
+
+lazy val interopJVM = interop.jvm
+
+lazy val interopJS = interop.js
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
