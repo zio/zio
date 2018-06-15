@@ -9,15 +9,15 @@ package scalaz.zio
  * asynchronous action, `now` which represents a synchronously computed value,
  * `maybeLater`, which represents an interruptible asynchronous action or `maybeLaterIO`
  * which represents an interruptible asynchronous action where the canceler has the
- * form `Throwable => IO[Nothing, Unit]`
+ * form `Throwable => IO[Void, Unit]`
  */
 sealed abstract class Async[E, A]
 object Async {
 
   val NoOpCanceler: Canceler         = _ => ()
-  val NoOpPureCanceler: PureCanceler = _ => IO.unit[Nothing]
+  val NoOpPureCanceler: PureCanceler = _ => IO.unit[Void]
 
-  private val _Later: Async[Nothing, Nothing] = MaybeLater(NoOpCanceler)
+  private val _Later: Async[Void, Void] = MaybeLater(NoOpCanceler)
 
   // TODO: Optimize this common case to less overhead with opaque types
   final case class Now[E, A](value: ExitResult[E, A])         extends Async[E, A]

@@ -16,7 +16,7 @@ import Promise.internal._
  * higher-level concurrent or asynchronous structures.
  * {{{
  * for {
- *   promise <- Promise.make[Nothing, Int]
+ *   promise <- Promise.make[Void, Int]
  *   _       <- promise.complete(42).delay(1.second).fork
  *   value   <- promise.get // Resumes when forked fiber completes promise
  * } yield value
