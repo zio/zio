@@ -1,3 +1,5 @@
 target
 .sbtopts
 project/.sbt
+.idea
+.idea_modules
