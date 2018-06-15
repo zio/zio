@@ -15,7 +15,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def is = s2"""
   RTS synchronous correctness
-    widen Nothing                           $testWidenNothing
+    widen Void                              $testWidenVoid
     evaluation of point                     $testPoint
     point must be lazy                      $testPointIsLazy
     now must be eager                       $testNowIsEager
@@ -86,9 +86,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testPoint =
     unsafePerformIO(IO.point(1)) must_=== 1
 
-  def testWidenNothing = {
+  def testWidenVoid = {
     val op1 = IO.sync[RuntimeException, String]("1")
-    val op2 = IO.sync[Nothing, String]("2")
+    val op2 = IO.sync[Void, String]("2")
 
     val result: IO[RuntimeException, String] = for {
       r1 <- op1
@@ -164,7 +164,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testEvalOfFailEnsuring = {
     var finalized = false
 
-    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Nothing, Unit] { finalized = true; () })) must (throwA(
+    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Void, Unit] { finalized = true; () })) must (throwA(
       UnhandledError(ExampleError)
     ))
     finalized must_=== true
@@ -172,8 +172,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testEvalOfFailOnError = {
     var finalized = false
-    val cleanup: Throwable => IO[Nothing, Unit] =
-      _ => IO.sync[Nothing, Unit] { finalized = true; () }
+    val cleanup: Throwable => IO[Void, Unit] =
+      _ => IO.sync[Void, Unit] { finalized = true; () }
 
     unsafePerformIO(
       IO.fail[Throwable, Unit](ExampleError).onError(cleanup)(cleanup)
@@ -195,9 +195,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     var reported: Throwable = null
 
     unsafePerformIO {
-      IO.point[Nothing, Int](42)
+      IO.point[Void, Int](42)
         .ensuring(IO.terminate(ExampleError))
-        .fork0(e => IO.sync[Nothing, Unit] { reported = e; () })
+        .fork0(e => IO.sync[Void, Unit] { reported = e; () })
     }
 
     // FIXME: Is this an issue with thread synchronization?
@@ -207,14 +207,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testExitResultIsUsageResult =
-    unsafePerformIO(IO.unit.bracket_(IO.unit[Nothing])(IO.point[Throwable, Int](42))) must_=== 42
+    unsafePerformIO(IO.unit.bracket_(IO.unit[Void])(IO.point[Throwable, Int](42))) must_=== 42
 
   def testBracketErrorInAcquisition =
     unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit)) must
       (throwA(UnhandledError(ExampleError)))
 
   def testBracketErrorInRelease =
-    unsafePerformIO(IO.unit[Nothing].bracket_(IO.terminate(ExampleError))(IO.unit[Nothing])) must
+    unsafePerformIO(IO.unit[Void].bracket_(IO.terminate(ExampleError))(IO.unit[Void])) must
       (throwA(ExampleError))
 
   def testBracketErrorInUsage =
@@ -231,7 +231,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInRelease = {
     lazy val actual = unsafePerformIO(
-      IO.unit[Nothing].bracket_(IO.terminate(ExampleError))(IO.unit[Nothing])
+      IO.unit[Void].bracket_(IO.terminate(ExampleError))(IO.unit[Void])
     )
 
     actual must (throwA(ExampleError))
@@ -246,7 +246,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
+    val io1 = IO.unit.bracket_(AsyncUnit[Void])(asyncExampleError[Unit])
     val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
 
     unsafePerformIO(io1) must (throwA(UnhandledError(ExampleError)))
@@ -345,26 +345,26 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }.pendingUntilFixed
 
   def testRepeatedPar = {
-    def countdown(n: Int): IO[Nothing, Int] =
+    def countdown(n: Int): IO[Void, Int] =
       if (n == 0) IO.now(0)
-      else IO.now[Nothing, Int](1).par(IO.now[Nothing, Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
+      else IO.now[Void, Int](1).par(IO.now[Void, Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
 
     unsafePerformIO(countdown(50)) must_=== 150
   }
 
   def testPar =
     (0 to 1000).map { _ =>
-      unsafePerformIO(IO.now[Nothing, Int](1).par(IO.now[Nothing, Int](2)).flatMap(t => IO.now(t._1 + t._2))) must_=== 3
+      unsafePerformIO(IO.now[Void, Int](1).par(IO.now[Void, Int](2)).flatMap(t => IO.now(t._1 + t._2))) must_=== 3
     }
 
   def testReduceAll =
     unsafePerformIO(
-      IO.reduceAll[Nothing, Int](IO.point(1), List(2, 3, 4).map(IO.point(_)))(_ + _)
+      IO.reduceAll[Void, Int](IO.point(1), List(2, 3, 4).map(IO.point[Void, Int](_)))(_ + _)
     ) must_=== 10
 
   def testReduceAllEmpty =
     unsafePerformIO(
-      IO.reduceAll[Nothing, Int](IO.point(1), Seq.empty)(_ + _)
+      IO.reduceAll[Void, Int](IO.point(1), Seq.empty)(_ + _)
     ) must_=== 1
 
   def testDeadlockRegression = {
@@ -375,7 +375,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     val e = Executors.newSingleThreadExecutor()
 
     for (i <- (0 until 10000)) {
-      val t = IO.async[Nothing, Int] { cb =>
+      val t = IO.async[Void, Int] { cb =>
         val _ = e.submit[Unit](() => cb(ExitResult.Completed(1)))
       }
       unsafePerformIO(t)
@@ -428,11 +428,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testMergeAll =
     unsafePerformIO(
-      IO.mergeAll[Nothing, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.point(_)))(0, f = (b, a) => b + a.length)
+      IO.mergeAll[Void, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.point[Void, String](_)))(0, f = (b, a) => b + a.length)
     ) must_=== 10
 
   def testMergeAllEmpty =
     unsafePerformIO(
-      IO.mergeAll[Nothing, Int, Int](List.empty)(0, _ + _)
+      IO.mergeAll[Void, Int, Int](List.empty)(0, _ + _)
     ) must_=== 0
 }

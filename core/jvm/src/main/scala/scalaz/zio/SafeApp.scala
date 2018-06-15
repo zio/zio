@@ -13,7 +13,7 @@ import scala.concurrent.duration.Duration
  *
  * object MyApp extends SafeApp {
  *
- *   def run(args: List[String]): IO[Nothing, ExitStatus] =
+ *   def run(args: List[String]): IO[Void, ExitStatus] =
  *     myAppLogic.attempt.map(_.fold(_ => 1)(_ => 0)).map(ExitStatus.ExitNow(_))
  *
  *   def myAppLogic: IO[IOException, Unit] =
@@ -38,7 +38,7 @@ trait SafeApp extends RTS {
    * The main function of the application, which will be passed the command-line
    * arguments to the program and has to return an `IO` with the errors fully handled.
    */
-  def run(args: List[String]): IO[Nothing, ExitStatus]
+  def run(args: List[String]): IO[Void, ExitStatus]
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
