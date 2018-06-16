@@ -428,7 +428,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testMergeAll =
     unsafePerformIO(
-      IO.mergeAll[Void, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.point[Void, String](_)))(0, f = (b, a) => b + a.length)
+      IO.mergeAll[Void, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.point[Void, String](_)))(
+        0,
+        f = (b, a) => b + a.length
+      )
     ) must_=== 10
 
   def testMergeAllEmpty =
