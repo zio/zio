@@ -19,7 +19,7 @@ package object zio {
 
   type Task[A] = IO[Throwable, A]
 
-  type Unexceptional[A] = IO[Void, A]
+  type Infallible[A] = IO[Void, A]
 
   type Canceler     = Throwable => Unit
   type PureCanceler = Throwable => IO[Void, Unit]

@@ -100,7 +100,7 @@ sealed abstract class IO[E, A] { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0[E2](handler: Throwable => IO[Void, Unit]): IO[E2, Fiber[E, A]] =
+  final def fork0[E2](handler: Throwable => Infallible[Unit]): IO[E2, Fiber[E, A]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -215,34 +215,34 @@ sealed abstract class IO[E, A] { self =>
    * }
    * }}}
    */
-  final def bracket[B](release: A => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] =
+  final def bracket[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
     new IO.Bracket(this, (_: ExitResult[E, B], a: A) => release(a), use)
 
   /**
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
-  final def bracket0[B](release: (ExitResult[E, B], A) => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] =
+  final def bracket0[B](release: (ExitResult[E, B], A) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
     new IO.Bracket(this, release, use)
 
   /**
    * A less powerful variant of `bracket` where the value produced by this
    * action is not needed.
    */
-  final def bracket_[B](release: IO[Void, Unit])(use: IO[E, B]): IO[E, B] =
+  final def bracket_[B](release: Infallible[Unit])(use: IO[E, B]): IO[E, B] =
     self.bracket(_ => release)(_ => use)
 
   /**
    * Executes the specified finalizer, whether this action succeeds, fails, or
    * is interrupted.
    */
-  final def ensuring(finalizer: IO[Void, Unit]): IO[E, A] =
+  final def ensuring(finalizer: Infallible[Unit]): IO[E, A] =
     IO.unit.bracket(_ => finalizer)(_ => self)
 
   /**
    * Executes the release action only if there was an error.
    */
-  final def bracketOnError[B](release: A => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] =
+  final def bracketOnError[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
     bracket0(
       (r: ExitResult[E, B], a: A) =>
         r match {
@@ -257,7 +257,7 @@ sealed abstract class IO[E, A] { self =>
    * error to the cleanup action. The cleanup action will not be interrupted.
    * Cleanup actions for handled and unhandled errors can be provided separately.
    */
-  final def onError(cleanupT: Throwable => IO[Void, Unit])(cleanupE: E => IO[Void, Unit]): IO[E, A] =
+  final def onError(cleanupT: Throwable => Infallible[Unit])(cleanupE: E => Infallible[Unit]): IO[E, A] =
     IO.unit[E]
       .bracket0(
         (r: ExitResult[E, A], a: Unit) =>
@@ -559,7 +559,7 @@ object IO {
     final def apply(v: A): IO[E2, B] = succ(v)
   }
 
-  final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[Throwable => IO[Void, Unit]])
+  final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[Throwable => Infallible[Unit]])
       extends IO[E2, Fiber[E1, A]] {
     override def tag = Tags.Fork
   }
@@ -577,7 +577,7 @@ object IO {
   }
 
   final class Bracket[E, A, B] private[IO] (val acquire: IO[E, A],
-                                            val release: (ExitResult[E, B], A) => IO[Void, Unit],
+                                            val release: (ExitResult[E, B], A) => Infallible[Unit],
                                             val use: A => IO[E, B])
       extends IO[E, B] {
     override def tag = Tags.Bracket
@@ -599,7 +599,7 @@ object IO {
     override def tag = Tags.Terminate
   }
 
-  final class Supervisor[E] private[IO] () extends IO[E, Throwable => IO[Void, Unit]] {
+  final class Supervisor[E] private[IO] () extends IO[E, Throwable => Infallible[Unit]] {
     override def tag = Tags.Supervisor
   }
 
@@ -758,7 +758,7 @@ object IO {
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  def supervisor[E]: IO[E, Throwable => IO[Void, Unit]] = new Supervisor()
+  def supervisor[E]: IO[E, Throwable => Infallible[Unit]] = new Supervisor()
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
