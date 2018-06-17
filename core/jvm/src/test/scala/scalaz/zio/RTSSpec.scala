@@ -335,7 +335,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(IO.point(42).race(IO.never[Throwable, Int])) == 42
 
   def testRaceAllOfValues =
-    unsafePerformIO(IO.raceAll[Int, Int](List(IO.fail(42).delay(1.second), IO.now(24))).attempt) == Right(24)
+    unsafePerformIO(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24))).attempt) == Right(24)
 
   def testRaceAllOfFailures =
     unsafePerformIO(IO.raceAll[Int, Void](List(IO.fail(42).delay(1.second), IO.fail(24))).attempt) == Left(24)
