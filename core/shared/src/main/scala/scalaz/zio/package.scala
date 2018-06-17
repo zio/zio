@@ -2,18 +2,26 @@
 
 package scalaz
 
-import scala.AnyRef
-
 package object zio {
 
-  implicit class IONothingSyntax[A](val io: IO[Nothing, A]) extends AnyRef {
-    def apply[E]: IO[E, A] = io.asInstanceOf[IO[E, A]]
+  implicit class IOVoidSyntax[A](val io: IO[Void, A]) extends AnyRef {
+    def apply[E]: IO[E, A]      = io.asInstanceOf[IO[E, A]]
+    def widenError[E]: IO[E, A] = apply
+  }
+
+  implicit class IOSyntax[E, A](val io: IO[E, A]) extends AnyRef {
+
+    /**
+     * Widens the error type to any supertype. While `leftMap` suffices for this
+     * purpose, this method is significantly faster for this purpose.
+     */
+    def widenError[E2 >: E]: IO[E2, A] = io.asInstanceOf[IO[E2, A]]
   }
 
   type Task[A] = IO[Throwable, A]
 
-  type Unexceptional[A] = IO[Nothing, A]
+  type Infallible[A] = IO[Void, A]
 
   type Canceler     = Throwable => Unit
-  type PureCanceler = Throwable => IO[Nothing, Unit]
+  type PureCanceler = Throwable => IO[Void, Unit]
 }

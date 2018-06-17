@@ -107,18 +107,18 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
         (IO.now(false), s)
     })
 
-  private final def removePutter(putter: Promise[_, Unit]): IO[Nothing, Unit] =
+  private final def removePutter(putter: Promise[_, Unit]): IO[Void, Unit] =
     ref
-      .modify[Nothing] {
+      .modify[Void] {
         case Surplus(values, putters) =>
           Surplus(values, putters.filterNot(_._2 == putter))
         case d => d
       }
       .toUnit
 
-  private final def removeTaker(taker: Promise[_, A]): IO[Nothing, Unit] =
+  private final def removeTaker(taker: Promise[_, A]): IO[Void, Unit] =
     ref
-      .modify[Nothing] {
+      .modify[Void] {
         case Deficit(takers) =>
           Deficit(takers.filterNot(_ == taker))
 
