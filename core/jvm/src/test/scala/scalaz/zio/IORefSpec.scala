@@ -24,7 +24,7 @@ class IORefSpec extends Specification with RTS {
   def e1 =
     unsafePerformIO(
       for {
-        ref   <- IORef[Nothing, String](current)
+        ref   <- IORef[Void, String](current)
         value <- ref.read
       } yield value must beTheSameAs(current)
     )
@@ -32,8 +32,8 @@ class IORefSpec extends Specification with RTS {
   def e2 =
     unsafePerformIO(
       for {
-        ref   <- IORef[Nothing, String](current)
-        _     <- ref.write[Nothing](update)
+        ref   <- IORef[Void, String](current)
+        _     <- ref.write[Void](update)
         value <- ref.read
       } yield value must beTheSameAs(update)
     )
@@ -41,7 +41,7 @@ class IORefSpec extends Specification with RTS {
   def e3 =
     unsafePerformIO(
       for {
-        ref   <- IORef[Nothing, String](current)
+        ref   <- IORef[Void, String](current)
         value <- ref.modify(_ => update)
       } yield value must beTheSameAs(update)
     )
@@ -49,8 +49,8 @@ class IORefSpec extends Specification with RTS {
   def e4 =
     unsafePerformIO(
       for {
-        ref   <- IORef[Nothing, String](current)
-        r     <- ref.modifyFold[Nothing, String](_ => ("hello", update))
+        ref   <- IORef[Void, String](current)
+        r     <- ref.modifyFold[Void, String](_ => ("hello", update))
         value <- ref.read
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
     )
@@ -58,8 +58,8 @@ class IORefSpec extends Specification with RTS {
   def e5 =
     unsafePerformIO(
       for {
-        ref   <- IORef[Nothing, String](current)
-        _     <- ref.writeLater[Nothing](update)
+        ref   <- IORef[Void, String](current)
+        _     <- ref.writeLater[Void](update)
         value <- ref.read
       } yield value must beTheSameAs(update)
     )
@@ -67,27 +67,27 @@ class IORefSpec extends Specification with RTS {
   def e6 =
     unsafePerformIO(
       for {
-        ref     <- IORef[Nothing, String](current)
-        success <- ref.tryWrite[Nothing](update)
+        ref     <- IORef[Void, String](current)
+        success <- ref.tryWrite[Void](update)
         value   <- ref.read
       } yield (success must beTrue) and (value must beTheSameAs(update))
     )
 
   def e7 = {
 
-    def tryWriteUntilFalse(ref: IORef[Int], update: Int): IO[Nothing, Boolean] =
+    def tryWriteUntilFalse(ref: IORef[Int], update: Int): IO[Void, Boolean] =
       ref
-        .tryWrite[Nothing](update)
-        .flatMap(success => if (!success) IO.point[Nothing, Boolean](success) else tryWriteUntilFalse(ref, update))
+        .tryWrite[Void](update)
+        .flatMap(success => if (!success) IO.point[Void, Boolean](success) else tryWriteUntilFalse(ref, update))
 
     unsafePerformIO(
       for {
-        ref     <- IORef[Nothing, Int](0)
-        f1      <- ref.write[Nothing](1).forever[Unit].fork[Nothing]
-        f2      <- ref.write[Nothing](2).forever[Unit].fork[Nothing]
+        ref     <- IORef[Void, Int](0)
+        f1      <- ref.write[Void](1).forever[Unit].fork[Void]
+        f2      <- ref.write[Void](2).forever[Unit].fork[Void]
         success <- tryWriteUntilFalse(ref, 3)
-        value   <- ref.read[Nothing]
-        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Nothing](new Error("Terminated fiber"))
+        value   <- ref.read[Void]
+        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Void](new Error("Terminated fiber"))
       } yield (success must beFalse) and (value must be_!=(3))
     )
 
@@ -96,8 +96,8 @@ class IORefSpec extends Specification with RTS {
   def e8 =
     unsafePerformIO(
       for {
-        ref     <- IORef[Nothing, String](current)
-        success <- ref.compareAndSet[Nothing](current, update)
+        ref     <- IORef[Void, String](current)
+        success <- ref.compareAndSet[Void](current, update)
         value   <- ref.read
       } yield (success must beTrue) and (value must beTheSameAs(update))
     )
@@ -105,8 +105,8 @@ class IORefSpec extends Specification with RTS {
   def e9 =
     unsafePerformIO(
       for {
-        ref     <- IORef[Nothing, String](current)
-        success <- ref.compareAndSet[Nothing](update, current)
+        ref     <- IORef[Void, String](current)
+        success <- ref.compareAndSet[Void](update, current)
         value   <- ref.read
       } yield (success must beFalse) and (value must beTheSameAs(current))
     )
