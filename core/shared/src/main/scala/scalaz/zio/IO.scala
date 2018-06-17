@@ -752,7 +752,13 @@ object IO {
    * operation of `IO.attempt`.
    */
   final def absolve[E, A](v: IO[E, Either[E, A]]): IO[E, A] =
-    v.flatMap(_.fold[IO[E, A]](IO.fail, IO.now))
+    v.flatMap(fromEither)
+
+  /**
+    * Lifts an `Either` into an `IO`.
+    */
+  final def fromEither[E, A](v: Either[E, A]): IO[E, A] =
+    v.fold(IO.fail, IO.now)
 
   /**
    * Retrieves the supervisor associated with the fiber running the action
