@@ -8,10 +8,10 @@ import scala.concurrent.duration.Duration
  *
  * {{{
  * import java.io.IOException
- * import scalaz.zio.{IO, SafeApp}
+ * import scalaz.zio.{IO, IOApp}
  * import scalaz.zio.console._
  *
- * object MyApp extends SafeApp {
+ * object MyApp extends IOApp {
  *
  *   def run(args: List[String]): IO[Void, ExitStatus] =
  *     myAppLogic.attempt.map(_.fold(_ => 1)(_ => 0)).map(ExitStatus.ExitNow(_))
@@ -25,7 +25,7 @@ import scala.concurrent.duration.Duration
  * }
  * }}}
  */
-trait SafeApp extends RTS {
+trait IOApp extends RTS {
 
   sealed trait ExitStatus
   object ExitStatus {

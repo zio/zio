@@ -42,7 +42,7 @@ import scala.collection.mutable
  * Scala runtime. This process of interpretation executes the effects described
  * by a given immutable `IO` value. For more information on interpreting `IO`
  * values, see the default interpreter in `RTS` or the safe main function in
- * `SafeApp`.
+ * `IOApp`.
  */
 sealed abstract class IO[E, A] { self =>
 
