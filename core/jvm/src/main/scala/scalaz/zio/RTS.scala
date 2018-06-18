@@ -151,7 +151,7 @@ private object RTS {
     final def apply(v: Any): IO[Any, Any] = IO.now(v)
   }
 
-  final case class Finalizer[E](finalizer: ExitResult[E, Any] => IO[Nothing, Unit]) extends Function[Any, IO[E, Any]] {
+  final case class Finalizer[E](finalizer: ExitResult[E, Any] => IO[Void, Unit]) extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = IO.now(v)
   }
 
@@ -194,7 +194,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Nothing, Unit]) extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Void, Unit]) extends Fiber[E, A] {
     import FiberStatus._
     import java.util.{ Collections, Set, WeakHashMap }
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }
@@ -228,11 +228,11 @@ private object RTS {
      *
      * @param errors  The effectfully produced list of errors, in reverse order.
      */
-    final def dispatchErrors(errors: IO[Nothing, List[Throwable]]): IO[Nothing, Unit] =
+    final def dispatchErrors(errors: IO[Void, List[Throwable]]): IO[Void, Unit] =
       errors.flatMap(
         // Each error produced by a finalizer must be handled using the
         // context's unhandled exception handler:
-        _.reverse.map(unhandled).foldLeft(IO.unit[Nothing])(_ *> _)
+        _.reverse.map(unhandled).foldLeft(IO.unit[Void])(_ *> _)
       )
 
     /**
@@ -435,7 +435,7 @@ private object RTS {
 
                     val error = io.error
 
-                    val finalizer = catchError[Nothing](error)
+                    val finalizer = catchError[Void](error)
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -590,7 +590,7 @@ private object RTS {
                     val ref = new AtomicReference[Any]()
 
                     val finalizer = Finalizer[E](
-                      rez => IO.suspend[Nothing, Unit](if (ref.get != null) io.release(rez, ref.get) else IO.unit)
+                      rez => IO.suspend[Void, Unit](if (ref.get != null) io.release(rez, ref.get) else IO.unit)
                     )
 
                     stack.push(finalizer)
@@ -635,7 +635,7 @@ private object RTS {
 
                     val cause = io.cause
 
-                    val finalizer = interruptStack[Nothing](cause)
+                    val finalizer = interruptStack[Void](cause)
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
@@ -709,7 +709,7 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: Throwable => IO[Nothing, Unit]): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: Throwable => IO[Void, Unit]): FiberContext[E, A] = {
       val context = new FiberContext[E, A](rts, handler)
 
       rts.submit(context.evaluate(io))
@@ -778,7 +778,7 @@ private object RTS {
         if (won) resume(tryA.map(finish))
       }
 
-    private final def raceWith[A, B, C](unhandled: Throwable => IO[Nothing, Unit],
+    private final def raceWith[A, B, C](unhandled: Throwable => IO[Void, Unit],
                                         leftIO: IO[E, A],
                                         rightIO: IO[E, B],
                                         finishLeft: (A, Fiber[E, B]) => IO[E, C],
@@ -1036,10 +1036,10 @@ private object RTS {
                 }
             }
 
-            val finalizer = interruptStack[Nothing](t)
+            val finalizer = interruptStack[Void](t)
 
             if (finalizer ne null) {
-              fork[Nothing, Unit](dispatchErrors(finalizer), unhandled)
+              fork[Void, Unit](dispatchErrors(finalizer), unhandled)
             }
 
             purgeJoinersKillers(v, joiners, killers)
@@ -1105,7 +1105,7 @@ private object RTS {
     def Initial[E, A] = Executing[E, A](Nil, Nil)
   }
 
-  val _SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.Completed(())
+  val _SuccessUnit: ExitResult[Void, Unit] = ExitResult.Completed(())
 
   final def SuccessUnit[E]: ExitResult[E, Unit] = _SuccessUnit.asInstanceOf[ExitResult[E, Unit]]
 
