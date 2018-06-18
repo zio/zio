@@ -44,6 +44,7 @@ object Scalaz {
         )
       case _ =>
         Seq(
+          "-Xexperimental",
           "-Ywarn-unused-import"
         )
     }
