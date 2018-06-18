@@ -2,6 +2,7 @@
 package scalaz.zio
 
 import scala.concurrent.duration._
+import scala.concurrent.TimeoutException
 
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.Specification
@@ -68,6 +69,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
     interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
+    race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
+    race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
     race of value & never                   ${upTo(1.second)(testRaceOfValueNever)}
     raceAll of values                       ${upTo(1.second)(testRaceAllOfValues)}
     raceAll of failures                     ${upTo(1.second)(testRaceAllOfFailures)}
@@ -331,18 +334,30 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(io) must_=== 42
   }
 
+  def testRaceChoosesWinner =
+    unsafePerformIO(IO.fail(42).race(IO.now(24)).attempt) must_=== Right(24)
+
+  def testRaceChoosesFailure =
+    unsafePerformIO(IO.fail(42).race(IO.fail(42)).attempt) must_=== Left(42)
+
   def testRaceOfValueNever =
-    unsafePerformIO(IO.point(42).race(IO.never[Throwable, Int])) == 42
+    unsafePerformIO(IO.point(42).race(IO.never[Throwable, Int])) must_=== 42
+
+  def testRaceOfFailNever =
+    unsafePerformIO(IO.fail(24).race(IO.never[Int, Int]).timeout[Option[Int]](None)(Option.apply)(10.milliseconds)) must beNone
 
   def testRaceAllOfValues =
-    unsafePerformIO(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24))).attempt) == Right(24)
+    unsafePerformIO(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24))).attempt) must_=== Right(24)
 
   def testRaceAllOfFailures =
-    unsafePerformIO(IO.raceAll[Int, Void](List(IO.fail(42).delay(1.second), IO.fail(24))).attempt) == Left(24)
+    unsafePerformIO(IO.raceAll[Int, Void](List(IO.fail(24).delay(10.milliseconds), IO.fail(24))).attempt) must_=== Left(
+      24
+    )
 
-  def testRaceAllOfFailuresOneSuccess = {
-    unsafePerformIO(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24).delay(1.second))).attempt) == Right(24)
-  }.pendingUntilFixed
+  def testRaceAllOfFailuresOneSuccess =
+    unsafePerformIO(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24).delay(1.milliseconds))).attempt) must_=== Right(
+      24
+    )
 
   def testRepeatedPar = {
     def countdown(n: Int): IO[Void, Int] =
