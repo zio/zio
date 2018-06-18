@@ -2,7 +2,6 @@
 package scalaz.zio
 
 import scala.concurrent.duration._
-import scala.concurrent.TimeoutException
 
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.Specification
