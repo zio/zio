@@ -9,6 +9,8 @@ import scalaz.ioeffect.Errors._
 import scalaz.ioeffect.Errors.TerminatedException
 import scalaz.Liskov.<~<
 
+import scala.concurrent.{ ExecutionContext, Future }
+
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
  * describes an effectful action that may fail with an `E`, run forever, or
@@ -498,6 +500,12 @@ sealed abstract class IO[E, A] { self =>
   final def run[E2]: IO[E2, ExitResult[E, A]] = new IO.Run(self)
 
   /**
+   * Fold errors and values to some `B`, resuming with `IO[Void, B]`
+   */
+  final def fold[B](f: E => B, g: A => B): IO[Void, B] =
+    self.attempt[Void].map(_.fold(f, g))
+
+  /**
    * An integer that identifies the term in the `IO` sum type to which this
    * instance belongs (e.g. `IO.Tags.Point`).
    */
@@ -767,6 +775,27 @@ object IO extends IOInstances {
    */
   final def require[E, A](error: E): IO[E, Maybe[A]] => IO[E, A] =
     (io: IO[E, Maybe[A]]) => io.flatMap(_.cata(IO.now[E, A](_), IO.fail[E, A](error)))
+
+  /**
+   * Convert from Future (lifted into IO eagerly via `now`, or delayed via
+   * `point`) to a `Task`. Futures are inefficient and unsafe: this is provided
+   * only as a convenience for integrating with legacy systems.
+   */
+  final def fromFuture[E, A](io: Task[Future[A]])(implicit ec: ExecutionContext): Task[A] =
+    io.attempt.flatMap { f =>
+      IO.async { cb =>
+        f.fold(
+          t => cb(ExitResult.Failed(t)),
+          _.onComplete(
+            t =>
+              cb(t match {
+                case scala.util.Success(a) => ExitResult.Completed(a)
+                case scala.util.Failure(t) => ExitResult.Failed(t)
+              })
+          )
+        )
+      }
+    }
 
   // TODO: Make this fast, generalize from `Unit` to `A: Semigroup`,
   // and use `IList` instead of `List`.

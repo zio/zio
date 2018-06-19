@@ -9,4 +9,5 @@ trait IOInstances {
     override def bind[A, B](fa: IO[E, A])(f: A => IO[E, B]): IO[E, B] =
       fa.flatMap(f)
   }
+
 }
