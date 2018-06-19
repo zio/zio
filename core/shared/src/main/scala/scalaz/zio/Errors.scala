@@ -2,6 +2,8 @@
 package scalaz.zio
 
 object Errors {
+  final object NothingRaced extends Exception("Nothing was raced")
+
   final case class LostRace(loser: Either[Fiber[_, _], Fiber[_, _]])
       extends Exception("Lost a race to " + loser.fold(_ => "right", _ => "left"))
 

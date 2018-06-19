@@ -137,8 +137,9 @@ private object RTS {
 
   sealed trait RaceState
   object RaceState {
-    case object Started  extends RaceState
-    case object Finished extends RaceState
+    case object Started     extends RaceState
+    case object FirstFailed extends RaceState
+    case object Finished    extends RaceState
   }
 
   type Callback[E, A] = ExitResult[E, A] => Unit
@@ -767,9 +768,18 @@ private object RTS {
             case Finished =>
               won = false
               oldStatus
-            case Started =>
+            case FirstFailed =>
               won = true
               Finished
+            case Started =>
+              tryA match {
+                case ExitResult.Completed(_) =>
+                  won = true
+                  Finished
+                case _ =>
+                  won = false
+                  FirstFailed
+              }
           }
 
           loop = !state.compareAndSet(oldStatus, newState)
