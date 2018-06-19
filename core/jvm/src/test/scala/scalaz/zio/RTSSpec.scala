@@ -383,9 +383,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     ) must_=== 1
 
   def testDeadlockRegression = {
-    import scalaz._
+    
     import java.util.concurrent.Executors
-    import scalaz.zio.RTS
 
     val e = Executors.newSingleThreadExecutor()
 
