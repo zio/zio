@@ -755,8 +755,8 @@ object IO {
     v.flatMap(fromEither)
 
   /**
-    * Lifts an `Either` into an `IO`.
-    */
+   * Lifts an `Either` into an `IO`.
+   */
   final def fromEither[E, A](v: Either[E, A]): IO[E, A] =
     v.fold(IO.fail, IO.now)
 
