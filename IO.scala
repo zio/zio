@@ -136,8 +136,10 @@ sealed abstract class IO[E, A] { self =>
    * then the action will be terminated with some error.
    */
   final def race(that: IO[E, A]): IO[E, A] =
-    raceWith(that)((a, fiber) => fiber.interrupt(LostRace(\/-(fiber))).const(a),
-                   (a, fiber) => fiber.interrupt(LostRace(-\/(fiber))).const(a))
+    raceWith(that)(
+      (a, fiber) => fiber.interrupt(LostRace(\/-(fiber))).const(a),
+      (a, fiber) => fiber.interrupt(LostRace(-\/(fiber))).const(a)
+    )
 
   /**
    * Races this action with the specified action, invoking the
@@ -280,7 +282,7 @@ sealed abstract class IO[E, A] { self =>
           case ExitResult.Failed(_)     => release(a)
           case ExitResult.Terminated(_) => release(a)
           case _                        => IO.unit
-      }
+        }
     )(use)
 
   /**
@@ -295,7 +297,7 @@ sealed abstract class IO[E, A] { self =>
             case ExitResult.Failed(e)     => cleanup(e.right)
             case ExitResult.Terminated(e) => cleanup(e.left)
             case _                        => IO.unit
-        }
+          }
       )(_ => self)
 
   /**
@@ -575,11 +577,12 @@ object IO extends IOInstances {
     override def tag: Int = Tags.Fork
   }
 
-  final class Race[E, A0, A1, A] private[IO] (val left: IO[E, A0],
-                                              val right: IO[E, A1],
-                                              val finishLeft: (A0, Fiber[E, A1]) => IO[E, A],
-                                              val finishRight: (A1, Fiber[E, A0]) => IO[E, A])
-      extends IO[E, A] {
+  final class Race[E, A0, A1, A] private[IO] (
+    val left: IO[E, A0],
+    val right: IO[E, A1],
+    val finishLeft: (A0, Fiber[E, A1]) => IO[E, A],
+    val finishRight: (A1, Fiber[E, A0]) => IO[E, A]
+  ) extends IO[E, A] {
     override def tag: Int = Tags.Race
   }
 
@@ -587,10 +590,11 @@ object IO extends IOInstances {
     override def tag: Int = Tags.Suspend
   }
 
-  final class Bracket[E, A, B] private[IO] (val acquire: IO[E, A],
-                                            val release: (ExitResult[E, B], A) => IO[Void, Unit],
-                                            val use: A => IO[E, B])
-      extends IO[E, B] {
+  final class Bracket[E, A, B] private[IO] (
+    val acquire: IO[E, A],
+    val release: (ExitResult[E, B], A) => IO[Void, Unit],
+    val use: A => IO[E, B]
+  ) extends IO[E, B] {
     override def tag: Int = Tags.Bracket
   }
 
@@ -810,7 +814,7 @@ object IO extends IOInstances {
 
   private final val Never: IO[Nothing, Any] =
     IO.async[Nothing, Any] { (k: (ExitResult[Nothing, Any]) => Unit) =>
-      }
+    }
 
   private final val Unit: IO[Nothing, Unit] = now(())
 }
