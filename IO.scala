@@ -3,7 +3,7 @@ package scalaz.ioeffect
 
 import scala.annotation.switch
 import scala.concurrent.duration._
-import scalaz.{ -\/, \/, \/-, Maybe }
+import scalaz.{ -\/, \/, \/-, unused, Maybe }
 import scalaz.syntax.either._
 import scalaz.ioeffect.Errors._
 import scalaz.ioeffect.Errors.TerminatedException
@@ -170,10 +170,14 @@ sealed abstract class IO[E, A] { self =>
    * Widens the error type to any supertype. While `leftMap` suffices for this
    * purpose, this method is significantly faster for this purpose.
    */
-  final def widen[E2](implicit ev: E <~< E2): IO[E2, A] = {
-    val _ = ev
+  final def widenError[E2](implicit @unused ev: E <~< E2): IO[E2, A] =
     self.asInstanceOf[IO[E2, A]]
-  }
+
+  /**
+   * Widens the type to any supertype more efficiently than `map(identity)`.
+   */
+  final def widen[A2](implicit @unused ev: A <~< A2): IO[E, A2] =
+    self.asInstanceOf[IO[E, A2]]
 
   /**
    * Executes this action, capturing both failure and success and returning
