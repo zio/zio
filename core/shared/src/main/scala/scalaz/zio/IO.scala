@@ -2,6 +2,7 @@
 package scalaz.zio
 
 import scala.annotation.switch
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 import Errors._
 
@@ -800,14 +801,19 @@ object IO {
    */
   def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
-  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    (KleisliIO.pure[E, Unit, IORef[List[B]]](_ => IORef(Nil)) >>> KleisliIO.pure[E, IORef[List[B]], List[B]] { ref =>
-      in.foldLeft(unit[E])(
-        (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(b :: _) *> unit }
-      ) *> ref.read
-    } >>> KleisliIO.lift[E, List[B], M[B]] { bs =>
-      bs.foldLeft(cbf(in))(_ += _).result()
-    }).run(())
+  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] = {
+    @tailrec def parTraverse_rec(as: Iterator[A], ioref: IO[E, IORef[List[B]]]): IO[E, IORef[List[B]]] =
+      if (!as.hasNext)
+        ioref
+      else {
+        val a = as.next
+        parTraverse_rec(as, ioref.par(fn(a)).flatMap { case (ref, b) => ref.modify(b :: _) *> point(ref) })
+      }
+
+    parTraverse_rec(in.toIterator, IORef[E, List[B]](Nil))
+      .flatMap(_.read)
+      .map(_.foldLeft(cbf(in))(_ += _).result())
+  }
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
