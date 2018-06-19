@@ -2,12 +2,11 @@
 package scalaz.zio
 
 import scala.concurrent.duration._
-
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.Specification
 import org.specs2.specification.AroundTimeout
-
 import Errors.UnhandledError
+import com.github.ghik.silencer.silent
 
 class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
@@ -103,8 +102,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testPointIsLazy =
     IO.point(throw new Error("Not lazy")) must not(throwA[Throwable])
 
+  @silent
   def testNowIsEager =
-    (IO.now(throw new Error("Eager"))) must (throwA[Error])
+    IO.now(throw new Error("Eager")) must (throwA[Error])
 
   def testSuspendIsLazy =
     IO.suspend(throw new Error("Eager")) must not(throwA[Throwable])
@@ -132,6 +132,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(sumIo(1000)) must_=== sum(1000)
   }
 
+  @silent
   def testEvalOfRedeemOfSyncEffectError =
     unsafePerformIO(
       IO.syncThrowable(throw ExampleError)
@@ -382,9 +383,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     ) must_=== 1
 
   def testDeadlockRegression = {
-    import scalaz._
+
     import java.util.concurrent.Executors
-    import scalaz.zio.RTS
 
     val e = Executors.newSingleThreadExecutor()
 
