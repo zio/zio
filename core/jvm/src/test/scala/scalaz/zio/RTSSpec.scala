@@ -383,7 +383,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     ) must_=== 1
 
   def testDeadlockRegression = {
-    
+
     import java.util.concurrent.Executors
 
     val e = Executors.newSingleThreadExecutor()
