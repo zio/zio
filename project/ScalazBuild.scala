@@ -41,7 +41,7 @@ object Scalaz {
     scalacOptions in (Compile, compile) ++=
       Seq("-Ywarn-unused:imports", "-Xfatal-warnings"),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.6"),
+      compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.7"),
       compilerPlugin("com.github.tomasmikula" %% "pascal"          % "0.2.1"),
       compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "0.6")
     ),
