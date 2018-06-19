@@ -31,6 +31,7 @@ object Scalaz {
     "-Ywarn-numeric-widen",
     "-Ywarn-unused:_,-imports",
     "-Ywarn-value-discard",
+    "-Xfatal-warnings",
     "-opt:l:inline",
     "-opt-inline-from:<source>"
   )
@@ -38,8 +39,7 @@ object Scalaz {
   def stdSettings(prjName: String) = Seq(
     name := s"scalaz-$prjName",
     scalacOptions := stdOptions,
-    scalacOptions in (Compile, compile) ++=
-      Seq("-Ywarn-unused:imports", "-Xfatal-warnings"),
+    scalacOptions in (Compile, compile) ++= Seq("-Ywarn-unused:imports"),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
       compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.7"),
       compilerPlugin("com.github.tomasmikula" %% "pascal"          % "0.2.1"),
