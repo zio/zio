@@ -1183,16 +1183,18 @@ private object RTS {
   object FiberStatus {
     final case class Executing[E, A](joiners: List[Callback[E, A]], killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
-    final case class Interrupting[E, A](error: Throwable,
-                                        joiners: List[Callback[E, A]],
-                                        killers: List[Callback[E, Unit]])
-        extends FiberStatus[E, A]
-    final case class AsyncRegion[E, A](reentrancy: Int,
-                                       resume: Int,
-                                       cancel: Option[Throwable => Unit],
-                                       joiners: List[Callback[E, A]],
-                                       killers: List[Callback[E, Unit]])
-        extends FiberStatus[E, A]
+    final case class Interrupting[E, A](
+      error: Throwable,
+      joiners: List[Callback[E, A]],
+      killers: List[Callback[E, Unit]]
+    ) extends FiberStatus[E, A]
+    final case class AsyncRegion[E, A](
+      reentrancy: Int,
+      resume: Int,
+      cancel: Option[Throwable => Unit],
+      joiners: List[Callback[E, A]],
+      killers: List[Callback[E, Unit]]
+    ) extends FiberStatus[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A]
 
     def Initial[E, A]: Executing[E, A] = Executing[E, A](Nil, Nil)
