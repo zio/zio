@@ -795,13 +795,13 @@ object IO {
   def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    in.foldLeft[IO[E, Fiber[E, mutable.Builder[B, M[B]]]]](
-      point(cbf(in)).fork
-    )((iomb, a) =>
-      iomb.zipWith(fn(a).fork){ case (fmb, fb) => fmb.zipWith(fb){ case (mb, b) => mb += b }}
-    )
-    .flatMap(_.join)
-    .map(_.result)
+    for {
+      ref <- IORef[E, List[B]](Nil)
+      _ <- in.foldLeft(unit[E])(
+            (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(b :: _) *> unit }
+          )
+      bs <- ref.read
+    } yield bs.foldLeft(cbf(in))(_ += _).result()
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
