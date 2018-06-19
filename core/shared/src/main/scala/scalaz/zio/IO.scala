@@ -752,13 +752,19 @@ object IO {
    * operation of `IO.attempt`.
    */
   final def absolve[E, A](v: IO[E, Either[E, A]]): IO[E, A] =
-    v.flatMap(_.fold[IO[E, A]](IO.fail, IO.now))
+    v.flatMap(fromEither)
+
+  /**
+   * Lifts an `Either` into an `IO`.
+   */
+  final def fromEither[E, A](v: Either[E, A]): IO[E, A] =
+    v.fold(IO.fail, IO.now)
 
   /**
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  def supervisor[E]: IO[E, Throwable => Infallible[Unit]] = new Supervisor()
+  final def supervisor[E]: IO[E, Throwable => Infallible[Unit]] = new Supervisor()
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
@@ -780,7 +786,7 @@ object IO {
    * Apply the function fn to each element of the `TraversableOnce[A]` and
    * return the results in a new `TraversableOnce[B]`.
    */
-  def traverse[E, A, B, M[X] <: TraversableOnce[X]](
+  final def traverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
     in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
@@ -807,7 +813,7 @@ object IO {
    * Evaluate each effect in the structure from left to right, and collect
    * the results.
    */
-  def sequence[E, A, M[X] <: TraversableOnce[X]](
+  final def sequence[E, A, M[X] <: TraversableOnce[X]](
     in: M[IO[E, A]]
   )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, M[A]] =
     traverse(in)(identity)
@@ -820,20 +826,13 @@ object IO {
    * succeed or fail. Therefore, the only possible output is an IO action
    * that never terminates.
    */
-  def raceAll[E, A](t: TraversableOnce[IO[E, A]]): IO[E, A] =
-    t.foldLeft(IO.never[E, A])(_ race _)
-
-  /**
-   * Races a non-empty traversable collection of `IO[E, A]` against each other.
-   * If all of them fail, the last error is returned.
-   */
-  def raceAll1[E, A](h: IO[E, A], t: TraversableOnce[IO[E, A]]): IO[E, A] =
-    h.race(raceAll(t))
+  final def raceAll[E, A](t: TraversableOnce[IO[E, A]]): IO[E, A] =
+    t.foldLeft(IO.terminate[E, A](NothingRaced))(_ race _)
 
   /**
    * Reduces a list of IO to a single IO, works in parallel.
    */
-  def reduceAll[E, A](a: IO[E, A], as: TraversableOnce[IO[E, A]])(f: (A, A) => A): IO[E, A] =
+  final def reduceAll[E, A](a: IO[E, A], as: TraversableOnce[IO[E, A]])(f: (A, A) => A): IO[E, A] =
     as.foldLeft(a) { (l, r) =>
       l.par(r).map(f.tupled)
     }
@@ -841,7 +840,7 @@ object IO {
   /**
    * Merges a list of IO to a single IO, works in parallel.
    */
-  def mergeAll[E, A, B](in: TraversableOnce[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
+  final def mergeAll[E, A, B](in: TraversableOnce[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
     in.foldLeft(IO.point[E, B](zero))((acc, a) => acc.par(a).map(f.tupled))
 
   private final val Never: IO[Void, Any] =
