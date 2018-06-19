@@ -795,13 +795,13 @@ object IO {
   def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    for {
-      ref <- IORef[E, List[B]](Nil)
-      _ <- in.foldLeft(unit[E])(
-            (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(b :: _) *> unit }
-          )
-      bs <- ref.read
-    } yield bs.foldLeft(cbf(in))(_ += _).result()
+    (KleisliIO.pure[E, Unit, IORef[List[B]]](_ => IORef(Nil)) >>> KleisliIO.pure[E, IORef[List[B]], List[B]] { ref =>
+      in.foldLeft(unit[E])(
+        (io, a) => io.par(fn(a)).flatMap { case (_, b) => ref.modify(b :: _) *> unit }
+      ) *> ref.read
+    } >>> KleisliIO.lift[E, List[B], M[B]] { bs =>
+      bs.foldLeft(cbf(in))(_ += _).result()
+    }).run(())
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
