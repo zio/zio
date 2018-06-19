@@ -80,15 +80,17 @@ trait IOScalaCheckInstances extends TestInstances {
       } yield ioa.map(f1).map(f2)
 
     Arbitrary(
-      Gen.frequency(5  -> genPure,
-                    5  -> genApply,
-                    1  -> genFail,
-                    5  -> genBindSuspend,
-                    5  -> genAsync,
-                    5  -> genNestedAsync,
-                    5  -> getMapOne,
-                    5  -> getMapTwo,
-                    10 -> genFlatMap)
+      Gen.frequency(
+        5  -> genPure,
+        5  -> genApply,
+        1  -> genFail,
+        5  -> genBindSuspend,
+        5  -> genAsync,
+        5  -> genNestedAsync,
+        5  -> getMapOne,
+        5  -> getMapTwo,
+        10 -> genFlatMap
+      )
     )
   }
 
