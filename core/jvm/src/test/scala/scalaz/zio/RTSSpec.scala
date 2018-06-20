@@ -1,6 +1,8 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
+import java.util.concurrent.Callable
+
 import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.Specification
@@ -390,7 +392,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
     for (i <- (0 until 10000)) {
       val t = IO.async[Void, Int] { cb =>
-        val _ = e.submit[Unit](() => cb(ExitResult.Completed(1)))
+        val c: Callable[Unit] = () => cb(ExitResult.Completed(1))
+        val _                 = e.submit(c)
       }
       unsafePerformIO(t)
     }

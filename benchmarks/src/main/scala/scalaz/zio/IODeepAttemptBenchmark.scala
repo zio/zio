@@ -28,14 +28,12 @@ class IODeepAttemptBenchmark {
 
   @Benchmark
   def futureDeepAttempt(): BigInt = {
-    import scala.util.Success
     import scala.concurrent.Future
     import scala.concurrent.duration.Duration.Inf
 
     def descend(n: Int): Future[BigInt] =
       if (n == depth) Future.failed(new Exception("Oh noes!"))
-      else if (n == halfway) descend(n + 1).transform(_.transform(Success(_), _ => Success(50)))
-      else descend(n + 1).map(_ + n)
+      else if (n == halfway) descend(n + 1).recover { case _ => 50 } else descend(n + 1).map(_ + n)
 
     Await.result(descend(0), Inf)
   }

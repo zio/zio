@@ -19,27 +19,42 @@ object Scalaz {
     "-language:existentials",
     "-unchecked",
     "-Yno-adapted-args",
-    "-opt-warnings",
     "-Xlint:_,-type-parameter-shadow",
     "-Xsource:2.13",
     "-Ywarn-dead-code",
-    "-Ywarn-extra-implicit",
     "-Ywarn-inaccessible",
     "-Ywarn-infer-any",
     "-Ywarn-nullary-override",
     "-Ywarn-nullary-unit",
     "-Ywarn-numeric-widen",
-    "-Ywarn-unused:_,-imports",
     "-Ywarn-value-discard",
-    "-Xfatal-warnings",
-    "-Ywarn-unused:imports",
-    "-opt:l:inline",
-    "-opt-inline-from:<source>"
+    "-Xfatal-warnings"
   )
+
+  def extraOptions(scalaVersion: String) =
+    CrossVersion.partialVersion(scalaVersion) match {
+      case Some((2, 12)) =>
+        Seq(
+          "-opt-warnings",
+          "-Ywarn-extra-implicit",
+          "-Ywarn-unused:_,imports",
+          "-Ywarn-unused:imports",
+          "-opt:l:inline",
+          "-opt-inline-from:<source>"
+        )
+      case _ =>
+        Seq(
+          "-Xexperimental",
+          "-Ywarn-unused-import"
+        )
+    }
 
   def stdSettings(prjName: String) = Seq(
     name := s"scalaz-$prjName",
     scalacOptions := stdOptions,
+    crossScalaVersions := Seq("2.12.4", "2.11.12"),
+    scalaVersion := crossScalaVersions.value.head,
+    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
       compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.7"),
       compilerPlugin("com.github.tomasmikula" %% "pascal"          % "0.2.1"),
