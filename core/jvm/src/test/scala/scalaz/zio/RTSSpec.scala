@@ -244,7 +244,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafePerformIO(
-      IO.absolve(IO.bracket(IO.unit[Throwable])(_ => IO.unit)(_ => IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable])
+      IO.absolve(
+        IO.bracket(IO.unit[Throwable])(_ => IO.unit)(_ => IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable]
+      )
     )
 
     actual must (throwA(UnhandledError(ExampleError)))
