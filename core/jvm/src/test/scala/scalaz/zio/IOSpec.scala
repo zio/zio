@@ -16,6 +16,8 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
       `IO.traverse` returns the list of Ints in the same order. $t2
    Create a list of String and pass an f: String => IO[String, Int]:
       `IO.traverse` fails with a NumberFormatException exception. $t3
+   Create a list of Strings and pass an f: String => IO[String, Int]:
+      `IO.parTraverse` returns the list of Ints in any order. $t4
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -40,6 +42,12 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
     val list = List("1", "h", "3")
     val res  = Try(unsafePerformIO(IO.traverse(list)(x => IO.point[String, Int](x.toInt))))
     res must beAFailedTry.withThrowable[NumberFormatException]
+  }
+
+  def t4 = {
+    val list = List("1", "2", "3")
+    val res  = unsafePerformIO(IO.parTraverse(list)(x => IO.point[String, Int](x.toInt)))
+    res must containTheSameElementsAs(List(1, 2, 3))
   }
 
 }
