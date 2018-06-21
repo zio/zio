@@ -784,11 +784,8 @@ object IO {
 
   final def bracket[E, A, B](acquire: IO[E, A])(release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
     for {
-      e <- acquire.uninterruptibly.attempt
-      b <- (e match {
-            case Right(a) => use(a).ensuring(release(a).uninterruptibly)
-            case Left(e)  => IO.fail(e)
-          })
+      a <- acquire.uninterruptibly
+      b <- use(a).ensuring(release(a).uninterruptibly)
     } yield b
 
   /**
