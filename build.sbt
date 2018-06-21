@@ -21,6 +21,9 @@ lazy val sonataCredentials = for {
 
 credentials in ThisBuild ++= sonataCredentials.toSeq
 
+addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
+addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+
 lazy val root = project
   .in(file("."))
   .settings(
