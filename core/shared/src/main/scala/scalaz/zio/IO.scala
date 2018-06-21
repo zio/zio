@@ -786,11 +786,10 @@ object IO {
     for {
       e <- acquire.uninterruptibly.attempt
       b <- (e match {
-        case Right(a) => use(a).ensuring(release(a).uninterruptibly)
-        case Left(e)  => IO.fail(e)
-      })
+            case Right(a) => use(a).ensuring(release(a).uninterruptibly)
+            case Left(e)  => IO.fail(e)
+          })
     } yield b
-
 
   /**
    * Apply the function fn to each element of the `TraversableOnce[A]` and
