@@ -632,6 +632,15 @@ object IO {
   final def unit[E]: IO[E, Unit] = Unit.asInstanceOf[IO[E, Unit]]
 
   /**
+   * Creates an `IO` value from `ExitResult`
+   */
+  final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
+    case ExitResult.Completed(b)  => now(b)
+    case ExitResult.Terminated(t) => terminate(t)
+    case ExitResult.Failed(e)     => fail(e)
+  }
+
+  /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
   final def sleep[E](duration: Duration): IO[E, Unit] = new Sleep(duration)
