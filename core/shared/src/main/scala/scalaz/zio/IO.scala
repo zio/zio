@@ -782,11 +782,11 @@ object IO {
         } yield fiberA.zipWith(fiberAs)(_ :: _)
     }
 
-  final def bracket[E, A, B](acquire: IO[E, A])(release: Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+  final def bracket[E, A, B](acquire: IO[E, A])(release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
     for {
       e <- acquire.uninterruptibly.attempt
       b <- (e match {
-        case Right(a) => use(a).ensuring(release.uninterruptibly)
+        case Right(a) => use(a).ensuring(release(a).uninterruptibly)
         case Left(e)  => IO.fail(e)
       })
     } yield b
