@@ -212,23 +212,23 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testExitResultIsUsageResult =
-    unsafePerformIO(IO.unit.bracket_(IO.unit[Void])(IO.point[Throwable, Int](42))) must_=== 42
+    unsafePerformIO(IO.bracket(IO.unit[Void])(_ => IO.unit[Void])(_ => IO.point[Void, Int](42))) must_=== 42
 
   def testBracketErrorInAcquisition =
-    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit)) must
+    unsafePerformIO(IO.bracket(IO.fail[Throwable, Unit](ExampleError))(_ => IO.unit)(_ => IO.unit)) must
       (throwA(UnhandledError(ExampleError)))
 
   def testBracketErrorInRelease =
-    unsafePerformIO(IO.unit[Void].bracket_(IO.terminate(ExampleError))(IO.unit[Void])) must
+    unsafePerformIO(IO.bracket(IO.unit[Void])(_ => IO.terminate(ExampleError))(_ => IO.unit[Void])) must
       (throwA(ExampleError))
 
   def testBracketErrorInUsage =
-    unsafePerformIO(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError))) must
+    unsafePerformIO(IO.bracket(IO.unit[Throwable])(_ => IO.unit)(_ => IO.fail[Throwable, Unit](ExampleError))) must
       (throwA(UnhandledError(ExampleError)))
 
   def testBracketRethrownCaughtErrorInAcquisition = {
     lazy val actual = unsafePerformIO(
-      IO.absolve(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit).attempt[Throwable])
+      IO.absolve(IO.bracket(IO.fail[Throwable, Unit](ExampleError))(_ => IO.unit)(_ => IO.unit).attempt[Throwable])
     )
 
     actual must (throwA(UnhandledError(ExampleError)))
@@ -236,7 +236,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInRelease = {
     lazy val actual = unsafePerformIO(
-      IO.unit[Void].bracket_(IO.terminate(ExampleError))(IO.unit[Void])
+      IO.bracket(IO.unit[Void])(_ => IO.terminate(ExampleError))(_ => IO.unit[Void])
     )
 
     actual must (throwA(ExampleError))
@@ -244,15 +244,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafePerformIO(
-      IO.absolve(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable])
+      IO.absolve(IO.bracket(IO.unit[Throwable])(_ => IO.unit)(_ => IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable])
     )
 
     actual must (throwA(UnhandledError(ExampleError)))
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.unit.bracket_(AsyncUnit[Void])(asyncExampleError[Unit])
-    val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
+    val io1 = IO.bracket(IO.unit[Throwable])(_ => AsyncUnit[Void])(_ => asyncExampleError[Unit])
+    val io2 = IO.bracket(AsyncUnit[Throwable])(_ => IO.unit)(_ => asyncExampleError[Unit])
 
     unsafePerformIO(io1) must (throwA(UnhandledError(ExampleError)))
     unsafePerformIO(io2) must (throwA(UnhandledError(ExampleError)))
