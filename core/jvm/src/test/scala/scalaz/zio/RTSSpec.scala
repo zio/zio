@@ -60,6 +60,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     rethrown caught error in release        $testBracketRethrownCaughtErrorInRelease_new
     rethrown caught error in usage          $testBracketRethrownCaughtErrorInUsage_new
     test eval of async fail                 $testEvalOfAsyncAttemptOfFail_new
+    bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1_new)}
 
   RTS synchronous stack safety
     deep map of point                       $testDeepMapOfPoint
@@ -339,6 +340,27 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(io2) must (throwA(UnhandledError(ExampleError)))
     unsafePerformIO(IO.absolve(io1.attempt[Throwable])) must (throwA(UnhandledError(ExampleError)))
     unsafePerformIO(IO.absolve(io2.attempt[Throwable])) must (throwA(UnhandledError(ExampleError)))
+  }
+
+  def testBracketRegression1_new = {
+    def makeLogger: IORef[List[String]] => String => IO[Void, Unit] =
+      (ref: IORef[List[String]]) => (line: String) => ref.modify[Void](_ ::: List(line)).toUnit
+
+    unsafePerformIO(for {
+      ref <- IORef[Void, List[String]](Nil)
+      log = makeLogger(ref)
+      f <- IO
+            .bracket(
+              IO.bracket(IO.unit[Void])(_ => log("start 1") *> IO.sleep(10.milliseconds) *> log("release 1"))(
+                _ => IO.unit[Void]
+              )
+            )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit[Void])
+            .fork
+      _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("start 1"))
+      _ <- f.interrupt(new RuntimeException("cancel"))
+      _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("release 2"))
+      l <- ref.read
+    } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
 
   def testEvalOfDeepSyncEffect = {
