@@ -2,6 +2,7 @@
 package scalaz.zio
 
 import scala.annotation.switch
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 import Errors._
 
@@ -414,6 +415,12 @@ sealed abstract class IO[E, A] { self =>
     self.flatMap(a => if (f(a)) doWhile(f) else IO.now(a))
 
   /**
+   * Repeats this action continuously until the function returns true.
+   */
+  final def doUntil(f: A => Boolean): IO[E, A] =
+    self.flatMap(a => if (!f(a)) doUntil(f) else IO.now(a))
+
+  /**
    * Maps this action to one producing unit, but preserving the effects of
    * this action.
    */
@@ -631,6 +638,15 @@ object IO {
   final def unit[E]: IO[E, Unit] = Unit.asInstanceOf[IO[E, Unit]]
 
   /**
+   * Creates an `IO` value from `ExitResult`
+   */
+  final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
+    case ExitResult.Completed(b)  => now(b)
+    case ExitResult.Terminated(t) => terminate(t)
+    case ExitResult.Failed(e)     => fail(e)
+  }
+
+  /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
   final def sleep[E](duration: Duration): IO[E, Unit] = new Sleep(duration)
@@ -805,6 +821,28 @@ object IO {
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
     in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
       .map(_.result())
+
+  /**
+   * Evaluate the elements of a traversable data structure in parallel
+   * and collect the results.
+   *
+   * _Note_: ordering in the input collection is not preserved
+   */
+  def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
+    in: M[A]
+  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] = {
+    @tailrec def parTraverse_rec(as: Iterator[A], ioref: IO[E, IORef[List[B]]]): IO[E, IORef[List[B]]] =
+      if (!as.hasNext)
+        ioref
+      else {
+        val a = as.next
+        parTraverse_rec(as, ioref.par(fn(a)).flatMap { case (ref, b) => ref.modify(b :: _) *> point(ref) })
+      }
+
+    parTraverse_rec(in.toIterator, IORef[E, List[B]](Nil))
+      .flatMap(_.read)
+      .map(_.foldLeft(cbf(in))(_ += _).result())
+  }
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
