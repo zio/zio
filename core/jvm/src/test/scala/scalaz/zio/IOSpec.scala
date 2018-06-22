@@ -3,6 +3,7 @@ package scalaz.zio
 import org.scalacheck._
 import org.specs2.Specification
 import org.specs2.ScalaCheck
+import scalaz.zio.ExitResult.{ Completed, Failed, Terminated }
 
 import scala.util.Try
 
@@ -16,6 +17,9 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
       `IO.traverse` returns the list of Ints in the same order. $t2
    Create a list of String and pass an f: String => IO[String, Int]:
       `IO.traverse` fails with a NumberFormatException exception. $t3
+   Create a list of Strings and pass an f: String => IO[String, Int]:
+      `IO.parTraverse` returns the list of Ints in any order. $t4
+   Check done lifts exit result into IO. $testDone
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -40,6 +44,23 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
     val list = List("1", "h", "3")
     val res  = Try(unsafePerformIO(IO.traverse(list)(x => IO.point[String, Int](x.toInt))))
     res must beAFailedTry.withThrowable[NumberFormatException]
+  }
+
+  def t4 = {
+    val list = List("1", "2", "3")
+    val res  = unsafePerformIO(IO.parTraverse(list)(x => IO.point[String, Int](x.toInt)))
+    res must containTheSameElementsAs(List(1, 2, 3))
+  }
+
+  def testDone = {
+    val error      = new Error("something went wrong")
+    val completed  = Completed[Void, Int](1)
+    val terminated = Terminated[Void, Int](error)
+    val failed     = Failed[Error, Int](error)
+
+    unsafePerformIO(IO.done(completed)) must_=== 1
+    unsafePerformIO(IO.done(terminated)) must throwA(error)
+    unsafePerformIO(IO.done(failed)) must throwA(Errors.UnhandledError(error))
   }
 
 }
