@@ -415,6 +415,12 @@ sealed abstract class IO[E, A] { self =>
     self.flatMap(a => if (f(a)) doWhile(f) else IO.now(a))
 
   /**
+   * Repeats this action continuously until the function returns true.
+   */
+  final def doUntil(f: A => Boolean): IO[E, A] =
+    self.flatMap(a => if (!f(a)) doUntil(f) else IO.now(a))
+
+  /**
    * Maps this action to one producing unit, but preserving the effects of
    * this action.
    */
