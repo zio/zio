@@ -202,7 +202,6 @@ private object RTS {
 
     // Accessed from multiple threads:
     private[this] val status = new AtomicReference[FiberStatus[E, A]](FiberStatus.Initial[E, A])
-    //@volatile
     private[this] var killed = false
 
     // TODO: A lot can be pulled out of status to increase performance
@@ -210,9 +209,9 @@ private object RTS {
     // to optimize further, to make forking a cheaper operation.
 
     // Accessed from within a single thread (not necessarily the same):
-    private[this] var noInterrupt                               = 0
-    private[this] var supervised: List[Set[FiberContext[_, _]]] = Nil
-    private[this] var supervising                               = 0
+    @volatile private[this] var noInterrupt                               = 0
+    @volatile private[this] var supervised: List[Set[FiberContext[_, _]]] = Nil
+    @volatile private[this] var supervising                               = 0
 
     private[this] val stack: Stack = new Stack()
 
@@ -456,7 +455,7 @@ private object RTS {
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = ensuringUninterruptibleExit(finalization.widenError[E] *> completer)
+                        curIo = finalization.widenError[E] *> completer
                       }
                     } else {
                       // Error caught:
@@ -467,11 +466,12 @@ private object RTS {
                       } else {
                         // Must run finalizer first:
                         val finalization = dispatchErrors(finalizer)
+                        val completer    = handled
 
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = ensuringUninterruptibleExit(finalization.widenError[E]) *> handled
+                        curIo = finalization.widenError[E] *> completer
                       }
                     }
 
@@ -522,8 +522,6 @@ private object RTS {
 
                   case IO.Tags.AsyncIOEffect =>
                     val io = curIo.asInstanceOf[IO.AsyncIOEffect[E, Any]]
-
-                    enterAsyncStart()
 
                     try {
                       val value = rts.tryUnsafePerformIO(io.register(resumeAsync))
@@ -610,6 +608,7 @@ private object RTS {
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
+                    // FIXME: Not safe because of potential error in computing `v`
                     curIo = for {
                       _ <- enterUninterruptible
                       v <- io.io
@@ -653,7 +652,7 @@ private object RTS {
                       // Do not interrupt finalization:
                       this.noInterrupt += 1
 
-                      curIo = ensuringUninterruptibleExit(finalization[E] *> completer)
+                      curIo = finalization.widenError[E] *> completer
                     }
 
                   case IO.Tags.Supervisor =>
@@ -744,7 +743,6 @@ private object RTS {
      */
     private final def resumeAsync[A](value: ExitResult[E, Any]): Unit =
       if (shouldResumeAsync()) {
-        // TODO: CPS transform
         // Take care not to overflow the stack in cases of 'deeply' nested
         // asynchronous callbacks.
         if (this.reentrancy > MaxResumptionDepth) {
@@ -866,27 +864,28 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(reentrancy, resume, cancel, joiners, killers) =>
+        case AsyncRegion(t, reentrancy, resume, cancel, joiners, killers) =>
           val newReentrancy = reentrancy + 1
 
-          if (!status.compareAndSet(oldStatus, AsyncRegion(newReentrancy, resume + 1, cancel, joiners, killers)))
+          if (!status.compareAndSet(oldStatus, AsyncRegion(t, newReentrancy, resume + 1, cancel, joiners, killers)))
             enterAsyncStart()
           else newReentrancy
 
-        case Executing(joiners, killers) =>
+        case Executing(t, joiners, killers) =>
           val newReentrancy = 1
 
-          if (!status.compareAndSet(oldStatus, AsyncRegion(newReentrancy, 1, None, joiners, killers))) enterAsyncStart()
+          if (!status.compareAndSet(oldStatus, AsyncRegion(t, newReentrancy, 1, None, joiners, killers)))
+            enterAsyncStart()
           else newReentrancy
 
         case _ =>
           // If this is hit, there's a bug somewhere.
-          throw new Error("Defect: Fiber is not in executing or async state")
+          throw new Error("Defect: Fiber is in Done state")
       }
     }
 
     final def reentrancy: Int = status.get match {
-      case AsyncRegion(v, _, _, _, _) => v
+      case s @ AsyncRegion(_, _, _, _, _, _) => s.reentrancy
 
       case _ => 0
     }
@@ -896,12 +895,12 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(1, 0, _, joiners, killers) =>
+        case AsyncRegion(t, 1, 0, _, joiners, killers) =>
           // No more resumptions left and exiting last async boundary initiation:
-          if (!status.compareAndSet(oldStatus, Executing(joiners, killers))) enterAsyncEnd()
+          if (!status.compareAndSet(oldStatus, Executing(t, joiners, killers))) enterAsyncEnd()
 
-        case AsyncRegion(reentrancy, resume, cancel, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(reentrancy - 1, resume, cancel, joiners, killers)))
+        case AsyncRegion(t, reentrancy, resume, cancel, joiners, killers) =>
+          if (!status.compareAndSet(oldStatus, AsyncRegion(t, reentrancy - 1, resume, cancel, joiners, killers)))
             enterAsyncEnd()
 
         case _ =>
@@ -913,8 +912,8 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(reentrancy, resume, _, joiners, killers) if (id == reentrancy) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(reentrancy, resume, Some(c), joiners, killers)))
+        case AsyncRegion(t, reentrancy, resume, _, joiners, killers) if (id == reentrancy) =>
+          if (!status.compareAndSet(oldStatus, AsyncRegion(t, reentrancy, resume, Some(c), joiners, killers)))
             awaitAsync(id, c)
 
         case _ =>
@@ -926,13 +925,13 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(0, 1, _, joiners, killers) =>
+        case AsyncRegion(t, 0, 1, _, joiners, killers) =>
           // No more resumptions are left!
-          if (!status.compareAndSet(oldStatus, Executing(joiners, killers))) shouldResumeAsync()
+          if (!status.compareAndSet(oldStatus, Executing(t, joiners, killers))) shouldResumeAsync()
           else true
 
-        case AsyncRegion(reentrancy, resume, _, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(reentrancy, resume - 1, None, joiners, killers)))
+        case AsyncRegion(t, reentrancy, resume, _, joiners, killers) =>
+          if (!status.compareAndSet(oldStatus, AsyncRegion(t, reentrancy, resume - 1, None, joiners, killers)))
             shouldResumeAsync()
           else true
 
@@ -965,21 +964,7 @@ private object RTS {
 
     @inline
     final def shouldDie: Option[Throwable] =
-      if (!killed || noInterrupt > 0) None
-      else {
-        val oldStatus = status.get
-
-        oldStatus match {
-          case Interrupting(error, _, _) => Some(error)
-          case _                         => None
-        }
-      }
-
-    final def ensuringUninterruptibleExit[Z](io: IO[E, Z]): IO[E, Z] =
-      for {
-        a <- io
-        _ <- exitUninterruptible
-      } yield a
+      if (!killed || noInterrupt > 0) None else status.get.error
 
     final def enterUninterruptible: IO[E, Unit] = IO.sync { noInterrupt += 1 }
 
@@ -992,15 +977,11 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(joiners, killers) =>
+        case Executing(_, joiners, killers) =>
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else purgeJoinersKillers(v, joiners, killers)
 
-        case Interrupting(_, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Done(v))) done(v)
-          else purgeJoinersKillers(v, joiners, killers)
-
-        case AsyncRegion(_, _, _, joiners, killers) =>
+        case AsyncRegion(_, _, _, _, joiners, killers) =>
           // TODO: Guard against errant `done` or not?
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else purgeJoinersKillers(v, joiners, killers)
@@ -1021,15 +1002,11 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Interrupting(t, joiners, cb :: killers))) kill0(t, cb)
+        case Executing(t0, joiners, killers) =>
+          if (!status.compareAndSet(oldStatus, Executing(t0.orElse(Some(t)), joiners, cb :: killers))) kill0(t, cb)
           else Async.later[E2, Unit]
 
-        case Interrupting(t, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Interrupting(t, joiners, cb :: killers))) kill0(t, cb)
-          else Async.later[E2, Unit]
-
-        case AsyncRegion(_, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
+        case AsyncRegion(None, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
           val v = ExitResult.Terminated[E, A](t)
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(t, cb)
@@ -1041,8 +1018,7 @@ private object RTS {
               case Some(cancel) =>
                 try cancel(t)
                 catch {
-                  case t: Throwable if (nonFatal(t)) =>
-                    fork(unhandled(t)[E], unhandled)
+                  case t: Throwable if (nonFatal(t)) => fork(unhandled(t)[E], unhandled)
                 }
             }
 
@@ -1057,8 +1033,10 @@ private object RTS {
             Async.now(SuccessUnit[E2])
           }
 
-        case AsyncRegion(_, _, _, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Interrupting(t, joiners, cb :: killers))) kill0(t, cb)
+        case s @ AsyncRegion(_, _, _, _, _, _) =>
+          val newStatus = s.copy(error = s.error.orElse(Some(t)), killers = cb :: s.killers)
+
+          if (!status.compareAndSet(oldStatus, newStatus)) kill0(t, cb)
           else Async.later[E2, Unit]
 
         case Done(_) => Async.now(SuccessUnit[E2])
@@ -1070,16 +1048,16 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Executing(cb :: joiners, killers))) join0(cb)
+        case s @ Executing(_, _, _) =>
+          val newStatus = s.copy(joiners = cb :: s.joiners)
+
+          if (!status.compareAndSet(oldStatus, newStatus)) join0(cb)
           else Async.later[E, A]
 
-        case Interrupting(t, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Interrupting(t, cb :: joiners, killers))) join0(cb)
-          else Async.later[E, A]
+        case s @ AsyncRegion(_, _, _, _, _, _) =>
+          val newStatus = s.copy(joiners = cb :: s.joiners)
 
-        case AsyncRegion(reenter, resume, cancel, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(reenter, resume, cancel, cb :: joiners, killers))) join0(cb)
+          if (!status.compareAndSet(oldStatus, newStatus)) join0(cb)
           else Async.later[E, A]
 
         case Done(v) => Async.now(v)
@@ -1096,23 +1074,26 @@ private object RTS {
     }
   }
 
-  sealed trait FiberStatus[E, A]
+  sealed trait FiberStatus[E, A] {
+    def error: Option[Throwable]
+  }
   object FiberStatus {
-    final case class Executing[E, A](joiners: List[Callback[E, A]], killers: List[Callback[E, Unit]])
+    final case class Executing[E, A](error: Option[Throwable],
+                                     joiners: List[Callback[E, A]],
+                                     killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
-    final case class Interrupting[E, A](error: Throwable,
-                                        joiners: List[Callback[E, A]],
-                                        killers: List[Callback[E, Unit]])
-        extends FiberStatus[E, A]
-    final case class AsyncRegion[E, A](reentrancy: Int,
+    final case class AsyncRegion[E, A](error: Option[Throwable],
+                                       reentrancy: Int,
                                        resume: Int,
                                        cancel: Option[Throwable => Unit],
                                        joiners: List[Callback[E, A]],
                                        killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
-    final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A]
+    final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
+      override def error: Option[Throwable] = None
+    }
 
-    def Initial[E, A] = Executing[E, A](Nil, Nil)
+    def Initial[E, A] = Executing[E, A](None, Nil, Nil)
   }
 
   val _SuccessUnit: ExitResult[Void, Unit] = ExitResult.Completed(())
