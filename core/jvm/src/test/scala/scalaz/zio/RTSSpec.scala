@@ -138,8 +138,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   @silent
   def testEvalOfRedeemOfSyncEffectError =
     unsafePerformIO(
-      IO.syncThrowable(throw ExampleError)
-        .redeem[Throwable, Option[Throwable]](e => IO.now(Some(e)))(_ => IO.now(None))
+      IO.syncThrowable[Unit](throw ExampleError).redeem[Throwable, Option[Throwable]](Some(_), _ => None)
     ) must_=== Some(ExampleError)
 
   def testEvalOfAttemptOfFail = Seq(
