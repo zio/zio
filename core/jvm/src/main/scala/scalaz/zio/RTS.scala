@@ -690,7 +690,7 @@ private object RTS {
                     )
 
                     stack.push(finalizer)
-                    
+
                     curIo = for {
                       a <- io.io
                       _ <- io.finalizer[E] *> IO.sync[E, Unit](ref.set(true))
