@@ -238,7 +238,7 @@ sealed abstract class IO[E, A] { self =>
    * is interrupted.
    */
   final def ensuring(finalizer: Infallible[Unit]): IO[E, A] =
-    IO.unit.bracket(_ => finalizer)(_ => self)
+    new IO.Ensuring(self, finalizer)
 
   /**
    * Executes the release action only if there was an error.
@@ -525,6 +525,7 @@ object IO {
     final val Terminate       = 15
     final val Supervisor      = 16
     final val Run             = 17
+    final val Ensuring        = 18
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -612,6 +613,10 @@ object IO {
 
   final class Run[E1, E2, A] private[IO] (val value: IO[E1, A]) extends IO[E2, ExitResult[E1, A]] {
     override def tag = Tags.Run
+  }
+
+  final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: Infallible[Unit]) extends IO[E, A] {
+    override def tag = Tags.Ensuring
   }
 
   /**
