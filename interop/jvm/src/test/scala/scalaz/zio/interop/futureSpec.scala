@@ -26,32 +26,34 @@ class futureSpec(implicit ee: ExecutionEnv) extends Specification with RTS {
     convert error of type `E` to `Throwable`             $toFutureE
   """
 
+  val ec = ee.executionContext
+
   val lazyOnParamRef = {
     var evaluated = false
     def ftr       = Future { evaluated = true }
-    IO.fromFuture(ftr _)
+    IO.fromFuture(ftr _)(ec)
     evaluated must beFalse
   }
 
   val lazyOnParamInline = {
     var evaluated = false
-    IO.fromFuture(() => Future { evaluated = true })
+    IO.fromFuture(() => Future { evaluated = true })(ec)
     evaluated must beFalse
   }
 
   val catchBlockException = {
     def noFuture: Future[Unit] = throw new Exception("no future for you!")
-    unsafePerformIO(IO.fromFuture(noFuture _)) must throwA[Exception](message = "no future for you!")
+    unsafePerformIO(IO.fromFuture(noFuture _)(ec)) must throwA[Exception](message = "no future for you!")
   }
 
   val propagateExceptionFromFuture = {
     def noValue: Future[Unit] = Future { throw new Exception("no value for you!") }
-    unsafePerformIO(IO.fromFuture(noValue _)) must throwA[Exception](message = "no value for you!")
+    unsafePerformIO(IO.fromFuture(noValue _)(ec)) must throwA[Exception](message = "no value for you!")
   }
 
   val produceValueFromFuture = {
     def someValue: Future[Int] = Future { 42 }
-    unsafePerformIO(IO.fromFuture(someValue _)) must_=== 42
+    unsafePerformIO(IO.fromFuture(someValue _)(ec)) must_=== 42
   }
 
   val toFutureAlwaysSucceeds = {
