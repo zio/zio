@@ -798,6 +798,20 @@ object IO {
         } yield fiberA.zipWith(fiberAs)(_ :: _)
     }
 
+  final def bracket[E, A, B](
+    acquire: IO[E, A]
+  )(release: ExitResult[E, A] => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+    IORef[E, Option[ExitResult[E, A]]](None).flatMap { m =>
+      (for {
+        er <- acquire.run.flatMap(er => m.write[E](Some(er)) *> point(er)).uninterruptibly
+        b <- er match {
+              case ExitResult.Completed(a)  => use(a)
+              case ExitResult.Failed(e)     => fail[E, B](e)
+              case ExitResult.Terminated(t) => terminate[E, B](t)
+            }
+      } yield b).ensuring(m.read.flatMap(_.fold(unit[Void])(release(_))).uninterruptibly)
+    }
+
   /**
    * Apply the function fn to each element of the `TraversableOnce[A]` and
    * return the results in a new `TraversableOnce[B]`.
