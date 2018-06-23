@@ -146,14 +146,14 @@ sealed abstract class IO[E, A] { self =>
    * otherwise executes the specified action.
    */
   final def orElse(that: => IO[E, A]): IO[E, A] =
-    self.redeem(_ => that)(IO.now)
+    self.redeem(_ => that, IO.now)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
    * a "larger" error.
    */
   final def leftMap[E2](f: E => E2): IO[E2, A] =
-    self.redeem[E2, A](e => IO.fail(f(e)))(IO.now)
+    self.redeem[E2, A](f.andThen(IO.fail), IO.now)
 
   /**
    * Lets define separate continuations for the case of failure (`err`) or
@@ -167,7 +167,7 @@ sealed abstract class IO[E, A] { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it will depend on the `IO`s returned by the given continuations.
    */
-  final def redeem[E2, B](err: E => IO[E2, B])(succ: A => IO[E2, B]): IO[E2, B] =
+  final def redeem[E2, B](err: E => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
       case IO.Tags.Fail =>
         val io = self.asInstanceOf[IO.Fail[E, A]]
@@ -175,6 +175,14 @@ sealed abstract class IO[E, A] { self =>
 
       case _ => new IO.Attempt(self, err, succ)
     }
+
+  /**
+   * Less powerful version of `redeem` which always returns a successful
+   * `IO[E2, B]` after applying one of the given mapping functions depending
+   * on the result of `this` `IO`
+   */
+  final def redeemPure[E2, B](err: E => B, succ: A => B): IO[E2, B] =
+    redeem(err.andThen(IO.now), succ.andThen(IO.now))
 
   /**
    * Executes this action, capturing both failure and success and returning
@@ -185,7 +193,7 @@ sealed abstract class IO[E, A] { self =>
    * it is guaranteed the `IO` action does not raise any errors.
    */
   final def attempt[E2]: IO[E2, Either[E, A]] =
-    self.redeem[E2, Either[E, A]](IO.nowLeft)(IO.nowRight)
+    self.redeem[E2, Either[E, A]](IO.nowLeft, IO.nowRight)
 
   /**
    * When this action represents acquisition of a resource (for example,
@@ -291,7 +299,7 @@ sealed abstract class IO[E, A] { self =>
    * }}}
    */
   final def catchAll[E2](h: E => IO[E2, A]): IO[E2, A] =
-    self.redeem[E2, A](h)(IO.now)
+    self.redeem[E2, A](h, IO.now)
 
   /**
    * Recovers from some or all of the error cases.
@@ -305,7 +313,7 @@ sealed abstract class IO[E, A] { self =>
   final def catchSome(pf: PartialFunction[E, IO[E, A]]): IO[E, A] = {
     def tryRescue(t: E): IO[E, A] = pf.applyOrElse(t, (_: E) => IO.fail(t))
 
-    self.redeem[E, A](tryRescue)(IO.now)
+    self.redeem[E, A](tryRescue, IO.now)
   }
 
   /**
