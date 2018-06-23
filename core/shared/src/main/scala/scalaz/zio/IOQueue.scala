@@ -38,31 +38,30 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
       pRef <- IORef[E, Option[Promise[E, Unit]]](None)
       a <- (for {
             p <- ref
-                  .modifyFold[Void, (Promise[E, Unit], IO[Void, Unit])] {
+                  .modifyFold[Void, (Promise[E, Unit], IO[Void, Boolean])] {
                     case Deficit(takers) =>
                       val p = Promise.unsafeMake[E, Unit]
 
                       takers.dequeueOption match {
-                        case None => ((p, p.complete(()).toUnit), Surplus(Queue.empty[A].enqueue(a), Queue.empty))
+                        case None => ((p, p.complete(())), Surplus(Queue.empty[A].enqueue(a), Queue.empty))
                         case Some((taker, takers)) =>
-                          ((p, taker.complete[Void](a) *> p.complete[Void](()).toUnit), Deficit(takers))
+                          ((p, taker.complete[Void](a) *> p.complete[Void](())), Deficit(takers))
                       }
                     case Surplus(values, putters) =>
                       val p = Promise.unsafeMake[E, Unit]
 
                       if (values.length < capacity && putters.isEmpty) {
-                        ((p, p.complete(()).toUnit), Surplus(values.enqueue(a), putters))
+                        ((p, p.complete(())), Surplus(values.enqueue(a), putters))
                       } else {
-                        val p = Promise.unsafeMake[E, Unit]
-                        ((p, IO.unit[Void]), Surplus(values, putters.enqueue((a, p))))
+                        ((p, IO.now(false)), Surplus(values, putters.enqueue((a, p))))
                       }
                   }
                   .flatMap(t => t._2 *> pRef.write(Some(t._1)) *> IO.now(t._1))
                   .uninterruptibly
                   .widenError[E]
 
-            a <- p.get
-          } yield a).ensuring(pRef.read[Void].flatMap(_.fold(IO.unit[Void])(removePutter)))
+            _ <- p.get
+          } yield ()).ensuring(pRef.read[Void].flatMap(_.fold(IO.unit[Void])(removePutter)))
     } yield a
 
   /**
