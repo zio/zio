@@ -56,7 +56,7 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
                         ((p, IO.now(false)), Surplus(values, putters.enqueue((a, p))))
                       }
                   }
-                  .flatMap(t => t._2 *> pRef.modifyFold[Void, Unit](_ => ((), Some(t._1))) *> IO.now(t._1))
+                  .flatMap(t => t._2 *> pRef.write[Void](Some(t._1)) *> IO.now(t._1))
                   .uninterruptibly
                   .widenError[E]
 
@@ -93,7 +93,7 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
                           ((p, p.complete[Void](a).toUnit), Surplus(values, putters))
                       }
                   }
-                  .flatMap(t => t._2 *> pRef.modifyFold[Void, Unit](_ => ((), Some(t._1))) *> IO.now(t._1))
+                  .flatMap(t => t._2 *> pRef.write[Void](Some(t._1)) *> IO.now(t._1))
                   .uninterruptibly
                   .widenError[E]
 
