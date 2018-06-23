@@ -43,8 +43,9 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
                       val p = Promise.unsafeMake[E, Unit]
 
                       takers.dequeueOption match {
-                        case None                  => ((p, p.complete(()).toUnit), Surplus(Queue.empty[A].enqueue(a), Queue.empty))
-                        case Some((taker, takers)) => ((p, taker.complete[Void](a) *> p.complete[Void](()).toUnit), Deficit(takers))
+                        case None => ((p, p.complete(()).toUnit), Surplus(Queue.empty[A].enqueue(a), Queue.empty))
+                        case Some((taker, takers)) =>
+                          ((p, taker.complete[Void](a) *> p.complete[Void](()).toUnit), Deficit(takers))
                       }
                     case Surplus(values, putters) =>
                       val p = Promise.unsafeMake[E, Unit]
