@@ -17,7 +17,7 @@ object catz extends RTS {
         unsafePerformIO(
           fa.attempt[Throwable].flatMap { a =>
             IO.async[Throwable, Unit] { r =>
-              cb(a.toEither).unsafeRunAsync {
+              cb(a).unsafeRunAsync {
                 case Right(r2) => r(ExitResult.Completed(r2))
                 case Left(l2)  => r(ExitResult.Failed(l2))
               }
