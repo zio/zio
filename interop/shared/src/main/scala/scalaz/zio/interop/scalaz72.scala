@@ -9,19 +9,23 @@ object scalaz72 extends IOInstances {
   type ParIO[E, A] = IO[E, A] @@ Parallel
 }
 
-abstract class IOInstances {
+abstract class IOInstances extends IOInstances1 {
 
   // cached for efficiency
   implicit val taskInstances: MonadError[Task, Throwable] with BindRec[Task] with Plus[Task] =
     new IOMonadError[Throwable] with IOPlus[Throwable]
 
   implicit val taskParAp: Applicative[ParIO[Throwable, ?]] = new IOParApplicative[Throwable]
+}
 
+sealed abstract class IOInstances1 extends IOInstance2 {
   implicit def ioInstances[E]: MonadError[IO[E, ?], E] with BindRec[IO[E, ?]] with Bifunctor[IO] with Plus[IO[E, ?]] =
     new IOMonadError[E] with IOPlus[E] with IOBifunctor
 
   implicit def ioParAp[E]: Applicative[ParIO[E, ?]] = new IOParApplicative[E]
+}
 
+sealed abstract class IOInstance2 {
   implicit def ioMonadPlus[E: Monoid]: MonadPlus[IO[E, ?]] with BindRec[IO[E, ?]] = new IOMonadPlus[E]
 }
 
