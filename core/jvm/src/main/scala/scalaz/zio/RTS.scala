@@ -693,7 +693,7 @@ private object RTS {
 
                     curIo = for {
                       a <- io.io
-                      _ <- io.finalizer[E] *> IO.sync[E, Unit](ref.set(true))
+                      _ <- (io.finalizer[E] *> IO.sync[E, Unit](ref.set(true))).uninterruptibly
                     } yield a
                 }
               }
