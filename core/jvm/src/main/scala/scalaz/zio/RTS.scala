@@ -679,6 +679,22 @@ private object RTS {
                         case Async.MaybeLaterIO(c) => Async.MaybeLaterIO(c)
                       }
                     }
+
+                  case IO.Tags.Ensuring =>
+                    val io = curIo.asInstanceOf[IO.Ensuring[E, Any]]
+
+                    val ref = new AtomicReference[Boolean](false)
+
+                    val finalizer = Finalizer[E](
+                      _ => IO.suspend[Void, Unit](if (!ref.get) io.finalizer else IO.unit)
+                    )
+
+                    stack.push(finalizer)
+
+                    curIo = for {
+                      a <- io.io
+                      _ <- (io.finalizer[E] *> IO.sync[E, Unit](ref.set(true))).uninterruptibly
+                    } yield a
                 }
               }
             } else {
