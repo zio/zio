@@ -49,14 +49,15 @@ lazy val coreJS = core.js
 lazy val interop = crossProject
   .in(file("interop"))
   .settings(stdSettings("zio-interop"))
-  .dependsOn(core)
+  .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz"    %%% "scalaz-core"          % "7.2.+"     % Optional,
-      "org.typelevel" %%% "cats-effect"          % "1.0.0-RC2" % Optional,
-      "org.specs2"    %%% "specs2-core"          % "4.2.0"     % Test,
-      "org.specs2"    %%% "specs2-scalacheck"    % "4.2.0"     % Test,
-      "org.specs2"    %%% "specs2-matcher-extra" % "4.2.0"     % Test
+      "org.scalaz"    %%% "scalaz-core"               % "7.2.+"     % Optional,
+      "org.typelevel" %%% "cats-effect"               % "1.0.0-RC2" % Optional,
+      "org.specs2"    %%% "specs2-core"               % "4.2.0"     % Test,
+      "org.specs2"    %%% "specs2-scalacheck"         % "4.2.0"     % Test,
+      "org.specs2"    %%% "specs2-matcher-extra"      % "4.2.0"     % Test,
+      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"     % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
