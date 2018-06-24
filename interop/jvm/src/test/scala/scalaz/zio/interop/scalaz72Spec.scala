@@ -27,7 +27,7 @@ class scalaz72Spec extends Specification with ScalaCheck with GenIO with RTS {
     }
 
   implicit def ioArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
-    Arbitrary(genIO[E, A])
+    Arbitrary(genSuccess[E, A])
 
   implicit def ioParEqual[E: Equal, A: Equal]: Equal[ParIO[E, A]] =
     ioEqual[E, A].contramap(Tag.unwrap)
