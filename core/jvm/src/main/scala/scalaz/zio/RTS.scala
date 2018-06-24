@@ -583,28 +583,6 @@ private object RTS {
 
                     curIo = io.value()
 
-                  case IO.Tags.Bracket =>
-                    val io = curIo.asInstanceOf[IO.Bracket[E, Any, Any]]
-
-                    val ref = new AtomicReference[Any]()
-
-                    val finalizer = Finalizer[E](
-                      rez => IO.suspend[Void, Unit](if (ref.get != null) io.release(rez, ref.get) else IO.unit)
-                    )
-
-                    stack.push(finalizer)
-
-                    // TODO: This is very heavyweight and could benefit from
-                    // optimization.
-                    curIo = for {
-                      a <- (for {
-                            a <- io.acquire
-                            _ <- IO.sync(ref.set(a))
-                          } yield a).uninterruptibly
-                      b <- io.use(a)
-                      _ <- (io.release(ExitResult.Completed(b), a)[E] <* IO.sync(ref.set(null))).uninterruptibly
-                    } yield b
-
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
