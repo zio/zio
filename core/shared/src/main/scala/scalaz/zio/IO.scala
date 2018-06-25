@@ -252,19 +252,26 @@ sealed abstract class IO[E, A] { self =>
    * Executes the release action only if there was an error.	
    */
   final def bracketOnError[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IO.bracket0(this)((a: A, _: Option[Either[E, B]]) => release(a))(use)
+    IO.bracket0(this)(
+      (a: A, eb: Option[Either[E, B]]) =>
+        eb match {
+          case Some(Right(_)) => IO.unit
+          case _              => release(a)
+      }
+    )(use)
 
   /**
    * Runs one of the specified cleanup actions if this action errors, providing the
    * error to the cleanup action. The cleanup action will not be interrupted.
    * Cleanup actions for handled and unhandled errors can be provided separately.
    */
-  final def onError(cleanupE: E => Infallible[Unit]): IO[E, A] =
+  final def onError(cleanupE: Option[E] => Infallible[Unit]): IO[E, A] =
     IO.bracket0(IO.unit[E])(
       (_, eb: Option[Either[E, A]]) =>
         eb match {
-          case Some(Left(e)) => cleanupE(e)
-          case _             => IO.unit
+          case Some(Right(_)) => IO.unit
+          case Some(Left(e))  => cleanupE(Some(e))
+          case None           => cleanupE(None)
       }
     )(_ => self)
 

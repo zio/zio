@@ -177,7 +177,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testEvalOfFailOnError = {
     var finalized = false
-    val cleanup: Throwable => IO[Void, Unit] =
+    val cleanup: Option[Throwable] => IO[Void, Unit] =
       _ => IO.sync[Void, Unit] { finalized = true; () }
 
     unsafePerformIO(
