@@ -225,18 +225,14 @@ sealed abstract class IO[E, A] { self =>
    * }}}
    */
   final def bracket[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IO.bracket(this) {
-      case ExitResult.Completed(a)  => release(a)
-      case ExitResult.Failed(_)     => IO.unit
-      case ExitResult.Terminated(t) => IO.terminate(t)
-    }(use)
+    IO.bracket(this)(release)(use)
 
   /**
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
-  // final def bracket0[B](release: (ExitResult[E, B], A) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-  //   new IO.Bracket(this, release, use)
+  final def bracket0[B](release: (A, ExitResult[E, B]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+    IO.bracket0(this)(release)(use)
 
   /**
    * A less powerful variant of `bracket` where the value produced by this
@@ -258,11 +254,14 @@ sealed abstract class IO[E, A] { self =>
    * Cleanup actions for handled and unhandled errors can be provided separately.
    */
   final def onError(cleanupT: Throwable => Infallible[Unit])(cleanupE: E => Infallible[Unit]): IO[E, A] =
-    IO.bracket(IO.unit[E]) {
-      case ExitResult.Failed(e)     => cleanupE(e)
-      case ExitResult.Terminated(t) => cleanupT(t)
-      case _                        => IO.unit
-    }(_ => self)
+    IO.bracket0(IO.unit[E])(
+      (_, r: ExitResult[E, A]) =>
+        r match {
+          case ExitResult.Failed(e)     => cleanupE(e)
+          case ExitResult.Terminated(t) => cleanupT(t)
+          case _                        => IO.unit
+      }
+    )(_ => self)
 
   /**
    * Supervises this action, which ensures that any fibers that are forked by
