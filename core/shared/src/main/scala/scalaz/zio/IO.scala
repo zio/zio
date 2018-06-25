@@ -248,6 +248,12 @@ sealed abstract class IO[E, A] { self =>
   final def ensuring(finalizer: Infallible[Unit]): IO[E, A] =
     new IO.Ensuring(self, finalizer)
 
+  /**	
+   * Executes the release action only if there was an error.	
+   */
+  final def bracketOnError[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+    IO.bracket0(this)((a: A, _: ExitResult[E, B]) => release(a))(use)
+
   /**
    * Runs one of the specified cleanup actions if this action errors, providing the
    * error to the cleanup action. The cleanup action will not be interrupted.
