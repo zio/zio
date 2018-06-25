@@ -800,7 +800,7 @@ object IO {
   )(release: (A, ExitResult[E, B]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
     IORef[E, Option[(A, ExitResult[E, B])]](None).flatMap { m =>
       (for {
-        a <- acquire.uninterruptibly
+        a <- acquire.flatMap(a => m.write[E](Some((a, ExitResult.Terminated(new Throwable)))).const(a)).uninterruptibly
         b <- use(a).run.flatMap(
               r =>
                 m.write[E](Some((a, r))) *> (r match {
