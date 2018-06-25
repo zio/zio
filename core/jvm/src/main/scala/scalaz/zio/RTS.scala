@@ -252,10 +252,9 @@ private object RTS {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer[_] =>
-            val f                                           = f0.finalizer
-            val currentFinalizer: IO[Void, List[Throwable]] = f.run.map(collectDefect)
-            if (finalizer eq null) finalizer = currentFinalizer
-            else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
+            val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
+            if (finalizer eq null) finalizer = f
+            else finalizer = finalizer.zipWith(f)(_ ++ _)
           case _ =>
         }
       }
@@ -286,10 +285,9 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer[_] =>
-            val f                                           = f0.finalizer
-            val currentFinalizer: IO[Void, List[Throwable]] = f.run.map(collectDefect)
-            if (finalizer eq null) finalizer = currentFinalizer
-            else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
+            val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
+            if (finalizer eq null) finalizer = f
+            else finalizer = finalizer.zipWith(f)(_ ++ _)
           case _ =>
         }
       }
