@@ -38,7 +38,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   RTS bracket
     fail ensuring                           $testEvalOfFailEnsuring
-    fail on error                           $testEvalOfFailOnError
     finalizer errors not caught             $testErrorInFinalizerCannotBeCaught
     finalizer errors reported               ${upTo(1.second)(testErrorInFinalizerIsReported)}
     bracket result is usage result          $testExitResultIsUsageResult
@@ -172,18 +171,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Void, Unit] { finalized = true; () })) must (throwA(
       UnhandledError(ExampleError)
     ))
-    finalized must_=== true
-  }
-
-  def testEvalOfFailOnError = {
-    var finalized = false
-    val cleanup: Throwable => IO[Void, Unit] =
-      _ => IO.sync[Void, Unit] { finalized = true; () }
-
-    unsafePerformIO(
-      IO.fail[Throwable, Unit](ExampleError).onError(cleanup)(cleanup)
-    ) must (throwA(UnhandledError(ExampleError)))
-
     finalized must_=== true
   }
 
@@ -426,6 +413,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   // Utility stuff
   val ExampleError = new Exception("Oh noes!")
+  val ExampleError2 = new Exception("Oh noes Regis!")
 
   def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError)))
 
