@@ -152,8 +152,8 @@ private object RTS {
     final def apply(v: Any): IO[Any, Any] = IO.now(v)
   }
 
-  final case class Finalizer[E](finalizer: ExitResult[E, Any] => IO[Void, Unit]) extends Function[Any, IO[E, Any]] {
-    final def apply(v: Any): IO[E, Any] = IO.now(v)
+  final case class Finalizer[E](finalizer: Infallible[Unit]) extends Function[Any, IO[E, Any]] {
+    final def apply(v: Any): IO[E, Any] = finalizer.widenError[E] *> IO.now(v)
   }
 
   final class Stack() {
@@ -243,10 +243,9 @@ private object RTS {
      *
      * @param err   The exception that is being thrown.
      */
-    final def catchError[E2](err: E): IO[E2, List[Throwable]] = {
-      var errorHandler: Any => IO[Any, Any]  = null
-      var finalizer: IO[E2, List[Throwable]] = null
-      var body: ExitResult[E, Any]           = null
+    final def catchError: IO[Void, List[Throwable]] = {
+      var errorHandler: Any => IO[Any, Any] = null
+      var finalizer: IO[Void, List[Throwable]] = null
 
       // Unwind the stack, looking for exception handlers and coalescing
       // finalizers.
@@ -256,12 +255,7 @@ private object RTS {
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer[_] =>
             val f = f0.asInstanceOf[Finalizer[E]]
-
-            // Lazy initialization of body:
-            if (body eq null) body = ExitResult.Failed(err)
-
-            val currentFinalizer: IO[E2, List[Throwable]] = f.finalizer(body).run.map(collectDefect)
-
+            val currentFinalizer: IO[Void, List[Throwable]] = f(()).run.map(collectDefect)
             if (finalizer eq null) finalizer = currentFinalizer
             else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
           case _ =>
@@ -285,33 +279,22 @@ private object RTS {
      *
      * @param error The error being used to interrupt the fiber.
      */
-    final def interruptStack[E2](error: Throwable): IO[E2, List[Throwable]] = {
+    final def interruptStack: IO[Void, List[Throwable]] = {
       // Use null to achieve zero allocs for the common case of no finalizers:
-      var finalizer: IO[E2, List[Throwable]] = null
+      var finalizer: IO[Void, List[Throwable]] = null
 
-      if (!stack.isEmpty) {
-        // Any finalizers will require ExitResult. Here we fake lazy evaluation
-        // to eliminate unnecessary allocation:
-        var body: ExitResult[E, Any] = null
-
-        while (!stack.isEmpty) {
-          // Peel off all the finalizers, composing them into a single finalizer
-          // that produces a possibly empty list of errors that occurred when
-          // executing the finalizers. The order of errors is outer-to-inner
-          // (reverse chronological).
-          stack.pop() match {
-            case f0: Finalizer[_] =>
-              val f = f0.asInstanceOf[Finalizer[E]]
-
-              // Lazy initialization of body:
-              if (body eq null) body = ExitResult.Terminated(error)
-
-              val currentFinalizer = f.finalizer(body).run[E2].map(collectDefect)
-
-              if (finalizer eq null) finalizer = currentFinalizer
-              else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
-            case _ =>
-          }
+      while (!stack.isEmpty) {
+        // Peel off all the finalizers, composing them into a single finalizer
+        // that produces a possibly empty list of errors that occurred when
+        // executing the finalizers. The order of errors is outer-to-inner
+        // (reverse chronological).
+        stack.pop() match {
+          case f0: Finalizer[_] =>
+            val f = f0.asInstanceOf[Finalizer[E]]
+            val currentFinalizer: IO[Void, List[Throwable]] = f(()).run.map(collectDefect)
+            if (finalizer eq null) finalizer = currentFinalizer
+            else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
+          case _ =>
         }
       }
 
@@ -435,7 +418,7 @@ private object RTS {
 
                     val error = io.error
 
-                    val finalizer = catchError[Void](error)
+                    val finalizer = catchError
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -613,7 +596,7 @@ private object RTS {
 
                     val cause = io.cause
 
-                    val finalizer = interruptStack[Void](cause)
+                    val finalizer = interruptStack
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
@@ -660,19 +643,8 @@ private object RTS {
 
                   case IO.Tags.Ensuring =>
                     val io = curIo.asInstanceOf[IO.Ensuring[E, Any]]
-
-                    val ref = new AtomicReference[Boolean](false)
-
-                    val finalizer = Finalizer[E](
-                      _ => IO.suspend[Void, Unit](if (!ref.get) io.finalizer else IO.unit)
-                    )
-
-                    stack.push(finalizer)
-
-                    curIo = for {
-                      a <- io.io
-                      _ <- (io.finalizer[E] *> IO.sync[E, Unit](ref.set(true))).uninterruptibly
-                    } yield a
+                    stack.push(Finalizer[E](io.finalizer))
+                    curIo = io.io
                 }
               }
             } else {
@@ -1016,7 +988,7 @@ private object RTS {
                 }
             }
 
-            val finalizer = interruptStack[Void](t)
+            val finalizer = interruptStack
 
             if (finalizer ne null) {
               fork[Void, Unit](dispatchErrors(finalizer), unhandled)
