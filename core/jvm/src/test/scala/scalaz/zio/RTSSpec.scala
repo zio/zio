@@ -51,17 +51,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     test eval of async fail                 $testEvalOfAsyncAttemptOfFail
     bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1)}
 
-  RTS bracket (refactor)
-    bracket result is usage result          $testExitResultIsUsageResult_new
-    error in just acquisition               $testBracketErrorInAcquisition_new
-    error in just release                   $testBracketErrorInRelease_new
-    error in just usage                     $testBracketErrorInUsage_new
-    rethrown caught error in acquisition    $testBracketRethrownCaughtErrorInAcquisition_new
-    rethrown caught error in release        $testBracketRethrownCaughtErrorInRelease_new
-    rethrown caught error in usage          $testBracketRethrownCaughtErrorInUsage_new
-    test eval of async fail                 $testEvalOfAsyncAttemptOfFail_new
-    bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1_new)}
-
   RTS synchronous stack safety
     deep map of point                       $testDeepMapOfPoint
     deep map of now                         $testDeepMapOfNow
@@ -188,11 +177,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testEvalOfFailOnError = {
     var finalized = false
-    val cleanup: Throwable => IO[Void, Unit] =
+    val cleanup: Option[Throwable] => IO[Void, Unit] =
       _ => IO.sync[Void, Unit] { finalized = true; () }
 
     unsafePerformIO(
-      IO.fail[Throwable, Unit](ExampleError).onError(cleanup)(cleanup)
+      IO.fail[Throwable, Unit](ExampleError).onError(cleanup)
     ) must (throwA(UnhandledError(ExampleError)))
 
     finalized must_=== true
@@ -223,89 +212,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testExitResultIsUsageResult =
-    unsafePerformIO(IO.unit.bracket_(IO.unit[Void])(IO.point[Throwable, Int](42))) must_=== 42
-
-  def testBracketErrorInAcquisition =
-    unsafePerformIO(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit)) must
-      (throwA(UnhandledError(ExampleError)))
-
-  def testBracketErrorInRelease =
-    unsafePerformIO(IO.unit[Void].bracket_(IO.terminate(ExampleError))(IO.unit[Void])) must
-      (throwA(ExampleError))
-
-  def testBracketErrorInUsage =
-    unsafePerformIO(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError))) must
-      (throwA(UnhandledError(ExampleError)))
-
-  def testBracketRethrownCaughtErrorInAcquisition = {
-    lazy val actual = unsafePerformIO(
-      IO.absolve(IO.fail[Throwable, Unit](ExampleError).bracket_(IO.unit)(IO.unit).attempt[Throwable])
-    )
-
-    actual must (throwA(UnhandledError(ExampleError)))
-  }
-
-  def testBracketRethrownCaughtErrorInRelease = {
-    lazy val actual = unsafePerformIO(
-      IO.unit[Void].bracket_(IO.terminate(ExampleError))(IO.unit[Void])
-    )
-
-    actual must (throwA(ExampleError))
-  }
-
-  def testBracketRethrownCaughtErrorInUsage = {
-    lazy val actual = unsafePerformIO(
-      IO.absolve(IO.unit.bracket_(IO.unit)(IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable])
-    )
-
-    actual must (throwA(UnhandledError(ExampleError)))
-  }
-
-  def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.unit.bracket_(AsyncUnit[Void])(asyncExampleError[Unit])
-    val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
-
-    unsafePerformIO(io1) must (throwA(UnhandledError(ExampleError)))
-    unsafePerformIO(io2) must (throwA(UnhandledError(ExampleError)))
-    unsafePerformIO(IO.absolve(io1.attempt[Throwable])) must (throwA(UnhandledError(ExampleError)))
-    unsafePerformIO(IO.absolve(io2.attempt[Throwable])) must (throwA(UnhandledError(ExampleError)))
-  }
-
-  def testBracketRegression1 = {
-    def makeLogger: IORef[List[String]] => String => IO[Void, Unit] =
-      (ref: IORef[List[String]]) => (line: String) => ref.modify[Void](_ ::: List(line)).toUnit
-
-    unsafePerformIO(for {
-      ref <- IORef[Void, List[String]](Nil)
-      log = makeLogger(ref)
-      f <- IO
-            .unit[Void]
-            .bracket[Unit](_ => log("start 1") *> IO.sleep(10.milliseconds) *> log("release 1"))(_ => IO.unit[Void])
-            .bracket[Unit](_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit[Void])
-            .fork
-      _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("start 1"))
-      _ <- f.interrupt(new RuntimeException("cancel"))
-      _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("release 2"))
-      l <- ref.read
-    } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
-  }
-
-  def testExitResultIsUsageResult_new =
     unsafePerformIO(IO.bracket(IO.unit[Throwable])(_ => IO.unit[Void])(_ => IO.point[Throwable, Int](42))) must_=== 42
 
-  def testBracketErrorInAcquisition_new =
+  def testBracketErrorInAcquisition =
     unsafePerformIO(IO.bracket(IO.fail[Throwable, Unit](ExampleError))(_ => IO.unit)(_ => IO.unit)) must
       (throwA(UnhandledError(ExampleError)))
 
-  def testBracketErrorInRelease_new =
+  def testBracketErrorInRelease =
     unsafePerformIO(IO.bracket(IO.unit[Void])(_ => IO.terminate(ExampleError))(_ => IO.unit[Void])) must
       (throwA(ExampleError))
 
-  def testBracketErrorInUsage_new =
+  def testBracketErrorInUsage =
     unsafePerformIO(IO.bracket(IO.unit[Throwable])(_ => IO.unit)(_ => IO.fail[Throwable, Unit](ExampleError))) must
       (throwA(UnhandledError(ExampleError)))
 
-  def testBracketRethrownCaughtErrorInAcquisition_new = {
+  def testBracketRethrownCaughtErrorInAcquisition = {
     lazy val actual = unsafePerformIO(
       IO.absolve(IO.bracket(IO.fail[Throwable, Unit](ExampleError))(_ => IO.unit)(_ => IO.unit).attempt[Throwable])
     )
@@ -313,7 +234,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     actual must (throwA(UnhandledError(ExampleError)))
   }
 
-  def testBracketRethrownCaughtErrorInRelease_new = {
+  def testBracketRethrownCaughtErrorInRelease = {
     lazy val actual = unsafePerformIO(
       IO.bracket(IO.unit[Void])(_ => IO.terminate(ExampleError))(_ => IO.unit[Void])
     )
@@ -321,7 +242,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     actual must (throwA(ExampleError))
   }
 
-  def testBracketRethrownCaughtErrorInUsage_new = {
+  def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafePerformIO(
       IO.absolve(
         IO.bracket(IO.unit[Throwable])(_ => IO.unit)(_ => IO.fail[Throwable, Unit](ExampleError)).attempt[Throwable]
@@ -331,7 +252,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     actual must (throwA(UnhandledError(ExampleError)))
   }
 
-  def testEvalOfAsyncAttemptOfFail_new = {
+  def testEvalOfAsyncAttemptOfFail = {
     val io1 = IO.bracket(IO.unit[Throwable])(_ => AsyncUnit[Void])(_ => asyncExampleError[Unit])
     val io2 = IO.bracket(AsyncUnit[Throwable])(_ => IO.unit)(_ => asyncExampleError[Unit])
 
@@ -341,7 +262,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafePerformIO(IO.absolve(io2.attempt[Throwable])) must (throwA(UnhandledError(ExampleError)))
   }
 
-  def testBracketRegression1_new = {
+  def testBracketRegression1 = {
     def makeLogger: IORef[List[String]] => String => IO[Void, Unit] =
       (ref: IORef[List[String]]) => (line: String) => ref.modify[Void](_ ::: List(line)).toUnit
 
