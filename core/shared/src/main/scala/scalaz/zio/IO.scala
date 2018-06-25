@@ -795,6 +795,11 @@ object IO {
         } yield fiberA.zipWith(fiberAs)(_ :: _)
     }
 
+  /**
+   * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
+   * not only is the acquired resource be cleaned up, the outcome of the computation is also
+   * reified for processing.
+   */
   final def bracket0[E, A, B](
     acquire: IO[E, A]
   )(release: (A, ExitResult[E, B]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
@@ -814,6 +819,11 @@ object IO {
       } yield b).ensuring(m.read.flatMap(_.fold(unit[Void]) { case (a, r) => release(a, r) }))
     }
 
+  /**
+   * Acquires a resource, do some work with it, and then release that resource. `bracket`
+   * will release the resource no matter the outcome of the computation, and will
+   * re-throw any exception that occured in between.
+   */
   final def bracket[E, A, B](
     acquire: IO[E, A]
   )(release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
