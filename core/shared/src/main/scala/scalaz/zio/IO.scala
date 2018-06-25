@@ -146,14 +146,14 @@ sealed abstract class IO[E, A] { self =>
    * otherwise executes the specified action.
    */
   final def orElse(that: => IO[E, A]): IO[E, A] =
-    self.redeem(_ => that)(IO.now)
+    self.redeem(_ => that, IO.now)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
    * a "larger" error.
    */
   final def leftMap[E2](f: E => E2): IO[E2, A] =
-    self.redeem[E2, A](e => IO.fail(f(e)))(IO.now)
+    self.redeem[E2, A](f.andThen(IO.fail), IO.now)
 
   /**
    * Lets define separate continuations for the case of failure (`err`) or
@@ -167,7 +167,7 @@ sealed abstract class IO[E, A] { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it will depend on the `IO`s returned by the given continuations.
    */
-  final def redeem[E2, B](err: E => IO[E2, B])(succ: A => IO[E2, B]): IO[E2, B] =
+  final def redeem[E2, B](err: E => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
       case IO.Tags.Fail =>
         val io = self.asInstanceOf[IO.Fail[E, A]]
@@ -175,6 +175,14 @@ sealed abstract class IO[E, A] { self =>
 
       case _ => new IO.Attempt(self, err, succ)
     }
+
+  /**
+   * Less powerful version of `redeem` which always returns a successful
+   * `IO[E2, B]` after applying one of the given mapping functions depending
+   * on the result of `this` `IO`
+   */
+  final def redeemPure[E2, B](err: E => B, succ: A => B): IO[E2, B] =
+    redeem(err.andThen(IO.now), succ.andThen(IO.now))
 
   /**
    * Executes this action, capturing both failure and success and returning
@@ -185,7 +193,7 @@ sealed abstract class IO[E, A] { self =>
    * it is guaranteed the `IO` action does not raise any errors.
    */
   final def attempt[E2]: IO[E2, Either[E, A]] =
-    self.redeem[E2, Either[E, A]](IO.nowLeft)(IO.nowRight)
+    self.redeem[E2, Either[E, A]](IO.nowLeft, IO.nowRight)
 
   /**
    * When this action represents acquisition of a resource (for example,
@@ -217,39 +225,38 @@ sealed abstract class IO[E, A] { self =>
    * }}}
    */
   final def bracket[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    new IO.Bracket(this, (_: ExitResult[E, B], a: A) => release(a), use)
+    IO.bracket(this)(release)(use)
 
   /**
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
-  final def bracket0[B](release: (ExitResult[E, B], A) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    new IO.Bracket(this, release, use)
+  final def bracket0[B](release: (A, Option[Either[E, B]]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+    IO.bracket0(this)(release)(use)
 
   /**
    * A less powerful variant of `bracket` where the value produced by this
    * action is not needed.
    */
   final def bracket_[B](release: Infallible[Unit])(use: IO[E, B]): IO[E, B] =
-    self.bracket(_ => release)(_ => use)
+    IO.bracket(self)(_ => release)(_ => use)
 
   /**
    * Executes the specified finalizer, whether this action succeeds, fails, or
    * is interrupted.
    */
   final def ensuring(finalizer: Infallible[Unit]): IO[E, A] =
-    IO.unit.bracket(_ => finalizer)(_ => self)
+    new IO.Ensuring(self, finalizer)
 
-  /**
-   * Executes the release action only if there was an error.
+  /**	
+   * Executes the release action only if there was an error.	
    */
   final def bracketOnError[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    bracket0(
-      (r: ExitResult[E, B], a: A) =>
-        r match {
-          case ExitResult.Failed(_)     => release(a)
-          case ExitResult.Terminated(_) => release(a)
-          case _                        => IO.unit
+    IO.bracket0(this)(
+      (a: A, eb: Option[Either[E, B]]) =>
+        eb match {
+          case Some(Right(_)) => IO.unit
+          case _              => release(a)
       }
     )(use)
 
@@ -258,16 +265,15 @@ sealed abstract class IO[E, A] { self =>
    * error to the cleanup action. The cleanup action will not be interrupted.
    * Cleanup actions for handled and unhandled errors can be provided separately.
    */
-  final def onError(cleanupT: Throwable => Infallible[Unit])(cleanupE: E => Infallible[Unit]): IO[E, A] =
-    IO.unit[E]
-      .bracket0(
-        (r: ExitResult[E, A], a: Unit) =>
-          r match {
-            case ExitResult.Failed(e)     => cleanupE(e)
-            case ExitResult.Terminated(t) => cleanupT(t)
-            case _                        => IO.unit
-        }
-      )(_ => self)
+  final def onError(cleanupE: Option[E] => Infallible[Unit]): IO[E, A] =
+    IO.bracket0(IO.unit[E])(
+      (_, eb: Option[Either[E, A]]) =>
+        eb match {
+          case Some(Right(_)) => IO.unit
+          case Some(Left(e))  => cleanupE(Some(e))
+          case None           => cleanupE(None)
+      }
+    )(_ => self)
 
   /**
    * Supervises this action, which ensures that any fibers that are forked by
@@ -291,7 +297,7 @@ sealed abstract class IO[E, A] { self =>
    * }}}
    */
   final def catchAll[E2](h: E => IO[E2, A]): IO[E2, A] =
-    self.redeem[E2, A](h)(IO.now)
+    self.redeem[E2, A](h, IO.now)
 
   /**
    * Recovers from some or all of the error cases.
@@ -305,7 +311,7 @@ sealed abstract class IO[E, A] { self =>
   final def catchSome(pf: PartialFunction[E, IO[E, A]]): IO[E, A] = {
     def tryRescue(t: E): IO[E, A] = pf.applyOrElse(t, (_: E) => IO.fail(t))
 
-    self.redeem[E, A](tryRescue)(IO.now)
+    self.redeem[E, A](tryRescue, IO.now)
   }
 
   /**
@@ -518,13 +524,13 @@ object IO {
     final val Fork            = 8
     final val Race            = 9
     final val Suspend         = 10
-    final val Bracket         = 11
-    final val Uninterruptible = 12
-    final val Sleep           = 13
-    final val Supervise       = 14
-    final val Terminate       = 15
-    final val Supervisor      = 16
-    final val Run             = 17
+    final val Uninterruptible = 11
+    final val Sleep           = 12
+    final val Supervise       = 13
+    final val Terminate       = 14
+    final val Supervisor      = 15
+    final val Run             = 16
+    final val Ensuring        = 17
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -583,13 +589,6 @@ object IO {
     override def tag = Tags.Suspend
   }
 
-  final class Bracket[E, A, B] private[IO] (val acquire: IO[E, A],
-                                            val release: (ExitResult[E, B], A) => Infallible[Unit],
-                                            val use: A => IO[E, B])
-      extends IO[E, B] {
-    override def tag = Tags.Bracket
-  }
-
   final class Uninterruptible[E, A] private[IO] (val io: IO[E, A]) extends IO[E, A] {
     override def tag = Tags.Uninterruptible
   }
@@ -612,6 +611,10 @@ object IO {
 
   final class Run[E1, E2, A] private[IO] (val value: IO[E1, A]) extends IO[E2, ExitResult[E1, A]] {
     override def tag = Tags.Run
+  }
+
+  final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: Infallible[Unit]) extends IO[E, A] {
+    override def tag = Tags.Ensuring
   }
 
   /**
@@ -796,6 +799,44 @@ object IO {
           fiberA  <- a.fork
           fiberAs <- as
         } yield fiberA.zipWith(fiberAs)(_ :: _)
+    }
+
+  /**
+   * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
+   * not only is the acquired resource be cleaned up, the outcome of the computation is also
+   * reified for processing.
+   */
+  final def bracket0[E, A, B](
+    acquire: IO[E, A]
+  )(release: (A, Option[Either[E, B]]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+    IORef[E, Option[(A, Option[Either[E, B]])]](None).flatMap { m =>
+      (for {
+        a <- acquire
+              .flatMap(a => m.write[E](Some((a, None))).const(a))
+              .uninterruptibly
+        b <- use(a).attempt.flatMap(
+              eb =>
+                m.write[E](Some((a, Some(eb)))) *> (eb match {
+                  case Right(b) => IO.now(b)
+                  case Left(e)  => fail[E, B](e)
+                })
+            )
+      } yield b).ensuring(m.read.flatMap(_.fold(unit[Void]) { case (a, r) => release(a, r) }))
+    }
+
+  /**
+   * Acquires a resource, do some work with it, and then release that resource. `bracket`
+   * will release the resource no matter the outcome of the computation, and will
+   * re-throw any exception that occured in between.
+   */
+  final def bracket[E, A, B](
+    acquire: IO[E, A]
+  )(release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+    IORef[E, Option[A]](None).flatMap { m =>
+      (for {
+        a <- acquire.flatMap(a => m.write[E](Some(a)).const(a)).uninterruptibly
+        b <- use(a)
+      } yield b).ensuring(m.read.flatMap(_.fold(unit[Void])(release(_))))
     }
 
   /**
