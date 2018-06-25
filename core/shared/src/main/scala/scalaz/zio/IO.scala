@@ -253,6 +253,18 @@ sealed abstract class IO[E, A] { self =>
     new IO.Ensuring(self, finalizer)
 
   /**
+   * Runs one of the specified cleanup actions if this action errors, providing the
+   * error to the cleanup action. The cleanup action will not be interrupted.
+   * Cleanup actions for handled and unhandled errors can be provided separately.
+   */
+  final def onError(cleanupT: Throwable => Infallible[Unit])(cleanupE: E => Infallible[Unit]): IO[E, A] =
+    IO.bracket(IO.unit[E]) {
+      case ExitResult.Failed(e)     => cleanupE(e)
+      case ExitResult.Terminated(t) => cleanupT(t)
+      case _                        => IO.unit
+    }(_ => self)
+
+  /**
    * Supervises this action, which ensures that any fibers that are forked by
    * the action are interrupted with the specified error when this action
    * completes.
