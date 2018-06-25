@@ -2,6 +2,7 @@
 package scalaz.zio
 
 import java.util.concurrent.Callable
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
@@ -96,6 +97,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   RTS regression tests
     regression 1                            $testDeadlockRegression
+    check interruption regression 1         ${upTo(20.seconds)(testInterruptionRegression1)}
   """
 
   def testPoint =
@@ -501,6 +503,29 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     }
 
     e.shutdown() must_=== (())
+  }
+
+  def testInterruptionRegression1 = {
+
+    val c = new AtomicInteger(0)
+
+    def test =
+      IO.syncThrowable {
+        if (c.incrementAndGet() <= 1) throw new RuntimeException("x")
+      }.forever
+        .ensuring(IO.unit)
+        .attempt
+        .forever
+
+    unsafePerformIO(
+      for {
+        f <- test.fork[Throwable]
+        c <- (IO.sync[Throwable, Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt(
+              new RuntimeException("y")
+            )
+      } yield c must be_>=(1)
+    )
+
   }
 
   // Utility stuff
