@@ -809,7 +809,7 @@ object IO {
                   case ExitResult.Terminated(t) => terminate[E, B](t)
                 })
             )
-      } yield b).ensuring(m.read.flatMap(_.fold(unit[Void]) { case (a, r) => release(a, r) }).uninterruptibly)
+      } yield b).ensuring(m.read.flatMap(_.fold(unit[Void]) { case (a, r) => release(a, r) }))
     }
 
   final def bracket[E, A, B](
@@ -819,7 +819,7 @@ object IO {
       (for {
         a <- acquire.flatMap(a => m.write[E](Some(a)).const(a)).uninterruptibly
         b <- use(a)
-      } yield b).ensuring(m.read.flatMap(_.fold(unit[Void])(release(_))).uninterruptibly)
+      } yield b).ensuring(m.read.flatMap(_.fold(unit[Void])(release(_))))
     }
 
   /**
