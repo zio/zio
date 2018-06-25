@@ -244,7 +244,7 @@ private object RTS {
      * @param err   The exception that is being thrown.
      */
     final def catchError: IO[Void, List[Throwable]] = {
-      var errorHandler: Any => IO[Any, Any] = null
+      var errorHandler: Any => IO[Any, Any]    = null
       var finalizer: IO[Void, List[Throwable]] = null
 
       // Unwind the stack, looking for exception handlers and coalescing
@@ -254,7 +254,7 @@ private object RTS {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer[_] =>
-            val f = f0.asInstanceOf[Finalizer[E]]
+            val f                                           = f0.asInstanceOf[Finalizer[E]]
             val currentFinalizer: IO[Void, List[Throwable]] = f(()).run.map(collectDefect)
             if (finalizer eq null) finalizer = currentFinalizer
             else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
@@ -290,7 +290,7 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer[_] =>
-            val f = f0.asInstanceOf[Finalizer[E]]
+            val f                                           = f0.asInstanceOf[Finalizer[E]]
             val currentFinalizer: IO[Void, List[Throwable]] = f(()).run.map(collectDefect)
             if (finalizer eq null) finalizer = currentFinalizer
             else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
