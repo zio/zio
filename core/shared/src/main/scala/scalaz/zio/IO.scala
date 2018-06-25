@@ -231,7 +231,7 @@ sealed abstract class IO[E, A] { self =>
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
-  final def bracket0[B](release: (A, ExitResult[E, B]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+  final def bracket0[B](release: (A, Option[Either[E, B]]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
     IO.bracket0(this)(release)(use)
 
   /**
@@ -252,20 +252,19 @@ sealed abstract class IO[E, A] { self =>
    * Executes the release action only if there was an error.	
    */
   final def bracketOnError[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IO.bracket0(this)((a: A, _: ExitResult[E, B]) => release(a))(use)
+    IO.bracket0(this)((a: A, _: Option[Either[E, B]]) => release(a))(use)
 
   /**
    * Runs one of the specified cleanup actions if this action errors, providing the
    * error to the cleanup action. The cleanup action will not be interrupted.
    * Cleanup actions for handled and unhandled errors can be provided separately.
    */
-  final def onError(cleanupT: Throwable => Infallible[Unit])(cleanupE: E => Infallible[Unit]): IO[E, A] =
+  final def onError(cleanupE: E => Infallible[Unit]): IO[E, A] =
     IO.bracket0(IO.unit[E])(
-      (_, r: ExitResult[E, A]) =>
-        r match {
-          case ExitResult.Failed(e)     => cleanupE(e)
-          case ExitResult.Terminated(t) => cleanupT(t)
-          case _                        => IO.unit
+      (_, eb: Option[Either[E, A]]) =>
+        eb match {
+          case Some(Left(e)) => cleanupE(e)
+          case _             => IO.unit
       }
     )(_ => self)
 
@@ -802,18 +801,17 @@ object IO {
    */
   final def bracket0[E, A, B](
     acquire: IO[E, A]
-  )(release: (A, ExitResult[E, B]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IORef[E, Option[(A, ExitResult[E, B])]](None).flatMap { m =>
+  )(release: (A, Option[Either[E, B]]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+    IORef[E, Option[(A, Option[Either[E, B]])]](None).flatMap { m =>
       (for {
         a <- acquire
-              .flatMap(a => m.write[E](Some((a, ExitResult.Terminated(new Throwable("Interrupted fiber"))))).const(a))
+              .flatMap(a => m.write[E](Some((a, None))).const(a))
               .uninterruptibly
-        b <- use(a).run.flatMap(
-              r =>
-                m.write[E](Some((a, r))) *> (r match {
-                  case ExitResult.Completed(b)  => IO.now(b)
-                  case ExitResult.Failed(e)     => fail[E, B](e)
-                  case ExitResult.Terminated(t) => terminate[E, B](t)
+        b <- use(a).attempt.flatMap(
+              eb =>
+                m.write[E](Some((a, Some(eb)))) *> (eb match {
+                  case Right(b) => IO.now(b)
+                  case Left(e)  => fail[E, B](e)
                 })
             )
       } yield b).ensuring(m.read.flatMap(_.fold(unit[Void]) { case (a, r) => release(a, r) }))

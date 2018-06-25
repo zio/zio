@@ -181,7 +181,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       _ => IO.sync[Void, Unit] { finalized = true; () }
 
     unsafePerformIO(
-      IO.fail[Throwable, Unit](ExampleError).onError(cleanup)(cleanup)
+      IO.fail[Throwable, Unit](ExampleError).onError(cleanup)
     ) must (throwA(UnhandledError(ExampleError)))
 
     finalized must_=== true
