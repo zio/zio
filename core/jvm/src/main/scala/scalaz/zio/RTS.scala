@@ -471,7 +471,7 @@ private object RTS {
                         // Do not interrupt finalization:
                         this.noInterrupt += 1
 
-                        curIo = finalization.widenError[E] *> completer
+                        curIo = finalization.widenError[E] *> exitUninterruptible *> completer
                       }
                     }
 
