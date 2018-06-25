@@ -240,8 +240,6 @@ private object RTS {
      * must be executed. It is painstakingly *guaranteed* that the stack will be
      * empty in the sole case the exception was not caught by any exception
      * handler—i.e. the exceptional case.
-     *
-     * @param err   The exception that is being thrown.
      */
     final def catchError: IO[Void, List[Throwable]] = {
       var errorHandler: Any => IO[Any, Any]    = null
@@ -255,7 +253,7 @@ private object RTS {
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer[_] =>
             val f                                           = f0.asInstanceOf[Finalizer[E]]
-            val currentFinalizer: IO[Void, List[Throwable]] = f(()).run.map(collectDefect)
+            val currentFinalizer: IO[Void, List[Throwable]] = f.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = currentFinalizer
             else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
           case _ =>
@@ -276,8 +274,6 @@ private object RTS {
     /**
      * Empties the stack, collecting all finalizers and coalescing them into an
      * action that produces a list (possibly empty) of errors during finalization.
-     *
-     * @param error The error being used to interrupt the fiber.
      */
     final def interruptStack: IO[Void, List[Throwable]] = {
       // Use null to achieve zero allocs for the common case of no finalizers:
@@ -291,7 +287,7 @@ private object RTS {
         stack.pop() match {
           case f0: Finalizer[_] =>
             val f                                           = f0.asInstanceOf[Finalizer[E]]
-            val currentFinalizer: IO[Void, List[Throwable]] = f(()).run.map(collectDefect)
+            val currentFinalizer: IO[Void, List[Throwable]] = f.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = currentFinalizer
             else finalizer = finalizer.zipWith(currentFinalizer)(_ ++ _)
           case _ =>
