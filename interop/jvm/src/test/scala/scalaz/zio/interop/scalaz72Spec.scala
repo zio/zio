@@ -15,7 +15,7 @@ class scalaz72Spec extends Specification with ScalaCheck with GenIO with RTS {
     laws must hold for
       Bifunctor              ${bifunctor.laws[IO]}
       BindRec                ${bindRec.laws[IO[Int, ?]]}
-      MonadPlus              ${monadPlus.laws[IO[Int, ?]]}
+      Plus                   ${plus.laws[IO[Int, ?]]}
       MonadError             ${monadError.laws[IO[Int, ?], Int]}
       Applicative (Parallel) ${applicative.laws[ParIO[Int, ?]]}
   """
@@ -27,7 +27,7 @@ class scalaz72Spec extends Specification with ScalaCheck with GenIO with RTS {
     }
 
   implicit def ioArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
-    Arbitrary(genSuccess[E, A])
+    Arbitrary(genIO[E, A])
 
   implicit def ioParEqual[E: Equal, A: Equal]: Equal[ParIO[E, A]] =
     ioEqual[E, A].contramap(Tag.unwrap)
