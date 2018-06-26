@@ -60,7 +60,6 @@ lazy val benchmarks = project.module
       )
   )
 
-
 lazy val microsite = project.module
   .dependsOn(coreJVM)
   .enablePlugins(MicrositesPlugin)
@@ -70,9 +69,11 @@ lazy val microsite = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
     libraryDependencies += "com.github.ghik" %% "silencer-lib" % "1.0",
-    micrositeFooterText := Some("""
-                                  |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">Scalaz Maintainers</a></p>
-                                  |""".stripMargin),
+    micrositeFooterText := Some(
+      """
+        |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">Scalaz Maintainers</a></p>
+        |""".stripMargin
+    ),
     micrositeName := "Scalaz-ZIO",
     micrositeDescription := "Scalaz-ZIO",
     micrositeAuthor := "Scalaz contributors",
@@ -83,9 +84,9 @@ lazy val microsite = project.module
     micrositeGithubRepo := "scalaz-zio",
     micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
     micrositePalette := Map(
-      "brand-primary"   -> "#537cd6",
-      "brand-secondary" -> "#537cd6",
-      "brand-tertiary"  -> "#203156",
+      "brand-primary"   -> "#ED2124",
+      "brand-secondary" -> "#251605",
+      "brand-tertiary"  -> "#491119",
       "gray-dark"       -> "#453E46",
       "gray"            -> "#837F84",
       "gray-light"      -> "#E3E2E3",
