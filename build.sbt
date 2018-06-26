@@ -29,7 +29,7 @@ lazy val root = project
   .settings(
     skip in publish := true
   )
-  .aggregate(coreJVM, coreJS, benchmarks)
+  .aggregate(coreJVM, coreJS, benchmarks, microsite)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject
@@ -58,4 +58,39 @@ lazy val benchmarks = project.module
         "io.monix"       %% "monix"         % "3.0.0-RC1",
         "org.typelevel"  %% "cats-effect"   % "1.0.0-RC"
       )
+  )
+
+lazy val microsite = project.module
+  .dependsOn(coreJVM)
+  .enablePlugins(MicrositesPlugin)
+  .settings(
+    scalacOptions -= "-Yno-imports",
+    scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
+    scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
+    skip in publish := true,
+    libraryDependencies += "com.github.ghik" %% "silencer-lib" % "1.0",
+    micrositeFooterText := Some(
+      """
+        |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">Scalaz Maintainers</a></p>
+        |""".stripMargin
+    ),
+    micrositeName := "Scalaz-ZIO",
+    micrositeDescription := "Scalaz-ZIO",
+    micrositeAuthor := "Scalaz contributors",
+    micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-zio",
+    micrositeGitterChannelUrl := "scalaz/scalaz-zio",
+    micrositeGitHostingUrl := "https://github.com/scalaz/scalaz-zio",
+    micrositeGithubOwner := "scalaz",
+    micrositeGithubRepo := "scalaz-zio",
+    micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
+    micrositePalette := Map(
+      "brand-primary"   -> "#ED2124",
+      "brand-secondary" -> "#251605",
+      "brand-tertiary"  -> "#491119",
+      "gray-dark"       -> "#453E46",
+      "gray"            -> "#837F84",
+      "gray-light"      -> "#E3E2E3",
+      "gray-lighter"    -> "#F4F3F4",
+      "white-color"     -> "#FFFFFF"
+    )
   )
