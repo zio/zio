@@ -792,14 +792,17 @@ object IO {
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E, A](error))(IO.now[E, A]))
 
-  final def forkAll[E, E2, A](as: List[IO[E, A]]): IO[E2, Fiber[E, List[A]]] =
-    as.foldRight(IO.point[E2, Fiber[E, List[A]]](Fiber.point(List.empty))) {
-      case (a, as) =>
-        for {
-          fiberA  <- a.fork
-          fiberAs <- as
-        } yield fiberA.zipWith(fiberAs)(_ :: _)
-    }
+  final def forkAll[E, E2, A, M[X] <: TraversableOnce[X]](
+    as: M[IO[E, A]]
+  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E2, Fiber[E, M[A]]] =
+    as.foldRight(point[E2, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) {
+        case (a, as) =>
+          for {
+            fiberAs <- as
+            fiberA  <- a.fork
+          } yield fiberAs.zipWith(fiberA)(_ += _)
+      }
+      .map(as => as.zipWith(Fiber.point(())) { case (as, _) => as.result })
 
   /**
    * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
