@@ -12,19 +12,18 @@ object catz extends RTS {
   implicit val catsEffectInstance: Effect[Task] = new Effect[Task] {
     def runAsync[A](
       fa: Task[A]
-    )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.IO[Unit] =
+    )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.IO[Unit] = {
+      val cbZ2C: ExitResult[Throwable, A] => Either[Throwable, A] = {
+        case ExitResult.Completed(a)  => Right(a)
+        case ExitResult.Failed(t)     => Left(t)
+        case ExitResult.Terminated(t) => Left(t)
+      }
       effect.IO {
-        unsafePerformIO(
-          fa.attempt[Throwable].flatMap { a =>
-            IO.async[Throwable, Unit] { r =>
-              cb(a).unsafeRunAsync {
-                case Right(r2) => r(ExitResult.Completed(r2))
-                case Left(l2)  => r(ExitResult.Failed(l2))
-              }
-            }
-          }
-        )
+        unsafePerformIOAsync(fa) {
+          cb.compose(cbZ2C).andThen(_.unsafeRunAsync(_ => ()))
+        }
       }.attempt.void
+    }
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] = {
       val kk = k.compose[ExitResult[Throwable, A] => Unit] {
