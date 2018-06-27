@@ -13,7 +13,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
   def is = s2"""
   A simple fs2 join must
     work if `F` is `cats.effect.IO`  ${simpleJoin(fIsCats)}
-    work if `F` is `scalaz.zio.Task` ${simpleJoin(fIsZio).pendingUntilFixed}
+    work if `F` is `scalaz.zio.Task` ${simpleJoin(fIsZio)}
   """
 
   def simpleJoin(ints: => List[Int]) = upTo(2.seconds) {
