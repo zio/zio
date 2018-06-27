@@ -795,7 +795,7 @@ object IO {
   final def forkAll[E, A, M[X] <: TraversableOnce[X]](
     as: M[IO[E, A]]
   )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, Fiber[E, M[A]]] =
-    as.foldRight(point[E, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) {
+    as.foldRight(IO.point[E, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) {
         case (a, as) => as.par(a.fork).map { case (as, a) => as.zipWith(a)(_ += _) }
       }
       .map(as => as.zipWith(Fiber.point(())) { case (as, _) => as.result })
