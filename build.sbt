@@ -54,7 +54,8 @@ lazy val interop = crossProject
     libraryDependencies ++= Seq(
       "org.scalaz"    %%% "scalaz-core"               % "7.2.+"  % Optional,
       "org.typelevel" %%% "cats-effect"               % "0.10.1" % Optional,
-      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"  % Test
+      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"  % Test,
+      "co.fs2"        %%% "fs2-core"                  % "0.10.3" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
