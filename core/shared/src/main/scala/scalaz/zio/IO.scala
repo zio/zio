@@ -792,15 +792,11 @@ object IO {
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E, A](error))(IO.now[E, A]))
 
-  final def forkAll[E, E2, A, M[X] <: TraversableOnce[X]](
+  final def forkAll[E, A, M[X] <: TraversableOnce[X]](
     as: M[IO[E, A]]
-  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E2, Fiber[E, M[A]]] =
-    as.foldRight(point[E2, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) {
-        case (a, as) =>
-          for {
-            fiberAs <- as
-            fiberA  <- a.fork
-          } yield fiberAs.zipWith(fiberA)(_ += _)
+  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, Fiber[E, M[A]]] =
+    as.foldRight(point[E, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) {
+        case (a, as) => as.par(a.fork).map { case (as, a) => as.zipWith(a)(_ += _) }
       }
       .map(as => as.zipWith(Fiber.point(())) { case (as, _) => as.result })
 
