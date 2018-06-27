@@ -18,11 +18,17 @@ abstract class IOInstances extends IOInstances1 {
   implicit val taskParAp: Applicative[ParIO[Throwable, ?]] = new IOParApplicative[Throwable]
 }
 
-sealed abstract class IOInstances1 {
-  implicit def ioInstances[E]: MonadError[IO[E, ?], E] with BindRec[IO[E, ?]] with Bifunctor[IO] with Plus[IO[E, ?]] =
-    new IOMonadError[E] with IOPlus[E] with IOBifunctor
+sealed abstract class IOInstances1 extends IOInstances2 {
+  implicit def ioMonoidInstances[E: Monoid]
+    : MonadError[IO[E, ?], E] with BindRec[IO[E, ?]] with Bifunctor[IO] with MonadPlus[IO[E, ?]] =
+    new IOMonadPlus[E] with IOBifunctor
 
   implicit def ioParAp[E]: Applicative[ParIO[E, ?]] = new IOParApplicative[E]
+}
+
+sealed abstract class IOInstances2 {
+  implicit def ioInstances[E]: MonadError[IO[E, ?], E] with BindRec[IO[E, ?]] with Bifunctor[IO] with Plus[IO[E, ?]] =
+    new IOMonadError[E] with IOPlus[E] with IOBifunctor
 }
 
 private class IOMonad[E] extends Monad[IO[E, ?]] with BindRec[IO[E, ?]] {
@@ -41,6 +47,16 @@ private class IOMonadError[E] extends IOMonad[E] with MonadError[IO[E, ?], E] {
 // lossy, throws away errors using the "first success" interpretation of Plus
 private trait IOPlus[E] extends Plus[IO[E, ?]] {
   override def plus[A](a: IO[E, A], b: => IO[E, A]): IO[E, A] = a.orElse(b)
+}
+
+private class IOMonadPlus[E: Monoid] extends IOMonadError[E] with MonadPlus[IO[E, ?]] {
+  override def plus[A](a: IO[E, A], b: => IO[E, A]): IO[E, A] =
+    a.catchAll { e1 =>
+      b.catchAll { e2 =>
+        IO.fail(Monoid[E].append(e1, e2))
+      }
+    }
+  override def empty[A]: IO[E, A] = raiseError(Monoid[E].zero)
 }
 
 private trait IOBifunctor extends Bifunctor[IO] {
