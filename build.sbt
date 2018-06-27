@@ -29,7 +29,7 @@ lazy val root = project
   .settings(
     skip in publish := true
   )
-  .aggregate(coreJVM, coreJS, benchmarks, microsite)
+  .aggregate(coreJVM, coreJS, interopJVM, interopJS, interopCatsLaws, benchmarks, microsite)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject
@@ -45,6 +45,40 @@ lazy val core = crossProject
 lazy val coreJVM = core.jvm
 
 lazy val coreJS = core.js
+
+lazy val interop = crossProject
+  .in(file("interop"))
+  .settings(stdSettings("zio-interop"))
+  .dependsOn(core % "test->test;compile->compile")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.scalaz"    %%% "scalaz-core"               % "7.2.+"  % Optional,
+      "org.typelevel" %%% "cats-effect"               % "0.10.1" % Optional,
+      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"  % Test
+    ),
+    scalacOptions in Test ++= Seq("-Yrangepos")
+  )
+
+lazy val interopJVM = interop.jvm
+
+lazy val interopJS = interop.js
+
+// Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
+// TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
+lazy val interopCatsLaws = project.module
+  .in(file("interop-cats-laws"))
+  .settings(stdSettings("zio-interop-cats-laws"))
+  .dependsOn(coreJVM % "test->test", interopJVM % "test->compile")
+  .settings(
+    skip in publish := true,
+    libraryDependencies ++= Seq(
+      "org.typelevel"              %% "cats-effect-laws"          % "0.10.1" % Test,
+      "org.typelevel"              %% "cats-testkit"              % "1.1.0"  % Test,
+      "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"  % Test
+    ),
+    dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test,
+    scalacOptions in Test ++= Seq("-Yrangepos")
+  )
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
