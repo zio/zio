@@ -53,7 +53,7 @@ object Scalaz {
     name := s"scalaz-$prjName",
     scalacOptions := stdOptions,
     crossScalaVersions := Seq("2.12.4", "2.11.12"),
-    scalaVersion := crossScalaVersions.value.head,
+    scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
       compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.7"),
