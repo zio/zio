@@ -16,6 +16,7 @@ class scalaz72Spec extends Specification with ScalaCheck with GenIO with RTS {
       Bifunctor              ${bifunctor.laws[IO]}
       BindRec                ${bindRec.laws[IO[Int, ?]]}
       Plus                   ${plus.laws[IO[Int, ?]]}
+      MonadPlus              ${monadPlus.laws[IO[Int, ?]]}
       MonadError             ${monadError.laws[IO[Int, ?], Int]}
       Applicative (Parallel) ${applicative.laws[ParIO[Int, ?]]}
   """
