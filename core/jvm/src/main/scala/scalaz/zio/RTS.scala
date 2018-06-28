@@ -615,8 +615,7 @@ private object RTS {
                         k(ExitResult.Completed(v))
                       } match {
                         case Async.Now(v)          => Async.Now(ExitResult.Completed(v))
-                        case Async.MaybeLater(c)   => Async.MaybeLater(c)
-                        case Async.MaybeLaterIO(c) => Async.MaybeLaterIO(c)
+                        case x   => x
                       }
                     }
 
