@@ -218,8 +218,7 @@ private object RTS {
     final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
       e match {
         case ExitResult.Terminated(t) => t :: Nil
-        case ExitResult.Completed(_)  => Nil
-        case ExitResult.Failed(_)     => Nil
+        case _  => Nil
       }
 
     /**
