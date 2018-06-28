@@ -493,6 +493,8 @@ private object RTS {
                   case IO.Tags.AsyncIOEffect =>
                     val io = curIo.asInstanceOf[IO.AsyncIOEffect[E, Any]]
 
+                    enterAsyncStart()
+                    
                     try {
                       val value = rts.tryUnsafePerformIO(io.register(resumeAsync))
 
