@@ -592,10 +592,7 @@ private object RTS {
                       val finalization = dispatchErrors(finalizer)
                       val completer    = io
 
-                      // Do not interrupt finalization:
-                      this.noInterrupt += 1
-
-                      curIo = finalization.widenError[E] *> completer
+                      curIo = enterUninterruptible *> finalization.ensuring(exitUninterruptible).widenError[E] *> completer
                     }
 
                   case IO.Tags.Supervisor =>
