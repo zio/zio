@@ -556,7 +556,12 @@ private object RTS {
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
-                    enterUninterruptible *> io.io.ensuring(exitUninterruptible)
+                    // FIXME: Not safe because of potential error in computing `v`
+                    curIo = for {
+                      _ <- enterUninterruptible
+                      v <- io.io
+                      _ <- exitUninterruptible
+                    } yield v
 
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep[E]]
@@ -746,25 +751,23 @@ private object RTS {
       val state = new AtomicReference[RaceState](RaceState.Started)
 
       IO.flatten(IO.async0[E, IO[E, C]] { k =>
-        var c1: Throwable => Unit = null
-        var c2: Throwable => Unit = null
+        val leftCallback = raceCallback[A, C](k, state, leftWins)
+        val rightCallback = raceCallback[B, C](k, state, rightWins)
 
-        left.register(raceCallback[A, C](k, state, leftWins)) match {
+        val c1: Throwable => Unit = left.register(leftCallback) match {
           case Async.Now(tryA) =>
-            raceCallback[A, C](k, state, leftWins)(tryA)
-          case Async.MaybeLater(cancel) =>
-            c1 = cancel
-          case Async.MaybeLaterIO(pureCancel) =>
-            c1 = rts.impureCanceler(pureCancel)
+            leftCallback(tryA)
+            null
+          case Async.MaybeLater(cancel) => cancel
+          case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
         }
 
-        right.register(raceCallback[B, C](k, state, rightWins)) match {
+        val c2: Throwable => Unit = right.register(rightCallback) match {
           case Async.Now(tryA) =>
-            raceCallback[B, C](k, state, rightWins)(tryA)
-          case Async.MaybeLater(cancel) =>
-            c2 = cancel
-          case Async.MaybeLaterIO(pureCancel) =>
-            c2 = rts.impureCanceler(pureCancel)
+            rightCallback(tryA)
+            null
+          case Async.MaybeLater(cancel) => cancel
+          case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
         }
 
         val canceler = combineCancelers(c1, c2)
