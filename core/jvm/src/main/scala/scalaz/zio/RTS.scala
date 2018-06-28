@@ -428,10 +428,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = io
 
-                        // Do not interrupt finalization:
-                        this.noInterrupt += 1
-
-                        curIo = finalization.widenError[E] *> completer
+                        curIo = enterUninterruptible *> finalization.ensuring(exitUninterruptible).widenError[E] *> completer
                       }
                     } else {
                       // Error caught:
@@ -444,10 +441,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = handled
 
-                        // Do not interrupt finalization:
-                        this.noInterrupt += 1
-
-                        curIo = finalization.widenError[E] *> exitUninterruptible *> completer
+                        curIo = enterUninterruptible *> finalization.ensuring(exitUninterruptible).widenError[E] *> completer
                       }
                     }
 
@@ -925,9 +919,9 @@ private object RTS {
     final def shouldDie: Option[Throwable] =
       if (!killed || noInterrupt > 0) None else status.get.error
 
-    final def enterUninterruptible: IO[E, Unit] = IO.sync { noInterrupt += 1 }
+    final def enterUninterruptible[E]: IO[E, Unit] = IO.sync { noInterrupt += 1 }
 
-    final def exitUninterruptible: IO[E, Unit] = IO.sync { noInterrupt -= 1 }
+    final def exitUninterruptible[E]: IO[E, Unit] = IO.sync { noInterrupt -= 1 }
 
     final def register(cb: Callback[E, A]): Async[E, A] = join0(cb)
 
