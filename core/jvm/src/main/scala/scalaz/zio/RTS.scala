@@ -231,7 +231,7 @@ private object RTS {
       errors.flatMap(
         // Each error produced by a finalizer must be handled using the
         // context's unhandled exception handler:
-        _.reverse.map(unhandled).foldLeft(IO.unit[Void])(_ *> _)
+        _.foldRight(IO.unit[Void])((t, io) => io *> unhandled(t))
       )
 
     /**
