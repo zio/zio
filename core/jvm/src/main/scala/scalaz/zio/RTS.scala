@@ -428,7 +428,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = io
 
-                        curIo = enterUninterruptible.widenError[E] *>
+                        curIo = enterUninterruptible *>
                           finalization.ensuring(exitUninterruptible).widenError[E] *>
                           completer
                       }
@@ -443,7 +443,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = handled
 
-                        curIo = enterUninterruptible.widenError[E] *>
+                        curIo = enterUninterruptible *>
                           finalization.ensuring(exitUninterruptible).widenError[E] *>
                           completer
                       }
@@ -562,7 +562,7 @@ private object RTS {
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
-                    curIo = enterUninterruptible.widenError[E] *> io.io.ensuring(exitUninterruptible).widenError[E]
+                    curIo = enterUninterruptible *> io.io.ensuring(exitUninterruptible).widenError[E]
 
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep[E]]
@@ -598,7 +598,7 @@ private object RTS {
                       val finalization = dispatchErrors(finalizer)
                       val completer    = io
 
-                      curIo = enterUninterruptible.widenError[E] *> finalization
+                      curIo = enterUninterruptible *> finalization
                         .ensuring(exitUninterruptible)
                         .widenError[E] *> completer
                     }
@@ -912,7 +912,7 @@ private object RTS {
     final def shouldDie: Option[Throwable] =
       if (!killed || noInterrupt > 0) None else status.get.error
 
-    final val enterUninterruptible: Infallible[Unit] = IO.sync { noInterrupt += 1 }
+    final val enterUninterruptible: IO[E, Unit] = IO.sync { noInterrupt += 1 }
 
     final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
 
