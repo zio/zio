@@ -558,12 +558,7 @@ private object RTS {
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
-                    // FIXME: Not safe because of potential error in computing `v`
-                    curIo = for {
-                      _ <- enterUninterruptible
-                      v <- io.io
-                      _ <- exitUninterruptible
-                    } yield v
+                    curIo = enterUninterruptible *> io.io.ensuring(exitUninterruptible)
 
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep[E]]
