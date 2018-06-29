@@ -936,10 +936,9 @@ private object RTS {
       }
     }
 
-    def changeError[E1, E2, A](f: E2 => ExitResult[E1, A], cb: Callback[E1, A]): Callback[E2, A] = {
-      case ExitResult.Failed(e2) => cb(f(e2))
-      case x                     => cb(x.asInstanceOf[ExitResult[E1, A]])
-    }
+    def changeError[E1, E2, A](f: E2 => ExitResult[E1, A], cb: Callback[E1, A]): Callback[E2, A] =
+      x => cb(x.mapError(f))
+
     @tailrec
     private final def kill0[E2](t: Throwable, cb: Callback[E, Unit]): Async[E2, Unit] = {
       killed = true
