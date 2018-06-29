@@ -428,9 +428,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = io
 
-                        curIo = enterUninterruptible *>
-                          finalization.ensuring(exitUninterruptible).widenError[E] *>
-                          completer
+                        curIo = doNotInterrupt(finalization).widenError[E] *> completer
                       }
                     } else {
                       // Error caught:
@@ -443,9 +441,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = handled
 
-                        curIo = enterUninterruptible *>
-                          finalization.ensuring(exitUninterruptible).widenError[E] *>
-                          completer
+                        curIo = doNotInterrupt(finalization).widenError[E] *> completer
                       }
                     }
 
@@ -562,7 +558,7 @@ private object RTS {
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
-                    curIo = enterUninterruptible *> io.io.ensuring(exitUninterruptible).widenError[E]
+                    curIo = doNotInterrupt(io.io).widenError[E]
 
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep[E]]
@@ -598,9 +594,7 @@ private object RTS {
                       val finalization = dispatchErrors(finalizer)
                       val completer    = io
 
-                      curIo = enterUninterruptible *> finalization
-                        .ensuring(exitUninterruptible)
-                        .widenError[E] *> completer
+                      curIo = doNotInterrupt(finalization).widenError[E] *> completer
                     }
 
                   case IO.Tags.Supervisor =>
@@ -912,9 +906,12 @@ private object RTS {
     final def shouldDie: Option[Throwable] =
       if (!killed || noInterrupt > 0) None else status.get.error
 
-    final val enterUninterruptible: IO[E, Unit] = IO.sync { noInterrupt += 1 }
+    private final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
 
-    final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
+    private final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
+      this.noInterrupt += 1
+      io.ensuring(exitUninterruptible)
+    }
 
     final def register(cb: Callback[E, A]): Async[E, A] = join0(cb)
 
