@@ -23,7 +23,7 @@ sealed trait ExitResult[E, A] { self =>
 
   final def mapError[E2](f: E => ExitResult[E2, A]): ExitResult[E2, A] = self match {
     case ExitResult.Failed(e) => f(e)
-    case x => x.asInstanceOf[ExitResult[E2, A]]
+    case x                    => x.asInstanceOf[ExitResult[E2, A]]
   }
 
   final def failed: Boolean = !succeeded
@@ -39,4 +39,3 @@ object ExitResult {
   final case class Failed[E, A](error: E)             extends ExitResult[E, A]
   final case class Terminated[E, A](error: Throwable) extends ExitResult[E, A]
 }
-
