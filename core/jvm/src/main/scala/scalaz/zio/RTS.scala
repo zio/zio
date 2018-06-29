@@ -428,8 +428,8 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = io
 
-                        curIo = enterUninterruptible.widenError[E] *> 
-                          finalization.ensuring(exitUninterruptible).widenError[E] *> 
+                        curIo = enterUninterruptible.widenError[E] *>
+                          finalization.ensuring(exitUninterruptible).widenError[E] *>
                           completer
                       }
                     } else {
@@ -443,8 +443,8 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = handled
 
-                        curIo = enterUninterruptible.widenError[E] *> 
-                          finalization.ensuring(exitUninterruptible).widenError[E] *> 
+                        curIo = enterUninterruptible.widenError[E] *>
+                          finalization.ensuring(exitUninterruptible).widenError[E] *>
                           completer
                       }
                     }
@@ -599,7 +599,8 @@ private object RTS {
                       val completer    = io
 
                       curIo = enterUninterruptible.widenError[E] *> finalization
-                        .ensuring(exitUninterruptible).widenError[E] *> completer
+                        .ensuring(exitUninterruptible)
+                        .widenError[E] *> completer
                     }
 
                   case IO.Tags.Supervisor =>
