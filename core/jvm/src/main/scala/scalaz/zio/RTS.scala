@@ -758,17 +758,13 @@ private object RTS {
         val rightCallback = raceCallback[B, C](k, state, rightWins)
 
         val c1: Throwable => Unit = left.register(leftCallback) match {
-          case Async.Now(tryA) =>
-            leftCallback(tryA)
-            null
+          case Async.Now(tryA)                => leftCallback(tryA); null
           case Async.MaybeLater(cancel)       => cancel
           case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
         }
 
         val c2: Throwable => Unit = right.register(rightCallback) match {
-          case Async.Now(tryA) =>
-            rightCallback(tryA)
-            null
+          case Async.Now(tryA)                => rightCallback(tryA); null
           case Async.MaybeLater(cancel)       => cancel
           case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
         }
