@@ -777,7 +777,7 @@ private object RTS {
     }
 
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
-      changeError[E2, E, Unit](_ => SuccessUnit[E2], cb)
+      x => cb(x.mapError(_ => SuccessUnit[E2]))
 
     final def interrupt[E2](t: Throwable): IO[E2, Unit] =
       IO.async0[E2, Unit](cb => kill0[E2](t, changeErrorUnit[E2](cb)))
@@ -935,9 +935,6 @@ private object RTS {
         case Done(_) => // Huh?
       }
     }
-
-    def changeError[E1, E2, A](f: E2 => ExitResult[E1, A], cb: Callback[E1, A]): Callback[E2, A] =
-      x => cb(x.mapError(f))
 
     @tailrec
     private final def kill0[E2](t: Throwable, cb: Callback[E, Unit]): Async[E2, Unit] = {
