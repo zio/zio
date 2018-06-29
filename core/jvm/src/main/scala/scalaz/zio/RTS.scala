@@ -966,14 +966,15 @@ private object RTS {
               case Some(cancel) =>
                 try cancel(t)
                 catch {
-                  case t: Throwable if (nonFatal(t)) => fork(unhandled(t)[E], unhandled)
+                  case t: Throwable if (nonFatal(t)) => 
+                    supervise(fork(unhandled(t)[E], unhandled))
                 }
             }
 
             val finalizer = interruptStack
 
             if (finalizer ne null) {
-              fork[Void, Unit](dispatchErrors(finalizer), unhandled)
+              supervise(fork[Void, Unit](dispatchErrors(finalizer), unhandled))
             }
 
             purgeJoinersKillers(v, joiners, killers)
