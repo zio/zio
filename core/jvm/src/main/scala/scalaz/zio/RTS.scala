@@ -218,8 +218,7 @@ private object RTS {
     final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
       e match {
         case ExitResult.Terminated(t) => t :: Nil
-        case ExitResult.Completed(_)  => Nil
-        case ExitResult.Failed(_)     => Nil
+        case _                        => Nil
       }
 
     /**
@@ -232,7 +231,7 @@ private object RTS {
       errors.flatMap(
         // Each error produced by a finalizer must be handled using the
         // context's unhandled exception handler:
-        _.reverse.map(unhandled).foldLeft(IO.unit[Void])(_ *> _)
+        _.foldRight(IO.unit[Void])((t, io) => io *> unhandled(t))
       )
 
     /**
@@ -429,10 +428,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = io
 
-                        // Do not interrupt finalization:
-                        this.noInterrupt += 1
-
-                        curIo = finalization.widenError[E] *> completer
+                        curIo = doNotInterrupt(finalization).widenError[E] *> completer
                       }
                     } else {
                       // Error caught:
@@ -445,10 +441,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = handled
 
-                        // Do not interrupt finalization:
-                        this.noInterrupt += 1
-
-                        curIo = finalization.widenError[E] *> exitUninterruptible *> completer
+                        curIo = doNotInterrupt(finalization).widenError[E] *> completer
                       }
                     }
 
@@ -499,6 +492,8 @@ private object RTS {
 
                   case IO.Tags.AsyncIOEffect =>
                     val io = curIo.asInstanceOf[IO.AsyncIOEffect[E, Any]]
+
+                    enterAsyncStart()
 
                     try {
                       val value = rts.tryUnsafePerformIO(io.register(resumeAsync))
@@ -563,7 +558,7 @@ private object RTS {
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
-                    curIo = enterUninterruptible *> io.io.ensuring(exitUninterruptible)
+                    curIo = doNotInterrupt(io.io).widenError[E]
 
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep[E]]
@@ -599,10 +594,7 @@ private object RTS {
                       val finalization = dispatchErrors(finalizer)
                       val completer    = io
 
-                      // Do not interrupt finalization:
-                      this.noInterrupt += 1
-
-                      curIo = finalization.widenError[E] *> completer
+                      curIo = doNotInterrupt(finalization).widenError[E] *> completer
                     }
 
                   case IO.Tags.Supervisor =>
@@ -624,9 +616,8 @@ private object RTS {
                       value.register { (v: ExitResult[E, Any]) =>
                         k(ExitResult.Completed(v))
                       } match {
-                        case Async.Now(v)          => Async.Now(ExitResult.Completed(v))
-                        case Async.MaybeLater(c)   => Async.MaybeLater(c)
-                        case Async.MaybeLaterIO(c) => Async.MaybeLaterIO(c)
+                        case Async.Now(v) => Async.Now(ExitResult.Completed(v))
+                        case x            => x
                       }
                     }
 
@@ -757,25 +748,19 @@ private object RTS {
       val state = new AtomicReference[RaceState](RaceState.Started)
 
       IO.flatten(IO.async0[E, IO[E, C]] { k =>
-        var c1: Throwable => Unit = null
-        var c2: Throwable => Unit = null
+        val leftCallback  = raceCallback[A, C](k, state, leftWins)
+        val rightCallback = raceCallback[B, C](k, state, rightWins)
 
-        left.register(raceCallback[A, C](k, state, leftWins)) match {
-          case Async.Now(tryA) =>
-            raceCallback[A, C](k, state, leftWins)(tryA)
-          case Async.MaybeLater(cancel) =>
-            c1 = cancel
-          case Async.MaybeLaterIO(pureCancel) =>
-            c1 = rts.impureCanceler(pureCancel)
+        val c1: Throwable => Unit = left.register(leftCallback) match {
+          case Async.Now(tryA)                => leftCallback(tryA); null
+          case Async.MaybeLater(cancel)       => cancel
+          case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
         }
 
-        right.register(raceCallback[B, C](k, state, rightWins)) match {
-          case Async.Now(tryA) =>
-            raceCallback[B, C](k, state, rightWins)(tryA)
-          case Async.MaybeLater(cancel) =>
-            c2 = cancel
-          case Async.MaybeLaterIO(pureCancel) =>
-            c2 = rts.impureCanceler(pureCancel)
+        val c2: Throwable => Unit = right.register(rightCallback) match {
+          case Async.Now(tryA)                => rightCallback(tryA); null
+          case Async.MaybeLater(cancel)       => cancel
+          case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
         }
 
         val canceler = combineCancelers(c1, c2)
@@ -786,7 +771,7 @@ private object RTS {
     }
 
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
-      changeError[E2, E, Unit](_ => SuccessUnit[E2], cb)
+      x => cb(x.mapError(_ => SuccessUnit[E2]))
 
     final def interrupt[E2](t: Throwable): IO[E2, Unit] =
       IO.async0[E2, Unit](cb => kill0[E2](t, changeErrorUnit[E2](cb)))
@@ -921,9 +906,12 @@ private object RTS {
     final def shouldDie: Option[Throwable] =
       if (!killed || noInterrupt > 0) None else status.get.error
 
-    final def enterUninterruptible: IO[E, Unit] = IO.sync { noInterrupt += 1 }
+    private final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
 
-    final def exitUninterruptible[E2]: IO[E2, Unit] = IO.sync { noInterrupt -= 1 }
+    private final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
+      this.noInterrupt += 1
+      io.ensuring(exitUninterruptible)
+    }
 
     final def register(cb: Callback[E, A]): Async[E, A] = join0(cb)
 
@@ -945,11 +933,6 @@ private object RTS {
       }
     }
 
-    def changeError[E1, E2, A](f: E2 => ExitResult[E1, A], cb: Callback[E1, A]): Callback[E2, A] = {
-      case ExitResult.Completed(a)  => cb(ExitResult.Completed(a))
-      case ExitResult.Terminated(t) => cb(ExitResult.Terminated(t))
-      case ExitResult.Failed(e2)    => cb(f(e2))
-    }
     @tailrec
     private final def kill0[E2](t: Throwable, cb: Callback[E, Unit]): Async[E2, Unit] = {
       killed = true
@@ -973,14 +956,15 @@ private object RTS {
               case Some(cancel) =>
                 try cancel(t)
                 catch {
-                  case t: Throwable if (nonFatal(t)) => fork(unhandled(t)[E], unhandled)
+                  case t: Throwable if (nonFatal(t)) =>
+                    supervise(fork(unhandled(t)[E], unhandled))
                 }
             }
 
             val finalizer = interruptStack
 
             if (finalizer ne null) {
-              fork[Void, Unit](dispatchErrors(finalizer), unhandled)
+              supervise(fork[Void, Unit](dispatchErrors(finalizer), unhandled))
             }
 
             purgeJoinersKillers(v, joiners, killers)
