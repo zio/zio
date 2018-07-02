@@ -18,8 +18,6 @@ package object zio {
     def widenError[E2 >: E]: IO[E2, A] = io.asInstanceOf[IO[E2, A]]
   }
 
-  type Task[A] = IO[Throwable, A]
-
   type Infallible[A] = IO[Void, A]
 
   type Canceler     = Throwable => Unit
