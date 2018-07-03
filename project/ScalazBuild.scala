@@ -4,7 +4,7 @@ import org.scalajs.sbtplugin.cross.CrossProject
 
 object Scalaz {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "0.6"    % "provided")
+  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.0"    % "provided")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -52,13 +52,13 @@ object Scalaz {
   def stdSettings(prjName: String) = Seq(
     name := s"scalaz-$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.4", "2.11.12"),
+    crossScalaVersions := Seq("2.12.6", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
       compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.7"),
       compilerPlugin("com.github.tomasmikula" %% "pascal"          % "0.2.1"),
-      compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "0.6")
+      compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "1.0")
     ),
     incOptions ~= (_.withLogRecompileOnMacro(false))
   )
