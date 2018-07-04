@@ -1,4 +1,5 @@
-package scalaz.zio.interop
+package scalaz.zio
+package interop
 
 import scala.concurrent.duration._
 
@@ -12,8 +13,8 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
 
   def is = s2"""
   A simple fs2 join must
-    work if `F` is `cats.effect.IO`  ${simpleJoin(fIsCats)}
-    work if `F` is `scalaz.zio.Task` ${simpleJoin(fIsZio)}
+    work if `F` is `cats.effect.IO`          ${simpleJoin(fIsCats)}
+    work if `F` is `scalaz.zio.interop.Task` ${simpleJoin(fIsZio)}
   """
 
   def simpleJoin(ints: => List[Int]) = upTo(2.seconds) {
@@ -24,7 +25,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
 
   def fIsZio: List[Int] = {
     import catz._
-    unsafePerformIO(testCaseJoin[scalaz.zio.Task])
+    unsafePerformIO(testCaseJoin[scalaz.zio.interop.Task])
   }
 
   def testCaseJoin[F[_]: Effect]: F[List[Int]] = {
