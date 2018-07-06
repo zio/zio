@@ -144,10 +144,6 @@ private object RTS {
 
   type Callback[E, A] = ExitResult[E, A] => Unit
 
-  @inline
-  final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
-    if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
-
   object IdentityCont extends Function[Any, IO[Any, Any]] {
     final def apply(v: Any): IO[Any, Any] = IO.now(v)
   }
@@ -901,6 +897,18 @@ private object RTS {
     @inline
     final def shouldDie: Option[Throwable] =
       if (!killed || noInterrupt > 0) None else status.get.error
+
+    @inline
+    private final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
+      if (!stack.isEmpty)
+        (stack.pop() match {
+          case f: Finalizer[_] =>
+            this.noInterrupt += 1
+            f.finalizer *> exitUninterruptible *> IO.now(value)
+          case x => x(value)
+        }).asInstanceOf[IO[E, Any]]
+      else
+        null
 
     private final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
 
