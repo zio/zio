@@ -26,44 +26,17 @@ trait RTS {
 
   final def unsafePerformIOAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit = {
     val context = new FiberContext[E, A](this, defaultHandler)
-
     context.evaluate(io)
-
-    context.register(k) match {
-      case Async.Now(v) => k(v)
-      case _            =>
-    }
+    context.runAsync(k)
   }
 
   /**
    * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
    */
   final def tryUnsafePerformIO[E, A](io: IO[E, A]): ExitResult[E, A] = {
-    val result = new AtomicReference[ExitResult[E, A]](null)
-
     val context = new FiberContext[E, A](this, defaultHandler)
-
     context.evaluate(io)
-
-    (context.register { (r: ExitResult[E, A]) =>
-      result.synchronized {
-        result.set(r)
-
-        result.notifyAll()
-      }
-    }) match {
-      case Async.Now(v) =>
-        result.set(v)
-
-      case _ =>
-        while (result.get eq null) {
-          result.synchronized {
-            if (result.get eq null) result.wait()
-          }
-        }
-    }
-
-    result.get
+    context.runSync
   }
 
   final def unsafeShutdownAndWait(timeout: Duration): Unit = {
@@ -152,10 +125,6 @@ private object RTS {
     final def apply(v: Any): IO[Any, Any] = IO.now(v)
   }
 
-  final case class Finalizer[E](finalizer: Infallible[Unit]) extends Function[Any, IO[E, Any]] {
-    final def apply(v: Any): IO[E, Any] = finalizer.widenError[E] *> IO.now(v)
-  }
-
   final class Stack() {
     type Cont = Any => IO[_, Any]
 
@@ -215,7 +184,48 @@ private object RTS {
 
     private[this] val stack: Stack = new Stack()
 
-    final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
+    final def runAsync(k: ExitResult[E, A] => Unit): Unit =
+      register(k) match {
+        case Async.Now(v) => k(v)
+        case _            =>
+      }
+
+    /**
+     * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
+     */
+    final def runSync: ExitResult[E, A] = {
+      val result = new AtomicReference[ExitResult[E, A]](null)
+
+      register { (r: ExitResult[E, A]) =>
+        result.synchronized {
+          result.set(r)
+
+          result.notifyAll()
+        }
+      } match {
+        case Async.Now(v) =>
+          result.set(v)
+
+        case _ =>
+          while (result.get eq null) {
+            result.synchronized {
+              if (result.get eq null) result.wait()
+            }
+          }
+      }
+
+      result.get
+    }
+
+    private class Finalizer(val finalizer: Infallible[Unit]) extends Function[Any, IO[E, Any]] {
+      final def apply(v: Any): IO[E, Any] = {
+        noInterrupt += 1
+
+        finalizer.widenError[E].flatMap(_ => IO.sync { noInterrupt -= 1; v })
+      }
+    }
+
+    private final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
       e match {
         case ExitResult.Terminated(t) => t :: Nil
         case _                        => Nil
@@ -250,7 +260,7 @@ private object RTS {
         stack.pop() match {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
-          case f0: Finalizer[_] =>
+          case f0: Finalizer =>
             val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
@@ -283,7 +293,7 @@ private object RTS {
         // executing the finalizers. The order of errors is outer-to-inner
         // (reverse chronological).
         stack.pop() match {
-          case f0: Finalizer[_] =>
+          case f0: Finalizer =>
             val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
@@ -313,10 +323,9 @@ private object RTS {
           val maxopcount = YieldMaxOpCount
 
           var result: ExitResult[E, Any] = null
-          var eval: Boolean              = true
           var opcount: Int               = 0
 
-          do {
+          while (curIo ne null) {
             // Check to see if the fiber should continue executing or not:
             val die = shouldDie
 
@@ -325,8 +334,6 @@ private object RTS {
               if (opcount == maxopcount) {
                 // Cooperatively yield to other fibers currently suspended.
                 // FIXME: Replace with the new design.
-                eval = false
-
                 opcount = 0
 
                 // Cannot capture `curIo` since it will be boxed into `ObjectRef`,
@@ -334,6 +341,8 @@ private object RTS {
                 val tmpIo = curIo
 
                 rts.submit(evaluate(tmpIo))
+
+                curIo = null
               } else {
                 // Fiber is neither being interrupted nor needs to yield. Execute
                 // the next instruction in the program:
@@ -378,7 +387,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -390,7 +398,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -402,7 +409,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -417,7 +423,7 @@ private object RTS {
                       // Error not caught, stack is empty:
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
-                        eval = false
+                        curIo = null
                         result = ExitResult.Failed(error)
 
                         // Report the uncaught error to the supervisor:
@@ -461,7 +467,6 @@ private object RTS {
                                 curIo = nextInstr[E](v, stack)
 
                                 if (curIo eq null) {
-                                  eval = false
                                   result = value
                                 }
                               case ExitResult.Terminated(t) =>
@@ -471,7 +476,7 @@ private object RTS {
                             }
                           } else {
                             // Completion handled by interruptor:
-                            eval = false
+                            curIo = null
                           }
 
                         case Async.MaybeLater(canceler) =>
@@ -479,14 +484,14 @@ private object RTS {
                           // it in case the async computation is interrupted:
                           awaitAsync(id, canceler)
 
-                          eval = false
+                          curIo = null
 
                         case Async.MaybeLaterIO(pureCancel) =>
                           // As for the case above this stores an impure canceler
                           // obtained performing the pure canceler on the same thread
                           awaitAsync(id, rts.impureCanceler(pureCancel))
 
-                          eval = false
+                          curIo = null
                       }
                     } finally enterAsyncEnd()
 
@@ -506,7 +511,6 @@ private object RTS {
                             curIo = nextInstr[E](v, stack)
 
                             if (curIo eq null) {
-                              eval = false
                               result = value.asInstanceOf[ExitResult[E, Any]]
                             }
                           case ExitResult.Terminated(t) =>
@@ -516,7 +520,7 @@ private object RTS {
                         }
                       } else {
                         // Completion handled by interruptor:
-                        eval = false
+                        curIo = null
                       }
                     } finally enterAsyncEnd()
 
@@ -541,7 +545,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -584,7 +587,7 @@ private object RTS {
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
-                      eval = false
+                      curIo = null
                       result = ExitResult.Terminated(cause)
 
                       // Report the termination cause to the supervisor:
@@ -603,7 +606,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -623,7 +625,7 @@ private object RTS {
 
                   case IO.Tags.Ensuring =>
                     val io = curIo.asInstanceOf[IO.Ensuring[E, Any]]
-                    stack.push(Finalizer[E](io.finalizer))
+                    stack.push(new Finalizer(io.finalizer))
                     curIo = io.io
                 }
               }
@@ -635,7 +637,7 @@ private object RTS {
             }
 
             opcount = opcount + 1
-          } while (eval)
+          }
 
           if (result ne null) {
             done(result.asInstanceOf[ExitResult[E, A]])
@@ -934,20 +936,20 @@ private object RTS {
     }
 
     @tailrec
-    private final def kill0[E2](t: Throwable, cb: Callback[E, Unit]): Async[E2, Unit] = {
+    private final def kill0[E2](t: Throwable, k: Callback[E, Unit]): Async[E2, Unit] = {
       killed = true
 
       val oldStatus = status.get
 
       oldStatus match {
         case Executing(t0, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Executing(t0.orElse(Some(t)), joiners, cb :: killers))) kill0(t, cb)
+          if (!status.compareAndSet(oldStatus, Executing(t0.orElse(Some(t)), joiners, k :: killers))) kill0(t, k)
           else Async.later[E2, Unit]
 
         case AsyncRegion(None, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
           val v = ExitResult.Terminated[E, A](t)
 
-          if (!status.compareAndSet(oldStatus, Done(v))) kill0(t, cb)
+          if (!status.compareAndSet(oldStatus, Done(v))) kill0(t, k)
           else {
             // We interrupted async before it could resume. Now we have to
             // cancel the computation, if possible, and handle any finalizers.
@@ -964,18 +966,17 @@ private object RTS {
             val finalizer = interruptStack
 
             if (finalizer ne null) {
-              supervise(fork[Void, Unit](dispatchErrors(finalizer), unhandled))
-            }
+              fork[Void, Unit](dispatchErrors(finalizer), unhandled)
+                .runAsync((_: ExitResult[Void, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
+              Async.later[E2, Unit]
+            } else Async.now(SuccessUnit[E2])
 
-            purgeJoinersKillers(v, joiners, killers)
-
-            Async.now(SuccessUnit[E2])
           }
 
         case s @ AsyncRegion(_, _, _, _, _, _) =>
-          val newStatus = s.copy(error = s.error.orElse(Some(t)), killers = cb :: s.killers)
+          val newStatus = s.copy(error = s.error.orElse(Some(t)), killers = k :: s.killers)
 
-          if (!status.compareAndSet(oldStatus, newStatus)) kill0(t, cb)
+          if (!status.compareAndSet(oldStatus, newStatus)) kill0(t, k)
           else Async.later[E2, Unit]
 
         case Done(_) => Async.now(SuccessUnit[E2])
