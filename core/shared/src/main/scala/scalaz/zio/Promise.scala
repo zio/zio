@@ -131,6 +131,35 @@ object Promise {
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
 
   /**
+   * Acquires a resource and performs a state change atomically, and then
+   * guarantees that if the resource is acquired (and the state changed), a
+   * release action will be called.
+   */
+  final def bracket[E, A, B, C](
+    ref     : IORef[A])(
+    acquire : (Promise[E, B], A) => (IO[Void, C], A))(
+    release : (C, Promise[E, B]) => IO[Void, Unit]): IO[E, B] =
+    for {
+      pRef <- IORef[E, Option[(C, Promise[E, B])]](None)
+      b <- (for {
+            p <- ref
+                  .modifyFold[Void, (Promise[E, B], IO[Void, C])] { (a: A) =>
+                    val p = Promise.unsafeMake[E, B]
+
+                    val (io, a2) = acquire(p, a)
+
+                    ((p, io), a2)
+                  }
+                  .flatMap {
+                    case (p, io) => io.flatMap(c => pRef.write[Void](Some((c, p))) *> IO.now(p))
+                  }
+                  .uninterruptibly
+                  .widenError[E]
+            b <- p.get
+          } yield b).ensuring(pRef.read[Void].flatMap(_.fold(IO.unit[Void])(t => release(t._1, t._2))))
+    } yield b
+
+  /**
    * Makes a new promise. This is a more powerful variant that can utilize
    * different error parameters for the returned promise and the creation of the
    * promise.
