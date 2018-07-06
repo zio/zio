@@ -127,7 +127,7 @@ object Promise {
    */
   final def make[E, A]: IO[E, Promise[E, A]] = make0[E, E, A]
 
-  final def unsafeMake[E, A]: Promise[E, A] =
+  private final def unsafeMake[E, A]: Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
 
   /**
