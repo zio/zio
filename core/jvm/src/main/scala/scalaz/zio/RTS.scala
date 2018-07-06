@@ -313,10 +313,9 @@ private object RTS {
           val maxopcount = YieldMaxOpCount
 
           var result: ExitResult[E, Any] = null
-          var eval: Boolean              = true
           var opcount: Int               = 0
 
-          do {
+          while (curIo ne null) {
             // Check to see if the fiber should continue executing or not:
             val die = shouldDie
 
@@ -325,8 +324,6 @@ private object RTS {
               if (opcount == maxopcount) {
                 // Cooperatively yield to other fibers currently suspended.
                 // FIXME: Replace with the new design.
-                eval = false
-
                 opcount = 0
 
                 // Cannot capture `curIo` since it will be boxed into `ObjectRef`,
@@ -334,6 +331,8 @@ private object RTS {
                 val tmpIo = curIo
 
                 rts.submit(evaluate(tmpIo))
+
+                curIo = null
               } else {
                 // Fiber is neither being interrupted nor needs to yield. Execute
                 // the next instruction in the program:
@@ -378,7 +377,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -390,7 +388,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -402,7 +399,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -417,7 +413,7 @@ private object RTS {
                       // Error not caught, stack is empty:
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
-                        eval = false
+                        curIo = null
                         result = ExitResult.Failed(error)
 
                         // Report the uncaught error to the supervisor:
@@ -461,7 +457,6 @@ private object RTS {
                                 curIo = nextInstr[E](v, stack)
 
                                 if (curIo eq null) {
-                                  eval = false
                                   result = value
                                 }
                               case ExitResult.Terminated(t) =>
@@ -471,7 +466,7 @@ private object RTS {
                             }
                           } else {
                             // Completion handled by interruptor:
-                            eval = false
+                            curIo = null
                           }
 
                         case Async.MaybeLater(canceler) =>
@@ -479,14 +474,14 @@ private object RTS {
                           // it in case the async computation is interrupted:
                           awaitAsync(id, canceler)
 
-                          eval = false
+                          curIo = null
 
                         case Async.MaybeLaterIO(pureCancel) =>
                           // As for the case above this stores an impure canceler
                           // obtained performing the pure canceler on the same thread
                           awaitAsync(id, rts.impureCanceler(pureCancel))
 
-                          eval = false
+                          curIo = null
                       }
                     } finally enterAsyncEnd()
 
@@ -506,7 +501,6 @@ private object RTS {
                             curIo = nextInstr[E](v, stack)
 
                             if (curIo eq null) {
-                              eval = false
                               result = value.asInstanceOf[ExitResult[E, Any]]
                             }
                           case ExitResult.Terminated(t) =>
@@ -516,7 +510,7 @@ private object RTS {
                         }
                       } else {
                         // Completion handled by interruptor:
-                        eval = false
+                        curIo = null
                       }
                     } finally enterAsyncEnd()
 
@@ -541,7 +535,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -584,7 +577,7 @@ private object RTS {
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
-                      eval = false
+                      curIo = null
                       result = ExitResult.Terminated(cause)
 
                       // Report the termination cause to the supervisor:
@@ -603,7 +596,6 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      eval = false
                       result = ExitResult.Completed(value)
                     }
 
@@ -635,7 +627,7 @@ private object RTS {
             }
 
             opcount = opcount + 1
-          } while (eval)
+          }
 
           if (result ne null) {
             done(result.asInstanceOf[ExitResult[E, A]])
