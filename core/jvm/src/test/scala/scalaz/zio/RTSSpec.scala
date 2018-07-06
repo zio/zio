@@ -37,7 +37,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
 
-  RTS bracket
+  RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
     fail on error                           $testEvalOfFailOnError
     finalizer errors not caught             $testErrorInFinalizerCannotBeCaught
@@ -51,6 +51,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     rethrown caught error in usage          $testBracketRethrownCaughtErrorInUsage
     test eval of async fail                 $testEvalOfAsyncAttemptOfFail
     bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1)}
+    interrupt waits for finalizer           $testInterruptWaitsForFinalizer
 
   RTS synchronous stack safety
     deep map of point                       $testDeepMapOfPoint
@@ -287,6 +288,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       l <- ref.read
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
+
+  def testInterruptWaitsForFinalizer =
+    unsafePerformIO(for {
+      r    <- IORef[Void, Boolean](false)
+      p1   <- Promise.make[Void, Unit]
+      p2   <- Promise.make[Void, Int]
+      s    <- (p1.complete(()) *> p2.get).ensuring(r.write[Void](true).toUnit.delay(10.millis)).fork
+      _    <- p1.get
+      _    <- s.interrupt[Void](new Error("interrupt e"))
+      test <- r.read[Void]
+    } yield test must_=== true)
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: IORef[Int]): IO[Throwable, Int] =
