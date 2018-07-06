@@ -136,9 +136,8 @@ object Promise {
    * release action will be called.
    */
   final def bracket[E, A, B, C](
-    ref     : IORef[A])(
-    acquire : (Promise[E, B], A) => (IO[Void, C], A))(
-    release : (C, Promise[E, B]) => IO[Void, Unit]): IO[E, B] =
+    ref: IORef[A]
+  )(acquire: (Promise[E, B], A) => (IO[Void, C], A))(release: (C, Promise[E, B]) => IO[Void, Unit]): IO[E, B] =
     for {
       pRef <- IORef[E, Option[(C, Promise[E, B])]](None)
       b <- (for {
