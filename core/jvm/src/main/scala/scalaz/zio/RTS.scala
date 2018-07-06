@@ -904,14 +904,14 @@ private object RTS {
 
     @inline
     private final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
-      if (!stack.isEmpty) 
+      if (!stack.isEmpty)
         (stack.pop() match {
-          case f: Finalizer[_] => 
+          case f: Finalizer[_] =>
             this.noInterrupt += 1
             f.finalizer *> exitUninterruptible *> IO.now(value)
           case x => x(value)
-        }).asInstanceOf[IO[E, Any]] 
-      else 
+        }).asInstanceOf[IO[E, Any]]
+      else
         null
 
     private final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
