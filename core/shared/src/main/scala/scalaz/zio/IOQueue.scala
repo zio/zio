@@ -14,9 +14,7 @@ import IOQueue.internal._
  *
  * 1. Investigate using a faster option than `Queue`, because `Queue` has
  *    `O(n)` `length` method.
- * 2. We are using `Promise.unsafeMake`. Why? What would the safe way of doing
- *    this be?
- * 3. Benchmark to see how slow this implementation is and if there are any
+ * 2. Benchmark to see how slow this implementation is and if there are any
  *    easy ways to improve performance.
  */
 class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
@@ -33,74 +31,58 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
    * the fiber performing the `offer` will be suspended until there is room in
    * the queue.
    */
-  final def offer[E](a: A): IO[E, Unit] =
-    for {
-      pRef <- IORef[E, Option[Promise[E, Unit]]](None)
-      a <- (for {
-            p <- ref
-                  .modifyFold[Void, (Promise[E, Unit], IO[Void, Boolean])] {
-                    case Deficit(takers) =>
-                      val p = Promise.unsafeMake[E, Unit]
+  final def offer[E](a: A): IO[E, Unit] = {
+    val acquire: (Promise[E, Unit], State[A]) => (IO[Void, Boolean], State[A]) = {
+      case (p, Deficit(takers)) =>
+        takers.dequeueOption match {
+          case None => (p.complete(()), Surplus(Queue.empty[A].enqueue(a), Queue.empty))
+          case Some((taker, takers)) =>
+            (taker.complete[Void](a) *> p.complete[Void](()), Deficit(takers))
+        }
 
-                      takers.dequeueOption match {
-                        case None => ((p, p.complete(())), Surplus(Queue.empty[A].enqueue(a), Queue.empty))
-                        case Some((taker, takers)) =>
-                          ((p, taker.complete[Void](a) *> p.complete[Void](())), Deficit(takers))
-                      }
-                    case Surplus(values, putters) =>
-                      val p = Promise.unsafeMake[E, Unit]
+      case (p, Surplus(values, putters)) =>
+        if (values.length < capacity && putters.isEmpty) {
+          (p.complete(()), Surplus(values.enqueue(a), putters))
+        } else {
+          (IO.now(false), Surplus(values, putters.enqueue((a, p))))
+        }
+    }
 
-                      if (values.length < capacity && putters.isEmpty) {
-                        ((p, p.complete(())), Surplus(values.enqueue(a), putters))
-                      } else {
-                        ((p, IO.now(false)), Surplus(values, putters.enqueue((a, p))))
-                      }
-                  }
-                  .flatMap(t => t._2 *> pRef.write[Void](Some(t._1)) *> IO.now(t._1))
-                  .uninterruptibly
-                  .widenError[E]
+    val release: (Boolean, Promise[E, Unit]) => IO[Void, Unit] = {
+      case (_, p) => removePutter(p)
+    }
 
-            _ <- p.get
-          } yield ()).ensuring(pRef.read[Void].flatMap(_.fold(IO.unit[Void])(removePutter)))
-    } yield a
+    Promise.bracket(ref)(acquire)(release)
+  }
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
    */
-  final def take[E]: IO[E, A] =
-    for {
-      pRef <- IORef[E, Option[Promise[E, A]]](None)
-      a <- (for {
-            p <- ref
-                  .modifyFold[Void, (Promise[E, A], IO[Void, Unit])] {
-                    case Deficit(takers) =>
-                      val p = Promise.unsafeMake[E, A]
-                      ((p, IO.unit), Deficit(takers.enqueue(p)))
-                    case Surplus(values, putters) =>
-                      values.dequeueOption match {
-                        case None =>
-                          putters.dequeueOption match {
-                            case None =>
-                              val p = Promise.unsafeMake[E, A]
-                              ((p, IO.unit), Deficit(Queue.empty.enqueue(p)))
-                            case Some(((a, putter), putters)) =>
-                              val p = Promise.unsafeMake[E, A]
-                              ((p, putter.complete(()) *> p.complete[Void](a).toUnit), Surplus(Queue.empty, putters))
-                          }
-                        case Some((a, values)) =>
-                          val p = Promise.unsafeMake[E, A]
-                          ((p, p.complete[Void](a).toUnit), Surplus(values, putters))
-                      }
-                  }
-                  .flatMap(t => t._2 *> pRef.write[Void](Some(t._1)) *> IO.now(t._1))
-                  .uninterruptibly
-                  .widenError[E]
+  final def take[E]: IO[E, A] = {
 
-            a <- p.get
+    val acquire: (Promise[E, A], State[A]) => (IO[Void, Boolean], State[A]) = {
+      case (p, Deficit(takers)) =>
+        (IO.now(false), Deficit(takers.enqueue(p)))
+      case (p, Surplus(values, putters)) =>
+        values.dequeueOption match {
+          case None =>
+            putters.dequeueOption match {
+              case None =>
+                (IO.now(false), Deficit(Queue.empty.enqueue(p)))
+              case Some(((a, putter), putters)) =>
+                (putter.complete(()) *> p.complete[Void](a), Surplus(Queue.empty, putters))
+            }
+          case Some((a, values)) =>
+            (p.complete[Void](a), Surplus(values, putters))
+        }
+    }
 
-          } yield a).ensuring(pRef.read[Void].flatMap(_.fold(IO.unit[Void])(removeTaker)))
-    } yield a
+    val release: (Boolean, Promise[E, A]) => IO[Void, Unit] = {
+      case (_, p) => removeTaker(p)
+    }
+    Promise.bracket(ref)(acquire)(release)
+  }
 
   /**
    * Interrupts any fibers that are suspended on `take` because the queue is
