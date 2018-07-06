@@ -26,44 +26,17 @@ trait RTS {
 
   final def unsafePerformIOAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit = {
     val context = new FiberContext[E, A](this, defaultHandler)
-
     context.evaluate(io)
-
-    context.register(k) match {
-      case Async.Now(v) => k(v)
-      case _            =>
-    }
+    context.runAsync(k)
   }
 
   /**
    * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
    */
   final def tryUnsafePerformIO[E, A](io: IO[E, A]): ExitResult[E, A] = {
-    val result = new AtomicReference[ExitResult[E, A]](null)
-
     val context = new FiberContext[E, A](this, defaultHandler)
-
     context.evaluate(io)
-
-    (context.register { (r: ExitResult[E, A]) =>
-      result.synchronized {
-        result.set(r)
-
-        result.notifyAll()
-      }
-    }) match {
-      case Async.Now(v) =>
-        result.set(v)
-
-      case _ =>
-        while (result.get eq null) {
-          result.synchronized {
-            if (result.get eq null) result.wait()
-          }
-        }
-    }
-
-    result.get
+    context.runSync
   }
 
   final def unsafeShutdownAndWait(timeout: Duration): Unit = {
@@ -210,6 +183,39 @@ private object RTS {
     @volatile private[this] var supervising                               = 0
 
     private[this] val stack: Stack = new Stack()
+
+    final def runAsync(k: ExitResult[E, A] => Unit): Unit =
+      register(k) match {
+        case Async.Now(v) => k(v)
+        case _            =>
+      }
+
+    /**
+     * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
+     */
+    final def runSync: ExitResult[E, A] = {
+      val result = new AtomicReference[ExitResult[E, A]](null)
+
+      register { (r: ExitResult[E, A]) =>
+        result.synchronized {
+          result.set(r)
+
+          result.notifyAll()
+        }
+      } match {
+        case Async.Now(v) =>
+          result.set(v)
+
+        case _ =>
+          while (result.get eq null) {
+            result.synchronized {
+              if (result.get eq null) result.wait()
+            }
+          }
+      }
+
+      result.get
+    }
 
     private class Finalizer(val finalizer: Infallible[Unit]) extends Function[Any, IO[E, Any]] {
       final def apply(v: Any): IO[E, Any] = {
@@ -930,20 +936,20 @@ private object RTS {
     }
 
     @tailrec
-    private final def kill0[E2](t: Throwable, cb: Callback[E, Unit]): Async[E2, Unit] = {
+    private final def kill0[E2](t: Throwable, k: Callback[E, Unit]): Async[E2, Unit] = {
       killed = true
 
       val oldStatus = status.get
 
       oldStatus match {
         case Executing(t0, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Executing(t0.orElse(Some(t)), joiners, cb :: killers))) kill0(t, cb)
+          if (!status.compareAndSet(oldStatus, Executing(t0.orElse(Some(t)), joiners, k :: killers))) kill0(t, k)
           else Async.later[E2, Unit]
 
         case AsyncRegion(None, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
           val v = ExitResult.Terminated[E, A](t)
 
-          if (!status.compareAndSet(oldStatus, Done(v))) kill0(t, cb)
+          if (!status.compareAndSet(oldStatus, Done(v))) kill0(t, k)
           else {
             // We interrupted async before it could resume. Now we have to
             // cancel the computation, if possible, and handle any finalizers.
@@ -960,18 +966,17 @@ private object RTS {
             val finalizer = interruptStack
 
             if (finalizer ne null) {
-              supervise(fork[Void, Unit](dispatchErrors(finalizer), unhandled))
-            }
+              fork[Void, Unit](dispatchErrors(finalizer), unhandled)
+                .runAsync((_: ExitResult[Void, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
+              Async.later[E2, Unit]
+            } else Async.now(SuccessUnit[E2])
 
-            purgeJoinersKillers(v, joiners, killers)
-
-            Async.now(SuccessUnit[E2])
           }
 
         case s @ AsyncRegion(_, _, _, _, _, _) =>
-          val newStatus = s.copy(error = s.error.orElse(Some(t)), killers = cb :: s.killers)
+          val newStatus = s.copy(error = s.error.orElse(Some(t)), killers = k :: s.killers)
 
-          if (!status.compareAndSet(oldStatus, newStatus)) kill0(t, cb)
+          if (!status.compareAndSet(oldStatus, newStatus)) kill0(t, k)
           else Async.later[E2, Unit]
 
         case Done(_) => Async.now(SuccessUnit[E2])
