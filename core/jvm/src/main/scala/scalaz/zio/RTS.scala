@@ -152,10 +152,6 @@ private object RTS {
     final def apply(v: Any): IO[Any, Any] = IO.now(v)
   }
 
-  final case class Finalizer[E](finalizer: Infallible[Unit]) extends Function[Any, IO[E, Any]] {
-    final def apply(v: Any): IO[E, Any] = finalizer.widenError[E] *> IO.now(v)
-  }
-
   final class Stack() {
     type Cont = Any => IO[_, Any]
 
@@ -215,7 +211,15 @@ private object RTS {
 
     private[this] val stack: Stack = new Stack()
 
-    final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
+    private class Finalizer(val finalizer: Infallible[Unit]) extends Function[Any, IO[E, Any]] {
+      final def apply(v: Any): IO[E, Any] = {
+        noInterrupt += 1
+
+        finalizer.widenError[E].flatMap(_ => IO.sync { noInterrupt -= 1; v })
+      }
+    }
+
+    private final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
       e match {
         case ExitResult.Terminated(t) => t :: Nil
         case _                        => Nil
@@ -250,7 +254,7 @@ private object RTS {
         stack.pop() match {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
-          case f0: Finalizer[_] =>
+          case f0: Finalizer =>
             val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
@@ -283,7 +287,7 @@ private object RTS {
         // executing the finalizers. The order of errors is outer-to-inner
         // (reverse chronological).
         stack.pop() match {
-          case f0: Finalizer[_] =>
+          case f0: Finalizer =>
             val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
@@ -615,7 +619,7 @@ private object RTS {
 
                   case IO.Tags.Ensuring =>
                     val io = curIo.asInstanceOf[IO.Ensuring[E, Any]]
-                    stack.push(Finalizer[E](io.finalizer))
+                    stack.push(new Finalizer(io.finalizer))
                     curIo = io.io
                 }
               }
