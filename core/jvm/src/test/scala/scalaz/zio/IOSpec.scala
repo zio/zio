@@ -19,6 +19,8 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
       `IO.traverse` fails with a NumberFormatException exception. $t3
    Create a list of Strings and pass an f: String => IO[String, Int]:
       `IO.parTraverse` returns the list of Ints in any order. $t4
+   Create an integer and an f: Int => String:
+      `IO.bimap(f, identity)` maps an IO[Int, String] into an IO[String, String]. $t5
    Check done lifts exit result into IO. $testDone
     """
 
@@ -50,6 +52,11 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
     val list = List("1", "2", "3")
     val res  = unsafePerformIO(IO.parTraverse(list)(x => IO.point[String, Int](x.toInt)))
     res must containTheSameElementsAs(List(1, 2, 3))
+  }
+
+  def t5 = forAll { (i: Int) =>
+    val res = unsafePerformIO(IO.fail[Int, String](i).bimap(_.toString, identity).attempt)
+    res must_=== Left(i.toString)
   }
 
   def testDone = {
