@@ -114,7 +114,6 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
       queue <- IOQueue.make[Void, Int](100)
       f     <- queue.take[Void].fork
       _     <- f.interrupt(new Exception("interrupt fiber in e9"))
-      _     <- waitForSize(queue, 0)
       size  <- queue.size[Void]
     } yield size must_=== 0
   )
@@ -124,7 +123,6 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
       queue <- IOQueue.make[Void, Int](0)
       f     <- queue.offer[Void](1).fork
       _     <- f.interrupt(new Exception("interrupt fiber in e10"))
-      _     <- waitForSize(queue, 0)
       size  <- queue.size[Void]
     } yield size must_=== 0
   )
