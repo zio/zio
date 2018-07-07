@@ -91,7 +91,7 @@ sealed abstract class IO[E, A] { self =>
 
       new IO.SyncEffect(() => g(io.effect()))
 
-    case IO.Tags.Fail => 
+    case IO.Tags.Fail =>
       val io = self.asInstanceOf[IO.Fail[E, A]]
 
       new IO.Fail(f(io.error))
