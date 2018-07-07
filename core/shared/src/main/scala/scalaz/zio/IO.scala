@@ -72,7 +72,7 @@ sealed abstract class IO[E, A] { self =>
   /**
    * Maps an `IO[E, A]` into an `IO[E2, B]` by applying the specified `E => E2` and
    * `A => B` functions to the output of this action. Repeated applications of `bimap`
-   * (`io.bimap(f1, g1).map(f2, g2)...map(f10000, g20000)`) are guaranteed stack safe to a depth
+   * (`io.bimap(f1, g1).bimap(f2, g2)...bimap(f10000, g20000)`) are guaranteed stack safe to a depth
    * of at least 10,000.
    */
   final def bimap[E2, B](f: E => E2, g: A => B): IO[E2, B] = (self.tag: @switch) match {
