@@ -70,6 +70,36 @@ sealed abstract class IO[E, A] { self =>
   }
 
   /**
+   * Maps an `IO[E, A]` into an `IO[E2, B]` by applying the specified `E => E2` and
+   * `A => B` functions to the output of this action. Repeated applications of `bimap`
+   * (`io.bimap(f1, g1).map(f2, g2)...map(f10000, g20000)`) are guaranteed stack safe to a depth
+   * of at least 10,000.
+   */
+  final def bimap[E2, B](f: E => E2, g: A => B): IO[E2, B] = (self.tag: @switch) match {
+    case IO.Tags.Point =>
+      val io = self.asInstanceOf[IO.Point[E, A]]
+
+      new IO.Point(() => g(io.value()))
+
+    case IO.Tags.Strict =>
+      val io = self.asInstanceOf[IO.Strict[E, A]]
+
+      new IO.Strict(g(io.value))
+
+    case IO.Tags.SyncEffect =>
+      val io = self.asInstanceOf[IO.SyncEffect[E, A]]
+
+      new IO.SyncEffect(() => g(io.effect()))
+
+    case IO.Tags.Fail => 
+      val io = self.asInstanceOf[IO.Fail[E, A]]
+
+      new IO.Fail(f(io.error))
+
+    case _ => new IO.Attempt(self, (e: E) => new IO.Fail(f(e)), (a: A) => new IO.Strict(g(a)))
+  }
+
+  /**
    * Creates a composite action that represents this action followed by another
    * one that may depend on the value produced by this one.
    *
