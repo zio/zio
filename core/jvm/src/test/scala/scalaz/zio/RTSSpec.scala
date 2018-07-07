@@ -88,6 +88,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   RTS regression tests
     regression 1                            $testDeadlockRegression
     check interruption regression 1         ${upTo(20.seconds)(testInterruptionRegression1)}
+
+  RTS interrupt fiber tests
+    sync forever                            $testInterruptSyncForever
   """
 
   def testPoint =
@@ -460,6 +463,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     )
 
   }
+
+  def testInterruptSyncForever = unsafePerformIO(
+    for {
+      f <- IO.sync[Void, Int](1).forever[Void].fork
+      _ <- f.interrupt[Void](new Error("terminate forever"))
+    } yield true
+  )
 
   // Utility stuff
   val ExampleError = new Exception("Oh noes!")
