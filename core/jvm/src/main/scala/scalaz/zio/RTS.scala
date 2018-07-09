@@ -103,10 +103,6 @@ trait RTS {
 }
 
 private object RTS {
-  // Utility function to avoid catching truly fatal exceptions. Do not allocate
-  // memory here since this would defeat the point of checking for OOME.
-  def nonFatal(t: Throwable): Boolean =
-    !t.isInstanceOf[InternalError] && !t.isInstanceOf[OutOfMemoryError]
 
   sealed trait RaceState
   object RaceState {

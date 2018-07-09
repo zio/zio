@@ -22,4 +22,9 @@ package object zio {
 
   type Canceler     = Throwable => Unit
   type PureCanceler = Throwable => IO[Void, Unit]
+
+  // Utility function to avoid catching truly fatal exceptions. Do not allocate
+  // memory here since this would defeat the point of checking for OOME.
+  def nonFatal(t: Throwable): Boolean =
+    !t.isInstanceOf[InternalError] && !t.isInstanceOf[OutOfMemoryError]
 }
