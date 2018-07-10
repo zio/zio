@@ -21,7 +21,7 @@ class IOShallowAttemptBenchmark {
       else if (n == depth) Thunk(1)
       else throwup(n + 1).attempt.map(_.fold(_ => 0, a => a)).flatMap(_ => Thunk.fail(new Error("Oh noes!")))
 
-    throwup(0).unsafePerformIO()
+    throwup(0).unsafeRun()
   }
 
   @Benchmark
@@ -61,7 +61,7 @@ class IOShallowAttemptBenchmark {
       else if (n == depth) IO.point(1)
       else throwup(n + 1).redeem[Error, BigInt](_ => IO.now(0), _ => IO.fail(new Error("Oh noes!")))
 
-    unsafePerformIO(throwup(0))
+    unsafeRun(throwup(0))
   }
 
   @Benchmark

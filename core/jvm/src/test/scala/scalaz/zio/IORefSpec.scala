@@ -22,7 +22,7 @@ class IORefSpec extends Specification with RTS {
   val (current, update) = ("value", "new value")
 
   def e1 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref   <- IORef[Void, String](current)
         value <- ref.read
@@ -30,7 +30,7 @@ class IORefSpec extends Specification with RTS {
     )
 
   def e2 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref   <- IORef[Void, String](current)
         _     <- ref.write[Void](update)
@@ -39,7 +39,7 @@ class IORefSpec extends Specification with RTS {
     )
 
   def e3 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref   <- IORef[Void, String](current)
         value <- ref.modify(_ => update)
@@ -47,7 +47,7 @@ class IORefSpec extends Specification with RTS {
     )
 
   def e4 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref   <- IORef[Void, String](current)
         r     <- ref.modifyFold[Void, String](_ => ("hello", update))
@@ -56,7 +56,7 @@ class IORefSpec extends Specification with RTS {
     )
 
   def e5 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref   <- IORef[Void, String](current)
         _     <- ref.writeLater[Void](update)
@@ -65,7 +65,7 @@ class IORefSpec extends Specification with RTS {
     )
 
   def e6 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref     <- IORef[Void, String](current)
         success <- ref.tryWrite[Void](update)
@@ -80,7 +80,7 @@ class IORefSpec extends Specification with RTS {
         .tryWrite[Void](update)
         .flatMap(success => if (!success) IO.point[Void, Boolean](success) else tryWriteUntilFalse(ref, update))
 
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref     <- IORef[Void, Int](0)
         f1      <- ref.write[Void](1).forever[Unit].fork[Void]
@@ -94,7 +94,7 @@ class IORefSpec extends Specification with RTS {
   }
 
   def e8 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref     <- IORef[Void, String](current)
         success <- ref.compareAndSet[Void](current, update)
@@ -103,7 +103,7 @@ class IORefSpec extends Specification with RTS {
     )
 
   def e9 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         ref     <- IORef[Void, String](current)
         success <- ref.compareAndSet[Void](update, current)

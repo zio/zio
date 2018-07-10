@@ -24,7 +24,7 @@ class scalaz72Spec extends Specification with ScalaCheck with GenIO with RTS {
   implicit def ioEqual[E: Equal, A: Equal]: Equal[IO[E, A]] =
     new Equal[IO[E, A]] {
       override def equal(io1: IO[E, A], io2: IO[E, A]): Boolean =
-        unsafePerformIO(io1.attempt) === unsafePerformIO(io2.attempt)
+        unsafeRun(io1.attempt) === unsafeRun(io2.attempt)
     }
 
   implicit def ioArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
