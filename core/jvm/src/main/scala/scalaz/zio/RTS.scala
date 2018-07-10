@@ -1015,25 +1015,25 @@ private object RTS {
   }
 
   sealed trait FiberStatus[E, A] {
-    def error: Option[Throwable]
+    def errors: List[Throwable]
   }
   object FiberStatus {
-    final case class Executing[E, A](error: Option[Throwable],
+    final case class Executing[E, A](errors: List[Throwable],
                                      joiners: List[Callback[E, A]],
                                      killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
-    final case class AsyncRegion[E, A](error: Option[Throwable],
+    final case class AsyncRegion[E, A](errors: List[Throwable],
                                        reentrancy: Int,
                                        resume: Int,
-                                       cancel: Option[Throwable => Unit],
+                                       cancel: Option[Canceler],
                                        joiners: List[Callback[E, A]],
                                        killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
-      override def error: Option[Throwable] = None
+      override def errors: List[Throwable] = Nil
     }
 
-    def Initial[E, A] = Executing[E, A](None, Nil, Nil)
+    def Initial[E, A] = Executing[E, A](Nil, Nil, Nil)
   }
 
   val _SuccessUnit: ExitResult[Void, Unit] = ExitResult.Completed(())
