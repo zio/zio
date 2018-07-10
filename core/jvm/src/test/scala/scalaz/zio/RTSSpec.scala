@@ -13,7 +13,7 @@ import com.github.ghik.silencer.silent
 
 class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
-  override def defaultHandler[E]: Throwable => IO[E, Unit] = _ => IO.unit[E]
+  override def defaultHandler[E]: List[Throwable] => IO[E, Unit] = _ => IO.unit[E]
 
   def is = s2"""
   RTS synchronous correctness
@@ -203,18 +203,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testErrorInFinalizerIsReported = {
-    var reported: Throwable = null
+    var reported: List[Throwable] = null
 
     unsafeRun {
       IO.point[Void, Int](42)
         .ensuring(IO.terminate(ExampleError))
-        .fork0(e => IO.sync[Void, Unit] { reported = e; () })
+        .fork0(es => IO.sync[Void, Unit] { reported = es; () })
     }
 
-    // FIXME: Is this an issue with thread synchronization?
-    while (reported eq null) Thread.`yield`()
-
-    ((throw reported): Int) must (throwA(ExampleError))
+    reported must_=== List(ExampleError)
   }
 
   def testExitResultIsUsageResult =
