@@ -16,7 +16,7 @@ object catz extends RTS {
       val cbZ2C: ExitResult[Throwable, A] => Either[Throwable, A] = {
         case ExitResult.Completed(a)  => Right(a)
         case ExitResult.Failed(t)     => Left(t)
-        case ExitResult.Terminated(t) => Left(t)
+        case ExitResult.Terminated(ts) => Left(ts.head)
       }
       effect.IO {
         unsafeRunAsync(fa) {
