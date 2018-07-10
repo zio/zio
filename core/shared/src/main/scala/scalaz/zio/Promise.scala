@@ -65,10 +65,10 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   final def error[E2](e: E): IO[E2, Boolean] = done(ExitResult.Failed[E, A](e))
 
   /**
-   * Interrupts the promise with the specified throwable. This will interrupt
+   * Interrupts the promise with the specified throwable(s). This will interrupt
    * all fibers waiting on the value of the promise.
    */
-  final def interrupt[E2](t: Throwable): IO[E2, Boolean] = done(ExitResult.Terminated[E, A](t))
+  final def interrupt[E2](ts: Throwable*): IO[E2, Boolean] = done(ExitResult.Terminated[E, A](ts.toList))
 
   /**
    * Completes the promise with the specified result. If the specified promise
@@ -102,7 +102,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private def interruptJoiner(joiner: ExitResult[E, A] => Unit): Throwable => Unit = (t: Throwable) => {
+  private def interruptJoiner(joiner: ExitResult[E, A] => Unit): Canceler = { _ =>
     var retry = true
 
     while (retry) {
