@@ -1,4 +1,4 @@
-// Copyright (C) 2017 John A. De Goes. All rights reserved.
+// Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
@@ -11,6 +11,8 @@ import IOBenchmarks._
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class IOShallowAttemptBenchmark {
+  case class ScalazError(message: String)
+
   @Param(Array("1000"))
   var depth: Int = _
 
@@ -56,10 +58,10 @@ class IOShallowAttemptBenchmark {
 
   @Benchmark
   def scalazShallowAttempt(): BigInt = {
-    def throwup(n: Int): IO[Error, BigInt] =
-      if (n == 0) throwup(n + 1).redeemPure[Error, BigInt](_ => 50, identity)
+    def throwup(n: Int): IO[ScalazError, BigInt] =
+      if (n == 0) throwup(n + 1).redeemPure[ScalazError, BigInt](_ => 50, identity)
       else if (n == depth) IO.point(1)
-      else throwup(n + 1).redeem[Error, BigInt](_ => IO.now(0), _ => IO.fail(new Error("Oh noes!")))
+      else throwup(n + 1).redeem[ScalazError, BigInt](_ => IO.now(0), _ => IO.fail(ScalazError("Oh noes!")))
 
     unsafePerformIO(throwup(0))
   }
