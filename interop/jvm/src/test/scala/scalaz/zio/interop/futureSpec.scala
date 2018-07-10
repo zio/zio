@@ -43,22 +43,22 @@ class futureSpec(implicit ee: ExecutionEnv) extends Specification with RTS {
 
   val catchBlockException = {
     def noFuture: Future[Unit] = throw new Exception("no future for you!")
-    unsafePerformIO(IO.fromFuture(noFuture _)(ec)) must throwA[Exception](message = "no future for you!")
+    unsafeRun(IO.fromFuture(noFuture _)(ec)) must throwA[Exception](message = "no future for you!")
   }
 
   val propagateExceptionFromFuture = {
     def noValue: Future[Unit] = Future { throw new Exception("no value for you!") }
-    unsafePerformIO(IO.fromFuture(noValue _)(ec)) must throwA[Exception](message = "no value for you!")
+    unsafeRun(IO.fromFuture(noValue _)(ec)) must throwA[Exception](message = "no value for you!")
   }
 
   val produceValueFromFuture = {
     def someValue: Future[Int] = Future { 42 }
-    unsafePerformIO(IO.fromFuture(someValue _)(ec)) must_=== 42
+    unsafeRun(IO.fromFuture(someValue _)(ec)) must_=== 42
   }
 
   val toFutureAlwaysSucceeds = {
     val failedIO = IO.fail[Throwable, Unit](new Exception("IOs also can fail"))
-    unsafePerformIO(failedIO.toFuture) must beAnInstanceOf[Future[Unit]]
+    unsafeRun(failedIO.toFuture) must beAnInstanceOf[Future[Unit]]
   }
 
   val toFuturePoly = {
@@ -70,17 +70,17 @@ class futureSpec(implicit ee: ExecutionEnv) extends Specification with RTS {
 
   val toFutureFailed = {
     val failedIO = IO.fail[Throwable, Unit](new Exception("IOs also can fail"))
-    unsafePerformIO(failedIO.toFuture) must throwA[Exception](message = "IOs also can fail").await
+    unsafeRun(failedIO.toFuture) must throwA[Exception](message = "IOs also can fail").await
   }
 
   val toFutureValue = {
     val someIO = IO.now[Throwable, Int](42)
-    unsafePerformIO(someIO.toFuture) must beEqualTo(42).await
+    unsafeRun(someIO.toFuture) must beEqualTo(42).await
   }
 
   val toFutureE = {
     val failedIO = IO.fail[String, Unit]("IOs also can fail")
-    unsafePerformIO(failedIO.toFutureE(new Exception(_))) must throwA[Exception](message = "IOs also can fail").await
+    unsafeRun(failedIO.toFutureE(new Exception(_))) must throwA[Exception](message = "IOs also can fail").await
   }
 
 }

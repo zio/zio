@@ -18,7 +18,7 @@ class ArrayFillBenchmarks {
 
   @Benchmark
   def scalazArrayFill() = {
-    import IOBenchmarks.unsafePerformIO
+    import IOBenchmarks.unsafeRun
 
     def arrayFill(array: Array[Int]): KleisliIO[Void, Int, Int] = {
       val condition = KleisliIO.lift[Void, Int, Boolean]((i: Int) => i < array.length)
@@ -30,7 +30,7 @@ class ArrayFillBenchmarks {
       })
     }
 
-    unsafePerformIO(
+    unsafeRun(
       for {
         array <- IO.sync[Void, Array[Int]](createTestArray)
         _     <- arrayFill(array).run(0)
