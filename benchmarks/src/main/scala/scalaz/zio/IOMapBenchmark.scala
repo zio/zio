@@ -22,7 +22,7 @@ class IOMapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    sumTo(Thunk(0), depth).unsafePerformIO()
+    sumTo(Thunk(0), depth).unsafeRun()
   }
 
   @Benchmark
@@ -57,7 +57,7 @@ class IOMapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    unsafePerformIO(sumTo(IO.point(0), depth))
+    unsafeRun(sumTo(IO.point(0), depth))
   }
 
   @Benchmark

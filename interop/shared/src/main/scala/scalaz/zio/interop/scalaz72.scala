@@ -61,7 +61,7 @@ private class IOMonadPlus[E: Monoid] extends IOMonadError[E] with MonadPlus[IO[E
 
 private trait IOBifunctor extends Bifunctor[IO] {
   override def bimap[A, B, C, D](fab: IO[A, B])(f: A => C, g: B => D): IO[C, D] =
-    fab.leftMap(f).map(g)
+    fab.bimap(f, g)
 }
 
 private class IOParApplicative[E] extends Applicative[ParIO[E, ?]] {

@@ -9,14 +9,14 @@ object IOBenchmarks extends RTS {
     Scheduler.computation().withExecutionModel(SynchronousExecution)
   }
 
-  class Thunk[A](val unsafePerformIO: () => A) {
+  class Thunk[A](val unsafeRun: () => A) {
     def map[B](ab: A => B): Thunk[B] =
-      new Thunk(() => ab(unsafePerformIO()))
+      new Thunk(() => ab(unsafeRun()))
     def flatMap[B](afb: A => Thunk[B]): Thunk[B] =
-      new Thunk(() => afb(unsafePerformIO()).unsafePerformIO())
+      new Thunk(() => afb(unsafeRun()).unsafeRun())
     def attempt: Thunk[Either[Throwable, A]] =
       new Thunk(() => {
-        try Right(unsafePerformIO())
+        try Right(unsafeRun())
         catch {
           case t: Throwable => Left(t)
         }

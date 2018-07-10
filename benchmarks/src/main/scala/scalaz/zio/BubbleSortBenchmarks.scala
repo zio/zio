@@ -7,7 +7,7 @@ import org.openjdk.jmh.annotations._
 import scala.concurrent.duration.Duration
 import scala.collection.immutable.Range
 
-import IOBenchmarks.unsafePerformIO
+import IOBenchmarks.unsafeRun
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -26,7 +26,7 @@ class BubbleSortBenchmarks {
   def scalazBubbleSort() = {
     import ScalazIOArray._
 
-    unsafePerformIO(
+    unsafeRun(
       for {
         array <- IO.sync[Void, Array[Int]](createTestArray)
         _     <- bubbleSort[Int](_ <= _)(array)
