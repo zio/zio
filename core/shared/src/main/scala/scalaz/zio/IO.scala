@@ -131,7 +131,7 @@ sealed abstract class IO[E, A] { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0[E2](handler: Throwable => Infallible[Unit]): IO[E2, Fiber[E, A]] =
+  final def fork0[E2](handler: PureCanceler): IO[E2, Fiber[E, A]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -602,7 +602,7 @@ object IO {
     final def apply(v: A): IO[E2, B] = succ(v)
   }
 
-  final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[Throwable => Infallible[Unit]])
+  final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[PureCanceler])
       extends IO[E2, Fiber[E1, A]] {
     override def tag = Tags.Fork
   }
@@ -631,11 +631,11 @@ object IO {
     override def tag = Tags.Supervise
   }
 
-  final class Terminate[E, A] private[IO] (val cause: Throwable) extends IO[E, A] {
+  final class Terminate[E, A] private[IO] (val causes: List[Throwable]) extends IO[E, A] {
     override def tag = Tags.Terminate
   }
 
-  final class Supervisor[E] private[IO] () extends IO[E, Throwable => Infallible[Unit]] {
+  final class Supervisor[E] private[IO] () extends IO[E, PureCanceler] {
     override def tag = Tags.Supervisor
   }
 
@@ -675,7 +675,7 @@ object IO {
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
     case ExitResult.Completed(b)  => now(b)
-    case ExitResult.Terminated(t) => terminate(t)
+    case ExitResult.Terminated(t) => terminate(t: _*)
     case ExitResult.Failed(e)     => fail(e)
   }
 
@@ -709,7 +709,7 @@ object IO {
   /**
    * Terminates the fiber executing this action, running all finalizers.
    */
-  final def terminate[E, A](t: Throwable): IO[E, A] = new Terminate(t)
+  final def terminate[E, A](t: Throwable*): IO[E, A] = new Terminate(t.toList)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -813,7 +813,7 @@ object IO {
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  final def supervisor[E]: IO[E, Throwable => Infallible[Unit]] = new Supervisor()
+  final def supervisor[E]: IO[E, PureCanceler] = new Supervisor()
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
