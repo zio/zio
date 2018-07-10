@@ -20,7 +20,7 @@ class IONarrowFlatMapBenchmark {
       if (i < size) Thunk(i + 1).flatMap(loop)
       else Thunk(i)
 
-    Thunk(0).unsafePerformIO()
+    Thunk(0).unsafeRun()
   }
 
   @Benchmark
@@ -52,7 +52,7 @@ class IONarrowFlatMapBenchmark {
       if (i < size) IO.point[Void, Int](i + 1).flatMap(loop)
       else IO.point(i)
 
-    unsafePerformIO(IO.point[Void, Int](0).flatMap(loop))
+    unsafeRun(IO.point[Void, Int](0).flatMap(loop))
   }
 
   @Benchmark

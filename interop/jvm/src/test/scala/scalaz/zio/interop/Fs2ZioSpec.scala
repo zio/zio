@@ -25,7 +25,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
 
   def fIsZio: List[Int] = {
     import catz._
-    unsafePerformIO(testCaseJoin[scalaz.zio.interop.Task])
+    unsafeRun(testCaseJoin[scalaz.zio.interop.Task])
   }
 
   def testCaseJoin[F[_]: Effect]: F[List[Int]] = {

@@ -23,7 +23,7 @@ class IODeepAttemptBenchmark {
       else if (n == halfway) descend(n + 1).attempt.map(_.fold(_ => 50, a => a))
       else descend(n + 1).map(_ + n)
 
-    descend(0).unsafePerformIO()
+    descend(0).unsafeRun()
   }
 
   @Benchmark
@@ -57,7 +57,7 @@ class IODeepAttemptBenchmark {
       else if (n == halfway) descend(n + 1).redeemPure[Error, BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 
-    unsafePerformIO(descend(0))
+    unsafeRun(descend(0))
   }
 
   @Benchmark

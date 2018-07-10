@@ -59,7 +59,7 @@ class catzSpec extends FunSuite with Matchers with Checkers with Discipline with
   implicit def catsEQ[A: Eq]: Eq[Task[A]] =
     new Eq[Task[A]] {
       def eqv(io1: Task[A], io2: Task[A]): Boolean =
-        unsafePerformIO(io1.attempt) === unsafePerformIO(io2.attempt)
+        unsafeRun(io1.attempt) === unsafeRun(io2.attempt)
     }
 
   implicit def ioArbitrary[A: Arbitrary: Cogen]: Arbitrary[Task[A]] =
