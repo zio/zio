@@ -20,6 +20,6 @@ package object zio {
 
   type Infallible[A] = IO[Void, A]
 
-  type Canceler     = Throwable => Unit
-  type PureCanceler = Throwable => IO[Void, Unit]
+  type Canceler     = List[Throwable] => Unit
+  type PureCanceler = List[Throwable] => IO[Void, Unit]
 }
