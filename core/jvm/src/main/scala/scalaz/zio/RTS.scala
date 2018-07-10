@@ -93,7 +93,7 @@ trait RTS {
         def run: Unit = submit(block)
       }, duration.toNanos, TimeUnit.NANOSECONDS)
 
-      Async.maybeLater { (t: Throwable) =>
+      Async.maybeLater { _ =>
         future.cancel(true); ()
       }
     }
@@ -164,7 +164,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Void, Unit]) extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val unhandled: PureCanceler) extends Fiber[E, A] {
     import FiberStatus._
     import java.util.{ Collections, Set, WeakHashMap }
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }
@@ -653,7 +653,7 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: Throwable => IO[Void, Unit]): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: PureCanceler): FiberContext[E, A] = {
       val context = new FiberContext[E, A](rts, handler)
 
       rts.submit(context.evaluate(io))
@@ -730,7 +730,7 @@ private object RTS {
         if (won) resume(tryA.map(finish))
       }
 
-    private final def raceWith[A, B, C](unhandled: Throwable => IO[Void, Unit],
+    private final def raceWith[A, B, C](unhandled: PureCanceler,
                                         leftIO: IO[E, A],
                                         rightIO: IO[E, B],
                                         finishLeft: (A, Fiber[E, B]) => IO[E, C],
@@ -749,13 +749,13 @@ private object RTS {
         val leftCallback  = raceCallback[A, C](k, state, leftWins)
         val rightCallback = raceCallback[B, C](k, state, rightWins)
 
-        val c1: Throwable => Unit = left.register(leftCallback) match {
+        val c1: Canceler = left.register(leftCallback) match {
           case Async.Now(tryA)                => leftCallback(tryA); null
           case Async.MaybeLater(cancel)       => cancel
           case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
         }
 
-        val c2: Throwable => Unit = right.register(rightCallback) match {
+        val c2: Canceler = right.register(rightCallback) match {
           case Async.Now(tryA)                => rightCallback(tryA); null
           case Async.MaybeLater(cancel)       => cancel
           case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
@@ -846,7 +846,7 @@ private object RTS {
     }
 
     @tailrec
-    final def awaitAsync(id: Int, c: Throwable => Unit): Unit = {
+    final def awaitAsync(id: Int, c: Canceler): Unit = {
       val oldStatus = status.get
 
       oldStatus match {
@@ -1036,15 +1036,15 @@ private object RTS {
 
   final def SuccessUnit[E]: ExitResult[E, Unit] = _SuccessUnit.asInstanceOf[ExitResult[E, Unit]]
 
-  final def combineCancelers(c1: Throwable => Unit, c2: Throwable => Unit): Throwable => Unit =
+  final def combineCancelers(c1: Canceler, c2: Canceler): Canceler =
     if (c1 eq null) {
       if (c2 eq null) null
       else c2
     } else if (c2 eq null) {
       c1
     } else
-      (t: Throwable) => {
-        c1(t)
-        c2(t)
+      (ts: List[Throwable]) => {
+        c1(ts)
+        c2(ts)
       }
 }
