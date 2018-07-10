@@ -22,7 +22,7 @@ class PromiseSpec extends Specification with RTS {
      """
 
   def e1 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         p <- Promise.make[Void, Int]
         s <- p.complete[Void](32)
@@ -31,7 +31,7 @@ class PromiseSpec extends Specification with RTS {
     )
 
   def e2 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         p <- Promise.make[Void, Int]
         s <- p.done[Void](ExitResult.Completed(14))
@@ -40,7 +40,7 @@ class PromiseSpec extends Specification with RTS {
     )
 
   def e3 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         p <- Promise.make[String, Int]
         s <- p.error[String]("error in e3")
@@ -49,7 +49,7 @@ class PromiseSpec extends Specification with RTS {
     )
 
   def e4 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         p <- Promise.make[String, Int]
         s <- p.done[String](ExitResult.Failed("error in e4"))
@@ -58,7 +58,7 @@ class PromiseSpec extends Specification with RTS {
     )
 
   def e5 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         p <- Promise.make[Void, Int]
         _ <- p.complete[Void](1)
@@ -70,14 +70,14 @@ class PromiseSpec extends Specification with RTS {
   val error = new Exception("Error!")
 
   def e6 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
         s <- p.done[Exception](ExitResult.Terminated(error))
       } yield s must beTrue
     )
   def e7 =
-    unsafePerformIO(
+    unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
         s <- p.interrupt[Exception](error)

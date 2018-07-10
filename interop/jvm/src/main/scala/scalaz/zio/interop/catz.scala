@@ -19,7 +19,7 @@ object catz extends RTS {
         case ExitResult.Terminated(t) => Left(t)
       }
       effect.IO {
-        unsafePerformIOAsync(fa) {
+        unsafeRunAsync(fa) {
           cb.compose(cbZ2C).andThen(_.unsafeRunAsync(_ => ()))
         }
       }.attempt.void

@@ -23,7 +23,7 @@ class IODeepFlatMapBenchmark {
           fib(n - 2).flatMap(b => Thunk(a + b))
         }
 
-    fib(depth).unsafePerformIO()
+    fib(depth).unsafeRun()
   }
 
   @Benchmark
@@ -64,7 +64,7 @@ class IODeepFlatMapBenchmark {
           fib(n - 2).flatMap(b => IO.point(a + b))
         }
 
-    unsafePerformIO(fib(depth))
+    unsafeRun(fib(depth))
   }
 
   @Benchmark
