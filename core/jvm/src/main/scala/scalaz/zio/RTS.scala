@@ -936,30 +936,30 @@ private object RTS {
     }
 
     @tailrec
-    private final def kill0[E2](t: Throwable, k: Callback[E, Unit]): Async[E2, Unit] = {
+    private final def kill0[E2](ts: List[Throwable], k: Callback[E, Unit]): Async[E2, Unit] = {
       killed = true
 
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(t0, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Executing(t0.orElse(Some(t)), joiners, k :: killers))) kill0(t, k)
+        case Executing(ts0, joiners, killers) =>
+          if (!status.compareAndSet(oldStatus, Executing(ts0 ++ ts, joiners, k :: killers))) kill0(ts, k)
           else Async.later[E2, Unit]
 
-        case AsyncRegion(None, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.Terminated[E, A](t)
+        case AsyncRegion(Nil, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
+          val v = ExitResult.Terminated[E, A](ts)
 
-          if (!status.compareAndSet(oldStatus, Done(v))) kill0(t, k)
+          if (!status.compareAndSet(oldStatus, Done(v))) kill0(ts, k)
           else {
             // We interrupted async before it could resume. Now we have to
             // cancel the computation, if possible, and handle any finalizers.
             cancelOpt match {
               case None =>
               case Some(cancel) =>
-                try cancel(t)
+                try cancel(ts)
                 catch {
                   case t: Throwable if (nonFatal(t)) =>
-                    supervise(fork(unhandled(t)[E], unhandled))
+                    supervise(fork(unhandled(t :: Nil)[E], unhandled))
                 }
             }
 
@@ -974,9 +974,9 @@ private object RTS {
           }
 
         case s @ AsyncRegion(_, _, _, _, _, _) =>
-          val newStatus = s.copy(error = s.error.orElse(Some(t)), killers = k :: s.killers)
+          val newStatus = s.copy(errors = s.errors ++ ts, killers = k :: s.killers)
 
-          if (!status.compareAndSet(oldStatus, newStatus)) kill0(t, k)
+          if (!status.compareAndSet(oldStatus, newStatus)) kill0(ts, k)
           else Async.later[E2, Unit]
 
         case Done(_) => Async.now(SuccessUnit[E2])
