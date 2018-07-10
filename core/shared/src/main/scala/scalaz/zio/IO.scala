@@ -378,6 +378,11 @@ sealed abstract class IO[E, A] { self =>
    */
   final def retry: IO[E, A] = self orElse retry
 
+  final def retryIf(p: E => Boolean): IO[E, A] =
+    self.catchSome {
+      case e: Any if p(e.asInstanceOf[E]) => retryIf(p)
+    }
+
   /**
    * Retries this action the specified number of times, until the first success.
    * Note that the action will always be run at least once, even if `n < 1`.
