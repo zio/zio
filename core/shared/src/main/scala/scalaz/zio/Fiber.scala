@@ -49,14 +49,14 @@ trait Fiber[E, A] { self =>
         self.join.zipWith(that.join)(f)
 
       def interrupt[E2](ts: Throwable*): IO[E2, Unit] =
-        self.interrupt(ts:_*) *> that.interrupt(ts:_*)
+        self.interrupt(ts: _*) *> that.interrupt(ts: _*)
     }
 }
 
 object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def join: IO[E, A]                            = IO.point(a)
+      def join: IO[E, A]                              = IO.point(a)
       def interrupt[E2](ts: Throwable*): IO[E2, Unit] = IO.unit[E2]
     }
 }
