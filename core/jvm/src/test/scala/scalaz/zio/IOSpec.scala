@@ -19,6 +19,8 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
       `IO.traverse` fails with a NumberFormatException exception. $t3
    Create a list of Strings and pass an f: String => IO[String, Int]:
       `IO.parTraverse` returns the list of Ints in any order. $t4
+   Create an integer and an f: Int => String:
+      `IO.bimap(f, identity)` maps an IO[Int, String] into an IO[String, String]. $t5
    Check done lifts exit result into IO. $testDone
     """
 
@@ -29,27 +31,32 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
     Gen.listOfN(100, Gen.alphaNumStr)
 
   def t1 = forAll(functionIOGen, listGen) { (f, list) =>
-    val res = unsafePerformIO(IO.traverse(list)(f))
+    val res = unsafeRun(IO.traverse(list)(f))
     res must be size 100
     res must beAnInstanceOf[List[Int]]
   }
 
   def t2 = {
     val list = List("1", "2", "3")
-    val res  = unsafePerformIO(IO.traverse(list)(x => IO.point[String, Int](x.toInt)))
+    val res  = unsafeRun(IO.traverse(list)(x => IO.point[String, Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res  = Try(unsafePerformIO(IO.traverse(list)(x => IO.point[String, Int](x.toInt))))
+    val res  = Try(unsafeRun(IO.traverse(list)(x => IO.point[String, Int](x.toInt))))
     res must beAFailedTry.withThrowable[NumberFormatException]
   }
 
   def t4 = {
     val list = List("1", "2", "3")
-    val res  = unsafePerformIO(IO.parTraverse(list)(x => IO.point[String, Int](x.toInt)))
+    val res  = unsafeRun(IO.parTraverse(list)(x => IO.point[String, Int](x.toInt)))
     res must containTheSameElementsAs(List(1, 2, 3))
+  }
+
+  def t5 = forAll { (i: Int) =>
+    val res = unsafeRun(IO.fail[Int, String](i).bimap(_.toString, identity).attempt)
+    res must_=== Left(i.toString)
   }
 
   def testDone = {
@@ -58,9 +65,9 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
     val terminated = Terminated[Void, Int](error)
     val failed     = Failed[Error, Int](error)
 
-    unsafePerformIO(IO.done(completed)) must_=== 1
-    unsafePerformIO(IO.done(terminated)) must throwA(error)
-    unsafePerformIO(IO.done(failed)) must throwA(Errors.UnhandledError(error))
+    unsafeRun(IO.done(completed)) must_=== 1
+    unsafeRun(IO.done(terminated)) must throwA(error)
+    unsafeRun(IO.done(failed)) must throwA(Errors.UnhandledError(error))
   }
 
 }

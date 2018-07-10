@@ -30,7 +30,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
     """
 
-  def e1 = unsafePerformIO(
+  def e1 = unsafeRun(
     for {
       queue <- IOQueue.make[Void, Int](100)
       _     <- queue.offer(10)
@@ -39,7 +39,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
       v2    <- queue.take
     } yield (v1 must_=== 10) and (v2 must_=== 20)
   )
-  def e2 = unsafePerformIO(
+  def e2 = unsafeRun(
     for {
       queue <- IOQueue.make[Void, Int](100)
       _     <- queue.take[Void].fork
@@ -49,7 +49,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
     } yield (check must beTrue) and (v must_== 25)
   )
 
-  def e3 = unsafePerformIO(
+  def e3 = unsafeRun(
     for {
       queue <- IOQueue.make[Void, Int](0)
       _     <- queue.offer[Void](14).fork
@@ -59,7 +59,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
     } yield (check must beTrue) and (v must_=== 12)
   )
 
-  def e4 = unsafePerformIO(
+  def e4 = unsafeRun(
     for {
       queue <- IOQueue.make[Void, String](100)
       f1 <- queue
@@ -74,7 +74,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
   import scala.concurrent.duration._
 
   def e5 =
-    unsafePerformIO(for {
+    unsafeRun(for {
       queue <- IOQueue.make[Void, Int](10)
       _     <- IO.forkAll(List.fill(10)(queue.take[Void].toUnit))
       _     <- waitForSize(queue, -10)
@@ -84,7 +84,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
     } yield v must_=== 37)
 
   def e6 =
-    unsafePerformIO(for {
+    unsafeRun(for {
       queue <- IOQueue.make[Void, Int](10)
       order = Range.inclusive(1, 10).toList
       _     <- IO.forkAll(order.map(queue.offer[Void]))
@@ -93,7 +93,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
     } yield l.toSet must_=== order.toSet)
 
   def e7 =
-    unsafePerformIO(for {
+    unsafeRun(for {
       queue <- IOQueue.make[Void, Int](10)
       _     <- queue.offer[Void](1).repeatN(20).fork
       _     <- waitForSize(queue, 11)
@@ -101,7 +101,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
     } yield size must_=== 11)
 
   def e8 =
-    unsafePerformIO(for {
+    unsafeRun(for {
       queue  <- IOQueue.make[Void, Int](5)
       orders = Range.inclusive(1, 10).toList
       _      <- IO.forkAll(orders.map(n => waitForSize(queue, n - 1) *> queue.offer(n)))
@@ -109,22 +109,20 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
       l      <- queue.take.repeatNFold[List[Int]](10)(List.empty[Int], (l, i) => i :: l)
     } yield l.reverse must_=== orders)
 
-  def e9 = unsafePerformIO(
+  def e9 = unsafeRun(
     for {
       queue <- IOQueue.make[Void, Int](100)
       f     <- queue.take[Void].fork
       _     <- f.interrupt(new Exception("interrupt fiber in e9"))
-      _     <- waitForSize(queue, 0)
       size  <- queue.size[Void]
     } yield size must_=== 0
   )
 
-  def e10 = unsafePerformIO(
+  def e10 = unsafeRun(
     for {
       queue <- IOQueue.make[Void, Int](0)
       f     <- queue.offer[Void](1).fork
       _     <- f.interrupt(new Exception("interrupt fiber in e10"))
-      _     <- waitForSize(queue, 0)
       size  <- queue.size[Void]
     } yield size must_=== 0
   )

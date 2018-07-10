@@ -24,7 +24,7 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => Thunk(i))
       else Thunk(i)
 
-    Thunk(0).unsafePerformIO()
+    Thunk(0).unsafeRun()
   }
 
   @Benchmark
@@ -59,7 +59,7 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => IO.point(i))
       else IO.point(i)
 
-    unsafePerformIO(IO.point[Void, Int](0).flatMap(loop))
+    unsafeRun(IO.point[Void, Int](0).flatMap(loop))
   }
 
   @Benchmark

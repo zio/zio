@@ -18,13 +18,13 @@ trait RTS {
    * Effectfully and synchronously interprets an `IO[E, A]`, either throwing an
    * error, running forever, or producing an `A`.
    */
-  final def unsafePerformIO[E, A](io: IO[E, A]): A = tryUnsafePerformIO(io) match {
+  final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
     case ExitResult.Completed(v)  => v
     case ExitResult.Terminated(t) => throw t
     case ExitResult.Failed(e)     => throw Errors.UnhandledError(e)
   }
 
-  final def unsafePerformIOAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit = {
+  final def unsafeRunAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit = {
     val context = new FiberContext[E, A](this, defaultHandler)
     context.evaluate(io)
     context.runAsync(k)
@@ -33,7 +33,7 @@ trait RTS {
   /**
    * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
    */
-  final def tryUnsafePerformIO[E, A](io: IO[E, A]): ExitResult[E, A] = {
+  final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] = {
     val context = new FiberContext[E, A](this, defaultHandler)
     context.evaluate(io)
     context.runSync
@@ -99,7 +99,7 @@ trait RTS {
     }
 
   final def impureCanceler(canceler: PureCanceler): Canceler =
-    th => unsafePerformIO(canceler(th))
+    th => unsafeRun(canceler(th))
 }
 
 private object RTS {
@@ -427,7 +427,7 @@ private object RTS {
                         result = ExitResult.Failed(error)
 
                         // Report the uncaught error to the supervisor:
-                        rts.submit(rts.unsafePerformIO(unhandled(Errors.UnhandledError(error))))
+                        rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error))))
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -501,7 +501,7 @@ private object RTS {
                     enterAsyncStart()
 
                     try {
-                      val value = rts.tryUnsafePerformIO(io.register(resumeAsync))
+                      val value = rts.unsafeRunSync(io.register(resumeAsync))
 
                       // Value returned synchronously, callback will never be
                       // invoked. Attempt resumption now:
@@ -591,7 +591,7 @@ private object RTS {
                       result = ExitResult.Terminated(cause)
 
                       // Report the termination cause to the supervisor:
-                      rts.submit(rts.unsafePerformIO(unhandled(cause)))
+                      rts.submit(rts.unsafeRun(unhandled(cause)))
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = dispatchErrors(finalizer)
