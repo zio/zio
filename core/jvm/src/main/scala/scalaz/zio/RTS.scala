@@ -19,9 +19,9 @@ trait RTS {
    * error, running forever, or producing an `A`.
    */
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
-    case ExitResult.Completed(v)  => v
+    case ExitResult.Completed(v)   => v
     case ExitResult.Terminated(ts) => throw ts.head
-    case ExitResult.Failed(e)     => throw Errors.UnhandledError(e)
+    case ExitResult.Failed(e)      => throw Errors.UnhandledError(e)
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit = {
@@ -228,7 +228,7 @@ private object RTS {
     private final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
       e match {
         case ExitResult.Terminated(ts) => ts
-        case _                        => Nil
+        case _                         => Nil
       }
 
     /**
@@ -466,7 +466,7 @@ private object RTS {
                                   result = value
                                 }
                               case ExitResult.Terminated(t) =>
-                                curIo = IO.terminate(t:_*)
+                                curIo = IO.terminate(t: _*)
                               case ExitResult.Failed(e) =>
                                 curIo = IO.fail(e)
                             }
@@ -629,7 +629,7 @@ private object RTS {
               // Interruption cannot be interrupted:
               this.noInterrupt += 1
 
-              curIo = IO.terminate[E, Any](die:_*)
+              curIo = IO.terminate[E, Any](die: _*)
             }
 
             opcount = opcount + 1
