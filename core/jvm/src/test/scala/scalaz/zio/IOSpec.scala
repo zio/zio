@@ -62,7 +62,7 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
   def testDone = {
     val error      = new Error("something went wrong")
     val completed  = Completed[Void, Int](1)
-    val terminated = Terminated[Void, Int](error)
+    val terminated = Terminated[Void, Int](error :: Nil)
     val failed     = Failed[Error, Int](error)
 
     unsafeRun(IO.done(completed)) must_=== 1

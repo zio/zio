@@ -73,7 +73,7 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.done[Exception](ExitResult.Terminated(error))
+        s <- p.interrupt(error)
       } yield s must beTrue
     )
   def e7 =
