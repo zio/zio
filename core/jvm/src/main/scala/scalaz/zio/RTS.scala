@@ -329,7 +329,7 @@ private object RTS {
             // Check to see if the fiber should continue executing or not:
             val die = shouldDie
 
-            if (die eq None) {
+            if (die eq Nil) {
               // Fiber does not need to be interrupted, but might need to yield:
               if (opcount == maxopcount) {
                 // Cooperatively yield to other fibers currently suspended.
@@ -633,7 +633,7 @@ private object RTS {
               // Interruption cannot be interrupted:
               this.noInterrupt += 1
 
-              curIo = IO.terminate[E, Any](die.get)
+              curIo = IO.terminate[E, Any](die:_*)
             }
 
             opcount = opcount + 1
@@ -905,8 +905,8 @@ private object RTS {
       })
 
     @inline
-    final def shouldDie: Option[Throwable] =
-      if (!killed || noInterrupt > 0) None else status.get.error
+    final def shouldDie: List[Throwable] =
+      if (!killed || noInterrupt > 0) Nil else status.get.errors
 
     private final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
 
