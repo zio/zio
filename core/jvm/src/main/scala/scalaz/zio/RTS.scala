@@ -20,7 +20,7 @@ trait RTS {
    */
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
     case ExitResult.Completed(v)  => v
-    case ExitResult.Terminated(t) => throw t
+    case ExitResult.Terminated(ts) => throw ts.head
     case ExitResult.Failed(e)     => throw Errors.UnhandledError(e)
   }
 
@@ -51,8 +51,8 @@ trait RTS {
    * The default handler for unhandled exceptions in the main fiber, and any
    * fibers it forks that recursively inherit the handler.
    */
-  def defaultHandler[E]: Throwable => IO[E, Unit] =
-    (t: Throwable) => IO.sync(t.printStackTrace())
+  def defaultHandler[E]: List[Throwable] => IO[E, Unit] =
+    (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
 
   /**
    * The main thread pool used for executing fibers.
@@ -227,7 +227,7 @@ private object RTS {
 
     private final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
       e match {
-        case ExitResult.Terminated(t) => t :: Nil
+        case ExitResult.Terminated(ts) => ts
         case _                        => Nil
       }
 
@@ -238,11 +238,7 @@ private object RTS {
      * @param errors  The effectfully produced list of errors, in reverse order.
      */
     final def dispatchErrors(errors: IO[Void, List[Throwable]]): IO[Void, Unit] =
-      errors.flatMap(
-        // Each error produced by a finalizer must be handled using the
-        // context's unhandled exception handler:
-        _.foldRight(IO.unit[Void])((t, io) => io *> unhandled(t))
-      )
+      errors.flatMap(unhandled)
 
     /**
      * Catches an exception, returning a (possibly null) finalizer action that
@@ -427,7 +423,7 @@ private object RTS {
                         result = ExitResult.Failed(error)
 
                         // Report the uncaught error to the supervisor:
-                        rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error))))
+                        rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error) :: Nil)))
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -470,7 +466,7 @@ private object RTS {
                                   result = value
                                 }
                               case ExitResult.Terminated(t) =>
-                                curIo = IO.terminate(t)
+                                curIo = IO.terminate(t:_*)
                               case ExitResult.Failed(e) =>
                                 curIo = IO.fail(e)
                             }
@@ -514,7 +510,7 @@ private object RTS {
                               result = value.asInstanceOf[ExitResult[E, Any]]
                             }
                           case ExitResult.Terminated(t) =>
-                            curIo = IO.terminate(t)
+                            curIo = IO.terminate(t: _*)
                           case ExitResult.Failed(e) =>
                             curIo = IO.fail(e)
                         }
@@ -581,17 +577,17 @@ private object RTS {
                   case IO.Tags.Terminate =>
                     val io = curIo.asInstanceOf[IO.Terminate[E, Any]]
 
-                    val cause = io.cause
+                    val causes = io.causes
 
                     val finalizer = interruptStack
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
                       curIo = null
-                      result = ExitResult.Terminated(cause)
+                      result = ExitResult.Terminated(causes)
 
                       // Report the termination cause to the supervisor:
-                      rts.submit(rts.unsafeRun(unhandled(cause)))
+                      rts.submit(rts.unsafeRun(unhandled(causes)))
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = dispatchErrors(finalizer)
@@ -681,7 +677,7 @@ private object RTS {
 
         case ExitResult.Failed(t) => evaluate(IO.fail[E, Any](t))
 
-        case ExitResult.Terminated(t) => evaluate(IO.terminate[E, Any](t))
+        case ExitResult.Terminated(ts) => evaluate(IO.terminate[E, Any](ts: _*))
       }
 
     /**
@@ -775,8 +771,8 @@ private object RTS {
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
       x => cb(x.mapError(_ => SuccessUnit[E2]))
 
-    final def interrupt[E2](t: Throwable): IO[E2, Unit] =
-      IO.async0[E2, Unit](cb => kill0[E2](t, changeErrorUnit[E2](cb)))
+    final def interrupt[E2](ts: Throwable*): IO[E2, Unit] =
+      IO.async0[E2, Unit](cb => kill0[E2](ts.toList, changeErrorUnit[E2](cb)))
 
     final def join: IO[E, A] = IO.async0(join0)
 
