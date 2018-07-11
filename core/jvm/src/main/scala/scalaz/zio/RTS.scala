@@ -324,7 +324,7 @@ private object RTS {
             // Check to see if the fiber should continue executing or not:
             val die = shouldDie
 
-            if (die eq Nil) {
+            if (die eq None) {
               // Fiber does not need to be interrupted, but might need to yield:
               if (opcount == maxopcount) {
                 // Cooperatively yield to other fibers currently suspended.
@@ -628,7 +628,7 @@ private object RTS {
               // Interruption cannot be interrupted:
               this.noInterrupt += 1
 
-              curIo = IO.terminate[E, Any](die: _*)
+              curIo = IO.terminate[E, Any](die.getOrElse(Nil): _*)
             }
 
             opcount = opcount + 1
@@ -900,8 +900,8 @@ private object RTS {
       })
 
     @inline
-    final def shouldDie: List[Throwable] =
-      if (!killed || noInterrupt > 0) Nil else status.get.errors
+    final def shouldDie: Option[List[Throwable]] =
+      if (!killed || noInterrupt > 0) None else status.get.errors
 
     private final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
 
@@ -938,10 +938,11 @@ private object RTS {
 
       oldStatus match {
         case Executing(ts0, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Executing(ts0 ++ ts, joiners, k :: killers))) kill0(ts, k)
+          if (!status.compareAndSet(oldStatus, Executing(Some(ts0.getOrElse(Nil) ++ ts), joiners, k :: killers)))
+            kill0(ts, k)
           else Async.later[E2, Unit]
 
-        case AsyncRegion(Nil, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
+        case AsyncRegion(None, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
           val v = ExitResult.Terminated[E, A](ts)
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(ts, k)
@@ -969,7 +970,7 @@ private object RTS {
           }
 
         case s @ AsyncRegion(_, _, _, _, _, _) =>
-          val newStatus = s.copy(errors = s.errors ++ ts, killers = k :: s.killers)
+          val newStatus = s.copy(errors = Some(s.errors.getOrElse(Nil) ++ ts), killers = k :: s.killers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) kill0(ts, k)
           else Async.later[E2, Unit]
@@ -1010,14 +1011,14 @@ private object RTS {
   }
 
   sealed trait FiberStatus[E, A] {
-    def errors: List[Throwable]
+    def errors: Option[List[Throwable]]
   }
   object FiberStatus {
-    final case class Executing[E, A](errors: List[Throwable],
+    final case class Executing[E, A](errors: Option[List[Throwable]],
                                      joiners: List[Callback[E, A]],
                                      killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
-    final case class AsyncRegion[E, A](errors: List[Throwable],
+    final case class AsyncRegion[E, A](errors: Option[List[Throwable]],
                                        reentrancy: Int,
                                        resume: Int,
                                        cancel: Option[Canceler],
@@ -1025,10 +1026,10 @@ private object RTS {
                                        killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
-      override def errors: List[Throwable] = Nil
+      override def errors: Option[List[Throwable]] = None
     }
 
-    def Initial[E, A] = Executing[E, A](Nil, Nil, Nil)
+    def Initial[E, A] = Executing[E, A](None, Nil, Nil)
   }
 
   val _SuccessUnit: ExitResult[Void, Unit] = ExitResult.Completed(())
