@@ -291,17 +291,16 @@ sealed abstract class IO[E, A] { self =>
     )(use)
 
   /**
-   * Runs one of the specified cleanup actions if this action errors, providing the
-   * error to the cleanup action. The cleanup action will not be interrupted.
-   * Cleanup actions for handled and unhandled errors can be provided separately.
+   * Runs the cleanup action if this action errors, providing the error to the 
+   * cleanup action if it exists. The cleanup action will not be interrupted.
    */
-  final def onError(cleanupE: Option[E] => Infallible[Unit]): IO[E, A] =
+  final def onError(cleanup: Option[E] => Infallible[Unit]): IO[E, A] =
     IO.bracket0(IO.unit[E])(
       (_, eb: Option[Either[E, A]]) =>
         eb match {
           case Some(Right(_)) => IO.unit
-          case Some(Left(e))  => cleanupE(Some(e))
-          case None           => cleanupE(None)
+          case Some(Left(e))  => cleanup(Some(e))
+          case None           => cleanup(None)
       }
     )(_ => self)
 
