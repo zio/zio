@@ -291,7 +291,7 @@ sealed abstract class IO[E, A] { self =>
     )(use)
 
   /**
-   * Runs the cleanup action if this action errors, providing the error to the 
+   * Runs the cleanup action if this action errors, providing the error to the
    * cleanup action if it exists. The cleanup action will not be interrupted.
    */
   final def onError(cleanup: Option[E] => Infallible[Unit]): IO[E, A] =
