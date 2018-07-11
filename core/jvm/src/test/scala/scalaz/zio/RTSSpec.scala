@@ -211,6 +211,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
         .fork0(es => IO.sync[Void, Unit] { reported = es; () })
     }
 
+    // FIXME: Is this an issue with thread synchronization?
+    while (reported eq null) Thread.`yield`()
+
     reported must_=== List(ExampleError)
   }
 
