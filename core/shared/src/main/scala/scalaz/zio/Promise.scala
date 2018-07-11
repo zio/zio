@@ -102,7 +102,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private def interruptJoiner(joiner: ExitResult[E, A] => Unit): Canceler = { _ =>
+  private def interruptJoiner(joiner: Callback[E, A]): Canceler = { _ =>
     var retry = true
 
     while (retry) {
@@ -168,7 +168,7 @@ object Promise {
 
   private[zio] object internal {
     sealed trait State[E, A]
-    final case class Pending[E, A](joiners: List[ExitResult[E, A] => Unit]) extends State[E, A]
+    final case class Pending[E, A](joiners: List[Callback[E, A]]) extends State[E, A]
     final case class Done[E, A](value: ExitResult[E, A])                    extends State[E, A]
   }
 }
