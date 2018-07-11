@@ -801,17 +801,17 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(t, reentrancy, resume, cancel, joiners, killers) =>
+        case AsyncRegion(ts, reentrancy, resume, cancel, joiners, killers) =>
           val newReentrancy = reentrancy + 1
 
-          if (!status.compareAndSet(oldStatus, AsyncRegion(t, newReentrancy, resume + 1, cancel, joiners, killers)))
+          if (!status.compareAndSet(oldStatus, AsyncRegion(ts, newReentrancy, resume + 1, cancel, joiners, killers)))
             enterAsyncStart()
           else newReentrancy
 
-        case Executing(t, joiners, killers) =>
+        case Executing(ts, joiners, killers) =>
           val newReentrancy = 1
 
-          if (!status.compareAndSet(oldStatus, AsyncRegion(t, newReentrancy, 1, None, joiners, killers)))
+          if (!status.compareAndSet(oldStatus, AsyncRegion(ts, newReentrancy, 1, None, joiners, killers)))
             enterAsyncStart()
           else newReentrancy
 
@@ -832,12 +832,12 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(t, 1, 0, _, joiners, killers) =>
+        case AsyncRegion(ts, 1, 0, _, joiners, killers) =>
           // No more resumptions left and exiting last async boundary initiation:
-          if (!status.compareAndSet(oldStatus, Executing(t, joiners, killers))) enterAsyncEnd()
+          if (!status.compareAndSet(oldStatus, Executing(ts, joiners, killers))) enterAsyncEnd()
 
-        case AsyncRegion(t, reentrancy, resume, cancel, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(t, reentrancy - 1, resume, cancel, joiners, killers)))
+        case AsyncRegion(ts, reentrancy, resume, cancel, joiners, killers) =>
+          if (!status.compareAndSet(oldStatus, AsyncRegion(ts, reentrancy - 1, resume, cancel, joiners, killers)))
             enterAsyncEnd()
 
         case _ =>
@@ -849,8 +849,8 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(t, reentrancy, resume, _, joiners, killers) if (id == reentrancy) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(t, reentrancy, resume, Some(c), joiners, killers)))
+        case AsyncRegion(ts, reentrancy, resume, _, joiners, killers) if (id == reentrancy) =>
+          if (!status.compareAndSet(oldStatus, AsyncRegion(ts, reentrancy, resume, Some(c), joiners, killers)))
             awaitAsync(id, c)
 
         case _ =>
@@ -862,13 +862,13 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(t, 0, 1, _, joiners, killers) =>
+        case AsyncRegion(ts, 0, 1, _, joiners, killers) =>
           // No more resumptions are left!
-          if (!status.compareAndSet(oldStatus, Executing(t, joiners, killers))) shouldResumeAsync()
+          if (!status.compareAndSet(oldStatus, Executing(ts, joiners, killers))) shouldResumeAsync()
           else true
 
-        case AsyncRegion(t, reentrancy, resume, _, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(t, reentrancy, resume - 1, None, joiners, killers)))
+        case AsyncRegion(ts, reentrancy, resume, _, joiners, killers) =>
+          if (!status.compareAndSet(oldStatus, AsyncRegion(ts, reentrancy, resume - 1, None, joiners, killers)))
             shouldResumeAsync()
           else true
 
