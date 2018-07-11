@@ -19,9 +19,10 @@ trait RTS {
    * error, running forever, or producing an `A`.
    */
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
-    case ExitResult.Completed(v)   => v
-    case ExitResult.Terminated(ts) => throw ts.head
-    case ExitResult.Failed(e)      => throw Errors.UnhandledError(e)
+    case ExitResult.Completed(v)       => v
+    case ExitResult.Terminated(Nil)    => throw new Error("Fiber interrupted")
+    case ExitResult.Terminated(t :: _) => throw t
+    case ExitResult.Failed(e)          => throw Errors.UnhandledError(e)
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
