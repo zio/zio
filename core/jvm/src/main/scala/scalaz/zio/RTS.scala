@@ -464,8 +464,8 @@ private object RTS {
                                 if (curIo eq null) {
                                   result = value
                                 }
-                              case ExitResult.Terminated(t) =>
-                                curIo = IO.terminate(t: _*)
+                              case ExitResult.Terminated(ts) =>
+                                curIo = IO.terminate(ts: _*)
                               case ExitResult.Failed(e) =>
                                 curIo = IO.fail(e)
                             }
@@ -508,8 +508,8 @@ private object RTS {
                             if (curIo eq null) {
                               result = value.asInstanceOf[ExitResult[E, Any]]
                             }
-                          case ExitResult.Terminated(t) =>
-                            curIo = IO.terminate(t: _*)
+                          case ExitResult.Terminated(ts) =>
+                            curIo = IO.terminate(ts: _*)
                           case ExitResult.Failed(e) =>
                             curIo = IO.fail(e)
                         }
