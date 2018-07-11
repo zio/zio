@@ -63,6 +63,16 @@ class IODeepAttemptBenchmark {
   }
 
   @Benchmark
+  def scalazDeepAttemptBaseline(): BigInt = {
+    def descend(n: Int): IO[Error, BigInt] =
+      if (n == depth) IO.fail(new Error("Oh noes!"))
+      else if (n == halfway) descend(n + 1).redeemPure[Error, BigInt](_ => 50, identity)
+      else descend(n + 1).map(_ + n)
+
+    unsafeRun(descend(0))
+  }
+
+  @Benchmark
   def catsDeepAttempt(): BigInt = {
     import cats.effect._
 
