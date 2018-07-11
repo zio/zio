@@ -586,8 +586,7 @@ object IO {
     override def tag = Tags.AsyncEffect
   }
 
-  final class AsyncIOEffect[E, A] private[IO] (val register: (Callback[E, A]) => IO[E, Unit])
-      extends IO[E, A] {
+  final class AsyncIOEffect[E, A] private[IO] (val register: (Callback[E, A]) => IO[E, Unit]) extends IO[E, A] {
     override def tag = Tags.AsyncIOEffect
   }
 
