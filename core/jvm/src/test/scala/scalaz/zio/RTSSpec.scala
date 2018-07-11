@@ -280,7 +280,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
             )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit[Void])
             .fork
       _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("start 1"))
-      _ <- f.interrupt(new RuntimeException("cancel"))
+      _ <- f.interrupt()
       _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("release 2"))
       l <- ref.read
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
@@ -293,7 +293,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       p2   <- Promise.make[Void, Int]
       s    <- (p1.complete(()) *> p2.get).ensuring(r.write[Void](true).toUnit.delay(10.millis)).fork
       _    <- p1.get
-      _    <- s.interrupt[Void](new Error("interrupt e"))
+      _    <- s.interrupt[Void]()
       test <- r.read[Void]
     } yield test must_=== true)
 
@@ -367,7 +367,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     val io =
       for {
         fiber <- IO.never[Throwable, Int].fork[Throwable]
-        _     <- fiber.interrupt(ExampleError)
+        _     <- fiber.interrupt()
       } yield 42
 
     unsafeRun(io) must_=== 42
@@ -453,9 +453,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(
       for {
         f <- test.fork[Throwable]
-        c <- (IO.sync[Throwable, Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt(
-              new RuntimeException("y")
-            )
+        c <- (IO.sync[Throwable, Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt()
       } yield c must be_>=(1)
     )
 
@@ -464,7 +462,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testInterruptSyncForever = unsafeRun(
     for {
       f <- IO.sync[Void, Int](1).forever[Void].fork
-      _ <- f.interrupt[Void](new Error("terminate forever"))
+      _ <- f.interrupt[Void]()
     } yield true
   )
 
