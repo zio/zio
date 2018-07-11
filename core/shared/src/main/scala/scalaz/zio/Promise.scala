@@ -169,6 +169,6 @@ object Promise {
   private[zio] object internal {
     sealed trait State[E, A]
     final case class Pending[E, A](joiners: List[Callback[E, A]]) extends State[E, A]
-    final case class Done[E, A](value: ExitResult[E, A])                    extends State[E, A]
+    final case class Done[E, A](value: ExitResult[E, A])          extends State[E, A]
   }
 }
