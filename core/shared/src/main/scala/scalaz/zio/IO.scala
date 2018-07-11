@@ -582,11 +582,11 @@ object IO {
     override def tag = Tags.Fail
   }
 
-  final class AsyncEffect[E, A] private[IO] (val register: (ExitResult[E, A] => Unit) => Async[E, A]) extends IO[E, A] {
+  final class AsyncEffect[E, A] private[IO] (val register: (Callback[E, A]) => Async[E, A]) extends IO[E, A] {
     override def tag = Tags.AsyncEffect
   }
 
-  final class AsyncIOEffect[E, A] private[IO] (val register: (ExitResult[E, A] => Unit) => IO[E, Unit])
+  final class AsyncIOEffect[E, A] private[IO] (val register: (Callback[E, A]) => IO[E, Unit])
       extends IO[E, A] {
     override def tag = Tags.AsyncIOEffect
   }
@@ -767,7 +767,7 @@ object IO {
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
    * the more expressive variant of this function.
    */
-  final def async[E, A](register: (ExitResult[E, A] => Unit) => Unit): IO[E, A] =
+  final def async[E, A](register: (Callback[E, A]) => Unit): IO[E, A] =
     new AsyncEffect(callback => {
       register(callback)
 
@@ -778,7 +778,7 @@ object IO {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (ExitResult[E, A] => Unit) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
+  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -788,7 +788,7 @@ object IO {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def async0[E, A](register: (ExitResult[E, A] => Unit) => Async[E, A]): IO[E, A] = new AsyncEffect(register)
+  final def async0[E, A](register: (Callback[E, A]) => Async[E, A]): IO[E, A] = new AsyncEffect(register)
 
   /**
    * Returns a action that will never produce anything. The moral

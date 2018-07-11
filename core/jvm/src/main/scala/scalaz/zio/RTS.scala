@@ -24,7 +24,7 @@ trait RTS {
     case ExitResult.Failed(e)      => throw Errors.UnhandledError(e)
   }
 
-  final def unsafeRunAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit = {
+  final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
     val context = new FiberContext[E, A](this, defaultHandler)
     context.evaluate(io)
     context.runAsync(k)
@@ -115,8 +115,6 @@ private object RTS {
     case object Finished    extends RaceState
   }
 
-  type Callback[E, A] = ExitResult[E, A] => Unit
-
   @inline
   final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
@@ -184,7 +182,7 @@ private object RTS {
 
     private[this] val stack: Stack = new Stack()
 
-    final def runAsync(k: ExitResult[E, A] => Unit): Unit =
+    final def runAsync(k: Callback[E, A]): Unit =
       register(k) match {
         case Async.Now(v) => k(v)
         case _            =>
@@ -694,9 +692,9 @@ private object RTS {
         } else resumeEvaluate(value)
       }
 
-    private final def raceCallback[A, B](resume: ExitResult[E, IO[E, B]] => Unit,
+    private final def raceCallback[A, B](resume: Callback[E, IO[E, B]],
                                          state: AtomicReference[RaceState],
-                                         finish: A => IO[E, B]): ExitResult[E, A] => Unit =
+                                         finish: A => IO[E, B]): Callback[E, A] =
       (tryA: ExitResult[E, A]) => {
         import RaceState._
 
