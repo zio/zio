@@ -65,10 +65,22 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   final def error[E2](e: E): IO[E2, Boolean] = done(ExitResult.Failed[E, A](e))
 
   /**
+   * Interrupts the promise with no specified reason. This will interrupt
+   * all fibers waiting on the value of the promise.
+   */
+  final def interrupt[E2]: IO[E2, Boolean] = interrupt0(Nil)
+
+  /**
    * Interrupts the promise with the specified throwable(s). This will interrupt
    * all fibers waiting on the value of the promise.
    */
-  final def interrupt[E2](ts: Throwable*): IO[E2, Boolean] = done(ExitResult.Terminated[E, A](ts.toList))
+  final def interrupt[E2](t: Throwable, ts: Throwable*): IO[E2, Boolean] = interrupt0(t :: ts.toList)
+
+  /**
+   * Interrupts the promise with the specified list of throwable(s). This will interrupt
+   * all fibers waiting on the value of the promise.
+   */
+  final protected def interrupt0[E2](ts: List[Throwable]): IO[E2, Boolean] = done(ExitResult.Terminated[E, A](ts))
 
   /**
    * Completes the promise with the specified result. If the specified promise
