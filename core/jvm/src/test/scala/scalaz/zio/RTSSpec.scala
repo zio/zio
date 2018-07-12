@@ -66,6 +66,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   RTS asynchronous correctness
     simple async must return                $testAsyncEffectReturns
+    simple asyncIO must return              $testAsyncIOEffectReturns
     sleep 0 must return                     ${upTo(1.second)(testSleepZeroReturns)}
 
   RTS concurrency correctness
@@ -353,6 +354,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testAsyncEffectReturns =
     unsafeRun(IO.async[Throwable, Int](cb => cb(ExitResult.Completed(42)))) must_=== 42
+
+  def testAsyncIOEffectReturns =
+    unsafeRun(IO.asyncPure[Throwable, Int](cb => IO.sync(cb(ExitResult.Completed(42))))) must_=== 42
 
   def testSleepZeroReturns =
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
