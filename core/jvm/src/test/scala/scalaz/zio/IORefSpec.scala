@@ -87,7 +87,7 @@ class IORefSpec extends Specification with RTS {
         f2      <- ref.write[Void](2).forever[Unit].fork[Void]
         success <- tryWriteUntilFalse(ref, 3)
         value   <- ref.read[Void]
-        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Void](new Error("Terminated fiber"))
+        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Void]
       } yield (success must beFalse) and (value must be_!=(3))
     )
 
