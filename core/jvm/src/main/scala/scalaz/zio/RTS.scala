@@ -20,7 +20,7 @@ trait RTS {
    */
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
     case ExitResult.Completed(v)       => v
-    case ExitResult.Terminated(Nil)    => throw new Error("Fiber interrupted")
+    case ExitResult.Terminated(Nil)    => throw Errors.InterruptedFiber
     case ExitResult.Terminated(t :: _) => throw t
     case ExitResult.Failed(e)          => throw Errors.UnhandledError(e)
   }
