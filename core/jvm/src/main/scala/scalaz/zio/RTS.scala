@@ -231,15 +231,6 @@ private object RTS {
       }
 
     /**
-     * Creates an action to dispatch a list of errors to the fiber's uncaught
-     * error handler.
-     *
-     * @param errors  The effectfully produced list of errors, in reverse order.
-     */
-    final def dispatchErrors(errors: IO[Void, List[Throwable]]): IO[Void, Unit] =
-      errors.flatMap(unhandled)
-
-    /**
      * Catches an exception, returning a (possibly null) finalizer action that
      * must be executed. It is painstakingly *guaranteed* that the stack will be
      * empty in the sole case the exception was not caught by any exception
@@ -426,7 +417,7 @@ private object RTS {
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
-                        val finalization = dispatchErrors(finalizer)
+                        val finalization = finalizer.flatMap(unhandled)
                         val completer    = io
 
                         curIo = doNotInterrupt(finalization).widenError[E] *> completer
@@ -439,7 +430,7 @@ private object RTS {
                         curIo = handled
                       } else {
                         // Must run finalizer first:
-                        val finalization = dispatchErrors(finalizer)
+                        val finalization = finalizer.flatMap(unhandled)
                         val completer    = handled
 
                         curIo = doNotInterrupt(finalization).widenError[E] *> completer
@@ -589,7 +580,7 @@ private object RTS {
                       rts.submit(rts.unsafeRun(unhandled(causes)))
                     } else {
                       // Must run finalizers first before failing:
-                      val finalization = dispatchErrors(finalizer)
+                      val finalization = finalizer.flatMap(unhandled)
                       val completer    = io
 
                       curIo = doNotInterrupt(finalization).widenError[E] *> completer
@@ -962,7 +953,7 @@ private object RTS {
             val finalizer = interruptStack
 
             if (finalizer ne null) {
-              fork[Void, Unit](dispatchErrors(finalizer), unhandled)
+              fork[Void, Unit](finalizer.flatMap(unhandled), unhandled)
                 .runAsync((_: ExitResult[Void, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
               Async.later[E2, Unit]
             } else Async.now(SuccessUnit[E2])
