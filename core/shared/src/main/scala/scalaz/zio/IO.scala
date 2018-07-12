@@ -673,9 +673,9 @@ object IO {
    * Creates an `IO` value from `ExitResult`
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Completed(b)  => now(b)
-    case ExitResult.Terminated(t) => terminate(t: _*)
-    case ExitResult.Failed(e)     => fail(e)
+    case ExitResult.Completed(b)   => now(b)
+    case ExitResult.Terminated(ts) => terminate0(ts)
+    case ExitResult.Failed(e)      => fail(e)
   }
 
   /**
@@ -708,7 +708,17 @@ object IO {
   /**
    * Terminates the fiber executing this action, running all finalizers.
    */
-  final def terminate[E, A](t: Throwable*): IO[E, A] = new Terminate(t.toList)
+  final def terminate[E, A]: IO[E, A] = terminate0(Nil)
+
+  /**
+   * Terminates the fiber executing this action with the specified error(s), running all finalizers.
+   */
+  final def terminate[E, A](t: Throwable, ts: Throwable*): IO[E, A] = terminate0(t :: ts.toList)
+
+  /**
+   * Terminates the fiber executing this action, running all finalizers.
+   */
+  final def terminate0[E, A](ts: List[Throwable]): IO[E, A] = new Terminate(ts)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
