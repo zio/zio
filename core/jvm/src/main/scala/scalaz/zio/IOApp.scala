@@ -8,7 +8,7 @@ import scala.concurrent.duration.Duration
  *
  * {{{
  * import java.io.IOException
- * import scalaz.zio.{IO, IOApp}
+ * import scalaz.zio.{IO, IOApp, Void}
  * import scalaz.zio.console._
  *
  * object MyApp extends IOApp {
