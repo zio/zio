@@ -465,7 +465,7 @@ private object RTS {
                                   result = value
                                 }
                               case ExitResult.Terminated(ts) =>
-                                curIo = IO.terminate(ts: _*)
+                                curIo = IO.terminate0(ts)
                               case ExitResult.Failed(e) =>
                                 curIo = IO.fail(e)
                             }
@@ -509,7 +509,7 @@ private object RTS {
                               result = value.asInstanceOf[ExitResult[E, Any]]
                             }
                           case ExitResult.Terminated(ts) =>
-                            curIo = IO.terminate(ts: _*)
+                            curIo = IO.terminate0(ts)
                           case ExitResult.Failed(e) =>
                             curIo = IO.fail(e)
                         }
@@ -628,7 +628,7 @@ private object RTS {
               // Interruption cannot be interrupted:
               this.noInterrupt += 1
 
-              curIo = IO.terminate[E, Any](die.getOrElse(Nil): _*)
+              curIo = IO.terminate0[E, Any](die.get)
             }
 
             opcount = opcount + 1
@@ -676,7 +676,7 @@ private object RTS {
 
         case ExitResult.Failed(t) => evaluate(IO.fail[E, Any](t))
 
-        case ExitResult.Terminated(ts) => evaluate(IO.terminate[E, Any](ts: _*))
+        case ExitResult.Terminated(ts) => evaluate(IO.terminate0[E, Any](ts))
       }
 
     /**
