@@ -67,20 +67,18 @@ class PromiseSpec extends Specification with RTS {
       } yield s must beFalse and (v must_=== 1)
     )
 
-  val error = new Exception("Error!")
-
   def e6 =
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.interrupt(error)
+        s <- p.interrupt
       } yield s must beTrue
     )
   def e7 =
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.interrupt[Exception](error)
+        s <- p.interrupt[Exception]
       } yield s must beTrue
     )
 }
