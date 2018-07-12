@@ -31,12 +31,25 @@ trait Fiber[E, A] { self =>
   def join: IO[E, A]
 
   /**
+   * Interrupts the fiber with no specified reason. If the fiber has already
+   * terminated, either successfully or with error, this will resume
+   * immediately. Otherwise, it will resume when the fiber has been
+   * successfully interrupted or has produced its result.
+   */
+  def interrupt[E2]: IO[E2, Unit] = interrupt0(Nil)
+
+  /**
    * Interrupts the fiber with the specified error(s). If the fiber has already
    * terminated, either successfully or with error, this will resume
    * immediately. Otherwise, it will resume when the fiber has been
    * successfully interrupted or has produced its result.
    */
-  def interrupt[E2](ts: Throwable*): IO[E2, Unit]
+  def interrupt[E2](t: Throwable, ts: Throwable*): IO[E2, Unit] = interrupt0(t :: ts.toList)
+
+  /**
+   * Interrupts the fiber with a list of error(s).
+   */
+  protected def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit]
 
   /**
    * Zips this fiber with the specified fiber, combining their results using
@@ -48,15 +61,15 @@ trait Fiber[E, A] { self =>
       def join: IO[E, C] =
         self.join.zipWith(that.join)(f)
 
-      def interrupt[E2](ts: Throwable*): IO[E2, Unit] =
-        self.interrupt(ts: _*) *> that.interrupt(ts: _*)
+      def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit] =
+        self.interrupt0(ts) *> that.interrupt0(ts)
     }
 }
 
 object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def join: IO[E, A]                              = IO.point(a)
-      def interrupt[E2](ts: Throwable*): IO[E2, Unit] = IO.unit[E2]
+      def join: IO[E, A]                                    = IO.point(a)
+      def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit] = IO.unit[E2]
     }
 }
