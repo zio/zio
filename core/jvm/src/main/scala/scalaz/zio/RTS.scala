@@ -770,8 +770,8 @@ private object RTS {
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
       x => cb(x.mapError(_ => SuccessUnit[E2]))
 
-    final def interrupt[E2](ts: Throwable*): IO[E2, Unit] =
-      IO.async0[E2, Unit](cb => kill0[E2](ts.toList, changeErrorUnit[E2](cb)))
+    final def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit] =
+      IO.async0[E2, Unit](cb => kill0[E2](ts, changeErrorUnit[E2](cb)))
 
     final def join: IO[E, A] = IO.async0(join0)
 
