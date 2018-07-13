@@ -43,7 +43,7 @@ Your main function can extend `IOApp`, which provides a complete runtime
 system and allows your entire program to be purely functional.
 
 ```scala
-import scalaz.zio.{IO, IOApp}
+import scalaz.zio.{IO, IOApp, Void}
 import scalaz.zio.console._
 
 import java.io.IOException
