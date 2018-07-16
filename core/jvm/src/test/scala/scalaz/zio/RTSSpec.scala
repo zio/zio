@@ -36,6 +36,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
+    catch multiple causes                   $testEvalOfMultipleFail
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -171,6 +172,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testEvalOfDeepUncaughtFail =
     unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError)))
+
+  def testEvalOfMultipleFail =
+    unsafeRun((for {
+      f1 <- IO.never[Void, Unit].fork
+      _  <- f1.interrupt[Void](InterruptCause1, InterruptCause2)
+      _  <- f1.join
+    } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
 
   def testEvalOfFailEnsuring = {
     var finalized = false
@@ -470,7 +478,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   )
 
   // Utility stuff
-  val ExampleError = new Exception("Oh noes!")
+  val ExampleError    = new Exception("Oh noes!")
+  val InterruptCause1 = new Exception("Oh noes 1!")
+  val InterruptCause2 = new Exception("Oh noes 2!")
 
   def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError)))
 
