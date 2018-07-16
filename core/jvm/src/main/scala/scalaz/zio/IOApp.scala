@@ -3,6 +3,8 @@ package scalaz.zio
 
 import scala.concurrent.duration.Duration
 
+import Errors._
+
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -41,10 +43,38 @@ trait IOApp extends RTS {
   def run(args: List[String]): IO[Void, ExitStatus]
 
   /**
+   * Thread for interrupting the main function
+   */
+  class InterruptThread(io: IOApp) extends Runnable {
+
+    def run: Unit = {
+       io.mainFiber match {
+         case Some(fiber) => 
+           try {
+             io.unsafeRun(fiber.interrupt(TerminatedException("interrupted")))
+           } catch {
+             case _: Throwable => //we just do nothing here
+           }
+         case None =>
+       }
+    }
+  }
+
+  /**
+   * The main fiber reference
+   */
+   var mainFiber = None: Option[ Fiber[Void, ExitStatus] ];
+
+  /**
    * The Scala main function, intended to be called only by the Scala runtime.
    */
-  final def main(args0: Array[String]): Unit =
-    unsafeRun(run(args0.toList)) match {
+  final def main(args0: Array[String]): Unit = {
+    Runtime.getRuntime.addShutdownHook(new Thread (new InterruptThread(this)))
+
+    val fiber = unsafeRun(run(args0.toList).fork)
+    mainFiber = Some(fiber)
+
+    unsafeRun(fiber.join) match {
       case ExitStatus.ExitNow(code) =>
         sys.exit(code)
       case ExitStatus.ExitWhenDone(code, timeout) =>
@@ -52,5 +82,6 @@ trait IOApp extends RTS {
         sys.exit(code)
       case ExitStatus.DoNotExit =>
     }
+  }
 
 }
