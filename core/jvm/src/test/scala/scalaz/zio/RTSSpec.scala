@@ -37,6 +37,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
     catch multiple causes                   $testEvalOfMultipleFail
+    catch failing finalizers                $testEvalOfMultipleFailingFinalizers
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -180,7 +181,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       _  <- f1.join
     } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
 
-  def testEvalOfCascadeFail =
+  def testEvalOfMultipleFailingFinalizers =
     unsafeRun(
       IO.point[Void, Int](42)
         .ensuring(IO.terminate(InterruptCause1, InterruptCause2))
