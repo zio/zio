@@ -136,6 +136,8 @@ object IOQueue {
 
   /**
    * Makes a new bounded queue.
+   * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
+   * until there is more room in the queue.
    */
   final def bounded[E, A](capacity: Int): IO[E, IOQueue[A]] =
     IORef[E, State[A]](Surplus[A](Queue.empty, Queue.empty)).map(new IOQueue[A](capacity, _))
