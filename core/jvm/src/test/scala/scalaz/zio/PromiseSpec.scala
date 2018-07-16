@@ -17,7 +17,7 @@ class PromiseSpec extends Specification with RTS {
 
         Make a promise and retrieve its Throwable value after interruption calling:
           `done` to complete that promise with a terminated result.              $e6
-          `interrupt` with a specified throwable and interrupt all other fibers. $e7
+          `interrupt` and interrupt all other fibers.                            $e7
 
      """
 
