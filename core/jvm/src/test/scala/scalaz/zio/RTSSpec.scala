@@ -180,6 +180,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       _  <- f1.join
     } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
 
+  def testEvalOfCascadeFail =
+    unsafeRun(
+      IO.point[Void, Int](42)
+        .ensuring(IO.terminate(InterruptCause1, InterruptCause2))
+        .ensuring(IO.terminate(InterruptCause2, InterruptCause3))
+        .run
+    ) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2, InterruptCause2, InterruptCause3))
+
   def testEvalOfFailEnsuring = {
     var finalized = false
 
@@ -481,6 +489,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   val ExampleError    = new Exception("Oh noes!")
   val InterruptCause1 = new Exception("Oh noes 1!")
   val InterruptCause2 = new Exception("Oh noes 2!")
+  val InterruptCause3 = new Exception("Oh noes 3!")
 
   def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError)))
 

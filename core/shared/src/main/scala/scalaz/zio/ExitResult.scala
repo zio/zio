@@ -35,7 +35,9 @@ sealed trait ExitResult[E, A] { self =>
   }
 }
 object ExitResult {
-  final case class Completed[E, A](value: A)                extends ExitResult[E, A]
-  final case class Failed[E, A](error: E)                   extends ExitResult[E, A]
+  final case class Completed[E, A](value: A) extends ExitResult[E, A]
+  final case class Failed[E, A](error: E)    extends ExitResult[E, A]
+
+  /** Exceptions are collected in their original order */
   final case class Terminated[E, A](error: List[Throwable]) extends ExitResult[E, A]
 }
