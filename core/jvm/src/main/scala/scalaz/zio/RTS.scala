@@ -237,7 +237,7 @@ private object RTS {
      * handler—i.e. the exceptional case.
      */
     final def catchError: IO[Void, List[Throwable]] = {
-      var errorHandler: Any => IO[Any, Any]            = null
+      var errorHandler: Any => IO[Any, Any]    = null
       var finalizer: IO[Void, List[Throwable]] = null
 
       // Unwind the stack, looking for exception handlers and coalescing
@@ -420,7 +420,7 @@ private object RTS {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
                         val finalization = finalizer.flatMap(unhandled)
-                        val completer = io
+                        val completer    = io
 
                         curIo = doNotInterrupt(finalization).widenError[E] *> completer
                       }
@@ -433,7 +433,7 @@ private object RTS {
                       } else {
                         // Must run finalizer first:
                         val finalization = finalizer.flatMap(unhandled)
-                        val completer = handled
+                        val completer    = handled
 
                         curIo = doNotInterrupt(finalization).widenError[E] *> completer
                       }
@@ -542,7 +542,7 @@ private object RTS {
                     val io = curIo.asInstanceOf[IO.Supervise[E, Any]]
 
                     curIo = enterSupervision *>
-                      io.value.ensuring(exitSupervision(io.error))
+                      io.value.ensuring(exitSupervision)
 
                   case IO.Tags.Terminate =>
                     val io = curIo.asInstanceOf[IO.Terminate[E, Any]]
@@ -561,7 +561,7 @@ private object RTS {
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = finalizer.flatMap(unhandled)
-                      val completer = io
+                      val completer    = io
 
                       curIo = doNotInterrupt(finalization).widenError[E] *> completer
                     }
@@ -847,7 +847,7 @@ private object RTS {
       }
     }
 
-    final def exitSupervision[E2](e: Throwable): IO[E2, Unit] =
+    final def exitSupervision[E2]: IO[E2, Unit] =
       IO.flatten(IO.sync {
         supervising -= 1
 
@@ -861,7 +861,7 @@ private object RTS {
             while (iterator.hasNext()) {
               val child = iterator.next()
 
-              action = action *> child.interrupt[E2](e)
+              action = action *> child.interrupt[E2]
             }
 
             tail
