@@ -3,6 +3,8 @@ package scalaz.zio
 
 import scala.concurrent.duration.Duration
 
+import Errors._
+
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -44,7 +46,15 @@ trait IOApp extends RTS {
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit =
-    unsafeRun(run(args0.toList)) match {
+    unsafeRun(
+      for {
+        fiber <- run(args0.toList).fork
+        _ <- IO.sync(Runtime.getRuntime.addShutdownHook(new Thread {
+              override def run() = unsafeRun(fiber.interrupt(TerminatedException("interrupted")))
+            }))
+        result <- fiber.join
+      } yield result
+    ) match {
       case ExitStatus.ExitNow(code) =>
         sys.exit(code)
       case ExitStatus.ExitWhenDone(code, timeout) =>
