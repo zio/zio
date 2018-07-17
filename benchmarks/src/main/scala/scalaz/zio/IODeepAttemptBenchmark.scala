@@ -11,6 +11,8 @@ import IOBenchmarks._
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class IODeepAttemptBenchmark {
+  case class ScalazError(message: String)
+
   @Param(Array("1000"))
   var depth: Int = _
 
@@ -52,6 +54,16 @@ class IODeepAttemptBenchmark {
 
   @Benchmark
   def scalazDeepAttempt(): BigInt = {
+    def descend(n: Int): IO[ScalazError, BigInt] =
+      if (n == depth) IO.fail(ScalazError("Oh noes!"))
+      else if (n == halfway) descend(n + 1).redeemPure[ScalazError, BigInt](_ => 50, identity)
+      else descend(n + 1).map(_ + n)
+
+    unsafeRun(descend(0))
+  }
+
+  @Benchmark
+  def scalazDeepAttemptBaseline(): BigInt = {
     def descend(n: Int): IO[Error, BigInt] =
       if (n == depth) IO.fail(new Error("Oh noes!"))
       else if (n == halfway) descend(n + 1).redeemPure[Error, BigInt](_ => 50, identity)

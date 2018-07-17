@@ -68,6 +68,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   RTS asynchronous correctness
     simple async must return                $testAsyncEffectReturns
+    simple asyncIO must return              $testAsyncIOEffectReturns
+    deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
     sleep 0 must return                     ${upTo(1.second)(testSleepZeroReturns)}
 
   RTS concurrency correctness
@@ -375,6 +377,24 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testAsyncEffectReturns =
     unsafeRun(IO.async[Throwable, Int](cb => cb(ExitResult.Completed(42)))) must_=== 42
+
+  def testAsyncIOEffectReturns =
+    unsafeRun(IO.asyncPure[Throwable, Int](cb => IO.sync(cb(ExitResult.Completed(42))))) must_=== 42
+
+  def testDeepAsyncIOThreadStarvation = {
+    def stackIOs(count: Int): IO[Void, Int] =
+      if (count <= 0) IO.done(ExitResult.Completed(42))
+      else asyncIO(stackIOs(count - 1))
+
+    def asyncIO(cont: IO[Void, Int]): IO[Void, Int] =
+      IO.asyncPure { cb =>
+        IO.sleep[Void](5.millis) *> cont *> IO.sync(cb(ExitResult.Completed(42)))
+      }
+
+    val procNum = Runtime.getRuntime.availableProcessors()
+
+    unsafeRun(stackIOs(procNum + 1)) must_=== 42
+  }
 
   def testSleepZeroReturns =
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
