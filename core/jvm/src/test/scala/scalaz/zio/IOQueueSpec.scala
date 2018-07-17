@@ -27,12 +27,12 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
     the order is preserved even if we exceed the capacity of the queue ${upTo(1.second)(e8)}
     take can be interrupted and all resources are released ${upTo(1.second)(e9)}
     offer can be interrupted and all resources are released ${upTo(1.second)(e10)}
-
+    make an unbounded queue, add and retrieve values in correct order ${upTo(1.second)(e11)}
     """
 
   def e1 = unsafeRun(
     for {
-      queue <- IOQueue.make[Void, Int](100)
+      queue <- IOQueue.bounded[Void, Int](100)
       _     <- queue.offer(10)
       v1    <- queue.take
       _     <- queue.offer(20)
@@ -41,7 +41,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
   )
   def e2 = unsafeRun(
     for {
-      queue <- IOQueue.make[Void, Int](100)
+      queue <- IOQueue.bounded[Void, Int](100)
       _     <- queue.take[Void].fork
       check <- (queue.interruptTake[Void](new Exception("interrupt take in e2")) <* IO.sleep(1.millis)).doWhile(!_)
       _     <- queue.offer(25)
@@ -51,7 +51,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
   def e3 = unsafeRun(
     for {
-      queue <- IOQueue.make[Void, Int](0)
+      queue <- IOQueue.bounded[Void, Int](0)
       _     <- queue.offer[Void](14).fork
       check <- (queue.interruptOffer[Void](new Exception("interrupt offer in e3")) <* IO.sleep(1.millis)).doWhile(!_)
       _     <- queue.offer[Void](12)
@@ -61,7 +61,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
   def e4 = unsafeRun(
     for {
-      queue <- IOQueue.make[Void, String](100)
+      queue <- IOQueue.bounded[Void, String](100)
       f1 <- queue
              .take[Void]
              .zipWith(queue.take[Void])(_ + _)
@@ -75,7 +75,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
   def e5 =
     unsafeRun(for {
-      queue <- IOQueue.make[Void, Int](10)
+      queue <- IOQueue.bounded[Void, Int](10)
       _     <- IO.forkAll(List.fill(10)(queue.take[Void].toUnit))
       _     <- waitForSize(queue, -10)
       _     <- Range.inclusive(1, 10).map(queue.offer[Void]).foldLeft[IO[Void, Unit]](IO.unit)(_ *> _)
@@ -85,7 +85,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
   def e6 =
     unsafeRun(for {
-      queue <- IOQueue.make[Void, Int](10)
+      queue <- IOQueue.bounded[Void, Int](10)
       order = Range.inclusive(1, 10).toList
       _     <- IO.forkAll(order.map(queue.offer[Void]))
       _     <- waitForSize(queue, 10)
@@ -94,7 +94,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
   def e7 =
     unsafeRun(for {
-      queue <- IOQueue.make[Void, Int](10)
+      queue <- IOQueue.bounded[Void, Int](10)
       _     <- queue.offer[Void](1).repeatN(20).fork
       _     <- waitForSize(queue, 11)
       size  <- queue.size
@@ -102,7 +102,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
   def e8 =
     unsafeRun(for {
-      queue  <- IOQueue.make[Void, Int](5)
+      queue  <- IOQueue.bounded[Void, Int](5)
       orders = Range.inclusive(1, 10).toList
       _      <- IO.forkAll(orders.map(n => waitForSize(queue, n - 1) *> queue.offer(n)))
       _      <- waitForSize(queue, 10)
@@ -111,7 +111,7 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
   def e9 = unsafeRun(
     for {
-      queue <- IOQueue.make[Void, Int](100)
+      queue <- IOQueue.bounded[Void, Int](100)
       f     <- queue.take[Void].fork
       _     <- f.interrupt
       size  <- queue.size[Void]
@@ -120,11 +120,23 @@ class IOQueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTi
 
   def e10 = unsafeRun(
     for {
-      queue <- IOQueue.make[Void, Int](0)
+      queue <- IOQueue.bounded[Void, Int](0)
       f     <- queue.offer[Void](1).fork
       _     <- f.interrupt
       size  <- queue.size[Void]
     } yield size must_=== 0
+  )
+
+  def e11 = unsafeRun(
+    for {
+      queue <- IOQueue.unbounded[Void, Int]
+      _     <- queue.offer(1)
+      _     <- queue.offer(2)
+      _     <- queue.offer(3)
+      v1    <- queue.take
+      v2    <- queue.take
+      v3    <- queue.take
+    } yield (v1 must_=== 1) and (v2 must_=== 2) and (v3 must_=== 3)
   )
 
   private def waitForSize[A](queue: IOQueue[A], size: Int): IO[Void, Int] =

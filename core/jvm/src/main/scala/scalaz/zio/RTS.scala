@@ -490,31 +490,9 @@ private object RTS {
                   case IO.Tags.AsyncIOEffect =>
                     val io = curIo.asInstanceOf[IO.AsyncIOEffect[E, Any]]
 
-                    enterAsyncStart()
-
-                    try {
-                      val value = rts.unsafeRunSync(io.register(resumeAsync))
-
-                      // Value returned synchronously, callback will never be
-                      // invoked. Attempt resumption now:
-                      if (shouldResumeAsync()) {
-                        value match {
-                          case ExitResult.Completed(v) =>
-                            curIo = nextInstr[E](v, stack)
-
-                            if (curIo eq null) {
-                              result = value.asInstanceOf[ExitResult[E, Any]]
-                            }
-                          case ExitResult.Terminated(ts) =>
-                            curIo = IO.terminate0(ts)
-                          case ExitResult.Failed(e) =>
-                            curIo = IO.fail(e)
-                        }
-                      } else {
-                        // Completion handled by interruptor:
-                        curIo = null
-                      }
-                    } finally enterAsyncEnd()
+                    curIo = IO.async { callback =>
+                      rts.unsafeRunAsync(io.register(callback))(_ => ())
+                    }
 
                   case IO.Tags.Attempt =>
                     val io = curIo.asInstanceOf[IO.Attempt[E, Any, Any, Any]]
