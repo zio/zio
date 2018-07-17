@@ -306,10 +306,9 @@ sealed abstract class IO[E, A] { self =>
 
   /**
    * Supervises this action, which ensures that any fibers that are forked by
-   * the action are interrupted with the specified error when this action
-   * completes.
+   * the action are interrupted when this action completes.
    */
-  final def supervised(error: Throwable): IO[E, A] = new IO.Supervise(self, error)
+  final def supervised: IO[E, A] = new IO.Supervise(self)
 
   /**
    * Performs this action non-interruptibly. This will prevent the action from
@@ -625,7 +624,7 @@ object IO {
     override def tag = Tags.Sleep
   }
 
-  final class Supervise[E, A] private[IO] (val value: IO[E, A], val error: Throwable) extends IO[E, A] {
+  final class Supervise[E, A] private[IO] (val value: IO[E, A]) extends IO[E, A] {
     override def tag = Tags.Supervise
   }
 
@@ -684,10 +683,9 @@ object IO {
 
   /**
    * Supervises the specified action, which ensures that any actions directly
-   * forked by the action are killed with the specified error upon the action's
-   * own termination.
+   * forked by the action are killed upon the action's own termination.
    */
-  final def supervise[E, A](io: IO[E, A], error: Throwable): IO[E, A] = new Supervise(io, error)
+  final def supervise[E, A](io: IO[E, A]): IO[E, A] = new Supervise(io)
 
   /**
    * Flattens a nested action.
