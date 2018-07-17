@@ -10,13 +10,13 @@ import Errors._
  *
  * {{{
  * import java.io.IOException
- * import scalaz.zio.{IO, IOApp, Void}
+ * import scalaz.zio.{App, IO, Void}
  * import scalaz.zio.console._
  *
- * object MyApp extends IOApp {
+ * object MyApp extends App {
  *
  *   def run(args: List[String]): IO[Void, ExitStatus] =
- *     myAppLogic.attempt.map(_.fold(_ => 1)(_ => 0)).map(ExitStatus.ExitNow(_))
+ *     myAppLogic.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
  *
  *   def myAppLogic: IO[IOException, Unit] =
  *     for {
@@ -27,7 +27,7 @@ import Errors._
  * }
  * }}}
  */
-trait IOApp extends RTS {
+trait App extends RTS {
 
   sealed trait ExitStatus
   object ExitStatus {
