@@ -417,10 +417,13 @@ private object RTS {
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
-                        val finalization = finalizer.flatMap(unhandled)
+                        val finalization = finalizer.flatMap(ts => unhandled(ts).const(ts))
                         val completer    = io
 
-                        curIo = doNotInterrupt(finalization).widenError[E] *> completer
+                        curIo = doNotInterrupt(finalization).widenError[E].flatMap {
+                          case Nil => completer
+                          case ts  => IO.terminate0(Errors.UnhandledError(error) :: ts)
+                        }
                       }
                     } else {
                       // Error caught:
@@ -430,10 +433,13 @@ private object RTS {
                         curIo = handled
                       } else {
                         // Must run finalizer first:
-                        val finalization = finalizer.flatMap(unhandled)
+                        val finalization = finalizer.flatMap(ts => unhandled(ts).const(ts))
                         val completer    = handled
 
-                        curIo = doNotInterrupt(finalization).widenError[E] *> completer
+                        curIo = doNotInterrupt(finalization).widenError[E].flatMap {
+                          case Nil => completer
+                          case ts  => IO.terminate0(Errors.UnhandledError(error) :: ts)
+                        }
                       }
                     }
 

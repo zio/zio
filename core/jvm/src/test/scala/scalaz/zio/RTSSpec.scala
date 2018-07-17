@@ -182,12 +182,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
 
   def testEvalOfMultipleFailingFinalizers =
-    unsafeRun(
-      IO.point[Void, Int](42)
-        .ensuring(IO.terminate(InterruptCause1, InterruptCause2))
-        .ensuring(IO.terminate(InterruptCause2, InterruptCause3))
-        .run
-    ) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2, InterruptCause2, InterruptCause3))
+    unsafeRun((for {
+      f <- IO
+            .fail[Throwable, Unit](ExampleError)
+            .ensuring(IO.sync(throw InterruptCause1))
+            .ensuring(IO.sync(throw InterruptCause2))
+            .ensuring(IO.sync(throw InterruptCause3))
+            .fork
+      _ <- f.join
+    } yield ()).run) must_=== ExitResult.Terminated(
+      List(UnhandledError(ExampleError), InterruptCause1, InterruptCause2, InterruptCause3)
+    )
 
   def testEvalOfFailEnsuring = {
     var finalized = false
