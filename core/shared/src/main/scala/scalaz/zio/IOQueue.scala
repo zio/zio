@@ -135,10 +135,17 @@ class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
 object IOQueue {
 
   /**
-   * Makes a new queue.
+   * Makes a new bounded queue.
+   * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
+   * until there is more room in the queue.
    */
-  final def make[E, A](capacity: Int): IO[E, IOQueue[A]] =
+  final def bounded[E, A](capacity: Int): IO[E, IOQueue[A]] =
     IORef[E, State[A]](Surplus[A](Queue.empty, Queue.empty)).map(new IOQueue[A](capacity, _))
+
+  /**
+   * Makes a new unbounded queue.
+   */
+  final def unbounded[E, A]: IO[E, IOQueue[A]] = bounded(Int.MaxValue)
 
   private[zio] object internal {
     sealed trait State[A] {
