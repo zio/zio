@@ -224,10 +224,10 @@ private object RTS {
       }
     }
 
-    private final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
+    private final def collectDefect[E, A](e: ExitResult[E, A]): Option[List[Throwable]] =
       e match {
-        case ExitResult.Terminated(ts) => ts
-        case _                         => Nil
+        case ExitResult.Terminated(ts) => Some(ts)
+        case _                         => None
       }
 
     /**
@@ -236,9 +236,9 @@ private object RTS {
      * empty in the sole case the exception was not caught by any exception
      * handler—i.e. the exceptional case.
      */
-    final def catchError: IO[Void, List[Throwable]] = {
-      var errorHandler: Any => IO[Any, Any]    = null
-      var finalizer: IO[Void, List[Throwable]] = null
+    final def catchError: IO[Void, Option[List[Throwable]]] = {
+      var errorHandler: Any => IO[Any, Any]            = null
+      var finalizer: IO[Void, Option[List[Throwable]]] = null
 
       // Unwind the stack, looking for exception handlers and coalescing
       // finalizers.
@@ -247,9 +247,15 @@ private object RTS {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
+            val f: IO[Void, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
-            else finalizer = finalizer.zipWith(f)(_ ++ _)
+            else
+              finalizer = finalizer.zipWith(f) {
+                case (Some(ts1), Some(ts2)) => Some(ts1 ++ ts2)
+                case (Some(ts1), None)      => Some(ts1)
+                case (None, Some(ts2))      => Some(ts2)
+                case _                      => None
+              }
           case _ =>
         }
       }
@@ -269,9 +275,9 @@ private object RTS {
      * Empties the stack, collecting all finalizers and coalescing them into an
      * action that produces a list (possibly empty) of errors during finalization.
      */
-    final def interruptStack: IO[Void, List[Throwable]] = {
+    final def interruptStack: IO[Void, Option[List[Throwable]]] = {
       // Use null to achieve zero allocs for the common case of no finalizers:
-      var finalizer: IO[Void, List[Throwable]] = null
+      var finalizer: IO[Void, Option[List[Throwable]]] = null
 
       while (!stack.isEmpty) {
         // Peel off all the finalizers, composing them into a single finalizer
@@ -280,9 +286,15 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer =>
-            val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
+            val f: IO[Void, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
-            else finalizer = finalizer.zipWith(f)(_ ++ _)
+            else
+              finalizer = finalizer.zipWith(f) {
+                case (Some(ts1), Some(ts2)) => Some(ts1 ++ ts2)
+                case (Some(ts1), None)      => Some(ts1)
+                case (None, Some(ts2))      => Some(ts2)
+                case _                      => None
+              }
           case _ =>
         }
       }
@@ -416,13 +428,13 @@ private object RTS {
                         rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error) :: Nil)))
                       } else {
                         // We have finalizers to run. We'll resume executing with the
-                        // uncaught failure after we have executed all the finalizers:
-                        val finalization = finalizer.flatMap(ts => unhandled(ts).const(ts))
-                        val completer    = io
+                        // uncaught failure after we have executed all the finalizers,
+                        // but only if they run successfully:
+                        val completer = io
 
-                        curIo = doNotInterrupt(finalization).widenError[E].flatMap {
-                          case Nil => completer
-                          case ts  => IO.terminate0(Errors.UnhandledError(error) :: ts)
+                        curIo = doNotInterrupt(finalizer).widenError[E].flatMap {
+                          case None     => completer
+                          case Some(ts) => IO.terminate0(Errors.UnhandledError(error) :: ts)
                         }
                       }
                     } else {
@@ -433,12 +445,11 @@ private object RTS {
                         curIo = handled
                       } else {
                         // Must run finalizer first:
-                        val finalization = finalizer.flatMap(ts => unhandled(ts).const(ts))
-                        val completer    = handled
+                        val completer = handled
 
-                        curIo = doNotInterrupt(finalization).widenError[E].flatMap {
-                          case Nil => completer
-                          case ts  => IO.terminate0(Errors.UnhandledError(error) :: ts)
+                        curIo = doNotInterrupt(finalizer).widenError[E].flatMap {
+                          case None     => completer
+                          case Some(ts) => IO.terminate0(Errors.UnhandledError(error) :: ts)
                         }
                       }
                     }
@@ -564,10 +575,12 @@ private object RTS {
                       rts.submit(rts.unsafeRun(unhandled(causes)))
                     } else {
                       // Must run finalizers first before failing:
-                      val finalization = finalizer.flatMap(unhandled)
-                      val completer    = io
+                      val completer = io
 
-                      curIo = doNotInterrupt(finalization).widenError[E] *> completer
+                      curIo = doNotInterrupt(finalizer).widenError[E].flatMap {
+                        case None     => completer
+                        case Some(ts) => IO.terminate0(causes ++ ts)
+                      }
                     }
 
                   case IO.Tags.Supervisor =>
@@ -937,7 +950,7 @@ private object RTS {
             val finalizer = interruptStack
 
             if (finalizer ne null) {
-              fork[Void, Unit](finalizer.flatMap(unhandled), unhandled)
+              fork[Void, Unit](finalizer.flatMap(ts => unhandled(ts.getOrElse(Nil))), unhandled)
                 .runAsync((_: ExitResult[Void, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
               Async.later[E2, Unit]
             } else Async.now(SuccessUnit[E2])
