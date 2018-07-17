@@ -837,7 +837,7 @@ object IO {
   final def bracket0[E, A, B](
     acquire: IO[E, A]
   )(release: (A, Option[Either[E, B]]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IORef[E, Option[(A, Option[Either[E, B]])]](None).flatMap { m =>
+    Ref[E, Option[(A, Option[Either[E, B]])]](None).flatMap { m =>
       (for {
         a <- acquire
               .flatMap(a => m.write[E](Some((a, None))).const(a))
@@ -860,7 +860,7 @@ object IO {
   final def bracket[E, A, B](
     acquire: IO[E, A]
   )(release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IORef[E, Option[A]](None).flatMap { m =>
+    Ref[E, Option[A]](None).flatMap { m =>
       (for {
         a <- acquire.flatMap(a => m.write[E](Some(a)).const(a)).uninterruptibly
         b <- use(a)
@@ -886,7 +886,7 @@ object IO {
   def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] = {
-    @tailrec def parTraverse_rec(as: Iterator[A], ioref: IO[E, IORef[List[B]]]): IO[E, IORef[List[B]]] =
+    @tailrec def parTraverse_rec(as: Iterator[A], ioref: IO[E, Ref[List[B]]]): IO[E, Ref[List[B]]] =
       if (!as.hasNext)
         ioref
       else {
@@ -894,7 +894,7 @@ object IO {
         parTraverse_rec(as, ioref.par(fn(a)).flatMap { case (ref, b) => ref.modify(b :: _) *> point(ref) })
       }
 
-    parTraverse_rec(in.toIterator, IORef[E, List[B]](Nil))
+    parTraverse_rec(in.toIterator, Ref[E, List[B]](Nil))
       .flatMap(_.read)
       .map(_.foldLeft(cbf(in))(_ += _).result())
   }

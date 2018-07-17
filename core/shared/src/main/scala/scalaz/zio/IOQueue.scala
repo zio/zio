@@ -17,7 +17,7 @@ import IOQueue.internal._
  * 2. Benchmark to see how slow this implementation is and if there are any
  *    easy ways to improve performance.
  */
-class IOQueue[A] private (capacity: Int, ref: IORef[State[A]]) {
+class IOQueue[A] private (capacity: Int, ref: Ref[State[A]]) {
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
@@ -140,7 +140,7 @@ object IOQueue {
    * until there is more room in the queue.
    */
   final def bounded[E, A](capacity: Int): IO[E, IOQueue[A]] =
-    IORef[E, State[A]](Surplus[A](Queue.empty, Queue.empty)).map(new IOQueue[A](capacity, _))
+    Ref[E, State[A]](Surplus[A](Queue.empty, Queue.empty)).map(new IOQueue[A](capacity, _))
 
   /**
    * Makes a new unbounded queue.
