@@ -1,6 +1,6 @@
 package scalaz.zio
 
-trait IOApp {
+trait App {
 
   /**
    * The main function of the application, which will be passed the command-line
