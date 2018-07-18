@@ -194,7 +194,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
             .fork0(ts => IO.sync { errors = ts })
       _ <- f.join
     } yield ()) must throwA(UnhandledError(ExampleError))
-    
+
     errors must_=== List(InterruptCause1, InterruptCause2, InterruptCause3)
   }
 
