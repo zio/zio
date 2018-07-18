@@ -415,7 +415,9 @@ private object RTS {
                         result = ExitResult.Failed(error)
 
                         // Report the uncaught error to the supervisor:
-                        rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error) :: Nil)))
+                        if (supervising > 0) {
+                          rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error) :: Nil)))
+                        }
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -557,7 +559,9 @@ private object RTS {
                       result = ExitResult.Terminated(causes)
 
                       // Report the termination cause to the supervisor:
-                      rts.submit(rts.unsafeRun(unhandled(causes)))
+                      if (supervising > 0) {
+                        rts.submit(rts.unsafeRun(unhandled(causes)))
+                      }
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = finalizer.flatMap(unhandled)

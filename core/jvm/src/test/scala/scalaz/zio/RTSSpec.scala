@@ -38,7 +38,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
     catch multiple causes                   $testEvalOfMultipleFail
     catch failing finalizers                $testEvalOfMultipleFailingFinalizers
-    catch terminating finalizers            $testEvalOfMultipleTerminatingFinalizers
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -184,29 +183,20 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       _  <- f1.join
     } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
 
-  def testEvalOfMultipleFailingFinalizers =
-    unsafeRun((for {
+  def testEvalOfMultipleFailingFinalizers = {
+    var errors: List[Throwable] = null
+    unsafeRun(for {
       f <- IO
             .fail[Throwable, Unit](ExampleError)
             .ensuring(IO.sync(throw InterruptCause1))
             .ensuring(IO.sync(throw InterruptCause2))
             .ensuring(IO.sync(throw InterruptCause3))
-            .fork
+            .fork0(ts => IO.sync { errors = ts })
       _ <- f.join
-    } yield ()).run) must_=== ExitResult.Terminated(
-      List(UnhandledError(ExampleError), InterruptCause1, InterruptCause2, InterruptCause3)
-    )
-
-  def testEvalOfMultipleTerminatingFinalizers =
-    unsafeRun((for {
-      f <- IO
-            .fail[Throwable, Unit](ExampleError)
-            .ensuring(IO.terminate)
-            .fork
-      _ <- f.join
-    } yield ()).run) must_=== ExitResult.Terminated(
-      List(UnhandledError(ExampleError))
-    )
+    } yield ()) must throwA(UnhandledError(ExampleError))
+    
+    errors must_=== List(InterruptCause1, InterruptCause2, InterruptCause3)
+  }
 
   def testEvalOfFailEnsuring = {
     var finalized = false
