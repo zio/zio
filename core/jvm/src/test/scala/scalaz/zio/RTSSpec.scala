@@ -305,11 +305,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testBracketRegression1 = {
-    def makeLogger: IORef[List[String]] => String => IO[Void, Unit] =
-      (ref: IORef[List[String]]) => (line: String) => ref.modify[Void](_ ::: List(line)).toUnit
+    def makeLogger: Ref[List[String]] => String => IO[Void, Unit] =
+      (ref: Ref[List[String]]) => (line: String) => ref.modify[Void](_ ::: List(line)).toUnit
 
     unsafeRun(for {
-      ref <- IORef[Void, List[String]](Nil)
+      ref <- Ref[Void, List[String]](Nil)
       log = makeLogger(ref)
       f <- IO
             .bracket(
@@ -327,7 +327,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testInterruptWaitsForFinalizer =
     unsafeRun(for {
-      r    <- IORef[Void, Boolean](false)
+      r    <- Ref[Void, Boolean](false)
       p1   <- Promise.make[Void, Unit]
       p2   <- Promise.make[Void, Int]
       s    <- (p1.complete(()) *> p2.get).ensuring(r.write[Void](true).toUnit.delay(10.millis)).fork
@@ -337,21 +337,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     } yield test must_=== true)
 
   def testEvalOfDeepSyncEffect = {
-    def incLeft(n: Int, ref: IORef[Int]): IO[Throwable, Int] =
+    def incLeft(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
       if (n <= 0) ref.read
       else incLeft(n - 1, ref) <* ref.modify(_ + 1)
 
-    def incRight(n: Int, ref: IORef[Int]): IO[Throwable, Int] =
+    def incRight(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
       if (n <= 0) ref.read
       else ref.modify(_ + 1) *> incRight(n - 1, ref)
 
     unsafeRun(for {
-      ref <- IORef(0)
+      ref <- Ref(0)
       v   <- incLeft(100, ref)
     } yield v) must_=== 100
 
     unsafeRun(for {
-      ref <- IORef(0)
+      ref <- Ref(0)
       v   <- incRight(1000, ref)
     } yield v) must_=== 1000
   }

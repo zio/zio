@@ -10,39 +10,39 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * {{{
  * for {
- *   ref <- IORef(2)
+ *   ref <- Ref(2)
  *   v   <- ref.modify(_ + 3)
  *   _   <- putStrLn("Value = " + v.debug) // Value = 5
  * } yield ()
  * }}}
  */
-final class IORef[A] private (private val value: AtomicReference[A]) extends AnyVal {
+final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVal {
 
   /**
-   * Reads the value from the `IORef`.
+   * Reads the value from the `Ref`.
    */
   final def read[E]: IO[E, A] = IO.sync(value.get)
 
   /**
-   * Writes a new value to the `IORef`, with a guarantee of immediate
+   * Writes a new value to the `Ref`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
   final def write[E](a: A): IO[E, Unit] = IO.sync(value.set(a))
 
   /**
-   * Writes a new value to the `IORef` without providing a guarantee of
+   * Writes a new value to the `Ref` without providing a guarantee of
    * immediate consistency.
    */
   final def writeLater[E](a: A): IO[E, Unit] = IO.sync(value.lazySet(a))
 
   /**
-   * Attempts to write a new value to the `IORef`, but aborts immediately under
+   * Attempts to write a new value to the `Ref`, but aborts immediately under
    * concurrent modification of the value by other fibers.
    */
   final def tryWrite[E](a: A): IO[E, Boolean] = IO.sync(value.compareAndSet(value.get, a))
 
   /**
-   * Atomically modifies the `IORef` with the specified function. This is not
+   * Atomically modifies the `Ref` with the specified function. This is not
    * implemented in terms of `modifyFold` purely for performance reasons.
    */
   final def modify[E](f: A => A): IO[E, A] = IO.sync {
@@ -61,7 +61,7 @@ final class IORef[A] private (private val value: AtomicReference[A]) extends Any
   }
 
   /**
-   * Atomically modifies the `IORef` with the specified function, which computes
+   * Atomically modifies the `Ref` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `modify`.
    */
@@ -83,17 +83,17 @@ final class IORef[A] private (private val value: AtomicReference[A]) extends Any
   }
 
   /**
-   * Compares and sets the value of the `IORef` if and only if it is `eq` to the
+   * Compares and sets the value of the `Ref` if and only if it is `eq` to the
    * specified value. Returns whether or not the ref was modified.
    */
   final def compareAndSet[E](prev: A, next: A): IO[E, Boolean] =
     IO.sync(value.compareAndSet(prev, next))
 }
 
-object IORef {
+object Ref {
 
   /**
-   * Creates a new `IORef` with the specified value.
+   * Creates a new `Ref` with the specified value.
    */
-  final def apply[E, A](a: A): IO[E, IORef[A]] = IO.sync(new IORef[A](new AtomicReference(a)))
+  final def apply[E, A](a: A): IO[E, Ref[A]] = IO.sync(new Ref[A](new AtomicReference(a)))
 }
