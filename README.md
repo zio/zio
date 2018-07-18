@@ -33,22 +33,22 @@ A value of type `IO[E, A]` describes an effect that may fail with an `E`, run fo
 
 `IO` values are immutable, and all `IO` functions produce new `IO` values, enabling `IO` to be reasoned about and used like any ordinary Scala immutable data structure.
 
-`IO` values do not actually _do_ anything. However, they may be interpreted by the `IO` runtime system into effectful interactions with the external world. Ideally, this occurs at a single time, in your application's `main` function (`IOApp` provides this functionality automatically).
+`IO` values do not actually _do_ anything. However, they may be interpreted by the `IO` runtime system into effectful interactions with the external world. Ideally, this occurs at a single time, in your application's `main` function (`App` provides this functionality automatically).
 
 # Usage
 
 ## Main
 
-Your main function can extend `IOApp`, which provides a complete runtime
+Your main function can extend `App`, which provides a complete runtime
 system and allows your entire program to be purely functional.
 
 ```scala
-import scalaz.zio.{IO, IOApp, Void}
+import scalaz.zio.{App, IO, Void}
 import scalaz.zio.console._
 
 import java.io.IOException
 
-object MyApp extends IOApp {
+object MyApp extends App {
 
   def run(args: List[String]): IO[Void, ExitStatus] =
     myAppLogic.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))

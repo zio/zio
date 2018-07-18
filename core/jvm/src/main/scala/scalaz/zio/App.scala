@@ -3,18 +3,20 @@ package scalaz.zio
 
 import scala.concurrent.duration.Duration
 
+import Errors._
+
 /**
  * The entry point for a purely-functional application on the JVM.
  *
  * {{{
  * import java.io.IOException
- * import scalaz.zio.{IO, IOApp, Void}
+ * import scalaz.zio.{App, IO, Void}
  * import scalaz.zio.console._
  *
- * object MyApp extends IOApp {
+ * object MyApp extends App {
  *
  *   def run(args: List[String]): IO[Void, ExitStatus] =
- *     myAppLogic.attempt.map(_.fold(_ => 1)(_ => 0)).map(ExitStatus.ExitNow(_))
+ *     myAppLogic.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
  *
  *   def myAppLogic: IO[IOException, Unit] =
  *     for {
@@ -25,7 +27,7 @@ import scala.concurrent.duration.Duration
  * }
  * }}}
  */
-trait IOApp extends RTS {
+trait App extends RTS {
 
   sealed trait ExitStatus
   object ExitStatus {
@@ -44,7 +46,15 @@ trait IOApp extends RTS {
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit =
-    unsafeRun(run(args0.toList)) match {
+    unsafeRun(
+      for {
+        fiber <- run(args0.toList).fork
+        _ <- IO.sync(Runtime.getRuntime.addShutdownHook(new Thread {
+              override def run() = unsafeRun(fiber.interrupt(TerminatedException("interrupted")))
+            }))
+        result <- fiber.join
+      } yield result
+    ) match {
       case ExitStatus.ExitNow(code) =>
         sys.exit(code)
       case ExitStatus.ExitWhenDone(code, timeout) =>
