@@ -114,7 +114,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private def interruptJoiner(joiner: Callback[E, A]): Canceler = { _ =>
+  private def interruptJoiner(joiner: Callback[E, A]): Canceler = { () =>
     var retry = true
 
     while (retry) {

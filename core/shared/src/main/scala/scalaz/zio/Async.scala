@@ -14,8 +14,8 @@ package scalaz.zio
 sealed abstract class Async[E, A]
 object Async {
 
-  val NoOpCanceler: Canceler         = _ => ()
-  val NoOpPureCanceler: PureCanceler = _ => IO.unit[Void]
+  val NoOpCanceler: Canceler         = () => ()
+  val NoOpPureCanceler: PureCanceler = () => IO.unit[Void]
 
   private val _Later: Async[Void, Void] = MaybeLater(NoOpCanceler)
 
