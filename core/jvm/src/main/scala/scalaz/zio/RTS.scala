@@ -94,13 +94,13 @@ trait RTS {
         def run: Unit = submit(block)
       }, duration.toNanos, TimeUnit.NANOSECONDS)
 
-      Async.maybeLater { _ =>
+      Async.maybeLater { () =>
         future.cancel(true); ()
       }
     }
 
   final def impureCanceler(canceler: PureCanceler): Canceler =
-    th => unsafeRun(canceler(th))
+    () => unsafeRun(canceler())
 }
 
 private object RTS {
@@ -923,7 +923,7 @@ private object RTS {
             cancelOpt match {
               case None =>
               case Some(cancel) =>
-                try ts.foreach(cancel)
+                try cancel()
                 catch {
                   case t: Throwable if (nonFatal(t)) =>
                     supervise(fork(unhandled(t :: Nil)[E], unhandled))
@@ -1014,8 +1014,8 @@ private object RTS {
     } else if (c2 eq null) {
       c1
     } else
-      (t: Throwable) => {
-        c1(t)
-        c2(t)
+      () => {
+        c1()
+        c2()
       }
 }
