@@ -52,7 +52,7 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done[String](ExitResult.Failed("error in e4"))
+        s <- p.done[String](ExitResult.Failed("error in e4", Nil))
         v <- p.get.attempt[String]
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )

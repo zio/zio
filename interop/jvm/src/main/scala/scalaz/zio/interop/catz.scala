@@ -15,7 +15,7 @@ object catz extends RTS {
     )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.IO[Unit] = {
       val cbZ2C: ExitResult[Throwable, A] => Either[Throwable, A] = {
         case ExitResult.Completed(a)       => Right(a)
-        case ExitResult.Failed(t)          => Left(t)
+        case ExitResult.Failed(t, _)       => Left(t)
         case ExitResult.Terminated(Nil)    => Left(Errors.InterruptedFiber)
         case ExitResult.Terminated(t :: _) => Left(t)
       }
@@ -29,7 +29,7 @@ object catz extends RTS {
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] = {
       val kk = k.compose[ExitResult[Throwable, A] => Unit] {
         _.compose[Either[Throwable, A]] {
-          case Left(t)  => ExitResult.Failed(t)
+          case Left(t)  => ExitResult.Failed(t, Nil)
           case Right(r) => ExitResult.Completed(r)
         }
       }

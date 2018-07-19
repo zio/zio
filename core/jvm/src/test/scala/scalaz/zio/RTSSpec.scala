@@ -519,7 +519,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   val InterruptCause2 = new Exception("Oh noes 2!")
   val InterruptCause3 = new Exception("Oh noes 3!")
 
-  def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError)))
+  def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError, Nil)))
 
   def sum(n: Int): Int =
     if (n <= 0) 0
