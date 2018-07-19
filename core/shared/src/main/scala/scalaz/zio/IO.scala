@@ -673,7 +673,7 @@ object IO {
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
     case ExitResult.Completed(b)   => now(b)
     case ExitResult.Terminated(ts) => terminate0(ts)
-    case ExitResult.Failed(e)      => fail(e)
+    case ExitResult.Failed(e, _)      => fail(e)
   }
 
   /**

@@ -11,7 +11,7 @@ object future {
       IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
         ftr().onComplete {
           case Success(a) => cb(ExitResult.Completed(a))
-          case Failure(t) => cb(ExitResult.Failed(t))
+          case Failure(t) => cb(ExitResult.Failed(t, Nil))
         }(ec)
       }
   }

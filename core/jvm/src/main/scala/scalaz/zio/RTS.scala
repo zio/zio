@@ -22,7 +22,7 @@ trait RTS {
     case ExitResult.Completed(v)       => v
     case ExitResult.Terminated(Nil)    => throw Errors.InterruptedFiber
     case ExitResult.Terminated(t :: _) => throw t
-    case ExitResult.Failed(e)          => throw Errors.UnhandledError(e)
+    case ExitResult.Failed(e, _)       => throw Errors.UnhandledError(e)
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
@@ -412,7 +412,7 @@ private object RTS {
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
                         curIo = null
-                        result = ExitResult.Failed(error)
+                        result = ExitResult.Failed(error, Nil)
 
                         // Report the uncaught error to the supervisor:
                         rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error) :: Nil)))
@@ -459,7 +459,7 @@ private object RTS {
                                 }
                               case ExitResult.Terminated(ts) =>
                                 curIo = IO.terminate0(ts)
-                              case ExitResult.Failed(e) =>
+                              case ExitResult.Failed(e, _) =>
                                 curIo = IO.fail(e)
                             }
                           } else {
@@ -645,7 +645,7 @@ private object RTS {
           if (io eq null) done(value.asInstanceOf[ExitResult[E, A]])
           else evaluate(io)
 
-        case ExitResult.Failed(t) => evaluate(IO.fail[E, Any](t))
+        case ExitResult.Failed(t, _) => evaluate(IO.fail[E, Any](t))
 
         case ExitResult.Terminated(ts) => evaluate(IO.terminate0[E, Any](ts))
       }
@@ -739,7 +739,7 @@ private object RTS {
     }
 
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
-      x => cb(x.mapError(_ => SuccessUnit[E2]))
+      x => cb(x.mapError(_.asInstanceOf[E2]))
 
     final def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit] =
       IO.async0[E2, Unit](cb => kill0[E2](ts, changeErrorUnit[E2](cb)))
