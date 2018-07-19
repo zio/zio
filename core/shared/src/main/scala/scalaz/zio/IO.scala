@@ -131,7 +131,7 @@ sealed abstract class IO[E, A] { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0[E2](handler: PureCanceler): IO[E2, Fiber[E, A]] =
+  final def fork0[E2](handler: ErrorHandler): IO[E2, Fiber[E, A]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -599,7 +599,7 @@ object IO {
     final def apply(v: A): IO[E2, B] = succ(v)
   }
 
-  final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[PureCanceler])
+  final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[ErrorHandler])
       extends IO[E2, Fiber[E1, A]] {
     override def tag = Tags.Fork
   }
@@ -632,7 +632,7 @@ object IO {
     override def tag = Tags.Terminate
   }
 
-  final class Supervisor[E] private[IO] () extends IO[E, PureCanceler] {
+  final class Supervisor[E] private[IO] () extends IO[E, ErrorHandler] {
     override def tag = Tags.Supervisor
   }
 
@@ -819,7 +819,7 @@ object IO {
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  final def supervisor[E]: IO[E, PureCanceler] = new Supervisor()
+  final def supervisor[E]: IO[E, ErrorHandler] = new Supervisor()
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
