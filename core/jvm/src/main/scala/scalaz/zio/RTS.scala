@@ -861,7 +861,7 @@ private object RTS {
             while (iterator.hasNext()) {
               val child = iterator.next()
 
-              action = action *> child.interrupt[E2]
+              action = action *> child.interrupt[E2](Errors.InterruptedFiber)
             }
 
             tail
