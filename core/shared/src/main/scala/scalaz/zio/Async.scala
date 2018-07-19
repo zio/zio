@@ -9,7 +9,7 @@ package scalaz.zio
  * asynchronous action, `now` which represents a synchronously computed value,
  * `maybeLater`, which represents an interruptible asynchronous action or `maybeLaterIO`
  * which represents an interruptible asynchronous action where the canceler has the
- * form `List[Throwable] => IO[Void, Unit]`
+ * form `Throwable => IO[Void, Unit]`
  */
 sealed abstract class Async[E, A]
 object Async {

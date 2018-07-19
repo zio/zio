@@ -163,7 +163,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val unhandled: PureCanceler) extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val unhandled: ErrorHandler) extends Fiber[E, A] {
     import FiberStatus._
     import java.util.{ Collections, Set, WeakHashMap }
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }
@@ -623,7 +623,7 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: PureCanceler): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: ErrorHandler): FiberContext[E, A] = {
       val context = new FiberContext[E, A](rts, handler)
 
       rts.submit(context.evaluate(io))
@@ -700,7 +700,7 @@ private object RTS {
         if (won) resume(tryA.map(finish))
       }
 
-    private final def raceWith[A, B, C](unhandled: PureCanceler,
+    private final def raceWith[A, B, C](unhandled: ErrorHandler,
                                         leftIO: IO[E, A],
                                         rightIO: IO[E, B],
                                         finishLeft: (A, Fiber[E, B]) => IO[E, C],
@@ -923,7 +923,7 @@ private object RTS {
             cancelOpt match {
               case None =>
               case Some(cancel) =>
-                try cancel(ts)
+                try ts.foreach(cancel)
                 catch {
                   case t: Throwable if (nonFatal(t)) =>
                     supervise(fork(unhandled(t :: Nil)[E], unhandled))
@@ -1014,8 +1014,8 @@ private object RTS {
     } else if (c2 eq null) {
       c1
     } else
-      (ts: List[Throwable]) => {
-        c1(ts)
-        c2(ts)
+      (t: Throwable) => {
+        c1(t)
+        c2(t)
       }
 }

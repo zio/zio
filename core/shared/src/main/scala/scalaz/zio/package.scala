@@ -21,6 +21,7 @@ package object zio {
   type Infallible[A]  = IO[Void, A]
   type Callback[E, A] = ExitResult[E, A] => Unit
 
-  type Canceler     = List[Throwable] => Unit
-  type PureCanceler = List[Throwable] => Infallible[Unit]
+  type Canceler     = Throwable => Unit
+  type PureCanceler = Throwable => Infallible[Unit]
+  type ErrorHandler = List[Throwable] => Infallible[Unit]
 }
