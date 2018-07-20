@@ -42,7 +42,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTime
   def e2 = unsafeRun(
     for {
       queue <- Queue.bounded[Void, Int](100)
-      _     <- queue.take[Void].fork
+      _     <- queue.take[Void].fork[Void, Void, Int]
       check <- (queue.interruptTake[Void](new Exception("interrupt take in e2")) <* IO.sleep(1.millis)).doWhile(!_)
       _     <- queue.offer(25)
       v     <- queue.take
@@ -52,7 +52,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTime
   def e3 = unsafeRun(
     for {
       queue <- Queue.bounded[Void, Int](0)
-      _     <- queue.offer[Void](14).fork
+      _     <- queue.offer(14).fork[Void, Void, Unit]
       check <- (queue.interruptOffer[Void](new Exception("interrupt offer in e3")) <* IO.sleep(1.millis)).doWhile(!_)
       _     <- queue.offer[Void](12)
       v     <- queue.take
@@ -65,7 +65,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTime
       f1 <- queue
              .take[Void]
              .zipWith(queue.take[Void])(_ + _)
-             .fork
+             .fork[Void, Void, String]
       _ <- queue.offer[Void]("don't ") *> queue.offer[Void]("give up :D")
       v <- f1.join
     } yield v must_=== "don't give up :D"
@@ -95,7 +95,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTime
   def e7 =
     unsafeRun(for {
       queue <- Queue.bounded[Void, Int](10)
-      _     <- queue.offer[Void](1).repeatN(20).fork
+      _     <- queue.offer[Void](1).repeatN(20).fork[Void, Void, Unit]
       _     <- waitForSize(queue, 11)
       size  <- queue.size
     } yield size must_=== 11)
@@ -112,7 +112,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTime
   def e9 = unsafeRun(
     for {
       queue <- Queue.bounded[Void, Int](100)
-      f     <- queue.take[Void].fork
+      f     <- queue.take[Void].fork[Void, Void, Int]
       _     <- f.interrupt(new Exception("interrupt fiber in e9"))
       size  <- queue.size[Void]
     } yield size must_=== 0
@@ -121,7 +121,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTime
   def e10 = unsafeRun(
     for {
       queue <- Queue.bounded[Void, Int](0)
-      f     <- queue.offer[Void](1).fork
+      f     <- queue.offer[Void](1).fork[Void, Void, Unit]
       _     <- f.interrupt(new Exception("interrupt fiber in e10"))
       size  <- queue.size[Void]
     } yield size must_=== 0

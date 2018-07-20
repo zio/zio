@@ -261,7 +261,7 @@ private object RTS {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
+            val f: IO[Void, List[Throwable]] = f0.finalizer.run[Void, Void, Unit].map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
           case _ =>
@@ -294,7 +294,7 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer =>
-            val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
+            val f: IO[Void, List[Throwable]] = f0.finalizer.run[Void, Void, Unit].map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
           case _ =>
@@ -498,7 +498,7 @@ private object RTS {
                   case IO.Tags.AsyncIOEffect =>
                     val io = curIo.asInstanceOf[IO.AsyncIOEffect[E, Any]]
 
-                    curIo = IO.async { callback =>
+                    curIo = IO.async[E, Any] { callback =>
                       rts.unsafeRunAsync(io.register(callback))(_ => ())
                     }
 
@@ -544,7 +544,7 @@ private object RTS {
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep[E]]
 
-                    curIo = IO.async0 { callback =>
+                    curIo = IO.async0[E, Any] { callback =>
                       rts
                         .schedule(callback(SuccessUnit[E].asInstanceOf[ExitResult[E, Any]]), io.duration)
                         .asInstanceOf[Async[E, Any]]

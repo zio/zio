@@ -83,8 +83,8 @@ class RefSpec extends Specification with RTS {
     unsafeRun(
       for {
         ref     <- Ref[Void, Int](0)
-        f1      <- ref.write[Void](1).forever[Unit].fork[Void]
-        f2      <- ref.write[Void](2).forever[Unit].fork[Void]
+        f1      <- ref.write[Void](1).forever[Unit].fork[Void, Void, Unit]
+        f2      <- ref.write[Void](2).forever[Unit].fork[Void, Void, Unit]
         success <- tryWriteUntilFalse(ref, 3)
         value   <- ref.read[Void]
         _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Void](new Error("Terminated fiber"))

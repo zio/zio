@@ -45,7 +45,7 @@ import scala.collection.mutable
  * values, see the default interpreter in `RTS` or the safe main function in
  * `App`.
  */
-sealed abstract class IO[E, A] { self =>
+sealed abstract class IO[+E, +A] { self =>
 
   /**
    * Maps an `IO[E, A]` into an `IO[E, B]` by applying the specified `A => B` function
@@ -107,7 +107,7 @@ sealed abstract class IO[E, A] { self =>
    * val parsed = readFile("foo.txt").flatMap(file => parseFile(file))
    * }}}
    */
-  final def flatMap[B](f0: A => IO[E, B]): IO[E, B] = new IO.FlatMap(self, f0)
+  final def flatMap[E1 >: E, B](f0: A => IO[E1, B]): IO[E1, B] = new IO.FlatMap(self, f0)
 
   /**
    * Forks this action into its own separate fiber, returning immediately
@@ -125,13 +125,13 @@ sealed abstract class IO[E, A] { self =>
    * } yield a
    * }}}
    */
-  final def fork[E2]: IO[E2, Fiber[E, A]] = new IO.Fork(this, None)
+  final def fork[E1 >: E, E2, A1 >: A]: IO[E2, Fiber[E1, A1]] = new IO.Fork(this, None)
 
   /**
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0[E2](handler: Throwable => Infallible[Unit]): IO[E2, Fiber[E, A]] =
+  final def fork0[E1 >: E, E2, A1 >: A](handler: Throwable => Infallible[Unit]): IO[E2, Fiber[E1, A1]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -141,10 +141,10 @@ sealed abstract class IO[E, A] { self =>
    *
    * TODO: Replace with optimized primitive.
    */
-  final def par[B](that: IO[E, B]): IO[E, (A, B)] =
+  final def par[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
     self
-      .attempt[E]
-      .raceWith(that.attempt[E])(
+      .attempt[E1]
+      .raceWith(that.attempt[E1])(
         {
           case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail(e)
           case (Right(a), fiberb) => IO.absolve(fiberb.join).map((b: B) => (a, b))
@@ -159,7 +159,7 @@ sealed abstract class IO[E, A] { self =>
    * result to produce an `A`, whichever it is. If neither action succeeds,
    * then the action will be terminated with some error.
    */
-  final def race(that: IO[E, A]): IO[E, A] =
+  final def race[E1 >: E, A1 >: A](that: IO[E1, A1]): IO[E1, A1] =
     raceWith(that)((a, fiber) => fiber.interrupt(LostRace(Right(fiber))).const(a),
                    (a, fiber) => fiber.interrupt(LostRace(Left(fiber))).const(a))
 
@@ -167,15 +167,15 @@ sealed abstract class IO[E, A] { self =>
    * Races this action with the specified action, invoking the
    * specified finisher as soon as one value or the other has been computed.
    */
-  final def raceWith[B, C](that: IO[E, B])(finishLeft: (A, Fiber[E, B]) => IO[E, C],
-                                           finishRight: (B, Fiber[E, A]) => IO[E, C]): IO[E, C] =
-    new IO.Race[E, A, B, C](self, that, finishLeft, finishRight)
+  final def raceWith[E1 >: E, A1 >: A, B, C](that: IO[E1, B])(finishLeft: (A1, Fiber[E1, B]) => IO[E1, C],
+                                                              finishRight: (B, Fiber[E1, A1]) => IO[E1, C]): IO[E1, C] =
+    new IO.Race[E1, A1, B, C](self, that, finishLeft, finishRight)
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
-  final def orElse(that: => IO[E, A]): IO[E, A] =
+  final def orElse[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
     self.redeem(_ => that, IO.now)
 
   /**
@@ -254,22 +254,24 @@ sealed abstract class IO[E, A] { self =>
    * }
    * }}}
    */
-  final def bracket[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IO.bracket(this)(release)(use)
+  final def bracket[E1 >: E, A1 >: A, B](release: A1 => Infallible[Unit])(use: A1 => IO[E1, B]): IO[E1, B] =
+    IO.bracket[E1, A1, B](this)(release)(use)
 
   /**
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
-  final def bracket0[B](release: (A, Option[Either[E, B]]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IO.bracket0(this)(release)(use)
+  final def bracket0[E1 >: E, A1 >: A, B](
+    release: (A1, Option[Either[E1, B]]) => Infallible[Unit]
+  )(use: A1 => IO[E1, B]): IO[E1, B] =
+    IO.bracket0[E1, A1, B](this)(release)(use)
 
   /**
    * A less powerful variant of `bracket` where the value produced by this
    * action is not needed.
    */
-  final def bracket_[B](release: Infallible[Unit])(use: IO[E, B]): IO[E, B] =
-    IO.bracket(self)(_ => release)(_ => use)
+  final def bracket_[E1 >: E, A1 >: A, B](release: Infallible[Unit])(use: IO[E1, B]): IO[E1, B] =
+    IO.bracket[E1, A1, B](self)(_ => release)(_ => use)
 
   /**
    * Executes the specified finalizer, whether this action succeeds, fails, or
@@ -278,12 +280,12 @@ sealed abstract class IO[E, A] { self =>
   final def ensuring(finalizer: Infallible[Unit]): IO[E, A] =
     new IO.Ensuring(self, finalizer)
 
-  /**	
-   * Executes the release action only if there was an error.	
+  /**
+   * Executes the release action only if there was an error.
    */
-  final def bracketOnError[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
-    IO.bracket0(this)(
-      (a: A, eb: Option[Either[E, B]]) =>
+  final def bracketOnError[E1 >: E, A1 >: A, B](release: A1 => Infallible[Unit])(use: A1 => IO[E1, B]): IO[E1, B] =
+    IO.bracket0[E1, A1, B](this)(
+      (a: A1, eb: Option[Either[E1, B]]) =>
         eb match {
           case Some(Right(_)) => IO.unit
           case _              => release(a)
@@ -325,8 +327,8 @@ sealed abstract class IO[E, A] { self =>
    * openFile("config.json").catchAll(_ => IO.now(defaultConfig))
    * }}}
    */
-  final def catchAll[E2](h: E => IO[E2, A]): IO[E2, A] =
-    self.redeem[E2, A](h, IO.now)
+  final def catchAll[E2, A1 >: A](h: E => IO[E2, A1]): IO[E2, A1] =
+    self.redeem[E2, A1](h, IO.now)
 
   /**
    * Recovers from some or all of the error cases.
@@ -337,10 +339,10 @@ sealed abstract class IO[E, A] { self =>
    * }
    * }}}
    */
-  final def catchSome(pf: PartialFunction[E, IO[E, A]]): IO[E, A] = {
-    def tryRescue(t: E): IO[E, A] = pf.applyOrElse(t, (_: E) => IO.fail(t))
+  final def catchSome[E1 >: E, A1 >: A](pf: PartialFunction[E1, IO[E1, A1]]): IO[E1, A1] = {
+    def tryRescue(t: E1): IO[E1, A1] = pf.applyOrElse(t, (_: E1) => IO.fail(t))
 
-    self.redeem[E, A](tryRescue, IO.now)
+    self.redeem[E1, A1](tryRescue, IO.now)
   }
 
   /**
@@ -352,19 +354,19 @@ sealed abstract class IO[E, A] { self =>
   /**
    * A variant of `flatMap` that ignores the value produced by this action.
    */
-  final def *>[B](io: => IO[E, B]): IO[E, B] = self.flatMap(_ => io)
+  final def *>[E1 >: E, B](io: => IO[E1, B]): IO[E1, B] = self.flatMap(_ => io)
 
   /**
    * Sequences the specified action after this action, but ignores the
    * value produced by the action.
    */
-  final def <*[B](io: => IO[E, B]): IO[E, A] = self.flatMap(io.const(_))
+  final def <*[E1 >: E, B](io: => IO[E1, B]): IO[E1, A] = self.flatMap(io.const(_))
 
   /**
    * Sequentially zips this effect with the specified effect using the
    * specified combiner function.
    */
-  final def zipWith[B, C](that: IO[E, B])(f: (A, B) => C): IO[E, C] =
+  final def zipWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 
   /**
@@ -470,7 +472,7 @@ sealed abstract class IO[E, A] { self =>
    * readFile("data.json").peek(putStrLn)
    * }}}
    */
-  final def peek[B](f: A => IO[E, B]): IO[E, A] = self.flatMap(a => f(a).const(a))
+  final def peek[E1 >: E, A1 >: A, B](f: A1 => IO[E1, B]): IO[E1, A1] = self.flatMap(a => f(a).const(a))
 
   /**
    * Times out this action by the specified duration.
@@ -492,15 +494,15 @@ sealed abstract class IO[E, A] { self =>
   /**
    * A more powerful variation of `timed` that allows specifying the clock.
    */
-  final def timed0(nanoTime: IO[E, Long]): IO[E, (Duration, A)] =
-    summarized[Long, Duration]((start, end) => Duration.fromNanos(end - start))(nanoTime)
+  final def timed0[E1 >: E](nanoTime: IO[E1, Long]): IO[E1, (Duration, A)] =
+    summarized[E1, Long, Duration]((start, end) => Duration.fromNanos(end - start))(nanoTime)
 
   /**
    * Summarizes a action by computing some value before and after execution, and
    * then combining the values to produce a summary, together with the result of
    * execution.
    */
-  final def summarized[B, C](f: (B, B) => C)(summary: IO[E, B]): IO[E, (C, A)] =
+  final def summarized[E1 >: E, B, C](f: (B, B) => C)(summary: IO[E1, B]): IO[E1, (C, A)] =
     for {
       start <- summary
       value <- self
@@ -516,7 +518,7 @@ sealed abstract class IO[E, A] { self =>
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
-  final def run[E2]: IO[E2, ExitResult[E, A]] = new IO.Run(self)
+  final def run[E1 >: E, E2, A1 >: A]: IO[E2, ExitResult[E1, A1]] = new IO.Run(self)
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
@@ -758,7 +760,7 @@ object IO {
         try {
           val result = effect
           Right(result)
-        } catch f andThen (Left[E, A](_))
+        } catch f andThen Left[E, A]
       )
     )
 
@@ -767,7 +769,7 @@ object IO {
    * the more expressive variant of this function.
    */
   final def async[E, A](register: (ExitResult[E, A] => Unit) => Unit): IO[E, A] =
-    new AsyncEffect(callback => {
+    new AsyncEffect[E, A](callback => {
       register(callback)
 
       Async.later[E, A]
