@@ -412,14 +412,17 @@ private object RTS {
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
                         curIo = null
-                        result = status.get match {
-                          case Executing(Some(ts), _, _)            => ExitResult.Failed(error, ts)
-                          case AsyncRegion(Some(ts), _, _, _, _, _) => ExitResult.Failed(error, ts)
-                          case _                                    => ExitResult.Failed(error, Nil)
+
+                        val ts: List[Throwable] = status.get match {
+                          case Executing(Some(ts), _, _)            => ts
+                          case AsyncRegion(Some(ts), _, _, _, _, _) => ts
+                          case _                                    => Nil
                         }
 
+                        result = ExitResult.Failed(error, ts)
+
                         // Report the uncaught error to the supervisor:
-                        rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error) :: Nil)))
+                        rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error) :: ts)))
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
