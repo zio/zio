@@ -10,12 +10,12 @@ import Errors._
  *
  * {{{
  * import java.io.IOException
- * import scalaz.zio.{App, IO, Void}
+ * import scalaz.zio.{App, IO}
  * import scalaz.zio.console._
  *
  * object MyApp extends App {
  *
- *   def run(args: List[String]): IO[Void, ExitStatus] =
+ *   def run(args: List[String]): IO[Nothing, ExitStatus] =
  *     myAppLogic.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
  *
  *   def myAppLogic: IO[IOException, Unit] =
@@ -40,7 +40,7 @@ trait App extends RTS {
    * The main function of the application, which will be passed the command-line
    * arguments to the program and has to return an `IO` with the errors fully handled.
    */
-  def run(args: List[String]): IO[Void, ExitStatus]
+  def run(args: List[String]): IO[Nothing, ExitStatus]
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
@@ -48,7 +48,7 @@ trait App extends RTS {
   final def main(args0: Array[String]): Unit =
     unsafeRun(
       for {
-        fiber <- run(args0.toList).fork[Void, Void, ExitStatus]
+        fiber <- run(args0.toList).fork[Nothing, Nothing, ExitStatus]
         _ <- IO.sync(Runtime.getRuntime.addShutdownHook(new Thread {
               override def run() = unsafeRun(fiber.interrupt(TerminatedException("interrupted")))
             }))

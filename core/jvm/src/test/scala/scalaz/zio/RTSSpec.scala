@@ -17,7 +17,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def is = s2"""
   RTS synchronous correctness
-    widen Void                              $testWidenVoid
+    widen Nothing                           $testWidenNothing
     evaluation of point                     $testPoint
     point must be lazy                      $testPointIsLazy
     now must be eager                       $testNowIsEager
@@ -98,9 +98,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testPoint =
     unsafeRun(IO.point(1)) must_=== 1
 
-  def testWidenVoid = {
+  def testWidenNothing = {
     val op1 = IO.sync[RuntimeException, String]("1")
-    val op2 = IO.sync[Void, String]("2")
+    val op2 = IO.sync[Nothing, String]("2")
 
     val result: IO[RuntimeException, String] = for {
       r1 <- op1
@@ -177,7 +177,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testEvalOfFailEnsuring = {
     var finalized = false
 
-    unsafeRun(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Void, Unit] { finalized = true; () })) must (throwA(
+    unsafeRun(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Nothing, Unit] { finalized = true; () })) must (throwA(
       UnhandledError(ExampleError)
     ))
     finalized must_=== true
@@ -185,8 +185,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testEvalOfFailOnError = {
     var finalized = false
-    val cleanup: Option[Throwable] => IO[Void, Unit] =
-      _ => IO.sync[Void, Unit] { finalized = true; () }
+    val cleanup: Option[Throwable] => IO[Nothing, Unit] =
+      _ => IO.sync[Nothing, Unit] { finalized = true; () }
 
     unsafeRun(
       IO.fail[Throwable, Unit](ExampleError).onError(cleanup)
@@ -208,9 +208,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     var reported: Throwable = null
 
     unsafeRun {
-      IO.point[Void, Int](42)
+      IO.point[Nothing, Int](42)
         .ensuring(IO.terminate(ExampleError))
-        .fork0(e => IO.sync[Void, Unit] { reported = e; () })
+        .fork0(e => IO.sync[Nothing, Unit] { reported = e; () })
     }
 
     // FIXME: Is this an issue with thread synchronization?
@@ -220,14 +220,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testExitResultIsUsageResult =
-    unsafeRun(IO.bracket(IO.unit[Throwable])(_ => IO.unit[Void])(_ => IO.point[Throwable, Int](42))) must_=== 42
+    unsafeRun(IO.bracket(IO.unit[Throwable])(_ => IO.unit[Nothing])(_ => IO.point[Throwable, Int](42))) must_=== 42
 
   def testBracketErrorInAcquisition =
     unsafeRun(IO.bracket(IO.fail[Throwable, Unit](ExampleError))(_ => IO.unit)(_ => IO.unit)) must
       (throwA(UnhandledError(ExampleError)))
 
   def testBracketErrorInRelease =
-    unsafeRun(IO.bracket(IO.unit[Void])(_ => IO.terminate(ExampleError))(_ => IO.unit[Void])) must
+    unsafeRun(IO.bracket(IO.unit[Nothing])(_ => IO.terminate(ExampleError))(_ => IO.unit[Nothing])) must
       (throwA(ExampleError))
 
   def testBracketErrorInUsage =
@@ -244,7 +244,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testBracketRethrownCaughtErrorInRelease = {
     lazy val actual = unsafeRun(
-      IO.bracket(IO.unit[Void])(_ => IO.terminate(ExampleError))(_ => IO.unit[Void])
+      IO.bracket(IO.unit[Nothing])(_ => IO.terminate(ExampleError))(_ => IO.unit[Nothing])
     )
 
     actual must (throwA(ExampleError))
@@ -261,7 +261,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.bracket(IO.unit[Throwable])(_ => AsyncUnit[Void])(_ => asyncExampleError[Unit])
+    val io1 = IO.bracket(IO.unit[Throwable])(_ => AsyncUnit[Nothing])(_ => asyncExampleError[Unit])
     val io2 = IO.bracket(AsyncUnit[Throwable])(_ => IO.unit)(_ => asyncExampleError[Unit])
 
     unsafeRun(io1) must (throwA(UnhandledError(ExampleError)))
@@ -271,35 +271,37 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   }
 
   def testBracketRegression1 = {
-    def makeLogger: Ref[List[String]] => String => IO[Void, Unit] =
-      (ref: Ref[List[String]]) => (line: String) => ref.modify[Void](_ ::: List(line)).toUnit
+    def makeLogger: Ref[List[String]] => String => IO[Nothing, Unit] =
+      (ref: Ref[List[String]]) => (line: String) => ref.modify[Nothing](_ ::: List(line)).toUnit
 
     unsafeRun(for {
-      ref <- Ref[Void, List[String]](Nil)
+      ref <- Ref[Nothing, List[String]](Nil)
       log = makeLogger(ref)
       f <- IO
             .bracket(
-              IO.bracket(IO.unit[Void])(_ => log("start 1") *> IO.sleep(10.milliseconds) *> log("release 1"))(
-                _ => IO.unit[Void]
+              IO.bracket(IO.unit[Nothing])(_ => log("start 1") *> IO.sleep(10.milliseconds) *> log("release 1"))(
+                _ => IO.unit[Nothing]
               )
-            )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit[Void])
-            .fork[Void, Void, Unit]
-      _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("start 1"))
+            )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit[Nothing])
+            .fork[Nothing, Nothing, Unit]
+      _ <- (ref.read <* IO.sleep[Nothing](1.millisecond)).doUntil(_.contains("start 1"))
       _ <- f.interrupt(new RuntimeException("cancel"))
-      _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("release 2"))
+      _ <- (ref.read <* IO.sleep[Nothing](1.millisecond)).doUntil(_.contains("release 2"))
       l <- ref.read
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
 
   def testInterruptWaitsForFinalizer =
     unsafeRun(for {
-      r    <- Ref[Void, Boolean](false)
-      p1   <- Promise.make[Void, Unit]
-      p2   <- Promise.make[Void, Int]
-      s    <- (p1.complete(()) *> p2.get).ensuring(r.write[Void](true).toUnit.delay(10.millis)).fork[Void, Void, Int]
+      r  <- Ref[Nothing, Boolean](false)
+      p1 <- Promise.make[Nothing, Unit]
+      p2 <- Promise.make[Nothing, Int]
+      s <- (p1.complete(()) *> p2.get)
+            .ensuring(r.write[Nothing](true).toUnit.delay(10.millis))
+            .fork[Nothing, Nothing, Int]
       _    <- p1.get
-      _    <- s.interrupt[Void](new Error("interrupt e"))
-      test <- r.read[Void]
+      _    <- s.interrupt[Nothing](new Error("interrupt e"))
+      test <- r.read[Nothing]
     } yield test must_=== true)
 
   def testEvalOfDeepSyncEffect = {
@@ -360,13 +362,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(IO.asyncPure[Throwable, Int](cb => IO.sync(cb(ExitResult.Completed(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
-    def stackIOs(count: Int): IO[Void, Int] =
+    def stackIOs(count: Int): IO[Nothing, Int] =
       if (count <= 0) IO.done(ExitResult.Completed(42))
       else asyncIO(stackIOs(count - 1))
 
-    def asyncIO(cont: IO[Void, Int]): IO[Void, Int] =
-      IO.asyncPure[Void, Int] { cb =>
-        IO.sleep[Void](5.millis) *> cont *> IO.sync(cb(ExitResult.Completed(42)))
+    def asyncIO(cont: IO[Nothing, Int]): IO[Nothing, Int] =
+      IO.asyncPure[Nothing, Int] { cb =>
+        IO.sleep[Nothing](5.millis) *> cont *> IO.sync(cb(ExitResult.Completed(42)))
       }
 
     val procNum = Runtime.getRuntime.availableProcessors()
@@ -412,7 +414,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24))).attempt) must_=== Right(24)
 
   def testRaceAllOfFailures =
-    unsafeRun(IO.raceAll[Int, Void](List(IO.fail(24).delay(10.milliseconds), IO.fail(24))).attempt) must_=== Left(
+    unsafeRun(IO.raceAll[Int, Nothing](List(IO.fail(24).delay(10.milliseconds), IO.fail(24))).attempt) must_=== Left(
       24
     )
 
@@ -422,26 +424,26 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     )
 
   def testRepeatedPar = {
-    def countdown(n: Int): IO[Void, Int] =
+    def countdown(n: Int): IO[Nothing, Int] =
       if (n == 0) IO.now(0)
-      else IO.now[Void, Int](1).par(IO.now[Void, Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
+      else IO.now[Nothing, Int](1).par(IO.now[Nothing, Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
 
     unsafeRun(countdown(50)) must_=== 150
   }
 
   def testPar =
     (0 to 1000).map { _ =>
-      unsafeRun(IO.now[Void, Int](1).par(IO.now[Void, Int](2)).flatMap(t => IO.now(t._1 + t._2))) must_=== 3
+      unsafeRun(IO.now[Nothing, Int](1).par(IO.now[Nothing, Int](2)).flatMap(t => IO.now(t._1 + t._2))) must_=== 3
     }
 
   def testReduceAll =
     unsafeRun(
-      IO.reduceAll[Void, Int](IO.point(1), List(2, 3, 4).map(IO.point[Void, Int](_)))(_ + _)
+      IO.reduceAll[Nothing, Int](IO.point(1), List(2, 3, 4).map(IO.point[Nothing, Int](_)))(_ + _)
     ) must_=== 10
 
   def testReduceAllEmpty =
     unsafeRun(
-      IO.reduceAll[Void, Int](IO.point(1), Seq.empty)(_ + _)
+      IO.reduceAll[Nothing, Int](IO.point(1), Seq.empty)(_ + _)
     ) must_=== 1
 
   def testDeadlockRegression = {
@@ -451,7 +453,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     val e = Executors.newSingleThreadExecutor()
 
     for (i <- (0 until 10000)) {
-      val t = IO.async[Void, Int] { cb =>
+      val t = IO.async[Nothing, Int] { cb =>
         val c: Callable[Unit] = () => cb(ExitResult.Completed(1))
         val _                 = e.submit(c)
       }
@@ -475,7 +477,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
     unsafeRun(
       for {
-        f <- test.fork[Void, Void, Unit]
+        f <- test.fork[Nothing, Nothing, Unit]
         c <- (IO.sync[Throwable, Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt(
               new RuntimeException("y")
             )
@@ -486,8 +488,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testInterruptSyncForever = unsafeRun(
     for {
-      f <- IO.sync[Void, Int](1).forever[Void].fork[Void, Void, Void]
-      _ <- f.interrupt[Void](new Error("terminate forever"))
+      f <- IO.sync[Nothing, Int](1).forever[Nothing].fork[Nothing, Nothing, Nothing]
+      _ <- f.interrupt[Nothing](new Error("terminate forever"))
     } yield true
   )
 
@@ -535,7 +537,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testMergeAll =
     unsafeRun(
-      IO.mergeAll[Void, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.point[Void, String](_)))(
+      IO.mergeAll[Nothing, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.point[Nothing, String](_)))(
         0,
         f = (b, a) => b + a.length
       )
@@ -543,6 +545,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testMergeAllEmpty =
     unsafeRun(
-      IO.mergeAll[Void, Int, Int](List.empty)(0, _ + _)
+      IO.mergeAll[Nothing, Int, Int](List.empty)(0, _ + _)
     ) must_=== 0
 }

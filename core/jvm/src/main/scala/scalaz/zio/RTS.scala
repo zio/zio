@@ -164,7 +164,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Void, Unit]) extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Nothing, Unit]) extends Fiber[E, A] {
     import FiberStatus._
     import java.util.{ Collections, Set, WeakHashMap }
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }
@@ -217,7 +217,7 @@ private object RTS {
       result.get
     }
 
-    private class Finalizer(val finalizer: IO[Void, Unit]) extends Function[Any, IO[E, Any]] {
+    private class Finalizer(val finalizer: IO[Nothing, Unit]) extends Function[Any, IO[E, Any]] {
       final def apply(v: Any): IO[E, Any] = {
         noInterrupt += 1
 
@@ -237,11 +237,11 @@ private object RTS {
      *
      * @param errors  The effectfully produced list of errors, in reverse order.
      */
-    final def dispatchErrors(errors: IO[Void, List[Throwable]]): IO[Void, Unit] =
+    final def dispatchErrors(errors: IO[Nothing, List[Throwable]]): IO[Nothing, Unit] =
       errors.flatMap(
         // Each error produced by a finalizer must be handled using the
         // context's unhandled exception handler:
-        _.foldRight(IO.unit[Void])((t, io) => io *> unhandled(t))
+        _.foldRight(IO.unit[Nothing])((t, io) => io *> unhandled(t))
       )
 
     /**
@@ -250,9 +250,9 @@ private object RTS {
      * empty in the sole case the exception was not caught by any exception
      * handler—i.e. the exceptional case.
      */
-    final def catchError: IO[Void, List[Throwable]] = {
-      var errorHandler: Any => IO[Any, Any]    = null
-      var finalizer: IO[Void, List[Throwable]] = null
+    final def catchError: IO[Nothing, List[Throwable]] = {
+      var errorHandler: Any => IO[Any, Any]       = null
+      var finalizer: IO[Nothing, List[Throwable]] = null
 
       // Unwind the stack, looking for exception handlers and coalescing
       // finalizers.
@@ -261,7 +261,7 @@ private object RTS {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Void, List[Throwable]] = f0.finalizer.run[Void, Void, Unit].map(collectDefect)
+            val f: IO[Nothing, List[Throwable]] = f0.finalizer.run[Nothing, Nothing, Unit].map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
           case _ =>
@@ -283,9 +283,9 @@ private object RTS {
      * Empties the stack, collecting all finalizers and coalescing them into an
      * action that produces a list (possibly empty) of errors during finalization.
      */
-    final def interruptStack: IO[Void, List[Throwable]] = {
+    final def interruptStack: IO[Nothing, List[Throwable]] = {
       // Use null to achieve zero allocs for the common case of no finalizers:
-      var finalizer: IO[Void, List[Throwable]] = null
+      var finalizer: IO[Nothing, List[Throwable]] = null
 
       while (!stack.isEmpty) {
         // Peel off all the finalizers, composing them into a single finalizer
@@ -294,7 +294,7 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer =>
-            val f: IO[Void, List[Throwable]] = f0.finalizer.run[Void, Void, Unit].map(collectDefect)
+            val f: IO[Nothing, List[Throwable]] = f0.finalizer.run[Nothing, Nothing, Unit].map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
           case _ =>
@@ -635,7 +635,7 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: Throwable => IO[Void, Unit]): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: Throwable => IO[Nothing, Unit]): FiberContext[E, A] = {
       val context = new FiberContext[E, A](rts, handler)
 
       rts.submit(context.evaluate(io))
@@ -712,7 +712,7 @@ private object RTS {
         if (won) resume(tryA.map(finish))
       }
 
-    private final def raceWith[A, B, C](unhandled: Throwable => IO[Void, Unit],
+    private final def raceWith[A, B, C](unhandled: Throwable => IO[Nothing, Unit],
                                         leftIO: IO[E, A],
                                         rightIO: IO[E, B],
                                         finishLeft: (A, Fiber[E, B]) => IO[E, C],
@@ -886,7 +886,7 @@ private object RTS {
     final def shouldDie: Option[Throwable] =
       if (!killed || noInterrupt > 0) None else status.get.error
 
-    private final val exitUninterruptible: IO[Void, Unit] = IO.sync { noInterrupt -= 1 }
+    private final val exitUninterruptible: IO[Nothing, Unit] = IO.sync { noInterrupt -= 1 }
 
     private final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
       this.noInterrupt += 1
@@ -944,8 +944,8 @@ private object RTS {
             val finalizer = interruptStack
 
             if (finalizer ne null) {
-              fork[Void, Unit](dispatchErrors(finalizer), unhandled)
-                .runAsync((_: ExitResult[Void, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
+              fork[Nothing, Unit](dispatchErrors(finalizer), unhandled)
+                .runAsync((_: ExitResult[Nothing, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
               Async.later[E2, Unit]
             } else Async.now(SuccessUnit[E2])
 
@@ -1014,7 +1014,7 @@ private object RTS {
     def Initial[E, A] = Executing[E, A](None, Nil, Nil)
   }
 
-  val _SuccessUnit: ExitResult[Void, Unit] = ExitResult.Completed(())
+  val _SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.Completed(())
 
   final def SuccessUnit[E]: ExitResult[E, Unit] = _SuccessUnit.asInstanceOf[ExitResult[E, Unit]]
 

@@ -24,8 +24,8 @@ class PromiseSpec extends Specification with RTS {
   def e1 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        s <- p.complete[Void](32)
+        p <- Promise.make[Nothing, Int]
+        s <- p.complete[Nothing](32)
         v <- p.get
       } yield s must beTrue and (v must_=== 32)
     )
@@ -33,8 +33,8 @@ class PromiseSpec extends Specification with RTS {
   def e2 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        s <- p.done[Void](ExitResult.Completed(14))
+        p <- Promise.make[Nothing, Int]
+        s <- p.done[Nothing](ExitResult.Completed(14))
         v <- p.get
       } yield s must beTrue and (v must_=== 14)
     )
@@ -60,9 +60,9 @@ class PromiseSpec extends Specification with RTS {
   def e5 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        _ <- p.complete[Void](1)
-        s <- p.done[Void](ExitResult.Completed(9))
+        p <- Promise.make[Nothing, Int]
+        _ <- p.complete[Nothing](1)
+        s <- p.done[Nothing](ExitResult.Completed(9))
         v <- p.get
       } yield s must beFalse and (v must_=== 1)
     )

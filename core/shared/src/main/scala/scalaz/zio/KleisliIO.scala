@@ -40,21 +40,21 @@ package scalaz.zio
  *
  * {{{
  * // Program 1
- * val program1: IO[Void, Unit] =
+ * val program1: IO[Nothing, Unit] =
  *   for {
  *     name <- getStrLn
  *     _    <- putStrLn("Hello, " + name)
  *   } yield ())
  *
  * // Program 2
- * val program2: IO[Void, Unit] = (readLine >>> KleisliIO.lift("Hello, " + _) >>> printLine)(())
+ * val program2: IO[Nothing, Unit] = (readLine >>> KleisliIO.lift("Hello, " + _) >>> printLine)(())
  * }}}
  *
  * Similarly, the following two programs are equivalent:
  *
  * {{{
  * // Program 1
- * val program1: IO[Void, Unit] =
+ * val program1: IO[Nothing, Unit] =
  *   for {
  *     line1 <- getStrLn
  *     line2 <- getStrLn
@@ -62,14 +62,14 @@ package scalaz.zio
  *   } yield ())
  *
  * // Program 2
- * val program2: IO[Void, Unit] =
+ * val program2: IO[Nothing, Unit] =
  *   (readLine.zipWith(readLine)("You wrote: " + _ + ", " + _) >>> printLine)(())
  * }}}
  *
  * In both of these examples, the `KleisliIO` program is faster because it is
  * able to perform fusion of effectful functions.
  */
-sealed trait KleisliIO[E, A, B] { self =>
+sealed trait KleisliIO[+E, A, B] { self =>
 
   /**
    * Applies the effectful function with the specified value, returning the
@@ -85,38 +85,38 @@ sealed trait KleisliIO[E, A, B] { self =>
   /**
    * Binds on the output of this effectful function.
    */
-  final def flatMap[C](f: B => KleisliIO[E, A, C]): KleisliIO[E, A, C] =
+  final def flatMap[E1 >: E, C](f: B => KleisliIO[E1, A, C]): KleisliIO[E1, A, C] =
     KleisliIO.flatMap(self, f)
 
   /**
    * Composes two effectful functions.
    */
-  final def compose[A0](that: KleisliIO[E, A0, A]): KleisliIO[E, A0, B] =
+  final def compose[E1 >: E, A0](that: KleisliIO[E1, A0, A]): KleisliIO[E1, A0, B] =
     KleisliIO.compose(self, that)
 
   /**
    * "Backwards" composition of effectful functions.
    */
-  final def andThen[C](that: KleisliIO[E, B, C]): KleisliIO[E, A, C] =
+  final def andThen[E1 >: E, C](that: KleisliIO[E1, B, C]): KleisliIO[E1, A, C] =
     that.compose(self)
 
   /**
    * A symbolic operator for `andThen`.
    */
-  final def >>>[C](that: KleisliIO[E, B, C]): KleisliIO[E, A, C] =
+  final def >>>[E1 >: E, C](that: KleisliIO[E1, B, C]): KleisliIO[E1, A, C] =
     self.andThen(that)
 
   /**
    * A symbolic operator for `compose`.
    */
-  final def <<<[C](that: KleisliIO[E, C, A]): KleisliIO[E, C, B] =
+  final def <<<[E1 >: E, C](that: KleisliIO[E1, C, A]): KleisliIO[E1, C, B] =
     self.compose(that)
 
   /**
    * Zips the output of this function with the output of that function, using
    * the specified combiner function.
    */
-  final def zipWith[C, D](that: KleisliIO[E, A, C])(f: (B, C) => D): KleisliIO[E, A, D] =
+  final def zipWith[E1 >: E, C, D](that: KleisliIO[E1, A, C])(f: (B, C) => D): KleisliIO[E1, A, D] =
     KleisliIO.zipWith(self, that)(f)
 
   /**
@@ -155,7 +155,7 @@ sealed trait KleisliIO[E, A, B] { self =>
    * Returns a new effectful function that zips together the output of two
    * effectful functions that share the same input.
    */
-  final def &&&[C](that: KleisliIO[E, A, C]): KleisliIO[E, A, (B, C)] =
+  final def &&&[E1 >: E, C](that: KleisliIO[E1, A, C]): KleisliIO[E1, A, (B, C)] =
     KleisliIO.zipWith(self, that)((a, b) => (a, b))
 
   /**
@@ -163,7 +163,7 @@ sealed trait KleisliIO[E, A, B] { self =>
    * effectful function (if passed `Left(a)`), or will compute the value of the
    * specified effectful function (if passed `Right(c)`).
    */
-  final def |||[C](that: KleisliIO[E, C, B]): KleisliIO[E, Either[A, C], B] =
+  final def |||[E1 >: E, C](that: KleisliIO[E1, C, B]): KleisliIO[E1, Either[A, C], B] =
     KleisliIO.join(self, that)
 
   /**
@@ -251,7 +251,7 @@ object KleisliIO {
    * Lifts an impure function into `KleisliIO`, assuming any throwables are
    * non-recoverable and do not need to be converted into errors.
    */
-  final def impureVoid[A, B](f: A => B): KleisliIO[Void, A, B] = new Impure(f)
+  final def impureVoid[A, B](f: A => B): KleisliIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns a new effectful function that passes an `A` to the condition, and

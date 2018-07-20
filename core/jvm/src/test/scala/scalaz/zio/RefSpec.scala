@@ -24,7 +24,7 @@ class RefSpec extends Specification with RTS {
   def e1 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
+        ref   <- Ref[Nothing, String](current)
         value <- ref.read
       } yield value must beTheSameAs(current)
     )
@@ -32,8 +32,8 @@ class RefSpec extends Specification with RTS {
   def e2 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
-        _     <- ref.write[Void](update)
+        ref   <- Ref[Nothing, String](current)
+        _     <- ref.write[Nothing](update)
         value <- ref.read
       } yield value must beTheSameAs(update)
     )
@@ -41,7 +41,7 @@ class RefSpec extends Specification with RTS {
   def e3 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
+        ref   <- Ref[Nothing, String](current)
         value <- ref.modify(_ => update)
       } yield value must beTheSameAs(update)
     )
@@ -49,8 +49,8 @@ class RefSpec extends Specification with RTS {
   def e4 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
-        r     <- ref.modifyFold[Void, String](_ => ("hello", update))
+        ref   <- Ref[Nothing, String](current)
+        r     <- ref.modifyFold[Nothing, String](_ => ("hello", update))
         value <- ref.read
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
     )
@@ -58,8 +58,8 @@ class RefSpec extends Specification with RTS {
   def e5 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
-        _     <- ref.writeLater[Void](update)
+        ref   <- Ref[Nothing, String](current)
+        _     <- ref.writeLater[Nothing](update)
         value <- ref.read
       } yield value must beTheSameAs(update)
     )
@@ -67,27 +67,27 @@ class RefSpec extends Specification with RTS {
   def e6 =
     unsafeRun(
       for {
-        ref     <- Ref[Void, String](current)
-        success <- ref.tryWrite[Void](update)
+        ref     <- Ref[Nothing, String](current)
+        success <- ref.tryWrite[Nothing](update)
         value   <- ref.read
       } yield (success must beTrue) and (value must beTheSameAs(update))
     )
 
   def e7 = {
 
-    def tryWriteUntilFalse(ref: Ref[Int], update: Int): IO[Void, Boolean] =
+    def tryWriteUntilFalse(ref: Ref[Int], update: Int): IO[Nothing, Boolean] =
       ref
-        .tryWrite[Void](update)
-        .flatMap(success => if (!success) IO.point[Void, Boolean](success) else tryWriteUntilFalse(ref, update))
+        .tryWrite[Nothing](update)
+        .flatMap(success => if (!success) IO.point[Nothing, Boolean](success) else tryWriteUntilFalse(ref, update))
 
     unsafeRun(
       for {
-        ref     <- Ref[Void, Int](0)
-        f1      <- ref.write[Void](1).forever[Unit].fork[Void, Void, Unit]
-        f2      <- ref.write[Void](2).forever[Unit].fork[Void, Void, Unit]
+        ref     <- Ref[Nothing, Int](0)
+        f1      <- ref.write[Nothing](1).forever[Unit].fork[Nothing, Nothing, Unit]
+        f2      <- ref.write[Nothing](2).forever[Unit].fork[Nothing, Nothing, Unit]
         success <- tryWriteUntilFalse(ref, 3)
-        value   <- ref.read[Void]
-        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Void](new Error("Terminated fiber"))
+        value   <- ref.read[Nothing]
+        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Nothing](new Error("Terminated fiber"))
       } yield (success must beFalse) and (value must be_!=(3))
     )
 
@@ -96,8 +96,8 @@ class RefSpec extends Specification with RTS {
   def e8 =
     unsafeRun(
       for {
-        ref     <- Ref[Void, String](current)
-        success <- ref.compareAndSet[Void](current, update)
+        ref     <- Ref[Nothing, String](current)
+        success <- ref.compareAndSet[Nothing](current, update)
         value   <- ref.read
       } yield (success must beTrue) and (value must beTheSameAs(update))
     )
@@ -105,8 +105,8 @@ class RefSpec extends Specification with RTS {
   def e9 =
     unsafeRun(
       for {
-        ref     <- Ref[Void, String](current)
-        success <- ref.compareAndSet[Void](update, current)
+        ref     <- Ref[Nothing, String](current)
+        success <- ref.compareAndSet[Nothing](update, current)
         value   <- ref.read
       } yield (success must beFalse) and (value must beTheSameAs(current))
     )
