@@ -80,6 +80,11 @@ val lifted: IO[Void, String] = IO.now("Hello World")
 
 You should never use either constructor for importing impure code into `IO`. The result of doing so is undefined.
 
+### Infallible IO
+
+Note that `IO` values of type `IO[Void, A]` (where the error type is `Void`) are considered _infallible_,
+because the `Void` type is _uninhabitable_, ie. there can be no actual values of type `Void`.
+
 ## Impure Code
 
 You can use the `sync` method of `IO` to import effectful synchronous code into your purely functional program:
