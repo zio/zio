@@ -4,37 +4,37 @@ import scala.{ Array, Boolean, Int, Unit }
 
 object ScalazIOArray {
 
-  def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): IO[Void, Unit] = {
+  def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): IO[Nothing, Unit] = {
 
     type IndexValue   = (Int, A)
     type IJIndex      = (Int, Int)
     type IJIndexValue = (IndexValue, IndexValue)
 
     val lessThanEqual =
-      KleisliIO.lift[Void, IJIndexValue, Boolean] {
+      KleisliIO.lift[Nothing, IJIndexValue, Boolean] {
         case ((_, ia), (_, ja)) => lessThanEqual0(ia, ja)
       }
 
-    val extractIJAndIncrementJ = KleisliIO.lift[Void, IJIndexValue, IJIndex] {
+    val extractIJAndIncrementJ = KleisliIO.lift[Nothing, IJIndexValue, IJIndex] {
       case ((i, _), (j, _)) => (i, j + 1)
     }
 
-    val extractIAndIncrementI = KleisliIO.lift[Void, IJIndex, Int](_._1 + 1)
+    val extractIAndIncrementI = KleisliIO.lift[Nothing, IJIndex, Int](_._1 + 1)
 
-    val innerLoopStart = KleisliIO.lift[Void, Int, IJIndex]((i: Int) => (i, i + 1))
+    val innerLoopStart = KleisliIO.lift[Nothing, Int, IJIndex]((i: Int) => (i, i + 1))
 
-    val outerLoopCheck: KleisliIO[Void, Int, Boolean] =
+    val outerLoopCheck: KleisliIO[Nothing, Int, Boolean] =
       KleisliIO.lift((i: Int) => i < array.length - 1)
 
-    val innerLoopCheck: KleisliIO[Void, IJIndex, Boolean] =
+    val innerLoopCheck: KleisliIO[Nothing, IJIndex, Boolean] =
       KleisliIO.lift { case (_, j) => j < array.length }
 
-    val extractIJIndexValue: KleisliIO[Void, IJIndex, IJIndexValue] =
+    val extractIJIndexValue: KleisliIO[Nothing, IJIndex, IJIndexValue] =
       KleisliIO.impureVoid {
         case (i, j) => ((i, array(i)), (j, array(j)))
       }
 
-    val swapIJ: KleisliIO[Void, IJIndexValue, IJIndexValue] =
+    val swapIJ: KleisliIO[Nothing, IJIndexValue, IJIndexValue] =
       KleisliIO.impureVoid {
         case v @ ((i, ia), (j, ja)) =>
           array.update(i, ja)
@@ -44,11 +44,11 @@ object ScalazIOArray {
       }
 
     val sort = KleisliIO
-      .whileDo[Void, Int](outerLoopCheck)(
+      .whileDo[Nothing, Int](outerLoopCheck)(
         innerLoopStart >>>
-          KleisliIO.whileDo[Void, IJIndex](innerLoopCheck)(
+          KleisliIO.whileDo[Nothing, IJIndex](innerLoopCheck)(
             extractIJIndexValue >>>
-              KleisliIO.ifNotThen[Void, IJIndexValue](lessThanEqual)(swapIJ) >>>
+              KleisliIO.ifNotThen[Nothing, IJIndexValue](lessThanEqual)(swapIJ) >>>
               extractIJAndIncrementJ
           ) >>>
           extractIAndIncrementI

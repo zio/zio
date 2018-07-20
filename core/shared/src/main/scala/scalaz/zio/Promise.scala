@@ -16,7 +16,7 @@ import Promise.internal._
  * higher-level concurrent or asynchronous structures.
  * {{{
  * for {
- *   promise <- Promise.make[Void, Int]
+ *   promise <- Promise.make[Nothing, Int]
  *   _       <- promise.complete(42).delay(1.second).fork
  *   value   <- promise.get // Resumes when forked fiber completes promise
  * } yield value
@@ -137,12 +137,12 @@ object Promise {
    */
   final def bracket[E, A, B, C](
     ref: Ref[A]
-  )(acquire: (Promise[E, B], A) => (IO[Void, C], A))(release: (C, Promise[E, B]) => IO[Void, Unit]): IO[E, B] =
+  )(acquire: (Promise[E, B], A) => (IO[Nothing, C], A))(release: (C, Promise[E, B]) => IO[Nothing, Unit]): IO[E, B] =
     for {
       pRef <- Ref[E, Option[(C, Promise[E, B])]](None)
       b <- (for {
             p <- ref
-                  .modifyFold[Void, (Promise[E, B], IO[Void, C])] { (a: A) =>
+                  .modifyFold[Nothing, (Promise[E, B], IO[Nothing, C])] { (a: A) =>
                     val p = Promise.unsafeMake[E, B]
 
                     val (io, a2) = acquire(p, a)
@@ -150,12 +150,12 @@ object Promise {
                     ((p, io), a2)
                   }
                   .flatMap {
-                    case (p, io) => io.flatMap(c => pRef.write[Void](Some((c, p))) *> IO.now(p))
+                    case (p, io) => io.flatMap(c => pRef.write[Nothing](Some((c, p))) *> IO.now(p))
                   }
                   .uninterruptibly
                   .widenError[E]
             b <- p.get
-          } yield b).ensuring(pRef.read[Void].flatMap(_.fold(IO.unit[Void])(t => release(t._1, t._2))))
+          } yield b).ensuring(pRef.read[Nothing].flatMap(_.fold(IO.unit[Nothing])(t => release(t._1, t._2))))
     } yield b
 
   /**

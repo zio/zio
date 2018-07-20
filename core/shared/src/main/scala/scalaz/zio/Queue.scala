@@ -32,12 +32,12 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * the queue.
    */
   final def offer[E](a: A): IO[E, Unit] = {
-    val acquire: (Promise[E, Unit], State[A]) => (IO[Void, Boolean], State[A]) = {
+    val acquire: (Promise[E, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
       case (p, Deficit(takers)) =>
         takers.dequeueOption match {
           case None => (p.complete(()), Surplus(IQueue.empty[A].enqueue(a), IQueue.empty))
           case Some((taker, takers)) =>
-            (taker.complete[Void](a) *> p.complete[Void](()), Deficit(takers))
+            (taker.complete[Nothing](a) *> p.complete[Nothing](()), Deficit(takers))
         }
 
       case (p, Surplus(values, putters)) =>
@@ -48,7 +48,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         }
     }
 
-    val release: (Boolean, Promise[E, Unit]) => IO[Void, Unit] = {
+    val release: (Boolean, Promise[E, Unit]) => IO[Nothing, Unit] = {
       case (_, p) => removePutter(p)
     }
 
@@ -61,7 +61,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    */
   final def take[E]: IO[E, A] = {
 
-    val acquire: (Promise[E, A], State[A]) => (IO[Void, Boolean], State[A]) = {
+    val acquire: (Promise[E, A], State[A]) => (IO[Nothing, Boolean], State[A]) = {
       case (p, Deficit(takers)) =>
         (IO.now(false), Deficit(takers.enqueue(p)))
       case (p, Surplus(values, putters)) =>
@@ -71,14 +71,14 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
               case None =>
                 (IO.now(false), Deficit(IQueue.empty.enqueue(p)))
               case Some(((a, putter), putters)) =>
-                (putter.complete(()) *> p.complete[Void](a), Surplus(IQueue.empty, putters))
+                (putter.complete(()) *> p.complete[Nothing](a), Surplus(IQueue.empty, putters))
             }
           case Some((a, values)) =>
-            (p.complete[Void](a), Surplus(values, putters))
+            (p.complete[Nothing](a), Surplus(values, putters))
         }
     }
 
-    val release: (Boolean, Promise[E, A]) => IO[Void, Unit] = {
+    val release: (Boolean, Promise[E, A]) => IO[Nothing, Unit] = {
       case (_, p) => removeTaker(p)
     }
     Promise.bracket(ref)(acquire)(release)
@@ -112,18 +112,18 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         (IO.now(false), s)
     })
 
-  private final def removePutter(putter: Promise[_, Unit]): IO[Void, Unit] =
+  private final def removePutter(putter: Promise[_, Unit]): IO[Nothing, Unit] =
     ref
-      .modify[Void] {
+      .modify[Nothing] {
         case Surplus(values, putters) =>
           Surplus(values, putters.filterNot(_._2 == putter))
         case d => d
       }
       .toUnit
 
-  private final def removeTaker(taker: Promise[_, A]): IO[Void, Unit] =
+  private final def removeTaker(taker: Promise[_, A]): IO[Nothing, Unit] =
     ref
-      .modify[Void] {
+      .modify[Nothing] {
         case Deficit(takers) =>
           Deficit(takers.filterNot(_ == taker))
 

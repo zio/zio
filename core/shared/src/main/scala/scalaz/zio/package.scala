@@ -4,7 +4,7 @@ package scalaz
 
 package object zio {
 
-  implicit class IOVoidSyntax[A](val io: IO[Void, A]) extends AnyRef {
+  implicit class IOVoidSyntax[A](val io: IO[Nothing, A]) extends AnyRef {
     def apply[E]: IO[E, A]      = io.asInstanceOf[IO[E, A]]
     def widenError[E]: IO[E, A] = apply
   }
@@ -19,5 +19,5 @@ package object zio {
   }
 
   type Canceler     = Throwable => Unit
-  type PureCanceler = Throwable => IO[Void, Unit]
+  type PureCanceler = Throwable => IO[Nothing, Unit]
 }
