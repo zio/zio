@@ -131,7 +131,7 @@ sealed abstract class IO[E, A] { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0[E2](handler: Throwable => Infallible[Unit]): IO[E2, Fiber[E, A]] =
+  final def fork0[E2](handler: Throwable => IO[Void, Unit]): IO[E2, Fiber[E, A]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -254,34 +254,34 @@ sealed abstract class IO[E, A] { self =>
    * }
    * }}}
    */
-  final def bracket[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+  final def bracket[B](release: A => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] =
     IO.bracket(this)(release)(use)
 
   /**
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
-  final def bracket0[B](release: (A, Option[Either[E, B]]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+  final def bracket0[B](release: (A, Option[Either[E, B]]) => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] =
     IO.bracket0(this)(release)(use)
 
   /**
    * A less powerful variant of `bracket` where the value produced by this
    * action is not needed.
    */
-  final def bracket_[B](release: Infallible[Unit])(use: IO[E, B]): IO[E, B] =
+  final def bracket_[B](release: IO[Void, Unit])(use: IO[E, B]): IO[E, B] =
     IO.bracket(self)(_ => release)(_ => use)
 
   /**
    * Executes the specified finalizer, whether this action succeeds, fails, or
    * is interrupted.
    */
-  final def ensuring(finalizer: Infallible[Unit]): IO[E, A] =
+  final def ensuring(finalizer: IO[Void, Unit]): IO[E, A] =
     new IO.Ensuring(self, finalizer)
 
   /**	
    * Executes the release action only if there was an error.	
    */
-  final def bracketOnError[B](release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+  final def bracketOnError[B](release: A => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] =
     IO.bracket0(this)(
       (a: A, eb: Option[Either[E, B]]) =>
         eb match {
@@ -294,7 +294,7 @@ sealed abstract class IO[E, A] { self =>
    * Runs the cleanup action if this action errors, providing the error to the
    * cleanup action if it exists. The cleanup action will not be interrupted.
    */
-  final def onError(cleanup: Option[E] => Infallible[Unit]): IO[E, A] =
+  final def onError(cleanup: Option[E] => IO[Void, Unit]): IO[E, A] =
     IO.bracket0(IO.unit[E])(
       (_, eb: Option[Either[E, A]]) =>
         eb match {
@@ -601,7 +601,7 @@ object IO {
     final def apply(v: A): IO[E2, B] = succ(v)
   }
 
-  final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[Throwable => Infallible[Unit]])
+  final class Fork[E1, E2, A] private[IO] (val value: IO[E1, A], val handler: Option[Throwable => IO[Void, Unit]])
       extends IO[E2, Fiber[E1, A]] {
     override def tag = Tags.Fork
   }
@@ -634,7 +634,7 @@ object IO {
     override def tag = Tags.Terminate
   }
 
-  final class Supervisor[E] private[IO] () extends IO[E, Throwable => Infallible[Unit]] {
+  final class Supervisor[E] private[IO] () extends IO[E, Throwable => IO[Void, Unit]] {
     override def tag = Tags.Supervisor
   }
 
@@ -642,7 +642,7 @@ object IO {
     override def tag = Tags.Run
   }
 
-  final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: Infallible[Unit]) extends IO[E, A] {
+  final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Void, Unit]) extends IO[E, A] {
     override def tag = Tags.Ensuring
   }
 
@@ -812,7 +812,7 @@ object IO {
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  final def supervisor[E]: IO[E, Throwable => Infallible[Unit]] = new Supervisor()
+  final def supervisor[E]: IO[E, Throwable => IO[Void, Unit]] = new Supervisor()
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
@@ -836,7 +836,7 @@ object IO {
    */
   final def bracket0[E, A, B](
     acquire: IO[E, A]
-  )(release: (A, Option[Either[E, B]]) => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+  )(release: (A, Option[Either[E, B]]) => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] =
     Ref[E, Option[(A, Option[Either[E, B]])]](None).flatMap { m =>
       (for {
         a <- acquire
@@ -859,7 +859,7 @@ object IO {
    */
   final def bracket[E, A, B](
     acquire: IO[E, A]
-  )(release: A => Infallible[Unit])(use: A => IO[E, B]): IO[E, B] =
+  )(release: A => IO[Void, Unit])(use: A => IO[E, B]): IO[E, B] =
     Ref[E, Option[A]](None).flatMap { m =>
       (for {
         a <- acquire.flatMap(a => m.write[E](Some(a)).const(a)).uninterruptibly
