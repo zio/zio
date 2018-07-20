@@ -412,7 +412,11 @@ private object RTS {
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
                         curIo = null
-                        result = ExitResult.Failed(error, Nil)
+                        result = status.get match {
+                          case Executing(Some(ts), _, _) => ExitResult.Failed(error, ts)
+                          case AsyncRegion(Some(ts), _, _, _, _, _) => ExitResult.Failed(error, ts)
+                          case _ => ExitResult.Failed(error, Nil)
+                        }
 
                         // Report the uncaught error to the supervisor:
                         rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error) :: Nil)))
@@ -554,7 +558,11 @@ private object RTS {
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
                       curIo = null
-                      result = ExitResult.Terminated(causes)
+                      result = status.get match {
+                        case Executing(Some(ts), _, _) => ExitResult.Terminated(causes ++ ts)
+                        case AsyncRegion(Some(ts), _, _, _, _, _) => ExitResult.Terminated(causes ++ ts)
+                        case _ => ExitResult.Terminated(causes)
+                      }
 
                       // Report the termination cause to the supervisor:
                       rts.submit(rts.unsafeRun(unhandled(causes)))
