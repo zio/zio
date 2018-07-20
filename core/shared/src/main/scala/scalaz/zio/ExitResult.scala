@@ -19,8 +19,8 @@ sealed trait ExitResult[E, A] { self =>
     case x            => x.asInstanceOf[ExitResult[E, B]]
   }
 
-  final def mapError[E2](f: E => E2): ExitResult[E2, A] = self match {
-    case ExitResult.Failed(e, ts) => ExitResult.Failed(f(e), ts)
+  final def mapError[E2](f: E => ExitResult[E2, A]): ExitResult[E2, A] = self match {
+    case ExitResult.Failed(e, _) => f(e)
     case x                        => x.asInstanceOf[ExitResult[E2, A]]
   }
 
