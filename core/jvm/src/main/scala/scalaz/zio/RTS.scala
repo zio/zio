@@ -413,9 +413,9 @@ private object RTS {
                         // No finalizer, so immediately produce the error.
                         curIo = null
                         result = status.get match {
-                          case Executing(Some(ts), _, _) => ExitResult.Failed(error, ts)
+                          case Executing(Some(ts), _, _)            => ExitResult.Failed(error, ts)
                           case AsyncRegion(Some(ts), _, _, _, _, _) => ExitResult.Failed(error, ts)
-                          case _ => ExitResult.Failed(error, Nil)
+                          case _                                    => ExitResult.Failed(error, Nil)
                         }
 
                         // Report the uncaught error to the supervisor:
@@ -423,7 +423,7 @@ private object RTS {
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
-                        val finalization = finalizer.flatMap(unhandled)
+                        val finalization = finalizer.flatMap(accumFailures)
                         val completer    = io
 
                         curIo = doNotInterrupt(finalization).widenError[E] *> completer
@@ -436,7 +436,7 @@ private object RTS {
                         curIo = handled
                       } else {
                         // Must run finalizer first:
-                        val finalization = finalizer.flatMap(unhandled)
+                        val finalization = finalizer.flatMap(accumFailures)
                         val completer    = handled
 
                         curIo = doNotInterrupt(finalization).widenError[E] *> completer
@@ -559,16 +559,16 @@ private object RTS {
                       // No finalizers, simply produce error:
                       curIo = null
                       result = status.get match {
-                        case Executing(Some(ts), _, _) => ExitResult.Terminated(causes ++ ts)
+                        case Executing(Some(ts), _, _)            => ExitResult.Terminated(causes ++ ts)
                         case AsyncRegion(Some(ts), _, _, _, _, _) => ExitResult.Terminated(causes ++ ts)
-                        case _ => ExitResult.Terminated(causes)
+                        case _                                    => ExitResult.Terminated(causes)
                       }
 
                       // Report the termination cause to the supervisor:
                       rts.submit(rts.unsafeRun(unhandled(causes)))
                     } else {
                       // Must run finalizers first before failing:
-                      val finalization = finalizer.flatMap(unhandled)
+                      val finalization = finalizer.flatMap(accumFailures)
                       val completer    = io
 
                       curIo = doNotInterrupt(finalization).widenError[E] *> completer
@@ -637,6 +637,27 @@ private object RTS {
       rts.submit(context.evaluate(io))
 
       context
+    }
+
+    private final def accumFailures: List[Throwable] => Infallible[Unit] = {
+      case Nil => IO.now[Void, Unit](())
+      case ts  => IO.sync(addFailures(ts))
+    }
+
+    @tailrec
+    private final def addFailures(ts: List[Throwable]): Unit = {
+      val oldStatus = status.get
+      oldStatus match {
+        case x @ Executing(None, _, _) => 
+          if(!status.compareAndSet(oldStatus, x.copy(errors = Some(ts)))) addFailures(ts) else ()
+        case x @ Executing(Some(ts0), _, _) => 
+          if(!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0 ++ ts)))) addFailures(ts) else ()
+        case x @ AsyncRegion(None, _, _, _, _, _) => 
+          if(!status.compareAndSet(oldStatus, x.copy(errors = Some(ts)))) addFailures(ts) else ()
+        case x @ AsyncRegion(Some(ts0), _, _, _, _, _) => 
+          if(!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0 ++ ts)))) addFailures(ts) else ()
+        case _ =>
+      }
     }
 
     /**
