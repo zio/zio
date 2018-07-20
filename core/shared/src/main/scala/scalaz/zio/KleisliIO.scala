@@ -69,7 +69,7 @@ package scalaz.zio
  * In both of these examples, the `KleisliIO` program is faster because it is
  * able to perform fusion of effectful functions.
  */
-sealed trait KleisliIO[+E, A, B] { self =>
+sealed trait KleisliIO[+E, -A, +B] { self =>
 
   /**
    * Applies the effectful function with the specified value, returning the
@@ -85,7 +85,7 @@ sealed trait KleisliIO[+E, A, B] { self =>
   /**
    * Binds on the output of this effectful function.
    */
-  final def flatMap[E1 >: E, C](f: B => KleisliIO[E1, A, C]): KleisliIO[E1, A, C] =
+  final def flatMap[E1 >: E, A1 <: A, C](f: B => KleisliIO[E1, A1, C]): KleisliIO[E1, A1, C] =
     KleisliIO.flatMap(self, f)
 
   /**
@@ -116,7 +116,7 @@ sealed trait KleisliIO[+E, A, B] { self =>
    * Zips the output of this function with the output of that function, using
    * the specified combiner function.
    */
-  final def zipWith[E1 >: E, C, D](that: KleisliIO[E1, A, C])(f: (B, C) => D): KleisliIO[E1, A, D] =
+  final def zipWith[E1 >: E, A1 <: A, C, D](that: KleisliIO[E1, A1, C])(f: (B, C) => D): KleisliIO[E1, A1, D] =
     KleisliIO.zipWith(self, that)(f)
 
   /**
@@ -124,16 +124,16 @@ sealed trait KleisliIO[+E, A, B] { self =>
    * storing it into the first element of a tuple, carrying along the input on
    * the second element of a tuple.
    */
-  final def first: KleisliIO[E, A, (B, A)] =
-    self &&& KleisliIO.identity[E, A]
+  final def first[A1 <: A, B1 >: B]: KleisliIO[E, A1, (B1, A1)] =
+    self &&& KleisliIO.identity[E, A1]
 
   /**
    * Returns a new effectful function that computes the value of this function,
    * storing it into the second element of a tuple, carrying along the input on
    * the first element of a tuple.
    */
-  final def second: KleisliIO[E, A, (A, B)] =
-    KleisliIO.identity[E, A] &&& self
+  final def second[A1 <: A, B1 >: B]: KleisliIO[E, A1, (A1, B1)] =
+    KleisliIO.identity[E, A1] &&& self
 
   /**
    * Returns a new effectful function that can either compute the value of this
@@ -155,7 +155,7 @@ sealed trait KleisliIO[+E, A, B] { self =>
    * Returns a new effectful function that zips together the output of two
    * effectful functions that share the same input.
    */
-  final def &&&[E1 >: E, C](that: KleisliIO[E1, A, C]): KleisliIO[E1, A, (B, C)] =
+  final def &&&[E1 >: E, A1 <: A, C](that: KleisliIO[E1, A1, C]): KleisliIO[E1, A1, (B, C)] =
     KleisliIO.zipWith(self, that)((a, b) => (a, b))
 
   /**
@@ -163,7 +163,7 @@ sealed trait KleisliIO[+E, A, B] { self =>
    * effectful function (if passed `Left(a)`), or will compute the value of the
    * specified effectful function (if passed `Right(c)`).
    */
-  final def |||[E1 >: E, C](that: KleisliIO[E1, C, B]): KleisliIO[E1, Either[A, C], B] =
+  final def |||[E1 >: E, B1 >: B, C](that: KleisliIO[E1, C, B1]): KleisliIO[E1, Either[A, C], B1] =
     KleisliIO.join(self, that)
 
   /**
@@ -181,7 +181,7 @@ sealed trait KleisliIO[+E, A, B] { self =>
    * Returns a new effectful function that merely applies this one for its
    * effect, returning the input unmodified.
    */
-  final def asEffect: KleisliIO[E, A, A] = self.first >>> KleisliIO._2
+  final def asEffect[A1 <: A]: KleisliIO[E, A1, A1] = self.first >>> KleisliIO._2
 }
 
 object KleisliIO {
