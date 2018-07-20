@@ -283,7 +283,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
                 _ => IO.unit[Void]
               )
             )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit[Void])
-            .fork
+            .fork[Void, Void, Unit]
       _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("start 1"))
       _ <- f.interrupt(new RuntimeException("cancel"))
       _ <- (ref.read <* IO.sleep[Void](1.millisecond)).doUntil(_.contains("release 2"))
@@ -296,7 +296,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       r    <- Ref[Void, Boolean](false)
       p1   <- Promise.make[Void, Unit]
       p2   <- Promise.make[Void, Int]
-      s    <- (p1.complete(()) *> p2.get).ensuring(r.write[Void](true).toUnit.delay(10.millis)).fork
+      s    <- (p1.complete(()) *> p2.get).ensuring(r.write[Void](true).toUnit.delay(10.millis)).fork[Void, Void, Int]
       _    <- p1.get
       _    <- s.interrupt[Void](new Error("interrupt e"))
       test <- r.read[Void]
@@ -365,7 +365,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       else asyncIO(stackIOs(count - 1))
 
     def asyncIO(cont: IO[Void, Int]): IO[Void, Int] =
-      IO.asyncPure { cb =>
+      IO.asyncPure[Void, Int] { cb =>
         IO.sleep[Void](5.millis) *> cont *> IO.sync(cb(ExitResult.Completed(42)))
       }
 
@@ -378,7 +378,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
 
   def testForkJoinIsId =
-    unsafeRun(IO.point[Throwable, Int](42).fork.flatMap(_.join)) must_=== 42
+    unsafeRun(IO.point[Throwable, Int](42).fork[Throwable, Throwable, Int].flatMap(_.join)) must_=== 42
 
   def testDeepForkJoinIsId = {
     val n = 20
@@ -389,7 +389,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testNeverIsInterruptible = {
     val io =
       for {
-        fiber <- IO.never[Throwable, Int].fork[Throwable]
+        fiber <- IO.never[Throwable, Int].fork[Throwable, Throwable, Int]
         _     <- fiber.interrupt(ExampleError)
       } yield 42
 
@@ -475,7 +475,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
     unsafeRun(
       for {
-        f <- test.fork[Throwable]
+        f <- test.fork[Void, Void, Unit]
         c <- (IO.sync[Throwable, Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt(
               new RuntimeException("y")
             )
@@ -486,7 +486,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testInterruptSyncForever = unsafeRun(
     for {
-      f <- IO.sync[Void, Int](1).forever[Void].fork
+      f <- IO.sync[Void, Int](1).forever[Void].fork[Void, Void, Void]
       _ <- f.interrupt[Void](new Error("terminate forever"))
     } yield true
   )
@@ -525,8 +525,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     if (n <= 1) IO.point[Throwable, BigInt](n)
     else
       for {
-        f1 <- concurrentFib(n - 1).fork
-        f2 <- concurrentFib(n - 2).fork
+        f1 <- concurrentFib(n - 1).fork[Throwable, Throwable, BigInt]
+        f2 <- concurrentFib(n - 2).fork[Throwable, Throwable, BigInt]
         v1 <- f1.join
         v2 <- f2.join
       } yield v1 + v2

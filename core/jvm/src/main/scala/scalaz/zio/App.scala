@@ -48,7 +48,7 @@ trait App extends RTS {
   final def main(args0: Array[String]): Unit =
     unsafeRun(
       for {
-        fiber <- run(args0.toList).fork
+        fiber <- run(args0.toList).fork[Void, Void, ExitStatus]
         _ <- IO.sync(Runtime.getRuntime.addShutdownHook(new Thread {
               override def run() = unsafeRun(fiber.interrupt(TerminatedException("interrupted")))
             }))
