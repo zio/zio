@@ -216,7 +216,7 @@ private object RTS {
       result.get
     }
 
-    private class Finalizer(val finalizer: Infallible[Unit]) extends Function[Any, IO[E, Any]] {
+    private class Finalizer(val finalizer: IO[Void, Unit]) extends Function[Any, IO[E, Any]] {
       final def apply(v: Any): IO[E, Any] = {
         noInterrupt += 1
 
@@ -639,7 +639,7 @@ private object RTS {
       context
     }
 
-    private final def accumFailures: List[Throwable] => Infallible[Unit] = {
+    private final def accumFailures: List[Throwable] => IO[Void, Unit] = {
       case Nil => IO.now[Void, Unit](())
       case ts  => IO.sync(addFailures(ts))
     }
@@ -903,7 +903,7 @@ private object RTS {
     final def shouldDie: Option[List[Throwable]] =
       if (!killed || noInterrupt > 0) None else status.get.errors
 
-    private final val exitUninterruptible: Infallible[Unit] = IO.sync { noInterrupt -= 1 }
+    private final val exitUninterruptible: IO[Void, Unit] = IO.sync { noInterrupt -= 1 }
 
     private final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
       this.noInterrupt += 1

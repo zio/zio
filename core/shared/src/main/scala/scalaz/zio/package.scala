@@ -18,10 +18,8 @@ package object zio {
     def widenError[E2 >: E]: IO[E2, A] = io.asInstanceOf[IO[E2, A]]
   }
 
-  type Infallible[A]  = IO[Void, A]
   type Callback[E, A] = ExitResult[E, A] => Unit
-
-  type Canceler     = () => Unit
-  type PureCanceler = () => Infallible[Unit]
-  type ErrorHandler = List[Throwable] => Infallible[Unit]
+  type Canceler       = () => Unit
+  type PureCanceler   = () => IO[Void, Unit]
+  type ErrorHandler   = List[Throwable] => IO[Void, Unit]
 }
