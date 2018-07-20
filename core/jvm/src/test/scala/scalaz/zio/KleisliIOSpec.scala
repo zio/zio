@@ -61,7 +61,9 @@ class KleisliIOSpec extends Specification with RTS {
   def e5 =
     unsafeRun(
       for {
-        v <- point[Nothing, Int, Int](1).zipWith[Nothing, Int, Int](point[Nothing, Int, Int](2))((a, b) => a + b).run(1)
+        v <- point[Nothing, Int, Int](1)
+              .zipWith[Nothing, Int, Int, Int](point[Nothing, Int, Int](2))((a, b) => a + b)
+              .run(1)
       } yield v must_=== 3
     )
 
