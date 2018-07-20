@@ -21,7 +21,7 @@ sealed trait ExitResult[E, A] { self =>
 
   final def mapError[E2](f: E => ExitResult[E2, A]): ExitResult[E2, A] = self match {
     case ExitResult.Failed(e, _) => f(e)
-    case x                        => x.asInstanceOf[ExitResult[E2, A]]
+    case x                       => x.asInstanceOf[ExitResult[E2, A]]
   }
 
   final def failed: Boolean = !succeeded
