@@ -653,14 +653,12 @@ private object RTS {
     private final def addFailures(ts: List[Throwable]): Unit = {
       val oldStatus = status.get
       oldStatus match {
-        case x @ Executing(None, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts)))) addFailures(ts) else ()
-        case x @ Executing(Some(ts0), _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0 ++ ts)))) addFailures(ts) else ()
-        case x @ AsyncRegion(None, _, _, _, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts)))) addFailures(ts) else ()
-        case x @ AsyncRegion(Some(ts0), _, _, _, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0 ++ ts)))) addFailures(ts) else ()
+        case x @ Executing(ts0, _, _) =>
+          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0.getOrElse(Nil) ++ ts)))) addFailures(ts) else ()
+
+        case x @ AsyncRegion(ts0, _, _, _, _, _) =>
+          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0.getOrElse(Nil) ++ ts)))) addFailures(ts) else ()
+
         case _ =>
       }
     }
