@@ -985,7 +985,7 @@ private object RTS {
             Async.later[E2, Unit]
           }
 
-        case Done(_) => 
+        case Done(_) =>
           killed = true
           Async.now(SuccessUnit[E2])
       }
