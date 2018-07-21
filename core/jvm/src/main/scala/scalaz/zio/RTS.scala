@@ -612,7 +612,7 @@ private object RTS {
               // Interruption cannot be interrupted:
               this.noInterrupt += 1
 
-              curIo = IO.terminate0[E, Any](die.get)
+              curIo = IO.terminate0[E, Any](Nil)
             }
 
             opcount = opcount + 1
@@ -935,7 +935,6 @@ private object RTS {
 
     @tailrec
     private final def kill0[E2](ts: List[Throwable], k: Callback[E, Unit]): Async[E2, Unit] = {
-      killed = true
 
       val oldStatus = status.get
 
@@ -943,13 +942,18 @@ private object RTS {
         case Executing(ts0, joiners, killers) =>
           if (!status.compareAndSet(oldStatus, Executing(Some(ts0.getOrElse(Nil) ++ ts), joiners, k :: killers)))
             kill0(ts, k)
-          else Async.later[E2, Unit]
+          else {
+            killed = true
+            Async.later[E2, Unit]
+          }
 
         case AsyncRegion(None, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
           val v = ExitResult.Terminated[E, A](ts)
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(ts, k)
           else {
+            killed = true
+
             // We interrupted async before it could resume. Now we have to
             // cancel the computation, if possible, and handle any finalizers.
             cancelOpt match {
@@ -976,9 +980,14 @@ private object RTS {
           val newStatus = s.copy(errors = Some(s.errors.getOrElse(Nil) ++ ts), killers = k :: s.killers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) kill0(ts, k)
-          else Async.later[E2, Unit]
+          else {
+            killed = true
+            Async.later[E2, Unit]
+          }
 
-        case Done(_) => Async.now(SuccessUnit[E2])
+        case Done(_) => 
+          killed = true
+          Async.now(SuccessUnit[E2])
       }
     }
 
