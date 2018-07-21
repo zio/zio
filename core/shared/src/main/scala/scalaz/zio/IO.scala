@@ -2,7 +2,6 @@
 package scalaz.zio
 
 import scala.annotation.switch
-import scala.annotation.tailrec
 import scala.concurrent.duration._
 import Errors._
 
@@ -824,10 +823,12 @@ object IO {
   final def forkAll[E, A, M[X] <: TraversableOnce[X]](
     as: M[IO[E, A]]
   )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, Fiber[E, M[A]]] =
-    as.foldRight(IO.point[E, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) {
-        case (a, as) => as.par(a.fork).map { case (as, a) => as.zipWith(a)(_ += _) }
+    as.foldLeft(IO.sync[E, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) { (asFiberIO, aIO) =>
+        asFiberIO.par(aIO.fork).map {
+          case (asFiber, aFiber) => asFiber.zipWith(aFiber)(_ += _)
+        }
       }
-      .map(as => as.zipWith(Fiber.point(())) { case (as, _) => as.result })
+      .map(_.map(_.result))
 
   /**
    * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
@@ -869,44 +870,45 @@ object IO {
 
   /**
    * Apply the function fn to each element of the `TraversableOnce[A]` and
-   * return the results in a new `TraversableOnce[B]`.
+   * return the results in a new `TraversableOnce[B]`. For parallelism use `parTraverse`.
    */
   final def traverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    in.foldLeft(point[E, mutable.Builder[B, M[B]]](cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
+    in.foldLeft(IO.sync[E, mutable.Builder[B, M[B]]](cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
       .map(_.result())
 
   /**
    * Evaluate the elements of a traversable data structure in parallel
-   * and collect the results.
-   *
-   * _Note_: ordering in the input collection is not preserved
+   * and collect the results. This is the parallel version of `traverse`.
    */
   def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
-    in: M[A]
-  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] = {
-    @tailrec def parTraverse_rec(as: Iterator[A], ioref: IO[E, Ref[List[B]]]): IO[E, Ref[List[B]]] =
-      if (!as.hasNext)
-        ioref
-      else {
-        val a = as.next
-        parTraverse_rec(as, ioref.par(fn(a)).flatMap { case (ref, b) => ref.modify(b :: _) *> point(ref) })
+    as: M[A]
+  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
+    as.foldLeft(IO.sync[E, mutable.Builder[B, M[B]]](cbf(as))) { (bsIO, a) =>
+        bsIO.par(fn(a)).map {
+          case (bs, b) => bs += b
+        }
       }
-
-    parTraverse_rec(in.toIterator, Ref[E, List[B]](Nil))
-      .flatMap(_.read)
-      .map(_.foldLeft(cbf(in))(_ += _).result())
-  }
+      .map(_.result)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
-   * the results.
+   * the results. For parallelism use `parAll`.
    */
   final def sequence[E, A, M[X] <: TraversableOnce[X]](
     in: M[IO[E, A]]
   )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, M[A]] =
     traverse(in)(identity)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect
+   * the results. This is the parallel version of `sequence`.
+   */
+  final def parAll[E, A, M[X] <: TraversableOnce[X]](
+    as: M[IO[E, A]]
+  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, M[A]] =
+    parTraverse(as)(identity)
 
   /**
    * Races a traversable collection of `IO[E, A]` against each other. If all of
