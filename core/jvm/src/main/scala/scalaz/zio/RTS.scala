@@ -561,14 +561,16 @@ private object RTS {
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
                       curIo = null
-                      result = status.get match {
-                        case Executing(Some(ts), _, _)            => ExitResult.Terminated(causes ++ ts)
-                        case AsyncRegion(Some(ts), _, _, _, _, _) => ExitResult.Terminated(causes ++ ts)
-                        case _                                    => ExitResult.Terminated(causes)
+                      val allCauses = status.get match {
+                        case Executing(Some(ts), _, _)            => causes ++ ts
+                        case AsyncRegion(Some(ts), _, _, _, _, _) => causes ++ ts
+                        case _                                    => causes
                       }
 
+                      result = ExitResult.Terminated(allCauses)
+
                       // Report the termination cause to the supervisor:
-                      rts.submit(rts.unsafeRun(unhandled(causes)))
+                      rts.submit(rts.unsafeRun(unhandled(allCauses)))
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = finalizer.flatMap(accumFailures)
