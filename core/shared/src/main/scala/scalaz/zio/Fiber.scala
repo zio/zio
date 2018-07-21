@@ -51,6 +51,18 @@ trait Fiber[E, A] { self =>
       def interrupt[E2](t: Throwable): IO[E2, Unit] =
         self.interrupt(t) *> that.interrupt(t)
     }
+
+  /**
+   * Maps over the value the Fiber computes.
+   */
+  final def map[B](f: A => B): Fiber[E, B] =
+    new Fiber[E, B] {
+      def join: IO[E, B] =
+        self.join.map(f)
+
+      def interrupt[E2](t: Throwable): IO[E2, Unit] =
+        self.interrupt(t)
+    }
 }
 
 object Fiber {
