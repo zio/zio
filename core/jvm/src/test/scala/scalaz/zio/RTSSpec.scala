@@ -300,7 +300,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
             .ensuring(r.write[Nothing](true).toUnit.delay(10.millis))
             .fork[Nothing, Int]
       _    <- p1.get
-      _    <- s.interrupt[Nothing](new Error("interrupt e"))
+      _    <- s.interrupt(new Error("interrupt e"))
       test <- r.read[Nothing]
     } yield test must_=== true)
 
@@ -489,7 +489,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testInterruptSyncForever = unsafeRun(
     for {
       f <- IO.sync[Int](1).forever.fork[Nothing, Nothing]
-      _ <- f.interrupt[Nothing](new Error("terminate forever"))
+      _ <- f.interrupt(new Error("terminate forever"))
     } yield true
   )
 
