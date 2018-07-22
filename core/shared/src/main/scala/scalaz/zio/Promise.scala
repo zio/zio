@@ -85,7 +85,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
         val newState = oldState match {
           case Pending(joiners) =>
             action =
-              IO.forkAll(joiners.map(k => IO.sync[E2, Unit](k(r)))) *>
+              IO.forkAll(joiners.map(k => IO.sync[Unit](k(r)))) *>
                 IO.now[E2, Boolean](true)
 
             Done(r)
@@ -155,7 +155,7 @@ object Promise {
                   .uninterruptibly
                   .widenError[E]
             b <- p.get
-          } yield b).ensuring(pRef.read[Nothing].flatMap(_.fold(IO.unit[Nothing])(t => release(t._1, t._2))))
+          } yield b).ensuring(pRef.read.flatMap(_.fold(IO.unit)(t => release(t._1, t._2))))
     } yield b
 
   /**
@@ -164,7 +164,7 @@ object Promise {
    * promise.
    */
   final def make0[E1, E2, A]: IO[E1, Promise[E2, A]] =
-    IO.sync[E1, Promise[E2, A]](unsafeMake[E2, A])
+    IO.sync[Promise[E2, A]](unsafeMake[E2, A])
 
   private[zio] object internal {
     sealed trait State[E, A]

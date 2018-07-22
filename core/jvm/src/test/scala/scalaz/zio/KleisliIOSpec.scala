@@ -162,7 +162,7 @@ class KleisliIOSpec extends Specification with RTS {
     unsafeRun(
       for {
         v <- whileDo[Nothing, Int](pure[Nothing, Int, Boolean](a => IO.now[Nothing, Boolean](a < 10)))(
-              pure[Nothing, Int, Int](a => IO.sync[Nothing, Int](a + 1))
+              pure[Nothing, Int, Int](a => IO.sync[Int](a + 1))
             ).run(1)
       } yield v must_=== 10
     )

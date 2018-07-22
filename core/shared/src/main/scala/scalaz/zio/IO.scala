@@ -125,13 +125,13 @@ sealed abstract class IO[+E, +A] { self =>
    * } yield a
    * }}}
    */
-  final def fork[E1 >: E, E2, A1 >: A]: IO[E2, Fiber[E1, A1]] = new IO.Fork(this, None)
+  final def fork[E1 >: E, A1 >: A]: IO[Nothing, Fiber[E1, A1]] = new IO.Fork(this, None)
 
   /**
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0[E1 >: E, E2, A1 >: A](handler: Throwable => IO[Nothing, Unit]): IO[E2, Fiber[E1, A1]] =
+  final def fork0[E1 >: E, A1 >: A](handler: Throwable => IO[Nothing, Unit]): IO[Nothing, Fiber[E1, A1]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -254,24 +254,24 @@ sealed abstract class IO[+E, +A] { self =>
    * }
    * }}}
    */
-  final def bracket[E1 >: E, A1 >: A, B](release: A1 => IO[Nothing, Unit])(use: A1 => IO[E1, B]): IO[E1, B] =
-    IO.bracket[E1, A1, B](this)(release)(use)
+  final def bracket[E1 >: E, B](release: A => IO[Nothing, Unit])(use: A => IO[E1, B]): IO[E1, B] =
+    IO.bracket[E1, A, B](this)(release)(use)
 
   /**
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
-  final def bracket0[E1 >: E, A1 >: A, B](
-    release: (A1, Option[Either[E1, B]]) => IO[Nothing, Unit]
-  )(use: A1 => IO[E1, B]): IO[E1, B] =
-    IO.bracket0[E1, A1, B](this)(release)(use)
+  final def bracket0[E1 >: E, B](
+    release: (A, Option[Either[E1, B]]) => IO[Nothing, Unit]
+  )(use: A => IO[E1, B]): IO[E1, B] =
+    IO.bracket0[E1, A, B](this)(release)(use)
 
   /**
    * A less powerful variant of `bracket` where the value produced by this
    * action is not needed.
    */
-  final def bracket_[E1 >: E, A1 >: A, B](release: IO[Nothing, Unit])(use: IO[E1, B]): IO[E1, B] =
-    IO.bracket[E1, A1, B](self)(_ => release)(_ => use)
+  final def bracket_[E1 >: E, B](release: IO[Nothing, Unit])(use: IO[E1, B]): IO[E1, B] =
+    IO.bracket[E1, A, B](self)(_ => release)(_ => use)
 
   /**
    * Executes the specified finalizer, whether this action succeeds, fails, or
@@ -283,9 +283,9 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Executes the release action only if there was an error.
    */
-  final def bracketOnError[E1 >: E, A1 >: A, B](release: A1 => IO[Nothing, Unit])(use: A1 => IO[E1, B]): IO[E1, B] =
-    IO.bracket0[E1, A1, B](this)(
-      (a: A1, eb: Option[Either[E1, B]]) =>
+  final def bracketOnError[E1 >: E, B](release: A => IO[Nothing, Unit])(use: A => IO[E1, B]): IO[E1, B] =
+    IO.bracket0[E1, A, B](this)(
+      (a: A, eb: Option[Either[E1, B]]) =>
         eb match {
           case Some(Right(_)) => IO.unit
           case _              => release(a)
@@ -372,7 +372,7 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Repeats this action forever (until the first error).
    */
-  final def forever[B]: IO[E, B] = self *> self.forever
+  final def forever: IO[E, Nothing] = self *> self.forever
 
   /**
    * Retries continuously until this action succeeds.
@@ -719,7 +719,7 @@ object IO {
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def sync[E, A](effect: => A): IO[E, A] = new SyncEffect(() => effect)
+  final def sync[A](effect: => A): IO[Nothing, A] = new SyncEffect(() => effect)
 
   /**
    *
@@ -795,7 +795,7 @@ object IO {
    * Returns a action that will never produce anything. The moral
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
-  final def never[E, A]: IO[E, A] = Never.asInstanceOf[IO[E, A]]
+  final def never[A]: IO[Nothing, A] = Never.asInstanceOf[IO[Nothing, A]]
 
   /**
    * Submerges the error case of an `Either` into the `IO`. The inverse
@@ -825,8 +825,8 @@ object IO {
 
   final def forkAll[E, A, M[X] <: TraversableOnce[X]](
     as: M[IO[E, A]]
-  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, Fiber[E, M[A]]] =
-    as.foldRight(IO.point[E, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) {
+  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[Nothing, Fiber[E, M[A]]] =
+    as.foldRight(IO.point[Nothing, Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) {
         case (a, as) => as.par(a.fork).map { case (as, a) => as.zipWith(a)(_ += _) }
       }
       .map(as => as.zipWith(Fiber.point(())) { case (as, _) => as.result })

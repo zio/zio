@@ -937,7 +937,7 @@ private object RTS {
                 try cancel(t)
                 catch {
                   case t: Throwable if (nonFatal(t)) =>
-                    supervise(fork(unhandled(t)[E], unhandled))
+                    supervise(fork(unhandled(t), unhandled))
                 }
             }
 
