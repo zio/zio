@@ -434,13 +434,13 @@ sealed abstract class IO[+E, +A] { self =>
     val gapNs = interval.toNanos
 
     def tick(start: Long, n: Int): IO[E, B] =
-      self *> nanoTime.widenError[E].flatMap { now =>
+      self *> nanoTime.flatMap { now =>
         val await = ((start + n * gapNs) - now).max(0L)
 
         IO.sleep(await.nanoseconds) *> tick(start, n + 1)
       }
 
-    nanoTime.widenError[E].flatMap { start =>
+    nanoTime.flatMap { start =>
       tick(start, 1)
     }
   }

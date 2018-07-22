@@ -31,13 +31,13 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * the fiber performing the `offer` will be suspended until there is room in
    * the queue.
    */
-  final def offer[E](a: A): IO[E, Unit] = {
-    val acquire: (Promise[E, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
+  final def offer(a: A): IO[Nothing, Unit] = {
+    val acquire: (Promise[Nothing, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
       case (p, Deficit(takers)) =>
         takers.dequeueOption match {
           case None => (p.complete(()), Surplus(IQueue.empty[A].enqueue(a), IQueue.empty))
           case Some((taker, takers)) =>
-            (taker.complete[Nothing](a) *> p.complete[Nothing](()), Deficit(takers))
+            (taker.complete(a) *> p.complete(()), Deficit(takers))
         }
 
       case (p, Surplus(values, putters)) =>
@@ -48,7 +48,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         }
     }
 
-    val release: (Boolean, Promise[E, Unit]) => IO[Nothing, Unit] = {
+    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
       case (_, p) => removePutter(p)
     }
 
@@ -59,9 +59,9 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
    */
-  final def take[E]: IO[E, A] = {
+  final def take: IO[Nothing, A] = {
 
-    val acquire: (Promise[E, A], State[A]) => (IO[Nothing, Boolean], State[A]) = {
+    val acquire: (Promise[Nothing, A], State[A]) => (IO[Nothing, Boolean], State[A]) = {
       case (p, Deficit(takers)) =>
         (IO.now(false), Deficit(takers.enqueue(p)))
       case (p, Surplus(values, putters)) =>
@@ -71,14 +71,14 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
               case None =>
                 (IO.now(false), Deficit(IQueue.empty.enqueue(p)))
               case Some(((a, putter), putters)) =>
-                (putter.complete(()) *> p.complete[Nothing](a), Surplus(IQueue.empty, putters))
+                (putter.complete(()) *> p.complete(a), Surplus(IQueue.empty, putters))
             }
           case Some((a, values)) =>
-            (p.complete[Nothing](a), Surplus(values, putters))
+            (p.complete(a), Surplus(values, putters))
         }
     }
 
-    val release: (Boolean, Promise[E, A]) => IO[Nothing, Unit] = {
+    val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
       case (_, p) => removeTaker(p)
     }
     Promise.bracket(ref)(acquire)(release)
@@ -89,10 +89,11 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * empty. If any fibers are interrupted, returns true, otherwise, returns
    * false.
    */
-  final def interruptTake[E](t: Throwable): IO[E, Boolean] =
-    IO.flatten(ref.modifyFold[E, IO[E, Boolean]] {
+  final def interruptTake(t: Throwable): IO[Nothing, Boolean] =
+    IO.flatten(ref.modifyFold[Nothing, IO[Nothing, Boolean]] {
       case Deficit(takers) if takers.nonEmpty =>
-        val forked: IO[E, Fiber[E, List[Boolean]]] = IO.forkAll(takers.toList.map(_.interrupt[E](t)))
+        val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
+          IO.forkAll[Nothing, Boolean, List](takers.toList.map(_.interrupt(t)))
         (forked.flatMap(_.join).map(_.forall(identity)), Deficit(IQueue.empty[Promise[_, A]]))
       case s =>
         (IO.now(false), s)
@@ -103,10 +104,11 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * at capacity. If any fibers are interrupted, returns true, otherwise,
    * returns  false.
    */
-  final def interruptOffer[E](t: Throwable): IO[E, Boolean] =
-    IO.flatten(ref.modifyFold[E, IO[E, Boolean]] {
+  final def interruptOffer(t: Throwable): IO[Nothing, Boolean] =
+    IO.flatten(ref.modifyFold[Nothing, IO[Nothing, Boolean]] {
       case Surplus(_, putters) if putters.nonEmpty =>
-        val forked: IO[E, Fiber[E, List[Boolean]]] = IO.forkAll(putters.toList.map(_._2.interrupt[E](t)))
+        val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
+          IO.forkAll[Nothing, Boolean, List](putters.toList.map(_._2.interrupt(t)))
         (forked.flatMap(_.join).map(_.forall(identity)), Deficit(IQueue.empty[Promise[_, A]]))
       case s =>
         (IO.now(false), s)

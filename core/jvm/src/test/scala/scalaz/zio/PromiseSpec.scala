@@ -25,7 +25,7 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        s <- p.complete[Nothing](32)
+        s <- p.complete(32)
         v <- p.get
       } yield s must beTrue and (v must_=== 32)
     )
@@ -34,7 +34,7 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        s <- p.done[Nothing](ExitResult.Completed(14))
+        s <- p.done(ExitResult.Completed(14))
         v <- p.get
       } yield s must beTrue and (v must_=== 14)
     )
@@ -43,7 +43,7 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.error[String]("error in e3")
+        s <- p.error("error in e3")
         v <- p.get.attempt[String]
       } yield s must beTrue and (v must_=== Left("error in e3"))
     )
@@ -52,7 +52,7 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done[String](ExitResult.Failed("error in e4"))
+        s <- p.done(ExitResult.Failed("error in e4"))
         v <- p.get.attempt[String]
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
@@ -61,8 +61,8 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        _ <- p.complete[Nothing](1)
-        s <- p.done[Nothing](ExitResult.Completed(9))
+        _ <- p.complete(1)
+        s <- p.done(ExitResult.Completed(9))
         v <- p.get
       } yield s must beFalse and (v must_=== 1)
     )
@@ -73,14 +73,14 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.done[Exception](ExitResult.Terminated(error))
+        s <- p.done(ExitResult.Terminated(error))
       } yield s must beTrue
     )
   def e7 =
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.interrupt[Exception](error)
+        s <- p.interrupt(error)
       } yield s must beTrue
     )
 }
