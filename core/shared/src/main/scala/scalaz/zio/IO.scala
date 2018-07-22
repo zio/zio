@@ -882,7 +882,7 @@ object IO {
    * Evaluate the elements of a traversable data structure in parallel
    * and collect the results. This is the parallel version of `traverse`.
    */
-  def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
+  final def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
     as: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
     as.foldLeft(IO.sync[E, mutable.Builder[B, M[B]]](cbf(as))) { (bsIO, a) =>
@@ -891,6 +891,25 @@ object IO {
         }
       }
       .map(_.result)
+
+  /**
+    * Evaluate the elements of a traversable data structure in parallel
+    * and collect the results. Only up to `n` tasks run in parallel.
+    * This is a version of `parTraverse`, with a throttle.
+    */
+  final def parTraverseThrottled[E, A, B, M[X] <: TraversableOnce[X]](n: Long)(
+    as: M[A]
+  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] ={
+    val semaphore = Semaphore(n)
+    parTraverse(as)(
+      a =>
+        for {
+          _      <- semaphore.acquire
+          result <- fn(a)
+          _      <- semaphore.release
+        } yield result
+    )
+  }
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
@@ -909,6 +928,16 @@ object IO {
     as: M[IO[E, A]]
   )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, M[A]] =
     parTraverse(as)(identity)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect
+   * the results. Only up to `n` tasks run in parallel.
+   * This is a version of `parAll`, with a throttle.
+   */
+  final def parAllThrottled[E, A, M[X] <: TraversableOnce[X]](n: Long)(
+    as: M[IO[E, A]]
+  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, M[A]] =
+    parTraverseThrottled(n)(as)(identity)
 
   /**
    * Races a traversable collection of `IO[E, A]` against each other. If all of
