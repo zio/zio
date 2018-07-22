@@ -36,7 +36,7 @@ trait Fiber[E, A] { self =>
    * immediately. Otherwise, it will resume when the fiber has been
    * successfully interrupted or has produced its result.
    */
-  def interrupt[E2](t: Throwable): IO[E2, Unit]
+  def interrupt(t: Throwable): IO[Nothing, Unit]
 
   /**
    * Zips this fiber with the specified fiber, combining their results using
@@ -48,7 +48,7 @@ trait Fiber[E, A] { self =>
       def join: IO[E, C] =
         self.join.zipWith(that.join)(f)
 
-      def interrupt[E2](t: Throwable): IO[E2, Unit] =
+      def interrupt(t: Throwable): IO[Nothing, Unit] =
         self.interrupt(t) *> that.interrupt(t)
     }
 }
@@ -56,7 +56,7 @@ trait Fiber[E, A] { self =>
 object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def join: IO[E, A]                            = IO.point(a)
-      def interrupt[E2](t: Throwable): IO[E2, Unit] = IO.unit[E2]
+      def join: IO[E, A]                             = IO.point(a)
+      def interrupt(t: Throwable): IO[Nothing, Unit] = IO.unit[Nothing]
     }
 }

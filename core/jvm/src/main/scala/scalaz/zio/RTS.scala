@@ -753,8 +753,8 @@ private object RTS {
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
       x => cb(x.mapError(_ => SuccessUnit[E2]))
 
-    final def interrupt[E2](t: Throwable): IO[E2, Unit] =
-      IO.async0[E2, Unit](cb => kill0[E2](t, changeErrorUnit[E2](cb)))
+    final def interrupt(t: Throwable): IO[Nothing, Unit] =
+      IO.async0[Nothing, Unit](cb => kill0[Nothing](t, changeErrorUnit[Nothing](cb)))
 
     final def join: IO[E, A] = IO.async0(join0)
 
@@ -873,7 +873,7 @@ private object RTS {
             while (iterator.hasNext()) {
               val child = iterator.next()
 
-              action = action *> child.interrupt[E2](e)
+              action = action *> child.interrupt(e)
             }
 
             tail

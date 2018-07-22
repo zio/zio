@@ -87,7 +87,7 @@ class RefSpec extends Specification with RTS {
         f2      <- ref.write[Nothing](2).forever.fork[Nothing, Unit]
         success <- tryWriteUntilFalse(ref, 3)
         value   <- ref.read[Nothing]
-        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Nothing](new Error("Terminated fiber"))
+        _       <- f1.zipWith(f2)((_, _) => ()).interrupt(new Error("Terminated fiber"))
       } yield (success must beFalse) and (value must be_!=(3))
     )
 
