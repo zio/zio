@@ -56,28 +56,28 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   /**
    * Completes the promise with the specified value.
    */
-  final def complete[E2](a: A): IO[E2, Boolean] = done(ExitResult.Completed[E, A](a))
+  final def complete(a: A): IO[Nothing, Boolean] = done(ExitResult.Completed[E, A](a))
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def error[E2](e: E): IO[E2, Boolean] = done(ExitResult.Failed[E, A](e))
+  final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.Failed[E, A](e))
 
   /**
    * Interrupts the promise with the specified throwable. This will interrupt
    * all fibers waiting on the value of the promise.
    */
-  final def interrupt[E2](t: Throwable): IO[E2, Boolean] = done(ExitResult.Terminated[E, A](t))
+  final def interrupt(t: Throwable): IO[Nothing, Boolean] = done(ExitResult.Terminated[E, A](t))
 
   /**
    * Completes the promise with the specified result. If the specified promise
    * has already been completed, the method will produce false.
    */
-  final def done[E2](r: ExitResult[E, A]): IO[E2, Boolean] =
+  final def done(r: ExitResult[E, A]): IO[Nothing, Boolean] =
     IO.flatten(IO.sync {
-      var action: IO[E2, Boolean] = null.asInstanceOf[IO[E2, Boolean]]
-      var retry                   = true
+      var action: IO[Nothing, Boolean] = null.asInstanceOf[IO[Nothing, Boolean]]
+      var retry                        = true
 
       while (retry) {
         val oldState = state.get
@@ -86,12 +86,12 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
           case Pending(joiners) =>
             action =
               IO.forkAll(joiners.map(k => IO.sync[Unit](k(r)))) *>
-                IO.now[E2, Boolean](true)
+                IO.now[Nothing, Boolean](true)
 
             Done(r)
 
           case Done(_) =>
-            action = IO.now[E2, Boolean](false)
+            action = IO.now[Nothing, Boolean](false)
 
             oldState
         }
@@ -102,7 +102,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private def interruptJoiner(joiner: ExitResult[E, A] => Unit): Throwable => Unit = (t: Throwable) => {
+  private def interruptJoiner(joiner: ExitResult[E, A] => Unit): Throwable => Unit = { _ =>
     var retry = true
 
     while (retry) {
@@ -125,7 +125,7 @@ object Promise {
   /**
    * Makes a new promise.
    */
-  final def make[E, A]: IO[E, Promise[E, A]] = make0[E, E, A]
+  final def make[E, A]: IO[E, Promise[E, A]] = IO.sync[Promise[E, A]](unsafeMake[E, A])
 
   private final def unsafeMake[E, A]: Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
@@ -135,15 +135,17 @@ object Promise {
    * guarantees that if the resource is acquired (and the state changed), a
    * release action will be called.
    */
-  final def bracket[E, A, B, C](
+  final def bracket[A, B, C](
     ref: Ref[A]
-  )(acquire: (Promise[E, B], A) => (IO[Nothing, C], A))(release: (C, Promise[E, B]) => IO[Nothing, Unit]): IO[E, B] =
+  )(
+    acquire: (Promise[Nothing, B], A) => (IO[Nothing, C], A)
+  )(release: (C, Promise[Nothing, B]) => IO[Nothing, Unit]): IO[Nothing, B] =
     for {
-      pRef <- Ref[E, Option[(C, Promise[E, B])]](None)
+      pRef <- Ref[Nothing, Option[(C, Promise[Nothing, B])]](None)
       b <- (for {
             p <- ref
-                  .modifyFold[Nothing, (Promise[E, B], IO[Nothing, C])] { (a: A) =>
-                    val p = Promise.unsafeMake[E, B]
+                  .modifyFold[Nothing, (Promise[Nothing, B], IO[Nothing, C])] { (a: A) =>
+                    val p = Promise.unsafeMake[Nothing, B]
 
                     val (io, a2) = acquire(p, a)
 
@@ -153,18 +155,9 @@ object Promise {
                     case (p, io) => io.flatMap(c => pRef.write[Nothing](Some((c, p))) *> IO.now(p))
                   }
                   .uninterruptibly
-                  .widenError[E]
             b <- p.get
           } yield b).ensuring(pRef.read.flatMap(_.fold(IO.unit)(t => release(t._1, t._2))))
     } yield b
-
-  /**
-   * Makes a new promise. This is a more powerful variant that can utilize
-   * different error parameters for the returned promise and the creation of the
-   * promise.
-   */
-  final def make0[E1, E2, A]: IO[E1, Promise[E2, A]] =
-    IO.sync[Promise[E2, A]](unsafeMake[E2, A])
 
   private[zio] object internal {
     sealed trait State[E, A]

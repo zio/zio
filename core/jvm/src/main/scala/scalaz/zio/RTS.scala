@@ -221,7 +221,7 @@ private object RTS {
       final def apply(v: Any): IO[E, Any] = {
         noInterrupt += 1
 
-        finalizer.widenError[E].flatMap(_ => IO.sync { noInterrupt -= 1; v })
+        finalizer.flatMap(_ => IO.sync { noInterrupt -= 1; v })
       }
     }
 
@@ -434,7 +434,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = io
 
-                        curIo = doNotInterrupt(finalization).widenError[E] *> completer
+                        curIo = doNotInterrupt(finalization) *> completer
                       }
                     } else {
                       // Error caught:
@@ -447,7 +447,7 @@ private object RTS {
                         val finalization = dispatchErrors(finalizer)
                         val completer    = handled
 
-                        curIo = doNotInterrupt(finalization).widenError[E] *> completer
+                        curIo = doNotInterrupt(finalization) *> completer
                       }
                     }
 
@@ -539,7 +539,7 @@ private object RTS {
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
-                    curIo = doNotInterrupt(io.io).widenError[E]
+                    curIo = doNotInterrupt(io.io)
 
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep[E]]
@@ -575,7 +575,7 @@ private object RTS {
                       val finalization = dispatchErrors(finalizer)
                       val completer    = io
 
-                      curIo = doNotInterrupt(finalization).widenError[E] *> completer
+                      curIo = doNotInterrupt(finalization) *> completer
                     }
 
                   case IO.Tags.Supervisor =>
