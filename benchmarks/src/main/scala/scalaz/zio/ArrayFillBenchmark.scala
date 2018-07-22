@@ -32,7 +32,7 @@ class ArrayFillBenchmarks {
 
     unsafeRun(
       for {
-        array <- IO.sync[Nothing, Array[Int]](createTestArray)
+        array <- IO.sync[Array[Int]](createTestArray)
         _     <- arrayFill(array).run(0)
       } yield ()
     )

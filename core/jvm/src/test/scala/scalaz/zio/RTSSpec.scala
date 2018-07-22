@@ -99,8 +99,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(IO.point(1)) must_=== 1
 
   def testWidenNothing = {
-    val op1 = IO.sync[RuntimeException, String]("1")
-    val op2 = IO.sync[Nothing, String]("2")
+    val op1 = IO.sync[String]("1")
+    val op2 = IO.sync[String]("2")
 
     val result: IO[RuntimeException, String] = for {
       r1 <- op1
@@ -166,7 +166,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(IO.fail[Throwable, Int](ExampleError)) must (throwA(UnhandledError(ExampleError)))
 
   def testEvalOfUncaughtThrownSyncEffect =
-    unsafeRun(IO.sync[Throwable, Int](throw ExampleError)) must (throwA(ExampleError))
+    unsafeRun(IO.sync[Int](throw ExampleError)) must (throwA(ExampleError))
 
   def testEvalOfDeepUncaughtThrownSyncEffect =
     unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError)))
@@ -177,7 +177,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testEvalOfFailEnsuring = {
     var finalized = false
 
-    unsafeRun(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Nothing, Unit] { finalized = true; () })) must (throwA(
+    unsafeRun(IO.fail[Throwable, Unit](ExampleError).ensuring(IO.sync[Unit] { finalized = true; () })) must (throwA(
       UnhandledError(ExampleError)
     ))
     finalized must_=== true
@@ -186,7 +186,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testEvalOfFailOnError = {
     var finalized = false
     val cleanup: Option[Throwable] => IO[Nothing, Unit] =
-      _ => IO.sync[Nothing, Unit] { finalized = true; () }
+      _ => IO.sync[Unit] { finalized = true; () }
 
     unsafeRun(
       IO.fail[Throwable, Unit](ExampleError).onError(cleanup)
@@ -210,7 +210,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun {
       IO.point[Nothing, Int](42)
         .ensuring(IO.terminate(ExampleError))
-        .fork0(e => IO.sync[Nothing, Unit] { reported = e; () })
+        .fork0(e => IO.sync[Unit] { reported = e; () })
     }
 
     // FIXME: Is this an issue with thread synchronization?
@@ -283,7 +283,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
                 _ => IO.unit[Nothing]
               )
             )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit[Nothing])
-            .fork[Nothing, Nothing, Unit]
+            .fork[Nothing, Unit]
       _ <- (ref.read <* IO.sleep[Nothing](1.millisecond)).doUntil(_.contains("start 1"))
       _ <- f.interrupt(new RuntimeException("cancel"))
       _ <- (ref.read <* IO.sleep[Nothing](1.millisecond)).doUntil(_.contains("release 2"))
@@ -298,7 +298,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       p2 <- Promise.make[Nothing, Int]
       s <- (p1.complete(()) *> p2.get)
             .ensuring(r.write[Nothing](true).toUnit.delay(10.millis))
-            .fork[Nothing, Nothing, Int]
+            .fork[Nothing, Int]
       _    <- p1.get
       _    <- s.interrupt[Nothing](new Error("interrupt e"))
       test <- r.read[Nothing]
@@ -334,7 +334,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(deepMapEffect(10000)) must_=== 10000
 
   def testDeepAttemptIsStackSafe =
-    unsafeRun((0 until 10000).foldLeft(IO.sync[Throwable, Unit](())) { (acc, _) =>
+    unsafeRun((0 until 10000).foldLeft(IO.syncThrowable[Unit](())) { (acc, _) =>
       acc.attempt[Throwable].toUnit
     }) must_=== (())
 
@@ -380,7 +380,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
 
   def testForkJoinIsId =
-    unsafeRun(IO.point[Throwable, Int](42).fork[Throwable, Throwable, Int].flatMap(_.join)) must_=== 42
+    unsafeRun(IO.point[Throwable, Int](42).fork[Throwable, Int].flatMap(_.join)) must_=== 42
 
   def testDeepForkJoinIsId = {
     val n = 20
@@ -391,7 +391,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testNeverIsInterruptible = {
     val io =
       for {
-        fiber <- IO.never[Throwable, Int].fork[Throwable, Throwable, Int]
+        fiber <- IO.never[Int].fork[Throwable, Int]
         _     <- fiber.interrupt(ExampleError)
       } yield 42
 
@@ -405,10 +405,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(IO.fail(42).race(IO.fail(42)).attempt) must_=== Left(42)
 
   def testRaceOfValueNever =
-    unsafeRun(IO.point(42).race(IO.never[Throwable, Int])) must_=== 42
+    unsafeRun(IO.point(42).race(IO.never[Int])) must_=== 42
 
   def testRaceOfFailNever =
-    unsafeRun(IO.fail(24).race(IO.never[Int, Int]).timeout[Option[Int]](None)(Option.apply)(10.milliseconds)) must beNone
+    unsafeRun(IO.fail(24).race(IO.never[Int]).timeout[Option[Int]](None)(Option.apply)(10.milliseconds)) must beNone
 
   def testRaceAllOfValues =
     unsafeRun(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24))).attempt) must_=== Right(24)
@@ -477,8 +477,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
     unsafeRun(
       for {
-        f <- test.fork[Nothing, Nothing, Unit]
-        c <- (IO.sync[Throwable, Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt(
+        f <- test.fork[Nothing, Unit]
+        c <- (IO.sync[Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt(
               new RuntimeException("y")
             )
       } yield c must be_>=(1)
@@ -488,7 +488,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
 
   def testInterruptSyncForever = unsafeRun(
     for {
-      f <- IO.sync[Nothing, Int](1).forever[Nothing].fork[Nothing, Nothing, Nothing]
+      f <- IO.sync[Int](1).forever.fork[Nothing, Nothing]
       _ <- f.interrupt[Nothing](new Error("terminate forever"))
     } yield true
   )
@@ -527,8 +527,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     if (n <= 1) IO.point[Throwable, BigInt](n)
     else
       for {
-        f1 <- concurrentFib(n - 1).fork[Throwable, Throwable, BigInt]
-        f2 <- concurrentFib(n - 2).fork[Throwable, Throwable, BigInt]
+        f1 <- concurrentFib(n - 1).fork[Throwable, BigInt]
+        f2 <- concurrentFib(n - 2).fork[Throwable, BigInt]
         v1 <- f1.join
         v2 <- f2.join
       } yield v1 + v2
