@@ -421,7 +421,7 @@ private object RTS {
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
                         curIo = null
-                        val causes     = status.get.causes
+                        val causes = status.get.causes
 
                         result = ExitResult.Failed(error, causes)
                       } else {
@@ -930,26 +930,24 @@ private object RTS {
             reportErrors(v, is)
           }
 
-
         case Done(_) => // Huh?
       }
     }
 
-    final def reportErrors(v: ExitResult[E, A], is: List[Throwable]): Unit = {
+    final def reportErrors(v: ExitResult[E, A], is: List[Throwable]): Unit =
       v match {
         case ExitResult.Failed(error, causes) =>
           // Report the uncaught error to the supervisor:
           rts.submit(
             rts.unsafeRun(unhandled(Errors.UnhandledError(error, causes) :: is))
           )
-        
+
         case ExitResult.Terminated(causes) =>
           // Report the termination cause to the supervisor:
           rts.submit(rts.unsafeRun(unhandled(causes ++ is)))
 
         case _ =>
       }
-    }
 
     @tailrec
     private final def kill0[E2](ts: List[Throwable], k: Callback[E, Unit]): Async[E2, Unit] = {
