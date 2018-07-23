@@ -22,7 +22,7 @@ trait RTS {
     case ExitResult.Completed(v)       => v
     case ExitResult.Terminated(Nil)    => throw Errors.TerminatedFiber
     case ExitResult.Terminated(t :: _) => throw t
-    case ExitResult.Failed(e, ts)       => throw Errors.UnhandledError(e, ts)
+    case ExitResult.Failed(e, ts)      => throw Errors.UnhandledError(e, ts)
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
@@ -224,10 +224,11 @@ private object RTS {
       }
     }
 
-    private final def collectDefect[E, A](e: ExitResult[E, A]): List[Throwable] =
+    private final def collectDefect[E, A](e: ExitResult[E, A]): Option[List[Throwable]] =
       e match {
-        case ExitResult.Terminated(ts) => ts
-        case _                         => Nil
+        case ExitResult.Terminated(ts @ _ :: _) => Some(ts)
+        case ExitResult.Failed(_, ts @ _ :: _)  => Some(ts)
+        case _                                  => None
       }
 
     /**
@@ -236,9 +237,9 @@ private object RTS {
      * empty in the sole case the exception was not caught by any exception
      * handler—i.e. the exceptional case.
      */
-    final def catchError: IO[Void, List[Throwable]] = {
-      var errorHandler: Any => IO[Any, Any]    = null
-      var finalizer: IO[Void, List[Throwable]] = null
+    final def catchError: IO[Void, Option[List[Throwable]]] = {
+      var errorHandler: Any => IO[Any, Any]            = null
+      var finalizer: IO[Void, Option[List[Throwable]]] = null
 
       // Unwind the stack, looking for exception handlers and coalescing
       // finalizers.
@@ -247,10 +248,15 @@ private object RTS {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
+            val f: IO[Void, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else
-              finalizer = finalizer.zipWith(f)(_ ++ _)
+              finalizer = finalizer.zipWith(f) {
+                case (Some(ts1), Some(ts2)) => Some(ts1 ++ ts2)
+                case (Some(ts1), None)      => Some(ts1)
+                case (None, Some(ts2))      => Some(ts2)
+                case (None, None)           => None
+              }
           case _ =>
         }
       }
@@ -270,9 +276,9 @@ private object RTS {
      * Empties the stack, collecting all finalizers and coalescing them into an
      * action that produces a list (possibly empty) of errors during finalization.
      */
-    final def interruptStack: IO[Void, List[Throwable]] = {
+    final def interruptStack: IO[Void, Option[List[Throwable]]] = {
       // Use null to achieve zero allocs for the common case of no finalizers:
-      var finalizer: IO[Void, List[Throwable]] = null
+      var finalizer: IO[Void, Option[List[Throwable]]] = null
 
       while (!stack.isEmpty) {
         // Peel off all the finalizers, composing them into a single finalizer
@@ -281,10 +287,15 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer =>
-            val f: IO[Void, List[Throwable]] = f0.finalizer.run.map(collectDefect)
+            val f: IO[Void, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else
-              finalizer = finalizer.zipWith(f)(_ ++ _)
+              finalizer = finalizer.zipWith(f) {
+                case (Some(ts1), Some(ts2)) => Some(ts1 ++ ts2)
+                case (Some(ts1), None)      => Some(ts1)
+                case (None, Some(ts2))      => Some(ts2)
+                case (None, None)           => None
+              }
           case _ =>
         }
       }
@@ -411,12 +422,14 @@ private object RTS {
                         // No finalizer, so immediately produce the error.
                         curIo = null
 
-                        val causes = status.get.causes
+                        val causes     = status.get.causes
                         val interrupts = status.get.errors
                         result = ExitResult.Failed(error, causes)
 
                         // Report the uncaught error to the supervisor:
-                        rts.submit(rts.unsafeRun(unhandled(Errors.UnhandledError(error, causes) :: interrupts.getOrElse(Nil))))
+                        rts.submit(
+                          rts.unsafeRun(unhandled(Errors.UnhandledError(error, causes) :: interrupts.getOrElse(Nil)))
+                        )
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -634,9 +647,9 @@ private object RTS {
       context
     }
 
-    private final def accumFailures: List[Throwable] => IO[Void, Unit] = {
-      case Nil => IO.now[Void, Unit](())
-      case ts  => IO.sync(addFailures(ts))
+    private final def accumFailures: Option[List[Throwable]] => IO[Void, Unit] = {
+      case None     => IO.unit[Void]
+      case Some(ts) => IO.sync(addFailures(ts))
     }
 
     @tailrec
@@ -797,7 +810,8 @@ private object RTS {
         case AsyncRegion(ts, causes, reentrancy, resume, cancel, joiners, killers) =>
           val newReentrancy = reentrancy + 1
 
-          if (!status.compareAndSet(oldStatus, AsyncRegion(ts, causes, newReentrancy, resume + 1, cancel, joiners, killers)))
+          if (!status.compareAndSet(oldStatus,
+                                    AsyncRegion(ts, causes, newReentrancy, resume + 1, cancel, joiners, killers)))
             enterAsyncStart()
           else newReentrancy
 
@@ -830,7 +844,8 @@ private object RTS {
           if (!status.compareAndSet(oldStatus, Executing(ts, causes, joiners, killers))) enterAsyncEnd()
 
         case AsyncRegion(ts, causes, reentrancy, resume, cancel, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(ts, causes, reentrancy - 1, resume, cancel, joiners, killers)))
+          if (!status.compareAndSet(oldStatus,
+                                    AsyncRegion(ts, causes, reentrancy - 1, resume, cancel, joiners, killers)))
             enterAsyncEnd()
 
         case _ =>
@@ -929,7 +944,8 @@ private object RTS {
 
       oldStatus match {
         case Executing(ts0, causes, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Executing(Some(ts0.getOrElse(Nil) ++ ts), causes, joiners, k :: killers)))
+          if (!status.compareAndSet(oldStatus,
+                                    Executing(Some(ts0.getOrElse(Nil) ++ ts), causes, joiners, k :: killers)))
             kill0(ts, k)
           else {
             killed = true
@@ -958,7 +974,10 @@ private object RTS {
             val finalizer = interruptStack
 
             if (finalizer ne null) {
-              fork[Void, Unit](finalizer.flatMap(unhandled), unhandled)
+              fork[Void, Unit](finalizer.flatMap {
+                case None     => IO.unit[Void]
+                case Some(ts) => unhandled(ts)
+              }, unhandled)
                 .runAsync((_: ExitResult[Void, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
               Async.later[E2, Unit]
             } else Async.now(SuccessUnit[E2])
@@ -1031,7 +1050,7 @@ private object RTS {
         extends FiberStatus[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
       override def errors: Option[List[Throwable]] = None
-      override def causes: List[Throwable] = Nil
+      override def causes: List[Throwable]         = Nil
     }
 
     def Initial[E, A] = Executing[E, A](None, Nil, Nil, Nil)
