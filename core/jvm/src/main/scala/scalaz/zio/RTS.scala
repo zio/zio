@@ -20,7 +20,7 @@ trait RTS {
    */
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
     case ExitResult.Completed(v)       => v
-    case ExitResult.Terminated(Nil)    => throw Errors.InterruptedFiber
+    case ExitResult.Terminated(Nil)    => throw Errors.TerminatedFiber
     case ExitResult.Terminated(t :: _) => throw t
     case ExitResult.Failed(e, _)       => throw Errors.UnhandledError(e)
   }
@@ -315,9 +315,7 @@ private object RTS {
 
           while (curIo ne null) {
             // Check to see if the fiber should continue executing or not:
-            val die = shouldDie
-
-            if (die eq None) {
+            if (!shouldDie) {
               // Fiber does not need to be interrupted, but might need to yield:
               if (opcount == maxopcount) {
                 // Cooperatively yield to other fibers currently suspended.
@@ -903,8 +901,7 @@ private object RTS {
       })
 
     @inline
-    final def shouldDie: Option[List[Throwable]] =
-      if (!killed || noInterrupt > 0) None else status.get.errors
+    final def shouldDie: Boolean = killed && noInterrupt == 0
 
     private final val exitUninterruptible: IO[Void, Unit] = IO.sync { noInterrupt -= 1 }
 
