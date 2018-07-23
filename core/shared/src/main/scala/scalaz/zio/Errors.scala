@@ -15,6 +15,5 @@ object Errors {
 
   final object TerminatedFiber extends Exception("The fiber was terminated either by a defect or an interruption")
 
-  final object InterruptedFiber
-      extends Exception("The fiber was interrupted either by its superviser or a user-defined action")
+  final object InterruptedFiber extends Exception("The fiber was interrupted either by its superviser")
 }
