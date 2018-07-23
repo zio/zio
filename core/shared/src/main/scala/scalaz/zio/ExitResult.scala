@@ -37,13 +37,13 @@ object ExitResult {
   final case class Completed[E, A](value: A) extends ExitResult[E, A]
 
   /**
-   * Exceptions are collected in their original order:
+   * `defects` refer to exceptions thrown during finalization:
    * first element in list = first failure, last element in list = last failure.
    */
-  final case class Failed[E, A](error: E, causes: List[Throwable]) extends ExitResult[E, A]
+  final case class Failed[E, A](error: E, defects: List[Throwable]) extends ExitResult[E, A]
 
   /**
-   * Exceptions are collected in their original order:
+   * `causes` accretes interruption causes and exceptions thrown during finalization:
    * first element in list = first failure, last element in list = last failure.
    */
   final case class Terminated[E, A](causes: List[Throwable]) extends ExitResult[E, A]
