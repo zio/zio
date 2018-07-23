@@ -13,6 +13,9 @@ object Errors {
   final case class UnhandledError(error: Any)
       extends Exception("An error was not handled by a fiber: " + error.toString())
 
+  final object TerminatedFiber
+      extends Exception("The fiber was terminated either by a defect or an interruption")
+
   final object InterruptedFiber
-      extends Exception("The fiber was interrupted by a user-defined action or its supervisor")
+      extends Exception("The fiber was interrupted either by its superviser or a user-defined action")
 }
