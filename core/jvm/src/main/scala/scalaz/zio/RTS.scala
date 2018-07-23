@@ -421,15 +421,9 @@ private object RTS {
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
                         curIo = null
-
                         val causes     = status.get.causes
-                        val interrupts = status.get.errors
-                        result = ExitResult.Failed(error, causes)
 
-                        // Report the uncaught error to the supervisor:
-                        rts.submit(
-                          rts.unsafeRun(unhandled(Errors.UnhandledError(error, causes) :: interrupts.getOrElse(Nil)))
-                        )
+                        result = ExitResult.Failed(error, causes)
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -571,9 +565,6 @@ private object RTS {
                       val allCauses = causes ++ status.get.causes
 
                       result = ExitResult.Terminated(allCauses)
-
-                      // Report the termination cause to the supervisor:
-                      rts.submit(rts.unsafeRun(unhandled(allCauses)))
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = finalizer.flatMap(accumFailures)
@@ -924,16 +915,39 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(_, _, joiners, killers) =>
+        case Executing(_, is, joiners, killers) =>
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
-          else purgeJoinersKillers(v, joiners, killers)
+          else {
+            purgeJoinersKillers(v, joiners, killers)
+            reportErrors(v, is)
+          }
 
-        case AsyncRegion(_, _, _, _, _, joiners, killers) =>
+        case AsyncRegion(_, is, _, _, _, joiners, killers) =>
           // TODO: Guard against errant `done` or not?
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
-          else purgeJoinersKillers(v, joiners, killers)
+          else {
+            purgeJoinersKillers(v, joiners, killers)
+            reportErrors(v, is)
+          }
+
 
         case Done(_) => // Huh?
+      }
+    }
+
+    final def reportErrors(v: ExitResult[E, A], is: List[Throwable]): Unit = {
+      v match {
+        case ExitResult.Failed(error, causes) =>
+          // Report the uncaught error to the supervisor:
+          rts.submit(
+            rts.unsafeRun(unhandled(Errors.UnhandledError(error, causes) :: is))
+          )
+        
+        case ExitResult.Terminated(causes) =>
+          // Report the termination cause to the supervisor:
+          rts.submit(rts.unsafeRun(unhandled(causes ++ is)))
+
+        case _ =>
       }
     }
 
