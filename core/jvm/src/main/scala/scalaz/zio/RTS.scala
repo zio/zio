@@ -606,6 +606,9 @@ private object RTS {
               // Interruption cannot be interrupted:
               this.noInterrupt += 1
 
+              // At this point, all causes of interruption have been accumulated
+              // in the fiber status and will be read during evalution of this
+              // action:
               curIo = IO.terminate0[E, Any](Nil)
             }
 
@@ -1043,7 +1046,9 @@ private object RTS {
   }
 
   sealed trait FiberStatus[E, A] {
+    /** errors resulting from exceptions thrown during the execution of the fiber */
     def errors: Option[List[Throwable]]
+    /** causes passed in when explicitly interrupting the fiber */
     def causes: List[Throwable]
   }
   object FiberStatus {
