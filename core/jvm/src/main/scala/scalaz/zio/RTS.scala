@@ -420,7 +420,7 @@ private object RTS {
                       // Error not caught, stack is empty:
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
-                        val defects = status.get.errors.getOrElse(Nil)
+                        val defects = status.get.errors
 
                         curIo = null
                         result = ExitResult.Failed(error, defects)
@@ -559,8 +559,8 @@ private object RTS {
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
-                      val causes    = status.get.causes
-                      val defects   = status.get.errors.getOrElse(Nil)
+                      val causes    = status.get.causes.getOrElse(Nil)
+                      val defects   = status.get.errors
                       val allCauses = io.causes ++ causes ++ defects
 
                       curIo = null
@@ -650,11 +650,11 @@ private object RTS {
     private final def addFailures(ts: List[Throwable]): Unit = {
       val oldStatus = status.get
       oldStatus match {
-        case x @ Executing(ts0, _, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0.getOrElse(Nil) ++ ts)))) addFailures(ts) else ()
+        case x @ Executing(_, ts0, _, _) =>
+          if (!status.compareAndSet(oldStatus, x.copy(errors = ts0 ++ ts))) addFailures(ts) else ()
 
-        case x @ AsyncRegion(ts0, _, _, _, _, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0.getOrElse(Nil) ++ ts)))) addFailures(ts) else ()
+        case x @ AsyncRegion(_, ts0, _, _, _, _, _) =>
+          if (!status.compareAndSet(oldStatus, x.copy(errors = ts0 ++ ts))) addFailures(ts) else ()
 
         case _ =>
       }
@@ -958,16 +958,17 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(errors, causes, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Executing(errors, causes ++ cs, joiners, k :: killers)))
+        case Executing(causes, errors, joiners, killers) =>
+          if (!status.compareAndSet(oldStatus,
+                                    Executing(Some(causes.getOrElse(Nil) ++ cs), errors, joiners, k :: killers)))
             kill0(cs, k)
           else {
             killed = true
             Async.later[E2, Unit]
           }
 
-        case AsyncRegion(None, causes, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.Terminated[E, A](causes ++ cs)
+        case AsyncRegion(None, errors, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
+          val v = ExitResult.Terminated[E, A](errors ++ cs)
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(cs, k)
           else {
@@ -999,7 +1000,7 @@ private object RTS {
           }
 
         case s @ AsyncRegion(_, _, _, _, _, _, _) =>
-          val newStatus = s.copy(causes = s.causes ++ cs, killers = k :: s.killers)
+          val newStatus = s.copy(causes = Some(s.causes.getOrElse(Nil) ++ cs), killers = k :: s.killers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) kill0(cs, k)
           else {
@@ -1046,20 +1047,20 @@ private object RTS {
 
   sealed trait FiberStatus[E, A] {
 
-    /** errors resulting from exceptions thrown during the execution of the fiber */
-    def errors: Option[List[Throwable]]
-
     /** causes passed in when explicitly interrupting the fiber */
-    def causes: List[Throwable]
+    def causes: Option[List[Throwable]]
+
+    /** errors resulting from exceptions thrown during the execution of the fiber */
+    def errors: List[Throwable]
   }
   object FiberStatus {
-    final case class Executing[E, A](errors: Option[List[Throwable]],
-                                     causes: List[Throwable],
+    final case class Executing[E, A](causes: Option[List[Throwable]],
+                                     errors: List[Throwable],
                                      joiners: List[Callback[E, A]],
                                      killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
-    final case class AsyncRegion[E, A](errors: Option[List[Throwable]],
-                                       causes: List[Throwable],
+    final case class AsyncRegion[E, A](causes: Option[List[Throwable]],
+                                       errors: List[Throwable],
                                        reentrancy: Int,
                                        resume: Int,
                                        cancel: Option[Canceler],
@@ -1067,8 +1068,8 @@ private object RTS {
                                        killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
-      override def errors: Option[List[Throwable]] = None
-      override def causes: List[Throwable]         = Nil
+      override def causes: Option[List[Throwable]] = None
+      override def errors: List[Throwable]         = Nil
     }
 
     def Initial[E, A] = Executing[E, A](None, Nil, Nil, Nil)
