@@ -49,7 +49,7 @@ trait Fiber[E, A] { self =>
   /**
    * Interrupts the fiber with a list of error(s).
    */
-  def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit]
+  protected def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit]
 
   /**
    * Zips this fiber with the specified fiber, combining their results using
