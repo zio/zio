@@ -420,10 +420,10 @@ private object RTS {
                       // Error not caught, stack is empty:
                       if (finalizer eq null) {
                         // No finalizer, so immediately produce the error.
-                        curIo = null
-                        val causes = status.get.causes
+                        val defects = status.get.errors.getOrElse(Nil)
 
-                        result = ExitResult.Failed(error, causes)
+                        curIo = null
+                        result = ExitResult.Failed(error, defects)
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -555,15 +555,15 @@ private object RTS {
                   case IO.Tags.Terminate =>
                     val io = curIo.asInstanceOf[IO.Terminate[E, Any]]
 
-                    val causes = io.causes
-
                     val finalizer = interruptStack
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
-                      curIo = null
-                      val allCauses = causes ++ status.get.causes
+                      val causes    = status.get.causes
+                      val defects   = status.get.errors.getOrElse(Nil)
+                      val allCauses = io.causes ++ causes ++ defects
 
+                      curIo = null
                       result = ExitResult.Terminated(allCauses)
                     } else {
                       // Must run finalizers first before failing:
@@ -650,11 +650,11 @@ private object RTS {
     private final def addFailures(ts: List[Throwable]): Unit = {
       val oldStatus = status.get
       oldStatus match {
-        case x @ Executing(_, ts0, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(causes = ts0 ++ ts))) addFailures(ts) else ()
+        case x @ Executing(ts0, _, _, _) =>
+          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0.getOrElse(Nil) ++ ts)))) addFailures(ts) else ()
 
-        case x @ AsyncRegion(_, ts0, _, _, _, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(causes = ts0 ++ ts))) addFailures(ts) else ()
+        case x @ AsyncRegion(ts0, _, _, _, _, _, _) =>
+          if (!status.compareAndSet(oldStatus, x.copy(errors = Some(ts0.getOrElse(Nil) ++ ts)))) addFailures(ts) else ()
 
         case _ =>
       }
@@ -918,59 +918,58 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(_, is, joiners, killers) =>
+        case Executing(_, _, joiners, killers) =>
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else {
             purgeJoinersKillers(v, joiners, killers)
-            reportErrors(v, is)
+            reportErrors(v)
           }
 
-        case AsyncRegion(_, is, _, _, _, joiners, killers) =>
+        case AsyncRegion(_, _, _, _, _, joiners, killers) =>
           // TODO: Guard against errant `done` or not?
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else {
             purgeJoinersKillers(v, joiners, killers)
-            reportErrors(v, is)
+            reportErrors(v)
           }
 
         case Done(_) => // Huh?
       }
     }
 
-    final def reportErrors(v: ExitResult[E, A], is: List[Throwable]): Unit =
+    final def reportErrors(v: ExitResult[E, A]): Unit =
       v match {
-        case ExitResult.Failed(error, causes) =>
+        case ExitResult.Failed(error, defects) =>
           // Report the uncaught error to the supervisor:
           rts.submit(
-            rts.unsafeRun(unhandled(Errors.UnhandledError(error, causes) :: is))
+            rts.unsafeRun(unhandled(Errors.UnhandledError(error, defects) :: Nil))
           )
 
         case ExitResult.Terminated(causes) =>
           // Report the termination cause to the supervisor:
-          rts.submit(rts.unsafeRun(unhandled(causes ++ is)))
+          rts.submit(rts.unsafeRun(unhandled(causes)))
 
         case _ =>
       }
 
     @tailrec
-    private final def kill0[E2](ts: List[Throwable], k: Callback[E, Unit]): Async[E2, Unit] = {
+    private final def kill0[E2](cs: List[Throwable], k: Callback[E, Unit]): Async[E2, Unit] = {
 
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(ts0, causes, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus,
-                                    Executing(Some(ts0.getOrElse(Nil) ++ ts), causes, joiners, k :: killers)))
-            kill0(ts, k)
+        case Executing(errors, causes, joiners, killers) =>
+          if (!status.compareAndSet(oldStatus, Executing(errors, causes ++ cs, joiners, k :: killers)))
+            kill0(cs, k)
           else {
             killed = true
             Async.later[E2, Unit]
           }
 
         case AsyncRegion(None, causes, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.Terminated[E, A](causes ++ ts)
+          val v = ExitResult.Terminated[E, A](causes ++ cs)
 
-          if (!status.compareAndSet(oldStatus, Done(v))) kill0(ts, k)
+          if (!status.compareAndSet(oldStatus, Done(v))) kill0(cs, k)
           else {
             killed = true
 
@@ -1000,9 +999,9 @@ private object RTS {
           }
 
         case s @ AsyncRegion(_, _, _, _, _, _, _) =>
-          val newStatus = s.copy(errors = Some(s.errors.getOrElse(Nil) ++ ts), killers = k :: s.killers)
+          val newStatus = s.copy(causes = s.causes ++ cs, killers = k :: s.killers)
 
-          if (!status.compareAndSet(oldStatus, newStatus)) kill0(ts, k)
+          if (!status.compareAndSet(oldStatus, newStatus)) kill0(cs, k)
           else {
             killed = true
             Async.later[E2, Unit]
@@ -1046,8 +1045,10 @@ private object RTS {
   }
 
   sealed trait FiberStatus[E, A] {
+
     /** errors resulting from exceptions thrown during the execution of the fiber */
     def errors: Option[List[Throwable]]
+
     /** causes passed in when explicitly interrupting the fiber */
     def causes: List[Throwable]
   }
