@@ -27,7 +27,8 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 lazy val root = project
   .in(file("."))
   .settings(
-    skip in publish := true
+    skip in publish := true,
+    console := (console in Compile in coreJVM).value
   )
   .aggregate(coreJVM, coreJS, interopJVM, interopJS, interopCatsLaws, benchmarks, microsite)
   .enablePlugins(ScalaJSPlugin)
@@ -43,6 +44,28 @@ lazy val core = crossProject
   )
 
 lazy val coreJVM = core.jvm
+  .settings(
+    // In the repl most warnings are useless or worse.
+    // This is intentionally := as it's more direct to enumerate the few
+    // options we do want than to try to subtract off the ones we don't.
+    // One of -Ydelambdafy:inline or -Yrepl-class-based must be given to
+    // avoid deadlocking on parallel operations, see
+    //   https://issues.scala-lang.org/browse/SI-9076
+    scalacOptions in Compile in console := Seq(
+      "-Ypartial-unification",
+      "-language:higherKinds",
+      "-language:existentials",
+      "-Yno-adapted-args",
+      "-Xsource:2.13",
+      "-Yrepl-class-based"
+    ),
+    initialCommands in Compile in console := """
+                                               |import scalaz._
+                                               |import scalaz.zio._
+                                               |object replRTS extends RTS {}
+                                               |import replRTS._
+    """.stripMargin
+  )
 
 lazy val coreJS = core.js
 
