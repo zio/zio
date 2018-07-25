@@ -1,13 +1,12 @@
 package scalaz.zio
 
-import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
 
 import scala.collection.immutable.Range
 import scala.concurrent.duration._
 
-class QueueSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
+class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
   def is =
     "QueueSpec".title ^ s2"""

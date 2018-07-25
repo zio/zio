@@ -1,8 +1,6 @@
 package scalaz.zio
 
-import org.specs2.Specification
-
-class RefSpec extends Specification with RTS {
+class RefSpec extends AbstractRTSSpec {
 
   def is = "RefSpec".title ^ s2"""
    Create a new Ref with a specified value and check if:
