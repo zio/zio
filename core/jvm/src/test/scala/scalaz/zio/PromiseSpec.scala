@@ -1,8 +1,6 @@
 package scalaz.zio
 
-import org.specs2.Specification
-
-class PromiseSpec extends Specification with RTS {
+class PromiseSpec extends AbstractRTSSpec {
 
   def is = "PromiseSpec".title ^ s2"""
         Make a promise and retrieve its value correctly after complete it with:

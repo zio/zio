@@ -1,10 +1,8 @@
 package scalaz.zio
 
-import org.specs2.Specification
-
 import KleisliIO._
 
-class KleisliIOSpec extends Specification with RTS {
+class KleisliIOSpec extends AbstractRTSSpec {
   def is = "KleisliIOSpec".title ^ s2"""
    Check if the functions in `KleisliIO` work correctly
      `lift` lifts from A => B into effectful function $e1
