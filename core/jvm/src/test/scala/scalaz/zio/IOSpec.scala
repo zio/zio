@@ -42,35 +42,35 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
 
   def t2 = {
     val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.traverse(list)(x => IO.point[String, Int](x.toInt)))
+    val res  = unsafeRun(IO.traverse(list)(x => IO.point[Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res  = Try(unsafeRun(IO.traverse(list)(x => IO.point[String, Int](x.toInt))))
+    val res  = Try(unsafeRun(IO.traverse(list)(x => IO.point[Int](x.toInt))))
     res must beAFailedTry.withThrowable[NumberFormatException]
   }
 
   def t4 = {
     val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.parTraverse(list)(x => IO.point[String, Int](x.toInt)))
+    val res  = unsafeRun(IO.parTraverse(list)(x => IO.point[Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
   def t5 = forAll { (i: Int) =>
-    val res = unsafeRun(IO.fail[Int, String](i).bimap(_.toString, identity).attempt)
+    val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).attempt)
     res must_=== Left(i.toString)
   }
 
   def t6 = {
-    val list = List(1, 2, 3).map(IO.point[String, Int](_))
+    val list = List(1, 2, 3).map(IO.point[Int](_))
     val res  = unsafeRun(IO.parAll(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t7 = {
-    val list = List(1, 2, 3).map(IO.point[String, Int](_))
+    val list = List(1, 2, 3).map(IO.point[Int](_))
     val res  = unsafeRun(IO.forkAll(list).flatMap(_.join))
     res must be_===(List(1, 2, 3))
   }

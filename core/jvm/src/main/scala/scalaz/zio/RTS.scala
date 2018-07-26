@@ -241,7 +241,7 @@ private object RTS {
       errors.flatMap(
         // Each error produced by a finalizer must be handled using the
         // context's unhandled exception handler:
-        _.foldRight(IO.unit[Nothing])((t, io) => io *> unhandled(t))
+        _.foldRight(IO.unit)((t, io) => io *> unhandled(t))
       )
 
     /**
@@ -261,7 +261,7 @@ private object RTS {
           case a: IO.Attempt[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Nothing, List[Throwable]] = f0.finalizer.run[Nothing, Nothing, Unit].map(collectDefect)
+            val f: IO[Nothing, List[Throwable]] = f0.finalizer.run[Nothing, Unit].map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
           case _ =>
@@ -294,7 +294,7 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer =>
-            val f: IO[Nothing, List[Throwable]] = f0.finalizer.run[Nothing, Nothing, Unit].map(collectDefect)
+            val f: IO[Nothing, List[Throwable]] = f0.finalizer.run[Nothing, Unit].map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.zipWith(f)(_ ++ _)
           case _ =>
@@ -611,7 +611,7 @@ private object RTS {
               // Interruption cannot be interrupted:
               this.noInterrupt += 1
 
-              curIo = IO.terminate[E, Any](die.get)
+              curIo = IO.terminate(die.get)
             }
 
             opcount = opcount + 1
@@ -630,7 +630,7 @@ private object RTS {
             // Interruption cannot be interrupted:
             this.noInterrupt += 1
 
-            curIo = IO.terminate[E, Any](t)
+            curIo = IO.terminate(t)
         }
       }
     }
@@ -657,9 +657,9 @@ private object RTS {
           if (io eq null) done(value.asInstanceOf[ExitResult[E, A]])
           else evaluate(io)
 
-        case ExitResult.Failed(t) => evaluate(IO.fail[E, Any](t))
+        case ExitResult.Failed(t) => evaluate(IO.fail[E](t))
 
-        case ExitResult.Terminated(t) => evaluate(IO.terminate[E, Any](t))
+        case ExitResult.Terminated(t) => evaluate(IO.terminate(t))
       }
 
     /**
@@ -863,7 +863,7 @@ private object RTS {
       IO.flatten(IO.sync {
         supervising -= 1
 
-        var action = IO.unit[E2]
+        var action = IO.unit
 
         supervised = supervised match {
           case Nil => Nil

@@ -193,9 +193,9 @@ object KleisliIO {
   private[zio] final class Impure[E, A, B](val apply0: A => B) extends KleisliIO[E, A, B] {
     val run: A => IO[E, B] = a =>
       IO.suspend {
-        try IO.now[E, B](apply0(a))
+        try IO.now[B](apply0(a))
         catch {
-          case e: KleisliIOError[_] => IO.fail[E, B](e.unsafeCoerce[E])
+          case e: KleisliIOError[_] => IO.fail[E](e.unsafeCoerce[E])
         }
     }
   }
@@ -397,7 +397,7 @@ object KleisliIO {
       case _ =>
         KleisliIO.pure[E, Either[A, C], Either[B, C]] {
           case Left(a)  => k.run(a).map[Either[B, C]](Left[B, C])
-          case Right(c) => IO.now[E, Either[B, C]](Right(c))
+          case Right(c) => IO.now[Either[B, C]](Right(c))
         }
     }
 
@@ -413,7 +413,7 @@ object KleisliIO {
         })
       case _ =>
         KleisliIO.pure[E, Either[C, A], Either[C, B]] {
-          case Left(c)  => IO.now[E, Either[C, B]](Left(c))
+          case Left(c)  => IO.now[Either[C, B]](Left(c))
           case Right(a) => k.run(a).map[Either[C, B]](Right[C, B])
         }
     }
