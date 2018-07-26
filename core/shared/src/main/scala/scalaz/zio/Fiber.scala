@@ -21,7 +21,7 @@ package scalaz.zio
  * } yield a
  * }}}
  */
-trait Fiber[E, A] { self =>
+trait Fiber[+E, +A] { self =>
 
   /**
    * Joins the fiber, with suspends the joining fiber until the result of the
@@ -36,19 +36,19 @@ trait Fiber[E, A] { self =>
    * immediately. Otherwise, it will resume when the fiber has been
    * successfully interrupted or has produced its result.
    */
-  def interrupt[E2](t: Throwable): IO[E2, Unit]
+  def interrupt(t: Throwable): IO[Nothing, Unit]
 
   /**
    * Zips this fiber with the specified fiber, combining their results using
    * the specified combiner function. Both joins and interruptions are performed
    * in sequential order from left to right.
    */
-  final def zipWith[B, C](that: => Fiber[E, B])(f: (A, B) => C): Fiber[E, C] =
-    new Fiber[E, C] {
-      def join: IO[E, C] =
+  final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
+    new Fiber[E1, C] {
+      def join: IO[E1, C] =
         self.join.zipWith(that.join)(f)
 
-      def interrupt[E2](t: Throwable): IO[E2, Unit] =
+      def interrupt(t: Throwable): IO[Nothing, Unit] =
         self.interrupt(t) *> that.interrupt(t)
     }
 
@@ -57,18 +57,16 @@ trait Fiber[E, A] { self =>
    */
   final def map[B](f: A => B): Fiber[E, B] =
     new Fiber[E, B] {
-      def join: IO[E, B] =
-        self.join.map(f)
+      def join: IO[E, B] = self.join.map(f)
 
-      def interrupt[E2](t: Throwable): IO[E2, Unit] =
-        self.interrupt(t)
+      def interrupt(t: Throwable): IO[Nothing, Unit] = self.interrupt(t)
     }
 }
 
 object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def join: IO[E, A]                            = IO.point(a)
-      def interrupt[E2](t: Throwable): IO[E2, Unit] = IO.unit[E2]
+      def join: IO[E, A]                             = IO.point(a)
+      def interrupt(t: Throwable): IO[Nothing, Unit] = IO.unit
     }
 }
