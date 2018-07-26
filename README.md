@@ -23,21 +23,19 @@ IOQueue is an asynchronous queue, which works without locks or blocking, and exp
 
 | | FS2 | Monix Queue | Java Blocking Queue | 
 ---|---|---|---
-Purely-functional| + | + | - |
-Composable Backpressure| - | - | - |
-Asynchronous| + | ? | - |
-High-performance| ? | + | - | 
-Scalaz Integration| - | ? | - |
+Purely-functional| ✓ | 𐄂 | 𐄂 |
+Composable Backpressure| ✓ | 𐄂 | 𐄂 |
+Asynchronous| ✓ | ✓ | 𐄂 |
+High-performance| ✓ | 𐄂 | 𐄂 |
+Scalaz Integration| 𐄂 | 𐄂 | 𐄂 |
 
 ## Background
 
-John De Goes - SCALAZ 8 VS AKKA ACTORS https://www.youtube.com/watch?v=Eihz7kqn6mU
+* <a href = "https://www.youtube.com/watch?v=Eihz7kqn6mU"> John De Goes - SCALAZ 8 VS AKKA ACTORS </a>
+* <a href= "https://functional-streams-for-scala.github.io/fs2/concurrency-primitives"> FS2 Queue documentation </a>|<a href= "https://github.com/functional-streams-for-scala/fs2/blob/series/1.0/core/shared/src/main/scala/fs2/async/mutable/Queue.scala">CODE </a>
+* <a href= "https://github.com/monix/monix/blob/master/monix-execution/shared/src/main/scala/monix/execution/misc/AsyncQueue.scala"> Monix Queue </a>
+* <a href= "https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/BlockingQueue.html"> Java Blocking Queue </a>
 
-Adam Warsky blogs:
-https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1
-
-https://blog.softwaremill.com/akka-vs-zio-vs-monix-part-2-communication-9ce7261aa08c
-
-https://blog.softwaremill.com/supervision-error-handling-in-zio-akka-and-monix-part-3-series-summary-abe75f964c2a
+Adam Warsky blogs <a href="https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1"> Part 1 </a>|<a href= "https://blog.softwaremill.com/akka-vs-zio-vs-monix-part-2-communication-9ce7261aa08c"> Part 2 </a>|<a href= "https://blog.softwaremill.com/akka-vs-zio-vs-monix-part-2-communication-9ce7261aa08c"> Part 3 </a>
 
 
