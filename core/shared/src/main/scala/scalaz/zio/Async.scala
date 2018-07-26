@@ -15,7 +15,7 @@ sealed abstract class Async[E, A]
 object Async {
 
   val NoOpCanceler: Canceler         = _ => ()
-  val NoOpPureCanceler: PureCanceler = _ => IO.unit[Nothing]
+  val NoOpPureCanceler: PureCanceler = _ => IO.unit
 
   private val _Later: Async[Nothing, Nothing] = MaybeLater(NoOpCanceler)
 

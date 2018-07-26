@@ -140,18 +140,18 @@ sealed abstract class IO[+E, +A] { self =>
    *
    * TODO: Replace with optimized primitive.
    */
-  final def par[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
-    self
-      .attempt[E1]
-      .raceWith(that.attempt[E1])(
-        {
-          case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail(e)
-          case (Right(a), fiberb) => IO.absolve(fiberb.join).map((b: B) => (a, b))
-        }, {
-          case (Left(e), fibera)  => fibera.interrupt(TerminatedException(e)) *> IO.fail(e)
-          case (Right(b), fibera) => IO.absolve(fibera.join).map((a: A) => (a, b))
-        }
-      )
+  final def par[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] = {
+    val s: IO[Nothing, Either[E1, A]] = self.attempt
+    s.raceWith[E1, Either[E1, A], Either[E1, B], (A, B)](that.attempt)(
+      {
+        case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail[E1](e)
+        case (Right(a), fiberb) => IO.absolve[E1, B](fiberb.join).map((b: B) => (a, b))
+      }, {
+        case (Left(e), fibera)  => fibera.interrupt(TerminatedException(e)) *> IO.fail[E1](e)
+        case (Right(b), fibera) => IO.absolve[E1, A](fibera.join).map((a: A) => (a, b))
+      }
+    )
+  }
 
   /**
    * Races this action with the specified action, returning the first
@@ -221,8 +221,8 @@ sealed abstract class IO[+E, +A] { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it is guaranteed the `IO` action does not raise any errors.
    */
-  final def attempt[E2]: IO[E2, Either[E, A]] =
-    self.redeem[E2, Either[E, A]](IO.nowLeft, IO.nowRight)
+  final def attempt: IO[Nothing, Either[E, A]] =
+    self.redeem[Nothing, Either[E, A]](IO.nowLeft, IO.nowRight)
 
   /**
    * When this action represents acquisition of a resource (for example,
@@ -296,7 +296,7 @@ sealed abstract class IO[+E, +A] { self =>
    * cleanup action if it exists. The cleanup action will not be interrupted.
    */
   final def onError(cleanup: Option[E] => IO[Nothing, Unit]): IO[E, A] =
-    IO.bracket0(IO.unit[E])(
+    IO.bracket0(IO.unit)(
       (_, eb: Option[Either[E, A]]) =>
         eb match {
           case Some(Right(_)) => IO.unit
@@ -389,7 +389,7 @@ sealed abstract class IO[+E, +A] { self =>
    * elapses.
    */
   final def retryFor[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    retry.map(f).race(IO.sleep[E](duration) *> IO.now[E, B](z))
+    retry.map(f).race(IO.sleep(duration) *> IO.now[B](z))
 
   /**
    * Retries continuously, increasing the duration between retries each time by
@@ -471,7 +471,7 @@ sealed abstract class IO[+E, +A] { self =>
    * readFile("data.json").peek(putStrLn)
    * }}}
    */
-  final def peek[E1 >: E, A1 >: A, B](f: A1 => IO[E1, B]): IO[E1, A1] = self.flatMap(a => f(a).const(a))
+  final def peek[E1 >: E, B](f: A => IO[E1, B]): IO[E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
    * Times out this action by the specified duration.
@@ -481,7 +481,7 @@ sealed abstract class IO[+E, +A] { self =>
    * }}}
    */
   final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] = {
-    val timer = IO.now[E, B](z)
+    val timer = IO.now[B](z)
     self.map(f).race(timer.delay(duration))
   }
 
@@ -517,7 +517,7 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
-  final def run[E1 >: E, E2, A1 >: A]: IO[E2, ExitResult[E1, A1]] = new IO.Run(self)
+  final def run[E1 >: E, A1 >: A]: IO[Nothing, ExitResult[E1, A1]] = new IO.Run(self)
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
@@ -529,18 +529,18 @@ sealed abstract class IO[+E, +A] { self =>
 object IO {
 
   @inline
-  private final def nowLeft[E1, E2, A]: E2 => IO[E1, Either[E2, A]] =
-    _nowLeft.asInstanceOf[E2 => IO[E1, Either[E2, A]]]
+  private final def nowLeft[E, A]: E => IO[Nothing, Either[E, A]] =
+    _nowLeft.asInstanceOf[E => IO[Nothing, Either[E, A]]]
 
   private val _nowLeft: Any => IO[Any, Either[Any, Any]] =
-    e2 => IO.now[Any, Either[Any, Any]](Left(e2))
+    e2 => IO.now[Either[Any, Any]](Left(e2))
 
   @inline
-  private final def nowRight[E1, E2, A]: A => IO[E1, Either[E2, A]] =
-    _nowRight.asInstanceOf[A => IO[E1, Either[E2, A]]]
+  private final def nowRight[E, A]: A => IO[Nothing, Either[E, A]] =
+    _nowRight.asInstanceOf[A => IO[Nothing, Either[E, A]]]
 
   private val _nowRight: Any => IO[Any, Either[Any, Any]] =
-    a => IO.now[Any, Either[Any, Any]](Right(a))
+    a => IO.now[Either[Any, Any]](Right(a))
 
   final object Tags {
     final val FlatMap         = 0
@@ -650,25 +650,25 @@ object IO {
   /**
    * Lifts a strictly evaluated value into the `IO` monad.
    */
-  final def now[E, A](a: A): IO[E, A] = new Strict(a)
+  final def now[A](a: A): IO[Nothing, A] = new Strict(a)
 
   /**
    * Lifts a non-strictly evaluated value into the `IO` monad. Do not use this
    * function to capture effectful code. The result is undefined but may
    * include duplicated effects.
    */
-  final def point[E, A](a: => A): IO[E, A] = new Point(() => a)
+  final def point[A](a: => A): IO[Nothing, A] = new Point(() => a)
 
   /**
    * Creates an `IO` value that represents failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
-  final def fail[E, A](error: E): IO[E, A] = new Fail(error)
+  final def fail[E](error: E): IO[E, Nothing] = new Fail(error)
 
   /**
    * Strictly-evaluated unit lifted into the `IO` monad.
    */
-  final def unit[E]: IO[E, Unit] = Unit.asInstanceOf[IO[E, Unit]]
+  final def unit: IO[Nothing, Unit] = Unit.asInstanceOf[IO[Nothing, Unit]]
 
   /**
    * Creates an `IO` value from `ExitResult`
@@ -682,7 +682,7 @@ object IO {
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  final def sleep[E](duration: Duration): IO[E, Unit] = new Sleep(duration)
+  final def sleep(duration: Duration): IO[Nothing, Unit] = new Sleep(duration)
 
   /**
    * Supervises the specified action, which ensures that any actions directly
@@ -709,7 +709,7 @@ object IO {
   /**
    * Terminates the fiber executing this action, running all finalizers.
    */
-  final def terminate[E, A](t: Throwable): IO[E, A] = new Terminate(t)
+  final def terminate(t: Throwable): IO[Nothing, Nothing] = new Terminate(t)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -794,7 +794,7 @@ object IO {
    * Returns a action that will never produce anything. The moral
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
-  final def never[A]: IO[Nothing, A] = Never.asInstanceOf[IO[Nothing, A]]
+  final def never: IO[Nothing, Nothing] = Never.asInstanceOf[IO[Nothing, Nothing]]
 
   /**
    * Submerges the error case of an `Either` into the `IO`. The inverse
@@ -820,7 +820,7 @@ object IO {
    * value, then the specified error will be raised.
    */
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
-    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E, A](error))(IO.now[E, A]))
+    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E](error))(IO.now[A]))
 
   final def forkAll[E, A, M[X] <: TraversableOnce[X]](
     as: M[IO[E, A]]
@@ -849,10 +849,10 @@ object IO {
               eb =>
                 m.write[E](Some((a, Some(eb)))) *> (eb match {
                   case Right(b) => IO.now(b)
-                  case Left(e)  => fail[E, B](e)
+                  case Left(e)  => fail[E](e)
                 })
             )
-      } yield b).ensuring(m.read.flatMap(_.fold(unit[Nothing]) { case (a, r) => release(a, r) }))
+      } yield b).ensuring(m.read.flatMap(_.fold(unit) { case (a, r) => release(a, r) }))
     }
 
   /**
@@ -867,7 +867,7 @@ object IO {
       (for {
         a <- acquire.flatMap(a => m.write[E](Some(a)).const(a)).uninterruptibly
         b <- use(a)
-      } yield b).ensuring(m.read.flatMap(_.fold(unit[Nothing])(release(_))))
+      } yield b).ensuring(m.read.flatMap(_.fold(unit)(release(_))))
     }
 
   /**
@@ -877,7 +877,7 @@ object IO {
   final def traverse[E, A, B, M[X] <: TraversableOnce[X]](
     in: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    in.foldLeft(IO.point[E, mutable.Builder[B, M[B]]](cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
+    in.foldLeft[IO[E, mutable.Builder[B, M[B]]]](IO.sync(cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
       .map(_.result())
 
   /**
@@ -887,7 +887,7 @@ object IO {
   def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
     as: M[A]
   )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    as.foldLeft(IO.point[E, mutable.Builder[B, M[B]]](cbf(as))) { (bsIO, a) =>
+    as.foldLeft[IO[E, mutable.Builder[B, M[B]]]](IO.sync(cbf(as))) { (bsIO, a) =>
         bsIO.par(fn(a)).map {
           case (bs, b) => bs += b
         }
@@ -921,7 +921,7 @@ object IO {
    * that never terminates.
    */
   final def raceAll[E, A](t: TraversableOnce[IO[E, A]]): IO[E, A] =
-    t.foldLeft(IO.terminate[E, A](NothingRaced))(_ race _)
+    t.foldLeft[IO[E, A]](IO.terminate(NothingRaced))(_ race _)
 
   /**
    * Reduces a list of IO to a single IO, works in parallel.
@@ -935,7 +935,7 @@ object IO {
    * Merges a list of IO to a single IO, works in parallel.
    */
   final def mergeAll[E, A, B](in: TraversableOnce[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
-    in.foldLeft(IO.point[E, B](zero))((acc, a) => acc.par(a).map(f.tupled))
+    in.foldLeft[IO[E, B]](IO.point[B](zero))((acc, a) => acc.par(a).map(f.tupled))
 
   private final val Never: IO[Nothing, Any] =
     IO.async[Nothing, Any] { (k: (ExitResult[Nothing, Any]) => Unit) =>

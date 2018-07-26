@@ -44,7 +44,7 @@ class PromiseSpec extends Specification with RTS {
       for {
         p <- Promise.make[String, Int]
         s <- p.error("error in e3")
-        v <- p.get.attempt[String]
+        v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e3"))
     )
 
@@ -53,7 +53,7 @@ class PromiseSpec extends Specification with RTS {
       for {
         p <- Promise.make[String, Int]
         s <- p.done(ExitResult.Failed("error in e4"))
-        v <- p.get.attempt[String]
+        v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
 

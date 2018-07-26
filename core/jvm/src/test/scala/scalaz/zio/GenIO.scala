@@ -7,7 +7,7 @@ trait GenIO {
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.point` constructor.
    */
-  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.point[E, A](_))
+  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.point[A](_))
 
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
@@ -23,7 +23,7 @@ trait GenIO {
   /**
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.fail` constructor.
    */
-  def genSyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] = Arbitrary.arbitrary[E].map(IO.fail[E, A])
+  def genSyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] = Arbitrary.arbitrary[E].map(IO.fail[E])
 
   /**
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.async` constructor.

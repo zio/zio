@@ -78,7 +78,7 @@ class RefSpec extends Specification with RTS {
     def tryWriteUntilFalse(ref: Ref[Int], update: Int): IO[Nothing, Boolean] =
       ref
         .tryWrite[Nothing](update)
-        .flatMap(success => if (!success) IO.point[Nothing, Boolean](success) else tryWriteUntilFalse(ref, update))
+        .flatMap(success => if (!success) IO.point[Boolean](success) else tryWriteUntilFalse(ref, update))
 
     unsafeRun(
       for {
