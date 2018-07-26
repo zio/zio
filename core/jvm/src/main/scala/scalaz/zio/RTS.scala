@@ -908,52 +908,54 @@ private object RTS {
       }
     }
 
-    @tailrec
     private final def kill0[E2](t: Throwable, k: Callback[E, Unit]): Async[E2, Unit] = {
+      var result: Async[E2, Unit] = null.asInstanceOf[Async[E2, Unit]]
       killed = true
 
-      val oldStatus = status.get
+      while (result eq null) {
+        val oldStatus = status.get
 
-      oldStatus match {
-        case Executing(t0, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, Executing(t0.orElse(Some(t)), joiners, k :: killers))) kill0(t, k)
-          else Async.later[E2, Unit]
+        oldStatus match {
+          case Executing(t0, joiners, killers) =>
+            if (status.compareAndSet(oldStatus, Executing(t0.orElse(Some(t)), joiners, k :: killers)))
+              result = Async.later[E2, Unit]
 
-        case AsyncRegion(None, _, resume, cancelOpt, joiners, killers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.Terminated[E, A](t)
+          case AsyncRegion(None, _, resume, cancelOpt, joiners, killers) if resume > 0 && noInterrupt == 0 =>
+            val v = ExitResult.Terminated[E, A](t)
 
-          if (!status.compareAndSet(oldStatus, Done(v))) kill0(t, k)
-          else {
-            // We interrupted async before it could resume. Now we have to
-            // cancel the computation, if possible, and handle any finalizers.
-            cancelOpt match {
-              case None =>
-              case Some(cancel) =>
-                try cancel(t)
-                catch {
-                  case t: Throwable if (nonFatal(t)) =>
-                    supervise(fork(unhandled(t), unhandled))
-                }
+            if (status.compareAndSet(oldStatus, Done(v))) {
+              // We interrupted async before it could resume. Now we have to
+              // cancel the computation, if possible, and handle any finalizers.
+              cancelOpt match {
+                case None =>
+                case Some(cancel) =>
+                  try cancel(t)
+                  catch {
+                    case t: Throwable if nonFatal(t) =>
+                      supervise(fork(unhandled(t), unhandled))
+                  }
+              }
+
+              val finalizer = interruptStack
+
+              result = if (finalizer ne null) {
+                fork[Nothing, Unit](dispatchErrors(finalizer), unhandled)
+                  .runAsync((_: ExitResult[Nothing, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
+                Async.later[E2, Unit]
+              } else Async.now(SuccessUnit)
+
             }
 
-            val finalizer = interruptStack
+          case s @ AsyncRegion(_, _, _, _, _, _) =>
+            val newStatus = s.copy(error = s.error.orElse(Some(t)), killers = k :: s.killers)
 
-            if (finalizer ne null) {
-              fork[Nothing, Unit](dispatchErrors(finalizer), unhandled)
-                .runAsync((_: ExitResult[Nothing, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
-              Async.later[E2, Unit]
-            } else Async.now(SuccessUnit)
+            if (status.compareAndSet(oldStatus, newStatus))
+              result = Async.later[E2, Unit]
 
-          }
-
-        case s @ AsyncRegion(_, _, _, _, _, _) =>
-          val newStatus = s.copy(error = s.error.orElse(Some(t)), killers = k :: s.killers)
-
-          if (!status.compareAndSet(oldStatus, newStatus)) kill0(t, k)
-          else Async.later[E2, Unit]
-
-        case Done(_) => Async.now(SuccessUnit)
+          case Done(_) => result = Async.now(SuccessUnit)
+        }
       }
+      result
     }
 
     @tailrec
