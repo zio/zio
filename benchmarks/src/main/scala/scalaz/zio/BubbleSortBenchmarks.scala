@@ -28,9 +28,9 @@ class BubbleSortBenchmarks {
 
     unsafeRun(
       for {
-        array <- IO.sync[Void, Array[Int]](createTestArray)
+        array <- IO.sync[Array[Int]](createTestArray)
         _     <- bubbleSort[Int](_ <= _)(array)
-        _     <- IO.sync[Void, Unit](assertSorted(array))
+        _     <- IO.sync[Unit](assertSorted(array))
       } yield ()
     )
   }

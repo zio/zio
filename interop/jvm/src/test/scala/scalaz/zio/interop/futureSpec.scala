@@ -56,7 +56,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val toFutureAlwaysSucceeds = {
-    val failedIO = IO.fail[Throwable, Unit](new Exception("IOs also can fail"))
+    val failedIO = IO.fail[Throwable](new Exception("IOs also can fail"))
     unsafeRun(failedIO.toFuture) must beAnInstanceOf[Future[Unit]]
   }
 
@@ -68,17 +68,17 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val toFutureFailed = {
-    val failedIO = IO.fail[Throwable, Unit](new Exception("IOs also can fail"))
+    val failedIO = IO.fail[Throwable](new Exception("IOs also can fail"))
     unsafeRun(failedIO.toFuture) must throwA[Exception](message = "IOs also can fail").await
   }
 
   val toFutureValue = {
-    val someIO = IO.now[Throwable, Int](42)
+    val someIO = IO.now[Int](42)
     unsafeRun(someIO.toFuture) must beEqualTo(42).await
   }
 
   val toFutureE = {
-    val failedIO = IO.fail[String, Unit]("IOs also can fail")
+    val failedIO = IO.fail[String]("IOs also can fail")
     unsafeRun(failedIO.toFutureE(new Exception(_))) must throwA[Exception](message = "IOs also can fail").await
   }
 

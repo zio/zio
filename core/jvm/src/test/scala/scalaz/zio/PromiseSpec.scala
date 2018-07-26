@@ -22,8 +22,8 @@ class PromiseSpec extends AbstractRTSSpec {
   def e1 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        s <- p.complete[Void](32)
+        p <- Promise.make[Nothing, Int]
+        s <- p.complete(32)
         v <- p.get
       } yield s must beTrue and (v must_=== 32)
     )
@@ -31,8 +31,8 @@ class PromiseSpec extends AbstractRTSSpec {
   def e2 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        s <- p.done[Void](ExitResult.Completed(14))
+        p <- Promise.make[Nothing, Int]
+        s <- p.done(ExitResult.Completed(14))
         v <- p.get
       } yield s must beTrue and (v must_=== 14)
     )
@@ -41,8 +41,8 @@ class PromiseSpec extends AbstractRTSSpec {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.error[String]("error in e3")
-        v <- p.get.attempt[String]
+        s <- p.error("error in e3")
+        v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e3"))
     )
 
@@ -50,17 +50,17 @@ class PromiseSpec extends AbstractRTSSpec {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done[String](ExitResult.Failed("error in e4"))
-        v <- p.get.attempt[String]
+        s <- p.done(ExitResult.Failed("error in e4"))
+        v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
 
   def e5 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        _ <- p.complete[Void](1)
-        s <- p.done[Void](ExitResult.Completed(9))
+        p <- Promise.make[Nothing, Int]
+        _ <- p.complete(1)
+        s <- p.done(ExitResult.Completed(9))
         v <- p.get
       } yield s must beFalse and (v must_=== 1)
     )
@@ -71,14 +71,14 @@ class PromiseSpec extends AbstractRTSSpec {
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.done[Exception](ExitResult.Terminated(error))
+        s <- p.done(ExitResult.Terminated(error))
       } yield s must beTrue
     )
   def e7 =
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.interrupt[Exception](error)
+        s <- p.interrupt(error)
       } yield s must beTrue
     )
 }
