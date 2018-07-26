@@ -26,7 +26,7 @@ IOQueue is an asynchronous queue, which works without locks or blocking, and exp
 Purely-functional| ✓ | 𐄂 | 𐄂 |
 Composable Backpressure| ✓ | 𐄂 | 𐄂 |
 Asynchronous| ✓ | ✓ | 𐄂 |
-High-performance| ✓ | 𐄂 | 𐄂 |
+High-performance| ✓ | 𐄂 | ✓ |
 Scalaz Integration| 𐄂 | 𐄂 | 𐄂 |
 
 ## Background
