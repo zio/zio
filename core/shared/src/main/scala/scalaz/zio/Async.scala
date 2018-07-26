@@ -11,7 +11,7 @@ package scalaz.zio
  * which represents an interruptible asynchronous action where the canceler has the
  * form `Throwable => IO[Nothing, Unit]`
  */
-sealed abstract class Async[E, A]
+sealed abstract class Async[+E, +A]
 object Async {
 
   val NoOpCanceler: Canceler         = _ => ()

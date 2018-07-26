@@ -31,7 +31,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e1 = unsafeRun(
     for {
-      queue <- Queue.bounded[Nothing, Int](100)
+      queue <- Queue.bounded[Int](100)
       _     <- queue.offer(10)
       v1    <- queue.take
       _     <- queue.offer(20)
@@ -40,8 +40,8 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   )
   def e2 = unsafeRun(
     for {
-      queue <- Queue.bounded[Nothing, Int](100)
-      _     <- queue.take.fork[Nothing, Int]
+      queue <- Queue.bounded[Int](100)
+      _     <- queue.take.fork
       check <- (queue.interruptTake(new Exception("interrupt take in e2")) <* IO.sleep(1.millis)).doWhile(!_)
       _     <- queue.offer(25)
       v     <- queue.take
@@ -50,8 +50,8 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e3 = unsafeRun(
     for {
-      queue <- Queue.bounded[Nothing, Int](0)
-      _     <- queue.offer(14).fork[Nothing, Unit]
+      queue <- Queue.bounded[Int](0)
+      _     <- queue.offer(14).fork
       check <- (queue.interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis)).doWhile(!_)
       _     <- queue.offer(12)
       v     <- queue.take
@@ -60,10 +60,10 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e4 = unsafeRun(
     for {
-      queue <- Queue.bounded[Nothing, String](100)
+      queue <- Queue.bounded[String](100)
       f1 <- queue.take
              .zipWith(queue.take)(_ + _)
-             .fork[Nothing, String]
+             .fork
       _ <- queue.offer("don't ") *> queue.offer("give up :D")
       v <- f1.join
     } yield v must_=== "don't give up :D"
@@ -73,7 +73,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e5 =
     unsafeRun(for {
-      queue <- Queue.bounded[Nothing, Int](10)
+      queue <- Queue.bounded[Int](10)
       _     <- IO.forkAll(List.fill(10)(queue.take.toUnit))
       _     <- waitForSize(queue, -10)
       _     <- Range.inclusive(1, 10).map(queue.offer).foldLeft[IO[Nothing, Unit]](IO.unit)(_ *> _)
@@ -83,7 +83,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e6 =
     unsafeRun(for {
-      queue <- Queue.bounded[Nothing, Int](10)
+      queue <- Queue.bounded[Int](10)
       order = Range.inclusive(1, 10).toList
       _     <- IO.forkAll(order.map(queue.offer))
       _     <- waitForSize(queue, 10)
@@ -92,15 +92,15 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e7 =
     unsafeRun(for {
-      queue <- Queue.bounded[Nothing, Int](10)
-      _     <- queue.offer(1).repeatN(20).fork[Nothing, Unit]
+      queue <- Queue.bounded[Int](10)
+      _     <- queue.offer(1).repeatN(20).fork
       _     <- waitForSize(queue, 11)
       size  <- queue.size
     } yield size must_=== 11)
 
   def e8 =
     unsafeRun(for {
-      queue  <- Queue.bounded[Nothing, Int](5)
+      queue  <- Queue.bounded[Int](5)
       orders = Range.inclusive(1, 10).toList
       _      <- IO.forkAll(orders.map(n => waitForSize(queue, n - 1) *> queue.offer(n)))
       _      <- waitForSize(queue, 10)
@@ -109,25 +109,25 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e9 = unsafeRun(
     for {
-      queue <- Queue.bounded[Nothing, Int](100)
-      f     <- queue.take.fork[Nothing, Int]
+      queue <- Queue.bounded[Int](100)
+      f     <- queue.take.fork
       _     <- f.interrupt(new Exception("interrupt fiber in e9"))
-      size  <- queue.size[Nothing]
+      size  <- queue.size
     } yield size must_=== 0
   )
 
   def e10 = unsafeRun(
     for {
-      queue <- Queue.bounded[Nothing, Int](0)
-      f     <- queue.offer(1).fork[Nothing, Unit]
+      queue <- Queue.bounded[Int](0)
+      f     <- queue.offer(1).fork
       _     <- f.interrupt(new Exception("interrupt fiber in e10"))
-      size  <- queue.size[Nothing]
+      size  <- queue.size
     } yield size must_=== 0
   )
 
   def e11 = unsafeRun(
     for {
-      queue <- Queue.unbounded[Nothing, Int]
+      queue <- Queue.unbounded[Int]
       _     <- queue.offer(1)
       _     <- queue.offer(2)
       _     <- queue.offer(3)
@@ -138,5 +138,5 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
-    (queue.size[Nothing] <* IO.sleep(1.millis)).doWhile(_ != size)
+    (queue.size <* IO.sleep(1.millis)).doWhile(_ != size)
 }

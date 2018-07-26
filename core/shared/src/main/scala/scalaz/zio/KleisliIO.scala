@@ -125,7 +125,7 @@ sealed trait KleisliIO[+E, -A, +B] { self =>
    * the second element of a tuple.
    */
   final def first[A1 <: A, B1 >: B]: KleisliIO[E, A1, (B1, A1)] =
-    self &&& KleisliIO.identity[E, A1]
+    self &&& KleisliIO.identity[A1]
 
   /**
    * Returns a new effectful function that computes the value of this function,
@@ -133,7 +133,7 @@ sealed trait KleisliIO[+E, -A, +B] { self =>
    * the first element of a tuple.
    */
   final def second[A1 <: A, B1 >: B]: KleisliIO[E, A1, (A1, B1)] =
-    KleisliIO.identity[E, A1] &&& self
+    KleisliIO.identity[A1] &&& self
 
   /**
    * Returns a new effectful function that can either compute the value of this
@@ -170,7 +170,7 @@ sealed trait KleisliIO[+E, -A, +B] { self =>
    * Maps the output of this effectful function to the specified constant.
    */
   final def const[C](c: => C): KleisliIO[E, A, C] =
-    self >>> KleisliIO.lift[E, B, C](_ => c)
+    self >>> KleisliIO.lift[B, C](_ => c)
 
   /**
    * Maps the output of this effectful function to `Unit`.
@@ -203,19 +203,19 @@ object KleisliIO {
   /**
    * Lifts a value into the monad formed by `KleisliIO`.
    */
-  final def point[E, A, B](b: => B): KleisliIO[E, A, B] = lift((_: A) => b)
+  final def point[B](b: => B): KleisliIO[Nothing, Any, B] = lift((_: Any) => b)
 
   /**
    * Returns a `KleisliIO` representing a failure with the specified `E`.
    */
-  final def fail[E, A, B](e: E): KleisliIO[E, A, B] =
+  final def fail[E](e: E): KleisliIO[E, Any, Nothing] =
     new Impure(_ => throw new KleisliIOError[E](e))
 
   /**
    * Returns the identity effectful function, which performs no effects and
    * merely returns its input unmodified.
    */
-  final def identity[E, A]: KleisliIO[E, A, A] = lift(a => a)
+  final def identity[A]: KleisliIO[Nothing, A, A] = lift(a => a)
 
   /**
    * Lifts a pure `A => IO[E, B]` into `KleisliIO`.
@@ -225,13 +225,13 @@ object KleisliIO {
   /**
    * Lifts a pure `A => B` into `KleisliIO`.
    */
-  final def lift[E, A, B](f: A => B): KleisliIO[E, A, B] = new Impure(f)
+  final def lift[A, B](f: A => B): KleisliIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
   final def swap[E, A, B]: KleisliIO[E, (A, B), (B, A)] =
-    KleisliIO.lift[E, (A, B), (B, A)](_.swap)
+    KleisliIO.lift[(A, B), (B, A)](_.swap)
 
   /**
    * Lifts an impure function into `KleisliIO`, converting throwables into the
@@ -259,7 +259,7 @@ object KleisliIO {
    * returns false, returns `Right(a)`.
    */
   final def test[E, A](k: KleisliIO[E, A, Boolean]): KleisliIO[E, A, Either[A, A]] =
-    (k &&& KleisliIO.identity[E, A]) >>>
+    (k &&& KleisliIO.identity[A]) >>>
       KleisliIO.lift((t: (Boolean, A)) => if (t._1) Left(t._2) else Right(t._2))
 
   /**
@@ -285,7 +285,7 @@ object KleisliIO {
     (cond, then0) match {
       case (cond: Impure[_, _, _], then0: Impure[_, _, _]) =>
         new Impure[E, A, A](a => if (cond.apply0(a)) then0.apply0(a) else a)
-      case _ => ifThenElse(cond)(then0)(KleisliIO.identity[E, A])
+      case _ => ifThenElse(cond)(then0)(KleisliIO.identity[A])
     }
 
   /**
@@ -297,7 +297,7 @@ object KleisliIO {
     (cond, then0) match {
       case (cond: Impure[_, _, _], then0: Impure[_, _, _]) =>
         new Impure[E, A, A](a => if (cond.apply0(a)) a else then0.apply0(a))
-      case _ => ifThenElse(cond)(KleisliIO.identity[E, A])(then0)
+      case _ => ifThenElse(cond)(KleisliIO.identity[A])(then0)
     }
 
   /**
@@ -335,13 +335,13 @@ object KleisliIO {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  final def _1[E, A, B]: KleisliIO[E, (A, B), A] = lift[E, (A, B), A](_._1)
+  final def _1[E, A, B]: KleisliIO[E, (A, B), A] = lift[(A, B), A](_._1)
 
   /**
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  final def _2[E, A, B]: KleisliIO[E, (A, B), B] = lift[E, (A, B), B](_._2)
+  final def _2[E, A, B]: KleisliIO[E, (A, B), B] = lift[(A, B), B](_._2)
 
   /**
    * See @KleisliIO.flatMap

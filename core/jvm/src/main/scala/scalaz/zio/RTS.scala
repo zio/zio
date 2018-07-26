@@ -121,10 +121,6 @@ private object RTS {
   final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
 
-  object IdentityCont extends Function[Any, IO[Any, Any]] {
-    final def apply(v: Any): IO[Any, Any] = IO.now(v)
-  }
-
   final class Stack() {
     type Cont = Any => IO[_, Any]
 
@@ -258,7 +254,7 @@ private object RTS {
       // finalizers.
       while ((errorHandler eq null) && !stack.isEmpty) {
         stack.pop() match {
-          case a: IO.Attempt[_, _, _, _] =>
+          case a: IO.Redeem[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
             val f: IO[Nothing, List[Throwable]] = f0.finalizer.run[Nothing, Unit].map(collectDefect)
@@ -357,17 +353,17 @@ private object RTS {
                     // happy path.
                     (nested.tag: @switch) match {
                       case IO.Tags.Point =>
-                        val io2 = nested.asInstanceOf[IO.Point[E, Any]]
+                        val io2 = nested.asInstanceOf[IO.Point[E]]
 
                         curIo = io.flatMapper(io2.value())
 
                       case IO.Tags.Strict =>
-                        val io2 = nested.asInstanceOf[IO.Strict[E, Any]]
+                        val io2 = nested.asInstanceOf[IO.Strict[Any]]
 
                         curIo = io.flatMapper(io2.value)
 
                       case IO.Tags.SyncEffect =>
-                        val io2 = nested.asInstanceOf[IO.SyncEffect[E, Any]]
+                        val io2 = nested.asInstanceOf[IO.SyncEffect[Any]]
 
                         curIo = io.flatMapper(io2.effect())
 
@@ -380,7 +376,7 @@ private object RTS {
                     }
 
                   case IO.Tags.Point =>
-                    val io = curIo.asInstanceOf[IO.Point[E, Any]]
+                    val io = curIo.asInstanceOf[IO.Point[Any]]
 
                     val value = io.value()
 
@@ -391,7 +387,7 @@ private object RTS {
                     }
 
                   case IO.Tags.Strict =>
-                    val io = curIo.asInstanceOf[IO.Strict[E, Any]]
+                    val io = curIo.asInstanceOf[IO.Strict[Any]]
 
                     val value = io.value
 
@@ -402,7 +398,7 @@ private object RTS {
                     }
 
                   case IO.Tags.SyncEffect =>
-                    val io = curIo.asInstanceOf[IO.SyncEffect[E, Any]]
+                    val io = curIo.asInstanceOf[IO.SyncEffect[Any]]
 
                     val value = io.effect()
 
@@ -413,7 +409,7 @@ private object RTS {
                     }
 
                   case IO.Tags.Fail =>
-                    val io = curIo.asInstanceOf[IO.Fail[E, Any]]
+                    val io = curIo.asInstanceOf[IO.Fail[E]]
 
                     val error = io.error
 
@@ -502,15 +498,15 @@ private object RTS {
                       rts.unsafeRunAsync(io.register(callback))(_ => ())
                     }
 
-                  case IO.Tags.Attempt =>
-                    val io = curIo.asInstanceOf[IO.Attempt[E, Any, Any, Any]]
+                  case IO.Tags.Redeem =>
+                    val io = curIo.asInstanceOf[IO.Redeem[E, Any, Any, Any]]
 
                     curIo = io.value
 
                     stack.push(io)
 
                   case IO.Tags.Fork =>
-                    val io = curIo.asInstanceOf[IO.Fork[_, E, Any]]
+                    val io = curIo.asInstanceOf[IO.Fork[_, Any]]
 
                     val optHandler = io.handler
 
@@ -542,12 +538,11 @@ private object RTS {
                     curIo = doNotInterrupt(io.io)
 
                   case IO.Tags.Sleep =>
-                    val io = curIo.asInstanceOf[IO.Sleep[E]]
+                    val io = curIo.asInstanceOf[IO.Sleep]
 
                     curIo = IO.async0[E, Any] { callback =>
                       rts
-                        .schedule(callback(SuccessUnit[E].asInstanceOf[ExitResult[E, Any]]), io.duration)
-                        .asInstanceOf[Async[E, Any]]
+                        .schedule(callback(SuccessUnit), io.duration)
                     }
 
                   case IO.Tags.Supervise =>
@@ -557,7 +552,7 @@ private object RTS {
                       io.value.ensuring(exitSupervision(io.error))
 
                   case IO.Tags.Terminate =>
-                    val io = curIo.asInstanceOf[IO.Terminate[E, Any]]
+                    val io = curIo.asInstanceOf[IO.Terminate]
 
                     val cause = io.cause
 
@@ -588,7 +583,7 @@ private object RTS {
                     }
 
                   case IO.Tags.Run =>
-                    val io = curIo.asInstanceOf[IO.Run[E, _, Any]]
+                    val io = curIo.asInstanceOf[IO.Run[E, Any]]
 
                     val value: FiberContext[E, Any] = fork(io.value, unhandled)
 
@@ -751,7 +746,7 @@ private object RTS {
     }
 
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
-      x => cb(x.mapError(_ => SuccessUnit[E2]))
+      x => cb(x.mapError(_ => SuccessUnit))
 
     final def interrupt(t: Throwable): IO[Nothing, Unit] =
       IO.async0[Nothing, Unit](cb => kill0[Nothing](t, changeErrorUnit[Nothing](cb)))
@@ -947,7 +942,7 @@ private object RTS {
               fork[Nothing, Unit](dispatchErrors(finalizer), unhandled)
                 .runAsync((_: ExitResult[Nothing, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
               Async.later[E2, Unit]
-            } else Async.now(SuccessUnit[E2])
+            } else Async.now(SuccessUnit)
 
           }
 
@@ -957,7 +952,7 @@ private object RTS {
           if (!status.compareAndSet(oldStatus, newStatus)) kill0(t, k)
           else Async.later[E2, Unit]
 
-        case Done(_) => Async.now(SuccessUnit[E2])
+        case Done(_) => Async.now(SuccessUnit)
       }
     }
 
@@ -987,7 +982,7 @@ private object RTS {
                                           killers: List[Callback[E, Unit]]): Unit = {
       // To preserve fair scheduling, we submit all resumptions on the thread
       // pool in (rough) order of their submission.
-      killers.reverse.foreach(k => rts.submit(k(SuccessUnit[E])))
+      killers.reverse.foreach(k => rts.submit(k(SuccessUnit)))
       joiners.foreach(k => rts.submit(k(v)))
     }
   }
@@ -1014,9 +1009,7 @@ private object RTS {
     def Initial[E, A] = Executing[E, A](None, Nil, Nil)
   }
 
-  val _SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.Completed(())
-
-  final def SuccessUnit[E]: ExitResult[E, Unit] = _SuccessUnit.asInstanceOf[ExitResult[E, Unit]]
+  val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.Completed(())
 
   final def combineCancelers(c1: Throwable => Unit, c2: Throwable => Unit): Throwable => Unit =
     if (c1 eq null) {

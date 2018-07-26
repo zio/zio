@@ -31,36 +31,36 @@ class KleisliIOSpec extends AbstractRTSSpec {
   def e1 =
     unsafeRun(
       for {
-        v <- lift[Nothing, Int, Int](_ + 1).run(4)
+        v <- lift[Int, Int](_ + 1).run(4)
       } yield v must_=== 5
     )
 
   def e2 =
     unsafeRun(
       for {
-        v <- identity[Nothing, Int].run(1)
+        v <- identity[Int].run(1)
       } yield v must_=== 1
     )
 
   def e3 =
     unsafeRun(
       for {
-        v <- (lift[Nothing, Int, Int](_ + 1) >>> lift[Nothing, Int, Int](_ * 2)).run(6)
+        v <- (lift[Int, Int](_ + 1) >>> lift[Int, Int](_ * 2)).run(6)
       } yield v must_=== 14
     )
 
   def e4 =
     unsafeRun(
       for {
-        v <- (lift[Nothing, Int, Int](_ + 1) <<< lift[Nothing, Int, Int](_ * 2)).run(6)
+        v <- (lift[Int, Int](_ + 1) <<< lift[Int, Int](_ * 2)).run(6)
       } yield v must_=== 13
     )
 
   def e5 =
     unsafeRun(
       for {
-        v <- point[Nothing, Int, Int](1)
-              .zipWith[Nothing, Int, Int, Int](point[Nothing, Int, Int](2))((a, b) => a + b)
+        v <- point(1)
+              .zipWith[Nothing, Int, Int, Int](point(2))((a, b) => a + b)
               .run(1)
       } yield v must_=== 3
     )
@@ -68,15 +68,15 @@ class KleisliIOSpec extends AbstractRTSSpec {
   def e6 =
     unsafeRun(
       for {
-        v <- (lift[Nothing, Int, Int](_ + 1) &&& lift[Nothing, Int, Int](_ * 2)).run(6)
+        v <- (lift[Int, Int](_ + 1) &&& lift[Int, Int](_ * 2)).run(6)
       } yield (v._1 must_=== 7) and (v._2 must_=== 12)
     )
 
   def e7 =
     unsafeRun(
       for {
-        l <- (lift[Nothing, Int, Int](_ + 1) ||| lift[Nothing, Int, Int](_ * 2)).run(Left(25))
-        r <- (lift[Nothing, List[Int], Int](_.sum) ||| lift[Nothing, List[Int], Int](_.size))
+        l <- (lift[Int, Int](_ + 1) ||| lift[Int, Int](_ * 2)).run(Left(25))
+        r <- (lift[List[Int], Int](_.sum) ||| lift[List[Int], Int](_.size))
               .run(Right(List(1, 3, 5, 2, 8)))
       } yield (l must_=== 26) and (r must_=== 5)
     )
@@ -84,55 +84,55 @@ class KleisliIOSpec extends AbstractRTSSpec {
   def e8 =
     unsafeRun(
       for {
-        v <- lift[Nothing, Int, Int](_ * 2).first.run(100)
+        v <- lift[Int, Int](_ * 2).first.run(100)
       } yield (v._1 must_=== 200) and (v._2 must_=== 100)
     )
 
   def e9 =
     unsafeRun(
       for {
-        v <- lift[Nothing, Int, Int](_ * 2).second.run(100)
+        v <- lift[Int, Int](_ * 2).second.run(100)
       } yield (v._1 must_=== 100) and (v._2 must_=== 200)
     )
   def e10 =
     unsafeRun(
       for {
-        v1 <- lift[Nothing, Int, Int](_ * 2).left[Int].run(Left(6))
-        v2 <- point[Nothing, Int, Int](1).left[String].run(Right("hi"))
+        v1 <- lift[Int, Int](_ * 2).left[Int].run(Left(6))
+        v2 <- point(1).left[String].run(Right("hi"))
       } yield (v1 must beLeft(12)) and (v2 must beRight("hi"))
     )
 
   def e11 =
     unsafeRun(
       for {
-        v1 <- lift[Nothing, Int, Int](_ * 2).right[String].run(Left("no value"))
-        v2 <- lift[Nothing, Int, Int](_ * 2).right[Int].run(Right(7))
+        v1 <- lift[Int, Int](_ * 2).right[String].run(Left("no value"))
+        v2 <- lift[Int, Int](_ * 2).right[Int].run(Right(7))
       } yield (v1 must beLeft("no value")) and (v2 must beRight(14))
     )
 
   def e12 =
     unsafeRun(
       for {
-        v <- lift[Nothing, Int, Int](_ * 2).asEffect.run(56)
+        v <- lift[Int, Int](_ * 2).asEffect.run(56)
       } yield v must_=== 56
     )
 
   def e13 =
     unsafeRun(
       for {
-        v1 <- test(lift[Nothing, Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
-        v2 <- test(lift[Nothing, Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
+        v1 <- test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
+        v2 <- test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
       } yield (v1 must beRight(Array(1, 2, 5))) and (v2 must beLeft(Array(1, 2, 5, 6)))
     )
 
   def e14a =
     unsafeRun(
       for {
-        v1 <- ifThenElse(lift[Nothing, Int, Boolean](_ > 0))(point[Nothing, Int, String]("is positive"))(
-               point[Nothing, Int, String]("is negative")
+        v1 <- ifThenElse(lift[Int, Boolean](_ > 0))(point("is positive"))(
+               point("is negative")
              ).run(-1)
-        v2 <- ifThenElse(lift[Nothing, Int, Boolean](_ > 0))(point[Nothing, Int, String]("is positive"))(
-               point[Nothing, Int, String]("is negative")
+        v2 <- ifThenElse(lift[Int, Boolean](_ > 0))(point("is positive"))(
+               point("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
     )
@@ -140,11 +140,11 @@ class KleisliIOSpec extends AbstractRTSSpec {
   def e14b =
     unsafeRun(
       for {
-        v1 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.now(a > 0)))(point[Nothing, Int, String]("is positive"))(
-               point[Nothing, Int, String]("is negative")
+        v1 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.now(a > 0)))(point("is positive"))(
+               point("is negative")
              ).run(-1)
-        v2 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.now(a > 0)))(point[Nothing, Int, String]("is positive"))(
-               point[Nothing, Int, String]("is negative")
+        v2 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.now(a > 0)))(point("is positive"))(
+               point("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
     )
@@ -152,7 +152,7 @@ class KleisliIOSpec extends AbstractRTSSpec {
   def e15a =
     unsafeRun(
       for {
-        v <- whileDo[Nothing, Int](lift[Nothing, Int, Boolean](_ < 10))(lift[Nothing, Int, Int](_ + 1)).run(1)
+        v <- whileDo[Nothing, Int](lift[Int, Boolean](_ < 10))(lift[Int, Int](_ + 1)).run(1)
       } yield v must_=== 10
     )
 
@@ -182,7 +182,7 @@ class KleisliIOSpec extends AbstractRTSSpec {
   def e18a =
     unsafeRun(
       for {
-        a <- fail[String, Int, Int]("error").run(1).attempt
+        a <- fail[String]("error").run(1).attempt
       } yield a must_=== Left("error")
     )
 

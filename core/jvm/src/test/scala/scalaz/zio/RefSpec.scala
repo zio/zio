@@ -22,52 +22,52 @@ class RefSpec extends AbstractRTSSpec {
   def e1 =
     unsafeRun(
       for {
-        ref   <- Ref[Nothing, String](current)
-        value <- ref.read
+        ref   <- Ref(current)
+        value <- ref.get
       } yield value must beTheSameAs(current)
     )
 
   def e2 =
     unsafeRun(
       for {
-        ref   <- Ref[Nothing, String](current)
-        _     <- ref.write[Nothing](update)
-        value <- ref.read
+        ref   <- Ref(current)
+        _     <- ref.set(update)
+        value <- ref.get
       } yield value must beTheSameAs(update)
     )
 
   def e3 =
     unsafeRun(
       for {
-        ref   <- Ref[Nothing, String](current)
-        value <- ref.modify(_ => update)
+        ref   <- Ref(current)
+        value <- ref.update(_ => update)
       } yield value must beTheSameAs(update)
     )
 
   def e4 =
     unsafeRun(
       for {
-        ref   <- Ref[Nothing, String](current)
-        r     <- ref.modifyFold[Nothing, String](_ => ("hello", update))
-        value <- ref.read
+        ref   <- Ref(current)
+        r     <- ref.modify[String](_ => ("hello", update))
+        value <- ref.get
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
     )
 
   def e5 =
     unsafeRun(
       for {
-        ref   <- Ref[Nothing, String](current)
-        _     <- ref.writeLater[Nothing](update)
-        value <- ref.read
+        ref   <- Ref(current)
+        _     <- ref.setLater(update)
+        value <- ref.get
       } yield value must beTheSameAs(update)
     )
 
   def e6 =
     unsafeRun(
       for {
-        ref     <- Ref[Nothing, String](current)
-        success <- ref.tryWrite[Nothing](update)
-        value   <- ref.read
+        ref     <- Ref(current)
+        success <- ref.trySet(update)
+        value   <- ref.get
       } yield (success must beTrue) and (value must beTheSameAs(update))
     )
 
@@ -75,16 +75,16 @@ class RefSpec extends AbstractRTSSpec {
 
     def tryWriteUntilFalse(ref: Ref[Int], update: Int): IO[Nothing, Boolean] =
       ref
-        .tryWrite[Nothing](update)
+        .trySet(update)
         .flatMap(success => if (!success) IO.point[Boolean](success) else tryWriteUntilFalse(ref, update))
 
     unsafeRun(
       for {
-        ref     <- Ref[Nothing, Int](0)
-        f1      <- ref.write[Nothing](1).forever.fork[Nothing, Unit]
-        f2      <- ref.write[Nothing](2).forever.fork[Nothing, Unit]
+        ref     <- Ref(0)
+        f1      <- ref.set(1).forever.fork
+        f2      <- ref.set(2).forever.fork
         success <- tryWriteUntilFalse(ref, 3)
-        value   <- ref.read[Nothing]
+        value   <- ref.get
         _       <- f1.zipWith(f2)((_, _) => ()).interrupt(new Error("Terminated fiber"))
       } yield (success must beFalse) and (value must be_!=(3))
     )
@@ -94,18 +94,18 @@ class RefSpec extends AbstractRTSSpec {
   def e8 =
     unsafeRun(
       for {
-        ref     <- Ref[Nothing, String](current)
-        success <- ref.compareAndSet[Nothing](current, update)
-        value   <- ref.read
+        ref     <- Ref(current)
+        success <- ref.compareAndSet(current, update)
+        value   <- ref.get
       } yield (success must beTrue) and (value must beTheSameAs(update))
     )
 
   def e9 =
     unsafeRun(
       for {
-        ref     <- Ref[Nothing, String](current)
-        success <- ref.compareAndSet[Nothing](update, current)
-        value   <- ref.read
+        ref     <- Ref(current)
+        success <- ref.compareAndSet(update, current)
+        value   <- ref.get
       } yield (success must beFalse) and (value must beTheSameAs(current))
     )
 

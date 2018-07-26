@@ -21,7 +21,7 @@ class ArrayFillBenchmarks {
     import IOBenchmarks.unsafeRun
 
     def arrayFill(array: Array[Int]): KleisliIO[Nothing, Int, Int] = {
-      val condition = KleisliIO.lift[Nothing, Int, Boolean]((i: Int) => i < array.length)
+      val condition = KleisliIO.lift[Int, Boolean]((i: Int) => i < array.length)
 
       KleisliIO.whileDo[Nothing, Int](condition)(KleisliIO.impureVoid[Int, Int] { (i: Int) =>
         array.update(i, i)
