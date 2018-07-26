@@ -2,14 +2,14 @@ package scalaz
 package zio
 package interop
 
-import org.specs2.{ ScalaCheck, Specification }
+import org.specs2.ScalaCheck
 import org.scalacheck.{ Arbitrary, Cogen }
 import scalaz.scalacheck.ScalazProperties._
 import Scalaz._
 
 import scalaz72._
 
-class scalaz72Spec extends Specification with ScalaCheck with GenIO with RTS {
+class scalaz72Spec extends AbstractRTSSpec with ScalaCheck with GenIO {
 
   def is = s2"""
     laws must hold for
