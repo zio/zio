@@ -315,7 +315,7 @@ private object RTS {
     final def evaluate(io0: IO[E, _]): Unit = {
       // Do NOT accidentally capture any of local variables in a closure,
       // or Scala will wrap them in ObjectRef and performance will plummet.
-      var curIo: IO[E, Any] = io0.asInstanceOf[IO[E, Any]]
+      var curIo: IO[E, Any] = io0.as[Any]
 
       while (curIo ne null) {
         try {

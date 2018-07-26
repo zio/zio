@@ -218,7 +218,7 @@ sealed abstract class IO[+E, +A] { self =>
    * the result in an `Either`. This method is useful for recovering from
    * `IO` actions that may fail.
    *
-   * The error parameter of the returned `IO` may be chosen arbitrarily, since
+   * The error parameter of the returned `IO` is Nothing, since
    * it is guaranteed the `IO` action does not raise any errors.
    */
   final def attempt: IO[Nothing, Either[E, A]] =
@@ -518,6 +518,12 @@ sealed abstract class IO[+E, +A] { self =>
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run[E1 >: E, A1 >: A]: IO[Nothing, ExitResult[E1, A1]] = new IO.Run(self)
+
+  /**
+   * Widens the action type to any supertype. While `map` suffices for this
+   * purpose, this method is significantly faster for this purpose.
+   */
+  def as[A1 >: A]: IO[E, A1] = self.asInstanceOf[IO[E, A1]]
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this

@@ -163,7 +163,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
     unsafeRun(deepErrorFail(100).attempt) must_=== Left(ExampleError)
 
   def testEvalOfUncaughtFail =
-    unsafeRun(IO.fail[Throwable](ExampleError)).asInstanceOf[Any] must (throwA(UnhandledError(ExampleError)))
+    unsafeRun(IO.fail[Throwable](ExampleError).as[Any]) must (throwA(UnhandledError(ExampleError)))
 
   def testEvalOfUncaughtThrownSyncEffect =
     unsafeRun(IO.sync[Int](throw ExampleError)) must (throwA(ExampleError))
@@ -177,8 +177,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testEvalOfFailEnsuring = {
     var finalized = false
 
-    unsafeRun(IO.fail[Throwable](ExampleError).ensuring(IO.sync[Unit] { finalized = true; () }))
-      .asInstanceOf[Any] must (throwA(
+    unsafeRun(IO.fail[Throwable](ExampleError).as[Any].ensuring(IO.sync[Unit] { finalized = true; () })) must (throwA(
       UnhandledError(ExampleError)
     ))
     finalized must_=== true
@@ -190,8 +189,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       _ => IO.sync[Unit] { finalized = true; () }
 
     unsafeRun(
-      IO.fail[Throwable](ExampleError).onError(cleanup)
-    ).asInstanceOf[Any] must (throwA(UnhandledError(ExampleError)))
+      IO.fail[Throwable](ExampleError).onError(cleanup).as[Any]
+    ) must (throwA(UnhandledError(ExampleError)))
 
     finalized must_=== true
   }
@@ -232,7 +231,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
       (throwA(ExampleError))
 
   def testBracketErrorInUsage =
-    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError))).asInstanceOf[Any] must
+    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError).as[Any])) must
       (throwA(UnhandledError(ExampleError)))
 
   def testBracketRethrownCaughtErrorInAcquisition = {
@@ -254,11 +253,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeou
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafeRun(
       IO.absolve(
-        IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError)).attempt
+        IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError).as[Any]).attempt
       )
     )
 
-    actual.asInstanceOf[Any] must (throwA(UnhandledError(ExampleError)))
+    actual must (throwA(UnhandledError(ExampleError)))
   }
 
   def testEvalOfAsyncAttemptOfFail = {
