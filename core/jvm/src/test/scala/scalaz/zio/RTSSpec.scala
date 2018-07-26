@@ -6,14 +6,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.Specification
 import org.specs2.specification.AroundTimeout
 import Errors.UnhandledError
 import com.github.ghik.silencer.silent
 
-class RTSSpec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
-
-  override def defaultHandler[E]: Throwable => IO[E, Unit] = _ => IO.unit
+class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
   def is = s2"""
   RTS synchronous correctness

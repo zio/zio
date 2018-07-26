@@ -1,13 +1,12 @@
 package scalaz.zio
 
 import org.scalacheck._
-import org.specs2.Specification
 import org.specs2.ScalaCheck
 import scalaz.zio.ExitResult.{ Completed, Failed, Terminated }
 
 import scala.util.Try
 
-class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
+class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOSpec".title ^ s2"""

@@ -3,12 +3,11 @@ package interop
 
 import scala.concurrent.Future
 
-import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 
 import future._
 
-class futureSpec(implicit ee: ExecutionEnv) extends Specification with RTS {
+class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def is = s2"""
   `IO.fromFuture` must
