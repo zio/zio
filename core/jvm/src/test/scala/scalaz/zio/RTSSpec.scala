@@ -269,10 +269,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testBracketRegression1 = {
     def makeLogger: Ref[List[String]] => String => IO[Nothing, Unit] =
-      (ref: Ref[List[String]]) => (line: String) => ref.modify[Nothing](_ ::: List(line)).toUnit
+      (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).toUnit
 
     unsafeRun(for {
-      ref <- Ref[Nothing, List[String]](Nil)
+      ref <- Ref[List[String]](Nil)
       log = makeLogger(ref)
       f <- IO
             .bracket(
@@ -280,35 +280,35 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
                 _ => IO.unit
               )
             )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit)
-            .fork[Nothing, Unit]
-      _ <- (ref.read <* IO.sleep(1.millisecond)).doUntil(_.contains("start 1"))
+            .fork
+      _ <- (ref.get <* IO.sleep(1.millisecond)).doUntil(_.contains("start 1"))
       _ <- f.interrupt(new RuntimeException("cancel"))
-      _ <- (ref.read <* IO.sleep(1.millisecond)).doUntil(_.contains("release 2"))
-      l <- ref.read
+      _ <- (ref.get <* IO.sleep(1.millisecond)).doUntil(_.contains("release 2"))
+      l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
 
   def testInterruptWaitsForFinalizer =
     unsafeRun(for {
-      r  <- Ref[Nothing, Boolean](false)
+      r  <- Ref(false)
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Int]
       s <- (p1.complete(()) *> p2.get)
-            .ensuring(r.write[Nothing](true).toUnit.delay(10.millis))
-            .fork[Nothing, Int]
+            .ensuring(r.set(true).toUnit.delay(10.millis))
+            .fork
       _    <- p1.get
       _    <- s.interrupt(new Error("interrupt e"))
-      test <- r.read[Nothing]
+      test <- r.get
     } yield test must_=== true)
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
-      if (n <= 0) ref.read
-      else incLeft(n - 1, ref) <* ref.modify(_ + 1)
+      if (n <= 0) ref.get
+      else incLeft(n - 1, ref) <* ref.update(_ + 1)
 
     def incRight(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
-      if (n <= 0) ref.read
-      else ref.modify(_ + 1) *> incRight(n - 1, ref)
+      if (n <= 0) ref.get
+      else ref.update(_ + 1) *> incRight(n - 1, ref)
 
     unsafeRun(for {
       ref <- Ref(0)
@@ -377,7 +377,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
 
   def testForkJoinIsId =
-    unsafeRun(IO.point[Int](42).fork[Throwable, Int].flatMap(_.join)) must_=== 42
+    unsafeRun(IO.point[Int](42).fork.flatMap(_.join)) must_=== 42
 
   def testDeepForkJoinIsId = {
     val n = 20
@@ -388,7 +388,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testNeverIsInterruptible = {
     val io =
       for {
-        fiber <- IO.never.fork[Throwable, Int]
+        fiber <- IO.never.fork
         _     <- fiber.interrupt(ExampleError)
       } yield 42
 
@@ -474,7 +474,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
     unsafeRun(
       for {
-        f <- test.fork[Nothing, Unit]
+        f <- test.fork
         c <- (IO.sync[Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt(
               new RuntimeException("y")
             )
@@ -485,7 +485,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testInterruptSyncForever = unsafeRun(
     for {
-      f <- IO.sync[Int](1).forever.fork[Nothing, Nothing]
+      f <- IO.sync[Int](1).forever.fork
       _ <- f.interrupt(new Error("terminate forever"))
     } yield true
   )
@@ -524,8 +524,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     if (n <= 1) IO.point[BigInt](n)
     else
       for {
-        f1 <- concurrentFib(n - 1).fork[Throwable, BigInt]
-        f2 <- concurrentFib(n - 2).fork[Throwable, BigInt]
+        f1 <- concurrentFib(n - 1).fork
+        f2 <- concurrentFib(n - 2).fork
         v1 <- f1.join
         v2 <- f2.join
       } yield v1 + v2

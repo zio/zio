@@ -11,17 +11,17 @@ object ScalazIOArray {
     type IJIndexValue = (IndexValue, IndexValue)
 
     val lessThanEqual =
-      KleisliIO.lift[Nothing, IJIndexValue, Boolean] {
+      KleisliIO.lift[IJIndexValue, Boolean] {
         case ((_, ia), (_, ja)) => lessThanEqual0(ia, ja)
       }
 
-    val extractIJAndIncrementJ = KleisliIO.lift[Nothing, IJIndexValue, IJIndex] {
+    val extractIJAndIncrementJ = KleisliIO.lift[IJIndexValue, IJIndex] {
       case ((i, _), (j, _)) => (i, j + 1)
     }
 
-    val extractIAndIncrementI = KleisliIO.lift[Nothing, IJIndex, Int](_._1 + 1)
+    val extractIAndIncrementI = KleisliIO.lift[IJIndex, Int](_._1 + 1)
 
-    val innerLoopStart = KleisliIO.lift[Nothing, Int, IJIndex]((i: Int) => (i, i + 1))
+    val innerLoopStart = KleisliIO.lift[Int, IJIndex]((i: Int) => (i, i + 1))
 
     val outerLoopCheck: KleisliIO[Nothing, Int, Boolean] =
       KleisliIO.lift((i: Int) => i < array.length - 1)

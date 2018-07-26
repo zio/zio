@@ -21,7 +21,7 @@ package scalaz.zio
  * } yield a
  * }}}
  */
-trait Fiber[E, A] { self =>
+trait Fiber[+E, +A] { self =>
 
   /**
    * Joins the fiber, with suspends the joining fiber until the result of the
@@ -43,9 +43,9 @@ trait Fiber[E, A] { self =>
    * the specified combiner function. Both joins and interruptions are performed
    * in sequential order from left to right.
    */
-  final def zipWith[B, C](that: => Fiber[E, B])(f: (A, B) => C): Fiber[E, C] =
-    new Fiber[E, C] {
-      def join: IO[E, C] =
+  final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
+    new Fiber[E1, C] {
+      def join: IO[E1, C] =
         self.join.zipWith(that.join)(f)
 
       def interrupt(t: Throwable): IO[Nothing, Unit] =

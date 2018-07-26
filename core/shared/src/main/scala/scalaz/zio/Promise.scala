@@ -125,7 +125,7 @@ object Promise {
   /**
    * Makes a new promise.
    */
-  final def make[E, A]: IO[E, Promise[E, A]] = IO.sync[Promise[E, A]](unsafeMake[E, A])
+  final def make[E, A]: IO[Nothing, Promise[E, A]] = IO.sync[Promise[E, A]](unsafeMake[E, A])
 
   private final def unsafeMake[E, A]: Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
@@ -135,28 +135,25 @@ object Promise {
    * guarantees that if the resource is acquired (and the state changed), a
    * release action will be called.
    */
-  final def bracket[A, B, C](
+  final def bracket[E, A, B, C](
     ref: Ref[A]
   )(
-    acquire: (Promise[Nothing, B], A) => (IO[Nothing, C], A)
-  )(release: (C, Promise[Nothing, B]) => IO[Nothing, Unit]): IO[Nothing, B] =
+    acquire: (Promise[E, B], A) => (IO[Nothing, C], A)
+  )(release: (C, Promise[E, B]) => IO[Nothing, Unit]): IO[E, B] =
     for {
-      pRef <- Ref[Nothing, Option[(C, Promise[Nothing, B])]](None)
+      pRef <- Ref[Option[(C, Promise[E, B])]](None)
       b <- (for {
-            p <- ref
-                  .modifyFold[Nothing, (Promise[Nothing, B], IO[Nothing, C])] { (a: A) =>
-                    val p = Promise.unsafeMake[Nothing, B]
+            p <- ref.modify { (a: A) =>
+                  val p = Promise.unsafeMake[E, B]
 
-                    val (io, a2) = acquire(p, a)
+                  val (io, a2) = acquire(p, a)
 
-                    ((p, io), a2)
-                  }
-                  .flatMap {
-                    case (p, io) => io.flatMap(c => pRef.write[Nothing](Some((c, p))) *> IO.now(p))
-                  }
-                  .uninterruptibly
+                  ((p, io), a2)
+                }.flatMap {
+                  case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.now(p))
+                }.uninterruptibly
             b <- p.get
-          } yield b).ensuring(pRef.read.flatMap(_.fold(IO.unit)(t => release(t._1, t._2))))
+          } yield b).ensuring(pRef.get.flatMap(_.fold(IO.unit)(t => release(t._1, t._2))))
     } yield b
 
   private[zio] object internal {

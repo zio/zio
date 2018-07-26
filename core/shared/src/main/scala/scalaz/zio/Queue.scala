@@ -24,7 +24,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * in the queue. This may be negative if fibers are suspended waiting for
    * elements to be added to the queue.
    */
-  final def size[E]: IO[E, Int] = ref.read.map(_.size)
+  final def size: IO[Nothing, Int] = ref.get.map(_.size)
 
   /**
    * Places the value in the queue. If the queue has reached capacity, then
@@ -52,7 +52,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       case (_, p) => removePutter(p)
     }
 
-    Promise.bracket(ref)(acquire)(release)
+    Promise.bracket[Nothing, State[A], Unit, Boolean](ref)(acquire)(release)
   }
 
   /**
@@ -81,7 +81,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
       case (_, p) => removeTaker(p)
     }
-    Promise.bracket(ref)(acquire)(release)
+    Promise.bracket[Nothing, State[A], A, Boolean](ref)(acquire)(release)
   }
 
   /**
@@ -90,7 +90,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * false.
    */
   final def interruptTake(t: Throwable): IO[Nothing, Boolean] =
-    IO.flatten(ref.modifyFold[Nothing, IO[Nothing, Boolean]] {
+    IO.flatten(ref.modify {
       case Deficit(takers) if takers.nonEmpty =>
         val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
           IO.forkAll[Nothing, Boolean, List](takers.toList.map(_.interrupt(t)))
@@ -105,7 +105,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * returns  false.
    */
   final def interruptOffer(t: Throwable): IO[Nothing, Boolean] =
-    IO.flatten(ref.modifyFold[Nothing, IO[Nothing, Boolean]] {
+    IO.flatten(ref.modify {
       case Surplus(_, putters) if putters.nonEmpty =>
         val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
           IO.forkAll[Nothing, Boolean, List](putters.toList.map(_._2.interrupt(t)))
@@ -115,23 +115,19 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     })
 
   private final def removePutter(putter: Promise[Nothing, Unit]): IO[Nothing, Unit] =
-    ref
-      .modify[Nothing] {
-        case Surplus(values, putters) =>
-          Surplus(values, putters.filterNot(_._2 == putter))
-        case d => d
-      }
-      .toUnit
+    ref.update {
+      case Surplus(values, putters) =>
+        Surplus(values, putters.filterNot(_._2 == putter))
+      case d => d
+    }.toUnit
 
   private final def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] =
-    ref
-      .modify[Nothing] {
-        case Deficit(takers) =>
-          Deficit(takers.filterNot(_ == taker))
+    ref.update {
+      case Deficit(takers) =>
+        Deficit(takers.filterNot(_ == taker))
 
-        case d => d
-      }
-      .toUnit
+      case d => d
+    }.toUnit
 
 }
 object Queue {
@@ -141,13 +137,13 @@ object Queue {
    * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
    * until there is more room in the queue.
    */
-  final def bounded[E, A](capacity: Int): IO[E, Queue[A]] =
-    Ref[E, State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _))
+  final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
+    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _))
 
   /**
    * Makes a new unbounded queue.
    */
-  final def unbounded[E, A]: IO[E, Queue[A]] = bounded(Int.MaxValue)
+  final def unbounded[A]: IO[Nothing, Queue[A]] = bounded(Int.MaxValue)
 
   private[zio] object internal {
     sealed trait State[A] {
