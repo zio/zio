@@ -949,7 +949,6 @@ private object RTS {
         case _ =>
       }
 
-    @tailrec
     private final def kill0[E2](cs: List[Throwable], k: Callback[E, Unit]): Async[E2, Unit] = {
 
       val oldStatus = status.get
