@@ -224,7 +224,7 @@ You can execute one action, or, if it fails, execute another action, with the `o
 val file = openFile("primary.json").orElse(openFile("backup.json"))
 ```
 
-If you want more control on the next action and better performance you can use the primitive which all the previous operations are based on, it's called `redeem` and it can be seen as the combination of `flatMap` and `catchAll`. It is useful if you find yourself using combinations of `attempt` or `catchAll` with `flatMap`, using `redeem` you can achieve the same and aNothing the intermediate `Either` allocation and the subsequent call to `flatMap`.
+If you want more control on the next action and better performance you can use the primitive which all the previous operations are based on, it's called `redeem` and it can be seen as the combination of `flatMap` and `catchAll`. It is useful if you find yourself using combinations of `attempt` or `catchAll` with `flatMap`, using `redeem` you can achieve the same and avoid the intermediate `Either` allocation and the subsequent call to `flatMap`.
 
 ```scala
 val file: IO[Nothing, Content] =
