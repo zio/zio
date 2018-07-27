@@ -94,6 +94,10 @@ trait Retry[S, E] { self =>
 }
 
 object Retry {
+
+  /**
+   * Constructs a new retry strategy from an initial state and an update function.
+   */
   final def apply[S, E](initial0: IO[E, S], update0: (E, S) => IO[E, S]): Retry[S, E] = new Retry[S, E] {
     val initial                      = initial0
     def update(e: E, s: S): IO[E, S] = update0(e, s)
@@ -115,8 +119,16 @@ object Retry {
     Retry[(Long, Long), E](nanoTime.zip(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
   }
 
+  /**
+   * A retry strategy that will keep retrying until the specified number of
+   * retries is reached.
+   */
   final def upTo[E](max: Int): Retry[Int, E] = counted.untilState(_ >= max)
 
+  /**
+   * A retry strategy that will keep retrying until the specified duration has
+   * elapsed.
+   */
   final def upTill[E](duration: Duration): Retry[(Long, Long), E] = {
     val nanos = duration.toNanos
 
