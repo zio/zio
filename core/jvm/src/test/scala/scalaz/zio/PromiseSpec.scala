@@ -1,8 +1,6 @@
 package scalaz.zio
 
-import org.specs2.Specification
-
-class PromiseSpec extends Specification with RTS {
+class PromiseSpec extends AbstractRTSSpec {
 
   def is = "PromiseSpec".title ^ s2"""
         Make a promise and retrieve its value correctly after complete it with:
@@ -24,8 +22,8 @@ class PromiseSpec extends Specification with RTS {
   def e1 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        s <- p.complete[Void](32)
+        p <- Promise.make[Nothing, Int]
+        s <- p.complete(32)
         v <- p.get
       } yield s must beTrue and (v must_=== 32)
     )
@@ -33,8 +31,8 @@ class PromiseSpec extends Specification with RTS {
   def e2 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        s <- p.done[Void](ExitResult.Completed(14))
+        p <- Promise.make[Nothing, Int]
+        s <- p.done(ExitResult.Completed(14))
         v <- p.get
       } yield s must beTrue and (v must_=== 14)
     )
@@ -43,8 +41,8 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.error[String]("error in e3")
-        v <- p.get.attempt[String]
+        s <- p.error("error in e3")
+        v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e3"))
     )
 
@@ -52,17 +50,17 @@ class PromiseSpec extends Specification with RTS {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done[String](ExitResult.Failed("error in e4", Nil))
-        v <- p.get.attempt[String]
+        s <- p.done(ExitResult.Failed("error in e4", Nil))
+        v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
 
   def e5 =
     unsafeRun(
       for {
-        p <- Promise.make[Void, Int]
-        _ <- p.complete[Void](1)
-        s <- p.done[Void](ExitResult.Completed(9))
+        p <- Promise.make[Nothing, Int]
+        _ <- p.complete(1)
+        s <- p.done(ExitResult.Completed(9))
         v <- p.get
       } yield s must beFalse and (v must_=== 1)
     )

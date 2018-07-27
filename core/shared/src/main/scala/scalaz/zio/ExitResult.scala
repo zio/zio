@@ -6,7 +6,7 @@ package scalaz.zio
  * completed with a value, failed because of an uncaught `E`, or terminated
  * due to interruption or runtime error.
  */
-sealed trait ExitResult[E, A] { self =>
+sealed trait ExitResult[+E, +A] { self =>
   import ExitResult._
 
   final def succeeded: Boolean = self match {
@@ -19,9 +19,9 @@ sealed trait ExitResult[E, A] { self =>
     case x            => x.asInstanceOf[ExitResult[E, B]]
   }
 
-  final def mapError[E2](f: E => ExitResult[E2, A]): ExitResult[E2, A] = self match {
+  final def mapError[E2, A1 >: A](f: E => ExitResult[E2, A1]): ExitResult[E2, A1] = self match {
     case ExitResult.Failed(e, _) => f(e)
-    case x                       => x.asInstanceOf[ExitResult[E2, A]]
+    case x                       => x.asInstanceOf[ExitResult[E2, A1]]
   }
 
   final def failed: Boolean = !succeeded
