@@ -72,14 +72,14 @@ trait Fiber[+E, +A] { self =>
     new Fiber[E, B] {
       def join: IO[E, B] = self.join.map(f)
 
-      def interrupt(t: Throwable): IO[Nothing, Unit] = self.interrupt(t)
+      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
     }
 }
 
 object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def join: IO[E, A]                                    = IO.point(a)
+      def join: IO[E, A]                                     = IO.point(a)
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = IO.unit
     }
 }

@@ -76,7 +76,7 @@ class PromiseSpec extends AbstractRTSSpec {
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.interrupt[Exception]
+        s <- p.interrupt
       } yield s must beTrue
     )
 }

@@ -183,7 +183,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testFailOfMultipleFailingFinalizers =
     unsafeRun(
-      IO.fail[Throwable, Unit](ExampleError)
+      IO.fail[Throwable](ExampleError)
         .ensuring(IO.sync(throw InterruptCause1))
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
@@ -192,7 +192,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testTerminateOfMultipleFailingFinalizers =
     unsafeRun(
-      IO.terminate[Throwable, Unit](ExampleError)
+      IO.terminate(ExampleError)
         .ensuring(IO.sync(throw InterruptCause1))
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
@@ -291,8 +291,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
     unsafeRun(io1) must (throwA(UnhandledError(ExampleError, Nil)))
     unsafeRun(io2) must (throwA(UnhandledError(ExampleError, Nil)))
-    unsafeRun(IO.absolve(io1.attempt[Throwable])) must (throwA(UnhandledError(ExampleError, Nil)))
-    unsafeRun(IO.absolve(io2.attempt[Throwable])) must (throwA(UnhandledError(ExampleError, Nil)))
+    unsafeRun(IO.absolve(io1.attempt)) must (throwA(UnhandledError(ExampleError, Nil)))
+    unsafeRun(IO.absolve(io2.attempt)) must (throwA(UnhandledError(ExampleError, Nil)))
   }
 
   def testBracketRegression1 = {
@@ -309,10 +309,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
               )
             )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit)
             .fork
-      _ <- (ref.read <* IO.sleep(1.millisecond)).doUntil(_.contains("start 1"))
+      _ <- (ref.get <* IO.sleep(1.millisecond)).doUntil(_.contains("start 1"))
       _ <- f.interrupt
-      _ <- (ref.read <* IO.sleep(1.millisecond)).doUntil(_.contains("release 2"))
-      l <- ref.read
+      _ <- (ref.get <* IO.sleep(1.millisecond)).doUntil(_.contains("release 2"))
+      l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
 
@@ -326,7 +326,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
             .fork
       _    <- p1.get
       _    <- s.interrupt
-      test <- r.read
+      test <- r.get
     } yield test must_=== true)
 
   def testEvalOfDeepSyncEffect = {

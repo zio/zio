@@ -52,7 +52,7 @@ trait RTS {
    * The default handler for unhandled exceptions in the main fiber, and any
    * fibers it forks that recursively inherit the handler.
    */
-  def defaultHandler[E]: List[Throwable] => IO[E, Unit] =
+  def defaultHandler: List[Throwable] => IO[Nothing, Unit] =
     (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
 
   /**
@@ -159,7 +159,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val unhandled: Throwable => IO[Nothing, Unit]) extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val unhandled: List[Throwable] => IO[Nothing, Unit]) extends Fiber[E, A] {
     import FiberStatus._
     import java.util.{ Collections, Set, WeakHashMap }
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }
@@ -233,8 +233,8 @@ private object RTS {
      * empty in the sole case the exception was not caught by any exception
      * handler—i.e. the exceptional case.
      */
-    final def catchError: IO[Nothing, List[Throwable]] = {
-      var errorHandler: Any => IO[Any, Any]       = null
+    final def catchError: IO[Nothing, Option[List[Throwable]]] = {
+      var errorHandler: Any => IO[Any, Any]               = null
       var finalizer: IO[Nothing, Option[List[Throwable]]] = null
 
       // Unwind the stack, looking for exception handlers and coalescing
@@ -628,7 +628,7 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: Throwable => IO[Nothing, Unit]): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: List[Throwable] => IO[Nothing, Unit]): FiberContext[E, A] = {
       val context = new FiberContext[E, A](rts, handler)
 
       rts.submit(context.evaluate(io))
@@ -669,9 +669,9 @@ private object RTS {
           if (io eq null) done(value.asInstanceOf[ExitResult[E, A]])
           else evaluate(io)
 
-        case ExitResult.Failed(t, _) => evaluate(IO.fail[E, Any](t))
+        case ExitResult.Failed(t, _) => evaluate(IO.fail[E](t))
 
-        case ExitResult.Terminated(ts) => evaluate(IO.terminate0[E, Any](ts))
+        case ExitResult.Terminated(ts) => evaluate(IO.terminate0(ts))
       }
 
     /**
@@ -724,7 +724,7 @@ private object RTS {
         if (won) resume(tryA.map(finish))
       }
 
-    private final def raceWith[A, B, C](unhandled: Throwable => IO[Nothing, Unit],
+    private final def raceWith[A, B, C](unhandled: List[Throwable] => IO[Nothing, Unit],
                                         leftIO: IO[E, A],
                                         rightIO: IO[E, B],
                                         finishLeft: (A, Fiber[E, B]) => IO[E, C],
@@ -765,7 +765,7 @@ private object RTS {
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
       x => cb(x.mapError(_ => SuccessUnit))
 
-    final def interrupt0[E2](ts: List[Throwable]): IO[Nothing, Unit] =
+    final def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
       IO.async0[Nothing, Unit](cb => kill0[Nothing](ts, changeErrorUnit[Nothing](cb)))
 
     final def join: IO[E, A] = IO.async0(join0)
@@ -847,7 +847,8 @@ private object RTS {
 
       oldStatus match {
         case AsyncRegion(causes, errors, reentrancy, resume, _, joiners, killers) if (id == reentrancy) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(causes, errors, reentrancy, resume, Some(c), joiners, killers)))
+          if (!status.compareAndSet(oldStatus,
+                                    AsyncRegion(causes, errors, reentrancy, resume, Some(c), joiners, killers)))
             awaitAsync(id, c)
 
         case _ =>
@@ -865,7 +866,8 @@ private object RTS {
           else true
 
         case AsyncRegion(causes, errors, reentrancy, resume, _, joiners, killers) =>
-          if (!status.compareAndSet(oldStatus, AsyncRegion(causes, errors, reentrancy, resume - 1, None, joiners, killers)))
+          if (!status.compareAndSet(oldStatus,
+                                    AsyncRegion(causes, errors, reentrancy, resume - 1, None, joiners, killers)))
             shouldResumeAsync()
           else true
 
@@ -977,11 +979,11 @@ private object RTS {
                 try cancel()
                 catch {
                   case t: Throwable if (nonFatal(t)) =>
-                    supervise(fork(unhandled(t :: Nil)[E], unhandled))
+                    supervise(fork(unhandled(t :: Nil), unhandled))
                 }
             }
 
-              val finalizer = interruptStack
+            val finalizer = interruptStack
 
             if (finalizer ne null) {
               fork(finalizer.flatMap {
@@ -990,9 +992,9 @@ private object RTS {
               }, unhandled)
                 .runAsync((_: ExitResult[Nothing, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
               Async.later[E2, Unit]
-            } else Async.now(SuccessUnit[E2])
+            } else Async.now(SuccessUnit)
 
-            }
+          }
 
         case s @ AsyncRegion(_, _, _, _, _, _, _) =>
           val newStatus = s.copy(causes = Some(s.causes.getOrElse(Nil) ++ cs), killers = k :: s.killers)
@@ -1005,9 +1007,8 @@ private object RTS {
 
         case Done(_) =>
           killed = true
-          Async.now(SuccessUnit[E2])
+          Async.now(SuccessUnit)
       }
-      result
     }
 
     @tailrec
