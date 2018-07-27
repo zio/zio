@@ -21,6 +21,17 @@ trait Retry[S, E] { self =>
   def update(e: E, s: S): IO[E, S]
 
   /**
+   * Negates this strategy, returning failures for successes, and successes
+   * for failures.
+   */
+  def unary_! : Retry[S, E] = new Retry[S, E] {
+    val initial = self.initial
+
+    def update(e: E, s: S): IO[E, S] =
+      self.update(e, s).redeem(_ => IO.now(s), _ => IO.fail(e))
+  }
+
+  /**
    * Peeks at the state, executes some action, and then continues retrying or not
    * based on the specified predicate.
    */
@@ -46,7 +57,7 @@ trait Retry[S, E] { self =>
    * Returns a new strategy that retries until the error matches the condition.
    */
   final def untilError(p: E => Boolean): Retry[S, E] =
-    whileError(negate(p))
+    !whileError(p)
 
   /*
    * Returns a new strategy that retries until the state matches the condition.
@@ -58,7 +69,7 @@ trait Retry[S, E] { self =>
    * Returns a new strategy that retries while the state matches the condition.
    */
   final def whileState(p: S => Boolean): Retry[S, E] =
-    untilState(negate(p))
+    !untilState(p)
 
   /**
    * Returns a new strategy that retries for as long as this strategy and the
@@ -86,9 +97,6 @@ trait Retry[S, E] { self =>
       def update(e: E, s: S): IO[E, S] =
         (self update (e, s)) orElse (that update (e, s))
     }
-
-  private def negate[A](f: A => Boolean): A => Boolean =
-    (a: A) => !f(a)
 }
 
 object Retry {
