@@ -369,9 +369,26 @@ sealed abstract class IO[+E, +A] { self =>
     self.flatMap(a => that.map(b => f(a, b)))
 
   /**
+   * Sequentially zips this effect with the specified effect, combining the
+   * results into a tuple.
+   */
+  final def zip[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
+    self.zipWith(that)((a, b) => (a, b))
+
+  /**
    * Repeats this action forever (until the first error).
    */
   final def forever: IO[E, Nothing] = self *> self.forever
+
+  /**
+   * Retries with the specified retry strategy.
+   */
+  final def retryWith[E1 >: E, S](retry: Retry[S, E1]): IO[E1, A] = {
+    def loop(s: S): IO[E1, A] =
+      self.redeem(err => retry.update(err, s).flatMap(loop), suc => IO.now(suc))
+
+    retry.initial.flatMap(loop)
+  }
 
   /**
    * Retries continuously until this action succeeds.
