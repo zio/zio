@@ -113,7 +113,7 @@ object Retry {
     Retry[(Long, Long), E](nanoTime.zip(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
   }
 
-  final def fixed[E](max: Int): Retry[Int, E] = counted.untilState(_ >= max)
+  final def upTo[E](max: Int): Retry[Int, E] = counted.untilState(_ >= max)
 
   final def duration[E](duration: Duration): Retry[(Long, Long), E] = {
     val nanos = duration.toNanos
