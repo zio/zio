@@ -89,48 +89,123 @@ trait Retry[+S, E] { self =>
 
   /**
    * Returns a new strategy that retries for as long as this strategy and the
-   * specified strategy both agree to retry.
+   * specified strategy both agree to retry. For pure strategies (which have
+   * deterministic initial states/updates), the following law holds:
+   * {{{
+   * io.retryWith(r && r) === io.retryWith(r)
+   * }}}
    */
   final def &&[S2](that: Retry[S2, E]): Retry[(S, S2), E] =
     new Retry[(S, S2), E] {
       type State = (self.State, that.State)
 
-      val initial = self.initial.zip(that.initial)
+      val initial = self.initial.par(that.initial)
 
       def proj(state: State): (S, S2) =
         (self.proj(state._1), that.proj(state._2))
 
       def update(e: E, s: State): IO[E, State] =
-        self.update(e, s._1).zip(that.update(e, s._2))
+        self.update(e, s._1).par(that.update(e, s._2))
     }
 
   /**
    * Returns a new strategy that retries for as long as either this strategy or
-   * the specified strategy agree to retry.
+   * the specified strategy want to retry. For pure strategies (which have
+   * deterministic initial states/updates), the following law holds:
+   * {{{
+   * io.retryWith(r || r) === io.retryWith(r)
+   * }}}
    */
-  final def ||[S1 >: S](that: Retry[S1, E]): Retry[S1, E] =
-    new Retry[S1, E] {
-      type State = Either[self.State, that.State]
+  final def ||[S2](that: Retry[S2, E]): Retry[Either[S, S2], E] =
+    new Retry[Either[S, S2], E] {
+      type State =
+        Either[(self.State, that.State), Either[self.State, that.State]]
 
-      val initial =
-        self.initial.attempt.flatMap {
-          case Left(_)  => that.initial.map(Right(_))
-          case Right(s) => IO.now(Left(s))
-        }
+      val initial = self.initial.attempt.par(that.initial.attempt).flatMap(makeState(_))
 
-      def proj(state: State): S1 =
-        state.fold[S1](self.proj, that.proj)
+      private def makeState(state: (Either[E, self.State], Either[E, that.State])): IO[E, State] = state match {
+        case (Left(_), Left(e))     => IO.fail(e)
+        case (Left(_), Right(s2))   => IO.now(Right(Right(s2)))
+        case (Right(s1), Left(_))   => IO.now(Right(Left(s1)))
+        case (Right(s1), Right(s2)) => IO.now(Left((s1, s2)))
+      }
 
-      def update(e: E, s: State): IO[E, State] =
-        s match {
-          case Left(s) =>
-            self.update(e, s).attempt.flatMap {
-              case Left(_)  => that.initial.map(Right(_))
-              case Right(s) => IO.now(Left(s))
-            }
-          case Right(s) => that.update(e, s).map(Right(_))
-        }
+      def proj(state: State): Either[S, S2] = state match {
+        case Left((s, _))    => Left(self.proj(s))
+        case Right(Left(s))  => Left(self.proj(s))
+        case Right(Right(s)) => Right(that.proj(s))
+      }
+
+      def update(e: E, state: State): IO[E, State] = state match {
+        case Left((s1, s2)) =>
+          self
+            .update(e, s1)
+            .attempt
+            .par(
+              that.update(e, s2).attempt
+            )
+            .flatMap(makeState(_))
+
+        case Right(Left(s1)) =>
+          self.update(e, s1).attempt.par(IO.fail(e).attempt).flatMap(makeState(_))
+
+        case Right(Right(s2)) =>
+          IO.fail(e).attempt.par(that.update(e, s2).attempt).flatMap(makeState(_))
+      }
     }
+
+  /**
+   * Returns a new strategy that first tries this strategy, and if it fails,
+   * then switches over to the specified strategy. The returned strategy is
+   * maximally lazy, not computing the initial state of the specified strategy
+   * until when and if this strategy fails.
+   * {{{
+   * io.retryWith(Retry.never <> r.void) === io.retryWith(r)
+   * io.retryWith(r.void <> Retry.never) === io.retryWith(r)
+   * }}}
+   */
+  final def <>[S1 >: S](that: Retry[S1, E]): Retry[S1, E] = new Retry[S1, E] {
+    type State = Either[self.State, that.State]
+
+    val initial =
+      self.initial.attempt.flatMap {
+        case Left(_)  => that.initial.map(Right(_))
+        case Right(s) => IO.now(Left(s))
+      }
+
+    def proj(state: State): S1 = state.fold[S1](self.proj, that.proj)
+
+    def update(e: E, s: State): IO[E, State] =
+      s match {
+        case Left(s) =>
+          self.update(e, s).attempt.flatMap {
+            case Left(_)  => that.initial.map(Right(_))
+            case Right(s) => IO.now(Left(s))
+          }
+        case Right(s) => that.update(e, s).map(Right(_))
+      }
+  }
+
+  /**
+   * Returns a new retry strategy with the state transformed by the specified
+   * function.
+   */
+  final def map[S2](f: S => S2): Retry[S2, E] = new Retry[S2, E] {
+    type State = self.State
+    val initial                              = self.initial
+    def proj(state: State): S2               = f(self.proj(state))
+    def update(e: E, s: State): IO[E, State] = self.update(e, s)
+  }
+
+  /**
+   * Returns a new retry strategy that always produces the constant state.
+   */
+  final def const[S2](s2: S2): Retry[S2, E] = map(_ => s2)
+
+  /**
+   * Returns a new retry strategy that always produces unit state.
+   */
+  final def void: Retry[Unit, E] = const(())
 }
 
 object Retry {
@@ -156,6 +231,12 @@ object Retry {
       def proj(state: State): S                = proj0(state)
       def update(e: E, s: State): IO[E, State] = update0(e, s)
     }
+
+  /**
+   * A retry strategy that always fails.
+   */
+  final def never[E]: Retry[Unit, E] =
+    Retry[Unit, E](IO.unit, (e, _) => IO.fail(e))
 
   /**
    * A retry strategy that always retries and counts the number of retries.
