@@ -56,20 +56,17 @@ trait Retry[S, E] { self =>
   /**
    * Returns a new strategy that retries until the error matches the condition.
    */
-  final def untilError(p: E => Boolean): Retry[S, E] =
-    !whileError(p)
+  final def untilError(p: E => Boolean): Retry[S, E] = !whileError(p)
 
   /*
    * Returns a new strategy that retries until the state matches the condition.
    */
-  final def untilState(p: S => Boolean): Retry[S, E] =
-    check[S]((_, s) => IO.now(s))(p)
+  final def untilState(p: S => Boolean): Retry[S, E] = check[S]((_, s) => IO.now(s))(p)
 
   /*
    * Returns a new strategy that retries while the state matches the condition.
    */
-  final def whileState(p: S => Boolean): Retry[S, E] =
-    !untilState(p)
+  final def whileState(p: S => Boolean): Retry[S, E] = !untilState(p)
 
   /**
    * Returns a new strategy that retries for as long as this strategy and the
@@ -120,7 +117,7 @@ object Retry {
 
   final def upTo[E](max: Int): Retry[Int, E] = counted.untilState(_ >= max)
 
-  final def duration[E](duration: Duration): Retry[(Long, Long), E] = {
+  final def forTime[E](duration: Duration): Retry[(Long, Long), E] = {
     val nanos = duration.toNanos
 
     timed.untilState(_._2 >= nanos)
