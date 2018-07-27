@@ -383,7 +383,7 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Retries with the specified retry strategy.
    */
-  final def retryWith[E1 >: E, S](retry: Retry[S, E1]): IO[E1, A] = {
+  final def retryWith[E1 >: E, S](retry: Retry[E1, S]): IO[E1, A] = {
     type State = retry.State
 
     def loop(s: State): IO[E1, A] =

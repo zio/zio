@@ -6,7 +6,7 @@ import scala.concurrent.duration.Duration
 /**
  * A stateful strategy for retrying `IO` actions. See `IO.retryWith`.
  */
-trait Retry[+S, E] { self =>
+trait Retry[E, +S] { self =>
 
   /**
    * The full type of state used by the retry strategy, including hidden state
@@ -35,7 +35,7 @@ trait Retry[+S, E] { self =>
    * Negates this strategy, returning failures for successes, and successes
    * for failures.
    */
-  def unary_! : Retry[S, E] = new Retry[S, E] {
+  def unary_! : Retry[E, S] = new Retry[E, S] {
     type State = self.State
 
     val initial = self.initial
@@ -50,8 +50,8 @@ trait Retry[+S, E] { self =>
    * Peeks at the visible part of the state, executes some action, and then
    * continues retrying or not based on the specified predicate.
    */
-  final def check[A](action: (E, S) => IO[E, A])(pred: A => Boolean): Retry[S, E] =
-    new Retry[S, E] {
+  final def check[A](action: (E, S) => IO[E, A])(pred: A => Boolean): Retry[E, S] =
+    new Retry[E, S] {
       type State = self.State
 
       val initial = self.initial
@@ -69,23 +69,23 @@ trait Retry[+S, E] { self =>
   /**
    * Returns a new strategy that retries while the error matches the condition.
    */
-  final def whileError(p: E => Boolean): Retry[S, E] =
+  final def whileError(p: E => Boolean): Retry[E, S] =
     check[E]((e, _) => IO.now(e))(p)
 
   /**
    * Returns a new strategy that retries until the error matches the condition.
    */
-  final def untilError(p: E => Boolean): Retry[S, E] = !whileError(p)
+  final def untilError(p: E => Boolean): Retry[E, S] = !whileError(p)
 
   /*
    * Returns a new strategy that retries until the state matches the condition.
    */
-  final def untilState(p: S => Boolean): Retry[S, E] = check[S]((_, s) => IO.now(s))(p)
+  final def untilState(p: S => Boolean): Retry[E, S] = check[S]((_, s) => IO.now(s))(p)
 
   /*
    * Returns a new strategy that retries while the state matches the condition.
    */
-  final def whileState(p: S => Boolean): Retry[S, E] = !untilState(p)
+  final def whileState(p: S => Boolean): Retry[E, S] = !untilState(p)
 
   /**
    * Returns a new strategy that retries for as long as this strategy and the
@@ -95,8 +95,8 @@ trait Retry[+S, E] { self =>
    * io.retryWith(r && r) === io.retryWith(r)
    * }}}
    */
-  final def &&[S2](that: Retry[S2, E]): Retry[(S, S2), E] =
-    new Retry[(S, S2), E] {
+  final def &&[S2](that: Retry[E, S2]): Retry[E, (S, S2)] =
+    new Retry[E, (S, S2)] {
       type State = (self.State, that.State)
 
       val initial = self.initial.par(that.initial)
@@ -116,8 +116,8 @@ trait Retry[+S, E] { self =>
    * io.retryWith(r || r) === io.retryWith(r)
    * }}}
    */
-  final def ||[S2](that: Retry[S2, E]): Retry[Either[S, S2], E] =
-    new Retry[Either[S, S2], E] {
+  final def ||[S2](that: Retry[E, S2]): Retry[E, Either[S, S2]] =
+    new Retry[E, Either[S, S2]] {
       type State =
         Either[(self.State, that.State), Either[self.State, that.State]]
 
@@ -164,7 +164,7 @@ trait Retry[+S, E] { self =>
    * io.retryWith(r.void <> Retry.never) === io.retryWith(r)
    * }}}
    */
-  final def <>[S1 >: S](that: Retry[S1, E]): Retry[S1, E] = new Retry[S1, E] {
+  final def <>[S1 >: S](that: Retry[E, S1]): Retry[E, S1] = new Retry[E, S1] {
     type State = Either[self.State, that.State]
 
     val initial =
@@ -190,7 +190,7 @@ trait Retry[+S, E] { self =>
    * Returns a new retry strategy with the state transformed by the specified
    * function.
    */
-  final def map[S2](f: S => S2): Retry[S2, E] = new Retry[S2, E] {
+  final def map[S2](f: S => S2): Retry[E, S2] = new Retry[E, S2] {
     type State = self.State
     val initial                              = self.initial
     def proj(state: State): S2               = f(self.proj(state))
@@ -200,12 +200,12 @@ trait Retry[+S, E] { self =>
   /**
    * Returns a new retry strategy that always produces the constant state.
    */
-  final def const[S2](s2: S2): Retry[S2, E] = map(_ => s2)
+  final def const[S2](s2: S2): Retry[E, S2] = map(_ => s2)
 
   /**
    * Returns a new retry strategy that always produces unit state.
    */
-  final def void: Retry[Unit, E] = const(())
+  final def void: Retry[E, Unit] = const(())
 }
 
 object Retry {
@@ -213,7 +213,7 @@ object Retry {
   /**
    * Constructs a new retry strategy from an initial state and an update function.
    */
-  final def apply[S, E](initial0: IO[E, S], update0: (E, S) => IO[E, S]): Retry[S, E] = new Retry[S, E] {
+  final def apply[E, S](initial0: IO[E, S], update0: (E, S) => IO[E, S]): Retry[E, S] = new Retry[E, S] {
     type State = S
     val initial                              = initial0
     def proj(state: State): S                = state
@@ -224,8 +224,8 @@ object Retry {
    * Constructs a new retry strategy from an initial state, a projection from
    * the full state to the visible state `S`, and an update function.
    */
-  final def hidden[S0, S, E](initial0: IO[E, S0], proj0: S0 => S, update0: (E, S0) => IO[E, S0]): Retry[S, E] =
-    new Retry[S, E] {
+  final def hidden[S0, E, S](initial0: IO[E, S0], proj0: S0 => S, update0: (E, S0) => IO[E, S0]): Retry[E, S] =
+    new Retry[E, S] {
       type State = S0
       val initial                              = initial0
       def proj(state: State): S                = proj0(state)
@@ -235,36 +235,48 @@ object Retry {
   /**
    * A retry strategy that always fails.
    */
-  final def never[E]: Retry[Unit, E] =
-    Retry[Unit, E](IO.unit, (e, _) => IO.fail(e))
+  final def never[E]: Retry[E, Unit] =
+    Retry[E, Unit](IO.unit, (e, _) => IO.fail(e))
+
+  /**
+   * A retry strategy that always succeeds.
+   */
+  final def always[E]: Retry[E, Unit] =
+    Retry[E, Unit](IO.unit, (e, _) => IO.unit)
+
+  /**
+   * A retry strategy that always succeeds with the specified constant state.
+   */
+  final def point[E, S](s: => S): Retry[E, S] =
+    Retry[E, S](IO.point(s), (_, s) => IO.now(s))
 
   /**
    * A retry strategy that always retries and counts the number of retries.
    */
-  final def counted[E]: Retry[Int, E] =
-    Retry[Int, E](IO.now(0), (_, i) => IO.now(i + 1))
+  final def counted[E]: Retry[E, Int] =
+    Retry[E, Int](IO.now(0), (_, i) => IO.now(i + 1))
 
   /**
    * A retry strategy that always retries and computes the time since the
    * beginning of the process.
    */
-  final def timed[E]: Retry[Long, E] = {
+  final def timed[E]: Retry[E, Long] = {
     val nanoTime = IO.sync(System.nanoTime())
 
-    Retry.hidden[(Long, Long), Long, E](nanoTime.zip(IO.now(0L)), _._2, (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
+    Retry.hidden[(Long, Long), E, Long](nanoTime.zip(IO.now(0L)), _._2, (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
   }
 
   /**
    * A retry strategy that will keep retrying until the specified number of
    * retries is reached.
    */
-  final def upTo[E](max: Int): Retry[Int, E] = counted.untilState(_ >= max)
+  final def upTo[E](max: Int): Retry[E, Int] = counted.untilState(_ >= max)
 
   /**
    * A retry strategy that will keep retrying until the specified duration has
    * elapsed.
    */
-  final def upTill[E](duration: Duration): Retry[Long, E] = {
+  final def upTill[E](duration: Duration): Retry[E, Long] = {
     val nanos = duration.toNanos
 
     timed.untilState(_ >= nanos)
