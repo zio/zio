@@ -130,7 +130,7 @@ sealed abstract class IO[+E, +A] { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0(handler: Throwable => IO[Nothing, Unit]): IO[Nothing, Fiber[E, A]] =
+  final def fork0(handler: List[Throwable] => IO[Nothing, Unit]): IO[Nothing, Fiber[E, A]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -606,7 +606,7 @@ object IO {
     final def apply(v: A): IO[E2, B] = succ(v)
   }
 
-  final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Throwable => IO[Nothing, Unit]])
+  final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[List[Throwable] => IO[Nothing, Unit]])
       extends IO[Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
   }
@@ -781,7 +781,7 @@ object IO {
    * the more expressive variant of this function.
    */
   final def async[E, A](register: (Callback[E, A]) => Unit): IO[E, A] =
-    new AsyncEffect(callback => {
+    new AsyncEffect((callback: Callback[E, A]) => {
       register(callback)
 
       Async.later[E, A]
