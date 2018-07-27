@@ -88,11 +88,8 @@ trait Retry[S, E] { self =>
    * the specified strategy agree to retry.
    */
   final def ||(that: Retry[S, E]): Retry[S, E] =
-    self.unionWith(that)((s, _) => s)
-
-  final def unionWith(that: Retry[S, E])(f: (S, S) => S): Retry[S, E] =
     new Retry[S, E] {
-      val initial = self.initial.zipWith(that.initial)(f)
+      val initial = self.initial orElse that.initial
 
       def update(e: E, s: S): IO[E, S] =
         (self update (e, s)) orElse (that update (e, s))
