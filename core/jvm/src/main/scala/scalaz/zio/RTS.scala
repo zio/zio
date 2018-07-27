@@ -636,8 +636,8 @@ private object RTS {
       context
     }
 
-    private final def accumFailures: Option[List[Throwable]] => IO[Void, Unit] = {
-      case None     => IO.unit[Void]
+    private final def accumFailures: Option[List[Throwable]] => IO[Nothing, Unit] = {
+      case None     => IO.unit
       case Some(ts) => IO.sync(addFailures(ts))
     }
 
@@ -984,11 +984,11 @@ private object RTS {
               val finalizer = interruptStack
 
             if (finalizer ne null) {
-              fork[Void, Unit](finalizer.flatMap {
-                case None     => IO.unit[Void]
+              fork(finalizer.flatMap {
+                case None     => IO.unit
                 case Some(ts) => unhandled(ts)
               }, unhandled)
-                .runAsync((_: ExitResult[Void, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
+                .runAsync((_: ExitResult[Nothing, Unit]) => purgeJoinersKillers(v, joiners, k :: killers))
               Async.later[E2, Unit]
             } else Async.now(SuccessUnit[E2])
 
