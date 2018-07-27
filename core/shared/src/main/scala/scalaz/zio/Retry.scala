@@ -64,7 +64,7 @@ trait Retry[S, E] { self =>
    * Returns a new strategy that retries for as long as this strategy and the
    * specified strategy both agree to retry.
    */
-  final def intersect[S2](that: Retry[S2, E]): Retry[(S, S2), E] =
+  final def &&[S2](that: Retry[S2, E]): Retry[(S, S2), E] =
     new Retry[(S, S2), E] {
       val initial = self.initial.zip(that.initial)
 
@@ -72,16 +72,13 @@ trait Retry[S, E] { self =>
         self.update(e, s._1).zip(that.update(e, s._2))
     }
 
-  final def unionLeft(that: Retry[S, E]): Retry[S, E] =
-    self.unionWith(that)((s, _) => s)
-
-  final def unionRight(that: Retry[S, E]): Retry[S, E] =
-    self.unionWith(that)((_, s) => s)
-
   /**
    * Returns a new strategy that retries for as long as either this strategy or
    * the specified strategy agree to retry.
    */
+  final def ||(that: Retry[S, E]): Retry[S, E] =
+    self.unionWith(that)((s, _) => s)
+
   final def unionWith(that: Retry[S, E])(f: (S, S) => S): Retry[S, E] =
     new Retry[S, E] {
       val initial = self.initial.zipWith(that.initial)(f)
