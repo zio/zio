@@ -117,7 +117,7 @@ object Retry {
 
   final def upTo[E](max: Int): Retry[Int, E] = counted.untilState(_ >= max)
 
-  final def forTime[E](duration: Duration): Retry[(Long, Long), E] = {
+  final def upTill[E](duration: Duration): Retry[(Long, Long), E] = {
     val nanos = duration.toNanos
 
     timed.untilState(_._2 >= nanos)
