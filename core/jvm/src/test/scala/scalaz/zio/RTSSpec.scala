@@ -176,8 +176,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testEvalOfMultipleFail =
     unsafeRun((for {
-      f1 <- IO.never[Void, Unit].fork
-      _  <- f1.interrupt[Void](InterruptCause1, InterruptCause2)
+      f1 <- IO.never.fork
+      _  <- f1.interrupt(InterruptCause1, InterruptCause2)
       _  <- f1.join
     } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
 
