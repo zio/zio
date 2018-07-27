@@ -1,13 +1,12 @@
 package scalaz.zio
 
 import org.scalacheck._
-import org.specs2.Specification
 import org.specs2.ScalaCheck
 import scalaz.zio.ExitResult.{ Completed, Failed, Terminated }
 
 import scala.util.Try
 
-class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
+class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOSpec".title ^ s2"""
@@ -18,9 +17,13 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
    Create a list of String and pass an f: String => IO[String, Int]:
       `IO.traverse` fails with a NumberFormatException exception. $t3
    Create a list of Strings and pass an f: String => IO[String, Int]:
-      `IO.parTraverse` returns the list of Ints in any order. $t4
+      `IO.parTraverse` returns the list of Ints in the same order. $t4
    Create an integer and an f: Int => String:
       `IO.bimap(f, identity)` maps an IO[Int, String] into an IO[String, String]. $t5
+   Create a list of Ints and map with IO.point:
+      `IO.parAll` returns the list of Ints in the same order. $t6
+   Create a list of Ints and map with IO.point:
+      `IO.forkAll` returns the list of Ints in the same order. $t7
    Check done lifts exit result into IO. $testDone
     """
 
@@ -38,31 +41,43 @@ class IOSpec extends Specification with GenIO with RTS with ScalaCheck {
 
   def t2 = {
     val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.traverse(list)(x => IO.point[String, Int](x.toInt)))
+    val res  = unsafeRun(IO.traverse(list)(x => IO.point[Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res  = Try(unsafeRun(IO.traverse(list)(x => IO.point[String, Int](x.toInt))))
+    val res  = Try(unsafeRun(IO.traverse(list)(x => IO.point[Int](x.toInt))))
     res must beAFailedTry.withThrowable[NumberFormatException]
   }
 
   def t4 = {
     val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.parTraverse(list)(x => IO.point[String, Int](x.toInt)))
-    res must containTheSameElementsAs(List(1, 2, 3))
+    val res  = unsafeRun(IO.parTraverse(list)(x => IO.point[Int](x.toInt)))
+    res must be_===(List(1, 2, 3))
   }
 
   def t5 = forAll { (i: Int) =>
-    val res = unsafeRun(IO.fail[Int, String](i).bimap(_.toString, identity).attempt)
+    val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).attempt)
     res must_=== Left(i.toString)
+  }
+
+  def t6 = {
+    val list = List(1, 2, 3).map(IO.point[Int](_))
+    val res  = unsafeRun(IO.parAll(list))
+    res must be_===(List(1, 2, 3))
+  }
+
+  def t7 = {
+    val list = List(1, 2, 3).map(IO.point[Int](_))
+    val res  = unsafeRun(IO.forkAll(list).flatMap(_.join))
+    res must be_===(List(1, 2, 3))
   }
 
   def testDone = {
     val error      = new Error("something went wrong")
-    val completed  = Completed[Void, Int](1)
-    val terminated = Terminated[Void, Int](error :: Nil)
+    val completed  = Completed[Nothing, Int](1)
+    val terminated = Terminated[Nothing, Int](error :: Nil)
     val failed     = Failed[Error, Int](error, Nil)
 
     unsafeRun(IO.done(completed)) must_=== 1

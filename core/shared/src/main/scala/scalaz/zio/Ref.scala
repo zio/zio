@@ -21,31 +21,31 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
   /**
    * Reads the value from the `Ref`.
    */
-  final def read[E]: IO[E, A] = IO.sync(value.get)
+  final def get: IO[Nothing, A] = IO.sync(value.get)
 
   /**
    * Writes a new value to the `Ref`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
-  final def write[E](a: A): IO[E, Unit] = IO.sync(value.set(a))
+  final def set(a: A): IO[Nothing, Unit] = IO.sync(value.set(a))
 
   /**
    * Writes a new value to the `Ref` without providing a guarantee of
    * immediate consistency.
    */
-  final def writeLater[E](a: A): IO[E, Unit] = IO.sync(value.lazySet(a))
+  final def setLater(a: A): IO[Nothing, Unit] = IO.sync(value.lazySet(a))
 
   /**
    * Attempts to write a new value to the `Ref`, but aborts immediately under
    * concurrent modification of the value by other fibers.
    */
-  final def tryWrite[E](a: A): IO[E, Boolean] = IO.sync(value.compareAndSet(value.get, a))
+  final def trySet(a: A): IO[Nothing, Boolean] = IO.sync(value.compareAndSet(value.get, a))
 
   /**
    * Atomically modifies the `Ref` with the specified function. This is not
    * implemented in terms of `modifyFold` purely for performance reasons.
    */
-  final def modify[E](f: A => A): IO[E, A] = IO.sync {
+  final def update(f: A => A): IO[Nothing, A] = IO.sync {
     var loop    = true
     var next: A = null.asInstanceOf[A]
 
@@ -65,7 +65,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * a return value for the modification. This is a more powerful version of
    * `modify`.
    */
-  final def modifyFold[E, B](f: A => (B, A)): IO[E, B] = IO.sync {
+  final def modify[B](f: A => (B, A)): IO[Nothing, B] = IO.sync {
     var loop = true
     var b: B = null.asInstanceOf[B]
 
@@ -86,7 +86,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * Compares and sets the value of the `Ref` if and only if it is `eq` to the
    * specified value. Returns whether or not the ref was modified.
    */
-  final def compareAndSet[E](prev: A, next: A): IO[E, Boolean] =
+  final def compareAndSet(prev: A, next: A): IO[Nothing, Boolean] =
     IO.sync(value.compareAndSet(prev, next))
 }
 
@@ -95,5 +95,5 @@ object Ref {
   /**
    * Creates a new `Ref` with the specified value.
    */
-  final def apply[E, A](a: A): IO[E, Ref[A]] = IO.sync(new Ref[A](new AtomicReference(a)))
+  final def apply[A](a: A): IO[Nothing, Ref[A]] = IO.sync(new Ref[A](new AtomicReference(a)))
 }

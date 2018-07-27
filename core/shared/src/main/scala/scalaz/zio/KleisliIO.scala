@@ -40,21 +40,21 @@ package scalaz.zio
  *
  * {{{
  * // Program 1
- * val program1: IO[Void, Unit] =
+ * val program1: IO[Nothing, Unit] =
  *   for {
  *     name <- getStrLn
  *     _    <- putStrLn("Hello, " + name)
  *   } yield ())
  *
  * // Program 2
- * val program2: IO[Void, Unit] = (readLine >>> KleisliIO.lift("Hello, " + _) >>> printLine)(())
+ * val program2: IO[Nothing, Unit] = (readLine >>> KleisliIO.lift("Hello, " + _) >>> printLine)(())
  * }}}
  *
  * Similarly, the following two programs are equivalent:
  *
  * {{{
  * // Program 1
- * val program1: IO[Void, Unit] =
+ * val program1: IO[Nothing, Unit] =
  *   for {
  *     line1 <- getStrLn
  *     line2 <- getStrLn
@@ -62,14 +62,14 @@ package scalaz.zio
  *   } yield ())
  *
  * // Program 2
- * val program2: IO[Void, Unit] =
+ * val program2: IO[Nothing, Unit] =
  *   (readLine.zipWith(readLine)("You wrote: " + _ + ", " + _) >>> printLine)(())
  * }}}
  *
  * In both of these examples, the `KleisliIO` program is faster because it is
  * able to perform fusion of effectful functions.
  */
-sealed trait KleisliIO[E, A, B] { self =>
+sealed trait KleisliIO[+E, -A, +B] { self =>
 
   /**
    * Applies the effectful function with the specified value, returning the
@@ -85,38 +85,38 @@ sealed trait KleisliIO[E, A, B] { self =>
   /**
    * Binds on the output of this effectful function.
    */
-  final def flatMap[C](f: B => KleisliIO[E, A, C]): KleisliIO[E, A, C] =
+  final def flatMap[E1 >: E, A1 <: A, C](f: B => KleisliIO[E1, A1, C]): KleisliIO[E1, A1, C] =
     KleisliIO.flatMap(self, f)
 
   /**
    * Composes two effectful functions.
    */
-  final def compose[A0](that: KleisliIO[E, A0, A]): KleisliIO[E, A0, B] =
+  final def compose[E1 >: E, A0](that: KleisliIO[E1, A0, A]): KleisliIO[E1, A0, B] =
     KleisliIO.compose(self, that)
 
   /**
    * "Backwards" composition of effectful functions.
    */
-  final def andThen[C](that: KleisliIO[E, B, C]): KleisliIO[E, A, C] =
+  final def andThen[E1 >: E, C](that: KleisliIO[E1, B, C]): KleisliIO[E1, A, C] =
     that.compose(self)
 
   /**
    * A symbolic operator for `andThen`.
    */
-  final def >>>[C](that: KleisliIO[E, B, C]): KleisliIO[E, A, C] =
+  final def >>>[E1 >: E, C](that: KleisliIO[E1, B, C]): KleisliIO[E1, A, C] =
     self.andThen(that)
 
   /**
    * A symbolic operator for `compose`.
    */
-  final def <<<[C](that: KleisliIO[E, C, A]): KleisliIO[E, C, B] =
+  final def <<<[E1 >: E, C](that: KleisliIO[E1, C, A]): KleisliIO[E1, C, B] =
     self.compose(that)
 
   /**
    * Zips the output of this function with the output of that function, using
    * the specified combiner function.
    */
-  final def zipWith[C, D](that: KleisliIO[E, A, C])(f: (B, C) => D): KleisliIO[E, A, D] =
+  final def zipWith[E1 >: E, A1 <: A, C, D](that: KleisliIO[E1, A1, C])(f: (B, C) => D): KleisliIO[E1, A1, D] =
     KleisliIO.zipWith(self, that)(f)
 
   /**
@@ -124,16 +124,16 @@ sealed trait KleisliIO[E, A, B] { self =>
    * storing it into the first element of a tuple, carrying along the input on
    * the second element of a tuple.
    */
-  final def first: KleisliIO[E, A, (B, A)] =
-    self &&& KleisliIO.identity[E, A]
+  final def first[A1 <: A, B1 >: B]: KleisliIO[E, A1, (B1, A1)] =
+    self &&& KleisliIO.identity[A1]
 
   /**
    * Returns a new effectful function that computes the value of this function,
    * storing it into the second element of a tuple, carrying along the input on
    * the first element of a tuple.
    */
-  final def second: KleisliIO[E, A, (A, B)] =
-    KleisliIO.identity[E, A] &&& self
+  final def second[A1 <: A, B1 >: B]: KleisliIO[E, A1, (A1, B1)] =
+    KleisliIO.identity[A1] &&& self
 
   /**
    * Returns a new effectful function that can either compute the value of this
@@ -155,7 +155,7 @@ sealed trait KleisliIO[E, A, B] { self =>
    * Returns a new effectful function that zips together the output of two
    * effectful functions that share the same input.
    */
-  final def &&&[C](that: KleisliIO[E, A, C]): KleisliIO[E, A, (B, C)] =
+  final def &&&[E1 >: E, A1 <: A, C](that: KleisliIO[E1, A1, C]): KleisliIO[E1, A1, (B, C)] =
     KleisliIO.zipWith(self, that)((a, b) => (a, b))
 
   /**
@@ -163,14 +163,14 @@ sealed trait KleisliIO[E, A, B] { self =>
    * effectful function (if passed `Left(a)`), or will compute the value of the
    * specified effectful function (if passed `Right(c)`).
    */
-  final def |||[C](that: KleisliIO[E, C, B]): KleisliIO[E, Either[A, C], B] =
+  final def |||[E1 >: E, B1 >: B, C](that: KleisliIO[E1, C, B1]): KleisliIO[E1, Either[A, C], B1] =
     KleisliIO.join(self, that)
 
   /**
    * Maps the output of this effectful function to the specified constant.
    */
   final def const[C](c: => C): KleisliIO[E, A, C] =
-    self >>> KleisliIO.lift[E, B, C](_ => c)
+    self >>> KleisliIO.lift[B, C](_ => c)
 
   /**
    * Maps the output of this effectful function to `Unit`.
@@ -181,7 +181,7 @@ sealed trait KleisliIO[E, A, B] { self =>
    * Returns a new effectful function that merely applies this one for its
    * effect, returning the input unmodified.
    */
-  final def asEffect: KleisliIO[E, A, A] = self.first >>> KleisliIO._2
+  final def asEffect[A1 <: A]: KleisliIO[E, A1, A1] = self.first >>> KleisliIO._2
 }
 
 object KleisliIO {
@@ -193,9 +193,9 @@ object KleisliIO {
   private[zio] final class Impure[E, A, B](val apply0: A => B) extends KleisliIO[E, A, B] {
     val run: A => IO[E, B] = a =>
       IO.suspend {
-        try IO.now[E, B](apply0(a))
+        try IO.now[B](apply0(a))
         catch {
-          case e: KleisliIOError[_] => IO.fail[E, B](e.unsafeCoerce[E])
+          case e: KleisliIOError[_] => IO.fail[E](e.unsafeCoerce[E])
         }
     }
   }
@@ -203,19 +203,19 @@ object KleisliIO {
   /**
    * Lifts a value into the monad formed by `KleisliIO`.
    */
-  final def point[E, A, B](b: => B): KleisliIO[E, A, B] = lift((_: A) => b)
+  final def point[B](b: => B): KleisliIO[Nothing, Any, B] = lift((_: Any) => b)
 
   /**
    * Returns a `KleisliIO` representing a failure with the specified `E`.
    */
-  final def fail[E, A, B](e: E): KleisliIO[E, A, B] =
+  final def fail[E](e: E): KleisliIO[E, Any, Nothing] =
     new Impure(_ => throw new KleisliIOError[E](e))
 
   /**
    * Returns the identity effectful function, which performs no effects and
    * merely returns its input unmodified.
    */
-  final def identity[E, A]: KleisliIO[E, A, A] = lift(a => a)
+  final def identity[A]: KleisliIO[Nothing, A, A] = lift(a => a)
 
   /**
    * Lifts a pure `A => IO[E, B]` into `KleisliIO`.
@@ -225,13 +225,13 @@ object KleisliIO {
   /**
    * Lifts a pure `A => B` into `KleisliIO`.
    */
-  final def lift[E, A, B](f: A => B): KleisliIO[E, A, B] = new Impure(f)
+  final def lift[A, B](f: A => B): KleisliIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
   final def swap[E, A, B]: KleisliIO[E, (A, B), (B, A)] =
-    KleisliIO.lift[E, (A, B), (B, A)](_.swap)
+    KleisliIO.lift[(A, B), (B, A)](_.swap)
 
   /**
    * Lifts an impure function into `KleisliIO`, converting throwables into the
@@ -251,7 +251,7 @@ object KleisliIO {
    * Lifts an impure function into `KleisliIO`, assuming any throwables are
    * non-recoverable and do not need to be converted into errors.
    */
-  final def impureVoid[A, B](f: A => B): KleisliIO[Void, A, B] = new Impure(f)
+  final def impureVoid[A, B](f: A => B): KleisliIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns a new effectful function that passes an `A` to the condition, and
@@ -259,7 +259,7 @@ object KleisliIO {
    * returns false, returns `Right(a)`.
    */
   final def test[E, A](k: KleisliIO[E, A, Boolean]): KleisliIO[E, A, Either[A, A]] =
-    (k &&& KleisliIO.identity[E, A]) >>>
+    (k &&& KleisliIO.identity[A]) >>>
       KleisliIO.lift((t: (Boolean, A)) => if (t._1) Left(t._2) else Right(t._2))
 
   /**
@@ -285,7 +285,7 @@ object KleisliIO {
     (cond, then0) match {
       case (cond: Impure[_, _, _], then0: Impure[_, _, _]) =>
         new Impure[E, A, A](a => if (cond.apply0(a)) then0.apply0(a) else a)
-      case _ => ifThenElse(cond)(then0)(KleisliIO.identity[E, A])
+      case _ => ifThenElse(cond)(then0)(KleisliIO.identity[A])
     }
 
   /**
@@ -297,7 +297,7 @@ object KleisliIO {
     (cond, then0) match {
       case (cond: Impure[_, _, _], then0: Impure[_, _, _]) =>
         new Impure[E, A, A](a => if (cond.apply0(a)) a else then0.apply0(a))
-      case _ => ifThenElse(cond)(KleisliIO.identity[E, A])(then0)
+      case _ => ifThenElse(cond)(KleisliIO.identity[A])(then0)
     }
 
   /**
@@ -335,13 +335,13 @@ object KleisliIO {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  final def _1[E, A, B]: KleisliIO[E, (A, B), A] = lift[E, (A, B), A](_._1)
+  final def _1[E, A, B]: KleisliIO[E, (A, B), A] = lift[(A, B), A](_._1)
 
   /**
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  final def _2[E, A, B]: KleisliIO[E, (A, B), B] = lift[E, (A, B), B](_._2)
+  final def _2[E, A, B]: KleisliIO[E, (A, B), B] = lift[(A, B), B](_._2)
 
   /**
    * See @KleisliIO.flatMap
@@ -397,7 +397,7 @@ object KleisliIO {
       case _ =>
         KleisliIO.pure[E, Either[A, C], Either[B, C]] {
           case Left(a)  => k.run(a).map[Either[B, C]](Left[B, C])
-          case Right(c) => IO.now[E, Either[B, C]](Right(c))
+          case Right(c) => IO.now[Either[B, C]](Right(c))
         }
     }
 
@@ -413,7 +413,7 @@ object KleisliIO {
         })
       case _ =>
         KleisliIO.pure[E, Either[C, A], Either[C, B]] {
-          case Left(c)  => IO.now[E, Either[C, B]](Left(c))
+          case Left(c)  => IO.now[Either[C, B]](Left(c))
           case Right(a) => k.run(a).map[Either[C, B]](Right[C, B])
         }
     }

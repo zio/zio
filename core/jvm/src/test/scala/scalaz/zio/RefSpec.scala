@@ -1,8 +1,6 @@
 package scalaz.zio
 
-import org.specs2.Specification
-
-class RefSpec extends Specification with RTS {
+class RefSpec extends AbstractRTSSpec {
 
   def is = "RefSpec".title ^ s2"""
    Create a new Ref with a specified value and check if:
@@ -24,70 +22,70 @@ class RefSpec extends Specification with RTS {
   def e1 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
-        value <- ref.read
+        ref   <- Ref(current)
+        value <- ref.get
       } yield value must beTheSameAs(current)
     )
 
   def e2 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
-        _     <- ref.write[Void](update)
-        value <- ref.read
+        ref   <- Ref(current)
+        _     <- ref.set(update)
+        value <- ref.get
       } yield value must beTheSameAs(update)
     )
 
   def e3 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
-        value <- ref.modify(_ => update)
+        ref   <- Ref(current)
+        value <- ref.update(_ => update)
       } yield value must beTheSameAs(update)
     )
 
   def e4 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
-        r     <- ref.modifyFold[Void, String](_ => ("hello", update))
-        value <- ref.read
+        ref   <- Ref(current)
+        r     <- ref.modify[String](_ => ("hello", update))
+        value <- ref.get
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
     )
 
   def e5 =
     unsafeRun(
       for {
-        ref   <- Ref[Void, String](current)
-        _     <- ref.writeLater[Void](update)
-        value <- ref.read
+        ref   <- Ref(current)
+        _     <- ref.setLater(update)
+        value <- ref.get
       } yield value must beTheSameAs(update)
     )
 
   def e6 =
     unsafeRun(
       for {
-        ref     <- Ref[Void, String](current)
-        success <- ref.tryWrite[Void](update)
-        value   <- ref.read
+        ref     <- Ref(current)
+        success <- ref.trySet(update)
+        value   <- ref.get
       } yield (success must beTrue) and (value must beTheSameAs(update))
     )
 
   def e7 = {
 
-    def tryWriteUntilFalse(ref: Ref[Int], update: Int): IO[Void, Boolean] =
+    def tryWriteUntilFalse(ref: Ref[Int], update: Int): IO[Nothing, Boolean] =
       ref
-        .tryWrite[Void](update)
-        .flatMap(success => if (!success) IO.point[Void, Boolean](success) else tryWriteUntilFalse(ref, update))
+        .trySet(update)
+        .flatMap(success => if (!success) IO.point[Boolean](success) else tryWriteUntilFalse(ref, update))
 
     unsafeRun(
       for {
-        ref     <- Ref[Void, Int](0)
-        f1      <- ref.write[Void](1).forever[Unit].fork[Void]
-        f2      <- ref.write[Void](2).forever[Unit].fork[Void]
+        ref     <- Ref(0)
+        f1      <- ref.set(1).forever.fork
+        f2      <- ref.set(2).forever.fork
         success <- tryWriteUntilFalse(ref, 3)
-        value   <- ref.read[Void]
-        _       <- f1.zipWith(f2)((_, _) => ()).interrupt[Void]
+        value   <- ref.get
+        _       <- f1.zipWith(f2)((_, _) => ()).interrupt
       } yield (success must beFalse) and (value must be_!=(3))
     )
 
@@ -96,18 +94,18 @@ class RefSpec extends Specification with RTS {
   def e8 =
     unsafeRun(
       for {
-        ref     <- Ref[Void, String](current)
-        success <- ref.compareAndSet[Void](current, update)
-        value   <- ref.read
+        ref     <- Ref(current)
+        success <- ref.compareAndSet(current, update)
+        value   <- ref.get
       } yield (success must beTrue) and (value must beTheSameAs(update))
     )
 
   def e9 =
     unsafeRun(
       for {
-        ref     <- Ref[Void, String](current)
-        success <- ref.compareAndSet[Void](update, current)
-        value   <- ref.read
+        ref     <- Ref(current)
+        success <- ref.compareAndSet(update, current)
+        value   <- ref.get
       } yield (success must beFalse) and (value must beTheSameAs(current))
     )
 

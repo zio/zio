@@ -21,7 +21,7 @@ package scalaz.zio
  * } yield a
  * }}}
  */
-trait Fiber[E, A] { self =>
+trait Fiber[+E, +A] { self =>
 
   /**
    * Joins the fiber, with suspends the joining fiber until the result of the
@@ -36,7 +36,7 @@ trait Fiber[E, A] { self =>
    * immediately. Otherwise, it will resume when the fiber has been
    * successfully interrupted or has produced its result.
    */
-  def interrupt[E2]: IO[E2, Unit] = interrupt0(Nil)
+  def interrupt: IO[Nothing, Unit] = interrupt0(Nil)
 
   /**
    * Interrupts the fiber with the specified error(s). If the fiber has already
@@ -44,25 +44,35 @@ trait Fiber[E, A] { self =>
    * immediately. Otherwise, it will resume when the fiber has been
    * successfully interrupted or has produced its result.
    */
-  def interrupt[E2](t: Throwable, ts: Throwable*): IO[E2, Unit] = interrupt0(t :: ts.toList)
+  def interrupt(t: Throwable, ts: Throwable*): IO[Nothing, Unit] = interrupt0(t :: ts.toList)
 
   /**
    * Interrupts the fiber with a list of error(s).
    */
-  def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit]
+  def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]
 
   /**
    * Zips this fiber with the specified fiber, combining their results using
    * the specified combiner function. Both joins and interruptions are performed
    * in sequential order from left to right.
    */
-  final def zipWith[B, C](that: => Fiber[E, B])(f: (A, B) => C): Fiber[E, C] =
-    new Fiber[E, C] {
-      def join: IO[E, C] =
+  final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
+    new Fiber[E1, C] {
+      def join: IO[E1, C] =
         self.join.zipWith(that.join)(f)
 
-      def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit] =
+      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
+    }
+
+  /**
+   * Maps over the value the Fiber computes.
+   */
+  final def map[B](f: A => B): Fiber[E, B] =
+    new Fiber[E, B] {
+      def join: IO[E, B] = self.join.map(f)
+
+      def interrupt(t: Throwable): IO[Nothing, Unit] = self.interrupt(t)
     }
 }
 
@@ -70,6 +80,6 @@ object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
       def join: IO[E, A]                                    = IO.point(a)
-      def interrupt0[E2](ts: List[Throwable]): IO[E2, Unit] = IO.unit[E2]
+      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = IO.unit
     }
 }
