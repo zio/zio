@@ -95,8 +95,10 @@ trait Retry[E, +S] { self =>
    * io.retryWith(r && r) === io.retryWith(r)
    * }}}
    */
-  final def &&[S2](that: Retry[E, S2]): Retry[E, (S, S2)] =
+  final def &&[S2](that0: => Retry[E, S2]): Retry[E, (S, S2)] =
     new Retry[E, (S, S2)] {
+      lazy val that = that0
+
       type State = (self.State, that.State)
 
       val initial = self.initial.par(that.initial)
@@ -116,8 +118,10 @@ trait Retry[E, +S] { self =>
    * io.retryWith(r || r) === io.retryWith(r)
    * }}}
    */
-  final def ||[S2](that: Retry[E, S2]): Retry[E, Either[S, S2]] =
+  final def ||[S2](that0: => Retry[E, S2]): Retry[E, Either[S, S2]] =
     new Retry[E, Either[S, S2]] {
+      lazy val that = that0
+
       type State =
         Either[(self.State, that.State), Either[self.State, that.State]]
 
@@ -164,27 +168,30 @@ trait Retry[E, +S] { self =>
    * io.retryWith(r.void <> Retry.never) === io.retryWith(r)
    * }}}
    */
-  final def <>[S1 >: S](that: Retry[E, S1]): Retry[E, S1] = new Retry[E, S1] {
-    type State = Either[self.State, that.State]
+  final def <>[S1 >: S](that0: => Retry[E, S1]): Retry[E, S1] =
+    new Retry[E, S1] {
+      lazy val that = that0
 
-    val initial =
-      self.initial.attempt.flatMap {
-        case Left(_)  => that.initial.map(Right(_))
-        case Right(s) => IO.now(Left(s))
-      }
+      type State = Either[self.State, that.State]
 
-    def proj(state: State): S1 = state.fold[S1](self.proj, that.proj)
+      val initial =
+        self.initial.attempt.flatMap {
+          case Left(_)  => that.initial.map(Right(_))
+          case Right(s) => IO.now(Left(s))
+        }
 
-    def update(e: E, s: State): IO[E, State] =
-      s match {
-        case Left(s) =>
-          self.update(e, s).attempt.flatMap {
-            case Left(_)  => that.initial.map(Right(_))
-            case Right(s) => IO.now(Left(s))
-          }
-        case Right(s) => that.update(e, s).map(Right(_))
-      }
-  }
+      def proj(state: State): S1 = state.fold[S1](self.proj, that.proj)
+
+      def update(e: E, s: State): IO[E, State] =
+        s match {
+          case Left(s) =>
+            self.update(e, s).attempt.flatMap {
+              case Left(_)  => that.initial.map(Right(_))
+              case Right(s) => IO.now(Left(s))
+            }
+          case Right(s) => that.update(e, s).map(Right(_))
+        }
+    }
 
   /**
    * Returns a new retry strategy with the state transformed by the specified
@@ -206,6 +213,18 @@ trait Retry[E, +S] { self =>
    * Returns a new retry strategy that always produces unit state.
    */
   final def void: Retry[E, Unit] = const(())
+
+  /**
+   * The same as `&&`, but discards the right hand state.
+   */
+  final def *>[S2](that: => Retry[E, S2]): Retry[E, S2] =
+    (self && that).map(_._2)
+
+  /**
+   * The same as `&&`, but discards the left hand state.
+   */
+  final def <*[S2](that: => Retry[E, S2]): Retry[E, S] =
+    (self && that).map(_._1)
 }
 
 object Retry {
@@ -219,18 +238,6 @@ object Retry {
     def proj(state: State): S                = state
     def update(e: E, s: State): IO[E, State] = update0(e, s)
   }
-
-  /**
-   * Constructs a new retry strategy from an initial state, a projection from
-   * the full state to the visible state `S`, and an update function.
-   */
-  final def hidden[S0, E, S](initial0: IO[E, S0], proj0: S0 => S, update0: (E, S0) => IO[E, S0]): Retry[E, S] =
-    new Retry[E, S] {
-      type State = S0
-      val initial                              = initial0
-      def proj(state: State): S                = proj0(state)
-      def update(e: E, s: State): IO[E, State] = update0(e, s)
-    }
 
   /**
    * A retry strategy that always fails.
@@ -263,7 +270,7 @@ object Retry {
   final def timed[E]: Retry[E, Long] = {
     val nanoTime = IO.sync(System.nanoTime())
 
-    Retry.hidden[(Long, Long), E, Long](nanoTime.zip(IO.now(0L)), _._2, (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
+    Retry[E, (Long, Long)](nanoTime.zip(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1))).map(_._2)
   }
 
   /**
