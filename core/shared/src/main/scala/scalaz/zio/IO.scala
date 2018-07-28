@@ -175,7 +175,21 @@ sealed abstract class IO[+E, +A] { self =>
    * otherwise executes the specified action.
    */
   final def orElse[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
+    self <> that
+
+  /**
+   * Executes this action and returns its value, if it succeeds, but
+   * otherwise executes the specified action.
+   */
+  final def <>[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
     self.redeem(_ => that, IO.now)
+
+  /**
+   * Executes this action and returns its value, if it succeeds, but
+   * otherwise executes the specified action.
+   */
+  final def <||>[E1 >: E, B](that: => IO[E1, B]): IO[E1, Either[A, B]] =
+    self.redeem(_ => that.map(Right(_)), IO.nowLeft)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
@@ -383,8 +397,10 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Retries with the specified retry strategy.
    */
-  final def retryWith[E1 >: E, S](retry: Retry[S, E1]): IO[E1, A] = {
-    def loop(s: S): IO[E1, A] =
+  final def retryWith[E1 >: E, S](retry: Retry[E1, S]): IO[E1, A] = {
+    type State = retry.State
+
+    def loop(s: State): IO[E1, A] =
       self.redeem(err => retry.update(err, s).flatMap(loop), suc => IO.now(suc))
 
     retry.initial.flatMap(loop)
