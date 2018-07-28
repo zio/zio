@@ -203,6 +203,12 @@ trait Retry[E, +S] { self =>
     }
 
   /**
+   * A named version of the `<||>` operator.
+   */
+  final def andThen[S2](that0: => Retry[E, S2]): Retry[E, Either[S, S2]] =
+    self <||> that0
+
+  /**
    * Returns a new retry strategy with the state transformed by the specified
    * function.
    */
