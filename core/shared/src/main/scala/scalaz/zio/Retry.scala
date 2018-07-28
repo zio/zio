@@ -2,6 +2,7 @@
 package scalaz.zio
 
 import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
 
 /**
  * A stateful strategy for retrying `IO` actions. See `IO.retryWith`.
@@ -233,6 +234,30 @@ trait Retry[E, +S] { self =>
    */
   final def <*[S2](that: => Retry[E, S2]): Retry[E, S] =
     (self && that).map(_._1)
+
+  /**
+   * Returns a new retry strategy that applies the combinator to each update
+   * produced by this retry strategy.
+   */
+  final def updated(f: IO[E, self.State] => IO[E, self.State]): Retry[E, S] =
+    new Retry[E, S] {
+      type State = self.State
+      val initial                              = self.initial
+      def proj(state: State): S                = self.proj(state)
+      def update(e: E, s: State): IO[E, State] = f(self.update(e, s))
+    }
+
+  /**
+   * Returns a new retry strategy that applies the combinator to the initial
+   * state produced by this retry strategy.
+   */
+  final def initialized(f: IO[E, self.State] => IO[E, self.State]): Retry[E, S] =
+    new Retry[E, S] {
+      type State = self.State
+      val initial                              = f(self.initial)
+      def proj(state: State): S                = self.proj(state)
+      def update(e: E, s: State): IO[E, State] = self.update(e, s)
+    }
 }
 
 object Retry {
@@ -266,6 +291,12 @@ object Retry {
     Retry[E, S](IO.point(s), (_, s) => IO.now(s))
 
   /**
+   * A retry strategy that always succeeds, collecting all errors into a list.
+   */
+  final def errors[E]: Retry[E, List[E]] =
+    Retry[E, List[E]](IO.now(Nil), (e, l) => IO.now(e :: l))
+
+  /**
    * A retry strategy that always retries and counts the number of retries.
    */
   final def counted[E]: Retry[E, Int] =
@@ -275,25 +306,41 @@ object Retry {
    * A retry strategy that always retries and computes the time since the
    * beginning of the process.
    */
-  final def timed[E]: Retry[E, Long] = {
+  final def elapsed[E]: Retry[E, Duration] = {
     val nanoTime = IO.sync(System.nanoTime())
 
-    Retry[E, (Long, Long)](nanoTime.zip(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1))).map(_._2)
+    Retry[E, (Long, Long)](nanoTime.zip(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
+      .map(t => Duration(t._2, TimeUnit.NANOSECONDS))
   }
 
   /**
    * A retry strategy that will keep retrying until the specified number of
    * retries is reached.
    */
-  final def upTo[E](max: Int): Retry[E, Int] = counted.untilState(_ >= max)
+  final def retries[E](max: Int): Retry[E, Int] = counted.untilState(_ >= max)
 
   /**
    * A retry strategy that will keep retrying until the specified duration has
    * elapsed.
    */
-  final def upTill[E](duration: Duration): Retry[E, Long] = {
+  final def duration[E](duration: Duration): Retry[E, Duration] = {
     val nanos = duration.toNanos
 
-    timed.untilState(_ >= nanos)
+    elapsed.untilState(_.toNanos >= nanos)
   }
+
+  /**
+   * A retry strategy that will always succeed, waiting the specified fixed
+   * duration between attempts.
+   */
+  final def fixed[E](duration: Duration): Retry[E, Int] =
+    counted.updated(_.delay(duration))
+
+  /**
+   * A retry strategy that will always succeed, but will wait a certain amount
+   * between retries, given by `duration * factor.pow(n)`, where `n` is the
+   * number of retries so far.
+   */
+  final def backoff[E](start: Duration, factor: Double = 2.0): Retry[E, Duration] =
+    Retry[E, Duration](IO.now(start), (_, d) => IO.now(d * factor).delay(d))
 }
