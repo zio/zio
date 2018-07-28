@@ -159,6 +159,12 @@ trait Retry[E, +S] { self =>
     }
 
   /**
+   * Same as `<||>`, but merges the states.
+   */
+  final def <>[S1 >: S](that: => Retry[E, S1]): Retry[E, S1] =
+    (self <||> that) map (_.merge)
+
+  /**
    * Returns a new strategy that first tries this strategy, and if it fails,
    * then switches over to the specified strategy. The returned strategy is
    * maximally lazy, not computing the initial state of the specified strategy
@@ -168,8 +174,8 @@ trait Retry[E, +S] { self =>
    * io.retryWith(r.void <> Retry.never) === io.retryWith(r)
    * }}}
    */
-  final def <>[S1 >: S](that0: => Retry[E, S1]): Retry[E, S1] =
-    new Retry[E, S1] {
+  final def <||>[S2](that0: => Retry[E, S2]): Retry[E, Either[S, S2]] =
+    new Retry[E, Either[S, S2]] {
       lazy val that = that0
 
       type State = Either[self.State, that.State]
@@ -180,7 +186,9 @@ trait Retry[E, +S] { self =>
           case Right(s) => IO.now(Left(s))
         }
 
-      def proj(state: State): S1 = state.fold[S1](self.proj, that.proj)
+      def proj(state: State): Either[S, S2] =
+        state fold [Either[S, S2]] (l => Left(self.proj(l)),
+        r => Right(that.proj(r)))
 
       def update(e: E, s: State): IO[E, State] =
         s match {
