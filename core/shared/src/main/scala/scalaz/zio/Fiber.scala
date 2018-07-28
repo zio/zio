@@ -53,6 +53,25 @@ trait Fiber[+E, +A] { self =>
     }
 
   /**
+   * Zips this fiber and the specified fiber togther, producing a tuple of their
+   * output.
+   */
+  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+    zipWith(that)((a, b) => (a, b))
+
+  /**
+   * Same as `zip` but discards the output of the left hand side.
+   */
+  final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+    zip(that).map(_._2)
+
+  /**
+   * Same as `zip` but discards the output of the right hand side.
+   */
+  final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+    zip(that).map(_._1)
+
+  /**
    * Maps over the value the Fiber computes.
    */
   final def map[B](f: A => B): Fiber[E, B] =
