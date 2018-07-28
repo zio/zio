@@ -172,7 +172,21 @@ sealed abstract class IO[+E, +A] { self =>
    * otherwise executes the specified action.
    */
   final def orElse[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
+    self <> that
+
+  /**
+   * Executes this action and returns its value, if it succeeds, but
+   * otherwise executes the specified action.
+   */
+  final def <>[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
     self.redeem(_ => that, IO.now)
+
+  /**
+   * Executes this action and returns its value, if it succeeds, but
+   * otherwise executes the specified action.
+   */
+  final def <||>[E1 >: E, B](that: => IO[E1, B]): IO[E1, Either[A, B]] =
+    self.redeem(_ => that.map(Right(_)), IO.nowLeft)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
