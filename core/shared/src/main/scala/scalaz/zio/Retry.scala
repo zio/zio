@@ -118,6 +118,8 @@ trait Retry[E, +S] { self =>
    * {{{
    * io.retryWith(r || r) === io.retryWith(r)
    * }}}
+   * Updates are run in parallel and only the winner updates its state. The
+   * loser is terminated and its prior state is used in the next iteration.
    */
   final def ||[S2](that0: => Retry[E, S2]): Retry[E, Either[S, S2]] =
     new Retry[E, Either[S, S2]] {
@@ -128,6 +130,33 @@ trait Retry[E, +S] { self =>
 
       val initial = self.initial.attempt.par(that.initial.attempt).flatMap(makeState(_))
 
+      def proj(state: State): Either[S, S2] = state match {
+        case Left((s, _))    => Left(self.proj(s))
+        case Right(Left(s))  => Left(self.proj(s))
+        case Right(Right(s)) => Right(that.proj(s))
+      }
+
+      def update(e: E, state: State): IO[E, State] =
+        state match {
+          case Left((s1, s2)) =>
+            self
+              .update(e, s1)
+              .attempt
+              .raceBoth(
+                that.update(e, s2).attempt
+              )
+              .flatMap {
+                case Left(s1)  => makeState((s1, Right(s2)))
+                case Right(s2) => makeState((Right(s1), s2))
+              }
+
+          case Right(Left(s1)) =>
+            self.update(e, s1).attempt.map(Left(_)).flatMap(makeState2(_))
+
+          case Right(Right(s2)) =>
+            that.update(e, s2).attempt.map(Right(_)).flatMap(makeState2(_))
+        }
+
       private def makeState(state: (Either[E, self.State], Either[E, that.State])): IO[E, State] = state match {
         case (Left(_), Left(e))     => IO.fail(e)
         case (Left(_), Right(s2))   => IO.now(Right(Right(s2)))
@@ -135,27 +164,11 @@ trait Retry[E, +S] { self =>
         case (Right(s1), Right(s2)) => IO.now(Left((s1, s2)))
       }
 
-      def proj(state: State): Either[S, S2] = state match {
-        case Left((s, _))    => Left(self.proj(s))
-        case Right(Left(s))  => Left(self.proj(s))
-        case Right(Right(s)) => Right(that.proj(s))
-      }
-
-      def update(e: E, state: State): IO[E, State] = state match {
-        case Left((s1, s2)) =>
-          self
-            .update(e, s1)
-            .attempt
-            .par(
-              that.update(e, s2).attempt
-            )
-            .flatMap(makeState(_))
-
-        case Right(Left(s1)) =>
-          self.update(e, s1).attempt.par(IO.fail(e).attempt).flatMap(makeState(_))
-
-        case Right(Right(s2)) =>
-          IO.fail(e).attempt.par(that.update(e, s2).attempt).flatMap(makeState(_))
+      private def makeState2(state: Either[Either[E, self.State], Either[E, that.State]]): IO[E, State] = state match {
+        case Left(Left(e))   => IO.fail(e)
+        case Left(Right(s))  => IO.now(Right(Left(s)))
+        case Right(Left(e))  => IO.fail(e)
+        case Right(Right(s)) => IO.now(Right(Right(s)))
       }
     }
 
