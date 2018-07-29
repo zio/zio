@@ -24,6 +24,8 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
       `IO.parAll` returns the list of Ints in the same order. $t6
    Create a list of Ints and map with IO.point:
       `IO.forkAll` returns the list of Ints in the same order. $t7
+   Create a list of Strings and pass an f: String => IO[String, Int]:
+      `IO.parTraverseThrottled` returns the list of Ints in the same order. $t8
    Check done lifts exit result into IO. $testDone
     """
 
@@ -71,6 +73,12 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   def t7 = {
     val list = List(1, 2, 3).map(IO.point[Int](_))
     val res  = unsafeRun(IO.forkAll(list).flatMap(_.join))
+    res must be_===(List(1, 2, 3))
+  }
+
+  def t8 = {
+    val list = List("1", "2", "3")
+    val res  = unsafeRun(IO.parTraverseThrottled(2)(list)(x => IO.point[String, Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
