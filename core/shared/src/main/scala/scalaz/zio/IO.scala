@@ -153,11 +153,19 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Races this action with the specified action, returning the first
    * result to produce an `A`, whichever it is. If neither action succeeds,
-   * then the action will be terminated with some error.
+   * then the action will fail with some error.
    */
   final def race[E1 >: E, A1 >: A](that: IO[E1, A1]): IO[E1, A1] =
-    raceWith(that)((a, fiber) => fiber.interrupt(LostRace(Right(fiber))).const(a),
-                   (a, fiber) => fiber.interrupt(LostRace(Left(fiber))).const(a))
+    raceBoth(that).map(_.merge)
+
+  /**
+   * Races this action with the specified action, returning the first
+   * result to produce a value, whichever it is. If neither action succeeds,
+   * then the action will fail with some error.
+   */
+  final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
+    raceWith(that)((a, fiber) => fiber.interrupt(LostRace(Right(fiber))).const(Left(a)),
+                   (b, fiber) => fiber.interrupt(LostRace(Left(fiber))).const(Right(b)))
 
   /**
    * Races this action with the specified action, invoking the
