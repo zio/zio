@@ -255,15 +255,31 @@ trait Retry[E, +S] { self =>
     (self && that).map(_._1)
 
   /**
+   * A new strategy that applies the current one but runs the specified effect
+   * for every error.
+   */
+  final def errorEffect(f: E => IO[E, Unit]): Retry[E, S] =
+    updated((e, _, io) => io <* f(e))
+
+  /**
+   * A new strategy that applies the current one but runs the specified effect
+   * for every state.
+   */
+  final def stateEffect(f: S => IO[E, Unit]): Retry[E, S] =
+    self
+      .initialized(io => io.flatMap(s => f(self.proj(s)).const(s)))
+      .updated((_, s, io) => io <* f(s))
+
+  /**
    * Returns a new retry strategy that applies the combinator to each update
    * produced by this retry strategy.
    */
-  final def updated(f: IO[E, self.State] => IO[E, self.State]): Retry[E, S] =
+  final def updated(f: (E, S, IO[E, self.State]) => IO[E, self.State]): Retry[E, S] =
     new Retry[E, S] {
       type State = self.State
       val initial                              = self.initial
       def proj(state: State): S                = self.proj(state)
-      def update(e: E, s: State): IO[E, State] = f(self.update(e, s))
+      def update(e: E, s: State): IO[E, State] = f(e, self.proj(s), self.update(e, s))
     }
 
   /**
@@ -353,7 +369,7 @@ object Retry {
    * duration between attempts.
    */
   final def fixed[E](duration: Duration): Retry[E, Int] =
-    counted.updated(_.delay(duration))
+    counted.updated((_, _, io) => io.delay(duration))
 
   /**
    * A retry strategy that will always succeed, but will wait a certain amount
