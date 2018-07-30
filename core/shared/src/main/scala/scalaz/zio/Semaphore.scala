@@ -5,7 +5,7 @@ import scalaz.zio.Semaphore.{ assertNonNegative, Entry, NonEmptyQueue, NonEmptyQ
 import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
 
-class Semaphore(state: Ref[State]) {
+final class Semaphore private (private val state: Ref[State]) {
 
   def count: IO[Void, Long] = state.read.map(count_)
 
