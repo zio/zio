@@ -7,7 +7,7 @@ trait GenIO {
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.point` constructor.
    */
-  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.point[E, A](_))
+  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.point[A](_))
 
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
@@ -23,7 +23,7 @@ trait GenIO {
   /**
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.fail` constructor.
    */
-  def genSyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] = Arbitrary.arbitrary[E].map(IO.fail[E, A])
+  def genSyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] = Arbitrary.arbitrary[E].map(IO.fail[E])
 
   /**
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
@@ -50,10 +50,10 @@ trait GenIO {
   def genLikeTrans[E: Arbitrary: Cogen, A: Arbitrary: Cogen](gen: Gen[IO[E, A]]): Gen[IO[E, A]] = {
     val functions: IO[E, A] => Gen[IO[E, A]] = io =>
       Gen.oneOf(
-        genOfFlatMaps[E, A](io)(genSuccess),
+        genOfFlatMaps[E, A](io)(genSuccess[E, A]),
         genOfMaps[E, A](io),
         genOfRace[E, A](io),
-        genOfParallel[E, A](io)(genSuccess),
+        genOfParallel[E, A](io)(genSuccess[E, A]),
         genOfLeftMaps[E, A](io)
     )
     gen.flatMap(io => genTransformations(functions)(io))
@@ -69,7 +69,7 @@ trait GenIO {
                 genOfIdentityMaps[E, A](io),
                 genOfIdentityLeftMaps[E, A](io),
                 genOfRace[E, A](io),
-                genOfParallel[E, A](io)(genSuccess))
+                genOfParallel[E, A](io)(genSuccess[E, A]))
     gen.flatMap(io => genTransformations(functions)(io))
   }
 
