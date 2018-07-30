@@ -7,24 +7,24 @@ import scala.collection.immutable.{ Queue => IQueue }
 
 final class Semaphore private (private val state: Ref[State]) {
 
-  def count: IO[Void, Long] = state.read.map(count_)
+  def count: IO[Nothing, Long] = state.get.map(count_)
 
-  def available: IO[Void, Long] = state.read.map {
+  def available: IO[Nothing, Long] = state.get.map {
     case Left(_)  => 0
     case Right(n) => n
   }
 
-  def acquire: IO[Void, Unit] = acquireN(1)
+  def acquire: IO[Nothing, Unit] = acquireN(1)
 
-  def release: IO[Void, Unit] = releaseN(1)
+  def release: IO[Nothing, Unit] = releaseN(1)
 
   def withPermit[E, A](task: IO[E, A]): IO[E, A] =
-    IO.bracket[E, Unit, A](acquire.widenError[E])(_ => release)(_ => task)
+    IO.bracket[E, Unit, A](acquire)(_ => release)(_ => task)
 
-  def acquireN(requested: Long): IO[Void, Unit] =
+  def acquireN(requested: Long): IO[Nothing, Unit] =
     assertNonNegative(requested) *>
       mkGate.flatMap { gate =>
-        state.modify {
+        state.update {
           case Left((head, queue)) =>
             Left(head -> queue.enqueue(requested -> gate))
           case Right(available) =>
@@ -37,9 +37,9 @@ final class Semaphore private (private val state: Ref[State]) {
         }
       }
 
-  def releaseN(toRelease: Long): IO[Void, Unit] =
+  def releaseN(toRelease: Long): IO[Nothing, Unit] =
     assertNonNegative(toRelease) *>
-      state.modifyFold { old =>
+      state.modify { old =>
         @tailrec def releaseRecursively(waiting: NonEmptyQueue, available: Long): State =
           waiting match {
             // n + 1 in queue case
@@ -71,35 +71,34 @@ final class Semaphore private (private val state: Ref[State]) {
                 case Right(_)     => 0
               }
               val released = neq.size - newSize
-              neq.take(released).foldRight(IO.unit[Void]) { (entry, unit) =>
+              neq.take(released).foldRight(IO.unit) { (entry, unit) =>
                 openGate(entry) *> unit
               }
             case Right(_) => IO.unit
           }
       }
 
-  private def mkGate[E]: IO[E, Promise[E, Unit]] = Promise.make[E, Unit]
+  private def mkGate: IO[Nothing, Promise[Nothing, Unit]] = Promise.make[Nothing, Unit]
 
-  private def awaitGate[E](entry: (Long, Promise[E, Unit])): IO[E, Unit] =
-    IO.unit[E]
-      .bracket0[Unit] { (_, useOutcome) =>
-        useOutcome match {
-          case None => // None outcome means either cancellation or uncaught exception
-            state.modify {
-              case Left((current, rest)) =>
-                // if entry is NonEmpty's head and queue is empty, swap to Right, but without any permits
-                if (current == entry && rest.isEmpty) Right(0)
-                // if entry is NonEmpty's head and queue is not empty, just drop this entry from head position
-                else if (current == entry && rest.nonEmpty) Left(rest.dequeue)
-                // this entry is not current NonEmpty's head, just drop it from queue
-                else Left((current, rest.filter(_ != entry)))
+  private def awaitGate(entry: (Long, Promise[Nothing, Unit])): IO[Nothing, Unit] =
+    IO.unit.bracket0[Nothing, Unit] { (_, useOutcome) =>
+      useOutcome match {
+        case None => // None outcome means either cancellation or uncaught exception
+          state.update {
+            case Left((current, rest)) =>
+              // if entry is NonEmpty's head and queue is empty, swap to Right, but without any permits
+              if (current == entry && rest.isEmpty) Right(0)
+              // if entry is NonEmpty's head and queue is not empty, just drop this entry from head position
+              else if (current == entry && rest.nonEmpty) Left(rest.dequeue)
+              // this entry is not current NonEmpty's head, just drop it from queue
+              else Left((current, rest.filter(_ != entry)))
 
-              case Right(m) => Right(m)
-            }.toUnit
-          case _ =>
-            IO.unit
-        }
-      }(_ => entry._2.get)
+            case Right(m) => Right(m)
+          }.toUnit
+        case _ =>
+          IO.unit
+      }
+    }(_ => entry._2.get)
 
   private def openGate[E](entry: (Long, Promise[E, Unit])): IO[E, Unit] =
     entry._2.complete(()).toUnit
@@ -113,7 +112,7 @@ final class Semaphore private (private val state: Ref[State]) {
 
 object Semaphore {
 
-  def assertNonNegative(n: Long): IO[Void, Unit] =
+  def assertNonNegative(n: Long): IO[Nothing, Unit] =
     if (n < 0) IO.terminate(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else IO.unit
 
@@ -121,7 +120,7 @@ object Semaphore {
 
   type NonEmpty[F[_], A] = (A, F[A])
 
-  type Entry = (Long, Promise[Void, Unit])
+  type Entry = (Long, Promise[Nothing, Unit])
 
   type NonEmptyQueue = NonEmpty[IQueue, Entry]
 
@@ -140,5 +139,5 @@ object Semaphore {
     }
   }
 
-  def apply[E](permits: Long): IO[E, Semaphore] = Ref[E, State](Right(permits)).map(new Semaphore(_))
+  def apply(permits: Long): IO[Nothing, Semaphore] = Ref[State](Right(permits)).map(new Semaphore(_))
 }
