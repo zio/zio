@@ -5,9 +5,6 @@ import scala.annotation.switch
 import scala.concurrent.duration._
 import Errors._
 
-import scala.collection.generic.CanBuildFrom
-import scala.collection.mutable
-
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
  * describes an effectful action that may fail with an `E`, run forever, or
@@ -830,15 +827,13 @@ object IO {
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E](error))(IO.now[A]))
 
-  final def forkAll[E, A, M[X] <: TraversableOnce[X]](
-    as: M[IO[E, A]]
-  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[Nothing, Fiber[E, M[A]]] =
-    as.foldLeft(IO.sync[Fiber[E, mutable.Builder[A, M[A]]]](Fiber.point(cbf(as)))) { (asFiberIO, aIO) =>
-        asFiberIO.par(aIO.fork).map {
-          case (asFiber, aFiber) => asFiber.zipWith(aFiber)(_ += _)
-        }
+  final def forkAll[E, A](as: Iterable[IO[E, A]]): IO[Nothing, Fiber[E, List[A]]] =
+    as.foldRight(IO.point(Fiber.point[E, List[A]](List()))) { (aIO, asFiberIO) =>
+      asFiberIO.par(aIO.fork).map {
+        case (asFiber, aFiber) =>
+          asFiber.zipWith(aFiber)((as, a) => a :: as)
       }
-      .map(_.map(_.result))
+    }
 
   /**
    * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
@@ -879,70 +874,60 @@ object IO {
     }
 
   /**
-   * Apply the function fn to each element of the `TraversableOnce[A]` and
-   * return the results in a new `TraversableOnce[B]`. For parallelism use `parTraverse`.
+   * Apply the function fn to each element of the `Iterable[A]` and
+   * return the results in a new `List[B]`. For parallelism use `parTraverse`.
    */
-  final def traverse[E, A, B, M[X] <: TraversableOnce[X]](
-    in: M[A]
-  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    in.foldLeft[IO[E, mutable.Builder[B, M[B]]]](IO.sync(cbf(in)))((io, b) => io.zipWith(fn(b))(_ += _))
-      .map(_.result())
+  final def traverse[E, A, B](in: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    in.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
+      io.zipWith(fn(a))((bs, b) => b :: bs)
+    }
 
   /**
-   * Evaluate the elements of a traversable data structure in parallel
+   * Evaluate the elements of an `Iterable[A]` in parallel
    * and collect the results. This is the parallel version of `traverse`.
    */
-  def parTraverse[E, A, B, M[X] <: TraversableOnce[X]](
-    as: M[A]
-  )(fn: A => IO[E, B])(implicit cbf: CanBuildFrom[M[A], B, M[B]]): IO[E, M[B]] =
-    as.foldLeft[IO[E, mutable.Builder[B, M[B]]]](IO.sync(cbf(as))) { (bsIO, a) =>
-        bsIO.par(fn(a)).map {
-          case (bs, b) => bs += b
-        }
-      }
-      .map(_.result)
+  def parTraverse[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    as.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
+      io.par(fn(a)).map { case (bs, b) => b :: bs }
+    }
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
    * the results. For parallelism use `parAll`.
    */
-  final def sequence[E, A, M[X] <: TraversableOnce[X]](
-    in: M[IO[E, A]]
-  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, M[A]] =
+  final def sequence[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
     traverse(in)(identity)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
    * the results. This is the parallel version of `sequence`.
    */
-  final def parAll[E, A, M[X] <: TraversableOnce[X]](
-    as: M[IO[E, A]]
-  )(implicit cbf: CanBuildFrom[M[IO[E, A]], A, M[A]]): IO[E, M[A]] =
+  final def parAll[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
     parTraverse(as)(identity)
 
   /**
-   * Races a traversable collection of `IO[E, A]` against each other. If all of
+   * Races an `Iterable[IO[E, A]]` against each other. If all of
    * them fail, the last error is returned.
    *
    * _Note_: if the collection is empty, there is no action that can either
    * succeed or fail. Therefore, the only possible output is an IO action
    * that never terminates.
    */
-  final def raceAll[E, A](t: TraversableOnce[IO[E, A]]): IO[E, A] =
+  final def raceAll[E, A](t: Iterable[IO[E, A]]): IO[E, A] =
     t.foldLeft[IO[E, A]](IO.terminate(NothingRaced))(_ race _)
 
   /**
-   * Reduces a list of IO to a single IO, works in parallel.
+   * Reduces an `Iterable[IO]` to a single IO, works in parallel.
    */
-  final def reduceAll[E, A](a: IO[E, A], as: TraversableOnce[IO[E, A]])(f: (A, A) => A): IO[E, A] =
+  final def reduceAll[E, A](a: IO[E, A], as: Iterable[IO[E, A]])(f: (A, A) => A): IO[E, A] =
     as.foldLeft(a) { (l, r) =>
       l.par(r).map(f.tupled)
     }
 
   /**
-   * Merges a list of IO to a single IO, works in parallel.
+   * Merges an `Iterable[IO]` to a single IO, works in parallel.
    */
-  final def mergeAll[E, A, B](in: TraversableOnce[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
+  final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
     in.foldLeft[IO[E, B]](IO.point[B](zero))((acc, a) => acc.par(a).map(f.tupled))
 
 }
