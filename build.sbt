@@ -4,12 +4,10 @@ import Scalaz._
 
 organization in ThisBuild := "org.scalaz"
 
-version in ThisBuild := "0.1-SNAPSHOT"
-
 publishTo in ThisBuild := {
   val nexus = "https://oss.sonatype.org/"
   if (isSnapshot.value)
-    Some("snapshots" at nexus + "content/repositories/snapshots")
+    Some(Resolver.mavenLocal)
   else
     Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
