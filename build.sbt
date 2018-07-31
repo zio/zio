@@ -7,10 +7,9 @@ organization in ThisBuild := "org.scalaz"
 publishTo in ThisBuild := {
   val nexus = "https://oss.sonatype.org/"
   if (isSnapshot.value)
-    Some(Resolver.mavenLocal)
+    Some("snapshots" at nexus + "content/repositories/snapshots")
   else
-    Some(Resolver.mavenLocal)
-    //Some("releases" at nexus + "service/local/staging/deploy/maven2")
+    Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
 dynverSonatypeSnapshots in ThisBuild := true
