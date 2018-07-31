@@ -9,7 +9,8 @@ publishTo in ThisBuild := {
   if (isSnapshot.value)
     Some(Resolver.mavenLocal)
   else
-    Some("releases" at nexus + "service/local/staging/deploy/maven2")
+    Some(Resolver.mavenLocal)
+    //Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
 dynverSonatypeSnapshots in ThisBuild := true
