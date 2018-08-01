@@ -2,8 +2,8 @@
 package scalaz.zio
 
 import scala.annotation.switch
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
+import scalaz.zio.DurationConversions._
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.IO.Redeem
 
@@ -581,7 +581,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * A more powerful variation of `timed` that allows specifying the clock.
    */
   final def timed0[E1 >: E](nanoTime: IO[E1, Long]): IO[E1, (Duration, A)] =
-    summarized[E1, Long, Duration]((start, end) => Duration.fromNanos(end - start))(nanoTime)
+    summarized[E1, Long, Duration]((start, end) => Duration(end - start))(nanoTime)
 
   /**
    * Summarizes a action by computing some value before and after execution, and
@@ -968,7 +968,7 @@ object IO extends Serializable {
    * Shifts execution to a thread in the default `ExecutionContext`.
    */
   final def shift: IO[Nothing, Unit] =
-    IO.sleep(0.seconds)
+    IO.sleep(0.s)
 
   /**
    * Shifts the operation to another execution context.

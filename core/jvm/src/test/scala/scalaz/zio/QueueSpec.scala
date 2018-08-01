@@ -174,6 +174,8 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     )}
     """
 
+  import DurationConversions._
+
   def e1 = unsafeRun(
     for {
       queue <- Queue.bounded[Int](100)

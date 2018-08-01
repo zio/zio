@@ -2,7 +2,6 @@ package scalaz.zio
 package interop
 
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.concurrent.duration.Duration
 import scala.util.{ Failure, Success }
 
 object Task {
