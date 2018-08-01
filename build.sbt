@@ -4,16 +4,15 @@ import Scalaz._
 
 import scala.sys.process.Process
 import ReleaseTransformations._
-import sbtrelease._
 
 organization in ThisBuild := "org.scalaz"
 
 publishTo in ThisBuild := {
   val nexus = "https://oss.sonatype.org/"
   if (isSnapshot.value)
-    Some(Resolver.mavenLocal)
+    Some("snapshots" at nexus + "content/repositories/snapshots")
   else
-    Some(Resolver.mavenLocal)
+    Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
 dynverSonatypeSnapshots in ThisBuild := true
@@ -159,15 +158,7 @@ lazy val microsite = project.module
 
 lazy val commitSha = Process("git rev-parse --short HEAD").lineStream.head
 
-releaseVersion := ((version: String) => {
-  val currentVersion = s"${version}-${commitSha}"
-  println("===========")
-  println(version)
-  println(currentVersion)
-  println("===========")
-  currentVersion
-})
-
+releaseVersion := ((version: String) => s"${version}-${commitSha}" )
 releaseTagName := s"v${version.value}"
 
 releaseProcess := Seq[ReleaseStep](
