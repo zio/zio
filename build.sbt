@@ -2,14 +2,18 @@
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
 
+import scala.sys.process.Process
+import ReleaseTransformations._
+import sbtrelease._
+
 organization in ThisBuild := "org.scalaz"
 
 publishTo in ThisBuild := {
   val nexus = "https://oss.sonatype.org/"
   if (isSnapshot.value)
-    Some("snapshots" at nexus + "content/repositories/snapshots")
+    Some(Resolver.mavenLocal)
   else
-    Some("releases" at nexus + "service/local/staging/deploy/maven2")
+    Some(Resolver.mavenLocal)
 }
 
 dynverSonatypeSnapshots in ThisBuild := true
@@ -152,3 +156,27 @@ lazy val microsite = project.module
       "white-color"     -> "#FFFFFF"
     )
   )
+
+lazy val commitSha = Process("git rev-parse --short HEAD").lineStream.head
+
+releaseVersion := ((version: String) => {
+  val currentVersion = s"${version}-${commitSha}"
+  println("===========")
+  println(version)
+  println(currentVersion)
+  println("===========")
+  currentVersion
+})
+
+releaseTagName := s"v${version.value}"
+
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,
+  inquireVersions,
+  runClean,
+  runTest,
+  setReleaseVersion,
+  tagRelease,
+  publishArtifacts,
+  pushChanges
+)
