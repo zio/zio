@@ -1,8 +1,6 @@
 // Copyright (C) 2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.concurrent.duration.Duration
-
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
  *
@@ -600,7 +598,7 @@ object Schedule extends Serializable {
       _.nanoTime,
       (_, start, clock) =>
         for {
-          duration <- clock.nanoTime.map(_ - start).map(Duration.fromNanos)
+          duration <- clock.nanoTime.map(_ - start).map(Duration.apply)
         } yield Decision.cont(Duration.Zero, start, duration)
     )
   }
@@ -626,7 +624,7 @@ object Schedule extends Serializable {
    * the total elapsed time.
    */
   final def duration(duration: Duration): Schedule[Any, Duration] =
-    elapsed.untilOutput(_.toNanos >= duration.toNanos)
+    elapsed.untilOutput(_ >= duration)
 
   /**
    * A schedule that always recurs without delay, and computes the output
@@ -665,23 +663,25 @@ object Schedule extends Serializable {
    * |action|                   |action|
    * </pre>
    */
-  final def fixed(interval: Duration): Schedule[Any, Int] =
-    if (interval == Duration.Zero) forever
-    else
+  final def fixed(interval: Duration): Schedule[Any, Int] = interval match {
+    case Duration.Infinity                    => once >>> never
+    case Duration.Finite(nanos) if nanos == 0 => forever
+    case Duration.Finite(nanos) =>
       Schedule[(Long, Int, Int), Any, Int](
         _.nanoTime.map(nt => (nt, 0, 0)),
         (_, t, clock) =>
           t match {
             case (start, n0, i) =>
               clock.nanoTime.map { now =>
-                val await = ((start + n0 * interval.toNanos) - now)
+                val await = ((start + n0 * nanos) - now)
                 val n = 1 +
-                  (if (await < 0) ((now - start) / interval.toNanos).toInt else n0)
+                  (if (await < 0) ((now - start) / nanos).toInt else n0)
 
-                Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
+                Decision.cont(Duration(await.max(0L)), (start, n, i + 1), i + 1)
               }
           }
       )
+  }
 
   /**
    * A schedule that always recurs, increasing delays by summing the

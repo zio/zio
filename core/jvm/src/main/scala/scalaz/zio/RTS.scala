@@ -4,7 +4,6 @@ package scalaz.zio
 import java.util.concurrent._
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import scala.annotation.{ switch, tailrec }
-import scala.concurrent.duration.Duration
 import scalaz.zio.ExitResult.Cause
 
 /**
@@ -36,10 +35,16 @@ trait RTS {
   }
 
   final def unsafeShutdownAndWait(timeout: Duration): Unit = {
+
+    def awaitTermination(es: ExecutorService) = timeout match {
+      case d: Duration.Finite => es.awaitTermination(d.toMillis, TimeUnit.MILLISECONDS)
+      case Duration.Infinity  => while (!es.isTerminated) es.awaitTermination(Long.MaxValue, TimeUnit.DAYS)
+    }
+
     scheduledExecutor.shutdown()
-    scheduledExecutor.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
+    awaitTermination(scheduledExecutor)
     threadPool.shutdown()
-    threadPool.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
+    awaitTermination(threadPool)
     ()
   }
 
@@ -89,20 +94,21 @@ trait RTS {
     ()
   }
 
-  final def schedule[E, A](block: => A, duration: Duration): Async[E, Unit] =
-    if (duration == Duration.Zero) {
+  final def schedule[E, A](block: => A, duration: Duration): Async[E, Unit] = duration match {
+    case Duration.Infinity => Async.later[E, Unit]
+    case Duration.Zero =>
       submit(block)
 
       Async.later[E, Unit]
-    } else {
+    case d: Duration.Finite =>
       val future = scheduledExecutor.schedule(new Runnable {
         def run: Unit = submit(block)
-      }, duration.toNanos, TimeUnit.NANOSECONDS)
+      }, d.toNanos, TimeUnit.NANOSECONDS)
 
       Async.maybeLater { () =>
         future.cancel(true); ()
       }
-    }
+  }
 
   final def impureCanceler(canceler: PureCanceler): Canceler =
     () => unsafeRun(canceler())

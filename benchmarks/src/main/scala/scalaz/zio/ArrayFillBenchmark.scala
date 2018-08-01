@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 
-import scala.concurrent.duration.Duration
 import scala.collection.immutable.Range
 
 @State(Scope.Thread)
@@ -62,6 +61,6 @@ class ArrayFillBenchmarks {
     (for {
       array <- Task.eval(createTestArray)
       _     <- arrayFill(array)(0)
-    } yield ()).runSyncUnsafe(Duration.Inf)
+    } yield ()).runSyncUnsafe(scala.concurrent.duration.Duration.Inf)
   }
 }
