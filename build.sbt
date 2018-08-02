@@ -168,6 +168,5 @@ releaseProcess := Seq[ReleaseStep](
   runTest,
   setReleaseVersion,
   tagRelease,
-  publishArtifacts,
-  pushChanges
+  publishArtifacts
 )
