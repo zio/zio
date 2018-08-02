@@ -31,10 +31,12 @@ Use `IO` because it's simply not practical to write real-world, correct software
 
 The current snapshot release of ZIO is 0.1, which is cross-built against Scala 2.11.x and 2.12.x.
 
-If you're using SBT, add the following line to your build file:
+If you're using SBT, add the following lines to your build file:
 
 ```scala
 libraryDependencies += "org.scalaz" %% "scalaz-zio" % "0.1-SNAPSHOT"
+
+resolvers += Resolver.sonatypeRepo("snapshots")
 ```
 For Maven and other build tools, you can visit <https://search.maven.org> and search for Scalaz.
 
