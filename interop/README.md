@@ -5,7 +5,7 @@ This module provides the following integrations:
 
 - `IO` conversions to and from stdlib's `Future`
 - `IO` instances for Scalaz 7.2.x typeclasses
-- `IO` instance for cats' `Effect` typeclass as required by Typelevel libs, such as `fs2`, `doobie` and `http4s`
+- `IO` instance for cats' `Effect` typeclass
 
 ## Stdlib `Future`
 
@@ -92,5 +92,35 @@ def buildDashboard(id: UserId): IO[UserError, Dashboard] =
   Tag.unwrap(^(par(getDetails(id)), par(getHistory(id)))(Dashboard.apply))
 
 def par[E, A](io: IO[E, A]): IO[E, A] @@ Parallel = Tag(io)
+```
+
+## Typelevel
+
+### `IO` cats' `Effect` instance
+
+**ZIO** integrates with Typelevel libraries by providing an instance of `Effect` for `IO` as required, for instance, by `fs2`, `doobie` and `http4s`. Actually, I lied a little bit, it is not possible to implement `Effect` for any error type since `Effect` extends `MonadError` of `Throwable`.
+
+For convenience we have defined an alias as follow:
+
+```scala
+  type Task[A] = IO[Throwable, A]
+```
+
+Therefore, we provide an instance of `Effect[Task]`.
+
+#### Example
+
+```scala
+import doobie.imports._
+import fs2.Stream
+import scalaz.zio.interop.Task
+import scalaz.zio.interop.catz._
+
+val xa: Transactor[Task] = Transactor.fromDriverManager[Task](...)
+
+def loadUsers: Stream[Task, User] =
+  sql"""SELECT * FROM users""".query[User].stream.transact(xa)
+
+val allUsers: List[User] = unsafeRun(loadUsers.compile.toList)
 ```
 
