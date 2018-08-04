@@ -39,7 +39,7 @@ val myIO: IO[Throwable, ALotOfData] = IO.fromFuture(myFuture _)(myEC)
 This extension method is added to values of type `IO[Throwable, A]`:
 
 ```scala
-def toFuture[E]: IO[E, Future[A]] =
+def toFuture: IO[Nothing, Future[A]]
 ```
 
 Notice that we don't actually return a `Future` but an infallible `IO` producing the `Future` when it's performed, that's again because as soon as we have a `Future` in our hands, whatever it does is already happening.
@@ -47,7 +47,7 @@ Notice that we don't actually return a `Future` but an infallible `IO` producing
 As an alternative, a more flexible extension method is added to any `IO[E, A]` to convert to `Future` as long as you can provide a function to convert from `E` to `Throwable`.
 
 ```scala
-def toFutureE[E2](f: E => Throwable): IO[E2, Future[A]] = io.leftMap(f).toFuture
+def toFutureE(f: E => Throwable): IO[Nothing, Future[A]]
 ```
 
 #### Example

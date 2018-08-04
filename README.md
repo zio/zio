@@ -368,7 +368,7 @@ For performance reasons, fibers will attempt to execute on the same thread for a
 
 These defaults help guarantee stack safety and cooperative multitasking. They can be changed in `RTS` if automatic thread shifting is not desired.
 
-# ZIO in the wild
+# ZIO in the Wild
 
 In an ideal world ZIO would be the one and only effect system, but we live in this world and more often than not we have to interact with code using other libraries. `zio-interop` is the module enabling the necessary integrations to achieve that in a seamless manner. Read the docs for more details: [Interop Docs](interop/README.md)
 

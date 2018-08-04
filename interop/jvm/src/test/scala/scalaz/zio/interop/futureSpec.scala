@@ -62,7 +62,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   val toFuturePoly = {
     val unitIO: IO[Throwable, Unit]      = IO.unit
-    val polyIO: IO[String, Future[Unit]] = unitIO.toFuture[String]
+    val polyIO: IO[String, Future[Unit]] = unitIO.toFuture
     val _                                = polyIO // avoid warning
     ok
   }
