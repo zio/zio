@@ -29,7 +29,7 @@ object catz extends RTS {
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] = {
       val kk = k.compose[ExitResult[Throwable, A] => Unit] {
         _.compose[Either[Throwable, A]] {
-          case Left(t)  => ExitResult.Failed(t, Nil)
+          case Left(t)  => ExitResult.Failed(t)
           case Right(r) => ExitResult.Completed(r)
         }
       }

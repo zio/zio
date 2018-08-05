@@ -163,16 +163,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(deepErrorFail(100).attempt) must_=== Left(ExampleError)
 
   def testEvalOfUncaughtFail =
-    unsafeRun(IO.fail[Throwable](ExampleError).as[Any]) must (throwA(UnhandledError(ExampleError, Nil)))
+    unsafeRun(IO.fail[Throwable](ExampleError).as[Any]) must (throwA(UnhandledError(ExampleError)))
 
   def testEvalOfUncaughtThrownSyncEffect =
     unsafeRun(IO.sync[Int](throw ExampleError)) must (throwA(ExampleError))
 
   def testEvalOfDeepUncaughtThrownSyncEffect =
-    unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError, Nil)))
+    unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError)))
 
   def testEvalOfDeepUncaughtFail =
-    unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError, Nil)))
+    unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError)))
 
   def testEvalOfMultipleFail =
     unsafeRun((for {
@@ -203,7 +203,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     var finalized = false
 
     unsafeRun(IO.fail[Throwable](ExampleError).as[Any].ensuring(IO.sync[Unit] { finalized = true; () })) must (throwA(
-      UnhandledError(ExampleError, Nil)
+      UnhandledError(ExampleError)
     ))
     finalized must_=== true
   }
@@ -215,7 +215,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
     unsafeRun(
       IO.fail[Throwable](ExampleError).onError(cleanup).as[Any]
-    ) must (throwA(UnhandledError(ExampleError, Nil)))
+    ) must (throwA(UnhandledError(ExampleError)))
 
     finalized must_=== true
   }
@@ -226,7 +226,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .ensuring(IO.terminate(new Error("e2")))
         .ensuring(IO.terminate(new Error("e3")))
 
-    unsafeRun(nested) must (throwA(UnhandledError(ExampleError, Nil)))
+    unsafeRun(nested) must (throwA(UnhandledError(ExampleError)))
   }
 
   def testErrorInFinalizerIsReported = {
@@ -249,7 +249,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testBracketErrorInAcquisition =
     unsafeRun(IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit)) must
-      (throwA(UnhandledError(ExampleError, Nil)))
+      (throwA(UnhandledError(ExampleError)))
 
   def testBracketErrorInRelease =
     unsafeRun(IO.bracket(IO.unit)(_ => IO.terminate(ExampleError))(_ => IO.unit)) must
@@ -257,14 +257,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testBracketErrorInUsage =
     unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError).as[Any])) must
-      (throwA(UnhandledError(ExampleError, Nil)))
+      (throwA(UnhandledError(ExampleError)))
 
   def testBracketRethrownCaughtErrorInAcquisition = {
     lazy val actual = unsafeRun(
       IO.absolve(IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit).attempt)
     )
 
-    actual must (throwA(UnhandledError(ExampleError, Nil)))
+    actual must (throwA(UnhandledError(ExampleError)))
   }
 
   def testBracketRethrownCaughtErrorInRelease = {
@@ -282,17 +282,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       )
     )
 
-    actual must (throwA(UnhandledError(ExampleError, Nil)))
+    actual must (throwA(UnhandledError(ExampleError)))
   }
 
   def testEvalOfAsyncAttemptOfFail = {
     val io1 = IO.bracket(IO.unit)(_ => AsyncUnit[Nothing])(_ => asyncExampleError[Unit])
     val io2 = IO.bracket(AsyncUnit[Throwable])(_ => IO.unit)(_ => asyncExampleError[Unit])
 
-    unsafeRun(io1) must (throwA(UnhandledError(ExampleError, Nil)))
-    unsafeRun(io2) must (throwA(UnhandledError(ExampleError, Nil)))
-    unsafeRun(IO.absolve(io1.attempt)) must (throwA(UnhandledError(ExampleError, Nil)))
-    unsafeRun(IO.absolve(io2.attempt)) must (throwA(UnhandledError(ExampleError, Nil)))
+    unsafeRun(io1) must (throwA(UnhandledError(ExampleError)))
+    unsafeRun(io2) must (throwA(UnhandledError(ExampleError)))
+    unsafeRun(IO.absolve(io1.attempt)) must (throwA(UnhandledError(ExampleError)))
+    unsafeRun(IO.absolve(io2.attempt)) must (throwA(UnhandledError(ExampleError)))
   }
 
   def testBracketRegression1 = {
@@ -522,7 +522,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   val InterruptCause2 = new Exception("Oh noes 2!")
   val InterruptCause3 = new Exception("Oh noes 3!")
 
-  def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError, Nil)))
+  def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError)))
 
   def sum(n: Int): Int =
     if (n <= 0) 0
