@@ -127,7 +127,7 @@ sealed abstract class IO[+E, +A] { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0(handler: Throwable => IO[Nothing, Unit]): IO[Nothing, Fiber[E, A]] =
+  final def fork0(handler: List[Throwable] => IO[Nothing, Unit]): IO[Nothing, Fiber[E, A]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -304,10 +304,9 @@ sealed abstract class IO[+E, +A] { self =>
 
   /**
    * Supervises this action, which ensures that any fibers that are forked by
-   * the action are interrupted with the specified error when this action
-   * completes.
+   * the action are interrupted when this action completes.
    */
-  final def supervised(error: Throwable): IO[E, A] = new IO.Supervise(self, error)
+  final def supervised: IO[E, A] = new IO.Supervise(self)
 
   /**
    * Performs this action non-interruptibly. This will prevent the action from
@@ -585,12 +584,11 @@ object IO {
     override def tag = Tags.Fail
   }
 
-  final class AsyncEffect[E, A] private[IO] (val register: (ExitResult[E, A] => Unit) => Async[E, A]) extends IO[E, A] {
+  final class AsyncEffect[E, A] private[IO] (val register: (Callback[E, A]) => Async[E, A]) extends IO[E, A] {
     override def tag = Tags.AsyncEffect
   }
 
-  final class AsyncIOEffect[E, A] private[IO] (val register: (ExitResult[E, A] => Unit) => IO[E, Unit])
-      extends IO[E, A] {
+  final class AsyncIOEffect[E, A] private[IO] (val register: (Callback[E, A]) => IO[E, Unit]) extends IO[E, A] {
     override def tag = Tags.AsyncIOEffect
   }
 
@@ -605,7 +603,7 @@ object IO {
     final def apply(v: A): IO[E2, B] = succ(v)
   }
 
-  final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Throwable => IO[Nothing, Unit]])
+  final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[List[Throwable] => IO[Nothing, Unit]])
       extends IO[Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
   }
@@ -630,11 +628,11 @@ object IO {
     override def tag = Tags.Sleep
   }
 
-  final class Supervise[E, A] private[IO] (val value: IO[E, A], val error: Throwable) extends IO[E, A] {
+  final class Supervise[E, A] private[IO] (val value: IO[E, A]) extends IO[E, A] {
     override def tag = Tags.Supervise
   }
 
-  final class Terminate private[IO] (val cause: Throwable) extends IO[Nothing, Nothing] {
+  final class Terminate private[IO] (val causes: List[Throwable]) extends IO[Nothing, Nothing] {
     override def tag = Tags.Terminate
   }
 
@@ -677,9 +675,9 @@ object IO {
    * Creates an `IO` value from `ExitResult`
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Completed(b)  => now(b)
-    case ExitResult.Terminated(t) => terminate(t)
-    case ExitResult.Failed(e)     => fail(e)
+    case ExitResult.Completed(b)   => now(b)
+    case ExitResult.Terminated(ts) => terminate0(ts)
+    case ExitResult.Failed(e, _)   => fail(e)
   }
 
   /**
@@ -689,10 +687,9 @@ object IO {
 
   /**
    * Supervises the specified action, which ensures that any actions directly
-   * forked by the action are killed with the specified error upon the action's
-   * own termination.
+   * forked by the action are killed upon the action's own termination.
    */
-  final def supervise[E, A](io: IO[E, A], error: Throwable): IO[E, A] = new Supervise(io, error)
+  final def supervise[E, A](io: IO[E, A]): IO[E, A] = new Supervise(io)
 
   /**
    * Flattens a nested action.
@@ -712,7 +709,17 @@ object IO {
   /**
    * Terminates the fiber executing this action, running all finalizers.
    */
-  final def terminate(t: Throwable): IO[Nothing, Nothing] = new Terminate(t)
+  final def terminate: IO[Nothing, Nothing] = terminate0(Nil)
+
+  /**
+   * Terminates the fiber executing this action with the specified error(s), running all finalizers.
+   */
+  final def terminate(t: Throwable, ts: Throwable*): IO[Nothing, Nothing] = terminate0(t :: ts.toList)
+
+  /**
+   * Terminates the fiber executing this action, running all finalizers.
+   */
+  final def terminate0(ts: List[Throwable]): IO[Nothing, Nothing] = new Terminate(ts)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -770,8 +777,8 @@ object IO {
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
    * the more expressive variant of this function.
    */
-  final def async[E, A](register: (ExitResult[E, A] => Unit) => Unit): IO[E, A] =
-    new AsyncEffect[E, A](callback => {
+  final def async[E, A](register: (Callback[E, A]) => Unit): IO[E, A] =
+    new AsyncEffect((callback: Callback[E, A]) => {
       register(callback)
 
       Async.later[E, A]
@@ -781,7 +788,7 @@ object IO {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (ExitResult[E, A] => Unit) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
+  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -791,7 +798,7 @@ object IO {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def async0[E, A](register: (ExitResult[E, A] => Unit) => Async[E, A]): IO[E, A] = new AsyncEffect(register)
+  final def async0[E, A](register: (Callback[E, A]) => Async[E, A]): IO[E, A] = new AsyncEffect(register)
 
   /**
    * Returns a action that will never produce anything. The moral

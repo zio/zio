@@ -77,7 +77,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   def testDone = {
     val error      = new Error("something went wrong")
     val completed  = Completed[Nothing, Int](1)
-    val terminated = Terminated[Nothing, Int](error)
+    val terminated = Terminated[Nothing, Int](error :: Nil)
     val failed     = Failed[Error, Int](error)
 
     unsafeRun(IO.done(completed)) must_=== 1

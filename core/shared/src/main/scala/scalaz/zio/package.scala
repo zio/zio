@@ -3,6 +3,7 @@
 package scalaz
 
 package object zio {
-  type Canceler     = Throwable => Unit
-  type PureCanceler = Throwable => IO[Nothing, Unit]
+  type Callback[E, A] = ExitResult[E, A] => Unit
+  type Canceler       = () => Unit
+  type PureCanceler   = () => IO[Nothing, Unit]
 }
