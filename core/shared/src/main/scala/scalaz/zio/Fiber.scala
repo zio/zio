@@ -31,12 +31,25 @@ trait Fiber[+E, +A] { self =>
   def join: IO[E, A]
 
   /**
-   * Interrupts the fiber with the specified error. If the fiber has already
+   * Interrupts the fiber with no specified reason. If the fiber has already
    * terminated, either successfully or with error, this will resume
    * immediately. Otherwise, it will resume when the fiber has been
    * successfully interrupted or has produced its result.
    */
-  def interrupt(t: Throwable): IO[Nothing, Unit]
+  def interrupt: IO[Nothing, Unit] = interrupt0(Nil)
+
+  /**
+   * Interrupts the fiber with the specified error(s). If the fiber has already
+   * terminated, either successfully or with error, this will resume
+   * immediately. Otherwise, it will resume when the fiber has been
+   * successfully interrupted or has produced its result.
+   */
+  def interrupt(t: Throwable, ts: Throwable*): IO[Nothing, Unit] = interrupt0(t :: ts.toList)
+
+  /**
+   * Interrupts the fiber with a list of error(s).
+   */
+  def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]
 
   /**
    * Zips this fiber with the specified fiber, combining their results using
@@ -48,8 +61,8 @@ trait Fiber[+E, +A] { self =>
       def join: IO[E1, C] =
         self.join.zipWith(that.join)(f)
 
-      def interrupt(t: Throwable): IO[Nothing, Unit] =
-        self.interrupt(t) *> that.interrupt(t)
+      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
+        self.interrupt0(ts) *> that.interrupt0(ts)
     }
 
   /**
@@ -59,14 +72,14 @@ trait Fiber[+E, +A] { self =>
     new Fiber[E, B] {
       def join: IO[E, B] = self.join.map(f)
 
-      def interrupt(t: Throwable): IO[Nothing, Unit] = self.interrupt(t)
+      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
     }
 }
 
 object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def join: IO[E, A]                             = IO.point(a)
-      def interrupt(t: Throwable): IO[Nothing, Unit] = IO.unit
+      def join: IO[E, A]                                     = IO.point(a)
+      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = IO.unit
     }
 }

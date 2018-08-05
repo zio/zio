@@ -65,10 +65,22 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.Failed[E, A](e))
 
   /**
-   * Interrupts the promise with the specified throwable. This will interrupt
+   * Interrupts the promise with no specified reason. This will interrupt
    * all fibers waiting on the value of the promise.
    */
-  final def interrupt(t: Throwable): IO[Nothing, Boolean] = done(ExitResult.Terminated[E, A](t))
+  final def interrupt: IO[Nothing, Boolean] = interrupt0(Nil)
+
+  /**
+   * Interrupts the promise with the specified throwable(s). This will interrupt
+   * all fibers waiting on the value of the promise.
+   */
+  final def interrupt(t: Throwable, ts: Throwable*): IO[Nothing, Boolean] = interrupt0(t :: ts.toList)
+
+  /**
+   * Interrupts the promise with the specified list of throwable(s). This will interrupt
+   * all fibers waiting on the value of the promise.
+   */
+  final protected def interrupt0(ts: List[Throwable]): IO[Nothing, Boolean] = done(ExitResult.Terminated[E, A](ts))
 
   /**
    * Completes the promise with the specified result. If the specified promise
@@ -102,7 +114,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private def interruptJoiner(joiner: ExitResult[E, A] => Unit): Throwable => Unit = { _ =>
+  private def interruptJoiner(joiner: Callback[E, A]): Canceler = { () =>
     var retry = true
 
     while (retry) {
@@ -158,7 +170,7 @@ object Promise {
 
   private[zio] object internal {
     sealed trait State[E, A]
-    final case class Pending[E, A](joiners: List[ExitResult[E, A] => Unit]) extends State[E, A]
-    final case class Done[E, A](value: ExitResult[E, A])                    extends State[E, A]
+    final case class Pending[E, A](joiners: List[Callback[E, A]]) extends State[E, A]
+    final case class Done[E, A](value: ExitResult[E, A])          extends State[E, A]
   }
 }

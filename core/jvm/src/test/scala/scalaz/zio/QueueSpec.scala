@@ -111,7 +111,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](100)
       f     <- queue.take.fork
-      _     <- f.interrupt(new Exception("interrupt fiber in e9"))
+      _     <- f.interrupt
       size  <- queue.size
     } yield size must_=== 0
   )
@@ -120,7 +120,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](0)
       f     <- queue.offer(1).fork
-      _     <- f.interrupt(new Exception("interrupt fiber in e10"))
+      _     <- f.interrupt
       size  <- queue.size
     } yield size must_=== 0
   )
