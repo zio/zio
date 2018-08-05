@@ -62,7 +62,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.Failed[E, A](e, Nil))
+  final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.Failed[E, A](e))
 
   /**
    * Interrupts the promise with no specified reason. This will interrupt
