@@ -132,23 +132,31 @@ sealed abstract class IO[+E, +A] { self =>
 
   /**
    * Executes both this action and the specified action in parallel,
-   * returning a tuple of their results. If either individual action fails,
-   * then the returned action will fail.
+   * combining their results using given function `f`.
+   * If either individual action fails, then the returned action will fail.
    *
    * TODO: Replace with optimized primitive.
    */
-  final def par[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] = {
+  final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
     val s: IO[Nothing, Either[E1, A]] = self.attempt
-    s.raceWith[E1, Either[E1, A], Either[E1, B], (A, B)](that.attempt)(
+    s.raceWith[E1, Either[E1, A], Either[E1, B], C](that.attempt)(
       {
         case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail[E1](e)
-        case (Right(a), fiberb) => IO.absolve[E1, B](fiberb.join).map((b: B) => (a, b))
+        case (Right(a), fiberb) => IO.absolve[E1, B](fiberb.join).map((b: B) => f(a, b))
       }, {
         case (Left(e), fibera)  => fibera.interrupt(TerminatedException(e)) *> IO.fail[E1](e)
-        case (Right(b), fibera) => IO.absolve[E1, A](fibera.join).map((a: A) => (a, b))
+        case (Right(b), fibera) => IO.absolve[E1, A](fibera.join).map((a: A) => f(a, b))
       }
     )
   }
+
+   /**
+    * Executes both this action and the specified action in parallel,
+    * returning a tuple of their results. If either individual action fails,
+    * then the returned action will fail.
+    */
+  final def par[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
+    self.parWith(that)((a, b) => (a, b))
 
   /**
    * Races this action with the specified action, returning the first
@@ -390,15 +398,15 @@ sealed abstract class IO[+E, +A] { self =>
    * Sequentially zips this effect with the specified effect using the
    * specified combiner function.
    */
-  final def zipWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
+  final def seqWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 
   /**
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */
-  final def zip[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
-    self.zipWith(that)((a, b) => (a, b))
+  final def seq[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
+    self.seqWith(that)((a, b) => (a, b))
 
   /**
    * Repeats this action forever (until the first error).
@@ -942,7 +950,7 @@ object IO {
    */
   final def traverse[E, A, B](in: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     in.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
-      fn(a).zipWith(io)((b, bs) => b :: bs)
+      fn(a).seqWith(io)((b, bs) => b :: bs)
     }
 
   /**

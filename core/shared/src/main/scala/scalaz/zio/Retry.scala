@@ -344,7 +344,7 @@ object Retry {
   final def elapsed[E]: Retry[E, Duration] = {
     val nanoTime = IO.sync(System.nanoTime())
 
-    Retry[E, (Long, Long)](nanoTime.zip(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
+    Retry[E, (Long, Long)](nanoTime.seq(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
       .map(t => Duration(t._2, TimeUnit.NANOSECONDS))
   }
 

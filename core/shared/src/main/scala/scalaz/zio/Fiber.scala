@@ -59,7 +59,7 @@ trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def join: IO[E1, C] =
-        self.join.zipWith(that.join)(f)
+        self.join.seqWith(that.join)(f)
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
