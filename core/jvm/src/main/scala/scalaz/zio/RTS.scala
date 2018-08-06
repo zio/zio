@@ -547,7 +547,8 @@ private object RTS {
                     val handler =
                       if (optHandler eq None) defaultSupervisor
                       else { (fs: Set[FiberContext[_, _]]) =>
-                        optHandler.get(collection.JavaConverters.collectionAsScalaIterable(fs).toList)
+                        import collection.JavaConverters._
+                        optHandler.get(fs.asScala.toList)
                       }
 
                     curIo = enterSupervision *>
