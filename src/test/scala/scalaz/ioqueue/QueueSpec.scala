@@ -29,6 +29,37 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     take can be interrupted and all resources are released ${upTo(1.second)(e9)}
     offer can be interrupted and all resources are released ${upTo(1.second)(e10)}
     make an unbounded queue, add and retrieve values in correct order ${upTo(1.second)(e11)}
+    make an empty queue, and `takeUpTo` with max = 2, and retrieves no values ${upTo(1.second)(e12)}
+    make a bounded queue of size 100 and `takeUpTo` with max = 101, and retrieve nil ${upTo(
+      1.second
+    )(e13)}
+    make a bounded queue, offer 2 values, `takeUpTo` with max = 2, and retrieve 2 values ${upTo(
+      1.second
+    )(e14)}
+    make a bounded queue, offer 4 values, `takeUpTo` with max = 2, and retrieve first 2 values ${upTo(
+      1.second
+    )(e15)}
+    make a bounded queue, offer 4 values, `takeUpTo` with max = 10, and retrieve all 4 values ${upTo(
+      1.second
+    )(e16)}
+    make a bounded queue, offer 4 values, `takeUpTo` with max = 0, and retrieve nil ${upTo(
+      1.second
+    )(e17)}
+    make a bounded queue, offer 1 value, `takeUpTo` with max = -1, and retrieve nil ${upTo(
+      1.second
+    )(e18)}
+    make a bounded queue, offer 2 values, `takeUpTo` with max = 2,
+       offer 2 values again, and `takeUpTo` with max = 2 again;
+      the first `takeUpTo` should retrieve first 2 values and second `takeUpTo` should retrieve second 2 values in order ${upTo(
+      1.second
+    )(e19)}
+    make a bounded queue, offer 4 values, `takeUpTo` with max = 2, and then `takeUpTo` again with max = 2;
+      the first `takeUpTo` should retrieve first 2 values and second `takeUpTo` should retrieve second 2 values in order ${upTo(
+      1.second
+    )(e20)}
+    make a bounded queue of size 3, fork offer 4 values, and `takeUpTo` with max=3 retrives first 3 values in correct order ${upTo(
+      1.second
+    )(e21)}
     """
 
   def e1 = unsafeRun(
@@ -140,6 +171,106 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v2    <- queue.take
       v3    <- queue.take
     } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3)
+  )
+
+  def e12 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      list  <- queue.takeUpTo(2)
+    } yield list must_=== Nil
+  )
+
+  def e13 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      list  <- queue.takeUpTo(101)
+    } yield list must_=== Nil
+  )
+
+  def e14 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      _     <- queue.offer(10)
+      _     <- queue.offer(20)
+      list  <- queue.takeUpTo(2)
+    } yield list must_=== List(10, 20)
+  )
+
+  def e15 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      _     <- queue.offer(10)
+      _     <- queue.offer(20)
+      _     <- queue.offer(30)
+      _     <- queue.offer(40)
+      list  <- queue.takeUpTo(2)
+    } yield list must_=== List(10, 20)
+  )
+
+  def e16 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      _     <- queue.offer(10)
+      _     <- queue.offer(20)
+      _     <- queue.offer(30)
+      _     <- queue.offer(40)
+      list  <- queue.takeUpTo(10)
+    } yield list must_=== List(10, 20, 30, 40)
+  )
+
+  def e17 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      _     <- queue.offer(10)
+      _     <- queue.offer(20)
+      _     <- queue.offer(30)
+      _     <- queue.offer(40)
+      list  <- queue.takeUpTo(0)
+    } yield list must_=== Nil
+  )
+
+  def e18 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      _     <- queue.offer(10)
+      list  <- queue.takeUpTo(-1)
+    } yield list must_=== Nil
+  )
+
+  def e19 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      _     <- queue.offer(10)
+      _     <- queue.offer(20)
+      list1 <- queue.takeUpTo(2)
+      _     <- queue.offer(30)
+      _     <- queue.offer(40)
+      list2 <- queue.takeUpTo(2)
+    } yield (list1, list2) must_=== ((List(10, 20), List(30, 40)))
+  )
+
+  def e20 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](100)
+      _     <- queue.offer(10)
+      _     <- queue.offer(20)
+      _     <- queue.offer(30)
+      _     <- queue.offer(40)
+      list1 <- queue.takeUpTo(2)
+      list2 <- queue.takeUpTo(2)
+    } yield (list1, list2) must_=== ((List(10, 20), List(30, 40)))
+  )
+
+  def e21 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](3)
+      _     <- queue.offer(1).fork
+      _     <- queue.offer(2).fork
+      _     <- queue.offer(3).fork
+      _     <- queue.offer(4).fork
+      _     <- waitForSize(queue, 4)
+      l     <- queue.takeUpTo(4)
+    } yield l must_=== List(1, 2, 3)
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =

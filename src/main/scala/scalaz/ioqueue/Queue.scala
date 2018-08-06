@@ -85,6 +85,29 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   }
 
   /**
+   * Take up to max number of values in the queue. If max > offered, this
+   * will return all the elements in the queue without waiting for more offers.
+   */
+  final def takeUpTo(max: Int): IO[Nothing, List[A]] =
+    ref.modify[List[A]] {
+      case Surplus(values, putters) if max > values.size =>
+        (values.toList, Surplus(IQueue.empty[A], putters))
+      case Surplus(values, putters) =>
+        val (listA, queue) =
+          (0 until max)
+            .foldLeft((Nil: List[A], values)) {
+              case ((l, q), _) =>
+                q.dequeueOption match {
+                  case Some((a, b)) => (a :: l, b)
+                  case None         => (l, q)
+                }
+            }
+
+        (listA.reverse, Surplus(queue, putters))
+      case state @ Deficit(_) => (Nil, state)
+    }
+
+  /**
    * Interrupts any fibers that are suspended on `take` because the queue is
    * empty. If any fibers are interrupted, returns true, otherwise, returns
    * false.
