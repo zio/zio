@@ -1,7 +1,6 @@
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
-
 import scala.sys.process.Process
 import ReleaseTransformations._
 
@@ -158,7 +157,8 @@ lazy val microsite = project.module
 
 lazy val commitSha = Process("git rev-parse --short HEAD").lineStream.head
 
-releaseVersion := ((version: String) => s"${version}-${commitSha}" )
+releaseVersion := ((version: String) => s"$version-$commitSha")
+
 releaseTagName := s"v${version.value}"
 
 releaseProcess := Seq[ReleaseStep](
