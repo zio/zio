@@ -74,6 +74,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
     interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
+    supervise fibers                        ${upTo(1.second)(testSupervise)}
     race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
     race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
     race of value & never                   ${upTo(1.second)(testRaceOfValueNever)}
@@ -421,6 +422,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       } yield 42
 
     unsafeRun(io) must_=== 42
+  }
+
+  def testSupervise = {
+    var counter = 0
+    unsafeRun((for {
+      _ <- (IO.sleep(200.milliseconds) *> IO.unit).fork
+      _ <- (IO.sleep(400.milliseconds) *> IO.unit).fork
+    } yield ()).supervised { fs =>
+      fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt *> IO.sync(counter += 1))
+    })
+    counter must_=== 2
   }
 
   def testRaceChoosesWinner =
