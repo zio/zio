@@ -919,7 +919,7 @@ private object RTS {
 
       action
     }
-    
+
     @inline
     final def shouldDie: Boolean = killed && noInterrupt == 0
 
