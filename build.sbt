@@ -13,6 +13,7 @@ publishTo in ThisBuild := {
 }
 
 dynverSonatypeSnapshots in ThisBuild := true
+isSnapshot in ThisBuild := false
 
 lazy val sonataCredentials = for {
   username <- sys.env.get("SONATYPE_USERNAME")
