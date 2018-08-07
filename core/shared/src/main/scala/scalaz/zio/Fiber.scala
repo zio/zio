@@ -87,5 +87,5 @@ object Fiber {
     fs.foldLeft(IO.unit)((io, f) => io *> f.interrupt)
 
   final def joinAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt.const(()))
+    fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt.toUnit)
 }
