@@ -543,7 +543,7 @@ private object RTS {
                     val io = curIo.asInstanceOf[IO.Supervise[E, Any]]
 
                     curIo = enterSupervision *>
-                      io.value.ensuring(exitSupervision)
+                      io.value.ensuring(exitSupervision(io.supervisor))
 
                   case IO.Tags.Terminate =>
                     val io = curIo.asInstanceOf[IO.Terminate]
@@ -883,7 +883,8 @@ private object RTS {
       }
     }
 
-    final def exitSupervision[E2]: IO[E2, Unit] =
+    final def exitSupervision(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]): IO[Nothing, Unit] = {
+      import collection.JavaConverters._
       IO.flatten(IO.sync {
         supervising -= 1
 
@@ -892,19 +893,13 @@ private object RTS {
         supervised = supervised match {
           case Nil => Nil
           case set :: tail =>
-            val iterator = set.iterator()
-
-            while (iterator.hasNext()) {
-              val child = iterator.next()
-
-              action = action *> child.interrupt(Errors.InterruptedFiber)
-            }
-
+            action = supervisor(set.asScala)
             tail
         }
 
         action
       })
+    }
 
     @inline
     final def shouldDie: Boolean = killed && noInterrupt == 0
