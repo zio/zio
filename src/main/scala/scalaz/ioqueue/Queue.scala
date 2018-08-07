@@ -56,16 +56,14 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   }
 
   /**
-    * Removes all the values in the queue and returns the list of the values. If the queue
-    * is empty returns empty list.
-    */
-  final def takeAll: IO[Nothing, List[A]] = {
-
-    ref.modify[List[A]]{
-        case Surplus(values, putters) => (values.view.toList, Surplus(IQueue.empty[A], putters))
-        case state@Deficit(_) => (List.empty[A], state)
+   * Removes all the values in the queue and returns the list of the values. If the queue
+   * is empty returns empty list.
+   */
+  final def takeAll: IO[Nothing, List[A]] =
+    ref.modify[List[A]] {
+      case Surplus(values, putters) => (values.view.toList, Surplus(IQueue.empty[A], putters))
+      case state @ Deficit(_)       => (List.empty[A], state)
     }
-  }
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
