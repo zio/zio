@@ -542,17 +542,8 @@ private object RTS {
                   case IO.Tags.Supervise =>
                     val io = curIo.asInstanceOf[IO.Supervise[E, Any]]
 
-                    val optHandler = io.supervisor
-
-                    val handler =
-                      if (optHandler eq None) defaultSupervisor
-                      else { (fs: Set[FiberContext[_, _]]) =>
-                        import collection.JavaConverters._
-                        optHandler.get(fs.asScala.toList)
-                      }
-
                     curIo = enterSupervision *>
-                      io.value.ensuring(exitSupervision(handler))
+                      io.value.ensuring(exitSupervision(io.supervisor))
 
                   case IO.Tags.Terminate =>
                     val io = curIo.asInstanceOf[IO.Terminate]
@@ -892,7 +883,8 @@ private object RTS {
       }
     }
 
-    final def exitSupervision(supervisor: Set[FiberContext[_, _]] => IO[Nothing, Unit]): IO[Nothing, Unit] =
+    final def exitSupervision(supervisor: Iterable[FiberContext[_, _]] => IO[Nothing, Unit]): IO[Nothing, Unit] = {
+      import collection.JavaConverters._
       IO.flatten(IO.sync {
         supervising -= 1
 
@@ -901,12 +893,13 @@ private object RTS {
         supervised = supervised match {
           case Nil => Nil
           case set :: tail =>
-            action = supervisor(set)
+            action = supervisor(set.asScala)
             tail
         }
 
         action
       })
+    }
 
     private final def defaultSupervisor: Set[FiberContext[_, _]] => IO[Nothing, Unit] = { fs =>
       val iterator = fs.iterator()

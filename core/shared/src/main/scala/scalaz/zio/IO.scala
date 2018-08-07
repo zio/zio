@@ -312,7 +312,8 @@ sealed abstract class IO[+E, +A] { self =>
    * Supervises this action, which ensures that any fibers that are forked by
    * the action are handled by the provided supervisor.
    */
-  final def supervised(supervisor: List[Fiber[_, _]] => IO[Nothing, Unit]): IO[E, A] = IO.supervise(self, supervisor)
+  final def supervised(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]): IO[E, A] =
+    IO.superviseWith(self)(supervisor)
 
   /**
    * Performs this action non-interruptibly. This will prevent the action from
@@ -635,7 +636,7 @@ object IO {
   }
 
   final class Supervise[E, A] private[IO] (val value: IO[E, A],
-                                           val supervisor: Option[List[Fiber[_, _]] => IO[Nothing, Unit]])
+                                           val supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit])
       extends IO[E, A] {
     override def tag = Tags.Supervise
   }
@@ -697,19 +698,12 @@ object IO {
    * Supervises the specified action, which ensures that any actions directly
    * forked by the action are killed upon the action's own termination.
    */
-  final def supervise[E, A](io: IO[E, A]): IO[E, A] = supervise0(io, None)
-
-  /**
-   * Supervises the specified action, which ensures that any actions directly
-   * forked by the action are handled by the provided supervisor.
-   */
-  final def supervise[E, A](io: IO[E, A], supervisor: List[Fiber[_, _]] => IO[Nothing, Unit]): IO[E, A] =
-    supervise0(io, Some(supervisor))
+  final def supervise[E, A](io: IO[E, A]): IO[E, A] = superviseWith(io)(Fiber.interruptAll)
 
   /**
    * Supervises the specified action's spawned fibers.
    */
-  final def supervise0[E, A](io: IO[E, A], supervisor: Option[List[Fiber[_, _]] => IO[Nothing, Unit]]): IO[E, A] =
+  final def superviseWith[E, A](io: IO[E, A])(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]): IO[E, A] =
     new Supervise(io, supervisor)
 
   /**
