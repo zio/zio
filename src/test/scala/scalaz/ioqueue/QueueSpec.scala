@@ -31,7 +31,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     offer can be interrupted and all resources are released ${upTo(1.second)(e10)}
     make an unbounded queue, add and retrieve values in correct order ${upTo(1.second)(e11)}
     make an unbounded queue, add and retrieve all values in correct order ${upTo(1.second)(e12)}
-    make an unbounded queue, add, take and retrieve all values returning empty list ${upTo(1.second)(e13)}
+    make an unbounded queue, add, take and retrieve all values returning empty list ${upTo(
+      1.second
+    )(e13)}
     """
 
   def e1 = unsafeRun(

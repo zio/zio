@@ -10,6 +10,9 @@ trait AbstractRTSSpec extends Specification with RTS {
       case Errors.TerminatedException(_) => IO.unit
       case Errors.LostRace(_)            => IO.unit
       case Errors.NothingRaced           => IO.unit
-      case e                             => IO sync Console.err.println(s"""[info] Discarding ${e.getClass.getName} ("${e.getMessage}")""")
+      case e =>
+        IO.sync(
+          Console.err.println(s"""[info] Discarding ${e.getClass.getName} ("${e.getMessage}")""")
+        )
     } *> IO.unit
 }
