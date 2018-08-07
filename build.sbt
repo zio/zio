@@ -1,10 +1,10 @@
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
+import scala.sys.process.Process
+import ReleaseTransformations._
 
 organization in ThisBuild := "org.scalaz"
-
-version in ThisBuild := "0.1-SNAPSHOT"
 
 publishTo in ThisBuild := {
   val nexus = "https://oss.sonatype.org/"
@@ -154,3 +154,19 @@ lazy val microsite = project.module
       "white-color"     -> "#FFFFFF"
     )
   )
+
+lazy val commitSha = Process("git rev-parse --short HEAD").lineStream.head
+
+releaseVersion := ((version: String) => s"$version-$commitSha")
+
+releaseTagName := s"v${version.value}"
+
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,
+  inquireVersions,
+  runClean,
+  runTest,
+  setReleaseVersion,
+  tagRelease,
+  publishArtifacts
+)
