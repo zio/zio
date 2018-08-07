@@ -883,7 +883,7 @@ private object RTS {
       }
     }
 
-    final def exitSupervision(supervisor: Iterable[FiberContext[_, _]] => IO[Nothing, Unit]): IO[Nothing, Unit] = {
+    final def exitSupervision(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]): IO[Nothing, Unit] = {
       import collection.JavaConverters._
       IO.flatten(IO.sync {
         supervising -= 1
@@ -899,19 +899,6 @@ private object RTS {
 
         action
       })
-    }
-
-    private final def defaultSupervisor: Set[FiberContext[_, _]] => IO[Nothing, Unit] = { fs =>
-      val iterator = fs.iterator()
-      var action   = IO.unit
-
-      while (iterator.hasNext()) {
-        val child = iterator.next()
-
-        action = action *> child.interrupt(Errors.InterruptedFiber)
-      }
-
-      action
     }
 
     @inline
