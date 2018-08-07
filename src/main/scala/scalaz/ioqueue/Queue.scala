@@ -129,6 +129,13 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       case d => d
     }.toUnit
 
+  /**
+    * Places all the values in the queue. If the queue has reached capacity, then
+    * the fibers performing the `offer` will be suspended until there is room in
+    * the queue.
+    */
+  final def offerAll(as: Iterable[A]): IO[Nothing, Unit] =
+    as.map(offer).foldLeft(IO.unit)(_ *> _)
 }
 
 object Queue {

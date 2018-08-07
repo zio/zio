@@ -29,6 +29,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     take can be interrupted and all resources are released ${upTo(1.second)(e9)}
     offer can be interrupted and all resources are released ${upTo(1.second)(e10)}
     make an unbounded queue, add and retrieve values in correct order ${upTo(1.second)(e11)}
+    create bounded queue then call `offerAll` to add all values in the queue ${upTo(1.second)(e12)}
     """
 
   def e1 = unsafeRun(
@@ -141,6 +142,13 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v3    <- queue.take
     } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3)
   )
+
+  def e12 =  unsafeRun(for {
+    queue <- Queue.bounded[Int](10)
+    orders = Range.inclusive(1, 20).toList
+    _     <- queue.offerAll(orders).fork
+    l     <- queue.take.repeatNFold[List[Int]](10)(List.empty[Int], (l, i) => i :: l)
+    } yield l.toSet must_=== orders.take(10).toSet)
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).doWhile(_ != size)
