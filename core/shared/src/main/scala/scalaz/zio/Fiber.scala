@@ -82,4 +82,10 @@ object Fiber {
       def join: IO[E, A]                                     = IO.point(a)
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = IO.unit
     }
+
+  final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
+    fs.foldLeft(IO.unit)((io, f) => io *> f.interrupt)
+
+  final def joinAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
+    fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt.const(()))
 }
