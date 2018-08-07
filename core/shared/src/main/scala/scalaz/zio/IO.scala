@@ -886,7 +886,7 @@ object IO {
    */
   final def traverse[E, A, B](in: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     in.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
-      io.zipWith(fn(a))((bs, b) => b :: bs)
+      fn(a).zipWith(io)((b, bs) => b :: bs)
     }
 
   /**
@@ -895,7 +895,7 @@ object IO {
    */
   def parTraverse[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     as.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
-      io.par(fn(a)).map { case (bs, b) => b :: bs }
+      fn(a).par(io).map { case (b, bs) => b :: bs }
     }
 
   /**

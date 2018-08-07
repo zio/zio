@@ -4,6 +4,7 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 import scalaz.zio.ExitResult.{ Completed, Failed, Terminated }
 
+import scala.collection.mutable
 import scala.util.Try
 
 class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
@@ -13,7 +14,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
    Generate a list of String and a f: String => IO[Throwable, Int]:
       `IO.traverse` returns the list of results. $t1
    Create a list of Strings and pass an f: String => IO[String, Int]:
-      `IO.traverse` returns the list of Ints in the same order. $t2
+      `IO.traverse` both evaluates effects and returns the list of Ints in the same order. $t2
    Create a list of String and pass an f: String => IO[String, Int]:
       `IO.traverse` fails with a NumberFormatException exception. $t3
    Create a list of Strings and pass an f: String => IO[String, Int]:
@@ -40,9 +41,10 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 
   def t2 = {
-    val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.traverse(list)(x => IO.point[Int](x.toInt)))
-    res must be_===(List(1, 2, 3))
+    val list    = List("1", "2", "3")
+    val effects = new mutable.ListBuffer[String]
+    val res     = unsafeRun(IO.traverse(list)(x => IO.sync(effects += x) *> IO.point[Int](x.toInt)))
+    (effects.toList, res) must be_===((list, List(1, 2, 3)))
   }
 
   def t3 = {
