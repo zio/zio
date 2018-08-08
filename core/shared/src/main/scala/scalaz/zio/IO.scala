@@ -463,7 +463,7 @@ sealed abstract class IO[+E, +A] { self =>
    * Maps this action to one producing unit, but preserving the effects of
    * this action.
    */
-  final def toUnit: IO[E, Unit] = const(())
+  final def void: IO[E, Unit] = const(())
 
   /**
    * Calls the provided function with the result of this action, and
