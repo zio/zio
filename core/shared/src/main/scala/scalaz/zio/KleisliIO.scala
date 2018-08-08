@@ -175,7 +175,7 @@ sealed trait KleisliIO[+E, -A, +B] { self =>
   /**
    * Maps the output of this effectful function to `Unit`.
    */
-  final def toUnit: KleisliIO[E, A, Unit] = const(())
+  final def void: KleisliIO[E, A, Unit] = const(())
 
   /**
    * Returns a new effectful function that merely applies this one for its
