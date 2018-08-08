@@ -298,7 +298,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testBracketRegression1 = {
     def makeLogger: Ref[List[String]] => String => IO[Nothing, Unit] =
-      (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).toUnit
+      (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).void
 
     unsafeRun(for {
       ref <- Ref[List[String]](Nil)
@@ -323,7 +323,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Int]
       s <- (p1.complete(()) *> p2.get)
-            .ensuring(r.set(true).toUnit.delay(10.millis))
+            .ensuring(r.set(true).void.delay(10.millis))
             .fork
       _    <- p1.get
       _    <- s.interrupt
@@ -361,7 +361,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testDeepAttemptIsStackSafe =
     unsafeRun((0 until 10000).foldLeft(IO.syncThrowable[Unit](())) { (acc, _) =>
-      acc.attempt.toUnit
+      acc.attempt.void
     }) must_=== (())
 
   def testDeepAbsolveAttemptIsIdentity =
