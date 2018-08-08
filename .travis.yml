@@ -9,7 +9,7 @@ before_install:
   - export PATH=${PATH}:./vendor/bundle
 script:
   - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck test
-  - sbt ++$TRAVIS_SCALA_VERSION publish
+  - if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then sbt ++$TRAVIS_SCALA_VERSION publish; fi
 env:
   global:
   - secure: "1KShGbny4TgD86w5/huvJEwcLYEQKjiUZeornS8W0rt8+j2emfFpb2VoyCfOQmXQrh0t5N96dS/hT0C+cDE0+/12rOE4zpm5RDDT7skY+ayTb3SKkIP9Qk5behvyIZi8xc5ny6z6UZoFBeTGJMZQgeuADhfcQHw68cZl4kEM9fU8L6Yc8jKUN6xTENnVpIDmM29Tbx/WyNA9EKw+1CL2fJVVLmvsQphieYoVjQfhZjl1+M289cZ+dX1UjsuvfrfwBTwFoabnZbQATZ9ALvwIfuOKYIdapS3rAayaKC7uihWZmCnNT4mmleob+zXdUjOWl/GXlHAgeCWU1GP7qZ65aLRx+URs/Vh+VAi5gXceF9Mka0VYMb/nm+noJIy9WLKa4kfnHruqR5NzxTq8D0xkgSa2v1tRCT7Vf98+RlzPTVF+rG/8lGa/nFoxqAkbB8ycTYSoAIswan4lx2PhD2GPWsCdiUBrMljPTr2ie88x45w4b5f5eZbsxc1qi2ks1oFTVJhk36l9+E+V8iFi3uZbs2x5Qfar7301mWwarcwfxt/CgDqSz4naWXyPfRbh9KwwFnjl2yEiYoPb0zU8eKhBid+JBi94gvlm2ykmHTYWD39govSgW69PSBoW8JROE10skpiLFsowe/U6FkVNA+tWavk/PNHPpHb4dlP63mbiOTU="
