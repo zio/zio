@@ -386,11 +386,43 @@ object Retry {
   final def fixed[E](duration: Duration): Retry[E, Int] =
     counted.updated((_, _, io) => io.delay(duration))
 
+  final def backoff[E](base: Duration,
+                       sleep: (Int, Duration) => IO[E, Duration],
+                       cap: Option[Duration] = None): Retry[E, (Int, Duration)] = {
+    val up: ((Int, Duration)) => IO[E, (Int, Duration)] = {
+      case (n, d) => sleep(n, d).map(d0 => (n + 1, d0)).delay(cap.fold(d)(_.min(d)))
+    }
+    Retry[E, (Int, Duration)](IO.now((0, base)), (_, s) => up(s))
+  }
+
   /**
    * A retry strategy that will always succeed, but will wait a certain amount
-   * between retries, given by `duration * factor.pow(n)`, where `n` is the
+   * between retries, given by `base * factor.pow(n)`, where `n` is the
    * number of retries so far.
    */
-  final def backoff[E](base: Duration, factor: Double = 2.0, cap: Option[Duration] = None): Retry[E, Duration] =
-    Retry[E, Duration](IO.now(base), (_, d) => IO.now(d * factor).delay(cap.fold(d)(_.min(d))))
+  final def exponentialBackoff[E](base: Duration,
+                                  factor: Double = 2.0,
+                                  cap: Option[Duration] = None): Retry[E, (Int, Duration)] =
+    backoff(base, (n, _) => IO.now(base * math.pow(factor, n.doubleValue)), cap)
+
+  final def fullJitter[E](base: Duration,
+                          factor: Double = 2.0,
+                          cap: Option[Duration] = None): Retry[E, (Int, Duration)] = {
+    def jitter(n: Int) = {
+      val exp = base * math.pow(factor, n.doubleValue)
+      IO.sync(util.Random.nextDouble()).map(exp * _)
+    }
+    backoff(base, (n, _) => jitter(n), cap)
+  }
+
+  final def equalJitter[E](base: Duration,
+                           factor: Double = 2.0,
+                           cap: Option[Duration] = None): Retry[E, (Int, Duration)] = {
+    def jitter(n: Int) = {
+      val expHalf = (base * math.pow(factor, n.doubleValue)) / 2
+      IO.sync(util.Random.nextDouble()).map(expHalf + expHalf * _)
+    }
+    backoff(base, (n, _) => jitter(n), cap)
+  }
+
 }
