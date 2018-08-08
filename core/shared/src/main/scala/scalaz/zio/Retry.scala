@@ -391,6 +391,6 @@ object Retry {
    * between retries, given by `duration * factor.pow(n)`, where `n` is the
    * number of retries so far.
    */
-  final def backoff[E](start: Duration, factor: Double = 2.0): Retry[E, Duration] =
-    Retry[E, Duration](IO.now(start), (_, d) => IO.now(d * factor).delay(d))
+  final def backoff[E](base: Duration, factor: Double = 2.0, cap: Option[Duration] = None): Retry[E, Duration] =
+    Retry[E, Duration](IO.now(base), (_, d) => IO.now(d * factor).delay(cap.fold(d)(_.min(d))))
 }
