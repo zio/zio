@@ -76,17 +76,20 @@ trait Retry[E, +S] { self =>
   /**
    * Returns a new strategy that retries until the error matches the condition.
    */
-  final def untilError(p: E => Boolean): Retry[E, S] = !whileError(p)
+  final def untilError(p: E => Boolean): Retry[E, S] =
+    !whileError(p)
 
   /*
    * Returns a new strategy that retries until the state matches the condition.
    */
-  final def untilState(p: S => Boolean): Retry[E, S] = check[S]((_, s) => IO.now(s))(p)
+  final def untilState(p: S => Boolean): Retry[E, S] =
+    check[S]((_, s) => IO.now(s))(p)
 
   /*
    * Returns a new strategy that retries while the state matches the condition.
    */
-  final def whileState(p: S => Boolean): Retry[E, S] = !untilState(p)
+  final def whileState(p: S => Boolean): Retry[E, S] =
+    !untilState(p)
 
   /**
    * Returns a new strategy that retries for as long as this strategy and the
