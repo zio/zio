@@ -150,11 +150,11 @@ sealed abstract class IO[+E, +A] { self =>
     )
   }
 
-   /**
-    * Executes both this action and the specified action in parallel,
-    * returning a tuple of their results. If either individual action fails,
-    * then the returned action will fail.
-    */
+  /**
+   * Executes both this action and the specified action in parallel,
+   * returning a tuple of their results. If either individual action fails,
+   * then the returned action will fail.
+   */
   final def par[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
     self.parWith(that)((a, b) => (a, b))
 
