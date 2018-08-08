@@ -34,6 +34,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make an unbounded queue, add, take and retrieve all values returning empty list ${upTo(
       1.second
     )(e13)}
+    make a bounded queue, add and retrieve all values in correct order ${upTo(1.second)(e14)}
     """
 
   def e1 = unsafeRun(
@@ -160,10 +161,25 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   def e13 = unsafeRun(
     for {
       queue <- Queue.unbounded[Int]
+      c     <- queue.takeAll
       _     <- queue.offer(1)
       _     <- queue.take
       v     <- queue.takeAll
-    } yield (v must_=== List.empty)
+    } yield (c must_=== List.empty).and(v must_=== List.empty)
+  )
+
+  def e14 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](3)
+      _     <- queue.offer(1).fork
+      _     <- queue.offer(2).fork
+      _     <- queue.offer(3).fork
+      _     <- queue.offer(4).fork
+      v     <- queue.takeAll
+      c     <- queue.take
+    } yield {
+      (v must_=== List(1, 2, 3)).and(c must_=== 4)
+    }
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
