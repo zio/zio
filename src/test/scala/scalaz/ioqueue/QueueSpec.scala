@@ -175,6 +175,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- queue.offer(2).fork
       _     <- queue.offer(3).fork
       _     <- queue.offer(4).fork
+      _     <- waitForSize(queue, 4)
       v     <- queue.takeAll
       c     <- queue.take
     } yield {
