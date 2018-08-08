@@ -111,6 +111,12 @@ trait Retry[E, +S] { self =>
         self.update(e, s._1).par(that.update(e, s._2))
     }
 
+  final def both[S2](that: => Retry[E, S2]): Retry[E, (S, S2)] =
+    self && that
+
+  final def bothWith[S2, A](that: => Retry[E, S2])(f: (S, S2) => A): Retry[E, A] =
+    (self && that).map(f.tupled)
+
   /**
    * Returns a new strategy that retries for as long as either this strategy or
    * the specified strategy want to retry. For pure strategies (which have
@@ -172,11 +178,17 @@ trait Retry[E, +S] { self =>
       }
     }
 
+  final def either[S2](that: => Retry[E, S2]): Retry[E, Either[S, S2]] =
+    self || that
+
+  final def eitherWith[S2, A](that: => Retry[E, S2])(f: Either[S, S2] => A): Retry[E, A] =
+    (self || that).map(f)
+
   /**
    * Same as `<||>`, but merges the states.
    */
   final def <>[S1 >: S](that: => Retry[E, S1]): Retry[E, S1] =
-    (self <||> that) map (_.merge)
+    (self <||> that).map(_.merge)
 
   /**
    * Returns a new strategy that first tries this strategy, and if it fails,
