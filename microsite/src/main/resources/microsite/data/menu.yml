@@ -1,0 +1,21 @@
+options:
+  - title: Usage
+    url: usage/index.html
+    menu_section: usage
+    menu_type: usage
+
+    nested_options:
+    - title: Main
+      url: usage/main.html
+    - title: Purity
+      url: usage/purity.html
+    - title: Mapping/Chaining
+      url: usage/mapping.html
+    - title: Failure
+      url: usage/failure.html
+    - title: Brackets
+      url: usage/bracket.html
+    - title: Fibers
+      url: usage/fibers.html
+    - title: Performance
+      url: usage/performance.html

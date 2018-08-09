@@ -43,6 +43,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
                                 "org.specs2" %%% "specs2-matcher-extra" % "4.3.2" % Test),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "scalaz.zio",
+    buildInfoObject := "BuildInfo"
+  )
 
 lazy val coreJVM = core.jvm
   .settings(
@@ -127,21 +133,27 @@ lazy val microsite = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
-    libraryDependencies += "com.github.ghik" %% "silencer-lib" % "1.0",
+    libraryDependencies ++= Seq(
+      "com.github.ghik" %% "silencer-lib" % "1.0",
+      "commons-io"      % "commons-io"    % "2.6"
+    ),
     micrositeFooterText := Some(
       """
-        |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">Scalaz Maintainers</a></p>
+        |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
         |""".stripMargin
     ),
-    micrositeName := "Scalaz-ZIO",
-    micrositeDescription := "Scalaz-ZIO",
-    micrositeAuthor := "Scalaz contributors",
+    micrositeName := "ZIO",
+    micrositeDescription := "ZIO",
+    micrositeAuthor := "ZIO contributors",
     micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-zio",
     micrositeGitterChannelUrl := "scalaz/scalaz-zio",
     micrositeGitHostingUrl := "https://github.com/scalaz/scalaz-zio",
     micrositeGithubOwner := "scalaz",
     micrositeGithubRepo := "scalaz-zio",
     micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
+    micrositeDocumentationUrl := s"https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/${(version in Compile).value}",
+    micrositeDocumentationLabelDescription := "Scaladoc",
+    micrositeBaseUrl := "/scalaz-zio",
     micrositePalette := Map(
       "brand-primary"   -> "#ED2124",
       "brand-secondary" -> "#251605",
