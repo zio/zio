@@ -75,7 +75,18 @@ trait Fiber[+E, +A] { self =>
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
 
-      def finished(f: ExitResult[E1, C] => IO[Nothing, Unit]): IO[Nothing, Unit] = IO.unit
+      def finished(fc: ExitResult[E1, C] => IO[Nothing, Unit]): IO[Nothing, Unit] = 
+        self.finished { ra: ExitResult[E, A] =>
+          that.finished { rb: ExitResult[E1, B] => 
+            (ra, rb) match {
+              case (ExitResult.Completed(a), ExitResult.Completed(b)) => fc(ExitResult.Completed(f(a, b)))
+              case (e@ExitResult.Failed(_, _), _) => fc(e.asInstanceOf[ExitResult[E1, C]])
+              case (t@ExitResult.Terminated(_), _) => fc(t.asInstanceOf[ExitResult[E1, C]])
+              case (_, e@ExitResult.Failed(_, _)) => fc(e.asInstanceOf[ExitResult[E1, C]])
+              case (_, t@ExitResult.Terminated(_)) => fc(t.asInstanceOf[ExitResult[E1, C]])
+            }
+          }
+        }
     }
 
   /**
