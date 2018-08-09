@@ -52,11 +52,11 @@ trait Fiber[+E, +A] { self =>
   def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]
 
   /**
-   * Add an exit handler for when the fiber terminates and receive information 
-   * on whether the fiber terminated normally, with unhandled error, or with 
+   * Add an exit handler for when the fiber terminates and receive information
+   * on whether the fiber terminated normally, with unhandled error, or with
    * exception.
    *
-   * The specified action will be invoked after the fiber has finished running 
+   * The specified action will be invoked after the fiber has finished running
    * (including all finalizers). If the specified action throws an exception,
    * it will be reported to the parent fiber's unhandled error handler.
    */
@@ -75,15 +75,15 @@ trait Fiber[+E, +A] { self =>
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
 
-      def finished(fc: ExitResult[E1, C] => IO[Nothing, Unit]): IO[Nothing, Unit] = 
+      def finished(fc: ExitResult[E1, C] => IO[Nothing, Unit]): IO[Nothing, Unit] =
         self.finished { ra: ExitResult[E, A] =>
-          that.finished { rb: ExitResult[E1, B] => 
+          that.finished { rb: ExitResult[E1, B] =>
             (ra, rb) match {
               case (ExitResult.Completed(a), ExitResult.Completed(b)) => fc(ExitResult.Completed(f(a, b)))
-              case (e@ExitResult.Failed(_, _), _) => fc(e.asInstanceOf[ExitResult[E1, C]])
-              case (t@ExitResult.Terminated(_), _) => fc(t.asInstanceOf[ExitResult[E1, C]])
-              case (_, e@ExitResult.Failed(_, _)) => fc(e.asInstanceOf[ExitResult[E1, C]])
-              case (_, t@ExitResult.Terminated(_)) => fc(t.asInstanceOf[ExitResult[E1, C]])
+              case (e @ ExitResult.Failed(_, _), _)                   => fc(e.asInstanceOf[ExitResult[E1, C]])
+              case (t @ ExitResult.Terminated(_), _)                  => fc(t.asInstanceOf[ExitResult[E1, C]])
+              case (_, e @ ExitResult.Failed(_, _))                   => fc(e.asInstanceOf[ExitResult[E1, C]])
+              case (_, t @ ExitResult.Terminated(_))                  => fc(t.asInstanceOf[ExitResult[E1, C]])
             }
           }
         }
@@ -99,7 +99,9 @@ trait Fiber[+E, +A] { self =>
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
 
       def finished(fb: ExitResult[E, B] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-        self.finished { r: ExitResult[E, A] => fb(r.map(f)) }
+        self.finished { r: ExitResult[E, A] =>
+          fb(r.map(f))
+        }
     }
 }
 
