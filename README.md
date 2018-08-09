@@ -31,10 +31,12 @@ Use `IO` because it's simply not practical to write real-world, correct software
 
 The current snapshot release of ZIO is 0.1, which is cross-built against Scala 2.11.x and 2.12.x.
 
-If you're using SBT, add the following line to your build file:
+If you're using SBT, add the following lines to your build file:
 
 ```scala
 libraryDependencies += "org.scalaz" %% "scalaz-zio" % "0.1-SNAPSHOT"
+
+resolvers += Resolver.sonatypeRepo("snapshots")
 ```
 For Maven and other build tools, you can visit <https://search.maven.org> and search for Scalaz.
 
@@ -367,6 +369,16 @@ Fibers only ever shift onto the thread pool of the runtime system, which means t
 For performance reasons, fibers will attempt to execute on the same thread for a (configurable) minimum period, before yielding to other fibers. Fibers that resume from asynchronous callbacks will resume on the initiating thread, and continue for some time before yielding and resuming on the runtime thread pool.
 
 These defaults help guarantee stack safety and cooperative multitasking. They can be changed in `RTS` if automatic thread shifting is not desired.
+
+# ZIO in the Wild
+
+In an ideal world ZIO would be the one and only effect system, but we live in this world and more often than not we have to interact with code using other libraries. `zio-interop` is the module enabling the necessary integrations to achieve that in a seamless manner. Read the docs for more details: [Interop Docs](interop/README.md)
+
+If you're using SBT, add the following line to your build file:
+
+```scala
+libraryDependencies += "org.scalaz" %% "scalaz-zio-interop" % "0.1-SNAPSHOT"
+```
 
 # Legal
 

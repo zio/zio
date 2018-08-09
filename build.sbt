@@ -4,8 +4,6 @@ import Scalaz._
 
 organization in ThisBuild := "org.scalaz"
 
-version in ThisBuild := "0.1-SNAPSHOT"
-
 publishTo in ThisBuild := {
   val nexus = "https://oss.sonatype.org/"
   if (isSnapshot.value)
@@ -15,6 +13,7 @@ publishTo in ThisBuild := {
 }
 
 dynverSonatypeSnapshots in ThisBuild := true
+isSnapshot in ThisBuild := false
 
 lazy val sonataCredentials = for {
   username <- sys.env.get("SONATYPE_USERNAME")

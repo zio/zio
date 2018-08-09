@@ -17,12 +17,12 @@ object future {
   }
 
   implicit class IOThrowableOps[A](private val io: IO[Throwable, A]) extends AnyVal {
-    def toFuture[E]: IO[E, Future[A]] =
-      io.redeemPure[E, Future[A]](Future.failed, Future.successful)
+    def toFuture: IO[Nothing, Future[A]] =
+      io.redeemPure(Future.failed, Future.successful)
   }
 
   implicit class IOOps[E, A](private val io: IO[E, A]) extends AnyVal {
-    def toFutureE[E2](f: E => Throwable): IO[E2, Future[A]] = io.leftMap(f).toFuture
+    def toFutureE(f: E => Throwable): IO[Nothing, Future[A]] = io.leftMap(f).toFuture
   }
 
 }
