@@ -28,7 +28,7 @@ def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
 
 ```tut:silent
-val _: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
+val z: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)
