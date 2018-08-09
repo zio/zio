@@ -11,7 +11,7 @@ You can lift pure values into `IO` with `IO.point`:
 ```tut:silent
 import scalaz.zio._
 
-val _: IO[Nothing, String] = IO.point("Hello World")
+val z: IO[Nothing, String] = IO.point("Hello World")
 ```
 
 The constructor uses non-strict evaluation, so the parameter will not be evaluated until when and if the `IO` action is executed at runtime, which is useful if the construction is costly and the value may never be needed.
@@ -19,7 +19,7 @@ The constructor uses non-strict evaluation, so the parameter will not be evaluat
 Alternately, you can use the `IO.now` constructor to perform strict evaluation of the value:
 
 ```tut:silent
-val _: IO[Nothing, String] = IO.now("Hello World")
+val z: IO[Nothing, String] = IO.now("Hello World")
 ```
 
 You should never use either constructor for importing impure code into `IO`. The result of doing so is undefined.
@@ -39,7 +39,7 @@ because the `Nothing` type is _uninhabitable_, i.e. there can be no actual value
 You can use the `sync` method of `IO` to import effectful synchronous code into your purely functional program:
 
 ```tut:silent
-val _: IO[Nothing, Long] = IO.sync(System.nanoTime())
+val z: IO[Nothing, Long] = IO.sync(System.nanoTime())
 ```
 
 If you are importing effectful code that may throw exceptions, you can use the `syncException` method of `IO`:

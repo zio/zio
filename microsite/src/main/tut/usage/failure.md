@@ -11,7 +11,7 @@ You can create `IO` actions that describe failure with `IO.fail`:
 ```tut:silent
 import scalaz.zio._
 
-val _: IO[String, Unit] = IO.fail("Oh noes!")
+val z: IO[String, Unit] = IO.fail("Oh noes!")
 ```
 
 Like all `IO` values, these are immutable values and do not actually throw any exceptions; they merely describe failure as a first-class value.
@@ -52,14 +52,14 @@ def openFile(s: String): IO[IOException, Array[Byte]] = IO.point(???)
 ```
 
 ```tut:silent
-val _: IO[IOException, Array[Byte]] = openFile("primary.json").catchAll(_ => openFile("backup.json"))
+val z: IO[IOException, Array[Byte]] = openFile("primary.json").catchAll(_ => openFile("backup.json"))
 ```
 
 If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the `catchSome` method:
 
 <!-- https://github.com/scalaz/scalaz-zio/issues/164 -->
 ```scala
-val _: IO[IOException, Array[Byte]] = openFile("primary.json").catchSome {
+val z: IO[IOException, Array[Byte]] = openFile("primary.json").catchSome {
   case FileNotFoundException(_) => openFile("backup.json")
 }
 ```
@@ -67,14 +67,14 @@ val _: IO[IOException, Array[Byte]] = openFile("primary.json").catchSome {
 You can execute one action, or, if it fails, execute another action, with the `orElse` combinator:
 
 ```tut:silent
-val _: IO[IOException, Array[Byte]] = openFile("primary.json").orElse(openFile("backup.json"))
+val z: IO[IOException, Array[Byte]] = openFile("primary.json").orElse(openFile("backup.json"))
 ```
 
 If you want more control on the next action and better performance you can use the primitive which all the previous operations are based on, it's called `redeem` and it can be seen as the combination of `flatMap` and `catchAll`. It is useful if you find yourself using combinations of `attempt` or `catchAll` with `flatMap`, using `redeem` you can achieve the same and avoid the intermediate `Either` allocation and the subsequent call to `flatMap`.
 
 <!-- Inventing APIs here -->
 ```scala
-val _: IO[Nothing, Content] =
+val z: IO[Nothing, Content] =
   readUrls("urls.json").redeem[Nothing](e => IO.point(NoContent(cause = e)))(fetchContent)
 ```
 
