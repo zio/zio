@@ -35,6 +35,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       1.second
     )(e13)}
     make a bounded queue, add and retrieve all values in correct order ${upTo(1.second)(e14)}
+    make a bounded queue then call `offerAll` to add all values in the queue ${upTo(1.second)(e15)}
+    make a bounded queue then call `offerAll` should enqueue all requests if we the exceed capacity of the queue ${upTo(1.second)(e16)}
+    `offerAll` can be interrupted fiber which is suspended on `offer` ${upTo(1.second)(e17)}
     """
 
   def e1 = unsafeRun(
@@ -180,6 +183,30 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       c     <- queue.take
     } yield (v must_=== List(1, 2, 3)).and(c must_=== 4)
   )
+
+  def e15 =  unsafeRun(for {
+    queue <- Queue.bounded[Int](10)
+    orders = Range.inclusive(1, 10).toList
+    _     <- queue.offerAll(orders)
+  _       <- waitForSize(queue, 10)
+    l     <- queue.takeAll
+  } yield l must_=== orders)
+
+  def e16 =  unsafeRun(for {
+    queue <- Queue.bounded[Int](0)
+    orders = Range.inclusive(1, 3).toList
+    _     <- queue.offerAll(orders).fork
+    size  <- waitForSize(queue, 3)
+  } yield size must_=== 3)
+
+  def e17 =  unsafeRun(for {
+    queue <- Queue.bounded[Int](0)
+    orders = Range.inclusive(1, 3).toList
+    _     <- queue.offerAll(orders).fork
+    check <- (queue.interruptOffer(new Exception("interrupt offer in e17")) <* IO.sleep(1.millis))
+              .doWhile(!_)
+    size  <- waitForSize(queue, 0)
+  } yield (size must_=== 0) and (check must_=== true))
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).doWhile(_ != size)
