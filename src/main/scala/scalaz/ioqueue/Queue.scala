@@ -145,7 +145,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     * the queue.
     */
   final def offerAll(as: Iterable[A]): IO[Nothing, Unit] =
-    as.map(offer).foldLeft(IO.unit)(_ *> _)
+    IO.forkAll(as.map(offer)) *> IO.unit
 }
 
 object Queue {
