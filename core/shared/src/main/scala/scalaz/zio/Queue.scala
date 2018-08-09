@@ -93,7 +93,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     IO.flatten(ref.modify {
       case Deficit(takers) if takers.nonEmpty =>
         val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
-          IO.forkAll[Nothing, Boolean, List](takers.toList.map(_.interrupt(t)))
+          IO.forkAll[Nothing, Boolean](takers.map(_.interrupt(t)))
         (forked.flatMap(_.join).map(_.forall(identity)), Deficit(IQueue.empty[Promise[Nothing, A]]))
       case s =>
         (IO.now(false), s)
@@ -108,7 +108,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     IO.flatten(ref.modify {
       case Surplus(_, putters) if putters.nonEmpty =>
         val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
-          IO.forkAll[Nothing, Boolean, List](putters.toList.map(_._2.interrupt(t)))
+          IO.forkAll[Nothing, Boolean](putters.map(_._2.interrupt(t)))
         (forked.flatMap(_.join).map(_.forall(identity)), Deficit(IQueue.empty[Promise[Nothing, A]]))
       case s =>
         (IO.now(false), s)
@@ -119,7 +119,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       case Surplus(values, putters) =>
         Surplus(values, putters.filterNot(_._2 == putter))
       case d => d
-    }.toUnit
+    }.void
 
   private final def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] =
     ref.update {
@@ -127,7 +127,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         Deficit(takers.filterNot(_ == taker))
 
       case d => d
-    }.toUnit
+    }.void
 
 }
 object Queue {

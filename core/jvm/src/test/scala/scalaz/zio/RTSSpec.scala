@@ -33,6 +33,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
+    catch multiple causes                   $testEvalOfMultipleFail
+    catch failing finalizers with fail      $testFailOfMultipleFailingFinalizers
+    catch failing finalizers with terminate $testTerminateOfMultipleFailingFinalizers
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -71,6 +74,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
     interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
+    supervise fibers                        ${upTo(1.second)(testSupervise)}
     race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
     race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
     race of value & never                   ${upTo(1.second)(testRaceOfValueNever)}
@@ -171,6 +175,31 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testEvalOfDeepUncaughtFail =
     unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError)))
 
+  def testEvalOfMultipleFail =
+    unsafeRun((for {
+      f1 <- IO.never.fork
+      _  <- f1.interrupt(InterruptCause1, InterruptCause2)
+      _  <- f1.join
+    } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
+
+  def testFailOfMultipleFailingFinalizers =
+    unsafeRun(
+      IO.fail[Throwable](ExampleError)
+        .ensuring(IO.sync(throw InterruptCause1))
+        .ensuring(IO.sync(throw InterruptCause2))
+        .ensuring(IO.sync(throw InterruptCause3))
+        .run
+    ) must_=== ExitResult.Failed(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
+
+  def testTerminateOfMultipleFailingFinalizers =
+    unsafeRun(
+      IO.terminate(ExampleError)
+        .ensuring(IO.sync(throw InterruptCause1))
+        .ensuring(IO.sync(throw InterruptCause2))
+        .ensuring(IO.sync(throw InterruptCause3))
+        .run
+    ) must_=== ExitResult.Terminated(List(ExampleError, InterruptCause1, InterruptCause2, InterruptCause3))
+
   def testEvalOfFailEnsuring = {
     var finalized = false
 
@@ -202,18 +231,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   }
 
   def testErrorInFinalizerIsReported = {
-    var reported: Throwable = null
+    var reported: List[Throwable] = null
 
     unsafeRun {
       IO.point[Int](42)
         .ensuring(IO.terminate(ExampleError))
-        .fork0(e => IO.sync[Unit] { reported = e; () })
+        .fork0(es => IO.sync[Unit] { reported = es; () })
     }
 
     // FIXME: Is this an issue with thread synchronization?
     while (reported eq null) Thread.`yield`()
 
-    ((throw reported): Int) must (throwA(ExampleError))
+    reported must_=== List(ExampleError)
   }
 
   def testExitResultIsUsageResult =
@@ -269,7 +298,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testBracketRegression1 = {
     def makeLogger: Ref[List[String]] => String => IO[Nothing, Unit] =
-      (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).toUnit
+      (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).void
 
     unsafeRun(for {
       ref <- Ref[List[String]](Nil)
@@ -282,7 +311,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
             )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit)
             .fork
       _ <- (ref.get <* IO.sleep(1.millisecond)).doUntil(_.contains("start 1"))
-      _ <- f.interrupt(new RuntimeException("cancel"))
+      _ <- f.interrupt
       _ <- (ref.get <* IO.sleep(1.millisecond)).doUntil(_.contains("release 2"))
       l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
@@ -294,10 +323,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Int]
       s <- (p1.complete(()) *> p2.get)
-            .ensuring(r.set(true).toUnit.delay(10.millis))
+            .ensuring(r.set(true).void.delay(10.millis))
             .fork
       _    <- p1.get
-      _    <- s.interrupt(new Error("interrupt e"))
+      _    <- s.interrupt
       test <- r.get
     } yield test must_=== true)
 
@@ -332,7 +361,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testDeepAttemptIsStackSafe =
     unsafeRun((0 until 10000).foldLeft(IO.syncThrowable[Unit](())) { (acc, _) =>
-      acc.attempt.toUnit
+      acc.attempt.void
     }) must_=== (())
 
   def testDeepAbsolveAttemptIsIdentity =
@@ -389,10 +418,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     val io =
       for {
         fiber <- IO.never.fork
-        _     <- fiber.interrupt(ExampleError)
+        _     <- fiber.interrupt
       } yield 42
 
     unsafeRun(io) must_=== 42
+  }
+
+  def testSupervise = {
+    var counter = 0
+    unsafeRun((for {
+      _ <- (IO.sleep(200.milliseconds) *> IO.unit).fork
+      _ <- (IO.sleep(400.milliseconds) *> IO.unit).fork
+    } yield ()).supervised { fs =>
+      fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt *> IO.sync(counter += 1))
+    })
+    counter must_=== 2
   }
 
   def testRaceChoosesWinner =
@@ -475,9 +515,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(
       for {
         f <- test.fork
-        c <- (IO.sync[Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt(
-              new RuntimeException("y")
-            )
+        c <- (IO.sync[Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt
       } yield c must be_>=(1)
     )
 
@@ -486,12 +524,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testInterruptSyncForever = unsafeRun(
     for {
       f <- IO.sync[Int](1).forever.fork
-      _ <- f.interrupt(new Error("terminate forever"))
+      _ <- f.interrupt
     } yield true
   )
 
   // Utility stuff
-  val ExampleError = new Exception("Oh noes!")
+  val ExampleError    = new Exception("Oh noes!")
+  val InterruptCause1 = new Exception("Oh noes 1!")
+  val InterruptCause2 = new Exception("Oh noes 2!")
+  val InterruptCause3 = new Exception("Oh noes 3!")
 
   def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError)))
 

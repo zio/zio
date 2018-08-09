@@ -85,7 +85,7 @@ class RefSpec extends AbstractRTSSpec {
         f2      <- ref.set(2).forever.fork
         success <- tryWriteUntilFalse(ref, 3)
         value   <- ref.get
-        _       <- f1.zipWith(f2)((_, _) => ()).interrupt(new Error("Terminated fiber"))
+        _       <- f1.zipWith(f2)((_, _) => ()).interrupt
       } yield (success must beFalse) and (value must be_!=(3))
     )
 
