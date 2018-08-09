@@ -87,7 +87,8 @@ trait Fiber[+E, +A] { self =>
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
 
-      def finished(f: ExitResult[E, B] => IO[Nothing, Unit]): IO[Nothing, Unit] = IO.unit
+      def finished(fb: ExitResult[E, B] => IO[Nothing, Unit]): IO[Nothing, Unit] =
+        self.finished { r: ExitResult[E, A] => fb(r.map(f)) }
     }
 }
 
