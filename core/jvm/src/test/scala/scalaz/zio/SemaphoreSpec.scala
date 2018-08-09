@@ -30,14 +30,14 @@ class SemaphoreSpec extends AbstractRTSSpec {
 
   def e3 =
     offsettingReleasesAcquires(
-      (s, permits) => IO.traverse(permits)(s.acquireN).toUnit,
-      (s, permits) => IO.traverse(permits.reverse)(s.releaseN).toUnit
+      (s, permits) => IO.traverse(permits)(s.acquireN).void,
+      (s, permits) => IO.traverse(permits.reverse)(s.releaseN).void
     )
 
   def e4 =
     offsettingReleasesAcquires(
-      (s, permits) => IO.parTraverse(permits)(amount => s.acquireN(amount)).toUnit,
-      (s, permits) => IO.parTraverse(permits.reverse)(amount => s.releaseN(amount)).toUnit
+      (s, permits) => IO.parTraverse(permits)(amount => s.acquireN(amount)).void,
+      (s, permits) => IO.parTraverse(permits.reverse)(amount => s.releaseN(amount)).void
     )
 
   def offsettingReleasesAcquires(acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],

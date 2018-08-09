@@ -94,14 +94,14 @@ final class Semaphore private (private val state: Ref[State]) {
               else Left((current, rest.filter(_ != entry)))
 
             case Right(m) => Right(m)
-          }.toUnit
+          }.void
         case _ =>
           IO.unit
       }
     }(_ => entry._2.get)
 
   private def openGate[E](entry: (Long, Promise[E, Unit])): IO[E, Unit] =
-    entry._2.complete(()).toUnit
+    entry._2.complete(()).void
 
   private def count_(state: State): Long = state match {
     case Left((head, tail)) => -(head._1 + tail.map(_._1).sum)
