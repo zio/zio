@@ -155,7 +155,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- queue.offer(2)
       _     <- queue.offer(3)
       v     <- queue.takeAll
-    } yield (v must_=== List(1, 2, 3))
+    } yield v must_=== List(1, 2, 3)
   )
 
   def e13 = unsafeRun(
@@ -178,9 +178,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- waitForSize(queue, 4)
       v     <- queue.takeAll
       c     <- queue.take
-    } yield {
-      (v must_=== List(1, 2, 3)).and(c must_=== 4)
-    }
+    } yield (v must_=== List(1, 2, 3)).and(c must_=== 4)
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
