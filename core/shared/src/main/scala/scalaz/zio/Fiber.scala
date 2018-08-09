@@ -52,6 +52,17 @@ trait Fiber[+E, +A] { self =>
   def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]
 
   /**
+   * Add an exit handler for when the fiber terminates and receive information 
+   * on whether the fiber terminated normally, with unhandled error, or with 
+   * exception.
+   *
+   * The specified action will be invoked after the fiber has finished running 
+   * (including all finalizers). If the specified action throws an exception,
+   * it will be reported to the parent fiber's unhandled error handler.
+   */
+  def finished(f: ExitResult[E, A] => IO[Nothing, Unit]): IO[Nothing, Unit]
+
+  /**
    * Zips this fiber with the specified fiber, combining their results using
    * the specified combiner function. Both joins and interruptions are performed
    * in sequential order from left to right.
@@ -63,6 +74,8 @@ trait Fiber[+E, +A] { self =>
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
+
+      def finished(f: ExitResult[E1, C] => IO[Nothing, Unit]): IO[Nothing, Unit] = IO.unit
     }
 
   /**
@@ -73,6 +86,8 @@ trait Fiber[+E, +A] { self =>
       def join: IO[E, B] = self.join.map(f)
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
+
+      def finished(f: ExitResult[E, B] => IO[Nothing, Unit]): IO[Nothing, Unit] = IO.unit
     }
 }
 
@@ -81,6 +96,7 @@ object Fiber {
     new Fiber[E, A] {
       def join: IO[E, A]                                     = IO.point(a)
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = IO.unit
+      def finished(f: ExitResult[E, A] => IO[Nothing, Unit]) = IO.unit
     }
 
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
