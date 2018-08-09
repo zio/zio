@@ -4,6 +4,7 @@ import scala.collection.immutable.Range
 import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
+
 import scalaz.zio.IO
 
 class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
@@ -29,6 +30,11 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     take can be interrupted and all resources are released ${upTo(1.second)(e9)}
     offer can be interrupted and all resources are released ${upTo(1.second)(e10)}
     make an unbounded queue, add and retrieve values in correct order ${upTo(1.second)(e11)}
+    make an unbounded queue, add and retrieve all values in correct order ${upTo(1.second)(e12)}
+    make an unbounded queue, add, take and retrieve all values returning empty list ${upTo(
+      1.second
+    )(e13)}
+    make a bounded queue, add and retrieve all values in correct order ${upTo(1.second)(e14)}
     """
 
   def e1 = unsafeRun(
@@ -140,6 +146,39 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v2    <- queue.take
       v3    <- queue.take
     } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3)
+  )
+
+  def e12 = unsafeRun(
+    for {
+      queue <- Queue.unbounded[Int]
+      _     <- queue.offer(1)
+      _     <- queue.offer(2)
+      _     <- queue.offer(3)
+      v     <- queue.takeAll
+    } yield v must_=== List(1, 2, 3)
+  )
+
+  def e13 = unsafeRun(
+    for {
+      queue <- Queue.unbounded[Int]
+      c     <- queue.takeAll
+      _     <- queue.offer(1)
+      _     <- queue.take
+      v     <- queue.takeAll
+    } yield (c must_=== List.empty).and(v must_=== List.empty)
+  )
+
+  def e14 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](3)
+      _     <- queue.offer(1).fork
+      _     <- queue.offer(2).fork
+      _     <- queue.offer(3).fork
+      _     <- queue.offer(4).fork
+      _     <- waitForSize(queue, 4)
+      v     <- queue.takeAll
+      c     <- queue.take
+    } yield (v must_=== List(1, 2, 3)).and(c must_=== 4)
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
