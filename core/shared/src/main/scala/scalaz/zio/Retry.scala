@@ -386,11 +386,22 @@ object Retry {
   final def fixed[E](duration: Duration): Retry[E, Int] =
     counted.updated((_, _, io) => io.delay(duration))
 
-  final def backoff[E](base: Duration,
-                       sleep: (Int, Duration) => IO[E, Duration],
-                       cap: Option[Duration] = None): Retry[E, (Int, Duration)] = {
+  /**
+   * A retry strategy that will always succeed, but will wait a certain amount between retries.
+   *
+   * This is the most flexible version of backoff which allows to compute the
+   * time to sleep based on number of retries and previous sleep time.
+   *
+   * @param base Time to sleep on the first retry
+   * @param sleep Function to compute the time to sleep on the next retry.
+   *              It receives to parameter (n, d), where n is the number
+   *              of retries so far and d is the previous sleep time.
+   *              It returns IO so that is can perform effects such as
+   *              query the current time or as for a random number.
+   */
+  final def exponential0[E](base: Duration, sleep: (Int, Duration) => IO[E, Duration]): Retry[E, (Int, Duration)] = {
     val up: ((Int, Duration)) => IO[E, (Int, Duration)] = {
-      case (n, d) => sleep(n, d).map(d0 => (n + 1, d0)).delay(cap.fold(d)(_.min(d)))
+      case (n, d) => sleep(n, d).map((n + 1, _)).delay(d)
     }
     Retry[E, (Int, Duration)](IO.now((0, base)), (_, s) => up(s))
   }
@@ -400,29 +411,33 @@ object Retry {
    * between retries, given by `base * factor.pow(n)`, where `n` is the
    * number of retries so far.
    */
-  final def exponentialBackoff[E](base: Duration,
-                                  factor: Double = 2.0,
-                                  cap: Option[Duration] = None): Retry[E, (Int, Duration)] =
-    backoff(base, (n, _) => IO.now(base * math.pow(factor, n.doubleValue)), cap)
+  final def exponential[E](base: Duration, factor: Double = 2.0): Retry[E, (Int, Duration)] =
+    exponential0(base, (n, _) => IO.now(base * math.pow(factor, n.doubleValue)))
 
-  final def fullJitter[E](base: Duration,
-                          factor: Double = 2.0,
-                          cap: Option[Duration] = None): Retry[E, (Int, Duration)] = {
+  /**
+   * Exponential backoff with jitter as described here
+   * [[https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/ Exponential Backoff And Jitter]]
+   *
+   * It computes the next time to sleep in the same way as `exponential` does:
+   * {{{
+   * val exp = base * math.pow(factor, n)
+   * }}}
+   * But it adds some randomness to the equation as specified by `rndRangeFactors = (minFac, maxFac)`
+   * {{{
+   * val sleep = randomBetween(exp * minFac, exp * maxFac)
+   * }}}
+   * In order to get '''Full Jitter''' use `rndRangeFactors = (0, 1)` (default). If you prefer
+   * '''Equal Jitter''' use `rndRangeFactors = (0.5, 0.5)`
+   */
+  final def exponentialJitter[E](base: Duration,
+                                 factor: Double = 2.0,
+                                 rndRangeFactors: (Double, Double) = (0.0, 1.0)): Retry[E, (Int, Duration)] = {
     def jitter(n: Int) = {
-      val exp = base * math.pow(factor, n.doubleValue)
-      IO.sync(util.Random.nextDouble()).map(exp * _)
+      val exp                    = base * math.pow(factor, n.doubleValue)
+      val (rndMinFac, rndMaxFac) = rndRangeFactors
+      IO.sync(util.Random.nextDouble()).map(exp * rndMinFac + exp * rndMaxFac * _)
     }
-    backoff(base, (n, _) => jitter(n), cap)
-  }
-
-  final def equalJitter[E](base: Duration,
-                           factor: Double = 2.0,
-                           cap: Option[Duration] = None): Retry[E, (Int, Duration)] = {
-    def jitter(n: Int) = {
-      val expHalf = (base * math.pow(factor, n.doubleValue)) / 2
-      IO.sync(util.Random.nextDouble()).map(expHalf + expHalf * _)
-    }
-    backoff(base, (n, _) => jitter(n), cap)
+    exponential0(base, (n, _) => jitter(n))
   }
 
 }
