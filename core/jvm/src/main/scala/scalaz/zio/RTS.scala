@@ -244,7 +244,7 @@ private object RTS {
           case a: IO.Redeem[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.run[Nothing, Unit].map(collectDefect)
+            val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else
               finalizer = finalizer.zipWith(f)(zipFailures)
@@ -278,7 +278,7 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer =>
-            val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.run[Nothing, Unit].map(collectDefect)
+            val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else
               finalizer = finalizer.zipWith(f)(zipFailures)
@@ -573,20 +573,6 @@ private object RTS {
 
                     if (curIo eq null) {
                       result = ExitResult.Completed(value)
-                    }
-
-                  case IO.Tags.Run =>
-                    val io = curIo.asInstanceOf[IO.Run[E, Any]]
-
-                    val value: FiberContext[E, Any] = fork(io.value, unhandled)
-
-                    curIo = IO.async0[E, Any] { k =>
-                      value.register { (v: ExitResult[E, Any]) =>
-                        k(ExitResult.Completed(v))
-                      } match {
-                        case Async.Now(v) => Async.Now(ExitResult.Completed(v))
-                        case x            => x
-                      }
                     }
 
                   case IO.Tags.Ensuring =>

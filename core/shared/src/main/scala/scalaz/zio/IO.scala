@@ -520,7 +520,13 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
-  final def run[E1 >: E, A1 >: A]: IO[Nothing, ExitResult[E1, A1]] = new IO.Run(self)
+  final def run: IO[Nothing, ExitResult[E, A]] = 
+    for {
+      p <- Promise.make[Nothing, ExitResult[E, A]]
+      f <- self.fork
+      _ <- f.finished(r => p.done(ExitResult.Completed(r)).void)
+      r <- p.get
+    } yield r
 
   /**
    * Widens the action type to any supertype. While `map` suffices for this
@@ -568,8 +574,7 @@ object IO {
     final val Supervise       = 13
     final val Terminate       = 14
     final val Supervisor      = 15
-    final val Run             = 16
-    final val Ensuring        = 17
+    final val Ensuring        = 16
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -647,10 +652,6 @@ object IO {
 
   final class Supervisor private[IO] () extends IO[Nothing, Throwable => IO[Nothing, Unit]] {
     override def tag = Tags.Supervisor
-  }
-
-  final class Run[E, A] private[IO] (val value: IO[E, A]) extends IO[Nothing, ExitResult[E, A]] {
-    override def tag = Tags.Run
   }
 
   final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
