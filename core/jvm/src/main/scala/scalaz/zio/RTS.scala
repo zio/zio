@@ -768,6 +768,8 @@ private object RTS {
 
     final def join: IO[E, A] = IO.async0(join0)
 
+    final override def finished(f: ExitResult[E, A] => IO[Nothing, Unit]): IO[Nothing, Unit] = ???
+
     final def enterSupervision: IO[E, Unit] = IO.sync {
       supervising += 1
 
