@@ -283,9 +283,9 @@ sealed abstract class IO[+E, +A] { self =>
     IO.bracket0[E1, A, B](this)(
       (a: A, eb: ExitResult[E1, B]) =>
         eb match {
-          case ExitResult.Failed(_, _) => release(a)
+          case ExitResult.Failed(_, _)  => release(a)
           case ExitResult.Terminated(_) => release(a)
-          case _ => IO.unit
+          case _                        => IO.unit
       }
     )(use)
 
@@ -297,7 +297,7 @@ sealed abstract class IO[+E, +A] { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Completed(_) => IO.unit
+          case ExitResult.Completed(_)  => IO.unit
           case ExitResult.Failed(e, _)  => cleanup(Some(e))
           case ExitResult.Terminated(_) => cleanup(None)
       }
@@ -521,7 +521,7 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
-  final def run: IO[Nothing, ExitResult[E, A]] = 
+  final def run: IO[Nothing, ExitResult[E, A]] =
     for {
       p <- Promise.make[Nothing, ExitResult[E, A]]
       f <- self.fork
@@ -871,10 +871,10 @@ object IO {
       a <- acquire.uninterruptibly
       p <- Promise.make[Nothing, ExitResult[E, B]]
       b <- (for {
-        f <- use(a).fork
-        _ <- f.finished((r: ExitResult[E, B]) => p.done(ExitResult.Completed(r)).void)
-        b <- f.join
-      } yield b).ensuring(p.get.flatMap(r => release(a, r)))
+            f <- use(a).fork
+            _ <- f.finished((r: ExitResult[E, B]) => p.done(ExitResult.Completed(r)).void)
+            b <- f.join
+          } yield b).ensuring(p.get.flatMap(r => release(a, r)))
     } yield b
 
   /**
