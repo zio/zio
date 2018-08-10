@@ -81,16 +81,15 @@ trait Fiber[+E, +A] { self =>
             (ra, rb) match {
               case (ExitResult.Completed(a), ExitResult.Completed(b)) => fc(ExitResult.Completed(f(a, b)))
               case _ =>
-                ra match {
+                (ra match {
                   case ExitResult.Failed(e, ts)  => fc(ExitResult.Failed(e, ts))
                   case ExitResult.Terminated(ts) => fc(ExitResult.Terminated(ts))
                   case _                         => IO.unit
-                }
-                rb match {
+                }) *> (rb match {
                   case ExitResult.Failed(e, ts)  => fc(ExitResult.Failed(e, ts))
                   case ExitResult.Terminated(ts) => fc(ExitResult.Terminated(ts))
                   case _                         => IO.unit
-                }
+                })
             }
           }
         }
@@ -117,7 +116,7 @@ object Fiber {
     new Fiber[E, A] {
       def join: IO[E, A]                                       = IO.point(a)
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]   = IO.unit
-      def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]) = IO.unit
+      def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]) = f(ExitResult.Completed(a))
     }
 
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
