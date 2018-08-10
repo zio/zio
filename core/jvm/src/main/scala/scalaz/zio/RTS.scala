@@ -762,10 +762,10 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case x: Executing[E, A] =>
-          if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) onComplete0(f)
-        case x: AsyncRegion[E, A] =>
-          if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) onComplete0(f)
+        case x @ Executing(_, _, fs, _, _) =>
+          if (!status.compareAndSet(oldStatus, x.copy(exitHandler = f :: fs))) onComplete0(f)
+        case x @ AsyncRegion(_, _, _, _, _, fs, _, _) =>
+          if (!status.compareAndSet(oldStatus, x.copy(exitHandler = f :: fs))) onComplete0(f)
         case Done(v) =>
           rts.submit(evaluate(f(v)))
       }
@@ -1052,7 +1052,7 @@ private object RTS {
     }
 
     private final def purgeJoinersKillers(v: ExitResult[E, A],
-                                          exitHandler: Option[ExitResult[E, A] => IO[Nothing, Unit]],
+                                          exitHandler: List[ExitResult[E, A] => IO[Nothing, Unit]],
                                           joiners: List[Callback[E, A]],
                                           killers: List[Callback[E, Unit]]): Unit = {
       // To preserve fair scheduling, we submit all resumptions on the thread
@@ -1074,7 +1074,7 @@ private object RTS {
   object FiberStatus {
     final case class Executing[E, A](terminationCauses: Option[List[Throwable]],
                                      defects: List[Throwable],
-                                     exitHandler: Option[ExitResult[E, A] => IO[Nothing, Unit]],
+                                     exitHandler: List[ExitResult[E, A] => IO[Nothing, Unit]],
                                      joiners: List[Callback[E, A]],
                                      killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
@@ -1083,7 +1083,7 @@ private object RTS {
                                        reentrancy: Int,
                                        resume: Int,
                                        cancel: Option[Canceler],
-                                       exitHandler: Option[ExitResult[E, A] => IO[Nothing, Unit]],
+                                       exitHandler: List[ExitResult[E, A] => IO[Nothing, Unit]],
                                        joiners: List[Callback[E, A]],
                                        killers: List[Callback[E, Unit]])
         extends FiberStatus[E, A]
@@ -1092,7 +1092,7 @@ private object RTS {
       override def defects: List[Throwable]                   = Nil
     }
 
-    def Initial[E, A] = Executing[E, A](None, Nil, None, Nil, Nil)
+    def Initial[E, A] = Executing[E, A](None, Nil, Nil, Nil, Nil)
   }
 
   val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.Completed(())
