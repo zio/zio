@@ -52,6 +52,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     test eval of async fail                 $testEvalOfAsyncAttemptOfFail
     bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1)}
     interrupt waits for finalizer           $testInterruptWaitsForFinalizer
+  
+  RTS exit handlers
+    exit handlers get called                $testExitHandlers
 
   RTS synchronous stack safety
     deep map of point                       $testDeepMapOfPoint
@@ -329,6 +332,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       _    <- s.interrupt
       test <- r.get
     } yield test must_=== true)
+
+  def testExitHandlers = {
+    var counter = 0
+    unsafeRun(for {
+      f <- IO.now(Fiber.point("hello"))
+      _ <- f.onComplete(_ => IO.sync(counter += 1))
+      _ <- f.onComplete(_ => IO.sync(counter += 1))
+      _ <- f.onComplete(_ => IO.sync(counter += 1))
+      p <- Promise.make[Nothing, String]
+      _ <- f.onComplete(r => p.done(r).void)
+      a <- p.get
+    } yield a) must_=== "hello"
+
+    counter must_=== 3
+  }
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
