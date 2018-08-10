@@ -525,7 +525,7 @@ sealed abstract class IO[+E, +A] { self =>
     for {
       p <- Promise.make[Nothing, ExitResult[E, A]]
       f <- self.fork
-      _ <- f.finished(r => p.done(ExitResult.Completed(r)).void)
+      _ <- f.onComplete(r => p.done(ExitResult.Completed(r)).void)
       r <- p.get
     } yield r
 
@@ -872,7 +872,7 @@ object IO {
         a <- acquire.uninterruptibly
         b <- (for {
               f <- use(a).fork
-              _ <- f.finished(r => m.set(Some(r)))
+              _ <- f.onComplete(r => m.set(Some(r)))
               b <- f.join
             } yield b).ensuring(m.get.flatMap(_.fold(unit)(release(a, _))))
       } yield b
