@@ -1059,7 +1059,7 @@ private object RTS {
       // pool in (rough) order of their submission.
       killers.reverse.foreach(k => rts.submit(k(SuccessUnit)))
       joiners.foreach(k => rts.submit(k(v)))
-      exitHandler.foreach(k => rts.submit(evaluate(k(v))))
+      exitHandler.foreach(k => rts.unsafeRunAsync(k(v))((_: ExitResult[Nothing, Unit]) => ()))
     }
   }
 
