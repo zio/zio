@@ -754,18 +754,18 @@ private object RTS {
 
     final def join: IO[E, A] = IO.async0(join0)
 
-    final override def finished(f: ExitResult[E, A] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-      IO.sync(finished0(f))
+    final override def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]): IO[Nothing, Unit] =
+      IO.sync(onComplete0(f))
 
     @tailrec
-    final def finished0(f: ExitResult[E, A] => IO[Nothing, Unit]): Unit = {
+    final def onComplete0(f: ExitResult[E, A] => IO[Nothing, Unit]): Unit = {
       val oldStatus = status.get
 
       oldStatus match {
         case x: Executing[E, A] =>
-          if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) finished0(f)
+          if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) onComplete0(f)
         case x: AsyncRegion[E, A] =>
-          if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) finished0(f)
+          if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) onComplete0(f)
         case Done(v) =>
           rts.submit(evaluate(f(v)))
       }
