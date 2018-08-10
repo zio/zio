@@ -100,20 +100,11 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    */
   final def takeUpTo(max: Int): IO[Nothing, List[A]] =
     ref.modify[List[A]] {
-      case Surplus(values, putters) if max > values.size =>
-        (values.toList, Surplus(IQueue.empty[A], putters))
       case Surplus(values, putters) =>
-        val (listA, queue) =
-          (0 until max)
-            .foldLeft((Nil: List[A], values)) {
-              case ((l, q), _) =>
-                q.dequeueOption match {
-                  case Some((a, b)) => (a :: l, b)
-                  case None         => (l, q)
-                }
-            }
+        val listA = values.take(max).toList
+        val queue = values.drop(max)
 
-        (listA.reverse, Surplus(queue, putters))
+        (listA, Surplus(queue, putters))
       case state @ Deficit(_) => (Nil, state)
     }
 
