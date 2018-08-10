@@ -416,7 +416,7 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Retries with the specified retry strategy.
    */
-  final def retryWith[E1 >: E, S](retry: Retry[E1, S]): IO[E1, A] = {
+  final def retry[E1 >: E, S](retry: Retry[E1, S]): IO[E1, A] = {
     type State = retry.State
 
     def loop(s: State): IO[E1, A] =
@@ -424,33 +424,6 @@ sealed abstract class IO[+E, +A] { self =>
 
     retry.initial.flatMap(loop)
   }
-
-  /**
-   * Retries continuously until this action succeeds.
-   */
-  final def retry: IO[E, A] = self orElse retry
-
-  /**
-   * Retries this action the specified number of times, until the first success.
-   * Note that the action will always be run at least once, even if `n < 1`.
-   */
-  final def retryN(n: Int): IO[E, A] = retryBackoff(n, 1.0, Duration.fromNanos(0))
-
-  /**
-   * Retries continuously until the action succeeds or the specified duration
-   * elapses.
-   */
-  final def retryFor[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    retry.map(f).race(IO.sleep(duration) *> IO.now[B](z))
-
-  /**
-   * Retries continuously, increasing the duration between retries each time by
-   * the specified multiplication factor, and stopping after the specified upper
-   * limit on retries.
-   */
-  final def retryBackoff(n: Int, factor: Double, duration: Duration): IO[E, A] =
-    if (n <= 1) self
-    else self orElse (IO.sleep(duration) *> retryBackoff(n - 1, factor, duration * factor))
 
   /**
    * Repeats this action continuously until the first error, with the specified

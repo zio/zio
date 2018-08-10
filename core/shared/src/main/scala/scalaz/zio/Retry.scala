@@ -44,6 +44,7 @@ trait Retry[E, +S] { self =>
     def proj(state: State): S = self.proj(state)
 
     def update(e: E, s: State): IO[E, State] =
+      // FIXME This impl never updates the state leading to infinite recursion
       self.update(e, s).redeem(_ => IO.now(s), _ => IO.fail(e))
   }
 
@@ -59,9 +60,9 @@ trait Retry[E, +S] { self =>
 
       def proj(state: State): S = self.proj(state)
 
-      def update(e: E, s: State): IO[E, State] =
+      def update(e: E, s0: State): IO[E, State] =
         for {
-          s <- self.update(e, s)
+          s <- self.update(e, s0)
           a <- action(e, proj(s))
           _ <- if (pred(a)) IO.now(s) else IO.fail(e)
         } yield s
@@ -77,19 +78,19 @@ trait Retry[E, +S] { self =>
    * Returns a new strategy that retries until the error matches the condition.
    */
   final def untilError(p: E => Boolean): Retry[E, S] =
-    !whileError(p)
+    whileError(!p(_))
 
   /*
    * Returns a new strategy that retries until the state matches the condition.
    */
   final def untilState(p: S => Boolean): Retry[E, S] =
-    check[S]((_, s) => IO.now(s))(p)
+    whileState(!p(_))
 
   /*
    * Returns a new strategy that retries while the state matches the condition.
    */
   final def whileState(p: S => Boolean): Retry[E, S] =
-    !untilState(p)
+    check[S]((_, s) => IO.now(s))(p)
 
   /**
    * Returns a new strategy that retries for as long as this strategy and the
