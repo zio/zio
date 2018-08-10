@@ -26,6 +26,8 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
    Create a list of Ints and map with IO.point:
       `IO.forkAll` returns the list of Ints in the same order. $t7
    Check done lifts exit result into IO. $testDone
+   Retry on failure according to a provided strategy
+       for a given number of times $retryN
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -85,6 +87,30 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     unsafeRun(IO.done(completed)) must_=== 1
     unsafeRun(IO.done(terminated)) must throwA(error)
     unsafeRun(IO.done(failed)) must throwA(Errors.UnhandledError(error))
+  }
+
+  def retryCollect[E, A, E1 >: E, S](io: IO[E, A], retry: Retry[E1, S]): IO[Nothing, (Either[E1, A], List[S])] = {
+    type State = retry.State
+
+    def loop(ss: List[State]): IO[Nothing, (Either[E1, A], List[S])] =
+      io.redeem(
+        err => retry.update(err, ss.head).redeem(
+          e => IO.now((Left(e), ss.map(retry.proj))),
+          s => loop(s :: ss)
+        ),
+        suc => IO.now((Right(suc), ss.map(retry.proj)))
+      )
+
+    retry.initial.redeem(
+      e => IO.now((Left(e), Nil)),
+      s => loop(List(s)).map(x => (x._1, x._2.reverse))
+    )
+  }
+
+  def retryN = {
+    val retried = unsafeRun(retryCollect(IO.fail("Error"), Retry.retries[String](5)))
+    val expected = (Left("Error"), List(0, 1, 2, 3, 4))
+    retried must_=== expected
   }
 
 }
