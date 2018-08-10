@@ -80,10 +80,17 @@ trait Fiber[+E, +A] { self =>
           that.finished { rb: ExitResult[E1, B] =>
             (ra, rb) match {
               case (ExitResult.Completed(a), ExitResult.Completed(b)) => fc(ExitResult.Completed(f(a, b)))
-              case (ExitResult.Failed(e, ts), _)                      => fc(ExitResult.Failed(e, ts))
-              case (ExitResult.Terminated(ts), _)                     => fc(ExitResult.Terminated(ts))
-              case (_, ExitResult.Failed(e, ts))                      => fc(ExitResult.Failed(e, ts))
-              case (_, ExitResult.Terminated(ts))                     => fc(ExitResult.Terminated(ts))
+              case _ =>
+                ra match {
+                  case ExitResult.Failed(e, ts)  => fc(ExitResult.Failed(e, ts))
+                  case ExitResult.Terminated(ts) => fc(ExitResult.Terminated(ts))
+                  case _                         => IO.unit
+                }
+                rb match {
+                  case ExitResult.Failed(e, ts)  => fc(ExitResult.Failed(e, ts))
+                  case ExitResult.Terminated(ts) => fc(ExitResult.Terminated(ts))
+                  case _                         => IO.unit
+                }
             }
           }
         }
