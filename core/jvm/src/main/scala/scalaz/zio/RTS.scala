@@ -762,9 +762,9 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case x @ Executing(_, _, _, _, _) =>
+        case x : Executing[E, A] =>
           if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) finished0(f)
-        case x @ AsyncRegion(_, _, _, _, _, _, _, _) =>
+        case x : AsyncRegion[E, A] =>
           if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) finished0(f)
         case Done(v) =>
           rts.submit(evaluate(f(v)))
