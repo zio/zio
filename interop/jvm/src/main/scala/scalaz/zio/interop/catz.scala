@@ -14,11 +14,11 @@ object catz extends RTS {
       fa: Task[A]
     )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.IO[Unit] = {
       val cbZ2C: ExitResult[Throwable, A] => Either[Throwable, A] = {
-        case ExitResult.Completed(a)       => Right(a)
-        case ExitResult.Failed(t, _)       => Left(t)
+        case ExitResult.Completed(a)            => Right(a)
+        case ExitResult.Failed(t, _)            => Left(t)
         case ExitResult.Terminated(Nil, Nil)    => Left(Errors.TerminatedFiber)
         case ExitResult.Terminated(Nil, t :: _) => Left(t)
-        case ExitResult.Terminated(t :: _, _) => Left(t)
+        case ExitResult.Terminated(t :: _, _)   => Left(t)
       }
       effect.IO {
         unsafeRunAsync(fa) {

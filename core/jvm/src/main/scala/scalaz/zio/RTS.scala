@@ -19,11 +19,11 @@ trait RTS {
    * error, running forever, or producing an `A`.
    */
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
-    case ExitResult.Completed(v)       => v
+    case ExitResult.Completed(v)            => v
     case ExitResult.Terminated(Nil, Nil)    => throw Errors.TerminatedFiber
     case ExitResult.Terminated(Nil, t :: _) => throw t
-    case ExitResult.Terminated(t :: _, _) => throw t
-    case ExitResult.Failed(e, ts)      => throw Errors.UnhandledError(e, ts)
+    case ExitResult.Terminated(t :: _, _)   => throw t
+    case ExitResult.Failed(e, ts)           => throw Errors.UnhandledError(e, ts)
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
@@ -224,8 +224,8 @@ private object RTS {
     private final def collectDefect[E, A](e: ExitResult[E, A]): Option[List[Throwable]] =
       e match {
         case ExitResult.Terminated(_, ts @ _ :: _) => Some(ts)
-        case ExitResult.Failed(_, ts @ _ :: _)  => Some(ts)
-        case _                                  => None
+        case ExitResult.Failed(_, ts @ _ :: _)     => Some(ts)
+        case _                                     => None
       }
 
     /**
