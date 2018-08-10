@@ -867,15 +867,15 @@ object IO {
   final def bracket0[E, A, B](
     acquire: IO[E, A]
   )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[ExitResult[E, B]]](None).flatMap { m =>
-      for {
+    Ref[Option[(A, ExitResult[E, B])]](None).flatMap { m =>
+      (for {
         a <- acquire.uninterruptibly
-        b <- (for {
+        b <- for {
               f <- use(a).fork
-              _ <- f.onComplete(r => m.set(Some(r)))
+              _ <- f.onComplete(r => m.set(Some((a, r))))
               b <- f.join
-            } yield b).ensuring(m.get.flatMap(_.fold(unit)(release(a, _))))
-      } yield b
+            } yield b
+      } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
     }
 
   /**
