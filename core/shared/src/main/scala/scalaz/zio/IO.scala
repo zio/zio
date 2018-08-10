@@ -790,7 +790,7 @@ object IO {
       )
     )
 
-  final def shift[E, A](ec: ExecutionContext): IO[Nothing, Unit] =
+  final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
     IO.async { cb: Callback[Nothing, Unit] =>
       ec.execute(new Runnable {
         override def run(): Unit = cb(ExitResult.Completed(()))
