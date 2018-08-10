@@ -767,7 +767,7 @@ private object RTS {
         case x @ AsyncRegion(_, _, _, _, _, _, _, _) =>
           if (!status.compareAndSet(oldStatus, x.copy(exitHandler = Some(f)))) finished0(f)
         case Done(v) =>
-          rts.unsafeRun(f(v))
+          rts.submit(evaluate(f(v)))
       }
     }
 
@@ -1059,7 +1059,7 @@ private object RTS {
       // pool in (rough) order of their submission.
       killers.reverse.foreach(k => rts.submit(k(SuccessUnit)))
       joiners.foreach(k => rts.submit(k(v)))
-      exitHandler.foreach(k => rts.submit(rts.unsafeRun(k(v))))
+      exitHandler.foreach(k => rts.submit(evaluate(k(v))))
     }
   }
 
