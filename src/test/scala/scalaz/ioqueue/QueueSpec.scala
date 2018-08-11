@@ -37,7 +37,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue, add and retrieve all values in correct order ${upTo(1.second)(e14)}
     make a bounded queue then call `offerAll` to add all values in the queue ${upTo(1.second)(e15)}
     make a bounded queue then call `offerAll` should enqueue all requests if we the exceed capacity of the queue ${upTo(1.second)(e16)}
-    `offerAll` can be interrupted fiber which is suspended on `offer` ${upTo(1.second)(e17)}
+    offerAll can be interrupted fiber which is suspended on `offer` ${upTo(1.second)(e17)}
+    offerAll does not preserve the order of the List ${upTo(1.second)(e18)}
+    offerAll does not preserve the order of the List whe it exceeds the queue's capacity ${upTo(1.second)(e19)}
     """
 
   def e1 = unsafeRun(
@@ -188,7 +190,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     queue <- Queue.bounded[Int](10)
     orders = Range.inclusive(1, 10).toList
     _     <- queue.offerAll(orders)
-  _       <- waitForSize(queue, 10)
+    _     <- waitForSize(queue, 10)
     l     <- queue.takeAll
   } yield l must_=== orders)
 
@@ -197,16 +199,32 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     orders = Range.inclusive(1, 3).toList
     _     <- queue.offerAll(orders).fork
     size  <- waitForSize(queue, 3)
-  } yield size must_=== 3)
+    l     <- queue.takeAll
+  } yield (size must_=== 3) and (l must_=== Nil))
 
   def e17 =  unsafeRun(for {
     queue <- Queue.bounded[Int](0)
     orders = Range.inclusive(1, 3).toList
-    _     <- queue.offerAll(orders).fork
-    check <- (queue.interruptOffer(new Exception("interrupt offer in e17")) <* IO.sleep(1.millis))
-              .doWhile(!_)
-    size  <- waitForSize(queue, 0)
-  } yield (size must_=== 0) and (check must_=== true))
+    f     <- queue.offerAll(orders).fork
+    _     <- f.interrupt(new Exception("interrupt offer in e17"))
+    l     <- queue.takeAll
+  } yield (l must_=== Nil))
+
+  def e18 = unsafeRun(for {
+    queue <- Queue.bounded[Int](1000)
+    orders = Range.inclusive(1, 1000).toList
+    _     <- queue.offerAll(orders) 
+    _     <- waitForSize(queue, 1000)
+    l     <- queue.takeAll
+  } yield l must_=== orders) 
+
+  def e19  = unsafeRun(for {
+    queue  <- Queue.bounded[Int](1000)
+    orders  = Range.inclusive(1, 2000).toList
+    _      <- queue.offerAll(orders) 
+    _      <- waitForSize(queue, 2000)
+    l      <- queue.takeAll
+  } yield l must_=== Range.inclusive(1, 1000).toList)
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).doWhile(_ != size)
