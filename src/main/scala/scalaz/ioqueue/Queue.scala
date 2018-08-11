@@ -97,6 +97,20 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   }
 
   /**
+   * Take up to max number of values in the queue. If max > offered, this
+   * will return all the elements in the queue without waiting for more offers.
+   */
+  final def takeUpTo(max: Int): IO[Nothing, List[A]] =
+    ref.modify[List[A]] {
+      case Surplus(values, putters) =>
+        val listA = values.take(max).toList
+        val queue = values.drop(max)
+
+        (listA, Surplus(queue, putters))
+      case state @ Deficit(_) => (Nil, state)
+    }
+
+  /**
    * Interrupts any fibers that are suspended on `take` because the queue is
    * empty. If any fibers are interrupted, returns true, otherwise, returns
    * false.
