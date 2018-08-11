@@ -2,9 +2,9 @@ package scalaz.ioqueue
 
 // Copyright (C) 2018 John A. De Goes. All rights reserved.
 
-import scala.collection.immutable.{Queue => IQueue}
+import scala.collection.immutable.{ Queue => IQueue }
 import Queue.internal._
-import scalaz.zio.{Fiber, IO, Promise, Ref}
+import scalaz.zio.{ Fiber, IO, Promise, Ref }
 
 import scala.annotation.tailrec
 
@@ -156,65 +156,81 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     }.toUnit
 
   /**
-    * It will try to place all the values in the queue. If the queue has reached its maximum capacity, then
-    * the fiber performing the `offerAll` will be suspended until there is room in
-    * the queue to add the remaining elements.
-    */
+   * It will try to place all the values in the queue. If the queue has reached its maximum capacity, then
+   * the fiber performing the `offerAll` will be suspended until there is room in
+   * the queue to add the remaining elements.
+   */
   final def offerAll(as: Iterable[A]): IO[Nothing, Unit] = {
 
-    def acquire: (Iterable[A], Promise[Nothing, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
+    def acquire
+      : (Iterable[A], Promise[Nothing, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
       case (as, p, Deficit(takers))          => deficit(as, p, takers)
       case (as, p, Surplus(values, putters)) => surplus(as, p, values, putters)
     }
-    def deficit(as: Iterable[A], p: Promise[Nothing, Unit], takers: IQueue[Promise[Nothing, A]]): (IO[Nothing, Boolean], State[A]) = {
+    def deficit(
+      as: Iterable[A],
+      p: Promise[Nothing, Unit],
+      takers: IQueue[Promise[Nothing, A]]
+    ): (IO[Nothing, Boolean], State[A]) =
       deficit_(as, p, takers, List.empty)
         .foldLeft[(IO[Nothing, Boolean], State[A])](
           (IO.now(false), Deficit(takers))
         ) { case (io, currentIO) => (io._1 *> currentIO._1, currentIO._2) }
-    }
 
     @tailrec
-    def deficit_(as: Iterable[A],
-                  p: Promise[Nothing, Unit],
-                  takers: IQueue[Promise[Nothing, A]],
-                  acc: List[(IO[Nothing, Boolean], State[A])]): List[(IO[Nothing, Boolean], State[A])] =
-        (takers.dequeueOption, as.isEmpty) match {
+    def deficit_(
+      as: Iterable[A],
+      p: Promise[Nothing, Unit],
+      takers: IQueue[Promise[Nothing, A]],
+      acc: List[(IO[Nothing, Boolean], State[A])]
+    ): List[(IO[Nothing, Boolean], State[A])] =
+      (takers.dequeueOption, as.isEmpty) match {
 
-          case (None, false) if as.size <= capacity =>
-            val tuple: (IO[Nothing, Boolean], State[A]) =
-              (p.complete(()), Surplus(IQueue.empty[A] ++ as, IQueue.empty))
-            acc :+ tuple
+        case (None, false) if as.size <= capacity =>
+          val tuple: (IO[Nothing, Boolean], State[A]) =
+            (p.complete(()), Surplus(IQueue.empty[A] ++ as, IQueue.empty))
+          acc :+ tuple
 
-          case (None, false) if as.size > capacity  =>
-            val tuple:(IO[Nothing, Boolean], State[A]) = (IO.now(false), Surplus(IQueue.empty[A] ++ as.take(capacity), as.drop(capacity)
-              .foldLeft[IQueue[(A, Promise[Nothing, Unit])]](IQueue.empty)((q, a) => q.enqueue((a, p)))))
-            acc :+ tuple
+        case (None, false) if as.size > capacity =>
+          val tuple: (IO[Nothing, Boolean], State[A]) = (
+            IO.now(false),
+            Surplus(
+              IQueue.empty[A] ++ as.take(capacity),
+              as.drop(capacity)
+                .foldLeft[IQueue[(A, Promise[Nothing, Unit])]](IQueue.empty)(
+                  (q, a) => q.enqueue((a, p))
+                )
+            )
+          )
+          acc :+ tuple
 
-          case (None, true)                         =>
-            val tuple: (IO[Nothing, Boolean], State[A]) = (p.complete(()), Surplus(IQueue.empty, IQueue.empty))
-            acc :+ tuple
+        case (None, true) =>
+          val tuple: (IO[Nothing, Boolean], State[A]) =
+            (p.complete(()), Surplus(IQueue.empty, IQueue.empty))
+          acc :+ tuple
 
-          case (Some(_), true)                      =>
-            val takerss = takers
-            val tuple: (IO[Nothing, Boolean], State[A]) = (p.complete(()), Deficit(takerss))
-            acc :+ tuple
+        case (Some(_), true) =>
+          val takerss                                 = takers
+          val tuple: (IO[Nothing, Boolean], State[A]) = (p.complete(()), Deficit(takerss))
+          acc :+ tuple
 
-          case (Some((taker, takers)), false)      =>
-            val tuple: (IO[Nothing, Boolean], State[A]) = (taker.complete(as.head), Deficit(takers))
-            deficit_(as.tail, p, takers, acc :+ tuple)
-        }
+        case (Some((taker, takers)), false) =>
+          val tuple: (IO[Nothing, Boolean], State[A]) = (taker.complete(as.head), Deficit(takers))
+          deficit_(as.tail, p, takers, acc :+ tuple)
+      }
 
-
-
-    def surplus(as: Iterable[A],
-                p: Promise[Nothing, Unit],
-                values: IQueue[A],
-                putters: IQueue[(A, Promise[Nothing, Unit])]): (IO[Nothing, Boolean], Surplus[A]) =
+    def surplus(
+      as: Iterable[A],
+      p: Promise[Nothing, Unit],
+      values: IQueue[A],
+      putters: IQueue[(A, Promise[Nothing, Unit])]
+    ): (IO[Nothing, Boolean], Surplus[A]) =
       if (as.size + values.size <= capacity && putters.isEmpty) {
         (p.complete(()), Surplus(values ++ as, putters))
       } else {
         val valuesToAdd = values ++ as.take(capacity - values.size)
-        val puttersToQueue = as.drop(capacity - values.size).foldLeft(putters)((pq, a) => pq.enqueue((a, p)))
+        val puttersToQueue =
+          as.drop(capacity - values.size).foldLeft(putters)((pq, a) => pq.enqueue((a, p)))
         (IO.now(false), Surplus(valuesToAdd, puttersToQueue))
       }
 
