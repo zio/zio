@@ -790,6 +790,13 @@ object IO {
       )
     )
 
+  /**
+   * Shifts the operation to another execution context.
+   *
+   * {{{
+   *   IO.shift(myPool) *> myTask
+   * }}}
+   */
   final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
     IO.async { cb: Callback[Nothing, Unit] =>
       ec.execute(new Runnable {
