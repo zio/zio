@@ -767,7 +767,7 @@ private object RTS {
         case x @ AsyncRegion(_, _, _, _, _, fs, _, _) =>
           if (!status.compareAndSet(oldStatus, x.copy(exitHandlers = f :: fs))) onComplete0(f)
         case Done(v) =>
-          rts.submit(evaluate(f(v)))
+          rts.submit(rts.unsafeRunAsync(f(v))((_: ExitResult[Nothing, Unit]) => ()))
       }
     }
 
