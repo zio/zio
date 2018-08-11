@@ -351,12 +351,24 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def textExitHandlersZip = {
     var counter = 0
-    unsafeRun(for {
+    unsafeRun((for {
+      p1 <- Promise.make[Exception, Unit]
+      p2 <- Promise.make[Exception, Unit]
       f1 <- IO.fail(ExampleError).fork
       f2 <- IO.fail(ExampleError).fork
       f  = f1.zipWith(f2)((_: Nothing, _: Nothing) => ())
-      _  <- f.onComplete(_ => IO.sync(counter += 1))
-    } yield ())
+      _ <- f.onComplete(
+            r =>
+              IO.sync(counter += 1) *> p1.done(r).flatMap {
+                case true  => IO.unit
+                case false => p2.done(r).void
+            }
+          )
+      _ <- f1.join.attempt.void
+      _ <- f2.join.attempt.void
+      _ <- f.join.attempt.void
+      _ <- p1.get.par(p2.get)
+    } yield ()).attempt)
 
     counter must_=== 2
   }
