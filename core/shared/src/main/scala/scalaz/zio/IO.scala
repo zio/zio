@@ -294,14 +294,11 @@ sealed abstract class IO[+E, +A] { self =>
    * cleanup action if it exists. The cleanup action will not be interrupted.
    */
   final def onError(cleanup: Option[E] => IO[Nothing, Unit]): IO[E, A] =
-    IO.bracket0(IO.unit)(
-      (_, eb: ExitResult[E, A]) =>
-        eb match {
-          case ExitResult.Completed(_)  => IO.unit
-          case ExitResult.Failed(e, _)  => cleanup(Some(e))
-          case ExitResult.Terminated(_) => cleanup(None)
-      }
-    )(_ => self)
+    self.run.flatMap {
+      case ExitResult.Completed(a)   => IO.now(a)
+      case ExitResult.Failed(e, _)   => cleanup(Some(e)) *> IO.fail(e)
+      case ExitResult.Terminated(ts) => cleanup(None) *> IO.terminate0(ts)
+    }
 
   /**
    * Supervises this action, which ensures that any fibers that are forked by
