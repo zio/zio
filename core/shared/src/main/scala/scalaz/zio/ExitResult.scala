@@ -26,11 +26,13 @@ sealed trait ExitResult[+E, +A] { self =>
 
   final def failed: Boolean = !succeeded
 
-  final def fold[Z](completed: A => Z, failed: (E, List[Throwable]) => Z, interrupted: List[Throwable] => Z): Z =
+  final def fold[Z](completed: A => Z,
+                    failed: (E, List[Throwable]) => Z,
+                    interrupted: (List[Throwable], List[Throwable]) => Z): Z =
     self match {
-      case Completed(v)  => completed(v)
-      case Failed(e, ts) => failed(e, ts)
-      case Terminated(e) => interrupted(e)
+      case Completed(v)     => completed(v)
+      case Failed(e, ts)    => failed(e, ts)
+      case Terminated(e, d) => interrupted(e, d)
     }
 }
 object ExitResult {
@@ -46,5 +48,5 @@ object ExitResult {
    * `causes` accretes interruption causes and exceptions thrown during finalization:
    * first element in list = first failure, last element in list = last failure.
    */
-  final case class Terminated[E, A](causes: List[Throwable]) extends ExitResult[E, A]
+  final case class Terminated[E, A](causes: List[Throwable], defects: List[Throwable] = Nil) extends ExitResult[E, A]
 }

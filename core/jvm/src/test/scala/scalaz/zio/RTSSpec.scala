@@ -36,6 +36,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     catch multiple causes                   $testEvalOfMultipleFail
     catch failing finalizers with fail      $testFailOfMultipleFailingFinalizers
     catch failing finalizers with terminate $testTerminateOfMultipleFailingFinalizers
+    catch finalizers with empty terminate   $testTerminate0OfMultipleFailingFinalizers
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -198,7 +199,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
         .run
-    ) must_=== ExitResult.Terminated(List(ExampleError, InterruptCause1, InterruptCause2, InterruptCause3))
+    ) must_=== ExitResult.Terminated(List(ExampleError), List(InterruptCause1, InterruptCause2, InterruptCause3))
+
+  def testTerminate0OfMultipleFailingFinalizers =
+    unsafeRun(
+      IO.terminate
+        .ensuring(IO.sync(throw InterruptCause1))
+        .ensuring(IO.sync(throw InterruptCause2))
+        .ensuring(IO.sync(throw InterruptCause3))
+        .run
+    ) must_=== ExitResult.Terminated(Nil, List(InterruptCause1, InterruptCause2, InterruptCause3))
 
   def testEvalOfFailEnsuring = {
     var finalized = false

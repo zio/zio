@@ -686,9 +686,9 @@ object IO {
    * Creates an `IO` value from `ExitResult`
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Completed(b)   => now(b)
-    case ExitResult.Terminated(ts) => terminate0(ts)
-    case ExitResult.Failed(e, _)   => fail(e)
+    case ExitResult.Completed(b)      => now(b)
+    case ExitResult.Terminated(ts, d) => terminate0(ts ++ d)
+    case ExitResult.Failed(e, _)      => fail(e)
   }
 
   /**
