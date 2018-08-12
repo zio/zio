@@ -30,7 +30,6 @@ pomExtra in ThisBuild := <url>https://github.com/scalaz/scalaz-zio</url>
     </developer>
 </developers>
 
-
 dynverSonatypeSnapshots in ThisBuild := true
 isSnapshot in ThisBuild := false
 
