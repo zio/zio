@@ -296,16 +296,15 @@ sealed abstract class IO[+E, +A] { self =>
   final def onError(cleanup: Option[E] => IO[Nothing, Unit]): IO[E, A] =
     for {
       f <- self.fork
-      p <- Promise.make[Nothing, Unit]
+      p <- Promise.make[E, A]
       _ <- f.onComplete { r =>
             (r match {
               case ExitResult.Completed(_)  => IO.unit
               case ExitResult.Failed(e, _)  => cleanup(Some(e))
               case ExitResult.Terminated(_) => cleanup(None)
-            }) *> p.done(ExitResult.Completed(())).void
+            }) *> p.done(r).void
           }
-      a <- f.join
-      _ <- p.get
+      a <- p.get
     } yield a
 
   /**
