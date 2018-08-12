@@ -222,6 +222,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       IO.fail[Throwable](ExampleError).onError(cleanup).as[Any]
     ) must (throwA(UnhandledError(ExampleError)))
 
+    // FIXME: Is this an issue with thread synchronization?
+    while (!finalized) Thread.`yield`()
+
     finalized must_=== true
   }
 
