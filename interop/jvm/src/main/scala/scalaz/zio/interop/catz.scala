@@ -78,7 +78,7 @@ private class CatsMonadError[E] extends CatsMonad[E] with MonadError[IO[E, ?], E
   override def raiseError[A](e: E): IO[E, A]                                = IO.fail(e)
 }
 
-// lossy, throws away errors using the "first success" interpretation of Plus
+// lossy, throws away errors using the "first success" interpretation of SemigroupK
 private trait CatsSemigroupK[E] extends SemigroupK[IO[E, ?]] {
   override def combineK[A](a: IO[E, A], b: IO[E, A]): IO[E, A] = a.orElse(b)
 }
