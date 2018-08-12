@@ -1,22 +1,22 @@
 package scalaz.zio
 package interop
 
-import java.io.{ByteArrayOutputStream, PrintStream}
+import java.io.{ ByteArrayOutputStream, PrintStream }
+
+import cats.Eq
+import cats.effect.laws.discipline.EffectTests
+import cats.effect.laws.util.{ TestContext, TestInstances }
+import cats.implicits._
+import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, SemigroupKTests }
+import cats.syntax.all._
+import org.scalacheck.{ Arbitrary, Cogen }
+import org.scalatest.prop.Checkers
+import org.scalatest.{ FunSuite, Matchers }
+import org.typelevel.discipline.Laws
+import org.typelevel.discipline.scalatest.Discipline
+import scalaz.zio.interop.catz._
 
 import scala.util.control.NonFatal
-import cats.Eq
-import cats.implicits._
-import cats.syntax.all._
-import cats.effect.laws.discipline.EffectTests
-import org.typelevel.discipline.scalatest.Discipline
-import cats.effect.laws.util.{TestContext, TestInstances}
-import org.typelevel.discipline.Laws
-import org.scalatest.prop.Checkers
-import org.scalatest.{FunSuite, Matchers}
-import org.scalacheck.{Arbitrary, Cogen}
-import cats.laws.discipline.{BifunctorTests, MonadErrorTests, AlternativeTests, SemigroupKTests}
-
-import catz._
 
 class catzSpec extends FunSuite with Matchers with Checkers with Discipline with TestInstances with GenIO with RTS {
 
