@@ -1,3 +1,6 @@
+// Copyright (C) 2017-2018 Łukasz Biały, Paul Chiusano, Michael Pilquist,
+// Oleg Pyzhcov, Fabio Labella, Alexandru Nedelcu, Pavel Chlupacek. All rights reserved.
+
 package scalaz.zio
 
 import scalaz.zio.Semaphore.{ assertNonNegative, Entry, NonEmptyQueue, NonEmptyQueueOps, State }
