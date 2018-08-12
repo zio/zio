@@ -12,6 +12,25 @@ publishTo in ThisBuild := {
     Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
+publishMavenStyle in ThisBuild := true
+
+pomExtra in ThisBuild := <url>https://github.com/scalaz/scalaz-zio</url>
+  <licenses>
+    <license>
+      <name>APL2</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>jdegoes</id>
+      <name>John De Goes</name>
+      <url>http://degoes.net</url>
+    </developer>
+</developers>
+
+
 dynverSonatypeSnapshots in ThisBuild := true
 isSnapshot in ThisBuild := false
 
