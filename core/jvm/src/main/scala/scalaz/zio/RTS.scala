@@ -223,9 +223,10 @@ private object RTS {
 
     private final def collectDefect[E, A](e: ExitResult[E, A]): Option[List[Throwable]] =
       e match {
-        case ExitResult.Terminated(_, ts @ _ :: _) => Some(ts)
-        case ExitResult.Failed(_, ts @ _ :: _)     => Some(ts)
-        case _                                     => None
+        case ExitResult.Terminated(cs @ _ :: _, ts)  => Some(cs ++ ts)
+        case ExitResult.Terminated(Nil, ts @ _ :: _) => Some(ts)
+        case ExitResult.Failed(_, ts @ _ :: _)       => Some(ts)
+        case _                                       => None
       }
 
     /**
