@@ -1,6 +1,7 @@
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
+import xerial.sbt.Sonatype._
 
 organization in ThisBuild := "org.scalaz"
 
@@ -13,22 +14,11 @@ publishTo in ThisBuild := {
 }
 
 publishMavenStyle in ThisBuild := true
-
-pomExtra in ThisBuild := <url>https://github.com/scalaz/scalaz-zio</url>
-  <licenses>
-    <license>
-      <name>APL2</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-  <developers>
-    <developer>
-      <id>jdegoes</id>
-      <name>John De Goes</name>
-      <url>http://degoes.net</url>
-    </developer>
-</developers>
+licenses in ThisBuild := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+homepage in ThisBuild := Some(url("https://scalaz.github.io/scalaz-zio/"))
+developers in ThisBuild := List(
+  Developer(id = "jdegoes", name = "John De Goes", url = url("http://degoes.net"), email = "john@degoes.net")
+)
 
 dynverSonatypeSnapshots in ThisBuild := true
 isSnapshot in ThisBuild := false
