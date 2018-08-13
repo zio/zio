@@ -14,8 +14,7 @@ before_install:
   - export PATH=${PATH}:./vendor/bundle
 script:
   - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck test microsite/makeMicrosite
-  - if [[ "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_TAG" =~ ^v.*$ ]] ; then sbt ++$TRAVIS_SCALA_VERSION publishSigned ; fi
-  - if [[ "$TRAVIS_PULL_REQUEST" = "false" && ! ("$TRAVIS_TAG" =~ ^v.*$) ]] ; then sbt ++$TRAVIS_SCALA_VERSION publish ; fi
+  - if [[ "$TRAVIS_PULL_REQUEST" = "false" ]] ; then sbt ++$TRAVIS_SCALA_VERSION publishSigned ; fi
   - if [[ "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_TAG" =~ ^v.*$ ]] ; then sbt ++$TRAVIS_SCALA_VERSION sonatypeRelease ; fi
 env:
   global:
