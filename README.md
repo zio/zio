@@ -11,7 +11,7 @@ The package strives to deliver on the following design goals:
 **Documentation** and **Examples** can be found on the [microsite](https://scalaz.github.io/scalaz-zio/).
 
 ---
-[ZIO microsite](https://scalaz.github.io/scalaz-zio/)
+[Learn More on the ZIO Microsite](https://scalaz.github.io/scalaz-zio/)
 ---
 
 # Legal
