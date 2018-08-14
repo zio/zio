@@ -215,7 +215,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testEvalOfFailOnError = {
     var finalized = false
-    val cleanup: Option[Throwable] => IO[Nothing, Unit] =
+    val cleanup: ExitResult[Throwable, Nothing] => IO[Nothing, Unit] =
       _ => IO.sync[Unit] { finalized = true; () }
 
     unsafeRun(

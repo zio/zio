@@ -293,15 +293,15 @@ sealed abstract class IO[+E, +A] { self =>
    * Runs the cleanup action if this action errors, providing the error to the
    * cleanup action if it exists. The cleanup action will not be interrupted.
    */
-  final def onError(cleanup: Option[E] => IO[Nothing, Unit]): IO[E, A] =
+  final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
     for {
       f <- self.fork
       p <- Promise.make[E, A]
       _ <- f.onComplete { r =>
             (r match {
               case ExitResult.Completed(_)  => IO.unit
-              case ExitResult.Failed(e, _)  => cleanup(Some(e))
-              case ExitResult.Terminated(_) => cleanup(None)
+              case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
+              case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
             }) *> p.done(r).void
           }
       a <- p.get
