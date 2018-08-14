@@ -338,23 +338,22 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     } yield test must_=== true)
 
   def testExitHandlers = {
-    var counter = 0
     unsafeRun(for {
+      counter <- Ref(0)
       f <- IO.now(Fiber.point("hello"))
-      _ <- f.onComplete(_ => IO.sync(counter += 1))
-      _ <- f.onComplete(_ => IO.sync(counter += 1))
-      _ <- f.onComplete(_ => IO.sync(counter += 1))
+      _ <- f.onComplete(_ => counter.update(_ + 1).void)
+      _ <- f.onComplete(_ => counter.update(_ + 1).void)
+      _ <- f.onComplete(_ => counter.update(_ + 1).void)
       p <- Promise.make[Nothing, String]
       _ <- f.onComplete(r => p.done(r).void)
       a <- p.get
-    } yield a) must_=== "hello"
-
-    counter must_=== 3
+      b <- counter.get
+    } yield (a, b)) must_=== (("hello", 3))
   }
 
   def textExitHandlersZip = {
-    var counter = 0
     unsafeRun((for {
+      counter <- Ref(0)
       p1 <- Promise.make[Exception, Unit]
       p2 <- Promise.make[Exception, Unit]
       f1 <- IO.fail(ExampleError).fork
@@ -362,7 +361,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       f  = f1.zipWith(f2)((_: Nothing, _: Nothing) => ())
       _ <- f.onComplete(
             r =>
-              IO.sync(counter += 1) *> p1.done(r).flatMap {
+              counter.update(_ + 1) *> p1.done(r).flatMap {
                 case true  => IO.unit
                 case false => p2.done(r).void
             }
@@ -371,9 +370,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       _ <- f2.join.attempt.void
       _ <- f.join.attempt.void
       _ <- p1.get.par(p2.get)
-    } yield ()).attempt)
-
-    counter must_=== 2
+      a <- counter.get
+    } yield a).attempt) must_=== (Right(2))
   }
 
   def testEvalOfDeepSyncEffect = {
