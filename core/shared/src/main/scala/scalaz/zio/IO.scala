@@ -299,7 +299,7 @@ sealed abstract class IO[+E, +A] { self =>
       p <- Promise.make[E, A]
       _ <- f.onComplete { r =>
             (r match {
-              case ExitResult.Completed(_)  => IO.unit
+              case ExitResult.Completed(_)   => IO.unit
               case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
               case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
             }) *> p.done(r).void
@@ -874,10 +874,10 @@ object IO {
     Ref[Option[(A, ExitResult[E, B])]](None).flatMap { m =>
       (for {
         f <- (for {
-          a <- acquire
-          f <- use(a).fork
-          _ <- f.onComplete(r => m.set(Some((a, r))))
-        } yield f).uninterruptibly
+              a <- acquire
+              f <- use(a).fork
+              _ <- f.onComplete(r => m.set(Some((a, r))))
+            } yield f).uninterruptibly
         b <- f.join
       } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
     }
