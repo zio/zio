@@ -90,6 +90,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make bounded queue offer more elements than there are takers and capacity in the queue, taking elements should work correctly ${upTo(
       1.second
     )(e34)}
+    make bounded queue offer more elements than there are takers and capacity in the queue, taking elements should preserve putters queue order ${upTo(
+      1.second
+    )(e35)}
     """
 
   def e1 = unsafeRun(
@@ -435,6 +438,22 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v2 <- queue.take
       v3 <- queue.take
     } yield (v1 must_=== 1) and (v2 must_=== 2) and (v3 must_=== 3))
+
+  def e35 =
+    unsafeRun(for {
+      queue  <- Queue.bounded[Int](0)
+      orders = Range.inclusive(1, 3).toList
+      orders2 = Range.inclusive(4, 5).toList
+      _      <- queue.offerAll(orders).fork
+      _      <- waitForSize(queue, 3)
+      _      <- queue.offerAll(orders2).fork
+      _      <- waitForSize(queue, 5)
+      v1 <- queue.take
+      v2 <- queue.take
+      v3 <- queue.take
+      v4 <- queue.take
+      v5 <- queue.take
+    } yield (v1 must_=== 1) and (v2 must_=== 2) and (v3 must_=== 3) and (v4 must_=== 4) and (v5 must_=== 5))
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).doWhile(_ != size)
