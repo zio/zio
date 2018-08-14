@@ -55,7 +55,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   
   RTS exit handlers
     exit handlers get called                $testExitHandlers
-    exit handler gets called twice          $textExitHandlersZip
 
   RTS synchronous stack safety
     deep map of point                       $testDeepMapOfPoint
@@ -349,29 +348,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       a <- p.get
       b <- counter.get
     } yield (a, b)) must_=== (("hello", 3))
-  }
-
-  def textExitHandlersZip = {
-    unsafeRun((for {
-      counter <- Ref(0)
-      p1 <- Promise.make[Exception, Unit]
-      p2 <- Promise.make[Exception, Unit]
-      f1 <- IO.fail(ExampleError).fork
-      f2 <- IO.fail(ExampleError).fork
-      f  = f1.zipWith(f2)((_: Nothing, _: Nothing) => ())
-      _ <- f.onComplete(
-            r =>
-              counter.update(_ + 1) *> p1.done(r).flatMap {
-                case true  => IO.unit
-                case false => p2.done(r).void
-            }
-          )
-      _ <- f1.join.attempt.void
-      _ <- f2.join.attempt.void
-      _ <- f.join.attempt.void
-      _ <- p1.get.par(p2.get)
-      a <- counter.get
-    } yield a).attempt) must_=== (Right(2))
   }
 
   def testEvalOfDeepSyncEffect = {
