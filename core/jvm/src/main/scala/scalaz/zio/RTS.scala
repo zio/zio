@@ -101,13 +101,15 @@ trait RTS {
 
   final def impureCanceler(canceler: PureCanceler): Canceler =
     () => unsafeRun(canceler())
+
+  /** Utility function to avoid catching truly fatal exceptions. Do not allocate
+   * memory here since this would defeat the point of checking for OOME.
+   */
+  protected def nonFatal(t: Throwable): Boolean =
+    !t.isInstanceOf[VirtualMachineError]
 }
 
 private object RTS {
-  // Utility function to avoid catching truly fatal exceptions. Do not allocate
-  // memory here since this would defeat the point of checking for OOME.
-  def nonFatal(t: Throwable): Boolean =
-    !t.isInstanceOf[VirtualMachineError]
 
   sealed trait RaceState
   object RaceState {
@@ -603,7 +605,7 @@ private object RTS {
           // Catastrophic error handler. Any error thrown inside the interpreter is
           // either a bug in the interpreter or a bug in the user's code. Let the
           // fiber die but attempt finalization & report errors.
-          case t: Throwable if (nonFatal(t)) =>
+          case t: Throwable if (rts.nonFatal(t)) =>
             // Interruption cannot be interrupted:
             this.noInterrupt += 1
 
@@ -996,7 +998,7 @@ private object RTS {
               case Some(cancel) =>
                 try cancel()
                 catch {
-                  case t: Throwable if (nonFatal(t)) =>
+                  case t: Throwable if (rts.nonFatal(t)) =>
                     fork(unhandled(t :: Nil), unhandled)
                 }
             }
