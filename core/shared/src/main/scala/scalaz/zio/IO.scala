@@ -873,12 +873,12 @@ object IO {
   )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
     Ref[Option[(A, ExitResult[E, B])]](None).flatMap { m =>
       (for {
-        a <- acquire.uninterruptibly
-        b <- for {
-              f <- use(a).fork
-              _ <- f.onComplete(r => m.set(Some((a, r))))
-              b <- f.join
-            } yield b
+        f <- (for {
+          a <- acquire
+          f <- use(a).fork
+          _ <- f.onComplete(r => m.set(Some((a, r))))
+        } yield f).uninterruptibly
+        b <- f.join
       } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
     }
 
