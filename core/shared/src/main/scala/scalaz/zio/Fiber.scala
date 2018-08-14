@@ -79,9 +79,9 @@ trait Fiber[+E, +A] { self =>
         self.onComplete { ra: ExitResult[E, A] =>
           that.onComplete { rb: ExitResult[E1, B] =>
             (ra, rb) match {
-              case (ExitResult.Completed(a), ExitResult.Completed(b)) => fc(ExitResult.Completed(f(a, b)))
-              case (ExitResult.Failed(e, ts), rb)  => fc(ExitResult.Failed(e, combine(ts, rb)))
-              case (ExitResult.Terminated(ts), rb) => fc(ExitResult.Terminated(combine(ts, rb)))
+              case (ExitResult.Completed(a), ExitResult.Completed(b))   => fc(ExitResult.Completed(f(a, b)))
+              case (ExitResult.Failed(e, ts), rb)                       => fc(ExitResult.Failed(e, combine(ts, rb)))
+              case (ExitResult.Terminated(ts), rb)                      => fc(ExitResult.Terminated(combine(ts, rb)))
               case (ExitResult.Completed(_), ExitResult.Failed(e, ts))  => fc(ExitResult.Failed(e, ts))
               case (ExitResult.Completed(_), ExitResult.Terminated(ts)) => fc(ExitResult.Terminated(ts))
             }
@@ -89,9 +89,9 @@ trait Fiber[+E, +A] { self =>
         }
 
       private def combine(ts: List[Throwable], r: ExitResult[_, _]) = r match {
-        case ExitResult.Failed(_, ts2) => ts ++ ts2
+        case ExitResult.Failed(_, ts2)  => ts ++ ts2
         case ExitResult.Terminated(ts2) => ts ++ ts2
-        case _ => ts
+        case _                          => ts
       }
     }
 
