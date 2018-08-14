@@ -46,7 +46,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         if (values.length < capacity && putters.isEmpty) {
           (p.complete(()), Surplus(values.enqueue(a), putters))
         } else {
-          (IO.now(false), Surplus(values, putters.enqueue((a, p))))
+          (IO.now(false), Surplus(values, putters.enqueue((Seq(a), p))))
         }
     }
 
@@ -82,6 +82,8 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
             putters.dequeueOption match {
               case None =>
                 (IO.now(false), Deficit(IQueue.empty.enqueue(p)))
+              case Some(((a, putter), putters)) if a.tail.isEmpty =>
+                (putter.complete(()) *> p.complete(a.head), Surplus(IQueue.empty, putters))
               case Some(((a, putter), putters)) =>
                 (putter.complete(()) *> p.complete(a), Surplus(IQueue.empty, putters))
             }
@@ -143,7 +145,9 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   final private def removePutter(putter: Promise[Nothing, Unit]): IO[Nothing, Unit] =
     ref.update {
       case Surplus(values, putters) =>
-        Surplus(values, putters.filterNot(_._2 == putter))
+        Surplus(values,
+          putters.filterNot{case (l, p) => p == putter && l.size == 1}
+        )
       case d => d
     }.toUnit
 
@@ -196,10 +200,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
             IO.now(false),
             Surplus(
               IQueue.empty[A] ++ as.take(capacity),
-              as.drop(capacity)
-                .foldLeft[IQueue[(A, Promise[Nothing, Unit])]](IQueue.empty)(
-                  (q, a) => q.enqueue((a, p))
-                )
+              IQueue.empty[(Iterable[A], Promise[Nothing, Unit])].enqueue((as.drop(capacity), p))
             )
           )
           acc :+ tuple
@@ -223,15 +224,13 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       as: Iterable[A],
       p: Promise[Nothing, Unit],
       values: IQueue[A],
-      putters: IQueue[(A, Promise[Nothing, Unit])]
+      putters: IQueue[(Iterable[A], Promise[Nothing, Unit])]
     ): (IO[Nothing, Boolean], Surplus[A]) =
       if (as.size + values.size <= capacity && putters.isEmpty) {
         (p.complete(()), Surplus(values ++ as, putters))
       } else {
         val valuesToAdd = values ++ as.take(capacity - values.size)
-        val puttersToQueue =
-          as.drop(capacity - values.size).foldLeft(putters)((pq, a) => pq.enqueue((a, p)))
-        (IO.now(false), Surplus(valuesToAdd, puttersToQueue))
+        (IO.now(false), Surplus(valuesToAdd, putters.enqueue((as.drop(capacity - values.size), p))))
       }
 
     val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
@@ -264,9 +263,13 @@ object Queue {
     final case class Deficit[A](takers: IQueue[Promise[Nothing, A]]) extends State[A] {
       def size: Int = -takers.length
     }
-    final case class Surplus[A](queue: IQueue[A], putters: IQueue[(A, Promise[Nothing, Unit])])
-        extends State[A] {
-      def size: Int = queue.size + putters.length // TODO: O(n) for putters.length
+    // final case class Surplus[A](queue: IQueue[A], putters: IQueue[(A, Promise[Nothing, Unit])])
+        // extends State[A] {
+      // def size: Int = queue.size + putters.length // TODO: O(n) for putters.length
+    // }
+    final case class Surplus[A](queue: IQueue[A],
+                                putters:IQueue[(Iterable[A], Promise[Nothing, Unit])]) extends State[A] {
+      def size: Int = queue.size + putters.foldLeft(0){case (length, (as, _)) => length + as.size}
     }
   }
 }

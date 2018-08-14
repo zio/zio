@@ -87,6 +87,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     fork some takers, and offer less elements than there are takers in the queue, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e33)}
+    make bounded queue offer more elements than there are takers and capacity in the queue, taking elements should work correctly ${upTo(
+      1.second
+    )(e34)}
     """
 
   def e1 = unsafeRun(
@@ -421,6 +424,17 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       l      <- takers.join
       s      <- waitForSize(queue, -1000)
     } yield (l.toSet must_=== orders.toSet).and(s must_=== -1000))
+
+  def e34 =
+    unsafeRun(for {
+      queue  <- Queue.bounded[Int](0)
+      orders = Range.inclusive(1, 3).toList
+      _      <- queue.offerAll(orders).fork
+      _      <- waitForSize(queue, 3)
+      v1 <- queue.take
+      v2 <- queue.take
+      v3 <- queue.take
+    } yield (v1 must_=== 1) and (v2 must_=== 2) and (v3 must_=== 3))
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).doWhile(_ != size)
