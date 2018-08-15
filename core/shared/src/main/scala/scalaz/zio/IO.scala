@@ -522,12 +522,12 @@ sealed abstract class IO[+E, +A] { self =>
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
-    for {
+    (for {
       p <- Promise.make[Nothing, ExitResult[E, A]]
       f <- self.fork
       _ <- f.onComplete(r => p.done(ExitResult.Completed(r)).void)
       r <- p.get
-    } yield r
+    } yield r).supervised
 
   /**
    * Widens the action type to any supertype. While `map` suffices for this
