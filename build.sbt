@@ -4,6 +4,7 @@ import Scalaz._
 import xerial.sbt.Sonatype._
 
 organization in ThisBuild := "org.scalaz"
+sonatypeProfileName := "org.scalaz"
 
 publishTo in ThisBuild := {
   val nexus = "https://oss.sonatype.org/"
@@ -27,6 +28,10 @@ lazy val sonataCredentials = for {
   username <- sys.env.get("SONATYPE_USERNAME")
   password <- sys.env.get("SONATYPE_PASSWORD")
 } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)
+
+pgpPassphrase := sys.env.get("PGP_PASSPHRASE").map(_.toCharArray)
+pgpSecretRing := file(sys.env.get("PGP_SECRING").getOrElse("secring.gpg"))
+pgpPublicRing := file(sys.env.get("PGP_PUBRING").getOrElse("pubring.gpg"))
 
 credentials in ThisBuild ++= sonataCredentials.toSeq
 
