@@ -5,6 +5,8 @@ import scala.annotation.switch
 import scala.concurrent.duration._
 import Errors._
 
+import scala.concurrent.ExecutionContext
+
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
  * describes an effectful action that may fail with an `E`, run forever, or
@@ -789,6 +791,20 @@ object IO {
         } catch f andThen Left[E, A]
       )
     )
+
+  /**
+   * Shifts the operation to another execution context.
+   *
+   * {{{
+   *   IO.shift(myPool) *> myTask
+   * }}}
+   */
+  final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
+    IO.async { cb: Callback[Nothing, Unit] =>
+      ec.execute(new Runnable {
+        override def run(): Unit = cb(ExitResult.Completed(()))
+      })
+    }
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for

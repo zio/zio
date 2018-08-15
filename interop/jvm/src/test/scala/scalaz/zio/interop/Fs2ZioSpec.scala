@@ -9,7 +9,7 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.Specification
 import org.specs2.specification.AroundTimeout
 
-class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout {
+class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
   def is = s2"""
   A simple fs2 join must
