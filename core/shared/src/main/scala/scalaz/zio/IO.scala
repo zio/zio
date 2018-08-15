@@ -260,7 +260,7 @@ sealed abstract class IO[+E, +A] { self =>
    * or not `use` succeeded to the release action.
    */
   final def bracket0[E1 >: E, B](
-    release: (A, Option[Either[E1, B]]) => IO[Nothing, Unit]
+    release: (A, ExitResult[E1, B]) => IO[Nothing, Unit]
   )(use: A => IO[E1, B]): IO[E1, B] =
     IO.bracket0[E1, A, B](this)(release)(use)
 
@@ -283,10 +283,11 @@ sealed abstract class IO[+E, +A] { self =>
    */
   final def bracketOnError[E1 >: E, B](release: A => IO[Nothing, Unit])(use: A => IO[E1, B]): IO[E1, B] =
     IO.bracket0[E1, A, B](this)(
-      (a: A, eb: Option[Either[E1, B]]) =>
+      (a: A, eb: ExitResult[E1, B]) =>
         eb match {
-          case Some(Right(_)) => IO.unit
-          case _              => release(a)
+          case ExitResult.Failed(_, _)  => release(a)
+          case ExitResult.Terminated(_) => release(a)
+          case _                        => IO.unit
       }
     )(use)
 
@@ -294,13 +295,13 @@ sealed abstract class IO[+E, +A] { self =>
    * Runs the cleanup action if this action errors, providing the error to the
    * cleanup action if it exists. The cleanup action will not be interrupted.
    */
-  final def onError(cleanup: Option[E] => IO[Nothing, Unit]): IO[E, A] =
+  final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
     IO.bracket0(IO.unit)(
-      (_, eb: Option[Either[E, A]]) =>
+      (_, eb: ExitResult[E, A]) =>
         eb match {
-          case Some(Right(_)) => IO.unit
-          case Some(Left(e))  => cleanup(Some(e))
-          case None           => cleanup(None)
+          case ExitResult.Completed(_)   => IO.unit
+          case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
+          case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
       }
     )(_ => self)
 
@@ -522,7 +523,13 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
-  final def run[E1 >: E, A1 >: A]: IO[Nothing, ExitResult[E1, A1]] = new IO.Run(self)
+  final def run: IO[Nothing, ExitResult[E, A]] =
+    (for {
+      p <- Promise.make[Nothing, ExitResult[E, A]]
+      f <- self.fork
+      _ <- f.onComplete(r => p.done(ExitResult.Completed(r)).void)
+      r <- p.get
+    } yield r).supervised
 
   /**
    * Widens the action type to any supertype. While `map` suffices for this
@@ -570,8 +577,7 @@ object IO {
     final val Supervise       = 13
     final val Terminate       = 14
     final val Supervisor      = 15
-    final val Run             = 16
-    final val Ensuring        = 17
+    final val Ensuring        = 16
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -649,10 +655,6 @@ object IO {
 
   final class Supervisor private[IO] () extends IO[Nothing, Throwable => IO[Nothing, Unit]] {
     override def tag = Tags.Supervisor
-  }
-
-  final class Run[E, A] private[IO] (val value: IO[E, A]) extends IO[Nothing, ExitResult[E, A]] {
-    override def tag = Tags.Run
   }
 
   final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
@@ -880,20 +882,16 @@ object IO {
    */
   final def bracket0[E, A, B](
     acquire: IO[E, A]
-  )(release: (A, Option[Either[E, B]]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[(A, Option[Either[E, B]])]](None).flatMap { m =>
+  )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
+    Ref[Option[(A, ExitResult[E, B])]](None).flatMap { m =>
       (for {
-        a <- acquire
-              .flatMap(a => m.set(Some((a, None))).const(a))
-              .uninterruptibly
-        b <- use(a).attempt.flatMap(
-              eb =>
-                m.set(Some((a, Some(eb)))) *> (eb match {
-                  case Right(b) => IO.now(b)
-                  case Left(e)  => fail[E](e)
-                })
-            )
-      } yield b).ensuring(m.get.flatMap(_.fold(unit) { case (a, r) => release(a, r) }))
+        f <- (for {
+              a <- acquire
+              f <- use(a).fork
+              _ <- f.onComplete(r => m.set(Some((a, r))))
+            } yield f).uninterruptibly
+        b <- f.join
+      } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
     }
 
   /**
