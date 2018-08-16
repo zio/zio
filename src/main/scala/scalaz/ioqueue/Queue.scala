@@ -145,7 +145,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   final private def removePutter(putter: Promise[Nothing, Unit]): IO[Nothing, Unit] =
     ref.update {
       case Surplus(values, putters) =>
-        Surplus(values, putters.filterNot { case (l, p) => p == putter && l.size == 1 })
+        Surplus(values, putters.filterNot { case (_, p) => p == putter})
       case d => d
     }.toUnit
 
