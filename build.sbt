@@ -29,9 +29,17 @@ lazy val sonataCredentials = for {
   password <- sys.env.get("SONATYPE_PASSWORD")
 } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)
 
-pgpPassphrase := sys.env.get("PGP_PASSPHRASE").map(_.toCharArray)
-pgpSecretRing := file(sys.env.get("PGP_SECRING").getOrElse("secring.gpg"))
-pgpPublicRing := file(sys.env.get("PGP_PUBRING").getOrElse("pubring.gpg"))
+pgpPassphrase in Global := sys.env.get("PGP_PASSPHRASE").map(_.toArray)
+pgpSecretRing in Global := sys.env
+  .get("PGP_SECRING")
+  .map(file)
+  .getOrElse(baseDirectory.value / "project" / "secring.gpg")
+pgpPublicRing in Global := sys.env
+  .get("PGP_PUBRING")
+  .map(file)
+  .getOrElse(baseDirectory.value / "project" / "pubring.gpg")
+useGpg in Global := false
+pgpSigningKey in Global := Some(-6073725311241139476L) // "ABB5CB02682C4AEC"
 
 credentials in ThisBuild ++= sonataCredentials.toSeq
 
