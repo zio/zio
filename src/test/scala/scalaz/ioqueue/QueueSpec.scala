@@ -78,6 +78,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 0 then call `offerAll` with a list of 3 elements. The producer should be suspended and the queue should have the same size as the elements offered ${upTo(
       1.second
     )(e24)}
+<<<<<<< HEAD
     `offerAll` can be interrupted and all resources are released ${upTo(1.second)(e25)}
     `offerAll should preserve the order of the list ${upTo(1.second)(e26)}
     `offerAll` does preserve the order of the list when it exceeds the queue's capacity ${upTo(
@@ -130,6 +131,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 3, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
       1.second
     )(e43)}
+    make a sliding queue of size 3, offer 4 values and make sure we dropped the first ${upTo(
+      1.second
+    )(e44)}
     """
 
   def e1 = unsafeRun(
@@ -586,6 +590,18 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.size
       } yield ()
     ) must_=== ExitResult.Terminated(Nil)
+
+  def e44 = unsafeRun(
+    for {
+      queue <- Queue.sliding[Int](3)
+      _     <- queue.offer(1).fork
+      _     <- queue.offer(2).fork
+      _     <- queue.offer(3).fork
+      _     <- queue.offer(4).fork
+      l     <- queue.takeAll
+    } yield l must_=== List(2, 3, 4)
+  )
+
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))

@@ -17,7 +17,7 @@ import scalaz.zio.{ IO, Promise, Ref }
  * 2. Benchmark to see how slow this implementation is and if there are any
  *    easy ways to improve performance.
  */
-class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
+class Queue[A] private (capacity: Int, ref: Ref[State[A]], behaviour: QueueBehaviour) { self =>
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
@@ -232,7 +232,10 @@ object Queue {
    * until there is more room in the queue.
    */
   final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
-    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _))
+    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _, Normal))
+
+  final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] =
+    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _, Sliding))
 
   /**
    * Makes a new unbounded queue.
@@ -240,6 +243,11 @@ object Queue {
   final def unbounded[A]: IO[Nothing, Queue[A]] = bounded(Int.MaxValue)
 
   private[ioqueue] object internal {
+
+    sealed trait QueueBehaviour
+    case object Sliding extends QueueBehaviour
+    case object Normal  extends QueueBehaviour
+
 
     sealed trait State[A] {
       def size: IO[Nothing, Int]
