@@ -164,14 +164,14 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    */
   final def offerAll(as: Iterable[A]): IO[Nothing, Unit] = {
 
-    def acquire: (Iterable[A], Promise[Nothing, Unit], State[A]) => QueueState[A] = {
+    def acquire: (Iterable[A], Promise[Nothing, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
       case (as, p, Deficit(takers))          => deficit(as, p, takers)
       case (as, p, Surplus(values, putters)) => surplus(as, p, values, putters)
     }
 
-    def deficit(as: Iterable[A], p: Promise[Nothing, Unit], takers: TakersQueue[A]): QueueState[A] =
+    def deficit(as: Iterable[A], p: Promise[Nothing, Unit], takers: IQueue[Promise[Nothing, A]]): (IO[Nothing, Boolean], State[A]) =
       deficit_(as, p, takers, List.empty)
-        .foldLeft[QueueState[A]]((IO.now(false), Deficit(takers))) {
+        .foldLeft[(IO[Nothing, Boolean], State[A])]((IO.now(false), Deficit(takers))) {
           case (io, currentIO) => (io._1 *> currentIO._1, currentIO._2)
         }
 
@@ -179,9 +179,9 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     def deficit_(
       as: Iterable[A],
       p: Promise[Nothing, Unit],
-      takers: TakersQueue[A],
-      qstates: List[QueueState[A]]
-    ): List[QueueState[A]] =
+      takers: IQueue[Promise[Nothing, A]],
+      qstates: List[(IO[Nothing, Boolean], State[A])]
+    ): List[(IO[Nothing, Boolean], State[A])] =
       (takers.dequeueOption, as.headOption) match {
 
         case (None, Some(_)) if as.size <= capacity =>
@@ -192,7 +192,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
             IO.now(false),
             Surplus(
               IQueue.empty[A] ++ as.take(capacity),
-              IQueue.empty[Putter[A]].enqueue((as.drop(capacity), p))
+              IQueue.empty[(Iterable[A], Promise[Nothing, Unit])].enqueue((as.drop(capacity), p))
             )
           )
           qstates :+ state
@@ -213,8 +213,8 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       as: Iterable[A],
       p: Promise[Nothing, Unit],
       values: IQueue[A],
-      putters: PuttersQueue[A]
-    ): QueueState[A] =
+      putters: IQueue[(Iterable[A], Promise[Nothing, Unit])]
+    ): (IO[Nothing, Boolean], State[A]) =
       if (as.size + values.size <= capacity && putters.isEmpty) {
         (p.complete(()), Surplus(values ++ as, putters))
       } else {
@@ -247,19 +247,14 @@ object Queue {
 
   private[ioqueue] object internal {
 
-    type Putter[A]       = (Iterable[A], Promise[Nothing, Unit])
-    type PuttersQueue[A] = IQueue[(Iterable[A], Promise[Nothing, Unit])]
-    type TakersQueue[A]  = IQueue[Promise[Nothing, A]]
-    type QueueState[A]   = (IO[Nothing, Boolean], State[A])
-
     sealed trait State[A] {
       def size: Int
     }
-    final case class Deficit[A](takers: TakersQueue[A]) extends State[A] {
+    final case class Deficit[A](takers: IQueue[Promise[Nothing, A]]) extends State[A] {
       def size: Int = -takers.length
     }
 
-    final case class Surplus[A](queue: IQueue[A], putters: PuttersQueue[A]) extends State[A] {
+    final case class Surplus[A](queue: IQueue[A], putters: IQueue[(Iterable[A], Promise[Nothing, Unit])]) extends State[A] {
       def size: Int = queue.size + putters.foldLeft(0) {
         case (length, (as, _)) => length + as.size
       }
