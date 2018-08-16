@@ -532,10 +532,77 @@ sealed abstract class IO[+E, +A] { self =>
     } yield r).supervised
 
   /**
+   * Runs this action in a new fiber, resuming when the fiber terminates.
+   *
+   * If the fiber fails with an error it will be captured in Right side of the error Either
+   * If the fiber terminates because of defect, list of defects will be captured in the Left side of the Either
+   *
+   * Allows recovery from errors and defects alike, as in:
+   *
+   * {{{
+   * case class DomainError()
+   *
+   * val veryBadIO: IO[DomainError, Unit] =
+   *   IO.sync(5 / 0) *> IO.fail(DomainError())
+   *
+   * val caught: IO[Nothing, Unit] =
+   *   veryBadIO.sandboxed.catchAll {
+   *     case Left((_: ArithmeticException) :: Nil) =>
+   *       // Caught defect: divided by zero!
+   *       IO.now(0)
+   *     case Left(ts) =>
+   *       // Caught unknown defects, shouldn't recover!
+   *       IO.terminate0(ts)
+   *     case Right(e) =>
+   *       // Caught error: DomainError!
+   *      IO.now(0)
+   *   }
+   * }}}
+   */
+  final def sandboxed: IO[Either[List[Throwable], E], A] =
+    self.run.flatMap {
+      case ExitResult.Completed(value) =>
+        IO.now(value)
+      case ExitResult.Failed(error, _) =>
+        IO.fail(Right(error))
+      case ExitResult.Terminated(ts) =>
+        IO.fail(Left(ts))
+    }
+
+  /**
+   * Companion helper to `sandboxed`.
+   *
+   * Has a performance penalty due to forking a new fiber.
+   *
+   * Allows recovery, and partial recovery, from errors and defects alike, as in:
+   *
+   * {{{
+   * case class DomainError()
+   *
+   * val veryBadIO: IO[DomainError, Unit] =
+   *   IO.sync(5 / 0) *> IO.fail(DomainError())
+   *
+   * val caught: IO[DomainError, Unit] =
+   *   veryBadIO.sandboxWith(_.catchSome {
+   *     case Left((_: ArithmeticException) :: Nil) =>
+   *       // Caught defect: divided by zero!
+   *       IO.now(0)
+   *   })
+   * }}}
+   *
+   * Using `sandboxWith` with `catchSome` is better than using
+   * `io.sandboxed.catchAll` with a partial match, because in
+   * the latter, if the match fails, the original defects will
+   * be lost and replaced by a `MatchError`
+   */
+  final def sandboxWith[E2, B](f: IO[Either[List[Throwable], E], A] => IO[Either[List[Throwable], E2], B]): IO[E2, B] =
+    IO.unsandbox(f(self.sandboxed))
+
+  /**
    * Widens the action type to any supertype. While `map` suffices for this
    * purpose, this method is significantly faster for this purpose.
    */
-  def as[A1 >: A]: IO[E, A1] = self.asInstanceOf[IO[E, A1]]
+  final def as[A1 >: A]: IO[E, A1] = self.asInstanceOf[IO[E, A1]]
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
@@ -847,6 +914,18 @@ object IO {
    */
   final def absolve[E, A](v: IO[E, Either[E, A]]): IO[E, A] =
     v.flatMap(fromEither)
+
+  /**
+   * The inverse operation `IO.sandboxed`
+   *
+   * Terminates with exceptions on the `Left` side of the `Either` error, if it exists.
+   * Otherwise extracts the contained `IO[E, A]`
+   */
+  final def unsandbox[E, A](v: IO[Either[List[Throwable], E], A]): IO[E, A] =
+    v.catchAll[E, A] {
+      case Right(e) => IO.fail(e)
+      case Left(ts) => IO.terminate0(ts)
+    }
 
   /**
    * Lifts an `Either` into an `IO`.

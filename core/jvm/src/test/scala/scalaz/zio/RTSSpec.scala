@@ -29,6 +29,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     attempt . fail                          $testEvalOfAttemptOfFail
     deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
     deep attempt fail error                 $testAttemptOfDeepFailError
+    attempt . sandboxed . terminate         $testSandboxedAttemptOfTerminate
+    redeem . sandboxed . terminate          $testSandboxedRedeemPureOfTerminate
+    catchSome . sandboxWith . terminate     $testSandboxWithCatchSomeOfTerminate
+    catch sandboxed terminate               $testSandboxedTerminate
     uncaught fail                           $testEvalOfUncaughtFail
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
@@ -52,7 +56,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     test eval of async fail                 $testEvalOfAsyncAttemptOfFail
     bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1)}
     interrupt waits for finalizer           $testInterruptWaitsForFinalizer
-  
+
   RTS exit handlers
     exit handlers get called                $testExitHandlers
 
@@ -159,6 +163,27 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       ExampleError
     )
   )
+
+  def testSandboxedAttemptOfTerminate =
+    unsafeRun(IO.sync[Int](throw ExampleError).sandboxed.attempt) must_=== Left(Left(List(ExampleError)))
+
+  def testSandboxedRedeemPureOfTerminate =
+    unsafeRun(
+      IO.sync[Int](throw ExampleError).sandboxed.redeemPure(_.left.getOrElse(Nil), Function.const(Nil))
+    ) must_=== List(ExampleError)
+
+  def testSandboxWithCatchSomeOfTerminate =
+    unsafeRun(
+      IO.sync[List[Throwable]](throw ExampleError)
+        .sandboxWith(_.catchSome[Either[List[Throwable], Nothing], List[Throwable]] { case Left(ts) => IO.now(ts) })
+    ) must_=== List(ExampleError)
+
+  def testSandboxedTerminate =
+    unsafeRun(
+      IO.sync[List[Throwable]](throw ExampleError)
+        .sandboxed
+        .redeemPure(identity, identity)
+    ) must_=== Left(List(ExampleError))
 
   def testAttemptOfDeepSyncEffectError =
     unsafeRun(deepErrorEffect(100).attempt) must_=== Left(ExampleError)
