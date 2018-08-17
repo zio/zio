@@ -100,7 +100,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
             .flatMap(
               step =>
                 if (!step.retry) IO.now((Left(err), ss))
-                else loop(step.value, retry.proj(step.value) :: ss)
+                else loop(step.value, retry.value(step.value) :: ss)
           ),
         suc => IO.now((Right(suc), ss))
       )
