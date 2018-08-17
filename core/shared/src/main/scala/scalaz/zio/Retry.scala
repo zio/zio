@@ -266,9 +266,15 @@ trait Retry[E, +A] { self =>
     modifyDelay((_, _, d) => IO.now(f(d)))
 
   /**
+   * Applies random jitter to the retry strategy bounded by the factors
+   * 0.0 and 1.0.
+   */
+  final def jittered: Retry[E, A] = jittered(0.0, 1.0)
+
+  /**
    * Applies random jitter to the retry strategy bounded by the specified factors.
    */
-  final def jittered(min: Double = 0.0, max: Double = 1.0): Retry[E, A] =
+  final def jittered(min: Double, max: Double): Retry[E, A] =
     modifyDelay((_, _, delay) => IO.sync(util.Random.nextDouble()).map(random => delay * min + delay * max * random))
 }
 
