@@ -133,11 +133,7 @@ trait Retry[E, +S] { self =>
       def proj(state: State): (S, S2) = (self.proj(state._1), that.proj(state._2))
 
       def update(e: E, state: State): IO[Nothing, Retry.Step[State]] =
-        self
-          .update(e, state._1)
-          .parWith(
-            that.update(e, state._2)
-          )(_ || _)
+        self.update(e, state._1).parWith(that.update(e, state._2))(_ || _)
     }
 
   final def either[S2](that: => Retry[E, S2]): Retry[E, (S, S2)] =
