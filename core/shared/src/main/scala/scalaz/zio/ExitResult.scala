@@ -10,32 +10,41 @@ sealed trait ExitResult[+E, +A] { self =>
   import ExitResult._
 
   final def succeeded: Boolean = self match {
-    case Completed(_)  => true
-    case Failed(_)     => false
-    case Terminated(_) => false
+    case Completed(_) => true
+    case _            => false
   }
 
   final def map[B](f: A => B): ExitResult[E, B] = self match {
-    case Completed(a)  => Completed(f(a))
-    case Failed(e)     => Failed(e)
-    case Terminated(t) => Terminated(t)
+    case Completed(a) => Completed(f(a))
+    case x            => x.asInstanceOf[ExitResult[E, B]]
   }
 
   final def mapError[E2, A1 >: A](f: E => ExitResult[E2, A1]): ExitResult[E2, A1] = self match {
-    case ExitResult.Failed(e) => f(e)
-    case x                    => x.asInstanceOf[ExitResult[E2, A1]]
+    case ExitResult.Failed(e, _) => f(e)
+    case x                       => x.asInstanceOf[ExitResult[E2, A1]]
   }
 
   final def failed: Boolean = !succeeded
 
-  final def fold[Z](completed: A => Z, failed: E => Z, interrupted: Throwable => Z): Z = self match {
-    case Completed(v)  => completed(v)
-    case Failed(e)     => failed(e)
-    case Terminated(e) => interrupted(e)
-  }
+  final def fold[Z](completed: A => Z, failed: (E, List[Throwable]) => Z, interrupted: List[Throwable] => Z): Z =
+    self match {
+      case Completed(v)  => completed(v)
+      case Failed(e, ts) => failed(e, ts)
+      case Terminated(e) => interrupted(e)
+    }
 }
 object ExitResult {
-  final case class Completed[E, A](value: A)          extends ExitResult[E, A]
-  final case class Failed[E, A](error: E)             extends ExitResult[E, A]
-  final case class Terminated[E, A](error: Throwable) extends ExitResult[E, A]
+  final case class Completed[E, A](value: A) extends ExitResult[E, A]
+
+  /**
+   * `defects` refer to exceptions thrown during finalization:
+   * first element in list = first failure, last element in list = last failure.
+   */
+  final case class Failed[E, A](error: E, defects: List[Throwable] = Nil) extends ExitResult[E, A]
+
+  /**
+   * `causes` accretes interruption causes and exceptions thrown during finalization:
+   * first element in list = first failure, last element in list = last failure.
+   */
+  final case class Terminated[E, A](causes: List[Throwable]) extends ExitResult[E, A]
 }
