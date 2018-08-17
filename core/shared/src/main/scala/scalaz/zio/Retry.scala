@@ -390,6 +390,15 @@ object Retry {
     Retry[E, A](IO.now(a), (_, a) => Decision.yesIO(f(a)))
 
   /**
+   * A retry strategy that always succeeds, increasing delays by summing the
+   * preceeding two delays (similar to the fibonacci sequence)
+   */
+  final def fibonacci[E](one: Duration): Retry[E, Duration] =
+    stateful[E, (Duration, Duration)]((Duration.Zero, one)) {
+      case (a1, a2) => (a2, a1 + a2)
+    }.map(_._1).modifyDelay((_, delay, _) => IO.now(delay))
+
+  /**
    * A retry strategy that will always succeed, but will wait a certain amount
    * between retries, given by `base * factor.pow(n)`, where `n` is the
    * number of retries so far.
