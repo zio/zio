@@ -322,7 +322,7 @@ object Retry {
    * A retry strategy that always fails.
    */
   final def never[E]: Retry[E, Unit] =
-    Retry[E, Unit](IO.unit, (e, s) => Decision.noIO(s))
+    !always[E]
 
   /**
    * A retry strategy that always succeeds.
