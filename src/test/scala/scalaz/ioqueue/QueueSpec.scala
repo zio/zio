@@ -78,7 +78,6 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 0 then call `offerAll` with a list of 3 elements. The producer should be suspended and the queue should have the same size as the elements offered ${upTo(
       1.second
     )(e24)}
-<<<<<<< HEAD
     `offerAll` can be interrupted and all resources are released ${upTo(1.second)(e25)}
     `offerAll should preserve the order of the list ${upTo(1.second)(e26)}
     `offerAll` does preserve the order of the list when it exceeds the queue's capacity ${upTo(
@@ -134,6 +133,15 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a sliding queue of size 3, offer 4 values and make sure we dropped the first ${upTo(
       1.second
     )(e44)}
+    make a sliding queue of size 0, offer a value and taking should return the offered value${upTo(
+      1.second
+    )(e45)}
+    make a sliding queue of size 100, offer values and retrieve in correct order ${upTo(1.second)(
+      e46
+    )}
+    make a sliding queue, forking takers, offering values and joining fibers should return correct value ${upTo(
+      1.second
+    )(e47)}
     """
 
   def e1 = unsafeRun(
@@ -594,14 +602,42 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   def e44 = unsafeRun(
     for {
       queue <- Queue.sliding[Int](3)
-      _     <- queue.offer(1).fork
-      _     <- queue.offer(2).fork
-      _     <- queue.offer(3).fork
-      _     <- queue.offer(4).fork
+      _     <- queue.offer(1)
+      _     <- queue.offer(2)
+      _     <- queue.offer(3)
+      _     <- queue.offer(4).fork *> IO.sleep(100.millis)
       l     <- queue.takeAll
     } yield l must_=== List(2, 3, 4)
   )
 
+  def e45 = unsafeRun(
+    for {
+      queue <- Queue.sliding[Int](0)
+      _     <- queue.offer(14).fork *> IO.sleep(100.millis)
+      v     <- queue.take
+    } yield v must_=== 14
+  )
+
+  def e46 = unsafeRun(
+    for {
+      queue <- Queue.sliding[Int](100)
+      _     <- queue.offer(1)
+      _     <- queue.offer(2)
+      _     <- queue.offer(3)
+      l     <- queue.takeAll
+    } yield l must_=== List(1, 2, 3)
+  )
+
+  def e47 = unsafeRun(
+    for {
+      queue <- Queue.sliding[Int](5)
+      f1 <- queue.take
+             .zipWith(queue.take)(_ + _)
+             .fork
+      _ <- queue.offer(1) *> queue.offer(2)
+      v <- f1.join
+    } yield v must_=== 3
+  )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
