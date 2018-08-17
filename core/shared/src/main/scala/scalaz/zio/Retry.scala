@@ -121,9 +121,6 @@ trait Retry[E, +S] { self =>
   /**
    * Returns a new strategy that retries for as long as either this strategy or
    * the specified strategy want to retry.
-
-   * Updates are raced in parallel and only the winner updates its state. The
-   * loser is terminated and its prior state is used in the next iteration.
    */
   final def ||[S2](that0: => Retry[E, S2]): Retry[E, (S, S2)] =
     new Retry[E, (S, S2)] {
@@ -138,16 +135,9 @@ trait Retry[E, +S] { self =>
       def update(e: E, state: State): IO[Nothing, Retry.Step[State]] =
         self
           .update(e, state._1)
-          .raceWith(
+          .parWith(
             that.update(e, state._2)
-          )(
-            (s1: Retry.Step[self.State], fiber2: Fiber[Nothing, Retry.Step[that.State]]) =>
-              if (s1.retry) fiber2.interrupt *> IO.now(s1.map(s1 => (s1, state._2)))
-              else fiber2.join.map(s1 || _),
-            (s2: Retry.Step[that.State], fiber1: Fiber[Nothing, Retry.Step[self.State]]) =>
-              if (s2.retry) fiber1.interrupt *> IO.now(s2.map(s2 => (state._1, s2)))
-              else fiber1.join.map(_ || s2)
-          )
+          )(_ || _)
     }
 
   final def either[S2](that: => Retry[E, S2]): Retry[E, (S, S2)] =
