@@ -15,7 +15,7 @@ class PromiseSpec extends AbstractRTSSpec {
 
         Make a promise and retrieve its Throwable value after interruption calling:
           `done` to complete that promise with a terminated result.              $e6
-          `interrupt` with a specified throwable and interrupt all other fibers. $e7
+          `interrupt` and interrupt all other fibers.                            $e7
 
      """
 
@@ -65,20 +65,18 @@ class PromiseSpec extends AbstractRTSSpec {
       } yield s must beFalse and (v must_=== 1)
     )
 
-  val error = new Exception("Error!")
-
   def e6 =
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.done(ExitResult.Terminated(error))
+        s <- p.interrupt
       } yield s must beTrue
     )
   def e7 =
     unsafeRun(
       for {
         p <- Promise.make[Exception, Int]
-        s <- p.interrupt(error)
+        s <- p.interrupt
       } yield s must beTrue
     )
 }

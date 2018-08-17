@@ -44,6 +44,7 @@ trait Retry[E, +S] { self =>
     def proj(state: State): S = self.proj(state)
 
     def update(e: E, s: State): IO[E, State] =
+      // FIXME This impl never updates the state leading to infinite recursion
       self.update(e, s).redeem(_ => IO.now(s), _ => IO.fail(e))
   }
 
@@ -59,9 +60,9 @@ trait Retry[E, +S] { self =>
 
       def proj(state: State): S = self.proj(state)
 
-      def update(e: E, s: State): IO[E, State] =
+      def update(e: E, s0: State): IO[E, State] =
         for {
-          s <- self.update(e, s)
+          s <- self.update(e, s0)
           a <- action(e, proj(s))
           _ <- if (pred(a)) IO.now(s) else IO.fail(e)
         } yield s
@@ -76,17 +77,20 @@ trait Retry[E, +S] { self =>
   /**
    * Returns a new strategy that retries until the error matches the condition.
    */
-  final def untilError(p: E => Boolean): Retry[E, S] = !whileError(p)
+  final def untilError(p: E => Boolean): Retry[E, S] =
+    whileError(!p(_))
 
   /*
    * Returns a new strategy that retries until the state matches the condition.
    */
-  final def untilState(p: S => Boolean): Retry[E, S] = check[S]((_, s) => IO.now(s))(p)
+  final def untilState(p: S => Boolean): Retry[E, S] =
+    whileState(!p(_))
 
   /*
    * Returns a new strategy that retries while the state matches the condition.
    */
-  final def whileState(p: S => Boolean): Retry[E, S] = !untilState(p)
+  final def whileState(p: S => Boolean): Retry[E, S] =
+    check[S]((_, s) => IO.now(s))(p)
 
   /**
    * Returns a new strategy that retries for as long as this strategy and the
@@ -110,6 +114,12 @@ trait Retry[E, +S] { self =>
       def update(e: E, s: State): IO[E, State] =
         self.update(e, s._1).par(that.update(e, s._2))
     }
+
+  final def both[S2](that: => Retry[E, S2]): Retry[E, (S, S2)] =
+    self && that
+
+  final def bothWith[S2, A](that: => Retry[E, S2])(f: (S, S2) => A): Retry[E, A] =
+    (self && that).map(f.tupled)
 
   /**
    * Returns a new strategy that retries for as long as either this strategy or
@@ -172,11 +182,17 @@ trait Retry[E, +S] { self =>
       }
     }
 
+  final def either[S2](that: => Retry[E, S2]): Retry[E, Either[S, S2]] =
+    self || that
+
+  final def eitherWith[S2, A](that: => Retry[E, S2])(f: Either[S, S2] => A): Retry[E, A] =
+    (self || that).map(f)
+
   /**
    * Same as `<||>`, but merges the states.
    */
   final def <>[S1 >: S](that: => Retry[E, S1]): Retry[E, S1] =
-    (self <||> that) map (_.merge)
+    (self <||> that).map(_.merge)
 
   /**
    * Returns a new strategy that first tries this strategy, and if it fails,
@@ -344,7 +360,7 @@ object Retry {
   final def elapsed[E]: Retry[E, Duration] = {
     val nanoTime = IO.sync(System.nanoTime())
 
-    Retry[E, (Long, Long)](nanoTime.zip(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
+    Retry[E, (Long, Long)](nanoTime.seq(IO.now(0L)), (_, t) => nanoTime.map(t2 => (t._1, t2 - t._1)))
       .map(t => Duration(t._2, TimeUnit.NANOSECONDS))
   }
 
@@ -372,10 +388,57 @@ object Retry {
     counted.updated((_, _, io) => io.delay(duration))
 
   /**
+   * A retry strategy that will always succeed, but will wait a certain amount between retries.
+   *
+   * This is the most flexible version of backoff which allows to compute the
+   * time to sleep based on number of retries and previous sleep time.
+   *
+   * @param base Time to sleep on the first retry
+   * @param sleep Function to compute the time to sleep on the next retry.
+   *              It receives to parameter (n, d), where n is the number
+   *              of retries so far and d is the previous sleep time.
+   *              It returns IO so that is can perform effects such as
+   *              query the current time or as for a random number.
+   */
+  final def exponential0[E](base: Duration, sleep: (Int, Duration) => IO[E, Duration]): Retry[E, (Int, Duration)] = {
+    val up: ((Int, Duration)) => IO[E, (Int, Duration)] = {
+      case (n, d) => sleep(n, d).map((n + 1, _)).delay(d)
+    }
+    Retry[E, (Int, Duration)](IO.now((0, base)), (_, s) => up(s))
+  }
+
+  /**
    * A retry strategy that will always succeed, but will wait a certain amount
-   * between retries, given by `duration * factor.pow(n)`, where `n` is the
+   * between retries, given by `base * factor.pow(n)`, where `n` is the
    * number of retries so far.
    */
-  final def backoff[E](start: Duration, factor: Double = 2.0): Retry[E, Duration] =
-    Retry[E, Duration](IO.now(start), (_, d) => IO.now(d * factor).delay(d))
+  final def exponential[E](base: Duration, factor: Double = 2.0): Retry[E, (Int, Duration)] =
+    exponential0(base, (n, _) => IO.now(base * math.pow(factor, n.doubleValue)))
+
+  /**
+   * Exponential backoff with jitter as described here
+   * [[https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/ Exponential Backoff And Jitter]]
+   *
+   * It computes the next time to sleep in the same way as `exponential` does:
+   * {{{
+   * val exp = base * math.pow(factor, n)
+   * }}}
+   * But it adds some randomness to the equation as specified by `rndRangeFactors = (minFac, maxFac)`
+   * {{{
+   * val sleep = randomBetween(exp * minFac, exp * maxFac)
+   * }}}
+   * In order to get '''Full Jitter''' use `rndRangeFactors = (0, 1)` (default). If you prefer
+   * '''Equal Jitter''' use `rndRangeFactors = (0.5, 0.5)`
+   */
+  final def exponentialJitter[E](base: Duration,
+                                 factor: Double = 2.0,
+                                 rndRangeFactors: (Double, Double) = (0.0, 1.0)): Retry[E, (Int, Duration)] = {
+    def jitter(n: Int) = {
+      val exp                    = base * math.pow(factor, n.doubleValue)
+      val (rndMinFac, rndMaxFac) = rndRangeFactors
+      IO.sync(util.Random.nextDouble()).map(exp * rndMinFac + exp * rndMaxFac * _)
+    }
+    exponential0(base, (n, _) => jitter(n))
+  }
+
 }
