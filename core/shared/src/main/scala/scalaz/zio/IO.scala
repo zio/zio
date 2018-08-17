@@ -417,10 +417,16 @@ sealed abstract class IO[+E, +A] { self =>
    * Retries with the specified retry strategy.
    */
   final def retry[E1 >: E, S](retry: Retry[E1, S]): IO[E1, A] = {
-    type State = retry.State
-
-    def loop(s: State): IO[E1, A] =
-      self.redeem(err => retry.update(err, s).flatMap(loop), suc => IO.now(suc))
+    def loop(s: retry.State): IO[E1, A] =
+      self.redeem(err =>
+                    retry
+                      .update(err, s)
+                      .flatMap(
+                        step =>
+                          if (step.retry) IO.sleep(step.delay) *> loop(step.value)
+                          else IO.fail(err)
+                    ),
+                  succ => IO.now(succ))
 
     retry.initial.flatMap(loop)
   }
