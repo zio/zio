@@ -333,8 +333,8 @@ object Retry {
   /**
    * A retry strategy that always succeeds with the specified constant state.
    */
-  final def point[E, A](s: => A): Retry[E, A] =
-    Retry[E, A](IO.point(s), (_, s) => Decision.yesIO(s))
+  final def point[E, A](a: => A): Retry[E, A] =
+    always.const(a)
 
   /**
    * A retry strategy that always succeeds, collecting all errors into a list.
@@ -382,6 +382,10 @@ object Retry {
   final def fixed[E](delay: Duration): Retry[E, Int] =
     counted.delayed(_ + delay)
 
+  /**
+   * A retry strategy that always succeeds, and computes the state through
+   * repeated application of a function to a base value.
+   */
   final def stateful[E, A](a: A)(f: A => A): Retry[E, A] =
     Retry[E, A](IO.now(a), (_, a) => Decision.yesIO(f(a)))
 
