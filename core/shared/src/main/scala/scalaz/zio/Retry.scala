@@ -7,18 +7,18 @@ import java.util.concurrent.TimeUnit
 /**
  * A stateful strategy for retrying `IO` actions. See `IO.retryWith`.
  */
-trait Retry[E, +S] { self =>
+trait Retry[E, +A] { self =>
 
   /**
    * The full type of state used by the retry strategy, including hidden state
-   * not exposed via the `S` type parameter.
+   * not exposed via the `A` type parameter.
    */
   type State
 
   /**
-   * Projects out the visible part of the state `S`.
+   * Projects out the visible part of the state `A`.
    */
-  def proj(state: State): S
+  def value(state: State): A
 
   /**
    * The initial state of the strategy. This can be an effect, such as
@@ -36,12 +36,12 @@ trait Retry[E, +S] { self =>
    * Negates this strategy, returning failures for successes, and successes
    * for failures.
    */
-  def unary_! : Retry[E, S] = new Retry[E, S] {
+  def unary_! : Retry[E, A] = new Retry[E, A] {
     type State = self.State
 
     val initial = self.initial
 
-    def proj(state: State): S = self.proj(state)
+    def value(state: State): A = self.value(state)
 
     def update(e: E, s: State): IO[Nothing, Retry.Step[State]] = self.update(e, s).map(!_)
   }
@@ -50,44 +50,44 @@ trait Retry[E, +S] { self =>
    * Peeks at the visible part of the state, executes some action, and then
    * continues retrying or not based on the specified predicate.
    */
-  final def check[A](action: (E, S) => IO[Nothing, A])(pred: A => Boolean): Retry[E, S] =
-    new Retry[E, S] {
+  final def check[B](action: (E, A) => IO[Nothing, B])(pred: B => Boolean): Retry[E, A] =
+    new Retry[E, A] {
       type State = self.State
 
       val initial = self.initial
 
-      def proj(state: State): S = self.proj(state)
+      def value(state: State): A = self.value(state)
 
       def update(e: E, s: State): IO[Nothing, Retry.Step[State]] =
         for {
           d <- self.update(e, s)
-          a <- action(e, proj(s))
-        } yield d.copy(retry = pred(a))
+          b <- action(e, value(s))
+        } yield d.copy(retry = pred(b))
     }
 
   /**
    * Returns a new strategy that retries while the error matches the condition.
    */
-  final def whileError(p: E => Boolean): Retry[E, S] =
+  final def whileError(p: E => Boolean): Retry[E, A] =
     check[E]((e, _) => IO.now(e))(p)
 
   /**
    * Returns a new strategy that retries until the error matches the condition.
    */
-  final def untilError(p: E => Boolean): Retry[E, S] =
+  final def untilError(p: E => Boolean): Retry[E, A] =
     !whileError(p)
 
   /*
    * Returns a new strategy that retries until the state matches the condition.
    */
-  final def untilState(p: S => Boolean): Retry[E, S] =
+  final def untilState(p: A => Boolean): Retry[E, A] =
     !whileState(p)
 
   /*
    * Returns a new strategy that retries while the state matches the condition.
    */
-  final def whileState(p: S => Boolean): Retry[E, S] =
-    check[S]((_, s) => IO.now(s))(p)
+  final def whileState(p: A => Boolean): Retry[E, A] =
+    check[A]((_, s) => IO.now(s))(p)
 
   /**
    * Returns a new strategy that retries for as long as this strategy and the
@@ -97,55 +97,55 @@ trait Retry[E, +S] { self =>
    * io.retryWith(r && r) === io.retryWith(r)
    * }}}
    */
-  final def &&[S2](that0: => Retry[E, S2]): Retry[E, (S, S2)] =
-    new Retry[E, (S, S2)] {
+  final def &&[A2](that0: => Retry[E, A2]): Retry[E, (A, A2)] =
+    new Retry[E, (A, A2)] {
       lazy val that = that0
 
       type State = (self.State, that.State)
 
       val initial = self.initial.par(that.initial)
 
-      def proj(state: State): (S, S2) =
-        (self.proj(state._1), that.proj(state._2))
+      def value(state: State): (A, A2) =
+        (self.value(state._1), that.value(state._2))
 
       def update(e: E, s: State): IO[Nothing, Retry.Step[State]] =
         self.update(e, s._1).parWith(that.update(e, s._2))(_ && _)
     }
 
-  final def both[S2](that: => Retry[E, S2]): Retry[E, (S, S2)] =
+  final def both[A2](that: => Retry[E, A2]): Retry[E, (A, A2)] =
     self && that
 
-  final def bothWith[S2, A](that: => Retry[E, S2])(f: (S, S2) => A): Retry[E, A] =
+  final def bothWith[A2, A3](that: => Retry[E, A2])(f: (A, A2) => A3): Retry[E, A3] =
     (self && that).map(f.tupled)
 
   /**
    * Returns a new strategy that retries for as long as either this strategy or
    * the specified strategy want to retry.
    */
-  final def ||[S2](that0: => Retry[E, S2]): Retry[E, (S, S2)] =
-    new Retry[E, (S, S2)] {
+  final def ||[A2](that0: => Retry[E, A2]): Retry[E, (A, A2)] =
+    new Retry[E, (A, A2)] {
       lazy val that = that0
 
       type State = (self.State, that.State)
 
       val initial = self.initial.par(that.initial)
 
-      def proj(state: State): (S, S2) = (self.proj(state._1), that.proj(state._2))
+      def value(state: State): (A, A2) = (self.value(state._1), that.value(state._2))
 
       def update(e: E, state: State): IO[Nothing, Retry.Step[State]] =
         self.update(e, state._1).parWith(that.update(e, state._2))(_ || _)
     }
 
-  final def either[S2](that: => Retry[E, S2]): Retry[E, (S, S2)] =
+  final def either[A2](that: => Retry[E, A2]): Retry[E, (A, A2)] =
     self || that
 
-  final def eitherWith[S2, A](that: => Retry[E, S2])(f: (S, S2) => A): Retry[E, A] =
+  final def eitherWith[A2, A3](that: => Retry[E, A2])(f: (A, A2) => A3): Retry[E, A3] =
     (self || that).map(f.tupled)
 
   /**
    * Same as `<||>`, but merges the states.
    */
-  final def <>[S1 >: S](that: => Retry[E, S1]): Retry[E, S1] =
+  final def <>[S1 >: A](that: => Retry[E, S1]): Retry[E, S1] =
     (self <||> that).map(_.merge)
 
   /**
@@ -158,17 +158,17 @@ trait Retry[E, +S] { self =>
    * io.retryWith(r.void <> Retry.never) === io.retryWith(r)
    * }}}
    */
-  final def <||>[S2](that0: => Retry[E, S2]): Retry[E, Either[S, S2]] =
-    new Retry[E, Either[S, S2]] {
+  final def <||>[A2](that0: => Retry[E, A2]): Retry[E, Either[A, A2]] =
+    new Retry[E, Either[A, A2]] {
       lazy val that = that0
 
       type State = Either[self.State, that.State]
 
       val initial = self.initial.map(Left(_))
 
-      def proj(state: State): Either[S, S2] =
-        state fold [Either[S, S2]] (l => Left(self.proj(l)),
-        r => Right(that.proj(r)))
+      def value(state: State): Either[A, A2] =
+        state fold [Either[A, A2]] (l => Left(self.value(l)),
+        r => Right(that.value(r)))
 
       def update(e: E, s: State): IO[Nothing, Retry.Step[State]] =
         s match {
@@ -188,24 +188,24 @@ trait Retry[E, +S] { self =>
   /**
    * A named version of the `<||>` operator.
    */
-  final def andThen[S2](that0: => Retry[E, S2]): Retry[E, Either[S, S2]] =
+  final def andThen[A2](that0: => Retry[E, A2]): Retry[E, Either[A, A2]] =
     self <||> that0
 
   /**
    * Returns a new retry strategy with the state transformed by the specified
    * function.
    */
-  final def map[S2](f: S => S2): Retry[E, S2] = new Retry[E, S2] {
+  final def map[A2](f: A => A2): Retry[E, A2] = new Retry[E, A2] {
     type State = self.State
     val initial                                                = self.initial
-    def proj(state: State): S2                                 = f(self.proj(state))
+    def value(state: State): A2                                = f(self.value(state))
     def update(e: E, s: State): IO[Nothing, Retry.Step[State]] = self.update(e, s)
   }
 
   /**
    * Returns a new retry strategy that always produces the constant state.
    */
-  final def const[S2](s2: S2): Retry[E, S2] = map(_ => s2)
+  final def const[A2](s2: A2): Retry[E, A2] = map(_ => s2)
 
   /**
    * Returns a new retry strategy that always produces unit state.
@@ -215,60 +215,60 @@ trait Retry[E, +S] { self =>
   /**
    * The same as `&&`, but discards the right hand state.
    */
-  final def *>[S2](that: => Retry[E, S2]): Retry[E, S2] =
+  final def *>[A2](that: => Retry[E, A2]): Retry[E, A2] =
     (self && that).map(_._2)
 
   /**
    * The same as `&&`, but discards the left hand state.
    */
-  final def <*[S2](that: => Retry[E, S2]): Retry[E, S] =
+  final def <*[A2](that: => Retry[E, A2]): Retry[E, A] =
     (self && that).map(_._1)
 
   /**
    * A new strategy that applies the current one but runs the specified effect
    * for every update.
    */
-  final def onUpdate(f: (E, Retry.Step[S]) => IO[Nothing, Unit]): Retry[E, S] =
-    new Retry[E, S] {
+  final def onUpdate(f: (E, Retry.Step[A]) => IO[Nothing, Unit]): Retry[E, A] =
+    new Retry[E, A] {
       type State = self.State
-      val initial               = self.initial
-      def proj(state: State): S = self.proj(state)
+      val initial                = self.initial
+      def value(state: State): A = self.value(state)
       def update(e: E, s: State): IO[Nothing, Retry.Step[State]] =
-        self.update(e, s).flatMap(step => f(e, step.map(proj)) *> IO.now(step))
+        self.update(e, s).flatMap(step => f(e, step.map(value)) *> IO.now(step))
     }
 
   /**
    * Modifies the delay of this retry strategy by applying the specified
    * effectful function to the error, state, and current delay.
    */
-  final def modifyDelay(f: (E, S, Duration) => IO[Nothing, Duration]): Retry[E, S] =
+  final def modifyDelay(f: (E, A, Duration) => IO[Nothing, Duration]): Retry[E, A] =
     mapStep((e, s) => f(e, s.value, s.delay).map(d => Retry.Step[Unit](true, d, ())))
 
   /**
    * Modifies the duration and retry/no-retry status of this strategy.
    */
-  final def mapStep(f: (E, Retry.Step[S]) => IO[Nothing, Retry.Step[Unit]]): Retry[E, S] =
-    new Retry[E, S] {
+  final def mapStep(f: (E, Retry.Step[A]) => IO[Nothing, Retry.Step[Unit]]): Retry[E, A] =
+    new Retry[E, A] {
       type State = self.State
-      val initial               = self.initial
-      def proj(state: State): S = self.proj(state)
+      val initial                = self.initial
+      def value(state: State): A = self.value(state)
       def update(e: E, s: State): IO[Nothing, Retry.Step[State]] =
         for {
           step  <- self.update(e, s)
-          step2 <- f(e, step.map(proj))
+          step2 <- f(e, step.map(value))
         } yield step.copy(retry = step2.retry, delay = step2.delay)
     }
 
   /**
    * Delays the retry strategy by the specified amount.
    */
-  final def delayed(f: Duration => Duration): Retry[E, S] =
+  final def delayed(f: Duration => Duration): Retry[E, A] =
     modifyDelay((_, _, d) => IO.now(f(d)))
 
   /**
    * Applies random jitter to the retry strategy bounded by the specified factors.
    */
-  final def jittered(min: Double = 0.0, max: Double = 1.0): Retry[E, S] =
+  final def jittered(min: Double = 0.0, max: Double = 1.0): Retry[E, A] =
     modifyDelay((_, _, delay) => IO.sync(util.Random.nextDouble()).map(random => delay * min + delay * max * random))
 }
 
@@ -304,11 +304,11 @@ object Retry {
   /**
    * Constructs a new retry strategy from an initial state and an update function.
    */
-  final def apply[E, S](initial0: IO[Nothing, S], update0: (E, S) => IO[Nothing, Retry.Step[S]]): Retry[E, S] =
-    new Retry[E, S] {
-      type State = S
+  final def apply[E, A](initial0: IO[Nothing, A], update0: (E, A) => IO[Nothing, Retry.Step[A]]): Retry[E, A] =
+    new Retry[E, A] {
+      type State = A
       val initial                                                = initial0
-      def proj(state: State): S                                  = state
+      def value(state: State): A                                 = state
       def update(e: E, s: State): IO[Nothing, Retry.Step[State]] = update0(e, s)
     }
 
@@ -327,8 +327,8 @@ object Retry {
   /**
    * A retry strategy that always succeeds with the specified constant state.
    */
-  final def point[E, S](s: => S): Retry[E, S] =
-    Retry[E, S](IO.point(s), (_, s) => Step.yesIO(s))
+  final def point[E, A](s: => A): Retry[E, A] =
+    Retry[E, A](IO.point(s), (_, s) => Step.yesIO(s))
 
   /**
    * A retry strategy that always succeeds, collecting all errors into a list.
