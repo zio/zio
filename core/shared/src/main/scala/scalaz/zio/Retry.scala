@@ -242,12 +242,12 @@ trait Retry[E, +A] { self =>
    * effectful function to the error, state, and current delay.
    */
   final def modifyDelay(f: (E, A, Duration) => IO[Nothing, Duration]): Retry[E, A] =
-    mapStep((e, s) => f(e, s.value, s.delay).map(d => Retry.Decision[Unit](true, d, ())))
+    reconsider((e, s) => f(e, s.value, s.delay).map(d => Retry.Decision[Unit](true, d, ())))
 
   /**
    * Modifies the duration and retry/no-retry status of this strategy.
    */
-  final def mapStep(f: (E, Retry.Decision[A]) => IO[Nothing, Retry.Decision[Unit]]): Retry[E, A] =
+  final def reconsider(f: (E, Retry.Decision[A]) => IO[Nothing, Retry.Decision[Unit]]): Retry[E, A] =
     new Retry[E, A] {
       type State = self.State
       val initial                = self.initial
