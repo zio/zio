@@ -149,7 +149,7 @@ val boostedFixed = Retry.fixed(1.second).delayed(_ + 100.milliseconds)
 Combining two policies sequentially, by following the first policy until it gives up, and then following the second policy:
 
 ```tut:silent
-val sequential = Retry.retries(10) <||> Retries.fixed(1.second)
+val sequential = Retry.retries(10) <||> Retry.fixed(1.second)
 ```
 
 Combining two policies through intersection, by retrying only if both policies want to retry, using the maximum of the two delays between retries:
