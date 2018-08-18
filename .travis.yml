@@ -1,16 +1,26 @@
 language: scala
 sudo: false
 scala:
-  - 2.12.6
-  - 2.11.12
+- 2.12.6
+- 2.11.12
+install:
+- rvm use 2.4.4 --install --fuzzy
+- gem update --system
+- gem install sass
+- gem install jekyll -v 3.8.2
 jdk:
-  - oraclejdk8
+- oraclejdk8
 before_install:
-  - export PATH=${PATH}:./vendor/bundle
+- export PATH=${PATH}:./vendor/bundle
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck test
-  - if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then sbt ++$TRAVIS_SCALA_VERSION publish; fi
+- sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck coverage
+  test coverageReport microsite/makeMicrosite
+- if [[ "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" = "master" ]]; then sbt
+  ++$TRAVIS_SCALA_VERSION publishSigned sonatypeReleaseAll; fi
+after_success:
+- bash <(curl -s https://codecov.io/bash)
 env:
   global:
-  - secure: "1KShGbny4TgD86w5/huvJEwcLYEQKjiUZeornS8W0rt8+j2emfFpb2VoyCfOQmXQrh0t5N96dS/hT0C+cDE0+/12rOE4zpm5RDDT7skY+ayTb3SKkIP9Qk5behvyIZi8xc5ny6z6UZoFBeTGJMZQgeuADhfcQHw68cZl4kEM9fU8L6Yc8jKUN6xTENnVpIDmM29Tbx/WyNA9EKw+1CL2fJVVLmvsQphieYoVjQfhZjl1+M289cZ+dX1UjsuvfrfwBTwFoabnZbQATZ9ALvwIfuOKYIdapS3rAayaKC7uihWZmCnNT4mmleob+zXdUjOWl/GXlHAgeCWU1GP7qZ65aLRx+URs/Vh+VAi5gXceF9Mka0VYMb/nm+noJIy9WLKa4kfnHruqR5NzxTq8D0xkgSa2v1tRCT7Vf98+RlzPTVF+rG/8lGa/nFoxqAkbB8ycTYSoAIswan4lx2PhD2GPWsCdiUBrMljPTr2ie88x45w4b5f5eZbsxc1qi2ks1oFTVJhk36l9+E+V8iFi3uZbs2x5Qfar7301mWwarcwfxt/CgDqSz4naWXyPfRbh9KwwFnjl2yEiYoPb0zU8eKhBid+JBi94gvlm2ykmHTYWD39govSgW69PSBoW8JROE10skpiLFsowe/U6FkVNA+tWavk/PNHPpHb4dlP63mbiOTU="
-  - secure: "RC4sr+jES1TmvcYaTLlPEFjf5HRjNqO5oKS8NtmqNfjcnyiQu/xDfGYQ3cy7hJ3oX4PlzZMaCpA9FEq4/PNT5CwoZcwUPUsNLAsGpn4he/y/4gWURrsI/0G0dtTRcu6NHvl7kL2o+SWQZD1qMOgwcdwj2bw5fqbPtRKAVYadS/oYvb9XnZsIgC7wGzpAY0L/RFh/KifCl6n1gRl28/6TP1lx8Au6UpKjMfKVQcNcoZKERQCyrVhjeqWFwQiZP+7wHFyFoi717wJLMN7eRLxts2xC0lyYOfQlWSrH4jB1XikPfJtGgj6nR3FBd6W0RS2ekmG/ILNnpiIrO9OX8cVO2SZ9+xgbdNZCxTc9LHTDpD015n9qgSnpcuZxHMgkU+/R3v80ss/h0EWG/qmh53xNBc5E+rjIKwcVMjlMrNyGad8vpabz3XdOzk67hcRit/pDxEYzcw5VMOv+kxzZWy3u2+obm6bk+JzS30Kw04qneXdHLTbcXLglRoyVKweNR5aINWItLuqhQbpJ1JOjHz+mMhaMeCBLHsyeakipIkRGTmMmuuxpip2AkgYjhC7V8uLhQIitODN6FJ1K5y7UADYHGCsp5+av/cFGVuDnfRV1PRbC7oz5yHkdOopwBFOHqMZ+TmAu5133t5aazVlcHJuoy/Rfplg+pcS+rkoFZcQjVGI="
+  - secure: 1KShGbny4TgD86w5/huvJEwcLYEQKjiUZeornS8W0rt8+j2emfFpb2VoyCfOQmXQrh0t5N96dS/hT0C+cDE0+/12rOE4zpm5RDDT7skY+ayTb3SKkIP9Qk5behvyIZi8xc5ny6z6UZoFBeTGJMZQgeuADhfcQHw68cZl4kEM9fU8L6Yc8jKUN6xTENnVpIDmM29Tbx/WyNA9EKw+1CL2fJVVLmvsQphieYoVjQfhZjl1+M289cZ+dX1UjsuvfrfwBTwFoabnZbQATZ9ALvwIfuOKYIdapS3rAayaKC7uihWZmCnNT4mmleob+zXdUjOWl/GXlHAgeCWU1GP7qZ65aLRx+URs/Vh+VAi5gXceF9Mka0VYMb/nm+noJIy9WLKa4kfnHruqR5NzxTq8D0xkgSa2v1tRCT7Vf98+RlzPTVF+rG/8lGa/nFoxqAkbB8ycTYSoAIswan4lx2PhD2GPWsCdiUBrMljPTr2ie88x45w4b5f5eZbsxc1qi2ks1oFTVJhk36l9+E+V8iFi3uZbs2x5Qfar7301mWwarcwfxt/CgDqSz4naWXyPfRbh9KwwFnjl2yEiYoPb0zU8eKhBid+JBi94gvlm2ykmHTYWD39govSgW69PSBoW8JROE10skpiLFsowe/U6FkVNA+tWavk/PNHPpHb4dlP63mbiOTU=
+  - secure: RC4sr+jES1TmvcYaTLlPEFjf5HRjNqO5oKS8NtmqNfjcnyiQu/xDfGYQ3cy7hJ3oX4PlzZMaCpA9FEq4/PNT5CwoZcwUPUsNLAsGpn4he/y/4gWURrsI/0G0dtTRcu6NHvl7kL2o+SWQZD1qMOgwcdwj2bw5fqbPtRKAVYadS/oYvb9XnZsIgC7wGzpAY0L/RFh/KifCl6n1gRl28/6TP1lx8Au6UpKjMfKVQcNcoZKERQCyrVhjeqWFwQiZP+7wHFyFoi717wJLMN7eRLxts2xC0lyYOfQlWSrH4jB1XikPfJtGgj6nR3FBd6W0RS2ekmG/ILNnpiIrO9OX8cVO2SZ9+xgbdNZCxTc9LHTDpD015n9qgSnpcuZxHMgkU+/R3v80ss/h0EWG/qmh53xNBc5E+rjIKwcVMjlMrNyGad8vpabz3XdOzk67hcRit/pDxEYzcw5VMOv+kxzZWy3u2+obm6bk+JzS30Kw04qneXdHLTbcXLglRoyVKweNR5aINWItLuqhQbpJ1JOjHz+mMhaMeCBLHsyeakipIkRGTmMmuuxpip2AkgYjhC7V8uLhQIitODN6FJ1K5y7UADYHGCsp5+av/cFGVuDnfRV1PRbC7oz5yHkdOopwBFOHqMZ+TmAu5133t5aazVlcHJuoy/Rfplg+pcS+rkoFZcQjVGI=
+  - secure: T1Akn9GAG4eWqLgmQo6Z9xU7gKOCWkZ2Kynpf5ATF0WyF9UOnxASlE4+zMnUCP8R61FW4DxA0COAp/cmtvHvGgeEhqMgmbenjtKgUtwsr6Mhh8CXW4v+iaccLsUvlTbTMQ8Z9TwjzuAAxnmfB126HMLHdSx3OEhfCiBs+ME5CBICnV3t+6raAhf3N9nDHO9yt9JXPOpEklAW4/7/i4V9AHxfEfOt0osRxd1Id2fYcyHxlypkLX/2PH2eF2guOc8nfwdzca5q359f73DD1teT25gdllw3YnPDUgAb4KGrdceP2hSHS8LMPwwq72s7Kv2wms/iBA3cdDYRptBMr4cLvmvUtScLhTw8aisw0+TV58O9amOqIgT0z3s0QHTOSirIkR37AW4QMlS4AjbRDF/P9gaRUv1HUy+dSxwHROuSq4Xdp52JCXY4D4bicQWQYNhpT2PHSMlXflg9aX2NVkbQ1DdiJccSjR/hLUY0fDcCHVhnCwyT6xOPnLc7F47ibHppyuj2Ft2ZjXjMUte04M6YLMCgrCz0JNfI8+h1cXK5hu281Ndl5cVkrnL80t0BaGCm0T6YTjPzWg3J1pkw2WDh6qy6aXx7UQAgrpKU6sZlIUBUzRYQropX9enfrmralCxShZgb/DS4d+3Xw1OpcBa0ANbZAGdu3rWgw4+hgjrAiHM=
