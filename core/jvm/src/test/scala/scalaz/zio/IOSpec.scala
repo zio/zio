@@ -1,5 +1,6 @@
 package scalaz.zio
 
+import scala.concurrent.duration._
 import org.scalacheck._
 import org.specs2.ScalaCheck
 import scalaz.zio.ExitResult.{ Completed, Failed, Terminated }
@@ -26,6 +27,9 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
    Create a list of Ints and map with IO.point:
       `IO.forkAll` returns the list of Ints in the same order. $t7
    Check done lifts exit result into IO. $testDone
+   Retry on failure according to a provided strategy
+       for a given number of times $retryN
+       fixed delay with error predicate $fixedWithErrorPredicate
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -87,4 +91,40 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     unsafeRun(IO.done(failed)) must throwA(Errors.UnhandledError(error))
   }
 
+  def retryCollect[E, A, E1 >: E, S](io: IO[E, A],
+                                     retry: Retry[E1, S]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
+    type State = retry.State
+
+    def loop(state: State, ss: List[(Duration, S)]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] =
+      io.redeem(
+        err =>
+          retry
+            .update(err, state)
+            .flatMap(
+              step =>
+                if (!step.retry) IO.now((Left(err), ss))
+                else loop(step.value, (step.delay, retry.value(step.value)) :: ss)
+          ),
+        suc => IO.now((Right(suc), ss))
+      )
+
+    retry.initial.flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
+  }
+
+  def retryN = {
+    val retried  = unsafeRun(retryCollect(IO.fail("Error"), Retry.retries(5)))
+    val expected = (Left("Error"), List(1, 2, 3, 4, 5).map((Duration.Zero, _)))
+    retried must_=== expected
+  }
+
+  def fixedWithErrorPredicate = {
+    var i = 0
+    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+      if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
+    }
+    val strategy = Retry.fixed(200.millis).whileError[String](_ == "KeepTryingError")
+    val retried  = unsafeRun(retryCollect(io, strategy))
+    val expected = (Left("GiveUpError"), List(1, 2, 3, 4).map((200.millis, _)))
+    retried must_=== expected
+  }
 }

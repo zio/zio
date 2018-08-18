@@ -134,32 +134,48 @@ sealed abstract class IO[+E, +A] { self =>
 
   /**
    * Executes both this action and the specified action in parallel,
-   * returning a tuple of their results. If either individual action fails,
-   * then the returned action will fail.
+   * combining their results using given function `f`.
+   * If either individual action fails, then the returned action will fail.
    *
    * TODO: Replace with optimized primitive.
    */
-  final def par[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] = {
+  final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
     val s: IO[Nothing, Either[E1, A]] = self.attempt
-    s.raceWith[E1, Either[E1, A], Either[E1, B], (A, B)](that.attempt)(
+    s.raceWith[E1, Either[E1, A], Either[E1, B], C](that.attempt)(
       {
         case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail[E1](e)
-        case (Right(a), fiberb) => IO.absolve[E1, B](fiberb.join).map((b: B) => (a, b))
+        case (Right(a), fiberb) => IO.absolve[E1, B](fiberb.join).map((b: B) => f(a, b))
       }, {
         case (Left(e), fibera)  => fibera.interrupt(TerminatedException(e)) *> IO.fail[E1](e)
-        case (Right(b), fibera) => IO.absolve[E1, A](fibera.join).map((a: A) => (a, b))
+        case (Right(b), fibera) => IO.absolve[E1, A](fibera.join).map((a: A) => f(a, b))
       }
     )
   }
 
   /**
+   * Executes both this action and the specified action in parallel,
+   * returning a tuple of their results. If either individual action fails,
+   * then the returned action will fail.
+   */
+  final def par[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
+    self.parWith(that)((a, b) => (a, b))
+
+  /**
    * Races this action with the specified action, returning the first
    * result to produce an `A`, whichever it is. If neither action succeeds,
-   * then the action will be terminated with some error.
+   * then the action will fail with some error.
    */
   final def race[E1 >: E, A1 >: A](that: IO[E1, A1]): IO[E1, A1] =
-    raceWith(that)((a, fiber) => fiber.interrupt(LostRace(Right(fiber))).const(a),
-                   (a, fiber) => fiber.interrupt(LostRace(Left(fiber))).const(a))
+    raceBoth(that).map(_.merge)
+
+  /**
+   * Races this action with the specified action, returning the first
+   * result to produce a value, whichever it is. If neither action succeeds,
+   * then the action will fail with some error.
+   */
+  final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
+    raceWith(that)((a, fiber) => fiber.interrupt(LostRace(Right(fiber))).const(Left(a)),
+                   (b, fiber) => fiber.interrupt(LostRace(Left(fiber))).const(Right(b)))
 
   /**
    * Races this action with the specified action, invoking the
@@ -174,7 +190,21 @@ sealed abstract class IO[+E, +A] { self =>
    * otherwise executes the specified action.
    */
   final def orElse[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
+    self <> that
+
+  /**
+   * Executes this action and returns its value, if it succeeds, but
+   * otherwise executes the specified action.
+   */
+  final def <>[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
     self.redeem(_ => that, IO.now)
+
+  /**
+   * Executes this action and returns its value, if it succeeds, but
+   * otherwise executes the specified action.
+   */
+  final def <||>[E1 >: E, B](that: => IO[E1, B]): IO[E1, Either[A, B]] =
+    self.redeem(_ => that.map(Right(_)), IO.nowLeft)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
@@ -371,8 +401,15 @@ sealed abstract class IO[+E, +A] { self =>
    * Sequentially zips this effect with the specified effect using the
    * specified combiner function.
    */
-  final def zipWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
+  final def seqWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
+
+  /**
+   * Sequentially zips this effect with the specified effect, combining the
+   * results into a tuple.
+   */
+  final def seq[E1 >: E, B](that: IO[E1, B]): IO[E1, (A, B)] =
+    self.seqWith(that)((a, b) => (a, b))
 
   /**
    * Repeats this action forever (until the first error).
@@ -380,31 +417,41 @@ sealed abstract class IO[+E, +A] { self =>
   final def forever: IO[E, Nothing] = self *> self.forever
 
   /**
-   * Retries continuously until this action succeeds.
+   * Retries with the specified retry policy.
    */
-  final def retry: IO[E, A] = self orElse retry
+  final def retry[E1 >: E, S](policy: Retry[E1, S]): IO[E1, A] =
+    retryOrElse(policy, (e: E1, s: S) => IO.fail(e))
 
   /**
-   * Retries this action the specified number of times, until the first success.
-   * Note that the action will always be run at least once, even if `n < 1`.
+   * Retries with the specified retry policy, until it fails, and then both the
+   * value produced by the policy together with the last error are passed to the
+   * recovery function.
    */
-  final def retryN(n: Int): IO[E, A] = retryBackoff(n, 1.0, Duration.fromNanos(0))
+  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Retry[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
+    retryOrElse0(policy, orElse).map(_.merge)
 
   /**
-   * Retries continuously until the action succeeds or the specified duration
-   * elapses.
+   * Retries with the specified retry policy, until it fails, and then both the
+   * value produced by the policy together with the last error are passed to the
+   * recovery function.
    */
-  final def retryFor[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    retry.map(f).race(IO.sleep(duration) *> IO.now[B](z))
+  final def retryOrElse0[E1 >: E, S, E2, B](policy: Retry[E1, S],
+                                            orElse: (E1, S) => IO[E2, B]): IO[E2, Either[B, A]] = {
+    def loop(state: policy.State): IO[E2, Either[B, A]] =
+      self.redeem(
+        err =>
+          policy
+            .update(err, state)
+            .flatMap(
+              decision =>
+                if (decision.retry) IO.sleep(decision.delay) *> loop(decision.value)
+                else orElse(err, policy.value(decision.value)).map(Left(_))
+          ),
+        succ => IO.now(Right(succ))
+      )
 
-  /**
-   * Retries continuously, increasing the duration between retries each time by
-   * the specified multiplication factor, and stopping after the specified upper
-   * limit on retries.
-   */
-  final def retryBackoff(n: Int, factor: Double, duration: Duration): IO[E, A] =
-    if (n <= 1) self
-    else self orElse (IO.sleep(duration) *> retryBackoff(n - 1, factor, duration * factor))
+    policy.initial.flatMap(loop)
+  }
 
   /**
    * Repeats this action continuously until the first error, with the specified
@@ -994,7 +1041,7 @@ object IO {
    */
   final def traverse[E, A, B](in: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     in.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
-      fn(a).zipWith(io)((b, bs) => b :: bs)
+      fn(a).seqWith(io)((b, bs) => b :: bs)
     }
 
   /**
