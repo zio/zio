@@ -83,6 +83,11 @@ val z: IO[Nothing, Content] =
 There are a number of useful combinators for repeating actions until failure or success:
 
  * `IO.forever` &mdash; Repeats the action until the first failure.
- * `IO.retry` &mdash; Repeats the action until the first success.
- * `IO.retryN(n)` &mdash; Repeats the action until the first success, for up to the specified number of times (`n`).
- * `IO.retryFor(d)` &mdash; Repeats the action until the first success, for up to the specified amount of time (`d`).
+ * `IO.retry(policy)` &mdash; Repeats the action using a specified retry policy.
+ * `IO.retryOrElse(policy, fallback)` &mdash; Repeats the action using a specified retry policy, or if the policy fails, uses the fallback.
+
+ Retry policies are powerful enough to encode virtually any type of strategy for retrying.
+
+ ## Retry Policies
+
+ 
