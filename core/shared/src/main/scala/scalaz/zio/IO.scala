@@ -5,6 +5,8 @@ import scala.annotation.switch
 import scala.concurrent.duration._
 import Errors._
 
+import scala.concurrent.ExecutionContext
+
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
  * describes an effectful action that may fail with an `E`, run forever, or
@@ -258,7 +260,7 @@ sealed abstract class IO[+E, +A] { self =>
    * or not `use` succeeded to the release action.
    */
   final def bracket0[E1 >: E, B](
-    release: (A, Option[Either[E1, B]]) => IO[Nothing, Unit]
+    release: (A, ExitResult[E1, B]) => IO[Nothing, Unit]
   )(use: A => IO[E1, B]): IO[E1, B] =
     IO.bracket0[E1, A, B](this)(release)(use)
 
@@ -281,10 +283,11 @@ sealed abstract class IO[+E, +A] { self =>
    */
   final def bracketOnError[E1 >: E, B](release: A => IO[Nothing, Unit])(use: A => IO[E1, B]): IO[E1, B] =
     IO.bracket0[E1, A, B](this)(
-      (a: A, eb: Option[Either[E1, B]]) =>
+      (a: A, eb: ExitResult[E1, B]) =>
         eb match {
-          case Some(Right(_)) => IO.unit
-          case _              => release(a)
+          case ExitResult.Failed(_, _)  => release(a)
+          case ExitResult.Terminated(_) => release(a)
+          case _                        => IO.unit
       }
     )(use)
 
@@ -292,13 +295,13 @@ sealed abstract class IO[+E, +A] { self =>
    * Runs the cleanup action if this action errors, providing the error to the
    * cleanup action if it exists. The cleanup action will not be interrupted.
    */
-  final def onError(cleanup: Option[E] => IO[Nothing, Unit]): IO[E, A] =
+  final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
     IO.bracket0(IO.unit)(
-      (_, eb: Option[Either[E, A]]) =>
+      (_, eb: ExitResult[E, A]) =>
         eb match {
-          case Some(Right(_)) => IO.unit
-          case Some(Left(e))  => cleanup(Some(e))
-          case None           => cleanup(None)
+          case ExitResult.Completed(_)   => IO.unit
+          case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
+          case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
       }
     )(_ => self)
 
@@ -520,13 +523,86 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
-  final def run[E1 >: E, A1 >: A]: IO[Nothing, ExitResult[E1, A1]] = new IO.Run(self)
+  final def run: IO[Nothing, ExitResult[E, A]] =
+    (for {
+      p <- Promise.make[Nothing, ExitResult[E, A]]
+      f <- self.fork
+      _ <- f.onComplete(r => p.done(ExitResult.Completed(r)).void)
+      r <- p.get
+    } yield r).supervised
+
+  /**
+   * Runs this action in a new fiber, resuming when the fiber terminates.
+   *
+   * If the fiber fails with an error it will be captured in Right side of the error Either
+   * If the fiber terminates because of defect, list of defects will be captured in the Left side of the Either
+   *
+   * Allows recovery from errors and defects alike, as in:
+   *
+   * {{{
+   * case class DomainError()
+   *
+   * val veryBadIO: IO[DomainError, Unit] =
+   *   IO.sync(5 / 0) *> IO.fail(DomainError())
+   *
+   * val caught: IO[Nothing, Unit] =
+   *   veryBadIO.sandboxed.catchAll {
+   *     case Left((_: ArithmeticException) :: Nil) =>
+   *       // Caught defect: divided by zero!
+   *       IO.now(0)
+   *     case Left(ts) =>
+   *       // Caught unknown defects, shouldn't recover!
+   *       IO.terminate0(ts)
+   *     case Right(e) =>
+   *       // Caught error: DomainError!
+   *      IO.now(0)
+   *   }
+   * }}}
+   */
+  final def sandboxed: IO[Either[List[Throwable], E], A] =
+    self.run.flatMap {
+      case ExitResult.Completed(value) =>
+        IO.now(value)
+      case ExitResult.Failed(error, _) =>
+        IO.fail(Right(error))
+      case ExitResult.Terminated(ts) =>
+        IO.fail(Left(ts))
+    }
+
+  /**
+   * Companion helper to `sandboxed`.
+   *
+   * Has a performance penalty due to forking a new fiber.
+   *
+   * Allows recovery, and partial recovery, from errors and defects alike, as in:
+   *
+   * {{{
+   * case class DomainError()
+   *
+   * val veryBadIO: IO[DomainError, Unit] =
+   *   IO.sync(5 / 0) *> IO.fail(DomainError())
+   *
+   * val caught: IO[DomainError, Unit] =
+   *   veryBadIO.sandboxWith(_.catchSome {
+   *     case Left((_: ArithmeticException) :: Nil) =>
+   *       // Caught defect: divided by zero!
+   *       IO.now(0)
+   *   })
+   * }}}
+   *
+   * Using `sandboxWith` with `catchSome` is better than using
+   * `io.sandboxed.catchAll` with a partial match, because in
+   * the latter, if the match fails, the original defects will
+   * be lost and replaced by a `MatchError`
+   */
+  final def sandboxWith[E2, B](f: IO[Either[List[Throwable], E], A] => IO[Either[List[Throwable], E2], B]): IO[E2, B] =
+    IO.unsandbox(f(self.sandboxed))
 
   /**
    * Widens the action type to any supertype. While `map` suffices for this
    * purpose, this method is significantly faster for this purpose.
    */
-  def as[A1 >: A]: IO[E, A1] = self.asInstanceOf[IO[E, A1]]
+  final def as[A1 >: A]: IO[E, A1] = self.asInstanceOf[IO[E, A1]]
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
@@ -568,8 +644,7 @@ object IO {
     final val Supervise       = 13
     final val Terminate       = 14
     final val Supervisor      = 15
-    final val Run             = 16
-    final val Ensuring        = 17
+    final val Ensuring        = 16
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -647,10 +722,6 @@ object IO {
 
   final class Supervisor private[IO] () extends IO[Nothing, Throwable => IO[Nothing, Unit]] {
     override def tag = Tags.Supervisor
-  }
-
-  final class Run[E, A] private[IO] (val value: IO[E, A]) extends IO[Nothing, ExitResult[E, A]] {
-    override def tag = Tags.Run
   }
 
   final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
@@ -789,6 +860,20 @@ object IO {
     )
 
   /**
+   * Shifts the operation to another execution context.
+   *
+   * {{{
+   *   IO.shift(myPool) *> myTask
+   * }}}
+   */
+  final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
+    IO.async { cb: Callback[Nothing, Unit] =>
+      ec.execute(new Runnable {
+        override def run(): Unit = cb(ExitResult.Completed(()))
+      })
+    }
+
+  /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
    * the more expressive variant of this function.
    */
@@ -831,6 +916,18 @@ object IO {
     v.flatMap(fromEither)
 
   /**
+   * The inverse operation `IO.sandboxed`
+   *
+   * Terminates with exceptions on the `Left` side of the `Either` error, if it exists.
+   * Otherwise extracts the contained `IO[E, A]`
+   */
+  final def unsandbox[E, A](v: IO[Either[List[Throwable], E], A]): IO[E, A] =
+    v.catchAll[E, A] {
+      case Right(e) => IO.fail(e)
+      case Left(ts) => IO.terminate0(ts)
+    }
+
+  /**
    * Lifts an `Either` into an `IO`.
    */
   final def fromEither[E, A](v: Either[E, A]): IO[E, A] =
@@ -864,20 +961,16 @@ object IO {
    */
   final def bracket0[E, A, B](
     acquire: IO[E, A]
-  )(release: (A, Option[Either[E, B]]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[(A, Option[Either[E, B]])]](None).flatMap { m =>
+  )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
+    Ref[Option[(A, ExitResult[E, B])]](None).flatMap { m =>
       (for {
-        a <- acquire
-              .flatMap(a => m.set(Some((a, None))).const(a))
-              .uninterruptibly
-        b <- use(a).attempt.flatMap(
-              eb =>
-                m.set(Some((a, Some(eb)))) *> (eb match {
-                  case Right(b) => IO.now(b)
-                  case Left(e)  => fail[E](e)
-                })
-            )
-      } yield b).ensuring(m.get.flatMap(_.fold(unit) { case (a, r) => release(a, r) }))
+        f <- (for {
+              a <- acquire
+              f <- use(a).fork
+              _ <- f.onComplete(r => m.set(Some((a, r))))
+            } yield f).uninterruptibly
+        b <- f.join
+      } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
     }
 
   /**

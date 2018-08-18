@@ -1,8 +1,10 @@
 // shadow sbt-scalajs' crossProject from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
+import xerial.sbt.Sonatype._
 
 organization in ThisBuild := "org.scalaz"
+sonatypeProfileName := "org.scalaz"
 
 publishTo in ThisBuild := {
   val nexus = "https://oss.sonatype.org/"
@@ -12,6 +14,13 @@ publishTo in ThisBuild := {
     Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
+publishMavenStyle in ThisBuild := true
+licenses in ThisBuild := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+homepage in ThisBuild := Some(url("https://scalaz.github.io/scalaz-zio/"))
+developers in ThisBuild := List(
+  Developer(id = "jdegoes", name = "John De Goes", url = url("http://degoes.net"), email = "john@degoes.net")
+)
+
 dynverSonatypeSnapshots in ThisBuild := true
 isSnapshot in ThisBuild := false
 
@@ -19,6 +28,18 @@ lazy val sonataCredentials = for {
   username <- sys.env.get("SONATYPE_USERNAME")
   password <- sys.env.get("SONATYPE_PASSWORD")
 } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)
+
+pgpPassphrase in Global := sys.env.get("PGP_PASSPHRASE").map(_.toArray)
+pgpSecretRing in Global := sys.env
+  .get("PGP_SECRING")
+  .map(file)
+  .getOrElse(baseDirectory.value / "project" / "secring.gpg")
+pgpPublicRing in Global := sys.env
+  .get("PGP_PUBRING")
+  .map(file)
+  .getOrElse(baseDirectory.value / "project" / "pubring.gpg")
+useGpg in Global := false
+pgpSigningKey in Global := Some(-6073725311241139476L) // "ABB5CB02682C4AEC"
 
 credentials in ThisBuild ++= sonataCredentials.toSeq
 
@@ -42,6 +63,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
                                 "org.specs2" %%% "specs2-scalacheck"    % "4.3.2" % Test,
                                 "org.specs2" %%% "specs2-matcher-extra" % "4.3.2" % Test),
     scalacOptions in Test ++= Seq("-Yrangepos")
+  )
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "scalaz.zio",
+    buildInfoObject := "BuildInfo"
   )
 
 lazy val coreJVM = core.jvm
@@ -127,21 +154,27 @@ lazy val microsite = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
-    libraryDependencies += "com.github.ghik" %% "silencer-lib" % "1.0",
+    libraryDependencies ++= Seq(
+      "com.github.ghik" %% "silencer-lib" % "1.0",
+      "commons-io"      % "commons-io"    % "2.6"
+    ),
     micrositeFooterText := Some(
       """
-        |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">Scalaz Maintainers</a></p>
+        |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
         |""".stripMargin
     ),
-    micrositeName := "Scalaz-ZIO",
-    micrositeDescription := "Scalaz-ZIO",
-    micrositeAuthor := "Scalaz contributors",
+    micrositeName := "ZIO",
+    micrositeDescription := "ZIO",
+    micrositeAuthor := "ZIO contributors",
     micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-zio",
     micrositeGitterChannelUrl := "scalaz/scalaz-zio",
     micrositeGitHostingUrl := "https://github.com/scalaz/scalaz-zio",
     micrositeGithubOwner := "scalaz",
     micrositeGithubRepo := "scalaz-zio",
     micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
+    micrositeDocumentationUrl := s"https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/${(version in Compile).value}",
+    micrositeDocumentationLabelDescription := "Scaladoc",
+    micrositeBaseUrl := "/scalaz-zio",
     micrositePalette := Map(
       "brand-primary"   -> "#ED2124",
       "brand-secondary" -> "#251605",

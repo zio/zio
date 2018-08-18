@@ -2,22 +2,23 @@ package scalaz.zio
 package interop
 
 import java.io.{ ByteArrayOutputStream, PrintStream }
-import scala.util.control.NonFatal
 
 import cats.Eq
-import cats.implicits._
-import cats.syntax.all._
 import cats.effect.laws.discipline.EffectTests
-import org.typelevel.discipline.scalatest.Discipline
 import cats.effect.laws.util.{ TestContext, TestInstances }
-import org.typelevel.discipline.Laws
+import cats.implicits._
+import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, SemigroupKTests }
+import cats.syntax.all._
+import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
 import org.scalatest.{ FunSuite, Matchers }
-import org.scalacheck.{ Arbitrary, Cogen }
+import org.typelevel.discipline.Laws
+import org.typelevel.discipline.scalatest.Discipline
+import scalaz.zio.interop.catz._
 
-import catz._
+import scala.util.control.NonFatal
 
-class catzSpec extends FunSuite with Matchers with Checkers with Discipline with TestInstances with GenIO {
+class catzSpec extends FunSuite with Matchers with Checkers with Discipline with TestInstances with GenIO with RTS {
 
   /**
    * Silences `System.err`, only printing the output in case exceptions are
@@ -55,14 +56,18 @@ class catzSpec extends FunSuite with Matchers with Checkers with Discipline with
   }
 
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
+  checkAllAsync("MonadError[IO[Int, ?]]", implicit e => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
+  checkAllAsync("Alternative[IO[Int, ?]]", implicit e => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
+  checkAllAsync("SemigroupK[IO[Nothing, ?]]", implicit e => SemigroupKTests[IO[Nothing, ?]].semigroupK[Int])
+  checkAllAsync("Bifunctor[IO]", implicit e => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
 
-  implicit def catsEQ[A: Eq]: Eq[Task[A]] =
-    new Eq[Task[A]] {
-      def eqv(io1: Task[A], io2: Task[A]): Boolean =
+  implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
+    new Eq[IO[E, A]] {
+      def eqv(io1: IO[E, A], io2: IO[E, A]): Boolean =
         unsafeRun(io1.attempt) === unsafeRun(io2.attempt)
     }
 
-  implicit def ioArbitrary[A: Arbitrary: Cogen]: Arbitrary[Task[A]] =
-    Arbitrary(genSuccess[Throwable, A])
+  implicit def ioArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
+    Arbitrary(genSuccess[E, A])
 
 }

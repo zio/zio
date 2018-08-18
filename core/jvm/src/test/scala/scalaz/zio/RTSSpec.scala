@@ -29,6 +29,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     attempt . fail                          $testEvalOfAttemptOfFail
     deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
     deep attempt fail error                 $testAttemptOfDeepFailError
+    attempt . sandboxed . terminate         $testSandboxedAttemptOfTerminate
+    redeem . sandboxed . terminate          $testSandboxedRedeemPureOfTerminate
+    catchSome . sandboxWith . terminate     $testSandboxWithCatchSomeOfTerminate
+    catch sandboxed terminate               $testSandboxedTerminate
     uncaught fail                           $testEvalOfUncaughtFail
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
@@ -52,6 +56,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     test eval of async fail                 $testEvalOfAsyncAttemptOfFail
     bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1)}
     interrupt waits for finalizer           $testInterruptWaitsForFinalizer
+
+  RTS exit handlers
+    exit handlers get called                $testExitHandlers
 
   RTS synchronous stack safety
     deep map of point                       $testDeepMapOfPoint
@@ -157,6 +164,27 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     )
   )
 
+  def testSandboxedAttemptOfTerminate =
+    unsafeRun(IO.sync[Int](throw ExampleError).sandboxed.attempt) must_=== Left(Left(List(ExampleError)))
+
+  def testSandboxedRedeemPureOfTerminate =
+    unsafeRun(
+      IO.sync[Int](throw ExampleError).sandboxed.redeemPure(_.left.getOrElse(Nil), Function.const(Nil))
+    ) must_=== List(ExampleError)
+
+  def testSandboxWithCatchSomeOfTerminate =
+    unsafeRun(
+      IO.sync[List[Throwable]](throw ExampleError)
+        .sandboxWith(_.catchSome[Either[List[Throwable], Nothing], List[Throwable]] { case Left(ts) => IO.now(ts) })
+    ) must_=== List(ExampleError)
+
+  def testSandboxedTerminate =
+    unsafeRun(
+      IO.sync[List[Throwable]](throw ExampleError)
+        .sandboxed
+        .redeemPure(identity, identity)
+    ) must_=== Left(List(ExampleError))
+
   def testAttemptOfDeepSyncEffectError =
     unsafeRun(deepErrorEffect(100).attempt) must_=== Left(ExampleError)
 
@@ -211,12 +239,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testEvalOfFailOnError = {
     var finalized = false
-    val cleanup: Option[Throwable] => IO[Nothing, Unit] =
+    val cleanup: ExitResult[Throwable, Nothing] => IO[Nothing, Unit] =
       _ => IO.sync[Unit] { finalized = true; () }
 
     unsafeRun(
       IO.fail[Throwable](ExampleError).onError(cleanup).as[Any]
     ) must (throwA(UnhandledError(ExampleError)))
+
+    // FIXME: Is this an issue with thread synchronization?
+    while (!finalized) Thread.`yield`()
 
     finalized must_=== true
   }
@@ -329,6 +360,19 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       _    <- s.interrupt
       test <- r.get
     } yield test must_=== true)
+
+  def testExitHandlers =
+    unsafeRun(for {
+      counter <- Ref(0)
+      f       <- IO.now(Fiber.point("hello"))
+      _       <- f.onComplete(_ => counter.update(_ + 1).void)
+      _       <- f.onComplete(_ => counter.update(_ + 1).void)
+      _       <- f.onComplete(_ => counter.update(_ + 1).void)
+      p       <- Promise.make[Nothing, String]
+      _       <- f.onComplete(r => p.done(r).void)
+      a       <- p.get
+      b       <- counter.get
+    } yield (a, b)) must_=== (("hello", 3))
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
