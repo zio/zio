@@ -1,5 +1,5 @@
 ---
-layout: home
+layout: page
 position: 1
 section: home
 title: "Home"
@@ -14,6 +14,14 @@ The package strives to deliver on the following design goals:
 Principled. A purely functional interface for effectful code with rigorous, well-defined semantics.
 Performant. A low-level, highly-optimized runtime system that offers performance better than or comparable to other effect monads.
 Pragmatic. The composable, orthogonal primitives necessary to build real world software, including primitives for concurrent and asynchronous programming.
+
+# Getting started
+
+Include ZIO in your project by adding the following to your `build.sbt`:
+
+```tut:evaluated
+println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
+```
 
 # Why IO?
 
