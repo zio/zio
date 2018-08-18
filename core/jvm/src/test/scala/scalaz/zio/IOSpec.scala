@@ -91,7 +91,8 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     unsafeRun(IO.done(failed)) must throwA(Errors.UnhandledError(error))
   }
 
-  def retryCollect[E, A, E1 >: E, S](io: IO[E, A], retry: Retry[E1, S]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
+  def retryCollect[E, A, E1 >: E, S](io: IO[E, A],
+                                     retry: Retry[E1, S]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
     type State = retry.State
 
     def loop(state: State, ss: List[(Duration, S)]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] =
@@ -117,13 +118,13 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 
   def fixedWithErrorPredicate = {
-     var i = 0
-     val io = IO.sync[Unit](i += 1).flatMap{
-       _ => if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
-     }
-     val strategy =  Retry.fixed[String](200.millis).whileError(_ == "KeepTryingError")
-     val retried  = unsafeRun(retryCollect(io, strategy))
-     val expected = (Left("GiveUpError"), List(1, 2, 3, 4).map((200.millis, _)))
-     retried must_=== expected,
-   }
+    var i = 0
+    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+      if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
+    }
+    val strategy = Retry.fixed[String](200.millis).whileError(_ == "KeepTryingError")
+    val retried  = unsafeRun(retryCollect(io, strategy))
+    val expected = (Left("GiveUpError"), List(1, 2, 3, 4).map((200.millis, _)))
+    retried must_=== expected,
+  }
 }
