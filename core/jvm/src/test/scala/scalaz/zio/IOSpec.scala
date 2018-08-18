@@ -112,7 +112,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 
   def retryN = {
-    val retried  = unsafeRun(retryCollect(IO.fail("Error"), Retry.retries[String](5)))
+    val retried  = unsafeRun(retryCollect(IO.fail("Error"), Retry.retries(5)))
     val expected = (Left("Error"), List(1, 2, 3, 4, 5).map((Duration.Zero, _)))
     retried must_=== expected
   }
@@ -122,7 +122,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val io = IO.sync[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
-    val strategy = Retry.fixed[String](200.millis).whileError(_ == "KeepTryingError")
+    val strategy = Retry.fixed(200.millis).whileError[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
     val expected = (Left("GiveUpError"), List(1, 2, 3, 4).map((200.millis, _)))
     retried must_=== expected,
