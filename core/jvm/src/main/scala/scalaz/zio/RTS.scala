@@ -248,8 +248,7 @@ private object RTS {
           case f0: Finalizer =>
             val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
-            else
-              finalizer = finalizer.zipWith(f)(zipFailures)
+            else finalizer = finalizer.seqWith(f)(zipFailures)
           case _ =>
         }
       }
@@ -282,8 +281,7 @@ private object RTS {
           case f0: Finalizer =>
             val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
             if (finalizer eq null) finalizer = f
-            else
-              finalizer = finalizer.zipWith(f)(zipFailures)
+            else finalizer = finalizer.seqWith(f)(zipFailures)
           case _ =>
         }
       }

@@ -70,7 +70,7 @@ trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def join: IO[E1, C] =
-        self.join.zipWith(that.join)(f)
+        self.join.seqWith(that.join)(f)
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
@@ -94,6 +94,25 @@ trait Fiber[+E, +A] { self =>
         case _                          => ts
       }
     }
+
+  /**
+   * Zips this fiber and the specified fiber togther, producing a tuple of their
+   * output.
+   */
+  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+    zipWith(that)((a, b) => (a, b))
+
+  /**
+   * Same as `zip` but discards the output of the left hand side.
+   */
+  final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+    zip(that).map(_._2)
+
+  /**
+   * Same as `zip` but discards the output of the right hand side.
+   */
+  final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+    zip(that).map(_._1)
 
   /**
    * Maps over the value the Fiber computes.
