@@ -3,12 +3,12 @@
 
 package scalaz.zio
 
-import scalaz.zio.Semaphore.{ assertNonNegative, Entry, NonEmptyQueue, NonEmptyQueueOps, State }
+import internals._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
 
-final class Semaphore private (private val state: Ref[State]) {
+final class Semaphore private (private val state: Ref[State]) extends AnyVal {
 
   def count: IO[Nothing, Long] = state.get.map(count_)
 
@@ -86,7 +86,7 @@ final class Semaphore private (private val state: Ref[State]) {
   private def awaitGate(entry: (Long, Promise[Nothing, Unit])): IO[Nothing, Unit] =
     IO.unit.bracket0[Nothing, Unit] { (_, useOutcome) =>
       useOutcome match {
-        case None => // None outcome means either cancellation or uncaught exception
+        case None => // None outcome means either interruption or uncaught exception
           state.update {
             case Left((current, rest)) =>
               // if entry is NonEmpty's head and queue is empty, swap to Right, but without any permits
@@ -114,12 +114,10 @@ final class Semaphore private (private val state: Ref[State]) {
 }
 
 object Semaphore {
+  def apply(permits: Long): IO[Nothing, Semaphore] = Ref[State](Right(permits)).map(new Semaphore(_))
+}
 
-  def assertNonNegative(n: Long): IO[Nothing, Unit] =
-    if (n < 0) IO.terminate(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
-    else IO.unit
-
-  class NegativeArgument(message: String) extends IllegalArgumentException(message)
+private object internals {
 
   type NonEmpty[F[_], A] = (A, F[A])
 
@@ -128,6 +126,12 @@ object Semaphore {
   type NonEmptyQueue = NonEmpty[IQueue, Entry]
 
   type State = Either[NonEmptyQueue, Long]
+
+  def assertNonNegative(n: Long): IO[Nothing, Nothing] =
+    if (n < 0) IO.terminate(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
+    else IO.never
+
+  class NegativeArgument(message: String) extends IllegalArgumentException(message)
 
   implicit class NonEmptyQueueOps(val nonEmptyQueue: NonEmptyQueue) extends AnyVal {
     def size: Int                   = nonEmptyQueue._2.size + 1
@@ -142,5 +146,4 @@ object Semaphore {
     }
   }
 
-  def apply(permits: Long): IO[Nothing, Semaphore] = Ref[State](Right(permits)).map(new Semaphore(_))
 }
