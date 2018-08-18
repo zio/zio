@@ -5,23 +5,36 @@ import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
 
 /**
- * A stateful strategy for retrying `IO` actions. See `IO.retryWith`.
+ * A stateful policy for retrying `IO` actions. See `IO.retry`.
+ *
+ * A `Retry[E, A]` value can handle errors of type `E`, and produces a value of
+ * type `A` at every step. `Retry[E, A]` forms an applicative on the value,
+ * allowing rich composition of different retry policies.
+ *
+ * Retry policies also compose in one of three key ways:
+ *
+ * 1. Intersection, using the `&&` operator, which requires that both policies
+ *    agree to retry, using the longer of the two durations between retries.
+ * 2. Union, using the `||` operator, which requires that only one policy
+ *    agrees to retry, using the shorter of the two durations between retries.
+ * 3. Sequence, using the `<||>` operator, which applies the first policy
+ *    until it fails, and then switches over to the second policy.
  */
 trait Retry[E, +A] { self =>
 
   /**
-   * The full type of state used by the retry strategy, including hidden state
+   * The full type of state used by the retry policy, including hidden state
    * not exposed via the `A` type parameter.
    */
   type State
 
   /**
-   * Projects out the visible part of the state `A`.
+   * Extracts the value of this policy from the state.
    */
   def value(state: State): A
 
   /**
-   * The initial state of the strategy. This can be an effect, such as
+   * The initial state of the policy. This can be an effect, such as
    * `nanoTime`.
    */
   val initial: IO[Nothing, State]
@@ -33,7 +46,7 @@ trait Retry[E, +A] { self =>
   def update(e: E, s: State): IO[Nothing, Retry.Decision[State]]
 
   /**
-   * Negates this strategy, returning failures for successes, and successes
+   * Negates this policy, returning failures for successes, and successes
    * for failures.
    */
   def unary_! : Retry[E, A] = new Retry[E, A] {
@@ -47,8 +60,8 @@ trait Retry[E, +A] { self =>
   }
 
   /**
-   * Peeks at the visible part of the state, executes some action, and then
-   * continues retrying or not based on the specified predicate.
+   * Peeks at the value produced by this policy, executes some action, and
+   * then continues retrying or not based on the specified value predicate.
    */
   final def check[B](action: (E, A) => IO[Nothing, B])(pred: B => Boolean): Retry[E, A] =
     new Retry[E, A] {
@@ -66,35 +79,39 @@ trait Retry[E, +A] { self =>
     }
 
   /**
-   * Returns a new strategy that retries while the error matches the condition.
+   * Returns a new policy that retries while the error matches the condition.
    */
   final def whileError(p: E => Boolean): Retry[E, A] =
     check[E]((e, _) => IO.now(e))(p)
 
   /**
-   * Returns a new strategy that retries until the error matches the condition.
+   * Returns a new policy that retries until the error matches the condition.
    */
-  final def untilError(p: E => Boolean): Retry[E, A] =
-    !whileError(p)
+  final def untilError(p: E => Boolean): Retry[E, A] = !whileError(p)
 
   /*
-   * Returns a new strategy that retries until the state matches the condition.
+   * Returns a new policy that retries until the value matches the condition.
    */
-  final def untilState(p: A => Boolean): Retry[E, A] =
-    !whileState(p)
+  final def untilValue(p: A => Boolean): Retry[E, A] = !whileValue(p)
 
   /*
-   * Returns a new strategy that retries while the state matches the condition.
+   * Returns a new policy that retries while the value matches the condition.
    */
-  final def whileState(p: A => Boolean): Retry[E, A] =
+  final def whileValue(p: A => Boolean): Retry[E, A] =
     check[A]((_, s) => IO.now(s))(p)
 
   /**
-   * Returns a new strategy that retries for as long as this strategy and the
-   * specified strategy both agree to retry. For pure strategies (which have
-   * deterministic initial states/updates), the following law holds:
+   * Returns a new policy that retries for as long as this policy and the
+   * specified policy both agree to retry, using the longer of the two
+   * durations between retries.
+   *
+   * For pure policies (which have deterministic initial states/updates), the
+   * following laws holds:
+   *
    * {{{
-   * io.retryWith(r && r) === io.retryWith(r)
+   * io.retryWith(r && never).void === io.retryWith(never)
+   * io.retryWith(r && r).void === io.retryWith(r).void
+   * io.retryWith(r1 && r2).map(t => (t._2, t._1)) === io.retryWith(r2 && r1)
    * }}}
    */
   final def &&[A2](that0: => Retry[E, A2]): Retry[E, (A, A2)] =
@@ -112,15 +129,31 @@ trait Retry[E, +A] { self =>
         self.update(e, s._1).parWith(that.update(e, s._2))(_ && _)
     }
 
+  /**
+   * A named alias for `&&`.
+   */
   final def both[A2](that: => Retry[E, A2]): Retry[E, (A, A2)] =
     self && that
 
+  /**
+   * The same as `both` followed by `map`.
+   */
   final def bothWith[A2, A3](that: => Retry[E, A2])(f: (A, A2) => A3): Retry[E, A3] =
     (self && that).map(f.tupled)
 
   /**
-   * Returns a new strategy that retries for as long as either this strategy or
-   * the specified strategy want to retry.
+   * Returns a new policy that retries for as long as either this policy or
+   * the specified policy want to retry, using the shorter of the two
+   * durations.
+   *
+   * For pure policies (which have deterministic initial states/updates), the
+   * following laws holds:
+   *
+   * {{{
+   * io.retryWith(r || always).void === io.retryWith(r)
+   * io.retryWith(r || r).void === io.retryWith(r).void
+   * io.retryWith(r1 || r2).map(t => (t._2, t._1)) === io.retryWith(r2 || r1)
+   * }}}
    */
   final def ||[A2](that0: => Retry[E, A2]): Retry[E, (A, A2)] =
     new Retry[E, (A, A2)] {
@@ -136,9 +169,15 @@ trait Retry[E, +A] { self =>
         self.update(e, state._1).parWith(that.update(e, state._2))(_ || _)
     }
 
+  /**
+   * A named alias for `||`.
+   */
   final def either[A2](that: => Retry[E, A2]): Retry[E, (A, A2)] =
     self || that
 
+  /**
+   * The same as `either` followed by `map`.
+   */
   final def eitherWith[A2, A3](that: => Retry[E, A2])(f: (A, A2) => A3): Retry[E, A3] =
     (self || that).map(f.tupled)
 
@@ -149,10 +188,10 @@ trait Retry[E, +A] { self =>
     (self <||> that).map(_.merge)
 
   /**
-   * Returns a new strategy that first tries this strategy, and if it fails,
-   * then switches over to the specified strategy. The returned strategy is
-   * maximally lazy, not computing the initial state of the specified strategy
-   * until when and if this strategy fails.
+   * Returns a new policy that first tries this policy, and if it fails,
+   * then switches over to the specified policy. The returned policy is
+   * maximally lazy, not computing the initial state of the alternate policy
+   * until when and if this policy fails.
    * {{{
    * io.retryWith(Retry.never <> r.void) === io.retryWith(r)
    * io.retryWith(r.void <> Retry.never) === io.retryWith(r)
@@ -166,9 +205,10 @@ trait Retry[E, +A] { self =>
 
       val initial = self.initial.map(Left(_))
 
-      def value(state: State): Either[A, A2] =
-        state fold [Either[A, A2]] (l => Left(self.value(l)),
-        r => Right(that.value(r)))
+      def value(state: State): Either[A, A2] = state match {
+        case Left(l)  => Left(self.value(l))
+        case Right(r) => Right(that.value(r))
+      }
 
       def update(e: E, s: State): IO[Nothing, Retry.Decision[State]] =
         s match {
@@ -192,7 +232,7 @@ trait Retry[E, +A] { self =>
     self <||> that0
 
   /**
-   * Returns a new retry strategy with the state transformed by the specified
+   * Returns a new retry policy with the value transformed by the specified
    * function.
    */
   final def map[A2](f: A => A2): Retry[E, A2] = new Retry[E, A2] {
@@ -203,12 +243,12 @@ trait Retry[E, +A] { self =>
   }
 
   /**
-   * Returns a new retry strategy that always produces the constant state.
+   * Returns a new retry policy that always produces the constant state.
    */
   final def const[A2](s2: A2): Retry[E, A2] = map(_ => s2)
 
   /**
-   * Returns a new retry strategy that always produces unit state.
+   * Returns a new retry policy that always produces unit state.
    */
   final def void: Retry[E, Unit] = const(())
 
@@ -225,10 +265,11 @@ trait Retry[E, +A] { self =>
     (self && that).map(_._1)
 
   /**
-   * A new strategy that applies the current one but runs the specified effect
-   * for every update.
+   * A new policy that applies the current one but runs the specified effect
+   * for every decision of this policy. This can be used to create retry
+   * policies that log failures, decisions, or computed values.
    */
-  final def onUpdate(f: (E, Retry.Decision[A]) => IO[Nothing, Unit]): Retry[E, A] =
+  final def onDecision(f: (E, Retry.Decision[A]) => IO[Nothing, Unit]): Retry[E, A] =
     new Retry[E, A] {
       type State = self.State
       val initial                = self.initial
@@ -238,14 +279,14 @@ trait Retry[E, +A] { self =>
     }
 
   /**
-   * Modifies the delay of this retry strategy by applying the specified
+   * Modifies the delay of this retry policy by applying the specified
    * effectful function to the error, state, and current delay.
    */
   final def modifyDelay(f: (E, A, Duration) => IO[Nothing, Duration]): Retry[E, A] =
     reconsider((e, s) => f(e, s.value, s.delay).map(d => Retry.Decision[Unit](true, d, ())))
 
   /**
-   * Modifies the duration and retry/no-retry status of this strategy.
+   * Modifies the duration and retry/no-retry status of this policy.
    */
   final def reconsider(f: (E, Retry.Decision[A]) => IO[Nothing, Retry.Decision[Unit]]): Retry[E, A] =
     new Retry[E, A] {
@@ -260,19 +301,19 @@ trait Retry[E, +A] { self =>
     }
 
   /**
-   * Delays the retry strategy by the specified amount.
+   * Delays the retry policy by the specified amount.
    */
   final def delayed(f: Duration => Duration): Retry[E, A] =
     modifyDelay((_, _, d) => IO.now(f(d)))
 
   /**
-   * Applies random jitter to the retry strategy bounded by the factors
+   * Applies random jitter to the retry policy bounded by the factors
    * 0.0 and 1.0.
    */
   final def jittered: Retry[E, A] = jittered(0.0, 1.0)
 
   /**
-   * Applies random jitter to the retry strategy bounded by the specified factors.
+   * Applies random jitter to the retry policy bounded by the specified factors.
    */
   final def jittered(min: Double, max: Double): Retry[E, A] =
     modifyDelay((_, _, delay) => IO.sync(util.Random.nextDouble()).map(random => delay * min + delay * max * random))
@@ -300,15 +341,15 @@ object Retry {
     final def unary_! : Decision[A] = copy(retry = !self.retry)
   }
   object Decision {
-    def yes[A](a: A): Decision[A]                = Decision(true, Duration.Zero, a)
-    def yesIO[A](a: A): IO[Nothing, Decision[A]] = IO.now(yes(a))
+    final def yes[A](a: A): Decision[A]                = Decision(true, Duration.Zero, a)
+    final def yesIO[A](a: A): IO[Nothing, Decision[A]] = IO.now(yes(a))
 
-    def no[A](a: A): Decision[A]                = Decision(false, Duration.Zero, a)
-    def noIO[A](a: A): IO[Nothing, Decision[A]] = IO.now(no(a))
+    final def no[A](a: A): Decision[A]                = Decision(false, Duration.Zero, a)
+    final def noIO[A](a: A): IO[Nothing, Decision[A]] = IO.now(no(a))
   }
 
   /**
-   * Constructs a new retry strategy from an initial state and an update function.
+   * Constructs a new retry policy from an initial value and an update function.
    */
   final def apply[E, A](initial0: IO[Nothing, A], update0: (E, A) => IO[Nothing, Retry.Decision[A]]): Retry[E, A] =
     new Retry[E, A] {
@@ -319,37 +360,37 @@ object Retry {
     }
 
   /**
-   * A retry strategy that always fails.
+   * A retry policy that always fails.
    */
   final def never[E]: Retry[E, Unit] =
     !always[E]
 
   /**
-   * A retry strategy that always succeeds.
+   * A retry policy that always succeeds.
    */
   final def always[E]: Retry[E, Unit] =
     Retry[E, Unit](IO.unit, (_, s) => Decision.yesIO(s))
 
   /**
-   * A retry strategy that always succeeds with the specified constant state.
+   * A retry policy that always succeeds with the specified constant state.
    */
   final def point[E, A](a: => A): Retry[E, A] =
     always.const(a)
 
   /**
-   * A retry strategy that always succeeds, collecting all errors into a list.
+   * A retry policy that always succeeds, collecting all errors into a list.
    */
   final def errors[E]: Retry[E, List[E]] =
     Retry[E, List[E]](IO.now(Nil), (e, l) => Decision.yesIO(e :: l))
 
   /**
-   * A retry strategy that always retries and counts the number of retries.
+   * A retry policy that always retries and counts the number of retries.
    */
   final def counted[E]: Retry[E, Int] =
     Retry[E, Int](IO.now(0), (_, i) => Decision.yesIO(i + 1))
 
   /**
-   * A retry strategy that always retries and computes the time since the
+   * A retry policy that always retries and computes the time since the
    * beginning of the process.
    */
   final def elapsed[E]: Retry[E, Duration] = {
@@ -360,37 +401,37 @@ object Retry {
   }
 
   /**
-   * A retry strategy that will keep retrying until the specified number of
+   * A retry policy that will keep retrying until the specified number of
    * retries is reached.
    */
-  final def retries[E](max: Int): Retry[E, Int] = counted.whileState(_ < max)
+  final def retries[E](max: Int): Retry[E, Int] = counted.whileValue(_ < max)
 
   /**
-   * A retry strategy that will keep retrying until the specified duration has
+   * A retry policy that will keep retrying until the specified duration has
    * elapsed.
    */
   final def duration[E](duration: Duration): Retry[E, Duration] = {
     val nanos = duration.toNanos
 
-    elapsed.untilState(_.toNanos >= nanos)
+    elapsed.untilValue(_.toNanos >= nanos)
   }
 
   /**
-   * A retry strategy that will always succeed, waiting the specified fixed
+   * A retry policy that will always succeed, waiting the specified fixed
    * duration between attempts.
    */
   final def fixed[E](delay: Duration): Retry[E, Int] =
     counted.delayed(_ + delay)
 
   /**
-   * A retry strategy that always succeeds, and computes the state through
+   * A retry policy that always succeeds, and computes the state through
    * repeated application of a function to a base value.
    */
   final def stateful[E, A](a: A)(f: A => A): Retry[E, A] =
     Retry[E, A](IO.now(a), (_, a) => Decision.yesIO(f(a)))
 
   /**
-   * A retry strategy that always succeeds, increasing delays by summing the
+   * A retry policy that always succeeds, increasing delays by summing the
    * preceeding two delays (similar to the fibonacci sequence)
    */
   final def fibonacci[E](one: Duration): Retry[E, Duration] =
@@ -399,7 +440,7 @@ object Retry {
     }.map(_._1).modifyDelay((_, delay, _) => IO.now(delay))
 
   /**
-   * A retry strategy that will always succeed, but will wait a certain amount
+   * A retry policy that will always succeed, but will wait a certain amount
    * between retries, given by `base * factor.pow(n)`, where `n` is the
    * number of retries so far.
    */

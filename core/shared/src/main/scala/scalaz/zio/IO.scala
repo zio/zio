@@ -414,21 +414,40 @@ sealed abstract class IO[+E, +A] { self =>
   final def forever: IO[E, Nothing] = self *> self.forever
 
   /**
-   * Retries with the specified retry strategy.
+   * Retries with the specified retry policy.
    */
-  final def retry[E1 >: E, S](retry: Retry[E1, S]): IO[E1, A] = {
-    def loop(s: retry.State): IO[E1, A] =
-      self.redeem(err =>
-                    retry
-                      .update(err, s)
-                      .flatMap(
-                        step =>
-                          if (step.retry) IO.sleep(step.delay) *> loop(step.value)
-                          else IO.fail(err)
-                    ),
-                  succ => IO.now(succ))
+  final def retry[E1 >: E, S](policy: Retry[E1, S]): IO[E1, A] =
+    retryOrElse(policy, (e: E1, s: S) => IO.fail(e))
 
-    retry.initial.flatMap(loop)
+  /**
+   * Retries with the specified retry policy, until it fails, and then both the
+   * value produced by the policy together with the last error are passed to the
+   * recovery function.
+   */
+  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Retry[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
+    retryOrElse0(policy, orElse).map(_.merge)
+
+  /**
+   * Retries with the specified retry policy, until it fails, and then both the
+   * value produced by the policy together with the last error are passed to the
+   * recovery function.
+   */
+  final def retryOrElse0[E1 >: E, S, E2, B](policy: Retry[E1, S],
+                                            orElse: (E1, S) => IO[E2, B]): IO[E2, Either[B, A]] = {
+    def loop(state: policy.State): IO[E2, Either[B, A]] =
+      self.redeem(
+        err =>
+          policy
+            .update(err, state)
+            .flatMap(
+              decision =>
+                if (decision.retry) IO.sleep(decision.delay) *> loop(decision.value)
+                else orElse(err, policy.value(decision.value)).map(Left(_))
+          ),
+        succ => IO.now(Right(succ))
+      )
+
+    policy.initial.flatMap(loop)
   }
 
   /**
