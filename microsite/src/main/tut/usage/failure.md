@@ -80,14 +80,87 @@ val z: IO[Nothing, Content] =
 
 # Retry
 
-There are a number of useful combinators for repeating actions until failure or success:
+There are a number of useful combinators for retrying failed actions:
 
  * `IO.forever` &mdash; Repeats the action until the first failure.
  * `IO.retry(policy)` &mdash; Repeats the action using a specified retry policy.
  * `IO.retryOrElse(policy, fallback)` &mdash; Repeats the action using a specified retry policy, or if the policy fails, uses the fallback.
 
- Retry policies are powerful enough to encode virtually any type of strategy for retrying.
+Retry policies are a powerful, composable way to dictate retry behavior.
 
- ## Retry Policies
+## Retry Policies
 
- 
+## Base Policies
+
+```tut:invisible
+import scala.concurrent.duration._
+```
+
+A policy that always retries immediately:
+
+```tut:silent
+val always = Retry.always
+```
+
+A policy that never retries:
+
+```tut:silent
+val never = Retry.never
+```
+
+A policy that retries up to 10 times:
+
+```tut:silent
+val upTo10 = Retry.retries(10)
+```
+
+A policy that retries every 10 milliseconds:
+
+```tut:silent
+val fixed = Retry.fixed(10.milliseconds)
+```
+
+A policy that retries using exponential backoff:
+
+```tut:silent
+val exponential = Retry.exponential(10.milliseconds)
+```
+
+A policy that retries using fibonacci backoff:
+
+```tut:silent
+val fibonacci = Retry.fibonacci(10.milliseconds)
+```
+
+## Policy Combinators
+
+Applying random jitter to a policy:
+
+```tut:silent
+val jitteredExp = Retry.exponential(10.milliseconds).jittered
+```
+
+Modifying the delay of a policy:
+
+```tut:silent
+val boostedFixed = Retry.fixed(1.second).delayed(_ + 100.milliseconds)
+```
+
+Combining two policies sequentially, by following the first policy until it gives up, and then following the second policy:
+
+```tut:silent
+val sequential = Retry.retries(10) <||> Retries.fixed(1.second)
+```
+
+Combining two policies through intersection, by retrying only if both policies want to retry, using the maximum of the two delays between retries:
+
+```tut:silent
+val expUpTo10 = Retry.exponential(1.second) && Retry.retries(10)
+```
+
+Combining two policies through union, by retrying if either policy wants to
+retry, using the minimum of the two delays between retries:
+
+```tut:silent
+val expCapped = Retry.exponential(100.milliseconds) || Retry.fixed(1.seconds)
+```
