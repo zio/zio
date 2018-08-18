@@ -125,6 +125,6 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val strategy = Retry.fixed(200.millis).whileError[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
     val expected = (Left("GiveUpError"), List(1, 2, 3, 4).map((200.millis, _)))
-    retried must_=== expected,
+    retried must_=== expected
   }
 }
