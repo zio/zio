@@ -1,5 +1,3 @@
-import ScalazPlugin._
-
 version in ThisBuild := "0.1.0-SNAPSHOT"
 
 dynverSonatypeSnapshots in ThisBuild := true
