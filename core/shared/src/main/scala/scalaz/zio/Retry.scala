@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
  * type `A` at every step. `Retry[E, A]` forms an applicative on the value,
  * allowing rich composition of different retry policies.
  *
- * Retry policies also compose each of the following ways:
+ * Retry policies also compose in each of the following ways:
  *
  * 1. Intersection, using the `&&` operator, which requires that both policies
  *    agree to retry, using the longer of the two durations between retries.

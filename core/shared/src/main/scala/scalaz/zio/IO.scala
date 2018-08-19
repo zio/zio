@@ -417,6 +417,29 @@ sealed abstract class IO[+E, +A] { self =>
   final def forever: IO[E, Nothing] = self *> self.forever
 
   /**
+   * Repeats this action with the specified repetition schedule.
+   */
+  final def repeat[B](schedule: Repeat[A, B]): IO[E, B] = {
+    def loop(state: schedule.State): IO[E, B] =
+      self.flatMap(
+        a =>
+          schedule.update(a, state).flatMap {
+            case Repeat.Step.Done => IO.now(schedule.value(state))
+            case Repeat.Step.Cont(state, delay) =>
+              IO.now(state).delay(delay).flatMap(loop)
+        }
+      )
+
+    (for {
+      duration <- schedule.start
+      _ <- if (duration == Duration.Zero) IO.unit
+          else IO.sleep(duration)
+      a     <- self
+      state <- schedule.initial(a)
+    } yield state).flatMap(loop)
+  }
+
+  /**
    * Retries with the specified retry policy.
    */
   final def retry[E1 >: E, S](policy: Retry[E1, S]): IO[E1, A] =
@@ -457,7 +480,7 @@ sealed abstract class IO[+E, +A] { self =>
    * Repeats this action continuously until the first error, with the specified
    * interval between each full execution.
    */
-  final def repeat[B](interval: Duration): IO[E, B] =
+  final def repeat(interval: Duration): IO[E, Nothing] =
     self *> IO.sleep(interval) *> repeat(interval)
 
   /**
@@ -479,13 +502,13 @@ sealed abstract class IO[+E, +A] { self =>
    * action will instead execute as quickly as possible, but not
    * necessarily at the specified interval.
    */
-  final def repeatFixed[B](interval: Duration): IO[E, B] =
+  final def repeatFixed(interval: Duration): IO[E, Nothing] =
     repeatFixed0(IO.sync(System.nanoTime()))(interval)
 
-  final def repeatFixed0[B](nanoTime: IO[Nothing, Long])(interval: Duration): IO[E, B] = {
+  final def repeatFixed0(nanoTime: IO[Nothing, Long])(interval: Duration): IO[E, Nothing] = {
     val gapNs = interval.toNanos
 
-    def tick(start: Long, n: Int): IO[E, B] =
+    def tick(start: Long, n: Int): IO[E, Nothing] =
       self *> nanoTime.flatMap { now =>
         val await = ((start + n * gapNs) - now).max(0L)
 
