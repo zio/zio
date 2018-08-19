@@ -72,22 +72,16 @@ trait Repeat[-A, +B] { self =>
    * then continues the schedule or not based on the specified value predicate.
    */
   final def check[C](action: B => IO[Nothing, C])(f: C => Boolean): Repeat[A, B] =
-    new Repeat[A, B] {
-      type State = self.State
-      def initial(a: A): IO[Nothing, State] = self.initial(a)
-      val start                             = self.start
-      def value(state: State): B            = self.value(state)
-      def update(a: A, s: State): IO[Nothing, Repeat.Step[State]] =
-        self.update(a, s).flatMap {
-          case Step.Done => IO.now(Step.Done)
-          case Step.Cont(state, delay) =>
-            action(value(state)).map(
-              c =>
-                if (f(c)) Step.Cont(state, delay)
-                else Step.Done
-            )
-        }
-    }
+    updated(update => (
+      (a, s) => update(a, s).flatMap {
+        case Step(cont, state, delay) =>
+          if (cont) action(value(state)).map(
+            c =>
+              if (f(c)) Step.cont(state, delay)
+              else Step.done(state, delay)
+          ) else IO.now(Step.done(state, delay))
+      }
+    ))
 
   /**
    * Returns a new schedule that continues the schedule so long as the predicate
@@ -114,10 +108,7 @@ trait Repeat[-A, +B] { self =>
       val start                              = self.start.parWith(that.start)(_ max _)
       def value(state: State): (B, C)        = (self.value(state._1), that.value(state._2))
       def update(a: A1, s: State): IO[Nothing, Repeat.Step[State]] =
-        self.update(a, s._1).parWith(that.update(a, s._2)) {
-          case (Step.Cont(v1, d1), Step.Cont(v2, d2)) => Step.Cont((v1, v2), d1 max d2)
-          case _                                      => Step.Done
-        }
+        self.update(a, s._1).parWith(that.update(a, s._2))(_ && _)
     }
 
   /**
@@ -153,13 +144,12 @@ trait Repeat[-A, +B] { self =>
       def update(a: A1, state: State): IO[Nothing, Repeat.Step[State]] =
         state match {
           case Left(v) =>
-            self.update(a, v).flatMap {
-              case Step.Done =>
-                that.start.flatMap(start => that.initial(a).map(v => Step.Cont(Right(v), start)))
-
-              case c => IO.now(c.map(Left(_)))
+            self.update(a, v).flatMap { step =>
+              if (step.cont) IO.now(step.map(Left(_)))
+              else that.start.flatMap(start => that.initial(a).map(v => Step.cont(Right(v), start)))
             }
-          case Right(v) => that.update(a, v).map(_.map(Right(_)))
+          case Right(v) =>
+            that.update(a, v).map(_.map(Right(_)))
         }
     }
 
@@ -203,17 +193,19 @@ trait Repeat[-A, +B] { self =>
    * applied to each delay produced by this schedule (except the start delay).
    */
   final def modifyDelay(f: (B, Duration) => IO[Nothing, Duration]): Repeat[A, B] =
-    new Repeat[A, B] {
+    updated(update =>
+      ((a, s) => update(a, s).flatMap { step =>
+          f(value(step.value), step.delay).map(d => step.delayed(_ => d))
+      }))
+
+  final def updated[A1 <: A](f: ((A, State) => IO[Nothing, Repeat.Step[State]]) => ((A1, State) => IO[Nothing, Repeat.Step[State]])): Repeat[A1, B] =
+    new Repeat[A1, B] {
       type State = self.State
-      def initial(a: A): IO[Nothing, State] = self.initial(a)
+      def initial(a: A1): IO[Nothing, State] = self.initial(a)
       val start                             = self.start
       def value(state: State): B            = self.value(state)
-      def update(a: A, s: State): IO[Nothing, Repeat.Step[State]] =
-        self.update(a, s).flatMap {
-          case Step.Done => IO.now(Step.Done)
-          case Step.Cont(state, delay) =>
-            f(value(state), delay).map(Step.Cont(state, _))
-        }
+      def update(a: A1, s: State): IO[Nothing, Repeat.Step[State]] =
+        f(self.update(_, _))(a, s)
     }
 
   /**
@@ -248,7 +240,7 @@ trait Repeat[-A, +B] { self =>
   final def fold[Z](z: Z)(f: (Z, B) => Z): Repeat[A, Z] =
     new Repeat[A, Z] {
       type State = (self.State, Z)
-      def initial(a: A): IO[Nothing, State] = self.initial(a).map[State]((_, z))
+      def initial(a: A): IO[Nothing, State] = self.initial(a).map[State](state => (state, f(z, self.value(state))))
       val start                             = self.start
       def value(state: State): Z            = state._2
       def update(a: A, s0: State): IO[Nothing, Repeat.Step[State]] =
@@ -281,14 +273,10 @@ trait Repeat[-A, +B] { self =>
       val start                  = self.start.parWith(that.start)(_ + _)
       def value(state: State): C = that.value(state._2)
       def update(a: A, s: State): IO[Nothing, Repeat.Step[State]] =
-        self.update(a, s._1).flatMap {
-          case Step.Done => IO.now(Step.Done)
-          case Step.Cont(s1, d1) =>
-            that.update(self.value(s1), s._2).map {
-              case Step.Done => Step.Done
-              case Step.Cont(s2, d2) =>
-                Step.Cont((s1, s2), d1 + d2)
-            }
+        self.update(a, s._1).flatMap { step1 =>
+          if (step1.cont) that.update(self.value(step1.value), s._2).map { step2 =>
+            step1.bothWith(step2)(_ + _)
+          } else IO.now(Step.done((step1.value, s._2), step1.delay))
         }
     }
 
@@ -302,18 +290,25 @@ trait Repeat[-A, +B] { self =>
    */
   final def compose[C](that: Repeat[C, A]): Repeat[C, B] = self <<< that
 }
-object Repeat {
-  sealed trait Step[+A] { self =>
-    import Step._
 
-    final def map[B](f: A => B): Step[B] = self match {
-      case Cont(v, d) => Cont(f(v), d)
-      case Done       => Done
-    }
+object Repeat {
+  sealed case class Step[+A](cont: Boolean, value: A, delay: Duration) { self =>
+    final def map[B](f: A => B): Step[B] = copy(value = f(value))
+
+    final def && [B](that: Step[B]): Step[(A, B)] =
+      bothWith(that)(_ max _)
+
+    final def || [B](that: Step[B]): Step[(A, B)] =
+      Step(self.cont || that.cont, (self.value, that.value), self.delay min that.delay)
+
+    final def delayed(f: Duration => Duration): Step[A] = copy(delay = f(delay))
+
+    final def bothWith[B](that: Step[B])(f: (Duration, Duration) => Duration): Step[(A, B)] =
+      Step(self.cont && that.cont, (self.value, that.value), f(self.delay, that.delay))
   }
   object Step {
-    final case class Cont[A](value: A, delay: Duration = Duration.Zero) extends Step[A]
-    final case object Done                                              extends Step[Nothing]
+    def cont[A](a: A, d: Duration): Step[A] = Step(true, a, d)
+    def done[A](a: A, d: Duration): Step[A] = Step(false, a, d)
   }
 
   final def apply[A, B](initial0: A => IO[Nothing, B],
@@ -335,32 +330,38 @@ object Repeat {
    * A schedule that repeats forever, returning each input as the output.
    */
   final def identity[A]: Repeat[A, A] =
-    Repeat[A, A](IO.now(_), IO.now(Duration.Zero), (a, _) => IO.now(Step.Cont(a, Duration.Zero)))
+    Repeat[A, A](IO.now(_), IO.now(Duration.Zero), (a, _) => IO.now(Step.cont(a, Duration.Zero)))
 
   /**
    * A schedule that never executes.
    */
   final def never: Repeat[Any, Unit] =
-    Repeat[Any, Unit](_ => IO.now(()), IO.now(Duration.Inf), (_, _) => IO.now[Step[Unit]](Step.Done))
+    Repeat[Any, Unit](
+      _ => IO.now(()),
+      IO.now(Duration.Inf),
+      (_, s) => IO.now[Step[Unit]](Step.cont(s, Duration.Zero)))
 
   /**
    * A schedule that executes once.
    */
   final def once: Repeat[Any, Unit] =
-    Repeat[Any, Unit](_ => IO.now(()), IO.now(Duration.Zero), (_, _) => IO.now[Step[Unit]](Step.Done))
+    Repeat[Any, Unit](
+      _ => IO.now(()),
+      IO.now(Duration.Zero),
+      (_, s) => IO.now[Step[Unit]](Step.done(s, Duration.Zero)))
 
   /**
    * A schedule that repeats forever, producing a count of repetitions.
    */
   final def forever: Repeat[Any, Int] =
     Repeat[Any, Int](_ => IO.now(1), IO.now(Duration.Zero), (_, i) =>
-      IO.now[Step[Int]](Step.Cont(i + 1)))
+      IO.now[Step[Int]](Step.cont(i + 1, Duration.Zero)))
 
   /**
    * A schedule that repeats the specified number of times, producing a count
    * of repetitions.
    */
-  final def repeats(n: Int): Repeat[Any, Int] = forever.whileValue(_ <= n)
+  final def repeats(n: Int): Repeat[Any, Int] = forever.whileValue(_ < n)
 
   /**
    * A schedule that waits for the specified amount of time between each
@@ -374,7 +375,7 @@ object Repeat {
     Repeat[Any, Int](
       _ => IO.sync(1),
       IO.now(Duration.Zero),
-      (_, n) => IO.sync(Step.Cont(n + 1, interval))
+      (_, n) => IO.sync(Step.cont(n + 1, interval))
     )
 
   /**
@@ -402,7 +403,7 @@ object Repeat {
              val n = 1 +
                (if (await < 0) ((now - start) / interval.toNanos).toInt else n0)
 
-             Step.Cont((start, n, i + 1), Duration.fromNanos(await.max(0L)))
+             Step.cont((start, n, i + 1), Duration.fromNanos(await.max(0L)))
            }
      }
    ).map(_._3)

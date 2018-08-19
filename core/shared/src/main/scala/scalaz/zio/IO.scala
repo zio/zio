@@ -423,10 +423,9 @@ sealed abstract class IO[+E, +A] { self =>
     def loop(state: schedule.State): IO[E, B] =
       self.flatMap(
         a =>
-          schedule.update(a, state).flatMap {
-            case Repeat.Step.Done => IO.now(schedule.value(state))
-            case Repeat.Step.Cont(state, delay) =>
-              IO.now(state).delay(delay).flatMap(loop)
+          schedule.update(a, state).flatMap { step =>
+            if (!step.cont) IO.now(schedule.value(step.value))
+            else IO.now(step.value).delay(step.delay).flatMap(loop)
         }
       )
 
