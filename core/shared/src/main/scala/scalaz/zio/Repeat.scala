@@ -415,6 +415,13 @@ object Repeat {
     Repeat[Any, Unit](_ => IO.now(()), IO.now(Duration.Zero), (_, s) => IO.now[Step[Unit]](Step.done(s, Duration.Zero)))
 
   /**
+   * A schedule that repeats forever, dumping values to the specified sink,
+   * and returning those same values unmodified.
+   */
+  final def sink[A](f: A => IO[Nothing, Unit]): Repeat[A, A] =
+    identity[A].sink(f)
+
+  /**
    * A schedule that repeats forever, producing a count of repetitions.
    */
   final def forever: Repeat[Any, Int] =
