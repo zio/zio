@@ -4,11 +4,12 @@
 package scalaz.zio
 
 import internals._
+import scalaz.zio.ExitResult.Terminated
 
 import scala.annotation.tailrec
-import scala.collection.immutable.{ Queue => IQueue }
+import scala.collection.immutable.{Queue => IQueue}
 
-final class Semaphore private (private val state: Ref[State]) extends AnyVal {
+final class Semaphore private (private val state: Ref[State]) {
 
   def count: IO[Nothing, Long] = state.get.map(count_)
 
@@ -86,7 +87,7 @@ final class Semaphore private (private val state: Ref[State]) extends AnyVal {
   private def awaitGate(entry: (Long, Promise[Nothing, Unit])): IO[Nothing, Unit] =
     IO.unit.bracket0[Nothing, Unit] { (_, useOutcome) =>
       useOutcome match {
-        case None => // None outcome means either interruption or uncaught exception
+        case _: Terminated[Nothing, Unit] => // Terminated outcome means either interruption or uncaught exception
           state.update {
             case Left((current, rest)) =>
               // if entry is NonEmpty's head and queue is empty, swap to Right, but without any permits
