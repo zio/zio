@@ -7,7 +7,7 @@ import internals._
 import scalaz.zio.ExitResult.Terminated
 
 import scala.annotation.tailrec
-import scala.collection.immutable.{Queue => IQueue}
+import scala.collection.immutable.{ Queue => IQueue }
 
 final class Semaphore private (private val state: Ref[State]) {
 
