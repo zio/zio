@@ -353,25 +353,57 @@ object Repeat {
    * A schedule that repeats forever, producing a count of repetitions.
    */
   final def forever: Repeat[Any, Int] =
-    Repeat[Any, Int](_ => IO.now(1), IO.now(Duration.Zero), (_, i) => IO.now[Step[Int]](Step.Cont(i + 1)))
+    Repeat[Any, Int](_ => IO.now(1), IO.now(Duration.Zero), (_, i) =>
+      IO.now[Step[Int]](Step.Cont(i + 1)))
 
   /**
    * A schedule that repeats the specified number of times, producing a count
    * of repetitions.
    */
-  final def repeat(n: Int): Repeat[Any, Int] = forever.whileValue(_ < n)
+  final def repeats(n: Int): Repeat[Any, Int] = forever.whileValue(_ <= n)
 
   /**
-   * A schedule that repeats on the specified interval.
+   * A schedule that waits for the specified amount of time between each
+   * repetition. Returns the number of repetitions so far.
+   *
+   * <pre>
+   * |action|-----gap-----|action|-----gap-----|action|
+   * </pre>
    */
-  final def interval(delay: Duration): Repeat[Any, Duration] =
-    Repeat[Any, (Long, Duration)](
-      _ => IO.sync((System.nanoTime(), Duration.Zero)),
+  final def gap(interval: Duration): Repeat[Any, Int] =
+    Repeat[Any, Int](
+      _ => IO.sync(1),
       IO.now(Duration.Zero),
-      (_, t) =>
-        t match {
-          case (initial, _) =>
-            IO.sync(System.nanoTime()).map(time => Step.Cont((initial, Duration.fromNanos(time - initial)), delay))
-      }
-    ).map(_._2)
+      (_, n) => IO.sync(Step.Cont(n + 1, interval))
+    )
+
+  /**
+   * A schedule that repeats the action on a fixed interval. Returns the amount
+   * of time since the schedule began.
+   *
+   * If the action takes longer than the interval, then the action will be run
+   * immediately, but re-runs will not "pile up".
+   *
+   * <pre>
+   * |---------interval---------|---------interval---------|
+   * |action|                   |action|
+   * </pre>
+   */
+ final def fixed(interval: Duration): Repeat[Any, Int] =
+   if (interval == Duration.Zero) forever
+   else Repeat[Any, (Long, Int, Int)](
+     _ => IO.sync((System.nanoTime(), 1, 1)),
+     IO.now(Duration.Zero),
+     (_, t) =>
+       t match {
+         case (start, n0, i) =>
+           IO.sync(System.nanoTime()).map { now =>
+             val await = ((start + n0 * interval.toNanos) - now)
+             val n = 1 +
+               (if (await < 0) ((now - start) / interval.toNanos).toInt else n0)
+
+             Step.Cont((start, n, i + 1), Duration.fromNanos(await.max(0L)))
+           }
+     }
+   ).map(_._3)
 }

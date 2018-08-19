@@ -484,43 +484,6 @@ sealed abstract class IO[+E, +A] { self =>
     self *> IO.sleep(interval) *> repeat(interval)
 
   /**
-   * Repeats this action n time.
-   */
-  final def repeatN(n: Int): IO[E, A] = if (n <= 1) self else self *> repeatN(n - 1)
-
-  /**
-   * Repeats this action n time with a specified function, which computes
-   * a return value.
-   */
-  final def repeatNFold[B](n: Int)(b: B, f: (B, A) => B): IO[E, B] =
-    if (n < 1) IO.now(b) else self.flatMap(a => repeatNFold(n - 1)(f(b, a), f))
-
-  /**
-   * Repeats this action continuously until the first error, with the specified
-   * interval between the start of each full execution. Note that if the
-   * execution of this action takes longer than the specified interval, then the
-   * action will instead execute as quickly as possible, but not
-   * necessarily at the specified interval.
-   */
-  final def repeatFixed(interval: Duration): IO[E, Nothing] =
-    repeatFixed0(IO.sync(System.nanoTime()))(interval)
-
-  final def repeatFixed0(nanoTime: IO[Nothing, Long])(interval: Duration): IO[E, Nothing] = {
-    val gapNs = interval.toNanos
-
-    def tick(start: Long, n: Int): IO[E, Nothing] =
-      self *> nanoTime.flatMap { now =>
-        val await = ((start + n * gapNs) - now).max(0L)
-
-        IO.sleep(await.nanoseconds) *> tick(start, n + 1)
-      }
-
-    nanoTime.flatMap { start =>
-      tick(start, 1)
-    }
-  }
-
-  /**
    * Repeats this action continuously until the function returns false.
    */
   final def doWhile(f: A => Boolean): IO[E, A] =
@@ -553,7 +516,7 @@ sealed abstract class IO[+E, +A] { self =>
    * Times out this action by the specified duration.
    *
    * {{{
-   * action.timeout(1.second)
+   * IO.point(1).timeout(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
   final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] = {
@@ -1016,6 +979,10 @@ object IO {
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E](error))(IO.now[A]))
 
+  /**
+   * Forks all of the specified values, and returns a composite fiber that
+   * produces a list of their results, in order.
+   */
   final def forkAll[E, A](as: Iterable[IO[E, A]]): IO[Nothing, Fiber[E, List[A]]] =
     as.foldRight(IO.point(Fiber.point[E, List[A]](List()))) { (aIO, asFiberIO) =>
       asFiberIO.par(aIO.fork).map {
