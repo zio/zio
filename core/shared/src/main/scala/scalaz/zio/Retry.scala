@@ -174,7 +174,7 @@ trait Retry[-E, +A] { self =>
 
       val initial = self.initial.map(Left(_))
 
-      val value = _ match {
+      val value = (s : State) => s match {
         case Left(l)  => Left(self.value(l))
         case Right(r) => Right(that.value(r))
       }
@@ -339,7 +339,7 @@ object Retry {
     new Retry[E, A] {
       type State = A
       val initial = initial0
-      val value   = Predef.identity
+      val value   = Predef.identity[State](_)
       val update  = update0
     }
 
