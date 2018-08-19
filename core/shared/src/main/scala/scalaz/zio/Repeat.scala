@@ -102,18 +102,33 @@ trait Repeat[-A, +B] { self =>
   final def untilValue(f: B => Boolean): Repeat[A, B] =
     check[B](IO.now(_))(!f(_))
 
-  /**
-   * Returns a new schedule that continues only as long as both schedules
-   * continue, using the maximum of the delays of the two schedules.
-   */
-  final def &&[A1 <: A, C](that: Repeat[A1, C]): Repeat[A1, (B, C)] =
+  final def combineWith[A1 <: A, C](that: Repeat[A1, C])(g: (Boolean, Boolean) => Boolean,
+                                                         f: (Duration, Duration) => Duration): Repeat[A1, (B, C)] =
     new Repeat[A1, (B, C)] {
       type State = (self.State, that.State)
       val initial = (a: A1) => self.initial(a).par(that.initial(a))
       val start   = self.start.parWith(that.start)(_ max _)
       val value   = (state: State) => (self.value(state._1), that.value(state._2))
-      val update  = (a: A1, s: State) => self.update(a, s._1).parWith(that.update(a, s._2))(_ && _)
+      val update  = (a: A1, s: State) => self.update(a, s._1).parWith(that.update(a, s._2))(_.combineWith(_)(g, f))
     }
+
+  /**
+   * Returns a new schedule that continues only as long as both schedules
+   * continue, using the maximum of the delays of the two schedules.
+   */
+  final def &&[A1 <: A, C](that: Repeat[A1, C]): Repeat[A1, (B, C)] =
+    combineWith(that)(_ && _, _ max _)
+
+  /**
+   * A named alias for `&&`.
+   */
+  final def both[A1 <: A, C](that: Repeat[A1, C]): Repeat[A1, (B, C)] = self && that
+
+  /**
+   * The same as `both` followed by `map`.
+   */
+  final def bothWith[A1 <: A, C, D](that: Repeat[A1, C])(f: (B, C) => D): Repeat[A1, D] =
+    (self && that).map(f.tupled)
 
   /**
    * The same as `&&`, but ignores the left output.
@@ -126,6 +141,24 @@ trait Repeat[-A, +B] { self =>
    */
   final def <*[A1 <: A, C](that: Repeat[A1, C]): Repeat[A1, B] =
     (self && that).map(_._1)
+
+  /**
+   * Returns a new schedule that continues as long as either schedule continues,
+   * using the minimum of the delays of the two schedules.
+   */
+  final def ||[A1 <: A, C](that: Repeat[A1, C]): Repeat[A1, (B, C)] =
+    combineWith(that)(_ || _, _ min _)
+
+  /**
+   * A named alias for `||`.
+   */
+  final def either[A1 <: A, C](that: Repeat[A1, C]): Repeat[A1, (B, C)] = self || that
+
+  /**
+   * The same as `either` followed by `map`.
+   */
+  final def eitherWith[A1 <: A, C, D](that: Repeat[A1, C])(f: (B, C) => D): Repeat[A1, D] =
+    (self || that).map(f.tupled)
 
   /**
    * Returns a new schedule that first executes this schedule to completion,
@@ -322,7 +355,7 @@ trait Repeat[-A, +B] { self =>
       val update = (a: A, s: State) =>
         self.update(a, s._1).flatMap { step1 =>
           if (step1.cont) that.update(self.value(step1.value), s._2).map { step2 =>
-            step1.bothWith(step2)(_ + _)
+            step1.combineWith(step2)(_ && _, _ + _)
           } else IO.now(Step.done((step1.value, s._2), step1.delay))
       }
     }
@@ -342,16 +375,11 @@ object Repeat {
   sealed case class Step[+A](cont: Boolean, value: A, delay: Duration) { self =>
     final def map[B](f: A => B): Step[B] = copy(value = f(value))
 
-    final def &&[B](that: Step[B]): Step[(A, B)] =
-      bothWith(that)(_ max _)
-
-    final def ||[B](that: Step[B]): Step[(A, B)] =
-      Step(self.cont || that.cont, (self.value, that.value), self.delay min that.delay)
-
     final def delayed(f: Duration => Duration): Step[A] = copy(delay = f(delay))
 
-    final def bothWith[B](that: Step[B])(f: (Duration, Duration) => Duration): Step[(A, B)] =
-      Step(self.cont && that.cont, (self.value, that.value), f(self.delay, that.delay))
+    final def combineWith[B](that: Step[B])(g: (Boolean, Boolean) => Boolean,
+                                            f: (Duration, Duration) => Duration): Step[(A, B)] =
+      Step(g(self.cont, that.cont), (self.value, that.value), f(self.delay, that.delay))
   }
   object Step {
     def cont[A](a: A, d: Duration): Step[A] = Step(true, a, d)

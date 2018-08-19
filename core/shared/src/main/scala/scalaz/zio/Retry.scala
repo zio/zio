@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
  * 2. Union, using the `||` operator, which requires that only one policy
  *    agrees to retry, using the shorter of the two durations between retries.
  * 3. Sequence, using the `<||>` operator, which applies the first policy
- *    until it fails, and then switches over to the second policy.
+ *    until it gives up, and then switches over to the second policy.
  */
 trait Retry[-E, +A] { self =>
 
@@ -40,8 +40,7 @@ trait Retry[-E, +A] { self =>
   val initial: IO[Nothing, State]
 
   /**
-   * Invoked on an error. This method can return the next state, which will continue
-   * the retry process, or it can return a failure, which will terminate the retry.
+   * Invoked on an error to return the next retry decision.
    */
   val update: (E, State) => IO[Nothing, Retry.Decision[State]]
 
@@ -88,6 +87,15 @@ trait Retry[-E, +A] { self =>
   final def whileValue(p: A => Boolean): Retry[E, A] =
     check[E, A]((_, a) => IO.now(a))(p)
 
+  final def combineWith[E2 <: E, A2](that: Retry[E2, A2])(g: (Boolean, Boolean) => Boolean,
+                                                          f: (Duration, Duration) => Duration): Retry[E2, (A, A2)] =
+    new Retry[E2, (A, A2)] {
+      type State = (self.State, that.State)
+      val initial = self.initial.par(that.initial)
+      val value   = (state: State) => (self.value(state._1), that.value(state._2))
+      val update  = (e: E2, s: State) => self.update(e, s._1).parWith(that.update(e, s._2))(_.combineWith(_)(g, f))
+    }
+
   /**
    * Returns a new policy that retries for as long as this policy and the
    * specified policy both agree to retry, using the longer of the two
@@ -103,12 +111,7 @@ trait Retry[-E, +A] { self =>
    * }}}
    */
   final def &&[E2 <: E, A2](that: Retry[E2, A2]): Retry[E2, (A, A2)] =
-    new Retry[E2, (A, A2)] {
-      type State = (self.State, that.State)
-      val initial = self.initial.par(that.initial)
-      val value   = (state: State) => (self.value(state._1), that.value(state._2))
-      val update  = (e: E2, s: State) => self.update(e, s._1).parWith(that.update(e, s._2))(_ && _)
-    }
+    combineWith(that)(_ && _, _ max _)
 
   /**
    * A named alias for `&&`.
@@ -136,12 +139,7 @@ trait Retry[-E, +A] { self =>
    * }}}
    */
   final def ||[E2 <: E, A2](that: Retry[E2, A2]): Retry[E2, (A, A2)] =
-    new Retry[E2, (A, A2)] {
-      type State = (self.State, that.State)
-      val initial = self.initial.par(that.initial)
-      val value   = (state: State) => (self.value(state._1), that.value(state._2))
-      val update  = (e: E2, state: State) => self.update(e, state._1).parWith(that.update(e, state._2))(_ || _)
-    }
+    combineWith(that)(_ || _, _ min _)
 
   /**
    * A named alias for `||`.
@@ -161,10 +159,10 @@ trait Retry[-E, +A] { self =>
     (self <||> that).map(_.merge)
 
   /**
-   * Returns a new policy that first tries this policy, and if it fails,
+   * Returns a new policy that first tries this policy, and if it gives up,
    * then switches over to the specified policy. The returned policy is
    * maximally lazy, not computing the initial state of the alternate policy
-   * until when and if this policy fails.
+   * until when and if this policy gives up.
    * {{{
    * io.retryWith(Retry.never <> r.void) === io.retryWith(r)
    * io.retryWith(r.void <> Retry.never) === io.retryWith(r)
@@ -318,24 +316,13 @@ trait Retry[-E, +A] { self =>
 
 object Retry {
   final case class Decision[+A](retry: Boolean, delay: Duration, value: A) { self =>
-    final def &&[B](that: Decision[B]): Decision[(A, B)] = {
-      def max(d1: Duration, d2: Duration): Duration =
-        if (d1 < d2) d2 else d1
-
-      Decision(self.retry && that.retry, max(self.delay, that.delay), (self.value, that.value))
-    }
-
-    final def ||[B](that: Decision[B]): Decision[(A, B)] = {
-      def min(d1: Duration, d2: Duration): Duration =
-        if (d1 < d2) d1 else d2
-
-      Decision(self.retry || that.retry, min(self.delay, that.delay), (self.value, that.value))
-    }
-
-    final def map[B](f: A => B): Decision[B] =
-      Decision(retry, delay, f(value))
+    final def map[B](f: A => B): Decision[B] = copy(value = f(value))
 
     final def unary_! : Decision[A] = copy(retry = !self.retry)
+
+    final def combineWith[B](that: Decision[B])(g: (Boolean, Boolean) => Boolean,
+                                                f: (Duration, Duration) => Duration): Decision[(A, B)] =
+      Decision(g(self.retry, that.retry), f(self.delay, that.delay), (self.value, that.value))
   }
   object Decision {
     final def yes[A](a: A): Decision[A]                = Decision(true, Duration.Zero, a)
@@ -357,7 +344,7 @@ object Retry {
     }
 
   /**
-   * A retry policy that always fails.
+   * A retry policy that always gives up.
    */
   final lazy val never: Retry[Any, Unit] = !always
 
