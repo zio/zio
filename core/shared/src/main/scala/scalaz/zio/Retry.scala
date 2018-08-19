@@ -31,7 +31,7 @@ trait Retry[-E, +A] { self =>
   /**
    * Extracts the value of this policy from the state.
    */
-  def value(state: State): A
+  val value: State => A
 
   /**
    * The initial state of the policy. This can be an effect, such as
@@ -43,40 +43,28 @@ trait Retry[-E, +A] { self =>
    * Invoked on an error. This method can return the next state, which will continue
    * the retry process, or it can return a failure, which will terminate the retry.
    */
-  def update(e: E, s: State): IO[Nothing, Retry.Decision[State]]
+  val update: (E, State) => IO[Nothing, Retry.Decision[State]]
 
   /**
    * Negates this policy, returning failures for successes, and successes
    * for failures.
    */
-  def unary_! : Retry[E, A] = new Retry[E, A] {
-    type State = self.State
-
-    val initial = self.initial
-
-    def value(state: State): A = self.value(state)
-
-    def update(e: E, s: State): IO[Nothing, Retry.Decision[State]] = self.update(e, s).map(!_)
-  }
+  def unary_! : Retry[E, A] = updated(update => (e, s) => update(e, s).map(!_))
 
   /**
    * Peeks at the value produced by this policy, executes some action, and
    * then continues retrying or not based on the specified value predicate.
    */
   final def check[E1 <: E, B](action: (E1, A) => IO[Nothing, B])(pred: B => Boolean): Retry[E1, A] =
-    new Retry[E1, A] {
-      type State = self.State
-
-      val initial = self.initial
-
-      def value(state: State): A = self.value(state)
-
-      def update(e: E1, s: State): IO[Nothing, Retry.Decision[State]] =
-        for {
-          d <- self.update(e, s)
-          b <- action(e, value(s))
-        } yield d.copy(retry = pred(b))
-    }
+    updated(
+      update =>
+        ((e,
+          s) =>
+           for {
+             d <- update(e, s)
+             b <- action(e, value(s))
+           } yield d.copy(retry = pred(b)))
+    )
 
   /**
    * Returns a new policy that retries while the error matches the condition.
@@ -114,31 +102,23 @@ trait Retry[-E, +A] { self =>
    * io.retryWith(r1 && r2).map(t => (t._2, t._1)) === io.retryWith(r2 && r1)
    * }}}
    */
-  final def &&[E2 <: E, A2](that0: => Retry[E2, A2]): Retry[E2, (A, A2)] =
+  final def &&[E2 <: E, A2](that: Retry[E2, A2]): Retry[E2, (A, A2)] =
     new Retry[E2, (A, A2)] {
-      lazy val that = that0
-
       type State = (self.State, that.State)
-
       val initial = self.initial.par(that.initial)
-
-      def value(state: State): (A, A2) =
-        (self.value(state._1), that.value(state._2))
-
-      def update(e: E2, s: State): IO[Nothing, Retry.Decision[State]] =
-        self.update(e, s._1).parWith(that.update(e, s._2))(_ && _)
+      val value   = (state: State) => (self.value(state._1), that.value(state._2))
+      val update  = (e: E2, s: State) => self.update(e, s._1).parWith(that.update(e, s._2))(_ && _)
     }
 
   /**
    * A named alias for `&&`.
    */
-  final def both[E2 <: E, A2](that: => Retry[E2, A2]): Retry[E2, (A, A2)] =
-    self && that
+  final def both[E2 <: E, A2](that: Retry[E2, A2]): Retry[E2, (A, A2)] = self && that
 
   /**
    * The same as `both` followed by `map`.
    */
-  final def bothWith[E2 <: E, A2, A3](that: => Retry[E2, A2])(f: (A, A2) => A3): Retry[E2, A3] =
+  final def bothWith[E2 <: E, A2, A3](that: Retry[E2, A2])(f: (A, A2) => A3): Retry[E2, A3] =
     (self && that).map(f.tupled)
 
   /**
@@ -155,36 +135,29 @@ trait Retry[-E, +A] { self =>
    * io.retryWith(r1 || r2).map(t => (t._2, t._1)) === io.retryWith(r2 || r1)
    * }}}
    */
-  final def ||[E2 <: E, A2](that0: => Retry[E2, A2]): Retry[E2, (A, A2)] =
+  final def ||[E2 <: E, A2](that: Retry[E2, A2]): Retry[E2, (A, A2)] =
     new Retry[E2, (A, A2)] {
-      lazy val that = that0
-
       type State = (self.State, that.State)
-
       val initial = self.initial.par(that.initial)
-
-      def value(state: State): (A, A2) = (self.value(state._1), that.value(state._2))
-
-      def update(e: E2, state: State): IO[Nothing, Retry.Decision[State]] =
-        self.update(e, state._1).parWith(that.update(e, state._2))(_ || _)
+      val value   = (state: State) => (self.value(state._1), that.value(state._2))
+      val update  = (e: E2, state: State) => self.update(e, state._1).parWith(that.update(e, state._2))(_ || _)
     }
 
   /**
    * A named alias for `||`.
    */
-  final def either[E2 <: E, A2](that: => Retry[E2, A2]): Retry[E2, (A, A2)] =
-    self || that
+  final def either[E2 <: E, A2](that: Retry[E2, A2]): Retry[E2, (A, A2)] = self || that
 
   /**
    * The same as `either` followed by `map`.
    */
-  final def eitherWith[E2 <: E, A2, A3](that: => Retry[E2, A2])(f: (A, A2) => A3): Retry[E2, A3] =
+  final def eitherWith[E2 <: E, A2, A3](that: Retry[E2, A2])(f: (A, A2) => A3): Retry[E2, A3] =
     (self || that).map(f.tupled)
 
   /**
    * Same as `<||>`, but merges the states.
    */
-  final def <>[E2 <: E, A2 >: A](that: => Retry[E2, A2]): Retry[E2, A2] =
+  final def <>[E2 <: E, A2 >: A](that: Retry[E2, A2]): Retry[E2, A2] =
     (self <||> that).map(_.merge)
 
   /**
@@ -197,20 +170,18 @@ trait Retry[-E, +A] { self =>
    * io.retryWith(r.void <> Retry.never) === io.retryWith(r)
    * }}}
    */
-  final def <||>[E2 <: E, A2](that0: => Retry[E2, A2]): Retry[E2, Either[A, A2]] =
+  final def <||>[E2 <: E, A2](that: Retry[E2, A2]): Retry[E2, Either[A, A2]] =
     new Retry[E2, Either[A, A2]] {
-      lazy val that = that0
-
       type State = Either[self.State, that.State]
 
       val initial = self.initial.map(Left(_))
 
-      def value(state: State): Either[A, A2] = state match {
+      val value = _ match {
         case Left(l)  => Left(self.value(l))
         case Right(r) => Right(that.value(r))
       }
 
-      def update(e: E2, s: State): IO[Nothing, Retry.Decision[State]] =
+      val update = (e: E2, s: State) =>
         s match {
           case Left(s1) =>
             self
@@ -222,7 +193,7 @@ trait Retry[-E, +A] { self =>
               )
           case Right(s2) =>
             that.update(e, s2).map(_.map(Right(_)))
-        }
+      }
     }
 
   /**
@@ -237,9 +208,9 @@ trait Retry[-E, +A] { self =>
    */
   final def map[A2](f: A => A2): Retry[E, A2] = new Retry[E, A2] {
     type State = self.State
-    val initial                                                    = self.initial
-    def value(state: State): A2                                    = f(self.value(state))
-    def update(e: E, s: State): IO[Nothing, Retry.Decision[State]] = self.update(e, s)
+    val initial = self.initial
+    val value   = f.compose(self.value)
+    val update  = self.update
   }
 
   /**
@@ -248,9 +219,9 @@ trait Retry[-E, +A] { self =>
    */
   final def contramap[E2](f: E2 => E): Retry[E2, A] = new Retry[E2, A] {
     type State = self.State
-    val initial                                                     = self.initial
-    def value(state: State): A                                      = self.value(state)
-    def update(e: E2, s: State): IO[Nothing, Retry.Decision[State]] = self.update(f(e), s)
+    val initial = self.initial
+    val value   = self.value
+    val update  = (e: E2, s: State) => self.update(f(e), s)
   }
 
   /**
@@ -281,34 +252,49 @@ trait Retry[-E, +A] { self =>
    * policies that log failures, decisions, or computed values.
    */
   final def onDecision[E2 <: E](f: (E2, Retry.Decision[A]) => IO[Nothing, Unit]): Retry[E2, A] =
-    new Retry[E2, A] {
-      type State = self.State
-      val initial                = self.initial
-      def value(state: State): A = self.value(state)
-      def update(e: E2, s: State): IO[Nothing, Retry.Decision[State]] =
-        self.update(e, s).flatMap(step => f(e, step.map(value)) *> IO.now(step))
-    }
+    updated(update => ((e, s) => update(e, s).peek(step => f(e, step.map(value)))))
 
   /**
    * Modifies the delay of this retry policy by applying the specified
    * effectful function to the error, state, and current delay.
    */
   final def modifyDelay[E2 <: E](f: (E2, A, Duration) => IO[Nothing, Duration]): Retry[E2, A] =
-    reconsider((e, s) => f(e, s.value, s.delay).map(d => Retry.Decision[Unit](true, d, ())))
+    reconsiderM((e, s) => f(e, s.value, s.delay).map(d => Retry.Decision[Unit](true, d, ())))
 
   /**
-   * Modifies the duration and retry/no-retry status of this policy.
+   * Returns a new retry strategy with the retry decision of this policy
+   * modified by the specified effectful function.
    */
-  final def reconsider[E2 <: E](f: (E2, Retry.Decision[A]) => IO[Nothing, Retry.Decision[Unit]]): Retry[E2, A] =
+  final def reconsiderM[E2 <: E](f: (E2, Retry.Decision[A]) => IO[Nothing, Retry.Decision[Unit]]): Retry[E2, A] =
+    updated(
+      update =>
+        ((e,
+          s) =>
+           for {
+             step  <- update(e, s)
+             step2 <- f(e, step.map(value))
+           } yield step.copy(retry = step2.retry, delay = step2.delay))
+    )
+
+  /**
+   * Returns a new retry strategy with the retry decision of this policy
+   * modified by the specified function.
+   */
+  final def reconsider[E2 <: E](f: (E2, Retry.Decision[A]) => Retry.Decision[Unit]): Retry[E2, A] =
+    reconsiderM((e, d) => IO.now(f(e, d)))
+
+  /**
+   * Returns a new retry strategy with the update function transformed by the
+   * specified update transformer.
+   */
+  final def updated[E2 <: E](
+    f: ((E, State) => IO[Nothing, Retry.Decision[State]]) => ((E2, State) => IO[Nothing, Retry.Decision[State]])
+  ): Retry[E2, A] =
     new Retry[E2, A] {
       type State = self.State
-      val initial                = self.initial
-      def value(state: State): A = self.value(state)
-      def update(e: E2, s: State): IO[Nothing, Retry.Decision[State]] =
-        for {
-          step  <- self.update(e, s)
-          step2 <- f(e, step.map(value))
-        } yield step.copy(retry = step2.retry, delay = step2.delay)
+      val initial = self.initial
+      val value   = self.value
+      val update  = f(self.update)
     }
 
   /**
@@ -365,9 +351,9 @@ object Retry {
   final def apply[E, A](initial0: IO[Nothing, A], update0: (E, A) => IO[Nothing, Retry.Decision[A]]): Retry[E, A] =
     new Retry[E, A] {
       type State = A
-      val initial                                                    = initial0
-      def value(state: State): A                                     = state
-      def update(e: E, s: State): IO[Nothing, Retry.Decision[State]] = update0(e, s)
+      val initial = initial0
+      val value   = Predef.identity
+      val update  = update0
     }
 
   /**
