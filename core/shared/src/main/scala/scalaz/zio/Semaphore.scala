@@ -128,9 +128,9 @@ private object internals {
 
   type State = Either[NonEmptyQueue, Long]
 
-  def assertNonNegative(n: Long): IO[Nothing, Nothing] =
+  def assertNonNegative(n: Long): IO[Nothing, Unit] =
     if (n < 0) IO.terminate(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
-    else IO.never
+    else IO.unit
 
   class NegativeArgument(message: String) extends IllegalArgumentException(message)
 
