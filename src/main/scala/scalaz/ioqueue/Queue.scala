@@ -6,8 +6,6 @@ import scala.collection.immutable.{ Queue => IQueue }
 import Queue.internal._
 import scalaz.zio.{ Fiber, IO, Promise, Ref }
 
-import scala.annotation.tailrec
-
 /**
  * A `Queue` is a lightweight, asynchronous queue. This implementation is
  * naive, if functional, and could benefit from significant optimization.
@@ -164,10 +162,13 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    */
   final def offerAll(as: Iterable[A]): IO[Nothing, Unit] = {
 
-    def acquire
-      : (Iterable[A], Promise[Nothing, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
-      case (as, p, Deficit(takers))          => deficit(as, p, takers)
-      case (as, p, Surplus(values, putters)) => surplus(as, p, values, putters)
+    def acquire(
+      as: Iterable[A],
+      p: Promise[Nothing, Unit],
+      state: State[A]
+    ): (IO[Nothing, Boolean], State[A]) = state match {
+      case Deficit(takers)          => deficit(as, p, takers)
+      case Surplus(values, putters) => surplus(as, p, values, putters)
     }
 
     def deficit(
@@ -175,43 +176,31 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       p: Promise[Nothing, Unit],
       takers: IQueue[Promise[Nothing, A]]
     ): (IO[Nothing, Boolean], State[A]) =
-      deficit_(as, p, takers, List.empty)
-        .foldLeft[(IO[Nothing, Boolean], State[A])]((IO.now(false), Deficit(takers))) {
-          case (io, currentIO) => (io._1 *> currentIO._1, currentIO._2)
-        }
+      takers.dequeueOption match {
+        case None =>
+          if (as.size <= capacity)
+            p.complete(()) -> Surplus(IQueue.empty[A] ++ as, IQueue.empty)
+          else
+            IO.now(false) ->
+              Surplus(
+                IQueue.empty[A] ++ as.take(capacity),
+                IQueue.empty[(Iterable[A], Promise[Nothing, Unit])].enqueue(as.drop(capacity) -> p)
+              )
 
-    @tailrec
-    def deficit_(
-      as: Iterable[A],
-      p: Promise[Nothing, Unit],
-      takers: IQueue[Promise[Nothing, A]],
-      qstates: List[(IO[Nothing, Boolean], State[A])]
-    ): List[(IO[Nothing, Boolean], State[A])] =
-      (takers.dequeueOption, as.headOption) match {
+        case Some(_) =>
+          val takersSize = takers.size
+          if (as.size < takersSize)
+            completeAll(Some(p), takers.zip(as)) -> Deficit(IQueue.empty ++ takers.drop(as.size))
+          else {
+            val optP = if (as.size > takersSize + capacity) None else Some(p)
 
-        case (None, Some(_)) if as.size <= capacity =>
-          qstates :+ ((p.complete(()), Surplus(IQueue.empty[A] ++ as, IQueue.empty)))
-
-        case (None, Some(_)) if as.size > capacity =>
-          val state = (
-            IO.now(false),
-            Surplus(
-              IQueue.empty[A] ++ as.take(capacity),
-              IQueue.empty[(Iterable[A], Promise[Nothing, Unit])].enqueue((as.drop(capacity), p))
+            completeAll(optP, takers.zip(as)) -> Surplus(
+              IQueue.empty[A] ++ as.slice(takersSize, takersSize + capacity),
+              IQueue
+                .empty[(Iterable[A], Promise[Nothing, Unit])]
+                .enqueue(as.drop(takersSize + capacity) -> p)
             )
-          )
-          qstates :+ state
-
-        case (None, None) =>
-          qstates :+ ((p.complete(()), Surplus(IQueue.empty[A], IQueue.empty)))
-
-        case (Some(_), None) =>
-          val takerss = takers
-          qstates :+ ((p.complete(()), Deficit(takerss)))
-
-        case (Some((taker, takers)), Some(a)) =>
-          val state = (taker.complete(a), Deficit(takers))
-          deficit_(as.tail, p, takers, qstates :+ state)
+          }
       }
 
     def surplus(
@@ -225,6 +214,15 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       } else {
         val valuesToAdd = values ++ as.take(capacity - values.size)
         (IO.now(false), Surplus(valuesToAdd, putters.enqueue((as.drop(capacity - values.size), p))))
+      }
+
+    def completeAll(
+      putterOpt: Option[Promise[Nothing, Unit]],
+      deficit: IQueue[(Promise[Nothing, A], A)]
+    ): IO[Nothing, Boolean] =
+      deficit.dequeueOption match {
+        case None                     => putterOpt.fold(IO.now(false))(_.complete(()))
+        case Some(((taker, a), rest)) => taker.complete(a) *> completeAll(putterOpt, rest)
       }
 
     val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
