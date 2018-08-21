@@ -1,3 +1,10 @@
+---
+layout: page
+position: 2
+section: home
+title:  "Interop"
+---
+
 ZIO Interop module
 ==================
 
@@ -123,4 +130,3 @@ def loadUsers: Stream[Task, User] =
 
 val allUsers: List[User] = unsafeRun(loadUsers.compile.toList)
 ```
-
