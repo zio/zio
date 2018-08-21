@@ -3,45 +3,21 @@ import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
 import xerial.sbt.Sonatype._
 
-organization in ThisBuild := "org.scalaz"
-sonatypeProfileName := "org.scalaz"
-
-publishTo in ThisBuild := {
-  val nexus = "https://oss.sonatype.org/"
-  if (isSnapshot.value)
-    Some("snapshots" at nexus + "content/repositories/snapshots")
-  else
-    Some("releases" at nexus + "service/local/staging/deploy/maven2")
-}
-
-publishMavenStyle in ThisBuild := true
-licenses in ThisBuild := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
-homepage in ThisBuild := Some(url("https://scalaz.github.io/scalaz-zio/"))
-developers in ThisBuild := List(
-  Developer(id = "jdegoes", name = "John De Goes", url = url("http://degoes.net"), email = "john@degoes.net")
+inThisBuild(
+  List(
+    organization := "org.scalaz",
+    homepage := Some(url("https://scalaz.github.io/scalaz-zio/")),
+    licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    developers := List(
+      Developer(
+        "jdegoes",
+        "John De Goes",
+        "john@degoes.net",
+        url("http://degoes.net")
+      )
+    )
+  )
 )
-
-dynverSonatypeSnapshots in ThisBuild := true
-isSnapshot in ThisBuild := false
-
-lazy val sonataCredentials = for {
-  username <- sys.env.get("SONATYPE_USERNAME")
-  password <- sys.env.get("SONATYPE_PASSWORD")
-} yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)
-
-pgpPassphrase in Global := sys.env.get("PGP_PASSPHRASE").map(_.toArray)
-pgpSecretRing in Global := sys.env
-  .get("PGP_SECRING")
-  .map(file)
-  .getOrElse(baseDirectory.value / "project" / "secring.gpg")
-pgpPublicRing in Global := sys.env
-  .get("PGP_PUBRING")
-  .map(file)
-  .getOrElse(baseDirectory.value / "project" / "pubring.gpg")
-useGpg in Global := false
-pgpSigningKey in Global := Some(-6073725311241139476L) // "ABB5CB02682C4AEC"
-
-credentials in ThisBuild ++= sonataCredentials.toSeq
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
