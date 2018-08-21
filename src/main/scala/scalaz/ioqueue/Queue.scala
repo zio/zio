@@ -17,7 +17,7 @@ import scalaz.zio.{ IO, Promise, Ref }
  * 2. Benchmark to see how slow this implementation is and if there are any
  *    easy ways to improve performance.
  */
-class Queue[A] private (capacity: Int, ref: Ref[State[A]], behaviour: QueueBehaviour) { self =>
+class Queue[A] private (capacity: Int, ref: Ref[State[A]], surplusStrategy: SurplusStrategy) {
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
@@ -244,9 +244,9 @@ object Queue {
 
   private[ioqueue] object internal {
 
-    sealed trait QueueBehaviour
-    case object Sliding extends QueueBehaviour
-    case object Normal  extends QueueBehaviour
+    sealed trait SurplusStrategy
+    case object Sliding extends SurplusStrategy
+    case object Normal  extends SurplusStrategy
 
 
     sealed trait State[A] {

@@ -614,8 +614,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.sliding[Int](0)
       _     <- queue.offer(14).fork *> IO.sleep(100.millis)
-      v     <- queue.take
-    } yield v must_=== 14
+      _     <- queue.take
+      size  <- queue.size
+    } yield size must_=== 0
   )
 
   def e46 = unsafeRun(
