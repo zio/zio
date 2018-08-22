@@ -1,0 +1,127 @@
+<html><head><title>ZIO: Interop</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="ZIO contributors" /><meta name="description" content="ZIO" /><meta name="og:image" content="/scalaz-zio/img/poster.png" /><meta name="og:title" content="ZIO: Interop" /><meta name="og:site_name" content="ZIO" /><meta name="og:url" content="https://scalaz.github.io/scalaz-zio/" /><meta name="og:type" content="website" /><meta name="og:description" content="ZIO" /><link rel="icon" type="image/png" href="/scalaz-zio/img/favicon.png" /><meta name="twitter:title" content="ZIO: Interop" /><meta name="twitter:image" content="https://scalaz.github.io/scalaz-zio/img/poster.png" /><meta name="twitter:description" content="ZIO" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="512x512" href="/scalaz-zio/img/favicon.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scalaz-zio/highlight/styles/default.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/codemirror.css" /></head><body><header id="site-header"><div class="navbar-wrapper navbar-inverse"><div class="container"><div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a href="/scalaz-zio/" class="brand"><div class="icon-wrapper"><span>ZIO</span></div></a></div><nav class="text-right"><ul class=""><li><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-github"></i><span class="hidden-xs">GitHub</span></a></li><li><a href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/79527a84-SNAPSHOT"><i class="fa fa-file-text"></i><span class="hidden-xs">Scaladoc</span></a></li></ul></nav></div></div><div class="jumbotron" style="background-image:url('/scalaz-zio/img/jumbotron_pattern.png')"></div><div><ul class="horizontalNav">                   <li><a class="" href="/scalaz-zio/">Home</a></li>  <li><a class="" href="/scalaz-zio/usage/">Usage</a></li>  <li><a class=" active " href="/scalaz-zio/interop.html">Interop</a></li> </ul></div></header><main id="site-main"><section class="use"><div class="container"><div id="content"><h1 id="zio-interop-module">ZIO Interop module</h1>
+
+<p>This module provides the following integrations:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">IO</code> conversions to and from stdlib’s <code class="highlighter-rouge">Future</code></li>
+  <li><code class="highlighter-rouge">IO</code> instances for Scalaz 7.2.x typeclasses</li>
+  <li><code class="highlighter-rouge">IO</code> instance for cats’ <code class="highlighter-rouge">Effect</code> typeclass</li>
+</ul>
+
+<h2 id="stdlib-future">Stdlib <code class="highlighter-rouge">Future</code></h2>
+
+<h3 id="from-future">From <code class="highlighter-rouge">Future</code></h3>
+
+<p>This is the extension method added to <code class="highlighter-rouge">IO</code> companion object:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fromFuture</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ftr</span><span class="k">:</span> <span class="o">()</span> <span class="o">=&gt;</span> <span class="nc">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">])(</span><span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=</span>
+</code></pre></div></div>
+
+<p>There are a few things to clarify here:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">ftr</code>, the expression producing the <code class="highlighter-rouge">Future</code> value, is a <em>thunk</em> (or <code class="highlighter-rouge">Function0</code>). The reason for that is, <code class="highlighter-rouge">Future</code> is eager, it means as soon as you call <code class="highlighter-rouge">Future.apply</code> the effect has started performing, that’s not a desired behavior in Pure FP (which ZIO encourages). So it’s recommended to declare expressions creating <code class="highlighter-rouge">Future</code>s using <code class="highlighter-rouge">def</code> instead of <code class="highlighter-rouge">val</code>.</li>
+  <li>Also you have to be explicit on which EC you want to use, having it as implicit in stdlib is a bad practice we don’t want to cargo cult.</li>
+  <li>Finally, as you can see, the <code class="highlighter-rouge">IO</code> returned fixes the error type to <code class="highlighter-rouge">Throwable</code> since that’s the only possible cause for a failed <code class="highlighter-rouge">Future</code>.</li>
+</ul>
+
+<h4 id="example">Example</h4>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// EC is not implicit
+</span><span class="k">val</span> <span class="n">myEC</span><span class="k">:</span> <span class="kt">ExecutionContext</span> <span class="o">=</span> <span class="o">...</span>
+
+<span class="c1">// future defined in thunk using def
+</span><span class="k">def</span> <span class="n">myFuture</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ALotOfData</span><span class="o">]</span> <span class="k">=</span> <span class="n">myLegacyHeavyJobReturningFuture</span><span class="o">(...)</span>
+<span class="k">val</span> <span class="n">myIO</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">ALotOfData</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">fromFuture</span><span class="o">(</span><span class="n">myFuture</span> <span class="k">_</span><span class="o">)(</span><span class="n">myEC</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h3 id="to-future">To <code class="highlighter-rouge">Future</code></h3>
+
+<p>This extension method is added to values of type <code class="highlighter-rouge">IO[Throwable, A]</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toFuture</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
+</code></pre></div></div>
+
+<p>Notice that we don’t actually return a <code class="highlighter-rouge">Future</code> but an infallible <code class="highlighter-rouge">IO</code> producing the <code class="highlighter-rouge">Future</code> when it’s performed, that’s again because as soon as we have a <code class="highlighter-rouge">Future</code> in our hands, whatever it does is already happening.</p>
+
+<p>As an alternative, a more flexible extension method is added to any <code class="highlighter-rouge">IO[E, A]</code> to convert to <code class="highlighter-rouge">Future</code> as long as you can provide a function to convert from <code class="highlighter-rouge">E</code> to <code class="highlighter-rouge">Throwable</code>.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toFutureE</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">E</span> <span class="o">=&gt;</span> <span class="nc">Throwable</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
+</code></pre></div></div>
+
+<h4 id="example-1">Example</h4>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">safeFuture</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Future</span><span class="o">[</span><span class="kt">MoarData</span><span class="o">]]</span> <span class="k">=</span> <span class="n">myShinyNewApiBasedOnZio</span><span class="o">(...).</span><span class="n">toFuture</span><span class="o">(</span><span class="nc">MyError</span><span class="o">.</span><span class="n">toThrowable</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">itsHappening</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">MoarData</span><span class="o">]</span> <span class="k">=</span> <span class="n">unsafeRun</span><span class="o">(</span><span class="n">safeFuture</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h2 id="scalaz-72">Scalaz 7.2</h2>
+
+<h3 id="io-instances"><code class="highlighter-rouge">IO</code> Instances</h3>
+
+<p>If you are a happy Scalaz 7.2 user <code class="highlighter-rouge">interop</code> module offers <code class="highlighter-rouge">IO</code> instances for several typeclasses, check out <a href="shared/src/main/scala/scalaz/zio/interop/scalaz72.scala">the source code</a> for more details.</p>
+
+<h4 id="example-2">Example</h4>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz._</span><span class="o">,</span> <span class="nc">Scalaz</span><span class="o">.</span><span class="k">_</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.interop.scalaz72._</span>
+
+<span class="k">def</span> <span class="n">findUser</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">UserId</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">UserError</span>, <span class="kt">User</span><span class="o">]</span> <span class="k">=</span> <span class="o">...</span>
+<span class="k">def</span> <span class="n">findUsers</span><span class="o">(</span><span class="n">ids</span><span class="k">:</span> <span class="kt">IList</span><span class="o">[</span><span class="kt">UserId</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">UserError</span>, <span class="kt">IList</span><span class="o">[</span><span class="kt">User</span><span class="o">]]</span> <span class="k">=</span> <span class="n">ids</span><span class="o">.</span><span class="n">traverse</span><span class="o">(</span><span class="n">findUser</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h3 id="io-parallel-applicative-instance"><code class="highlighter-rouge">IO</code> parallel <code class="highlighter-rouge">Applicative</code> instance</h3>
+
+<p>Due to <code class="highlighter-rouge">Applicative</code> and <code class="highlighter-rouge">Monad</code> coherence law <code class="highlighter-rouge">IO</code>’s <code class="highlighter-rouge">Applicative</code> instance has to be implemented in terms of <code class="highlighter-rouge">bind</code> hence when composing multiple effects using <code class="highlighter-rouge">Applicative</code> they will be sequenced. To cope with that limitation <code class="highlighter-rouge">IO</code> tagged with <code class="highlighter-rouge">Parallel</code> has an <code class="highlighter-rouge">Applicative</code> instance which is not <code class="highlighter-rouge">Monad</code> and operates in parallel.</p>
+
+<h4 id="example-3">Example</h4>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz._</span><span class="o">,</span> <span class="nc">Scalaz</span><span class="o">.</span><span class="k">_</span><span class="o">,</span> <span class="nc">Tags</span><span class="o">.</span><span class="nc">Parallel</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.interop.scalaz72._</span>
+
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Dashboard</span><span class="o">(</span><span class="n">details</span><span class="k">:</span> <span class="kt">UserDetails</span><span class="o">,</span> <span class="n">history</span><span class="k">:</span> <span class="kt">TransactionHistory</span><span class="o">)</span>
+
+<span class="k">def</span> <span class="n">getDetails</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">UserId</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">UserError</span>, <span class="kt">UserDetails</span><span class="o">]</span> <span class="k">=</span> <span class="o">...</span>
+<span class="k">def</span> <span class="n">getHistory</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">UserId</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">UserError</span>, <span class="kt">TransactionHistory</span><span class="o">]</span> <span class="k">=</span> <span class="o">...</span>
+
+<span class="k">def</span> <span class="n">buildDashboard</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">UserId</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">UserError</span>, <span class="kt">Dashboard</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Tag</span><span class="o">.</span><span class="n">unwrap</span><span class="o">(^(</span><span class="n">par</span><span class="o">(</span><span class="n">getDetails</span><span class="o">(</span><span class="n">id</span><span class="o">)),</span> <span class="n">par</span><span class="o">(</span><span class="n">getHistory</span><span class="o">(</span><span class="n">id</span><span class="o">)))(</span><span class="nc">Dashboard</span><span class="o">.</span><span class="n">apply</span><span class="o">))</span>
+
+<span class="k">def</span> <span class="n">par</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">A</span><span class="o">](</span><span class="n">io</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">@@</span> <span class="nc">Parallel</span> <span class="k">=</span> <span class="nc">Tag</span><span class="o">(</span><span class="n">io</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h2 id="typelevel">Typelevel</h2>
+
+<h3 id="io-cats-effect-instance"><code class="highlighter-rouge">IO</code> cats’ <code class="highlighter-rouge">Effect</code> instance</h3>
+
+<p><strong>ZIO</strong> integrates with Typelevel libraries by providing an instance of <code class="highlighter-rouge">Effect</code> for <code class="highlighter-rouge">IO</code> as required, for instance, by <code class="highlighter-rouge">fs2</code>, <code class="highlighter-rouge">doobie</code> and <code class="highlighter-rouge">http4s</code>. Actually, I lied a little bit, it is not possible to implement <code class="highlighter-rouge">Effect</code> for any error type since <code class="highlighter-rouge">Effect</code> extends <code class="highlighter-rouge">MonadError</code> of <code class="highlighter-rouge">Throwable</code>.</p>
+
+<p>For convenience we have defined an alias as follow:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="k">type</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span>
+</code></pre></div></div>
+
+<p>Therefore, we provide an instance of <code class="highlighter-rouge">Effect[Task]</code>.</p>
+
+<h4 id="example-4">Example</h4>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">doobie.imports._</span>
+<span class="k">import</span> <span class="nn">fs2.Stream</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.interop.Task</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.interop.catz._</span>
+
+<span class="k">val</span> <span class="n">xa</span><span class="k">:</span> <span class="kt">Transactor</span><span class="o">[</span><span class="kt">Task</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Transactor</span><span class="o">.</span><span class="n">fromDriverManager</span><span class="o">[</span><span class="kt">Task</span><span class="o">](...)</span>
+
+<span class="k">def</span> <span class="n">loadUsers</span><span class="k">:</span> <span class="kt">Stream</span><span class="o">[</span><span class="kt">Task</span>, <span class="kt">User</span><span class="o">]</span> <span class="k">=</span>
+  <span class="n">sql</span><span class="s">"""SELECT * FROM users"""</span><span class="o">.</span><span class="n">query</span><span class="o">[</span><span class="kt">User</span><span class="o">].</span><span class="n">stream</span><span class="o">.</span><span class="n">transact</span><span class="o">(</span><span class="n">xa</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">allUsers</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">User</span><span class="o">]</span> <span class="k">=</span> <span class="n">unsafeRun</span><span class="o">(</span><span class="n">loadUsers</span><span class="o">.</span><span class="n">compile</span><span class="o">.</span><span class="n">toList</span><span class="o">)</span>
+</code></pre></div></div>
+</div></div></section></main><footer id="site-footer"><div class="container"><div class="row"><div class="col-xs-6"><p>ZIO is designed and developed by <a href="https://github.com/scalaz/scalaz-zio" target="_blank">ZIO contributors</a></p></div><div class="col-xs-6"><p class="text-right"><a href="https://github.com/scalaz/scalaz-zio"><span class="fa fa-github"></span>View on GitHub</a></p></div></div><div class="row"><div class="col-xs-6">
+<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
+</div></div></div></footer><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({
+languages:['scala','java','bash']
+});
+hljs.initHighlighting();
+             </script><script>((window.gitter = {}).chat = {}).options = {
+room: 'scalaz/scalaz-zio'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script></body></html>
