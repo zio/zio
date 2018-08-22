@@ -417,31 +417,24 @@ sealed abstract class IO[+E, +A] { self =>
   final def forever: IO[E, Nothing] = self *> self.forever
 
   /**
-   * Repeats this action with the specified repetition schedule.
+   * Repeats this action with the specified schedule.
    */
-  final def repeat[B](schedule: Repeat[A, B]): IO[E, B] = {
+  final def repeat[B](schedule: Schedule[A, B]): IO[E, B] = {
     def loop(state: schedule.State): IO[E, B] =
-      self.flatMap(
-        a =>
-          schedule.update(a, state).flatMap { step =>
-            if (!step.cont) IO.now(schedule.value(step.value))
-            else IO.now(step.value).delay(step.delay).flatMap(loop)
+      self.flatMap { a =>
+        schedule.update(a, state).flatMap { step =>
+          if (!step.cont) IO.now(step.finish())
+          else IO.now(step.state).delay(step.delay).flatMap(loop)
         }
-      )
+      }
 
-    (for {
-      duration <- schedule.start
-      _ <- if (duration == Duration.Zero) IO.unit
-          else IO.sleep(duration)
-      a     <- self
-      state <- schedule.initial(a)
-    } yield state).flatMap(loop)
+    schedule.initial.flatMap(loop)
   }
 
   /**
    * Retries with the specified retry policy.
    */
-  final def retry[E1 >: E, S](policy: Retry[E1, S]): IO[E1, A] =
+  final def retry[E1 >: E, S](policy: Schedule[E1, S]): IO[E1, A] =
     retryOrElse(policy, (e: E1, s: S) => IO.fail(e))
 
   /**
@@ -449,7 +442,7 @@ sealed abstract class IO[+E, +A] { self =>
    * value produced by the policy together with the last error are passed to the
    * recovery function.
    */
-  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Retry[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
+  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Schedule[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
     retryOrElse0(policy, orElse).map(_.merge)
 
   /**
@@ -457,7 +450,7 @@ sealed abstract class IO[+E, +A] { self =>
    * value produced by the policy together with the last error are passed to the
    * recovery function.
    */
-  final def retryOrElse0[E1 >: E, S, E2, B](policy: Retry[E1, S],
+  final def retryOrElse0[E1 >: E, S, E2, B](policy: Schedule[E1, S],
                                             orElse: (E1, S) => IO[E2, B]): IO[E2, Either[B, A]] = {
     def loop(state: policy.State): IO[E2, Either[B, A]] =
       self.redeem(
@@ -466,8 +459,8 @@ sealed abstract class IO[+E, +A] { self =>
             .update(err, state)
             .flatMap(
               decision =>
-                if (decision.retry) IO.sleep(decision.delay) *> loop(decision.value)
-                else orElse(err, policy.value(decision.value)).map(Left(_))
+                if (decision.cont) IO.sleep(decision.delay) *> loop(decision.state)
+                else orElse(err, decision.finish()).map(Left(_))
           ),
         succ => IO.now(Right(succ))
       )
