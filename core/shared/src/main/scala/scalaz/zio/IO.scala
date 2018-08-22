@@ -926,8 +926,8 @@ object IO {
   /**
    * The inverse operation `IO.sandboxed`
    *
-   * Terminates with exceptions on the `Left` side of the `Either` error, if it exists.
-   * Otherwise extracts the contained `IO[E, A]`
+   * Terminates with exceptions on the `Left` side of the `Either` error, if it
+   * exists. Otherwise extracts the contained `IO[E, A]`
    */
   final def unsandbox[E, A](v: IO[Either[List[Throwable], E], A]): IO[E, A] =
     v.catchAll[E, A] {
@@ -1041,7 +1041,7 @@ object IO {
    * that never terminates.
    */
   final def raceAll[E, A](t: Iterable[IO[E, A]]): IO[E, A] =
-    t.foldLeft[IO[E, A]](IO.terminate(NothingRaced))(_ race _)
+    t.foldLeft[IO[E, A]](IO.never)(_ race _)
 
   /**
    * Reduces an `Iterable[IO]` to a single IO, works in parallel.
