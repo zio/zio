@@ -214,13 +214,12 @@ sealed abstract class IO[+E, +A] { self =>
     self.redeem[E2, A](f.andThen(IO.fail), IO.now)
 
   /**
-   * Lets define separate continuations for the case of failure (`err`) or
-   * success (`succ`). Executes this action and based on the result executes
-   * the next action, `err` or `succ`.
-   * This method is useful for recovering from `IO` actions that may fail
-   * just as `attempt` is, but it has better performance since no intermediate
-   * value is allocated and does not requiere subsequent calls
-   * to `flatMap` to define the next action.
+   * Recovers from errors by accepting one action to execute for the case of an
+   * error, and one action to execute for the case of success.
+   *
+   * This method has better performance than `attempt` since no intermediate
+   * value is allocated and does not requiere subsequent calls to `flatMap` to
+   * define the next action.
    *
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it will depend on the `IO`s returned by the given continuations.
@@ -303,7 +302,9 @@ sealed abstract class IO[+E, +A] { self =>
 
   /**
    * Executes the specified finalizer, whether this action succeeds, fails, or
-   * is interrupted.
+   * is interrupted. This method should not be used for cleaning up resources,
+   * because it's possible the fiber will be interrupted after acquisition but
+   * before the finalizer is added.
    */
   final def ensuring(finalizer: IO[Nothing, Unit]): IO[E, A] =
     new IO.Ensuring(self, finalizer)
@@ -412,7 +413,8 @@ sealed abstract class IO[+E, +A] { self =>
     self.seqWith(that)((a, b) => (a, b))
 
   /**
-   * Repeats this action forever (until the first error).
+   * Repeats this action forever (until the first error). For more sophisticated
+   * schedules, see the `repeat` method.
    */
   final def forever: IO[E, Nothing] = self *> self.forever
 
