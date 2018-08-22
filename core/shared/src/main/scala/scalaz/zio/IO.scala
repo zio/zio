@@ -911,8 +911,7 @@ object IO {
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
   final val never: IO[Nothing, Nothing] =
-    IO.async[Nothing, Nothing] { _ =>
-      }
+    IO.async[Nothing, Nothing](_ => ())
 
   /**
    * Submerges the error case of an `Either` into the `IO`. The inverse
@@ -937,6 +936,18 @@ object IO {
    * Lifts an `Either` into an `IO`.
    */
   final def fromEither[E, A](v: Either[E, A]): IO[E, A] =
+    v.fold(IO.fail, IO.now)
+
+  /**
+   * Lifts an `Option` into an `IO`.
+   */
+  final def fromOption[A](v: Option[A]): IO[Unit, A] =
+    v.fold[IO[Unit, A]](IO.fail(()))(IO.now)
+
+  /**
+   * Lifts a `Try` into an `IO`.
+   */
+  final def fromTry[A](v: scala.util.Try[A]): IO[Throwable, A] =
     v.fold(IO.fail, IO.now)
 
   /**
