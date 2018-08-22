@@ -17,7 +17,7 @@ import scalaz.zio.{ IO, Promise, Ref }
  * 2. Benchmark to see how slow this implementation is and if there are any
  *    easy ways to improve performance.
  */
-class Queue[A] private (capacity: Int, ref: Ref[State[A]], surplusStrategy: SurplusStrategy) {
+class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStrategy) {
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
@@ -232,7 +232,7 @@ object Queue {
    * until there is more room in the queue.
    */
   final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
-    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _, Normal))
+    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _, Backpressure))
 
   final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] =
     Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _, Sliding))
@@ -246,7 +246,7 @@ object Queue {
 
     sealed trait SurplusStrategy
     case object Sliding extends SurplusStrategy
-    case object Normal  extends SurplusStrategy
+    case object Backpressure extends SurplusStrategy
 
 
     sealed trait State[A] {
