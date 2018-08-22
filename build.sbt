@@ -66,8 +66,10 @@ lazy val coreJVM = core.jvm
     initialCommands in Compile in console := """
                                                |import scalaz._
                                                |import scalaz.zio._
+                                               |import scalaz.zio.console._
                                                |object replRTS extends RTS {}
                                                |import replRTS._
+                                               |implicit class RunSyntax[E, A](io: IO[E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   )
 

@@ -214,13 +214,12 @@ sealed abstract class IO[+E, +A] { self =>
     self.redeem[E2, A](f.andThen(IO.fail), IO.now)
 
   /**
-   * Lets define separate continuations for the case of failure (`err`) or
-   * success (`succ`). Executes this action and based on the result executes
-   * the next action, `err` or `succ`.
-   * This method is useful for recovering from `IO` actions that may fail
-   * just as `attempt` is, but it has better performance since no intermediate
-   * value is allocated and does not requiere subsequent calls
-   * to `flatMap` to define the next action.
+   * Recovers from errors by accepting one action to execute for the case of an
+   * error, and one action to execute for the case of success.
+   *
+   * This method has better performance than `attempt` since no intermediate
+   * value is allocated and does not requiere subsequent calls to `flatMap` to
+   * define the next action.
    *
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it will depend on the `IO`s returned by the given continuations.
@@ -303,7 +302,9 @@ sealed abstract class IO[+E, +A] { self =>
 
   /**
    * Executes the specified finalizer, whether this action succeeds, fails, or
-   * is interrupted.
+   * is interrupted. This method should not be used for cleaning up resources,
+   * because it's possible the fiber will be interrupted after acquisition but
+   * before the finalizer is added.
    */
   final def ensuring(finalizer: IO[Nothing, Unit]): IO[E, A] =
     new IO.Ensuring(self, finalizer)
@@ -412,30 +413,46 @@ sealed abstract class IO[+E, +A] { self =>
     self.seqWith(that)((a, b) => (a, b))
 
   /**
-   * Repeats this action forever (until the first error).
+   * Repeats this action forever (until the first error). For more sophisticated
+   * schedules, see the `repeat` method.
    */
   final def forever: IO[E, Nothing] = self *> self.forever
 
   /**
+   * Repeats this action with the specified schedule.
+   */
+  final def repeat[B](schedule: Schedule[A, B]): IO[E, B] = {
+    def loop(state: schedule.State): IO[E, B] =
+      self.flatMap { a =>
+        schedule.update(a, state).flatMap { step =>
+          if (!step.cont) IO.now(step.finish())
+          else IO.now(step.state).delay(step.delay).flatMap(loop)
+        }
+      }
+
+    schedule.initial.flatMap(loop)
+  }
+
+  /**
    * Retries with the specified retry policy.
    */
-  final def retry[E1 >: E, S](policy: Retry[E1, S]): IO[E1, A] =
+  final def retry[E1 >: E, S](policy: Schedule[E1, S]): IO[E1, A] =
     retryOrElse(policy, (e: E1, s: S) => IO.fail(e))
 
   /**
-   * Retries with the specified retry policy, until it fails, and then both the
-   * value produced by the policy together with the last error are passed to the
-   * recovery function.
+   * Retries with the specified schedule, until it fails, and then both the
+   * value produced by the schedule together with the last error are passed to
+   * the recovery function.
    */
-  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Retry[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
+  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Schedule[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
     retryOrElse0(policy, orElse).map(_.merge)
 
   /**
-   * Retries with the specified retry policy, until it fails, and then both the
-   * value produced by the policy together with the last error are passed to the
-   * recovery function.
+   * Retries with the specified schedule, until it fails, and then both the
+   * value produced by the schedule together with the last error are passed to
+   * the recovery function.
    */
-  final def retryOrElse0[E1 >: E, S, E2, B](policy: Retry[E1, S],
+  final def retryOrElse0[E1 >: E, S, E2, B](policy: Schedule[E1, S],
                                             orElse: (E1, S) => IO[E2, B]): IO[E2, Either[B, A]] = {
     def loop(state: policy.State): IO[E2, Either[B, A]] =
       self.redeem(
@@ -444,70 +461,14 @@ sealed abstract class IO[+E, +A] { self =>
             .update(err, state)
             .flatMap(
               decision =>
-                if (decision.retry) IO.sleep(decision.delay) *> loop(decision.value)
-                else orElse(err, policy.value(decision.value)).map(Left(_))
+                if (decision.cont) IO.sleep(decision.delay) *> loop(decision.state)
+                else orElse(err, decision.finish()).map(Left(_))
           ),
         succ => IO.now(Right(succ))
       )
 
     policy.initial.flatMap(loop)
   }
-
-  /**
-   * Repeats this action continuously until the first error, with the specified
-   * interval between each full execution.
-   */
-  final def repeat[B](interval: Duration): IO[E, B] =
-    self *> IO.sleep(interval) *> repeat(interval)
-
-  /**
-   * Repeats this action n time.
-   */
-  final def repeatN(n: Int): IO[E, A] = if (n <= 1) self else self *> repeatN(n - 1)
-
-  /**
-   * Repeats this action n time with a specified function, which computes
-   * a return value.
-   */
-  final def repeatNFold[B](n: Int)(b: B, f: (B, A) => B): IO[E, B] =
-    if (n < 1) IO.now(b) else self.flatMap(a => repeatNFold(n - 1)(f(b, a), f))
-
-  /**
-   * Repeats this action continuously until the first error, with the specified
-   * interval between the start of each full execution. Note that if the
-   * execution of this action takes longer than the specified interval, then the
-   * action will instead execute as quickly as possible, but not
-   * necessarily at the specified interval.
-   */
-  final def repeatFixed[B](interval: Duration): IO[E, B] =
-    repeatFixed0(IO.sync(System.nanoTime()))(interval)
-
-  final def repeatFixed0[B](nanoTime: IO[Nothing, Long])(interval: Duration): IO[E, B] = {
-    val gapNs = interval.toNanos
-
-    def tick(start: Long, n: Int): IO[E, B] =
-      self *> nanoTime.flatMap { now =>
-        val await = ((start + n * gapNs) - now).max(0L)
-
-        IO.sleep(await.nanoseconds) *> tick(start, n + 1)
-      }
-
-    nanoTime.flatMap { start =>
-      tick(start, 1)
-    }
-  }
-
-  /**
-   * Repeats this action continuously until the function returns false.
-   */
-  final def doWhile(f: A => Boolean): IO[E, A] =
-    self.flatMap(a => if (f(a)) doWhile(f) else IO.now(a))
-
-  /**
-   * Repeats this action continuously until the function returns true.
-   */
-  final def doUntil(f: A => Boolean): IO[E, A] =
-    self.flatMap(a => if (!f(a)) doUntil(f) else IO.now(a))
 
   /**
    * Maps this action to one producing unit, but preserving the effects of
@@ -530,7 +491,7 @@ sealed abstract class IO[+E, +A] { self =>
    * Times out this action by the specified duration.
    *
    * {{{
-   * action.timeout(1.second)
+   * IO.point(1).timeout(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
   final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] = {
@@ -965,8 +926,8 @@ object IO {
   /**
    * The inverse operation `IO.sandboxed`
    *
-   * Terminates with exceptions on the `Left` side of the `Either` error, if it exists.
-   * Otherwise extracts the contained `IO[E, A]`
+   * Terminates with exceptions on the `Left` side of the `Either` error, if it
+   * exists. Otherwise extracts the contained `IO[E, A]`
    */
   final def unsandbox[E, A](v: IO[Either[List[Throwable], E], A]): IO[E, A] =
     v.catchAll[E, A] {
@@ -993,6 +954,10 @@ object IO {
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](IO.fail[E](error))(IO.now[A]))
 
+  /**
+   * Forks all of the specified values, and returns a composite fiber that
+   * produces a list of their results, in order.
+   */
   final def forkAll[E, A](as: Iterable[IO[E, A]]): IO[Nothing, Fiber[E, List[A]]] =
     as.foldRight(IO.point(Fiber.point[E, List[A]](List()))) { (aIO, asFiberIO) =>
       asFiberIO.par(aIO.fork).map {
@@ -1076,7 +1041,7 @@ object IO {
    * that never terminates.
    */
   final def raceAll[E, A](t: Iterable[IO[E, A]]): IO[E, A] =
-    t.foldLeft[IO[E, A]](IO.terminate(NothingRaced))(_ race _)
+    t.foldLeft[IO[E, A]](IO.never)(_ race _)
 
   /**
    * Reduces an `Iterable[IO]` to a single IO, works in parallel.
