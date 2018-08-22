@@ -416,6 +416,12 @@ object Schedule {
   final def point[A](a: => A): Schedule[Any, A] = forever.const(a)
 
   /**
+   * A schedule that recurs forever, mapping input values through the
+   * specified function.
+   */
+  final def lift[A, B](f: A => B): Schedule[A, B] = identity[A].map(f)
+
+  /**
    * A schedule that never executes. Note that negating this schedule does not
    * produce a schedule that executes.
    */
