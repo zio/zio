@@ -4,18 +4,18 @@ package scalaz.zio
 import scala.concurrent.duration.Duration
 
 /**
- * Defines a stateful, possibly effectful, recurring schedule of events.
+ * Defines a stateful, possibly effectful, recurring schedule of actions.
  *
- * A `Schedule[A, B]` consumes `A` values, and based on these events and
+ * A `Schedule[A, B]` consumes `A` values, and based on the inputs and the
  * internal state, decides whether to recur or conclude. Every decision is
  * accompanied by a (possibly zero) delay, and an output value of type `B`.
  *
  * Schedules compose in each of the following ways:
  *
  * 1. Intersection, using the `&&` operator, which requires that both schedules
- *    continue, using the longer of the two durations between events.
+ *    continue, using the longer of the two durations.
  * 2. Union, using the `||` operator, which requires that only one schedule
- *    continues, using the shorter of the two durations between events.
+ *    continues, using the shorter of the two durations.
  * 3. Sequence, using the `<||>` operator, which runs the first schedule until
  *    it ends, and then switches over to the second schedule.
  *
@@ -35,7 +35,7 @@ trait Schedule[-A, +B] { self =>
   val initial: IO[Nothing, State]
 
   /**
-   * Updates the schedule based on a new event and the current state.
+   * Updates the schedule based on a new input and the current state.
    */
   val update: (A, State) => IO[Nothing, Schedule.Decision[State, B]]
 
@@ -56,7 +56,7 @@ trait Schedule[-A, +B] { self =>
     }
 
   /**
-   * Returns a new schedule that deals with a narrower class of events than
+   * Returns a new schedule that deals with a narrower class of inputs than
    * this schedule.
    */
   final def contramap[A1](f: A1 => A): Schedule[A1, B] =
@@ -65,6 +65,12 @@ trait Schedule[-A, +B] { self =>
       val initial = self.initial
       val update  = (a: A1, s: State) => self.update(f(a), s)
     }
+
+  /**
+   * Returns a new schedule that contramaps the input and maps the output.
+   */
+  final def dimap[A1, C](f: A1 => A, g: B => C): Schedule[A1, C] =
+    contramap(f).map(g)
 
   /**
    * Peeks at the state produced by this schedule, executes some action, and
@@ -90,7 +96,7 @@ trait Schedule[-A, +B] { self =>
 
   /**
    * Returns a new schedule that continues this schedule so long as the
-   * predicate is satisfied on the input event of the schedule.
+   * predicate is satisfied on the input of the schedule.
    */
   final def whileInput[A1 <: A](f: A1 => Boolean): Schedule[A1, B] =
     check[A1, B]((a, _) => IO.now(f(a)))
@@ -103,7 +109,7 @@ trait Schedule[-A, +B] { self =>
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
-   * is satisfied on the input event of the schedule.
+   * is satisfied on the input of the schedule.
    */
   final def untilInput[A1 <: A](f: A1 => Boolean): Schedule[A1, B] = !whileInput(f)
 
@@ -431,7 +437,7 @@ object Schedule {
     Schedule[Unit, Any, Unit](IO.unit, (_, s) => IO.now(Decision.done(Duration.Zero, s, s)))
 
   /**
-   * A schedule that recurs forever, producing a count of events.
+   * A schedule that recurs forever, producing a count of inputs.
    */
   final val forever: Schedule[Any, Int] =
     Schedule[Int, Any, Int](IO.now(0), (_, i) => IO.now(Decision.cont(Duration.Zero, i + 1, i + 1)))
@@ -469,7 +475,7 @@ object Schedule {
 
   /**
    * A schedule that recurs the specified number of times, producing a count
-   * of events.
+   * of inputs.
    */
   final def recurs(n: Int): Schedule[Any, Int] = forever.whileValue(_ < n)
 
@@ -506,10 +512,10 @@ object Schedule {
 
   /**
    * A schedule that waits for the specified amount of time between each
-   * event. Returns the number of events so far.
+   * input. Returns the number of inputs so far.
    *
    * <pre>
-   * |event|-----interval-----|event|-----interval-----|event|
+   * |action|-----interval-----|action|-----interval-----|action|
    * </pre>
    */
   final def spaced(interval: Duration): Schedule[Any, Int] =
@@ -524,7 +530,7 @@ object Schedule {
    *
    * <pre>
    * |---------interval---------|---------interval---------|
-   * |event|                    |event|
+   * |action|                   |action|
    * </pre>
    */
   final def fixed(interval: Duration): Schedule[Any, Int] =
