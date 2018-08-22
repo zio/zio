@@ -43,11 +43,7 @@ trait Schedule[-A, +B] { self =>
    * Returns a new schedule that inverts the decision to continue.
    */
   final def unary_! : Schedule[A, B] =
-    new Schedule[A, B] {
-      type State = self.State
-      val initial = self.initial
-      val update  = (a: A, s: State) => self.update(a, s).map(!_)
-    }
+    updated(update => (a, s) => update(a, s).map(!_))
 
   /**
    * Returns a new schedule that maps over the output of this one.
@@ -520,11 +516,11 @@ object Schedule {
     forever.delayed(_ + interval)
 
   /**
-   * A schedule that recurs the action on a fixed interval. Returns the amount
-   * of time since the schedule began.
+   * A schedule that recurs on a fixed interval. Returns the amount of time
+   * since the schedule began.
    *
-   * If the action takes longer than the interval, then the action will be run
-   * immediately, but re-runs will not "pile up".
+   * If the action takes run between updates longer than the interval, then the
+   * action will be run immediately, but re-runs will not "pile up".
    *
    * <pre>
    * |---------interval---------|---------interval---------|
