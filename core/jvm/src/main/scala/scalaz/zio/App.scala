@@ -3,8 +3,6 @@ package scalaz.zio
 
 import scala.concurrent.duration.Duration
 
-import Errors._
-
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -50,7 +48,7 @@ trait App extends RTS {
       for {
         fiber <- run(args0.toList).fork
         _ <- IO.sync(Runtime.getRuntime.addShutdownHook(new Thread {
-              override def run() = unsafeRun(fiber.interrupt(TerminatedException("interrupted")))
+              override def run() = unsafeRun(fiber.interrupt)
             }))
         result <- fiber.join
       } yield result
