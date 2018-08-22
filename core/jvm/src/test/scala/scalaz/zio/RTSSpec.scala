@@ -341,9 +341,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
               )
             )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit)
             .fork
-      _ <- (ref.get <* IO.sleep(1.millisecond)).doUntil(_.contains("start 1"))
+      _ <- (ref.get <* IO.sleep(1.millisecond)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
       _ <- f.interrupt
-      _ <- (ref.get <* IO.sleep(1.millisecond)).doUntil(_.contains("release 2"))
+      _ <- (ref.get <* IO.sleep(1.millisecond)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
       l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
@@ -559,7 +559,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(
       for {
         f <- test.fork
-        c <- (IO.sync[Int](c.get) <* IO.sleep(1.millis)).doUntil(_ >= 1) <* f.interrupt
+        c <- (IO.sync[Int](c.get) <* IO.sleep(1.millis)).repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
       } yield c must be_>=(1)
     )
 

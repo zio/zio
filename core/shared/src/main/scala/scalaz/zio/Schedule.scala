@@ -447,6 +447,18 @@ object Schedule {
   final def collect[A]: Schedule[A, List[A]] = identity[A].collect
 
   /**
+   * A schedule that recurs for as long as the predicate evaluates to true.
+   */
+  final def doWhile[A](f: A => Boolean): Schedule[A, A] =
+    identity[A].whileInput(f)
+
+  /**
+   * A schedule that recurs for until the predicate evaluates to true.
+   */
+  final def doUntil[A](f: A => Boolean): Schedule[A, A] =
+    identity[A].untilInput(f)
+
+  /**
    * A schedule that recurs forever, dumping input values to the specified
    * sink, and returning those same values unmodified.
    */
@@ -457,7 +469,7 @@ object Schedule {
    * A schedule that recurs the specified number of times, producing a count
    * of events.
    */
-  final def recurs(n: Int): Schedule[Any, Int] = forever.whileValue(_ <= n)
+  final def recurs(n: Int): Schedule[Any, Int] = forever.whileValue(_ < n)
 
   /**
    * A schedule that recurs forever, and computes the time since the beginning.
