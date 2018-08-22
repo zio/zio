@@ -3,7 +3,6 @@ package scalaz.zio
 
 import scala.annotation.switch
 import scala.concurrent.duration._
-import Errors._
 
 import scala.concurrent.ExecutionContext
 
@@ -143,10 +142,10 @@ sealed abstract class IO[+E, +A] { self =>
     val s: IO[Nothing, Either[E1, A]] = self.attempt
     s.raceWith[E1, Either[E1, A], Either[E1, B], C](that.attempt)(
       {
-        case (Left(e), fiberb)  => fiberb.interrupt(TerminatedException(e)) *> IO.fail[E1](e)
+        case (Left(e), fiberb)  => fiberb.interrupt *> IO.fail[E1](e)
         case (Right(a), fiberb) => IO.absolve[E1, B](fiberb.join).map((b: B) => f(a, b))
       }, {
-        case (Left(e), fibera)  => fibera.interrupt(TerminatedException(e)) *> IO.fail[E1](e)
+        case (Left(e), fibera)  => fibera.interrupt *> IO.fail[E1](e)
         case (Right(b), fibera) => IO.absolve[E1, A](fibera.join).map((a: A) => f(a, b))
       }
     )
@@ -174,8 +173,7 @@ sealed abstract class IO[+E, +A] { self =>
    * then the action will fail with some error.
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
-    raceWith(that)((a, fiber) => fiber.interrupt(LostRace(Right(fiber))).const(Left(a)),
-                   (b, fiber) => fiber.interrupt(LostRace(Left(fiber))).const(Right(b)))
+    raceWith(that)((a, fiber) => fiber.interrupt.const(Left(a)), (b, fiber) => fiber.interrupt.const(Right(b)))
 
   /**
    * Races this action with the specified action, invoking the
