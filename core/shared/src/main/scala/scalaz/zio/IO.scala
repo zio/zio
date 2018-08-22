@@ -438,17 +438,17 @@ sealed abstract class IO[+E, +A] { self =>
     retryOrElse(policy, (e: E1, s: S) => IO.fail(e))
 
   /**
-   * Retries with the specified retry policy, until it fails, and then both the
-   * value produced by the policy together with the last error are passed to the
-   * recovery function.
+   * Retries with the specified schedule, until it fails, and then both the
+   * value produced by the schedule together with the last error are passed to
+   * the recovery function.
    */
   final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Schedule[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
     retryOrElse0(policy, orElse).map(_.merge)
 
   /**
-   * Retries with the specified retry policy, until it fails, and then both the
-   * value produced by the policy together with the last error are passed to the
-   * recovery function.
+   * Retries with the specified schedule, until it fails, and then both the
+   * value produced by the schedule together with the last error are passed to
+   * the recovery function.
    */
   final def retryOrElse0[E1 >: E, S, E2, B](policy: Schedule[E1, S],
                                             orElse: (E1, S) => IO[E2, B]): IO[E2, Either[B, A]] = {
@@ -467,25 +467,6 @@ sealed abstract class IO[+E, +A] { self =>
 
     policy.initial.flatMap(loop)
   }
-
-  /**
-   * Repeats this action continuously until the first error, with the specified
-   * interval between each full execution.
-   */
-  final def repeat(interval: Duration): IO[E, Nothing] =
-    self *> IO.sleep(interval) *> repeat(interval)
-
-  /**
-   * Repeats this action continuously until the function returns false.
-   */
-  final def doWhile(f: A => Boolean): IO[E, A] =
-    self.flatMap(a => if (f(a)) doWhile(f) else IO.now(a))
-
-  /**
-   * Repeats this action continuously until the function returns true.
-   */
-  final def doUntil(f: A => Boolean): IO[E, A] =
-    self.flatMap(a => if (!f(a)) doUntil(f) else IO.now(a))
 
   /**
    * Maps this action to one producing unit, but preserving the effects of

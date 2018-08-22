@@ -102,7 +102,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
             .update(err, state)
             .flatMap(
               step =>
-                if (!step.cont) IO.now((Left(err), ss))
+                if (!step.cont) IO.now((Left(err), (step.delay, step.finish()) :: ss))
                 else loop(step.state, (step.delay, step.finish()) :: ss)
           ),
         suc => IO.now((Right(suc), ss))
@@ -124,7 +124,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
-    val expected = (Left("GiveUpError"), List(1, 2, 3, 4).map((200.millis, _)))
+    val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
     retried must_=== expected
   }
 }
