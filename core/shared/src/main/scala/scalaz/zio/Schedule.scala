@@ -73,6 +73,20 @@ trait Schedule[-A, +B] { self =>
     contramap(f).map(g)
 
   /**
+   * Returns a new schedule that loops this one forever, resetting the state
+   * when this schedule is done.
+   */
+  final def loop: Schedule[A, B] =
+    updated(
+      update =>
+        (a, s) =>
+          update(a, s).flatMap { decision =>
+            if (decision.cont) IO.now(decision)
+            else self.initial.map(state => decision.copy(cont = true, state = state))
+      }
+    )
+
+  /**
    * Peeks at the state produced by this schedule, executes some action, and
    * then continues the schedule or not based on the specified state predicate.
    */
