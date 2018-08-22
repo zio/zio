@@ -42,9 +42,10 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.take.fork
-      check <- (queue.interruptTake(new Exception("interrupt take in e2")) <* IO.sleep(1.millis)).doWhile(!_)
-      _     <- queue.offer(25)
-      v     <- queue.take
+      check <- (queue.interruptTake(new Exception("interrupt take in e2")) <* IO.sleep(1.millis))
+                .repeat(Schedule.doUntil(a => a))
+      _ <- queue.offer(25)
+      v <- queue.take
     } yield (check must beTrue) and (v must_== 25)
   )
 
@@ -52,9 +53,10 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](0)
       _     <- queue.offer(14).fork
-      check <- (queue.interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis)).doWhile(!_)
-      _     <- queue.offer(12)
-      v     <- queue.take
+      check <- (queue.interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis))
+                .repeat(Schedule.doUntil(a => a))
+      _ <- queue.offer(12)
+      v <- queue.take
     } yield (check must beTrue) and (v must_=== 12)
   )
 
@@ -87,13 +89,13 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       order = Range.inclusive(1, 10).toList
       _     <- IO.forkAll(order.map(queue.offer))
       _     <- waitForSize(queue, 10)
-      l     <- queue.take.repeatNFold[List[Int]](10)(List.empty[Int], (l, i) => i :: l)
+      l     <- queue.take.repeat((Schedule.recurs(10) *> Schedule.identity[Int]).collect)
     } yield l.toSet must_=== order.toSet)
 
   def e7 =
     unsafeRun(for {
       queue <- Queue.bounded[Int](10)
-      _     <- queue.offer(1).repeatN(20).fork
+      _     <- queue.offer(1).repeat(Schedule.recurs(20)).fork
       _     <- waitForSize(queue, 11)
       size  <- queue.size
     } yield size must_=== 11)
@@ -104,8 +106,8 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       orders = Range.inclusive(1, 10).toList
       _      <- IO.forkAll(orders.map(n => waitForSize(queue, n - 1) *> queue.offer(n)))
       _      <- waitForSize(queue, 10)
-      l      <- queue.take.repeatNFold[List[Int]](10)(List.empty[Int], (l, i) => i :: l)
-    } yield l.reverse must_=== orders)
+      l      <- queue.take.repeat((Schedule.recurs(10) *> Schedule.identity[Int]).collect)
+    } yield l must_=== orders)
 
   def e9 = unsafeRun(
     for {
@@ -138,5 +140,5 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
-    (queue.size <* IO.sleep(1.millis)).doWhile(_ != size)
+    queue.size.delay(1.millis).repeat(Schedule.doWhile[Int](_ != size))
 }
