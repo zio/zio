@@ -948,7 +948,10 @@ object IO {
    * Lifts a `Try` into an `IO`.
    */
   final def fromTry[A](v: scala.util.Try[A]): IO[Throwable, A] =
-    fromEither(v.toEither)
+    v match {
+      case scala.util.Success(v) => IO.now(v)
+      case scala.util.Failure(v) => IO.fail(v)
+    }
 
   /**
    * Retrieves the supervisor associated with the fiber running the action
