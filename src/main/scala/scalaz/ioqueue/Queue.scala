@@ -232,7 +232,8 @@ object Queue {
    * until there is more room in the queue.
    */
   final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
-    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _, Backpressure))
+    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty))
+      .map(new Queue[A](capacity, _, Backpressure))
 
   final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] =
     Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _, Sliding))
@@ -245,7 +246,7 @@ object Queue {
   private[ioqueue] object internal {
 
     sealed trait SurplusStrategy
-    case object Sliding extends SurplusStrategy
+    case object Sliding      extends SurplusStrategy
     case object Backpressure extends SurplusStrategy
 
 
