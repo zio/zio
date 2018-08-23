@@ -23,6 +23,10 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     return a `Future` that produces the value from `IO`  $toFutureValue
   `IO.toFutureE` must
     convert error of type `E` to `Throwable`             $toFutureE
+  `Task.fromFuture` must
+    catch exceptions thrown by lazy block                $catchBlockExceptionTask
+    return an `IO` that fails if `Future` fails          $propagateExceptionFromFutureTask
+    return an `IO` that produces the value from `Future` $produceValueFromFutureTask
   """
 
   val ec = ee.executionContext
@@ -45,14 +49,29 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.fromFuture(noFuture _)(ec)) must throwA[Exception](message = "no future for you!")
   }
 
+  val catchBlockExceptionTask = {
+    val noFuture: Future[Unit] = Future.failed(new Exception("no future for you!"))
+    unsafeRun(Task.fromFuture(Task { noFuture })(ec)) must throwA[Exception](message = "no future for you!")
+  }
+
   val propagateExceptionFromFuture = {
     def noValue: Future[Unit] = Future { throw new Exception("no value for you!") }
     unsafeRun(IO.fromFuture(noValue _)(ec)) must throwA[Exception](message = "no value for you!")
   }
 
+  val propagateExceptionFromFutureTask = {
+    val noValue: Future[Unit] = Future.failed(new Exception("no value for you!"))
+    unsafeRun(Task.fromFuture(Task { noValue })(ec)) must throwA[Exception](message = "no value for you!")
+  }
+
   val produceValueFromFuture = {
     def someValue: Future[Int] = Future { 42 }
     unsafeRun(IO.fromFuture(someValue _)(ec)) must_=== 42
+  }
+
+  val produceValueFromFutureTask = {
+    val someValue: Future[Int] = Future { 42 }
+    unsafeRun(Task.fromFuture(Task { someValue })(ec)) must_=== 42
   }
 
   val toFutureAlwaysSucceeds = {
