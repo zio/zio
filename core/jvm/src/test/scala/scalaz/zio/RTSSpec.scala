@@ -492,15 +492,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(IO.fail(24).race(IO.never).timeout[Option[Int]](None)(Option.apply)(10.milliseconds)) must beNone
 
   def testRaceAllOfValues =
-    unsafeRun(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24))).attempt) must_=== Right(24)
+    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24))).attempt) must_=== Right(24)
 
   def testRaceAllOfFailures =
-    unsafeRun(IO.raceAll[Int, Nothing](List(IO.fail(24).delay(10.milliseconds), IO.fail(24))).attempt) must_=== Left(
+    unsafeRun(IO.raceAll[Int, Nothing](IO.fail(24).delay(10.milliseconds), List(IO.fail(24))).attempt) must_=== Left(
       24
     )
 
   def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(IO.raceAll[Int, Int](List(IO.fail(42), IO.now(24).delay(1.milliseconds))).attempt) must_=== Right(
+    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24).delay(1.milliseconds))).attempt) must_=== Right(
       24
     )
 
