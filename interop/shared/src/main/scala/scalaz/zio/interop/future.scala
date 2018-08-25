@@ -16,6 +16,19 @@ object future {
       }
   }
 
+  implicit class FiberObjOps(private val fiberObj: Fiber.type) extends AnyVal {
+    def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): Fiber[Throwable, A] =
+      new Fiber[Throwable, A] {
+        private lazy val io                                    = IO.fromFuture(ftr)(ec)
+        private lazy val ioFork                                = io.fork
+        def join: IO[Throwable, A]                             = io
+        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = ioFork.flatMap(_.interrupt0(ts))
+        def onComplete(f: ExitResult[Throwable, A] => IO[Nothing, Unit]): IO[Nothing, Unit] =
+          ioFork.flatMap(_.onComplete(f))
+      }
+
+  }
+
   implicit class IOThrowableOps[A](private val io: IO[Throwable, A]) extends AnyVal {
     def toFuture: IO[Nothing, Future[A]] =
       io.redeemPure(Future.failed, Future.successful)
