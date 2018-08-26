@@ -187,21 +187,21 @@ sealed abstract class IO[+E, +A] { self =>
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
-  final def orElse[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
+  final def orElse[E2, A1 >: A](that: => IO[E2, A1]): IO[E2, A1] =
     self <> that
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
-  final def <>[E1 >: E, A1 >: A](that: => IO[E1, A1]): IO[E1, A1] =
+  final def <>[E2, A1 >: A](that: => IO[E2, A1]): IO[E2, A1] =
     self.redeem(_ => that, IO.now)
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
-  final def <||>[E1 >: E, B](that: => IO[E1, B]): IO[E1, Either[A, B]] =
+  final def <||>[E2, B](that: => IO[E2, B]): IO[E2, Either[A, B]] =
     self.redeem(_ => that.map(Right(_)), IO.nowLeft)
 
   /**
