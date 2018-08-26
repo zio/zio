@@ -21,7 +21,6 @@ install:
 - gem install jekyll -v 3.8.3
 
 stages:
-- name: lint
 - name: test
 - name: microsite
 - name: release
@@ -32,12 +31,12 @@ stages:
 jobs:
   include:
     - &lint
-      stage: lint
+      stage: test
       name: "Lint"
       script: sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck
     - &test
       stage: test
-      name: "Test"
+      name: "Test for 2.12"
       script: sbt ++$TRAVIS_SCALA_VERSION coverage test coverageReport
       after_success: bash <(curl -s https://codecov.io/bash)
     - &microsite
@@ -46,7 +45,7 @@ jobs:
       script: sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
     - &release
       stage: release
-      name: "Release artifacts"
+      name: "Release artifacts for 2.12"
       before_script: export PGP_SECRET="$(<./project/zecret)"
       script: sbt ++$TRAVIS_SCALA_VERSION ci-release
     - &publishSite
@@ -62,12 +61,9 @@ jobs:
       - sbt ++$TRAVIS_SCALA_VERSION microsite/publishMicrosite
 
     # Cross-build
-    - <<: *lint
-      scala: 2.11.12
-      name: "Lint 2.11"
     - <<: *test
       scala: 2.11.12
-      name: "Test 2.11"
+      name: "Test for 2.11"
     - <<: *release
       scala: 2.11.12
       name: "Release artifacts for 2.11"
