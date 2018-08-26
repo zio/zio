@@ -18,6 +18,23 @@ for {
 } yield v2
 ```
 
+## Updating a `Ref`
+
+The simplest way to use a `Ref` is by means of [`update`](#) or its more powerful sibling [`modify`](#). Let's write a combinator `repeat` just because we can:
+
+```tut:silent
+def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
+  Ref(0).flatMap { iRef =>
+    def loop: IO[E, Unit] = iRef.get.flatMap { i =>
+      if (i < n)
+        io *> iRef.update(_ + 1) *> loop
+      else
+        IO.unit
+    }
+    loop
+  }
+```
+
 ## Compare and swap
 
 `Ref`s provide atomic [CAS](https://en.wikipedia.org/wiki/Compare-and-swap) primitives in the form of [`trySet`](#) and [`compareAndSet`](#), which both yield a `Boolean` indicating whether the operation succeeded or not. This is useful to avoid concurrency problems such as phantom writes, as in the classic bank account withdrawal example:
@@ -109,4 +126,4 @@ for {
 } yield ()
 ```
 
-It goes without saying you should take a look at ZIO's own [`Semaphore`](#).
+It goes without saying you should take a look at ZIO's own [[scalaz.zio.Semaphore]].
