@@ -1045,15 +1045,11 @@ object IO {
     parTraverse(as)(identity)
 
   /**
-   * Races an `Iterable[IO[E, A]]` against each other. If all of
-   * them fail, the last error is returned.
-   *
-   * _Note_: if the collection is empty, there is no action that can either
-   * succeed or fail. Therefore, the only possible output is an IO action
-   * that never terminates.
+   * Races an `IO[E, A]` against elements of a `Iterable[IO[E, A]]`. Yields
+   * either the first success or the last failure.
    */
-  final def raceAll[E, A](t: Iterable[IO[E, A]]): IO[E, A] =
-    t.foldLeft[IO[E, A]](IO.never)(_ race _)
+  final def raceAll[E, A](io: IO[E, A], ios: Iterable[IO[E, A]]): IO[E, A] =
+    ios.foldLeft[IO[E, A]](io)(_ race _)
 
   /**
    * Reduces an `Iterable[IO]` to a single IO, works in parallel.

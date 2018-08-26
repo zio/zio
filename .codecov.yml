@@ -1,0 +1,32 @@
+comment: off
+coverage:
+  status:
+    project:
+      default: off
+    core:
+        flags: core
+        target: auto
+        threshold: 100
+        base: auto
+    interop:
+        flags: interop
+        target: auto
+        threshold: 100
+        base: auto
+    patch:
+      default: off
+      core:
+        flags: core
+        threshold: 100
+        base: auto
+      interop:
+        flags: interop
+        threshold: 100
+        base: auto
+flags:
+  core:
+    paths:
+      - core/
+  interop:
+    paths:
+      - interop/

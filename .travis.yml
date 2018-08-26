@@ -10,6 +10,7 @@ jdk:
 
 before_install:
 - openssl aes-256-cbc -K $encrypted_316f730cabee_key -iv $encrypted_316f730cabee_iv -in ./project/secret -out ./project/zecret -d || true
+- openssl aes-256-cbc -K $encrypted_316f730cabee_key -iv $encrypted_316f730cabee_iv -in ./project/travis-deploy-key.enc -out ./project/travis-deploy-key -d || true
 - git fetch --tags
 - export PATH=${PATH}:./vendor/bundle
 
@@ -24,40 +25,58 @@ stages:
 - name: test
 - name: microsite
 - name: release
-  if: (branch = master AND type = push) OR (tag = true)
+  if: (branch = master AND type = push) OR (tag IS present)
+- name: publishMicrosite
+  if: tag IS present
 
 jobs:
   include:
     - &lint
       stage: lint
+      name: "Lint"
       script: sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck
     - &test
       stage: test
+      name: "Test"
       script: sbt ++$TRAVIS_SCALA_VERSION coverage test coverageReport
       after_success: bash <(curl -s https://codecov.io/bash)
     - &microsite
       stage: microsite
+      name: "Generate microsite"
       script: sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
     - &release
       stage: release
+      name: "Release artifacts"
       before_script: export PGP_SECRET="$(<./project/zecret)"
       script: sbt ++$TRAVIS_SCALA_VERSION ci-release
+    - &publishSite
+      stage: publishMicrosite
+      name: "Publish microsite"
+      before_script:
+      - cp travis-deploy-key ~/.ssh/id_ed25519
+      - chmod 600 ~/.ssh/id_ed25519
+      script:
+      - git config --global user.email "tim@nequissimus.com"
+      - git config --global user.name "Tim Steinbach"
+      - git config --global push.default simple
+      - sbt ++$TRAVIS_SCALA_VERSION microsite/publishMicrosite
 
     # Cross-build
     - <<: *lint
       scala: 2.11.12
+      name: "Lint 2.11"
     - <<: *test
       scala: 2.11.12
+      name: "Test 2.11"
     - <<: *release
       scala: 2.11.12
+      name: "Release artifacts for 2.11"
 
 cache:
   directories:
   - $HOME/.sbt/1.0/dependency
   - $HOME/.sbt/boot/scala*
   - $HOME/.sbt/launchers
-  - $HOME/.ivy2/cache
-  - $HOME/.coursier
   - $HOME/.rvm
 
 before_cache:
