@@ -6,7 +6,7 @@ title:  "Refs"
 
 # Ref
 
-A `Ref[A]` is a mutable location that contains a value of type `A`. The two basic operations are [`set`](#) which fills the `Ref` with a new value, and [`get`](#) which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
+A `Ref[A]` is a mutable location that contains a value of type `A`. The two basic operations are `set` which fills the `Ref` with a new value, and `get` which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
 
 ```tut:silent
 import scalaz.zio._
@@ -20,7 +20,7 @@ for {
 
 ## Updating a `Ref`
 
-The simplest way to use a `Ref` is by means of [`update`](#) or its more powerful sibling [`modify`](#). Let's write a combinator `repeat` just because we can:
+The simplest way to use a `Ref` is by means of `update` or its more powerful sibling `modify`. Let's write a combinator `repeat` just because we can:
 
 ```tut:silent
 def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
@@ -37,7 +37,7 @@ def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
 
 ## Compare and swap
 
-`Ref`s provide atomic [CAS](https://en.wikipedia.org/wiki/Compare-and-swap) primitives in the form of [`trySet`](#) and [`compareAndSet`](#), which both yield a `Boolean` indicating whether the operation succeeded or not. This is useful to avoid concurrency problems such as phantom writes, as in the classic bank account withdrawal example:
+`Ref`s provide atomic [CAS](https://en.wikipedia.org/wiki/Compare-and-swap) primitives in the form of `trySet` and `compareAndSet`, which both yield a `Boolean` indicating whether the operation succeeded or not. This is useful to avoid concurrency problems such as phantom writes, as in the classic bank account withdrawal example:
 
 ```tut:silent
 val account: IO[Nothing, Ref[Int]] = Ref(100)
@@ -67,7 +67,7 @@ val v2 = freshVar
 val v3 = freshVar
 ```
 
-As functional programmers, we know better and have captured state mutation in the form of functions of type `S => (A, S)`. `Ref` provides such an encoding, with `S` being the type of the value, and [`modify`](#) embodying the state mutation function.
+As functional programmers, we know better and have captured state mutation in the form of functions of type `S => (A, S)`. `Ref` provides such an encoding, with `S` being the type of the value, and `modify` embodying the state mutation function.
 
 ```tut:silent
 Ref(0).flatMap { idCounter =>
@@ -102,15 +102,15 @@ object S {
       new S {
         def V = vref.update(_ + 1).void
 
-        def P = vref.get.flatMap { v =>
-          if (v < 0) 
-            IO.terminate
+        def P = (vref.get.flatMap { v =>
+          if (v < 0)
+            IO.fail(())
           else
             vref.compareAndSet(v, v - 1).flatMap {
-              case false => IO.terminate
+              case false => IO.fail(())
               case true  => IO.unit
             }
-        } <> P
+        } <> P).attempt.void
       }
     }
 }
@@ -119,11 +119,15 @@ object S {
 Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
 
 ```
+import scala.concurrent.duration.Duration
+import scala.util.Random
 for {
-  dancefloor <- Semaphore(10)
-  dancers <- IO.traverse(1 to 100)(i => (dancefloor.P *> IO.sync(println(s"${i} dancing like it's 99")) *> dancefloor.V).fork)
-  _ <- Fiber.joinAll(dancers)
+  dancefloor <- S(10)
+  dancers <- IO.parTraverse(1 to 100) { i => 
+    dancefloor.P *> (IO.sync(Duration.fromNanos(Random.nextDouble * 1000000)).flatMap { d =>
+      IO.sync(println(s"${i} checking my boots")) *> IO.sleep(d) *> IO.sync(println(s"${i} dancing like it's 99"))
+    }) *> dancefloor.V
 } yield ()
 ```
 
-It goes without saying you should take a look at ZIO's own [[scalaz.zio.Semaphore]].
+It goes without saying you should take a look at ZIO's own `Semaphore`, it does all this and more without wasting all those CPU cycles while waiting.
