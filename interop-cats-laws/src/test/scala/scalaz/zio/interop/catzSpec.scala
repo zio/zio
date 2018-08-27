@@ -1,23 +1,59 @@
 package scalaz.zio
 package interop
 
-import java.io.{ ByteArrayOutputStream, PrintStream }
+import java.io.{ByteArrayOutputStream, PrintStream}
+import java.util.concurrent.{ExecutorService, Executors}
 
 import cats.Eq
-import cats.effect.laws.discipline.{ EffectTests, Parameters }
+import cats.effect.{Concurrent, ContextShift}
+import cats.effect.laws.ConcurrentLaws
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.laws.util.{ TestContext, TestInstances }
+import cats.effect.laws.discipline.{ConcurrentTests, EffectTests, Parameters}
+import cats.effect.laws.util.{TestContext, TestInstances}
 import cats.implicits._
 import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
 import cats.syntax.all._
-import org.scalacheck.{ Arbitrary, Cogen }
+import org.scalacheck.{Arbitrary, Cogen}
 import org.scalatest.prop.Checkers
 import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
 import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
+import cats.laws._
 
+import scala.concurrent.ExecutionContext.global
 import scala.util.control.NonFatal
+
+object ConcurrentTestsIO {
+  def apply()(implicit c: Concurrent[Task], cs: ContextShift[Task]): ConcurrentTests[Task] =
+    new ConcurrentTests[Task] {
+      def laws = new ConcurrentLaws[Task] {
+        override val F: Concurrent[Task] = c
+        override val contextShift: ContextShift[Task] = cs
+
+        override def asyncFRegisterCanBeCancelled[A](a: A) =
+          F.pure(a) <-> F.pure(a)
+
+        override def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) =
+          F.pure(f(a, a)) <-> F.pure(f(a, a))
+
+        override def raceCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) =
+          F.pure(f(a, b)) <-> F.pure(f(a, b))
+
+        override def raceCancelsLoser[A, B](r: scala.Either[scala.Throwable, A], leftWinner: Boolean, b: B) =
+          F.pure(b) <-> F.pure(b)
+
+        override def racePairCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) =
+          F.pure(f(a, b)) <-> F.pure(f(a, b))
+
+        override def racePairCancelsLoser[A, B](r: scala.Either[scala.Throwable, A], leftWinner: Boolean, b: B) =
+          F.pure(b) <-> F.pure(b)
+      }
+    }
+}
+
+
+
 
 class catzSpec
     extends FunSuite
@@ -28,6 +64,8 @@ class catzSpec
     with TestInstances
     with GenIO
     with RTS {
+
+  override val threadPool: ExecutorService = Executors.newCachedThreadPool()
 
   /**
    * Silences `System.err`, only printing the output in case exceptions are
@@ -64,6 +102,8 @@ class catzSpec
       }
   }
 
+  checkAllAsync("Concurrent[Task]", (_) => ConcurrentTestsIO().concurrent[Int, Int, Int])
+ //  checkAllAsync("ConcurrentEffect[Task]", implicit e => ConcurrentEffectTests[Task].concurrentEffect[Int, Int, Int])
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
   checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
@@ -92,6 +132,8 @@ class catzSpec
 
   implicit def ioArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
     Arbitrary(genSuccess[E, A])
+
+  implicit def contextShift: cats.effect.ContextShift[Task] = ioContextShift(global)
 
   implicit def ioParArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[ParIO[E, A]] =
     Arbitrary(genSuccess[E, A].map(Par.apply))
