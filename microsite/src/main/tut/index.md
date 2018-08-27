@@ -20,7 +20,7 @@ Pragmatic. The composable, orthogonal primitives necessary to build real world s
 Include ZIO in your project by adding the following to your `build.sbt`:
 
 ```tut:evaluated
-println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
+if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
 println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
 ```
 
