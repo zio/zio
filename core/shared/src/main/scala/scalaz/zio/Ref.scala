@@ -43,7 +43,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
 
   /**
    * Atomically modifies the `Ref` with the specified function. This is not
-   * implemented in terms of `modifyFold` purely for performance reasons.
+   * implemented in terms of `modify` purely for performance reasons.
    */
   final def update(f: A => A): IO[Nothing, A] = IO.sync {
     var loop    = true
@@ -63,7 +63,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
   /**
    * Atomically modifies the `Ref` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
-   * `modify`.
+   * `update`.
    */
   final def modify[B](f: A => (B, A)): IO[Nothing, B] = IO.sync {
     var loop = true
