@@ -10,7 +10,9 @@ import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 
+import scala.util.{Failure, Success}
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
+
 
   def is = s2"""
   RTS synchronous correctness
@@ -79,15 +81,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
-    supervise fibers                        $testSupervise
-    race of fail with success               $testRaceChoosesWinner
-    race of fail with fail                  $testRaceChoosesFailure
-    race of value & never                   $testRaceOfValueNever
-    raceAll of values                       $testRaceAllOfValues
-    raceAll of failures                     $testRaceAllOfFailures
-    raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
-    par regression                          $testPar
-    par of now values                       $testRepeatedPar
+    interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
+    asyncPure is interruptible              ${upTo(1.second)(testAsyncPureIsInterruptible)}
+    async is interruptible                  ${upTo(1.second)(testAsyncIsInterruptible)}
+    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
+    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
+    bracket use is interruptible            $testBracketUseIsInterruptible
+    bracket0 use is interruptible           $testBracket0UseIsInterruptible
+    bracket release called on interrupt     $testBracketReleaseOnInterrupt
+    bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
+    async0 is interruptible                 $testAsync0IsInterruptible
+    asyncPure creation is interruptible     $testAsyncPureCreationIsInterruptible
+    async0 runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
     mergeAll                                $testMergeAll
     mergeAllEmpty                           $testMergeAllEmpty
     reduceAll                               $testReduceAll
@@ -655,6 +660,51 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         fiber <- IO.async[Nothing, Nothing](_ => ()).fork
         _     <- fiber.interrupt
       } yield 42
+
+    unsafeRun(io) must_=== 42
+  }
+
+  def testAsync0IsInterruptible = {
+    val io =
+      for {
+        fiber <- IO.async0[Nothing, Unit](_ => Async.maybeLaterIO(() => IO.sync(System.out println "interrupted") *> IO.sync(while (true) {}))).fork
+        _     <- fiber.interrupt
+      } yield 42
+
+    unsafeRun(io) must_=== 42
+  }
+
+  def testAsyncPureCreationIsInterruptible = {
+     val io = for {
+       release <- Promise.make[Nothing, Int]
+       acquire <- Promise.make[Nothing, Unit]
+       task = IO.asyncPure[Nothing, Unit] { _ =>
+         IO.bracket(acquire.complete(()))(_ => IO.never)(_ => release.complete(42).void)
+       }
+       fiber <- task.fork
+       _ <- acquire.get
+       _ <- fiber.interrupt
+       a <- release.get
+     } yield a
+
+    unsafeRun(io) must_=== 42
+   }
+
+  def testAsync0RunsCancelTokenOnInterrupt = {
+    val io = for {
+      release <- Promise.make[Nothing, Int]
+      latch    = scala.concurrent.Promise[Unit]()
+      async    = IO.async0[Nothing, Nothing] { _ => latch.success(()); Async.maybeLaterIO(() => release.complete(42).void) }
+      fiber   <- async.fork
+      _ <- IO.async[Throwable, Unit] { cb =>
+        latch.future.onComplete {
+          case Success(a) => cb(ExitResult.Completed(a))
+          case Failure(t) => cb(ExitResult.Failed(t))
+        }(scala.concurrent.ExecutionContext.global)
+      }
+      _       <- fiber.interrupt
+      result  <- release.get
+    } yield result
 
     unsafeRun(io) must_=== 42
   }
