@@ -5,6 +5,8 @@ import cats.effect.{ Effect, ExitCase }
 import cats.syntax.functor._
 import cats.{ effect, _ }
 
+import scala.util.control.NonFatal
+
 object catz extends CatsInstances
 
 abstract class CatsInstances extends CatsInstances1 {
@@ -36,7 +38,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       unsafeRunAsync(fa) {
         cb.compose(cbZ2C).andThen(_.unsafeRunAsync(_ => ()))
       }
-    }.attempt.void
+    }.void
   }
 
   override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] = {
@@ -66,7 +68,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       try {
         thunk
       } catch {
-        case t: Throwable => IO.fail(t)
+        case NonFatal(e) => IO.fail(e)
       }
     )
 
