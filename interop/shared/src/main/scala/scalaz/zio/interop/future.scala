@@ -1,7 +1,8 @@
 package scalaz.zio
 package interop
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 
 object future {
@@ -17,16 +18,19 @@ object future {
   }
 
   implicit class FiberObjOps(private val fiberObj: Fiber.type) extends AnyVal {
-    def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): Fiber[Throwable, A] =
+    def fromFuture[A](_ftr: => Future[A])(ec: ExecutionContext): Fiber[Throwable, A] =
       new Fiber[Throwable, A] {
-        private lazy val io                                    = IO.fromFuture(ftr)(ec)
-        private lazy val ioFork                                = io.fork
-        def join: IO[Throwable, A]                             = io
-        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = ioFork.flatMap(_.interrupt0(ts))
+        private lazy val ftr                                   = _ftr
+        def join: IO[Throwable, A]                             = IO.sync(Await.result(ftr, Duration.Inf))
+        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.void.asInstanceOf[IO[Nothing, Unit]]
         def onComplete(f: ExitResult[Throwable, A] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-          ioFork.flatMap(_.onComplete(f))
+          IO.sync {
+            ftr.onComplete {
+              case Success(a) => f(ExitResult.Completed(a))
+              case Failure(t) => f(ExitResult.Failed(t))
+            }(ec)
+          }
       }
-
   }
 
   implicit class IOThrowableOps[A](private val io: IO[Throwable, A]) extends AnyVal {
