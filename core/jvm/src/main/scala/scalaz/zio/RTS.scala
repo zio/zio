@@ -204,9 +204,9 @@ private object RTS {
           result.set(v)
 
         case _ =>
-          while (result.get eq null) {
-            result.synchronized {
-              if (result.get eq null) result.wait()
+          result.synchronized {
+            while (result.get eq null) {
+              result.wait()
             }
           }
       }
