@@ -1,0 +1,126 @@
+<html><head><title>ZIO: Refs</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="ZIO contributors" /><meta name="description" content="ZIO" /><meta name="og:image" content="/scalaz-zio/img/poster.png" /><meta name="og:title" content="ZIO: Refs" /><meta name="og:site_name" content="ZIO" /><meta name="og:url" content="https://scalaz.github.io/scalaz-zio/" /><meta name="og:type" content="website" /><meta name="og:description" content="ZIO" /><link rel="icon" type="image/png" href="/scalaz-zio/img/favicon.png" /><meta name="twitter:title" content="ZIO: Refs" /><meta name="twitter:image" content="https://scalaz.github.io/scalaz-zio/img/poster.png" /><meta name="twitter:description" content="ZIO" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="512x512" href="/scalaz-zio/img/favicon.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scalaz-zio/highlight/styles/default.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/codemirror.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/scalaz-zio/" class="brand"><div class="brand-wrapper"><span>ZIO</span></div></a></li> <li><a href="/scalaz-zio/usage/index.html" class="">Usage</a> <ul class="sub_section"> <li><a href="/scalaz-zio/usage/main.html" class="">Main</a></li> <li><a href="/scalaz-zio/usage/purity.html" class="">Purity</a></li> <li><a href="/scalaz-zio/usage/mapping.html" class="">Mapping/Chaining</a></li> <li><a href="/scalaz-zio/usage/failure.html" class="">Failure</a></li> <li><a href="/scalaz-zio/usage/bracket.html" class="">Brackets</a></li> <li><a href="/scalaz-zio/usage/fibers.html" class="">Fibers</a></li> <li><a href="/scalaz-zio/usage/ref.html" class="">Ref</a></li> <li><a href="/scalaz-zio/usage/performance.html" class="">Performance</a></li></ul></li></ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter('ZIO ZIO');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook('ZIO ZIO');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="scalaz" data-github-repo="scalaz-zio"><div class="content-wrapper"><section><h1 id="ref">Ref</h1>
+
+<p>A <code class="highlighter-rouge">Ref[A]</code> is a mutable location that contains a value of type <code class="highlighter-rouge">A</code>. The two basic operations are <code class="highlighter-rouge">set</code> which fills the <code class="highlighter-rouge">Ref</code> with a new value, and <code class="highlighter-rouge">get</code> which retrieves its current content. All operations on a <code class="highlighter-rouge">Ref</code> are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio._</span>
+
+<span class="k">for</span> <span class="o">{</span>
+  <span class="n">ref</span> <span class="k">&lt;-</span> <span class="nc">Ref</span><span class="o">(</span><span class="mi">100</span><span class="o">)</span>
+  <span class="n">v1</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">get</span>
+  <span class="n">v2</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">set</span><span class="o">(</span><span class="n">v1</span> <span class="o">-</span> <span class="mi">50</span><span class="o">)</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">v2</span>
+</code></pre></div></div>
+
+<h2 id="updating-a-ref">Updating a <code class="highlighter-rouge">Ref</code></h2>
+
+<p>The simplest way to use a <code class="highlighter-rouge">Ref</code> is by means of <code class="highlighter-rouge">update</code> or its more powerful sibling <code class="highlighter-rouge">modify</code>. Let’s write a combinator <code class="highlighter-rouge">repeat</code> just because we can:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">repeat</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">A</span><span class="o">](</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">io</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Ref</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">iRef</span> <span class="k">=&gt;</span>
+    <span class="k">def</span> <span class="n">loop</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">iRef</span><span class="o">.</span><span class="n">get</span><span class="o">.</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">i</span> <span class="k">=&gt;</span>
+      <span class="k">if</span> <span class="o">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="o">)</span>
+        <span class="n">io</span> <span class="o">*&gt;</span> <span class="n">iRef</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="n">loop</span>
+      <span class="k">else</span>
+        <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span>
+    <span class="o">}</span>
+    <span class="n">loop</span>
+  <span class="o">}</span>
+</code></pre></div></div>
+
+<h2 id="compare-and-swap">Compare and swap</h2>
+
+<p><code class="highlighter-rouge">Ref</code>s provide atomic <a href="https://en.wikipedia.org/wiki/Compare-and-swap">CAS</a> primitives in the form of <code class="highlighter-rouge">trySet</code> and <code class="highlighter-rouge">compareAndSet</code>, which both yield a <code class="highlighter-rouge">Boolean</code> indicating whether the operation succeeded or not. This is useful to avoid concurrency problems such as phantom writes, as in the classic bank account withdrawal example:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">account</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Ref</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Ref</span><span class="o">(</span><span class="mi">100</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">john</span> <span class="k">=</span> <span class="o">(</span><span class="n">act</span><span class="k">:</span> <span class="kt">Ref</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span> <span class="k">=&gt;</span> <span class="n">act</span><span class="o">.</span><span class="n">get</span><span class="o">.</span><span class="n">flatMap</span><span class="o">(</span><span class="n">v</span> <span class="k">=&gt;</span> <span class="n">act</span><span class="o">.</span><span class="n">compareAndSet</span><span class="o">(</span><span class="n">v</span><span class="o">,</span> <span class="n">v</span> <span class="o">-</span> <span class="mi">30</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">gaston</span> <span class="k">=</span> <span class="o">(</span><span class="n">act</span><span class="k">:</span> <span class="kt">Ref</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span> <span class="k">=&gt;</span> <span class="n">act</span><span class="o">.</span><span class="n">get</span><span class="o">.</span><span class="n">flatMap</span><span class="o">(</span><span class="n">v</span> <span class="k">=&gt;</span> <span class="n">act</span><span class="o">.</span><span class="n">compareAndSet</span><span class="o">(</span><span class="n">v</span><span class="o">,</span> <span class="n">v</span> <span class="o">-</span> <span class="mi">70</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">accountR</span> <span class="k">&lt;-</span> <span class="n">account</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">john</span><span class="o">(</span><span class="n">accountR</span><span class="o">)</span> <span class="n">par</span> <span class="n">gaston</span><span class="o">(</span><span class="n">accountR</span><span class="o">)</span>
+  <span class="n">v</span> <span class="k">&lt;-</span> <span class="n">accountR</span><span class="o">.</span><span class="n">get</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">v</span>
+</code></pre></div></div>
+
+<p>This example is non-deterministic, as both John and Gaston can either receive some money or none at all, but in all cases sequential consistency is maintained thanks to <code class="highlighter-rouge">compareAndSet</code>. Of course, the bank implementing this logic had to shut down after two days, but that’s a story for another day.</p>
+
+<h2 id="state-transformers">State transformers</h2>
+
+<p>Those who live on the dark side of mutation sometimes have it easy; they can add state everywhere like it’s Christmas. Behold:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">var</span> <span class="n">idCounter</span> <span class="k">=</span> <span class="mi">0</span>
+<span class="k">def</span> <span class="n">freshVar</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">idCounter</span> <span class="o">+=</span> <span class="mi">1</span>
+  <span class="n">s</span><span class="s">"var${idCounter}"</span>
+<span class="o">}</span>
+<span class="k">val</span> <span class="n">v1</span> <span class="k">=</span> <span class="n">freshVar</span>
+<span class="k">val</span> <span class="n">v2</span> <span class="k">=</span> <span class="n">freshVar</span>
+<span class="k">val</span> <span class="n">v3</span> <span class="k">=</span> <span class="n">freshVar</span>
+</code></pre></div></div>
+
+<p>As functional programmers, we know better and have captured state mutation in the form of functions of type <code class="highlighter-rouge">S =&gt; (A, S)</code>. <code class="highlighter-rouge">Ref</code> provides such an encoding, with <code class="highlighter-rouge">S</code> being the type of the value, and <code class="highlighter-rouge">modify</code> embodying the state mutation function.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Ref</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">idCounter</span> <span class="k">=&gt;</span>
+  <span class="k">def</span> <span class="n">freshVar</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> 
+    <span class="n">idCounter</span><span class="o">.</span><span class="n">modify</span><span class="o">(</span><span class="n">cpt</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">s</span><span class="s">"var${cpt + 1}"</span><span class="o">,</span> <span class="n">cpt</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
+
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">v1</span> <span class="k">&lt;-</span> <span class="n">freshVar</span>
+    <span class="n">v2</span> <span class="k">&lt;-</span> <span class="n">freshVar</span>
+    <span class="n">v3</span> <span class="k">&lt;-</span> <span class="n">freshVar</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h2 id="building-more-sophisticated-concurrency-primitives">Building more sophisticated concurrency primitives</h2>
+
+<p><code class="highlighter-rouge">Ref</code> is low-level enough that it can serve as the foundation for other concurrency data types.</p>
+
+<p>Semaphores are a classic abstract data type for controlling access to shared resources. They are defined as a triple S = (v, P, V) where v is the number of units of the resource that are currently available, and P and V are operations that respectively decrement and increment v; P will only complete when v is non-negative and must wait if it isn’t.</p>
+
+<p>Well, with <code class="highlighter-rouge">Ref</code>s, that’s easy to do! The only difficulty is in <code class="highlighter-rouge">P</code>, where we must fail and retry when either <code class="highlighter-rouge">v</code> is negative or its value has changed between the moment we read it and the moment we try to update it. A naive implementation could look like:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">sealed</span> <span class="k">trait</span> <span class="nc">S</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">P</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">V</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span>
+<span class="o">}</span>
+
+<span class="k">object</span> <span class="nc">S</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">v</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">S</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nc">Ref</span><span class="o">(</span><span class="n">v</span><span class="o">).</span><span class="n">map</span> <span class="o">{</span> <span class="n">vref</span> <span class="k">=&gt;</span>
+      <span class="k">new</span> <span class="n">S</span> <span class="o">{</span>
+        <span class="k">def</span> <span class="n">V</span> <span class="k">=</span> <span class="n">vref</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">).</span><span class="n">void</span>
+
+        <span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="o">(</span><span class="n">vref</span><span class="o">.</span><span class="n">get</span><span class="o">.</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">v</span> <span class="k">=&gt;</span>
+          <span class="k">if</span> <span class="o">(</span><span class="n">v</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="o">)</span>
+            <span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(())</span>
+          <span class="k">else</span>
+            <span class="n">vref</span><span class="o">.</span><span class="n">compareAndSet</span><span class="o">(</span><span class="n">v</span><span class="o">,</span> <span class="n">v</span> <span class="o">-</span> <span class="mi">1</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span>
+              <span class="k">case</span> <span class="kc">false</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(())</span>
+              <span class="k">case</span> <span class="kc">true</span>  <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span>
+            <span class="o">}</span>
+        <span class="o">}</span> <span class="o">&lt;&gt;</span> <span class="n">P</span><span class="o">).</span><span class="n">attempt</span><span class="o">.</span><span class="n">void</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Let’s rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import scala.concurrent.duration.Duration
+import scala.util.Random
+for {
+  dancefloor &lt;- S(10)
+  dancers &lt;- IO.parTraverse(1 to 100) { i =&gt; 
+    dancefloor.P *&gt; (IO.sync(Duration.fromNanos(Random.nextDouble * 1000000)).flatMap { d =&gt;
+      IO.sync(println(s"${i} checking my boots")) *&gt; IO.sleep(d) *&gt; IO.sync(println(s"${i} dancing like it's 99"))
+    }) *&gt; dancefloor.V
+} yield ()
+</code></pre></div></div>
+
+<p>It goes without saying you should take a look at ZIO’s own <code class="highlighter-rouge">Semaphore</code>, it does all this and more without wasting all those CPU cycles while waiting.</p>
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({
+languages:['scala','java','bash']
+});
+hljs.initHighlighting();
+             </script><script>((window.gitter = {}).chat = {}).options = {
+room: 'scalaz/scalaz-zio'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/scalaz-zio/js/main.js"></script></body></html>
