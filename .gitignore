@@ -1,4 +1,5 @@
 project/zecret
+project/travis-deploy-key
 target
 .sbtopts
 project/.sbt
