@@ -9,8 +9,8 @@ jdk:
 - openjdk8
 
 before_install:
-- openssl aes-256-cbc -K $encrypted_316f730cabee_key -iv $encrypted_316f730cabee_iv -in ./project/secret -out ./project/zecret -d || true
-- openssl aes-256-cbc -K $encrypted_316f730cabee_key -iv $encrypted_316f730cabee_iv -in ./project/travis-deploy-key.enc -out ./project/travis-deploy-key -d || true
+- "[ -z \"${encrypted_316f730cabee_iv}\" ] || openssl aes-256-cbc -K $encrypted_316f730cabee_key -iv $encrypted_316f730cabee_iv -in ./project/secrets.tar.xz.enc -out ./project/secrets.tar.xz -d"
+- "[ -z \"${encrypted_316f730cabee_iv}\" ] || tar xfvJ project/secrets.tar.xz -C project"
 - git fetch --tags
 - export PATH=${PATH}:./vendor/bundle
 
