@@ -51,14 +51,29 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.fromFuture(noFuture _)(ec)) must throwA[Exception](message = "no future for you!")
   }
 
+  val catchBlockExceptionTask = {
+    val noFuture: Future[Unit] = Future.failed(new Exception("no future for you!"))
+    unsafeRun(Task.fromFuture(Task { noFuture })(ec)) must throwA[Exception](message = "no future for you!")
+  }
+
   val propagateExceptionFromFuture = {
     def noValue: Future[Unit] = Future { throw new Exception("no value for you!") }
     unsafeRun(IO.fromFuture(noValue _)(ec)) must throwA[Exception](message = "no value for you!")
   }
 
+  val propagateExceptionFromFutureTask = {
+    val noValue: Future[Unit] = Future.failed(new Exception("no value for you!"))
+    unsafeRun(Task.fromFuture(Task { noValue })(ec)) must throwA[Exception](message = "no value for you!")
+  }
+
   val produceValueFromFuture = {
     def someValue: Future[Int] = Future { 42 }
     unsafeRun(IO.fromFuture(someValue _)(ec)) must_=== 42
+  }
+
+  val produceValueFromFutureTask = {
+    val someValue: Future[Int] = Future { 42 }
+    unsafeRun(Task.fromFuture(Task { someValue })(ec)) must_=== 42
   }
 
   val toFutureAlwaysSucceeds = {

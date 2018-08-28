@@ -42,7 +42,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   )
   .enablePlugins(BuildInfoPlugin)
   .settings(
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
     buildInfoPackage := "scalaz.zio",
     buildInfoObject := "BuildInfo"
   )
