@@ -1,7 +1,8 @@
 package scalaz.zio
 package interop
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 
 object future {
@@ -13,6 +14,22 @@ object future {
           case Success(a) => cb(ExitResult.Completed(a))
           case Failure(t) => cb(ExitResult.Failed(t))
         }(ec)
+      }
+  }
+
+  implicit class FiberObjOps(private val fiberObj: Fiber.type) extends AnyVal {
+    def fromFuture[A](_ftr: => Future[A])(ec: ExecutionContext): Fiber[Throwable, A] =
+      new Fiber[Throwable, A] {
+        private lazy val ftr                                   = _ftr
+        def join: IO[Throwable, A]                             = IO.syncThrowable(Await.result(ftr, Duration.Inf))
+        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.attempt.void
+        def onComplete(f: ExitResult[Throwable, A] => IO[Nothing, Unit]): IO[Nothing, Unit] =
+          IO.syncThrowable {
+            ftr.onComplete {
+              case Success(a) => f(ExitResult.Completed(a))
+              case Failure(t) => f(ExitResult.Failed(t))
+            }(ec)
+          }.attempt.void
       }
   }
 
