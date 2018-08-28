@@ -52,7 +52,7 @@ jobs:
       stage: publishMicrosite
       name: "Publish microsite"
       before_script:
-      - cp travis-deploy-key ~/.ssh/id_ed25519
+      - cp ./project/travis-deploy-key ~/.ssh/id_ed25519
       - chmod 600 ~/.ssh/id_ed25519
       script:
       - git config --global user.email "tim@nequissimus.com"
