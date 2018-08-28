@@ -21,15 +21,15 @@ object future {
     def fromFuture[A](_ftr: => Future[A])(ec: ExecutionContext): Fiber[Throwable, A] =
       new Fiber[Throwable, A] {
         private lazy val ftr                                   = _ftr
-        def join: IO[Throwable, A]                             = IO.sync(Await.result(ftr, Duration.Inf))
-        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.void.asInstanceOf[IO[Nothing, Unit]]
+        def join: IO[Throwable, A]                             = IO.syncThrowable(Await.result(ftr, Duration.Inf))
+        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.attempt.void
         def onComplete(f: ExitResult[Throwable, A] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-          IO.sync {
+          IO.syncThrowable {
             ftr.onComplete {
               case Success(a) => f(ExitResult.Completed(a))
               case Failure(t) => f(ExitResult.Failed(t))
             }(ec)
-          }
+          }.attempt.void
       }
   }
 
