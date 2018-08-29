@@ -320,7 +320,7 @@ trait Schedule[-A, +B] { self =>
    * Applies random jitter to the schedule bounded by the specified factors.
    */
   final def jittered(min: Double, max: Double): Schedule[A, B] =
-    modifyDelay((_, d) => IO.sync(util.Random.nextDouble()).map(random => d * min + d * max * random))
+    modifyDelay((_, d) => IO.sync(util.Random.nextDouble()).map(random => d * min * (1 - random) + d * max * random))
 
   /**
    * Sends every input value to the specified sink.

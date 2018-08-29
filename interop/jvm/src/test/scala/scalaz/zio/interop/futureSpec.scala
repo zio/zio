@@ -23,6 +23,12 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     return a `Future` that produces the value from `IO`  $toFutureValue
   `IO.toFutureE` must
     convert error of type `E` to `Throwable`             $toFutureE
+  `Fiber.fromFuture` must
+    be lazy on the `Future` parameter                    $lazyOnParamRefFiber
+    be lazy on the `Future` parameter inline             $lazyOnParamInlineFiber
+    catch exceptions thrown by lazy block                $catchBlockExceptionFiber
+    return an `IO` that fails if `Future` fails          $propagateExceptionFromFutureFiber
+    return an `IO` that produces the value from `Future` $produceValueFromFutureFiber
   """
 
   val ec = ee.executionContext
@@ -45,14 +51,29 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.fromFuture(noFuture _)(ec)) must throwA[Exception](message = "no future for you!")
   }
 
+  val catchBlockExceptionTask = {
+    val noFuture: Future[Unit] = Future.failed(new Exception("no future for you!"))
+    unsafeRun(Task.fromFuture(Task { noFuture })(ec)) must throwA[Exception](message = "no future for you!")
+  }
+
   val propagateExceptionFromFuture = {
     def noValue: Future[Unit] = Future { throw new Exception("no value for you!") }
     unsafeRun(IO.fromFuture(noValue _)(ec)) must throwA[Exception](message = "no value for you!")
   }
 
+  val propagateExceptionFromFutureTask = {
+    val noValue: Future[Unit] = Future.failed(new Exception("no value for you!"))
+    unsafeRun(Task.fromFuture(Task { noValue })(ec)) must throwA[Exception](message = "no value for you!")
+  }
+
   val produceValueFromFuture = {
     def someValue: Future[Int] = Future { 42 }
     unsafeRun(IO.fromFuture(someValue _)(ec)) must_=== 42
+  }
+
+  val produceValueFromFutureTask = {
+    val someValue: Future[Int] = Future { 42 }
+    unsafeRun(Task.fromFuture(Task { someValue })(ec)) must_=== 42
   }
 
   val toFutureAlwaysSucceeds = {
@@ -80,6 +101,34 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val toFutureE = {
     val failedIO = IO.fail[String]("IOs also can fail")
     unsafeRun(failedIO.toFutureE(new Exception(_))) must throwA[Exception](message = "IOs also can fail").await
+  }
+
+  val lazyOnParamRefFiber = {
+    var evaluated = false
+    def ftr       = Future { evaluated = true }
+    Fiber.fromFuture(ftr)(ec)
+    evaluated must beFalse
+  }
+
+  val lazyOnParamInlineFiber = {
+    var evaluated = false
+    Fiber.fromFuture(Future { evaluated = true })(ec)
+    evaluated must beFalse
+  }
+
+  val catchBlockExceptionFiber = {
+    def noFuture: Future[Unit] = throw new Exception("no future for you!")
+    unsafeRun(Fiber.fromFuture(noFuture)(ec).join) must throwA[Exception](message = "no future for you!")
+  }
+
+  val propagateExceptionFromFutureFiber = {
+    def noValue: Future[Unit] = Future { throw new Exception("no value for you!") }
+    unsafeRun(Fiber.fromFuture(noValue)(ec).join) must throwA[Exception](message = "no value for you!")
+  }
+
+  val produceValueFromFutureFiber = {
+    def someValue: Future[Int] = Future { 42 }
+    unsafeRun(Fiber.fromFuture(someValue)(ec).join) must_=== 42
   }
 
 }

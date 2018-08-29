@@ -1,4 +1,6 @@
 project/zecret
+project/travis-deploy-key
+project/secrets.tar.xz
 target
 .sbtopts
 project/.sbt
