@@ -423,12 +423,16 @@ sealed abstract class IO[+E, +A] { self =>
   final def repeat[B](schedule: Schedule[A, B]): IO[E, B] =
     repeatOrElse[E, B, B](schedule, (e, b) => IO.fail(e)).map(_.merge)
 
+  final def repeatOrElse[E1 >: E, B](schedule: Schedule[A, B], orElse: (E, B) => IO[E1, B]): IO[E1, B] =
+    repeatOrElse[E1, B, B](schedule, orElse).map(_.merge)
+
   /**
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse[E1 >: E, B, C](schedule: Schedule[A, B], orElse: (E, B) => IO[E1, C]): IO[E1, Either[C, B]] = {
+  final def repeatOrElse0[E1 >: E, B, C](schedule: Schedule[A, B],
+                                         orElse: (E, B) => IO[E1, C]): IO[E1, Either[C, B]] = {
     def loop(last: Option[() => B], state: schedule.State): IO[E1, Either[C, B]] =
       self.attempt.flatMap {
         case Right(a) =>
