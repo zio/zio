@@ -175,7 +175,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testSandboxWithCatchSomeOfTerminate =
     unsafeRun(
       IO.sync[List[Throwable]](throw ExampleError)
-        .sandboxWith(_.catchSome[Either[List[Throwable], Nothing], List[Throwable]] { case Left(ts) => IO.now(ts) })
+        .sandboxWith(_.catchSome { case Left(ts) => IO.now(ts) })
     ) must_=== List(ExampleError)
 
   def testSandboxedTerminate =
