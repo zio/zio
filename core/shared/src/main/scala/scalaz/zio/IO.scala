@@ -373,8 +373,8 @@ sealed abstract class IO[+E, +A] { self =>
    * }
    * }}}
    */
-  final def catchSome[E1 >: E, A1 >: A](pf: PartialFunction[E1, IO[E1, A1]]): IO[E1, A1] = {
-    def tryRescue(t: E1): IO[E1, A1] = pf.applyOrElse(t, (_: E1) => IO.fail(t))
+  final def catchSome[E1 >: E, A1 >: A](pf: PartialFunction[E, IO[E1, A1]]): IO[E1, A1] = {
+    def tryRescue(t: E): IO[E1, A1] = pf.applyOrElse(t, (_: E) => IO.fail[E1](t))
 
     self.redeem[E1, A1](tryRescue, IO.now)
   }
