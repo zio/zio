@@ -162,60 +162,6 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    */
   final def offerAll(as: Iterable[A]): IO[Nothing, Unit] = {
 
-    def acquire(
-      as: Iterable[A],
-      p: Promise[Nothing, Unit],
-      state: State[A]
-    ): (IO[Nothing, Boolean], State[A]) = state match {
-      case Deficit(takers)          => deficit(as, p, takers)
-      case Surplus(values, putters) => surplus(as, p, values, putters)
-    }
-
-    def deficit(
-      as: Iterable[A],
-      p: Promise[Nothing, Unit],
-      takers: IQueue[Promise[Nothing, A]]
-    ): (IO[Nothing, Boolean], State[A]) =
-      takers.dequeueOption match {
-        case None =>
-          if (as.size <= capacity)
-            p.complete(()) -> Surplus(IQueue.empty[A] ++ as, IQueue.empty)
-          else
-            IO.now(false) ->
-              Surplus(
-                IQueue.empty[A] ++ as.take(capacity),
-                IQueue.empty[(Iterable[A], Promise[Nothing, Unit])].enqueue(as.drop(capacity) -> p)
-              )
-
-        case Some(_) =>
-          val takersSize = takers.size
-          if (as.size < takersSize)
-            completeAll(Some(p), takers.zip(as)) -> Deficit(IQueue.empty ++ takers.drop(as.size))
-          else {
-            val optP = if (as.size > takersSize + capacity) None else Some(p)
-
-            completeAll(optP, takers.zip(as)) -> Surplus(
-              IQueue.empty[A] ++ as.slice(takersSize, takersSize + capacity),
-              IQueue
-                .empty[(Iterable[A], Promise[Nothing, Unit])]
-                .enqueue(as.drop(takersSize + capacity) -> p)
-            )
-          }
-      }
-
-    def surplus(
-      as: Iterable[A],
-      p: Promise[Nothing, Unit],
-      values: IQueue[A],
-      putters: IQueue[(Iterable[A], Promise[Nothing, Unit])]
-    ): (IO[Nothing, Boolean], State[A]) =
-      if (as.size + values.size <= capacity && putters.isEmpty) {
-        (p.complete(()), Surplus(values ++ as, putters))
-      } else {
-        val valuesToAdd = values ++ as.take(capacity - values.size)
-        (IO.now(false), Surplus(valuesToAdd, putters.enqueue((as.drop(capacity - values.size), p))))
-      }
-
     def completeAll(
       putterOpt: Option[Promise[Nothing, Unit]],
       deficit: IQueue[(Promise[Nothing, A], A)]
@@ -225,11 +171,54 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         case Some(((taker, a), rest)) => taker.complete(a) *> completeAll(putterOpt, rest)
       }
 
+    val acquire: (Promise[Nothing, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
+      case (p, Deficit(takers)) =>
+        takers.dequeueOption match {
+          case None =>
+            if (as.size <= capacity)
+              p.complete(()) -> Surplus(IQueue.empty[A] ++ as, IQueue.empty)
+            else
+              IO.now(false) ->
+                Surplus(
+                  IQueue.empty[A] ++ as.take(capacity),
+                  IQueue
+                    .empty[(Iterable[A], Promise[Nothing, Unit])]
+                    .enqueue(as.drop(capacity) -> p)
+                )
+
+          case Some(_) =>
+            val takersSize = takers.size
+            val asSize     = as.size
+            if (asSize < takersSize)
+              completeAll(Some(p), takers.zip(as)) ->
+                Deficit(IQueue.empty ++ takers.drop(asSize))
+            else {
+              val optP = if (asSize > takersSize + capacity) None else Some(p)
+              completeAll(optP, takers.zip(as)) ->
+                Surplus(
+                  IQueue.empty[A] ++ as.slice(takersSize, takersSize + capacity),
+                  IQueue
+                    .empty[(Iterable[A], Promise[Nothing, Unit])]
+                    .enqueue(as.drop(takersSize + capacity) -> p)
+                )
+            }
+        }
+      case (p, Surplus(values, putters)) =>
+        val size = values.size
+        if (as.size + size <= capacity && putters.isEmpty) {
+          p.complete(()) -> Surplus(values ++ as, putters)
+        } else {
+          val valuesToAdd = values ++ as.take(capacity - size)
+          IO.now(false) ->
+            Surplus(valuesToAdd, putters.enqueue(as.drop(capacity - size) -> p))
+        }
+    }
+
     val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
       case (_, p) => removePutter(p)
     }
 
-    Promise.bracket[Nothing, State[A], Unit, Boolean](ref)(acquire(as, _, _))(release)
+    Promise.bracket[Nothing, State[A], Unit, Boolean](ref)(acquire)(release)
   }
 }
 
