@@ -102,11 +102,11 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   def e4 = unsafeRun(
     for {
       queue <- Queue.bounded[String](100)
-      f1    <- queue.take.fork
-      f2    <- queue.take.fork
-      f3    = f1.zipWith(f2)(_ + _)
-      _     <- queue.offer("don't ") *> queue.offer("give up :D")
-      v     <- f3.join
+      f1 <- queue.take
+             .seqWith(queue.take)(_ + _)
+             .fork
+      _ <- queue.offer("don't ") *> queue.offer("give up :D")
+      v <- f1.join
     } yield v must_=== "don't give up :D"
   )
 
