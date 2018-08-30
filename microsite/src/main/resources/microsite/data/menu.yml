@@ -17,6 +17,8 @@ options:
       url: usage/bracket.html
     - title: Fibers
       url: usage/fibers.html
+    - title: Schedules
+      url/usage/schedules.html
     - title: Ref
       url: usage/ref.html
     - title: Performance
