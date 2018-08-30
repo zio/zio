@@ -439,18 +439,18 @@ sealed abstract class IO[+E, +A] { self =>
   final def repeatOrElse0[E1 >: E, B, C](schedule: Schedule[A, B],
                                          orElse: (E, B) => IO[E1, C]): IO[E1, Either[C, B]] = {
     def loop(last: Option[() => B], state: schedule.State): IO[E1, Either[C, B]] =
-      self.attempt.flatMap {
-        case Right(a) =>
-          schedule.update(a, state).flatMap { step =>
-            if (!step.cont) IO.now(Right(step.finish()))
-            else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-          }
-        case Left(e) =>
+      self.redeem(
+        e =>
           last match {
             case None         => IO.fail(e)
             case Some(finish) => orElse(e, finish()).map(Left(_))
-          }
-      }
+        },
+        a =>
+          schedule.update(a, state).flatMap { step =>
+            if (!step.cont) IO.now(Right(step.finish()))
+            else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
+        }
+      )
 
     schedule.initial.flatMap(loop(None, _))
   }
