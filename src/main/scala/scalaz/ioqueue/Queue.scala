@@ -143,7 +143,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       case Surplus(values, putters) =>
         Surplus(values, putters.filterNot(_._2 == putter))
       case d => d
-    }.toUnit
+    }.void
 
   final private def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] =
     ref.update {
@@ -151,7 +151,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         Deficit(takers.filterNot(_ == taker))
 
       case d => d
-    }.toUnit
+    }.void
 
 }
 
