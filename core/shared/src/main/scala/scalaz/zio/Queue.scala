@@ -49,7 +49,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     }
 
     val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
-      case (_, p) => removePutter(p)
+      case (_, p) => ifNotDone(p, removePutter)
     }
 
     Promise.bracket[Nothing, State[A], Unit, Boolean](ref)(acquire)(release)
@@ -79,7 +79,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     }
 
     val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
-      case (_, p) => removeTaker(p)
+      case (_, p) => ifNotDone(p, removeTaker)
     }
     Promise.bracket[Nothing, State[A], A, Boolean](ref)(acquire)(release)
   }
@@ -155,5 +155,8 @@ object Queue {
     final case class Surplus[A](queue: IQueue[A], putters: IQueue[(A, Promise[Nothing, Unit])]) extends State[A] {
       def size: Int = queue.size + putters.length // TODO: O(n) for putters.length
     }
+
+    final def ifNotDone[E, A](promise: Promise[E, A], action: Promise[E, A] => IO[E, Unit]): IO[E, Unit] =
+      promise.interrupt.flatMap(wasNotSet => if (wasNotSet) action(promise) else IO.unit)
   }
 }
