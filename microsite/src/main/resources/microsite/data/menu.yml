@@ -23,3 +23,5 @@ options:
       url: usage/performance.html
     - title: Console
       url: usage/console.html
+    - title: System
+      url: usage/system.html
