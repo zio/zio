@@ -69,7 +69,7 @@ object Scalaz {
     resolvers += Resolver.jcenterRepo
   )
 
-   implicit class ModuleHelper(p: Project) {
+  implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))
   }
 }
