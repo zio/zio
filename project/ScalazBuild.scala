@@ -58,15 +58,7 @@ object Scalaz {
       compilerPlugin("com.github.tomasmikula" %% "pascal"          % "0.2.1"),
       compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "1.0")
     ),
-    incOptions ~= (_.withLogRecompileOnMacro(false)),
-    resolvers += Resolver.DefaultMavenRepository,
-    resolvers += Resolver.JavaNet2Repository,
-    resolvers += Resolver.sonatypeRepo("public"),
-    resolvers += Resolver.typesafeRepo("releases"),
-    resolvers += Resolver.typesafeIvyRepo("releases"),
-    resolvers += Resolver.sbtPluginRepo("releases"),
-    resolvers += Resolver.bintrayRepo("owner", "repo"),
-    resolvers += Resolver.jcenterRepo
+    incOptions ~= (_.withLogRecompileOnMacro(false))
   )
 
   implicit class ModuleHelper(p: Project) {
