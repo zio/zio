@@ -2,6 +2,7 @@ package scalaz.zio
 
 import org.scalacheck._
 import org.specs2.ScalaCheck
+import scalaz.zio.syntax._
 
 class IOEagerSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
