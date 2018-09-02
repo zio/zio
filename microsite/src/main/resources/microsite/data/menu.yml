@@ -18,7 +18,7 @@ options:
     - title: Fibers
       url: usage/fibers.html
     - title: Schedules
-      url/usage/schedules.html
+      url: usage/schedules.html
     - title: Ref
       url: usage/ref.html
     - title: Performance
