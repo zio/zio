@@ -177,14 +177,16 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
           case None =>
             if (as.size <= capacity)
               p.complete(()) -> Surplus(IQueue.empty[A] ++ as, IQueue.empty)
-            else
+            else {
+              val (addToQueue, surplusValue) = as.splitAt(capacity)
               IO.now(false) ->
                 Surplus(
-                  IQueue.empty[A] ++ as.take(capacity),
+                  IQueue.empty[A] ++ addToQueue,
                   IQueue
                     .empty[(Iterable[A], Promise[Nothing, Unit])]
-                    .enqueue(as.drop(capacity) -> p)
+                    .enqueue(surplusValue -> p)
                 )
+            }
 
           case Some(_) =>
             val takersSize = takers.size
@@ -193,7 +195,11 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
               completeAll(Some(p), takers.zip(as)) ->
                 Deficit(IQueue.empty ++ takers.drop(asSize))
             else {
+              // there are more elements to offer than there are takers.
               val optP = if (asSize > takersSize + capacity) None else Some(p)
+              // we serve all the takers and if there is enough remaining capacity
+              // in the queue we complete the promise otherwise we queue the promise with
+              // the remaining elements to be offered.
               completeAll(optP, takers.zip(as)) ->
                 Surplus(
                   IQueue.empty[A] ++ as.slice(takersSize, takersSize + capacity),
@@ -208,9 +214,8 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         if (as.size + size <= capacity && putters.isEmpty) {
           p.complete(()) -> Surplus(values ++ as, putters)
         } else {
-          val valuesToAdd = values ++ as.take(capacity - size)
-          IO.now(false) ->
-            Surplus(valuesToAdd, putters.enqueue(as.drop(capacity - size) -> p))
+          val (valuesToAdd, surplusValues) = as.splitAt(capacity - size)
+          IO.now(false) -> Surplus(values ++ valuesToAdd, putters.enqueue(surplusValues -> p))
         }
     }
 
