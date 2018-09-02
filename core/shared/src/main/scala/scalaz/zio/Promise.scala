@@ -54,6 +54,22 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   /**
+   * Retrieves the value of the promise, inside an Option,
+   * if it is immediately available
+   * Otherwise completes  immediately with None
+   */
+  final def peek: IO[E, Option[A]] =
+    IO.async0[E, Option[A]](_ => {
+      val currentState = state.get
+      Async.now[E, Option[A]](
+        currentState match {
+          case Pending(_)       => ExitResult.Completed(None)
+          case Done(exitResult) => exitResult.map(Some(_))
+        }
+      )
+    })
+
+  /**
    * Completes the promise with the specified value.
    */
   final def complete(a: A): IO[Nothing, Boolean] = done(ExitResult.Completed[E, A](a))

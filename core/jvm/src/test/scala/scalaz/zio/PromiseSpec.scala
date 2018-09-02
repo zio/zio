@@ -17,6 +17,11 @@ class PromiseSpec extends AbstractRTSSpec {
           `done` to complete that promise with a terminated result.              $e6
           `interrupt` and interrupt all other fibers.                            $e7
 
+        Peek must return immediately:
+          None if the promise is not done yet. $e8
+          Some(value) if it is completed successfuly with value. $e9
+          the failure if it is failed. $e10
+
      """
 
   def e1 =
@@ -78,5 +83,31 @@ class PromiseSpec extends AbstractRTSSpec {
         p <- Promise.make[Exception, Int]
         s <- p.interrupt
       } yield s must beTrue
+    )
+
+  def e8 =
+    unsafeRun(
+      for {
+        p      <- Promise.make[String, Int]
+        option <- p.peek
+      } yield option must beNone
+    )
+
+  def e9 =
+    unsafeRun(
+      for {
+        p      <- Promise.make[String, Int]
+        _      <- p.complete(12)
+        option <- p.peek
+      } yield option must beSome(12)
+    )
+
+  def e10 =
+    unsafeRun(
+      for {
+        p             <- Promise.make[String, Int]
+        _             <- p.error("Failure")
+        attemptResult <- p.peek.attempt
+      } yield attemptResult must beLeft("Failure")
     )
 }
