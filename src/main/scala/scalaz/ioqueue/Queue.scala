@@ -235,6 +235,11 @@ object Queue {
     Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty))
       .map(new Queue[A](capacity, _, Backpressure))
 
+  /**
+   * Makes a new bounded queue.
+   * When the capacity of the queue is reached, calls to `offer` will result in the queue
+   * dropping the head elements and enqueuing the offered ones.
+   */
   final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] =
     Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _, Sliding))
 
