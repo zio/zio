@@ -132,8 +132,13 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     )(e43)}
     make a sliding queue of size 3, offer 4 values and make sure we dropped the first ${upTo(
       1.second
+<<<<<<< HEAD
     )(e44)}
     make a sliding queue of size 0, offer a value and taking should return the offered value${upTo(
+=======
+    )(e25)}
+    make a sliding queue of size 0, offering a value size should not change${upTo(
+>>>>>>> Fix sliding take behaviour #16
       1.second
     )(e45)}
     make a sliding queue of size 100, offer values and retrieve in correct order ${upTo(1.second)(
@@ -363,7 +368,6 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _      <- waitForSize(queue, 4)
       l      <- queue.takeUpTo(4)
     } yield l must_=== List(1, 2, 3)).supervised
-  )
 
   def e23 =
     unsafeRun(for {
@@ -614,7 +618,6 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.sliding[Int](0)
       _     <- queue.offer(14).fork *> IO.sleep(100.millis)
-      _     <- queue.take
       size  <- queue.size
     } yield size must_=== 0
   )
