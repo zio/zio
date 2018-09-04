@@ -417,18 +417,42 @@ sealed abstract class IO[+E, +A] { self =>
   final def forever: IO[E, Nothing] = self *> self.forever
 
   /**
-   * Repeats this action with the specified schedule.
+   * Repeats this action with the specified schedule until the schedule
+   * completes, or until the first failure.
    */
-  final def repeat[B](schedule: Schedule[A, B]): IO[E, B] = {
-    def loop(state: schedule.State): IO[E, B] =
-      self.flatMap { a =>
-        schedule.update(a, state).flatMap { step =>
-          if (!step.cont) IO.now(step.finish())
-          else IO.now(step.state).delay(step.delay).flatMap(loop)
-        }
-      }
+  final def repeat[B](schedule: Schedule[A, B]): IO[E, B] =
+    repeatOrElse[E, B](schedule, (e, b) => IO.fail(e))
 
-    schedule.initial.flatMap(loop)
+  /**
+   * Repeats this action with the specified schedule until the schedule
+   * completes, or until the first failure. In the event of failure the progress
+   * to date, together with the error, will be passed to the specified handler.
+   */
+  final def repeatOrElse[E1 >: E, B](schedule: Schedule[A, B], orElse: (E, B) => IO[E1, B]): IO[E1, B] =
+    repeatOrElse0[E1, B, B](schedule, orElse).map(_.merge)
+
+  /**
+   * Repeats this action with the specified schedule until the schedule
+   * completes, or until the first failure. In the event of failure the progress
+   * to date, together with the error, will be passed to the specified handler.
+   */
+  final def repeatOrElse0[E1 >: E, B, C](schedule: Schedule[A, B],
+                                         orElse: (E, B) => IO[E1, C]): IO[E1, Either[C, B]] = {
+    def loop(last: Option[() => B], state: schedule.State): IO[E1, Either[C, B]] =
+      self.redeem(
+        e =>
+          last match {
+            case None         => IO.fail(e)
+            case Some(finish) => orElse(e, finish()).map(Left(_))
+        },
+        a =>
+          schedule.update(a, state).flatMap { step =>
+            if (!step.cont) IO.now(Right(step.finish()))
+            else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
+        }
+      )
+
+    schedule.initial.flatMap(loop(None, _))
   }
 
   /**
