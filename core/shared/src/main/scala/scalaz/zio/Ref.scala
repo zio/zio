@@ -11,8 +11,8 @@ import java.util.concurrent.atomic.AtomicReference
  * {{{
  * for {
  *   ref <- Ref(2)
- *   v   <- ref.modify(_ + 3)
- *   _   <- putStrLn("Value = " + v.debug) // Value = 5
+ *   v   <- ref.update(_ + 3)
+ *   _   <- putStrLn("Value = " + v) // Value = 5
  * } yield ()
  * }}}
  */
