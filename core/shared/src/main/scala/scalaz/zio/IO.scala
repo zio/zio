@@ -524,7 +524,7 @@ sealed abstract class IO[+E, +A] { self =>
   /**
    * Returns a new action that executes this one and times the execution.
    */
-  final def timed: IO[E, (Duration, A)] = timed0(IO.sync(System.nanoTime()))
+  final def timed: IO[E, (Duration, A)] = timed0(system.nanoTime)
 
   /**
    * A more powerful variation of `timed` that allows specifying the clock.
