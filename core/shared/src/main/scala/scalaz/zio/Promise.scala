@@ -54,6 +54,16 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   /**
+   * Retrieves immediately the ExitResult of this promise if done
+   * and fails immediately with Unit otherwise
+   */
+  final def poll: IO[Unit, ExitResult[E, A]] =
+    IO.sync(state.get).flatMap {
+      case Pending(_)       => IO.fail(())
+      case Done(exitResult) => IO.now(exitResult)
+    }
+
+  /**
    * Completes the promise with the specified value.
    */
   final def complete(a: A): IO[Nothing, Boolean] = done(ExitResult.Completed[E, A](a))
@@ -155,7 +165,7 @@ object Promise {
     for {
       pRef <- Ref[Option[(C, Promise[E, B])]](None)
       b <- (for {
-            p <- ref.modify { (a: A) =>
+            p <- ref.modify { a: A =>
                   val p = Promise.unsafeMake[E, B]
 
                   val (io, a2) = acquire(p, a)
