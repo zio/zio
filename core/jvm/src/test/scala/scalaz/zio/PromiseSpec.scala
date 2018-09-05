@@ -17,11 +17,12 @@ class PromiseSpec extends AbstractRTSSpec {
           `done` to complete that promise with a terminated result.              $e6
           `interrupt` and interrupt all other fibers.                            $e7
 
-        Peek must return immediately:
-          None if the promise is not done yet. $e8
-          Some(value) if it is completed successfuly with value. $e9
-          the failure if it is failed. $e10
-
+        poll retrieves the final status immediately
+          it `fails' with Unit ` if the promise is not done yet.  $e8
+          Otherwise, it returns the `ExitResult`, whether
+            `Completed`                                           $e9
+            `Failed`                                              $e10
+            `Terminated`.                                         $e11
      """
 
   def e1 =
@@ -88,26 +89,38 @@ class PromiseSpec extends AbstractRTSSpec {
   def e8 =
     unsafeRun(
       for {
-        p      <- Promise.make[String, Int]
-        option <- p.peek
-      } yield option must beNone
+        p       <- Promise.make[String, Int]
+        attempt <- p.poll.attempt
+      } yield attempt must beLeft(())
     )
 
   def e9 =
-    unsafeRun(
+    unsafeRun {
       for {
         p      <- Promise.make[String, Int]
         _      <- p.complete(12)
-        option <- p.peek
-      } yield option must beSome(12)
-    )
+        result <- p.poll
+      } yield result must_=== ExitResult.Completed(12)
+    }
 
   def e10 =
-    unsafeRun(
+    unsafeRun {
+      for {
+        p      <- Promise.make[String, Int]
+        _      <- p.error("failure")
+        result <- p.poll
+      } yield result must_=== ExitResult.Failed("failure")
+    }
+
+  def e11 =
+    unsafeRun {
+      val error1 = new IllegalArgumentException("arg")
+      val error2 = new ArrayIndexOutOfBoundsException("index")
       for {
         p             <- Promise.make[String, Int]
-        _             <- p.error("Failure")
-        attemptResult <- p.peek.attempt
-      } yield attemptResult must beLeft("Failure")
-    )
+        _             <- p.interrupt(error1, error2)
+        attemptResult <- p.poll
+      } yield attemptResult must_=== ExitResult.Terminated(List(error1, error2))
+    }
+
 }

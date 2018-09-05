@@ -54,20 +54,14 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   /**
-   * Retrieves the value of the promise, inside an Option,
-   * if it is immediately available
-   * Otherwise completes  immediately with None
+   * Retrieves immediately the ExitResult of this promise if done
+   * and fails immediately with Unit otherwise
    */
-  final def peek: IO[E, Option[A]] =
-    IO.async0[E, Option[A]](_ => {
-      val currentState = state.get
-      Async.now[E, Option[A]](
-        currentState match {
-          case Pending(_)       => ExitResult.Completed(None)
-          case Done(exitResult) => exitResult.map(Some(_))
-        }
-      )
-    })
+  final def poll: IO[Unit, ExitResult[E, A]] =
+    IO.sync(state.get).flatMap {
+      case Pending(_)       => IO.fail(())
+      case Done(exitResult) => IO.now(exitResult)
+    }
 
   /**
    * Completes the promise with the specified value.
@@ -171,7 +165,7 @@ object Promise {
     for {
       pRef <- Ref[Option[(C, Promise[E, B])]](None)
       b <- (for {
-            p <- ref.modify { (a: A) =>
+            p <- ref.modify { a: A =>
                   val p = Promise.unsafeMake[E, B]
 
                   val (io, a2) = acquire(p, a)
