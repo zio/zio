@@ -1,7 +1,6 @@
 // Copyright (C) 2018 John A. De Goes. All rights reserved.
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scalaz.zio._
 
