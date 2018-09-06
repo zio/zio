@@ -1,6 +1,7 @@
 // Copyright (C) 2018 John A. De Goes. All rights reserved.
 
 import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scalaz.zio._
 
@@ -15,7 +16,7 @@ trait Clock {
 object Clock {
 
   object Live extends Clock {
-    def currentTime(unit: TimeUnit): IO[Nothing, Long] = IO.sync(unit.convert(System.currentTimeMillis(), NANOSECONDS))
+    def currentTime(unit: TimeUnit): IO[Nothing, Long] = IO.sync(unit.convert(System.currentTimeMillis(), MILLISECONDS))
 
     def nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
 
