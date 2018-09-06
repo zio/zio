@@ -16,7 +16,7 @@ trait Clock {
 object Clock {
 
   object Live extends Clock {
-    def currentTime(unit: TimeUnit): IO[Nothing, Long] = IO.sync(unit.convert(System.nanoTime(), NANOSECONDS))
+    def currentTime(unit: TimeUnit): IO[Nothing, Long] = IO.sync(unit.convert(System.currentTimeMillis(), NANOSECONDS))
 
     def nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
 
