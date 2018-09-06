@@ -497,7 +497,7 @@ object Schedule {
    * A schedule that recurs forever, and computes the time since the beginning.
    */
   final val elapsed: Schedule[Any, Duration] = {
-    val nanoTime = IO.sync(System.nanoTime())
+    val nanoTime = system.nanoTime
 
     Schedule[Long, Any, Duration](nanoTime,
                                   (_, start) =>
@@ -551,11 +551,11 @@ object Schedule {
     if (interval == Duration.Zero) forever
     else
       Schedule[(Long, Int, Int), Any, Int](
-        IO.sync((System.nanoTime(), 0, 0)),
+        system.nanoTime.map(nt => (nt, 0, 0)),
         (_, t) =>
           t match {
             case (start, n0, i) =>
-              IO.sync(System.nanoTime()).map { now =>
+              system.nanoTime.map { now =>
                 val await = ((start + n0 * interval.toNanos) - now)
                 val n = 1 +
                   (if (await < 0) ((now - start) / interval.toNanos).toInt else n0)
