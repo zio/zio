@@ -59,6 +59,7 @@ class catzSpec extends FunSuite with Matchers with Checkers with Discipline with
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", implicit e => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
   checkAllAsync("Alternative[IO[Int, ?]]", implicit e => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
+  checkAllAsync("Alternative[IO[Option[Unit], ?]]", implicit e => AlternativeTests[IO[Option[Unit], ?]].alternative[Int, Int, Int])
   checkAllAsync("SemigroupK[IO[Nothing, ?]]", implicit e => SemigroupKTests[IO[Nothing, ?]].semigroupK[Int])
   checkAllAsync("Bifunctor[IO]", implicit e => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
 
