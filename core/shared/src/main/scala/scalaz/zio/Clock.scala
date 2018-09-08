@@ -1,8 +1,8 @@
 // Copyright (C) 2018 John A. De Goes. All rights reserved.
+package scalaz.zio
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
-import scalaz.zio._
 
 trait Clock {
   def currentTimeMillis(unit: TimeUnit): IO[Nothing, Long]
@@ -12,12 +12,12 @@ trait Clock {
 
 object Clock {
   object Live extends Clock {
-    def currentTimeMillis(unit: TimeUnit): IO[Nothing, Long] =
-      IO.sync(unit.convert(System.currentTimeMillis(), MILLISECONDS))
+    final def currentTimeMillis(unit: TimeUnit): IO[Nothing, Long] =
+      system.currentTimeMillis.map(l => unit.convert(l, MILLISECONDS))
 
-    def nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
+    final def nanoTime: IO[Nothing, Long] = system.nanoTime
 
-    def sleep(length: Long, unit: TimeUnit): IO[Nothing, Unit] =
+    final def sleep(length: Long, unit: TimeUnit): IO[Nothing, Unit] =
       IO.sleep(FiniteDuration(length, unit))
   }
 }
