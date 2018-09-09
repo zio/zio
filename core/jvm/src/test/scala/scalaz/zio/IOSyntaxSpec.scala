@@ -4,7 +4,7 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 import scalaz.zio.syntax._
 
-class IOEagerSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOCreationEagerSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOEagerSyntaxSpec".title ^ s2"""
@@ -40,7 +40,7 @@ class IOEagerSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
 
 }
 
-class IOLazySyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOCreationLazySyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOEagerSyntaxSpec".title ^ s2"""
