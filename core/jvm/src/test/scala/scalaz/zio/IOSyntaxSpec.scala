@@ -1,5 +1,6 @@
 package scalaz.zio
 
+import org.scalacheck.Prop.forAll
 import org.scalacheck._
 import org.specs2.ScalaCheck
 import scalaz.zio.syntax._
@@ -33,8 +34,8 @@ class IOCreationEagerSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaChe
   def t3 = forAll(Gen.alphaStr) { str =>
     val ioSome = IO.now(Some(42))
     unsafeRun(for {
-      a <- str.ensure(ioSome)
-      b <- IO.ensure(ioSome)
+      a <- str.require(ioSome)
+      b <- IO.require(str)(ioSome)
     } yield a must ===(b))
   }
 
@@ -43,7 +44,7 @@ class IOCreationEagerSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaChe
 class IOCreationLazySyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
-  def is = "IOEagerSyntaxSpec".title ^ s2"""
+  def is = "IOLazySyntaxSpec".title ^ s2"""
    Generate a String:
       `.point` extension method returns the same IO[Nothing, String] as `IO.point` does. $t1
    Generate a String:
@@ -90,6 +91,172 @@ class IOCreationLazySyntaxSpec extends AbstractRTSSpec with GenIO with ScalaChec
       a <- lazyStr.syncCatch[Int](partial)
       b <- IO.syncCatch(lazyStr)(partial)
     } yield a must ===(b))
+  }
+
+}
+
+class IOFlattenSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+  import Prop.forAll
+
+  def is = "IOFlattenSyntaxSpec".title ^ s2"""
+   Generate a String:
+      `.flatten` extension method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $t1
+    """
+
+  def t1 = forAll(Gen.alphaStr) { str =>
+    unsafeRun(for {
+      flatten1 <- IO.point(IO.point(str)).flatten
+      flatten2 <- IO.flatten(IO.point(IO.point(str)))
+    } yield flatten1 must ===(flatten2))
+  }
+}
+
+class IOAbsolveSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+  import Prop.forAll
+
+  def is = "IOAbsolveSyntaxSpec".title ^ s2"""
+   Generate a String:
+      `.absolve` extension method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $t1
+    """
+
+  def t1 = forAll(Gen.alphaStr) { str =>
+    val ioEither: IO[Nothing, Either[Nothing, String]] = IO.now(Right(str))
+    unsafeRun(for {
+      abs1 <- ioEither.absolved
+      abs2 <- IO.absolve(ioEither)
+    } yield abs1 must ===(abs2))
+  }
+}
+
+class IOUnsandboxedSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+  import Prop.forAll
+
+  def is = "IOUnsandboxedSyntaxSpec".title ^ s2"""
+   Generate a String:
+      `.unsandboxed` extension method on IO[Either[List[Throwable], E], A] returns the same IO[E, A] as `IO.unsandbox` does. $t1
+    """
+
+  def t1 = forAll(Gen.alphaStr) { str =>
+    val io: IO[Either[List[Throwable], Nothing], String] = IO.sync(str).sandboxed
+    unsafeRun(for {
+      unsandbox1 <- io.unsandboxed
+      unsandbox2 <- IO.unsandbox(io)
+    } yield unsandbox1 must ===(unsandbox2))
+  }
+}
+
+class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+  def is = "IOUnsandboxedSyntaxSpec".title ^ s2"""
+   Generate an Iterable of Char:
+      `.mergeAll` extension method returns the same IO[E, B] as `IO.mergeAll` does. $t1
+    Generate an Iterable of Char:
+      `.parAll` extension method returns the same IO[E, List[A]] as `IO.parAll` does. $t2
+    Generate an Iterable of Char:
+      `.forkAll` extension method returns the same IO[Nothing, Fiber[E, List[A]]] as `IO.forkAll` does. $t3
+    Generate an Iterable of Char:
+      `.sequence` extension method returns the same IO[E, List[A]] as `IO.sequence` does. $t4
+    """
+
+  def t1 = forAll(Gen.listOf(Gen.alphaChar)) { charList =>
+    val ios                          = charList.map(IO.now)
+    val zero                         = List.empty[Char]
+    def merger[A](as: List[A], a: A) = a :: as
+    unsafeRun(for {
+      merged1 <- ios.mergeAll(zero, merger)
+      merged2 <- IO.mergeAll(ios)(zero, merger)
+    } yield merged1 must ===(merged2))
+  }
+
+  def t2 = forAll(Gen.listOf(Gen.alphaChar)) { charList =>
+    val ios = charList.map(IO.sync(_))
+    unsafeRun(for {
+      parAll1 <- ios.parAll
+      parAll2 <- IO.parAll(ios)
+    } yield parAll1 must ===(parAll2))
+  }
+
+  def t3 = forAll(Gen.listOf(Gen.alphaChar)) { charList =>
+    val ios: Iterable[IO[String, Char]] = charList.map(IO.sync(_))
+    unsafeRun(for {
+      f1       <- ios.forkAll
+      forkAll1 <- f1.join
+      f2       <- IO.forkAll(ios)
+      forkAll2 <- f2.join
+    } yield forkAll1 must ===(forkAll2))
+  }
+
+  def t4 = forAll(Gen.listOf(Gen.alphaChar)) { charList =>
+    val ios = charList.map(IO.sync(_))
+    unsafeRun(for {
+      sequence1 <- ios.sequence
+      sequence2 <- IO.sequence(ios)
+    } yield sequence1 must ===(sequence2))
+  }
+}
+
+class IOSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+  import Prop.forAll
+
+  def is = "IOSyntaxSpec".title ^ s2"""
+   Generate a String:
+      `.raceAll` extension method returns the same IO[E, A] as `IO.raceAll` does. $t1
+   Generate a String:
+      `.supervice` extension method returns the same IO[E, A] as `IO.supervise` does. $t2
+    """
+
+  def t1 = forAll(Gen.alphaStr) { str =>
+    val io  = IO.sync(str)
+    val ios = List.empty[IO[Nothing, String]]
+    unsafeRun(for {
+      race1 <- io.raceAll(ios)
+      race2 <- IO.raceAll(io, ios)
+    } yield race1 must ===(race2))
+  }
+
+  def t2 = forAll(Gen.alphaStr) { str =>
+    val io = IO.sync(str)
+    unsafeRun(for {
+      supervise1 <- io.supervised
+      supervise2 <- IO.supervise(io)
+    } yield supervise1 must ===(supervise2))
+  }
+}
+
+class IOTuplesSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+  import Prop.forAll
+
+  def is = "IOTupleSpec".title ^ s2"""
+   Generate a Tuple2 of (Int, String):
+      `.map2` extension method should combine them to an IO[E, Z] with a function (A, B) => Z. $t1
+   Generate a Tuple3 of (Int, String, String):
+      `.map3` extension method should combine them to an IO[E, Z] with a function (A, B, C) => Z. $t2
+   Generate a Tuple4 of (Int, String, String, String):
+      `.map4` extension method should combine them to an IO[E, C] with a function (A, B, C, D) => Z. $t3
+    """
+
+  def t1 = forAll(Gen.posNum[Int], Gen.alphaStr) { (int: Int, str: String) =>
+    def f(i: Int, s: String): String = i.toString + s
+    val ios                          = (IO.now(int), IO.now(str))
+    unsafeRun(for {
+      map2 <- ios.map2[String](f)
+    } yield map2 must ===(f(int, str)))
+  }
+
+  def t2 = forAll(Gen.posNum[Int], Gen.alphaStr, Gen.alphaStr) { (int: Int, str1: String, str2: String) =>
+    def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
+    val ios                                       = (IO.now(int), IO.now(str1), IO.now(str2))
+    unsafeRun(for {
+      map3 <- ios.map3[String](f)
+    } yield map3 must ===(f(int, str1, str2)))
+  }
+
+  def t3 = forAll(Gen.posNum[Int], Gen.alphaStr, Gen.alphaStr, Gen.alphaStr) {
+    (int: Int, str1: String, str2: String, str3: String) =>
+      def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
+      val ios                                                   = (IO.now(int), IO.now(str1), IO.now(str2), IO.now(str3))
+      unsafeRun(for {
+        map4 <- ios.map4[String](f)
+      } yield map4 must ===(f(int, str1, str2, str3)))
   }
 
 }
