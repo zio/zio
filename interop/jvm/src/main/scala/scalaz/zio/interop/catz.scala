@@ -72,6 +72,10 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       }
     )
 
+  override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(
+    release: A => Task[Unit]
+  ): Task[B] = IO.bracket(acquire)(release(_).catchAll(IO.terminate(_)))(use)
+
   override def bracketCase[A, B](
     acquire: Task[A]
   )(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
