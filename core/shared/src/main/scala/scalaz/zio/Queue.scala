@@ -157,6 +157,7 @@ object Queue {
     }
 
     final def ifNotDone[E, A](promise: Promise[E, A], action: Promise[E, A] => IO[E, Unit]): IO[E, Unit] =
-      promise.interrupt.flatMap(wasNotSet => if (wasNotSet) action(promise) else IO.unit)
+      promise.poll.void <> action(promise)
+
   }
 }
