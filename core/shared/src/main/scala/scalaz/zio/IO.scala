@@ -216,7 +216,7 @@ sealed abstract class IO[+E, +A] { self =>
    * error, and one action to execute for the case of success.
    *
    * This method has better performance than `attempt` since no intermediate
-   * value is allocated and does not requiere subsequent calls to `flatMap` to
+   * value is allocated and does not require subsequent calls to `flatMap` to
    * define the next action.
    *
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
