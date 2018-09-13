@@ -51,7 +51,7 @@ A more powerful variant of `fork`, called `fork0`, allows specification of super
 
 The `IO` error model is simple, consistent, permits both typed errors and termination, and does not violate any laws in the `Functor` hierarchy.
 
-An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable, and may be caught the `attempt` method. The `attempt` method yields a value that cannot possibly fail with any error `E`. This rigorous guarantee can be reflected at compile-time by choosing a new error type such as `Nothing`, which is possible because `attempt` is polymorphic in the error type of the returned value.
+An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable, and may be caught by the `attempt` method. The `attempt` method yields a value that cannot possibly fail with any error `E`. This rigorous guarantee can be reflected at compile-time by choosing a new error type such as `Nothing`, which is possible because `attempt` is polymorphic in the error type of the returned value.
 
 Separately from errors of type `E`, a fiber may be terminated for the following reasons:
 
