@@ -476,7 +476,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         fiber <- IO.bracket[Nothing, Unit, Unit](IO.never)(_ => IO.unit)(_ => IO.unit).fork
         res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
-     unsafeRun(io) must_=== 42
+    unsafeRun(io) must_=== 42
   }
 
   def testBracket0AcquireIsUninterruptible = {
@@ -485,9 +485,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         fiber <- IO.bracket0[Nothing, Unit, Unit](IO.never)((_, _) => IO.unit)(_ => IO.unit).fork
         res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
-     unsafeRun(io) must_=== 42
+    unsafeRun(io) must_=== 42
   }
-
 
   def testSupervise = {
     var counter = 0
