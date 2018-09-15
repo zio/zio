@@ -101,10 +101,9 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   final def takeUpTo(max: Int): IO[Nothing, List[A]] =
     ref.modify[List[A]] {
       case Surplus(values, putters) =>
-        val listA = values.take(max).toList
-        val queue = values.drop(max)
+        val (q1, q2) = values.splitAt(max)
 
-        (listA, Surplus(queue, putters))
+        (q1.toList, Surplus(q2, putters))
       case state @ Deficit(_) => (Nil, state)
     }
 
