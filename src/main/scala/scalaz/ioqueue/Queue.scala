@@ -83,7 +83,10 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
               case Some(((a, putter), putters)) if a.tail.isEmpty =>
                 (putter.complete(()) *> p.complete(a.head), Surplus(IQueue.empty, putters))
               case Some(((a, putter), putters)) =>
-                (p.complete(a.head), Surplus(IQueue.empty, (a.tail, putter) +: putters))
+                (
+                  p.complete(a.head),
+                  Surplus(IQueue.empty, IQueue.empty.enqueue((a.tail, putter) :: putters.toList))
+                )
             }
           case Some((a, values)) =>
             (p.complete(a), Surplus(values, putters))
@@ -162,15 +165,6 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    */
   final def offerAll(as: Iterable[A]): IO[Nothing, Unit] = {
 
-    def completeAll(
-      putterOpt: Option[Promise[Nothing, Unit]],
-      deficit: IQueue[(Promise[Nothing, A], A)]
-    ): IO[Nothing, Boolean] =
-      deficit.dequeueOption match {
-        case None                     => putterOpt.fold(IO.now(false))(_.complete(()))
-        case Some(((taker, a), rest)) => taker.complete(a) *> completeAll(putterOpt, rest)
-      }
-
     val acquire: (Promise[Nothing, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
       case (p, Deficit(takers)) =>
         takers.dequeueOption match {
@@ -208,13 +202,13 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
             } else completeTakers *> p.complete(()) -> Deficit(deficitValues)
         }
       case (p, Surplus(values, putters)) =>
-        val size = values.size
-        if (as.size + size <= capacity && putters.isEmpty) {
-          p.complete(()) -> Surplus(values ++ as, putters)
-        } else {
-          val (valuesToAdd, surplusValues) = as.splitAt(capacity - size)
-          IO.now(false) -> Surplus(values ++ valuesToAdd, putters.enqueue(surplusValues -> p))
-        }
+        val (addToQueue, surplusValues) = as.splitAt(capacity - values.size)
+        val (complete, newPutters) =
+          if (surplusValues.isEmpty)
+            p.complete(())   -> putters
+          else IO.now(false) -> putters.enqueue(surplusValues -> p)
+
+        complete -> Surplus(values.enqueue(addToQueue.toList), newPutters)
     }
 
     val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
