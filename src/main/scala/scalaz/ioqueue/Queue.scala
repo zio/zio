@@ -185,25 +185,27 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
             complete -> Surplus(IQueue.empty.enqueue(addToQueue.toList), putters)
 
           case Some(_) =>
-            val takersSize = takers.size
-            val asSize     = as.size
-            if (asSize < takersSize)
-              completeAll(Some(p), takers.zip(as)) ->
-                Deficit(IQueue.empty ++ takers.drop(asSize))
-            else {
-              // there are more elements to offer than there are takers.
-              val optP = if (asSize > takersSize + capacity) None else Some(p)
-              // we serve all the takers and if there is enough remaining capacity
-              // in the queue we complete the promise otherwise we queue the promise with
-              // the remaining elements to be offered.
-              completeAll(optP, takers.zip(as)) ->
-                Surplus(
-                  IQueue.empty[A] ++ as.slice(takersSize, takersSize + capacity),
-                  IQueue
-                    .empty[(Iterable[A], Promise[Nothing, Unit])]
-                    .enqueue(as.drop(takersSize + capacity) -> p)
-                )
+            val (takersToBeCompleted, deficitValues) = takers.splitAt(as.size)
+            val completeTakers = {
+              val completedValues = as.take(takersToBeCompleted.size)
+              completedValues.zipWithIndex.foldLeft[IO[Nothing, Boolean]](IO.now(true)) {
+                case (complete, (a, index)) =>
+                  val p = takersToBeCompleted(index)
+                  complete *> p.complete(a)
+              }
             }
+            if (deficitValues.isEmpty) {
+              val (addToQueue, surplusValues) = as.drop(takers.size).splitAt(capacity)
+              val (complete, putters) =
+                if (surplusValues.isEmpty)
+                  completeTakers *> p.complete(()) -> IQueue.empty
+                else IO.now(false)                 -> IQueue.empty.enqueue(surplusValues -> p)
+
+              completeTakers *> complete -> Surplus(
+                IQueue.empty[A].enqueue(addToQueue.toList),
+                putters
+              )
+            } else completeTakers *> p.complete(()) -> Deficit(deficitValues)
         }
       case (p, Surplus(values, putters)) =>
         val size = values.size
