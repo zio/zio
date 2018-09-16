@@ -4,7 +4,8 @@ import scala.collection.immutable.Range
 import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
-import scalaz.zio.{ IO, Ref }
+
+import scalaz.zio._
 
 class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
@@ -91,7 +92,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- queue.take.fork
       check <- (queue.interruptTake(new Exception("interrupt take in e2")) <* IO
                 .sleep(1.millis))
-                .doWhile(!_)
+                .repeat(Schedule.doWhile(!_))
       _ <- queue.offer(25)
       v <- queue.take
     } yield (check must beTrue).and(v must_== 25)
@@ -103,7 +104,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- queue.offer(14).fork
       check <- (queue
                 .interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis))
-                .doWhile(!_)
+                .repeat(Schedule.doWhile(!_))
       _ <- queue.offer(12)
       v <- queue.take
     } yield (check must beTrue).and(v must_=== 12)
@@ -113,21 +114,20 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[String](100)
       f1 <- queue.take
-             .zipWith(queue.take)(_ + _)
+             .seqWith(queue.take)(_ + _)
              .fork
       _ <- queue.offer("don't ") *> queue.offer("give up :D")
       v <- f1.join
     } yield v must_=== "don't give up :D"
   )
 
-  import scala.concurrent.duration._
-
   def e5 =
     unsafeRun(for {
       queue  <- Queue.bounded[Int](10)
-      f      <- IO.forkAll(takePreservingOrder(queue, 10))
+      f      <- IO.forkAll(takePreservingOrder(queue, 10, 0))
       orders = Range.inclusive(1, 10).toList
-      _      <- IO.forkAll(offerPreservingOrder(queue, orders))
+      _      <- waitForSize(queue, -10)
+      _      <- IO.forkAll(offerPreservingOrder(queue, orders, -10))
       v      <- f.join
     } yield v must_=== orders)
 
@@ -135,17 +135,18 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     unsafeRun(for {
       queue <- Queue.bounded[Int](10)
       order = Range.inclusive(1, 10).toList
-      _     <- IO.forkAll(offerPreservingOrder(queue, order))
-      f     <- IO.forkAll(takePreservingOrder(queue, 10))
+      _     <- IO.forkAll(offerPreservingOrder(queue, order, 0))
+      _     <- waitForSize(queue, 10)
+      f     <- IO.forkAll(takePreservingOrder(queue, 10, 10))
       l     <- f.join
     } yield l must_=== order)
 
   def e7 =
     unsafeRun((for {
       queue        <- Queue.bounded[Int](10)
-      _            <- queue.offer(1).repeatN(10)
+      _            <- queue.offer(1).repeat(Schedule.recurs(10))
       refSuspended <- Ref[Boolean](true)
-      _            <- (queue.offer(2).repeatN(10) *> refSuspended.set(false)).fork
+      _            <- (queue.offer(2).repeat(Schedule.recurs(10)) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
     } yield isSuspended must_=== true).supervised)
 
@@ -153,10 +154,10 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     unsafeRun((for {
       queue  <- Queue.bounded[Int](5)
       orders = Range.inclusive(1, 10).toList
-      _      <- IO.forkAll(offerPreservingOrder(queue, orders))
+      _      <- IO.forkAll(offerPreservingOrder(queue, orders, 0))
       _      <- waitForSize(queue, 10)
       l <- queue.take
-            .repeatNFold[List[Int]](10)(List.empty[Int], (l, i) => l ++ List(i))
+            .repeat(Schedule.recurs(10) *> Schedule.identity[Int].collect)
     } yield l must_=== orders).supervised)
 
   def e9 = unsafeRun(
@@ -213,7 +214,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue  <- Queue.bounded[Int](3)
       orders = List(1, 2, 3, 4)
-      _      <- IO.forkAll(offerPreservingOrder(queue, orders))
+      _      <- IO.forkAll(offerPreservingOrder(queue, orders, 0))
       _      <- waitForSize(queue, 4)
       v      <- queue.takeAll
       c      <- queue.take
@@ -311,22 +312,26 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   def e24 = unsafeRun(
     (for {
       queue <- Queue.bounded[Int](3)
-      _     <- IO.forkAll(offerPreservingOrder(queue, List(1, 2, 3, 4)))
+      _     <- IO.forkAll(offerPreservingOrder(queue, List(1, 2, 3, 4), 0))
       _     <- waitForSize(queue, 4)
       l     <- queue.takeUpTo(4)
     } yield l must_=== List(1, 2, 3)).supervised
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
-    (queue.size <* IO.sleep(1.millis)).doWhile(_ != size)
+    (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
 
-  private def offerPreservingOrder[A](queue: Queue[A], values: List[A]): List[IO[Nothing, Unit]] =
+  private def offerPreservingOrder[A](
+    queue: Queue[A],
+    values: List[A],
+    size: Int
+  ): List[IO[Nothing, Unit]] =
     values.zipWithIndex.map {
-      case (n, index) => waitForSize(queue, index) *> queue.offer(n)
+      case (n, index) => waitForSize(queue, size + index) *> queue.offer(n)
     }
 
-  private def takePreservingOrder[A](queue: Queue[A], n: Int): List[IO[Nothing, A]] = {
-    val range = Range.inclusive(1, n).toList
-    range.map(index => queue.take <* waitForSize(queue, index))
+  private def takePreservingOrder[A](queue: Queue[A], n: Int, size: Int): List[IO[Nothing, A]] = {
+    val range = Range(0, n).toList
+    range.map(index => waitForSize(queue, size - index) *> queue.take)
   }
 }
