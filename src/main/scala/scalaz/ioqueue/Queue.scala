@@ -109,7 +109,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         val (q1, q2) = values.splitAt(max)
 
         (IO.point(q1.toList), Surplus(q2, putters))
-      case state @ Deficit(_)       => (IO.point(Nil), state)
+      case state @ Deficit(_)       => (IO.now(Nil), state)
       case state @ Shutdown(errors) => (IO.terminate0(errors), state)
     })
 
@@ -163,26 +163,27 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * The given throwables will be provided as interruption `causes`.
    */
   final def shutdown0(l: List[Throwable]): IO[Nothing, Unit] =
-    ref
-      .modify {
-        case Surplus(_, putters) if putters.nonEmpty =>
-          val forked = IO
-            .forkAll[Nothing, Boolean](putters.toList.map {
-              case (_, p) => interruptPromise(p, l)
-            })
-            .flatMap(_.join)
-          (forked, Shutdown(l))
-        case Deficit(takers) if takers.nonEmpty =>
-          val forked = IO
-            .forkAll[Nothing, Boolean](
-              takers.toList.map(p => interruptPromise(p, l))
-            )
-            .flatMap(_.join)
-          (forked, Shutdown(l))
-        case state @ Shutdown(_) => (IO.unit, state)
-        case _                   => (IO.unit, Shutdown(l))
-      }
-      .flatMap(identity)
+    IO.flatten(
+        ref
+          .modify {
+            case Surplus(_, putters) if putters.nonEmpty =>
+              val forked = IO
+                .forkAll[Nothing, Boolean](putters.toList.map {
+                  case (_, p) => interruptPromise(p, l)
+                })
+                .flatMap(_.join)
+              (forked, Shutdown(l))
+            case Deficit(takers) if takers.nonEmpty =>
+              val forked = IO
+                .forkAll[Nothing, Boolean](
+                  takers.toList.map(p => interruptPromise(p, l))
+                )
+                .flatMap(_.join)
+              (forked, Shutdown(l))
+            case state @ Shutdown(_) => (IO.unit, state)
+            case _                   => (IO.unit, Shutdown(l))
+          }
+      )
       .void
 
   final private def removePutter(putter: Promise[Nothing, Unit]): IO[Nothing, Unit] =
