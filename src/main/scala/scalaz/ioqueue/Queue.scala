@@ -156,9 +156,9 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     }.toUnit
 
   /**
-    * Places the value in the queue. If the queue has reached capacity, then
-    * the fiber performing the `offer` will be suspended until there is room in
-    * the queue.
+   * Places the value in the queue. If the queue has reached capacity, then
+   * the fiber performing the `offer` will be suspended until there is room in
+   * the queue.
    */
   final def offerAll(as: Iterable[A]): IO[Nothing, Unit] = {
 
@@ -175,18 +175,14 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       case (p, Deficit(takers)) =>
         takers.dequeueOption match {
           case None =>
-            if (as.size <= capacity)
-              p.complete(()) -> Surplus(IQueue.empty[A] ++ as, IQueue.empty)
-            else {
-              val (addToQueue, surplusValue) = as.splitAt(capacity)
-              IO.now(false) ->
-                Surplus(
-                  IQueue.empty[A] ++ addToQueue,
-                  IQueue
-                    .empty[(Iterable[A], Promise[Nothing, Unit])]
-                    .enqueue(surplusValue -> p)
-                )
-            }
+            val (addToQueue, surplusValues) = as.splitAt(capacity)
+            val (complete, putters) =
+              if (surplusValues.isEmpty)
+                p.complete(()) -> IQueue.empty
+              else
+                IO.now(false) -> IQueue.empty.enqueue(surplusValues -> p)
+
+            complete -> Surplus(IQueue.empty.enqueue(addToQueue.toList), putters)
 
           case Some(_) =>
             val takersSize = takers.size
