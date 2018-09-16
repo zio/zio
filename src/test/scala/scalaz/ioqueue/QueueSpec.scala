@@ -128,7 +128,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       order = Range.inclusive(1, 10).toList
       _     <- IO.forkAll(order.map(queue.offer))
       _     <- waitForSize(queue, 10)
-      l     <- queue.take.repeat(Schedule.recurs(10).fold(List.empty[Int])((l, i) => i :: l))
+      l     <- queue.take.repeat(Schedule.recurs(10) *> Schedule.identity[Int].collect)
     } yield l.toSet must_=== order.toSet)
 
   def e7 =
@@ -145,7 +145,8 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       orders = Range.inclusive(1, 10).toList
       _      <- IO.forkAll(orders.map(n => waitForSize(queue, n - 1) *> queue.offer(n)))
       _      <- waitForSize(queue, 10)
-      l      <- queue.take.repeat(Schedule.recurs(10).fold(List.empty[Int])((l, i) => i :: l))
+      l <- queue.take
+            .repeat(Schedule.recurs(10) *> Schedule.identity[Int].collect.map(_.reverse))
     } yield l.reverse must_=== orders)
 
   def e9 = unsafeRun(
