@@ -65,6 +65,26 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 3, fork offer 4 values, and `takeUpTo` with max=3 retrives first 3 values in correct order ${upTo(
       1.second
     )(e24)}
+    make a bounded queue of size 3, `take` a value in a fork, then `shutdown` the queue, the fork should terminate ${upTo(
+      1.second
+    )(e25)}
+    make a bounded queue of size 3, `take` a value in a fork, then `shutdown` the queue with a list of exceptions,
+      the fork should terminate with the same list of exceptions ${upTo(1.second)(e26)}
+    make a bounded queue of size 1, `offer` a value twice, then `shutdown` the queue, the second fork should terminate ${upTo(
+      1.second
+    )(e27)}
+    make a bounded queue of size 3, `shutdown` the queue, then `offer` an element, `offer` should terminate ${upTo(
+      1.second
+    )(e28)}
+    make a bounded queue of size 3, `shutdown` the queue, then `take` an element, `take` should terminate ${upTo(
+      1.second
+    )(e29)}
+    make a bounded queue of size 3, `shutdown` the queue, then `takeAll` elements, `takeAll` should terminate ${upTo(
+      1.second
+    )(e30)}
+    make a bounded queue of size 3, `shutdown` the queue, then `takeUpTo` 1 element, `takeUpTo` should terminate ${upTo(
+      1.second
+    )(e31)}
     """
 
   def e1 = unsafeRun(
@@ -311,6 +331,76 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       l     <- queue.takeUpTo(4)
     } yield l must_=== List(1, 2, 3)
   )
+
+  def e25 =
+    unsafeRunSync(
+      for {
+        queue <- Queue.bounded[Int](3)
+        f     <- queue.take.fork
+        _     <- queue.shutdown
+        _     <- f.join
+      } yield ()
+    ) must_=== ExitResult.Terminated(Nil)
+
+  def e26 = {
+    val ex1 = new Exception("fail1")
+    val ex2 = new Exception("fail2")
+    unsafeRunSync(
+      for {
+        queue <- Queue.bounded[Int](3)
+        f     <- queue.take.fork
+        _     <- queue.shutdown(ex1, ex2)
+        _     <- f.join
+      } yield ()
+    ) must_=== ExitResult.Terminated(List(ex1, ex2))
+  }
+
+  def e27 =
+    unsafeRunSync(
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.offer(1).fork
+        f     <- queue.offer(1).fork
+        _     <- queue.shutdown
+        _     <- f.join
+      } yield ()
+    ) must_=== ExitResult.Terminated(Nil)
+
+  def e28 =
+    unsafeRunSync(
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdown
+        _     <- queue.offer(1)
+      } yield ()
+    ) must_=== ExitResult.Terminated(Nil)
+
+  def e29 =
+    unsafeRunSync(
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdown
+        _     <- queue.take
+      } yield ()
+    ) must_=== ExitResult.Terminated(Nil)
+
+  def e30 =
+    unsafeRunSync(
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdown
+        _     <- queue.takeAll
+      } yield ()
+    ) must_=== ExitResult.Terminated(Nil)
+
+  def e31 =
+    unsafeRunSync(
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdown
+        _     <- queue.takeUpTo(1)
+      } yield ()
+    ) must_=== ExitResult.Terminated(Nil)
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
