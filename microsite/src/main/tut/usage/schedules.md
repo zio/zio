@@ -21,7 +21,7 @@ Schedules allow you to define and compose flexible recurrence schedules, which c
    * `IO.retryOrElse` — Retries an action until it succeeds, with a fallback for errors.
    * `IO.retryOrElse0` — Retries an action until it succeeds, with a more powerful fallback for errors.
 
-Schedules define stateful, possibly effectful, recurring schedules of events and compose in a variety of ways.
+Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways.
 
 A `Schedule[A, B]` consumes `A` values, and based on these events and internal state, decides whether to recur at some future time or wrap up. Every decision is accompanied by a (possibly zero) delay, and an output value of type `B`.
 
