@@ -85,6 +85,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 3, `shutdown` the queue, then `takeUpTo` 1 element, `takeUpTo` should terminate ${upTo(
       1.second
     )(e31)}
+    make a bounded queue of size 3, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
+      1.second
+    )(e32)}
     """
 
   def e1 = unsafeRun(
@@ -399,6 +402,15 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.takeUpTo(1)
+      } yield ()
+    ) must_=== ExitResult.Terminated(Nil)
+
+  def e32 =
+    unsafeRunSync(
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdown
+        _     <- queue.size
       } yield ()
     ) must_=== ExitResult.Terminated(Nil)
 

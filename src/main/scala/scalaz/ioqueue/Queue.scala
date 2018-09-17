@@ -24,7 +24,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * in the queue. This may be negative if fibers are suspended waiting for
    * elements to be added to the queue.
    */
-  final def size: IO[Nothing, Int] = ref.get.map(_.size)
+  final def size: IO[Nothing, Int] = ref.get.flatMap(_.size)
 
   /**
    * Places the value in the queue. If the queue has reached capacity, then
@@ -228,17 +228,19 @@ object Queue {
 
   private[ioqueue] object internal {
     sealed trait State[A] {
-      def size: Int
+      def size: IO[Nothing, Int]
     }
     final case class Deficit[A](takers: IQueue[Promise[Nothing, A]]) extends State[A] {
-      def size: Int = -takers.length
+      def size: IO[Nothing, Int] = IO.point(-takers.length)
     }
     final case class Surplus[A](queue: IQueue[A], putters: IQueue[(A, Promise[Nothing, Unit])])
         extends State[A] {
-      def size: Int = queue.size + putters.length // TODO: O(n) for putters.length
+
+      def size: IO[Nothing, Int] =
+        IO.point(queue.size + putters.length) // TODO: O(n) for putters.length
     }
     final case class Shutdown[A](t: List[Throwable]) extends State[A] {
-      def size: Int = 0
+      def size: IO[Nothing, Int] = IO.terminate0(t)
     }
   }
 }
