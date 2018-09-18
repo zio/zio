@@ -3,16 +3,16 @@ package scalaz.zio
 sealed abstract class Managed[+E, +R] { self =>
   def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A]
 
-  def use_[E1 >: E, A](f: IO[E1, A]): IO[E1, A] =
+  final def use_[E1 >: E, A](f: IO[E1, A]): IO[E1, A] =
     use(_ => f)
 
-  def map[R1](f0: R => R1): Managed[E, R1] =
+  final def map[R1](f0: R => R1): Managed[E, R1] =
     new Managed[E, R1] {
       def use[E1 >: E, A](f: R1 => IO[E1, A]): IO[E1, A] =
         self.use(r => f(f0(r)))
     }
 
-  def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]) =
+  final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]) =
     new Managed[E1, R1] {
       def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
         self.use { r =>
@@ -22,16 +22,16 @@ sealed abstract class Managed[+E, +R] { self =>
         }
     }
 
-  def *>[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, R1] =
+  final def *>[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, R1] =
     flatMap(_ => ff)
 
-  def <*[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, R] =
+  final def <*[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, R] =
     flatMap(r => ff.map(_ => r))
 
-  def seqWith[E1 >: E, R1, R2](ff: Managed[E1, R1])(f: (R, R1) => R2): Managed[E1, R2] =
+  final def seqWith[E1 >: E, R1, R2](ff: Managed[E1, R1])(f: (R, R1) => R2): Managed[E1, R2] =
     flatMap(r => ff.map(r1 => f(r, r1)))
 
-  def seq[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, (R, R1)] =
+  final def seq[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, (R, R1)] =
     seqWith(ff)((_, _))
 }
 
@@ -40,7 +40,7 @@ object Managed {
   /**
    * Lifts an IO[E, R] into Managed[E, R] with a release action.
    */
-  def mk[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]) =
+  def apply[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]) =
     new Managed[E, R] {
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         acquire.bracket[E1, A](release)(f)

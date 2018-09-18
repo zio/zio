@@ -321,7 +321,7 @@ sealed abstract class IO[+E, +A] { self =>
     )(use)
 
   final def managed(release: A => IO[Nothing, Unit]): Managed[E, A] =
-    Managed.mk[E, A](this)(release)
+    Managed[E, A](this)(release)
 
   /**
    * Runs the cleanup action if this action errors, providing the error to the
