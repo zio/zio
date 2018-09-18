@@ -9,11 +9,19 @@ import scalaz.zio.lockfree.ConcurrentQueueBenchmark.{ OfferCounters, PollCounter
 object ConcurrentQueueBenchmark {
   @AuxCounters
   @State(Scope.Thread)
-  case class PollCounters(var pollsFailed: Long, var pollsMade: Long)
+  class PollCounters(var pollsFailed: Long, var pollsMade: Long) {
+    def this() {
+      this(0, 0)
+    }
+  }
 
   @AuxCounters
   @State(Scope.Thread)
-  class OfferCounters(var offersFailed: Long, var offersMade: Long)
+  class OfferCounters(var offersFailed: Long, var offersMade: Long) {
+    def this() {
+      this(0, 0)
+    }
+  }
 }
 
 @State(Scope.Group)
@@ -26,55 +34,20 @@ class ConcurrentQueueBenchmark {
   private val DELAY_PRODUCER: Long = java.lang.Long.getLong("delay.p", 0L)
   private val DELAY_CONSUMER: Long = java.lang.Long.getLong("delay.c", 0L)
 
-  val TestElement: Int      = 1
-  var element: Int          = 1
-  var escape: Int           = _
-  var q: LockFreeQueue[Int] = _
+  var Token: Int = 1
+
+  @Param(Array("65536"))
+  var qCapacity: Int = _
 
   @Param(Array("RingBuffer", "JUC", "JCTools"))
   var qType: String = _
 
-  @Param(Array("128000"))
-  var qCapacity: Int = _
+  var q: LockFreeQueue[Int] = _
+
+  def backoff(): Unit = {}
 
   @Setup
-  def createQueue(): Unit =
-    q = impls.queueByType(qType, qCapacity)
-
-  @Benchmark
-  @Group("A")
-  @GroupThreads(4)
-  def offer(counters: OfferCounters): Unit = {
-    if (!q.offer(element)) {
-      counters.offersFailed += 1
-      backoff()
-    } else {
-      counters.offersMade += 1
-    }
-    if (DELAY_PRODUCER != 0) {
-      Blackhole.consumeCPU(DELAY_PRODUCER)
-    }
-  }
-
-  @Benchmark
-  @Group("A")
-  @GroupThreads(4)
-  def poll(counters: PollCounters): Unit = {
-    val e = q.poll()
-
-    if (e.isEmpty) {
-      counters.pollsFailed += 1
-      backoff()
-    } else if (e.get == TestElement) {
-      counters.pollsMade += 1
-    } else {
-      escape = e.get
-    }
-
-    if (DELAY_CONSUMER != 0) {
-      Blackhole.consumeCPU(DELAY_CONSUMER)
-    }
-  }
+  def createQueue(): Unit = q = impls.queueByType(qType, qCapacity)
 
   @TearDown(Level.Iteration)
   def emptyQ(): Unit =
@@ -82,5 +55,59 @@ class ConcurrentQueueBenchmark {
       while (q.poll().isDefined) {}
     }
 
-  def backoff(): Unit = {}
+  @Benchmark
+  @Group("Symmetric")
+  @GroupThreads(4)
+  def offerSymmetric(counters: OfferCounters): Unit =
+    doOffer(counters)
+
+  @Benchmark
+  @Group("Symmetric")
+  @GroupThreads(4)
+  def pollSymmetric(counters: PollCounters): Unit =
+    doPoll(counters)
+
+  @Benchmark
+  @Group("Asymmetric")
+  @GroupThreads(8)
+  def offerAsymmetric(counters: OfferCounters): Unit =
+    doOffer(counters)
+
+  @Benchmark
+  @Group("Asymmetric")
+  @GroupThreads(4)
+  def pollAsymmetric(counters: PollCounters): Unit =
+    doPoll(counters)
+
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def doOffer(counters: OfferCounters): Unit = {
+    if (!q.offer(Token)) {
+      counters.offersFailed += 1
+      backoff()
+    } else {
+      counters.offersMade += 1
+    }
+
+    if (DELAY_PRODUCER != 0) {
+      Blackhole.consumeCPU(DELAY_PRODUCER)
+    }
+  }
+
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def doPoll(counters: PollCounters): Unit = {
+    val e = q.poll()
+
+    e match {
+      case None =>
+        counters.pollsFailed += 1
+        backoff()
+
+      case Some(_) =>
+        counters.pollsMade += 1
+    }
+
+    if (DELAY_CONSUMER != 0) {
+      Blackhole.consumeCPU(DELAY_CONSUMER)
+    }
+  }
 }

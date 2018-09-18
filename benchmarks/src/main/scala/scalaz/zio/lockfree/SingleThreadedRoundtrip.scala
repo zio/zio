@@ -11,24 +11,23 @@ import org.openjdk.jmh.annotations._
 @Fork(1)
 @Threads(1)
 @State(Scope.Thread)
-class SingleThreadedOfferAndPollBenchmark {
+class SingleThreadedRoundtrip {
+  val Token: Int = 1
 
-  //  @Param(Array("RingBuffer"))
-  @Param(Array("NotSafe", "RingBuffer", "JUC", "JCTools"))
-  var queueTypeParam: String = _
-
-  @Param(Array("132000"))
-  var queueCapacity: Int = _
-
-  @Param(Array("1"))
+  @Param(Array("1", "10"))
   var batchSize: Int = _
 
-  var queue: LockFreeQueue[Int] = _
+  @Param(Array("65536"))
+  var qCapacity: Int = _
+
+  @Param(Array("RingBuffer", "JUC", "JCTools", "Unsafe"))
+  var qType: String = _
+
+  var q: LockFreeQueue[Int] = _
 
   @Setup(Level.Trial)
-  def setup(): Unit = {
-    queue = impls.queueByType(queueTypeParam, queueCapacity)
-  }
+  def setup(): Unit =
+    q = impls.queueByType(qType, qCapacity)
 
   @Benchmark
   def offerAndPoll(): Int = {
@@ -36,20 +35,16 @@ class SingleThreadedOfferAndPollBenchmark {
 
     var i = 0
     while (i < bSize) {
-      queue.offer(SingleThreadedOfferAndPollBenchmark.Message)
+      q.offer(Token)
       i += 1
     }
 
     i = 0
     var result: Int = 0
     while (i < batchSize) {
-      result = queue.poll().get
+      result = q.poll().get
       i += 1
     }
     result
   }
-}
-
-object SingleThreadedOfferAndPollBenchmark {
-  final val Message: Int = 1
 }

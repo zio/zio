@@ -4,11 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 
-object SingleThreadedPollBenchmark {
-  final val OPS: Int = 1 << 15
-  final val TOKEN: Int = 1
-}
-
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
 @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
@@ -17,37 +12,37 @@ object SingleThreadedPollBenchmark {
 @Threads(1)
 @State(Scope.Thread)
 class SingleThreadedPollBenchmark {
-  final val OPS: Int = 1 << 15
-  final val TOKEN: Int = 1
+  val Ops: Int   = 1 << 16
+  val Token: Int = 1
 
   @volatile var preventUnrolling = true
 
-  @Param(Array("NotSafe", "RingBuffer", "JUC", "JCTools"))
-  var queueTypeParam: String = _
-  var queue: LockFreeQueue[Int] = _
+  @Param(Array("65536"))
+  var qCapacity: Int = _
 
-  @Param(Array("1024"))
-  var queueCapacity: Int = _
+  @Param(Array("RingBuffer", "JUC", "JCTools", "Unsafe"))
+  var qType: String = _
+
+  var q: LockFreeQueue[Int] = _
 
   @Setup(Level.Trial)
-  def createQ(): Unit = {
-    queue = impls.queueByType(queueTypeParam, queueCapacity)
-  }
+  def createQ(): Unit =
+    q = impls.queueByType(qType, qCapacity)
 
   @Setup(Level.Invocation)
   def fill(): Unit = {
-    1.to(SingleThreadedPollBenchmark.OPS).foreach(_ => queue.offer(SingleThreadedPollBenchmark.TOKEN))
+    var i = 0
+    while (i < Ops) { q.offer(Token); i += 1 }
   }
 
   @Benchmark
-  @OperationsPerInvocation(1 << 15)
+  @OperationsPerInvocation(1 << 16)
   def poll(): Unit = {
-    val lq = queue
-    var i = 0
-    while (i < SingleThreadedPollBenchmark.OPS && preventUnrolling) {
+    val lq = q
+    var i  = 0
+    while (i < Ops && preventUnrolling) {
       lq.poll()
       i += 1
     }
   }
 }
-
