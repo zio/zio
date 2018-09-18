@@ -22,38 +22,41 @@ object QueuePingPongBenchmark {
 @Fork(1)
 @State(Scope.Group)
 class QueuePingPongBenchmark {
-  val Message: Int = 1
-  val capacity: Int = 32 * 1024
+  val Token: Int = 1
 
-  @Param(Array("JUC", "JCTools", "RingBuffer"))
-  var queueType: String = _
-  var queueIn: LockFreeQueue[Int] = _
-  var queueOut: LockFreeQueue[Int] = _
+  @Param(Array("65536"))
+  var qCapacity: Int = _
+
+  @Param(Array("RingBuffer", "JUC", "JCTools"))
+  var qType: String = _
+
+  var qIn: LockFreeQueue[Int]  = _
+  var qOut: LockFreeQueue[Int] = _
 
   @Setup
   def setup(): Unit = {
-    queueIn = impls.queueByType(queueType, capacity)
-    queueOut = impls.queueByType(queueType, capacity)
+    qIn = impls.queueByType(qType, qCapacity)
+    qOut = impls.queueByType(qType, qCapacity)
   }
 
   @Benchmark
   @Group("A")
   @GroupThreads(1)
   def roundtrip(control: Control): Int = {
-    queueIn.offer(Message)
+    qIn.offer(Token)
 
-    var el = queueOut.poll()
-    while(!control.stopMeasurement && el.isEmpty) el = queueOut.poll()
-    el.getOrElse(Message)
+    var el = qOut.poll()
+    while (!control.stopMeasurement && el.isEmpty) el = qOut.poll()
+    el.getOrElse(Token)
   }
 
   @Benchmark
   @Group("A")
   @GroupThreads(1)
   def poll(control: Control): Boolean = {
-    var el = queueIn.poll()
-    while (!control.stopMeasurement && el.isEmpty) el = queueIn.poll()
+    var el = qIn.poll()
+    while (!control.stopMeasurement && el.isEmpty) el = qIn.poll()
 
-    queueOut.offer(el.getOrElse(Message))
+    qOut.offer(el.getOrElse(Token))
   }
 }
