@@ -11,7 +11,7 @@ class ManagedSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   def invokesCleanupsInReverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      Managed.mk(IO.sync { effects += x; () })(_ => IO.sync { effects += x; () })
+      Managed(IO.sync { effects += x; () })(_ => IO.sync { effects += x; () })
 
     val (first, second, third) = (res(1), res(2), res(3))
 
