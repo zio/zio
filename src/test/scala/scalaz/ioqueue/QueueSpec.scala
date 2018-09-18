@@ -127,7 +127,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- queue.offer(14).fork
       check <- (queue.interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis))
                 .repeat(Schedule.doWhile(!_))
-      _ <- queue.offer(12)
+      _ <- queue.offer(12).fork
       v <- queue.take
     } yield (check must beTrue).and(v must_=== 12)
   )

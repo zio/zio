@@ -31,29 +31,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * the fiber performing the `offer` will be suspended until there is room in
    * the queue.
    */
-  final def offer(a: A): IO[Nothing, Unit] = {
-    val acquire: (Promise[Nothing, Unit], State[A]) => (IO[Nothing, Boolean], State[A]) = {
-      case (p, Deficit(takers)) =>
-        takers.dequeueOption match {
-          case None => (p.complete(()), Surplus(IQueue.empty[A].enqueue(a), IQueue.empty))
-          case Some((taker, takers)) =>
-            (taker.complete(a) *> p.complete(()), Deficit(takers))
-        }
-
-      case (p, Surplus(values, putters)) =>
-        if (values.length < capacity && putters.isEmpty) {
-          (p.complete(()), Surplus(values.enqueue(a), putters))
-        } else {
-          (IO.now(false), Surplus(values, putters.enqueue((Seq(a), p))))
-        }
-    }
-
-    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
-      case (_, p) => removePutter(p)
-    }
-
-    Promise.bracket[Nothing, State[A], Unit, Boolean](ref)(acquire)(release)
-  }
+  final def offer(a: A): IO[Nothing, Unit] = offerAll(List(a))
 
   /**
    * Removes all the values in the queue and returns the list of the values. If the queue
