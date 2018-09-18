@@ -4,7 +4,7 @@ package scalaz.ioqueue
 
 import scala.collection.immutable.{ Queue => IQueue }
 import Queue.internal._
-import scalaz.zio.{ Fiber, IO, Promise, Ref }
+import scalaz.zio.{ IO, Promise, Ref }
 
 /**
  * A `Queue` is a lightweight, asynchronous queue. This implementation is
@@ -111,36 +111,6 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         (IO.point(q1.toList), Surplus(q2, putters))
       case state @ Deficit(_)       => (IO.now(Nil), state)
       case state @ Shutdown(errors) => (IO.terminate0(errors), state)
-    })
-
-  /**
-   * Interrupts any fibers that are suspended on `take` because the queue is
-   * empty. If any fibers are interrupted, returns true, otherwise, returns
-   * false.
-   */
-  final def interruptTake(t: Throwable): IO[Nothing, Boolean] =
-    IO.flatten(ref.modify {
-      case Deficit(takers) if takers.nonEmpty =>
-        val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
-          IO.forkAll[Nothing, Boolean](takers.toList.map(_.interrupt(t)))
-        (forked.flatMap(_.join).map(_.forall(identity)), Deficit(IQueue.empty[Promise[Nothing, A]]))
-      case s =>
-        (IO.now(false), s)
-    })
-
-  /**
-   * Interrupts any fibers that are suspended on `offer` because the queue is
-   * at capacity. If any fibers are interrupted, returns true, otherwise,
-   * returns  false.
-   */
-  final def interruptOffer(t: Throwable): IO[Nothing, Boolean] =
-    IO.flatten(ref.modify {
-      case Surplus(_, putters) if putters.nonEmpty =>
-        val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
-          IO.forkAll[Nothing, Boolean](putters.toList.map(_._2.interrupt(t)))
-        (forked.flatMap(_.join).map(_.forall(identity)), Deficit(IQueue.empty[Promise[Nothing, A]]))
-      case s =>
-        (IO.now(false), s)
     })
 
   /**
