@@ -366,7 +366,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue  <- Queue.bounded[Int](0)
       orders = Range.inclusive(1, 3).toList
       f      <- queue.offerAll(orders).fork
-      _      <- f.interrupt(new Exception("interrupt offer in e17"))
+      _      <- f.interrupt(new Exception("interrupt offer in e27"))
       l      <- queue.takeAll
     } yield l must_=== Nil)
 
