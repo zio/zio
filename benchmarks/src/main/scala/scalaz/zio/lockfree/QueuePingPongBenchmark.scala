@@ -27,7 +27,7 @@ class QueuePingPongBenchmark {
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JUC", "JCTools"))
+  @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools"))
   var qType: String = _
 
   var qIn: LockFreeQueue[Int]  = _
