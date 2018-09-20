@@ -90,7 +90,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Interrupts the promise with the specified list of throwable(s). This will interrupt
    * all fibers waiting on the value of the promise.
    */
-  final protected def interrupt0(ts: List[Throwable]): IO[Nothing, Boolean] = done(ExitResult.Terminated[E, A](ts))
+  final def interrupt0(ts: List[Throwable]): IO[Nothing, Boolean] = done(ExitResult.Terminated[E, A](ts))
 
   /**
    * Completes the promise with the specified result. If the specified promise
