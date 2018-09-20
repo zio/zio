@@ -70,7 +70,7 @@ class SingleLockQueue[A: ClassTag](override val capacity: Int) extends LockFreeQ
     }
   }
 
-  override def relaxedSize(): Int = {
+  override def size(): Int = {
     lock.lock()
 
     try {

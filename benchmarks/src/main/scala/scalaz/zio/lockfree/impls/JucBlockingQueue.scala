@@ -9,7 +9,7 @@ class JucBlockingQueue[A] extends LockFreeQueue[A] {
 
   private val jucBlockingQueue = new LinkedBlockingQueue[A](capacity)
 
-  override def relaxedSize(): Int = jucBlockingQueue.size()
+  override def size(): Int = jucBlockingQueue.size()
 
   override def enqueuedCount(): Long = throw new UnsupportedOperationException("enqueuedCount not implemented")
 
