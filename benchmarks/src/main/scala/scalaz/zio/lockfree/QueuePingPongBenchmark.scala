@@ -3,7 +3,7 @@ package scalaz.zio.lockfree
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
-import org.openjdk.jmh.infra.Control
+import org.openjdk.jmh.infra.{Blackhole, Control}
 
 object QueuePingPongBenchmark {
   @AuxCounters
@@ -17,12 +17,15 @@ object QueuePingPongBenchmark {
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@Warmup(iterations = 3, time = 1)
-@Measurement(iterations = 5, time = 1)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 10, time = 1)
 @Fork(1)
 @State(Scope.Group)
 class QueuePingPongBenchmark {
   val Token: Int = 1
+
+  @Param(Array("1", "2"))
+  var batchSize: Int = _
 
   @Param(Array("65536"))
   var qCapacity: Int = _
@@ -42,21 +45,30 @@ class QueuePingPongBenchmark {
   @Benchmark
   @Group("A")
   @GroupThreads(1)
-  def roundtrip(control: Control): Int = {
-    qIn.offer(Token)
+  def roundtrip(control: Control, blackhole: Blackhole): Unit = {
+    var i = 0
+    while (i < batchSize) { qIn.offer(Token); i += 1 }
 
-    var el = qOut.poll()
-    while (!control.stopMeasurement && el.isEmpty) el = qOut.poll()
-    el.getOrElse(Token)
+    i = 0
+    while (i < batchSize && !control.stopMeasurement) {
+      var el = qOut.poll()
+      while (!control.stopMeasurement && el.isEmpty) el = qOut.poll()
+      blackhole.consume(el)
+      i += 1
+    }
   }
 
   @Benchmark
   @Group("A")
   @GroupThreads(1)
-  def poll(control: Control): Boolean = {
-    var el = qIn.poll()
-    while (!control.stopMeasurement && el.isEmpty) el = qIn.poll()
+  def poll(control: Control): Unit = {
+    var i: Int = 0
 
-    qOut.offer(el.getOrElse(Token))
+    while (i < batchSize && !control.stopMeasurement) {
+      var el = qIn.poll()
+      while (!control.stopMeasurement && el.isEmpty) el = qIn.poll()
+      qOut.offer(el.getOrElse(Token))
+      i += 1
+    }
   }
 }

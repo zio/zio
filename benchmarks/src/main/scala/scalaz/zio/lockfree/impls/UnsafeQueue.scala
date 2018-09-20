@@ -41,5 +41,5 @@ class UnsafeQueue[A: ClassTag](override val capacity: Int) extends LockFreeQueue
 
   override def dequeuedCount(): Long = head
 
-  override def relaxedSize(): Int = capacity - (head - tail).toInt
+  override def size(): Int = capacity - (head - tail).toInt
 }

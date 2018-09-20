@@ -7,7 +7,7 @@ class JCToolsQueue[A](desiredCapacity: Int) extends LockFreeQueue[A] {
 
   override val capacity: Int = jctools.capacity()
 
-  override def relaxedSize(): Int = jctools.size()
+  override def size(): Int = jctools.size()
 
   override def enqueuedCount(): Long = jctools.currentProducerIndex()
 
@@ -20,5 +20,5 @@ class JCToolsQueue[A](desiredCapacity: Int) extends LockFreeQueue[A] {
   override def isEmpty(): Boolean = jctools.isEmpty()
 
   override def isFull(): Boolean =
-    jctools.currentProducerIndex() == jctools.currentConsumerIndex() + jctools.capacity() - 1
+    jctools.currentConsumerIndex() + jctools.capacity() - 1 == jctools.currentProducerIndex()
 }

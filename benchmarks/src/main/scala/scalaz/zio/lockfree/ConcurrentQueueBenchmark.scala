@@ -1,9 +1,9 @@
 package scalaz.zio.lockfree
 
-import org.openjdk.jmh.annotations._
-import org.openjdk.jmh.infra.Blackhole
 import java.util.concurrent.TimeUnit
 
+import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.infra.Blackhole
 import scalaz.zio.lockfree.ConcurrentQueueBenchmark.{ OfferCounters, PollCounters }
 
 object ConcurrentQueueBenchmark {
@@ -27,15 +27,12 @@ object ConcurrentQueueBenchmark {
 @State(Scope.Group)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@Warmup(iterations = 10, time = 1)
+@Warmup(iterations = 20, time = 1)
 @Measurement(iterations = 10, time = 1)
 @Fork(1)
 class ConcurrentQueueBenchmark {
-  @Param(Array("128"))
-  var DELAY_PRODUCER: Long = _
-
-  @Param(Array("10240"))
-  var DELAY_CONSUMER: Long = _
+  val DELAY_PRODUCER: Long = 32
+  var DELAY_CONSUMER: Long = 16
 
   var Token: Int = 1
 
@@ -59,28 +56,14 @@ class ConcurrentQueueBenchmark {
     }
 
   @Benchmark
-  @Group("Symmetric")
-  @GroupThreads(8)
-  def offerSymmetric(counters: OfferCounters): Unit =
-    doOffer(counters)
-
-  @Benchmark
-  @Group("Symmetric")
-  @GroupThreads(8)
-  def pollSymmetric(counters: PollCounters): Unit =
-    doPoll(counters)
-
-  @Benchmark
   @Group("Asymmetric")
   @GroupThreads(16)
-  def offerAsymmetric(counters: OfferCounters): Unit =
-    doOffer(counters)
+  def offerAsymmetric(counters: OfferCounters): Unit = doOffer(counters)
 
   @Benchmark
   @Group("Asymmetric")
   @GroupThreads(8)
-  def pollAsymmetric(counters: PollCounters): Unit =
-    doPoll(counters)
+  def pollAsymmetric(counters: PollCounters): Unit = doPoll(counters)
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def doOffer(counters: OfferCounters): Unit = {

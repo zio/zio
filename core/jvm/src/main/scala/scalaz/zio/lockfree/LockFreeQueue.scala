@@ -7,7 +7,7 @@ trait LockFreeQueue[A] {
 
   def poll(): Option[A]
 
-  def relaxedSize(): Int
+  def size(): Int
 
   def enqueuedCount(): Long
 
