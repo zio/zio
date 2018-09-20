@@ -632,7 +632,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.sliding[Int](5)
       f1 <- queue.take
-             .zipWith(queue.take)(_ + _)
+             .seqWith(queue.take)(_ + _)
              .fork
       _ <- queue.offer(1) *> queue.offer(2)
       v <- f1.join
