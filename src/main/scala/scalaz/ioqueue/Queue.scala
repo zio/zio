@@ -55,9 +55,10 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
       case (p, Deficit(takers)) =>
         (IO.now(false), Deficit(takers.enqueue(p)))
       case (p, Surplus(values, putters)) =>
-        values.dequeueOption match {
-          case None =>
-            putters.dequeueOption match {
+        strategy match {
+          case Sliding if capacity < 1 => (IO.never, Surplus(IQueue.empty, putters))
+          case _ =>
+            values.dequeueOption match {
               case None =>
                 (IO.now(false), Deficit(IQueue.empty.enqueue(p)))
               case Some(((a, putter), putters)) if a.tail.isEmpty =>
@@ -68,8 +69,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
                   Surplus(IQueue.empty, IQueue.empty.enqueue((a.tail, putter) :: putters.toList))
                 )
             }
-          case Some((a, values)) =>
-            (p.complete(a), Surplus(values, putters))
+
         }
       case (p, state @ Shutdown(errors)) => (interruptPromise(p, errors), state)
     }
@@ -137,7 +137,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
       )
       .void
 
-  final private def removePutter(putter: Promise[Nothing, Unit]): IO[Nothing, Unit] =
+  final private def removePutter(putter: Promise[Nothing, Boolean]): IO[Nothing, Unit] =
     ref.update {
       case Surplus(values, putters) =>
         Surplus(values, putters.filterNot { case (_, p) => p == putter })
@@ -276,6 +276,5 @@ object Queue {
           case (length, (as, _)) => length + as.size
         }
       }
-    }
   }
 }
