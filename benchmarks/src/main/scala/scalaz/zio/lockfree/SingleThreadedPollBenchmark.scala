@@ -20,7 +20,7 @@ class SingleThreadedPollBenchmark {
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JUC", "JCTools", "Unsafe"))
+  @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools", "Unsafe"))
   var qType: String = _
 
   var q: LockFreeQueue[Int] = _

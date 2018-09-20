@@ -28,18 +28,21 @@ object ConcurrentQueueBenchmark {
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Warmup(iterations = 10, time = 1)
-@Fork(1)
 @Measurement(iterations = 10, time = 1)
+@Fork(1)
 class ConcurrentQueueBenchmark {
-  private val DELAY_PRODUCER: Long = java.lang.Long.getLong("delay.p", 0L)
-  private val DELAY_CONSUMER: Long = java.lang.Long.getLong("delay.c", 0L)
+  @Param(Array("128"))
+  var DELAY_PRODUCER: Long = _
+
+  @Param(Array("10240"))
+  var DELAY_CONSUMER: Long = _
 
   var Token: Int = 1
 
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JUC", "JCTools"))
+  @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools"))
   var qType: String = _
 
   var q: LockFreeQueue[Int] = _
@@ -57,25 +60,25 @@ class ConcurrentQueueBenchmark {
 
   @Benchmark
   @Group("Symmetric")
-  @GroupThreads(4)
+  @GroupThreads(8)
   def offerSymmetric(counters: OfferCounters): Unit =
     doOffer(counters)
 
   @Benchmark
   @Group("Symmetric")
-  @GroupThreads(4)
+  @GroupThreads(8)
   def pollSymmetric(counters: PollCounters): Unit =
     doPoll(counters)
 
   @Benchmark
   @Group("Asymmetric")
-  @GroupThreads(8)
+  @GroupThreads(16)
   def offerAsymmetric(counters: OfferCounters): Unit =
     doOffer(counters)
 
   @Benchmark
   @Group("Asymmetric")
-  @GroupThreads(4)
+  @GroupThreads(8)
   def pollAsymmetric(counters: PollCounters): Unit =
     doPoll(counters)
 
