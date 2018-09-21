@@ -46,7 +46,7 @@ class ConcurrentQueueBenchmark {
 
   def backoff(): Unit = {}
 
-  @Setup
+  @Setup(Level.Trial)
   def createQueue(): Unit = q = impls.queueByType(qType, qCapacity)
 
   @TearDown(Level.Iteration)
