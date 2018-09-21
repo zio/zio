@@ -320,6 +320,9 @@ sealed abstract class IO[+E, +A] { self =>
       }
     )(use)
 
+  final def managed(release: A => IO[Nothing, Unit]): Managed[E, A] =
+    Managed[E, A](this)(release)
+
   /**
    * Runs the cleanup action if this action errors, providing the error to the
    * cleanup action if it exists. The cleanup action will not be interrupted.
