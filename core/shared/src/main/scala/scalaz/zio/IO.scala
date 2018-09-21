@@ -22,13 +22,13 @@ import scala.concurrent.ExecutionContext
  *
  * `IO` values can efficiently describe the following classes of effects:
  *
- *  * **Pure Values** &mdash; `IO.point`
- *  * **Synchronous Effects** &mdash; `IO.sync`
- *  * **Asynchronous Effects** &mdash; `IO.async`
- *  * **Concurrent Effects** &mdash; `io.fork`
- *  * **Resource Effects** &mdash; `io.bracket`
+ *  - '''Pure Values''' &mdash; `IO.point`
+ *  - '''Synchronous Effects''' &mdash; `IO.sync`
+ *  - '''Asynchronous Effects''' &mdash; `IO.async`
+ *  - '''Concurrent Effects''' &mdash; `io.fork`
+ *  - '''Resource Effects''' &mdash; `io.bracket`
  *
- * The concurrency model is based on *fibers*, a user-land lightweight thread,
+ * The concurrency model is based on ''fibers'', a user-land lightweight thread,
  * which permit cooperative multitasking, fine-grained interruption, and very
  * high performance with large numbers of concurrently executing fibers.
  *
