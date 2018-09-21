@@ -1058,8 +1058,8 @@ private object RTS {
       // To preserve fair scheduling, we submit all resumptions on the thread
       // pool in (rough) order of their submission.
       killers.reverse.foreach(k => rts.submit(k(SuccessUnit)))
-      joiners.foreach(k => rts.submit(k(v)))
-      exitHandlers.foreach(k => rts.unsafeRunAsync(k(v))((_: ExitResult[Nothing, Unit]) => ()))
+      joiners.reverse.foreach(k => rts.submit(k(v)))
+      exitHandlers.reverse.foreach(k => rts.submit(rts.unsafeRunAsync(k(v))((_: ExitResult[Nothing, Unit]) => ())))
     }
   }
 
