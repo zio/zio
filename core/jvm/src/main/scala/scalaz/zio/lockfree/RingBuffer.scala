@@ -17,9 +17,11 @@ class RingBuffer[A](val desiredCapacity: Int) extends LFQueueWithPaddedFields[A]
     val aCapacity = capacity
     val aMask     = idxMask
     val aBuf      = buf
+    val aHead     = head
+    val aTail     = tail
 
-    var curPosition = tail.get()
-    var curHead     = head.get()
+    var curPosition = aHead.get()
+    var curHead     = aTail.get()
 
     while (curPosition < curHead + aCapacity) {
       val idx = posToIdx(curPosition, aMask)
@@ -28,14 +30,14 @@ class RingBuffer[A](val desiredCapacity: Int) extends LFQueueWithPaddedFields[A]
       if (el.isEmpty) {
         if (el.position == curPosition) {
           if (aBuf.compareAndSet(idx, el, BufferElement.buildValue(curPosition, a))) {
-            val curTail = tail.get()
-            if (curTail != curPosition) updateTail(tail, curPosition + 1) // tail.compareAndSet(curTail, curPosition + 1)
+            val curTail = aTail.get()
+            if (curTail != curPosition) updateTail(aTail, curPosition + 1) // tail.compareAndSet(curTail, curPosition + 1)
             return true
           } else {
             curPosition += 1
           }
         } else if (el.position > curPosition) {
-          curPosition = Math.max(tail.get(), curHead)
+          curPosition = Math.max(aTail.get(), curHead)
         } else {
           sys.error(s"Offer error: impossible case $el")
         }
@@ -43,18 +45,19 @@ class RingBuffer[A](val desiredCapacity: Int) extends LFQueueWithPaddedFields[A]
         curPosition += 1
       }
 
-      curHead = head.get()
+      curHead = aHead.get()
     }
 
     false
   }
 
   override def poll(): Option[A] = {
-    val aHead       = head
+    val aCapacity = capacity
+    val aMask     = idxMask
+    val aBuf      = buf
+    val aHead     = head
+
     var curPosition = aHead.get()
-    val aCapacity   = capacity
-    val aMask       = idxMask
-    val aBuf        = buf
     var spin        = true
 
     while (spin) {
@@ -143,6 +146,7 @@ private object BufferElement {
 The classes below provide padding for contended fields in the RingBuffer layout, specifically `head`, `tail`, and `buf`.
  */
 private[lockfree] abstract class PadL1 {
+  protected val p000: Int  = 0
   protected val p001: Long = 0
   protected val p002: Long = 0
   protected val p003: Long = 0
@@ -164,6 +168,7 @@ private[lockfree] abstract class PaddedHead extends PadL1 {
 }
 
 private[lockfree] abstract class PadL2 extends PaddedHead {
+  protected val p100: Int  = 0
   protected val p101: Long = 0
   protected val p102: Long = 0
   protected val p103: Long = 0
@@ -186,6 +191,7 @@ private[lockfree] abstract class PaddedHeadAndTail extends PadL2 {
 }
 
 private[lockfree] abstract class PadL3 extends PaddedHeadAndTail {
+  protected val p200: Int  = 0
   protected val p201: Long = 0
   protected val p202: Long = 0
   protected val p203: Long = 0
@@ -203,7 +209,25 @@ private[lockfree] abstract class PadL3 extends PaddedHeadAndTail {
   protected val p215: Long = 0
 }
 
-private[lockfree] abstract class LFQueueWithPaddedFields[A](desiredCapacity: Int) extends PadL3 with LockFreeQueue[A] {
+private[lockfree] abstract class PaddedHeadTailAndBuf[A](desiredCapacity: Int) extends PadL3 with LockFreeQueue[A] {
   override final val capacity: Int                       = nextPow2(desiredCapacity)
   protected val buf: AtomicReferenceArray[BufferElement] = new AtomicReferenceArray[BufferElement](capacity)
+}
+
+private[lockfree] abstract class LFQueueWithPaddedFields[A](desiredCapacity: Int)
+    extends PaddedHeadTailAndBuf[A](desiredCapacity) {
+  protected val p301: Long = 0
+  protected val p302: Long = 0
+  protected val p303: Long = 0
+  protected val p304: Long = 0
+  protected val p305: Long = 0
+  protected val p306: Long = 0
+  protected val p307: Long = 0
+  protected val p308: Long = 0
+  protected val p309: Long = 0
+  protected val p310: Long = 0
+  protected val p311: Long = 0
+  protected val p312: Long = 0
+  protected val p313: Long = 0
+  protected val p314: Int  = 0
 }
