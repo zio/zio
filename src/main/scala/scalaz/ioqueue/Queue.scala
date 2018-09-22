@@ -39,8 +39,9 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    */
   final def takeAll: IO[Nothing, List[A]] =
     ref.modify[List[A]] {
-      case Surplus(values, putters) => (values.toList, Surplus(IQueue.empty[A], putters))
-      case state @ Deficit(_)       => (List.empty[A], state)
+      case Surplus(values, putters) =>
+        (values.toList, Surplus(IQueue.empty[A], putters))
+      case state @ Deficit(_) => (List.empty[A], state)
     }
 
   /**
@@ -159,14 +160,16 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
             val (takersToBeCompleted, deficitValues) = takers.splitAt(as.size)
             val completeTakers = {
               val completedValues = as.take(takersToBeCompleted.size)
-              completedValues.zipWithIndex.foldLeft[IO[Nothing, Boolean]](IO.now(true)) {
-                case (complete, (a, index)) =>
-                  val p = takersToBeCompleted(index)
-                  complete *> p.complete(a)
-              }
+              completedValues.zipWithIndex
+                .foldLeft[IO[Nothing, Boolean]](IO.now(true)) {
+                  case (complete, (a, index)) =>
+                    val p = takersToBeCompleted(index)
+                    complete *> p.complete(a)
+                }
             }
             if (deficitValues.isEmpty) {
-              val (addToQueue, surplusValues) = as.drop(takers.size).splitAt(capacity)
+              val (addToQueue, surplusValues) =
+                as.drop(takers.size).splitAt(capacity)
               val (complete, putters) =
                 if (surplusValues.isEmpty)
                   completeTakers *> p.complete(()) -> IQueue.empty
@@ -204,7 +207,8 @@ object Queue {
    * until there is more room in the queue.
    */
   final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
-    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _))
+    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty))
+      .map(new Queue[A](capacity, _))
 
   /**
    * Makes a new unbounded queue.
