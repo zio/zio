@@ -65,37 +65,39 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 3, fork offer 4 values, and `takeUpTo` with max=3 retrives first 3 values in correct order ${upTo(
       1.second
     )(e24)}
-    make a bounded queue then call `offerAll` to add all values in the queue ${upTo(1.second)(e25)}
-    make a bounded queue then call `offerAll` should enqueue all requests if we the exceed capacity of the queue ${upTo(
+    e25: make a bounded queue of size 10 then call `offerAll` with a list of 10 elements to add all values in the queue ${upTo(
+      1.second
+    )(e25)}
+    e26: make a bounded queue of size 0 then call `offerAll` with a list of 3 elements. The producer should be suspended and the queue should have the same size as the elements offered ${upTo(
       1.second
     )(e26)}
-    offerAll can be interrupted fiber which is suspended on `offer` ${upTo(1.second)(e27)}
-    offerAll does preserve the order of the List ${upTo(1.second)(e28)}
-    offerAll does preserve the order of the List when it exceeds the queue's capacity ${upTo(
+    e27: `offerAll` can be interrupted and all resources are released ${upTo(1.second)(e27)}
+    e28: `offerAll should preserve the order of the list ${upTo(1.second)(e28)}
+    e29: `offerAll` does preserve the order of the list when it exceeds the queue's capacity ${upTo(
       1.second
     )(e29)}
-    fork some takers, and offer as many elements as there are takers, the values must be correct after joining those fibers ${upTo(
+    e30: make a bounded queue of size 1000 then fork 2000 takers, and offer as many elements as there are takers, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e30)}
-    fork some takers, and offer more elements than there are takers, the values must be correct after joining those fibers ${upTo(
+    e31: make a bounded queue of size 2000 then fork 500 takers, and offer more elements than there are takers, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e31)}
-    fork some takers, and offer more elements than there are takers and capacity in the queue, the values must be correct after joining those fibers ${upTo(
+    e32: make a bounded queue of size 20 then fork 1000 takers, and offer more elements than there are takers and capacity in the queue, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e32)}
-    fork some takers, and offer less elements than there are takers in the queue, the values must be correct after joining those fibers ${upTo(
+    e33: fork some takers, and offer less elements than there are takers in the queue, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e33)}
-    make bounded queue offer more elements than there are takers and capacity in the queue, taking elements should work correctly ${upTo(
+    e34: make bounded queue of size 0 then offer more elements than there is capacity in the queue, taking elements should work correctly ${upTo(
       1.second
     )(e34)}
-    make bounded queue offer more elements than there are takers and capacity in the queue, taking elements should preserve putters queue order ${upTo(
+    e35: make bounded queue offer more elements than there are takers and capacity in the queue, taking elements should preserve putters queue order ${upTo(
       1.second
     )(e35)}
-    make bounded queue offer one element than offerAll elements without exceeding the queue's capacity, the values should be in correct order ${upTo(
+    e36: make bounded queue of size 1000 then `offer` one element then `offerAll` some elements without exceeding the queue's capacity, when calling `takeAll` the values should be in correct order ${upTo(
       1.second
     )(e36)}
-    make bounded queue offer some elements than offerAll elements exceeding the queue's capacity, the values should be in correct order ${upTo(
+    e37: make bounded queue `offer` some elements then `offerAll` elements exceeding the queue's capacity, the values should be in correct order ${upTo(
       1.second
     )(e37)}
     """
