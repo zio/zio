@@ -119,7 +119,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v1    <- queue.take
       _     <- queue.offer(20)
       v2    <- queue.take
-    } yield (v1 must_=== 10) and (v2 must_=== 20)
+    } yield (v1 must_=== 10).and(v2 must_=== 20)
   )
 
   def e2 = unsafeRun(
@@ -131,7 +131,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
                 .repeat(Schedule.doWhile(!_))
       _ <- queue.offer(25)
       v <- queue.take
-    } yield (check must beTrue) and (v must_== 25)
+    } yield (check must beTrue).and(v must_== 25)
   )
 
   def e3 = unsafeRun(
@@ -142,7 +142,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
                 .interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis))
                 .repeat(Schedule.doWhile(!_))
       size <- queue.size
-    } yield (check must beTrue) and (size must_=== 0)
+    } yield (check must beTrue).and(size must_=== 0)
   )
 
   def e4 = unsafeRun(
