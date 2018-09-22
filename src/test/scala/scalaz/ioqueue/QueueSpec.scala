@@ -28,7 +28,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue with capacity = 10, then put 10 values then add 10 other values and check that `offer`is suspended ${upTo(
       1.second
     )(e7)}
-    make a bounded queue with capacity = 5, offer 10 values in a fiber and take 5 values the offer must still suspended then take the last 5 values, the offer must be not suspended ${upTo(
+    make a bounded queue with capacity = 5, offer 10 values in a fiber and check that you can take the 10 values ${upTo(
       1.second
     )(e8)}
     `take` can be interrupted and all resources in takers are released ${upTo(1.second)(e9)}
@@ -187,23 +187,13 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   def e8 =
     unsafeRun(
       for {
-        queue        <- Queue.bounded[Int](5)
-        values       = Range.inclusive(1, 10).toList
-        refSuspended <- Ref[Boolean](true)
-        f            <- IO.forkAll(values.map(queue.offer))
-        _            <- (f.join *> refSuspended.set(false)).fork
-        _            <- waitForSize(queue, 10)
-        l1 <- queue.take
-               .repeat(Schedule.recurs(5) *> Schedule.identity[Int].collect)
-        isSuspended1 <- refSuspended.get
-        l2 <- queue.take
-               .repeat(Schedule.recurs(5) *> Schedule.identity[Int].collect)
-        isSuspended2 <- refSuspended.get
-        l            = l1 ++ l2
-      } yield
-        (l must containTheSameElementsAs(values))
-          .and(isSuspended1 must beTrue)
-          .and(isSuspended2 must beFalse)
+        queue  <- Queue.bounded[Int](5)
+        values = Range.inclusive(1, 10).toList
+        _      <- IO.forkAll(values.map(queue.offer))
+        _      <- waitForSize(queue, 10)
+        l <- queue.take
+              .repeat(Schedule.recurs(100) *> Schedule.identity[Int].collect)
+      } yield l must containTheSameElementsAs(values)
     )
 
   def e9 = unsafeRun(
