@@ -192,7 +192,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _      <- IO.forkAll(values.map(queue.offer))
         _      <- waitForSize(queue, 10)
         l <- queue.take
-              .repeat(Schedule.recurs(100) *> Schedule.identity[Int].collect)
+              .repeat(Schedule.recurs(10) *> Schedule.identity[Int].collect)
       } yield l must containTheSameElementsAs(values)
     )
 
