@@ -4,6 +4,7 @@ import scala.collection.immutable.Range
 import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
+
 import scalaz.zio._
 
 class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
@@ -14,90 +15,99 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     add values then call
       `take` to retrieve them in correct order. ${upTo(1.second)(e1)}
       `interruptTake`to interrupt fiber which is suspended on `take`. ${upTo(1.second)(e2)}
-      `interruptPutter`to interrupt fiber which is suspended on `offer`. ${upTo(1.second)(e3)}
+      `interruptOffer`to interrupt fiber which is suspended on `offer`. ${upTo(1.second)(e3)}
     `take` is called by fiber waiting on values to be added to the queue and join the fiber to get the added values correctly. ${upTo(
       1.second
     )(e4)}
-    fork 10 takers and offer 10 values, the values must be correct after join those fibers ${upTo(
+    fork 10 takers and offer 10 values, join takers, the result must contain all offered values ${upTo(
       1.second
     )(e5)}
     fork 10 putters and offer for each one 10 values then take the values 100 times, the values must be correct after join those fibers ${upTo(
       1.second
     )(e6)}
-    make capacity = 10, then put 20 values then check if the size is 10 ${upTo(1.second)(e7)}
-    the order is preserved even if we exceed the capacity of the queue ${upTo(1.second)(e8)}
-    take can be interrupted and all resources are released ${upTo(1.second)(e9)}
-    offer can be interrupted and all resources are released ${upTo(1.second)(e10)}
-    make an unbounded queue, add and retrieve values in correct order ${upTo(1.second)(e11)}
-    make an unbounded queue, add and retrieve all values in correct order ${upTo(1.second)(e12)}
-    make an unbounded queue, add, take and retrieve all values returning empty list ${upTo(
+    make a bounded queue with capacity = 10, then put 10 values then add 10 other values and check that `offer`is suspended ${upTo(
       1.second
-    )(e13)}
-    make a bounded queue, add and retrieve all values in correct order ${upTo(1.second)(e14)}
-    make an empty queue, and `takeUpTo` with max = 2, and retrieves no values ${upTo(1.second)(e15)}
-    make a bounded queue of size 100 and `takeUpTo` with max = 101, and retrieve nil ${upTo(
+    )(e7)}
+    make a bounded queue with capacity = 5, offer 10 values in a fiber and check that you can take the 10 values ${upTo(
+      1.second
+    )(e8)}
+    `take` can be interrupted and all resources in takers are released ${upTo(1.second)(e9)}
+    `offer` can be interrupted and all resources in putters are released ${upTo(1.second)(e10)}
+
+    in an unbounded queue add values then call `take`, the values must be in correct order ${upTo(
+      1.second
+    )(e11)}
+    in an unbounded queue add values then call `takeAll`, the values must be in correct order ${upTo(
+      1.second
+    )(e12)}
+    in an unbounded queue call `takeAll` in an empty queue must return an empty list $e13
+    in a queue with capacity = 3 add 4 values then call `takeAll`, it must return a list with the 3 first values in correct order $e14
+
+    make an empty queue, and `takeUpTo` with max = 2, must return an empty list ${upTo(1.second)(
+      e15
+    )}
+    make a bounded queue of size 100, call `takeUpTo` with max = 101  without adding values must return an empty list ${upTo(
       1.second
     )(e16)}
-    make a bounded queue, offer 2 values, `takeUpTo` with max = 2, and retrieve 2 values ${upTo(
+    make a bounded queue, offer 2 values, `takeUpTo` with max = 2, must return a list that contains the first 2 offered values ${upTo(
       1.second
     )(e17)}
-    make a bounded queue, offer 4 values, `takeUpTo` with max = 2, and retrieve first 2 values ${upTo(
+    make a bounded queue, offer 4 values, `takeUpTo` with max = 2, must return a list that contains the first 2 values ${upTo(
       1.second
     )(e18)}
-    make a bounded queue, offer 4 values, `takeUpTo` with max = 10, and retrieve all 4 values ${upTo(
+    make a bounded queue, offer 4 values, `takeUpTo` with max = 10, must return a list that contains the offered values ${upTo(
       1.second
     )(e19)}
-    make a bounded queue, offer 4 values, `takeUpTo` with max = 0, and retrieve nil ${upTo(
+    make a bounded queue, offer 4 values, `takeUpTo` with max = 0, must return an empty list ${upTo(
       1.second
     )(e20)}
-    make a bounded queue, offer 1 value, `takeUpTo` with max = -1, and retrieve nil ${upTo(
+    make a bounded queue, offer 1 value, `takeUpTo` with max = -1, must return an empty list ${upTo(
       1.second
     )(e21)}
-    make a bounded queue, offer 2 values, `takeUpTo` with max = 2,
-       offer 2 values again, and `takeUpTo` with max = 2 again;
-      the first `takeUpTo` should retrieve first 2 values and second `takeUpTo` should retrieve second 2 values in order ${upTo(
+    make a bounded queue, offer 2 values, `takeUpTo` with max = 2, offer 2 values again, and `takeUpTo` with max = 2 again,
+      the first result must be a list that contains the first 2 values and the second one must be a list with the second 2 values in order ${upTo(
       1.second
     )(e22)}
     make a bounded queue, offer 4 values, `takeUpTo` with max = 2, and then `takeUpTo` again with max = 2;
-      the first `takeUpTo` should retrieve first 2 values and second `takeUpTo` should retrieve second 2 values in order ${upTo(
+      the first result must contain the first 2 values and the second one must contain the next 2 values in order ${upTo(
       1.second
     )(e23)}
-    make a bounded queue of size 3, fork offer 4 values, and `takeUpTo` with max=3 retrives first 3 values in correct order ${upTo(
+    make a bounded queue of size 3, fork offer 4 values, and `takeUpTo` with max=4 must return a list that contains the first 3 values in correct order ${upTo(
       1.second
     )(e24)}
-    e25: make a bounded queue of size 10 then call `offerAll` with a list of 10 elements to add all values in the queue ${upTo(
+    make a bounded queue of size 10 then call `offerAll` with a list of 10 elements to add all values in the queue ${upTo(
       1.second
     )(e25)}
-    e26: make a bounded queue of size 0 then call `offerAll` with a list of 3 elements. The producer should be suspended and the queue should have the same size as the elements offered ${upTo(
+    make a bounded queue of size 0 then call `offerAll` with a list of 3 elements. The producer should be suspended and the queue should have the same size as the elements offered ${upTo(
       1.second
     )(e26)}
-    e27: `offerAll` can be interrupted and all resources are released ${upTo(1.second)(e27)}
-    e28: `offerAll should preserve the order of the list ${upTo(1.second)(e28)}
-    e29: `offerAll` does preserve the order of the list when it exceeds the queue's capacity ${upTo(
+    `offerAll` can be interrupted and all resources are released ${upTo(1.second)(e27)}
+    `offerAll should preserve the order of the list ${upTo(1.second)(e28)}
+    `offerAll` does preserve the order of the list when it exceeds the queue's capacity ${upTo(
       1.second
     )(e29)}
-    e30: make a bounded queue of size 1000 then fork 2000 takers, and offer as many elements as there are takers, the values must be correct after joining those fibers ${upTo(
+    make a bounded queue of size 1000 then fork 2000 takers, and offer as many elements as there are takers, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e30)}
-    e31: make a bounded queue of size 2000 then fork 500 takers, and offer more elements than there are takers, the values must be correct after joining those fibers ${upTo(
+    make a bounded queue of size 2000 then fork 500 takers, and offer more elements than there are takers, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e31)}
-    e32: make a bounded queue of size 20 then fork 1000 takers, and offer more elements than there are takers and capacity in the queue, the values must be correct after joining those fibers ${upTo(
+    make a bounded queue of size 20 then fork 1000 takers, and offer more elements than there are takers and capacity in the queue, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e32)}
-    e33: fork some takers, and offer less elements than there are takers in the queue, the values must be correct after joining those fibers ${upTo(
+    fork some takers, and offer less elements than there are takers in the queue, the values must be correct after joining those fibers ${upTo(
       1.second
     )(e33)}
-    e34: make bounded queue of size 0 then offer more elements than there is capacity in the queue, taking elements should work correctly ${upTo(
+    make bounded queue of size 0 then offer more elements than there is capacity in the queue, taking elements should work correctly ${upTo(
       1.second
     )(e34)}
-    e35: make bounded queue offer more elements than there are takers and capacity in the queue, taking elements should preserve putters queue order ${upTo(
+    make bounded queue offer more elements than there are takers and capacity in the queue, taking elements should preserve putters queue order ${upTo(
       1.second
     )(e35)}
-    e36: make bounded queue of size 1000 then `offer` one element then `offerAll` some elements without exceeding the queue's capacity, when calling `takeAll` the values should be in correct order ${upTo(
+    make bounded queue of size 1000 then `offer` one element then `offerAll` some elements without exceeding the queue's capacity, when calling `takeAll` the values should be in correct order ${upTo(
       1.second
     )(e36)}
-    e37: make bounded queue `offer` some elements then `offerAll` elements exceeding the queue's capacity, the values should be in correct order ${upTo(
+    make bounded queue `offer` some elements then `offerAll` elements exceeding the queue's capacity, the values should be in correct order ${upTo(
       1.second
     )(e37)}
     """
@@ -116,7 +126,8 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.take.fork
-      check <- (queue.interruptTake(new Exception("interrupt take in e2")) <* IO.sleep(1.millis))
+      check <- (queue.interruptTake(new Exception("interrupt take in e2")) <* IO
+                .sleep(1.millis))
                 .repeat(Schedule.doWhile(!_))
       _ <- queue.offer(25)
       v <- queue.take
@@ -127,11 +138,11 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](0)
       _     <- queue.offer(14).fork
-      check <- (queue.interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis))
+      check <- (queue
+                .interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis))
                 .repeat(Schedule.doWhile(!_))
-      _ <- queue.offer(12).fork
-      v <- queue.take
-    } yield (check must beTrue).and(v must_=== 12)
+      size <- queue.size
+    } yield (check must beTrue).and(size must_=== 0)
   )
 
   def e4 = unsafeRun(
@@ -145,44 +156,45 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     } yield v must_=== "don't give up :D"
   )
 
-  import scala.concurrent.duration._
-
   def e5 =
     unsafeRun(for {
-      queue <- Queue.bounded[Int](10)
-      _     <- IO.forkAll(List.fill(10)(queue.take.void))
-      _     <- waitForSize(queue, -10)
-      _     <- Range.inclusive(1, 10).map(queue.offer).foldLeft[IO[Nothing, Unit]](IO.unit)(_ *> _)
-      _     <- queue.offer(37)
-      v     <- queue.take
-    } yield v must_=== 37)
+      queue  <- Queue.bounded[Int](10)
+      f      <- IO.forkAll(List.fill(10)(queue.take))
+      values = Range.inclusive(1, 10).toList
+      _      <- values.map(queue.offer).foldLeft[IO[Nothing, Unit]](IO.unit)(_ *> _)
+      v      <- f.join
+    } yield v must containTheSameElementsAs(values))
 
   def e6 =
     unsafeRun(for {
-      queue <- Queue.bounded[Int](10)
-      order = Range.inclusive(1, 10).toList
-      _     <- IO.forkAll(order.map(queue.offer))
-      _     <- waitForSize(queue, 10)
-      l     <- queue.take.repeat(Schedule.recurs(10) *> Schedule.identity[Int].collect)
-    } yield l.toSet must_=== order.toSet)
+      queue  <- Queue.bounded[Int](10)
+      values = Range.inclusive(1, 10).toList
+      f      <- IO.forkAll(values.map(queue.offer))
+      _      <- waitForSize(queue, 10)
+      l      <- queue.take.repeat(Schedule.recurs(10) *> Schedule.identity[Int].collect)
+      _      <- f.join
+    } yield l must containTheSameElementsAs(values))
 
   def e7 =
-    unsafeRun(for {
-      queue <- Queue.bounded[Int](10)
-      _     <- queue.offer(1).repeat(Schedule.recurs(20)).fork
-      _     <- waitForSize(queue, 11)
-      size  <- queue.size
-    } yield size must_=== 11)
+    unsafeRun((for {
+      queue        <- Queue.bounded[Int](10)
+      _            <- queue.offer(1).repeat(Schedule.recurs(10))
+      refSuspended <- Ref[Boolean](true)
+      _            <- (queue.offer(2).repeat(Schedule.recurs(10)) *> refSuspended.set(false)).fork
+      isSuspended  <- refSuspended.get
+    } yield isSuspended must_=== true).supervised)
 
   def e8 =
-    unsafeRun(for {
-      queue  <- Queue.bounded[Int](5)
-      orders = Range.inclusive(1, 10).toList
-      _      <- IO.forkAll(orders.map(n => waitForSize(queue, n - 1) *> queue.offer(n)))
-      _      <- waitForSize(queue, 10)
-      l <- queue.take
-            .repeat(Schedule.recurs(10) *> Schedule.identity[Int].collect.map(_.reverse))
-    } yield l.reverse must_=== orders)
+    unsafeRun(
+      for {
+        queue  <- Queue.bounded[Int](5)
+        values = Range.inclusive(1, 10).toList
+        _      <- IO.forkAll(values.map(queue.offer))
+        _      <- waitForSize(queue, 10)
+        l <- queue.take
+              .repeat(Schedule.recurs(10) *> Schedule.identity[Int].collect)
+      } yield l must containTheSameElementsAs(values)
+    )
 
   def e9 = unsafeRun(
     for {
@@ -234,16 +246,16 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     } yield (c must_=== List.empty).and(v must_=== List.empty)
   )
 
-  def e14 = unsafeRun(
-    for {
-      queue <- Queue.bounded[Int](999)
-      _     <- Range.inclusive(1, 999).map(queue.offer).foldLeft(IO.unit)(_ *> _)
-      _     <- queue.offer(1000).fork
-      _     <- waitForSize(queue, 1000)
-      v     <- queue.takeAll
-      c     <- queue.take
-    } yield (v must_=== Range.inclusive(1, 999).toList).and(c must_=== 1000)
-  )
+  def e14 =
+    unsafeRun(for {
+      queue  <- Queue.bounded[Int](3)
+      values = List(1, 2, 3)
+      _      <- values.map(queue.offer).foldLeft(IO.unit)(_ *> _)
+      _      <- queue.offer(4).fork
+      _      <- waitForSize(queue, 4)
+      v      <- queue.takeAll
+      c      <- queue.take
+    } yield (v must containTheSameElementsAs(values)).and(c must_=== 4))
 
   def e15 = unsafeRun(
     for {
@@ -334,15 +346,14 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   )
 
   def e24 = unsafeRun(
-    for {
-      queue <- Queue.bounded[Int](3)
-      _     <- queue.offer(1).fork
-      _     <- queue.offer(2).fork
-      _     <- queue.offer(3).fork
-      _     <- queue.offer(4).fork
-      _     <- waitForSize(queue, 4)
-      l     <- queue.takeUpTo(4)
-    } yield l must_=== List(1, 2, 3)
+    (for {
+      queue  <- Queue.bounded[Int](3)
+      values = List(1, 2, 3)
+      _      <- values.map(queue.offer).foldLeft(IO.unit)(_ *> _)
+      _      <- queue.offer(4).fork
+      _      <- waitForSize(queue, 4)
+      l      <- queue.takeUpTo(4)
+    } yield l must_=== List(1, 2, 3)).supervised
   )
 
   def e25 =
@@ -398,7 +409,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _      <- waitForSize(queue, -2000)
       _      <- queue.offerAll(orders)
       l      <- takers.join
-      s      <- waitForSize(queue, 0)
+      s      <- queue.size
     } yield (l.toSet must_=== orders.toSet).and(s must_=== 0))
 
   def e31 =
@@ -409,8 +420,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _      <- waitForSize(queue, -500)
       _      <- queue.offerAll(orders)
       l      <- takers.join
-      s      <- waitForSize(queue, 500)
-    } yield (l.toSet must_=== orders.take(500).toSet).and(s must_=== 500))
+      s      <- queue.size
+      values = orders.take(500)
+    } yield (l must containTheSameElementsAs(values)).and(s must_=== 500))
 
   def e32 =
     unsafeRun(for {
@@ -420,21 +432,22 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _      <- waitForSize(queue, -1000)
       _      <- queue.offerAll(orders).fork
       l      <- takers.join
-      s      <- waitForSize(queue, 1000)
-    } yield (l.toSet must_=== orders.take(1000).toSet).and(s must_=== 1000))
+      s      <- queue.size
+      values = orders.take(1000)
+    } yield (l must containTheSameElementsAs(values)).and(s must_=== 1000))
 
   def e33 =
     unsafeRun(for {
       queue  <- Queue.bounded[Int](2000)
-      orders = Range.inclusive(1, 1000).toList
+      values = Range.inclusive(1, 1000).toList
       takers <- IO.forkAll(List.fill(1000)(queue.take))
       _      <- waitForSize(queue, -1000)
       _      <- IO.forkAll(List.fill(1000)(queue.take))
       _      <- waitForSize(queue, -2000)
-      _      <- queue.offerAll(orders)
+      _      <- queue.offerAll(values)
       l      <- takers.join
-      s      <- waitForSize(queue, -1000)
-    } yield (l.toSet must_=== orders.toSet).and(s must_=== -1000))
+      s      <- queue.size
+    } yield (l must containTheSameElementsAs(values)).and(s must_=== -1000))
 
   def e34 =
     unsafeRun(for {
@@ -500,4 +513,5 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
+
 }
