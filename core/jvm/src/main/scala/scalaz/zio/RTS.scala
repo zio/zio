@@ -629,10 +629,10 @@ private object RTS {
     private final def addFailures(ts: List[Throwable]): Unit = {
       val oldStatus = status.get
       oldStatus match {
-        case x @ Executing(_, ts0, _, _, _) =>
+        case x @ Executing(_, ts0, _, _) =>
           if (!status.compareAndSet(oldStatus, x.copy(defects = ts0 ++ ts))) addFailures(ts) else ()
 
-        case x @ AsyncRegion(_, ts0, _, _, _, _, _, _) =>
+        case x @ AsyncRegion(_, ts0, _, _, _, _, _) =>
           if (!status.compareAndSet(oldStatus, x.copy(defects = ts0 ++ ts))) addFailures(ts) else ()
 
         case _ =>
@@ -780,29 +780,22 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(terminationCauses, defects, reentrancy, resume, cancel, exitHandlers, killers, observers) =>
+        case AsyncRegion(terminationCauses, defects, reentrancy, resume, cancel, killers, observers) =>
           val newReentrancy = reentrancy + 1
 
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(terminationCauses,
-                            defects,
-                            newReentrancy,
-                            resume + 1,
-                            cancel,
-                            exitHandlers,
-                            killers,
-                            observers)
+                AsyncRegion(terminationCauses, defects, newReentrancy, resume + 1, cancel, killers, observers)
               ))
             enterAsyncStart()
           else newReentrancy
 
-        case Executing(terminationCauses, defects, exitHandlers, killers, observers) =>
+        case Executing(terminationCauses, defects, killers, observers) =>
           val newReentrancy = 1
 
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(terminationCauses, defects, newReentrancy, 1, None, exitHandlers, killers, observers)
+                AsyncRegion(terminationCauses, defects, newReentrancy, 1, None, killers, observers)
               ))
             enterAsyncStart()
           else newReentrancy
@@ -814,7 +807,7 @@ private object RTS {
     }
 
     final def reentrancy: Int = status.get match {
-      case s @ AsyncRegion(_, _, _, _, _, _, _, _) => s.reentrancy
+      case s @ AsyncRegion(_, _, _, _, _, _, _) => s.reentrancy
 
       case _ => 0
     }
@@ -824,12 +817,12 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(terminationCauses, defects, 1, 0, _, exitHandlers, killers, observers) =>
+        case AsyncRegion(terminationCauses, defects, 1, 0, _, killers, observers) =>
           // No more resumptions left and exiting last async boundary initiation:
-          if (!status.compareAndSet(oldStatus, Executing(terminationCauses, defects, exitHandlers, killers, observers)))
+          if (!status.compareAndSet(oldStatus, Executing(terminationCauses, defects, killers, observers)))
             enterAsyncEnd()
 
-        case x @ AsyncRegion(_, _, reentrancy, _, _, _, _, _) =>
+        case x @ AsyncRegion(_, _, reentrancy, _, _, _, _) =>
           if (!status.compareAndSet(
                 oldStatus,
                 x.copy(reentrancy = reentrancy - 1)
@@ -845,7 +838,7 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case x @ AsyncRegion(_, _, reentrancy, _, _, _, _, _) if (id == reentrancy) =>
+        case x @ AsyncRegion(_, _, reentrancy, _, _, _, _) if (id == reentrancy) =>
           if (!status.compareAndSet(
                 oldStatus,
                 x.copy(cancel = Some(c))
@@ -861,16 +854,16 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(terminationCauses, defects, 0, 1, _, exitHandlers, killers, observers) =>
+        case AsyncRegion(terminationCauses, defects, 0, 1, _, killers, observers) =>
           // No more resumptions are left!
-          if (!status.compareAndSet(oldStatus, Executing(terminationCauses, defects, exitHandlers, killers, observers)))
+          if (!status.compareAndSet(oldStatus, Executing(terminationCauses, defects, killers, observers)))
             shouldResumeAsync()
           else true
 
-        case AsyncRegion(terminationCauses, defects, reentrancy, resume, _, exitHandlers, killers, observers) =>
+        case AsyncRegion(terminationCauses, defects, reentrancy, resume, _, killers, observers) =>
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(terminationCauses, defects, reentrancy, resume - 1, None, exitHandlers, killers, observers)
+                AsyncRegion(terminationCauses, defects, reentrancy, resume - 1, None, killers, observers)
               ))
             shouldResumeAsync()
           else true
@@ -914,18 +907,18 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(_, _, exitHandlers, killers, observers) =>
+        case Executing(_, _, killers, observers) =>
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else {
-            purgeObserversKillers(v, exitHandlers, killers, observers)
+            purgeObserversKillers(v, killers, observers)
             reportErrors(v)
           }
 
-        case AsyncRegion(_, _, _, _, _, exitHandlers, killers, observers) =>
+        case AsyncRegion(_, _, _, _, _, killers, observers) =>
           // TODO: Guard against errant `done` or not?
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else {
-            purgeObserversKillers(v, exitHandlers, killers, observers)
+            purgeObserversKillers(v, killers, observers)
             reportErrors(v)
           }
 
@@ -953,10 +946,10 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(terminationCauses, defects, exitHandlers, killers, observers) =>
+        case Executing(terminationCauses, defects, killers, observers) =>
           if (!status.compareAndSet(
                 oldStatus,
-                Executing(Some(terminationCauses.getOrElse(Nil) ++ cs), defects, exitHandlers, k :: killers, observers)
+                Executing(Some(terminationCauses.getOrElse(Nil) ++ cs), defects, k :: killers, observers)
               ))
             kill0(cs, k)
           else {
@@ -964,8 +957,7 @@ private object RTS {
             Async.later[E2, Unit]
           }
 
-        case AsyncRegion(None, defects, _, resume, cancelOpt, exitHandlers, killers, observers)
-            if (resume > 0 && noInterrupt == 0) =>
+        case AsyncRegion(None, defects, _, resume, cancelOpt, killers, observers) if (resume > 0 && noInterrupt == 0) =>
           val v = ExitResult.Terminated[E, A](defects ++ cs)
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(cs, k)
@@ -992,14 +984,14 @@ private object RTS {
                 case Some(ts) => unhandled(ts)
               }, unhandled)
                 .runAsync(
-                  (_: ExitResult[Nothing, Unit]) => purgeObserversKillers(v, exitHandlers, k :: killers, observers)
+                  (_: ExitResult[Nothing, Unit]) => purgeObserversKillers(v, k :: killers, observers)
                 )
               Async.later[E2, Unit]
             } else Async.now(SuccessUnit)
 
           }
 
-        case s @ AsyncRegion(_, _, _, _, _, _, _, _) =>
+        case s @ AsyncRegion(_, _, _, _, _, _, _) =>
           val newStatus =
             s.copy(terminationCauses = Some(s.terminationCauses.getOrElse(Nil) ++ cs), killers = k :: s.killers)
 
@@ -1020,13 +1012,13 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case s @ Executing(_, _, _, _, _) =>
+        case s @ Executing(_, _, _, _) =>
           val newStatus = s.copy(observers = cb :: s.observers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
           else Async.later[Nothing, ExitResult[E, A]]
 
-        case s @ AsyncRegion(_, _, _, _, _, _, _, _) =>
+        case s @ AsyncRegion(_, _, _, _, _, _, _) =>
           val newStatus = s.copy(observers = cb :: s.observers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
@@ -1037,14 +1029,12 @@ private object RTS {
     }
 
     private final def purgeObserversKillers(v: ExitResult[E, A],
-                                            exitHandlers: List[ExitResult[E, A] => IO[Nothing, Unit]],
                                             killers: List[Callback[E, Unit]],
                                             observers: List[Callback[Nothing, ExitResult[E, A]]]): Unit = {
       // To preserve fair scheduling, we submit all resumptions on the thread
       // pool in (rough) order of their submission.
       killers.reverse.foreach(k => rts.submit(k(SuccessUnit)))
       observers.reverse.foreach(k => rts.submit(k(ExitResult.Completed(v))))
-      exitHandlers.foreach(k => rts.unsafeRunAsync(k(v))((_: ExitResult[Nothing, Unit]) => ()))
     }
   }
 
@@ -1059,7 +1049,6 @@ private object RTS {
   object FiberStatus {
     final case class Executing[E, A](terminationCauses: Option[List[Throwable]],
                                      defects: List[Throwable],
-                                     exitHandlers: List[ExitResult[E, A] => IO[Nothing, Unit]],
                                      killers: List[Callback[E, Unit]],
                                      observers: List[Callback[Nothing, ExitResult[E, A]]])
         extends FiberStatus[E, A]
@@ -1068,7 +1057,6 @@ private object RTS {
                                        reentrancy: Int,
                                        resume: Int,
                                        cancel: Option[Canceler],
-                                       exitHandlers: List[ExitResult[E, A] => IO[Nothing, Unit]],
                                        killers: List[Callback[E, Unit]],
                                        observers: List[Callback[Nothing, ExitResult[E, A]]])
         extends FiberStatus[E, A]
@@ -1077,7 +1065,7 @@ private object RTS {
       override def defects: List[Throwable]                   = Nil
     }
 
-    def Initial[E, A] = Executing[E, A](None, Nil, Nil, Nil, Nil)
+    def Initial[E, A] = Executing[E, A](None, Nil, Nil, Nil)
   }
 
   val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.Completed(())
