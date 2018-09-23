@@ -558,10 +558,8 @@ sealed abstract class IO[+E, +A] { self =>
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
     (for {
-      p <- Promise.make[Nothing, ExitResult[E, A]]
       f <- self.fork
-      _ <- f.onComplete(r => p.done(ExitResult.Completed(r)).void)
-      r <- p.get
+      r <- f.observe
     } yield r).supervised
 
   /**
@@ -1015,12 +1013,13 @@ object IO {
   )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
     Ref[Option[(A, ExitResult[E, B])]](None).flatMap { m =>
       (for {
-        f <- (for {
+        r <- (for {
               a <- acquire
               f <- use(a).fork
-              _ <- f.onComplete(r => m.set(Some((a, r))))
-            } yield f).uninterruptibly
-        b <- f.join
+              r <- f.observe
+              _ <- m.set(Some((a, r)))
+            } yield r).uninterruptibly
+        b <- r.fold(IO.now(_), (e, _) => IO.fail(e), IO.terminate0(_))
       } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
     }
 
