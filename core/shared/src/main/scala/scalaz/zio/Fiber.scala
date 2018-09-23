@@ -24,11 +24,21 @@ package scalaz.zio
 trait Fiber[+E, +A] { self =>
 
   /**
-   * Joins the fiber, with suspends the joining fiber until the result of the
+   * Observes the fiber, which suspends the joining fiber until the result of the
+   * fiber has been determined.
+   */
+  def observe: IO[Nothing, ExitResult[E, A]]
+
+  /**
+   * Joins the fiber, which suspends the joining fiber until the result of the
    * fiber has been determined. Attempting to join a fiber that has been or is
    * killed before producing its result will result in a catchable error.
    */
-  def join: IO[E, A]
+  def join: IO[E, A] = observe.flatMap {
+    case ExitResult.Completed(a)   => IO.now(a)
+    case ExitResult.Failed(e, _)   => IO.fail(e)
+    case ExitResult.Terminated(ts) => IO.terminate0(ts)
+  }
 
   /**
    * Interrupts the fiber with no specified reason. If the fiber has already
@@ -69,8 +79,14 @@ trait Fiber[+E, +A] { self =>
    */
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
-      def join: IO[E1, C] =
-        self.join.seqWith(that.join)(f)
+      def observe: IO[Nothing, ExitResult[E1, C]] =
+        self.observe.seqWith(that.observe) {
+          case (ExitResult.Completed(a), ExitResult.Completed(b))   => ExitResult.Completed(f(a, b))
+          case (ExitResult.Failed(e, ts), rb)                       => ExitResult.Failed(e, combine(ts, rb))
+          case (ExitResult.Terminated(ts), rb)                      => ExitResult.Terminated(combine(ts, rb))
+          case (ExitResult.Completed(_), ExitResult.Failed(e, ts))  => ExitResult.Failed(e, ts)
+          case (ExitResult.Completed(_), ExitResult.Terminated(ts)) => ExitResult.Terminated(ts)
+        }
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
@@ -119,7 +135,7 @@ trait Fiber[+E, +A] { self =>
    */
   final def map[B](f: A => B): Fiber[E, B] =
     new Fiber[E, B] {
-      def join: IO[E, B] = self.join.map(f)
+      def observe: IO[Nothing, ExitResult[E, B]] = self.observe.map(_.map(f))
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
 
@@ -133,7 +149,7 @@ trait Fiber[+E, +A] { self =>
 object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def join: IO[E, A]                                       = IO.point(a)
+      def observe: IO[Nothing, ExitResult[E, A]]               = IO.point(ExitResult.Completed(a))
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]   = IO.unit
       def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]) = f(ExitResult.Completed(a))
     }
