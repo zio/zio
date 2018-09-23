@@ -75,7 +75,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     }
 
     val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
-      case (_, p) => removeTaker(p)
+      case (_, p) => p.poll.void <> removeTaker(p)
     }
     Promise.bracket[Nothing, State[A], A, Boolean](ref)(acquire)(release)
   }
@@ -217,7 +217,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     }
 
     val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
-      case (_, p) => removePutter(p)
+      case (_, p) => p.poll.void <> removePutter(p)
     }
 
     Promise.bracket[Nothing, State[A], Unit, Boolean](ref)(acquire)(release)
