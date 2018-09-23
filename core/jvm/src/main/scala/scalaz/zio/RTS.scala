@@ -966,18 +966,18 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(_, _, exitHandlers, joiners, killers, _) =>
+        case Executing(_, _, exitHandlers, joiners, killers, observers) =>
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else {
-            purgeJoinersKillers(v, exitHandlers, joiners, killers)
+            purgeObserversKillers(v, exitHandlers, joiners, killers, observers)
             reportErrors(v)
           }
 
-        case AsyncRegion(_, _, _, _, _, exitHandlers, joiners, killers, _) =>
+        case AsyncRegion(_, _, _, _, _, exitHandlers, joiners, killers, observers) =>
           // TODO: Guard against errant `done` or not?
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else {
-            purgeJoinersKillers(v, exitHandlers, joiners, killers)
+            purgeObserversKillers(v, exitHandlers, joiners, killers, observers)
             reportErrors(v)
           }
 
@@ -1021,7 +1021,7 @@ private object RTS {
             Async.later[E2, Unit]
           }
 
-        case AsyncRegion(None, defects, _, resume, cancelOpt, exitHandlers, joiners, killers, _)
+        case AsyncRegion(None, defects, _, resume, cancelOpt, exitHandlers, joiners, killers, observers)
             if (resume > 0 && noInterrupt == 0) =>
           val v = ExitResult.Terminated[E, A](defects ++ cs)
 
@@ -1048,7 +1048,10 @@ private object RTS {
                 case None     => IO.unit
                 case Some(ts) => unhandled(ts)
               }, unhandled)
-                .runAsync((_: ExitResult[Nothing, Unit]) => purgeJoinersKillers(v, exitHandlers, joiners, k :: killers))
+                .runAsync(
+                  (_: ExitResult[Nothing, Unit]) =>
+                    purgeObserversKillers(v, exitHandlers, joiners, k :: killers, observers)
+                )
               Async.later[E2, Unit]
             } else Async.now(SuccessUnit)
 
@@ -1091,14 +1094,16 @@ private object RTS {
       }
     }
 
-    private final def purgeJoinersKillers(v: ExitResult[E, A],
-                                          exitHandlers: List[ExitResult[E, A] => IO[Nothing, Unit]],
-                                          joiners: List[Callback[E, A]],
-                                          killers: List[Callback[E, Unit]]): Unit = {
+    private final def purgeObserversKillers(v: ExitResult[E, A],
+                                            exitHandlers: List[ExitResult[E, A] => IO[Nothing, Unit]],
+                                            joiners: List[Callback[E, A]],
+                                            killers: List[Callback[E, Unit]],
+                                            observers: List[Callback[Nothing, ExitResult[E, A]]]): Unit = {
       // To preserve fair scheduling, we submit all resumptions on the thread
       // pool in (rough) order of their submission.
       killers.reverse.foreach(k => rts.submit(k(SuccessUnit)))
       joiners.foreach(k => rts.submit(k(v)))
+      observers.reverse.foreach(k => rts.submit(k(ExitResult.Completed(v))))
       exitHandlers.foreach(k => rts.unsafeRunAsync(k(v))((_: ExitResult[Nothing, Unit]) => ()))
     }
   }
