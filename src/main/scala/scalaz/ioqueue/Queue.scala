@@ -254,8 +254,8 @@ object Queue {
 
     final case class Surplus[A](
       queue: IQueue[A],
-      putters: IQueue[(Iterable[A], Promise[Nothing, Unit])])
-        extends State[A] {
+      putters: IQueue[(Iterable[A], Promise[Nothing, Unit])]
+    ) extends State[A] {
 
       def size: IO[Nothing, Int] = IO.point {
         queue.size + putters.foldLeft(0) {
