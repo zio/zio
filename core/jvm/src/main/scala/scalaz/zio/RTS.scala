@@ -900,7 +900,15 @@ private object RTS {
       io.ensuring(exitUninterruptible)
     }
 
-    final def register(cb: Callback[E, A]): Async[E, A] = ???
+    final def register(cb: Callback[E, A]): Async[E, A] =
+      observe0 {
+        case ExitResult.Completed(r) => cb(r)
+        case _ =>
+      } match {
+        case Async.Now(v) => Async.Now(v.fold(identity, ExitResult.Failed(_, _), ExitResult.Terminated(_)))
+        case Async.MaybeLater(c) => Async.MaybeLater(c)
+        case Async.MaybeLaterIO(c) => Async.MaybeLaterIO(c)
+      }
 
     @tailrec
     final def done(v: ExitResult[E, A]): Unit = {
