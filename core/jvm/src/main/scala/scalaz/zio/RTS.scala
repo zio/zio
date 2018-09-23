@@ -754,23 +754,6 @@ private object RTS {
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
-    final override def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-      IO.sync(onComplete0(f))
-
-    @tailrec
-    final def onComplete0(f: ExitResult[E, A] => IO[Nothing, Unit]): Unit = {
-      val oldStatus = status.get
-
-      oldStatus match {
-        case x @ Executing(_, _, fs, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(exitHandlers = f :: fs))) onComplete0(f)
-        case x @ AsyncRegion(_, _, _, _, _, fs, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(exitHandlers = f :: fs))) onComplete0(f)
-        case Done(v) =>
-          rts.submit(rts.unsafeRunAsync(f(v))((_: ExitResult[Nothing, Unit]) => ()))
-      }
-    }
-
     final def enterSupervision: IO[E, Unit] = IO.sync {
       supervising += 1
 
