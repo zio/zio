@@ -28,7 +28,7 @@ A `Schedule[A, B]` consumes `A` values, and based on these events and internal s
 # Base Schedules
 
 ```tut:invisible
-import scala.concurrent.duration._
+import DurationConversions._
 ```
 
 A schedule that always recurs:
@@ -52,19 +52,19 @@ val upTo10 = Schedule.recurs(10)
 A schedule that recurs every 10 milliseconds:
 
 ```tut:silent
-val spaced = Schedule.spaced(10.milliseconds)
+val spaced = Schedule.spaced(10.ms)
 ```
 
 A schedule that recurs using exponential backoff:
 
 ```tut:silent
-val exponential = Schedule.exponential(10.milliseconds)
+val exponential = Schedule.exponential(10.ms)
 ```
 
 A schedule that recurs using fibonacci backoff:
 
 ```tut:silent
-val fibonacci = Schedule.fibonacci(10.milliseconds)
+val fibonacci = Schedule.fibonacci(10.ms)
 ```
 
 # Schedule Combinators
@@ -72,30 +72,30 @@ val fibonacci = Schedule.fibonacci(10.milliseconds)
 Applying random jitter to a schedule:
 
 ```tut:silent
-val jitteredExp = Schedule.exponential(10.milliseconds).jittered
+val jitteredExp = Schedule.exponential(10.ms).jittered
 ```
 
 Modifies the delay of a schedule:
 
 ```tut:silent
-val boosted = Schedule.spaced(1.second).delayed(_ + 100.milliseconds)
+val boosted = Schedule.spaced(1.s).delayed(_ + 100.ms)
 ```
 
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy:
 
 ```tut:silent
-val sequential = Schedule.recurs(10) <||> Schedule.spaced(1.second)
+val sequential = Schedule.recurs(10) <||> Schedule.spaced(1.s)
 ```
 
 Combines two schedules through intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences:
 
 ```tut:silent
-val expUpTo10 = Schedule.exponential(1.second) && Schedule.recurs(10)
+val expUpTo10 = Schedule.exponential(1.s) && Schedule.recurs(10)
 ```
 
 Combines two schedules through union, by recurring if either schedule wants to
 recur, using the minimum of the two delays between recurrences:
 
 ```tut:silent
-val expCapped = Schedule.exponential(100.milliseconds) || Schedule.spaced(1.seconds)
+val expCapped = Schedule.exponential(100.ms) || Schedule.spaced(1.s)
 ```
