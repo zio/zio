@@ -62,17 +62,6 @@ trait Fiber[+E, +A] { self =>
   def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]
 
   /**
-   * Add an exit handler for when the fiber terminates and receive information
-   * on whether the fiber terminated normally, with unhandled error, or with
-   * exception.
-   *
-   * The specified action will be invoked after the fiber has finished running
-   * (including all finalizers). If the specified action throws an exception,
-   * it will be reported to the parent fiber's unhandled error handler.
-   */
-  def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]): IO[Nothing, Unit]
-
-  /**
    * Zips this fiber with the specified fiber, combining their results using
    * the specified combiner function. Both joins and interruptions are performed
    * in sequential order from left to right.
@@ -90,19 +79,6 @@ trait Fiber[+E, +A] { self =>
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
-
-      def onComplete(fc: ExitResult[E1, C] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-        self.onComplete { ra: ExitResult[E, A] =>
-          that.onComplete { rb: ExitResult[E1, B] =>
-            (ra, rb) match {
-              case (ExitResult.Completed(a), ExitResult.Completed(b))   => fc(ExitResult.Completed(f(a, b)))
-              case (ExitResult.Failed(e, ts), rb)                       => fc(ExitResult.Failed(e, combine(ts, rb)))
-              case (ExitResult.Terminated(ts), rb)                      => fc(ExitResult.Terminated(combine(ts, rb)))
-              case (ExitResult.Completed(_), ExitResult.Failed(e, ts))  => fc(ExitResult.Failed(e, ts))
-              case (ExitResult.Completed(_), ExitResult.Terminated(ts)) => fc(ExitResult.Terminated(ts))
-            }
-          }
-        }
 
       private def combine(ts: List[Throwable], r: ExitResult[_, _]) = r match {
         case ExitResult.Failed(_, ts2)  => ts ++ ts2
@@ -138,11 +114,6 @@ trait Fiber[+E, +A] { self =>
       def observe: IO[Nothing, ExitResult[E, B]] = self.observe.map(_.map(f))
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
-
-      def onComplete(fb: ExitResult[E, B] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-        self.onComplete { r: ExitResult[E, A] =>
-          fb(r.map(f))
-        }
     }
 }
 
@@ -151,7 +122,6 @@ object Fiber {
     new Fiber[E, A] {
       def observe: IO[Nothing, ExitResult[E, A]]               = IO.point(ExitResult.Completed(a))
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]   = IO.unit
-      def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]) = f(ExitResult.Completed(a))
     }
 
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
