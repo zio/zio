@@ -120,8 +120,8 @@ trait Fiber[+E, +A] { self =>
 object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def observe: IO[Nothing, ExitResult[E, A]]               = IO.point(ExitResult.Completed(a))
-      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]   = IO.unit
+      def observe: IO[Nothing, ExitResult[E, A]]             = IO.point(ExitResult.Completed(a))
+      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = IO.unit
     }
 
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
