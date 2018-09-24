@@ -31,8 +31,8 @@ trait Fiber[+E, +A] { self =>
 
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the
-   * fiber has been determined. Attempting to join a fiber that has been or is
-   * killed before producing its result will result in a catchable error.
+   * fiber has been determined. Attempting to join a fiber that has errored will 
+   * result in a catchable error, _if_ that error does not result from interruption.
    */
   final def join: IO[E, A] = observe.flatMap {
     case ExitResult.Completed(a)   => IO.now(a)
