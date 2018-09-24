@@ -902,8 +902,9 @@ private object RTS {
 
     final def register(cb: Callback[E, A]): Async[E, A] =
       observe0 {
-        case ExitResult.Completed(r) => cb(r)
-        case _                       =>
+        case ExitResult.Completed(r)   => cb(r)
+        case ExitResult.Failed(e, ts)  => cb(ExitResult.Failed(e, ts))
+        case ExitResult.Terminated(ts) => cb(ExitResult.Terminated(ts))
       } match {
         case Async.Now(v)          => Async.Now(v.fold(identity, ExitResult.Failed(_, _), ExitResult.Terminated(_)))
         case Async.MaybeLater(c)   => Async.MaybeLater(c)
