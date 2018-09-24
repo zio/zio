@@ -36,7 +36,7 @@ trait Fiber[+E, +A] { self =>
    */
   final def join: IO[E, A] = observe.flatMap {
     case ExitResult.Completed(a)   => IO.now(a)
-    case ExitResult.Failed(e, _)   => IO.fail(e)
+    case ExitResult.Failed(e, ts)   => IO.fail0(e, ts)
     case ExitResult.Terminated(ts) => IO.terminate0(ts)
   }
 
