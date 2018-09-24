@@ -461,8 +461,8 @@ private object RTS {
                                 }
                               case ExitResult.Terminated(ts) =>
                                 curIo = IO.terminate0(ts)
-                              case ExitResult.Failed(e, _) =>
-                                curIo = IO.fail(e)
+                              case ExitResult.Failed(e, ts) =>
+                                curIo = IO.fail0(e, ts)
                             }
                           } else {
                             // Completion handled by interruptor:
@@ -653,7 +653,7 @@ private object RTS {
           if (io eq null) done(value.asInstanceOf[ExitResult[E, A]])
           else evaluate(io)
 
-        case ExitResult.Failed(t, _) => evaluate(IO.fail[E](t))
+        case ExitResult.Failed(t, ts) => evaluate(IO.fail0[E](t, ts))
 
         case ExitResult.Terminated(ts) => evaluate(IO.terminate0(ts))
       }
