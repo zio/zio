@@ -902,8 +902,8 @@ private object RTS {
 
     final def register(cb: Callback[E, A]): Async[E, A] =
       observe0 {
-        case ExitResult.Completed(r)    => cb(r)
-        case x: ExitResult.Failed[_, _] => x
+        case ExitResult.Completed(r) => cb(r)
+        case ExitResult.Failed(e, _) => e
         case ExitResult.Terminated(ts) =>
           rts.submit(rts.unsafeRun(unhandled(ts)))
           cb(ExitResult.Terminated(Errors.TerminatedFiber :: Nil))
