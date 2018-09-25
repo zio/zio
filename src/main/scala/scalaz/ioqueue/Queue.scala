@@ -76,9 +76,10 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
                 }
               case Some((a, values)) =>
                 (p.complete(a), Surplus(values, putters))
+
             }
-          case (p, state @ Shutdown(errors)) => (interruptPromise(p, errors), state)
         }
+      case (p, state @ Shutdown(errors)) => (interruptPromise(p, errors), state)
     }
 
     val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
@@ -215,24 +216,22 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
         }
       case (p, Surplus(values, putters)) =>
         val (addToQueue, surplusValues) = as.splitAt(capacity - values.size)
-        val (complete, newPutters) =
-          if (values.length < capacity && surplusValues.isEmpty)
-            p.complete(true) -> putters
-          else {
-            strategy match {
-              case Backpressure => IO.now(false) -> putters.enqueue(surplusValues -> p)
-              case Sliding =>
-                val size =
-                  if (addToQueue.size > capacity) addToQueue.splitAt(capacity)._2
-                  else addToQueue
-                (1 to size.size).flatMap(_ => values.dequeueOption).toList match {
-                  case Nil => IO.now(false)    -> putters
-                  case _   => p.complete(true) -> putters
-                }
-            }
+        if (surplusValues.isEmpty)
+          (p.complete(true), Surplus(values.enqueue(addToQueue.toList), putters))
+        else {
+          strategy match {
+            case Backpressure =>
+              (IO.now(false), Surplus(values, putters.enqueue(surplusValues -> p)))
+            case Sliding =>
+              (
+                p.complete(true),
+                Surplus(
+                  offerSlidingQueue(surplusValues.toList, values.enqueue(addToQueue.toList)),
+                  putters
+                )
+              )
           }
-
-        complete -> Surplus(values.enqueue(addToQueue.toList), newPutters)
+        }
 
       case (p, state @ Shutdown(errors)) => (interruptPromise(p, errors), state)
     }
@@ -243,6 +242,16 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
 
     Promise.bracket[Nothing, State[A], Boolean, Boolean](ref)(acquire)(release)
   }
+
+  private def offerSlidingQueue(items: List[A], acc: IQueue[A]): IQueue[A] =
+    items match {
+      case Nil => acc
+      case x :: tail =>
+        acc.dequeueOption match {
+          case Some(queue) => offerSlidingQueue(tail, queue._2.enqueue(x))
+          case None        => acc
+        }
+    }
 }
 
 object Queue {
