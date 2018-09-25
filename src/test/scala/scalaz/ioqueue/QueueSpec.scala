@@ -174,7 +174,6 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v      <- f.join
     } yield v must containTheSameElementsAs(values))
 
-
   def e6 =
     unsafeRun(for {
       queue  <- Queue.bounded[Int](10)
@@ -355,15 +354,15 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     } yield (list1, list2) must_=== ((List(10, 20), List(30, 40)))
   )
 
-  def e22 = unsafeRun(
-    (for {
+  def e22 =
+    unsafeRun((for {
       queue  <- Queue.bounded[Int](3)
       values = List(1, 2, 3)
-      _      <- values.map(queue.offer).foldLeft(IO.unit)(_ *> _)
+      _      <- values.map(queue.offer).foldLeft(IO.now(false))(_ *> _)
       _      <- queue.offer(4).fork
       _      <- waitForSize(queue, 4)
       l      <- queue.takeUpTo(4)
-    } yield l must_=== List(1, 2, 3)).supervised
+    } yield l must_=== List(1, 2, 3)).supervised)
 
   def e23 =
     unsafeRun(for {
