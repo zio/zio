@@ -57,9 +57,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1)}
     interrupt waits for finalizer           $testInterruptWaitsForFinalizer
 
-  RTS exit handlers
-    exit handlers get called                $testExitHandlers
-
   RTS synchronous stack safety
     deep map of point                       $testDeepMapOfPoint
     deep map of now                         $testDeepMapOfNow
@@ -81,6 +78,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
     interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
+    bracket is uninterruptible              ${testBracketAcquireIsUninterruptible}
+    bracket0 is uninterruptible             ${testBracket0AcquireIsUninterruptible}
     supervise fibers                        ${upTo(1.second)(testSupervise)}
     race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
     race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
@@ -361,19 +360,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       test <- r.get
     } yield test must_=== true)
 
-  def testExitHandlers =
-    unsafeRun(for {
-      counter <- Ref(0)
-      f       <- IO.now(Fiber.point("hello"))
-      _       <- f.onComplete(_ => counter.update(_ + 1).void)
-      _       <- f.onComplete(_ => counter.update(_ + 1).void)
-      _       <- f.onComplete(_ => counter.update(_ + 1).void)
-      p       <- Promise.make[Nothing, String]
-      _       <- f.onComplete(r => p.done(r).void)
-      a       <- p.get
-      b       <- counter.get
-    } yield (a, b)) must_=== (("hello", 3))
-
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
       if (n <= 0) ref.get
@@ -465,6 +451,24 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         _     <- fiber.interrupt
       } yield 42
 
+    unsafeRun(io) must_=== 42
+  }
+
+  def testBracketAcquireIsUninterruptible = {
+    val io =
+      for {
+        fiber <- IO.bracket[Nothing, Unit, Unit](IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
+      } yield res
+    unsafeRun(io) must_=== 42
+  }
+
+  def testBracket0AcquireIsUninterruptible = {
+    val io =
+      for {
+        fiber <- IO.bracket0[Nothing, Unit, Unit](IO.never)((_, _) => IO.unit)(_ => IO.unit).fork
+        res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
+      } yield res
     unsafeRun(io) must_=== 42
   }
 
