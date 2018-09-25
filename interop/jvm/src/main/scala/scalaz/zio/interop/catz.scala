@@ -25,43 +25,39 @@ sealed abstract class CatsInstances2 {
 }
 
 private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
+  protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = {
+    case ExitResult.Completed(a)       => Right(a)
+    case ExitResult.Failed(t, _)       => Left(t)
+    case ExitResult.Terminated(Nil)    => Left(Errors.TerminatedFiber)
+    case ExitResult.Terminated(t :: _) => Left(t)
+  }
+
+  protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
+    case Left(t)  => ExitResult.Failed(t)
+    case Right(r) => ExitResult.Completed(r)
+  }
+
+  override def never[A]: Task[A] =
+    IO.never
+
   override def runAsync[A](
     fa: Task[A]
-  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] = {
-    val cbZ2C: ExitResult[Throwable, A] => Either[Throwable, A] = {
-      case ExitResult.Completed(a)       => Right(a)
-      case ExitResult.Failed(t, _)       => Left(t)
-      case ExitResult.Terminated(Nil)    => Left(Errors.TerminatedFiber)
-      case ExitResult.Terminated(t :: _) => Left(t)
-    }
+  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
     effect.SyncIO {
-      unsafeRunAsync(fa) {
-        cb.compose(cbZ2C).andThen(_.unsafeRunAsync(_ => ()))
+      unsafeRunAsync(fa) { exit =>
+        cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())
       }
     }.void
-  }
 
-  override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] = {
-    val kk = k.compose[ExitResult[Throwable, A] => Unit] {
-      _.compose[Either[Throwable, A]] {
-        case Left(t)  => ExitResult.Failed(t)
-        case Right(r) => ExitResult.Completed(r)
-      }
+  override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
+    IO.async { kk: Callback[Throwable, A] =>
+      k(eitherToExitResult andThen kk)
     }
 
-    IO.async(kk)
-  }
-
-  override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] = {
-    val kk = k.compose[ExitResult[Throwable, A] => Unit] {
-      _.compose[Either[Throwable, A]] {
-        case Left(t)  => ExitResult.Failed(t)
-        case Right(r) => ExitResult.Completed(r)
-      }
+  override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
+    IO.asyncPure { kk: Callback[Throwable, A] =>
+      k(eitherToExitResult andThen kk)
     }
-
-    IO.asyncPure(kk)
-  }
 
   override def suspend[A](thunk: => Task[A]): Task[A] =
     IO.suspend(

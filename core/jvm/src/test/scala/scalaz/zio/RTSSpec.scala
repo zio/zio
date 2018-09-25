@@ -78,8 +78,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
     interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
-    bracket is uninterruptible              ${testBracketAcquireIsUninterruptible}
-    bracket0 is uninterruptible             ${testBracket0AcquireIsUninterruptible}
+    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
+    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
+    asyncPure is interruptible              ${upTo(1.second)(testAsyncPureIsInterruptible)}
+    async is interruptible                  ${upTo(1.second)(testAsyncIsInterruptible)}
     supervise fibers                        ${upTo(1.second)(testSupervise)}
     race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
     race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
@@ -469,6 +471,26 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         fiber <- IO.bracket0[Nothing, Unit, Unit](IO.never)((_, _) => IO.unit)(_ => IO.unit).fork
         res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
+    unsafeRun(io) must_=== 42
+  }
+
+  def testAsyncPureIsInterruptible = {
+    val io =
+      for {
+        fiber <- IO.asyncPure[Nothing, Nothing](_ => IO.never).fork
+        _     <- fiber.interrupt
+      } yield 42
+
+    unsafeRun(io) must_=== 42
+  }
+
+  def testAsyncIsInterruptible = {
+    val io =
+      for {
+        fiber <- IO.async[Nothing, Nothing](_ => ()).fork
+        _     <- fiber.interrupt
+      } yield 42
+
     unsafeRun(io) must_=== 42
   }
 
