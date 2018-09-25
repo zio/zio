@@ -1021,7 +1021,7 @@ object IO {
               r <- f.observe
               _ <- m.set(Some((a, r)))
             } yield r).uninterruptibly
-        b <- r.fold(IO.now(_), (e, _) => IO.fail(e), IO.terminate0(_))
+        b <- r.fold(IO.now, IO.fail0, IO.terminate0)
       } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
     }
 
