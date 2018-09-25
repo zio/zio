@@ -85,6 +85,12 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       release(a, exitCase)
         .catchAll(IO.terminate(_))
     }(use)
+
+  override def uncancelable[A](fa: Task[A]): Task[A] =
+    fa.uninterruptibly
+
+  override def guarantee[A](fa: Task[A])(finalizer: Task[Unit]): Task[A] =
+    fa.ensuring(finalizer.catchAll(IO.terminate(_)))
 }
 
 private class CatsMonad[E] extends Monad[IO[E, ?]] {
