@@ -906,7 +906,7 @@ private object RTS {
         case ExitResult.Failed(e, _) => e
         case ExitResult.Terminated(ts) =>
           rts.submit(rts.unsafeRun(unhandled(ts)))
-          cb(ExitResult.Terminated(Errors.TerminatedFiber :: Nil))
+          cb(ExitResult.Terminated(ts))
       }.fold(identity, ExitResult.Failed(_, _), ExitResult.Terminated(_))
 
     @tailrec
