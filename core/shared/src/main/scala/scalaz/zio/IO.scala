@@ -91,9 +91,9 @@ sealed abstract class IO[+E, +A] { self =>
     case IO.Tags.Fail =>
       val io = self.asInstanceOf[IO.Fail[E]]
 
-      new IO.Fail(f(io.error))
+      new IO.Fail(f(io.error), io.defects)
 
-    case _ => new IO.Redeem(self, (e: E) => new IO.Fail(f(e)), (a: A) => new IO.Strict(g(a)))
+    case _ => new IO.Redeem(self, (e: E) => new IO.Fail(f(e), Nil), (a: A) => new IO.Strict(g(a)))
   }
 
   /**
@@ -558,10 +558,8 @@ sealed abstract class IO[+E, +A] { self =>
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
     (for {
-      p <- Promise.make[Nothing, ExitResult[E, A]]
       f <- self.fork
-      _ <- f.onComplete(r => p.done(ExitResult.Completed(r)).void)
-      r <- p.get
+      r <- f.observe
     } yield r).supervised
 
   /**
@@ -596,8 +594,8 @@ sealed abstract class IO[+E, +A] { self =>
     self.run.flatMap {
       case ExitResult.Completed(value) =>
         IO.now(value)
-      case ExitResult.Failed(error, _) =>
-        IO.fail(Right(error))
+      case ExitResult.Failed(error, defects) =>
+        IO.fail0(Right(error), defects)
       case ExitResult.Terminated(ts) =>
         IO.fail(Left(ts))
     }
@@ -695,7 +693,7 @@ object IO {
     override def tag = Tags.SyncEffect
   }
 
-  final class Fail[E] private[IO] (val error: E) extends IO[E, Nothing] {
+  final class Fail[E] private[IO] (val error: E, val defects: List[Throwable]) extends IO[E, Nothing] {
     override def tag = Tags.Fail
   }
 
@@ -777,7 +775,9 @@ object IO {
    * Creates an `IO` value that represents failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
-  final def fail[E](error: E): IO[E, Nothing] = new Fail(error)
+  final def fail[E](error: E): IO[E, Nothing] = fail0(error, Nil)
+
+  private[zio] final def fail0[E](error: E, defects: List[Throwable]): IO[E, Nothing] = new Fail(error, defects)
 
   /**
    * Strictly-evaluated unit lifted into the `IO` monad.
@@ -790,7 +790,7 @@ object IO {
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
     case ExitResult.Completed(b)   => now(b)
     case ExitResult.Terminated(ts) => terminate0(ts)
-    case ExitResult.Failed(e, _)   => fail(e)
+    case ExitResult.Failed(e, ts)  => fail0(e, ts)
   }
 
   /**
@@ -1015,12 +1015,13 @@ object IO {
   )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
     Ref[Option[(A, ExitResult[E, B])]](None).flatMap { m =>
       (for {
-        f <- (for {
+        r <- (for {
               a <- acquire
               f <- use(a).fork
-              _ <- f.onComplete(r => m.set(Some((a, r))))
-            } yield f).uninterruptibly
-        b <- f.join
+              r <- f.observe
+              _ <- m.set(Some((a, r)))
+            } yield r).uninterruptibly
+        b <- r.fold(IO.now(_), (e, _) => IO.fail(e), IO.terminate0(_))
       } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
     }
 
