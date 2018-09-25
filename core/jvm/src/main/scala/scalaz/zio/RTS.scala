@@ -1041,7 +1041,7 @@ private object RTS {
 
     private final def purgeObservers(v: ExitResult[E, A], observers: List[Callback[Nothing, ExitResult[E, A]]]): Unit =
       // To preserve fair scheduling, we submit all resumptions on the thread
-      // pool in (rough) order of their submission.
+      // pool in order of their submission.
       observers.reverse.foreach(k => rts.submit(k(ExitResult.Completed(v))))
   }
 
