@@ -79,8 +79,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     deep fork/join identity                 $testDeepForkJoinIsId
     interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
     bracket acquire is uninterruptible      $testBracketAcquireIsUninterruptible
-    bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 acquire is uninterruptible     $testBracket0AcquireIsUninterruptible
+    bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     supervise fibers                        ${upTo(1.second)(testSupervise)}
     race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
@@ -465,15 +465,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(io) must_=== 42
   }
 
-  def testBracketUseIsInterruptible = {
-    val io =
-      for {
-        fiber <- IO.bracket[Nothing, Unit, Unit](IO.unit)(_ => IO.never)(_ => IO.unit).fork
-        res   <- fiber.interrupt.timeout(0)(_ => 42)(1.second)
-      } yield res
-    unsafeRun(io) must_=== 42
-  }
-
   def testBracket0AcquireIsUninterruptible = {
     val io =
       for {
@@ -483,13 +474,22 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(io) must_=== 42
   }
 
+  def testBracketUseIsInterruptible = {
+    val io =
+      for {
+        fiber <- IO.bracket[Nothing, Unit, Unit](IO.unit)(_ => IO.never)(_ => IO.unit).fork
+        res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
+      } yield res
+    unsafeRun(io) must_=== 0
+  }
+
   def testBracket0UseIsInterruptible = {
     val io =
       for {
         fiber <- IO.bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => IO.never)(_ => IO.unit).fork
-        res   <- fiber.interrupt.timeout(0)(_ => 42)(1.second)
+        res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
-    unsafeRun(io) must_=== 42
+    unsafeRun(io) must_=== 0
   }
 
   def testSupervise = {
