@@ -21,6 +21,8 @@ options:
       url: usage/schedules.html
     - title: Ref
       url: usage/ref.html
+    - title: Queue
+      url: usage/queue.html
     - title: Performance
       url: usage/performance.html
     - title: Console
