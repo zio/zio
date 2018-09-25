@@ -477,7 +477,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testBracketUseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracket[Nothing, Unit, Unit](IO.unit)(_ => IO.never)(_ => IO.unit).fork
+        fiber <- IO.bracket[Nothing, Unit, Unit](IO.unit)(_ => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 0
@@ -486,7 +486,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testBracket0UseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => IO.never)(_ => IO.unit).fork
+        fiber <- IO.bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 0
