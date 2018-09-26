@@ -1034,7 +1034,7 @@ object IO {
   final def bracket[E, A, B](
     acquire: IO[E, A]
   )(release: A => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[A]](None).uninterruptibly.flatMap { m =>
+    Ref[Option[A]](None).flatMap { m =>
       (for {
         a <- acquire.flatMap(a => m.set(Some(a)).const(a)).uninterruptibly
         b <- use(a)
