@@ -220,8 +220,11 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
           (p.complete(true), Surplus(values.enqueue(addToQueue.toList), putters))
         else {
           strategy match {
-            case Backpressure =>
-              (IO.now(false), Surplus(values, putters.enqueue(surplusValues -> p)))
+            case BackPressure =>
+              (
+                IO.now(false),
+                Surplus(values.enqueue(addToQueue.toList), putters.enqueue(surplusValues -> p))
+              )
             case Sliding =>
               (
                 p.complete(true),
@@ -263,7 +266,7 @@ object Queue {
    */
   final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
     Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty))
-      .map(new Queue[A](capacity, _, Backpressure))
+      .map(new Queue[A](capacity, _, BackPressure))
 
   /**
    * Makes a new bounded queue.
@@ -284,7 +287,7 @@ object Queue {
 
     case object Sliding extends SurplusStrategy
 
-    case object Backpressure extends SurplusStrategy
+    case object BackPressure extends SurplusStrategy
 
     sealed trait State[A] {
       def size: IO[Nothing, Int]
