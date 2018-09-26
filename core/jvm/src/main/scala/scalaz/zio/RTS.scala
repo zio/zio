@@ -754,6 +754,8 @@ private object RTS {
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
+    final def tryObserve: IO[Nothing, Option[ExitResult[E, A]]] = IO.sync(tryObserve0)
+
     final def enterSupervision: IO[E, Unit] = IO.sync {
       supervising += 1
 
@@ -1036,6 +1038,13 @@ private object RTS {
           else Async.later[Nothing, ExitResult[E, A]]
 
         case Done(v) => Async.now(ExitResult.Completed(v))
+      }
+    }
+
+    private final def tryObserve0: Option[ExitResult[E, A]] = {
+      status.get match {
+        case Done(r) => Some(r)
+        case _ => None
       }
     }
 
