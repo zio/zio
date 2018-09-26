@@ -28,10 +28,9 @@ object future {
             }(ec)
         }
         def tryObserve: IO[Nothing, Option[ExitResult[Throwable, A]]] = IO.sync {
-          ftr.value match {
-            case Some(Success(a)) => Some(ExitResult.Completed(a))
-            case Some(Failure(t)) => Some(ExitResult.Failed(t))
-            case None             => None
+          ftr.value map {
+            case Success(a) => ExitResult.Completed(a)
+            case Failure(t) => ExitResult.Failed(t)
           }
         }
         def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.attempt.void
