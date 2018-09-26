@@ -488,12 +488,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testAsyncIsInterruptible = {
     val io =
-      for {
-        fiber <- IO.async[Nothing, Nothing](_ => ()).fork
-        _     <- fiber.interrupt
-      } yield 42
+    for {
+      fiber <- IO.async[Nothing, Nothing](_ => ()).fork
+      _     <- fiber.interrupt
+    } yield 42
 
     unsafeRun(io) must_=== 42
+  }
 
   def testBracketUseIsInterruptible = {
     val io =
