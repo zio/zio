@@ -71,18 +71,28 @@ trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def observe: IO[Nothing, ExitResult[E1, C]] =
-        self.observe.seqWith(that.observe) {
-          case (ExitResult.Completed(a), ExitResult.Completed(b))   => ExitResult.Completed(f(a, b))
-          case (ExitResult.Failed(e, ts), rb)                       => ExitResult.Failed(e, combine(ts, rb))
-          case (ExitResult.Terminated(ts), rb)                      => ExitResult.Terminated(combine(ts, rb))
-          case (ExitResult.Completed(_), ExitResult.Failed(e, ts))  => ExitResult.Failed(e, ts)
-          case (ExitResult.Completed(_), ExitResult.Terminated(ts)) => ExitResult.Terminated(ts)
-        }
+        self.observe.seqWith(that.observe)(combineExitResults)
 
-      def tryObserve: IO[Nothing, Option[ExitResult[E1, C]]] = ???
+      def tryObserve: IO[Nothing, Option[ExitResult[E1, C]]] =
+        for {
+          optA <- self.tryObserve
+          optB <- that.tryObserve
+        } yield
+          (optA, optB) match {
+            case (Some(ra), Some(rb)) => Some(combineExitResults(ra, rb))
+            case _                    => None
+          }
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
+
+      private def combineExitResults: (ExitResult[E, A], ExitResult[E1, B]) => ExitResult[E1, C] = {
+        case (ExitResult.Completed(a), ExitResult.Completed(b))   => ExitResult.Completed(f(a, b))
+        case (ExitResult.Failed(e, ts), rb)                       => ExitResult.Failed(e, combine(ts, rb))
+        case (ExitResult.Terminated(ts), rb)                      => ExitResult.Terminated(combine(ts, rb))
+        case (ExitResult.Completed(_), ExitResult.Failed(e, ts))  => ExitResult.Failed(e, ts)
+        case (ExitResult.Completed(_), ExitResult.Terminated(ts)) => ExitResult.Terminated(ts)
+      }
 
       private def combine(ts: List[Throwable], r: ExitResult[_, _]) = r match {
         case ExitResult.Failed(_, ts2)  => ts ++ ts2
