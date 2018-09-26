@@ -24,11 +24,14 @@ package scalaz.zio
 trait Fiber[+E, +A] { self =>
 
   /**
-   * Observes the fiber, which suspends the joining fiber until the result of the
+   * Observes the fiber, which suspends the observing fiber until the result of the
    * fiber has been determined.
    */
   def observe: IO[Nothing, ExitResult[E, A]]
 
+  /**
+   * Tentatively observes the fiber, but returns immediately if it is not already done.
+   */
   def tryObserve: IO[Nothing, Option[ExitResult[E, A]]]
 
   /**
