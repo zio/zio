@@ -1013,12 +1013,18 @@ object IO {
   final def bracket0[E, A, B](
     acquire: IO[E, A]
   )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[A]](None).flatMap { m =>
-      for {
-        f <- acquire.flatMap(a => m.set(Some(a)) *> use(a).fork).uninterruptibly
-        b <- f.join.ensuring(m.get.flatMap(_.fold(IO.unit)(a => f.observe.flatMap(r => release(a, r)))))
-      } yield b
-    }.supervised
+    Ref[Option[(A, Fiber[E, B])]](None).flatMap { m =>
+      (for {
+        f <- acquire.flatMap(a => use(a).fork.flatMap(f => m.set(Some(a -> f)).const(f))).uninterruptibly
+        b <- f.join
+      } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
+        case (a, f) =>
+          f.tryObserve.flatMap {
+            case Some(r) => release(a, r)
+            case None    => f.interrupt
+          }
+      }))
+    }
 
   /**
    * Acquires a resource, do some work with it, and then release that resource. `bracket`
