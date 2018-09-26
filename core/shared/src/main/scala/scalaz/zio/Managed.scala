@@ -121,6 +121,15 @@ object Managed {
     }
 
   /**
+   * Unwraps a `Managed` that is inside an `IO`.
+   */
+  final def unwrap[E, R](fa: IO[E, Managed[E, R]]): Managed[E, R] =
+    new Managed[E, R] {
+      def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+        fa.flatMap(_.use(f))
+    }
+
+  /**
    * Lifts a strict, pure value into a Managed.
    */
   final def now[R](r: R): Managed[Nothing, R] =
