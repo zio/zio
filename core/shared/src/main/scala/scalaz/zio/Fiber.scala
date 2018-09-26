@@ -29,6 +29,8 @@ trait Fiber[+E, +A] { self =>
    */
   def observe: IO[Nothing, ExitResult[E, A]]
 
+  def tryObserve: IO[Nothing, Option[ExitResult[E, A]]] = ???
+
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the
    * fiber has been determined. Attempting to join a fiber that has errored will
