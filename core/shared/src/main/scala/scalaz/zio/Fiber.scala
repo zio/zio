@@ -77,14 +77,10 @@ trait Fiber[+E, +A] { self =>
         self.observe.seqWith(that.observe)(combineExitResults)
 
       def tryObserve: IO[Nothing, Option[ExitResult[E1, C]]] =
-        for {
-          optA <- self.tryObserve
-          optB <- that.tryObserve
-        } yield
-          (optA, optB) match {
-            case (Some(ra), Some(rb)) => Some(combineExitResults(ra, rb))
-            case _                    => None
-          }
+        self.tryObserve.seqWith(that.tryObserve) {
+          case (Some(ra), Some(rb)) => Some(combineExitResults(ra, rb))
+          case _                    => None
+        }
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
