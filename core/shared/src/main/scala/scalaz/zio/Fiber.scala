@@ -24,10 +24,15 @@ package scalaz.zio
 trait Fiber[+E, +A] { self =>
 
   /**
-   * Observes the fiber, which suspends the joining fiber until the result of the
+   * Observes the fiber, which suspends the observing fiber until the result of the
    * fiber has been determined.
    */
   def observe: IO[Nothing, ExitResult[E, A]]
+
+  /**
+   * Tentatively observes the fiber, but returns immediately if it is not already done.
+   */
+  def tryObserve: IO[Nothing, Option[ExitResult[E, A]]]
 
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the
@@ -69,22 +74,16 @@ trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def observe: IO[Nothing, ExitResult[E1, C]] =
-        self.observe.seqWith(that.observe) {
-          case (ExitResult.Completed(a), ExitResult.Completed(b))   => ExitResult.Completed(f(a, b))
-          case (ExitResult.Failed(e, ts), rb)                       => ExitResult.Failed(e, combine(ts, rb))
-          case (ExitResult.Terminated(ts), rb)                      => ExitResult.Terminated(combine(ts, rb))
-          case (ExitResult.Completed(_), ExitResult.Failed(e, ts))  => ExitResult.Failed(e, ts)
-          case (ExitResult.Completed(_), ExitResult.Terminated(ts)) => ExitResult.Terminated(ts)
+        self.observe.seqWith(that.observe)(_.zipWith(_)(f))
+
+      def tryObserve: IO[Nothing, Option[ExitResult[E1, C]]] =
+        self.tryObserve.seqWith(that.tryObserve) {
+          case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f))
+          case _                    => None
         }
 
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
         self.interrupt0(ts) *> that.interrupt0(ts)
-
-      private def combine(ts: List[Throwable], r: ExitResult[_, _]) = r match {
-        case ExitResult.Failed(_, ts2)  => ts ++ ts2
-        case ExitResult.Terminated(ts2) => ts ++ ts2
-        case _                          => ts
-      }
     }
 
   /**
@@ -111,8 +110,8 @@ trait Fiber[+E, +A] { self =>
    */
   final def map[B](f: A => B): Fiber[E, B] =
     new Fiber[E, B] {
-      def observe: IO[Nothing, ExitResult[E, B]] = self.observe.map(_.map(f))
-
+      def observe: IO[Nothing, ExitResult[E, B]]             = self.observe.map(_.map(f))
+      def tryObserve: IO[Nothing, Option[ExitResult[E, B]]]  = self.tryObserve.map(_.map(_.map(f)))
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
     }
 }
@@ -121,6 +120,7 @@ object Fiber {
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
       def observe: IO[Nothing, ExitResult[E, A]]             = IO.point(ExitResult.Completed(a))
+      def tryObserve: IO[Nothing, Option[ExitResult[E, A]]]  = IO.point(Some(ExitResult.Completed(a)))
       def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = IO.unit
     }
 
