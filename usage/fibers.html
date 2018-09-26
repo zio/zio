@@ -42,7 +42,7 @@
 
 <p>The <code class="highlighter-rouge">IO</code> error model is simple, consistent, permits both typed errors and termination, and does not violate any laws in the <code class="highlighter-rouge">Functor</code> hierarchy.</p>
 
-<p>An <code class="highlighter-rouge">IO[E, A]</code> value may only raise errors of type <code class="highlighter-rouge">E</code>. These errors are recoverable, and may be caught the <code class="highlighter-rouge">attempt</code> method. The <code class="highlighter-rouge">attempt</code> method yields a value that cannot possibly fail with any error <code class="highlighter-rouge">E</code>. This rigorous guarantee can be reflected at compile-time by choosing a new error type such as <code class="highlighter-rouge">Nothing</code>, which is possible because <code class="highlighter-rouge">attempt</code> is polymorphic in the error type of the returned value.</p>
+<p>An <code class="highlighter-rouge">IO[E, A]</code> value may only raise errors of type <code class="highlighter-rouge">E</code>. These errors are recoverable, and may be caught by the <code class="highlighter-rouge">attempt</code> method. The <code class="highlighter-rouge">attempt</code> method yields a value that cannot possibly fail with any error <code class="highlighter-rouge">E</code>. This rigorous guarantee can be reflected at compile-time by choosing a new error type such as <code class="highlighter-rouge">Nothing</code>, which is possible because <code class="highlighter-rouge">attempt</code> is polymorphic in the error type of the returned value.</p>
 
 <p>Separately from errors of type <code class="highlighter-rouge">E</code>, a fiber may be terminated for the following reasons:</p>
 
