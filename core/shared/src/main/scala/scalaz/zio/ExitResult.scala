@@ -32,6 +32,20 @@ sealed trait ExitResult[+E, +A] { self =>
       case Failed(e, ts) => failed(e, ts)
       case Terminated(e) => interrupted(e)
     }
+
+  final def zipWith[E1 >: E, B, C](that: ExitResult[E1, B])(f: (A, B) => C): ExitResult[E1, C] = (self, that) match {
+    case (ExitResult.Completed(a), ExitResult.Completed(b))   => ExitResult.Completed(f(a, b))
+    case (ExitResult.Failed(e, ts), rb)                       => ExitResult.Failed(e, combine(ts, rb))
+    case (ExitResult.Terminated(ts), rb)                      => ExitResult.Terminated(combine(ts, rb))
+    case (ExitResult.Completed(_), ExitResult.Failed(e, ts))  => ExitResult.Failed(e, ts)
+    case (ExitResult.Completed(_), ExitResult.Terminated(ts)) => ExitResult.Terminated(ts)
+  }
+
+  private final def combine(ts: List[Throwable], r: ExitResult[_, _]) = r match {
+    case ExitResult.Failed(_, ts2)  => ts ++ ts2
+    case ExitResult.Terminated(ts2) => ts ++ ts2
+    case _                          => ts
+  }
 }
 object ExitResult {
   final case class Completed[E, A](value: A) extends ExitResult[E, A]
