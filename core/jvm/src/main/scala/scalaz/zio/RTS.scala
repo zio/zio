@@ -1041,12 +1041,11 @@ private object RTS {
       }
     }
 
-    private final def tryObserve0: Option[ExitResult[E, A]] = {
+    private final def tryObserve0: Option[ExitResult[E, A]] =
       status.get match {
         case Done(r) => Some(r)
-        case _ => None
+        case _       => None
       }
-    }
 
     private final def purgeObservers(v: ExitResult[E, A], observers: List[Callback[Nothing, ExitResult[E, A]]]): Unit =
       // To preserve fair scheduling, we submit all resumptions on the thread
