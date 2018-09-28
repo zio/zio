@@ -461,8 +461,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testBracketAcquireIsUninterruptible = {
     val io =
       for {
-        fiber <- IO.bracket[Nothing, Unit, Unit](IO.never)(_ => IO.unit)(_ => IO.unit).fork
-        res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
+        promise <- Promise.make[Nothing, Unit]
+        fiber <- IO.bracket[Nothing, Unit, Unit](promise.complete(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        res   <- promise.get *> fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
@@ -470,8 +471,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testBracket0AcquireIsUninterruptible = {
     val io =
       for {
-        fiber <- IO.bracket0[Nothing, Unit, Unit](IO.never)((_, _) => IO.unit)(_ => IO.unit).fork
-        res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
+        promise <- Promise.make[Nothing, Unit]
+        fiber <- IO.bracket0[Nothing, Unit, Unit](promise.complete(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit).fork
+        res   <- promise.get *> fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
