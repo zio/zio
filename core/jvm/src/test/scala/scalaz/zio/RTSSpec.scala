@@ -462,8 +462,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber <- IO.bracket[Nothing, Unit, Unit](promise.complete(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
-        res   <- promise.get *> fiber.interrupt.timeout(42)(_ => 0)(1.second)
+        fiber   <- IO.bracket[Nothing, Unit, Unit](promise.complete(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        res     <- promise.get *> fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
@@ -472,8 +472,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber <- IO.bracket0[Nothing, Unit, Unit](promise.complete(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit).fork
-        res   <- promise.get *> fiber.interrupt.timeout(42)(_ => 0)(1.second)
+        fiber <- IO
+                  .bracket0[Nothing, Unit, Unit](promise.complete(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
+                  .fork
+        res <- promise.get *> fiber.interrupt.timeout(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
