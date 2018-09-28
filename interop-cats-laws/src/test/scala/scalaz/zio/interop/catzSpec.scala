@@ -57,12 +57,14 @@ class catzSpec extends FunSuite with Matchers with Checkers with Discipline with
   }
 
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
-  checkAllAsync("MonadError[IO[Int, ?]]", implicit e => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
-  checkAllAsync("Alternative[IO[Int, ?]]", implicit e => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
-  checkAllAsync("Alternative[IO[Option[Unit], ?]]",
-                implicit e => AlternativeTests[IO[Option[Unit], ?]].alternative[Int, Int, Int])
-  checkAllAsync("SemigroupK[IO[Nothing, ?]]", implicit e => SemigroupKTests[IO[Nothing, ?]].semigroupK[Int])
-  checkAllAsync("Bifunctor[IO]", implicit e => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
+  checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
+  checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
+  checkAllAsync(
+    "Alternative[IO[Option[Unit], ?]]",
+    (_) => AlternativeTests[IO[Option[Unit], ?]].alternative[Int, Int, Int]
+  )
+  checkAllAsync("SemigroupK[IO[Nothing, ?]]", (_) => SemigroupKTests[IO[Nothing, ?]].semigroupK[Int])
+  checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
     new Eq[IO[E, A]] {

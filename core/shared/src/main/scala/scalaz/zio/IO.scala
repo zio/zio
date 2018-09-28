@@ -179,8 +179,9 @@ sealed abstract class IO[+E, +A] { self =>
    * Races this action with the specified action, invoking the
    * specified finisher as soon as one value or the other has been computed.
    */
-  final def raceWith[E1 >: E, A1 >: A, B, C](that: IO[E1, B])(finishLeft: (A1, Fiber[E1, B]) => IO[E1, C],
-                                                              finishRight: (B, Fiber[E1, A1]) => IO[E1, C]): IO[E1, C] =
+  final def raceWith[E1 >: E, A1 >: A, B, C](
+    that: IO[E1, B]
+  )(finishLeft: (A1, Fiber[E1, B]) => IO[E1, C], finishRight: (B, Fiber[E1, A1]) => IO[E1, C]): IO[E1, C] =
     new IO.Race[E1, A1, B, C](self, that, finishLeft, finishRight)
 
   /**
@@ -317,7 +318,7 @@ sealed abstract class IO[+E, +A] { self =>
           case ExitResult.Failed(_, _)  => release(a)
           case ExitResult.Terminated(_) => release(a)
           case _                        => IO.unit
-      }
+        }
     )(use)
 
   final def managed(release: A => IO[Nothing, Unit]): Managed[E, A] =
@@ -334,7 +335,7 @@ sealed abstract class IO[+E, +A] { self =>
           case ExitResult.Completed(_)   => IO.unit
           case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
           case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
-      }
+        }
     )(_ => self)
 
   /**
@@ -424,7 +425,7 @@ sealed abstract class IO[+E, +A] { self =>
    * completes, or until the first failure.
    */
   final def repeat[B](schedule: Schedule[A, B]): IO[E, B] =
-    repeatOrElse[E, B](schedule, (e, b) => IO.fail(e))
+    repeatOrElse[E, B](schedule, (e, _) => IO.fail(e))
 
   /**
    * Repeats this action with the specified schedule until the schedule
@@ -439,20 +440,22 @@ sealed abstract class IO[+E, +A] { self =>
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse0[E1 >: E, B, C](schedule: Schedule[A, B],
-                                         orElse: (E, B) => IO[E1, C]): IO[E1, Either[C, B]] = {
+  final def repeatOrElse0[E1 >: E, B, C](
+    schedule: Schedule[A, B],
+    orElse: (E, B) => IO[E1, C]
+  ): IO[E1, Either[C, B]] = {
     def loop(last: Option[() => B], state: schedule.State): IO[E1, Either[C, B]] =
       self.redeem(
         e =>
           last match {
             case None         => IO.fail(e)
             case Some(finish) => orElse(e, finish()).map(Left(_))
-        },
+          },
         a =>
           schedule.update(a, state).flatMap { step =>
             if (!step.cont) IO.now(Right(step.finish()))
             else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-        }
+          }
       )
 
     schedule.initial.flatMap(loop(None, _))
@@ -462,7 +465,7 @@ sealed abstract class IO[+E, +A] { self =>
    * Retries with the specified retry policy.
    */
   final def retry[E1 >: E, S](policy: Schedule[E1, S]): IO[E1, A] =
-    retryOrElse(policy, (e: E1, s: S) => IO.fail(e))
+    retryOrElse(policy, (e: E1, _: S) => IO.fail(e))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -477,8 +480,10 @@ sealed abstract class IO[+E, +A] { self =>
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElse0[E1 >: E, S, E2, B](policy: Schedule[E1, S],
-                                            orElse: (E1, S) => IO[E2, B]): IO[E2, Either[B, A]] = {
+  final def retryOrElse0[E1 >: E, S, E2, B](
+    policy: Schedule[E1, S],
+    orElse: (E1, S) => IO[E2, B]
+  ): IO[E2, Either[B, A]] = {
     def loop(state: policy.State): IO[E2, Either[B, A]] =
       self.redeem(
         err =>
@@ -488,7 +493,7 @@ sealed abstract class IO[+E, +A] { self =>
               decision =>
                 if (decision.cont) IO.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
-          ),
+            ),
         succ => IO.now(Right(succ))
       )
 
@@ -705,10 +710,11 @@ object IO {
     override def tag = Tags.AsyncIOEffect
   }
 
-  final class Redeem[E1, E2, A, B] private[IO] (val value: IO[E1, A],
-                                                val err: E1 => IO[E2, B],
-                                                val succ: A => IO[E2, B])
-      extends IO[E2, B]
+  final class Redeem[E1, E2, A, B] private[IO] (
+    val value: IO[E1, A],
+    val err: E1 => IO[E2, B],
+    val succ: A => IO[E2, B]
+  ) extends IO[E2, B]
       with Function[A, IO[E2, B]] {
 
     override def tag = Tags.Redeem
@@ -721,11 +727,12 @@ object IO {
     override def tag = Tags.Fork
   }
 
-  final class Race[E, A0, A1, A] private[IO] (val left: IO[E, A0],
-                                              val right: IO[E, A1],
-                                              val finishLeft: (A0, Fiber[E, A1]) => IO[E, A],
-                                              val finishRight: (A1, Fiber[E, A0]) => IO[E, A])
-      extends IO[E, A] {
+  final class Race[E, A0, A1, A] private[IO] (
+    val left: IO[E, A0],
+    val right: IO[E, A1],
+    val finishLeft: (A0, Fiber[E, A1]) => IO[E, A],
+    val finishRight: (A1, Fiber[E, A0]) => IO[E, A]
+  ) extends IO[E, A] {
     override def tag = Tags.Race
   }
 
@@ -741,9 +748,10 @@ object IO {
     override def tag = Tags.Sleep
   }
 
-  final class Supervise[E, A] private[IO] (val value: IO[E, A],
-                                           val supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit])
-      extends IO[E, A] {
+  final class Supervise[E, A] private[IO] (
+    val value: IO[E, A],
+    val supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]
+  ) extends IO[E, A] {
     override def tag = Tags.Supervise
   }
 

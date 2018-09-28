@@ -583,7 +583,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
     val e = Executors.newSingleThreadExecutor()
 
-    for (i <- (0 until 10000)) {
+    for (_ <- (0 until 10000)) {
       val t = IO.async[Nothing, Int] { cb =>
         val c: Callable[Unit] = () => cb(ExitResult.Completed(1))
         val _                 = e.submit(c)

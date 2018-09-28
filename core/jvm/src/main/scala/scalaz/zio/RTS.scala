@@ -672,9 +672,11 @@ private object RTS {
         } else resumeEvaluate(value)
       }
 
-    private final def raceCallback[A, B](resume: Callback[E, IO[E, B]],
-                                         state: AtomicReference[RaceState],
-                                         finish: A => IO[E, B]): Callback[E, A] =
+    private final def raceCallback[A, B](
+      resume: Callback[E, IO[E, B]],
+      state: AtomicReference[RaceState],
+      finish: A => IO[E, B]
+    ): Callback[E, A] =
       (tryA: ExitResult[E, A]) => {
         import RaceState._
 
@@ -708,11 +710,13 @@ private object RTS {
         if (won) resume(tryA.map(finish))
       }
 
-    private final def raceWith[A, B, C](unhandled: List[Throwable] => IO[Nothing, Unit],
-                                        leftIO: IO[E, A],
-                                        rightIO: IO[E, B],
-                                        finishLeft: (A, Fiber[E, B]) => IO[E, C],
-                                        finishRight: (B, Fiber[E, A]) => IO[E, C]): IO[E, C] = {
+    private final def raceWith[A, B, C](
+      unhandled: List[Throwable] => IO[Nothing, Unit],
+      leftIO: IO[E, A],
+      rightIO: IO[E, B],
+      finishLeft: (A, Fiber[E, B]) => IO[E, C],
+      finishRight: (B, Fiber[E, A]) => IO[E, C]
+    ): IO[E, C] = {
       val left  = fork(leftIO, unhandled)
       val right = fork(rightIO, unhandled)
 
@@ -1005,8 +1009,10 @@ private object RTS {
 
         case s @ AsyncRegion(_, _, _, _, _, _) =>
           val newStatus =
-            s.copy(terminationCauses = Some(s.terminationCauses.getOrElse(Nil) ++ cs),
-                   observers = mkKillerObserver(k) :: s.observers)
+            s.copy(
+              terminationCauses = Some(s.terminationCauses.getOrElse(Nil) ++ cs),
+              observers = mkKillerObserver(k) :: s.observers
+            )
 
           if (!status.compareAndSet(oldStatus, newStatus)) kill0(cs, k)
           else {
@@ -1062,17 +1068,19 @@ private object RTS {
     def defects: List[Throwable]
   }
   object FiberStatus {
-    final case class Executing[E, A](terminationCauses: Option[List[Throwable]],
-                                     defects: List[Throwable],
-                                     observers: List[Callback[Nothing, ExitResult[E, A]]])
-        extends FiberStatus[E, A]
-    final case class AsyncRegion[E, A](terminationCauses: Option[List[Throwable]],
-                                       defects: List[Throwable],
-                                       reentrancy: Int,
-                                       resume: Int,
-                                       cancel: Option[Canceler],
-                                       observers: List[Callback[Nothing, ExitResult[E, A]]])
-        extends FiberStatus[E, A]
+    final case class Executing[E, A](
+      terminationCauses: Option[List[Throwable]],
+      defects: List[Throwable],
+      observers: List[Callback[Nothing, ExitResult[E, A]]]
+    ) extends FiberStatus[E, A]
+    final case class AsyncRegion[E, A](
+      terminationCauses: Option[List[Throwable]],
+      defects: List[Throwable],
+      reentrancy: Int,
+      resume: Int,
+      cancel: Option[Canceler],
+      observers: List[Callback[Nothing, ExitResult[E, A]]]
+    ) extends FiberStatus[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
       override def terminationCauses: Option[List[Throwable]] = None
       override def defects: List[Throwable]                   = Nil

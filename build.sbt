@@ -35,9 +35,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
   .settings(stdSettings("zio"))
   .settings(
-    libraryDependencies ++= Seq("org.specs2" %%% "specs2-core"          % "4.3.2" % Test,
-                                "org.specs2" %%% "specs2-scalacheck"    % "4.3.2" % Test,
-                                "org.specs2" %%% "specs2-matcher-extra" % "4.3.2" % Test),
+    libraryDependencies ++= Seq(
+      "org.specs2" %%% "specs2-core"          % "4.3.4" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.3.4" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.3.4" % Test
+    ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
   .enablePlugins(BuildInfoPlugin)
@@ -81,10 +83,10 @@ lazy val interop = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz"    %%% "scalaz-core"               % "7.2.+"  % Optional,
-      "org.typelevel" %%% "cats-effect"               % "1.0.0"  % Optional,
-      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"  % Test,
-      "co.fs2"        %%% "fs2-core"                  % "0.10.5" % Test
+      "org.scalaz"    %%% "scalaz-core"               % "7.2.+"    % Optional,
+      "org.typelevel" %%% "cats-effect"               % "1.0.0"    % Optional,
+      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"    % Test,
+      "co.fs2"        %%% "fs2-core"                  % "1.0.0-M5" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
