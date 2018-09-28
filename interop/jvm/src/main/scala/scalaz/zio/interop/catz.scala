@@ -128,16 +128,3 @@ trait CatsBifunctor extends Bifunctor[IO] {
   override def bimap[A, B, C, D](fab: IO[A, B])(f: A => C, g: B => D): IO[C, D] =
     fab.bimap(f, g)
 }
-
-import scalaz.zio._
-
-object App extends App {
-  // print + 1000 empty flatMaps
-  def worker(i: Int) =
-    (IO.sync(println(s"running $i")) *> IO.async((cb: Callback[Nothing, Unit]) => cb(ExitResult.Completed(())))).forever
-
-  override def run(args: List[String]): IO[Nothing, ExitStatus] =
-    IO.traverse(1 to 50)(worker(_).fork)
-      .flatMap(Fiber.joinAll(_))
-      .const(ExitStatus.ExitNow(0))
-}
