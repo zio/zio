@@ -83,7 +83,7 @@ trait Schedule[-A, +B] { self =>
           update(a, s).flatMap { decision =>
             if (decision.cont) IO.now(decision)
             else self.initial.map(state => decision.copy(cont = true, state = state))
-      }
+          }
     )
 
   /**
@@ -93,12 +93,16 @@ trait Schedule[-A, +B] { self =>
   final def check[A1 <: A, C](test: (A1, B) => IO[Nothing, Boolean]): Schedule[A1, B] =
     updated(
       update =>
-        ((a,
-          s) =>
-           update(a, s).flatMap { d =>
-             if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
-             else IO.now(d)
-           })
+        (
+          (
+            a,
+            s
+          ) =>
+            update(a, s).flatMap { d =>
+              if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
+              else IO.now(d)
+            }
+          )
     )
 
   /**
@@ -127,8 +131,9 @@ trait Schedule[-A, +B] { self =>
    */
   final def untilInput[A1 <: A](f: A1 => Boolean): Schedule[A1, B] = !whileInput(f)
 
-  final def combineWith[A1 <: A, C](that: Schedule[A1, C])(g: (Boolean, Boolean) => Boolean,
-                                                           f: (Duration, Duration) => Duration): Schedule[A1, (B, C)] =
+  final def combineWith[A1 <: A, C](
+    that: Schedule[A1, C]
+  )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): Schedule[A1, (B, C)] =
     new Schedule[A1, (B, C)] {
       type State = (self.State, that.State)
       val initial = self.initial.seq(that.initial)
@@ -206,7 +211,7 @@ trait Schedule[-A, +B] { self =>
             }
           case Right(v) =>
             that.update(a, v).map(_.bimap(Right(_), Right(_)))
-      }
+        }
     }
 
   /**
@@ -240,12 +245,16 @@ trait Schedule[-A, +B] { self =>
   ): Schedule[A1, B1] =
     updated(
       update =>
-        ((a: A1,
-          s) =>
-           for {
-             step  <- update(a, s)
-             step2 <- f(a, step)
-           } yield step2)
+        (
+          (
+            a: A1,
+            s
+          ) =>
+            for {
+              step  <- update(a, s)
+              step2 <- f(a, step)
+            } yield step2
+          )
     )
 
   /**
@@ -271,11 +280,15 @@ trait Schedule[-A, +B] { self =>
   final def modifyDelay(f: (B, Duration) => IO[Nothing, Duration]): Schedule[A, B] =
     updated(
       update =>
-        ((a,
-          s) =>
-           update(a, s).flatMap { step =>
-             f(step.finish(), step.delay).map(d => step.delayed(_ => d))
-           })
+        (
+          (
+            a,
+            s
+          ) =>
+            update(a, s).flatMap { step =>
+              f(step.finish(), step.delay).map(d => step.delayed(_ => d))
+            }
+          )
     )
 
   /**
@@ -376,7 +389,7 @@ trait Schedule[-A, +B] { self =>
           that.update(step1.finish(), s._2).map { step2 =>
             step1.combineWith(step2)(_ && _, _ + _).rightMap(_._2)
           }
-      }
+        }
     }
 
   /**
@@ -400,20 +413,25 @@ object Schedule {
 
     final def delayed(f: Duration => Duration): Decision[A, B] = copy(delay = f(delay))
 
-    final def combineWith[C, D](that: Decision[C, D])(g: (Boolean, Boolean) => Boolean,
-                                                      f: (Duration, Duration) => Duration): Decision[(A, C), (B, D)] =
-      Decision(g(self.cont, that.cont),
-               f(self.delay, that.delay),
-               (self.state, that.state),
-               () => (self.finish(), that.finish()))
+    final def combineWith[C, D](
+      that: Decision[C, D]
+    )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): Decision[(A, C), (B, D)] =
+      Decision(
+        g(self.cont, that.cont),
+        f(self.delay, that.delay),
+        (self.state, that.state),
+        () => (self.finish(), that.finish())
+      )
   }
   object Decision {
     def cont[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(true, d, a, () => b)
     def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, d, a, () => b)
   }
 
-  final def apply[S, A, B](initial0: IO[Nothing, S],
-                           update0: (A, S) => IO[Nothing, Schedule.Decision[S, B]]): Schedule[A, B] =
+  final def apply[S, A, B](
+    initial0: IO[Nothing, S],
+    update0: (A, S) => IO[Nothing, Schedule.Decision[S, B]]
+  ): Schedule[A, B] =
     new Schedule[A, B] {
       type State = S
       val initial = initial0
@@ -499,11 +517,13 @@ object Schedule {
   final val elapsed: Schedule[Any, Duration] = {
     val nanoTime = system.nanoTime
 
-    Schedule[Long, Any, Duration](nanoTime,
-                                  (_, start) =>
-                                    for {
-                                      duration <- nanoTime.map(_ - start).map(Duration.fromNanos)
-                                    } yield Decision.cont(Duration.Zero, start, duration))
+    Schedule[Long, Any, Duration](
+      nanoTime,
+      (_, start) =>
+        for {
+          duration <- nanoTime.map(_ - start).map(Duration.fromNanos)
+        } yield Decision.cont(Duration.Zero, start, duration)
+    )
   }
 
   /**
@@ -517,12 +537,14 @@ object Schedule {
    * recured application of a function to a base value.
    */
   final def unfold[A](a: => A)(f: A => A): Schedule[Any, A] =
-    Schedule[A, Any, A](IO.point(a),
-                        (_, a) =>
-                          IO.now {
-                            val a2 = f(a)
-                            Decision.cont(Duration.Zero, a2, a2)
-                        })
+    Schedule[A, Any, A](
+      IO.point(a),
+      (_, a) =>
+        IO.now {
+          val a2 = f(a)
+          Decision.cont(Duration.Zero, a2, a2)
+        }
+    )
 
   /**
    * A schedule that waits for the specified amount of time between each
@@ -562,7 +584,7 @@ object Schedule {
 
                 Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
               }
-        }
+          }
       )
 
   /**
