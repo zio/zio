@@ -1,10 +1,9 @@
 package scalaz.zio
 package interop
 
-import cats.effect
-import cats.effect.Effect
-import cats._
+import cats.effect.{ Effect, ExitCase }
 import cats.syntax.functor._
+import cats.{ effect, _ }
 
 import scala.util.control.NonFatal
 
@@ -12,7 +11,7 @@ object catz extends CatsInstances
 
 abstract class CatsInstances extends CatsInstances1 {
   implicit val taskEffectInstances: Effect[Task] with SemigroupK[Task] =
-    new CatsEffect with CatsSemigroupK[Throwable]
+    new CatsEffect
 }
 
 sealed abstract class CatsInstances1 extends CatsInstances2 {
@@ -26,40 +25,72 @@ sealed abstract class CatsInstances2 {
 }
 
 private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
-  def runAsync[A](
+  protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = {
+    case ExitResult.Completed(a)       => Right(a)
+    case ExitResult.Failed(t, _)       => Left(t)
+    case ExitResult.Terminated(Nil)    => Left(Errors.TerminatedFiber)
+    case ExitResult.Terminated(t :: _) => Left(t)
+  }
+
+  protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
+    case Left(t)  => ExitResult.Failed(t)
+    case Right(r) => ExitResult.Completed(r)
+  }
+
+  override def never[A]: Task[A] =
+    IO.never
+
+  override def runAsync[A](
     fa: Task[A]
-  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.IO[Unit] = {
-    val cbZ2C: ExitResult[Throwable, A] => Either[Throwable, A] = {
-      case ExitResult.Completed(a)       => Right(a)
-      case ExitResult.Failed(t, _)       => Left(t)
-      case ExitResult.Terminated(Nil)    => Left(Errors.TerminatedFiber)
-      case ExitResult.Terminated(t :: _) => Left(t)
-    }
-    effect.IO {
-      unsafeRunAsync(fa) {
-        cb.compose(cbZ2C).andThen(_.unsafeRunAsync(_ => ()))
+  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
+    effect.SyncIO {
+      unsafeRunAsync(fa) { exit =>
+        cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())
       }
-    }.attempt.void
-  }
+    }.void
 
-  def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] = {
-    val kk = k.compose[ExitResult[Throwable, A] => Unit] {
-      _.compose[Either[Throwable, A]] {
-        case Left(t)  => ExitResult.Failed(t)
-        case Right(r) => ExitResult.Completed(r)
+  override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
+    IO.async { kk: Callback[Throwable, A] =>
+      k(eitherToExitResult andThen kk)
+    }
+
+  override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
+    IO.asyncPure { kk: Callback[Throwable, A] =>
+      k(eitherToExitResult andThen kk)
+    }
+
+  override def suspend[A](thunk: => Task[A]): Task[A] =
+    IO.suspend(
+      try {
+        thunk
+      } catch {
+        case NonFatal(e) => IO.fail(e)
       }
-    }
+    )
 
-    IO.async(kk)
-  }
+  override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(
+    release: A => Task[Unit]
+  ): Task[B] = IO.bracket(acquire)(release(_).catchAll(IO.terminate(_)))(use)
 
-  def suspend[A](thunk: => Task[A]): Task[A] = IO.suspend(
-    try {
-      thunk
-    } catch {
-      case NonFatal(e) => IO.fail(e)
-    }
-  )
+  override def bracketCase[A, B](
+    acquire: Task[A]
+  )(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+    acquire.bracket0[Throwable, B] { (a, exitResult) =>
+      val exitCase = exitResult match {
+        case ExitResult.Completed(_)           => ExitCase.Completed
+        case ExitResult.Failed(error, defects) => ExitCase.Error(Errors.UnhandledError(error, defects))
+        case ExitResult.Terminated(Nil)        => ExitCase.Error(Errors.TerminatedFiber)
+        case ExitResult.Terminated(t :: _)     => ExitCase.Error(t)
+      }
+      release(a, exitCase)
+        .catchAll(IO.terminate(_))
+    }(use)
+
+  override def uncancelable[A](fa: Task[A]): Task[A] =
+    fa.uninterruptibly
+
+  override def guarantee[A](fa: Task[A])(finalizer: Task[Unit]): Task[A] =
+    fa.ensuring(finalizer.catchAll(IO.terminate(_)))
 }
 
 private class CatsMonad[E] extends Monad[IO[E, ?]] {
@@ -96,4 +127,17 @@ private class CatsAlternative[E: Monoid] extends CatsMonadError[E] with Alternat
 trait CatsBifunctor extends Bifunctor[IO] {
   override def bimap[A, B, C, D](fab: IO[A, B])(f: A => C, g: B => D): IO[C, D] =
     fab.bimap(f, g)
+}
+
+import scalaz.zio._
+
+object App extends App {
+  // print + 1000 empty flatMaps
+  def worker(i: Int) =
+    (IO.sync(println(s"running $i")) *> IO.async((cb: Callback[Nothing, Unit]) => cb(ExitResult.Completed(())))).forever
+
+  override def run(args: List[String]): IO[Nothing, ExitStatus] =
+    IO.traverse(1 to 50)(worker(_).fork)
+      .flatMap(Fiber.joinAll(_))
+      .const(ExitStatus.ExitNow(0))
 }

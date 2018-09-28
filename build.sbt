@@ -82,7 +82,7 @@ lazy val interop = crossProject(JSPlatform, JVMPlatform)
   .settings(
     libraryDependencies ++= Seq(
       "org.scalaz"    %%% "scalaz-core"               % "7.2.+"  % Optional,
-      "org.typelevel" %%% "cats-effect"               % "0.10.1" % Optional,
+      "org.typelevel" %%% "cats-effect"               % "1.0.0"  % Optional,
       "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"  % Test,
       "co.fs2"        %%% "fs2-core"                  % "0.10.5" % Test
     ),
@@ -102,9 +102,9 @@ lazy val interopCatsLaws = project.module
   .settings(
     skip in publish := true,
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"          % "0.10.1" % Test,
-      "org.typelevel"              %% "cats-testkit"              % "1.2.0"  % Test,
-      "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"  % Test
+      "org.typelevel"              %% "cats-effect-laws"          % "1.0.0" % Test,
+      "org.typelevel"              %% "cats-testkit"              % "1.3.1" % Test,
+      "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8" % Test
     ),
     dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test,
     scalacOptions in Test ++= Seq("-Yrangepos")
@@ -120,7 +120,7 @@ lazy val benchmarks = project.module
         "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
         "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
         "io.monix"       %% "monix"         % "3.0.0-RC1",
-        "org.typelevel"  %% "cats-effect"   % "1.0.0-RC2"
+        "org.typelevel"  %% "cats-effect"   % "1.0.0"
       )
   )
 
