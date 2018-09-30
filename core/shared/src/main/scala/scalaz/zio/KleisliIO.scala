@@ -197,7 +197,7 @@ object KleisliIO {
         catch {
           case e: KleisliIOError[_] => IO.fail[E](e.unsafeCoerce[E])
         }
-    }
+      }
   }
 
   /**
@@ -244,7 +244,7 @@ object KleisliIO {
         catch {
           case t: Throwable if catcher.isDefinedAt(t) =>
             throw new KleisliIOError(catcher(t))
-      }
+        }
     )
 
   /**
