@@ -12,9 +12,11 @@ package scalaz.zio
  * form `Throwable => IO[Nothing, Unit]`
  */
 sealed abstract class Async[+E, +A] { self =>
-  def fold[E1, B](f: A => ExitResult[E1, B],
-                  g: (E, List[Throwable]) => ExitResult[E1, B],
-                  h: List[Throwable] => ExitResult[E1, B]): Async[E1, B] =
+  def fold[E1, B](
+    f: A => ExitResult[E1, B],
+    g: (E, List[Throwable]) => ExitResult[E1, B],
+    h: List[Throwable] => ExitResult[E1, B]
+  ): Async[E1, B] =
     self match {
       case Async.Now(r)          => Async.Now(r.fold(f, g, h))
       case Async.MaybeLater(c)   => Async.MaybeLater(c)

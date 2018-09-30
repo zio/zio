@@ -14,8 +14,10 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     for up to 10 times $recurs10Retry
     """
 
-  def retryCollect[E, A, E1 >: E, S](io: IO[E, A],
-                                     retry: Schedule[E1, S]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
+  def retryCollect[E, A, E1 >: E, S](
+    io: IO[E, A],
+    retry: Schedule[E1, S]
+  ): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
     type State = retry.State
 
     def loop(state: State, ss: List[(Duration, S)]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] =
@@ -27,7 +29,7 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
               step =>
                 if (!step.cont) IO.now((Left(err), (step.delay, step.finish()) :: ss))
                 else loop(step.state, (step.delay, step.finish()) :: ss)
-          ),
+            ),
         suc => IO.now((Right(suc), ss))
       )
 
