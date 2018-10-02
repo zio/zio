@@ -143,7 +143,68 @@ private object BufferElement {
 }
 
 /*
-The classes below provide padding for contended fields in the RingBuffer layout, specifically `head`, `tail`, and `buf`.
+ * The classes below provide padding for contended fields in the RingBuffer layout,
+ * specifically `head`, `tail`, and `buf`.
+ *
+ * Unlike C, we don't have control over the layout of the object in memory.
+ * The layout is dynamic and is under control of the JVM which can shuffle
+ * fields to optimize the object's footprint. However, when the object is used
+ * in a concurrent setting having all fields densely packed may affect performance
+ * since certain concurrently modified fields can fall on the same cache-line and
+ * be subject to _False Sharing_. In such case we would like to space out _hot_ fields
+ * and thus make access more cache-friendly.
+ *
+ * On x86 one cache-line is 64KiB and we'd need to space out fields by at least *2*
+ * cache-lines because modern processors do pre-fetching, i.e. get the requested
+ * cache-line and the one after. Thus we need ~128KiB of space in-between hot fields.
+ *
+ * One solution could be just adding a bunch of Longs in-between hot fields, but if
+ * those are defined within a single class JVM will likely shuffle the longs and
+ * mess up the padding.
+ *
+ * There is a workaround that relies on the fact the fields of a super-class go
+ * before fields of a sub-class in the object's layout. So, a properly crafted
+ * inheritance chain can guarantee proper spacing of the hot fields.
+ *
+ * This is exactly what's happening below.
+ *
+ * **IMPORTANT** Current solution should work on x86-64, but may not work 100% as
+ * expected on other architectures. A proper solution would be to use something like
+ * [[@Contended]] annotation, but the problem is this is under [[sun.misc]] on Java 8,
+ * although OpenJDK moved it under [[jdk.internal.vm.annotation]] in later versions of
+ * Java.
+ *
+ * To illustrate the effect of such padding, here's an output for [[RingBuffer]]
+ * by JOL (truncated):
+ * scalaz.zio.lockfree.RingBuffer object internals:
+ * OFFSET  SIZE          TYPE DESCRIPTION
+ *     0     4                 (object header)
+ *     4     4                 (object header)
+ *     8     4                 (object header)
+ *    12     4                 int PadL1.p000
+ *    16     8                 long PadL1.p001
+ *    24     8                 long PadL1.p002
+ *   ...
+ *   120     8                 long PadL1.p014
+ * >>128     4    atomic.AtomicLong PaddedHead.head
+ *   132     4                  int PadL2.p100
+ *   136     8                 long PadL2.p101
+ *   ...
+ *   248     8                 long PadL2.p115
+ * >>256     4    atomic.AtomicLong PaddedHeadAndTail.tail
+ *   260     4                  int PadL3.p200
+ *   264     8                 long PadL3.p201
+ *   ...
+ *   376     8                 long PadL3.p215
+ *   384     4                  int PaddedHeadTailAndBuf.capacity
+ * >>388     4 AtomicReferenceArray PaddedHeadTailAndBuf.buf
+ *   392     8                 long LFQueueWithPaddedFields.p301
+ *   400     8                 long LFQueueWithPaddedFields.p302
+ *   ...
+ *   496     4                  int LFQueueWithPaddedFields.p314
+ *   500     4                  int RingBuffer.desiredCapacity
+ *   504     8                 long RingBuffer.idxMask
+ * Instance size: 512 bytes
  */
 private[lockfree] abstract class PadL1 {
   protected val p000: Int  = 0
