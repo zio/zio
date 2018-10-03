@@ -106,7 +106,7 @@ trait Schedule[-A, +B] { self =>
           update(a, s).flatMap { decision =>
             if (decision.cont) IO.now(decision)
             else self.initial.map(state => decision.copy(cont = true, state = state))
-      }
+          }
     )
 
   /**
@@ -125,7 +125,7 @@ trait Schedule[-A, +B] { self =>
               if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
               else IO.now(d)
             }
-      )
+          )
     )
 
   /**
@@ -234,7 +234,7 @@ trait Schedule[-A, +B] { self =>
             }
           case Right(v) =>
             that.update(a, v).map(_.bimap(Right(_), Right(_)))
-      }
+        }
     }
 
   /**
@@ -277,7 +277,7 @@ trait Schedule[-A, +B] { self =>
               step  <- update(a, s)
               step2 <- f(a, step)
             } yield step2
-      )
+          )
     )
 
   /**
@@ -311,7 +311,7 @@ trait Schedule[-A, +B] { self =>
             update(a, s).flatMap { step =>
               f(step.finish(), step.delay).map(d => step.delayed(_ => d))
             }
-      )
+          )
     )
 
   /**
@@ -412,7 +412,7 @@ trait Schedule[-A, +B] { self =>
           that.update(step1.finish(), s._2).map { step2 =>
             step1.combineWith(step2)(_ && _, _ + _).rightMap(_._2)
           }
-      }
+        }
     }
 
   /**
@@ -477,7 +477,7 @@ trait Schedule[-A, +B] { self =>
         a match {
           case Left(a)  => self.update(a, s._1).map(_.leftMap((_, s._2)).rightMap(Left(_)))
           case Right(c) => that.update(c, s._2).map(_.leftMap((s._1, _)).rightMap(Right(_)))
-      }
+        }
     }
 }
 
@@ -680,7 +680,7 @@ object Schedule {
 
                 Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
               }
-        }
+          }
       )
 
   /**

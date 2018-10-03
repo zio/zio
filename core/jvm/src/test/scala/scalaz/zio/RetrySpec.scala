@@ -29,7 +29,7 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
               step =>
                 if (!step.cont) IO.now((Left(err), (step.delay, step.finish()) :: ss))
                 else loop(step.state, (step.delay, step.finish()) :: ss)
-          ),
+            ),
         suc => IO.now((Right(suc), ss))
       )
 
