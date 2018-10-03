@@ -55,7 +55,7 @@ trait GenIO {
         genOfRace[E, A](io),
         genOfParallel[E, A](io)(genSuccess[E, A]),
         genOfLeftMaps[E, A](io)
-      )
+    )
     gen.flatMap(io => genTransformations(functions)(io))
   }
 
@@ -71,7 +71,7 @@ trait GenIO {
         genOfIdentityLeftMaps[E, A](io),
         genOfRace[E, A](io),
         genOfParallel[E, A](io)(genSuccess[E, A])
-      )
+    )
     gen.flatMap(io => genTransformations(functions)(io))
   }
 
