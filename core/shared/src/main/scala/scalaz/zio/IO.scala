@@ -318,7 +318,7 @@ sealed abstract class IO[+E, +A] { self =>
           case ExitResult.Failed(_, _)  => release(a)
           case ExitResult.Terminated(_) => release(a)
           case _                        => IO.unit
-        }
+      }
     )(use)
 
   final def managed(release: A => IO[Nothing, Unit]): Managed[E, A] =
@@ -335,7 +335,7 @@ sealed abstract class IO[+E, +A] { self =>
           case ExitResult.Completed(_)   => IO.unit
           case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
           case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
-        }
+      }
     )(_ => self)
 
   /**
@@ -450,12 +450,12 @@ sealed abstract class IO[+E, +A] { self =>
           last match {
             case None         => IO.fail(e)
             case Some(finish) => orElse(e, finish()).map(Left(_))
-          },
+        },
         a =>
           schedule.update(a, state).flatMap { step =>
             if (!step.cont) IO.now(Right(step.finish()))
             else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-          }
+        }
       )
 
     schedule.initial.flatMap(loop(None, _))
@@ -493,7 +493,7 @@ sealed abstract class IO[+E, +A] { self =>
               decision =>
                 if (decision.cont) IO.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
-            ),
+          ),
         succ => IO.now(Right(succ))
       )
 

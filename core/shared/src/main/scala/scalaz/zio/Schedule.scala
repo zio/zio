@@ -7,7 +7,7 @@ import scala.concurrent.duration.Duration
  * Defines a stateful, possibly effectful, recurring schedule of actions.
  *
  * A `Schedule[A, B]` consumes `A` values, and based on the inputs and the
- * internal state, decides whether to recur or conclude. Every decision is
+ * internal state, decides whether to continue or halt. Every decision is
  * accompanied by a (possibly zero) delay, and an output value of type `B`.
  *
  * Schedules compose in each of the following ways:
@@ -19,8 +19,8 @@ import scala.concurrent.duration.Duration
  * 3. Sequence, using the `<||>` operator, which runs the first schedule until
  *    it ends, and then switches over to the second schedule.
  *
- * Thanks to (1), `Schedule[A, B]` forms an applicative functor on the output
- * value `B`, allowing rich composition of different schedules.
+ * `Schedule[A, B]` forms a profunctor on `[A, B]`, an applicative functor on
+ * `B`, and a monoid, allowing rich composition of different schedules.
  */
 trait Schedule[-A, +B] { self =>
 
@@ -76,14 +76,14 @@ trait Schedule[-A, +B] { self =>
    * Returns a new schedule that loops this one forever, resetting the state
    * when this schedule is done.
    */
-  final def loop: Schedule[A, B] =
+  final def forever: Schedule[A, B] =
     updated(
       update =>
         (a, s) =>
           update(a, s).flatMap { decision =>
             if (decision.cont) IO.now(decision)
             else self.initial.map(state => decision.copy(cont = true, state = state))
-          }
+      }
     )
 
   /**
@@ -102,14 +102,14 @@ trait Schedule[-A, +B] { self =>
               if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
               else IO.now(d)
             }
-          )
+      )
     )
 
   /**
    * Returns a new schedule that continues this schedule so long as the predicate
    * is satisfied on the output value of the schedule.
    */
-  final def whileValue(f: B => Boolean): Schedule[A, B] =
+  final def whileOutput(f: B => Boolean): Schedule[A, B] =
     check[A, B]((_, b) => IO.now(f(b)))
 
   /**
@@ -123,7 +123,7 @@ trait Schedule[-A, +B] { self =>
    * Returns a new schedule that continues the schedule only until the predicate
    * is satisfied on the output value of the schedule.
    */
-  final def untilValue(f: B => Boolean): Schedule[A, B] = !whileValue(f)
+  final def untilOutput(f: B => Boolean): Schedule[A, B] = !whileOutput(f)
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
@@ -211,7 +211,7 @@ trait Schedule[-A, +B] { self =>
             }
           case Right(v) =>
             that.update(a, v).map(_.bimap(Right(_), Right(_)))
-        }
+      }
     }
 
   /**
@@ -240,9 +240,9 @@ trait Schedule[-A, +B] { self =>
    * Returns a new schedule that effectfully reconsiders the decision made by
    * this schedule.
    */
-  final def reconsiderM[A1 <: A, B1 >: B](
-    f: (A1, Schedule.Decision[State, B]) => IO[Nothing, Schedule.Decision[State, B1]]
-  ): Schedule[A1, B1] =
+  final def reconsiderM[A1 <: A, C](
+    f: (A1, Schedule.Decision[State, B]) => IO[Nothing, Schedule.Decision[State, C]]
+  ): Schedule[A1, C] =
     updated(
       update =>
         (
@@ -254,15 +254,15 @@ trait Schedule[-A, +B] { self =>
               step  <- update(a, s)
               step2 <- f(a, step)
             } yield step2
-          )
+      )
     )
 
   /**
    * Returns a new schedule that reconsiders the decision made by this schedule.
    */
-  final def reconsider[A1 <: A, B1 >: B](
-    f: (A1, Schedule.Decision[State, B]) => Schedule.Decision[State, B1]
-  ): Schedule[A1, B1] =
+  final def reconsider[A1 <: A, C](
+    f: (A1, Schedule.Decision[State, B]) => Schedule.Decision[State, C]
+  ): Schedule[A1, C] =
     reconsiderM((a, s) => IO.now(f(a, s)))
 
   /**
@@ -288,14 +288,14 @@ trait Schedule[-A, +B] { self =>
             update(a, s).flatMap { step =>
               f(step.finish(), step.delay).map(d => step.delayed(_ => d))
             }
-          )
+      )
     )
 
   /**
    * Returns a new schedule with the update function transformed by the
    * specified update transformer.
    */
-  final def updated[A1 <: A, B1 >: B](
+  final def updated[A1 <: A, B1](
     f: (
       (A, State) => IO[Nothing, Schedule.Decision[State, B]]
     ) => ((A1, State) => IO[Nothing, Schedule.Decision[State, B1]])
@@ -389,7 +389,7 @@ trait Schedule[-A, +B] { self =>
           that.update(step1.finish(), s._2).map { step2 =>
             step1.combineWith(step2)(_ && _, _ + _).rightMap(_._2)
           }
-        }
+      }
     }
 
   /**
@@ -401,6 +401,61 @@ trait Schedule[-A, +B] { self =>
    * An alias for `<<<`
    */
   final def compose[C](that: Schedule[C, A]): Schedule[C, B] = self <<< that
+
+  /**
+   * Puts this schedule into the first element of a tuple, and passes along
+   * another value unchanged as the second element of the tuple.
+   */
+  final def first[C]: Schedule[(A, C), (B, C)] = self *** Schedule.identity[C]
+
+  /**
+   * Puts this schedule into the second element of a tuple, and passes along
+   * another value unchanged as the first element of the tuple.
+   */
+  final def second[C]: Schedule[(C, A), (C, B)] = Schedule.identity[C] *** self
+
+  /**
+   * Puts this schedule into the first element of a either, and passes along
+   * another value unchanged as the second element of the either.
+   */
+  final def left[C]: Schedule[Either[A, C], Either[B, C]] = self +++ Schedule.identity[C]
+
+  /**
+   * Puts this schedule into the second element of a either, and passes along
+   * another value unchanged as the first element of the either.
+   */
+  final def right[C]: Schedule[Either[C, A], Either[C, B]] = Schedule.identity[C] +++ self
+
+  /**
+   * Split the input
+   */
+  final def ***[C, D](that: Schedule[C, D]): Schedule[(A, C), (B, D)] =
+    new Schedule[(A, C), (B, D)] {
+      type State = (self.State, that.State)
+      val initial = self.initial.seq(that.initial)
+      val update = (a: (A, C), s: State) =>
+        self.update(a._1, s._1).seqWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, _ max _))
+    }
+
+  /**
+   * Chooses between two schedules with a common output.
+   */
+  final def |||[B1 >: B, C](that: Schedule[C, B1]): Schedule[Either[A, C], B1] =
+    (self +++ that).map(_.merge)
+
+  /**
+   * Chooses between two schedules with different outputs.
+   */
+  final def +++[C, D](that: Schedule[C, D]): Schedule[Either[A, C], Either[B, D]] =
+    new Schedule[Either[A, C], Either[B, D]] {
+      type State = (self.State, that.State)
+      val initial = self.initial.seq(that.initial)
+      val update = (a: Either[A, C], s: State) =>
+        a match {
+          case Left(a)  => self.update(a, s._1).map(_.leftMap((_, s._2)).rightMap(Left(_)))
+          case Right(c) => that.update(c, s._2).map(_.leftMap((s._1, _)).rightMap(Right(_)))
+      }
+    }
 }
 
 object Schedule {
@@ -506,13 +561,14 @@ object Schedule {
     identity[A].logInput(f)
 
   /**
-   * A schedule that recurs the specified number of times, producing a count
-   * of inputs.
+   * A schedule that recurs the specified number of times. Returns the number
+   * of repetitions so far.
    */
-  final def recurs(n: Int): Schedule[Any, Int] = forever.whileValue(_ < n)
+  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ < n)
 
   /**
-   * A schedule that recurs forever, and computes the time since the beginning.
+   * A schedule that recurs forever without delay. Returns the elapsed time
+   * since the schedule began.
    */
   final val elapsed: Schedule[Any, Duration] = {
     val nanoTime = system.nanoTime
@@ -527,24 +583,41 @@ object Schedule {
   }
 
   /**
-   * A schedule that will recur until the specified duration elapses.
+   * A schedule that will recur forever with no delay, returning the duration
+   * between steps. You can chain this onto the end of schedules to find out
+   * what their delay is, e.g. `Schedule.spaced(1.second) >>> Schedule.delay`.
    */
-  final def duration(duration: Duration): Schedule[Any, Duration] =
-    elapsed.untilValue(_.toNanos >= duration.toNanos)
+  final val delay: Schedule[Any, Duration] =
+    forever.reconsider[Any, Duration]((_, d) => d.copy(finish = () => d.delay))
 
   /**
-   * A schedule that always recurs, and computes the output through
-   * recured application of a function to a base value.
+   * A schedule that will recur forever with no delay, returning the decision
+   * from the steps. You can chain this onto the end of schedules to find out
+   * what their decision is, e.g. `Schedule.recurs(5) >>> Schedule.decision`.
+   */
+  final val decision: Schedule[Any, Boolean] =
+    forever.reconsider[Any, Boolean]((_, d) => d.copy(finish = () => d.cont))
+
+  /**
+   * A schedule that will recur until the specified duration elapses. Returns
+   * the total elapsed time.
+   */
+  final def duration(duration: Duration): Schedule[Any, Duration] =
+    elapsed.untilOutput(_.toNanos >= duration.toNanos)
+
+  /**
+   * A schedule that always recurs without delay, and computes the output
+   * through recured application of a function to a base value.
    */
   final def unfold[A](a: => A)(f: A => A): Schedule[Any, A] =
-    Schedule[A, Any, A](
-      IO.point(a),
-      (_, a) =>
-        IO.now {
-          val a2 = f(a)
-          Decision.cont(Duration.Zero, a2, a2)
-        }
-    )
+    unfoldM(IO.point(a))(f.andThen(IO.point[A](_)))
+
+  /**
+   * A schedule that always recurs without delay, and computes the output
+   * through recured application of a function to a base value.
+   */
+  final def unfoldM[A](a: IO[Nothing, A])(f: A => IO[Nothing, A]): Schedule[Any, A] =
+    Schedule[A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(Duration.Zero, a, a)))
 
   /**
    * A schedule that waits for the specified amount of time between each
@@ -558,8 +631,8 @@ object Schedule {
     forever.delayed(_ + interval)
 
   /**
-   * A schedule that recurs on a fixed interval. Returns the amount of time
-   * since the schedule began.
+   * A schedule that recurs on a fixed interval. Returns the number of
+   * repetitions of the schedule so far.
    *
    * If the action takes run between updates longer than the interval, then the
    * action will be run immediately, but re-runs will not "pile up".
@@ -584,12 +657,13 @@ object Schedule {
 
                 Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
               }
-          }
+        }
       )
 
   /**
    * A schedule that always recurs, increasing delays by summing the
-   * preceeding two delays (similar to the fibonacci sequence).
+   * preceeding two delays (similar to the fibonacci sequence). Returns the
+   * current duration between recurrences.
    */
   final def fibonacci(one: Duration): Schedule[Any, Duration] =
     delayed(unfold[(Duration, Duration)]((Duration.Zero, one)) {
@@ -599,7 +673,7 @@ object Schedule {
   /**
    * A schedule that always recurs, but will wait a certain amount between
    * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
-   * repetitions so far.
+   * repetitions so far. Returns the current duration between recurrences.
    */
   final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
     delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
