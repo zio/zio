@@ -40,6 +40,29 @@ trait Schedule[-A, +B] { self =>
   val update: (A, State) => IO[Nothing, Schedule.Decision[State, B]]
 
   /**
+   * Runs the schedule on the provided list of inputs, returning a list of
+   * durations and outputs. This method is useful for testing complicated
+   * schedules. Only as many inputs will be used as necessary to run the
+   * schedule to completion, and additional inputs will be discarded.
+   */
+  def run(as: Iterable[A]): IO[Nothing, List[(Duration, B)]] = {
+    def run0(as: List[A], s: State, acc: List[(Duration, B)]): IO[Nothing, List[(Duration, B)]] =
+      as match {
+        case Nil => IO.now(acc)
+        case a :: as =>
+          self.update(a, s).flatMap {
+            case Schedule.Decision(cont, delay, s, finish) =>
+              val acc2 = (delay -> finish()) :: acc
+
+              if (cont) run0(as, s, acc2)
+              else IO.now(acc2)
+          }
+      }
+
+    self.initial.flatMap(s => run0(as.toList, s, Nil)).map(_.reverse)
+  }
+
+  /**
    * Returns a new schedule that inverts the decision to continue.
    */
   final def unary_! : Schedule[A, B] =
