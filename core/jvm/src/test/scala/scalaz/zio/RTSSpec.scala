@@ -97,6 +97,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     mergeAllEmpty                           $testMergeAllEmpty
     reduceAll                               $testReduceAll
     reduceAll Empty List                    $testReduceAllEmpty
+    timeout of failure                      ${upTo(5.seconds)(testTimeoutFailure)}
 
   RTS regression tests
     regression 1                            $testDeadlockRegression
@@ -576,6 +577,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(
       IO.reduceAll[Nothing, Int](IO.point(1), Seq.empty)(_ + _)
     ) must_=== 1
+
+  def testTimeoutFailure =
+    unsafeRun(
+      IO.fail("Uh oh").timeout[Option[Int]](None)(Some(_))(1.hour)
+    ) must (throwA[UnhandledError])
 
   def testDeadlockRegression = {
 
