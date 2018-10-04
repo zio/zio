@@ -529,7 +529,7 @@ sealed abstract class IO[+E, +A] { self =>
       .map(f)
       .attempt
       .raceWith[E, Either[E, B], B, B](IO.now[B](z).delay(duration))(
-        (either: Either[E, B], right: Fiber[E, B]) => either.fold(err => right.interrupt *> IO.fail(err), IO.now(_)),
+        (either: Either[E, B], right: Fiber[E, B]) => right.interrupt *> either.fold(IO.fail, IO.now),
         (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
       )
 
