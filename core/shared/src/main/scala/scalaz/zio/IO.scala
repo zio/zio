@@ -524,10 +524,14 @@ sealed abstract class IO[+E, +A] { self =>
    * IO.point(1).timeout(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
-  final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] = {
-    val timer = IO.now[B](z)
-    self.map(f).race(timer.delay(duration))
-  }
+  final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
+    self
+      .map(f)
+      .attempt
+      .raceWith[E, Either[E, B], B, B](IO.now[B](z).delay(duration))(
+        (either: Either[E, B], right: Fiber[E, B]) => either.fold(err => right.interrupt *> IO.fail(err), IO.now(_)),
+        (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
+      )
 
   /**
    * Returns a new action that executes this one and times the execution.
