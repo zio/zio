@@ -124,6 +124,14 @@ lazy val benchmarks = project.module
       )
   )
 
+lazy val concurrencyTests = project.module
+  .in(file("concurrency-tests"))
+  .dependsOn(coreJVM)
+  .enablePlugins(JCStressPlugin)
+  .settings(
+    skip in publish := true
+  )
+
 lazy val microsite = project.module
   .dependsOn(coreJVM)
   .enablePlugins(MicrositesPlugin)
