@@ -7,7 +7,9 @@ import cats.{ effect, _ }
 
 import scala.util.control.NonFatal
 
-object catz extends CatsInstances
+object catz extends CatsInstances {
+  val console = interop.console.cats
+}
 
 abstract class CatsInstances extends CatsInstances1 {
   implicit val taskEffectInstances: Effect[Task] with SemigroupK[Task] =

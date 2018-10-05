@@ -5,7 +5,7 @@ package interop
 import Tags.Parallel
 import scalaz72.ParIO
 
-object scalaz72 extends IOInstances {
+object scalaz72 extends IOInstances with Scalaz72Platform {
   type ParIO[E, A] = IO[E, A] @@ Parallel
 }
 
