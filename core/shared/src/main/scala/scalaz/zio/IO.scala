@@ -984,12 +984,12 @@ object IO {
     v.fold[IO[Unit, A]](IO.fail(()))(IO.now)
 
   /**
-   * Lifts a `Try` into an `IO`.
+   * Imports a `Try` into an `IO`.
    */
-  final def fromTry[A](v: scala.util.Try[A]): IO[Throwable, A] =
-    v match {
+  final def fromTry[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
+    sync(effect).flatMap {
       case scala.util.Success(v) => IO.now(v)
-      case scala.util.Failure(v) => IO.fail(v)
+      case scala.util.Failure(t) => IO.fail(t)
     }
 
   /**
