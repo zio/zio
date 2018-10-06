@@ -139,6 +139,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue, fill it with one offer waiting, calling `takeUpTo` should free the waiting offer ${upTo(
       30.second
     )(e46)}
+    make a bounded queue with capacity 2, fill it then offer 3 more items, calling `takeAll` 3 times should return the first 2 items, then the next 2, then the last one ${upTo(
+      30.second
+    )(e47)}
 
     """
 
@@ -629,6 +632,19 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v1    <- queue.takeUpTo(2)
       _     <- f.join
     } yield v1 must_=== List(1, 2)
+  )
+
+  def e47 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](2)
+      _     <- queue.offerAll(List(1, 2))
+      f     <- queue.offerAll(List(3, 4, 5)).fork
+      _     <- waitForSize(queue, 5)
+      v1    <- queue.takeAll
+      v2    <- queue.takeAll
+      v3    <- queue.takeAll
+      _     <- f.join
+    } yield (v1 must_=== List(1, 2)).and(v2 must_=== List(3, 4)).and(v3 must_=== List(5))
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
