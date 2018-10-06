@@ -48,30 +48,25 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
 
   def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
     val (newSurplus, _, completedPutters) =
-      surplus.putters.foldLeft((surplus, n, IO.unit)) {
-        case ((surplus, cpt, io), _) if cpt == 0 => (surplus, cpt, io)
+      surplus.putters.foldLeft((Surplus(surplus.queue, IQueue.empty), n, IO.unit)) {
+        case ((surplus, cpt, io), p) if cpt == 0 =>
+          (Surplus(surplus.queue, surplus.putters.enqueue(p)), cpt, io)
         case ((surplus, cpt, io), (values, promise)) =>
           val (add, rest) = values.splitAt(cpt)
           if (rest.isEmpty)
             (
               Surplus(
                 surplus.queue.enqueue(add.toList),
-                surplus.putters.filterNot(_ == ((values, promise)))
+                surplus.putters
               ),
-              cpt - n, //if we have more elements in putters we can complete the next elements until cpt = 0
+              cpt - add.size, // if we have more elements in putters we can complete the next elements until cpt = 0
               io *> promise.complete(()).void
             )
           else
             (
               Surplus(
                 surplus.queue.enqueue(add.toList),
-                IQueue.empty.enqueue(
-                  surplus.putters.map {
-                    case (v, p) =>
-                      if ((v -> p) == (v -> promise)) (rest, promise)
-                      else (v, p)
-                  }
-                )
+                surplus.putters.enqueue((rest, promise))
               ),
               0,
               io
