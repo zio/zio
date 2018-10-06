@@ -2,7 +2,6 @@ package scalaz.ioqueue
 
 // Copyright (C) 2018 John A. De Goes. All rights reserved.
 
-import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
 import Queue.internal._
 import scalaz.zio.{ IO, Promise, Ref }
@@ -41,38 +40,45 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   final def takeAll: IO[Nothing, List[A]] =
     IO.flatten(ref.modify[IO[Nothing, List[A]]] {
       case Surplus(values, putters) =>
-        val (newState, promises) = movePuttersToQueue(Surplus(IQueue.empty, putters))
-        (IO.parAll(promises) *> IO.point(values.toList), newState)
+        val (newState, promises) = moveNPutters(Surplus(IQueue.empty, putters), values.size)
+        (promises *> IO.point(values.toList), newState)
       case state @ Deficit(_)       => (IO.point(List.empty[A]), state)
       case state @ Shutdown(errors) => (IO.terminate0(errors), state)
     })
 
-  @tailrec
-  private def movePuttersToQueue(
-    surplus: Surplus[A],
-    promises: List[IO[Nothing, Unit]] = List.empty
-  ): (Surplus[A], List[IO[Nothing, Unit]]) =
-    if (surplus.queue.size < capacity && surplus.putters.nonEmpty) {
-      val (newSurplus, p) = movePutterToQueue(surplus)
-      movePuttersToQueue(newSurplus, p :: promises)
-    } else {
-      (surplus, promises)
-    }
-
-  private def movePutterToQueue(surplus: Surplus[A]): (Surplus[A], IO[Nothing, Unit]) =
-    surplus.putters.dequeueOption match {
-      case Some(((head :: Nil, putter), putters)) =>
-        (Surplus(surplus.queue.enqueue(head), putters), putter.complete(()).void)
-      case Some(((head :: tail, putter), putters)) =>
-        (
-          Surplus(
-            surplus.queue.enqueue(head),
-            IQueue.empty.enqueue((tail, putter) :: putters.toList)
-          ),
-          IO.unit
-        )
-      case _ => (surplus, IO.unit)
-    }
+  def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
+    val (newSurplus, _, completedPutters) =
+      surplus.putters.foldLeft((surplus, n, IO.unit)) {
+        case ((surplus, cpt, io), _) if cpt == 0 => (surplus, cpt, io)
+        case ((surplus, cpt, io), (values, promise)) =>
+          val (add, rest) = values.splitAt(cpt)
+          if (rest.isEmpty)
+            (
+              Surplus(
+                surplus.queue.enqueue(add.toList),
+                surplus.putters.filterNot(_ == ((values, promise)))
+              ),
+              cpt - n, //if we have more elements in putters we can complete the next elements until cpt = 0
+              io *> promise.complete(()).void
+            )
+          else
+            (
+              Surplus(
+                surplus.queue.enqueue(add.toList),
+                IQueue.empty.enqueue(
+                  surplus.putters.map {
+                    case (v, p) =>
+                      if ((v -> p) == (v -> promise)) (rest, promise)
+                      else (v, p)
+                  }
+                )
+              ),
+              0,
+              io
+            )
+      }
+    (newSurplus, completedPutters)
+  }
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
@@ -86,14 +92,14 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
         values.dequeueOption match {
           case None if putters.isEmpty => (IO.now(false), Deficit(IQueue.empty.enqueue(p)))
           case None =>
-            val (newSurplus, promise) = movePutterToQueue(Surplus(values, putters))
+            val (newSurplus, promise) = moveNPutters(Surplus(values, putters), 1)
             newSurplus.queue.dequeueOption match {
               case None => (promise *> IO.now(false), newSurplus)
               case Some((a, values)) =>
                 (promise *> p.complete(a), Surplus(values, newSurplus.putters))
             }
           case Some((a, values)) =>
-            val (newSurplus, promise) = movePutterToQueue(Surplus(values, putters))
+            val (newSurplus, promise) = moveNPutters(Surplus(values, putters), 1)
             (promise *> p.complete(a), newSurplus)
         }
       case (p, state @ Shutdown(errors)) => (interruptPromise(p, errors), state)
@@ -113,8 +119,8 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
     IO.flatten(ref.modify[IO[Nothing, List[A]]] {
       case Surplus(values, putters) =>
         val (q1, q2)             = values.splitAt(max)
-        val (newState, promises) = movePuttersToQueue(Surplus(q2, putters))
-        (IO.parAll(promises) *> IO.point(q1.toList), newState)
+        val (newState, promises) = moveNPutters(Surplus(q2, putters), q1.size)
+        (promises *> IO.point(q1.toList), newState)
       case state @ Deficit(_)       => (IO.now(Nil), state)
       case state @ Shutdown(errors) => (IO.terminate0(errors), state)
     })
