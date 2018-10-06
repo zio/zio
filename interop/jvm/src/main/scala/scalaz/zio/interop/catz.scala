@@ -7,7 +7,7 @@ import cats.{ effect, _ }
 
 import scala.util.control.NonFatal
 
-object catz extends CatsInstances {
+abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
 }
 
