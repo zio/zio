@@ -130,6 +130,16 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 3, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
       1.second
     )(e43)}
+    make a bounded queue, fill it with one offer waiting, calling `take` should free the waiting offer ${upTo(
+      30.second
+    )(e44)}
+    make a bounded queue, fill it with one offer waiting, calling `takeAll` should free the waiting offer ${upTo(
+      30.second
+    )(e45)}
+    make a bounded queue, fill it with one offer waiting, calling `takeUpTo` should free the waiting offer ${upTo(
+      30.second
+    )(e46)}
+
     """
 
   def e1 = unsafeRun(
@@ -586,6 +596,40 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.size
       } yield ()
     ) must_=== ExitResult.Terminated(Nil)
+
+  def e44 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](2)
+      _     <- queue.offerAll(List(1, 2))
+      f     <- queue.offer(3).fork
+      _     <- waitForSize(queue, 3)
+      v1    <- queue.take
+      v2    <- queue.take
+      _     <- f.join
+    } yield (v1 must_=== 1).and(v2 must_=== 2)
+  )
+
+  def e45 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](2)
+      _     <- queue.offerAll(List(1, 2))
+      f     <- queue.offer(3).fork
+      _     <- waitForSize(queue, 3)
+      v1    <- queue.takeAll
+      _     <- f.join
+    } yield v1 must_=== List(1, 2)
+  )
+
+  def e46 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](2)
+      _     <- queue.offerAll(List(1, 2))
+      f     <- queue.offer(3).fork
+      _     <- waitForSize(queue, 3)
+      v1    <- queue.takeUpTo(2)
+      _     <- f.join
+    } yield v1 must_=== List(1, 2)
+  )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
