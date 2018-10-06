@@ -987,7 +987,7 @@ object IO {
    * Imports a `Try` into an `IO`.
    */
   final def fromTry[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
-    sync(effect).flatMap {
+    syncThrowable(effect).flatMap {
       case scala.util.Success(v) => IO.now(v)
       case scala.util.Failure(t) => IO.fail(t)
     }
