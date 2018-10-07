@@ -3,6 +3,8 @@ import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
 import xerial.sbt.Sonatype._
 
+name := "scalaz-zio"
+
 inThisBuild(
   List(
     organization := "org.scalaz",
