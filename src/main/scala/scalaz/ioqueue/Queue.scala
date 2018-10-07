@@ -40,36 +40,62 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   final def takeAll: IO[Nothing, List[A]] =
     IO.flatten(ref.modify[IO[Nothing, List[A]]] {
       case Surplus(values, putters) =>
-        (IO.point(values.toList), Surplus(IQueue.empty[A], putters))
+        val (newState, promises) = moveNPutters(Surplus(IQueue.empty, putters), values.size)
+        (promises *> IO.point(values.toList), newState)
       case state @ Deficit(_)       => (IO.point(List.empty[A]), state)
       case state @ Shutdown(errors) => (IO.terminate0(errors), state)
     })
+
+  final private def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
+    val (newSurplus, _, completedPutters) =
+      surplus.putters.foldLeft((Surplus(surplus.queue, IQueue.empty), n, IO.unit)) {
+        case ((surplus, 0, io), p) =>
+          (Surplus(surplus.queue, surplus.putters.enqueue(p)), 0, io)
+        case ((surplus, cpt, io), (values, promise)) =>
+          val (add, rest) = values.splitAt(cpt)
+          if (rest.isEmpty)
+            (
+              Surplus(
+                surplus.queue.enqueue(add.toList),
+                surplus.putters
+              ),
+              cpt - add.size, // if we have more elements in putters we can complete the next elements until cpt = 0
+              io *> promise.complete(()).void
+            )
+          else
+            (
+              Surplus(
+                surplus.queue.enqueue(add.toList),
+                surplus.putters.enqueue((rest, promise))
+              ),
+              0,
+              io
+            )
+      }
+    (newSurplus, completedPutters)
+  }
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
    */
-  final def take: IO[Nothing, A] = {
+  final val take: IO[Nothing, A] = {
 
     val acquire: (Promise[Nothing, A], State[A]) => (IO[Nothing, Boolean], State[A]) = {
-      case (p, Deficit(takers)) =>
-        (IO.now(false), Deficit(takers.enqueue(p)))
+      case (p, Deficit(takers)) => (IO.now(false), Deficit(takers.enqueue(p)))
       case (p, Surplus(values, putters)) =>
         values.dequeueOption match {
+          case None if putters.isEmpty => (IO.now(false), Deficit(IQueue.empty.enqueue(p)))
           case None =>
-            putters.dequeueOption match {
-              case None =>
-                (IO.now(false), Deficit(IQueue.empty.enqueue(p)))
-              case Some(((a, putter), putters)) if a.tail.isEmpty =>
-                (putter.complete(()) *> p.complete(a.head), Surplus(IQueue.empty, putters))
-              case Some(((a, putter), putters)) =>
-                (
-                  p.complete(a.head),
-                  Surplus(IQueue.empty, IQueue.empty.enqueue((a.tail, putter) :: putters.toList))
-                )
+            val (newSurplus, promise) = moveNPutters(Surplus(values, putters), 1)
+            newSurplus.queue.dequeueOption match {
+              case None => (promise *> IO.now(false), newSurplus)
+              case Some((a, values)) =>
+                (promise *> p.complete(a), Surplus(values, newSurplus.putters))
             }
           case Some((a, values)) =>
-            (p.complete(a), Surplus(values, putters))
+            val (newSurplus, promise) = moveNPutters(Surplus(values, putters), 1)
+            (promise *> p.complete(a), newSurplus)
         }
       case (p, state @ Shutdown(errors)) => (interruptPromise(p, errors), state)
     }
@@ -87,9 +113,9 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   final def takeUpTo(max: Int): IO[Nothing, List[A]] =
     IO.flatten(ref.modify[IO[Nothing, List[A]]] {
       case Surplus(values, putters) =>
-        val (q1, q2) = values.splitAt(max)
-
-        (IO.point(q1.toList), Surplus(q2, putters))
+        val (q1, q2)             = values.splitAt(max)
+        val (newState, promises) = moveNPutters(Surplus(q2, putters), q1.size)
+        (promises *> IO.point(q1.toList), newState)
       case state @ Deficit(_)       => (IO.now(Nil), state)
       case state @ Shutdown(errors) => (IO.terminate0(errors), state)
     })
