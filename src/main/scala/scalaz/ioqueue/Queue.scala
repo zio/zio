@@ -46,7 +46,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
       case state @ Shutdown(errors) => (IO.terminate0(errors), state)
     })
 
-  def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
+  final private def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
     val (newSurplus, _, completedPutters) =
       surplus.putters.foldLeft((Surplus(surplus.queue, IQueue.empty), n, IO.unit)) {
         case ((surplus, 0, io), p) =>
@@ -79,7 +79,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
    */
-  final def take: IO[Nothing, A] = {
+  final val take: IO[Nothing, A] = {
 
     val acquire: (Promise[Nothing, A], State[A]) => (IO[Nothing, Boolean], State[A]) = {
       case (p, Deficit(takers)) => (IO.now(false), Deficit(takers.enqueue(p)))
