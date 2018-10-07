@@ -115,19 +115,19 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 1, `offer` a value twice, then `shutdown` the queue, the second fork should terminate ${upTo(
       1.second
     )(e38)}
-    make a bounded queue of size 3, `shutdown` the queue, then `offer` an element, `offer` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then `offer` an element, `offer` should terminate ${upTo(
       1.second
     )(e39)}
-    make a bounded queue of size 3, `shutdown` the queue, then `take` an element, `take` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then `take` an element, `take` should terminate ${upTo(
       1.second
     )(e40)}
-    make a bounded queue of size 3, `shutdown` the queue, then `takeAll` elements, `takeAll` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then `takeAll` elements, `takeAll` should terminate ${upTo(
       1.second
     )(e41)}
-    make a bounded queue of size 3, `shutdown` the queue, then `takeUpTo` 1 element, `takeUpTo` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then `takeUpTo` 1 element, `takeUpTo` should terminate ${upTo(
       1.second
     )(e42)}
-    make a bounded queue of size 3, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
       1.second
     )(e43)}
     make a bounded queue, fill it with one offer waiting, calling `take` should free the waiting offer ${upTo(
@@ -548,7 +548,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     unsafeRunSync(
       for {
         queue <- Queue.bounded[Int](1)
-        _     <- queue.offer(1).fork
+        _     <- queue.offer(1)
         f     <- queue.offer(1).fork
         _     <- waitForSize(queue, 2)
         _     <- queue.shutdown
