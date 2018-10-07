@@ -49,8 +49,8 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
   def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
     val (newSurplus, _, completedPutters) =
       surplus.putters.foldLeft((Surplus(surplus.queue, IQueue.empty), n, IO.unit)) {
-        case ((surplus, cpt, io), p) if cpt == 0 =>
-          (Surplus(surplus.queue, surplus.putters.enqueue(p)), cpt, io)
+        case ((surplus, 0, io), p) =>
+          (Surplus(surplus.queue, surplus.putters.enqueue(p)), 0, io)
         case ((surplus, cpt, io), (values, promise)) =>
           val (add, rest) = values.splitAt(cpt)
           if (rest.isEmpty)
