@@ -92,30 +92,51 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 3, `take` a value in a fork, then `shutdown` the queue,
      the fork should terminate ${upTo(1.second)(e36)}
     make a bounded queue of size 3, `take` a value in a fork, then `shutdown` the queue with a list of exceptions,
-    the fork should terminate with the same list of exceptions ${upTo(1.second)(e37)}
-    make a bounded queue of size 1, `offer` a value twice, then `shutdown` the queue,
-     the second fork should terminate ${upTo(1.second)(e38)}
-    make a bounded queue of size 3, `shutdown` the queue, then `offer` an element,
-     `offer` should terminate ${upTo(1.second)(e39)}
-    make a bounded queue of size 3, `shutdown` the queue, then `take` an element,
-     `take` should terminate ${upTo(1.second)(e40)}
-    make a bounded queue of size 3, `shutdown` the queue, then `takeAll` elements,
-      `takeAll` should terminate ${upTo(1.second)(e41)}
-    make a bounded queue of size 3, `shutdown` the queue, then `takeUpTo` 1 element,
-     `takeUpTo` should terminate ${upTo(1.second)(e42)}
-    make a bounded queue of size 3, `shutdown` the queue, then get the `size`,
-     `size` should terminate ${upTo(1.second)(e43)}
-    make a sliding queue of size 3, offering 4 values should return true and
-     the first should be dropped ${upTo(1.second)(e44)}
-    make a sliding queue of size 0, offering a value should return false${upTo(1.second)(e45)}
+      the fork should terminate with the same list of exceptions ${upTo(1.second)(e37)}
+    make a bounded queue of size 1, `offer` a value twice, then `shutdown` the queue, the second fork should terminate ${upTo(
+      1.second
+    )(e38)}
+    make a bounded queue of size 1, `shutdown` the queue, then `offer` an element, `offer` should terminate ${upTo(
+      1.second
+    )(e39)}
+    make a bounded queue of size 1, `shutdown` the queue, then `take` an element, `take` should terminate ${upTo(
+      1.second
+    )(e40)}
+    make a bounded queue of size 1, `shutdown` the queue, then `takeAll` elements, `takeAll` should terminate ${upTo(
+      1.second
+    )(e41)}
+    make a bounded queue of size 1, `shutdown` the queue, then `takeUpTo` 1 element, `takeUpTo` should terminate ${upTo(
+      1.second
+    )(e42)}
+    make a bounded queue of size 1, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
+      1.second
+    )(e43)}
+    make a bounded queue, fill it with one offer waiting, calling `take` should free the waiting offer ${upTo(
+      30.second
+    )(e44)}
+    make a bounded queue, fill it with one offer waiting, calling `takeAll` should free the waiting offer ${upTo(
+      30.second
+    )(e45)}
+    make a bounded queue, fill it with one offer waiting, calling `takeUpTo` should free the waiting offer ${upTo(
+      30.second
+    )(e46)}
+    make a bounded queue with capacity 2, fill it then offer 3 more items, calling `takeAll` 3 times should return the first 2 items, then the next 2, then the last one ${upTo(
+      30.second
+    )(e47)}
+    make a sliding queue of size 3, offering 4 values should return true and the first should be dropped ${upTo(
+      1.second
+    )(e48)}
+    make a sliding queue of size 0, offering a value should return false${upTo(1.second)(e49)}
     make a sliding queue of size 100, offer values and retrieve in correct order ${upTo(1.second)(
-      e46
+      e50
     )}
-    make a sliding queue, forking takers, offering values and joining fibers
-     should return correct value ${upTo(1.second)(e47)}
+    make a sliding queue, forking takers, offering values and joining fibers should return correct value ${upTo(
+      1.second
+    )(e51)}
     make a sliding queue of size 2, offering 6 values the queue slides correctly ${upTo(1.second)(
-      e48
+      e52
     )}
+
     """
 
   def e1 = unsafeRun(
@@ -520,8 +541,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     unsafeRunSync(
       for {
         queue <- Queue.bounded[Int](1)
-        _     <- queue.offer(1).fork
+        _     <- queue.offer(1)
         f     <- queue.offer(1).fork
+        _     <- waitForSize(queue, 2)
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
@@ -574,6 +596,53 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e44 = unsafeRun(
     for {
+      queue <- Queue.bounded[Int](2)
+      _     <- queue.offerAll(List(1, 2))
+      f     <- queue.offer(3).fork
+      _     <- waitForSize(queue, 3)
+      v1    <- queue.take
+      v2    <- queue.take
+      _     <- f.join
+    } yield (v1 must_=== 1).and(v2 must_=== 2)
+  )
+
+  def e45 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](2)
+      _     <- queue.offerAll(List(1, 2))
+      f     <- queue.offer(3).fork
+      _     <- waitForSize(queue, 3)
+      v1    <- queue.takeAll
+      _     <- f.join
+    } yield v1 must_=== List(1, 2)
+  )
+
+  def e46 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](2)
+      _     <- queue.offerAll(List(1, 2))
+      f     <- queue.offer(3).fork
+      _     <- waitForSize(queue, 3)
+      v1    <- queue.takeUpTo(2)
+      _     <- f.join
+    } yield v1 must_=== List(1, 2)
+  )
+
+  def e47 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](2)
+      _     <- queue.offerAll(List(1, 2))
+      f     <- queue.offerAll(List(3, 4, 5)).fork
+      _     <- waitForSize(queue, 5)
+      v1    <- queue.takeAll
+      v2    <- queue.takeAll
+      v3    <- queue.takeAll
+      _     <- f.join
+    } yield (v1 must_=== List(1, 2)).and(v2 must_=== List(3, 4)).and(v3 must_=== List(5))
+  )
+
+  def e48 = unsafeRun(
+    for {
       queue <- Queue.sliding[Int](3)
       _     <- queue.offer(1)
       _     <- queue.offer(2)
@@ -583,15 +652,15 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     } yield (l must_=== List(2, 3, 4)).and(v1 must_=== true).and(v2 must_=== true)
   )
 
-  def e45 = unsafeRun(
+  def e49 = unsafeRun(
     for {
       queue <- Queue.sliding[Int](0)
-      _     <- queue.offer(14)
+      v     <- queue.offer(14)
       size  <- queue.size
-    } yield (size must_=== 0)
+    } yield (size must_=== 0).and(v must_=== true)
   )
 
-  def e46 = unsafeRun(
+  def e50 = unsafeRun(
     for {
       queue <- Queue.sliding[Int](100)
       _     <- queue.offer(1)
@@ -601,7 +670,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     } yield l must_=== List(1, 2, 3)
   )
 
-  def e47 = unsafeRun(
+  def e51 = unsafeRun(
     for {
       queue <- Queue.sliding[Int](5)
       f1 <- queue.take
@@ -612,7 +681,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     } yield v must_=== 3
   )
 
-  def e48 = unsafeRun(
+  def e52 = unsafeRun(
     for {
       queue <- Queue.sliding[Int](2)
       v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
