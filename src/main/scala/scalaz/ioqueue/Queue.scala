@@ -259,10 +259,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
             case Sliding =>
               (
                 p.complete(true),
-                Surplus(
-                  offerSlidingQueue(surplusValues.toList, values.enqueue(addToQueue.toList)),
-                  putters
-                )
+                Surplus(values.takeRight(capacity - as.size) ++ as.takeRight(capacity), putters)
               )
           }
         }
@@ -276,16 +273,6 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], strategy: SurplusStra
 
     Promise.bracket[Nothing, State[A], Boolean, Boolean](ref)(acquire)(release)
   }
-
-  private def offerSlidingQueue(items: List[A], acc: IQueue[A]): IQueue[A] =
-    items match {
-      case Nil => acc
-      case x :: tail =>
-        acc.dequeueOption match {
-          case Some(queue) => offerSlidingQueue(tail, queue._2.enqueue(x))
-          case None        => acc
-        }
-    }
 }
 
 object Queue {
