@@ -145,6 +145,10 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue, shut it down, create a shutdown hook completing a promise, the promise should be completed immediately ${upTo(
       30.second
     )(e55)}
+    make a dropping queue of size 0, offering a value should return false ${upTo(1.second)(e56)}
+    make a dropping queue of size 100, offer values up to 200 and retrieve up to 100 in correct order ${upTo(
+      1.second
+    )(e57)}
     """
 
   def e1 = unsafeRun(
@@ -728,6 +732,23 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- queue.onShutdown(p.complete(true).void)
       res   <- p.get
     } yield res must_=== true
+  )
+
+  def e56 =
+    unsafeRun(for {
+      queue <- Queue.dropping[Int](0)
+      v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
+      l     <- queue.takeAll
+      size  <- queue.size
+    } yield (size must_== 0).and(v1 must_=== true))
+
+  def e57 = unsafeRun(
+    for {
+      queue <- Queue.dropping[Int](100)
+      iter  = (1 to 200).toIterable
+      v1    <- queue.offerAll(iter)
+      l     <- queue.takeAll
+    } yield l must_=== (1 to 100).toList
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =

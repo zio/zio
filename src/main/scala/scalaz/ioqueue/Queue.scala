@@ -90,7 +90,7 @@ class Queue[A] private (
       case (p, Deficit(takers)) => (IO.now(false), Deficit(takers.enqueue(p)))
       case (p, Surplus(values, putters)) =>
         strategy match {
-          case Sliding if capacity.exists(_ < 1) =>
+          case Sliding | Dropping if capacity.exists(_ < 1) =>
             (IO.never, Surplus(IQueue.empty, putters))
           case _ =>
             values.dequeueOption match {
@@ -256,6 +256,11 @@ class Queue[A] private (
                   Surplus(values ++ as, putters)
                 )(c => Surplus(values.takeRight(c - as.size) ++ as.takeRight(c), putters))
               )
+            case Dropping =>
+              (
+                p.complete(true),
+                Surplus(values ++ addToQueue, putters)
+              )
           }
         }
 
@@ -300,6 +305,18 @@ object Queue {
    */
   final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] = createQueue(Some(capacity), Sliding)
 
+  /**
+   * Makes a new bounded queue with the dropping strategy.
+   * When the capacity of the queue is reached, new elements will be dropped.
+   */
+  final def dropping[A](capacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(Some(capacity), Dropping)
+
+  /**
+   * Makes a new unbounded queue.
+   */
+  final def unbounded[A]: IO[Nothing, Queue[A]] = createQueue(None, BackPressure)
+
   private def createQueue[A](
     capacity: Option[Int],
     strategy: SurplusStrategy
@@ -309,16 +326,13 @@ object Queue {
       shutdownHook <- Ref[IO[Nothing, Unit]](IO.unit)
     } yield new Queue[A](capacity, state, strategy, shutdownHook)
 
-  /**
-   * Makes a new unbounded queue.
-   */
-  final def unbounded[A]: IO[Nothing, Queue[A]] = createQueue(None, BackPressure)
-
   private[ioqueue] object internal {
 
     sealed trait SurplusStrategy
 
     case object Sliding extends SurplusStrategy
+
+    case object Dropping extends SurplusStrategy
 
     case object BackPressure extends SurplusStrategy
 
