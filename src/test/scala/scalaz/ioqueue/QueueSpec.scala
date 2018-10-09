@@ -142,6 +142,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue with capacity 2, fill it then offer 3 more items, calling `takeAll` 3 times should return the first 2 items, then the next 2, then the last one ${upTo(
       30.second
     )(e47)}
+    make a bounded queue, create a shutdown hook completing a promise, then shutdown the queue, the promise should be completed ${upTo(
+      30.second
+    )(e48)}
 
     """
 
@@ -646,6 +649,16 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v3    <- queue.takeAll
       _     <- f.join
     } yield (v1 must_=== List(1, 2)).and(v2 must_=== List(3, 4)).and(v3 must_=== List(5))
+  )
+
+  def e48 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](3)
+      p     <- Promise.make[Nothing, Boolean]
+      _     <- queue.onShutdown(p.complete(true).void)
+      _     <- queue.shutdown
+      res   <- p.get
+    } yield res must_=== true
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =

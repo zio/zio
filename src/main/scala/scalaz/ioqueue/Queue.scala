@@ -17,7 +17,7 @@ import scalaz.zio.{ IO, Promise, Ref }
  * 2. Benchmark to see how slow this implementation is and if there are any
  *    easy ways to improve performance.
  */
-class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
+class Queue[A] private (capacity: Int, ref: Ref[State[A]], shutdownHook: Ref[IO[Nothing, Unit]]) {
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
@@ -97,7 +97,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
             val (newSurplus, promise) = moveNPutters(Surplus(values, putters), 1)
             (promise *> p.complete(a), newSurplus)
         }
-      case (p, state @ Shutdown(errors)) => (interruptPromise(p, errors), state)
+      case (p, state @ Shutdown(errors)) => (p.interrupt0(errors), state)
     }
 
     val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
@@ -140,28 +140,27 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
    * The given throwables will be provided as interruption `causes`.
    */
   final def shutdown0(l: List[Throwable]): IO[Nothing, Unit] =
-    IO.flatten(
-        ref
-          .modify {
+    for {
+      _ <- IO.flatten(ref.modify {
             case Surplus(_, putters) if putters.nonEmpty =>
               val forked = IO
                 .forkAll[Nothing, Boolean](putters.toList.map {
-                  case (_, p) => interruptPromise(p, l)
+                  case (_, p) => p.interrupt0(l)
                 })
                 .flatMap(_.join)
               (forked, Shutdown(l))
             case Deficit(takers) if takers.nonEmpty =>
               val forked = IO
                 .forkAll[Nothing, Boolean](
-                  takers.toList.map(p => interruptPromise(p, l))
+                  takers.toList.map(p => p.interrupt0(l))
                 )
                 .flatMap(_.join)
               (forked, Shutdown(l))
             case state @ Shutdown(_) => (IO.unit, state)
             case _                   => (IO.unit, Shutdown(l))
-          }
-      )
-      .void
+          })
+      _ <- IO.flatten(shutdownHook.get)
+    } yield ()
 
   final private def removePutter(putter: Promise[Nothing, Unit]): IO[Nothing, Unit] =
     ref.update {
@@ -177,15 +176,6 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
 
       case d => d
     }.void
-
-  final private def interruptPromise[B](
-    p: Promise[Nothing, B],
-    errors: List[Throwable]
-  ): IO[Nothing, Boolean] =
-    errors match {
-      case Nil     => p.interrupt
-      case t :: ts => p.interrupt(t, ts: _*)
-    }
 
   /**
    * Places the values in the queue. If the queue has reached capacity, then
@@ -239,7 +229,7 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
 
         complete -> Surplus(values.enqueue(addToQueue.toList), newPutters)
 
-      case (p, state @ Shutdown(errors)) => (interruptPromise(p, errors), state)
+      case (p, state @ Shutdown(errors)) => (p.interrupt0(errors), state)
     }
 
     val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
@@ -248,6 +238,12 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
 
     Promise.bracket[Nothing, State[A], Unit, Boolean](ref)(acquire)(release)
   }
+
+  /**
+   * Adds a shutdown hook that will be executed when `shutdown` is called.
+   */
+  final def onShutdown(io: IO[Nothing, Unit]): IO[Nothing, Unit] =
+    shutdownHook.modify(hook => ((), hook *> io))
 }
 
 object Queue {
@@ -258,7 +254,10 @@ object Queue {
    * until there is more room in the queue.
    */
   final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
-    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty)).map(new Queue[A](capacity, _))
+    for {
+      state        <- Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty))
+      shutdownHook <- Ref[IO[Nothing, Unit]](IO.unit)
+    } yield new Queue[A](capacity, state, shutdownHook)
 
   /**
    * Makes a new unbounded queue.
