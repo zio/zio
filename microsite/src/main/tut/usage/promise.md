@@ -25,8 +25,9 @@ This is demonstrated below:
 
 ```tut:silent
 import scalaz.zio._
+```
 
-// Create a Promise and complete it
+```tut:silent
 val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
 val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.complete("I'm done"))
 ```
@@ -34,9 +35,6 @@ val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.compl
 You can also signal failure using `error(...)`. For example, 
 
 ```tut:silent
-import scalaz.zio._
-
-// Create a Promise and complete it
 val ioPromise: IO[Nothing, Promise[Exception, Nothing]] = Promise.make[Exception, Nothing]
 val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.error(new Exception("boom")))
 ```
@@ -47,11 +45,19 @@ was set with the value or the error.
 We can get a value from a Promise using `get`
 
 ```tut:silent
-import scalaz.zio._
-
-// Create a Promise and complete it
 val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
 val ioGet: IO[Exception, String] = ioPromise.flatMap(promise => promise.get)
 ```
 
 The computation will suspend (in a non-blocking fashion) until the Promise is completed with a value or an error.
+If you don't want to suspend and you only want to query the state of whether or not the Promise has been completed, 
+you can use `poll`
+
+```tut:silent
+val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
+val ioIsItDone: IO[Unit, ExitResult[Exception, String]] = ioPromise.flatMap(p => p.poll)
+```
+
+If the Promise was not completed when you called `poll` then the IO will fail with the `Unit` value otherwise, 
+you will obtain an `ExitResult[E, A]` where `E` represents if the Promise completed with an error and `A` indicates
+that the Promise successfully completed with an `A` value.
