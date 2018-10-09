@@ -4,7 +4,7 @@ package scalaz.zio
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
-trait Clock {
+trait Clock extends Serializable {
   def currentTime(unit: TimeUnit): IO[Nothing, Long]
   val nanoTime: IO[Nothing, Long]
   def sleep(length: Long, unit: TimeUnit): IO[Nothing, Unit]

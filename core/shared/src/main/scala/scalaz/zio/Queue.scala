@@ -17,7 +17,7 @@ import Queue.internal._
  * 2. Benchmark to see how slow this implementation is and if there are any
  *    easy ways to improve performance.
  */
-class Queue[A] private (capacity: Int, ref: Ref[State[A]]) {
+class Queue[A] private (capacity: Int, ref: Ref[State[A]]) extends Serializable {
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
@@ -146,7 +146,7 @@ object Queue {
   final def unbounded[A]: IO[Nothing, Queue[A]] = bounded(Int.MaxValue)
 
   private[zio] object internal {
-    sealed trait State[A] {
+    sealed abstract class State[A] {
       def size: Int
     }
     final case class Deficit[A](takers: IQueue[Promise[Nothing, A]]) extends State[A] {

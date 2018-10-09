@@ -179,7 +179,7 @@ object Promise {
     } yield b
 
   private[zio] object internal {
-    sealed trait State[E, A]
+    sealed abstract class State[E, A] extends Serializable
     final case class Pending[E, A](joiners: List[Callback[E, A]]) extends State[E, A]
     final case class Done[E, A](value: ExitResult[E, A])          extends State[E, A]
   }

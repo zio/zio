@@ -9,7 +9,7 @@ import scalaz.zio.ExitResult.Terminated
 import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
 
-final class Semaphore private (private val state: Ref[State]) {
+final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
   def count: IO[Nothing, Long] = state.get.map(count_)
 

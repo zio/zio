@@ -22,7 +22,7 @@ import scala.concurrent.duration.Duration
  * Thanks to (1), `Schedule[A, B]` forms an applicative functor on the output
  * value `B`, allowing rich composition of different schedules.
  */
-trait Schedule[-A, +B] { self =>
+trait Schedule[-A, +B] extends Serializable { self =>
 
   /**
    * The internal state type of the schedule.
