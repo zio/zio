@@ -1,6 +1,6 @@
 package scalaz.zio
 
-sealed abstract class Managed[+E, +R] { self =>
+sealed abstract class Managed[+E, +R] extends Serializable { self =>
   def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A]
 
   final def use_[E1 >: E, A](f: IO[E1, A]): IO[E1, A] =

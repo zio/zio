@@ -69,7 +69,7 @@ package scalaz.zio
  * In both of these examples, the `KleisliIO` program is faster because it is
  * able to perform fusion of effectful functions.
  */
-sealed trait KleisliIO[+E, -A, +B] { self =>
+sealed abstract class KleisliIO[+E, -A, +B] extends Serializable { self =>
 
   /**
    * Applies the effectful function with the specified value, returning the
