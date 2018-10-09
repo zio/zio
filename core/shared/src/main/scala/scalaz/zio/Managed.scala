@@ -12,7 +12,7 @@ sealed abstract class Managed[+E, +R] { self =>
         self.use(r => f(f0(r)))
     }
 
-  final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]) =
+  final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]): Managed[E1, R1] =
     new Managed[E1, R1] {
       def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
         self.use { r =>
@@ -40,7 +40,7 @@ object Managed {
   /**
    * Lifts an IO[E, R] into Managed[E, R] with a release action.
    */
-  def apply[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]) =
+  def apply[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]): Managed[E, R] =
     new Managed[E, R] {
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         acquire.bracket[E1, A](release)(f)
@@ -50,7 +50,7 @@ object Managed {
    * Lifts an IO[E, R] into Managed[E, R] with no release action. Use
    * with care.
    */
-  def liftIO[E, R](fa: IO[E, R]) =
+  def liftIO[E, R](fa: IO[E, R]): Managed[E, R] =
     new Managed[E, R] {
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         fa.flatMap(f)
