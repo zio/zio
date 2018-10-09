@@ -42,7 +42,10 @@ val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.error
 To re-iterate, the `Boolean` tells us whether or not the operation took place successfully (`true`) i.e. the Promise
 was set with the value or the error. 
 
-We can get a value from a Promise using `get`
+As an alternative to using `done(...)` or `error(...)` you can also use `complete(...)` with an `ExitResult[E, A]` where
+`E` signals an error and `A` signals a successful value.
+
+You can get a value from a Promise using `get`
 
 ```tut:silent
 val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
@@ -59,5 +62,28 @@ val ioIsItDone: IO[Unit, ExitResult[Exception, String]] = ioPromise.flatMap(p =>
 ```
 
 If the Promise was not completed when you called `poll` then the IO will fail with the `Unit` value otherwise, 
-you will obtain an `ExitResult[E, A]` where `E` represents if the Promise completed with an error and `A` indicates
+you obtain an `ExitResult[E, A]` where `E` represents if the Promise completed with an error and `A` indicates
 that the Promise successfully completed with an `A` value.
+
+## Example Usage
+Here is a scenario where we use a `Promise` to hand-off a value between two `Fiber`s
+
+```tut:silent
+import java.io.IOException
+import scala.concurrent.duration._
+import scalaz.zio.console._
+
+val program: IO[IOException, Unit] = for {
+promise         <-  Promise.make[Nothing, String]
+sendHelloWorld  =   (IO.now("hello world") <* IO.sleep(1.second)).flatMap(promise.complete)
+getAndPrint     =   promise.get.flatMap(putStrLn)
+fiberA          <-  sendHelloWorld.fork
+fiberB          <-  getAndPrint.fork
+_               <-  (fiberA zip fiberB).join
+} yield ()
+```
+
+In the example above, we create a Promise and have a Fiber (`fiberA`) complete that promise after 1 second and a second 
+Fiber (`fiberB`) will call `get` on that Promise to obtain a `String` and then print it to screen. The example prints 
+`hello world` to the screen after 1 second. Remember, this is just a description of the program and not the execution 
+itself.
