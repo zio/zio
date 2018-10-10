@@ -1108,7 +1108,7 @@ private object RTS {
     val maximumPoolSize = corePoolSize * 2
     val keepAliveTime   = 100
     val timeUnit        = TimeUnit.MILLISECONDS
-    val workQueue       = new LinkedBlockingQueue[Runnable]()
+    val workQueue       = new LinkedBlockingQueue[Runnable](corePoolSize * 2)
     val threadFactory   = new NamedThreadFactory("zio", true)
 
     new ThreadPoolExecutor(
