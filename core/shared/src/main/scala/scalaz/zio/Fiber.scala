@@ -21,7 +21,7 @@ package scalaz.zio
  * } yield a
  * }}}
  */
-trait Fiber[+E, +A] extends Serializable { self =>
+trait Fiber[+E, +A] { self =>
 
   /**
    * Observes the fiber, which suspends the observing fiber until the result of the

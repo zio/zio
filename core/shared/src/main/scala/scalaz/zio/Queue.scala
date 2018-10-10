@@ -146,7 +146,7 @@ object Queue {
   final def unbounded[A]: IO[Nothing, Queue[A]] = bounded(Int.MaxValue)
 
   private[zio] object internal {
-    sealed abstract class State[A] {
+    sealed abstract class State[A] extends Product with Serializable {
       def size: Int
     }
     final case class Deficit[A](takers: IQueue[Promise[Nothing, A]]) extends State[A] {
