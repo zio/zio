@@ -5,7 +5,7 @@ import scala.annotation.switch
 import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.{ Executors, TimeUnit }
+import java.util.concurrent.{ Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit }
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -56,9 +56,25 @@ trait RTS {
     (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
 
   /**
+   * The minimum number of threads maintained in the thread pool.
+   */
+  val corePoolSize = 2
+
+  /**
+   * The maximum number of threads allowed in the thread pool.
+   */
+  val maximumPoolSize = Runtime.getRuntime().availableProcessors().max(corePoolSize)
+
+  /**
    * The main thread pool used for executing fibers.
    */
-  val threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors().max(2))
+  val threadPool = new ThreadPoolExecutor(
+    corePoolSize,
+    maximumPoolSize,
+    60000,
+    TimeUnit.MILLISECONDS,
+    new LinkedBlockingQueue[Runnable]()
+  )
 
   /**
    * This determines the maximum number of resumptions placed on the stack
