@@ -1104,9 +1104,9 @@ private object RTS {
       }
 
   final def newDefaultThreadPool(): ExecutorService = {
-    val corePoolSize    = 2
-    val maximumPoolSize = Runtime.getRuntime().availableProcessors().max(corePoolSize)
-    val keepAliveTime   = 60000
+    val corePoolSize    = Runtime.getRuntime.availableProcessors()
+    val maximumPoolSize = corePoolSize * 2
+    val keepAliveTime   = 100
     val timeUnit        = TimeUnit.MILLISECONDS
     val workQueue       = new LinkedBlockingQueue[Runnable]()
     val threadFactory   = new NamedThreadFactory("zio", true)
