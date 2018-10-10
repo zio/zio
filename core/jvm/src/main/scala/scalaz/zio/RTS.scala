@@ -4,7 +4,7 @@ package scalaz.zio
 import scala.annotation.switch
 import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
-import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
 import java.util.concurrent._
 
 /**
@@ -56,8 +56,8 @@ trait RTS {
     (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
 
   /**
-    * The main thread pool used for executing fibers.
-    */
+   * The main thread pool used for executing fibers.
+   */
   val threadPool = newDefaultThreadPool()
 
   /**
@@ -1104,12 +1104,12 @@ private object RTS {
       }
 
   final def newDefaultThreadPool(): ExecutorService = {
-    val corePoolSize = 2
+    val corePoolSize    = 2
     val maximumPoolSize = Runtime.getRuntime().availableProcessors().max(corePoolSize)
-    val keepAliveTime = 60000
-    val timeUnit = TimeUnit.MILLISECONDS
-    val workQueue = new LinkedBlockingQueue[Runnable]()
-    val threadFactory = new NamedThreadFactory("zio", true)
+    val keepAliveTime   = 60000
+    val timeUnit        = TimeUnit.MILLISECONDS
+    val workQueue       = new LinkedBlockingQueue[Runnable]()
+    val threadFactory   = new NamedThreadFactory("zio", true)
 
     new ThreadPoolExecutor(
       corePoolSize,
@@ -1124,7 +1124,7 @@ private object RTS {
   final class NamedThreadFactory(name: String, daemon: Boolean) extends ThreadFactory {
 
     val threadGroup = new ThreadGroup(name)
-    val count = new AtomicInteger(0)
+    val count       = new AtomicInteger(0)
 
     override def newThread(r: Runnable): Thread = {
       val newThreadNumber = count.incrementAndGet()
