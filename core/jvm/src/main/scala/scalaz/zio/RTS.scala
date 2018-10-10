@@ -4,8 +4,8 @@ package scalaz.zio
 import scala.annotation.switch
 import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
-import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.{ Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit }
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import java.util.concurrent._
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -56,25 +56,9 @@ trait RTS {
     (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
 
   /**
-   * The minimum number of threads maintained in the thread pool.
-   */
-  val corePoolSize = 2
-
-  /**
-   * The maximum number of threads allowed in the thread pool.
-   */
-  val maximumPoolSize = Runtime.getRuntime().availableProcessors().max(corePoolSize)
-
-  /**
-   * The main thread pool used for executing fibers.
-   */
-  val threadPool = new ThreadPoolExecutor(
-    corePoolSize,
-    maximumPoolSize,
-    60000,
-    TimeUnit.MILLISECONDS,
-    new LinkedBlockingQueue[Runnable]()
-  )
+    * The main thread pool used for executing fibers.
+    */
+  val threadPool = newDefaultThreadPool()
 
   /**
    * This determines the maximum number of resumptions placed on the stack
@@ -1118,4 +1102,35 @@ private object RTS {
         c1()
         c2()
       }
+
+  final def newDefaultThreadPool(): ExecutorService = {
+    val corePoolSize = 2
+    val maximumPoolSize = Runtime.getRuntime().availableProcessors().max(corePoolSize)
+
+    new ThreadPoolExecutor(
+      corePoolSize,
+      maximumPoolSize,
+      60000,
+      TimeUnit.MILLISECONDS,
+      new LinkedBlockingQueue[Runnable](),
+      new NamedThreadFactory("zio", true)
+    )
+  }
+
+  final class NamedThreadFactory(name: String, daemon: Boolean) extends ThreadFactory {
+
+    val threadGroup = new ThreadGroup(name)
+    val count = new AtomicInteger(0)
+
+    override def newThread(r: Runnable): Thread = {
+      val newThreadNumber = count.incrementAndGet()
+
+      val thread = new Thread(threadGroup, r)
+      thread.setName(s"$name-$newThreadNumber")
+      thread.setDaemon(daemon)
+
+      thread
+    }
+
+  }
 }
