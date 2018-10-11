@@ -1106,9 +1106,9 @@ private object RTS {
   final def newDefaultThreadPool(): ExecutorService = {
     val corePoolSize    = Runtime.getRuntime.availableProcessors()
     val maximumPoolSize = corePoolSize * 2
-    val keepAliveTime   = 100l
+    val keepAliveTime   = 100L
     val timeUnit        = TimeUnit.MILLISECONDS
-    val workQueue       = new LinkedBlockingQueue[Runnable](corePoolSize * 2)
+    val workQueue       = new LinkedBlockingQueue[Runnable]()
     val threadFactory   = new NamedThreadFactory("zio", true)
 
     new ThreadPoolExecutor(
@@ -1123,14 +1123,18 @@ private object RTS {
 
   final class NamedThreadFactory(name: String, daemon: Boolean) extends ThreadFactory {
 
-    val threadGroup = new ThreadGroup(name)
-    val count       = new AtomicInteger(0)
+    private val parentGroup =
+      Option(System.getSecurityManager).fold(Thread.currentThread().getThreadGroup)(_.getThreadGroup)
+
+    private val threadGroup = new ThreadGroup(parentGroup, name)
+    private val threadCount = new AtomicInteger(1)
+    private val threadHash  = Integer.toUnsignedString(this.hashCode())
 
     override def newThread(r: Runnable): Thread = {
-      val newThreadNumber = count.incrementAndGet()
+      val newThreadNumber = threadCount.getAndIncrement()
 
       val thread = new Thread(threadGroup, r)
-      thread.setName(s"$name-$newThreadNumber")
+      thread.setName(s"$name-$newThreadNumber-$threadHash")
       thread.setDaemon(daemon)
 
       thread
