@@ -34,7 +34,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     catchSome . sandboxWith . terminate     $testSandboxWithCatchSomeOfTerminate
     catch sandboxed terminate               $testSandboxedTerminate
     uncaught fail                           $testEvalOfUncaughtFail
+    uncaught fail supervised                $testEvalOfUncaughtFailSupervised
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
+    uncaught supervised sync effect error   $testEvalOfUncaughtThrownSupervisedSyncEffect
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
     catch multiple causes                   $testEvalOfMultipleFail
@@ -198,8 +200,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testEvalOfUncaughtFail =
     unsafeRun(IO.fail[Throwable](ExampleError).as[Any]) must (throwA(UnhandledError(ExampleError)))
 
+  def testEvalOfUncaughtFailSupervised =
+    unsafeRun(IO.fail[Throwable](ExampleError).supervised.as[Any]) must (throwA(UnhandledError(ExampleError)))
+
   def testEvalOfUncaughtThrownSyncEffect =
     unsafeRun(IO.sync[Int](throw ExampleError)) must (throwA(ExampleError))
+
+  def testEvalOfUncaughtThrownSupervisedSyncEffect =
+    unsafeRun(IO.sync[Int](throw ExampleError).supervised) must (throwA(ExampleError))
 
   def testEvalOfDeepUncaughtThrownSyncEffect =
     unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError)))
