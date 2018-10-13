@@ -246,7 +246,7 @@ private object RTS {
           case a: IO.Redeem[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
+            val f: IO[Nothing, Option[List[Throwable]]] = fork(f0.finalizer, _ => IO.unit).observe.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.seqWith(f)(zipFailures)
           case _ =>
@@ -279,7 +279,7 @@ private object RTS {
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer =>
-            val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.run.map(collectDefect)
+            val f: IO[Nothing, Option[List[Throwable]]] = fork(f0.finalizer, _ => IO.unit).observe.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.seqWith(f)(zipFailures)
           case _ =>
