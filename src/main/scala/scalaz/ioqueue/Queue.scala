@@ -140,27 +140,24 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]], shutdownHook: Ref[IO[
    * The given throwables will be provided as interruption `causes`.
    */
   final def shutdown0(l: List[Throwable]): IO[Nothing, Unit] =
-    for {
-      _ <- IO.flatten(ref.modify {
-            case Surplus(_, putters) if putters.nonEmpty =>
-              val forked = IO
-                .forkAll[Nothing, Boolean](putters.toList.map {
-                  case (_, p) => p.interrupt0(l)
-                })
-                .flatMap(_.join)
-              (forked, Shutdown(l))
-            case Deficit(takers) if takers.nonEmpty =>
-              val forked = IO
-                .forkAll[Nothing, Boolean](
-                  takers.toList.map(p => p.interrupt0(l))
-                )
-                .flatMap(_.join)
-              (forked, Shutdown(l))
-            case state @ Shutdown(_) => (IO.unit, state)
-            case _                   => (IO.unit, Shutdown(l))
+    IO.flatten(ref.modify {
+      case Surplus(_, putters) if putters.nonEmpty =>
+        val forked = IO
+          .forkAll[Nothing, Boolean](putters.toList.map {
+            case (_, p) => p.interrupt0(l)
           })
-      _ <- IO.flatten(shutdownHook.get)
-    } yield ()
+          .flatMap(_.join)
+        (forked, Shutdown(l))
+      case Deficit(takers) if takers.nonEmpty =>
+        val forked = IO
+          .forkAll[Nothing, Boolean](
+            takers.toList.map(p => p.interrupt0(l))
+          )
+          .flatMap(_.join)
+        (forked, Shutdown(l))
+      case state @ Shutdown(_) => (IO.unit, state)
+      case _                   => (IO.unit, Shutdown(l))
+    }) *> IO.flatten(shutdownHook.get)
 
   final private def removePutter(putter: Promise[Nothing, Unit]): IO[Nothing, Unit] =
     ref.update {
