@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference
  * } yield ()
  * }}}
  */
-final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVal {
+final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVal with Serializable {
 
   /**
    * Reads the value from the `Ref`.
