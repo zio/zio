@@ -586,7 +586,7 @@ private object RTS {
               this.noInterrupt += 1
 
               // At this point, all causes of interruption have been accumulated
-              // in the fiber status and will be read during evalution of this
+              // in the fiber status and will be read during evaluation of this
               // action:
               curIo = IO.terminate
             }
