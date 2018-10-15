@@ -176,7 +176,7 @@ class Queue[A] private (
         (forked, Shutdown(l))
       case state @ Shutdown(_) => (IO.unit, state)
       case _                   => (IO.unit, Shutdown(l))
-    }) *> IO.flatten(shutdownHook.get)
+    }) *> IO.flatten(shutdownHook.modify(hook => (hook, IO.unit)))
 
   final private def removePutter(putter: Promise[Nothing, Boolean]): IO[Nothing, Unit] =
     ref.update {
@@ -267,9 +267,16 @@ class Queue[A] private (
 
   /**
    * Adds a shutdown hook that will be executed when `shutdown` is called.
+   * If the queue is already shutdown, the hook will be executed immediately.
    */
   final def onShutdown(io: IO[Nothing, Unit]): IO[Nothing, Unit] =
-    shutdownHook.modify(hook => ((), hook *> io))
+    for {
+      state <- ref.get
+      _ <- state match {
+            case Shutdown(_) => io
+            case _           => shutdownHook.modify(hook => ((), hook *> io))
+          }
+    } yield ()
 }
 
 object Queue {
