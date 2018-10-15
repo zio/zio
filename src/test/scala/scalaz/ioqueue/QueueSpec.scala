@@ -139,6 +139,12 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue, create a shutdown hook completing a promise, then shutdown the queue, the promise should be completed ${upTo(
       30.second
     )(e53)}
+    make a bounded queue, create a shutdown hook completing a promise twice, then shutdown the queue, both promises should be completed ${upTo(
+      30.second
+    )(e54)}
+    make a bounded queue, shut it down, create a shutdown hook completing a promise, the promise should be completed immediately ${upTo(
+      30.second
+    )(e55)}
     """
 
   def e1 = unsafeRun(
@@ -697,6 +703,29 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       p     <- Promise.make[Nothing, Boolean]
       _     <- queue.onShutdown(p.complete(true).void)
       _     <- queue.shutdown
+      res   <- p.get
+    } yield res must_=== true
+  )
+
+  def e54 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](3)
+      p1    <- Promise.make[Nothing, Boolean]
+      p2    <- Promise.make[Nothing, Boolean]
+      _     <- queue.onShutdown(p1.complete(true).void)
+      _     <- queue.onShutdown(p2.complete(true).void)
+      _     <- queue.shutdown
+      res1  <- p1.get
+      res2  <- p2.get
+    } yield (res1 must_=== true).and(res2 must_=== true)
+  )
+
+  def e55 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](3)
+      _     <- queue.shutdown
+      p     <- Promise.make[Nothing, Boolean]
+      _     <- queue.onShutdown(p.complete(true).void)
       res   <- p.get
     } yield res must_=== true
   )
