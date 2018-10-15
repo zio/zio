@@ -113,7 +113,7 @@ trait Schedule[-A, +B] { self =>
    * Peeks at the state produced by this schedule, executes some action, and
    * then continues the schedule or not based on the specified state predicate.
    */
-  final def check[A1 <: A, C](test: (A1, B) => IO[Nothing, Boolean]): Schedule[A1, B] =
+  final def check[A1 <: A](test: (A1, B) => IO[Nothing, Boolean]): Schedule[A1, B] =
     updated(
       update =>
         (
@@ -133,14 +133,14 @@ trait Schedule[-A, +B] { self =>
    * is satisfied on the output value of the schedule.
    */
   final def whileOutput(f: B => Boolean): Schedule[A, B] =
-    check[A, B]((_, b) => IO.now(f(b)))
+    check((_, b) => IO.now(f(b)))
 
   /**
    * Returns a new schedule that continues this schedule so long as the
    * predicate is satisfied on the input of the schedule.
    */
   final def whileInput[A1 <: A](f: A1 => Boolean): Schedule[A1, B] =
-    check[A1, B]((a, _) => IO.now(f(a)))
+    check((a, _) => IO.now(f(a)))
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
