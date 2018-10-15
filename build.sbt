@@ -12,7 +12,7 @@ lazy val root =
       libraryDependencies ++= {
 
         val Zio = Seq(
-          "org.scalaz" %% "scalaz-zio" % "0.2.7"
+          "org.scalaz" %% "scalaz-zio" % "0.2.10"
         )
 
         val Specs2 = Seq(
