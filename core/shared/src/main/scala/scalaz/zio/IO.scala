@@ -425,14 +425,14 @@ sealed abstract class IO[+E, +A] { self =>
    * completes, or until the first failure.
    */
   final def repeat[B](schedule: Schedule[A, B]): IO[E, B] =
-    repeatOrElse[B, E](schedule, (e, _) => IO.fail(e))
+    repeatOrElse[E, B](schedule, (e, _) => IO.fail(e))
 
   /**
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse[B, E2](schedule: Schedule[A, B], orElse: (E, Option[B]) => IO[E2, B]): IO[E2, B] =
+  final def repeatOrElse[E2, B](schedule: Schedule[A, B], orElse: (E, Option[B]) => IO[E2, B]): IO[E2, B] =
     repeatOrElse0[B, E2, B](schedule, orElse).map(_.merge)
 
   /**
