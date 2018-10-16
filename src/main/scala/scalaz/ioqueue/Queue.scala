@@ -259,7 +259,7 @@ class Queue[A] private (
             case Dropping =>
               (
                 p.complete(true),
-                Surplus(values ++ addToQueue, putters)
+                Surplus(values.enqueue(addToQueue.toList), putters)
               )
           }
         }
