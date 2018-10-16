@@ -346,9 +346,8 @@ sealed abstract class IO[+E, +A] { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Completed(_)   => IO.unit
-          case ExitResult.Failed(_, _)   => IO.unit
           case ExitResult.Terminated(ts) => cleanup(ts)
+          case _                         => IO.unit
         }
     )(_ => self)
 

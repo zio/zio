@@ -17,7 +17,7 @@ package scalaz.zio
  * } yield ()
  * }}}
  */
-final class RefM[A] private (private val value: Ref[A], private val queue: Queue[RefM.Bundle[A, _]])
+final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]])
     extends Serializable {
 
   /**
@@ -52,22 +52,23 @@ final class RefM[A] private (private val value: Ref[A], private val queue: Queue
   final def modify[B](f: A => IO[Nothing, (B, A)]): IO[Nothing, B] =
     for {
       promise <- Promise.make[Nothing, B]
-      bundle  = RefM.Bundle(None, f, promise)
+      ref     <- Ref[Option[List[Throwable]]](None)
+      bundle  = RefM.Bundle(ref, f, promise)
       _       <- queue.offer(bundle)
-      b       <- promise.get.onTermination(ts => IO.sync(bundle.interrupted = Some(ts)))
+      b       <- promise.get.onTermination(ts => bundle.interrupted.set(Some(ts)))
     } yield b
 }
 
 object RefM extends Serializable {
   private[RefM] final case class Bundle[A, B](
-    var interrupted: Option[List[Throwable]] = None,
+    interrupted: Ref[Option[List[Throwable]]],
     update: A => IO[Nothing, (B, A)],
     promise: Promise[Nothing, B]
   ) {
     final def run(a: A): IO[List[Throwable], A] =
-      interrupted match {
+      interrupted.get.flatMap {
         case Some(ts) => IO.fail(ts)
-        case None     => update(a).flatMap(t => promise.complete(t._1).map(_ => t._2))
+        case None     => update(a).flatMap{ case (b, a) => promise.complete(b).const(a) }
       }
   }
 
