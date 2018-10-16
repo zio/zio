@@ -4,24 +4,26 @@ import java.io._
 
 class SerializableSpec extends AbstractRTSSpec {
 
-  def serializeToBytes[T](a: T): Array[Byte] = {
-    val bf  = new ByteArrayOutputStream()
-    val oos = new ObjectOutputStream(bf)
-    oos.writeObject(a)
-    oos.close()
-    bf.toByteArray
-  }
+  def serializeAndBack[T](a: T): IO[_, T] = {
 
-  def getObjFromBytes[T](bytes: Array[Byte]): T = {
-    val ios = new ObjectInputStream(new ByteArrayInputStream(bytes))
-    ios.readObject().asInstanceOf[T]
-  }
+    def serializeToBytes[T](a: T): Array[Byte] = {
+      val bf  = new ByteArrayOutputStream()
+      val oos = new ObjectOutputStream(bf)
+      oos.writeObject(a)
+      oos.close()
+      bf.toByteArray
+    }
 
-  def serializeAndBack[T](a: T): IO[_, T] =
+    def getObjFromBytes[T](bytes: Array[Byte]): T = {
+      val ios = new ObjectInputStream(new ByteArrayInputStream(bytes))
+      ios.readObject().asInstanceOf[T]
+    }
+
     for {
       obj       <- IO.sync(serializeToBytes(a))
       returnObj <- IO.sync(getObjFromBytes[T](obj))
     } yield returnObj
+  }
 
   def is =
     "SerializableSpec".title ^ s2"""

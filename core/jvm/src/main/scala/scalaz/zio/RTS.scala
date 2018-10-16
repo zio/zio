@@ -111,7 +111,7 @@ trait RTS {
 
 private object RTS {
 
-  sealed abstract class RaceState
+  sealed abstract class RaceState extends Serializable with Product
   object RaceState {
     case object Started     extends RaceState
     case object FirstFailed extends RaceState
@@ -1059,7 +1059,7 @@ private object RTS {
       observers.reverse.foreach(k => rts.submit(k(ExitResult.Completed(v))))
   }
 
-  sealed abstract class FiberStatus[E, A] {
+  sealed abstract class FiberStatus[E, A] extends Serializable with Product {
 
     /** causes passed in when explicitly interrupting the fiber */
     def terminationCauses: Option[List[Throwable]]
