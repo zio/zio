@@ -74,7 +74,11 @@ object RefM extends Serializable {
   /**
    * Creates a new `RefM` with the specified value.
    */
-  final def apply[A](a: A, n: Int = 1000, onDefect: List[Throwable] => IO[Nothing, Unit] = _ => IO.unit): IO[Nothing, RefM[A]] =
+  final def apply[A](
+    a: A,
+    n: Int = 1000,
+    onDefect: List[Throwable] => IO[Nothing, Unit] = _ => IO.unit
+  ): IO[Nothing, RefM[A]] =
     for {
       ref   <- Ref(a)
       queue <- Queue.bounded[Bundle[A, _]](n)
