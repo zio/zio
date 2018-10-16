@@ -33,7 +33,7 @@ final class Semaphore private (private val state: Ref[State]) {
 
     val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
       case (_, p) =>
-        state.update {
+        p.poll.void <> state.update {
           case Left(q) => Left(q.filterNot(_._1 == p))
           case x       => x
         }.void
