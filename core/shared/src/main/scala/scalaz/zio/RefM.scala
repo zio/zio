@@ -58,7 +58,7 @@ final class RefM[A] private (private val value: Ref[A], private val queue: Queue
     } yield b
 }
 
-object RefM {
+object RefM extends Serializable {
   private[RefM] final case class Bundle[A, B](
     var interrupted: Option[List[Throwable]] = None,
     update: A => IO[Nothing, (B, A)],
@@ -74,11 +74,7 @@ object RefM {
   /**
    * Creates a new `RefM` with the specified value.
    */
-  final def apply[A](
-    a: A,
-    n: Int = 1000,
-    onDefect: List[Throwable] => IO[Nothing, Unit] = _ => IO.unit
-  ): IO[Nothing, RefM[A]] =
+  final def apply[A](a: A, n: Int = 1000, onDefect: List[Throwable] => IO[Nothing, Unit] = _ => IO.unit): IO[Nothing, RefM[A]] =
     for {
       ref   <- Ref(a)
       queue <- Queue.bounded[Bundle[A, _]](n)
