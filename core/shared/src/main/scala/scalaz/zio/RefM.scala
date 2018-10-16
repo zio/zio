@@ -17,8 +17,7 @@ package scalaz.zio
  * } yield ()
  * }}}
  */
-final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]])
-    extends Serializable {
+final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) extends Serializable {
 
   /**
    * Reads the value from the `Ref`.
@@ -68,7 +67,13 @@ object RefM extends Serializable {
     final def run(a: A): IO[List[Throwable], A] =
       interrupted.get.flatMap {
         case Some(ts) => IO.fail(ts)
-        case None     => update(a).flatMap{ case (b, a) => promise.complete(b).const(a) }
+        case None =>
+          update(a).sandboxed.redeem({
+            case Left(ts) => IO.fail(ts)
+            case Right(n) => n
+          }, {
+            case (b, a) => promise.complete(b).const(a)
+          })
       }
   }
 
