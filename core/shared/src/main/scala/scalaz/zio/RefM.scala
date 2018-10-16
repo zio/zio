@@ -53,8 +53,10 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
       promise <- Promise.make[Nothing, B]
       ref     <- Ref[Option[List[Throwable]]](None)
       bundle  = RefM.Bundle(ref, f, promise)
-      _       <- queue.offer(bundle)
-      b       <- promise.get.onTermination(ts => bundle.interrupted.set(Some(ts)))
+      b <- (for {
+            _ <- queue.offer(bundle)
+            b <- promise.get
+          } yield b).onTermination(ts => bundle.interrupted.set(Some(ts)))
     } yield b
 }
 
