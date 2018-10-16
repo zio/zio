@@ -745,29 +745,31 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e56 = unsafeRun(
     for {
-      queue <- Queue.dropping[Int](3)
-      iter  = (1 to 4).toIterable
-      _     <- queue.offerAll(iter)
-      ta    <- queue.takeAll
-    } yield ta must_=== List(1, 2, 3)
+      capacity <- IO.now(3)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 4).toIterable
+      _        <- queue.offerAll(iter)
+      ta       <- queue.takeAll
+    } yield (ta must_=== List(1, 2, 3)) && (ta.size must_=== capacity)
   )
 
   def e57 = unsafeRun(
     for {
-      queue <- Queue.dropping[Int](0)
-      v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
-      l     <- queue.takeAll
-      size  <- queue.size
-    } yield (size must_== 0).and(v1 must_=== true)
+      capacity <- IO.now(0)
+      queue    <- Queue.dropping[Int](capacity)
+      v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
+      ta       <- queue.takeAll
+    } yield (ta.size must_== 0).and(v1 must_=== true)
   )
 
   def e58 = unsafeRun(
     for {
-      queue <- Queue.dropping[Int](100)
-      iter  = (1 to 200).toIterable
-      v1    <- queue.offerAll(iter)
-      l     <- queue.takeAll
-    } yield l must_=== (1 to 100).toList
+      capacity <- IO.now(100)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 200).toIterable
+      v1       <- queue.offerAll(iter)
+      ta       <- queue.takeAll
+    } yield (ta must_=== Range.inclusive(1, 100).toList) && (ta.size must_=== capacity)
   )
 
   def e59 = unsafeRun(
@@ -783,11 +785,12 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e60 = unsafeRun(
     for {
-      queue <- Queue.dropping[Int](2)
-      iter  = (1 to 6).toIterable
-      _     <- queue.offerAll(iter)
-      v     <- queue.takeAll
-    } yield v must_=== List(1, 2)
+      capacity <- IO.now(2)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 6).toIterable
+      _        <- queue.offerAll(iter)
+      ta       <- queue.takeAll
+    } yield (ta must_=== List(1, 2)) && (ta.size must_=== capacity)
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
