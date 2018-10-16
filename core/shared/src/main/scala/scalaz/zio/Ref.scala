@@ -36,12 +36,6 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
   final def setLater(a: A): IO[Nothing, Unit] = IO.sync(value.lazySet(a))
 
   /**
-   * Attempts to write a new value to the `Ref`, but aborts immediately under
-   * concurrent modification of the value by other fibers.
-   */
-  final def trySet(a: A): IO[Nothing, Boolean] = IO.sync(value.compareAndSet(value.get, a))
-
-  /**
    * Atomically modifies the `Ref` with the specified function. This is not
    * implemented in terms of `modify` purely for performance reasons.
    */
@@ -81,13 +75,6 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
 
     b
   }
-
-  /**
-   * Compares and sets the value of the `Ref` if and only if it is `eq` to the
-   * specified value. Returns whether or not the ref was modified.
-   */
-  final def compareAndSet(prev: A, next: A): IO[Nothing, Boolean] =
-    IO.sync(value.compareAndSet(prev, next))
 }
 
 object Ref {
