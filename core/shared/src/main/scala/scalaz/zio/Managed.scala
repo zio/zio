@@ -37,8 +37,8 @@ sealed abstract class Managed[+E, +R] { self =>
   final def parWith[E1 >: E, R1, R2](that: Managed[E1, R1])(f0: (R, R1) => R2): Managed[E1, R2] =
     new Managed[E1, R2] {
       override def use[E2 >: E1, A](f: R2 => IO[E2, A]): IO[E2, A] = {
-        val x = self.use(r => IO.now(r))
-        val y = that.use(r1 => IO.now(r1))
+        val x = self.use(IO.now)
+        val y = that.use(IO.now)
 
         x.parWith(y)(f0).flatMap(f)
       }
