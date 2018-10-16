@@ -31,7 +31,13 @@ final class Semaphore private (private val state: Ref[State]) {
       case (p, Left(q))                    => IO.now(false)  -> Left(q.enqueue(p -> requested))
     }
 
-    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = (_, _) => IO.unit
+    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
+      case (_, p) =>
+        state.update {
+          case Left(q) => Left(q.filterNot(_._1 == p))
+          case x       => x
+        }.void
+    }
 
     assertNonNegative(requested) *> Promise.bracket[Nothing, State, Unit, Boolean](state)(acquire)(release)
   }
