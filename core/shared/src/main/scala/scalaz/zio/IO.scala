@@ -339,9 +339,10 @@ sealed abstract class IO[+E, +A] { self =>
     )(_ => self)
 
   /**
-   * Runs the specified action if this action is interrupted.
+   * Runs the specified action if this action is terminated, either because of
+   * a defect or because of interruption.
    */
-  final def onInterrupt(cleanup: List[Throwable] => IO[Nothing, Unit]): IO[E, A] =
+  final def onTermination(cleanup: List[Throwable] => IO[Nothing, Unit]): IO[E, A] =
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {

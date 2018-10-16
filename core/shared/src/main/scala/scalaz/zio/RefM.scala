@@ -54,7 +54,7 @@ final class RefM[A] private (private val value: Ref[A], private val queue: Queue
       promise <- Promise.make[Nothing, B]
       bundle  = RefM.Bundle(None, f, promise)
       _       <- queue.offer(bundle)
-      b       <- promise.get.onInterrupt(ts => IO.sync(bundle.interrupted = Some(ts)))
+      b       <- promise.get.onTermination(ts => IO.sync(bundle.interrupted = Some(ts)))
     } yield b
 }
 
@@ -74,10 +74,14 @@ object RefM {
   /**
    * Creates a new `RefM` with the specified value.
    */
-  final def apply[A](a: A, n: Int = 1000): IO[Nothing, RefM[A]] =
+  final def apply[A](
+    a: A,
+    n: Int = 1000,
+    onDefect: List[Throwable] => IO[Nothing, Unit] = _ => IO.unit
+  ): IO[Nothing, RefM[A]] =
     for {
       ref   <- Ref(a)
       queue <- Queue.bounded[Bundle[A, _]](n)
-      _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a).redeem(_ => IO.unit, ref.set))).forever.fork
+      _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a).redeem(onDefect, ref.set))).forever.fork
     } yield new RefM[A](ref, queue)
 }
