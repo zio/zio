@@ -35,6 +35,7 @@ class SerializableSpec extends AbstractRTSSpec {
       Ref is serializable $e4
       IO is serializable $e5
       KleisliIO is serializable $e6
+      FiberStatus is serializable $e7
     """
 
   def e1 = {
@@ -102,5 +103,22 @@ class SerializableSpec extends AbstractRTSSpec {
         computeV      <- returnKleisli.run(9)
       } yield computeV must_=== 10
     )
+  }
+
+  def e7 = {
+    val list = List("1", "2", "3")
+    val io   = IO.now(list)
+    val exitResult = unsafeRun(
+      for {
+        fiber          <- io.fork
+        status         <- fiber.observe
+        returnedStatus <- serializeAndBack(status)
+      } yield returnedStatus
+    )
+    val result = exitResult match {
+      case ExitResult.Completed(value) => value
+      case _                           => List.empty
+    }
+    result must_=== list
   }
 }
