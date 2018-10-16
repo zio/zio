@@ -403,7 +403,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def compose[C](that: Schedule[C, A]): Schedule[C, B] = self <<< that
 }
 
-object Schedule {
+object Schedule extends Serializable {
   sealed case class Decision[+A, +B](cont: Boolean, delay: Duration, state: A, finish: () => B) { self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
     final def leftMap[C](f: A => C): Decision[C, B]             = copy(state = f(state))

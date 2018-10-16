@@ -90,7 +90,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
     IO.sync(value.compareAndSet(prev, next))
 }
 
-object Ref {
+object Ref extends Serializable {
 
   /**
    * Creates a new `Ref` with the specified value.
