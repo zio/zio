@@ -24,7 +24,7 @@ sealed abstract class Async[+E, +A] extends Product with Serializable { self =>
     }
 }
 
-object Async {
+object Async extends Serializable {
 
   val NoOpCanceler: Canceler         = () => ()
   val NoOpPureCanceler: PureCanceler = () => IO.unit

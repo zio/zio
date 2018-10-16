@@ -184,7 +184,7 @@ sealed abstract class KleisliIO[+E, -A, +B] extends Serializable { self =>
   final def asEffect[A1 <: A]: KleisliIO[E, A1, A1] = self.first >>> KleisliIO._2
 }
 
-object KleisliIO {
+object KleisliIO extends Serializable {
   private class KleisliIOError[E](error: E) extends Throwable {
     final def unsafeCoerce[E2] = error.asInstanceOf[E2]
   }

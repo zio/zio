@@ -647,7 +647,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   def tag: Int
 }
 
-object IO {
+object IO extends Serializable {
 
   @inline
   private final def nowLeft[E, A]: E => IO[Nothing, Either[E, A]] =
