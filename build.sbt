@@ -48,6 +48,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   )
 
 lazy val coreJVM = core.jvm
+  .configure(_.enablePlugins(JCStressPlugin))
   .settings(
     // In the repl most warnings are useless or worse.
     // This is intentionally := as it's more direct to enumerate the few
@@ -122,14 +123,6 @@ lazy val benchmarks = project.module
         "io.monix"       %% "monix"         % "3.0.0-RC1",
         "org.typelevel"  %% "cats-effect"   % "1.0.0-RC2"
       )
-  )
-
-lazy val concurrencyTests = project.module
-  .in(file("concurrency-tests"))
-  .dependsOn(coreJVM)
-  .enablePlugins(JCStressPlugin)
-  .settings(
-    skip in publish := true
   )
 
 lazy val microsite = project.module
