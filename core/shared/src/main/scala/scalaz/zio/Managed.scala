@@ -12,7 +12,7 @@ sealed abstract class Managed[+E, +R] { self =>
         self.use(r => f(f0(r)))
     }
 
-  final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]) =
+  final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]): Managed[E1, R1] =
     new Managed[E1, R1] {
       def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
         self.use { r =>
@@ -33,6 +33,21 @@ sealed abstract class Managed[+E, +R] { self =>
 
   final def seq[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, (R, R1)] =
     seqWith(ff)((_, _))
+
+  final def parWith[E1 >: E, R1, R2](that: Managed[E1, R1])(f0: (R, R1) => R2): Managed[E1, R2] =
+    new Managed[E1, R2] {
+      override def use[E2 >: E1, A](f: R2 => IO[E2, A]): IO[E2, A] =
+        self.use { r =>
+          that.use { r1 =>
+            val x = IO.now(r)
+            val y = IO.now(r1)
+            x.parWith(y)(f0).flatMap(f)
+          }
+        }
+    }
+
+  final def par[E1 >: E, R1](that: Managed[E1, R1]): Managed[E1, (R, R1)] =
+    self.parWith(that)((a, b) => (a, b))
 }
 
 object Managed {
@@ -40,7 +55,7 @@ object Managed {
   /**
    * Lifts an IO[E, R] into Managed[E, R] with a release action.
    */
-  def apply[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]) =
+  def apply[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]): Managed[E, R] =
     new Managed[E, R] {
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         acquire.bracket[E1, A](release)(f)
@@ -50,7 +65,7 @@ object Managed {
    * Lifts an IO[E, R] into Managed[E, R] with no release action. Use
    * with care.
    */
-  def liftIO[E, R](fa: IO[E, R]) =
+  def liftIO[E, R](fa: IO[E, R]): Managed[E, R] =
     new Managed[E, R] {
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         fa.flatMap(f)
