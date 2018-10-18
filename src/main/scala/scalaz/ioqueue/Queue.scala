@@ -18,7 +18,7 @@ import scalaz.zio.{ IO, Promise, Ref }
  *    easy ways to improve performance.
  */
 class Queue[A] private (
-  capacity: Int,
+  capacity: Option[Int],
   ref: Ref[State[A]],
   strategy: SurplusStrategy,
   shutdownHook: Ref[IO[Nothing, Unit]]
@@ -90,7 +90,7 @@ class Queue[A] private (
       case (p, Deficit(takers)) => (IO.now(false), Deficit(takers.enqueue(p)))
       case (p, Surplus(values, putters)) =>
         strategy match {
-          case Sliding if capacity < 1 =>
+          case Sliding if capacity.exists(_ < 1) =>
             (IO.never, Surplus(IQueue.empty, putters))
           case _ =>
             values.dequeueOption match {
@@ -204,7 +204,7 @@ class Queue[A] private (
       case (p, Deficit(takers)) =>
         takers.dequeueOption match {
           case None =>
-            val (addToQueue, surplusValues) = as.splitAt(capacity)
+            val (addToQueue, surplusValues) = capacity.fold((as, Iterable.empty[A]))(as.splitAt)
             val (complete, putters) =
               if (surplusValues.isEmpty)
                 p.complete(true) -> IQueue.empty
@@ -224,7 +224,8 @@ class Queue[A] private (
               }
             }
             if (deficitValues.isEmpty) {
-              val (addToQueue, surplusValues) = as.drop(takers.size).splitAt(capacity)
+              val (addToQueue, surplusValues) =
+                capacity.fold((as, Iterable.empty[A]))(as.drop(takers.size).splitAt)
               val (complete, putters) =
                 if (surplusValues.isEmpty)
                   completeTakers *> p.complete(true) -> IQueue.empty
@@ -237,7 +238,8 @@ class Queue[A] private (
             } else completeTakers *> p.complete(true) -> Deficit(deficitValues)
         }
       case (p, Surplus(values, putters)) =>
-        val (addToQueue, surplusValues) = as.splitAt(capacity - values.size)
+        val (addToQueue, surplusValues) =
+          capacity.fold((as, Iterable.empty[A]))(c => as.splitAt(c - values.size))
         if (surplusValues.isEmpty)
           (p.complete(true), Surplus(values.enqueue(addToQueue.toList), putters))
         else {
@@ -250,7 +252,9 @@ class Queue[A] private (
             case Sliding =>
               (
                 p.complete(true),
-                Surplus(values.takeRight(capacity - as.size) ++ as.takeRight(capacity), putters)
+                capacity.fold(
+                  Surplus(values ++ as, putters)
+                )(c => Surplus(values.takeRight(c - as.size) ++ as.takeRight(c), putters))
               )
           }
         }
@@ -286,16 +290,20 @@ object Queue {
    * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
    * until there is more room in the queue.
    */
-  final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] = createQueue(capacity, BackPressure)
+  final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(Some(capacity), BackPressure)
 
   /**
    * Makes a new bounded queue with sliding strategy.
    * When the capacity of the queue is reached, new elements will be added and the old elements
    * will be dropped.
    */
-  final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] = createQueue(capacity, Sliding)
+  final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] = createQueue(Some(capacity), Sliding)
 
-  private def createQueue[A](capacity: Int, strategy: SurplusStrategy): IO[Nothing, Queue[A]] =
+  private def createQueue[A](
+    capacity: Option[Int],
+    strategy: SurplusStrategy
+  ): IO[Nothing, Queue[A]] =
     for {
       state        <- Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty))
       shutdownHook <- Ref[IO[Nothing, Unit]](IO.unit)
@@ -304,7 +312,7 @@ object Queue {
   /**
    * Makes a new unbounded queue.
    */
-  final def unbounded[A]: IO[Nothing, Queue[A]] = bounded(Int.MaxValue)
+  final def unbounded[A]: IO[Nothing, Queue[A]] = createQueue(None, BackPressure)
 
   private[ioqueue] object internal {
 
