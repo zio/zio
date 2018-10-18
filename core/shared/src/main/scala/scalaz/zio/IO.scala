@@ -325,8 +325,8 @@ sealed abstract class IO[+E, +A] { self =>
     Managed[E, A](this)(release)
 
   /**
-   * Runs the cleanup action if this action errors, providing the error to the
-   * cleanup action if it exists. The cleanup action will not be interrupted.
+   * Runs the specified action if this action errors, providing the error to the
+   * action if it exists. The provided action will not be interrupted.
    */
   final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
     IO.bracket0(IO.unit)(
@@ -335,6 +335,19 @@ sealed abstract class IO[+E, +A] { self =>
           case ExitResult.Completed(_)   => IO.unit
           case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
           case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
+        }
+    )(_ => self)
+
+  /**
+   * Runs the specified action if this action is terminated, either because of
+   * a defect or because of interruption.
+   */
+  final def onTermination(cleanup: List[Throwable] => IO[Nothing, Unit]): IO[E, A] =
+    IO.bracket0(IO.unit)(
+      (_, eb: ExitResult[E, A]) =>
+        eb match {
+          case ExitResult.Terminated(ts) => cleanup(ts)
+          case _                         => IO.unit
         }
     )(_ => self)
 
