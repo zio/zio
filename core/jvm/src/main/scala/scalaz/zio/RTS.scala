@@ -74,7 +74,7 @@ trait RTS {
    */
   final val YieldMaxOpCount = 1048576
 
-  lazy val scheduledExecutor = Executors.newScheduledThreadPool(1)
+  lazy val scheduledExecutor = newDefaultScheduledExecutor()
 
   final def submit[A](block: => A): Unit = {
     threadPool.submit(new Runnable {
@@ -1120,6 +1120,9 @@ private object RTS {
       threadFactory
     )
   }
+
+  final def newDefaultScheduledExecutor(): ScheduledExecutorService =
+    Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
 
   final class NamedThreadFactory(name: String, daemon: Boolean) extends ThreadFactory {
 
