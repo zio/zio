@@ -4,11 +4,12 @@ package scalaz.zio
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.duration._
+import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
-import Errors.UnhandledError
-import com.github.ghik.silencer.silent
+import scalaz.zio.Errors.UnhandledError
+
+import scala.concurrent.duration._
 
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
@@ -40,8 +41,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
     catch multiple causes                   $testEvalOfMultipleFail
+    catch multiple causes in runSync        $testRunSyncOfMultipleFail
     catch failing finalizers with fail      $testFailOfMultipleFailingFinalizers
-    catch failing finalizers with terminate $testTerminateOfMultipleFailingFinalizers
+    catch failing finalizers with fail sync $testFailRunSyncOfMultipleFailingFinalizers
+    catch failing finalizers with term sync $testTerminateRunSyncOfMultipleFailingFinalizers
+    finalize on interruption in run         $testRunInterruptFinalizers
+    finalize on interruption in runSync     $testRunSyncInterruptFinalizers
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -104,6 +109,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   RTS regression tests
     regression 1                            $testDeadlockRegression
     check interruption regression 1         ${upTo(20.seconds)(testInterruptionRegression1)}
+    runSync can nest arbitrary              $testRunSyncNesting
 
   RTS interrupt fiber tests
     sync forever                            $testInterruptSyncForever
@@ -222,6 +228,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       _  <- f1.join
     } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
 
+  def testRunSyncOfMultipleFail =
+    unsafeRun((for {
+      f1 <- (IO.never.runSync *> IO.unit).fork
+      _  <- f1.interrupt(InterruptCause1, InterruptCause2)
+      _  <- f1.join
+    } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
+
   def testFailOfMultipleFailingFinalizers =
     unsafeRun(
       IO.fail[Throwable](ExampleError)
@@ -239,6 +252,62 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .ensuring(IO.sync(throw InterruptCause3))
         .run
     ) must_=== ExitResult.Terminated(List(ExampleError, InterruptCause1, InterruptCause2, InterruptCause3))
+
+  def testFailRunSyncOfMultipleFailingFinalizers =
+    unsafeRun(
+      IO.fail[Throwable](ExampleError)
+        .ensuring(IO.sync(throw InterruptCause1))
+        .ensuring(IO.sync(throw InterruptCause2))
+        .ensuring(IO.sync(throw InterruptCause3))
+        .runSync
+    ) must_=== ExitResult.Failed(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
+
+  def testTerminateRunSyncOfMultipleFailingFinalizers =
+    unsafeRun(
+      IO.terminate(ExampleError)
+        .ensuring(IO.sync(throw InterruptCause1))
+        .ensuring(IO.sync(throw InterruptCause2))
+        .ensuring(IO.sync(throw InterruptCause3))
+        .run
+    ) must_=== ExitResult.Terminated(List(ExampleError, InterruptCause1, InterruptCause2, InterruptCause3))
+
+  def testRunInterruptFinalizers =
+    unsafeRun((for {
+      finalizers <- Ref(0)
+      count      = finalizers.update(_ + 1).void
+      f1 <- IO.never
+             .ensuring(count)
+             .run
+             .ensuring(count)
+             .run
+             .ensuring(count)
+             .run
+             .ensuring(count)
+             .run
+             .fork
+      _   <- f1.interrupt
+      res <- f1.observe
+      fin <- finalizers.get
+    } yield res -> fin).run) must_=== ExitResult.Completed(ExitResult.Terminated(Nil) -> 4)
+
+  def testRunSyncInterruptFinalizers =
+    unsafeRun((for {
+      finalizers <- Ref(0)
+      count      = finalizers.update(_ + 1).void
+      f1 <- IO.never
+             .ensuring(count)
+             .runSync
+             .ensuring(count)
+             .runSync
+             .ensuring(count)
+             .runSync
+             .ensuring(count)
+             .runSync
+             .fork
+      _   <- f1.interrupt
+      res <- f1.observe
+      fin <- finalizers.get
+    } yield res -> fin).run) must_=== ExitResult.Completed(ExitResult.Terminated(Nil) -> 4)
 
   def testEvalOfFailEnsuring = {
     var finalized = false
@@ -635,6 +704,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       _ <- f.interrupt
     } yield true
   )
+
+  def testRunSyncNesting =
+    unsafeRun(
+      (1 to 300).foldLeft(IO.now(0)) { (io, _) =>
+        IO.sync(unsafeRun {
+            io
+          })
+          .runSync
+          .map(_.fold(_ + 1, (_, _) => 0, _ => 0))
+      }
+    ) must_=== 300
 
   // Utility stuff
   val ExampleError    = new Exception("Oh noes!")

@@ -245,8 +245,10 @@ private object RTS {
         stack.pop() match {
           case a: IO.Redeem[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
+          case r: IO.RunSync[_, _] =>
+            errorHandler = r.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Nothing, Option[List[Throwable]]] = fork(f0.finalizer, _ => IO.unit).observe.map(collectDefect)
+            val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.runSync.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.seqWith(f)(zipFailures)
           case _ =>
@@ -268,23 +270,28 @@ private object RTS {
      * Empties the stack, collecting all finalizers and coalescing them into an
      * action that produces a list (possibly empty) of errors during finalization.
      */
-    final def interruptStack: IO[Nothing, Option[List[Throwable]]] = {
+    final def interruptStack(interrupted: Boolean): IO[Nothing, Option[List[Throwable]]] = {
       // Use null to achieve zero allocs for the common case of no finalizers:
       var finalizer: IO[Nothing, Option[List[Throwable]]] = null
+      var panicHandler: IO.RunSync[E, Any]                = null
 
-      while (!stack.isEmpty) {
+      while ((panicHandler eq null) && !stack.isEmpty) {
         // Peel off all the finalizers, composing them into a single finalizer
         // that produces a possibly empty list of errors that occurred when
         // executing the finalizers. The order of errors is outer-to-inner
         // (reverse chronological).
         stack.pop() match {
           case f0: Finalizer =>
-            val f: IO[Nothing, Option[List[Throwable]]] = fork(f0.finalizer, _ => IO.unit).observe.map(collectDefect)
+            val f: IO[Nothing, Option[List[Throwable]]] = f0.finalizer.runSync.map(collectDefect)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.seqWith(f)(zipFailures)
+          case r: IO.RunSync[_, _] if !interrupted => // ignore runSync when interrupted
+            panicHandler = r.asInstanceOf[IO.RunSync[E, Any]]
           case _ =>
         }
       }
+
+      if (panicHandler ne null) stack.push(panicHandler)
 
       finalizer
     }
@@ -548,7 +555,7 @@ private object RTS {
                   case IO.Tags.Terminate =>
                     val io = curIo.asInstanceOf[IO.Terminate]
 
-                    val finalizer = interruptStack
+                    val finalizer = interruptStack(killed)
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
@@ -556,8 +563,18 @@ private object RTS {
                       val defects   = status.get.defects
                       val allCauses = io.causes ++ causes ++ defects
 
-                      curIo = null
-                      result = ExitResult.Terminated(allCauses)
+                      val value = ExitResult.Terminated[E, Any](allCauses)
+
+                      // stack is always empty, unless there was a RunSync
+                      if (stack.isEmpty) {
+                        curIo = null
+                        result = value
+                      } else {
+                        val runSync = stack.pop().asInstanceOf[IO.RunSync[E, Any]]
+                        // wrapped in .runSync, pass on Terminated
+                        curIo = runSync.term(value)
+                      }
+
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = finalizer.flatMap(accumFailures)
@@ -579,6 +596,19 @@ private object RTS {
                     val io = curIo.asInstanceOf[IO.Ensuring[E, Any]]
                     stack.push(new Finalizer(io.finalizer))
                     curIo = io.io
+
+                  case IO.Tags.RunSync =>
+                    val io = curIo.asInstanceOf[IO.RunSync[E, Any]]
+                    stack.push(io)
+                    curIo = io.io
+
+                  case IO.Tags.FiberDefects =>
+                    val value = status.get.defects
+
+                    curIo = nextInstr[E](value, stack)
+
+                    if (curIo eq null)
+                      result = ExitResult.Completed(value)
                 }
               }
             } else {
@@ -992,7 +1022,7 @@ private object RTS {
                 }
             }
 
-            val finalizer = interruptStack
+            val finalizer = interruptStack(killed)
 
             if (finalizer ne null) {
               fork(finalizer.flatMap {

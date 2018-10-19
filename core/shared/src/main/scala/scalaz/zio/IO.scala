@@ -1,10 +1,11 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.annotation.switch
-import scala.concurrent.duration._
+import scalaz.zio.IO.RunSync
 
+import scala.annotation.switch
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -581,10 +582,15 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     } yield r).supervised
 
   /**
-   * Runs this action in a new fiber, resuming when the fiber terminates.
+   * Runs this action in a sandbox, letting you observe the result of its execution.
+   */
+  final def runSync: IO[Nothing, ExitResult[E, A]] = new RunSync(self)
+
+  /**
+   * Runs this action in a sandbox.
    *
-   * If the fiber fails with an error it will be captured in Right side of the error Either
-   * If the fiber terminates because of defect, list of defects will be captured in the Left side of the Either
+   * If the action fails with an error it will be captured in Right side of the error Either
+   * If the action terminates because of defect, list of defects will be captured in the Left side of the Either
    *
    * Allows recovery from errors and defects alike, as in:
    *
@@ -609,7 +615,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def sandboxed: IO[Either[List[Throwable], E], A] =
-    self.run.flatMap {
+    self.runSync.flatMap {
       case ExitResult.Completed(value) =>
         IO.now(value)
       case ExitResult.Failed(error, defects) =>
@@ -620,8 +626,6 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
   /**
    * Companion helper to `sandboxed`.
-   *
-   * Has a performance penalty due to forking a new fiber.
    *
    * Allows recovery, and partial recovery, from errors and defects alike, as in:
    *
@@ -694,6 +698,8 @@ object IO extends Serializable {
     final val Terminate       = 14
     final val Supervisor      = 15
     final val Ensuring        = 16
+    final val RunSync         = 17
+    final val FiberDefects    = 18
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -780,6 +786,22 @@ object IO extends Serializable {
     override def tag = Tags.Ensuring
   }
 
+  final class RunSync[E, A] private[IO] (val io: IO[E, A])
+      extends IO[Nothing, ExitResult[E, A]]
+      with Function[A, IO[Nothing, ExitResult[E, A]]] {
+    override def tag = Tags.RunSync
+
+    final val err: E => IO[Nothing, ExitResult[E, A]] = e => IO.finalizerDefects.map(ExitResult.Failed(e, _))
+
+    final def term(res: ExitResult.Terminated[E, A]): IO[E, ExitResult[E, A]] = IO.now(res)
+
+    final def apply(v: A): IO[Nothing, ExitResult[E, A]] = IO.now(ExitResult.Completed(v))
+  }
+
+  final class FiberDefects private[IO] () extends IO[Nothing, List[Throwable]] {
+    override def tag = Tags.FiberDefects
+  }
+
   /**
    * Lifts a strictly evaluated value into the `IO` monad.
    */
@@ -799,6 +821,8 @@ object IO extends Serializable {
   final def fail[E](error: E): IO[E, Nothing] = fail0(error, Nil)
 
   private[zio] final def fail0[E](error: E, defects: List[Throwable]): IO[E, Nothing] = new Fail(error, defects)
+
+  private[zio] final def finalizerDefects: IO[Nothing, List[Throwable]] = new FiberDefects
 
   /**
    * Strictly-evaluated unit lifted into the `IO` monad.
