@@ -4,7 +4,7 @@ package scalaz.zio
 
 import scala.collection.immutable.{ Queue => IQueue }
 
-import Queue.internal._
+import internal._
 
 /**
  * A `Queue` is a lightweight, asynchronous queue. This implementation is
@@ -130,7 +130,18 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) extends Serializable 
     }.void
 
 }
-object Queue {
+private[zio] object internal {
+  sealed abstract class State[A] extends Product with Serializable {
+    def size: Int
+  }
+  final case class Deficit[A](takers: IQueue[Promise[Nothing, A]]) extends State[A] {
+    def size: Int = -takers.length
+  }
+  final case class Surplus[A](queue: IQueue[A], putters: IQueue[(A, Promise[Nothing, Unit])]) extends State[A] {
+    def size: Int = queue.size + putters.length // TODO: O(n) for putters.length
+  }
+}
+object Queue extends Serializable {
 
   /**
    * Makes a new bounded queue.
@@ -144,16 +155,4 @@ object Queue {
    * Makes a new unbounded queue.
    */
   final def unbounded[A]: IO[Nothing, Queue[A]] = bounded(Int.MaxValue)
-
-  private[zio] object internal {
-    sealed abstract class State[A] extends Product with Serializable {
-      def size: Int
-    }
-    final case class Deficit[A](takers: IQueue[Promise[Nothing, A]]) extends State[A] {
-      def size: Int = -takers.length
-    }
-    final case class Surplus[A](queue: IQueue[A], putters: IQueue[(A, Promise[Nothing, Unit])]) extends State[A] {
-      def size: Int = queue.size + putters.length // TODO: O(n) for putters.length
-    }
-  }
 }

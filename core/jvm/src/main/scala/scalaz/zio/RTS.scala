@@ -112,7 +112,7 @@ trait RTS {
 private object RTS {
 
   sealed abstract class RaceState extends Serializable with Product
-  object RaceState {
+  object RaceState extends Serializable {
     case object Started     extends RaceState
     case object FirstFailed extends RaceState
     case object Finished    extends RaceState
@@ -1067,7 +1067,7 @@ private object RTS {
     /** errors resulting from exceptions thrown during the execution of the fiber */
     def defects: List[Throwable]
   }
-  object FiberStatus {
+  object FiberStatus extends Serializable {
     final case class Executing[E, A](
       terminationCauses: Option[List[Throwable]],
       defects: List[Throwable],
