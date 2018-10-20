@@ -308,8 +308,19 @@ sealed abstract class IO[+E, +A] { self =>
   final def ensuring(finalizer: IO[Nothing, Unit]): IO[E, A] =
     new IO.Ensuring(self, finalizer)
 
+  /**
+   * Executes the action on the specified `ExecutionContext` and then shifts back
+   * to the default one.
+   */
   final def on(ec: ExecutionContext): IO[E, A] =
-    IO.shift(ec) *> this <* IO.`yield`
+    IO.shift(ec) *> this <* IO.shift
+
+  /**
+   * Forks an action that will be executed on the specified `ExecutionContext`
+   * and then shifts back to the default one.
+   */
+  final def forkOn(ec: ExecutionContext): IO[E, Fiber[E, A]] =
+    on(ec).fork
 
   /**
    * Executes the release action only if there was an error.
@@ -917,13 +928,13 @@ object IO {
     )
 
   /**
-   * Yields execution to another thread.
+   * Shifts execution to a thread in the default `ExecutionContext`.
    */
-  final def `yield`: IO[Nothing, Unit] =
+  final def shift: IO[Nothing, Unit] =
     IO.sleep(0.seconds)
 
   /**
-   * Shifts the operation to another execution context.
+   * Shifts the operation to a specified `ExecutionContext`.
    *
    * {{{
    *   IO.shift(myPool) *> myTask
