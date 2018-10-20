@@ -17,7 +17,7 @@ import java.io.IOException
 object MyApp extends App {
 
   def run(args: List[String]): IO[Nothing, ExitStatus] =
-    myAppLogic.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
+    myAppLogic.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.apply)
 
   def myAppLogic: IO[IOException, Unit] =
     for {
