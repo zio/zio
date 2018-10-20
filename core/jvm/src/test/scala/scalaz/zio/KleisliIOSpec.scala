@@ -120,8 +120,8 @@ class KleisliIOSpec extends AbstractRTSSpec {
   def e13 =
     unsafeRun(
       for {
-        v1 <- KleisliIO.test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
-        v2 <- KleisliIO.test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
+        v1 <- test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
+        v2 <- test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
       } yield (v1 must beRight(Array(1, 2, 5))) and (v2 must beLeft(Array(1, 2, 5, 6)))
     )
 
