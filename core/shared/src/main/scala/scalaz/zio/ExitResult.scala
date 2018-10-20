@@ -47,7 +47,7 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     case _                          => ts
   }
 }
-object ExitResult {
+object ExitResult extends Serializable {
   final case class Completed[E, A](value: A) extends ExitResult[E, A]
 
   /**

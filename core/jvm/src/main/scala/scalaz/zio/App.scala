@@ -28,7 +28,7 @@ import scala.concurrent.duration.Duration
 trait App extends RTS {
 
   sealed abstract class ExitStatus extends Serializable with Product
-  object ExitStatus {
+  object ExitStatus extends Serializable {
     case class ExitNow(code: Int)                         extends ExitStatus
     case class ExitWhenDone(code: Int, timeout: Duration) extends ExitStatus
     case object DoNotExit                                 extends ExitStatus
