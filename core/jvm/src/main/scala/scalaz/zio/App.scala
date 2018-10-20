@@ -1,8 +1,6 @@
 // Copyright (C) 2017 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.concurrent.duration.Duration
-
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -27,12 +25,7 @@ import scala.concurrent.duration.Duration
  */
 trait App extends RTS {
 
-  sealed trait ExitStatus
-  object ExitStatus {
-    case class ExitNow(code: Int)                         extends ExitStatus
-    case class ExitWhenDone(code: Int, timeout: Duration) extends ExitStatus
-    case object DoNotExit                                 extends ExitStatus
-  }
+  case class ExitStatus(code: Int)
 
   /**
    * The main function of the application, which will be passed the command-line
@@ -43,22 +36,16 @@ trait App extends RTS {
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
    */
-  final def main(args0: Array[String]): Unit =
-    unsafeRun(
-      for {
-        fiber <- run(args0.toList).fork
-        _ <- IO.sync(Runtime.getRuntime.addShutdownHook(new Thread {
-              override def run() = unsafeRun(fiber.interrupt)
-            }))
-        result <- fiber.join
-      } yield result
-    ) match {
-      case ExitStatus.ExitNow(code) =>
-        sys.exit(code)
-      case ExitStatus.ExitWhenDone(code, timeout) =>
-        unsafeShutdownAndWait(timeout)
-        sys.exit(code)
-      case ExitStatus.DoNotExit =>
-    }
+  final def main(args0: Array[String]): Unit = {
+    val go = for {
+      fiber <- run(args0.toList).fork
+      _ <- IO.sync(Runtime.getRuntime.addShutdownHook(new Thread {
+            override def run() = unsafeRun(fiber.interrupt)
+          }))
+      result <- fiber.join
+    } yield result
+
+    sys.exit(unsafeRun(go).code)
+  }
 
 }

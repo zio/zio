@@ -308,6 +308,9 @@ sealed abstract class IO[+E, +A] { self =>
   final def ensuring(finalizer: IO[Nothing, Unit]): IO[E, A] =
     new IO.Ensuring(self, finalizer)
 
+  final def on(ec: ExecutionContext): IO[E, A] =
+    IO.shift(ec) *> this <* IO.`yield`
+
   /**
    * Executes the release action only if there was an error.
    */
@@ -912,6 +915,12 @@ object IO {
         } catch f andThen Left[E, A]
       )
     )
+
+  /**
+   * Yields execution to another thread.
+   */
+  final def `yield`: IO[Nothing, Unit] =
+    IO.sleep(0.seconds)
 
   /**
    * Shifts the operation to another execution context.

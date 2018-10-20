@@ -7,6 +7,8 @@ import scala.concurrent.duration.Duration
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
 import java.util.concurrent._
 
+import scala.concurrent.ExecutionContext
+
 /**
  * This trait provides a high-performance implementation of a runtime system for
  * the `IO` monad on the JVM.
@@ -40,14 +42,6 @@ trait RTS {
     context.runSync
   }
 
-  final def unsafeShutdownAndWait(timeout: Duration): Unit = {
-    scheduledExecutor.shutdown()
-    scheduledExecutor.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
-    threadPool.shutdown()
-    threadPool.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
-    ()
-  }
-
   /**
    * The default handler for unhandled exceptions in the main fiber, and any
    * fibers it forks that recursively inherit the handler.
@@ -58,7 +52,12 @@ trait RTS {
   /**
    * The main thread pool used for executing fibers.
    */
-  val threadPool = newDefaultThreadPool()
+  val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(newDefaultThreadPool())
+
+  /**
+   * The thread pool for scheduling timed tasks.
+   */
+  lazy val scheduledExecutor = newDefaultScheduledExecutor()
 
   /**
    * This determines the maximum number of resumptions placed on the stack
@@ -74,10 +73,8 @@ trait RTS {
    */
   final val YieldMaxOpCount = 1048576
 
-  lazy val scheduledExecutor = newDefaultScheduledExecutor()
-
   final def submit[A](block: => A): Unit = {
-    threadPool.submit(new Runnable {
+    executionContext.execute(new Runnable {
       def run: Unit = { block; () }
     })
 
