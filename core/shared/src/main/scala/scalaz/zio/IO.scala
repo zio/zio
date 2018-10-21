@@ -313,14 +313,14 @@ sealed abstract class IO[+E, +A] { self =>
    * to the default one.
    */
   final def on(ec: ExecutionContext): IO[E, A] =
-    IO.shift(ec) *> this <* IO.shift
+    IO.shift(ec) *> self <* IO.shift
 
   /**
    * Forks an action that will be executed on the specified `ExecutionContext`
    * and then shifts back to the default one.
    */
   final def forkOn(ec: ExecutionContext): IO[E, Fiber[E, A]] =
-    on(ec).fork
+    (IO.shift(ec) *> self).fork
 
   /**
    * Executes the release action only if there was an error.
