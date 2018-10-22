@@ -165,14 +165,14 @@ sealed abstract class IO[+E, +A] { self =>
    * then the action will fail with some error.
    */
   final def race[E1 >: E, A1 >: A](that: IO[E1, A1]): IO[E1, A1] =
-    raceBoth(that).map(_.merge)
+    raceEither(that).map(_.merge)
 
   /**
    * Races this action with the specified action, returning the first
    * result to produce a value, whichever it is. If neither action succeeds,
    * then the action will fail with some error.
    */
-  final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
+  final def raceEither[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
     raceWith(that)((a, fiber) => fiber.interrupt.const(Left(a)), (b, fiber) => fiber.interrupt.const(Right(b)))
 
   /**
@@ -533,7 +533,7 @@ sealed abstract class IO[+E, +A] { self =>
    * IO.point(1).timeout(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
-  final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
+  final def timeout0[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
     self
       .map(f)
       .attempt
@@ -541,6 +541,13 @@ sealed abstract class IO[+E, +A] { self =>
         (either: Either[E, B], right: Fiber[E, B]) => right.interrupt *> either.fold(IO.fail, IO.now),
         (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
       )
+
+  /**
+    *  Times out this value by the specified duration.
+    * */
+  final def timeout(duration: Duration) : IO[E, Option[A]] = {
+    timeout0(Option.empty[A])(Some(_))(duration)
+  }
 
   /**
    * Returns a new action that executes this one and times the execution.
@@ -942,7 +949,7 @@ object IO {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
+  final def asyncM[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -1084,7 +1091,7 @@ object IO {
    * Evaluate each effect in the structure from left to right, and collect
    * the results. For parallelism use `parAll`.
    */
-  final def sequence[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def seqAll[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
     traverse(in)(identity)
 
   /**

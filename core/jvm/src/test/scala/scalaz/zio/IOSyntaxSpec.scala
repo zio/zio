@@ -189,7 +189,7 @@ class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val ios = charList.map(IO.sync(_))
     unsafeRun(for {
       sequence1 <- ios.sequence
-      sequence2 <- IO.sequence(ios)
+      sequence2 <- IO.seqAll(ios)
     } yield sequence1 must ===(sequence2))
   }
 }

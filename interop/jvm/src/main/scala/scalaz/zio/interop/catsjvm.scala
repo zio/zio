@@ -57,7 +57,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     }
 
   override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    IO.asyncPure { kk: Callback[Throwable, A] =>
+    IO.asyncM { kk: Callback[Throwable, A] =>
       k(eitherToExitResult andThen kk)
     }
 
