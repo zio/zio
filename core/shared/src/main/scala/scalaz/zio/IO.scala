@@ -526,6 +526,12 @@ sealed abstract class IO[+E, +A] { self =>
    */
   final def peek[E1 >: E, B](f: A => IO[E1, B]): IO[E1, A] = self.flatMap(a => f(a).const(a))
 
+ /**
+   * Times out this value by the specified duration.
+   */
+  final def timeout(duration: Duration) : IO[E, Option[A]] =
+    timeout0(Option.empty[A])(Some(_))(duration)
+    
   /**
    * Times out this action by the specified duration.
    *
@@ -541,13 +547,6 @@ sealed abstract class IO[+E, +A] { self =>
         (either: Either[E, B], right: Fiber[E, B]) => right.interrupt *> either.fold(IO.fail, IO.now),
         (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
       )
-
-  /**
-    *  Times out this value by the specified duration.
-    * */
-  final def timeout(duration: Duration) : IO[E, Option[A]] = {
-    timeout0(Option.empty[A])(Some(_))(duration)
-  }
 
   /**
    * Returns a new action that executes this one and times the execution.
@@ -1091,7 +1090,7 @@ object IO {
    * Evaluate each effect in the structure from left to right, and collect
    * the results. For parallelism use `parAll`.
    */
-  final def seqAll[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
+  final def sequence[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
     traverse(in)(identity)
 
   /**

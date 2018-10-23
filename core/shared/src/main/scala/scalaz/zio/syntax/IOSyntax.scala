@@ -32,7 +32,7 @@ object IOSyntax {
     def mergeAll[B](zero: B, f: (B, A) => B): IO[E, B] = IO.mergeAll(ios)(zero, f)
     def parAll: IO[E, List[A]]                         = IO.parAll(ios)
     def forkAll: IO[Nothing, Fiber[E, List[A]]]        = IO.forkAll(ios)
-    def sequence: IO[E, List[A]]                       = IO.seqAll(ios)
+    def sequence: IO[E, List[A]]                       = IO.sequence(ios)
   }
 
   final class IOSyntax[E, A](val io: IO[E, A]) extends AnyVal {
