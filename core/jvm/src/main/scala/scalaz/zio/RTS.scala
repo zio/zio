@@ -72,7 +72,7 @@ trait RTS {
    *
    * FIXME: Replace this entirely with the new scheme.
    */
-  final val YieldMaxOpCount = 1048576
+  final val YieldMaxOpCount = 1024
 
   lazy val scheduledExecutor = newDefaultScheduledExecutor()
 
