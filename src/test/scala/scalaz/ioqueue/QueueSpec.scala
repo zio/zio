@@ -759,7 +759,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue    <- Queue.dropping[Int](capacity)
       v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
       ta       <- queue.takeAll
-    } yield (ta.size must_== 0).and(v1 must_=== true)
+    } yield (ta.size must_=== 0).and(v1 must_=== false)
   )
 
   def e58 = unsafeRun(
