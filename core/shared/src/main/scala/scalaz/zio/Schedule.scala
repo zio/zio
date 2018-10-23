@@ -699,7 +699,7 @@ object Schedule {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def linear(base: Duration): Schedule[Any, Duration] =
-    delayed(forever.map(i => base * i))
+    delayed(forever.map(i => base * i.doubleValue()))
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
