@@ -158,6 +158,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a dropping queue of size 2, offering 6 values the queue drops offers corectly ${upTo(
       1.second
     )(e60)}
+    make a dropping queue of size 5, offer 3 values and receive all 3 values back and should return true ${upTo(
+      1.second
+    )(e61)}
     """
 
   def e1 = unsafeRun(
@@ -750,7 +753,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       iter     = Range.inclusive(1, 4).toIterable
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
-    } yield (ta must_=== List(1, 2, 3)) && (ta.size must_=== capacity)
+    } yield (ta must_=== List(1, 2, 3)).and(ta.size must_=== capacity)
   )
 
   def e57 = unsafeRun(
@@ -769,7 +772,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       iter     = Range.inclusive(1, 200).toIterable
       v1       <- queue.offerAll(iter)
       ta       <- queue.takeAll
-    } yield (ta must_=== Range.inclusive(1, 100).toList) && (ta.size must_=== capacity)
+    } yield (ta must_=== Range.inclusive(1, 100).toList).and(ta.size must_=== capacity)
   )
 
   def e59 = unsafeRun(
@@ -790,10 +793,19 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       iter     = Range.inclusive(1, 6).toIterable
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
-    } yield (ta must_=== List(1, 2)) && (ta.size must_=== capacity)
+    } yield (ta must_=== List(1, 2)).and(ta.size must_=== capacity)
+  )
+
+  def e61 = unsafeRun(
+    for {
+      capacity <- IO.now(5)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 3).toIterable
+      v1       <- queue.offerAll(iter)
+      ta       <- queue.takeAll
+    } yield (ta must_=== List(1, 2, 3)).and(v1 must_=== true)
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
-
 }
