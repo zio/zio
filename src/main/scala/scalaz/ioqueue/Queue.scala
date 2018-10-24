@@ -205,13 +205,26 @@ class Queue[A] private (
         takers.dequeueOption match {
           case None =>
             val (addToQueue, surplusValues) = capacity.fold((as, Iterable.empty[A]))(as.splitAt)
-            val (complete, putters) =
-              if (surplusValues.isEmpty)
-                p.complete(true) -> IQueue.empty
-              else
-                IO.now(false) -> IQueue.empty.enqueue(surplusValues -> p)
-
-            complete -> Surplus(IQueue.empty.enqueue(addToQueue.toList), putters)
+            if (surplusValues.isEmpty)
+              p.complete(true) -> Surplus(IQueue(addToQueue.toSeq: _*), IQueue.empty)
+            else
+              strategy match {
+                case BackPressure =>
+                  IO.now(false) -> Surplus(
+                    IQueue.empty.enqueue(addToQueue.toList),
+                    IQueue.empty.enqueue(surplusValues -> p)
+                  )
+                case Sliding =>
+                  p.complete(false) -> Surplus(
+                    IQueue.empty.enqueue(addToQueue.toList),
+                    IQueue.empty
+                  )
+                case Dropping =>
+                  p.complete(false) -> Surplus(
+                    IQueue.empty.enqueue(addToQueue.toList),
+                    IQueue.empty
+                  )
+              }
 
           case Some(_) =>
             val (takersToBeCompleted, deficitValues) = takers.splitAt(as.size)
