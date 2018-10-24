@@ -161,6 +161,9 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a dropping queue of size 5, offer 3 values and receive all 3 values back and should return true ${upTo(
       1.second
     )(e61)}
+    make a dropping queue of size 1, fork a take and then offer 3. Must only return first item offered ${upTo(
+      1.second
+    )(e62)}
     """
 
   def e1 = unsafeRun(
@@ -804,6 +807,18 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v1       <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== List(1, 2, 3)).and(v1 must_=== true)
+  )
+
+  def e62 = unsafeRun(
+    for {
+      capacity <- IO.now(1)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 3)
+      f        <- queue.take.fork
+      _        <- queue.offerAll(iter.toList)
+      _        <- f.join
+      ta       <- queue.takeAll
+    } yield ta must_=== List(1)
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
