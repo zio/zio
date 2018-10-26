@@ -206,7 +206,7 @@ class Queue[A] private (
           case None =>
             val (addToQueue, surplusValues) = capacity.fold((as, Iterable.empty[A]))(as.splitAt)
             if (surplusValues.isEmpty)
-              p.complete(true) -> Surplus(IQueue(addToQueue.toSeq: _*), IQueue.empty)
+              p.complete(true) -> Surplus(IQueue.empty.enqueue(addToQueue.toList), IQueue.empty)
             else
               strategy match {
                 case BackPressure =>
