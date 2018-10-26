@@ -215,8 +215,9 @@ class Queue[A] private (
                     IQueue.empty.enqueue(surplusValues -> p)
                   )
                 case Sliding =>
+                  val toQueue = (addToQueue ++ surplusValues).takeRight(surplusValues.size)
                   p.complete(false) -> Surplus(
-                    IQueue.empty.enqueue(addToQueue.toList),
+                    IQueue.empty.enqueue(toQueue.toList),
                     IQueue.empty
                   )
                 case Dropping =>
@@ -228,28 +229,50 @@ class Queue[A] private (
 
           case Some(_) =>
             val (takersToBeCompleted, deficitValues) = takers.splitAt(as.size)
-            val completeTakers = {
-              val completedValues = as.take(takersToBeCompleted.size)
-              completedValues.zipWithIndex.foldLeft[IO[Nothing, Boolean]](IO.now(true)) {
-                case (complete, (a, index)) =>
-                  val p = takersToBeCompleted(index)
-                  complete *> p.complete(a)
-              }
-            }
+            val completeTakers =
+              as.take(takersToBeCompleted.size)
+                .zipWithIndex
+                .foldLeft[IO[Nothing, Boolean]](IO.now(true)) {
+                  case (complete, (a, index)) =>
+                    val p = takersToBeCompleted(index)
+                    complete *> p.complete(a)
+                }
+
             if (deficitValues.isEmpty) {
               val (addToQueue, surplusValues) =
                 capacity.fold((as, Iterable.empty[A]))(as.drop(takers.size).splitAt)
-              val (complete, putters) =
-                if (surplusValues.isEmpty)
-                  completeTakers *> p.complete(true) -> IQueue.empty
-                else IO.now(false)                   -> IQueue.empty.enqueue(surplusValues -> p)
 
-              completeTakers *> complete -> Surplus(
-                IQueue.empty[A].enqueue(addToQueue.toList),
-                putters
-              )
-            } else completeTakers *> p.complete(true) -> Deficit(deficitValues)
+              val (complete, surplus) =
+                if (surplusValues.isEmpty)
+                  p.complete(true) -> Surplus(
+                    IQueue.empty.enqueue(addToQueue.toList),
+                    IQueue.empty
+                  )
+                else
+                  strategy match {
+                    case BackPressure =>
+                      IO.now(false) -> Surplus(
+                        IQueue.empty[A].enqueue(addToQueue.toList),
+                        IQueue.empty.enqueue(surplusValues -> p)
+                      )
+                    case Sliding =>
+                      val toQueue = (addToQueue ++ surplusValues).takeRight(surplusValues.size)
+                      p.complete(false) -> Surplus(
+                        IQueue.empty.enqueue(toQueue.toList),
+                        IQueue.empty
+                      )
+                    case Dropping =>
+                      p.complete(false) -> Surplus(
+                        IQueue.empty.enqueue(addToQueue.toList),
+                        IQueue.empty
+                      )
+                  }
+
+              completeTakers *> complete -> surplus
+            } else
+              completeTakers *> p.complete(true) -> Deficit(deficitValues)
         }
+
       case (p, Surplus(values, putters)) =>
         val (addToQueue, surplusValues) =
           capacity.fold((as, Iterable.empty[A]))(c => as.splitAt(c - values.size))
