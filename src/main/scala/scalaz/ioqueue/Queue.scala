@@ -215,7 +215,7 @@ class Queue[A] private (
                     IQueue.empty.enqueue(surplusValues -> p)
                   )
                 case Sliding =>
-                  val toQueue = (addToQueue ++ surplusValues).takeRight(surplusValues.size)
+                  val toQueue = capacity.fold(as)(as.takeRight)
                   p.complete(false) -> Surplus(
                     IQueue.empty.enqueue(toQueue.toList),
                     IQueue.empty
@@ -256,7 +256,7 @@ class Queue[A] private (
                         IQueue.empty.enqueue(surplusValues -> p)
                       )
                     case Sliding =>
-                      val toQueue = (addToQueue ++ surplusValues).takeRight(surplusValues.size)
+                      val toQueue = capacity.fold(as)(as.takeRight)
                       p.complete(false) -> Surplus(
                         IQueue.empty.enqueue(toQueue.toList),
                         IQueue.empty
