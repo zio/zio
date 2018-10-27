@@ -145,6 +145,28 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue, shut it down, create a shutdown hook completing a promise, the promise should be completed immediately ${upTo(
       30.second
     )(e55)}
+    make a dropping queue of size 3, offering 4 values and the last should be dropped ${upTo(
+      1.second
+    )(e56)}
+    make a dropping queue of size 0, offering a value should return false ${upTo(1.second)(e57)}
+    make a dropping queue of size 100, offer values up to 200 and retrieve up to 100 in correct order ${upTo(
+      1.second
+    )(e58)}
+    make a dropping queue, forking takers, offering values and joining fibers should return the correct value ${upTo(
+      1.second
+    )(e59)}
+    make a dropping queue of size 2, offering 6 values the queue drops offers corectly ${upTo(
+      1.second
+    )(e60)}
+    make a dropping queue of size 5, offer 3 values and receive all 3 values back and should return true ${upTo(
+      1.second
+    )(e61)}
+    make a dropping queue of size 1, fork a take and then offer 3. Must return first item upon join ${upTo(
+      1.second
+    )(e62)}
+    make a sliding queue of size 1, fork a take and then offer 3. Must return last item upon join ${upTo(
+      1.second
+    )(e63)}
     """
 
   def e1 = unsafeRun(
@@ -730,7 +752,88 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     } yield res must_=== true
   )
 
+  def e56 = unsafeRun(
+    for {
+      capacity <- IO.now(3)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 4).toIterable
+      _        <- queue.offerAll(iter)
+      ta       <- queue.takeAll
+    } yield (ta must_=== List(1, 2, 3)).and(ta.size must_=== capacity)
+  )
+
+  def e57 = unsafeRun(
+    for {
+      capacity <- IO.now(0)
+      queue    <- Queue.dropping[Int](capacity)
+      v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
+      ta       <- queue.takeAll
+    } yield (ta.size must_=== 0).and(v1 must_=== false)
+  )
+
+  def e58 = unsafeRun(
+    for {
+      capacity <- IO.now(100)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 200).toIterable
+      v1       <- queue.offerAll(iter)
+      ta       <- queue.takeAll
+    } yield (ta must_=== Range.inclusive(1, 100).toList).and(ta.size must_=== capacity)
+  )
+
+  def e59 = unsafeRun(
+    for {
+      queue <- Queue.dropping[Int](5)
+      f1 <- queue.take
+             .seqWith(queue.take)(_ + _)
+             .fork
+      _ <- queue.offer(1) *> queue.offer(2)
+      v <- f1.join
+    } yield v must_=== 3
+  )
+
+  def e60 = unsafeRun(
+    for {
+      capacity <- IO.now(2)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 6).toIterable
+      _        <- queue.offerAll(iter)
+      ta       <- queue.takeAll
+    } yield (ta must_=== List(1, 2)).and(ta.size must_=== capacity)
+  )
+
+  def e61 = unsafeRun(
+    for {
+      capacity <- IO.now(5)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 3).toIterable
+      v1       <- queue.offerAll(iter)
+      ta       <- queue.takeAll
+    } yield (ta must_=== List(1, 2, 3)).and(v1 must_=== true)
+  )
+
+  def e62 = unsafeRun(
+    for {
+      capacity <- IO.now(1)
+      queue    <- Queue.dropping[Int](capacity)
+      iter     = Range.inclusive(1, 3)
+      f        <- queue.take.fork
+      _        <- queue.offerAll(iter.toList)
+      j        <- f.join
+    } yield j must_=== 1
+  )
+
+  def e63 = unsafeRun(
+    for {
+      capacity <- IO.now(1)
+      queue    <- Queue.sliding[Int](capacity)
+      iter     = Range.inclusive(1, 3)
+      _        <- queue.take.fork
+      _        <- queue.offerAll(iter.toList)
+      t        <- queue.take
+    } yield t must_=== 3
+  )
+
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
-
 }
