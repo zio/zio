@@ -90,7 +90,7 @@ class Queue[A] private (
       case (p, Deficit(takers)) => (IO.now(false), Deficit(takers.enqueue(p)))
       case (p, Surplus(values, putters)) =>
         strategy match {
-          case Sliding if capacity.exists(_ < 1) =>
+          case Sliding | Dropping if capacity.exists(_ < 1) =>
             (IO.never, Surplus(IQueue.empty, putters))
           case _ =>
             values.dequeueOption match {
@@ -205,38 +205,75 @@ class Queue[A] private (
         takers.dequeueOption match {
           case None =>
             val (addToQueue, surplusValues) = capacity.fold((as, Iterable.empty[A]))(as.splitAt)
-            val (complete, putters) =
-              if (surplusValues.isEmpty)
-                p.complete(true) -> IQueue.empty
-              else
-                IO.now(false) -> IQueue.empty.enqueue(surplusValues -> p)
-
-            complete -> Surplus(IQueue.empty.enqueue(addToQueue.toList), putters)
+            if (surplusValues.isEmpty)
+              p.complete(true) -> Surplus(IQueue.empty.enqueue(addToQueue.toList), IQueue.empty)
+            else
+              strategy match {
+                case BackPressure =>
+                  IO.now(false) -> Surplus(
+                    IQueue.empty.enqueue(addToQueue.toList),
+                    IQueue.empty.enqueue(surplusValues -> p)
+                  )
+                case Sliding =>
+                  val toQueue = capacity.fold(as)(as.takeRight)
+                  p.complete(false) -> Surplus(
+                    IQueue.empty.enqueue(toQueue.toList),
+                    IQueue.empty
+                  )
+                case Dropping =>
+                  p.complete(false) -> Surplus(
+                    IQueue.empty.enqueue(addToQueue.toList),
+                    IQueue.empty
+                  )
+              }
 
           case Some(_) =>
             val (takersToBeCompleted, deficitValues) = takers.splitAt(as.size)
-            val completeTakers = {
-              val completedValues = as.take(takersToBeCompleted.size)
-              completedValues.zipWithIndex.foldLeft[IO[Nothing, Boolean]](IO.now(true)) {
-                case (complete, (a, index)) =>
-                  val p = takersToBeCompleted(index)
-                  complete *> p.complete(a)
-              }
-            }
+            val completeTakers =
+              as.take(takersToBeCompleted.size)
+                .zipWithIndex
+                .foldLeft[IO[Nothing, Boolean]](IO.now(true)) {
+                  case (complete, (a, index)) =>
+                    val p = takersToBeCompleted(index)
+                    complete *> p.complete(a)
+                }
+
             if (deficitValues.isEmpty) {
               val (addToQueue, surplusValues) =
                 capacity.fold((as, Iterable.empty[A]))(as.drop(takers.size).splitAt)
-              val (complete, putters) =
-                if (surplusValues.isEmpty)
-                  completeTakers *> p.complete(true) -> IQueue.empty
-                else IO.now(false)                   -> IQueue.empty.enqueue(surplusValues -> p)
 
-              completeTakers *> complete -> Surplus(
-                IQueue.empty[A].enqueue(addToQueue.toList),
-                putters
-              )
-            } else completeTakers *> p.complete(true) -> Deficit(deficitValues)
+              val (complete, surplus) =
+                if (surplusValues.isEmpty)
+                  p.complete(true) -> Surplus(
+                    IQueue.empty.enqueue(addToQueue.toList),
+                    IQueue.empty
+                  )
+                else
+                  strategy match {
+                    case BackPressure =>
+                      IO.now(false) -> Surplus(
+                        IQueue.empty[A].enqueue(addToQueue.toList),
+                        IQueue.empty.enqueue(surplusValues -> p)
+                      )
+                    case Sliding =>
+                      val notTaken = addToQueue ++ surplusValues
+                      val toQueue  = capacity.fold(notTaken)(notTaken.takeRight)
+                      p.complete(false) -> Surplus(
+                        IQueue.empty.enqueue(toQueue.toList),
+                        IQueue.empty
+                      )
+                    case Dropping =>
+                      p.complete(false) -> Surplus(
+                        IQueue.empty.enqueue(addToQueue.toList),
+                        IQueue.empty
+                      )
+                  }
+
+              completeTakers *> complete -> surplus
+            } else
+              completeTakers *> p.complete(true) -> Deficit(deficitValues)
         }
+
       case (p, Surplus(values, putters)) =>
         val (addToQueue, surplusValues) =
           capacity.fold((as, Iterable.empty[A]))(c => as.splitAt(c - values.size))
@@ -255,6 +292,11 @@ class Queue[A] private (
                 capacity.fold(
                   Surplus(values ++ as, putters)
                 )(c => Surplus(values.takeRight(c - as.size) ++ as.takeRight(c), putters))
+              )
+            case Dropping =>
+              (
+                p.complete(false),
+                Surplus(values.enqueue(addToQueue.toList), putters)
               )
           }
         }
@@ -300,6 +342,18 @@ object Queue {
    */
   final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] = createQueue(Some(capacity), Sliding)
 
+  /**
+   * Makes a new bounded queue with the dropping strategy.
+   * When the capacity of the queue is reached, new elements will be dropped.
+   */
+  final def dropping[A](capacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(Some(capacity), Dropping)
+
+  /**
+   * Makes a new unbounded queue.
+   */
+  final def unbounded[A]: IO[Nothing, Queue[A]] = createQueue(None, BackPressure)
+
   private def createQueue[A](
     capacity: Option[Int],
     strategy: SurplusStrategy
@@ -309,16 +363,13 @@ object Queue {
       shutdownHook <- Ref[IO[Nothing, Unit]](IO.unit)
     } yield new Queue[A](capacity, state, strategy, shutdownHook)
 
-  /**
-   * Makes a new unbounded queue.
-   */
-  final def unbounded[A]: IO[Nothing, Queue[A]] = createQueue(None, BackPressure)
-
   private[ioqueue] object internal {
 
     sealed trait SurplusStrategy
 
     case object Sliding extends SurplusStrategy
+
+    case object Dropping extends SurplusStrategy
 
     case object BackPressure extends SurplusStrategy
 
