@@ -685,13 +685,21 @@ object Schedule {
 
   /**
    * A schedule that always recurs, increasing delays by summing the
-   * preceeding two delays (similar to the fibonacci sequence). Returns the
+   * preceding two delays (similar to the fibonacci sequence). Returns the
    * current duration between recurrences.
    */
   final def fibonacci(one: Duration): Schedule[Any, Duration] =
     delayed(unfold[(Duration, Duration)]((Duration.Zero, one)) {
       case (a1, a2) => (a2, a1 + a2)
     }.map(_._1))
+
+  /**
+   * A schedule that always recurs, but will repeat on a linear time
+   * interval, given by `base * n` where `n` is the number of
+   * repetitions so far. Returns the current duration between recurrences.
+   */
+  final def linear(base: Duration): Schedule[Any, Duration] =
+    delayed(forever.map(i => base * i.doubleValue()))
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
