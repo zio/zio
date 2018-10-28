@@ -13,13 +13,9 @@ The package strives to deliver on the following design goals:
  - **Pragmatic**. The composable, orthogonal primitives necessary to build real world software, including primitives for concurrent and asynchronous programming.
 
 **Documentation** and **Examples** can be found on the [microsite](https://scalaz.github.io/scalaz-zio/).
-
 ---
-
 # [Learn More on the ZIO Microsite](https://scalaz.github.io/scalaz-zio/)
-
 ---
-
 ### Legal
 
 Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
