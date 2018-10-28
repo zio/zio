@@ -11,7 +11,7 @@ package scalaz.zio
  * which represents an interruptible asynchronous action where the canceler has the
  * form `Throwable => IO[Nothing, Unit]`
  */
-sealed abstract class Async[+E, +A] { self =>
+sealed abstract class Async[+E, +A] extends Product with Serializable { self =>
   def fold[E1, B](
     f: A => ExitResult[E1, B],
     g: (E, List[Throwable]) => ExitResult[E1, B],
@@ -24,7 +24,7 @@ sealed abstract class Async[+E, +A] { self =>
     }
 }
 
-object Async {
+object Async extends Serializable {
 
   val NoOpCanceler: Canceler         = () => ()
   val NoOpPureCanceler: PureCanceler = () => IO.unit

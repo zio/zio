@@ -6,7 +6,7 @@ package scalaz.zio
  * completed with a value, failed because of an uncaught `E`, or terminated
  * due to interruption or runtime error.
  */
-sealed trait ExitResult[+E, +A] { self =>
+sealed abstract class ExitResult[+E, +A] extends Product with Serializable { self =>
   import ExitResult._
 
   final def succeeded: Boolean = self match {
@@ -47,7 +47,7 @@ sealed trait ExitResult[+E, +A] { self =>
     case _                          => ts
   }
 }
-object ExitResult {
+object ExitResult extends Serializable {
   final case class Completed[E, A](value: A) extends ExitResult[E, A]
 
   /**
