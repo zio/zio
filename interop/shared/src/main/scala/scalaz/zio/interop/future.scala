@@ -1,8 +1,7 @@
 package scalaz.zio
 package interop
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 
 object future {
@@ -20,16 +19,21 @@ object future {
   implicit class FiberObjOps(private val fiberObj: Fiber.type) extends AnyVal {
     def fromFuture[A](_ftr: => Future[A])(ec: ExecutionContext): Fiber[Throwable, A] =
       new Fiber[Throwable, A] {
-        private lazy val ftr                                   = _ftr
-        def join: IO[Throwable, A]                             = IO.syncThrowable(Await.result(ftr, Duration.Inf))
-        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.attempt.void
-        def onComplete(f: ExitResult[Throwable, A] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-          IO.syncThrowable {
+        private lazy val ftr = _ftr
+        def observe: IO[Nothing, ExitResult[Throwable, A]] = IO.async {
+          cb: Callback[Nothing, ExitResult[Throwable, A]] =>
             ftr.onComplete {
-              case Success(a) => f(ExitResult.Completed(a))
-              case Failure(t) => f(ExitResult.Failed(t))
+              case Success(a) => cb(ExitResult.Completed(ExitResult.Completed(a)))
+              case Failure(t) => cb(ExitResult.Completed(ExitResult.Failed(t)))
             }(ec)
-          }.attempt.void
+        }
+        def tryObserve: IO[Nothing, Option[ExitResult[Throwable, A]]] = IO.sync {
+          ftr.value map {
+            case Success(a) => ExitResult.Completed(a)
+            case Failure(t) => ExitResult.Failed(t)
+          }
+        }
+        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.attempt.void
       }
   }
 

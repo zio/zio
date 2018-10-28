@@ -91,9 +91,9 @@ sealed abstract class IO[+E, +A] { self =>
     case IO.Tags.Fail =>
       val io = self.asInstanceOf[IO.Fail[E]]
 
-      new IO.Fail(f(io.error))
+      new IO.Fail(f(io.error), io.defects)
 
-    case _ => new IO.Redeem(self, (e: E) => new IO.Fail(f(e)), (a: A) => new IO.Strict(g(a)))
+    case _ => new IO.Redeem(self, (e: E) => new IO.Fail(f(e), Nil), (a: A) => new IO.Strict(g(a)))
   }
 
   /**
@@ -179,8 +179,9 @@ sealed abstract class IO[+E, +A] { self =>
    * Races this action with the specified action, invoking the
    * specified finisher as soon as one value or the other has been computed.
    */
-  final def raceWith[E1 >: E, A1 >: A, B, C](that: IO[E1, B])(finishLeft: (A1, Fiber[E1, B]) => IO[E1, C],
-                                                              finishRight: (B, Fiber[E1, A1]) => IO[E1, C]): IO[E1, C] =
+  final def raceWith[E1 >: E, A1 >: A, B, C](
+    that: IO[E1, B]
+  )(finishLeft: (A1, Fiber[E1, B]) => IO[E1, C], finishRight: (B, Fiber[E1, A1]) => IO[E1, C]): IO[E1, C] =
     new IO.Race[E1, A1, B, C](self, that, finishLeft, finishRight)
 
   /**
@@ -317,15 +318,15 @@ sealed abstract class IO[+E, +A] { self =>
           case ExitResult.Failed(_, _)  => release(a)
           case ExitResult.Terminated(_) => release(a)
           case _                        => IO.unit
-      }
+        }
     )(use)
 
   final def managed(release: A => IO[Nothing, Unit]): Managed[E, A] =
     Managed[E, A](this)(release)
 
   /**
-   * Runs the cleanup action if this action errors, providing the error to the
-   * cleanup action if it exists. The cleanup action will not be interrupted.
+   * Runs the specified action if this action errors, providing the error to the
+   * action if it exists. The provided action will not be interrupted.
    */
   final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
     IO.bracket0(IO.unit)(
@@ -334,7 +335,20 @@ sealed abstract class IO[+E, +A] { self =>
           case ExitResult.Completed(_)   => IO.unit
           case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
           case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
-      }
+        }
+    )(_ => self)
+
+  /**
+   * Runs the specified action if this action is terminated, either because of
+   * a defect or because of interruption.
+   */
+  final def onTermination(cleanup: List[Throwable] => IO[Nothing, Unit]): IO[E, A] =
+    IO.bracket0(IO.unit)(
+      (_, eb: ExitResult[E, A]) =>
+        eb match {
+          case ExitResult.Terminated(ts) => cleanup(ts)
+          case _                         => IO.unit
+        }
     )(_ => self)
 
   /**
@@ -424,35 +438,33 @@ sealed abstract class IO[+E, +A] { self =>
    * completes, or until the first failure.
    */
   final def repeat[B](schedule: Schedule[A, B]): IO[E, B] =
-    repeatOrElse[E, B](schedule, (e, b) => IO.fail(e))
+    repeatOrElse[E, B](schedule, (e, _) => IO.fail(e))
 
   /**
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse[E1 >: E, B](schedule: Schedule[A, B], orElse: (E, B) => IO[E1, B]): IO[E1, B] =
-    repeatOrElse0[E1, B, B](schedule, orElse).map(_.merge)
+  final def repeatOrElse[E2, B](schedule: Schedule[A, B], orElse: (E, Option[B]) => IO[E2, B]): IO[E2, B] =
+    repeatOrElse0[B, E2, B](schedule, orElse).map(_.merge)
 
   /**
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse0[E1 >: E, B, C](schedule: Schedule[A, B],
-                                         orElse: (E, B) => IO[E1, C]): IO[E1, Either[C, B]] = {
-    def loop(last: Option[() => B], state: schedule.State): IO[E1, Either[C, B]] =
+  final def repeatOrElse0[B, E2, C](
+    schedule: Schedule[A, B],
+    orElse: (E, Option[B]) => IO[E2, C]
+  ): IO[E2, Either[C, B]] = {
+    def loop(last: Option[() => B], state: schedule.State): IO[E2, Either[C, B]] =
       self.redeem(
-        e =>
-          last match {
-            case None         => IO.fail(e)
-            case Some(finish) => orElse(e, finish()).map(Left(_))
-        },
+        e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule.update(a, state).flatMap { step =>
             if (!step.cont) IO.now(Right(step.finish()))
             else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-        }
+          }
       )
 
     schedule.initial.flatMap(loop(None, _))
@@ -462,7 +474,7 @@ sealed abstract class IO[+E, +A] { self =>
    * Retries with the specified retry policy.
    */
   final def retry[E1 >: E, S](policy: Schedule[E1, S]): IO[E1, A] =
-    retryOrElse(policy, (e: E1, s: S) => IO.fail(e))
+    retryOrElse(policy, (e: E1, _: S) => IO.fail(e))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -477,8 +489,10 @@ sealed abstract class IO[+E, +A] { self =>
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElse0[E1 >: E, S, E2, B](policy: Schedule[E1, S],
-                                            orElse: (E1, S) => IO[E2, B]): IO[E2, Either[B, A]] = {
+  final def retryOrElse0[E1 >: E, S, E2, B](
+    policy: Schedule[E1, S],
+    orElse: (E1, S) => IO[E2, B]
+  ): IO[E2, Either[B, A]] = {
     def loop(state: policy.State): IO[E2, Either[B, A]] =
       self.redeem(
         err =>
@@ -488,7 +502,7 @@ sealed abstract class IO[+E, +A] { self =>
               decision =>
                 if (decision.cont) IO.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
-          ),
+            ),
         succ => IO.now(Right(succ))
       )
 
@@ -519,10 +533,14 @@ sealed abstract class IO[+E, +A] { self =>
    * IO.point(1).timeout(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
-  final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] = {
-    val timer = IO.now[B](z)
-    self.map(f).race(timer.delay(duration))
-  }
+  final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
+    self
+      .map(f)
+      .attempt
+      .raceWith[E, Either[E, B], B, B](IO.now[B](z).delay(duration))(
+        (either: Either[E, B], right: Fiber[E, B]) => right.interrupt *> either.fold(IO.fail, IO.now),
+        (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
+      )
 
   /**
    * Returns a new action that executes this one and times the execution.
@@ -558,10 +576,8 @@ sealed abstract class IO[+E, +A] { self =>
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
     (for {
-      p <- Promise.make[Nothing, ExitResult[E, A]]
       f <- self.fork
-      _ <- f.onComplete(r => p.done(ExitResult.Completed(r)).void)
-      r <- p.get
+      r <- f.observe
     } yield r).supervised
 
   /**
@@ -596,8 +612,8 @@ sealed abstract class IO[+E, +A] { self =>
     self.run.flatMap {
       case ExitResult.Completed(value) =>
         IO.now(value)
-      case ExitResult.Failed(error, _) =>
-        IO.fail(Right(error))
+      case ExitResult.Failed(error, defects) =>
+        IO.fail0(Right(error), defects)
       case ExitResult.Terminated(ts) =>
         IO.fail(Left(ts))
     }
@@ -695,7 +711,7 @@ object IO {
     override def tag = Tags.SyncEffect
   }
 
-  final class Fail[E] private[IO] (val error: E) extends IO[E, Nothing] {
+  final class Fail[E] private[IO] (val error: E, val defects: List[Throwable]) extends IO[E, Nothing] {
     override def tag = Tags.Fail
   }
 
@@ -707,10 +723,11 @@ object IO {
     override def tag = Tags.AsyncIOEffect
   }
 
-  final class Redeem[E1, E2, A, B] private[IO] (val value: IO[E1, A],
-                                                val err: E1 => IO[E2, B],
-                                                val succ: A => IO[E2, B])
-      extends IO[E2, B]
+  final class Redeem[E1, E2, A, B] private[IO] (
+    val value: IO[E1, A],
+    val err: E1 => IO[E2, B],
+    val succ: A => IO[E2, B]
+  ) extends IO[E2, B]
       with Function[A, IO[E2, B]] {
 
     override def tag = Tags.Redeem
@@ -723,11 +740,12 @@ object IO {
     override def tag = Tags.Fork
   }
 
-  final class Race[E, A0, A1, A] private[IO] (val left: IO[E, A0],
-                                              val right: IO[E, A1],
-                                              val finishLeft: (A0, Fiber[E, A1]) => IO[E, A],
-                                              val finishRight: (A1, Fiber[E, A0]) => IO[E, A])
-      extends IO[E, A] {
+  final class Race[E, A0, A1, A] private[IO] (
+    val left: IO[E, A0],
+    val right: IO[E, A1],
+    val finishLeft: (A0, Fiber[E, A1]) => IO[E, A],
+    val finishRight: (A1, Fiber[E, A0]) => IO[E, A]
+  ) extends IO[E, A] {
     override def tag = Tags.Race
   }
 
@@ -743,9 +761,10 @@ object IO {
     override def tag = Tags.Sleep
   }
 
-  final class Supervise[E, A] private[IO] (val value: IO[E, A],
-                                           val supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit])
-      extends IO[E, A] {
+  final class Supervise[E, A] private[IO] (
+    val value: IO[E, A],
+    val supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]
+  ) extends IO[E, A] {
     override def tag = Tags.Supervise
   }
 
@@ -777,7 +796,9 @@ object IO {
    * Creates an `IO` value that represents failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
-  final def fail[E](error: E): IO[E, Nothing] = new Fail(error)
+  final def fail[E](error: E): IO[E, Nothing] = fail0(error, Nil)
+
+  private[zio] final def fail0[E](error: E, defects: List[Throwable]): IO[E, Nothing] = new Fail(error, defects)
 
   /**
    * Strictly-evaluated unit lifted into the `IO` monad.
@@ -790,7 +811,7 @@ object IO {
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
     case ExitResult.Completed(b)   => now(b)
     case ExitResult.Terminated(ts) => terminate0(ts)
-    case ExitResult.Failed(e, _)   => fail(e)
+    case ExitResult.Failed(e, ts)  => fail0(e, ts)
   }
 
   /**
@@ -972,12 +993,12 @@ object IO {
     v.fold[IO[Unit, A]](IO.fail(()))(IO.now)
 
   /**
-   * Lifts a `Try` into an `IO`.
+   * Imports a `Try` into an `IO`.
    */
-  final def fromTry[A](v: scala.util.Try[A]): IO[Throwable, A] =
-    v match {
+  final def fromTry[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
+    syncThrowable(effect).flatMap {
       case scala.util.Success(v) => IO.now(v)
-      case scala.util.Failure(v) => IO.fail(v)
+      case scala.util.Failure(t) => IO.fail(t)
     }
 
   /**
@@ -1013,15 +1034,17 @@ object IO {
   final def bracket0[E, A, B](
     acquire: IO[E, A]
   )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[(A, ExitResult[E, B])]](None).flatMap { m =>
+    Ref[Option[(A, Fiber[E, B])]](None).flatMap { m =>
       (for {
-        f <- (for {
-              a <- acquire
-              f <- use(a).fork
-              _ <- f.onComplete(r => m.set(Some((a, r))))
-            } yield f).uninterruptibly
+        f <- acquire.flatMap(a => use(a).fork.flatMap(f => m.set(Some(a -> f)).const(f))).uninterruptibly
         b <- f.join
-      } yield b).ensuring(m.get.flatMap(_.fold(unit) { case ((a, r)) => release(a, r) }))
+      } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
+        case (a, f) =>
+          f.tryObserve.flatMap {
+            case Some(r) => release(a, r)
+            case None    => f.interrupt
+          }
+      }))
     }
 
   /**

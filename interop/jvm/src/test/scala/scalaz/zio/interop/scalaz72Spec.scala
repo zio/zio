@@ -17,6 +17,7 @@ class scalaz72Spec extends AbstractRTSSpec with ScalaCheck with GenIO {
       BindRec                ${bindRec.laws[IO[Int, ?]]}
       Plus                   ${plus.laws[IO[Int, ?]]}
       MonadPlus              ${monadPlus.laws[IO[Int, ?]]}
+      MonadPlus (Monoid)     ${monadPlus.laws[IO[Option[Unit], ?]]}
       MonadError             ${monadError.laws[IO[Int, ?], Int]}
       Applicative (Parallel) ${applicative.laws[ParIO[Int, ?]]}
   """

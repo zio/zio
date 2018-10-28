@@ -55,7 +55,7 @@ trait GenIO {
         genOfRace[E, A](io),
         genOfParallel[E, A](io)(genSuccess[E, A]),
         genOfLeftMaps[E, A](io)
-    )
+      )
     gen.flatMap(io => genTransformations(functions)(io))
   }
 
@@ -65,11 +65,13 @@ trait GenIO {
    */
   def genIdentityTrans[E: Arbitrary: Cogen, A: Arbitrary: Cogen](gen: Gen[IO[E, A]]): Gen[IO[E, A]] = {
     val functions: IO[E, A] => Gen[IO[E, A]] = io =>
-      Gen.oneOf(genOfIdentityFlatMaps[E, A](io),
-                genOfIdentityMaps[E, A](io),
-                genOfIdentityLeftMaps[E, A](io),
-                genOfRace[E, A](io),
-                genOfParallel[E, A](io)(genSuccess[E, A]))
+      Gen.oneOf(
+        genOfIdentityFlatMaps[E, A](io),
+        genOfIdentityMaps[E, A](io),
+        genOfIdentityLeftMaps[E, A](io),
+        genOfRace[E, A](io),
+        genOfParallel[E, A](io)(genSuccess[E, A])
+      )
     gen.flatMap(io => genTransformations(functions)(io))
   }
 

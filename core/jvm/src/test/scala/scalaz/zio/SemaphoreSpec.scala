@@ -13,6 +13,7 @@ class SemaphoreSpec extends AbstractRTSSpec {
       `acquire` permits in parallel $e2
       `acquireN`s can be parallel with `releaseN`s $e3
       individual `acquireN`s can be parallel with individual `releaseN`s $e4
+      semaphores and fibers play ball together $e5
     """
 
   def e1 = {
@@ -43,8 +44,19 @@ class SemaphoreSpec extends AbstractRTSSpec {
       (s, permits) => IO.parTraverse(permits.reverse)(amount => s.releaseN(amount)).void
     )
 
-  def offsettingReleasesAcquires(acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],
-                                 releases: (Semaphore, Vector[Long]) => IO[Nothing, Unit]) = {
+  def e5 = {
+    val n = 1L
+    unsafeRun(for {
+      s <- Semaphore(n).peek(_.acquire)
+      _ <- s.release.fork
+      _ <- s.acquire
+    } yield () must_=== (()))
+  }
+
+  def offsettingReleasesAcquires(
+    acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],
+    releases: (Semaphore, Vector[Long]) => IO[Nothing, Unit]
+  ) = {
     val permits = Vector(1L, 0L, 20L, 4L, 0L, 5L, 2L, 1L, 1L, 3L)
 
     unsafeRun(for {
