@@ -58,7 +58,7 @@ val res: IO[Nothing, Unit] = for {
 } yield ()
 ```
 
-When using a back-pressured queue, offer might be suspended if the queue is full. You can use `fork` to wait in a different fiber.
+When using a back-pressured queue, offer might be suspended if the queue is full: you can use `fork` to wait in a different fiber.
 ```tut:silent
 val res: IO[Nothing, Unit] = for {
   queue <- Queue.bounded[Int](1)
@@ -80,7 +80,7 @@ val res: IO[Nothing, Unit] = for {
 
 ## Consuming items from a queue
 
-`take` removes the oldest item from the queue and returns it. If the queue is empty, this will return a computation that resumes when an item has been added to the queue. You can use `fork` to wait for an item in a different fiber.
+`take` removes the oldest item from the queue and returns it. If the queue is empty, this will return a computation that resumes when an item has been added to the queue: you can use `fork` to wait for an item in a different fiber.
 ```tut:silent
 val res: IO[Nothing, String] = for {
   queue <- Queue.bounded[String](100)
@@ -131,6 +131,17 @@ val res: IO[Nothing, Unit] = for {
   f <- queue.take.fork
   _ <- queue.shutdown(new Exception("fail1"), new Exception("fail2")) // will interrupt f with those 2 exceptions
   _ <- f.join // will throw
+} yield ()
+```
+
+You can use `onShutdown` to register a hook that will be called when the queue is shut down. It is possible to register multiple hooks.
+```tut:silent
+val res: IO[Nothing, Unit] = for {
+  queue <- Queue.bounded[Int](3)
+  p <- Promise.make[Nothing, Boolean]
+  _ <- queue.onShutdown(p.complete(true).void)
+  _ <- queue.shutdown
+  res <- p.get // will return true
 } yield ()
 ```
 
