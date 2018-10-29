@@ -4,7 +4,7 @@ package scalaz.zio
 import scala.annotation.switch
 import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
-import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicReference}
 import java.util.concurrent._
 
 /**
@@ -26,7 +26,7 @@ trait RTS {
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
-    val context = new FiberContext[E, A](this, defaultHandler)
+    val context = newFiberContext[E, A](defaultHandler)
     context.evaluate(io)
     context.runAsync(k)
   }
@@ -35,7 +35,7 @@ trait RTS {
    * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
    */
   final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] = {
-    val context = new FiberContext[E, A](this, defaultHandler)
+    val context = newFiberContext[E, A](defaultHandler)
     context.evaluate(io)
     context.runSync
   }
@@ -54,6 +54,11 @@ trait RTS {
    */
   def defaultHandler: List[Throwable] => IO[Nothing, Unit] =
     (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
+
+  /**
+   * The counter for assigning fiber identities on creation.
+   */
+  val fiberId = new AtomicLong(0)
 
   /**
    * The main thread pool used for executing fibers.
@@ -75,6 +80,13 @@ trait RTS {
   final val YieldMaxOpCount = 1048576
 
   lazy val scheduledExecutor = newDefaultScheduledExecutor()
+
+  private final def newFiberContext[E, A](handler: List[Throwable] => IO[Nothing, Unit]): FiberContext[E, A] = {
+    val nextFiberId = fiberId.incrementAndGet()
+    val context = new FiberContext[E, A](this, nextFiberId, handler)
+
+    context
+  }
 
   final def submit[A](block: => A): Unit = {
     threadPool.submit(new Runnable {
@@ -161,7 +173,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val unhandled: List[Throwable] => IO[Nothing, Unit]) extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: List[Throwable] => IO[Nothing, Unit]) extends Fiber[E, A] {
     import FiberStatus._
     import java.util.{ Collections, Set, WeakHashMap }
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }
@@ -579,6 +591,15 @@ private object RTS {
                     val io = curIo.asInstanceOf[IO.Ensuring[E, Any]]
                     stack.push(new Finalizer(io.finalizer))
                     curIo = io.io
+
+                  case IO.Tags.FiberIdentity =>
+                    val value = fiberId
+
+                    curIo = nextInstr[E](value, stack)
+
+                    if (curIo eq null) {
+                      result = ExitResult.Completed(value)
+                    }
                 }
               }
             } else {
@@ -613,7 +634,7 @@ private object RTS {
     }
 
     final def fork[E, A](io: IO[E, A], handler: List[Throwable] => IO[Nothing, Unit]): FiberContext[E, A] = {
-      val context = new FiberContext[E, A](rts, handler)
+      val context = rts.newFiberContext[E, A](handler)
 
       rts.submit(context.evaluate(io))
 
