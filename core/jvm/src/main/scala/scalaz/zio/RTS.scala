@@ -72,7 +72,7 @@ trait RTS {
    *
    * FIXME: Replace this entirely with the new scheme.
    */
-  final val YieldMaxOpCount = 1048576
+  val YieldMaxOpCount = 1024
 
   lazy val scheduledExecutor = newDefaultScheduledExecutor()
 
@@ -1104,21 +1104,23 @@ private object RTS {
       }
 
   final def newDefaultThreadPool(): ExecutorService = {
-    val corePoolSize    = 0
-    val maximumPoolSize = Int.MaxValue
-    val keepAliveTime   = 60000L
-    val timeUnit        = TimeUnit.MILLISECONDS
-    val workQueue       = new SynchronousQueue[Runnable]()
-    val threadFactory   = new NamedThreadFactory("zio", true)
+    val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
+    val keepAliveTime = 1000L
+    val timeUnit      = TimeUnit.MILLISECONDS
+    val workQueue     = new LinkedBlockingQueue[Runnable]()
+    val threadFactory = new NamedThreadFactory("zio", true)
 
-    new ThreadPoolExecutor(
+    val threadPool = new ThreadPoolExecutor(
       corePoolSize,
-      maximumPoolSize,
+      corePoolSize,
       keepAliveTime,
       timeUnit,
       workQueue,
       threadFactory
     )
+    threadPool.allowCoreThreadTimeOut(true)
+
+    threadPool
   }
 
   final def newDefaultScheduledExecutor(): ScheduledExecutorService =
