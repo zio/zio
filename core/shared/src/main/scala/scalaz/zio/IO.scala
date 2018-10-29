@@ -694,6 +694,7 @@ object IO extends Serializable {
     final val Terminate       = 14
     final val Supervisor      = 15
     final val Ensuring        = 16
+    final val FiberIdentity   = 17
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -778,6 +779,10 @@ object IO extends Serializable {
 
   final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
     override def tag = Tags.Ensuring
+  }
+
+  final class FiberIdentity private[IO] extends IO[Nothing, FiberId] {
+    override def tag = Tags.FiberIdentity
   }
 
   /**
@@ -1075,7 +1080,7 @@ object IO extends Serializable {
    * Evaluate the elements of an `Iterable[A]` in parallel
    * and collect the results. This is the parallel version of `traverse`.
    */
-  def parTraverse[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+  final def parTraverse[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     as.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
       fn(a).par(io).map { case (b, bs) => b :: bs }
     }
@@ -1114,5 +1119,11 @@ object IO extends Serializable {
    */
   final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
     in.foldLeft[IO[E, B]](IO.point[B](zero))((acc, a) => acc.par(a).map(f.tupled))
+
+  /**
+   * Returns a value that uniquely identifies the current fiber.
+   */
+  private[zio] final def fiberIdentity: IO[Nothing, FiberId] =
+    new FiberIdentity
 
 }
