@@ -2,7 +2,6 @@ package scalaz.zio
 package interop
 
 import java.io.{ByteArrayOutputStream, PrintStream}
-import java.util.concurrent.{ExecutorService, Executors}
 
 import cats.Eq
 import cats.effect.{Concurrent, ContextShift}
@@ -30,24 +29,23 @@ object ConcurrentTestsIO {
       def laws = new ConcurrentLaws[Task] {
         override val F: Concurrent[Task] = c
         override val contextShift: ContextShift[Task] = cs
+//        implicit val clock: Clock = Clock.Live
 
+        // FIXME: Not implemneted yet
         override def asyncFRegisterCanBeCancelled[A](a: A) =
           F.pure(a) <-> F.pure(a)
 
+        // FIXME: Impossible for ZIO to pass because of a lack of ExitCase.Canceled
         override def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) =
           F.pure(f(a, a)) <-> F.pure(f(a, a))
 
+        // FIXME: Impossible to pass for now because of .supervised being broken on race
         override def raceCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) =
           F.pure(f(a, b)) <-> F.pure(f(a, b))
 
-        override def raceCancelsLoser[A, B](r: scala.Either[scala.Throwable, A], leftWinner: Boolean, b: B) =
-          F.pure(b) <-> F.pure(b)
-
+        // FIXME: Impossible to pass for now because of .supervised being broken on race
         override def racePairCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) =
           F.pure(f(a, b)) <-> F.pure(f(a, b))
-
-        override def racePairCancelsLoser[A, B](r: scala.Either[scala.Throwable, A], leftWinner: Boolean, b: B) =
-          F.pure(b) <-> F.pure(b)
       }
     }
 }
@@ -65,7 +63,7 @@ class catzSpec
     with GenIO
     with RTS {
 
-  override val threadPool: ExecutorService = Executors.newCachedThreadPool()
+//  override val threadPool: ExecutorService = Executors.newCachedThreadPool()
 
   /**
    * Silences `System.err`, only printing the output in case exceptions are
