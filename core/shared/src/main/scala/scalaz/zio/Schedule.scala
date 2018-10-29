@@ -22,7 +22,7 @@ import scala.concurrent.duration.Duration
  * `Schedule[A, B]` forms a profunctor on `[A, B]`, an applicative functor on
  * `B`, and a monoid, allowing rich composition of different schedules.
  */
-trait Schedule[-A, +B] { self =>
+trait Schedule[-A, +B] extends Serializable { self =>
 
   /**
    * The internal state type of the schedule.
@@ -481,7 +481,7 @@ trait Schedule[-A, +B] { self =>
     }
 }
 
-object Schedule {
+object Schedule extends Serializable {
   sealed case class Decision[+A, +B](cont: Boolean, delay: Duration, state: A, finish: () => B) { self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
     final def leftMap[C](f: A => C): Decision[C, B]             = copy(state = f(state))
@@ -657,7 +657,7 @@ object Schedule {
    * A schedule that recurs on a fixed interval. Returns the number of
    * repetitions of the schedule so far.
    *
-   * If the action takes run between updates longer than the interval, then the
+   * If the action run between updates takes longer than the interval, then the
    * action will be run immediately, but re-runs will not "pile up".
    *
    * <pre>
@@ -685,13 +685,21 @@ object Schedule {
 
   /**
    * A schedule that always recurs, increasing delays by summing the
-   * preceeding two delays (similar to the fibonacci sequence). Returns the
+   * preceding two delays (similar to the fibonacci sequence). Returns the
    * current duration between recurrences.
    */
   final def fibonacci(one: Duration): Schedule[Any, Duration] =
     delayed(unfold[(Duration, Duration)]((Duration.Zero, one)) {
       case (a1, a2) => (a2, a1 + a2)
     }.map(_._1))
+
+  /**
+   * A schedule that always recurs, but will repeat on a linear time
+   * interval, given by `base * n` where `n` is the number of
+   * repetitions so far. Returns the current duration between recurrences.
+   */
+  final def linear(base: Duration): Schedule[Any, Duration] =
+    delayed(forever.map(i => base * i.doubleValue()))
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
