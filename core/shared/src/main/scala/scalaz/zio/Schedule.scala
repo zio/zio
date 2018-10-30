@@ -552,7 +552,7 @@ object Schedule extends Serializable {
   /**
    * A schedule that executes once.
    */
-  final val once: Schedule[Any, Unit] = forever.whileOutput(_ => false).void
+  final val once: Schedule[Any, Unit] = recurs(1).void
 
   /**
    * A new schedule derived from the specified schedule which adds the delay
@@ -588,8 +588,11 @@ object Schedule extends Serializable {
   /**
    * A schedule that recurs the specified number of times. Returns the number
    * of repetitions so far.
+   *
+   * If 0 of negative numbers are given, the operation is not done at all so
+   * that in (op: IO[E, A]).repeat(Schedule.recurs(0)) , op is not done at all.
    */
-  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ < n)
+  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ <= n)
 
   /**
    * A schedule that recurs forever without delay. Returns the elapsed time
