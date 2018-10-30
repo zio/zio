@@ -175,13 +175,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     leftWins: (Fiber[E, A], Fiber[E1, B]) => IO[E2, C],
     rightWins: (Fiber[E1, B], Fiber[E, A]) => IO[E2, C]
   ): IO[E2, C] = {
-    def arbiter[E1, E2, E3, A, B, C](
-      f: (Fiber[E1, A], Fiber[E2, B]) => IO[E3, C],
-      winner: Fiber[E1, A],
-      loser: Fiber[E2, B],
+    def arbiter[E0, E1, A, B](
+      f: (Fiber[E0, A], Fiber[E1, B]) => IO[E2, C],
+      winner: Fiber[E0, A],
+      loser: Fiber[E1, B],
       race: RefM[IO.Race],
-      done: Promise[E3, C]
-    )(res: ExitResult[E1, A]): IO[Nothing, Unit] =
+      done: Promise[E2, C]
+    )(res: ExitResult[E0, A]): IO[Nothing, Unit] =
       race
         .update(
           r =>
@@ -195,17 +195,17 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
     Ref[Option[(Fiber[E, A], Fiber[E1, B])]](None).flatMap { fibers =>
       (for {
+        done <- Promise.make[E2, C]
+        race <- RefM[IO.Race](IO.Race.Started)
         rec <- (for {
-                done  <- Promise.make[E2, C]
-                race  <- RefM[IO.Race](IO.Race.Started)
                 left  <- self.fork
                 right <- that.fork
                 _     <- fibers.set(Some(left -> right))
-              } yield (done, race, left, right)).uninterruptibly
-        (done, race, left, right) = rec
-        _                         <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
-        _                         <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
-        c                         <- done.get
+              } yield (left, right)).uninterruptibly
+        (left, right) = rec
+        _             <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
+        _             <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
+        c             <- done.get
       } yield c).ensuring(fibers.get.flatMap(_.fold(IO.unit) { case (f1, f2) => (f1 zip f2).interrupt })).supervised
     }
   }
