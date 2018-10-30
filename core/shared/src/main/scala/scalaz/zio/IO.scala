@@ -140,8 +140,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
     self.raceWith(that)(
-      (left: Fiber[E, A], right: Fiber[E1, B]) => (left zip right).join.map(f.tupled),
-      (right: Fiber[E1, B], left: Fiber[E, A]) => (left zip right).join.map(f.tupled)
+      (left, right) => (left zip right).join.map(f.tupled),
+      (right, left) => (left zip right).join.map(f.tupled)
     )
 
   /**
@@ -166,10 +166,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * then the action will fail with some error.
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
-    raceWith(that)(
-      (f1, f2) => f2.interrupt *> f1.join.map(Left(_)),
-      (f1, f2) => f2.interrupt *> f1.join.map(Right(_))
-    )
+    raceWith(that)(_.join.map(Left(_)) <* _.interrupt, _.join.map(Right(_)) <* _.interrupt)
 
   /**
    * Races this action with the specified action, invoking the
@@ -568,10 +565,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
     self
       .map(f)
-      .raceWith(IO.now[B](z).delay(duration))(
-        (left: Fiber[E, B], right: Fiber[E, B]) => right.interrupt *> left.join,
-        (right: Fiber[E, B], left: Fiber[E, B]) => left.interrupt *> right.join
-      )
+      .raceWith(IO.now[B](z).delay(duration))(_.join <* _.interrupt, _.join <* _.interrupt)
 
   /**
    * Returns a new action that executes this one and times the execution.
