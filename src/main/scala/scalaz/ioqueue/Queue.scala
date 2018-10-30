@@ -290,8 +290,15 @@ class Queue[A] private (
               (
                 p.complete(true),
                 capacity.fold(
-                  Surplus(values ++ as, putters)
-                )(c => Surplus(values.takeRight(c - as.size) ++ as.takeRight(c), putters))
+                  Surplus(values.enqueue(as.toList), putters)
+                ) { c =>
+                  Surplus(
+                    values
+                      .takeRight(c - as.size)
+                      .enqueue(as.takeRight(c).toList),
+                    putters
+                  )
+                }
               )
             case Dropping =>
               (

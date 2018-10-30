@@ -182,7 +182,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v1    <- queue.take
       o2    <- queue.offer(20)
       v2    <- queue.take
-    } yield (v1 must_=== 10).and(v2 must_=== 20).and(o1 must_=== true).and(o2 must_=== true)
+    } yield (v1 must_=== 10).and(v2 must_=== 20).and(o1 must beTrue).and(o2 must beTrue)
   )
 
   def e2 = unsafeRun(
@@ -222,7 +222,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       refSuspended <- Ref[Boolean](true)
       _            <- (queue.offer(2).repeat(Schedule.recurs(10)) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
-    } yield isSuspended must_=== true).supervised)
+    } yield isSuspended must beTrue).supervised)
 
   def e6 =
     unsafeRun(
@@ -685,7 +685,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       v1    <- queue.offer(3)
       v2    <- queue.offer(4)
       l     <- queue.takeAll
-    } yield (l must_=== List(2, 3, 4)).and(v1 must_=== true).and(v2 must_=== true)
+    } yield (l must_=== List(2, 3, 4)).and(v1 must beTrue).and(v2 must beTrue)
   )
 
   def e49 = unsafeRun(
@@ -693,7 +693,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue <- Queue.sliding[Int](0)
       v     <- queue.offer(14)
       size  <- queue.size
-    } yield (size must_=== 0).and(v must_=== true)
+    } yield (size must_=== 0).and(v must beTrue)
   )
 
   def e50 = unsafeRun(
@@ -722,7 +722,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue <- Queue.sliding[Int](2)
       v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
       l     <- queue.takeAll
-    } yield (l must_=== List(5, 6)).and(v1 must_=== true)
+    } yield (l must_=== List(5, 6)).and(v1 must beTrue)
   )
 
   def e53 = unsafeRun(
@@ -732,7 +732,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- queue.onShutdown(p.complete(true).void)
       _     <- queue.shutdown
       res   <- p.get
-    } yield res must_=== true
+    } yield res must beTrue
   )
 
   def e54 = unsafeRun(
@@ -745,7 +745,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _     <- queue.shutdown
       res1  <- p1.get
       res2  <- p2.get
-    } yield (res1 must_=== true).and(res2 must_=== true)
+    } yield (res1 must beTrue).and(res2 must beTrue)
   )
 
   def e55 = unsafeRun(
@@ -755,7 +755,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       p     <- Promise.make[Nothing, Boolean]
       _     <- queue.onShutdown(p.complete(true).void)
       res   <- p.get
-    } yield res must_=== true
+    } yield res must beTrue
   )
 
   def e56 = unsafeRun(
@@ -774,7 +774,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue    <- Queue.dropping[Int](capacity)
       v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
       ta       <- queue.takeAll
-    } yield (ta.size must_=== 0).and(v1 must_=== false)
+    } yield (ta.size must_=== 0).and(v1 must beFalse)
   )
 
   def e58 = unsafeRun(
@@ -815,7 +815,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       iter     = Range.inclusive(1, 3).toIterable
       v1       <- queue.offerAll(iter)
       ta       <- queue.takeAll
-    } yield (ta must_=== List(1, 2, 3)).and(v1 must_=== true)
+    } yield (ta must_=== List(1, 2, 3)).and(v1 must beTrue)
   )
 
   def e62 = unsafeRun(
@@ -826,7 +826,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       f        <- queue.take.fork
       oa       <- queue.offerAll(iter.toList)
       j        <- f.join
-    } yield (j must_=== 1).and(oa must_=== false)
+    } yield (j must_=== 1).and(oa must beFalse)
   )
 
   def e63 = unsafeRun(
@@ -837,7 +837,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       _        <- queue.take.fork
       oa       <- queue.offerAll(iter.toList)
       t        <- queue.take
-    } yield (t must_=== 3).and(oa must_=== false)
+    } yield (t must_=== 3).and(oa must beFalse)
   )
 
   def e64 = unsafeRun(
@@ -846,7 +846,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue    <- Queue.sliding[Int](capacity)
       iter     = Range.inclusive(1, 3)
       oa       <- queue.offerAll(iter.toList)
-    } yield oa must_=== true
+    } yield oa must beTrue
   )
 
   def e65 = unsafeRun(
@@ -855,7 +855,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue    <- Queue.bounded[Int](capacity)
       iter     = Range.inclusive(1, 3)
       oa       <- queue.offerAll(iter.toList)
-    } yield oa must_=== true
+    } yield oa must beTrue
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
