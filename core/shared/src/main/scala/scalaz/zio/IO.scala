@@ -913,6 +913,12 @@ object IO extends Serializable {
       )
     )
 
+  final def when[E](b: Boolean, io: IO[E, Unit]): IO[E, Unit] =
+    if (b) io else IO.unit
+
+  final def whenM[E](b: IO[Nothing, Boolean], io: IO[E, Unit]): IO[E, Unit] =
+    b.flatMap(b => if (b) io else IO.unit)
+
   /**
    * Shifts the operation to another execution context.
    *
