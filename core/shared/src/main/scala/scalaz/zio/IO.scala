@@ -167,8 +167,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
     raceWith(that)(
-      (f1, f2) => f1.join.peek(_ => f2.interrupt).map(Left(_)),
-      (f1, f2) => f1.join.peek(_ => f2.interrupt).map(Right(_))
+      (f1, f2) => f2.interrupt *> f1.join.map(Left(_)),
+      (f1, f2) => f2.interrupt *> f1.join.map(Right(_))
     )
 
   /**
