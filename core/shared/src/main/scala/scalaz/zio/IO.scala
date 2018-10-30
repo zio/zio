@@ -138,18 +138,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    *
    * TODO: Replace with optimized primitive.
    */
-  final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
-    val s: IO[Nothing, Either[E1, A]] = self.attempt
-    s.raceWith[E1, Either[E1, A], Either[E1, B], C](that.attempt)(
-      {
-        case (Left(e), fiberb)  => fiberb.interrupt *> IO.fail[E1](e)
-        case (Right(a), fiberb) => IO.absolve[E1, B](fiberb.join).map((b: B) => f(a, b))
-      }, {
-        case (Left(e), fibera)  => fibera.interrupt *> IO.fail[E1](e)
-        case (Right(b), fibera) => IO.absolve[E1, A](fibera.join).map((a: A) => f(a, b))
-      }
+  final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
+    self.raceWith(that)(
+      (left: Fiber[E, A], right: Fiber[E1, B]) => (left zip right).join.map(f.tupled),
+      (right: Fiber[E1, B], left: Fiber[E, A]) => (left zip right).join.map(f.tupled)
     )
-  }
 
   /**
    * Executes both this action and the specified action in parallel,
@@ -173,19 +166,16 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * then the action will fail with some error.
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
-    raceWith(that)((a, fiber) => fiber.interrupt.const(Left(a)), (b, fiber) => fiber.interrupt.const(Right(b)))
+    raceWith(that)(
+      (f1, f2) => f1.join.peek(_ => f2.interrupt).map(Left(_)),
+      (f1, f2) => f1.join.peek(_ => f2.interrupt).map(Right(_))
+    )
 
   /**
    * Races this action with the specified action, invoking the
    * specified finisher as soon as one value or the other has been computed.
    */
-  final def raceWith[E1 >: E, A1 >: A, B, C](
-    that: IO[E1, B]
-  )(finishLeft: (A1, Fiber[E1, B]) => IO[E1, C], finishRight: (B, Fiber[E1, A1]) => IO[E1, C]): IO[E1, C] =
-    raceNew(that)((f1, f2) => f1.join.flatMap(finishLeft(_, f2)), (f1, f2) => f1.join.flatMap(finishRight(_, f2)))
-
-
-  final def raceNew[E1, E2, B, C](
+  final def raceWith[E1, E2, B, C](
     that: IO[E1, B]
   )(
     leftWins: (Fiber[E, A], Fiber[E1, B]) => IO[E2, C],
@@ -195,27 +185,35 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       f: (Fiber[E1, A], Fiber[E2, B]) => IO[E3, C],
       winner: Fiber[E1, A],
       loser: Fiber[E2, B],
-      race: Ref[IO.RaceState],
-      p: Promise[E3, C]
+      race: RefM[IO.Race],
+      done: Promise[E3, C]
     )(res: ExitResult[E1, A]): IO[Nothing, Unit] =
-      IO.whenM(race.get.map(r => !r.over && (r.otherDone || res.succeeded)), f(winner, loser).run.flatMap(p.done(_)).void) <* race
-        .update(x => IO.RaceState.Done(x.over || res.succeeded))
+      race
+        .update(
+          r =>
+            IO.when(
+                !r.over && (r.otherDone || res.succeeded),
+                f(winner, loser).run.flatMap(done.done(_)).void
+              )
+              .const(IO.Race.Done(r.over || res.succeeded))
+        )
+        .void
 
     Ref[Option[(Fiber[E, A], Fiber[E1, B])]](None).flatMap { fibers =>
       (for {
         rec <- (for {
-                p     <- Promise.make[E2, C]
-                race  <- Ref[IO.RaceState](IO.RaceState.Started)
+                done  <- Promise.make[E2, C]
+                race  <- RefM[IO.Race](IO.Race.Started)
                 left  <- self.fork
                 right <- that.fork
                 _     <- fibers.set(Some(left -> right))
-              } yield (p, race, left, right)).uninterruptibly
-        (p, race, left, right) = rec
-        _                      <- left.observe.flatMap(arbiter(leftWins, left, right, race, p)).fork
-        _                      <- right.observe.flatMap(arbiter(rightWins, right, left, race, p)).fork
-        c                      <- p.get
-      } yield c).ensuring(fibers.get.flatMap(_.fold(IO.unit){ case (f1, f2) => (f1 zip f2).interrupt }))
-    }.supervised
+              } yield (done, race, left, right)).uninterruptibly
+        (done, race, left, right) = rec
+        _                         <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
+        _                         <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
+        c                         <- done.get
+      } yield c).ensuring(fibers.get.flatMap(_.fold(IO.unit) { case (f1, f2) => (f1 zip f2).interrupt })).supervised
+    }
   }
 
   /**
@@ -570,10 +568,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
     self
       .map(f)
-      .attempt
-      .raceWith[E, Either[E, B], B, B](IO.now[B](z).delay(duration))(
-        (either: Either[E, B], right: Fiber[E, B]) => right.interrupt *> either.fold(IO.fail, IO.now),
-        (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
+      .raceWith(IO.now[B](z).delay(duration))(
+        (left: Fiber[E, B], right: Fiber[E, B]) => right.interrupt *> left.join,
+        (right: Fiber[E, B], left: Fiber[E, B]) => left.interrupt *> right.join
       )
 
   /**
@@ -802,6 +799,12 @@ object IO extends Serializable {
 
   final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
     override def tag = Tags.Ensuring
+  }
+
+  sealed abstract class Race private[zio] (val over: Boolean, val otherDone: Boolean)
+  object Race {
+    case object Started                                             extends Race(false, false)
+    final case class Done private[zio] (override val over: Boolean) extends Race(over, true)
   }
 
   /**
@@ -1144,10 +1147,4 @@ object IO extends Serializable {
    */
   final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
     in.foldLeft[IO[E, B]](IO.point[B](zero))((acc, a) => acc.par(a).map(f.tupled))
-
-  sealed abstract class RaceState(val over: Boolean, val otherDone: Boolean)
-  object RaceState {
-    case object Started                                     extends RaceState(false, false)
-    final case class Done[E, A](override val over: Boolean) extends RaceState(over, true)
-  }
 }
