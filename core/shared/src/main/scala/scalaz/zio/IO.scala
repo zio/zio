@@ -720,14 +720,13 @@ object IO extends Serializable {
     final val AsyncIOEffect   = 6
     final val Redeem          = 7
     final val Fork            = 8
-    final val Race            = 9
-    final val Suspend         = 10
-    final val Uninterruptible = 11
-    final val Sleep           = 12
-    final val Supervise       = 13
-    final val Terminate       = 14
-    final val Supervisor      = 15
-    final val Ensuring        = 16
+    final val Suspend         = 9
+    final val Uninterruptible = 10
+    final val Sleep           = 11
+    final val Supervise       = 12
+    final val Terminate       = 13
+    final val Supervisor      = 14
+    final val Ensuring        = 15
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -772,15 +771,6 @@ object IO extends Serializable {
   final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[List[Throwable] => IO[Nothing, Unit]])
       extends IO[Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
-  }
-
-  final class Race[E, A0, A1, A] private[IO] (
-    val left: IO[E, A0],
-    val right: IO[E, A1],
-    val finishLeft: (A0, Fiber[E, A1]) => IO[E, A],
-    val finishRight: (A1, Fiber[E, A0]) => IO[E, A]
-  ) extends IO[E, A] {
-    override def tag = Tags.Race
   }
 
   final class Suspend[E, A] private[IO] (val value: () => IO[E, A]) extends IO[E, A] {
