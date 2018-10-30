@@ -182,7 +182,41 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def raceWith[E1 >: E, A1 >: A, B, C](
     that: IO[E1, B]
   )(finishLeft: (A1, Fiber[E1, B]) => IO[E1, C], finishRight: (B, Fiber[E1, A1]) => IO[E1, C]): IO[E1, C] =
-    new IO.Race[E1, A1, B, C](self, that, finishLeft, finishRight)
+    raceNew(that)((f1, f2) => f1.join.flatMap(finishLeft(_, f2)), (f1, f2) => f1.join.flatMap(finishRight(_, f2)))
+
+
+  final def raceNew[E1, E2, B, C](
+    that: IO[E1, B]
+  )(
+    leftWins: (Fiber[E, A], Fiber[E1, B]) => IO[E2, C],
+    rightWins: (Fiber[E1, B], Fiber[E, A]) => IO[E2, C]
+  ): IO[E2, C] = {
+    def arbiter[E1, E2, E3, A, B, C](
+      f: (Fiber[E1, A], Fiber[E2, B]) => IO[E3, C],
+      winner: Fiber[E1, A],
+      loser: Fiber[E2, B],
+      race: Ref[IO.RaceState],
+      p: Promise[E3, C]
+    )(res: ExitResult[E1, A]): IO[Nothing, Unit] =
+      IO.whenM(race.get.map(r => !r.over && (r.otherDone || res.succeeded)), f(winner, loser).run.flatMap(p.done(_)).void) <* race
+        .update(x => IO.RaceState.Done(x.over || res.succeeded))
+
+    Ref[Option[(Fiber[E, A], Fiber[E1, B])]](None).flatMap { fibers =>
+      (for {
+        rec <- (for {
+                p     <- Promise.make[E2, C]
+                race  <- Ref[IO.RaceState](IO.RaceState.Started)
+                left  <- self.fork
+                right <- that.fork
+                _     <- fibers.set(Some(left -> right))
+              } yield (p, race, left, right)).uninterruptibly
+        (p, race, left, right) = rec
+        _                      <- left.observe.flatMap(arbiter(leftWins, left, right, race, p)).fork
+        _                      <- right.observe.flatMap(arbiter(rightWins, right, left, race, p)).fork
+        c                      <- p.get
+      } yield c).ensuring(fibers.get.flatMap(_.fold(IO.unit){ case (f1, f2) => (f1 zip f2).interrupt }))
+    }.supervised
+  }
 
   /**
    * Executes this action and returns its value, if it succeeds, but
@@ -1121,4 +1155,9 @@ object IO extends Serializable {
   final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
     in.foldLeft[IO[E, B]](IO.point[B](zero))((acc, a) => acc.par(a).map(f.tupled))
 
+  sealed abstract class RaceState(val over: Boolean, val otherDone: Boolean)
+  object RaceState {
+    case object Started                                     extends RaceState(false, false)
+    final case class Done[E, A](override val over: Boolean) extends RaceState(over, true)
+  }
 }
