@@ -530,16 +530,16 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Times out this action by the specified duration.
    *
    * {{{
-   * IO.point(1).timeout(Option.empty[Int])(Some(_))(1.second)
+   * IO.point(1).timeout0(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
-  final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
+  final def timeout0[Z](z: Z)(f: A => Z)(duration: Duration): IO[E, Z] =
     self
       .map(f)
       .attempt
-      .raceWith[E, Either[E, B], B, B](IO.now[B](z).delay(duration))(
-        (either: Either[E, B], right: Fiber[E, B]) => right.interrupt *> either.fold(IO.fail, IO.now),
-        (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
+      .raceWith[E, Either[E, Z], Z, Z](IO.now[Z](z).delay(duration))(
+        (either: Either[E, Z], right: Fiber[E, Z]) => right.interrupt *> either.fold(IO.fail, IO.now),
+        (b: Z, left: Fiber[E, Either[E, Z]]) => left.interrupt *> IO.now(b)
       )
 
   /**
