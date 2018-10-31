@@ -189,21 +189,15 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
               .map(_ -> r.next(res.succeeded))
         )
 
-    Ref[Option[(Fiber[E, A], Fiber[E1, B])]](None).flatMap { fibers =>
-      (for {
-        done <- Promise.make[E2, C]
-        race <- RefM[IO.Race](IO.Race.Started)
-        rec <- (for {
-                left  <- self.fork
-                right <- that.fork
-                _     <- fibers.set(Some(left -> right))
-              } yield (left, right)).uninterruptibly
-        (left, right) = rec
-        _             <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
-        _             <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
-        c             <- done.get
-      } yield c).ensuring(fibers.get.flatMap(_.fold(IO.unit) { case (f1, f2) => (f1 zip f2).interrupt })).supervised
-    }
+    (for {
+      done  <- Promise.make[E2, C]
+      race  <- RefM[IO.Race](IO.Race.Started)
+      left  <- self.fork
+      right <- that.fork
+      _     <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
+      _     <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
+      c     <- done.get
+    } yield c).supervised
   }
 
   /**
