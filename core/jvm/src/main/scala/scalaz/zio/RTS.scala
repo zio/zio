@@ -20,9 +20,9 @@ trait RTS {
    */
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
     case ExitResult.Completed(v)       => v
-    case ExitResult.Terminated(Nil)    => throw Errors.TerminatedFiber
+    case ExitResult.Terminated(Nil)    => throw Exceptions.TerminatedFiber
     case ExitResult.Terminated(t :: _) => throw t
-    case ExitResult.Failed(e, ts)      => throw Errors.UnhandledError(e, ts)
+    case ExitResult.Failed(e, ts)      => throw Exceptions.UnhandledError(e, ts)
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
@@ -944,7 +944,7 @@ private object RTS {
         case ExitResult.Failed(error, defects) =>
           // Report the uncaught error to the supervisor:
           rts.submit(
-            rts.unsafeRun(unhandled(Errors.UnhandledError(error, defects) :: Nil))
+            rts.unsafeRun(unhandled(Exceptions.UnhandledError(error, defects) :: Nil))
           )
 
         case ExitResult.Terminated(causes) =>

@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
-import Errors.UnhandledError
+import Exceptions.UnhandledError
 import com.github.ghik.silencer.silent
 
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {

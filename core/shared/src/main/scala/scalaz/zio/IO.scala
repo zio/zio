@@ -162,7 +162,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Races this action with the specified action, returning the first
    * result to produce an `A`, whichever it is. If neither action succeeds,
-   * then the action will fail with some error.
+   * then the action will fail.
    */
   final def race[E1 >: E, A1 >: A](that: IO[E1, A1]): IO[E1, A1] =
     raceBoth(that).map(_.merge)
@@ -170,7 +170,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Races this action with the specified action, returning the first
    * result to produce a value, whichever it is. If neither action succeeds,
-   * then the action will fail with some error.
+   * then the action will fail.
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
     raceWith(that)((a, fiber) => fiber.interrupt.const(Left(a)), (b, fiber) => fiber.interrupt.const(Right(b)))
@@ -309,7 +309,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     new IO.Ensuring(self, finalizer)
 
   /**
-   * Executes the release action only if there was an error.
+   * Executes the release action only if there was a failure value.
    */
   final def bracketOnError[E1 >: E, B](release: A => IO[Nothing, Unit])(use: A => IO[E1, B]): IO[E1, B] =
     IO.bracket0[E1, A, B](this)(
@@ -382,7 +382,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.redeem[E2, A1](h, IO.now)
 
   /**
-   * Recovers from some or all of the error cases.
+   * Recovers from some or all of the failure cases.
    *
    * {{{
    * openFile("data.json").catchSome {
@@ -443,7 +443,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
-   * to date, together with the error, will be passed to the specified handler.
+   * to date, together with the failure value, will be passed to the specified handler.
    */
   final def repeatOrElse[E2, B](schedule: Schedule[A, B], orElse: (E, Option[B]) => IO[E2, B]): IO[E2, B] =
     repeatOrElse0[B, E2, B](schedule, orElse).map(_.merge)
@@ -451,7 +451,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
-   * to date, together with the error, will be passed to the specified handler.
+   * to date, together with the failure value, will be passed to the specified handler.
    */
   final def repeatOrElse0[B, E2, C](
     schedule: Schedule[A, B],
@@ -478,7 +478,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
+   * value produced by the schedule together with the last failure are passed to
    * the recovery function.
    */
   final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Schedule[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
@@ -486,7 +486,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
+   * value produced by the schedule together with the last failure are passed to
    * the recovery function.
    */
   final def retryOrElse0[E1 >: E, S, E2, B](
@@ -583,7 +583,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    *
-   * If the fiber fails with an error it will be captured in Right side of the error Either
+   * If the fiber fails with a failure value it will be captured in Right side of the error Either
    * If the fiber terminates because of defect, list of defects will be captured in the Left side of the Either
    *
    * Allows recovery from errors and defects alike, as in:

@@ -84,6 +84,6 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
 
     unsafeRun(IO.done(completed)) must_=== 1
     unsafeRun(IO.done(terminated)) must throwA(error)
-    unsafeRun(IO.done(failed)) must throwA(Errors.UnhandledError(error))
+    unsafeRun(IO.done(failed)) must throwA(Exceptions.UnhandledError(error))
   }
 }

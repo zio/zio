@@ -30,7 +30,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
   protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = {
     case ExitResult.Completed(a)       => Right(a)
     case ExitResult.Failed(t, _)       => Left(t)
-    case ExitResult.Terminated(Nil)    => Left(Errors.TerminatedFiber)
+    case ExitResult.Terminated(Nil)    => Left(Exceptions.TerminatedFiber)
     case ExitResult.Terminated(t :: _) => Left(t)
   }
 
@@ -80,8 +80,8 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     acquire.bracket0[Throwable, B] { (a, exitResult) =>
       val exitCase = exitResult match {
         case ExitResult.Completed(_)           => ExitCase.Completed
-        case ExitResult.Failed(error, defects) => ExitCase.Error(Errors.UnhandledError(error, defects))
-        case ExitResult.Terminated(Nil)        => ExitCase.Error(Errors.TerminatedFiber)
+        case ExitResult.Failed(error, defects) => ExitCase.Error(Exceptions.UnhandledError(error, defects))
+        case ExitResult.Terminated(Nil)        => ExitCase.Error(Exceptions.TerminatedFiber)
         case ExitResult.Terminated(t :: _)     => ExitCase.Error(t)
       }
       release(a, exitCase)
