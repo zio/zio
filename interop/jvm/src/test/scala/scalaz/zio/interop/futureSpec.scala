@@ -29,6 +29,12 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     catch exceptions thrown by lazy block                $catchBlockExceptionFiber
     return an `IO` that fails if `Future` fails          $propagateExceptionFromFutureFiber
     return an `IO` that produces the value from `Future` $produceValueFromFutureFiber
+  `Future.toIO` must
+    convert a completed `Future` to an IO                $convertCompletedFutureToIO
+    convert a failed Future to an failed IO              $convertFailedFutureToIO
+  `Future.toFiber` must
+    convert a completed `Future` to a Fiber              $convertCompletedFutureToFiber
+    convert a failed `Future` to a Fiber                 $convertFailedFutureToFiber
   """
 
   val ec = ee.executionContext
@@ -129,6 +135,26 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val produceValueFromFutureFiber = {
     def someValue: Future[Int] = Future { 42 }
     unsafeRun(Fiber.fromFuture(someValue)(ec).join) must_=== 42
+  }
+
+  val convertCompletedFutureToIO = {
+    def future: Future[Int] = Future.successful(42)
+    unsafeRun(future.toIO) must_=== 42
+  }
+
+  val convertCompletedFutureToFiber = {
+    def future: Future[Int] = Future.successful(42)
+    unsafeRun(future.toFiber.join) must_=== 42
+  }
+
+  val convertFailedFutureToIO = {
+    def future: Future[Int] = Future.failed(new Exception("fast failing"))
+    unsafeRun(future.toIO) must throwA[Exception](message = "fast failing")
+  }
+
+  val convertFailedFutureToFiber = {
+    def future: Future[Int] = Future.failed(new Exception("fast failing"))
+    unsafeRun(future.toFiber.join) must throwA[Exception](message = "fast failing")
   }
 
 }

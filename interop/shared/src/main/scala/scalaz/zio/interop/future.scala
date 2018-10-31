@@ -46,4 +46,9 @@ object future {
     def toFutureE(f: E => Throwable): IO[Nothing, Future[A]] = io.leftMap(f).toFuture
   }
 
+  implicit class FutureOps[A](private val future: Future[A]) extends AnyVal {
+    def toIO(implicit ec: ExecutionContext): IO[Throwable, A]       = IOObjOps(IO).fromFuture(() => future)(ec)
+    def toFiber(implicit ec: ExecutionContext): Fiber[Throwable, A] = FiberObjOps(Fiber).fromFuture(future)(ec)
+  }
+
 }
