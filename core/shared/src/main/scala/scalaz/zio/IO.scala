@@ -42,7 +42,7 @@ import scala.concurrent.ExecutionContext
  * values, see the default interpreter in `RTS` or the safe main function in
  * `App`.
  */
-sealed abstract class IO[+E, +A] { self =>
+sealed abstract class IO[+E, +A] extends Serializable { self =>
 
   /**
    * Maps an `IO[E, A]` into an `IO[E, B]` by applying the specified `A => B` function
@@ -660,7 +660,7 @@ sealed abstract class IO[+E, +A] { self =>
   def tag: Int
 }
 
-object IO {
+object IO extends Serializable {
 
   @inline
   private final def nowLeft[E, A]: E => IO[Nothing, Either[E, A]] =

@@ -29,7 +29,7 @@ Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 [Link-IsItMaintained]: http://isitmaintained.com/project/scalaz/scalaz-zio "Average time to resolve an issue"
 [Link-Scaladex]: https://index.scala-lang.org/search?q=dependencies:scalaz/scalaz-zio "Scaladex"
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/org/scalaz/scalaz-zio_2.12/ "Sonatype Releases"
-[Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/org/scalaz/scalaz-zio_2.12/ "Sonatype Snapshots"
+[Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/staging/org/scalaz/scalaz-zio_2.12/ "Sonatype Snapshots"
 [Link-Travis]: https://travis-ci.org/scalaz/scalaz-zio "Travis CI"
 
 [Badge-Codecov]: https://codecov.io/gh/scalaz/scalaz-zio/coverage.svg?branch=master "Codecov"
