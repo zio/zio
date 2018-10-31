@@ -527,29 +527,29 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def peek[E1 >: E, B](f: A => IO[E1, B]): IO[E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
-    * Times out this action by the specified duration.
-    *
-    * {{{
-    * IO.point(1).timeout0(Option.empty[Int])(Some(_))(1.second)
-    * }}}
-    */
+   * Times out this action by the specified duration.
+   *
+   * {{{
+   * IO.point(1).timeout0(Option.empty[Int])(Some(_))(1.second)
+   * }}}
+   */
   final def timeout0[Z](z: Z)(f: A => Z)(duration: Duration): IO[E, Z] =
     self
       .map(f)
       .attempt
       .raceWith[E, Either[E, Z], Z, Z](IO.now[Z](z).delay(duration))(
-      (either: Either[E, Z], right: Fiber[E, Z]) => right.interrupt *> either.fold(IO.fail, IO.now),
-      (b: Z, left: Fiber[E, Either[E, Z]]) => left.interrupt *> IO.now(b)
-    )
+        (either: Either[E, Z], right: Fiber[E, Z]) => right.interrupt *> either.fold(IO.fail, IO.now),
+        (b: Z, left: Fiber[E, Either[E, Z]]) => left.interrupt *> IO.now(b)
+      )
 
   /**
-    * Times out an action by the specified duration.
-    */
+   * Times out an action by the specified duration.
+   */
   final def timeout(d: Duration): IO[E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
 
   /**
-    * Flattens a nested action with a specified duration.
-    */
+   * Flattens a nested action with a specified duration.
+   */
   final def timeoutFail[E1 >: E](e: E1)(d: Duration): IO[E1, A] =
     IO.flatten(timeout0[IO[E1, A]](IO.fail(e))(IO.now(_))(d))
 
