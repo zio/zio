@@ -185,11 +185,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       race
         .update(
           r =>
-            IO.when(
-                !r.over && (r.otherDone || res.succeeded),
-                f(winner, loser).run.flatMap(done.done(_)).void
-              )
-              .const(IO.Race.Done(r.over || res.succeeded))
+            IO.when(r.won(res.succeeded), f(winner, loser).run.flatMap(done.done(_)).void)
+              .const(r.next(res.succeeded))
         )
         .void
 
@@ -792,10 +789,23 @@ object IO extends Serializable {
     override def tag = Tags.Ensuring
   }
 
-  sealed abstract class Race private[zio] (val over: Boolean, val otherDone: Boolean)
+  sealed abstract class Race private[zio] { self =>
+    def won(succeeded: Boolean): Boolean = self match {
+      case Race.Started if !succeeded => false
+      case Race.Done                  => false
+      case _                          => true
+    }
+
+    def next(succeeded: Boolean): Race = self match {
+      case Race.Started if !succeeded => Race.OtherFailed
+      case _                          => Race.Done
+    }
+  }
+
   object Race {
-    case object Started                                             extends Race(false, false)
-    final case class Done private[zio] (override val over: Boolean) extends Race(over, true)
+    case object Started     extends Race
+    case object OtherFailed extends Race
+    case object Done        extends Race
   }
 
   /**
