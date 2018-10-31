@@ -548,7 +548,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(IO.point(42).race(IO.never)) must_=== 42
 
   def testRaceOfFailNever =
-    unsafeRun(IO.fail(24).race(IO.never).timeout0[Option[Int]](None)(Option.apply)(10.milliseconds)) must beNone
+    unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
 
   def testRaceAllOfValues =
     unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24))).attempt) must_=== Right(24)
@@ -588,7 +588,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testTimeoutFailure =
     unsafeRun(
-      IO.fail("Uh oh").timeout0[Option[Int]](None)(Some(_))(1.hour)
+      IO.fail("Uh oh").timeout(1.hour)
     ) must (throwA[UnhandledError])
 
   def testDeadlockRegression = {
