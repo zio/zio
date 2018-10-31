@@ -185,7 +185,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       race
         .modify(
           r =>
-            IO.when(r.won(res.succeeded), f(winner, loser).run.flatMap(done.done(_)).void)
+            IO.when(r.won(res.succeeded))(f(winner, loser).run.flatMap(done.done(_)).void)
               .map(_ -> r.next(res.succeeded))
         )
 
@@ -948,13 +948,13 @@ object IO extends Serializable {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when[E](b: Boolean, io: IO[E, Unit]): IO[E, Unit] =
+  final def when[E](b: Boolean)(io: IO[E, Unit]): IO[E, Unit] =
     if (b) io else IO.unit
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  final def whenM[E](b: IO[Nothing, Boolean], io: IO[E, Unit]): IO[E, Unit] =
+  final def whenM[E](b: IO[Nothing, Boolean])(io: IO[E, Unit]): IO[E, Unit] =
     b.flatMap(b => if (b) io else IO.unit)
 
   /**
