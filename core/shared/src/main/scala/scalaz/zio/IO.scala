@@ -181,14 +181,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       loser: Fiber[E1, B],
       race: RefM[IO.Race],
       done: Promise[E2, C]
-    )(res: ExitResult[E0, A]): IO[Nothing, Unit] =
+    )(res: ExitResult[E0, A]): IO[Nothing, _] =
       race
-        .update(
+        .modify(
           r =>
             IO.when(r.won(res.succeeded), f(winner, loser).run.flatMap(done.done(_)).void)
-              .const(r.next(res.succeeded))
+              .map(_ -> r.next(res.succeeded))
         )
-        .void
 
     Ref[Option[(Fiber[E, A], Fiber[E1, B])]](None).flatMap { fibers =>
       (for {
