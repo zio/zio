@@ -32,17 +32,17 @@ val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception,
 val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.complete("I'm done"))
 ```
 
-You can also signal failure using `error(...)`. For example, 
+You can also signal failure using `fail(...)`. For example, 
 
 ```tut:silent
 val ioPromise: IO[Nothing, Promise[Exception, Nothing]] = Promise.make[Exception, Nothing]
-val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.error(new Exception("boom")))
+val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.fail(new Exception("boom")))
 ```
 
 To re-iterate, the `Boolean` tells us whether or not the operation took place successfully (`true`) i.e. the Promise
 was set with the value or the error. 
 
-As an alternative to using `done(...)` or `error(...)` you can also use `complete(...)` with an `ExitResult[E, A]` where
+As an alternative to using `done(...)` or `fail(...)` you can also use `complete(...)` with an `ExitResult[E, A]` where
 `E` signals an error and `A` signals a successful value.
 
 You can get a value from a Promise using `get`
