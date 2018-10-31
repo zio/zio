@@ -1,7 +1,7 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-object Errors {
+object Exceptions {
 
   final case class UnhandledError(error: Any, defects: List[Throwable] = Nil)
       extends Exception("An error was not handled by a fiber: " + error.toString())
