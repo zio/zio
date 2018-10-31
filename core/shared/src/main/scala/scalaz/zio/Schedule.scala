@@ -117,12 +117,16 @@ trait Schedule[-A, +B] extends Serializable { self =>
     updated(
       update =>
         (
-          (a, s, c) =>
+          (
+            a,
+            s,
+            c
+          ) =>
             update(a, s, c).flatMap { d =>
               if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
               else IO.now(d)
             }
-        )
+          )
     )
 
   /**
@@ -157,7 +161,8 @@ trait Schedule[-A, +B] extends Serializable { self =>
     new Schedule[A1, (B, C)] {
       type State = (self.State, that.State)
       val initial = c => self.initial(c).seq(that.initial(c))
-      val update  = (a: A1, s: State, c: Clock) => self.update(a, s._1, c).seqWith(that.update(a, s._2, c))(_.combineWith(_)(g, f))
+      val update = (a: A1, s: State, c: Clock) =>
+        self.update(a, s._1, c).seqWith(that.update(a, s._2, c))(_.combineWith(_)(g, f))
     }
 
   /**
@@ -266,12 +271,16 @@ trait Schedule[-A, +B] extends Serializable { self =>
     updated(
       update =>
         (
-          (a: A1, s: State, c: Clock) =>
+          (
+            a: A1,
+            s: State,
+            c: Clock
+          ) =>
             for {
               step  <- update(a, s, c)
               step2 <- f(a, step)
             } yield step2
-        )
+          )
     )
 
   /**
@@ -298,11 +307,15 @@ trait Schedule[-A, +B] extends Serializable { self =>
     updated(
       update =>
         (
-          (a, s, c) =>
+          (
+            a,
+            s,
+            c
+          ) =>
             update(a, s, c).flatMap { step =>
               f(step.finish(), step.delay).map(d => step.delayed(_ => d))
             }
-        )
+          )
     )
 
   /**
