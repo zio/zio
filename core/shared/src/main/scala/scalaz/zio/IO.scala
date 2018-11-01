@@ -139,7 +139,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * TODO: Replace with optimized primitive.
    */
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
-    (self.fork seq that.fork).flatMap(t => t._1.zipWith(t._2)(f).join)
+    (self.fork seq that.fork).flatMap(t => t._1.zipWith(t._2)(f).join).supervised
 
   /**
    * Executes both this action and the specified action in parallel,
