@@ -141,8 +141,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
     def coordinate[A, B](f: (A, B) => C)(winner: Fiber[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
       winner.observe.flatMap {
-        case ExitResult.Completed(_) => winner.zipWith(loser)(f).join
-        case ExitResult.Failed(e, ts) => loser.interrupt *> IO.fail0(e, ts)
+        case ExitResult.Completed(_)   => winner.zipWith(loser)(f).join
+        case ExitResult.Failed(e, ts)  => loser.interrupt *> IO.fail0(e, ts)
         case ExitResult.Terminated(ts) => loser.interrupt *> IO.terminate0(ts)
       }
     (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
@@ -554,14 +554,16 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    self
-      .map(f)
-      .attempt
-      .raceWith(IO.now[B](z).delay(duration))(
-        (left: Fiber[Nothing, Either[E, B]], right: Fiber[Nothing, B]) =>
-          right.interrupt *> left.join.flatMap(_.fold(IO.fail, IO.now)),
-        _.join <* _.interrupt
-      )
+    IO.now(z).delay(duration).fork.flatMap { fiber =>
+      self
+        .map(f)
+        .attempt
+        .onTermination(_ => fiber.interrupt)
+        .raceWith(fiber.join)(
+          (left, right) => right.interrupt *> left.join.flatMap(_.fold(IO.fail, IO.now)),
+          _.join <* _.interrupt
+        )
+    }
 
   /**
    * Returns a new action that executes this one and times the execution.
