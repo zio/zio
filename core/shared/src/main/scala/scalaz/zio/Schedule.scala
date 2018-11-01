@@ -543,14 +543,12 @@ object Schedule extends Serializable {
   /**
    * A schedule that executes once.
    */
-  final def once: Schedule[Any, Unit] =
-    Schedule[Unit, Any, Unit](IO.unit, (_, s) => IO.now(Decision.done(Duration.Zero, s, s)))
+  final def once: Schedule[Any, Unit] = forever.whileOutput(_ => false).void
 
   /**
    * A schedule that recurs forever, producing a count of inputs.
    */
-  final val forever: Schedule[Any, Int] =
-    Schedule[Int, Any, Int](IO.now(0), (_, i) => IO.now(Decision.cont(Duration.Zero, i + 1, i + 1)))
+  final val forever: Schedule[Any, Int] = Schedule.unfold(0)(_ + 1)
 
   /**
    * A new schedule derived from the specified schedule which adds the delay
