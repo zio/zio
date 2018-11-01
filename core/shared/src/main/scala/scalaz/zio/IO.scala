@@ -183,10 +183,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       done: Promise[E2, C]
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
       race
-        .modify(
+        .update(
           r =>
             IO.when(r.won(res.succeeded))(f(winner, loser).run.flatMap(done.done(_)).void)
-              .map(_ -> r.next(res.succeeded))
+              .const(r.next(res.succeeded))
         )
 
     (for {
