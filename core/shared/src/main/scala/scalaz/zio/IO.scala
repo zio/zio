@@ -138,8 +138,15 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    *
    * TODO: Replace with optimized primitive.
    */
-  final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] =
-    (self.fork seq that.fork).flatMap(t => t._1.zipWith(t._2)(f).join).supervised
+  final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
+    def coordinate[A, B](f: (A, B) => C)(winner: Fiber[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
+      winner.observe.flatMap {
+        case ExitResult.Completed(_) => winner.zipWith(loser)(f).join
+        case ExitResult.Failed(e, ts) => loser.interrupt *> IO.fail0(e, ts)
+        case ExitResult.Terminated(ts) => loser.interrupt *> IO.terminate0(ts)
+      }
+    (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
+  }
 
   /**
    * Executes both this action and the specified action in parallel,
