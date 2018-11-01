@@ -586,8 +586,13 @@ object Schedule extends Serializable {
   /**
    * A schedule that recurs the specified number of times. Returns the number
    * of repetitions so far.
+   *
+   * If 0 of negative numbers are given, the operation is not done at all so
+   * that in (op: IO[E, A]).repeat(Schedule.recurs(0)) , op is not done at all.
    */
-  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ < n)
+  final def recurs(n: Int): Schedule[Any, Int] =
+    if(n < 1) Schedule[Int, Any, Int](IO.point(0), (_, _) => IO.now(Decision.done(Duration.Zero, 0, 0)))
+    else forever.whileOutput(_ < n)
 
   /**
    * A schedule that recurs forever without delay. Returns the elapsed time

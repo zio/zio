@@ -33,7 +33,6 @@ class RepeatSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     repeated must_=== n
   }
 
-
   def repeat1 = {
     val n = 1
     val repeated = unsafeRun(repeat(n))
