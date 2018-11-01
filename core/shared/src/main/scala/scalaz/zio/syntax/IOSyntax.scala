@@ -28,6 +28,11 @@ object IOSyntax {
     def unsandboxed: IO[E, A] = IO.unsandbox(io)
   }
 
+  final class IOUnitSyntax[E](val io: IO[E, Unit]) extends AnyVal {
+    def when(pred: Boolean): IO[E, Unit] = IO.when(pred)(io)
+    def whenM(pred: IO[Nothing, Boolean]): IO[E, Unit] = IO.whenM(pred)(io)
+  }
+
   final class IOIterableSyntax[E, A](val ios: Iterable[IO[E, A]]) extends AnyVal {
     def mergeAll[B](zero: B, f: (B, A) => B): IO[E, B] = IO.mergeAll(ios)(zero, f)
     def parAll: IO[E, List[A]]                         = IO.parAll(ios)
