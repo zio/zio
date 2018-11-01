@@ -29,7 +29,7 @@ object IOSyntax {
   }
 
   final class IOUnitSyntax[E](val io: IO[E, Unit]) extends AnyVal {
-    def when(pred: Boolean): IO[E, Unit] = IO.when(pred)(io)
+    def when(pred: Boolean): IO[E, Unit]               = IO.when(pred)(io)
     def whenM(pred: IO[Nothing, Boolean]): IO[E, Unit] = IO.whenM(pred)(io)
   }
 
