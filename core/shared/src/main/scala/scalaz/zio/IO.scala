@@ -797,7 +797,7 @@ object IO extends Serializable {
     }
   }
 
-  object Race {
+  private[zio] object Race {
     case object Started     extends Race
     case object OtherFailed extends Race
     case object Done        extends Race
