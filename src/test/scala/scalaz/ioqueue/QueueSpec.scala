@@ -835,6 +835,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue    <- Queue.sliding[Int](capacity)
       iter     = Range.inclusive(1, 3)
       _        <- queue.take.fork
+      _        <- waitForSize(queue, -1)
       oa       <- queue.offerAll(iter.toList)
       t        <- queue.take
     } yield (t must_=== 3).and(oa must beFalse)
