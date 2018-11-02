@@ -210,7 +210,7 @@ class Queue[A] private (
             else
               strategy match {
                 case BackPressure =>
-                  IO.now(false) -> Surplus(
+                  IO.now(true) -> Surplus(
                     IQueue.empty.enqueue(addToQueue.toList),
                     IQueue.empty.enqueue(surplusValues -> p)
                   )
@@ -251,7 +251,7 @@ class Queue[A] private (
                 else
                   strategy match {
                     case BackPressure =>
-                      IO.now(false) -> Surplus(
+                      IO.now(true) -> Surplus(
                         IQueue.empty[A].enqueue(addToQueue.toList),
                         IQueue.empty.enqueue(surplusValues -> p)
                       )
@@ -283,15 +283,22 @@ class Queue[A] private (
           strategy match {
             case BackPressure =>
               (
-                IO.now(false),
+                IO.now(true),
                 Surplus(values.enqueue(addToQueue.toList), putters.enqueue(surplusValues -> p))
               )
             case Sliding =>
               (
                 p.complete(true),
                 capacity.fold(
-                  Surplus(values ++ as, putters)
-                )(c => Surplus(values.takeRight(c - as.size) ++ as.takeRight(c), putters))
+                  Surplus(values.enqueue(as.toList), putters)
+                ) { c =>
+                  Surplus(
+                    values
+                      .takeRight(c - as.size)
+                      .enqueue(as.takeRight(c).toList),
+                    putters
+                  )
+                }
               )
             case Dropping =>
               (
