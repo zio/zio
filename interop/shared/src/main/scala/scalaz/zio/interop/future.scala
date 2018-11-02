@@ -2,6 +2,7 @@ package scalaz.zio
 package interop
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.language.implicitConversions
 import scala.util.{ Failure, Success }
 
 object future {
@@ -46,9 +47,11 @@ object future {
     def toFutureE(f: E => Throwable): IO[Nothing, Future[A]] = io.leftMap(f).toFuture
   }
 
-  implicit class FutureOps[A](private val future: Future[A]) extends AnyVal {
-    def toIO(implicit ec: ExecutionContext): IO[Throwable, A]       = IOObjOps(IO).fromFuture(() => future)(ec)
-    def toFiber(implicit ec: ExecutionContext): Fiber[Throwable, A] = FiberObjOps(Fiber).fromFuture(future)(ec)
+  class FutureOps[A](private val delayedFuture: () => Future[A]) extends AnyVal {
+    def toIO(implicit ec: ExecutionContext): IO[Throwable, A]       = IOObjOps(IO).fromFuture(delayedFuture)(ec)
+    def toFiber(implicit ec: ExecutionContext): Fiber[Throwable, A] = FiberObjOps(Fiber).fromFuture(delayedFuture())(ec)
   }
+
+  implicit def FutureToFutureOps[A](fa: => Future[A]): FutureOps[A] = new FutureOps(() => fa)
 
 }
