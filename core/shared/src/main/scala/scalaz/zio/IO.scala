@@ -527,6 +527,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def peek[E1 >: E, B](f: A => IO[E1, B]): IO[E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
+    * Times out an action by the specified duration.
+    */
+  final def timeout(d: Duration): IO[E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
+
+  /**
    * Times out this action by the specified duration.
    *
    * {{{
@@ -543,15 +548,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       )
 
   /**
-   * Times out an action by the specified duration.
-   */
-  final def timeout(d: Duration): IO[E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
-
-  /**
    * Flattens a nested action with a specified duration.
    */
   final def timeoutFail[E1 >: E](e: E1)(d: Duration): IO[E1, A] =
-    IO.flatten(timeout0[IO[E1, A]](IO.fail(e))(IO.now(_))(d))
+    IO.flatten(timeout0[IO[E1, A]](IO.fail(e))(IO.now)(d))
 
   /**
    * Returns a new action that executes this one and times the execution.
