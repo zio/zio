@@ -527,8 +527,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def peek[E1 >: E, B](f: A => IO[E1, B]): IO[E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
-    * Times out an action by the specified duration.
-    */
+   * Times out an action by the specified duration.
+   */
   final def timeout(d: Duration): IO[E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
 
   /**
