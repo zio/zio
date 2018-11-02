@@ -8,17 +8,17 @@ trait CommonRTS {
   import CommonRTS._
 
   /**
-    * This determines the maximum number of resumptions placed on the stack
-    * before a fiber is shifted over to a new thread to prevent stack overflow.
-    */
+   * This determines the maximum number of resumptions placed on the stack
+   * before a fiber is shifted over to a new thread to prevent stack overflow.
+   */
   val MaxResumptionDepth = 10
 
   /**
-    * Determines the maximum number of operations executed by a fiber before
-    * yielding to other fibers.
-    *
-    * FIXME: Replace this entirely with the new scheme.
-    */
+   * Determines the maximum number of operations executed by a fiber before
+   * yielding to other fibers.
+   *
+   * FIXME: Replace this entirely with the new scheme.
+   */
   val YieldMaxOpCount = 1024
 
   /**
