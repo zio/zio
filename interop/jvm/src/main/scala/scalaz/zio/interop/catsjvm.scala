@@ -5,9 +5,6 @@ import cats.effect.{ Effect, ExitCase }
 import cats.syntax.functor._
 import cats.{ effect, _ }
 
-import scalaz.Tag
-import scalaz72.ParIO
-
 import scala.util.control.NonFatal
 
 abstract class CatsPlatform extends CatsInstances {
@@ -18,7 +15,7 @@ abstract class CatsInstances extends CatsInstances1 {
   implicit val taskEffectInstances: Effect[Task] with SemigroupK[Task] =
     new CatsEffect
 
-  implicit val taskParallelInstance: Parallel[Task, ParIO[Throwable, ?]] =
+  implicit val taskParallelInstance: Parallel[Task, ParTask] =
     parallelInstance(taskEffectInstances)
 }
 
@@ -146,29 +143,29 @@ private class CatsParallel[E](final override val monad: Monad[IO[E, ?]]) extends
     new CatsParApplicative[E]
 
   final override val sequential: ParIO[E, ?] ~> IO[E, ?] =
-    new (ParIO[E, ?] ~> IO[E, ?]) { def apply[A](fa: ParIO[E, A]): IO[E, A] = Tag.unwrap(fa) }
+    new (ParIO[E, ?] ~> IO[E, ?]) { def apply[A](fa: ParIO[E, A]): IO[E, A] = Par.unwrap(fa) }
 
   final override val parallel: IO[E, ?] ~> ParIO[E, ?] =
-    new (IO[E, ?] ~> ParIO[E, ?]) { def apply[A](fa: IO[E, A]): ParIO[E, A] = Tag(fa) }
+    new (IO[E, ?] ~> ParIO[E, ?]) { def apply[A](fa: IO[E, A]): ParIO[E, A] = Par(fa) }
 }
 
 private class CatsParApplicative[E] extends Applicative[ParIO[E, ?]] {
 
   final override def pure[A](x: A): ParIO[E, A] =
-    Tag(IO.now(x))
+    Par(IO.now(x))
 
   final override def map2[A, B, Z](fa: ParIO[E, A], fb: ParIO[E, B])(f: (A, B) => Z): ParIO[E, Z] =
-    Tag(Tag.unwrap(fa).par(Tag.unwrap(fb)).map(f.tupled))
+    Par(Par.unwrap(fa).par(Par.unwrap(fb)).map(f.tupled))
 
   final override def ap[A, B](ff: ParIO[E, A => B])(fa: ParIO[E, A]): ParIO[E, B] =
-    Tag(Tag.unwrap(ff).flatMap(Tag.unwrap(fa).map))
+    Par(Par.unwrap(ff).flatMap(Par.unwrap(fa).map))
 
   final override def product[A, B](fa: ParIO[E, A], fb: ParIO[E, B]): ParIO[E, (A, B)] =
     map2(fa, fb)(_ -> _)
 
   final override def map[A, B](fa: ParIO[E, A])(f: A => B): ParIO[E, B] =
-    Tag(Tag.unwrap(fa).map(f))
+    Par(Par.unwrap(fa).map(f))
 
   final override def unit: ParIO[E, Unit] =
-    Tag(IO.unit)
+    Par(IO.unit)
 }
