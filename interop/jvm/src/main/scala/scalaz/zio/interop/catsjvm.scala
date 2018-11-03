@@ -19,7 +19,7 @@ abstract class CatsInstances extends CatsInstances1 {
     new CatsEffect
 
   implicit val taskParallelInstance: Parallel[Task, ParIO[Throwable, ?]] =
-    implicitly
+    parallelInstance(taskEffectInstances)
 }
 
 sealed abstract class CatsInstances1 extends CatsInstances2 {
