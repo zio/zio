@@ -15,7 +15,7 @@ abstract class CatsInstances extends CatsInstances1 {
   implicit val taskEffectInstances: Effect[Task] with SemigroupK[Task] =
     new CatsEffect
 
-  implicit val taskParallelInstance: Parallel[Task, ParTask] =
+  implicit val taskParallelInstance: Parallel[Task, Task.Par] =
     parallelInstance(taskEffectInstances)
 }
 

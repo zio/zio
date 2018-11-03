@@ -32,8 +32,8 @@ class scalaz72Spec extends AbstractRTSSpec with ScalaCheck with GenIO {
     Arbitrary(genIO[E, A])
 
   implicit def ioParEqual[E: Equal, A: Equal]: Equal[ParIO[E, A]] =
-    ioEqual[E, A].contramap(Tag.unwrap)
+    ioEqual[E, A].contramap(Par.unwrap)
 
   implicit def ioParArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[ParIO[E, A]] =
-    Arbitrary(genIO[E, A].map(Tag.apply))
+    Arbitrary(genIO[E, A].map(Par.apply))
 }
