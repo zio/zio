@@ -527,20 +527,31 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def peek[E1 >: E, B](f: A => IO[E1, B]): IO[E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
+   * Times out an action by the specified duration.
+   */
+  final def timeout(d: Duration): IO[E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
+
+  /**
    * Times out this action by the specified duration.
    *
    * {{{
-   * IO.point(1).timeout(Option.empty[Int])(Some(_))(1.second)
+   * IO.point(1).timeout0(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
-  final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
+  final def timeout0[Z](z: Z)(f: A => Z)(duration: Duration): IO[E, Z] =
     self
       .map(f)
       .attempt
-      .raceWith[E, Either[E, B], B, B](IO.now[B](z).delay(duration))(
-        (either: Either[E, B], right: Fiber[E, B]) => right.interrupt *> either.fold(IO.fail, IO.now),
-        (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
+      .raceWith[E, Either[E, Z], Z, Z](IO.now[Z](z).delay(duration))(
+        (either: Either[E, Z], right: Fiber[E, Z]) => right.interrupt *> either.fold(IO.fail, IO.now),
+        (b: Z, left: Fiber[E, Either[E, Z]]) => left.interrupt *> IO.now(b)
       )
+
+  /**
+   * Flattens a nested action with a specified duration.
+   */
+  final def timeoutFail[E1 >: E](e: E1)(d: Duration): IO[E1, A] =
+    IO.flatten(timeout0[IO[E1, A]](IO.fail(e))(IO.now)(d))
 
   /**
    * Returns a new action that executes this one and times the execution.
