@@ -4,7 +4,7 @@ package scalaz.zio
 import scala.annotation.switch
 import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicReference}
+import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import java.util.concurrent._
 
 /**
@@ -56,11 +56,6 @@ trait RTS {
     (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
 
   /**
-   * The counter for assigning fiber identities on creation.
-   */
-  val fiberId = new AtomicLong(0)
-
-  /**
    * The main thread pool used for executing fibers.
    */
   val threadPool = newDefaultThreadPool()
@@ -82,8 +77,8 @@ trait RTS {
   lazy val scheduledExecutor = newDefaultScheduledExecutor()
 
   private final def newFiberContext[E, A](handler: List[Throwable] => IO[Nothing, Unit]): FiberContext[E, A] = {
-    val nextFiberId = fiberId.incrementAndGet()
-    val context = new FiberContext[E, A](this, nextFiberId, handler)
+    val nextFiberId = fiberCounter.incrementAndGet()
+    val context     = new FiberContext[E, A](this, nextFiberId, handler)
 
     context
   }
@@ -122,6 +117,12 @@ trait RTS {
 }
 
 private object RTS {
+
+
+  /**
+   * The global counter for assigning fiber identities on creation.
+   */
+  private val fiberCounter = new AtomicLong(0)
 
   sealed abstract class RaceState extends Serializable with Product
   object RaceState extends Serializable {
@@ -173,7 +174,8 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: List[Throwable] => IO[Nothing, Unit]) extends Fiber[E, A] {
+  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: List[Throwable] => IO[Nothing, Unit])
+      extends Fiber[E, A] {
     import FiberStatus._
     import java.util.{ Collections, Set, WeakHashMap }
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }

@@ -37,6 +37,8 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
 
   /**
    * Returns an `IO` that runs with `value` bound to the current fiber.
+   *
+   * Guarantees that fiber-local data is properly freed via `bracket`.
    */
   final def locally[E, B](value: A)(use: IO[E, B]): IO[E, B] =
     set(value).bracket(_ => empty)(_ => use)
