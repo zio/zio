@@ -4,11 +4,9 @@ package interop
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 import scala.util.{ Failure, Success }
-import scalaz.@@
-import scalaz.Tags.Parallel
 
 object Task {
-  type Par[A] = Task[A] @@ Parallel
+  type Par[A] = Par.T[Throwable, A]
 
   final def apply[A](effect: => A): Task[A] = IO.syncThrowable(effect)
 

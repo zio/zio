@@ -2,9 +2,8 @@ package scalaz.zio
 
 package object interop {
 
-  type Task[A]       = IO[Throwable, A]
-  type ParIO[+E, +A] = Par.T[E, A]
-  type ParTask[+A]   = Par.T[Throwable, A]
+  type Task[A]     = IO[Throwable, A]
+  type ParIO[E, A] = Par.T[E, A]
 
   implicit final class AutoCloseableOps(private val a: AutoCloseable) extends AnyVal {
 
