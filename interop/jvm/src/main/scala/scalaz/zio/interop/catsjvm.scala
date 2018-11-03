@@ -20,13 +20,16 @@ abstract class CatsInstances extends CatsInstances1 {
   implicit val taskEffectInstances: Effect[Task] with SemigroupK[Task] =
     new CatsEffect
 
-  implicit val catsParallelInstance: Parallel[Task, ParIO[Throwable, ?]] =
-    new CatsParallel[Throwable](taskEffectInstances)
+  implicit val taskParallelInstance: Parallel[Task, ParIO[Throwable, ?]] =
+    implicitly
 }
 
 sealed abstract class CatsInstances1 extends CatsInstances2 {
   implicit def ioMonoidInstances[E: Monoid]: MonadError[IO[E, ?], E] with Bifunctor[IO] with Alternative[IO[E, ?]] =
     new CatsAlternative[E] with CatsBifunctor
+
+  implicit def parallelInstance[E](implicit M: Monad[IO[E, ?]]): Parallel[IO[E, ?], ParIO[E, ?]] =
+    new CatsParallel[E](M)
 }
 
 sealed abstract class CatsInstances2 {
