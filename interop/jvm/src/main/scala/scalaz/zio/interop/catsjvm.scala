@@ -1,7 +1,6 @@
 package scalaz.zio
 package interop
 
-import cats.Parallel
 import cats.effect.{ Effect, ExitCase }
 import cats.syntax.functor._
 import cats.{ effect, _ }
@@ -16,7 +15,6 @@ abstract class CatsPlatform extends CatsInstances {
 }
 
 abstract class CatsInstances extends CatsInstances1 {
-
   implicit val taskEffectInstances: Effect[Task] with SemigroupK[Task] =
     new CatsEffect
 
