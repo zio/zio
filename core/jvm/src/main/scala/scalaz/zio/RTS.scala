@@ -118,7 +118,6 @@ trait RTS {
 
 private object RTS {
 
-
   /**
    * The global counter for assigning fiber identities on creation.
    */
