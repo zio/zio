@@ -694,7 +694,7 @@ object IO extends Serializable {
     final val Terminate       = 14
     final val Supervisor      = 15
     final val Ensuring        = 16
-    final val FiberIdentity   = 17
+    final val Descriptor      = 17
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -781,8 +781,8 @@ object IO extends Serializable {
     override def tag = Tags.Ensuring
   }
 
-  final class FiberIdentity private[IO] extends IO[Nothing, FiberId] {
-    override def tag = Tags.FiberIdentity
+  final class Descriptor private[IO] extends IO[Nothing, FiberDescriptor] {
+    override def tag = Tags.Descriptor
   }
 
   /**
@@ -1121,9 +1121,9 @@ object IO extends Serializable {
     in.foldLeft[IO[E, B]](IO.point[B](zero))((acc, a) => acc.par(a).map(f.tupled))
 
   /**
-   * Returns a value that uniquely identifies the current fiber.
+   * Returns information about the current fiber, such as its fiber identity.
    */
-  private[zio] final def fiberIdentity: IO[Nothing, FiberId] =
-    new FiberIdentity
+  private[zio] final def descriptor: IO[Nothing, FiberDescriptor] =
+    new Descriptor
 
 }

@@ -592,7 +592,7 @@ private object RTS {
                     stack.push(new Finalizer(io.finalizer))
                     curIo = io.io
 
-                  case IO.Tags.FiberIdentity =>
+                  case IO.Tags.Descriptor =>
                     val value = fiberId
 
                     curIo = nextInstr[E](value, stack)

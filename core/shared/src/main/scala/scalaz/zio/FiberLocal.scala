@@ -13,17 +13,17 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
    */
   final def get: IO[Nothing, Option[A]] =
     for {
-      fiberId <- IO.fiberIdentity
-      value   <- state.get
-    } yield value.get(fiberId)
+      descriptor <- IO.descriptor
+      value      <- state.get
+    } yield value.get(descriptor.id)
 
   /**
    * Sets the value associated with the current fiber.
    */
   final def set(value: A): IO[Nothing, Unit] =
     for {
-      fiberId <- IO.fiberIdentity
-      _       <- state.update(_ + (fiberId -> value))
+      descriptor <- IO.descriptor
+      _          <- state.update(_ + (descriptor.id -> value))
     } yield ()
 
   /**
@@ -31,8 +31,8 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
    */
   final def empty: IO[Nothing, Unit] =
     for {
-      fiberId <- IO.fiberIdentity
-      _       <- state.update(_ - fiberId)
+      descriptor <- IO.descriptor
+      _          <- state.update(_ - descriptor.id)
     } yield ()
 
   /**
