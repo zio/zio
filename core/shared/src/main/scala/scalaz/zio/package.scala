@@ -7,4 +7,6 @@ package object zio {
   type Canceler       = () => Unit
   type PureCanceler   = () => IO[Nothing, Unit]
   type FiberId        = Long
+
+  final case class FiberDescriptor(id: FiberId)
 }
