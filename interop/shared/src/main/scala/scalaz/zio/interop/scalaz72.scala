@@ -2,7 +2,11 @@ package scalaz
 package zio
 package interop
 
-object scalaz72 extends IOInstances with Scalaz72Platform
+import Tags.Parallel
+
+object scalaz72 extends IOInstances with Scalaz72Platform {
+  type ParIO[E, A] = IO[E, A] @@ Parallel
+}
 
 abstract class IOInstances extends IOInstances1 {
 
@@ -10,7 +14,7 @@ abstract class IOInstances extends IOInstances1 {
   implicit val taskInstances: MonadError[Task, Throwable] with BindRec[Task] with Plus[Task] =
     new IOMonadError[Throwable] with IOPlus[Throwable]
 
-  implicit val taskParAp: Applicative[ParIO[Throwable, ?]] = new IOParApplicative[Throwable]
+  implicit val taskParAp: Applicative[scalaz72.ParIO[Throwable, ?]] = new IOParApplicative[Throwable]
 }
 
 sealed abstract class IOInstances1 extends IOInstances2 {
@@ -18,7 +22,7 @@ sealed abstract class IOInstances1 extends IOInstances2 {
     : MonadError[IO[E, ?], E] with BindRec[IO[E, ?]] with Bifunctor[IO] with MonadPlus[IO[E, ?]] =
     new IOMonadPlus[E] with IOBifunctor
 
-  implicit def ioParAp[E]: Applicative[ParIO[E, ?]] = new IOParApplicative[E]
+  implicit def ioParAp[E]: Applicative[scalaz72.ParIO[E, ?]] = new IOParApplicative[E]
 }
 
 sealed abstract class IOInstances2 {
@@ -59,19 +63,19 @@ private trait IOBifunctor extends Bifunctor[IO] {
     fab.bimap(f, g)
 }
 
-private class IOParApplicative[E] extends Applicative[ParIO[E, ?]] {
-  override def point[A](a: => A): ParIO[E, A] = Par(IO.point(a))
-  override def ap[A, B](fa: => ParIO[E, A])(f: => ParIO[E, A => B]): ParIO[E, B] = {
-    lazy val fa0: IO[E, A] = Par.unwrap(fa)
-    Par(Par.unwrap(f).flatMap(x => fa0.map(x)))
+private class IOParApplicative[E] extends Applicative[scalaz72.ParIO[E, ?]] {
+  override def point[A](a: => A): scalaz72.ParIO[E, A] = Tag(IO.point(a))
+  override def ap[A, B](fa: => scalaz72.ParIO[E, A])(f: => scalaz72.ParIO[E, A => B]): scalaz72.ParIO[E, B] = {
+    lazy val fa0: IO[E, A] = Tag.unwrap(fa)
+    Tag(Tag.unwrap(f).flatMap(x => fa0.map(x)))
   }
 
-  override def map[A, B](fa: ParIO[E, A])(f: A => B): ParIO[E, B] =
-    Par(Par.unwrap(fa).map(f))
+  override def map[A, B](fa: scalaz72.ParIO[E, A])(f: A => B): scalaz72.ParIO[E, B] =
+    Tag(Tag.unwrap(fa).map(f))
 
   override def apply2[A, B, C](
-    fa: => ParIO[E, A],
-    fb: => ParIO[E, B]
-  )(f: (A, B) => C): ParIO[E, C] =
-    Par(Par.unwrap(fa).par(Par.unwrap(fb)).map(f.tupled))
+    fa: => scalaz72.ParIO[E, A],
+    fb: => scalaz72.ParIO[E, B]
+  )(f: (A, B) => C): scalaz72.ParIO[E, C] =
+    Tag(Tag.unwrap(fa).par(Tag.unwrap(fb)).map(f.tupled))
 }
