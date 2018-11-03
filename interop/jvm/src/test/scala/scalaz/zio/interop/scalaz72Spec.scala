@@ -19,7 +19,7 @@ class scalaz72Spec extends AbstractRTSSpec with ScalaCheck with GenIO {
       MonadPlus              ${monadPlus.laws[IO[Int, ?]]}
       MonadPlus (Monoid)     ${monadPlus.laws[IO[Option[Unit], ?]]}
       MonadError             ${monadError.laws[IO[Int, ?], Int]}
-      Applicative (Parallel) ${applicative.laws[ParIO[Int, ?]]}
+      Applicative (Parallel) ${applicative.laws[scalaz72.ParIO[Int, ?]]}
   """
 
   implicit def ioEqual[E: Equal, A: Equal]: Equal[IO[E, A]] =
@@ -31,9 +31,9 @@ class scalaz72Spec extends AbstractRTSSpec with ScalaCheck with GenIO {
   implicit def ioArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
     Arbitrary(genIO[E, A])
 
-  implicit def ioParEqual[E: Equal, A: Equal]: Equal[ParIO[E, A]] =
-    ioEqual[E, A].contramap(Par.unwrap)
+  implicit def ioParEqual[E: Equal, A: Equal]: Equal[scalaz72.ParIO[E, A]] =
+    ioEqual[E, A].contramap(Tag.unwrap)
 
-  implicit def ioParArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[ParIO[E, A]] =
-    Arbitrary(genIO[E, A].map(Par.apply))
+  implicit def ioParArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[scalaz72.ParIO[E, A]] =
+    Arbitrary(genIO[E, A].map(Tag.apply))
 }
