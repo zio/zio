@@ -595,7 +595,7 @@ private object RTS {
                     curIo = io.io
 
                   case IO.Tags.Descriptor =>
-                    val value = fiberId
+                    val value = FiberDescriptor(fiberId)
 
                     curIo = nextInstr[E](value, stack)
 
