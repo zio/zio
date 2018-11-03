@@ -1,6 +1,7 @@
 package scalaz.zio
 package interop
 
+import cats.Parallel
 import cats.effect.{ Effect, ExitCase }
 import cats.syntax.functor._
 import cats.{ effect, _ }
@@ -129,4 +130,57 @@ private class CatsAlternative[E: Monoid] extends CatsMonadError[E] with Alternat
 trait CatsBifunctor extends Bifunctor[IO] {
   override def bimap[A, B, C, D](fab: IO[A, B])(f: A => C, g: B => D): IO[C, D] =
     fab.bimap(f, g)
+}
+
+
+import Tags.{ Parallel => ParallelTag }
+
+type ParIO[E, A] = IO[E, A] @@ ParallelTag
+type ParTask[A] = ParIO[Throwable, A]
+
+private class CatsParallel[E] extends Parallel[IO[E, ?], ParIO[E, ?]] {
+
+}
+
+implicit def catsParallel: Parallel[Task, ParTask] =
+    new CatsParallel[Throwable] {
+      final override val applicative: Applicative[ParTask] =
+        new CatsParApplicative[Throwable]
+
+      final override val monad: Monad[Task] =
+        taskEffectInstances
+
+      final override val sequential: ParTask ~> Task =
+        new (ParTask ~> Task) { def apply[A](fa: ParTask[A]): Task[A] = Tag.unwrap(fa) }
+
+      final override val parallel: IO ~> ParIO =
+        new (Task ~> ParTask) { def apply[A](fa: Task[A]): ParTask[A] = Tag(fa) }
+}
+
+private class CatsParApplicative[E] extends Applicative[ParIO[E, ?]] {
+ 
+  override def map[A, B](fa: ParIO[E, A])(f: A => B): ParIO[E, B] =
+    Tag(Tag.unwrap(fa).map(f))
+}
+
+
+private class CatsParApplicativeTask extends Applicative[ParTask] {
+
+    final override def pure[A](x: A): ParTask[A] =
+      Tag(Task.now(x))
+
+    final override def map2[A, B, Z](fa: ParTask[A], fb: ParTask[B])(f: (A, B) => Z): ParTask[Z] =
+      Tag(Tag.unwrap(fa).par(Tag.unwrap(fb)).map(f.tupled))
+
+    final override def ap[A, B](ff: ParTask[A => B])(fa: ParTask[A]): ParTask[B] =
+      Tag(Tag.unwrap(ff) >>= Tag.unwrap(fa).map)
+
+    final override def product[A, B](fa: ParTask[A], fb: ParTask[B]): ParTask[(A, B)] =
+      map2(fa, fb)(_ -> _)
+
+    final override def map[A, B](fa: ParTask[A])(f: A => B): ParTask[B] =
+      Tag(Tag.unwrap(fa).map(f))
+
+    final override def unit: ParTask[Unit] =
+      Tag(Task.unit)
 }
