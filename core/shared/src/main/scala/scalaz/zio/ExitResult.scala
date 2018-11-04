@@ -52,7 +52,7 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
   private final def combine(ts: List[Throwable], r: ExitResult[_, _]): List[Throwable] = r match {
     case ExitResult.Failed(_, ts2)      => ts ++ ts2
     case ExitResult.Interrupted(e, ts2) => ts ++ e ++ ts2
-    case ExitResult.Terminated(t, ts2)  => (t :: ts) ++ ts2
+    case ExitResult.Terminated(t, ts2)  => ts ++ (t :: ts2)
     case _                              => ts
   }
 }
