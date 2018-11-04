@@ -191,7 +191,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
       race
         .modify(r => r.won(res.succeeded) -> r.next(res.succeeded))
-        .flatMap(IO.when(_)(f(winner, loser).run.flatMap(done.done(_)).void))
+        .flatMap(IO.when(_)(f(winner, loser).to(done).void))
 
     (for {
       done  <- Promise.make[E2, C]
@@ -677,6 +677,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * purpose, this method is significantly faster for this purpose.
    */
   final def as[A1 >: A]: IO[E, A1] = self.asInstanceOf[IO[E, A1]]
+
+  /**
+   * Keep or break a promise based on the result of this action.
+   */
+  final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): IO[Nothing, Boolean] =
+    self.run.flatMap(p.done(_))
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
