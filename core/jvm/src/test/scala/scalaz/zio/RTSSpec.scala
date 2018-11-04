@@ -3,11 +3,10 @@ package scalaz.zio
 
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
-import Errors.UnhandledError
+import Errors.{ InterruptedFiber, TerminatedFiber, UnhandledError }
 import com.github.ghik.silencer.silent
 
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
@@ -204,10 +203,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(IO.fail[Throwable](ExampleError).supervised.as[Any]) must (throwA(UnhandledError(ExampleError)))
 
   def testEvalOfUncaughtThrownSyncEffect =
-    unsafeRun(IO.sync[Int](throw ExampleError)) must (throwA(ExampleError))
+    unsafeRun(IO.sync[Int](throw ExampleError)) must (throwA(TerminatedFiber(ExampleError, Nil)))
 
   def testEvalOfUncaughtThrownSupervisedSyncEffect =
-    unsafeRun(IO.sync[Int](throw ExampleError).supervised) must (throwA(ExampleError))
+    unsafeRun(IO.sync[Int](throw ExampleError).supervised) must (throwA(TerminatedFiber(ExampleError, Nil)))
 
   def testEvalOfDeepUncaughtThrownSyncEffect =
     unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError)))
@@ -216,11 +215,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(deepErrorEffect(100)) must (throwA(UnhandledError(ExampleError)))
 
   def testEvalOfMultipleFail =
-    unsafeRun((for {
-      f1 <- IO.never.fork
-      _  <- f1.interrupt(InterruptCause1, InterruptCause2)
-      _  <- f1.join
-    } yield ()).run) must_=== ExitResult.Terminated(Errors.TerminatedFiber(List(InterruptCause1, InterruptCause2)), Nil)
+    unsafeRun(
+      (for {
+        f1 <- IO.never.fork
+        _  <- f1.interrupt(InterruptCause1, InterruptCause2)
+        _  <- f1.join
+      } yield ()).run
+    ) must_=== ExitResult.Terminated(InterruptedFiber(List(InterruptCause1, InterruptCause2), Nil), Nil)
 
   def testFailOfMultipleFailingFinalizers =
     unsafeRun(
@@ -297,7 +298,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testBracketErrorInRelease =
     unsafeRun(IO.bracket(IO.unit)(_ => IO.terminate(ExampleError))(_ => IO.unit)) must
-      (throwA(ExampleError))
+      (throwA(TerminatedFiber(ExampleError, Nil)))
 
   def testBracketErrorInUsage =
     unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError).as[Any])) must
@@ -316,7 +317,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       IO.bracket(IO.unit)(_ => IO.terminate(ExampleError))(_ => IO.unit)
     )
 
-    actual must (throwA(ExampleError))
+    actual must (throwA(TerminatedFiber(ExampleError, Nil)))
   }
 
   def testBracketRethrownCaughtErrorInUsage = {

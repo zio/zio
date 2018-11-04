@@ -710,6 +710,7 @@ object IO extends Serializable {
     final val Terminate       = 14
     final val Supervisor      = 15
     final val Ensuring        = 16
+    final val Interrupt       = 17
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -784,9 +785,13 @@ object IO extends Serializable {
     override def tag = Tags.Supervise
   }
 
-  final class Terminate private[IO] (val defect: Option[Throwable], val causes: List[Throwable])
-      extends IO[Nothing, Nothing] {
+  final class Terminate private[IO] (val defect: Throwable, val causes: List[Throwable]) extends IO[Nothing, Nothing] {
     override def tag = Tags.Terminate
+  }
+
+  final class Interrupt private[IO] (val causes: List[Throwable], val defects: List[Throwable])
+      extends IO[Nothing, Nothing] {
+    override def tag = Tags.Interrupt
   }
 
   final class Supervisor private[IO] () extends IO[Nothing, Throwable => IO[Nothing, Unit]] {
@@ -826,10 +831,10 @@ object IO extends Serializable {
    * Creates an `IO` value from `ExitResult`
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Completed(b)       => now(b)
-    case ExitResult.Interrupted(e, ts) => terminate0(Errors.TerminatedFiber(e), ts)
-    case ExitResult.Terminated(t, ts)  => terminate0(t, ts)
-    case ExitResult.Failed(e, ts)      => fail0(e, ts)
+    case ExitResult.Completed(b)        => now(b)
+    case ExitResult.Interrupted(es, ts) => interrupt(es, ts)
+    case ExitResult.Terminated(t, ts)   => terminate0(t, ts)
+    case ExitResult.Failed(e, ts)       => fail0(e, ts)
   }
 
   /**
@@ -867,7 +872,8 @@ object IO extends Serializable {
   /**
    * Interrupts the fiber executing this action, running all finalizers.
    */
-  final def interrupt: IO[Nothing, Nothing] = new Terminate(None, Nil)
+  final def interrupt(causes: List[Throwable], defects: List[Throwable]): IO[Nothing, Nothing] =
+    new Interrupt(causes, defects)
 
   /**
    * Terminates the fiber executing this action with the specified error(s), running all finalizers.
@@ -877,7 +883,7 @@ object IO extends Serializable {
   /**
    * Terminates the fiber executing this action, running all finalizers.
    */
-  final def terminate0(t: Throwable, ts: List[Throwable]): IO[Nothing, Nothing] = new Terminate(Some(t), ts)
+  final def terminate0(t: Throwable, ts: List[Throwable]): IO[Nothing, Nothing] = new Terminate(t, ts)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -996,7 +1002,7 @@ object IO extends Serializable {
     v.catchAll[E, A] {
       case Right(e)      => IO.fail(e)
       case Left(t :: ts) => IO.terminate0(t, ts)
-      case Left(Nil)     => IO.interrupt
+      case Left(Nil)     => IO.interrupt(List(), List())
     }
 
   /**

@@ -5,7 +5,7 @@ import org.specs2.ScalaCheck
 import scalaz.zio.ExitResult.{ Completed, Failed, Interrupted, Terminated }
 import scala.collection.mutable
 import scala.util.Try
-import scalaz.zio.Errors.TerminatedFiber
+import scalaz.zio.Errors.{ InterruptedFiber, TerminatedFiber }
 
 class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
@@ -50,7 +50,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   def t3 = {
     val list = List("1", "h", "3")
     val res  = Try(unsafeRun(IO.traverse(list)(x => IO.point[Int](x.toInt))))
-    res must beAFailedTry.withThrowable[NumberFormatException]
+    res must beAFailedTry.withThrowable[TerminatedFiber]
   }
 
   def t4 = {
@@ -84,8 +84,8 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val failed      = Failed[Error, Int](error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(interrupted)) must throwA(TerminatedFiber(error :: Nil))
-    unsafeRun(IO.done(terminated)) must throwA(error)
+    unsafeRun(IO.done(interrupted)) must throwA(InterruptedFiber(error :: Nil, Nil))
+    unsafeRun(IO.done(terminated)) must throwA(TerminatedFiber(error, Nil))
     unsafeRun(IO.done(failed)) must throwA(Errors.UnhandledError(error))
   }
 }

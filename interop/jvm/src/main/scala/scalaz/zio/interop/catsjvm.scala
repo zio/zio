@@ -34,10 +34,10 @@ sealed abstract class CatsInstances2 {
 
 private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
   protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = {
-    case ExitResult.Completed(a)      => Right(a)
-    case ExitResult.Failed(t, _)      => Left(t)
-    case ExitResult.Interrupted(e, _) => Left(Errors.TerminatedFiber(e))
-    case ExitResult.Terminated(t, _)  => Left(t)
+    case ExitResult.Completed(a)        => Right(a)
+    case ExitResult.Failed(t, _)        => Left(t)
+    case ExitResult.Interrupted(es, ts) => Left(Errors.InterruptedFiber(es, ts))
+    case ExitResult.Terminated(t, ts)   => Left(Errors.TerminatedFiber(t, ts))
   }
 
   protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
@@ -87,8 +87,8 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       val exitCase = exitResult match {
         case ExitResult.Completed(_)           => ExitCase.Completed
         case ExitResult.Failed(error, defects) => ExitCase.Error(Errors.UnhandledError(error, defects))
-        case ExitResult.Interrupted(e, _)      => ExitCase.Error(Errors.TerminatedFiber(e))
-        case ExitResult.Terminated(t, _)       => ExitCase.Error(t)
+        case ExitResult.Interrupted(es, ts)    => ExitCase.Error(Errors.InterruptedFiber(es, ts))
+        case ExitResult.Terminated(t, ts)      => ExitCase.Error(Errors.TerminatedFiber(t, ts))
       }
       release(a, exitCase)
         .catchAll(IO.terminate(_))
