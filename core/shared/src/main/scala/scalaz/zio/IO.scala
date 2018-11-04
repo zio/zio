@@ -795,7 +795,7 @@ object IO extends Serializable {
     override def tag = Tags.Ensuring
   }
 
-  sealed abstract class Race private[zio] { self =>
+  private[zio] sealed abstract class Race { self =>
     def won(succeeded: Boolean): Boolean = self match {
       case Race.Started if !succeeded => false
       case Race.Done                  => false
