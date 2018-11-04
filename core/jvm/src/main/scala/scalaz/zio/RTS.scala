@@ -114,13 +114,6 @@ trait RTS {
 
 private object RTS {
 
-  sealed abstract class RaceState extends Serializable with Product
-  object RaceState extends Serializable {
-    case object Started     extends RaceState
-    case object FirstFailed extends RaceState
-    case object Finished    extends RaceState
-  }
-
   @inline
   final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
@@ -519,11 +512,6 @@ private object RTS {
                       result = ExitResult.Completed(value)
                     }
 
-                  case IO.Tags.Race =>
-                    val io = curIo.asInstanceOf[IO.Race[E, Any, Any, Any]]
-
-                    curIo = raceWith(unhandled, io.left, io.right, io.finishLeft, io.finishRight)
-
                   case IO.Tags.Suspend =>
                     val io = curIo.asInstanceOf[IO.Suspend[E, Any]]
 
@@ -674,84 +662,6 @@ private object RTS {
           rts.submit(resumeEvaluate(value))
         } else resumeEvaluate(value)
       }
-
-    private final def raceCallback[A, B](
-      resume: Callback[E, IO[E, B]],
-      state: AtomicReference[RaceState],
-      finish: A => IO[E, B]
-    ): Callback[E, A] =
-      (tryA: ExitResult[E, A]) => {
-        import RaceState._
-
-        var loop = true
-        var won  = false
-
-        while (loop) {
-          val oldStatus = state.get
-
-          val newState = oldStatus match {
-            case Finished =>
-              won = false
-              oldStatus
-            case FirstFailed =>
-              won = true
-              Finished
-            case Started =>
-              tryA match {
-                case ExitResult.Completed(_) =>
-                  won = true
-                  Finished
-                case _ =>
-                  won = false
-                  FirstFailed
-              }
-          }
-
-          loop = !state.compareAndSet(oldStatus, newState)
-        }
-
-        if (won) resume(tryA.map(finish))
-      }
-
-    private final def raceWith[A, B, C](
-      unhandled: List[Throwable] => IO[Nothing, Unit],
-      leftIO: IO[E, A],
-      rightIO: IO[E, B],
-      finishLeft: (A, Fiber[E, B]) => IO[E, C],
-      finishRight: (B, Fiber[E, A]) => IO[E, C]
-    ): IO[E, C] = {
-      val left  = fork(leftIO, unhandled)
-      val right = fork(rightIO, unhandled)
-
-      // TODO: Interrupt raced fibers if parent is interrupted
-
-      val leftWins  = (w: A) => finishLeft(w, right)
-      val rightWins = (w: B) => finishRight(w, left)
-
-      val state = new AtomicReference[RaceState](RaceState.Started)
-
-      IO.flatten(IO.async0[E, IO[E, C]] { k =>
-        val leftCallback  = raceCallback[A, C](k, state, leftWins)
-        val rightCallback = raceCallback[B, C](k, state, rightWins)
-
-        val c1: Canceler = left.register(leftCallback) match {
-          case Async.Now(tryA)                => leftCallback(tryA); null
-          case Async.MaybeLater(cancel)       => cancel
-          case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
-        }
-
-        val c2: Canceler = right.register(rightCallback) match {
-          case Async.Now(tryA)                => rightCallback(tryA); null
-          case Async.MaybeLater(cancel)       => cancel
-          case Async.MaybeLaterIO(pureCancel) => rts.impureCanceler(pureCancel)
-        }
-
-        val canceler = combineCancelers(c1, c2)
-
-        if (canceler eq null) Async.later[E, IO[E, C]]
-        else Async.maybeLater(canceler)
-      })
-    }
 
     final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
       x => cb(x.mapError(_ => SuccessUnit))
