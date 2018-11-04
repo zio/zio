@@ -72,7 +72,7 @@ object ExitResult extends Serializable {
   final case class Interrupted[E, A](causes: List[Throwable], defects: List[Throwable]) extends ExitResult[E, A]
 
   /**
-   * `defect` is the cause of termination
+   * `defect` is the initial cause of termination
    * `defects` refer to exceptions thrown during finalization:
    * first element in list = first failure, last element in list = last failure.
    */
