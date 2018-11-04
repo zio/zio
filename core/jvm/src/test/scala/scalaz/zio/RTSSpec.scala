@@ -23,6 +23,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     point, bind, map                        $testSyncEvalLoop
     sync effect                             $testEvalOfSyncEffect
     deep effects                            $testEvalOfDeepSyncEffect
+    flip must make error into value         $testFlipError
+    flip must make value into error         $testFlipValue
+    flipping twice returns identical value  $testFlipDouble
 
   RTS failure
     error in sync effect                    $testEvalOfRedeemOfSyncEffectError
@@ -147,6 +150,22 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         } yield a + b
 
     unsafeRun(fibIo(10)) must_=== fib(10)
+  }
+
+  def testFlipError = {
+    val error = new Error("Left")
+    val io    = IO.fail(error).flip
+    unsafeRun(io) must_=== error
+  }
+
+  def testFlipValue = {
+    val io = IO.now(100).flip
+    unsafeRun(io.attempt) must_=== Left(100)
+  }
+
+  def testFlipDouble = {
+    val io = IO.point(100)
+    unsafeRun(io.flip.flip) must_=== unsafeRun(io)
   }
 
   def testEvalOfSyncEffect = {
