@@ -66,7 +66,7 @@ object RefM extends Serializable {
     update: A => IO[Nothing, (B, A)],
     promise: Promise[Nothing, B]
   ) {
-    final def run(a: A): IO[List[Throwable], A] =
+    final def run(a: A, ref: Ref[A]): IO[List[Throwable], Unit] =
       interrupted.get.flatMap {
         case Some(ts) => IO.fail(ts)
         case None =>
@@ -74,7 +74,7 @@ object RefM extends Serializable {
             case Left(ts) => IO.fail(ts)
             case Right(n) => n
           }, {
-            case (b, a) => promise.complete(b).const(a)
+            case (b, a) => ref.set(a) <* promise.complete(b)
           })
       }
   }
@@ -90,6 +90,6 @@ object RefM extends Serializable {
     for {
       ref   <- Ref(a)
       queue <- Queue.bounded[Bundle[A, _]](n)
-      _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a).redeem(onDefect, ref.set))).forever.fork
+      _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref).catchAll(onDefect))).forever.fork
     } yield new RefM[A](ref, queue)
 }
