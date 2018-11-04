@@ -19,10 +19,10 @@ trait RTS {
    * error, running forever, or producing an `A`.
    */
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
-    case ExitResult.Completed(v)       => v
-    case ExitResult.Terminated(Nil)    => throw Errors.TerminatedFiber
-    case ExitResult.Terminated(t :: _) => throw t
-    case ExitResult.Failed(e, ts)      => throw Errors.UnhandledError(e, ts)
+    case ExitResult.Completed(v)      => v
+    case ExitResult.Interrupted(e, _) => throw Errors.TerminatedFiber(e)
+    case ExitResult.Terminated(t, _)  => throw t
+    case ExitResult.Failed(e, ts)     => throw Errors.UnhandledError(e, ts)
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
@@ -224,9 +224,10 @@ private object RTS {
 
     private final def collectDefect[E, A](e: ExitResult[E, A]): Option[List[Throwable]] =
       e match {
-        case ExitResult.Terminated(ts @ _ :: _) => Some(ts)
-        case ExitResult.Failed(_, ts @ _ :: _)  => Some(ts)
-        case _                                  => None
+        case ExitResult.Interrupted(_, ts @ _ :: _) => Some(ts)
+        case ExitResult.Terminated(t, ts)           => Some(t :: ts)
+        case ExitResult.Failed(_, ts @ _ :: _)      => Some(ts)
+        case _                                      => None
       }
 
     /**
@@ -459,8 +460,10 @@ private object RTS {
                                 if (curIo eq null) {
                                   result = value
                                 }
-                              case ExitResult.Terminated(ts) =>
-                                curIo = IO.terminate0(ts)
+                              case ExitResult.Interrupted(e, ts) =>
+                                curIo = IO.terminate0(Errors.TerminatedFiber(e), ts)
+                              case ExitResult.Terminated(t, ts) =>
+                                curIo = IO.terminate0(t, ts)
                               case ExitResult.Failed(e, ts) =>
                                 curIo = IO.fail0(e, ts)
                             }
@@ -552,12 +555,14 @@ private object RTS {
 
                     if (finalizer eq null) {
                       // No finalizers, simply produce error:
-                      val causes    = status.get.terminationCauses.getOrElse(Nil)
-                      val defects   = status.get.defects
-                      val allCauses = io.causes ++ causes ++ defects
+                      val causes  = status.get.terminationCauses.getOrElse(Nil)
+                      val defects = status.get.defects
 
                       curIo = null
-                      result = ExitResult.Terminated(allCauses)
+                      result = io.defect match {
+                        case None    => ExitResult.Interrupted(causes, defects)
+                        case Some(t) => ExitResult.Terminated(t, io.causes ++ causes ++ defects)
+                      }
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = finalizer.flatMap(accumFailures)
@@ -588,7 +593,7 @@ private object RTS {
               // At this point, all causes of interruption have been accumulated
               // in the fiber status and will be read during evaluation of this
               // action:
-              curIo = IO.terminate
+              curIo = IO.interrupt
             }
 
             opcount = opcount + 1
@@ -655,7 +660,9 @@ private object RTS {
 
         case ExitResult.Failed(t, ts) => evaluate(IO.fail0[E](t, ts))
 
-        case ExitResult.Terminated(ts) => evaluate(IO.terminate0(ts))
+        case ExitResult.Interrupted(e, ts) => evaluate(IO.terminate0(Errors.TerminatedFiber(e), ts))
+
+        case ExitResult.Terminated(t, ts) => evaluate(IO.terminate0(t, ts))
       }
 
     /**
@@ -910,10 +917,13 @@ private object RTS {
       observe0 {
         case ExitResult.Completed(r) => cb(r)
         case ExitResult.Failed(e, _) => e
-        case ExitResult.Terminated(ts) =>
-          rts.submit(rts.unsafeRun(unhandled(ts)))
-          cb(ExitResult.Terminated(ts))
-      }.fold(identity, ExitResult.Failed(_, _), ExitResult.Terminated(_))
+        case ExitResult.Interrupted(e, ts) =>
+          rts.submit(rts.unsafeRun(unhandled(e ++ ts)))
+          cb(ExitResult.Interrupted(e, ts))
+        case ExitResult.Terminated(t, ts) =>
+          rts.submit(rts.unsafeRun(unhandled(t :: ts)))
+          cb(ExitResult.Terminated(t, ts))
+      }.fold(identity, ExitResult.Failed(_, _), ExitResult.Interrupted(_, _), ExitResult.Terminated(_, _))
 
     @tailrec
     final def done(v: ExitResult[E, A]): Unit = {
@@ -947,9 +957,13 @@ private object RTS {
             rts.unsafeRun(unhandled(Errors.UnhandledError(error, defects) :: Nil))
           )
 
-        case ExitResult.Terminated(causes) =>
+        case ExitResult.Interrupted(e, ts) =>
           // Report the termination cause to the supervisor:
-          rts.submit(rts.unsafeRun(unhandled(causes)))
+          rts.submit(rts.unsafeRun(unhandled(e ++ ts)))
+
+        case ExitResult.Terminated(t, ts) =>
+          // Report the termination cause to the supervisor:
+          rts.submit(rts.unsafeRun(unhandled(t :: ts)))
 
         case _ =>
       }
@@ -974,7 +988,7 @@ private object RTS {
           }
 
         case AsyncRegion(None, defects, _, resume, cancelOpt, observers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.Terminated[E, A](defects ++ cs)
+          val v = ExitResult.Interrupted[E, A](cs, defects)
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(cs, k)
           else {

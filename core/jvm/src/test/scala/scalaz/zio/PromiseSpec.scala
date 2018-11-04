@@ -120,7 +120,7 @@ class PromiseSpec extends AbstractRTSSpec {
         p             <- Promise.make[String, Int]
         _             <- p.interrupt(error1, error2)
         attemptResult <- p.poll
-      } yield attemptResult must_=== ExitResult.Terminated(List(error1, error2))
+      } yield attemptResult must_=== ExitResult.Interrupted(List(error1, error2), Nil)
     }
 
 }
