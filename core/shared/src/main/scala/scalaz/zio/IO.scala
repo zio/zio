@@ -695,9 +695,6 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       case IO.Tags.Sleep =>
         val io = self.asInstanceOf[IO.Sleep]
         p.complete(().asInstanceOf[A]).delay(io.duration)
-      case IO.Tags.Fail =>
-        val io = self.asInstanceOf[IO.Fail[E]]
-        p.error(io.error)
       case IO.Tags.Terminate =>
         val io = self.asInstanceOf[IO.Terminate]
         p.interrupt0(io.causes)
