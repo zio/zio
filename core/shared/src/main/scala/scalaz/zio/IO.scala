@@ -554,16 +554,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    IO.now(z).delay(duration).fork.flatMap { fiber =>
-      self
-        .map(f)
-        .attempt
-        .onTermination(_ => fiber.interrupt)
-        .raceWith(fiber.join)(
-          (left, right) => right.interrupt *> left.join.flatMap(_.fold(IO.fail, IO.now)),
-          _.join <* _.interrupt
-        )
-    }
+    self.map(f).sandboxWith(io => IO.absolve(io.attempt race IO.now(Right(z)).delay(duration)))
 
   /**
    * Returns a new action that executes this one and times the execution.
