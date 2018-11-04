@@ -40,10 +40,10 @@ trait Fiber[+E, +A] { self =>
    * result in a catchable error, _if_ that error does not result from interruption.
    */
   final def join: IO[E, A] = observe.flatMap {
-    case ExitResult.Completed(a)       => IO.now(a)
-    case ExitResult.Failed(e, ts)      => IO.fail0(e, ts)
-    case ExitResult.Interrupted(e, ts) => IO.terminate0(Errors.TerminatedFiber(e), ts)
-    case ExitResult.Terminated(t, ts)  => IO.terminate0(t, ts)
+    case ExitResult.Completed(a)        => IO.now(a)
+    case ExitResult.Failed(e, ts)       => IO.fail0(e, ts)
+    case ExitResult.Interrupted(es, ts) => IO.terminate0(Errors.InterruptedFiber(es, ts), List())
+    case ExitResult.Terminated(t, ts)   => IO.terminate0(Errors.TerminatedFiber(t, ts), List())
   }
 
   /**

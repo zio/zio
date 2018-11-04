@@ -40,20 +40,27 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     }
 
   final def zipWith[E1 >: E, B, C](that: ExitResult[E1, B])(f: (A, B) => C): ExitResult[E1, C] = (self, that) match {
-    case (ExitResult.Completed(a), ExitResult.Completed(b))       => ExitResult.Completed(f(a, b))
-    case (ExitResult.Failed(e, ts), rb)                           => ExitResult.Failed(e, combine(ts, rb))
-    case (ExitResult.Interrupted(e, ts), rb)                      => ExitResult.Interrupted(e, combine(ts, rb))
-    case (ExitResult.Terminated(t, ts), rb)                       => ExitResult.Terminated(t, combine(ts, rb))
-    case (ExitResult.Completed(_), ExitResult.Failed(e, ts))      => ExitResult.Failed(e, ts)
-    case (ExitResult.Completed(_), ExitResult.Interrupted(e, ts)) => ExitResult.Interrupted(e, ts)
-    case (ExitResult.Completed(_), ExitResult.Terminated(t, ts))  => ExitResult.Terminated(t, ts)
+    case (ExitResult.Completed(a), ExitResult.Completed(b))        => ExitResult.Completed(f(a, b))
+    case (ExitResult.Failed(e, ts), rb)                            => ExitResult.Failed(e, combine(ts, rb))
+    case (ExitResult.Interrupted(es, ts), rb)                      => ExitResult.Interrupted(es, combine(ts, rb))
+    case (ExitResult.Terminated(t, ts), rb)                        => ExitResult.Terminated(t, combine(ts, rb))
+    case (ExitResult.Completed(_), ExitResult.Failed(e, ts))       => ExitResult.Failed(e, ts)
+    case (ExitResult.Completed(_), ExitResult.Interrupted(es, ts)) => ExitResult.Interrupted(es, ts)
+    case (ExitResult.Completed(_), ExitResult.Terminated(t, ts))   => ExitResult.Terminated(t, ts)
   }
 
   private final def combine(ts: List[Throwable], r: ExitResult[_, _]): List[Throwable] = r match {
-    case ExitResult.Failed(_, ts2)      => ts ++ ts2
-    case ExitResult.Interrupted(e, ts2) => ts ++ e ++ ts2
-    case ExitResult.Terminated(t, ts2)  => ts ++ (t :: ts2)
-    case _                              => ts
+    case ExitResult.Failed(_, ts2)       => ts ++ ts2
+    case ExitResult.Interrupted(es, ts2) => ts ++ es ++ ts2
+    case ExitResult.Terminated(t, ts2)   => ts ++ (t :: ts2)
+    case _                               => ts
+  }
+
+  final def collectDefects: Option[List[Throwable]] = self match {
+    case ExitResult.Interrupted(_, ts @ _ :: _) => Some(ts)
+    case ExitResult.Terminated(t, ts)           => Some(t :: ts)
+    case ExitResult.Failed(_, ts @ _ :: _)      => Some(ts)
+    case _                                      => None
   }
 }
 object ExitResult extends Serializable {
