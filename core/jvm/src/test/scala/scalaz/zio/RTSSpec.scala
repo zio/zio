@@ -220,7 +220,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       f1 <- IO.never.fork
       _  <- f1.interrupt(InterruptCause1, InterruptCause2)
       _  <- f1.join
-    } yield ()).run) must_=== ExitResult.Terminated(List(InterruptCause1, InterruptCause2))
+    } yield ()).run) must_=== ExitResult.Terminated(Errors.TerminatedFiber(List(InterruptCause1, InterruptCause2)), Nil)
 
   def testFailOfMultipleFailingFinalizers =
     unsafeRun(
@@ -238,7 +238,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
         .run
-    ) must_=== ExitResult.Terminated(List(ExampleError, InterruptCause1, InterruptCause2, InterruptCause3))
+    ) must_=== ExitResult.Terminated(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
 
   def testEvalOfFailEnsuring = {
     var finalized = false

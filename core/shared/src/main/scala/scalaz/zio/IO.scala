@@ -315,9 +315,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0[E1, A, B](this)(
       (a: A, eb: ExitResult[E1, B]) =>
         eb match {
-          case ExitResult.Failed(_, _)  => release(a)
-          case ExitResult.Terminated(_) => release(a)
-          case _                        => IO.unit
+          case ExitResult.Failed(_, _)      => release(a)
+          case ExitResult.Interrupted(_, _) => release(a)
+          case ExitResult.Terminated(_, _)  => release(a)
+          case _                            => IO.unit
         }
     )(use)
 
@@ -332,9 +333,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Completed(_)   => IO.unit
-          case ExitResult.Failed(e, ts)  => cleanup(ExitResult.Failed(e, ts))
-          case ExitResult.Terminated(ts) => cleanup(ExitResult.Terminated(ts))
+          case ExitResult.Completed(_)       => IO.unit
+          case ExitResult.Failed(e, ts)      => cleanup(ExitResult.Failed(e, ts))
+          case ExitResult.Interrupted(e, ts) => cleanup(ExitResult.Interrupted(e, ts))
+          case ExitResult.Terminated(t, ts)  => cleanup(ExitResult.Terminated(t, ts))
         }
     )(_ => self)
 
@@ -346,8 +348,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Terminated(ts) => cleanup(ts)
-          case _                         => IO.unit
+          case ExitResult.Interrupted(e, ts) => cleanup(e ++ ts)
+          case ExitResult.Terminated(t, ts)  => cleanup(t :: ts)
+          case _                             => IO.unit
         }
     )(_ => self)
 
@@ -625,8 +628,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
         IO.now(value)
       case ExitResult.Failed(error, defects) =>
         IO.fail0(Right(error), defects)
-      case ExitResult.Terminated(ts) =>
-        IO.fail(Left(ts))
+      case ExitResult.Interrupted(e, defects) =>
+        IO.fail0(Left(e), defects)
+      case ExitResult.Terminated(t, defects) =>
+        IO.fail0(Left(List(t)), defects)
     }
 
   /**
@@ -779,7 +784,8 @@ object IO extends Serializable {
     override def tag = Tags.Supervise
   }
 
-  final class Terminate private[IO] (val causes: List[Throwable]) extends IO[Nothing, Nothing] {
+  final class Terminate private[IO] (val defect: Option[Throwable], val causes: List[Throwable])
+      extends IO[Nothing, Nothing] {
     override def tag = Tags.Terminate
   }
 
@@ -820,9 +826,10 @@ object IO extends Serializable {
    * Creates an `IO` value from `ExitResult`
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Completed(b)   => now(b)
-    case ExitResult.Terminated(ts) => terminate0(ts)
-    case ExitResult.Failed(e, ts)  => fail0(e, ts)
+    case ExitResult.Completed(b)       => now(b)
+    case ExitResult.Interrupted(e, ts) => terminate0(Errors.TerminatedFiber(e), ts)
+    case ExitResult.Terminated(t, ts)  => terminate0(t, ts)
+    case ExitResult.Failed(e, ts)      => fail0(e, ts)
   }
 
   /**
@@ -858,19 +865,19 @@ object IO extends Serializable {
   final def suspend[E, A](io: => IO[E, A]): IO[E, A] = new Suspend(() => io)
 
   /**
-   * Terminates the fiber executing this action, running all finalizers.
+   * Interrupts the fiber executing this action, running all finalizers.
    */
-  final def terminate: IO[Nothing, Nothing] = terminate0(Nil)
+  final def interrupt: IO[Nothing, Nothing] = new Terminate(None, Nil)
 
   /**
    * Terminates the fiber executing this action with the specified error(s), running all finalizers.
    */
-  final def terminate(t: Throwable, ts: Throwable*): IO[Nothing, Nothing] = terminate0(t :: ts.toList)
+  final def terminate(t: Throwable, ts: Throwable*): IO[Nothing, Nothing] = terminate0(t, ts.toList)
 
   /**
    * Terminates the fiber executing this action, running all finalizers.
    */
-  final def terminate0(ts: List[Throwable]): IO[Nothing, Nothing] = new Terminate(ts)
+  final def terminate0(t: Throwable, ts: List[Throwable]): IO[Nothing, Nothing] = new Terminate(Some(t), ts)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -987,8 +994,9 @@ object IO extends Serializable {
    */
   final def unsandbox[E, A](v: IO[Either[List[Throwable], E], A]): IO[E, A] =
     v.catchAll[E, A] {
-      case Right(e) => IO.fail(e)
-      case Left(ts) => IO.terminate0(ts)
+      case Right(e)      => IO.fail(e)
+      case Left(t :: ts) => IO.terminate0(t, ts)
+      case Left(Nil)     => IO.interrupt
     }
 
   /**
