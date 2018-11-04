@@ -781,7 +781,7 @@ object IO extends Serializable {
     override def tag = Tags.Ensuring
   }
 
-  final class Descriptor private[IO] extends IO[Nothing, FiberDescriptor] {
+  final class Descriptor private[IO] extends IO[Nothing, Fiber.Descriptor] {
     override def tag = Tags.Descriptor
   }
 
@@ -1123,7 +1123,7 @@ object IO extends Serializable {
   /**
    * Returns information about the current fiber, such as its fiber identity.
    */
-  private[zio] final def descriptor: IO[Nothing, FiberDescriptor] =
+  private[zio] final def descriptor: IO[Nothing, Fiber.Descriptor] =
     new Descriptor
 
 }
