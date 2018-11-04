@@ -233,6 +233,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.redeem[E2, A](f.andThen(IO.fail), IO.now)
 
   /**
+   * Swaps the error/value around, making it easier to handle errors.
+   */
+  final def flip: IO[A, E] =
+    self.redeem(IO.now, IO.fail)
+
+  /**
    * Recovers from errors by accepting one action to execute for the case of an
    * error, and one action to execute for the case of success.
    *
