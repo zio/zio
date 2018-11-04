@@ -139,16 +139,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * TODO: Replace with optimized primitive.
    */
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
-    val s: IO[Nothing, Either[E1, A]] = self.attempt
-    s.raceWith[E1, Either[E1, A], Either[E1, B], C](that.attempt)(
-      {
-        case (Left(e), fiberb)  => fiberb.interrupt *> IO.fail[E1](e)
-        case (Right(a), fiberb) => IO.absolve[E1, B](fiberb.join).map((b: B) => f(a, b))
-      }, {
-        case (Left(e), fibera)  => fibera.interrupt *> IO.fail[E1](e)
-        case (Right(b), fibera) => IO.absolve[E1, A](fibera.join).map((a: A) => f(a, b))
+    def coordinate[A, B](f: (A, B) => C)(winner: Fiber[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
+      winner.observe.flatMap {
+        case ExitResult.Completed(_)   => winner.zipWith(loser)(f).join
+        case ExitResult.Failed(e, ts)  => loser.interrupt *> IO.fail0(e, ts)
+        case ExitResult.Terminated(ts) => loser.interrupt *> IO.terminate0(ts)
       }
-    )
+    (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
   }
 
   /**
@@ -173,16 +170,39 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * then the action will fail with some error.
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
-    raceWith(that)((a, fiber) => fiber.interrupt.const(Left(a)), (b, fiber) => fiber.interrupt.const(Right(b)))
+    raceWith(that)(_.join.map(Left(_)) <* _.interrupt, _.join.map(Right(_)) <* _.interrupt)
 
   /**
    * Races this action with the specified action, invoking the
    * specified finisher as soon as one value or the other has been computed.
    */
-  final def raceWith[E1 >: E, A1 >: A, B, C](
+  final def raceWith[E1, E2, B, C](
     that: IO[E1, B]
-  )(finishLeft: (A1, Fiber[E1, B]) => IO[E1, C], finishRight: (B, Fiber[E1, A1]) => IO[E1, C]): IO[E1, C] =
-    new IO.Race[E1, A1, B, C](self, that, finishLeft, finishRight)
+  )(
+    leftWins: (Fiber[E, A], Fiber[E1, B]) => IO[E2, C],
+    rightWins: (Fiber[E1, B], Fiber[E, A]) => IO[E2, C]
+  ): IO[E2, C] = {
+    def arbiter[E0, E1, A, B](
+      f: (Fiber[E0, A], Fiber[E1, B]) => IO[E2, C],
+      winner: Fiber[E0, A],
+      loser: Fiber[E1, B],
+      race: Ref[IO.Race],
+      done: Promise[E2, C]
+    )(res: ExitResult[E0, A]): IO[Nothing, _] =
+      race
+        .modify(r => r.won(res.succeeded) -> r.next(res.succeeded))
+        .flatMap(IO.when(_)(f(winner, loser).to(done).void))
+
+    (for {
+      done  <- Promise.make[E2, C]
+      race  <- Ref[IO.Race](IO.Race.Started)
+      left  <- self.fork
+      right <- that.fork
+      _     <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
+      _     <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
+      c     <- done.get
+    } yield c).supervised
+  }
 
   /**
    * Executes this action and returns its value, if it succeeds, but
@@ -211,6 +231,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def leftMap[E2](f: E => E2): IO[E2, A] =
     self.redeem[E2, A](f.andThen(IO.fail), IO.now)
+
+  /**
+   * Swaps the error/value around, making it easier to handle errors.
+   */
+  final def flip: IO[A, E] =
+    self.redeem(IO.now, IO.fail)
 
   /**
    * Recovers from errors by accepting one action to execute for the case of an
@@ -527,20 +553,25 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def peek[E1 >: E, B](f: A => IO[E1, B]): IO[E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
+   * Times out an action by the specified duration.
+   */
+  final def timeout(d: Duration): IO[E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
+
+  /**
    * Times out this action by the specified duration.
    *
    * {{{
-   * IO.point(1).timeout(Option.empty[Int])(Some(_))(1.second)
+   * IO.point(1).timeout0(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
-  final def timeout[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    self
-      .map(f)
-      .attempt
-      .raceWith[E, Either[E, B], B, B](IO.now[B](z).delay(duration))(
-        (either: Either[E, B], right: Fiber[E, B]) => right.interrupt *> either.fold(IO.fail, IO.now),
-        (b: B, left: Fiber[E, Either[E, B]]) => left.interrupt *> IO.now(b)
-      )
+  final def timeout0[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
+    self.map(f).sandboxWith(io => IO.absolve(io.attempt race IO.now(Right(z)).delay(duration)))
+
+  /**
+   * Flattens a nested action with a specified duration.
+   */
+  final def timeoutFail[E1 >: E](e: E1)(d: Duration): IO[E1, A] =
+    IO.flatten(timeout0[IO[E1, A]](IO.fail(e))(IO.now)(d))
 
   /**
    * Returns a new action that executes this one and times the execution.
@@ -654,6 +685,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def as[A1 >: A]: IO[E, A1] = self.asInstanceOf[IO[E, A1]]
 
   /**
+   * Keep or break a promise based on the result of this action.
+   */
+  final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): IO[Nothing, Boolean] =
+    self.run.flatMap(p.done(_))
+
+  /**
    * An integer that identifies the term in the `IO` sum type to which this
    * instance belongs (e.g. `IO.Tags.Point`).
    */
@@ -686,15 +723,14 @@ object IO extends Serializable {
     final val AsyncIOEffect   = 6
     final val Redeem          = 7
     final val Fork            = 8
-    final val Race            = 9
-    final val Suspend         = 10
-    final val Uninterruptible = 11
-    final val Sleep           = 12
-    final val Supervise       = 13
-    final val Terminate       = 14
-    final val Supervisor      = 15
-    final val Ensuring        = 16
-    final val Descriptor      = 17
+    final val Suspend         = 9
+    final val Uninterruptible = 10
+    final val Sleep           = 11
+    final val Supervise       = 12
+    final val Terminate       = 13
+    final val Supervisor      = 14
+    final val Ensuring        = 15
+    final val Descriptor      = 16
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -741,15 +777,6 @@ object IO extends Serializable {
     override def tag = Tags.Fork
   }
 
-  final class Race[E, A0, A1, A] private[IO] (
-    val left: IO[E, A0],
-    val right: IO[E, A1],
-    val finishLeft: (A0, Fiber[E, A1]) => IO[E, A],
-    val finishRight: (A1, Fiber[E, A0]) => IO[E, A]
-  ) extends IO[E, A] {
-    override def tag = Tags.Race
-  }
-
   final class Suspend[E, A] private[IO] (val value: () => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.Suspend
   }
@@ -783,6 +810,25 @@ object IO extends Serializable {
 
   final class Descriptor private[IO] extends IO[Nothing, Fiber.Descriptor] {
     override def tag = Tags.Descriptor
+  }
+
+  private[zio] sealed abstract class Race { self =>
+    def won(succeeded: Boolean): Boolean = self match {
+      case Race.Started if !succeeded => false
+      case Race.Done                  => false
+      case _                          => true
+    }
+
+    def next(succeeded: Boolean): Race = self match {
+      case Race.Started if !succeeded => Race.OtherFailed
+      case _                          => Race.Done
+    }
+  }
+
+  private[zio] object Race {
+    case object Started     extends Race
+    case object OtherFailed extends Race
+    case object Done        extends Race
   }
 
   /**
@@ -917,6 +963,18 @@ object IO extends Serializable {
         } catch f andThen Left[E, A]
       )
     )
+
+  /**
+   * The moral equivalent of `if (p) exp`
+   */
+  final def when[E](b: Boolean)(io: IO[E, Unit]): IO[E, Unit] =
+    if (b) io else IO.unit
+
+  /**
+   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   */
+  final def whenM[E](b: IO[Nothing, Boolean])(io: IO[E, Unit]): IO[E, Unit] =
+    b.flatMap(b => if (b) io else IO.unit)
 
   /**
    * Shifts the operation to another execution context.
