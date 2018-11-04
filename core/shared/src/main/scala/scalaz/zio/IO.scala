@@ -191,7 +191,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
       race
         .modify(r => r.won(res.succeeded) -> r.next(res.succeeded))
-        .flatMap(IO.when(_)(f(winner, loser).run.flatMap(done.done(_)).void))
+        .flatMap(IO.when(_)(f(winner, loser).to(done).void))
 
     (for {
       done  <- Promise.make[E2, C]
@@ -681,9 +681,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Keep or break a promise based on the result of this action.
    */
-  final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): IO[E1, Boolean] =
+  final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): IO[Nothing, Boolean] =
     (self.tag: @switch) match {
-      case IO.Tags.Point => 
+      case IO.Tags.Point =>
         val io = self.asInstanceOf[IO.Point[A]]
         p.complete(io.value())
       case IO.Tags.Strict =>
