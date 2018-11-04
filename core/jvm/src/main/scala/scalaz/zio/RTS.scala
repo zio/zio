@@ -375,6 +375,11 @@ private object RTS {
 
                         curIo = io.flatMapper(io2.effect())
 
+                      case IO.Tags.Descriptor =>
+                        val value = Fiber.Descriptor(fiberId)
+
+                        curIo = io.flatMapper(value)
+
                       case _ =>
                         // Fallback case. We couldn't evaluate the LHS so we have to
                         // use the stack:
@@ -594,7 +599,7 @@ private object RTS {
                     curIo = io.io
 
                   case IO.Tags.Descriptor =>
-                    val value = FiberDescriptor(fiberId)
+                    val value = Fiber.Descriptor(fiberId)
 
                     curIo = nextInstr[E](value, stack)
 
