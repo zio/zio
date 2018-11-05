@@ -5,7 +5,6 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import scala.annotation.{ switch, tailrec }
 import scala.concurrent.duration.Duration
-import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Exception, Interruption }
 
 /**
@@ -422,7 +421,7 @@ private object RTS {
                         val defects = status.get.defects
 
                         curIo = null
-                        result = ExitResult.Terminated(Cause.failure(error, defects))
+                        result = ExitResult.failed(error, defects)
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -465,10 +464,7 @@ private object RTS {
                                   result = value
                                 }
                               case ExitResult.Terminated(cause) =>
-                                curIo = (cause.failure match {
-                                  case Some(error) => IO.fail0(error, cause.exceptions)
-                                  case None        => IO.terminateWithCause(cause)
-                                })
+                                curIo = cause.toIO
                             }
                           } else {
                             // Completion handled by interruptor:
@@ -672,10 +668,7 @@ private object RTS {
           else evaluate(io)
 
         case ExitResult.Terminated(cause) =>
-          evaluate(cause.failure match {
-            case Some(error) => IO.fail0(error, cause.exceptions)
-            case None        => IO.terminateWithCause(cause)
-          })
+          evaluate(cause.toIO)
       }
 
     /**
@@ -692,11 +685,10 @@ private object RTS {
         } else resumeEvaluate(value)
       }
 
-    final def changeErrorUnit[E2](cb: Callback[E2, Unit]): Callback[E, Unit] =
-      x => cb(x.mapError(_ => SuccessUnit))
+    final def changeErrorUnit(cb: Callback[Nothing, Unit]): Callback[E, Unit] = x => cb(x <> SuccessUnit)
 
     final def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
-      IO.async0[Nothing, Unit](cb => kill0[Nothing](ts, changeErrorUnit[Nothing](cb)))
+      IO.async0[Nothing, Unit](cb => kill0(ts, changeErrorUnit(cb)))
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
@@ -895,7 +887,7 @@ private object RTS {
     private final def mkKillerObserver(cb: Callback[E, Unit]): Callback[Nothing, ExitResult[E, A]] =
       _ => cb(SuccessUnit)
 
-    private final def kill0[E2](cs: List[Throwable], k: Callback[E, Unit]): Async[E2, Unit] = {
+    private final def kill0(cs: List[Throwable], k: Callback[E, Unit]): Async[Nothing, Unit] = {
 
       val oldStatus = status.get
 
@@ -908,11 +900,11 @@ private object RTS {
             kill0(cs, k)
           else {
             killed = true
-            Async.later[E2, Unit]
+            Async.later[Nothing, Unit]
           }
 
         case AsyncRegion(None, defects, _, resume, cancelOpt, observers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.Terminated[E](Cause.interruption(cs, defects))
+          val v = ExitResult.interrupted(cs, defects)
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(cs, k)
           else {
@@ -940,7 +932,7 @@ private object RTS {
                 .runAsync(
                   (_: ExitResult[Nothing, Unit]) => purgeObservers(v, mkKillerObserver(k) :: observers)
                 )
-              Async.later[E2, Unit]
+              Async.later[Nothing, Unit]
             } else Async.now(SuccessUnit)
 
           }
@@ -955,7 +947,7 @@ private object RTS {
           if (!status.compareAndSet(oldStatus, newStatus)) kill0(cs, k)
           else {
             killed = true
-            Async.later[E2, Unit]
+            Async.later[Nothing, Unit]
           }
 
         case Done(_) =>

@@ -4,7 +4,6 @@ package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicReference
 import Promise.internal._
-import scalaz.zio.ExitResult.Cause
 
 /**
  * A promise represents an asynchronous variable that can be set exactly once,
@@ -72,7 +71,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.Terminated[E](Cause.failure(e, Nil)))
+  final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.failed(e, Nil))
 
   /**
    * Interrupts the promise with no specified reason. This will interrupt
@@ -91,7 +90,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * all fibers waiting on the value of the promise.
    */
   final def interrupt0(ts: List[Throwable]): IO[Nothing, Boolean] =
-    done(ExitResult.Terminated[E](Cause.interruption(ts, Nil)))
+    done(ExitResult.interrupted(ts, Nil))
 
   /**
    * Completes the promise with the specified result. If the specified promise

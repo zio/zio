@@ -5,7 +5,6 @@ import cats.effect.{ Effect, ExitCase }
 import cats.syntax.functor._
 import cats.{ effect, _ }
 import scala.util.control.NonFatal
-import scalaz.zio.ExitResult.Cause
 
 abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
@@ -36,7 +35,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
   protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = _.toEither
 
   protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
-    case Left(t)  => ExitResult.Terminated(Cause.failure(t))
+    case Left(t)  => ExitResult.failed(t)
     case Right(r) => ExitResult.Completed(r)
   }
 

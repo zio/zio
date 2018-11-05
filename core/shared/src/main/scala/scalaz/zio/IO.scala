@@ -143,10 +143,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       winner.observe.flatMap {
         case ExitResult.Completed(_) => winner.zipWith(loser)(f).join
         case ExitResult.Terminated(cause) =>
-          loser.interrupt *> (cause.failure match {
-            case Some(error) => IO.fail0(error, cause.exceptions)
-            case None        => IO.terminateWithCause(cause)
-          })
+          loser.interrupt *> cause.toIO
       }
     (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
   }
@@ -862,12 +859,8 @@ object IO extends Serializable {
    * Creates an `IO` value from `ExitResult`
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Completed(b) => now(b)
-    case ExitResult.Terminated(cause) =>
-      cause.failure match {
-        case Some(error) => fail0(error, cause.exceptions)
-        case None        => terminateWithCause(cause)
-      }
+    case ExitResult.Completed(b)      => now(b)
+    case ExitResult.Terminated(cause) => cause.toIO
   }
 
   /**

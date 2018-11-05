@@ -39,14 +39,7 @@ trait Fiber[+E, +A] { self =>
    * fiber has been determined. Attempting to join a fiber that has errored will
    * result in a catchable error, _if_ that error does not result from interruption.
    */
-  final def join: IO[E, A] = observe.flatMap {
-    case ExitResult.Completed(a) => IO.now(a)
-    case ExitResult.Terminated(cause) =>
-      cause.failure match {
-        case Some(error) => IO.fail0(error, cause.exceptions)
-        case None        => IO.terminateWithCause(cause)
-      }
-  }
+  final def join: IO[E, A] = observe.flatMap(IO.done)
 
   /**
    * Interrupts the fiber with no specified reason. If the fiber has already
