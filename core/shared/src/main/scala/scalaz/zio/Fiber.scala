@@ -120,6 +120,8 @@ trait Fiber[+E, +A] { self =>
 }
 
 object Fiber {
+  final case class Descriptor(id: FiberId)
+
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
       def observe: IO[Nothing, ExitResult[E, A]]             = IO.point(ExitResult.Completed(a))
