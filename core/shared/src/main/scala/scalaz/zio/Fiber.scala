@@ -70,11 +70,11 @@ trait Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def observe: IO[Nothing, ExitResult[E1, C]] =
-        self.observe.seqWith(that.observe)(_.zipWith(_)(f))
+        self.observe.seqWith(that.observe)(_.zipWith(_)(f, _ ++ _))
 
       def tryObserve: IO[Nothing, Option[ExitResult[E1, C]]] =
         self.tryObserve.seqWith(that.tryObserve) {
-          case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f))
+          case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ ++ _))
           case _                    => None
         }
 

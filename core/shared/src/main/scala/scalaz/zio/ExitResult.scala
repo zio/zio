@@ -30,24 +30,20 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
   final def bimap[E1, A1](f: E => E1, g: A => A1): ExitResult[E1, A1] =
     leftMap(f).map(g)
 
-  final def zip[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] =
+  final def zip[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+
+  final def zipPar[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+
+  final def zipWith[E1 >: E, B, C](that: ExitResult[E1, B])(
+                              f: (A, B) => C,
+                              g: (Cause[E], Cause[E1]) => Cause[E1]
+                            ): ExitResult[E1, C] =
     (self, that) match {
-      case (Completed(a), Completed(b))   => Completed(a -> b)
-      case (Terminated(l), Terminated(r)) => Terminated(l ++ r)
+      case (Completed(a), Completed(b))   => Completed(f(a, b))
+      case (Terminated(l), Terminated(r)) => Terminated(g(l, r))
       case (e @ Terminated(_), _)         => e
       case (_, e @ Terminated(_))         => e
     }
-
-  final def zipPar[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] =
-    (self, that) match {
-      case (Completed(a), Completed(b))   => Completed(a -> b)
-      case (Terminated(l), Terminated(r)) => Terminated(l && r)
-      case (e @ Terminated(_), _)         => e
-      case (_, e @ Terminated(_))         => e
-    }
-
-  final def zipWith[E1 >: E, B, C](that: ExitResult[E1, B])(f: (A, B) => C): ExitResult[E1, C] =
-    self.zip(that).map(f.tupled)
 
   final def exceptions: Option[List[Throwable]] = self match {
     case Completed(_)      => None
