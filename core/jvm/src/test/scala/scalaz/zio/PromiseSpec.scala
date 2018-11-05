@@ -1,5 +1,4 @@
 package scalaz.zio
-import scalaz.zio.ExitResult.Cause
 
 class PromiseSpec extends AbstractRTSSpec {
 
@@ -57,7 +56,7 @@ class PromiseSpec extends AbstractRTSSpec {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done(ExitResult.Terminated(Cause.failure("error in e4", Nil)))
+        s <- p.done(ExitResult.failed("error in e4", Nil))
         v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
@@ -110,7 +109,7 @@ class PromiseSpec extends AbstractRTSSpec {
         p      <- Promise.make[String, Int]
         _      <- p.error("failure")
         result <- p.poll
-      } yield result must_=== ExitResult.Terminated(Cause.failure("failure", Nil))
+      } yield result must_=== ExitResult.failed("failure", Nil)
     }
 
   def e11 =
@@ -121,7 +120,7 @@ class PromiseSpec extends AbstractRTSSpec {
         p             <- Promise.make[String, Int]
         _             <- p.interrupt(error1, error2)
         attemptResult <- p.poll
-      } yield attemptResult must_=== ExitResult.Terminated(Cause.interruption(List(error1, error2), Nil))
+      } yield attemptResult must_=== ExitResult.interrupted(List(error1, error2))
     }
 
 }

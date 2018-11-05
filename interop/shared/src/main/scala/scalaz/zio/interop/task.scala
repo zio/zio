@@ -4,7 +4,6 @@ package interop
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 import scala.util.{ Failure, Success }
-import scalaz.zio.ExitResult.Cause
 
 object Task {
   type Par[A] = Par.T[Throwable, A]
@@ -25,10 +24,10 @@ object Task {
     io.attempt.flatMap { f =>
       IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
         f.fold(
-          t => cb(ExitResult.Terminated(Cause.failure(t))),
+          t => cb(ExitResult.failed(t)),
           _.onComplete {
             case Success(a) => cb(ExitResult.Completed(a))
-            case Failure(t) => cb(ExitResult.Terminated(Cause.failure(t)))
+            case Failure(t) => cb(ExitResult.failed(t))
           }(ec)
         )
       }

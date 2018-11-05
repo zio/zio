@@ -1,7 +1,6 @@
 package scalaz.zio
 
 import org.scalacheck._
-import scalaz.zio.ExitResult.Cause
 
 trait GenIO {
 
@@ -30,7 +29,7 @@ trait GenIO {
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] =
-    Arbitrary.arbitrary[E].map(err => IO.async[E, A](cb => cb(ExitResult.Terminated(Cause.failure(err, Nil)))))
+    Arbitrary.arbitrary[E].map(err => IO.async[E, A](cb => cb(ExitResult.failed(err, Nil))))
 
   /**
    * Randomly uses either `genSyncFailure` or `genAsyncFailure` with equal probability.

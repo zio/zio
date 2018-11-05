@@ -1,6 +1,6 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
-import scalaz.zio.ExitResult.Cause.Failure
+import scala.annotation.tailrec
 
 /**
  * A description of the result of executing an `IO` value. The result is either
@@ -54,9 +54,14 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     case Terminated(cause) => Some(cause.exceptions)
   }
 
-  final def mapError[E2, A1 >: A](f: E => ExitResult[E2, A1]): ExitResult[E2, A1] = self match {
-    case ExitResult.Terminated(Failure(e)) => f(e)
-    case x                                 => x.asInstanceOf[ExitResult[E2, A1]]
+  final def <>[E1, A1 >: A](that: ExitResult[E1, A1]): ExitResult[E1, A1] = self.failure match {
+    case Some(_) => that
+    case None    => self.asInstanceOf[ExitResult[E1, A1]]
+  }
+
+  final def failure: Option[E] = self match {
+    case ExitResult.Terminated(cause) => cause.failure
+    case _                            => None
   }
 
   final def succeeded: Boolean = self match {
@@ -74,6 +79,11 @@ object ExitResult {
 
   final case class Completed[A](value: A)         extends ExitResult[Nothing, A]
   final case class Terminated[E](cause: Cause[E]) extends ExitResult[E, Nothing]
+
+  final def failed[E](error: E, defects: List[Throwable] = Nil) =
+    ExitResult.Terminated(Cause.failure(error, defects))
+  final def interrupted[E](causes: List[Throwable], defects: List[Throwable] = Nil) =
+    ExitResult.Terminated(Cause.interruption(causes, defects))
 
   sealed abstract class Cause[+E] extends Product with Serializable { self =>
     import Cause._
@@ -131,14 +141,19 @@ object ExitResult {
         case Both(left, right)   => Errors.ParallelFiberError(left.toThrowable(), right.toThrowable(), causes)
       }
 
+    def toIO: IO[E, Nothing] = self.failure match {
+      case Some(error) => IO.fail0(error, self.exceptions)
+      case None        => IO.terminateWithCause(self)
+    }
+
+    @tailrec
     final def failure: Option[E] = self match {
-      case Failure(e)      => Some(e)
-      case Exception(_)    => None
-      case Interruption(_) => None
-      case Then(left, _)   => left.failure
-      case Both(_, _)      => None
+      case Failure(e)    => Some(e)
+      case Then(left, _) => left.failure
+      case _             => None
     }
   }
+
   object Cause {
     final def point[E](e: => E): Cause[E] = Failure(e)
 
