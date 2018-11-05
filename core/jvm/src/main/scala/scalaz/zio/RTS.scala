@@ -557,8 +557,13 @@ private object RTS {
                       val defects = status.get.defects
 
                       curIo = null
+
+                      val (cause, interruptions) = (io.cause, causes) match {
+                        case (Interruption(None), head :: tail) => (Interruption(Some(head)), tail)
+                        case _                                  => (io.cause, causes)
+                      }
                       val causeWithInterruptions =
-                        causes.foldLeft(io.cause)((causes, cause) => causes ++ Interruption(Some(cause)))
+                        interruptions.foldLeft(cause)((causes, cause) => causes ++ Interruption(Some(cause)))
                       val causeWithDefects =
                         defects.foldLeft(causeWithInterruptions)((causes, defect) => causes ++ Exception(defect))
                       result = ExitResult.Terminated(causeWithDefects)
