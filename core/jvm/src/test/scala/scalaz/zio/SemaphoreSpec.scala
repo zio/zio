@@ -3,6 +3,8 @@
 
 package scalaz.zio
 
+import scala.concurrent.duration.DurationLong
+
 class SemaphoreSpec extends AbstractRTSSpec {
 
   def is =
@@ -14,6 +16,7 @@ class SemaphoreSpec extends AbstractRTSSpec {
       `acquireN`s can be parallel with `releaseN`s $e3
       individual `acquireN`s can be parallel with individual `releaseN`s $e4
       semaphores and fibers play ball together $e5
+      `acquire` doesn't leak permits upon cancellation $e6
     """
 
   def e1 = {
@@ -52,6 +55,16 @@ class SemaphoreSpec extends AbstractRTSSpec {
       _ <- s.acquire
     } yield () must_=== (()))
   }
+
+  def e6 = {
+    val n = 1L
+    unsafeRun(for {
+      s <- Semaphore(n)
+      _ <- s.acquireN(2).timeoutFail(new Exception("timeout"))(1.milli).attempt
+      permits <- IO.sleep(10.millis) *> s.available
+    } yield permits) must_=== 0
+  }
+
 
   def offsettingReleasesAcquires(
     acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],
