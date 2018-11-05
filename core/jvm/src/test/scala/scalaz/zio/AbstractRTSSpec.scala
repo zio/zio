@@ -7,6 +7,6 @@ trait AbstractRTSSpec extends Specification with RTS {
     IO.traverse(_) {
       case Exceptions.UnhandledError(_, _) => IO.unit
       case Exceptions.TerminatedFiber      => IO.unit
-      case e                           => IO sync Console.err.println(s"""[info] Discarding ${e.getClass.getName} ("${e.getMessage}")""")
+      case e                               => IO sync Console.err.println(s"""[info] Discarding ${e.getClass.getName} ("${e.getMessage}")""")
     } *> IO.unit
 }
