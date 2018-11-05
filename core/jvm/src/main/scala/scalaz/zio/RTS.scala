@@ -1,11 +1,12 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.annotation.switch
-import scala.annotation.tailrec
-import scala.concurrent.duration.Duration
-import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
 import java.util.concurrent._
+import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
+import scala.annotation.{ switch, tailrec }
+import scala.concurrent.duration.Duration
+import scalaz.zio.ExitResult.Cause
+import scalaz.zio.ExitResult.Cause.{ Exception, Interruption }
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -18,11 +19,9 @@ trait RTS {
    * Effectfully and synchronously interprets an `IO[E, A]`, either throwing an
    * error, running forever, or producing an `A`.
    */
-  final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io) match {
-    case ExitResult.Completed(v)        => v
-    case ExitResult.Interrupted(es, ts) => throw Errors.InterruptedFiber(es, ts)
-    case ExitResult.Terminated(t, ts)   => throw Errors.TerminatedFiber(t, ts)
-    case ExitResult.Failed(e, ts)       => throw Errors.UnhandledError(e, ts)
+  final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io).toEither match {
+    case Left(e)  => throw e
+    case Right(v) => v
   }
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
@@ -233,7 +232,7 @@ private object RTS {
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
             val f: IO[Nothing, Option[List[Throwable]]] =
-              fork(f0.finalizer, _ => IO.unit).observe.map((a: ExitResult[Nothing, Unit]) => a.collectDefects)
+              fork(f0.finalizer, _ => IO.unit).observe.map((a: ExitResult[Nothing, Unit]) => a.exceptions)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.seqWith(f)(zipFailures)
           case _ =>
@@ -267,7 +266,7 @@ private object RTS {
         stack.pop() match {
           case f0: Finalizer =>
             val f: IO[Nothing, Option[List[Throwable]]] =
-              fork(f0.finalizer, _ => IO.unit).observe.map((a: ExitResult[Nothing, Unit]) => a.collectDefects)
+              fork(f0.finalizer, _ => IO.unit).observe.map((a: ExitResult[Nothing, Unit]) => a.exceptions)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.seqWith(f)(zipFailures)
           case _ =>
@@ -405,7 +404,7 @@ private object RTS {
                         val defects = status.get.defects
 
                         curIo = null
-                        result = ExitResult.Failed(error, defects)
+                        result = ExitResult.Terminated(Cause.failure(error, defects))
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -447,12 +446,11 @@ private object RTS {
                                 if (curIo eq null) {
                                   result = value
                                 }
-                              case ExitResult.Interrupted(es, ts) =>
-                                curIo = IO.interrupt(es, ts)
-                              case ExitResult.Terminated(t, ts) =>
-                                curIo = IO.terminate0(t, ts)
-                              case ExitResult.Failed(e, ts) =>
-                                curIo = IO.fail0(e, ts)
+                              case ExitResult.Terminated(cause) =>
+                                curIo = (cause.failure match {
+                                  case Some(error) => IO.fail0(error, cause.exceptions)
+                                  case None        => IO.terminateWithCause(cause)
+                                })
                             }
                           } else {
                             // Completion handled by interruptor:
@@ -531,7 +529,7 @@ private object RTS {
                       io.value.ensuring(exitSupervision(io.supervisor))
 
                   case IO.Tags.Terminate =>
-                    val io = curIo.asInstanceOf[IO.Terminate]
+                    val io = curIo.asInstanceOf[IO.Terminate[E]]
 
                     val finalizer = interruptStack
 
@@ -541,27 +539,11 @@ private object RTS {
                       val defects = status.get.defects
 
                       curIo = null
-                      result = ExitResult.Terminated(io.defect, io.causes ++ causes ++ defects)
-                    } else {
-                      // Must run finalizers first before failing:
-                      val finalization = finalizer.flatMap(accumFailures)
-                      val completer    = io
-
-                      curIo = doNotInterrupt(finalization) *> completer
-                    }
-
-                  case IO.Tags.Interrupt =>
-                    val io = curIo.asInstanceOf[IO.Interrupt]
-
-                    val finalizer = interruptStack
-
-                    if (finalizer eq null) {
-                      // No finalizers, simply produce error:
-                      val causes  = status.get.terminationCauses.getOrElse(Nil)
-                      val defects = status.get.defects
-
-                      curIo = null
-                      result = ExitResult.Interrupted(io.causes ++ causes, io.defects ++ defects)
+                      val causeWithInterruptions =
+                        causes.foldLeft(io.cause)((causes, cause) => causes ++ Interruption(Some(cause)))
+                      val causeWithDefects =
+                        defects.foldLeft(causeWithInterruptions)((causes, defect) => causes ++ Exception(defect))
+                      result = ExitResult.Terminated(causeWithDefects)
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = finalizer.flatMap(accumFailures)
@@ -657,11 +639,11 @@ private object RTS {
           if (io eq null) done(value.asInstanceOf[ExitResult[E, A]])
           else evaluate(io)
 
-        case ExitResult.Failed(t, ts) => evaluate(IO.fail0[E](t, ts))
-
-        case ExitResult.Interrupted(es, ts) => evaluate(IO.interrupt(es, ts))
-
-        case ExitResult.Terminated(t, ts) => evaluate(IO.terminate0(t, ts))
+        case ExitResult.Terminated(cause) =>
+          evaluate(cause.failure match {
+            case Some(error) => IO.fail0(error, cause.exceptions)
+            case None        => IO.terminateWithCause(cause)
+          })
       }
 
     /**
@@ -837,14 +819,14 @@ private object RTS {
     final def register(cb: Callback[E, A]): Async[E, A] =
       observe0 {
         case ExitResult.Completed(r) => cb(r)
-        case ExitResult.Failed(e, _) => e
-        case ExitResult.Interrupted(es, ts) =>
-          rts.submit(rts.unsafeRun(unhandled(es ++ ts)))
-          cb(ExitResult.Interrupted(es, ts))
-        case ExitResult.Terminated(t, ts) =>
-          rts.submit(rts.unsafeRun(unhandled(t :: ts)))
-          cb(ExitResult.Terminated(t, ts))
-      }.fold(identity, ExitResult.Failed(_, _), ExitResult.Interrupted(_, _), ExitResult.Terminated(_, _))
+        case ExitResult.Terminated(cause) =>
+          cause.failure match {
+            case Some(_) =>
+            case None =>
+              rts.submit(rts.unsafeRun(unhandled(cause.toThrowable() :: Nil)))
+              cb(ExitResult.Terminated(cause))
+          }
+      }.fold(identity, ExitResult.Terminated(_))
 
     @tailrec
     final def done(v: ExitResult[E, A]): Unit = {
@@ -871,22 +853,11 @@ private object RTS {
     }
 
     final def reportErrors(v: ExitResult[E, A]): Unit =
-      v match {
-        case ExitResult.Failed(error, defects) =>
+      v.toEither match {
+        case Left(e) =>
           // Report the uncaught error to the supervisor:
-          rts.submit(
-            rts.unsafeRun(unhandled(Errors.UnhandledError(error, defects) :: Nil))
-          )
-
-        case ExitResult.Interrupted(es, ts) =>
-          // Report the termination cause to the supervisor:
-          rts.submit(rts.unsafeRun(unhandled(es ++ ts)))
-
-        case ExitResult.Terminated(t, ts) =>
-          // Report the termination cause to the supervisor:
-          rts.submit(rts.unsafeRun(unhandled(t :: ts)))
-
-        case _ =>
+          rts.submit(rts.unsafeRun(unhandled(e :: Nil)))
+        case Right(_) =>
       }
 
     private final def mkKillerObserver(cb: Callback[E, Unit]): Callback[Nothing, ExitResult[E, A]] =
@@ -909,7 +880,7 @@ private object RTS {
           }
 
         case AsyncRegion(None, defects, _, resume, cancelOpt, observers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.Interrupted[E, A](cs, defects)
+          val v = ExitResult.Terminated[E](Cause.interruption(cs, defects))
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(cs, k)
           else {

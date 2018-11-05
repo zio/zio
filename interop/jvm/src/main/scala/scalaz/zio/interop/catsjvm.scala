@@ -4,8 +4,8 @@ package interop
 import cats.effect.{ Effect, ExitCase }
 import cats.syntax.functor._
 import cats.{ effect, _ }
-
 import scala.util.control.NonFatal
+import scalaz.zio.ExitResult.Cause
 
 abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
@@ -33,15 +33,10 @@ sealed abstract class CatsInstances2 {
 }
 
 private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
-  protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = {
-    case ExitResult.Completed(a)        => Right(a)
-    case ExitResult.Failed(t, _)        => Left(t)
-    case ExitResult.Interrupted(es, ts) => Left(Errors.InterruptedFiber(es, ts))
-    case ExitResult.Terminated(t, ts)   => Left(Errors.TerminatedFiber(t, ts))
-  }
+  protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = _.toEither
 
   protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
-    case Left(t)  => ExitResult.Failed(t)
+    case Left(t)  => ExitResult.Terminated(Cause.failure(t))
     case Right(r) => ExitResult.Completed(r)
   }
 
@@ -84,11 +79,9 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     acquire: Task[A]
   )(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     acquire.bracket0[Throwable, B] { (a, exitResult) =>
-      val exitCase = exitResult match {
-        case ExitResult.Completed(_)           => ExitCase.Completed
-        case ExitResult.Failed(error, defects) => ExitCase.Error(Errors.UnhandledError(error, defects))
-        case ExitResult.Interrupted(es, ts)    => ExitCase.Error(Errors.InterruptedFiber(es, ts))
-        case ExitResult.Terminated(t, ts)      => ExitCase.Error(Errors.TerminatedFiber(t, ts))
+      val exitCase = exitResult.toEither match {
+        case Right(_)    => ExitCase.Completed
+        case Left(error) => ExitCase.Error(error)
       }
       release(a, exitCase)
         .catchAll(IO.terminate(_))

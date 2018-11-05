@@ -3,6 +3,7 @@ package interop
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
+import scalaz.zio.ExitResult.Cause
 
 object future {
 
@@ -11,7 +12,7 @@ object future {
       IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
         ftr().onComplete {
           case Success(a) => cb(ExitResult.Completed(a))
-          case Failure(t) => cb(ExitResult.Failed(t))
+          case Failure(t) => cb(ExitResult.Terminated(Cause.failure(t)))
         }(ec)
       }
   }
@@ -24,13 +25,13 @@ object future {
           cb: Callback[Nothing, ExitResult[Throwable, A]] =>
             ftr.onComplete {
               case Success(a) => cb(ExitResult.Completed(ExitResult.Completed(a)))
-              case Failure(t) => cb(ExitResult.Completed(ExitResult.Failed(t)))
+              case Failure(t) => cb(ExitResult.Completed(ExitResult.Terminated(Cause.failure(t))))
             }(ec)
         }
         def tryObserve: IO[Nothing, Option[ExitResult[Throwable, A]]] = IO.sync {
           ftr.value map {
             case Success(a) => ExitResult.Completed(a)
-            case Failure(t) => ExitResult.Failed(t)
+            case Failure(t) => ExitResult.Terminated(Cause.failure(t))
           }
         }
         def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.attempt.void

@@ -3,8 +3,8 @@ package scalaz.zio
 
 import scala.annotation.switch
 import scala.concurrent.duration._
-
 import scala.concurrent.ExecutionContext
+import scalaz.zio.ExitResult.Cause
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -141,10 +141,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
     def coordinate[A, B](f: (A, B) => C)(winner: Fiber[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
       winner.observe.flatMap {
-        case ExitResult.Completed(_)        => winner.zipWith(loser)(f).join
-        case ExitResult.Failed(e, ts)       => loser.interrupt *> IO.fail0(e, ts)
-        case ExitResult.Interrupted(es, ts) => loser.interrupt *> IO.interrupt(es, ts)
-        case ExitResult.Terminated(t, ts)   => loser.interrupt *> IO.terminate0(t, ts)
+        case ExitResult.Completed(_) => winner.zipWith(loser)(f).join
+        case ExitResult.Terminated(cause) =>
+          loser.interrupt *> (cause.failure match {
+            case Some(error) => IO.fail0(error, cause.exceptions)
+            case None        => IO.terminateWithCause(cause)
+          })
       }
     (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
   }
@@ -342,10 +344,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0[E1, A, B](this)(
       (a: A, eb: ExitResult[E1, B]) =>
         eb match {
-          case ExitResult.Failed(_, _)      => release(a)
-          case ExitResult.Interrupted(_, _) => release(a)
-          case ExitResult.Terminated(_, _)  => release(a)
-          case _                            => IO.unit
+          case ExitResult.Terminated(_) => release(a)
+          case _                        => IO.unit
         }
     )(use)
 
@@ -360,10 +360,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Completed(_)       => IO.unit
-          case ExitResult.Failed(e, ts)      => cleanup(ExitResult.Failed(e, ts))
-          case ExitResult.Interrupted(e, ts) => cleanup(ExitResult.Interrupted(e, ts))
-          case ExitResult.Terminated(t, ts)  => cleanup(ExitResult.Terminated(t, ts))
+          case ExitResult.Completed(_)      => IO.unit
+          case ExitResult.Terminated(cause) => cleanup(ExitResult.Terminated(cause))
         }
     )(_ => self)
 
@@ -375,9 +373,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Interrupted(e, ts) => cleanup(e ++ ts)
-          case ExitResult.Terminated(t, ts)  => cleanup(t :: ts)
-          case _                             => IO.unit
+          case ExitResult.Terminated(cause) if cause.failure.isEmpty => cleanup(cause.toThrowable() :: Nil)
+          case _                                                     => IO.unit
         }
     )(_ => self)
 
@@ -647,12 +644,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.run.flatMap {
       case ExitResult.Completed(value) =>
         IO.now(value)
-      case ExitResult.Failed(error, defects) =>
-        IO.fail0(Right(error), defects)
-      case ExitResult.Interrupted(e, defects) =>
-        IO.fail0(Left(e), defects)
-      case ExitResult.Terminated(t, defects) =>
-        IO.fail0(Left(List(t)), defects)
+      case ExitResult.Terminated(cause) =>
+        cause.failure match {
+          case Some(error) => IO.fail0(Right(error), cause.exceptions)
+          case None        => IO.fail0(Left(cause.toThrowable() :: Nil), Nil)
+        }
     }
 
   /**
@@ -802,13 +798,8 @@ object IO extends Serializable {
     override def tag = Tags.Supervise
   }
 
-  final class Terminate private[IO] (val defect: Throwable, val causes: List[Throwable]) extends IO[Nothing, Nothing] {
+  final class Terminate[E] private[IO] (val cause: Cause[E]) extends IO[Nothing, Nothing] {
     override def tag = Tags.Terminate
-  }
-
-  final class Interrupt private[IO] (val causes: List[Throwable], val defects: List[Throwable])
-      extends IO[Nothing, Nothing] {
-    override def tag = Tags.Interrupt
   }
 
   final class Supervisor private[IO] () extends IO[Nothing, Throwable => IO[Nothing, Unit]] {
@@ -867,10 +858,12 @@ object IO extends Serializable {
    * Creates an `IO` value from `ExitResult`
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Completed(b)        => now(b)
-    case ExitResult.Interrupted(es, ts) => interrupt(es, ts)
-    case ExitResult.Terminated(t, ts)   => terminate0(t, ts)
-    case ExitResult.Failed(e, ts)       => fail0(e, ts)
+    case ExitResult.Completed(b) => now(b)
+    case ExitResult.Terminated(cause) =>
+      cause.failure match {
+        case Some(error) => fail0(error, cause.exceptions)
+        case None        => terminateWithCause(cause)
+      }
   }
 
   /**
@@ -909,7 +902,7 @@ object IO extends Serializable {
    * Interrupts the fiber executing this action, running all finalizers.
    */
   final def interrupt(causes: List[Throwable], defects: List[Throwable]): IO[Nothing, Nothing] =
-    new Interrupt(causes, defects)
+    terminateWithCause(Cause.interruption(causes, defects))
 
   /**
    * Terminates the fiber executing this action with the specified error(s), running all finalizers.
@@ -919,7 +912,12 @@ object IO extends Serializable {
   /**
    * Terminates the fiber executing this action, running all finalizers.
    */
-  final def terminate0(t: Throwable, ts: List[Throwable]): IO[Nothing, Nothing] = new Terminate(t, ts)
+  final def terminate0(t: Throwable, ts: List[Throwable]): IO[Nothing, Nothing] = new Terminate(Cause.exception(t, ts))
+
+  /**
+   * Terminates the fiber executing this action, running all finalizers.
+   */
+  private[zio] final def terminateWithCause[E](cause: Cause[E]): IO[Nothing, Nothing] = new Terminate(cause)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.

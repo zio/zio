@@ -3,8 +3,8 @@
 package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicReference
-
 import Promise.internal._
+import scalaz.zio.ExitResult.Cause
 
 /**
  * A promise represents an asynchronous variable that can be set exactly once,
@@ -66,13 +66,13 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   /**
    * Completes the promise with the specified value.
    */
-  final def complete(a: A): IO[Nothing, Boolean] = done(ExitResult.Completed[E, A](a))
+  final def complete(a: A): IO[Nothing, Boolean] = done(ExitResult.Completed[A](a))
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.Failed[E, A](e))
+  final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.Terminated[E](Cause.failure(e, Nil)))
 
   /**
    * Interrupts the promise with no specified reason. This will interrupt
@@ -90,7 +90,8 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Interrupts the promise with the specified list of throwable(s). This will interrupt
    * all fibers waiting on the value of the promise.
    */
-  final def interrupt0(ts: List[Throwable]): IO[Nothing, Boolean] = done(ExitResult.Interrupted[E, A](ts, Nil))
+  final def interrupt0(ts: List[Throwable]): IO[Nothing, Boolean] =
+    done(ExitResult.Terminated[E](Cause.interruption(ts, Nil)))
 
   /**
    * Completes the promise with the specified result. If the specified promise

@@ -2,10 +2,9 @@ package scalaz.zio
 package interop
 
 import scala.concurrent.Future
-
 import org.specs2.concurrent.ExecutionEnv
-
 import future._
+import scalaz.zio.Errors.TerminatedFiber
 
 class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
@@ -47,8 +46,9 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val catchBlockException = {
-    def noFuture: Future[Unit] = throw new Exception("no future for you!")
-    unsafeRun(IO.fromFuture(noFuture _)(ec)) must throwA[Exception](message = "no future for you!")
+    val ex                     = new Exception("no future for you!")
+    def noFuture: Future[Unit] = throw ex
+    unsafeRun(IO.fromFuture(noFuture _)(ec)) must throwA(TerminatedFiber(ex, Nil))
   }
 
   val catchBlockExceptionTask = {
@@ -117,8 +117,9 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val catchBlockExceptionFiber = {
-    def noFuture: Future[Unit] = throw new Exception("no future for you!")
-    unsafeRun(Fiber.fromFuture(noFuture)(ec).join) must throwA[Exception](message = "no future for you!")
+    val ex                     = new Exception("no future for you!")
+    def noFuture: Future[Unit] = throw ex
+    unsafeRun(Fiber.fromFuture(noFuture)(ec).join) must throwA((TerminatedFiber(ex, Nil)))
   }
 
   val propagateExceptionFromFutureFiber = {
