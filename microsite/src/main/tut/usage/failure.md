@@ -83,7 +83,7 @@ val z: IO[Nothing, Content] =
 There are a number of useful combinators for retrying failed actions:
 
  * `IO.forever` &mdash; Repeats the action until the first failure.
- * `IO.retry(policy)` &mdash; Repeats the action using a specified schedule.
- * `IO.retryOrElse(policy, fallback)` &mdash; Repeats the action using a specified schedule, or if the schedule, uses the fallback.
+ * `IO.retry(policy)` &mdash; Repeats the action using a specified schedule until the schedule completes, or a failure occurs.
+ * `IO.retryOrElse(policy, fallback)` &mdash; Repeats the action using a specified schedule until the schedule completes, or using `fallback` to compute the final value (or error) in case of failure.
 
 Schedules are a powerful, composable way to dictate retry behavior.
