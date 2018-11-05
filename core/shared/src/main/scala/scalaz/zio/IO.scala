@@ -339,7 +339,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * to the default one.
    */
   final def on(ec: ExecutionContext): IO[E, A] =
-    IO.shift(ec) *> self <* IO.shift
+    IO.shift(ec).bracket_(IO.shift)(self)
 
   /**
    * Forks an action that will be executed on the specified `ExecutionContext`.
@@ -1132,7 +1132,7 @@ object IO extends Serializable {
   /**
    * Acquires a resource, do some work with it, and then release that resource. `bracket`
    * will release the resource no matter the outcome of the computation, and will
-   * re-throw any exception that occured in between.
+   * re-throw any exception that occurred in between.
    */
   final def bracket[E, A, B](
     acquire: IO[E, A]
