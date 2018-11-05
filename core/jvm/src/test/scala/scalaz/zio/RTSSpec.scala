@@ -4,10 +4,12 @@ package scalaz.zio
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
+import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
-import Errors.{ InterruptedFiber, TerminatedFiber, UnhandledError }
-import com.github.ghik.silencer.silent
+import scalaz.zio.Errors.{ TerminatedFiber, UnhandledError }
+import scalaz.zio.ExitResult.Cause
+import scalaz.zio.ExitResult.Cause.Interruption
 
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
@@ -189,25 +191,27 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   )
 
   def testSandboxedAttemptOfTerminate =
-    unsafeRun(IO.sync[Int](throw ExampleError).sandboxed.attempt) must_=== Left(Left(List(ExampleError)))
+    unsafeRun(IO.sync[Int](throw ExampleError).sandboxed.attempt) must_=== Left(
+      Left(List(TerminatedFiber(ExampleError, Nil)))
+    )
 
   def testSandboxedRedeemPureOfTerminate =
     unsafeRun(
       IO.sync[Int](throw ExampleError).sandboxed.redeemPure(_.left.getOrElse(Nil), Function.const(Nil))
-    ) must_=== List(ExampleError)
+    ).head.asInstanceOf[TerminatedFiber].defect must_=== ExampleError
 
   def testSandboxWithCatchSomeOfTerminate =
     unsafeRun(
       IO.sync[List[Throwable]](throw ExampleError)
         .sandboxWith(_.catchSome { case Left(ts) => IO.now(ts) })
-    ) must_=== List(ExampleError)
+    ).head.asInstanceOf[TerminatedFiber].defect must_=== ExampleError
 
   def testSandboxedTerminate =
     unsafeRun(
       IO.sync[List[Throwable]](throw ExampleError)
         .sandboxed
         .redeemPure(identity, identity)
-    ) must_=== Left(List(ExampleError))
+    ) must_=== Left(List(TerminatedFiber(ExampleError, Nil)))
 
   def testAttemptOfDeepSyncEffectError =
     unsafeRun(deepErrorEffect(100).attempt) must_=== Left(ExampleError)
@@ -240,7 +244,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         _  <- f1.interrupt(InterruptCause1, InterruptCause2)
         _  <- f1.join
       } yield ()).run
-    ) must_=== ExitResult.Terminated(InterruptedFiber(List(InterruptCause1, InterruptCause2), Nil), Nil)
+    ) must_=== ExitResult.Terminated(Interruption(Some(InterruptCause1)) ++ Interruption(Some(InterruptCause2)))
 
   def testFailOfMultipleFailingFinalizers =
     unsafeRun(
@@ -249,7 +253,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
         .run
-    ) must_=== ExitResult.Failed(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
+    ) must_=== ExitResult.Terminated(
+      Cause.failure(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
+    )
 
   def testTerminateOfMultipleFailingFinalizers =
     unsafeRun(
@@ -258,7 +264,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
         .run
-    ) must_=== ExitResult.Terminated(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
+    ) must_=== ExitResult.Terminated(
+      Cause.exception(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
+    )
 
   def testEvalOfFailEnsuring = {
     var finalized = false
@@ -305,7 +313,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     // FIXME: Is this an issue with thread synchronization?
     while (reported eq null) Thread.`yield`()
 
-    reported must_=== List(ExampleError)
+    reported.head.asInstanceOf[TerminatedFiber].defect must_=== ExampleError
   }
 
   def testExitResultIsUsageResult =
@@ -438,7 +446,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testDeepBindOfAsyncChainIsStackSafe = {
     val result = (0 until 10000).foldLeft[IO[Throwable, Int]](IO.point[Int](0)) { (acc, _) =>
-      acc.flatMap(n => IO.async[Throwable, Int](_(ExitResult.Completed[Throwable, Int](n + 1))))
+      acc.flatMap(n => IO.async[Throwable, Int](_(ExitResult.Completed[Int](n + 1))))
     }
 
     unsafeRun(result) must_=== 10000
@@ -662,7 +670,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   val InterruptCause2 = new Exception("Oh noes 2!")
   val InterruptCause3 = new Exception("Oh noes 3!")
 
-  def asyncExampleError[A]: IO[Throwable, A] = IO.async[Throwable, A](_(ExitResult.Failed(ExampleError)))
+  def asyncExampleError[A]: IO[Throwable, A] =
+    IO.async[Throwable, A](_(ExitResult.Terminated(Cause.failure(ExampleError))))
 
   def sum(n: Int): Int =
     if (n <= 0) 0

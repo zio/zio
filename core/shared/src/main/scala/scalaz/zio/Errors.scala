@@ -11,4 +11,7 @@ object Errors {
 
   final case class InterruptedFiber(causes: List[Throwable], defects: List[Throwable])
       extends Exception("The fiber was terminated by an interruption")
+
+  final case class ParallelFiberError(left: Throwable, right: Throwable, defects: List[Throwable])
+      extends Exception("Both fibers terminated in parallel")
 }

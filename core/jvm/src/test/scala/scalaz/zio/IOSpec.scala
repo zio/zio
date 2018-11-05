@@ -2,7 +2,7 @@ package scalaz.zio
 
 import org.scalacheck._
 import org.specs2.ScalaCheck
-import scalaz.zio.ExitResult.{ Completed, Failed, Interrupted, Terminated }
+import scalaz.zio.ExitResult.{ Cause, Completed, Terminated }
 import scala.collection.mutable
 import scala.util.Try
 import scalaz.zio.Errors.{ InterruptedFiber, TerminatedFiber }
@@ -77,11 +77,11 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 
   def testDone = {
-    val error       = new Error("something went wrong")
-    val completed   = Completed[Nothing, Int](1)
-    val interrupted = Interrupted[Nothing, Int](error :: Nil, Nil)
-    val terminated  = Terminated[Nothing, Int](error, Nil)
-    val failed      = Failed[Error, Int](error)
+    val error                               = new Error("something went wrong")
+    val completed                           = Completed(1)
+    val interrupted: ExitResult[Error, Int] = Terminated(Cause.interruption(error :: Nil))
+    val terminated: ExitResult[Error, Int]  = Terminated(Cause.exception(error))
+    val failed: ExitResult[Error, Int]      = Terminated(Cause.failure(error))
 
     unsafeRun(IO.done(completed)) must_=== 1
     unsafeRun(IO.done(interrupted)) must throwA(InterruptedFiber(error :: Nil, Nil))
