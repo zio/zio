@@ -35,9 +35,9 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
   final def zipPar[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] = zipWith(that)((_, _), _ && _)
 
   final def zipWith[E1 >: E, B, C](that: ExitResult[E1, B])(
-                              f: (A, B) => C,
-                              g: (Cause[E], Cause[E1]) => Cause[E1]
-                            ): ExitResult[E1, C] =
+    f: (A, B) => C,
+    g: (Cause[E], Cause[E1]) => Cause[E1]
+  ): ExitResult[E1, C] =
     (self, that) match {
       case (Completed(a), Completed(b))   => Completed(f(a, b))
       case (Terminated(l), Terminated(r)) => Terminated(g(l, r))
