@@ -21,7 +21,7 @@ class Queue[A] private (
   ref: Ref[State[A]],
   strategy: SurplusStrategy,
   shutdownHook: Ref[IO[Nothing, Unit]]
-) {
+) extends Serializable {
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
