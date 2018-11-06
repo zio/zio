@@ -244,7 +244,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         _  <- f1.interrupt(InterruptCause1, InterruptCause2)
         _  <- f1.join
       } yield ()).run
-    ) must_=== ExitResult.Terminated(Interruption(Some(InterruptCause1)) ++ Interruption(Some(InterruptCause2)))
+    ) must_=== ExitResult.Failed(Interruption(Some(InterruptCause1)) ++ Interruption(Some(InterruptCause2)))
 
   def testFailOfMultipleFailingFinalizers =
     unsafeRun(
@@ -253,7 +253,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
         .run
-    ) must_=== ExitResult.failed(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
+    ) must_=== ExitResult.Failed(
+      Cause.checked(ExampleError).withDefects(List(InterruptCause1, InterruptCause2, InterruptCause3))
+    )
 
   def testTerminateOfMultipleFailingFinalizers =
     unsafeRun(
@@ -262,8 +264,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
         .run
-    ) must_=== ExitResult.Terminated(
-      Cause.exception(ExampleError, List(InterruptCause1, InterruptCause2, InterruptCause3))
+    ) must_=== ExitResult.Failed(
+      Cause.unchecked(ExampleError).withDefects(List(InterruptCause1, InterruptCause2, InterruptCause3))
     )
 
   def testEvalOfFailEnsuring = {
@@ -669,7 +671,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   val InterruptCause3 = new Exception("Oh noes 3!")
 
   def asyncExampleError[A]: IO[Throwable, A] =
-    IO.async[Throwable, A](_(ExitResult.failed(ExampleError)))
+    IO.async[Throwable, A](_(ExitResult.checked(ExampleError)))
 
   def sum(n: Int): Int =
     if (n <= 0) 0
