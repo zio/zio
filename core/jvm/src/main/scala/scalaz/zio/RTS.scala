@@ -5,7 +5,8 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import scala.annotation.{ switch, tailrec }
 import scala.concurrent.duration.Duration
-import scalaz.zio.ExitResult.Cause.{ Exception, Interruption }
+import scalaz.zio.ExitResult.Cause
+import scalaz.zio.ExitResult.Cause.Interruption
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -18,10 +19,7 @@ trait RTS {
    * Effectfully and synchronously interprets an `IO[E, A]`, either throwing an
    * error, running forever, or producing an `A`.
    */
-  final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io).toEither match {
-    case Left(e)  => throw e
-    case Right(v) => v
-  }
+  final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io).toEither.fold(throw _, identity)
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
     val context = newFiberContext[E, A](defaultHandler)
@@ -421,7 +419,7 @@ private object RTS {
                         val defects = status.get.defects
 
                         curIo = null
-                        result = ExitResult.failed(error, defects)
+                        result = ExitResult.Failed(Cause.checked(error).withDefects(defects))
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -463,7 +461,7 @@ private object RTS {
                                 if (curIo eq null) {
                                   result = value
                                 }
-                              case ExitResult.Terminated(cause) =>
+                              case ExitResult.Failed(cause) =>
                                 curIo = cause.toIO
                             }
                           } else {
@@ -561,8 +559,8 @@ private object RTS {
                       val causeWithInterruptions =
                         interruptions.foldLeft(cause)((causes, cause) => causes ++ Interruption(Some(cause)))
                       val causeWithDefects =
-                        defects.foldLeft(causeWithInterruptions)((causes, defect) => causes ++ Exception(defect))
-                      result = ExitResult.Terminated(causeWithDefects)
+                        defects.foldLeft(causeWithInterruptions)((causes, defect) => causes ++ Cause.unchecked(defect))
+                      result = ExitResult.Failed(causeWithDefects)
                     } else {
                       // Must run finalizers first before failing:
                       val finalization = finalizer.flatMap(accumFailures)
@@ -667,7 +665,7 @@ private object RTS {
           if (io eq null) done(value.asInstanceOf[ExitResult[E, A]])
           else evaluate(io)
 
-        case ExitResult.Terminated(cause) =>
+        case ExitResult.Failed(cause) =>
           evaluate(cause.toIO)
       }
 
@@ -843,14 +841,14 @@ private object RTS {
     final def register(cb: Callback[E, A]): Async[E, A] =
       observe0 {
         case ExitResult.Completed(r) => cb(r)
-        case ExitResult.Terminated(cause) =>
-          cause.failure match {
+        case ExitResult.Failed(cause) =>
+          cause.checkedFirst match {
             case Some(_) =>
             case None =>
               rts.submit(rts.unsafeRun(unhandled(cause.toThrowable() :: Nil)))
-              cb(ExitResult.Terminated(cause))
+              cb(ExitResult.Failed(cause))
           }
-      }.fold(identity, ExitResult.Terminated(_))
+      }.fold(identity, ExitResult.Failed(_))
 
     @tailrec
     final def done(v: ExitResult[E, A]): Unit = {
@@ -904,7 +902,7 @@ private object RTS {
           }
 
         case AsyncRegion(None, defects, _, resume, cancelOpt, observers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.interrupted(cs, defects)
+          val v = ExitResult.Failed(Cause.interrupt(cs).withDefects(defects))
 
           if (!status.compareAndSet(oldStatus, Done(v))) kill0(cs, k)
           else {

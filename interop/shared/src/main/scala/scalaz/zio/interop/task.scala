@@ -24,10 +24,10 @@ object Task {
     io.attempt.flatMap { f =>
       IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
         f.fold(
-          t => cb(ExitResult.failed(t)),
+          t => cb(ExitResult.checked(t)),
           _.onComplete {
             case Success(a) => cb(ExitResult.Completed(a))
-            case Failure(t) => cb(ExitResult.failed(t))
+            case Failure(t) => cb(ExitResult.checked(t))
           }(ec)
         )
       }

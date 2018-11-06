@@ -11,7 +11,7 @@ object future {
       IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
         ftr().onComplete {
           case Success(a) => cb(ExitResult.Completed(a))
-          case Failure(t) => cb(ExitResult.failed(t))
+          case Failure(t) => cb(ExitResult.checked(t))
         }(ec)
       }
   }
@@ -24,13 +24,13 @@ object future {
           cb: Callback[Nothing, ExitResult[Throwable, A]] =>
             ftr.onComplete {
               case Success(a) => cb(ExitResult.Completed(ExitResult.Completed(a)))
-              case Failure(t) => cb(ExitResult.Completed(ExitResult.failed(t)))
+              case Failure(t) => cb(ExitResult.Completed(ExitResult.checked(t)))
             }(ec)
         }
         def tryObserve: IO[Nothing, Option[ExitResult[Throwable, A]]] = IO.sync {
           ftr.value map {
             case Success(a) => ExitResult.Completed(a)
-            case Failure(t) => ExitResult.failed(t)
+            case Failure(t) => ExitResult.checked(t)
           }
         }
         def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.attempt.void

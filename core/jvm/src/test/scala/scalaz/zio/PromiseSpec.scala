@@ -56,7 +56,7 @@ class PromiseSpec extends AbstractRTSSpec {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done(ExitResult.failed("error in e4", Nil))
+        s <- p.done(ExitResult.checked("error in e4"))
         v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
@@ -109,7 +109,7 @@ class PromiseSpec extends AbstractRTSSpec {
         p      <- Promise.make[String, Int]
         _      <- p.error("failure")
         result <- p.poll
-      } yield result must_=== ExitResult.failed("failure", Nil)
+      } yield result must_=== ExitResult.checked("failure")
     }
 
   def e11 =

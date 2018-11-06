@@ -35,7 +35,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
   protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = _.toEither
 
   protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
-    case Left(t)  => ExitResult.failed(t)
+    case Left(t)  => ExitResult.checked(t)
     case Right(r) => ExitResult.Completed(r)
   }
 

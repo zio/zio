@@ -141,9 +141,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
     def coordinate[A, B](f: (A, B) => C)(winner: Fiber[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
       winner.observe.flatMap {
-        case ExitResult.Completed(_) => winner.zipWith(loser)(f).join
-        case ExitResult.Terminated(cause) =>
-          loser.interrupt *> cause.toIO
+        case ExitResult.Completed(_)  => winner.zipWith(loser)(f).join
+        case ExitResult.Failed(cause) => loser.interrupt *> cause.toIO
       }
     (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
   }
@@ -341,8 +340,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0[E1, A, B](this)(
       (a: A, eb: ExitResult[E1, B]) =>
         eb match {
-          case ExitResult.Terminated(_) => release(a)
-          case _                        => IO.unit
+          case ExitResult.Failed(_) => release(a)
+          case _                    => IO.unit
         }
     )(use)
 
@@ -357,8 +356,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Completed(_)      => IO.unit
-          case ExitResult.Terminated(cause) => cleanup(ExitResult.Terminated(cause))
+          case ExitResult.Completed(_)  => IO.unit
+          case t @ ExitResult.Failed(_) => cleanup(t)
         }
     )(_ => self)
 
@@ -370,8 +369,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Terminated(cause) if cause.failure.isEmpty => cleanup(cause.toThrowable() :: Nil)
-          case _                                                     => IO.unit
+          case ExitResult.Failed(cause) => cause.checkedFirst.fold(cleanup(cause.unchecked))(_ => IO.unit)
+          case _                        => IO.unit
         }
     )(_ => self)
 
@@ -641,9 +640,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.run.flatMap {
       case ExitResult.Completed(value) =>
         IO.now(value)
-      case ExitResult.Terminated(cause) =>
-        cause.failure match {
-          case Some(error) => IO.fail0(Right(error), cause.exceptions)
+      case ExitResult.Failed(cause) =>
+        cause.checkedFirst match {
+          case Some(error) => IO.fail0(Right(error), cause.unchecked)
           case None        => IO.fail0(Left(cause.toThrowable() :: Nil), Nil)
         }
     }
@@ -859,8 +858,8 @@ object IO extends Serializable {
    * Creates an `IO` value from `ExitResult`
    */
   final def done[E, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Completed(b)      => now(b)
-    case ExitResult.Terminated(cause) => cause.toIO
+    case ExitResult.Completed(b)  => now(b)
+    case ExitResult.Failed(cause) => cause.toIO
   }
 
   /**
@@ -899,7 +898,7 @@ object IO extends Serializable {
    * Interrupts the fiber executing this action, running all finalizers.
    */
   final def interrupt(causes: List[Throwable], defects: List[Throwable]): IO[Nothing, Nothing] =
-    terminateWithCause(Cause.interruption(causes, defects))
+    terminateWithCause(Cause.interrupt(causes).withDefects(defects))
 
   /**
    * Terminates the fiber executing this action with the specified error(s), running all finalizers.
@@ -909,7 +908,8 @@ object IO extends Serializable {
   /**
    * Terminates the fiber executing this action, running all finalizers.
    */
-  final def terminate0(t: Throwable, ts: List[Throwable]): IO[Nothing, Nothing] = new Terminate(Cause.exception(t, ts))
+  final def terminate0(t: Throwable, ts: List[Throwable]): IO[Nothing, Nothing] =
+    new Terminate(Cause.unchecked(t).withDefects(ts))
 
   /**
    * Terminates the fiber executing this action, running all finalizers.
