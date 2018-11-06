@@ -513,8 +513,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         v3      <- queue.take
         v4      <- queue.take
         v5      <- queue.take
-      } yield
-        (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3).and(v4 must_=== 4).and(v5 must_=== 5)
+      } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3).and(v4 must_=== 4).and(v5 must_=== 5)
     )
 
   def e34 =
@@ -781,7 +780,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       capacity <- IO.now(100)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 200).toIterable
-      _       <- queue.offerAll(iter)
+      _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== Range.inclusive(1, 100).toList).and(ta.size must_=== capacity)
   )
