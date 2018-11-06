@@ -16,7 +16,8 @@ class SemaphoreSpec extends AbstractRTSSpec {
       `acquireN`s can be parallel with `releaseN`s $e3
       individual `acquireN`s can be parallel with individual `releaseN`s $e4
       semaphores and fibers play ball together $e5
-      `acquire` doesn't leak permits upon cancellation $e6
+      `acquire` doesn't releases permits upon cancellation $e6
+      `withPermit` releases permits upon cancellation $e7
     """
 
   def e1 = {
@@ -65,6 +66,14 @@ class SemaphoreSpec extends AbstractRTSSpec {
     } yield permits) must_=== 0
   }
 
+  def e7 = {
+    val n = 0L
+    unsafeRun(for {
+      s <- Semaphore(n)
+      _ <- s.withPermit(IO.sleep(1.millis) *> IO.fail(new Exception("timeout")) *> s.release).attempt.fork
+      permits <- s.release *> IO.sleep(10.millis) *> s.available
+    }yield permits must_=== 1L)
+  }
 
   def offsettingReleasesAcquires(
     acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],
