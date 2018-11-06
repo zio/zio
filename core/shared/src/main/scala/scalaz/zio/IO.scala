@@ -1124,7 +1124,7 @@ object IO extends Serializable {
         case (a, f) =>
           f.tryObserve.flatMap {
             case Some(r) => release(a, r)
-            case None    => f.interrupt
+            case None    => f.interrupt *> f.observe.flatMap(release(a, _))
           }
       }))
     }
