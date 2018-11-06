@@ -1104,8 +1104,8 @@ object IO extends Serializable {
       } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
         case (a, f) =>
           f.tryObserve.flatMap {
-            case Some(exitResult) => release(a, exitResult)
-            case None             => f.interrupt *> f.observe.flatMap(release(a, _))
+            case Some(r) => release(a, r)
+            case None    => f.interrupt *> f.observe.flatMap(release(a, _))
           }
       }))
     }
