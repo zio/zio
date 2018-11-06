@@ -1104,8 +1104,8 @@ object IO extends Serializable {
       } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
         case (a, f) =>
           f.tryObserve.flatMap {
-            case Some(r) => release(a, r)
-            case None    => f.interrupt
+            case Some(exitResult) => release(a, exitResult)
+            case None             => f.interrupt *> f.observe.flatMap(release(a, _))
           }
       }))
     }
@@ -1113,7 +1113,7 @@ object IO extends Serializable {
   /**
    * Acquires a resource, do some work with it, and then release that resource. `bracket`
    * will release the resource no matter the outcome of the computation, and will
-   * re-throw any exception that occured in between.
+   * re-throw any exception that occurred in between.
    */
   final def bracket[E, A, B](
     acquire: IO[E, A]

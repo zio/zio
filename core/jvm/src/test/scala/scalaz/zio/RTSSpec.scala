@@ -89,6 +89,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     bracket0 is uninterruptible             ${testBracket0AcquireIsUninterruptible}
     bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
+    bracket release called on interrupt     $testBracketReleaseOnInterrupt
+    bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
     supervise fibers                        ${upTo(1.second)(testSupervise)}
     race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
     race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
@@ -506,6 +508,34 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         res <- promise.get *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
+  }
+
+  def testBracketReleaseOnInterrupt = {
+    val io =
+      for {
+        p1      <- Promise.make[Nothing, Unit]
+        p2      <- Promise.make[Nothing, Unit]
+        fiber   <- IO.bracket(IO.unit)(_ => p2.complete(()) *> IO.unit)(_ => p1.complete(()) *> IO.never).fork
+        _       <- p1.get
+        _       <- fiber.interrupt
+        _       <- p2.get
+      } yield ()
+
+    unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
+  }
+
+  def testBracket0ReleaseOnInterrupt = {
+    val io =
+      for {
+        p1      <- Promise.make[Nothing, Unit]
+        p2      <- Promise.make[Nothing, Unit]
+        fiber   <- IO.bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => p2.complete(()) *> IO.unit)(_ => p1.complete(()) *> IO.never).fork
+        _       <- p1.get
+        _       <- fiber.interrupt
+        _       <- p2.get
+      } yield ()
+
+    unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
   }
 
   def testAsyncPureIsInterruptible = {
