@@ -513,12 +513,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testBracketReleaseOnInterrupt = {
     val io =
       for {
-        p1      <- Promise.make[Nothing, Unit]
-        p2      <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket(IO.unit)(_ => p2.complete(()) *> IO.unit)(_ => p1.complete(()) *> IO.never).fork
-        _       <- p1.get
-        _       <- fiber.interrupt
-        _       <- p2.get
+        p1    <- Promise.make[Nothing, Unit]
+        p2    <- Promise.make[Nothing, Unit]
+        fiber <- IO.bracket(IO.unit)(_ => p2.complete(()) *> IO.unit)(_ => p1.complete(()) *> IO.never).fork
+        _     <- p1.get
+        _     <- fiber.interrupt
+        _     <- p2.get
       } yield ()
 
     unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
@@ -527,12 +527,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testBracket0ReleaseOnInterrupt = {
     val io =
       for {
-        p1      <- Promise.make[Nothing, Unit]
-        p2      <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => p2.complete(()) *> IO.unit)(_ => p1.complete(()) *> IO.never).fork
-        _       <- p1.get
-        _       <- fiber.interrupt
-        _       <- p2.get
+        p1 <- Promise.make[Nothing, Unit]
+        p2 <- Promise.make[Nothing, Unit]
+        fiber <- IO
+                  .bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => p2.complete(()) *> IO.unit)(
+                    _ => p1.complete(()) *> IO.never
+                  )
+                  .fork
+        _ <- p1.get
+        _ <- fiber.interrupt
+        _ <- p2.get
       } yield ()
 
     unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
