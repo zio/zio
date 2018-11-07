@@ -335,6 +335,19 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     new IO.Ensuring(self, finalizer)
 
   /**
+   * Executes the action on the specified `ExecutionContext` and then shifts back
+   * to the default one.
+   */
+  final def on(ec: ExecutionContext): IO[E, A] =
+    IO.shift(ec).bracket_(IO.shift)(self)
+
+  /**
+   * Forks an action that will be executed on the specified `ExecutionContext`.
+   */
+  final def forkOn(ec: ExecutionContext): IO[E, Fiber[E, A]] =
+    (IO.shift(ec) *> self).fork
+
+  /**
    * Executes the release action only if there was an error.
    */
   final def bracketOnError[E1 >: E, B](release: A => IO[Nothing, Unit])(use: A => IO[E1, B]): IO[E1, B] =
@@ -977,6 +990,12 @@ object IO extends Serializable {
     b.flatMap(b => if (b) io else IO.unit)
 
   /**
+   * Shifts execution to a thread in the default `ExecutionContext`.
+   */
+  final def shift: IO[Nothing, Unit] =
+    IO.sleep(0.seconds)
+
+  /**
    * Shifts the operation to another execution context.
    *
    * {{{
@@ -1105,7 +1124,7 @@ object IO extends Serializable {
         case (a, f) =>
           f.tryObserve.flatMap {
             case Some(r) => release(a, r)
-            case None    => f.interrupt
+            case None    => f.interrupt *> f.observe.flatMap(release(a, _))
           }
       }))
     }
@@ -1113,7 +1132,7 @@ object IO extends Serializable {
   /**
    * Acquires a resource, do some work with it, and then release that resource. `bracket`
    * will release the resource no matter the outcome of the computation, and will
-   * re-throw any exception that occured in between.
+   * re-throw any exception that occurred in between.
    */
   final def bracket[E, A, B](
     acquire: IO[E, A]

@@ -58,7 +58,12 @@ trait RTS {
   /**
    * The main thread pool used for executing fibers.
    */
-  val threadPool = newDefaultThreadPool()
+  val threadPool: ExecutorService = newDefaultThreadPool()
+
+  /**
+   * The thread pool for scheduling timed tasks.
+   */
+  lazy val scheduledExecutor: ScheduledExecutorService = newDefaultScheduledExecutor()
 
   /**
    * This determines the maximum number of resumptions placed on the stack
@@ -73,8 +78,6 @@ trait RTS {
    * FIXME: Replace this entirely with the new scheme.
    */
   val YieldMaxOpCount = 1024
-
-  lazy val scheduledExecutor = newDefaultScheduledExecutor()
 
   private final def newFiberContext[E, A](handler: List[Throwable] => IO[Nothing, Unit]): FiberContext[E, A] = {
     val nextFiberId = fiberCounter.incrementAndGet()
