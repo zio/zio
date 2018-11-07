@@ -5,7 +5,8 @@ import org.specs2.ScalaCheck
 import scalaz.zio.ExitResult.Completed
 import scala.collection.mutable
 import scala.util.Try
-import scalaz.zio.Errors.{ InterruptedFiber, TerminatedFiber }
+import scalaz.zio.Errors.FiberFailure
+import scalaz.zio.ExitResult.Cause.{ Checked, Interruption, Unchecked }
 
 class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
@@ -50,7 +51,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   def t3 = {
     val list = List("1", "h", "3")
     val res  = Try(unsafeRun(IO.traverse(list)(x => IO.point[Int](x.toInt))))
-    res must beAFailedTry.withThrowable[TerminatedFiber]
+    res must beAFailedTry.withThrowable[FiberFailure]
   }
 
   def t4 = {
@@ -84,8 +85,8 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val failed: ExitResult[Error, Int]      = ExitResult.checked(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(interrupted)) must throwA(InterruptedFiber(error :: Nil, Nil))
-    unsafeRun(IO.done(terminated)) must throwA(TerminatedFiber(error, Nil))
-    unsafeRun(IO.done(failed)) must throwA(Errors.UnhandledError(error))
+    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interruption(Some(error))))
+    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Unchecked(error)))
+    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Checked(error)))
   }
 }

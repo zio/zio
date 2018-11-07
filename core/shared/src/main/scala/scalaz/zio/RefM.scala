@@ -70,12 +70,15 @@ object RefM extends Serializable {
       interrupted.get.flatMap {
         case Some(ts) => onDefect(ts)
         case None =>
-          update(a).sandboxed.redeem({
-            case Left(ts) => onDefect(ts)
-            case Right(n) => n
-          }, {
-            case (b, a) => ref.set(a) <* promise.complete(b)
-          })
+          update(a).sandboxed.redeem(
+            cause =>
+              cause.unchecked match {
+                case Nil     => IO.unit
+                case defects => onDefect(defects)
+              }, {
+              case (b, a) => ref.set(a) <* promise.complete(b)
+            }
+          )
       }
   }
 
