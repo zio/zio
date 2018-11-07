@@ -47,7 +47,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
       case Right(m) => acc -> Right(n + m)
       case Left(q) =>
         q.dequeueOption match {
-          case None => IO.unit -> Right(n)
+          case None => acc -> Right(n)
           case Some(((p, m), q)) =>
             if (n > m)
               loop(n - m, Left(q), acc <* p.complete(()))
