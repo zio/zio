@@ -45,7 +45,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
    * schedules. Only as many inputs will be used as necessary to run the
    * schedule to completion, and additional inputs will be discarded.
    */
-  def run(as: Iterable[A], clock: Clock = Clock.Live): IO[Nothing, List[(Duration, B)]] = {
+  def run(as: Iterable[A], clock: Clock): IO[Nothing, List[(Duration, B)]] = {
     def run0(as: List[A], s: State, acc: List[(Duration, B)]): IO[Nothing, List[(Duration, B)]] =
       as match {
         case Nil => IO.now(acc)

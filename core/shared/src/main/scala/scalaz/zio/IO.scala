@@ -436,16 +436,16 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure.
    */
-  final def repeat[B](schedule: Schedule[A, B]): IO[E, B] =
-    repeatOrElse[E, B](schedule, (e, _) => IO.fail(e))
+  final def repeat[B](schedule: Schedule[A, B], clock: Clock = Clock.Live): IO[E, B] =
+    repeatOrElse[E, B](schedule, (e, _) => IO.fail(e), clock)
 
   /**
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse[E2, B](schedule: Schedule[A, B], orElse: (E, Option[B]) => IO[E2, B]): IO[E2, B] =
-    repeatOrElse0[B, E2, B](schedule, orElse).map(_.merge)
+  final def repeatOrElse[E2, B](schedule: Schedule[A, B], orElse: (E, Option[B]) => IO[E2, B], clock: Clock = Clock.Live): IO[E2, B] =
+    repeatOrElse0[B, E2, B](schedule, orElse, clock).map(_.merge)
 
   /**
    * Repeats this action with the specified schedule until the schedule
@@ -473,16 +473,16 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Retries with the specified retry policy.
    */
-  final def retry[E1 >: E, S](policy: Schedule[E1, S]): IO[E1, A] =
-    retryOrElse(policy, (e: E1, _: S) => IO.fail(e))
+  final def retry[E1 >: E, S](policy: Schedule[E1, S], clock: Clock = Clock.Live): IO[E1, A] =
+    retryOrElse(policy, (e: E1, _: S) => IO.fail(e), clock)
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Schedule[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
-    retryOrElse0(policy, orElse).map(_.merge)
+  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Schedule[E1, S], orElse: (E1, S) => IO[E2, A2], clock: Clock = Clock.Live): IO[E2, A2] =
+    retryOrElse0(policy, orElse, clock).map(_.merge)
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
