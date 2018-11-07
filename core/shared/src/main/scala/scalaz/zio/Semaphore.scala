@@ -24,37 +24,43 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     IO.bracket[E, Unit, A](acquire)(_ => release)(_ => task)
 
   final def acquireN(requested: Long): IO[Nothing, Unit] = {
-    val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, Boolean], State) = {
-      case (p, Right(n)) if n >= requested => p.complete(()) -> Right(n - requested)
-      case (p, Right(n))                   => IO.now(false)  -> Left(IQueue(p -> (requested - n)))
-      case (p, Left(q))                    => IO.now(false)  -> Left(q.enqueue(p -> requested))
+    val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, IO[Nothing, Unit]], State) = {
+      case (p, Right(n)) if n >= requested => p.complete(()) *> IO.now(IO.unit) -> Right(n - requested)
+      case (p, Right(n))                   => IO.now(releaseN(n))               -> Left(IQueue(p -> (requested - n)))
+      case (p, Left(q))                    => IO.now(IO.unit)                   -> Left(q.enqueue(p -> requested))
     }
 
-    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
-      case (_, p) =>
-        state.update {
+    val release: (IO[Nothing, Unit], Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
+      case (io, p) =>
+        p.poll.redeem(_ => IO.unit, {
+          case ExitResult.Terminated(_) => io
+          case _                        => IO.unit
+        }) *> state.update {
           case Left(q) => Left(q.filterNot(_._1 == p))
           case x       => x
         }.void
     }
 
-    assertNonNegative(requested) *> Promise.bracket[Nothing, State, Unit, Boolean](state)(acquire)(release)
+    assertNonNegative(requested) *> Promise.bracket[Nothing, State, Unit, IO[Nothing, Unit]](state)(acquire)(release)
   }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
-    def loop(n: Long): State => IO[Nothing, Unit] = {
-      case Right(m) => state.set(Right(n + m))
-      case Left(q) => q.dequeueOption.fold(state.set(Right(n))){ case ((p, m), q) => 
-        if (n > m)
-          p.complete(()) *> loop(n - m)(Left(q))
-        else if (n == m)
-          p.complete(()) *> state.set(Left(q))
-        else
-          state.set(Left((p -> (m - n)) +: q))
-      }
+    def loop(n: Long): State => (IO[Nothing, Unit], State) = {
+      case Right(m) => IO.unit -> Right(n + m)
+      case Left(q) =>
+        q.dequeueOption.fold[(IO[Nothing, Unit], State)](IO.unit -> Right(n)) {
+          case ((p, m), q) =>
+            if (n > m) {
+              val x = loop(n - m)(Left(q))
+              (p.complete(()) *> x._1) -> x._2
+            } else if (n == m)
+              p.complete(()).void -> Left(q)
+            else
+              IO.unit -> Left((p -> (m - n)) +: q)
+        }
     }
 
-    assertNonNegative(toRelease) *> state.get.flatMap(loop(toRelease))
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease))).uninterruptibly
   }
 
   private final def count_(state: State): Long = state match {
