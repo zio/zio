@@ -5,6 +5,7 @@ package scalaz.zio
 
 import internals._
 
+import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
 
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
@@ -45,22 +46,22 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
-    def loop(n: Long): State => (IO[Nothing, Unit], State) = {
-      case Right(m) => IO.unit -> Right(n + m)
+    @tailrec def loop(n: Long, state: State, acc: IO[Nothing, Unit]): (IO[Nothing, Unit], State) = state match {
+      case Right(m) => acc -> Right(n + m)
       case Left(q) =>
-        q.dequeueOption.fold[(IO[Nothing, Unit], State)](IO.unit -> Right(n)) {
-          case ((p, m), q) =>
-            if (n > m) {
-              val x = loop(n - m)(Left(q))
-              (p.complete(()) *> x._1) -> x._2
-            } else if (n == m)
-              p.complete(()).void -> Left(q)
+        q.dequeueOption match {
+          case None => IO.unit -> Right(n)
+          case Some(((p, m), q)) =>
+            if (n > m)
+              loop(n - m, Left(q), acc <* p.complete(()))
+            else if (n == m)
+              (acc <* p.complete(())) -> Left(q)
             else
-              IO.unit -> Left((p -> (m - n)) +: q)
+              acc -> Left((p -> (m - n)) +: q)
         }
     }
 
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease))).uninterruptibly
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptibly
   }
 
   private final def count_(state: State): Long = state match {
