@@ -1,6 +1,8 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
+import scalaz.zio.Errors.FiberFailure
+
 /**
  * A description of the result of executing an `IO` value. The result is either
  * completed with a value, failed because of an uncaught `E`, or terminated
@@ -11,7 +13,7 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
 
   final def toEither: Either[Throwable, A] = self match {
     case Completed(value) => Right(value)
-    case Failed(cause)    => Left(cause.toThrowable())
+    case Failed(cause)    => Left(cause.toThrowable)
   }
 
   final def leftMap[E1](f: E => E1): ExitResult[E1, A] =
@@ -128,24 +130,19 @@ object ExitResult {
         case (z, _) => z
       }
 
-    final def toThrowable(causes: List[Throwable] = Nil): Throwable =
-      self match {
-        case Checked(error)      => Errors.UnhandledError(error, causes)
-        case Unchecked(defect)   => Errors.TerminatedFiber(defect, causes)
-        case Interruption(cause) => Errors.InterruptedFiber(cause.map(_ :: Nil).getOrElse(Nil), causes)
-        case Then(left, right)   => left.toThrowable(right.toThrowable() :: causes)
-        case Both(left, right)   => Errors.ParallelFiberError(left.toThrowable(), right.toThrowable(), causes)
-      }
+    final def toThrowable: Throwable = FiberFailure(self)
 
-    final def toIO: IO[E, Nothing] = self.checkedFirst match {
-      case Some(error) => IO.fail0(error, self.unchecked)
-      case None        => IO.terminateWithCause(self)
-    }
+    final def toIO: IO[E, Nothing] = IO.fail0(self)
 
     final def checkedFirst: Option[E] = checked.headOption
 
     final def withDefects(defects: List[Throwable]): Cause[E] =
       defects.foldLeft[Cause[E]](self)((causes, defect) => causes ++ Unchecked(defect))
+
+    final def checkedOrRefail[E2]: Either[E, Cause[E2]] = self.checkedFirst match {
+      case Some(error) => Left(error)
+      case None        => Right(self.asInstanceOf[Cause[E2]]) // no E inside this cause, can safely cast
+    }
   }
 
   object Cause {

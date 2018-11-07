@@ -61,7 +61,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
       new IO.Strict(f(io.value))
 
-    case IO.Tags.Fail => self.asInstanceOf[IO[E, B]]
+    case IO.Tags.Terminate => self.asInstanceOf[IO[E, B]]
 
     case _ => new IO.FlatMap(self, (a: A) => new IO.Strict(f(a)))
   }
@@ -88,12 +88,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
       new IO.SyncEffect(() => g(io.effect()))
 
-    case IO.Tags.Fail =>
-      val io = self.asInstanceOf[IO.Fail[E]]
+    case IO.Tags.Terminate =>
+      val io = self.asInstanceOf[IO.Terminate[E]]
 
-      new IO.Fail(f(io.error), io.defects)
+      new IO.Terminate(io.cause.map(f))
 
-    case _ => new IO.Redeem(self, (e: E) => new IO.Fail(f(e), Nil), (a: A) => new IO.Strict(g(a)))
+    case _ => new IO.Redeem(self, (cause: Cause[E]) => new IO.Terminate(cause.map(f)), (a: A) => new IO.Strict(g(a)))
   }
 
   /**
@@ -250,11 +250,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def redeem[E2, B](err: E => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
-      case IO.Tags.Fail =>
-        val io = self.asInstanceOf[IO.Fail[E]]
-        err(io.error)
+      case IO.Tags.Terminate =>
+        val io = self.asInstanceOf[IO.Terminate[E]]
+        io.cause.checkedOrRefail.fold(err, IO.fail0)
 
-      case _ => new IO.Redeem(self, err, succ)
+      case _ => new IO.Redeem(self, (cause: Cause[E]) => cause.checkedOrRefail.fold(err, IO.fail0), succ)
     }
 
   /**
@@ -636,15 +636,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    *   }
    * }}}
    */
-  final def sandboxed: IO[Either[List[Throwable], E], A] =
+  final def sandboxed: IO[Cause[E], A] =
     self.run.flatMap {
-      case ExitResult.Completed(value) =>
-        IO.now(value)
-      case ExitResult.Failed(cause) =>
-        cause.checkedFirst match {
-          case Some(error) => IO.fail0(Right(error), cause.unchecked)
-          case None        => IO.fail0(Left(cause.toThrowable() :: Nil), Nil)
-        }
+      case ExitResult.Completed(value) => IO.now(value)
+      case ExitResult.Failed(cause)    => IO.fail(cause)
     }
 
   /**
@@ -673,7 +668,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * the latter, if the match fails, the original defects will
    * be lost and replaced by a `MatchError`
    */
-  final def sandboxWith[E2, B](f: IO[Either[List[Throwable], E], A] => IO[Either[List[Throwable], E2], B]): IO[E2, B] =
+  final def sandboxWith[E2, B](f: IO[Cause[E], A] => IO[Cause[E2], B]): IO[E2, B] =
     IO.unsandbox(f(self.sandboxed))
 
   /**
@@ -716,19 +711,18 @@ object IO extends Serializable {
     final val Point           = 1
     final val Strict          = 2
     final val SyncEffect      = 3
-    final val Fail            = 4
-    final val AsyncEffect     = 5
-    final val AsyncIOEffect   = 6
-    final val Redeem          = 7
-    final val Fork            = 8
-    final val Suspend         = 9
-    final val Uninterruptible = 10
-    final val Sleep           = 11
-    final val Supervise       = 12
-    final val Terminate       = 13
-    final val Supervisor      = 14
-    final val Ensuring        = 15
-    final val Descriptor      = 16
+    final val AsyncEffect     = 4
+    final val AsyncIOEffect   = 5
+    final val Redeem          = 6
+    final val Fork            = 7
+    final val Suspend         = 8
+    final val Uninterruptible = 9
+    final val Sleep           = 10
+    final val Supervise       = 11
+    final val Terminate       = 12
+    final val Supervisor      = 13
+    final val Ensuring        = 14
+    final val Descriptor      = 15
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -746,10 +740,6 @@ object IO extends Serializable {
     override def tag = Tags.SyncEffect
   }
 
-  final class Fail[E] private[IO] (val error: E, val defects: List[Throwable]) extends IO[E, Nothing] {
-    override def tag = Tags.Fail
-  }
-
   final class AsyncEffect[E, A] private[IO] (val register: (Callback[E, A]) => Async[E, A]) extends IO[E, A] {
     override def tag = Tags.AsyncEffect
   }
@@ -758,9 +748,9 @@ object IO extends Serializable {
     override def tag = Tags.AsyncIOEffect
   }
 
-  final class Redeem[E1, E2, A, B] private[IO] (
-    val value: IO[E1, A],
-    val err: E1 => IO[E2, B],
+  final class Redeem[E, E2, A, B] private[IO] (
+    val value: IO[E, A],
+    val err: Cause[E] => IO[E2, B],
     val succ: A => IO[E2, B]
   ) extends IO[E2, B]
       with Function[A, IO[E2, B]] {
@@ -794,7 +784,7 @@ object IO extends Serializable {
     override def tag = Tags.Supervise
   }
 
-  final class Terminate[E] private[IO] (val cause: Cause[E]) extends IO[Nothing, Nothing] {
+  final class Terminate[E] private[IO] (val cause: Cause[E]) extends IO[E, Nothing] {
     override def tag = Tags.Terminate
   }
 
@@ -845,9 +835,7 @@ object IO extends Serializable {
    * Creates an `IO` value that represents failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
-  final def fail[E](error: E): IO[E, Nothing] = fail0(error, Nil)
-
-  private[zio] final def fail0[E](error: E, defects: List[Throwable]): IO[E, Nothing] = new Fail(error, defects)
+  final def fail[E](error: E): IO[E, Nothing] = fail0(Cause.checked(error))
 
   /**
    * Strictly-evaluated unit lifted into the `IO` monad.
@@ -897,24 +885,17 @@ object IO extends Serializable {
   /**
    * Interrupts the fiber executing this action, running all finalizers.
    */
-  final def interrupt(causes: List[Throwable], defects: List[Throwable]): IO[Nothing, Nothing] =
-    terminateWithCause(Cause.interrupt(causes).withDefects(defects))
+  final def interrupt: IO[Nothing, Nothing] = fail0(Cause.interrupt(Nil))
 
   /**
-   * Terminates the fiber executing this action with the specified error(s), running all finalizers.
+   * Terminates the fiber executing this action with the specified error, running all finalizers.
    */
-  final def terminate(t: Throwable, ts: Throwable*): IO[Nothing, Nothing] = terminate0(t, ts.toList)
+  final def terminate(t: Throwable): IO[Nothing, Nothing] = fail0(Cause.unchecked(t))
 
   /**
-   * Terminates the fiber executing this action, running all finalizers.
+   * Terminates the fiber executing this action with the specified cause, running all finalizers.
    */
-  final def terminate0(t: Throwable, ts: List[Throwable]): IO[Nothing, Nothing] =
-    new Terminate(Cause.unchecked(t).withDefects(ts))
-
-  /**
-   * Terminates the fiber executing this action, running all finalizers.
-   */
-  private[zio] final def terminateWithCause[E](cause: Cause[E]): IO[Nothing, Nothing] = new Terminate(cause)
+  final def fail0[E](cause: Cause[E]): IO[E, Nothing] = new Terminate(cause)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -1041,12 +1022,7 @@ object IO extends Serializable {
    * Terminates with exceptions on the `Left` side of the `Either` error, if it
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
-  final def unsandbox[E, A](v: IO[Either[List[Throwable], E], A]): IO[E, A] =
-    v.catchAll[E, A] {
-      case Right(e)      => IO.fail(e)
-      case Left(t :: ts) => IO.terminate0(t, ts)
-      case Left(Nil)     => IO.interrupt(List(), List())
-    }
+  final def unsandbox[E, A](v: IO[Cause[E], A]): IO[E, A] = v.catchAll[E, A](IO.fail0)
 
   /**
    * Lifts an `Either` into an `IO`.
