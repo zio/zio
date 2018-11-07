@@ -7,6 +7,8 @@ import scala.concurrent.duration.Duration
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import java.util.concurrent._
 
+import scala.concurrent.ExecutionContext
+
 /**
  * This trait provides a high-performance implementation of a runtime system for
  * the `IO` monad on the JVM.
@@ -40,14 +42,6 @@ trait RTS {
     context.runSync
   }
 
-  final def unsafeShutdownAndWait(timeout: Duration): Unit = {
-    scheduledExecutor.shutdown()
-    scheduledExecutor.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
-    threadPool.shutdown()
-    threadPool.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
-    ()
-  }
-
   /**
    * The default handler for unhandled exceptions in the main fiber, and any
    * fibers it forks that recursively inherit the handler.
@@ -56,9 +50,9 @@ trait RTS {
     (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
 
   /**
-   * The main thread pool used for executing fibers.
+   * The main execution context used for executing fibers.
    */
-  val threadPool: ExecutorService = newDefaultThreadPool()
+  val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(newDefaultThreadPool())
 
   /**
    * The thread pool for scheduling timed tasks.
@@ -87,7 +81,7 @@ trait RTS {
   }
 
   final def submit[A](block: => A): Unit = {
-    threadPool.submit(new Runnable {
+    executionContext.execute(new Runnable {
       def run: Unit = { block; () }
     })
 

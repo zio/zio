@@ -1,8 +1,6 @@
 // Copyright (C) 2017 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.concurrent.duration.Duration
-
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -27,12 +25,7 @@ import scala.concurrent.duration.Duration
  */
 trait App extends RTS {
 
-  sealed abstract class ExitStatus extends Serializable with Product
-  object ExitStatus extends Serializable {
-    case class ExitNow(code: Int)                         extends ExitStatus
-    case class ExitWhenDone(code: Int, timeout: Duration) extends ExitStatus
-    case object DoNotExit                                 extends ExitStatus
-  }
+  case class ExitStatus(code: Int) extends Serializable with Product
 
   /**
    * The main function of the application, which will be passed the command-line
@@ -43,8 +36,8 @@ trait App extends RTS {
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
    */
-  final def main(args0: Array[String]): Unit =
-    unsafeRun(
+  final def main(args0: Array[String]): Unit = {
+    val status = unsafeRun(
       for {
         fiber <- run(args0.toList).fork
         _ <- IO.sync(Runtime.getRuntime.addShutdownHook(new Thread {
@@ -52,13 +45,9 @@ trait App extends RTS {
             }))
         result <- fiber.join
       } yield result
-    ) match {
-      case ExitStatus.ExitNow(code) =>
-        sys.exit(code)
-      case ExitStatus.ExitWhenDone(code, timeout) =>
-        unsafeShutdownAndWait(timeout)
-        sys.exit(code)
-      case ExitStatus.DoNotExit =>
-    }
+    )
+
+    sys.exit(status.code)
+  }
 
 }
