@@ -160,7 +160,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): Schedule[A1, (B, C)] =
     new Schedule[A1, (B, C)] {
       type State = (self.State, that.State)
-      val initial = c => self.initial(c).seq(that.initial(c))
+      val initial = (c: Clock) => self.initial(c).seq(that.initial(c))
       val update = (a: A1, s: State, c: Clock) =>
         self.update(a, s._1, c).seqWith(that.update(a, s._2, c))(_.combineWith(_)(g, f))
     }
@@ -221,7 +221,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
     new Schedule[A1, Either[B, C]] {
       type State = Either[self.State, that.State]
 
-      val initial = clock => self.initial(clock).map(Left(_))
+      val initial = (clock: Clock) => self.initial(clock).map(Left(_))
 
       val update = (a: A1, state: State, clock: Clock) =>
         state match {
@@ -340,7 +340,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def initialized[A1 <: A](f: IO[Nothing, State] => IO[Nothing, State]): Schedule[A1, B] =
     new Schedule[A1, B] {
       type State = self.State
-      val initial = clock => f(self.initial(clock))
+      val initial = (clock: Clock) => f(self.initial(clock))
       val update  = self.update
     }
 
@@ -393,7 +393,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
     new Schedule[A, Z] {
       type State = (self.State, Z)
 
-      val initial = clock => self.initial(clock).seq(z)
+      val initial = (clock: Clock) => self.initial(clock).seq(z)
 
       val update = (a: A, s0: State, clock: Clock) =>
         for {
@@ -410,7 +410,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def >>>[C](that: Schedule[B, C]): Schedule[A, C] =
     new Schedule[A, C] {
       type State = (self.State, that.State)
-      val initial = clock => self.initial(clock).seq(that.initial(clock))
+      val initial = (clock: Clock) => self.initial(clock).seq(that.initial(clock))
       val update = (a: A, s: State, clock: Clock) =>
         self.update(a, s._1, clock).flatMap { step1 =>
           that.update(step1.finish(), s._2, clock).map { step2 =>
@@ -459,7 +459,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def ***[C, D](that: Schedule[C, D]): Schedule[(A, C), (B, D)] =
     new Schedule[(A, C), (B, D)] {
       type State = (self.State, that.State)
-      val initial = clock => self.initial(clock).seq(that.initial(clock))
+      val initial = (clock: Clock) => self.initial(clock).seq(that.initial(clock))
       val update = (a: (A, C), s: State, clock: Clock) =>
         self.update(a._1, s._1, clock).seqWith(that.update(a._2, s._2, clock))(_.combineWith(_)(_ && _, _ max _))
     }
@@ -476,7 +476,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def +++[C, D](that: Schedule[C, D]): Schedule[Either[A, C], Either[B, D]] =
     new Schedule[Either[A, C], Either[B, D]] {
       type State = (self.State, that.State)
-      val initial = clock => self.initial(clock).seq(that.initial(clock))
+      val initial = (clock: Clock) => self.initial(clock).seq(that.initial(clock))
       val update = (a: Either[A, C], s: State, clock: Clock) =>
         a match {
           case Left(a)  => self.update(a, s._1, clock).map(_.leftMap((_, s._2)).rightMap(Left(_)))
