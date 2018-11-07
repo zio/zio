@@ -483,7 +483,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse[E2, B](schedule: Schedule[A, B], orElse: (E, Option[B]) => IO[E2, B], clock: Clock = Clock.Live): IO[E2, B] =
+  final def repeatOrElse[E2, B](
+    schedule: Schedule[A, B],
+    orElse: (E, Option[B]) => IO[E2, B],
+    clock: Clock = Clock.Live
+  ): IO[E2, B] =
     repeatOrElse0[B, E2, B](schedule, orElse, clock).map(_.merge)
 
   /**
@@ -520,7 +524,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Schedule[E1, S], orElse: (E1, S) => IO[E2, A2], clock: Clock = Clock.Live): IO[E2, A2] =
+  final def retryOrElse[A2 >: A, E1 >: E, S, E2](
+    policy: Schedule[E1, S],
+    orElse: (E1, S) => IO[E2, A2],
+    clock: Clock = Clock.Live
+  ): IO[E2, A2] =
     retryOrElse0(policy, orElse, clock).map(_.merge)
 
   /**
