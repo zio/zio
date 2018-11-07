@@ -5,7 +5,6 @@ package scalaz.zio
 
 import internals._
 
-import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
 
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
@@ -43,25 +42,19 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
-    @tailrec def loop(
-      n: Long,
-      io: IO[Nothing, Boolean],
-      st: Option[(Entry, IQueue[Entry])]
-    ): (IO[Nothing, Boolean], State) = (n, st) match {
-      case (n, None)                          => io -> Right(n)
-      case (n, Some(((p2, n2), q))) if n < n2 => io -> Left(q :+ (p2 -> (n2 - n)))
-      case (n, Some(((p2, n2), q)))           => loop(n - n2, io *> p2.complete(()), q.dequeueOption)
+    def loop(n: Long): State => IO[Nothing, Unit] = {
+      case Right(m) => state.set(Right(n + m))
+      case Left(q) => q.dequeueOption.fold(state.set(Right(n))){ case ((p, m), q) => 
+        if (n > m)
+          p.complete(()) *> loop(n - m)(Left(q))
+        else if (n == m)
+          p.complete(()) *> state.set(Left(q))
+        else
+          state.set(Left((p -> (m - n)) +: q))
+      }
     }
 
-    val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, Boolean], State) = {
-      case (p, Right(n))             => p.complete(()) -> Right(n + toRelease)
-      case (p, Left(q)) if q.isEmpty => p.complete(()) -> Right(toRelease)
-      case (p, Left(q))              => loop(toRelease, p.complete(()), q.dequeueOption)
-    }
-
-    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = (_, _) => IO.unit
-
-    assertNonNegative(toRelease) *> Promise.bracket[Nothing, State, Unit, Boolean](state)(acquire)(release)
+    assertNonNegative(toRelease) *> state.get.flatMap(loop(toRelease))
   }
 
   private final def count_(state: State): Long = state match {
