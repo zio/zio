@@ -14,11 +14,17 @@ abstract class CatsPlatform extends CatsInstances {
 abstract class CatsInstances extends CatsInstances1 {
   implicit val taskEffectInstances: Effect[Task] with SemigroupK[Task] =
     new CatsEffect
+
+  implicit val taskParallelInstance: Parallel[Task, Task.Par] =
+    parallelInstance(taskEffectInstances)
 }
 
 sealed abstract class CatsInstances1 extends CatsInstances2 {
   implicit def ioMonoidInstances[E: Monoid]: MonadError[IO[E, ?], E] with Bifunctor[IO] with Alternative[IO[E, ?]] =
     new CatsAlternative[E] with CatsBifunctor
+
+  implicit def parallelInstance[E](implicit M: Monad[IO[E, ?]]): Parallel[IO[E, ?], ParIO[E, ?]] =
+    new CatsParallel[E](M)
 }
 
 sealed abstract class CatsInstances2 {
@@ -129,4 +135,37 @@ private class CatsAlternative[E: Monoid] extends CatsMonadError[E] with Alternat
 trait CatsBifunctor extends Bifunctor[IO] {
   override def bimap[A, B, C, D](fab: IO[A, B])(f: A => C, g: B => D): IO[C, D] =
     fab.bimap(f, g)
+}
+
+private class CatsParallel[E](final override val monad: Monad[IO[E, ?]]) extends Parallel[IO[E, ?], ParIO[E, ?]] {
+
+  final override val applicative: Applicative[ParIO[E, ?]] =
+    new CatsParApplicative[E]
+
+  final override val sequential: ParIO[E, ?] ~> IO[E, ?] =
+    new (ParIO[E, ?] ~> IO[E, ?]) { def apply[A](fa: ParIO[E, A]): IO[E, A] = Par.unwrap(fa) }
+
+  final override val parallel: IO[E, ?] ~> ParIO[E, ?] =
+    new (IO[E, ?] ~> ParIO[E, ?]) { def apply[A](fa: IO[E, A]): ParIO[E, A] = Par(fa) }
+}
+
+private class CatsParApplicative[E] extends Applicative[ParIO[E, ?]] {
+
+  final override def pure[A](x: A): ParIO[E, A] =
+    Par(IO.now(x))
+
+  final override def map2[A, B, Z](fa: ParIO[E, A], fb: ParIO[E, B])(f: (A, B) => Z): ParIO[E, Z] =
+    Par(Par.unwrap(fa).par(Par.unwrap(fb)).map(f.tupled))
+
+  final override def ap[A, B](ff: ParIO[E, A => B])(fa: ParIO[E, A]): ParIO[E, B] =
+    Par(Par.unwrap(ff).flatMap(Par.unwrap(fa).map))
+
+  final override def product[A, B](fa: ParIO[E, A], fb: ParIO[E, B]): ParIO[E, (A, B)] =
+    map2(fa, fb)(_ -> _)
+
+  final override def map[A, B](fa: ParIO[E, A])(f: A => B): ParIO[E, B] =
+    Par(Par.unwrap(fa).map(f))
+
+  final override def unit: ParIO[E, Unit] =
+    Par(IO.unit)
 }

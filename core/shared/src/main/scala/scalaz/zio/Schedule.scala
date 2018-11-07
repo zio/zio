@@ -545,16 +545,14 @@ object Schedule extends Serializable {
     Schedule[Nothing, Any, Nothing](_ => IO.never, (_, _, _) => IO.never)
 
   /**
-   * A schedule that executes once.
-   */
-  final def once: Schedule[Any, Unit] =
-    Schedule[Unit, Any, Unit](_ => IO.unit, (_, s, _) => IO.now(Decision.done(Duration.Zero, s, s)))
-
-  /**
    * A schedule that recurs forever, producing a count of inputs.
    */
-  final val forever: Schedule[Any, Int] =
-    Schedule[Int, Any, Int](_ => IO.now(0), (_, i, _) => IO.now(Decision.cont(Duration.Zero, i + 1, i + 1)))
+  final val forever: Schedule[Any, Int] = Schedule.unfold(0)(_ + 1)
+
+  /**
+   * A schedule that executes once.
+   */
+  final val once: Schedule[Any, Unit] = forever.whileOutput(_ => false).void
 
   /**
    * A new schedule derived from the specified schedule which adds the delay

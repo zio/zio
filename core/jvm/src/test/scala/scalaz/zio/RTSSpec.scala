@@ -23,6 +23,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     point, bind, map                        $testSyncEvalLoop
     sync effect                             $testEvalOfSyncEffect
     deep effects                            $testEvalOfDeepSyncEffect
+    flip must make error into value         $testFlipError
+    flip must make value into error         $testFlipValue
+    flipping twice returns identical value  $testFlipDouble
 
   RTS failure
     error in sync effect                    $testEvalOfRedeemOfSyncEffectError
@@ -86,6 +89,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     bracket0 is uninterruptible             ${testBracket0AcquireIsUninterruptible}
     bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
+    bracket release called on interrupt     $testBracketReleaseOnInterrupt
+    bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
     supervise fibers                        ${upTo(1.second)(testSupervise)}
     race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
     race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
@@ -147,6 +152,22 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         } yield a + b
 
     unsafeRun(fibIo(10)) must_=== fib(10)
+  }
+
+  def testFlipError = {
+    val error = new Error("Left")
+    val io    = IO.fail(error).flip
+    unsafeRun(io) must_=== error
+  }
+
+  def testFlipValue = {
+    val io = IO.now(100).flip
+    unsafeRun(io.attempt) must_=== Left(100)
+  }
+
+  def testFlipDouble = {
+    val io = IO.point(100)
+    unsafeRun(io.flip.flip) must_=== unsafeRun(io)
   }
 
   def testEvalOfSyncEffect = {
@@ -472,7 +493,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       for {
         promise <- Promise.make[Nothing, Unit]
         fiber   <- IO.bracket[Nothing, Unit, Unit](promise.complete(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
-        res     <- promise.get *> fiber.interrupt.timeout(42)(_ => 0)(1.second)
+        res     <- promise.get *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
@@ -484,9 +505,41 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         fiber <- IO
                   .bracket0[Nothing, Unit, Unit](promise.complete(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
                   .fork
-        res <- promise.get *> fiber.interrupt.timeout(42)(_ => 0)(1.second)
+        res <- promise.get *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
+  }
+
+  def testBracketReleaseOnInterrupt = {
+    val io =
+      for {
+        p1    <- Promise.make[Nothing, Unit]
+        p2    <- Promise.make[Nothing, Unit]
+        fiber <- IO.bracket(IO.unit)(_ => p2.complete(()) *> IO.unit)(_ => p1.complete(()) *> IO.never).fork
+        _     <- p1.get
+        _     <- fiber.interrupt
+        _     <- p2.get
+      } yield ()
+
+    unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
+  }
+
+  def testBracket0ReleaseOnInterrupt = {
+    val io =
+      for {
+        p1 <- Promise.make[Nothing, Unit]
+        p2 <- Promise.make[Nothing, Unit]
+        fiber <- IO
+                  .bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => p2.complete(()) *> IO.unit)(
+                    _ => p1.complete(()) *> IO.never
+                  )
+                  .fork
+        _ <- p1.get
+        _ <- fiber.interrupt
+        _ <- p2.get
+      } yield ()
+
+    unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
   }
 
   def testAsyncPureIsInterruptible = {
@@ -513,7 +566,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     val io =
       for {
         fiber <- IO.bracket[Nothing, Unit, Unit](IO.unit)(_ => IO.unit)(_ => IO.never).fork
-        res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
+        res   <- fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 0
   }
@@ -522,7 +575,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     val io =
       for {
         fiber <- IO.bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => IO.unit)(_ => IO.never).fork
-        res   <- fiber.interrupt.timeout(42)(_ => 0)(1.second)
+        res   <- fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 0
   }
@@ -548,7 +601,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(IO.point(42).race(IO.never)) must_=== 42
 
   def testRaceOfFailNever =
-    unsafeRun(IO.fail(24).race(IO.never).timeout[Option[Int]](None)(Option.apply)(10.milliseconds)) must beNone
+    unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
 
   def testRaceAllOfValues =
     unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24))).attempt) must_=== Right(24)
@@ -588,7 +641,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testTimeoutFailure =
     unsafeRun(
-      IO.fail("Uh oh").timeout[Option[Int]](None)(Some(_))(1.hour)
+      IO.fail("Uh oh").timeout(1.hour)
     ) must (throwA[UnhandledError])
 
   def testDeadlockRegression = {
