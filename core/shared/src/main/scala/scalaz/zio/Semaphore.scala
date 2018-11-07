@@ -25,24 +25,21 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     IO.bracket[E, Unit, A](acquire)(_ => release)(_ => task)
 
   final def acquireN(requested: Long): IO[Nothing, Unit] = {
-    val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, IO[Nothing, Unit]], State) = {
-      case (p, Right(n)) if n >= requested => p.complete(()) *> IO.now(IO.unit) -> Right(n - requested)
-      case (p, Right(n))                   => IO.now(releaseN(n))               -> Left(IQueue(p -> (requested - n)))
-      case (p, Left(q))                    => IO.now(IO.unit)                   -> Left(q.enqueue(p -> requested))
+    val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, Boolean], State) = {
+      case (p, Right(n)) if n >= requested => p.complete(()) -> Right(n - requested)
+      case (p, Right(n))                   => IO.now(false)  -> Left(IQueue(p -> (requested - n)))
+      case (p, Left(q))                    => IO.now(false)  -> Left(q.enqueue(p -> requested))
     }
 
-    val release: (IO[Nothing, Unit], Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
-      case (io, p) =>
-        p.poll.redeem(_ => IO.unit, {
-          case ExitResult.Terminated(_) => io
-          case _                        => IO.unit
-        }) *> state.update {
+    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
+      case (_, p) =>
+        state.update {
           case Left(q) => Left(q.filterNot(_._1 == p))
           case x       => x
         }.void
     }
 
-    assertNonNegative(requested) *> Promise.bracket[Nothing, State, Unit, IO[Nothing, Unit]](state)(acquire)(release)
+    assertNonNegative(requested) *> Promise.bracket[Nothing, State, Unit, Boolean](state)(acquire)(release)
   }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
