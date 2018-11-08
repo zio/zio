@@ -378,12 +378,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Runs the specified action if this action is terminated, either because of
    * a defect or because of interruption.
    */
-  final def onTermination(cleanup: List[Throwable] => IO[Nothing, Unit]): IO[E, A] =
+  final def onTermination(cleanup: Cause[Nothing] => IO[Nothing, Unit]): IO[E, A] =
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Failed(cause) if cause.isInterrupted || cause.isUnchecked => cleanup(cause.unchecked)
-          case _                                                                    => IO.unit
+          case ExitResult.Failed(cause) => cause.checkedOrRefail.fold(_ => IO.unit, cleanup)
+          case _                        => IO.unit
         }
     )(_ => self)
 

@@ -91,14 +91,6 @@ object ExitResult {
       case Both(left, right) => Both(left.map(f), right.map(f))
     }
 
-    final def isUnchecked: Boolean =
-      self match {
-        case Unchecked(_)      => true
-        case Then(left, right) => left.isUnchecked || right.isUnchecked
-        case Both(left, right) => left.isUnchecked || right.isUnchecked
-        case _                 => false
-      }
-
     final def isChecked: Boolean =
       self match {
         case Checked(_)        => true
