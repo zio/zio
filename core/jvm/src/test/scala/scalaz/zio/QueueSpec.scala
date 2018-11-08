@@ -760,7 +760,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       capacity <- IO.now(3)
       queue    <- Queue.dropping[Int](capacity)
-      iter     = Range.inclusive(1, 4).toIterable
+      iter     = Range.inclusive(1, 4)
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== List(1, 2, 3)).and(ta.size must_=== capacity)
@@ -779,7 +779,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       capacity <- IO.now(100)
       queue    <- Queue.dropping[Int](capacity)
-      iter     = Range.inclusive(1, 200).toIterable
+      iter     = Range.inclusive(1, 200)
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== Range.inclusive(1, 100).toList).and(ta.size must_=== capacity)
@@ -800,7 +800,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       capacity <- IO.now(2)
       queue    <- Queue.dropping[Int](capacity)
-      iter     = Range.inclusive(1, 6).toIterable
+      iter     = Range.inclusive(1, 6)
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== List(1, 2)).and(ta.size must_=== capacity)
@@ -810,7 +810,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       capacity <- IO.now(5)
       queue    <- Queue.dropping[Int](capacity)
-      iter     = Range.inclusive(1, 3).toIterable
+      iter     = Range.inclusive(1, 3)
       v1       <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== List(1, 2, 3)).and(v1 must beTrue)

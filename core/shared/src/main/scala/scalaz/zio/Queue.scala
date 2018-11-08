@@ -19,8 +19,7 @@ import Queue.internal._
 class Queue[A] private (
   capacity: Option[Int],
   ref: Ref[State[A]],
-  strategy: SurplusStrategy,
-  shutdownHook: Ref[IO[Nothing, Unit]]
+  strategy: SurplusStrategy
 ) extends Serializable {
 
   /**
@@ -28,7 +27,7 @@ class Queue[A] private (
    * in the queue. This may be negative if fibers are suspended waiting for
    * elements to be added to the queue.
    */
-  final def size: IO[Nothing, Int] = ref.get.flatMap(_.size)
+  final val size: IO[Nothing, Int] = ref.get.flatMap(_.size)
 
   /**
    * Places the value in the queue. If the queue has reached capacity, then
@@ -41,27 +40,28 @@ class Queue[A] private (
    * Removes all the values in the queue and returns the list of the values. If the queue
    * is empty returns empty list.
    */
-  final def takeAll: IO[Nothing, List[A]] =
+  final val takeAll: IO[Nothing, List[A]] =
     IO.flatten(ref.modify[IO[Nothing, List[A]]] {
-      case Surplus(values, putters) =>
-        val (newState, promises) = moveNPutters(Surplus(IQueue.empty, putters), values.size)
+      case Surplus(values, putters, hook) =>
+        val (newState, promises) = moveNPutters(Surplus(IQueue.empty, putters, hook), values.size)
         (promises *> IO.point(values.toList), newState)
-      case state @ Deficit(_)       => (IO.point(List.empty[A]), state)
-      case state @ Shutdown(errors) => (IO.terminate0(errors), state)
+      case state @ Deficit(_, _)       => (IO.point(List.empty[A]), state)
+      case state @ Shutdown(errors, _) => (IO.terminate0(errors), state)
     })
 
   final private def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
     val (newSurplus, _, completedPutters) =
-      surplus.putters.foldLeft((Surplus(surplus.queue, IQueue.empty), n, IO.unit)) {
+      surplus.putters.foldLeft((Surplus(surplus.queue, IQueue.empty, surplus.shutdownHook), n, IO.unit)) {
         case ((surplus, 0, io), p) =>
-          (Surplus(surplus.queue, surplus.putters.enqueue(p)), 0, io)
+          (Surplus(surplus.queue, surplus.putters.enqueue(p), surplus.shutdownHook), 0, io)
         case ((surplus, cpt, io), (values, promise)) =>
           val (add, rest) = values.splitAt(cpt)
           if (rest.isEmpty)
             (
               Surplus(
                 surplus.queue.enqueue(add.toList),
-                surplus.putters
+                surplus.putters,
+                surplus.shutdownHook
               ),
               cpt - add.size, // if we have more elements in putters we can complete the next elements until cpt = 0
               io *> promise.complete(true).void
@@ -70,7 +70,8 @@ class Queue[A] private (
             (
               Surplus(
                 surplus.queue.enqueue(add.toList),
-                surplus.putters.enqueue((rest, promise))
+                surplus.putters.enqueue((rest, promise)),
+                surplus.shutdownHook
               ),
               0,
               io
@@ -86,34 +87,34 @@ class Queue[A] private (
   final val take: IO[Nothing, A] = {
 
     val acquire: (Promise[Nothing, A], State[A]) => (IO[Nothing, Boolean], State[A]) = {
-      case (p, Deficit(takers)) => (IO.now(false), Deficit(takers.enqueue(p)))
-      case (p, Surplus(values, putters)) =>
+      case (p, Deficit(takers, hook)) => (IO.now(false), Deficit(takers.enqueue(p), hook))
+      case (p, Surplus(values, putters, hook)) =>
         strategy match {
           case Sliding | Dropping if capacity.exists(_ < 1) =>
-            (IO.never, Surplus(IQueue.empty, putters))
+            (IO.never, Surplus(IQueue.empty, putters, hook))
           case _ =>
             values.dequeueOption match {
               case None if putters.isEmpty =>
-                (IO.now(false), Deficit(IQueue.empty.enqueue(p)))
+                (IO.now(false), Deficit(IQueue.empty.enqueue(p), hook))
               case None =>
                 val (newSurplus, promise) =
-                  moveNPutters(Surplus(values, putters), 1)
+                  moveNPutters(Surplus(values, putters, hook), 1)
                 newSurplus.queue.dequeueOption match {
                   case None => (promise *> IO.now(false), newSurplus)
                   case Some((a, values)) =>
                     (
                       promise *> p.complete(a),
-                      Surplus(values, newSurplus.putters)
+                      Surplus(values, newSurplus.putters, hook)
                     )
                 }
               case Some((a, values)) =>
                 val (newSurplus, promise) =
-                  moveNPutters(Surplus(values, putters), 1)
+                  moveNPutters(Surplus(values, putters, hook), 1)
                 (promise *> p.complete(a), newSurplus)
 
             }
         }
-      case (p, state @ Shutdown(errors)) => (p.interrupt0(errors), state)
+      case (p, state @ Shutdown(errors, _)) => (p.interrupt0(errors), state)
     }
 
     val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
@@ -130,12 +131,12 @@ class Queue[A] private (
    */
   final def takeUpTo(max: Int): IO[Nothing, List[A]] =
     IO.flatten(ref.modify[IO[Nothing, List[A]]] {
-      case Surplus(values, putters) =>
+      case Surplus(values, putters, hook) =>
         val (q1, q2)             = values.splitAt(max)
-        val (newState, promises) = moveNPutters(Surplus(q2, putters), q1.size)
+        val (newState, promises) = moveNPutters(Surplus(q2, putters, hook), q1.size)
         (promises *> IO.point(q1.toList), newState)
-      case state @ Deficit(_)       => (IO.now(Nil), state)
-      case state @ Shutdown(errors) => (IO.terminate0(errors), state)
+      case state @ Deficit(_, _)       => (IO.now(Nil), state)
+      case state @ Shutdown(errors, _) => (IO.terminate0(errors), state)
     })
 
   /**
@@ -159,35 +160,35 @@ class Queue[A] private (
    */
   final def shutdown0(l: List[Throwable]): IO[Nothing, Unit] =
     IO.flatten(ref.modify {
-      case Surplus(_, putters) if putters.nonEmpty =>
+      case Surplus(_, putters, hook) if putters.nonEmpty =>
         val forked = IO
           .forkAll[Nothing, Boolean](putters.toList.map {
             case (_, p) => p.interrupt0(l)
           })
           .flatMap(_.join)
-        (forked, Shutdown(l))
-      case Deficit(takers) if takers.nonEmpty =>
+        (forked *> hook, Shutdown(l, IO.unit))
+      case Deficit(takers, hook) if takers.nonEmpty =>
         val forked = IO
           .forkAll[Nothing, Boolean](
             takers.toList.map(p => p.interrupt0(l))
           )
           .flatMap(_.join)
-        (forked, Shutdown(l))
-      case state @ Shutdown(_) => (IO.unit, state)
-      case _                   => (IO.unit, Shutdown(l))
-    }) *> IO.flatten(shutdownHook.modify(hook => (hook, IO.unit)))
+        (forked *> hook, Shutdown(l, IO.unit))
+      case Shutdown(l, hook) => (hook, Shutdown(l, IO.unit))
+      case state                  => (state.shutdownHook, Shutdown(l, IO.unit))
+    })
 
   final private def removePutter(putter: Promise[Nothing, Boolean]): IO[Nothing, Unit] =
     ref.update {
-      case Surplus(values, putters) =>
-        Surplus(values, putters.filterNot { case (_, p) => p == putter })
+      case Surplus(values, putters, hook) =>
+        Surplus(values, putters.filterNot { case (_, p) => p == putter }, hook)
       case d => d
     }.void
 
   final private def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] =
     ref.update {
-      case Deficit(takers) =>
-        Deficit(takers.filterNot(_ == taker))
+      case Deficit(takers, hook) =>
+        Deficit(takers.filterNot(_ == taker), hook)
 
       case d => d
     }.void
@@ -200,29 +201,32 @@ class Queue[A] private (
   final def offerAll(as: Iterable[A]): IO[Nothing, Boolean] = {
 
     val acquire: (Promise[Nothing, Boolean], State[A]) => (IO[Nothing, Boolean], State[A]) = {
-      case (p, Deficit(takers)) =>
+      case (p, Deficit(takers, hook)) =>
         takers.dequeueOption match {
           case None =>
             val (addToQueue, surplusValues) = capacity.fold((as, Iterable.empty[A]))(as.splitAt)
             if (surplusValues.isEmpty)
-              p.complete(true) -> Surplus(IQueue.empty.enqueue(addToQueue.toList), IQueue.empty)
+              p.complete(true) -> Surplus(IQueue.empty.enqueue(addToQueue.toList), IQueue.empty, hook)
             else
               strategy match {
                 case BackPressure =>
                   IO.now(true) -> Surplus(
                     IQueue.empty.enqueue(addToQueue.toList),
-                    IQueue.empty.enqueue(surplusValues -> p)
+                    IQueue.empty.enqueue(surplusValues -> p),
+                    hook
                   )
                 case Sliding =>
                   val toQueue = capacity.fold(as)(as.takeRight)
                   p.complete(false) -> Surplus(
                     IQueue.empty.enqueue(toQueue.toList),
-                    IQueue.empty
+                    IQueue.empty,
+                    hook
                   )
                 case Dropping =>
                   p.complete(false) -> Surplus(
                     IQueue.empty.enqueue(addToQueue.toList),
-                    IQueue.empty
+                    IQueue.empty,
+                    hook
                   )
               }
 
@@ -245,69 +249,74 @@ class Queue[A] private (
                 if (surplusValues.isEmpty)
                   p.complete(true) -> Surplus(
                     IQueue.empty.enqueue(addToQueue.toList),
-                    IQueue.empty
+                    IQueue.empty,
+                    hook
                   )
                 else
                   strategy match {
                     case BackPressure =>
                       IO.now(true) -> Surplus(
                         IQueue.empty[A].enqueue(addToQueue.toList),
-                        IQueue.empty.enqueue(surplusValues -> p)
+                        IQueue.empty.enqueue(surplusValues -> p),
+                        hook
                       )
                     case Sliding =>
                       val notTaken = addToQueue ++ surplusValues
                       val toQueue  = capacity.fold(notTaken)(notTaken.takeRight)
                       p.complete(false) -> Surplus(
                         IQueue.empty.enqueue(toQueue.toList),
-                        IQueue.empty
+                        IQueue.empty,
+                        hook
                       )
                     case Dropping =>
                       p.complete(false) -> Surplus(
                         IQueue.empty.enqueue(addToQueue.toList),
-                        IQueue.empty
+                        IQueue.empty,
+                        hook
                       )
                   }
 
               completeTakers *> complete -> surplus
             } else
-              completeTakers *> p.complete(true) -> Deficit(deficitValues)
+              completeTakers *> p.complete(true) -> Deficit(deficitValues, hook)
         }
 
-      case (p, Surplus(values, putters)) =>
+      case (p, Surplus(values, putters, hook)) =>
         val (addToQueue, surplusValues) =
           capacity.fold((as, Iterable.empty[A]))(c => as.splitAt(c - values.size))
         if (surplusValues.isEmpty)
-          (p.complete(true), Surplus(values.enqueue(addToQueue.toList), putters))
+          (p.complete(true), Surplus(values.enqueue(addToQueue.toList), putters, hook))
         else {
           strategy match {
             case BackPressure =>
               (
                 IO.now(true),
-                Surplus(values.enqueue(addToQueue.toList), putters.enqueue(surplusValues -> p))
+                Surplus(values.enqueue(addToQueue.toList), putters.enqueue(surplusValues -> p), hook)
               )
             case Sliding =>
               (
                 p.complete(true),
                 capacity.fold(
-                  Surplus(values.enqueue(as.toList), putters)
+                  Surplus(values.enqueue(as.toList), putters, hook)
                 ) { c =>
                   Surplus(
                     values
                       .takeRight(c - as.size)
                       .enqueue(as.takeRight(c).toList),
-                    putters
+                    putters,
+                    hook
                   )
                 }
               )
             case Dropping =>
               (
                 p.complete(false),
-                Surplus(values.enqueue(addToQueue.toList), putters)
+                Surplus(values.enqueue(addToQueue.toList), putters, hook)
               )
           }
         }
 
-      case (p, state @ Shutdown(errors)) => (p.interrupt0(errors), state)
+      case (p, state @ Shutdown(errors, _)) => (p.interrupt0(errors), state)
     }
 
     val release: (Boolean, Promise[Nothing, Boolean]) => IO[Nothing, Unit] = {
@@ -322,13 +331,11 @@ class Queue[A] private (
    * If the queue is already shutdown, the hook will be executed immediately.
    */
   final def onShutdown(io: IO[Nothing, Unit]): IO[Nothing, Unit] =
-    for {
-      state <- ref.get
-      _ <- state match {
-            case Shutdown(_) => io
-            case _           => shutdownHook.modify(hook => ((), hook *> io))
-          }
-    } yield ()
+    IO.flatten(ref.modify{
+      case Deficit(takers, hook) => IO.unit -> Deficit(takers, hook *> io)
+      case Surplus(queue, putters, hook) => IO.unit -> Surplus(queue, putters, hook *> io)
+      case state @ Shutdown(_, _) => io -> state
+    })
 }
 
 object Queue {
@@ -364,10 +371,7 @@ object Queue {
     capacity: Option[Int],
     strategy: SurplusStrategy
   ): IO[Nothing, Queue[A]] =
-    for {
-      state        <- Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty))
-      shutdownHook <- Ref[IO[Nothing, Unit]](IO.unit)
-    } yield new Queue[A](capacity, state, strategy, shutdownHook)
+  Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty, IO.unit)).map(state => new Queue[A](capacity, state, strategy))
 
   private[zio] object internal {
 
@@ -381,19 +385,21 @@ object Queue {
 
     sealed trait State[A] {
       def size: IO[Nothing, Int]
+      def shutdownHook: IO[Nothing, Unit]
     }
 
-    final case class Deficit[A](takers: IQueue[Promise[Nothing, A]]) extends State[A] {
+    final case class Deficit[A](takers: IQueue[Promise[Nothing, A]], shutdownHook: IO[Nothing, Unit]) extends State[A] {
       def size: IO[Nothing, Int] = IO.point(-takers.length)
     }
 
-    final case class Shutdown[A](t: List[Throwable]) extends State[A] {
+    final case class Shutdown[A](t: List[Throwable], shutdownHook: IO[Nothing, Unit]) extends State[A] {
       def size: IO[Nothing, Int] = IO.terminate0(t)
     }
 
     final case class Surplus[A](
       queue: IQueue[A],
-      putters: IQueue[(Iterable[A], Promise[Nothing, Boolean])]
+      putters: IQueue[(Iterable[A], Promise[Nothing, Boolean])],
+      shutdownHook: IO[Nothing, Unit]
     ) extends State[A] {
 
       def size: IO[Nothing, Int] = IO.point {
