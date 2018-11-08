@@ -582,8 +582,7 @@ private object RTS {
           if (io eq null) done(value.asInstanceOf[ExitResult[E, A]])
           else evaluate(io)
 
-        case ExitResult.Failed(cause) =>
-          evaluate(IO.fail0(cause))
+        case ExitResult.Failed(cause) => evaluate(IO.fail0(cause))
       }
 
     /**
@@ -602,8 +601,7 @@ private object RTS {
 
     final def changeErrorUnit(cb: Callback[Nothing, Unit]): Callback[E, Unit] = x => cb(x <> SuccessUnit)
 
-    final def interrupt: IO[Nothing, Unit] =
-      IO.async0[Nothing, Unit](cb => kill0(changeErrorUnit(cb)))
+    final def interrupt: IO[Nothing, Unit] = IO.async0[Nothing, Unit](cb => kill0(changeErrorUnit(cb)))
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
@@ -802,10 +800,10 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(interrupted, observers) =>
+        case Executing(_, observers) =>
           if (!status.compareAndSet(
                 oldStatus,
-                Executing(interrupted, mkKillerObserver(k) :: observers)
+                Executing(interrupted = true, mkKillerObserver(k) :: observers)
               ))
             kill0(k)
           else {
@@ -850,6 +848,7 @@ private object RTS {
         case s @ AsyncRegion(_, _, _, _, _) =>
           val newStatus =
             s.copy(
+              interrupted = true,
               observers = mkKillerObserver(k) :: s.observers
             )
 
