@@ -3,7 +3,6 @@ package scalaz.zio
 
 import scala.annotation.switch
 import scala.concurrent.duration._
-
 import scala.concurrent.ExecutionContext
 
 /**
@@ -476,16 +475,20 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure.
    */
-  final def repeat[B](schedule: Schedule[A, B]): IO[E, B] =
-    repeatOrElse[E, B](schedule, (e, _) => IO.fail(e))
+  final def repeat[B](schedule: Schedule[A, B], clock: Clock = Clock.Live): IO[E, B] =
+    repeatOrElse[E, B](schedule, (e, _) => IO.fail(e), clock)
 
   /**
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse[E2, B](schedule: Schedule[A, B], orElse: (E, Option[B]) => IO[E2, B]): IO[E2, B] =
-    repeatOrElse0[B, E2, B](schedule, orElse).map(_.merge)
+  final def repeatOrElse[E2, B](
+    schedule: Schedule[A, B],
+    orElse: (E, Option[B]) => IO[E2, B],
+    clock: Clock = Clock.Live
+  ): IO[E2, B] =
+    repeatOrElse0[B, E2, B](schedule, orElse, clock).map(_.merge)
 
   /**
    * Repeats this action with the specified schedule until the schedule
@@ -494,34 +497,39 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def repeatOrElse0[B, E2, C](
     schedule: Schedule[A, B],
-    orElse: (E, Option[B]) => IO[E2, C]
+    orElse: (E, Option[B]) => IO[E2, C],
+    clock: Clock = Clock.Live
   ): IO[E2, Either[C, B]] = {
     def loop(last: Option[() => B], state: schedule.State): IO[E2, Either[C, B]] =
       self.redeem(
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
-          schedule.update(a, state).flatMap { step =>
+          schedule.update(a, state, clock).flatMap { step =>
             if (!step.cont) IO.now(Right(step.finish()))
             else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
           }
       )
 
-    schedule.initial.flatMap(loop(None, _))
+    schedule.initial(clock).flatMap(loop(None, _))
   }
 
   /**
    * Retries with the specified retry policy.
    */
-  final def retry[E1 >: E, S](policy: Schedule[E1, S]): IO[E1, A] =
-    retryOrElse(policy, (e: E1, _: S) => IO.fail(e))
+  final def retry[E1 >: E, S](policy: Schedule[E1, S], clock: Clock = Clock.Live): IO[E1, A] =
+    retryOrElse(policy, (e: E1, _: S) => IO.fail(e), clock)
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElse[A2 >: A, E1 >: E, S, E2](policy: Schedule[E1, S], orElse: (E1, S) => IO[E2, A2]): IO[E2, A2] =
-    retryOrElse0(policy, orElse).map(_.merge)
+  final def retryOrElse[A2 >: A, E1 >: E, S, E2](
+    policy: Schedule[E1, S],
+    orElse: (E1, S) => IO[E2, A2],
+    clock: Clock = Clock.Live
+  ): IO[E2, A2] =
+    retryOrElse0(policy, orElse, clock).map(_.merge)
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -530,13 +538,14 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def retryOrElse0[E1 >: E, S, E2, B](
     policy: Schedule[E1, S],
-    orElse: (E1, S) => IO[E2, B]
+    orElse: (E1, S) => IO[E2, B],
+    clock: Clock = Clock.Live
   ): IO[E2, Either[B, A]] = {
     def loop(state: policy.State): IO[E2, Either[B, A]] =
       self.redeem(
         err =>
           policy
-            .update(err, state)
+            .update(err, state, clock)
             .flatMap(
               decision =>
                 if (decision.cont) IO.sleep(decision.delay) *> loop(decision.state)
@@ -545,7 +554,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
         succ => IO.now(Right(succ))
       )
 
-    policy.initial.flatMap(loop)
+    policy.initial(clock).flatMap(loop)
   }
 
   /**
