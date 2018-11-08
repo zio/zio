@@ -43,25 +43,22 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
-    @tailrec def loop(
-      n: Long,
-      io: IO[Nothing, Boolean],
-      st: Option[(Entry, IQueue[Entry])]
-    ): (IO[Nothing, Boolean], State) = (n, st) match {
-      case (n, None)                          => io -> Right(n)
-      case (n, Some(((p2, n2), q))) if n < n2 => io -> Left(q :+ (p2 -> (n2 - n)))
-      case (n, Some(((p2, n2), q)))           => loop(n - n2, io *> p2.complete(()), q.dequeueOption)
+    @tailrec def loop(n: Long, state: State, acc: IO[Nothing, Unit]): (IO[Nothing, Unit], State) = state match {
+      case Right(m) => acc -> Right(n + m)
+      case Left(q) =>
+        q.dequeueOption match {
+          case None => acc -> Right(n)
+          case Some(((p, m), q)) =>
+            if (n > m)
+              loop(n - m, Left(q), acc <* p.complete(()))
+            else if (n == m)
+              (acc <* p.complete(())) -> Left(q)
+            else
+              acc -> Left((p -> (m - n)) +: q)
+        }
     }
 
-    val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, Boolean], State) = {
-      case (p, Right(n))             => p.complete(()) -> Right(n + toRelease)
-      case (p, Left(q)) if q.isEmpty => p.complete(()) -> Right(toRelease)
-      case (p, Left(q))              => loop(toRelease, p.complete(()), q.dequeueOption)
-    }
-
-    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = (_, _) => IO.unit
-
-    assertNonNegative(toRelease) *> Promise.bracket[Nothing, State, Unit, Boolean](state)(acquire)(release)
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptibly
   }
 
   private final def count_(state: State): Long = state match {
