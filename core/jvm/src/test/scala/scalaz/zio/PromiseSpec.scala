@@ -38,7 +38,7 @@ class PromiseSpec extends AbstractRTSSpec {
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        s <- p.done(ExitResult.Completed(14))
+        s <- p.done(ExitResult.succeeded(14))
         v <- p.get
       } yield s must beTrue and (v must_=== 14)
     )
@@ -66,7 +66,7 @@ class PromiseSpec extends AbstractRTSSpec {
       for {
         p <- Promise.make[Nothing, Int]
         _ <- p.complete(1)
-        s <- p.done(ExitResult.Completed(9))
+        s <- p.done(ExitResult.succeeded(9))
         v <- p.get
       } yield s must beFalse and (v must_=== 1)
     )
@@ -100,7 +100,7 @@ class PromiseSpec extends AbstractRTSSpec {
         p      <- Promise.make[String, Int]
         _      <- p.complete(12)
         result <- p.poll
-      } yield result must_=== ExitResult.Completed(12)
+      } yield result must_=== ExitResult.succeeded(12)
     }
 
   def e10 =
@@ -114,13 +114,11 @@ class PromiseSpec extends AbstractRTSSpec {
 
   def e11 =
     unsafeRun {
-      val error1 = new IllegalArgumentException("arg")
-      val error2 = new ArrayIndexOutOfBoundsException("index")
       for {
         p             <- Promise.make[String, Int]
-        _             <- p.interrupt(error1, error2)
+        _             <- p.interrupt
         attemptResult <- p.poll
-      } yield attemptResult must_=== ExitResult.interrupted(List(error1, error2))
+      } yield attemptResult must_=== ExitResult.interrupted
     }
 
 }

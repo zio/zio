@@ -26,7 +26,7 @@ object Task {
         f.fold(
           t => cb(ExitResult.checked(t)),
           _.onComplete {
-            case Success(a) => cb(ExitResult.Completed(a))
+            case Success(a) => cb(ExitResult.succeeded(a))
             case Failure(t) => cb(ExitResult.checked(t))
           }(ec)
         )

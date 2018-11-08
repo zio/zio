@@ -1,11 +1,8 @@
 package scalaz.zio
 
 import org.specs2.Specification
+import scalaz.zio.ExitResult.Cause
 
 trait AbstractRTSSpec extends Specification with RTS {
-  override def defaultHandler: List[Throwable] => IO[Nothing, Unit] =
-    IO.traverse(_) {
-      case Errors.FiberFailure(_) => IO.unit
-      case e                      => IO sync Console.err.println(s"""[info] Discarding ${e.getClass.getName} ("${e.getMessage}")""")
-    } *> IO.unit
+  override def defaultHandler: Cause[Nothing] => IO[Nothing, Unit] = _ => IO.unit
 }
