@@ -93,7 +93,7 @@ object ExitResult {
 
     final def isUnchecked: Boolean =
       self match {
-        case Unchecked(_)        => true
+        case Unchecked(_)      => true
         case Then(left, right) => left.isUnchecked || right.isUnchecked
         case Both(left, right) => left.isUnchecked || right.isUnchecked
         case _                 => false
