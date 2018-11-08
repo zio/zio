@@ -12,19 +12,19 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
   import ExitResult._
 
   final def toEither: Either[Throwable, A] = self match {
-    case Completed(value) => Right(value)
-    case Failed(cause)    => Left(cause.toThrowable)
+    case Succeeded(value) => Right(value)
+    case Failed(cause)    => Left(FiberFailure(cause))
   }
 
   final def leftMap[E1](f: E => E1): ExitResult[E1, A] =
     self match {
-      case e @ Completed(_) => e
-      case Failed(c)        => Failed(c.map(f))
+      case e @ Succeeded(_) => e
+      case Failed(c)        => failed(c.map(f))
     }
 
   final def map[A1](f: A => A1): ExitResult[E, A1] =
     self match {
-      case Completed(v)  => Completed(f(v))
+      case Succeeded(v)  => ExitResult.succeeded(f(v))
       case e @ Failed(_) => e
     }
 
@@ -40,47 +40,39 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     g: (Cause[E], Cause[E1]) => Cause[E1]
   ): ExitResult[E1, C] =
     (self, that) match {
-      case (Completed(a), Completed(b)) => Completed(f(a, b))
-      case (Failed(l), Failed(r))       => Failed(g(l, r))
+      case (Succeeded(a), Succeeded(b)) => ExitResult.succeeded(f(a, b))
+      case (Failed(l), Failed(r))       => ExitResult.failed(g(l, r))
       case (e @ Failed(_), _)           => e
       case (_, e @ Failed(_))           => e
     }
 
-  final def exceptions: Option[List[Throwable]] = self match {
-    case Completed(_)  => None
-    case Failed(cause) => Some(cause.unchecked)
-  }
-
-  final def <>[E1, A1 >: A](that: ExitResult[E1, A1]): ExitResult[E1, A1] = self.failure match {
-    case Some(_) => that
-    case None    => self.asInstanceOf[ExitResult[E1, A1]]
-  }
-
-  final def failure: Option[E] = self match {
-    case ExitResult.Failed(cause) => cause.checkedFirst
-    case _                        => None
+  final def <>[E1, A1 >: A](that: ExitResult[E1, A1]): ExitResult[E1, A1] = self match {
+    case Failed(cause) if cause.isChecked => that
+    case _                                => self.asInstanceOf[ExitResult[E1, A1]]
   }
 
   final def succeeded: Boolean = self match {
-    case Completed(_) => true
+    case Succeeded(_) => true
     case _            => false
   }
 
   final def fold[Z](completed: A => Z, terminated: Cause[E] => Z): Z =
     self match {
-      case Completed(v)  => completed(v)
+      case Succeeded(v)  => completed(v)
       case Failed(cause) => terminated(cause)
     }
 }
 object ExitResult {
 
-  final case class Completed[A](value: A)     extends ExitResult[Nothing, A]
+  final case class Succeeded[A](value: A)     extends ExitResult[Nothing, A]
   final case class Failed[E](cause: Cause[E]) extends ExitResult[E, Nothing]
 
-  final def checked[E](error: E): ExitResult[E, Nothing] = ExitResult.Failed(Cause.checked(error))
-  final def interrupted(causes: List[Throwable]): ExitResult[Nothing, Nothing] =
-    ExitResult.Failed(Cause.interrupt(causes))
-  final def unchecked(t: Throwable): ExitResult[Nothing, Nothing] = ExitResult.Failed(Cause.unchecked(t))
+  final def succeeded[A](a: A): ExitResult[Nothing, A]         = Succeeded(a)
+  final def failed[E](cause: Cause[E]): ExitResult[E, Nothing] = Failed(cause)
+
+  final def checked[E](error: E): ExitResult[E, Nothing]          = failed(Cause.checked(error))
+  final def interrupted: ExitResult[Nothing, Nothing]             = failed(Cause.interrupted)
+  final def unchecked(t: Throwable): ExitResult[Nothing, Nothing] = failed(Cause.unchecked(t))
 
   sealed abstract class Cause[+E] extends Product with Serializable { self =>
     import Cause._
@@ -91,13 +83,29 @@ object ExitResult {
       Both(self, that)
 
     final def map[E1](f: E => E1): Cause[E1] = self match {
-      case Checked(value)      => Checked(f(value))
-      case c @ Unchecked(_)    => c
-      case c @ Interruption(_) => c
+      case Checked(value)   => Checked(f(value))
+      case c @ Unchecked(_) => c
+      case Interruption     => Interruption
 
       case Then(left, right) => Then(left.map(f), right.map(f))
       case Both(left, right) => Both(left.map(f), right.map(f))
     }
+
+    final def isChecked: Boolean =
+      self match {
+        case Checked(_)        => true
+        case Then(left, right) => left.isChecked || right.isChecked
+        case Both(left, right) => left.isChecked || right.isChecked
+        case _                 => false
+      }
+
+    final def isInterrupted: Boolean =
+      self match {
+        case Interruption      => true
+        case Then(left, right) => left.isInterrupted || right.isInterrupted
+        case Both(left, right) => left.isInterrupted || right.isInterrupted
+        case _                 => false
+      }
 
     final def checked[E1 >: E]: List[E1] =
       self
@@ -113,15 +121,6 @@ object ExitResult {
         }
         .reverse
 
-    final def interruptions: Option[List[Throwable]] =
-      self
-        .fold(Option.empty[List[Throwable]]) {
-          case (z, Interruption(v)) =>
-            val ts = v.fold[List[Throwable]](Nil)(List(_))
-            z.map(ts ++ _) orElse Some(ts)
-        }
-        .map(_.reverse)
-
     final def fold[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z =
       (f.lift(z -> self).getOrElse(z), self) match {
         case (z, Then(left, right)) => right.fold(left.fold(z)(f))(f)
@@ -130,18 +129,9 @@ object ExitResult {
         case (z, _) => z
       }
 
-    final def toThrowable: Throwable = FiberFailure(self)
-
-    final def toIO: IO[E, Nothing] = IO.fail0(self)
-
-    final def checkedFirst: Option[E] = checked.headOption
-
-    final def withDefects(defects: List[Throwable]): Cause[E] =
-      defects.foldLeft[Cause[E]](self)((causes, defect) => causes ++ Unchecked(defect))
-
-    final def checkedOrRefail[E2]: Either[E, Cause[E2]] = self.checkedFirst match {
+    final def checkedOrRefail: Either[E, Cause[Nothing]] = self.checked.headOption match {
       case Some(error) => Left(error)
-      case None        => Right(self.asInstanceOf[Cause[E2]]) // no E inside this cause, can safely cast
+      case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
     }
   }
 
@@ -151,18 +141,11 @@ object ExitResult {
 
     final def unchecked(defect: Throwable): Cause[Nothing] = Unchecked(defect)
 
-    final def interrupt(causes: List[Throwable]): Cause[Nothing] =
-      causes match {
-        case Nil => Interruption(None)
-        case head :: tail =>
-          tail.foldLeft[Cause[Nothing]](Interruption(Some(head)))(
-            (causes, cause) => causes ++ Interruption(Some(cause))
-          )
-      }
+    final def interrupted: Cause[Nothing] = Interruption
 
-    final case class Checked[E](value: E)                   extends Cause[E]
-    final case class Unchecked(value: Throwable)            extends Cause[Nothing]
-    final case class Interruption(value: Option[Throwable]) extends Cause[Nothing]
+    final case class Checked[E](value: E)        extends Cause[E]
+    final case class Unchecked(value: Throwable) extends Cause[Nothing]
+    final case object Interruption               extends Cause[Nothing]
 
     final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
       final def flatten: Set[Cause[E]] = {

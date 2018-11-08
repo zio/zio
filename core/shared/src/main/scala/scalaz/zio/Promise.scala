@@ -65,7 +65,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   /**
    * Completes the promise with the specified value.
    */
-  final def complete(a: A): IO[Nothing, Boolean] = done(ExitResult.Completed[A](a))
+  final def complete(a: A): IO[Nothing, Boolean] = done(ExitResult.succeeded[A](a))
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
@@ -77,19 +77,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Interrupts the promise with no specified reason. This will interrupt
    * all fibers waiting on the value of the promise.
    */
-  final def interrupt: IO[Nothing, Boolean] = interrupt0(Nil)
-
-  /**
-   * Interrupts the promise with the specified throwable(s). This will interrupt
-   * all fibers waiting on the value of the promise.
-   */
-  final def interrupt(t: Throwable, ts: Throwable*): IO[Nothing, Boolean] = interrupt0(t :: ts.toList)
-
-  /**
-   * Interrupts the promise with the specified list of throwable(s). This will interrupt
-   * all fibers waiting on the value of the promise.
-   */
-  final def interrupt0(ts: List[Throwable]): IO[Nothing, Boolean] = done(ExitResult.interrupted(ts))
+  final def interrupt: IO[Nothing, Boolean] = done(ExitResult.interrupted)
 
   /**
    * Completes the promise with the specified result. If the specified promise

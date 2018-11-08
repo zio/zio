@@ -10,7 +10,7 @@ object Errors {
     def message(cause: Cause[Any]): String = cause match {
       case Cause.Checked(error)    => "An error was not handled by a fiber: " + error.toString
       case Cause.Unchecked(_)      => "The fiber was terminated by a defect"
-      case Cause.Interruption(_)   => "The fiber was terminated by an interruption"
+      case Cause.Interruption      => "The fiber was terminated by an interruption"
       case Cause.Then(left, right) => "Both fibers terminated in sequence: \n" + message(left) + "\n" + message(right)
       case Cause.Both(left, right) => "Both fibers terminated in parallel: \n" + message(left) + "\n" + message(right)
     }

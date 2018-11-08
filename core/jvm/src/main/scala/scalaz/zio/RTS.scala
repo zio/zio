@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference 
 import scala.annotation.{ switch, tailrec }
 import scala.concurrent.duration.Duration
 import scalaz.zio.ExitResult.Cause
-import scalaz.zio.ExitResult.Cause.Interruption
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -48,8 +47,8 @@ trait RTS {
    * The default handler for unhandled exceptions in the main fiber, and any
    * fibers it forks that recursively inherit the handler.
    */
-  def defaultHandler: List[Throwable] => IO[Nothing, Unit] =
-    (ts: List[Throwable]) => IO.sync(ts.foreach(_.printStackTrace()))
+  def defaultHandler: Cause[Nothing] => IO[Nothing, Unit] =
+    (cause: Cause[Nothing]) => IO.sync(cause.unchecked.foreach(_.printStackTrace()))
 
   /**
    * The main thread pool used for executing fibers.
@@ -75,7 +74,7 @@ trait RTS {
    */
   val YieldMaxOpCount = 1024
 
-  private final def newFiberContext[E, A](handler: List[Throwable] => IO[Nothing, Unit]): FiberContext[E, A] = {
+  private final def newFiberContext[E, A](handler: Cause[Nothing] => IO[Nothing, Unit]): FiberContext[E, A] = {
     val nextFiberId = fiberCounter.incrementAndGet()
     val context     = new FiberContext[E, A](this, nextFiberId, handler)
 
@@ -165,7 +164,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: List[Throwable] => IO[Nothing, Unit])
+  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Nothing] => IO[Nothing, Unit])
       extends Fiber[E, A] {
     import java.util.{ Collections, Set, WeakHashMap }
     import FiberStatus._
@@ -232,9 +231,9 @@ private object RTS {
      * action that produces a list (possibly empty) of errors during finalization.
      * If needed, catch exceptions and apply redeem error handling.
      */
-    final def interruptStack(catchError: Boolean): IO[Nothing, Option[List[Throwable]]] = {
-      var errorHandler: Any => IO[Any, Any]               = null
-      var finalizer: IO[Nothing, Option[List[Throwable]]] = null
+    final def unwindStack(catchError: Boolean): IO[Nothing, Option[Cause[Nothing]]] = {
+      var errorHandler: Any => IO[Any, Any]              = null
+      var finalizer: IO[Nothing, Option[Cause[Nothing]]] = null
 
       // Unwind the stack, looking for exception handlers and coalescing
       // finalizers.
@@ -243,10 +242,10 @@ private object RTS {
           case a: IO.Redeem[_, _, _, _] if catchError =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
-            val f: IO[Nothing, Option[List[Throwable]]] =
-              fork(f0.finalizer, _ => IO.unit).observe.map((a: ExitResult[Nothing, Unit]) => a.exceptions)
+            val f: IO[Nothing, Option[Cause[Nothing]]] =
+              fork(f0.finalizer, _ => IO.unit).observe.map((a: ExitResult[Nothing, Unit]) => a.fold(_ => None, Some(_)))
             if (finalizer eq null) finalizer = f
-            else finalizer = finalizer.seqWith(f)(zipFailures)
+            else finalizer = finalizer.seqWith(f)(zipCauses)
           case _ =>
         }
       }
@@ -262,12 +261,12 @@ private object RTS {
       finalizer
     }
 
-    private final def zipFailures(ts1: Option[List[Throwable]], ts2: Option[List[Throwable]]): Option[List[Throwable]] =
-      (ts1, ts2) match {
-        case (Some(ts1), Some(ts2)) => Some(ts1 ++ ts2)
-        case (ts @ Some(_), None)   => ts
-        case (None, ts @ Some(_))   => ts
-        case (None, None)           => None
+    private final def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
+      (c1, c2) match {
+        case (Some(c1), Some(c2)) => Some(c1 ++ c2)
+        case (c @ Some(_), None)  => c
+        case (None, c @ Some(_))  => c
+        case (None, None)         => None
       }
 
     /**
@@ -356,7 +355,7 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      result = ExitResult.Completed(value)
+                      result = ExitResult.succeeded(value)
                     }
 
                   case IO.Tags.Strict =>
@@ -367,7 +366,7 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      result = ExitResult.Completed(value)
+                      result = ExitResult.succeeded(value)
                     }
 
                   case IO.Tags.SyncEffect =>
@@ -378,7 +377,7 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      result = ExitResult.Completed(value)
+                      result = ExitResult.succeeded(value)
                     }
 
                   case IO.Tags.AsyncEffect =>
@@ -393,14 +392,14 @@ private object RTS {
                           // invoked. Attempt resumption now:
                           if (shouldResumeAsync()) {
                             value match {
-                              case ExitResult.Completed(v) =>
+                              case ExitResult.Succeeded(v) =>
                                 curIo = nextInstr[E](v, stack)
 
                                 if (curIo eq null) {
                                   result = value
                                 }
                               case ExitResult.Failed(cause) =>
-                                curIo = cause.toIO
+                                curIo = IO.fail0(cause)
                             }
                           } else {
                             // Completion handled by interruptor:
@@ -451,7 +450,7 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      result = ExitResult.Completed(value)
+                      result = ExitResult.succeeded(value)
                     }
 
                   case IO.Tags.Suspend =>
@@ -478,10 +477,10 @@ private object RTS {
                     curIo = enterSupervision *>
                       io.value.ensuring(exitSupervision(io.supervisor))
 
-                  case IO.Tags.Terminate =>
-                    val io = curIo.asInstanceOf[IO.Terminate[E]]
+                  case IO.Tags.Fail =>
+                    val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                    val finalizer = interruptStack(io.cause.checkedFirst.isDefined)
+                    val finalizer = unwindStack(io.cause.isChecked)
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -489,32 +488,22 @@ private object RTS {
                         // No finalizer, so immediately produce the error.
                         curIo = null
 
-                        val cause = (io.cause, status.get.terminationCause) match {
-                          case (Interruption(None), Some(cause)) if cause.interruptions.isDefined => cause
-                          case _                                                                  => status.get.terminationCause.fold(io.cause)(io.cause ++ _)
-                        }
-
-                        result = ExitResult.Failed(cause)
+                        val cause = if (status.get.interrupted) io.cause ++ Cause.interrupted else io.cause
+                        result = ExitResult.failed(cause)
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
-                        val finalization = finalizer.flatMap(accumFailures)
-                        val completer    = io
-
-                        curIo = doNotInterrupt(finalization) *> completer
+                        val completer = io
+                        curIo = doNotInterrupt(finalizer).flatMap(
+                          cause => IO.fail0(cause.fold(completer.cause)(completer.cause ++ _))
+                        )
                       }
                     } else {
                       // Error caught:
-                      val handled = nextInstr[E](io.cause, stack)
-
                       if (finalizer eq null) {
-                        curIo = handled
+                        curIo = nextInstr[E](io.cause, stack)
                       } else {
-                        // Must run finalizer first:
-                        val finalization = finalizer.flatMap(accumFailures)
-                        val completer    = handled
-
-                        curIo = doNotInterrupt(finalization) *> completer
+                        curIo = doNotInterrupt(finalizer).map(cause => cause.fold(io.cause)(io.cause ++ _))
                       }
                     }
 
@@ -524,7 +513,7 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      result = ExitResult.Completed(value)
+                      result = ExitResult.succeeded(value)
                     }
 
                   case IO.Tags.Ensuring =>
@@ -538,7 +527,7 @@ private object RTS {
                     curIo = nextInstr[E](value, stack)
 
                     if (curIo eq null) {
-                      result = ExitResult.Completed(value)
+                      result = ExitResult.succeeded(value)
                     }
                 }
               }
@@ -546,9 +535,7 @@ private object RTS {
               // Interruption cannot be interrupted:
               this.noInterrupt += 1
 
-              // At this point, all causes of interruption have been accumulated
-              // in the fiber status and will be read during evaluation of this
-              // action:
+              // Fiber was interrupted
               curIo = IO.interrupt
             }
 
@@ -573,47 +560,13 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: List[Throwable] => IO[Nothing, Unit]): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: Cause[Nothing] => IO[Nothing, Unit]): FiberContext[E, A] = {
       val context = rts.newFiberContext[E, A](handler)
 
       rts.submit(context.evaluate(io))
 
       context
     }
-
-    private final def accumFailures: Option[List[Throwable]] => IO[Nothing, Unit] = {
-      case None     => IO.unit
-      case Some(ts) => IO.sync(addFailures(ts))
-    }
-
-    @tailrec
-    private final def addFailures(ts: List[Throwable]): Unit = {
-      val oldStatus = status.get
-      oldStatus match {
-        case x @ Executing(cause, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(terminationCause = addDefects(cause, ts)))) addFailures(ts)
-          else ()
-
-        case x @ AsyncRegion(cause, _, _, _, _) =>
-          if (!status.compareAndSet(oldStatus, x.copy(terminationCause = addDefects(cause, ts)))) addFailures(ts)
-          else ()
-
-        case _ =>
-      }
-    }
-
-    private final def addDefects(cause: Option[Cause[E]], ts: List[Throwable]): Option[Cause[E]] =
-      (cause, ts) match {
-        case (None, Nil)          => None
-        case (None, head :: tail) => Some(Cause.unchecked(head).withDefects(tail))
-        case (Some(c), _)         => Some(c.withDefects(ts))
-      }
-
-    private final def addInterruptions(cause: Option[Cause[E]], causes: List[Throwable]): Cause[E] =
-      (cause, causes) match {
-        case (None, _)    => Cause.interrupt(causes)
-        case (Some(c), _) => c ++ Cause.interrupt(causes)
-      }
 
     /**
      * Resumes a synchronous evaluation given the newly produced value.
@@ -622,7 +575,7 @@ private object RTS {
      */
     private final def resumeEvaluate(value: ExitResult[E, Any]): Unit =
       value match {
-        case ExitResult.Completed(v) =>
+        case ExitResult.Succeeded(v) =>
           // Async produced a value:
           val io = nextInstr[E](v, stack)
 
@@ -630,7 +583,7 @@ private object RTS {
           else evaluate(io)
 
         case ExitResult.Failed(cause) =>
-          evaluate(cause.toIO)
+          evaluate(IO.fail0(cause))
       }
 
     /**
@@ -649,8 +602,8 @@ private object RTS {
 
     final def changeErrorUnit(cb: Callback[Nothing, Unit]): Callback[E, Unit] = x => cb(x <> SuccessUnit)
 
-    final def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
-      IO.async0[Nothing, Unit](cb => kill0(ts, changeErrorUnit(cb)))
+    final def interrupt: IO[Nothing, Unit] =
+      IO.async0[Nothing, Unit](cb => kill0(changeErrorUnit(cb)))
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
@@ -682,22 +635,22 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(terminationCause, reentrancy, resume, cancel, observers) =>
+        case AsyncRegion(interrupted, reentrancy, resume, cancel, observers) =>
           val newReentrancy = reentrancy + 1
 
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(terminationCause, newReentrancy, resume + 1, cancel, observers)
+                AsyncRegion(interrupted, newReentrancy, resume + 1, cancel, observers)
               ))
             enterAsyncStart()
           else newReentrancy
 
-        case Executing(terminationCause, observers) =>
+        case Executing(interrupted, observers) =>
           val newReentrancy = 1
 
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(terminationCause, newReentrancy, 1, None, observers)
+                AsyncRegion(interrupted, newReentrancy, 1, None, observers)
               ))
             enterAsyncStart()
           else newReentrancy
@@ -719,9 +672,9 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(terminationCause, 1, 0, _, observers) =>
+        case AsyncRegion(interrupted, 1, 0, _, observers) =>
           // No more resumptions left and exiting last async boundary initiation:
-          if (!status.compareAndSet(oldStatus, Executing(terminationCause, observers)))
+          if (!status.compareAndSet(oldStatus, Executing(interrupted, observers)))
             enterAsyncEnd()
 
         case x @ AsyncRegion(_, reentrancy, _, _, _) =>
@@ -756,16 +709,16 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(terminationCause, 0, 1, _, observers) =>
+        case AsyncRegion(interrupted, 0, 1, _, observers) =>
           // No more resumptions are left!
-          if (!status.compareAndSet(oldStatus, Executing(terminationCause, observers)))
+          if (!status.compareAndSet(oldStatus, Executing(interrupted, observers)))
             shouldResumeAsync()
           else true
 
-        case AsyncRegion(terminationCause, reentrancy, resume, _, observers) =>
+        case AsyncRegion(interrupted, reentrancy, resume, _, observers) =>
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(terminationCause, reentrancy, resume - 1, None, observers)
+                AsyncRegion(interrupted, reentrancy, resume - 1, None, observers)
               ))
             shouldResumeAsync()
           else true
@@ -804,15 +757,9 @@ private object RTS {
 
     final def register(cb: Callback[E, A]): Async[E, A] =
       observe0 {
-        case ExitResult.Completed(r) => cb(r)
-        case ExitResult.Failed(cause) =>
-          cause.checkedFirst match {
-            case Some(_) =>
-            case None =>
-              rts.submit(rts.unsafeRun(unhandled(cause.toThrowable :: Nil)))
-              cb(ExitResult.Failed(cause))
-          }
-      }.fold(identity, ExitResult.Failed(_))
+        case ExitResult.Succeeded(r)  => cb(r)
+        case ExitResult.Failed(cause) => if (!cause.isChecked) cb(ExitResult.failed(cause))
+      }.fold(identity, ExitResult.failed(_))
 
     @tailrec
     final def done(v: ExitResult[E, A]): Unit = {
@@ -838,37 +785,38 @@ private object RTS {
       }
     }
 
-    final def reportErrors(v: ExitResult[E, A]): Unit =
-      v.toEither match {
-        case Left(e) =>
-          // Report the uncaught error to the supervisor:
-          rts.submit(rts.unsafeRun(unhandled(e :: Nil)))
-        case Right(_) =>
-      }
+    final def reportErrors(v: ExitResult[E, A]): Unit = v match {
+      case ExitResult.Failed(cause) =>
+        cause.checkedOrRefail match {
+          case Right(c) => rts.submit(rts.unsafeRun(unhandled(c)))
+          case _        =>
+        }
+      case _ =>
+    }
 
     private final def mkKillerObserver(cb: Callback[E, Unit]): Callback[Nothing, ExitResult[E, A]] =
       _ => cb(SuccessUnit)
 
-    private final def kill0(cs: List[Throwable], k: Callback[E, Unit]): Async[Nothing, Unit] = {
+    private final def kill0(k: Callback[E, Unit]): Async[Nothing, Unit] = {
 
       val oldStatus = status.get
 
       oldStatus match {
-        case Executing(terminationCause, observers) =>
+        case Executing(interrupted, observers) =>
           if (!status.compareAndSet(
                 oldStatus,
-                Executing(Some(addInterruptions(terminationCause, cs)), mkKillerObserver(k) :: observers)
+                Executing(interrupted, mkKillerObserver(k) :: observers)
               ))
-            kill0(cs, k)
+            kill0(k)
           else {
             killed = true
             Async.later[Nothing, Unit]
           }
 
-        case AsyncRegion(terminationCause, _, resume, cancelOpt, observers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.Failed(addInterruptions(terminationCause, cs))
+        case AsyncRegion(_, _, resume, cancelOpt, observers) if (resume > 0 && noInterrupt == 0) =>
+          val v = ExitResult.interrupted
 
-          if (!status.compareAndSet(oldStatus, Done(v))) kill0(cs, k)
+          if (!status.compareAndSet(oldStatus, Done(v))) kill0(k)
           else {
             killed = true
 
@@ -880,11 +828,11 @@ private object RTS {
                 try cancel()
                 catch {
                   case t: Throwable if (rts.nonFatal(t)) =>
-                    fork(unhandled(t :: Nil), unhandled)
+                    fork(IO.terminate(t), unhandled)
                 }
             }
 
-            val finalizer = interruptStack(false)
+            val finalizer = unwindStack(false) // FIXME we're losing those finalizer failures
 
             if (finalizer ne null) {
               fork(finalizer.flatMap {
@@ -902,11 +850,10 @@ private object RTS {
         case s @ AsyncRegion(_, _, _, _, _) =>
           val newStatus =
             s.copy(
-              terminationCause = Some(addInterruptions(s.terminationCause, cs)),
               observers = mkKillerObserver(k) :: s.observers
             )
 
-          if (!status.compareAndSet(oldStatus, newStatus)) kill0(cs, k)
+          if (!status.compareAndSet(oldStatus, newStatus)) kill0(k)
           else {
             killed = true
             Async.later[Nothing, Unit]
@@ -935,7 +882,7 @@ private object RTS {
           if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
           else Async.later[Nothing, ExitResult[E, A]]
 
-        case Done(v) => Async.now(ExitResult.Completed(v))
+        case Done(v) => Async.now(ExitResult.succeeded(v))
       }
     }
 
@@ -948,35 +895,35 @@ private object RTS {
     private final def purgeObservers(v: ExitResult[E, A], observers: List[Callback[Nothing, ExitResult[E, A]]]): Unit =
       // To preserve fair scheduling, we submit all resumptions on the thread
       // pool in order of their submission.
-      observers.reverse.foreach(k => rts.submit(k(ExitResult.Completed(v))))
+      observers.reverse.foreach(k => rts.submit(k(ExitResult.succeeded(v))))
   }
 
   sealed abstract class FiberStatus[E, A] extends Serializable with Product {
 
-    /** cause of the fiber termination if any */
-    def terminationCause: Option[Cause[E]]
+    /** indicates if the fiber was interrupted */
+    def interrupted: Boolean
 
   }
   object FiberStatus extends Serializable {
     final case class Executing[E, A](
-      terminationCause: Option[Cause[E]],
+      interrupted: Boolean,
       observers: List[Callback[Nothing, ExitResult[E, A]]]
     ) extends FiberStatus[E, A]
     final case class AsyncRegion[E, A](
-      terminationCause: Option[Cause[E]],
+      interrupted: Boolean,
       reentrancy: Int,
       resume: Int,
       cancel: Option[Canceler],
       observers: List[Callback[Nothing, ExitResult[E, A]]]
     ) extends FiberStatus[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
-      override def terminationCause: Option[Cause[E]] = None
+      override def interrupted: Boolean = false
     }
 
-    def Initial[E, A] = Executing[E, A](None, Nil)
+    def Initial[E, A] = Executing[E, A](interrupted = false, Nil)
   }
 
-  val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.Completed(())
+  val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.succeeded(())
 
   final def combineCancelers(c1: Canceler, c2: Canceler): Canceler =
     if (c1 eq null) {
