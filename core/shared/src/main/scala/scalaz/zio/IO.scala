@@ -382,8 +382,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
-          case ExitResult.Failed(cause) if cause.isChecked => cleanup(cause.unchecked)
-          case _                                           => IO.unit
+          case ExitResult.Failed(cause) if cause.isInterrupted || cause.isUnchecked => cleanup(cause.unchecked)
+          case _                                                                    => IO.unit
         }
     )(_ => self)
 

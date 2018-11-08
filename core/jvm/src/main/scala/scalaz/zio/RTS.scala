@@ -495,7 +495,7 @@ private object RTS {
                         // uncaught failure after we have executed all the finalizers:
                         val completer = io
                         curIo = doNotInterrupt(finalizer).flatMap(
-                          cause => IO.fail0(cause.fold(completer.cause)(completer.cause ++ _))
+                          cause => IO.fail0(cause.foldLeft(completer.cause)(_ ++ _))
                         )
                       }
                     } else {
@@ -503,7 +503,7 @@ private object RTS {
                       if (finalizer eq null) {
                         curIo = nextInstr[E](io.cause, stack)
                       } else {
-                        curIo = doNotInterrupt(finalizer).map(cause => cause.fold(io.cause)(io.cause ++ _))
+                        curIo = doNotInterrupt(finalizer).map(cause => cause.foldLeft(io.cause)(_ ++ _))
                       }
                     }
 
