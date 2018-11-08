@@ -175,7 +175,7 @@ class Queue[A] private (
           .flatMap(_.join)
         (forked *> hook, Shutdown(l, IO.unit))
       case Shutdown(l, hook) => (hook, Shutdown(l, IO.unit))
-      case state                  => (state.shutdownHook, Shutdown(l, IO.unit))
+      case state             => (state.shutdownHook, Shutdown(l, IO.unit))
     })
 
   final private def removePutter(putter: Promise[Nothing, Boolean]): IO[Nothing, Unit] =
@@ -331,10 +331,10 @@ class Queue[A] private (
    * If the queue is already shutdown, the hook will be executed immediately.
    */
   final def onShutdown(io: IO[Nothing, Unit]): IO[Nothing, Unit] =
-    IO.flatten(ref.modify{
-      case Deficit(takers, hook) => IO.unit -> Deficit(takers, hook *> io)
+    IO.flatten(ref.modify {
+      case Deficit(takers, hook)         => IO.unit -> Deficit(takers, hook *> io)
       case Surplus(queue, putters, hook) => IO.unit -> Surplus(queue, putters, hook *> io)
-      case state @ Shutdown(_, _) => io -> state
+      case state @ Shutdown(_, _)        => io      -> state
     })
 }
 
@@ -371,7 +371,7 @@ object Queue {
     capacity: Option[Int],
     strategy: SurplusStrategy
   ): IO[Nothing, Queue[A]] =
-  Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty, IO.unit)).map(state => new Queue[A](capacity, state, strategy))
+    Ref[State[A]](Surplus[A](IQueue.empty, IQueue.empty, IO.unit)).map(state => new Queue[A](capacity, state, strategy))
 
   private[zio] object internal {
 
