@@ -16,8 +16,8 @@ class SemaphoreSpec extends AbstractRTSSpec {
       `acquireN`s can be parallel with `releaseN`s $e3
       individual `acquireN`s can be parallel with individual `releaseN`s $e4
       semaphores and fibers play ball together $e5
-      `acquire` doesn't releases permits upon cancellation $e6
-      `withPermit` releases permits upon cancellation $e7
+      `acquire` doesn't leak permits upon cancellation $e6
+      `withPermit` does not leak fibers or permits upon cancellation $e7
     """
 
   def e1 = {
@@ -59,18 +59,18 @@ class SemaphoreSpec extends AbstractRTSSpec {
 
   def e6 = {
     val n = 1L
-    unsafeRun(for {
-      s <- Semaphore(n)
-      _ <- s.acquireN(2).timeoutFail(new Exception("timeout"))(1.milli).attempt
-      permits <- IO.sleep(10.millis) *> s.available
-    } yield permits) must_=== 0
+        unsafeRun(for {
+          s <- Semaphore(n)
+          _ <- s.acquireN(2).timeout(1.milli).attempt
+          permits <-  s.release *> IO.sleep(10.millis) *> s.count
+        } yield permits) must_=== 2
   }
 
   def e7 = {
     val n = 0L
     unsafeRun(for {
       s <- Semaphore(n)
-      _ <- s.withPermit(IO.sleep(1.millis) *> IO.fail(new Exception("timeout")) *> s.release).attempt.fork
+      _ <- s.withPermit(s.release).timeout(1.milli).attempt
       permits <- s.release *> IO.sleep(10.millis) *> s.available
     }yield permits must_=== 1L)
   }
