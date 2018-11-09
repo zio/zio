@@ -3,7 +3,6 @@ package interop
 
 import scala.concurrent.Future
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.Errors.FiberFailure
 import scalaz.zio.ExitResult.Cause.{ Checked, Unchecked }
 import scalaz.zio.interop.future._
 

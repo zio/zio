@@ -72,29 +72,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * (`io.bimap(f1, g1).bimap(f2, g2)...bimap(f10000, g20000)`) are guaranteed stack safe to a depth
    * of at least 10,000.
    */
-  final def bimap[E2, B](f: E => E2, g: A => B): IO[E2, B] = (self.tag: @switch) match {
-    case IO.Tags.Point =>
-      val io = self.asInstanceOf[IO.Point[A]]
-
-      new IO.Point(() => g(io.value()))
-
-    case IO.Tags.Strict =>
-      val io = self.asInstanceOf[IO.Strict[A]]
-
-      new IO.Strict(g(io.value))
-
-    case IO.Tags.SyncEffect =>
-      val io = self.asInstanceOf[IO.SyncEffect[A]]
-
-      new IO.SyncEffect(() => g(io.effect()))
-
-    case IO.Tags.Fail =>
-      val io = self.asInstanceOf[IO.Fail[E]]
-
-      new IO.Fail(io.cause.map(f))
-
-    case _ => new IO.Redeem(self, (cause: Cause[E]) => IO.fail0(cause.map(f)), (a: A) => new IO.Strict(g(a)))
-  }
+  final def bimap[E2, B](f: E => E2, g: A => B): IO[E2, B] = leftMap(f).map(g)
 
   /**
    * Creates a composite action that represents this action followed by another
@@ -128,7 +106,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0(handler: Cause[Nothing] => IO[Nothing, Unit]): IO[Nothing, Fiber[E, A]] =
+  final def fork0(handler: Cause[Any] => IO[Nothing, Unit]): IO[Nothing, Fiber[E, A]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -773,7 +751,7 @@ object IO extends Serializable {
     final def apply(v: A): IO[E2, B] = succ(v)
   }
 
-  final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Cause[Nothing] => IO[Nothing, Unit]])
+  final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Cause[Any] => IO[Nothing, Unit]])
       extends IO[Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
   }

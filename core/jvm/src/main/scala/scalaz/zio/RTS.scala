@@ -47,8 +47,8 @@ trait RTS {
    * The default handler for unhandled exceptions in the main fiber, and any
    * fibers it forks that recursively inherit the handler.
    */
-  def defaultHandler: Cause[Nothing] => IO[Nothing, Unit] =
-    (cause: Cause[Nothing]) => IO.sync(cause.unchecked.foreach(_.printStackTrace()))
+  def defaultHandler: Cause[Any] => IO[Nothing, Unit] =
+    (cause: Cause[Any]) => console.putStrLn(FiberFailure(cause).getMessage)
 
   /**
    * The main thread pool used for executing fibers.
@@ -74,7 +74,7 @@ trait RTS {
    */
   val YieldMaxOpCount = 1024
 
-  private final def newFiberContext[E, A](handler: Cause[Nothing] => IO[Nothing, Unit]): FiberContext[E, A] = {
+  private final def newFiberContext[E, A](handler: Cause[Any] => IO[Nothing, Unit]): FiberContext[E, A] = {
     val nextFiberId = fiberCounter.incrementAndGet()
     val context     = new FiberContext[E, A](this, nextFiberId, handler)
 
@@ -164,7 +164,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Nothing] => IO[Nothing, Unit])
+  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Any] => IO[Nothing, Unit])
       extends Fiber[E, A] {
     import java.util.{ Collections, Set, WeakHashMap }
     import FiberStatus._
@@ -231,7 +231,7 @@ private object RTS {
      * action that produces a list (possibly empty) of errors during finalization.
      * If needed, catch exceptions and apply redeem error handling.
      */
-    final def unwindStack(catchError: Boolean): IO[Nothing, Option[Cause[Nothing]]] = {
+    final def unwindStack: IO[Nothing, Option[Cause[Nothing]]] = {
       var errorHandler: Any => IO[Any, Any]              = null
       var finalizer: IO[Nothing, Option[Cause[Nothing]]] = null
 
@@ -239,7 +239,7 @@ private object RTS {
       // finalizers.
       while ((errorHandler eq null) && !stack.isEmpty) {
         stack.pop() match {
-          case a: IO.Redeem[_, _, _, _] if catchError =>
+          case a: IO.Redeem[_, _, _, _] =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
             val f: IO[Nothing, Option[Cause[Nothing]]] =
@@ -262,12 +262,7 @@ private object RTS {
     }
 
     private final def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
-      (c1, c2) match {
-        case (Some(c1), Some(c2)) => Some(c1 ++ c2)
-        case (c @ Some(_), None)  => c
-        case (None, c @ Some(_))  => c
-        case (None, None)         => None
-      }
+      c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
 
     /**
      * The main interpreter loop for `IO` actions. For purely synchronous actions,
@@ -480,7 +475,7 @@ private object RTS {
                   case IO.Tags.Fail =>
                     val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                    val finalizer = unwindStack(io.cause.isChecked)
+                    val finalizer = unwindStack
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -493,9 +488,8 @@ private object RTS {
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
-                        val completer = io
                         curIo = doNotInterrupt(finalizer).flatMap(
-                          cause => IO.fail0(cause.foldLeft(completer.cause)(_ ++ _))
+                          cause => IO.fail0(cause.foldLeft(io.cause)(_ ++ _))
                         )
                       }
                     } else {
@@ -560,7 +554,7 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: Cause[Nothing] => IO[Nothing, Unit]): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: Cause[Any] => IO[Nothing, Unit]): FiberContext[E, A] = {
       val context = rts.newFiberContext[E, A](handler)
 
       rts.submit(context.evaluate(io))
@@ -826,11 +820,11 @@ private object RTS {
                 try cancel()
                 catch {
                   case t: Throwable if (rts.nonFatal(t)) =>
-                    fork(IO.terminate(t), unhandled)
+                    fork(unhandled(Cause.unchecked(t)), unhandled)
                 }
             }
 
-            val finalizer = unwindStack(false) // FIXME we're losing those finalizer failures
+            val finalizer = unwindStack
 
             if (finalizer ne null) {
               fork(finalizer.flatMap {
