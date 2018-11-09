@@ -5,6 +5,7 @@ import scala.annotation.switch
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import scalaz.zio.ExitResult.Cause
+import scalaz.zio.IO.Redeem
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -604,10 +605,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
-    (for {
-      f <- self.fork
-      r <- f.observe
-    } yield r).supervised
+    new Redeem[E, Nothing, A, ExitResult[E, A]](
+      self,
+      cause => IO.now(ExitResult.failed(cause)),
+      succ => IO.now(ExitResult.succeeded(succ))
+    )
 
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.

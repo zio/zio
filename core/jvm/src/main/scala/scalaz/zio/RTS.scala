@@ -243,7 +243,7 @@ private object RTS {
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
             val f: IO[Nothing, Option[Cause[Nothing]]] =
-              fork[Nothing, Unit](f0.finalizer, _ => IO.unit).observe.map(_.causeOption)
+              f0.finalizer.sandboxed.redeemPure[Nothing, Option[Cause[Nothing]]](Some(_), _ => None)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.seqWith(f)(zipCauses)
           case _ =>
