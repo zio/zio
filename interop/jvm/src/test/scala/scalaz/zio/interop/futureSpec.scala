@@ -2,10 +2,9 @@ package scalaz.zio
 package interop
 
 import scala.concurrent.Future
-
 import org.specs2.concurrent.ExecutionEnv
-
-import future._
+import scalaz.zio.ExitResult.Cause.{ Checked, Unchecked }
+import scalaz.zio.interop.future._
 
 class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
@@ -47,23 +46,27 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val catchBlockException = {
-    def noFuture: Future[Unit] = throw new Exception("no future for you!")
-    unsafeRun(IO.fromFuture(noFuture _)(ec)) must throwA[Exception](message = "no future for you!")
+    val ex                     = new Exception("no future for you!")
+    def noFuture: Future[Unit] = throw ex
+    unsafeRun(IO.fromFuture(noFuture _)(ec)) must (throwA(FiberFailure(Unchecked(ex))))
   }
 
   val catchBlockExceptionTask = {
-    val noFuture: Future[Unit] = Future.failed(new Exception("no future for you!"))
-    unsafeRun(Task.fromFuture(Task { noFuture })(ec)) must throwA[Exception](message = "no future for you!")
+    val ex                     = new Exception("no value for you!")
+    val noFuture: Future[Unit] = Future.failed(ex)
+    unsafeRun(Task.fromFuture(Task { noFuture })(ec)) must throwA(FiberFailure(Checked(ex)))
   }
 
   val propagateExceptionFromFuture = {
-    def noValue: Future[Unit] = Future { throw new Exception("no value for you!") }
-    unsafeRun(IO.fromFuture(noValue _)(ec)) must throwA[Exception](message = "no value for you!")
+    val ex                    = new Exception("no value for you!")
+    def noValue: Future[Unit] = Future { throw ex }
+    unsafeRun(IO.fromFuture(noValue _)(ec)) must throwA(FiberFailure(Checked(ex)))
   }
 
   val propagateExceptionFromFutureTask = {
-    val noValue: Future[Unit] = Future.failed(new Exception("no value for you!"))
-    unsafeRun(Task.fromFuture(Task { noValue })(ec)) must throwA[Exception](message = "no value for you!")
+    val ex                    = new Exception("no value for you!")
+    val noValue: Future[Unit] = Future.failed(ex)
+    unsafeRun(Task.fromFuture(Task { noValue })(ec)) must throwA(FiberFailure(Checked(ex)))
   }
 
   val produceValueFromFuture = {
@@ -117,13 +120,15 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val catchBlockExceptionFiber = {
-    def noFuture: Future[Unit] = throw new Exception("no future for you!")
-    unsafeRun(Fiber.fromFuture(noFuture)(ec).join) must throwA[Exception](message = "no future for you!")
+    val ex                     = new Exception("no future for you!")
+    def noFuture: Future[Unit] = throw ex
+    unsafeRun(Fiber.fromFuture(noFuture)(ec).join) must (throwA(FiberFailure(Unchecked(ex))))
   }
 
   val propagateExceptionFromFutureFiber = {
-    def noValue: Future[Unit] = Future { throw new Exception("no value for you!") }
-    unsafeRun(Fiber.fromFuture(noValue)(ec).join) must throwA[Exception](message = "no value for you!")
+    val ex                    = new Exception("no value for you!")
+    def noValue: Future[Unit] = Future { throw ex }
+    unsafeRun(Fiber.fromFuture(noValue)(ec).join) must (throwA(FiberFailure(Checked(ex))))
   }
 
   val produceValueFromFutureFiber = {

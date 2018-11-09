@@ -239,7 +239,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](100)
       f     <- queue.take.fork
-      _     <- f.interrupt(new Exception("interrupt fiber in e9"))
+      _     <- f.interrupt
       size  <- queue.size
     } yield size must_=== 0
   )
@@ -248,7 +248,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](0)
       f     <- queue.offer(1).fork
-      _     <- f.interrupt(new Exception("interrupt fiber in e10"))
+      _     <- f.interrupt
       size  <- queue.size
     } yield size must_=== 0
   )
@@ -417,7 +417,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue  <- Queue.bounded[Int](0)
       orders = Range.inclusive(1, 3).toList
       f      <- queue.offerAll(orders).fork
-      _      <- f.interrupt(new Exception("interrupt offer in e27"))
+      _      <- f.interrupt
       l      <- queue.takeAll
     } yield l must_=== Nil)
 
@@ -556,20 +556,17 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== ExitResult.Terminated(Nil)
+    ) must_=== ExitResult.interrupted
 
-  def e37 = {
-    val ex1 = new Exception("fail1")
-    val ex2 = new Exception("fail2")
+  def e37 =
     unsafeRunSync(
       for {
         queue <- Queue.bounded[Int](3)
         f     <- queue.take.fork
-        _     <- queue.shutdown(ex1, ex2)
+        _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== ExitResult.Terminated(List(ex1, ex2))
-  }
+    ) must_=== ExitResult.interrupted
 
   def e38 =
     unsafeRunSync(
@@ -581,7 +578,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== ExitResult.Terminated(Nil)
+    ) must_=== ExitResult.interrupted
 
   def e39 =
     unsafeRunSync(
@@ -590,7 +587,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.shutdown
         _     <- queue.offer(1)
       } yield ()
-    ) must_=== ExitResult.Terminated(Nil)
+    ) must_=== ExitResult.interrupted
 
   def e40 =
     unsafeRunSync(
@@ -599,7 +596,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.shutdown
         _     <- queue.take
       } yield ()
-    ) must_=== ExitResult.Terminated(Nil)
+    ) must_=== ExitResult.interrupted
 
   def e41 =
     unsafeRunSync(
@@ -608,7 +605,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.shutdown
         _     <- queue.takeAll
       } yield ()
-    ) must_=== ExitResult.Terminated(Nil)
+    ) must_=== ExitResult.interrupted
 
   def e42 =
     unsafeRunSync(
@@ -617,7 +614,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.shutdown
         _     <- queue.takeUpTo(1)
       } yield ()
-    ) must_=== ExitResult.Terminated(Nil)
+    ) must_=== ExitResult.interrupted
 
   def e43 =
     unsafeRunSync(
@@ -626,7 +623,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
         _     <- queue.shutdown
         _     <- queue.size
       } yield ()
-    ) must_=== ExitResult.Terminated(Nil)
+    ) must_=== ExitResult.interrupted
 
   def e44 = unsafeRun(
     for {

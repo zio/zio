@@ -1,6 +1,6 @@
-package scalaz.zio
-
 // Copyright (C) 2018 John A. De Goes. All rights reserved.
+
+package scalaz.zio
 
 import scala.collection.immutable.{ Queue => IQueue }
 import Queue.internal._
@@ -30,9 +30,7 @@ class Queue[A] private (
   final val size: IO[Nothing, Int] = ref.get.flatMap(_.size)
 
   /**
-   * Places the value in the queue. If the queue has reached capacity, then
-   * the fiber performing the `offer` will be suspended until there is room in
-   * the queue.
+   * Places one value in the queue.
    */
   final def offer(a: A): IO[Nothing, Boolean] = offerAll(List(a))
 
@@ -45,8 +43,8 @@ class Queue[A] private (
       case Surplus(values, putters, hook) =>
         val (newState, promises) = moveNPutters(Surplus(IQueue.empty, putters, hook), values.size)
         (promises *> IO.point(values.toList), newState)
-      case state @ Deficit(_, _)       => (IO.point(List.empty[A]), state)
-      case state @ Shutdown(errors, _) => (IO.terminate0(errors), state)
+      case state @ Deficit(_, _) => (IO.point(List.empty[A]), state)
+      case state @ Shutdown      => (IO.interrupt, state)
     })
 
   final private def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
@@ -114,7 +112,7 @@ class Queue[A] private (
 
             }
         }
-      case (p, state @ Shutdown(errors, _)) => (p.interrupt0(errors), state)
+      case (p, state @ Shutdown) => (p.interrupt, state)
     }
 
     val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
@@ -126,8 +124,7 @@ class Queue[A] private (
   }
 
   /**
-   * Take up to max number of values in the queue. If max > offered, this
-   * will return all the elements in the queue without waiting for more offers.
+   * Takes up to max number of values in the queue.
    */
   final def takeUpTo(max: Int): IO[Nothing, List[A]] =
     IO.flatten(ref.modify[IO[Nothing, List[A]]] {
@@ -135,47 +132,32 @@ class Queue[A] private (
         val (q1, q2)             = values.splitAt(max)
         val (newState, promises) = moveNPutters(Surplus(q2, putters, hook), q1.size)
         (promises *> IO.point(q1.toList), newState)
-      case state @ Deficit(_, _)       => (IO.now(Nil), state)
-      case state @ Shutdown(errors, _) => (IO.terminate0(errors), state)
+      case state @ Deficit(_, _) => (IO.now(Nil), state)
+      case state @ Shutdown      => (IO.interrupt, state)
     })
 
   /**
    * Interrupts any fibers that are suspended on `offer` or `take`.
-   * Future calls to `offer*` and `take*` will terminate immediately.
-   * Terminated fibers will have no interruption `causes`.
+   * Future calls to `offer*` and `take*` will be interrupted immediately.
    */
-  final def shutdown: IO[Nothing, Unit] = shutdown0(Nil)
-
-  /**
-   * Interrupts any fibers that are suspended on `offer` or `take`.
-   * Future calls to `offer*` and `take*` will terminate immediately.
-   * The given throwables will be provided as interruption `causes`.
-   */
-  final def shutdown(t: Throwable, ts: Throwable*): IO[Nothing, Unit] = shutdown0(t :: ts.toList)
-
-  /**
-   * Interrupts any fibers that are suspended on `offer` or `take`.
-   * Future calls to `offer*` and `take*` will terminate immediately.
-   * The given throwables will be provided as interruption `causes`.
-   */
-  final def shutdown0(l: List[Throwable]): IO[Nothing, Unit] =
+  final val shutdown: IO[Nothing, Unit] =
     IO.flatten(ref.modify {
       case Surplus(_, putters, hook) if putters.nonEmpty =>
         val forked = IO
           .forkAll[Nothing, Boolean](putters.toList.map {
-            case (_, p) => p.interrupt0(l)
+            case (_, p) => p.interrupt
           })
           .flatMap(_.join)
-        (forked *> hook, Shutdown(l, IO.unit))
+        (forked *> hook, Shutdown)
       case Deficit(takers, hook) if takers.nonEmpty =>
         val forked = IO
           .forkAll[Nothing, Boolean](
-            takers.toList.map(p => p.interrupt0(l))
+            takers.toList.map(p => p.interrupt)
           )
           .flatMap(_.join)
-        (forked *> hook, Shutdown(l, IO.unit))
-      case Shutdown(l, hook) => (hook, Shutdown(l, IO.unit))
-      case state             => (state.shutdownHook, Shutdown(l, IO.unit))
+        (forked *> hook, Shutdown)
+      case Shutdown => (IO.unit, Shutdown)
+      case state    => (state.shutdownHook, Shutdown)
     })
 
   final private def removePutter(putter: Promise[Nothing, Boolean]): IO[Nothing, Unit] =
@@ -189,14 +171,25 @@ class Queue[A] private (
     ref.update {
       case Deficit(takers, hook) =>
         Deficit(takers.filterNot(_ == taker), hook)
-
       case d => d
     }.void
 
   /**
-   * Places the values in the queue. If the queue has reached capacity, then
+   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and returns always true
+   * If the queue has reached capacity, then
    * the fiber performing the `offerAll` will be suspended until there is room in
    * the queue.
+   *
+   * For Unbounded Queue:
+   * Places all values in the queue and returns true.
+   *
+   * For Sliding Queue: uses `Sliding` Strategy
+   * If there is a room in the queue, it places the values and returns true otherwise it removed the old elements and
+   * enqueues the new ones
+   *
+   * For Dropping Queue: uses `Dropping` Strategy,
+   * It places the values in the queue but if there is no room it will not enqueue them and returns false
+   *
    */
   final def offerAll(as: Iterable[A]): IO[Nothing, Boolean] = {
 
@@ -316,7 +309,7 @@ class Queue[A] private (
           }
         }
 
-      case (p, state @ Shutdown(errors, _)) => (p.interrupt0(errors), state)
+      case (p, state @ Shutdown) => (p.interrupt, state)
     }
 
     val release: (Boolean, Promise[Nothing, Boolean]) => IO[Nothing, Unit] = {
@@ -334,7 +327,7 @@ class Queue[A] private (
     IO.flatten(ref.modify {
       case Deficit(takers, hook)         => IO.unit -> Deficit(takers, hook *> io)
       case Surplus(queue, putters, hook) => IO.unit -> Surplus(queue, putters, hook *> io)
-      case state @ Shutdown(_, _)        => io      -> state
+      case state @ Shutdown              => io      -> state
     })
 }
 
@@ -383,7 +376,7 @@ object Queue {
 
     case object BackPressure extends SurplusStrategy
 
-    sealed trait State[A] {
+    sealed trait State[+A] {
       def size: IO[Nothing, Int]
       def shutdownHook: IO[Nothing, Unit]
     }
@@ -392,8 +385,9 @@ object Queue {
       def size: IO[Nothing, Int] = IO.point(-takers.length)
     }
 
-    final case class Shutdown[A](t: List[Throwable], shutdownHook: IO[Nothing, Unit]) extends State[A] {
-      def size: IO[Nothing, Int] = IO.terminate0(t)
+    final case object Shutdown extends State[Nothing] {
+      def size: IO[Nothing, Int]          = IO.interrupt
+      def shutdownHook: IO[Nothing, Unit] = IO.unit
     }
 
     final case class Surplus[A](
