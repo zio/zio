@@ -11,104 +11,104 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     "QueueSpec".title ^ s2"""
     Make a Queue and
     add values then call
-     `take` to retrieve them in correct order. ${upTo(1.second)(e1)}
+     `take` to retrieve them in correct order. ${upTo(3.second)(e1)}
     `take` is called by fiber waiting on values to be added to the queue and
-     join the fiber to get the added values correctly. ${upTo(1.second)(e2)}
+     join the fiber to get the added values correctly. ${upTo(3.second)(e2)}
     fork 10 takers and offer 10 values, join takers, the result must contain all offered values ${upTo(
-      1.second
+      3.seconds
     )(e3)}
     fork 10 putters and offer for each one 10 values then take the values 100 times,
-     the values must be correct after join those fibers ${upTo(1.second)(e4)}
+     the values must be correct after join those fibers ${upTo(3.seconds)(e4)}
     make a bounded queue with capacity = 10, then put 10 values then add 10 other values and
-     check that `offer`is suspended ${upTo(1.second)(e5)}
+     check that `offer`is suspended ${upTo(3.seconds)(e5)}
     make a bounded queue with capacity = 5, offer 10 values in a fiber and
-     check that you can take the 10 values ${upTo(1.second)(e6)}
-    `take` can be interrupted and all resources in takers are released ${upTo(1.second)(e7)}
-    `offer` can be interrupted and all resources in putters are released ${upTo(1.second)(e8)}
+     check that you can take the 10 values ${upTo(3.seconds)(e6)}
+    `take` can be interrupted and all resources in takers are released ${upTo(3.seconds)(e7)}
+    `offer` can be interrupted and all resources in putters are released ${upTo(3.seconds)(e8)}
     in an unbounded queue add values then call `take`, the values must be in correct order ${upTo(
-      1.second
+      3.seconds
     )(e9)}
     in an unbounded queue add values then call `takeAll`, the values must be in correct order ${upTo(
-      1.second
+      3.seconds
     )(e10)}
     in an unbounded queue call `takeAll` in an empty queue must return an empty list $e11
     in a queue with capacity = 3 add 4 values then call `takeAll`,
      it must return a list with the 3 first values in correct order $e12
-    make an empty queue, and `takeUpTo` with max = 2, must return an empty list ${upTo(1.second)(
+    make an empty queue, and `takeUpTo` with max = 2, must return an empty list ${upTo(3.seconds)(
       e13
     )}
     make a bounded queue of size 100, call `takeUpTo` with max = 101  without adding values
-     must return an empty list ${upTo(1.second)(e14)}
+     must return an empty list ${upTo(3.seconds)(e14)}
     make a bounded queue, offer 2 values, `takeUpTo` with max = 2, must return a list that contains
-     the first 2 offered values ${upTo(1.second)(e15)}
+     the first 2 offered values ${upTo(3.seconds)(e15)}
     make a bounded queue, offer 4 values, `takeUpTo` with max = 2, must return a list that contains
-     the first 2 values ${upTo(1.second)(e16)}
+     the first 2 values ${upTo(3.seconds)(e16)}
     make a bounded queue, offer 4 values, `takeUpTo` with max = 10, must return a list that contains
-     the offered values ${upTo(1.second)(e17)}
+     the offered values ${upTo(3.seconds)(e17)}
     make a bounded queue, offer 4 values, `takeUpTo` with max = 0, must return an empty list ${upTo(
-      1.second
+      3.seconds
     )(e18)}
     make a bounded queue, offer 1 value, `takeUpTo` with max = -1, must return an empty list ${upTo(
-      1.second
+      3.seconds
     )(e19)}
     make a bounded queue, offer 2 values, `takeUpTo` with max = 2, offer 2 values again,
      and `takeUpTo` with max = 2 again, the first result must be a list that contains the first 2 values and
-      the second one must be a list with the second 2 values in order ${upTo(1.second)(e20)}
+      the second one must be a list with the second 2 values in order ${upTo(3.seconds)(e20)}
     make a bounded queue, offer 4 values, `takeUpTo` with max = 2, and then `takeUpTo` again with max = 2;
      the first result must contain the first 2 values and the second one must
-      contain the next 2 values in order ${upTo(1.second)(e21)}
+      contain the next 2 values in order ${upTo(3.seconds)(e21)}
     make a bounded queue of size 3, fork offer 4 values, and `takeUpTo` with max=4 must return a list that
-     contains the first 3 values in correct order ${upTo(1.second)(e22)}
+     contains the first 3 values in correct order ${upTo(3.seconds)(e22)}
     make a bounded queue of size 10 then call `offerAll` with a list of 10 elements to add
-     all values in the queue ${upTo(1.second)(e23)}
+     all values in the queue ${upTo(3.seconds)(e23)}
     make a bounded queue of size 0 then call `offerAll` with a list of 3 elements. The producer should be suspended and
-     the queue should have the same size as the elements offered ${upTo(1.second)(e24)}
-    `offerAll` can be interrupted and all resources are released ${upTo(1.second)(e25)}
-    `offerAll should preserve the order of the list ${upTo(1.second)(e26)}
+     the queue should have the same size as the elements offered ${upTo(3.seconds)(e24)}
+    `offerAll` can be interrupted and all resources are released ${upTo(3.seconds)(e25)}
+    `offerAll should preserve the order of the list ${upTo(3.seconds)(e26)}
     `offerAll` does preserve the order of the list when it exceeds the queue's capacity ${upTo(
-      1.second
+      3.seconds
     )(e27)}
     make a bounded queue of size 1000 then fork 2000 takers, and offer as many elements as there are takers,
-     the values must be correct after joining those fibers ${upTo(1.second)(e28)}
+     the values must be correct after joining those fibers ${upTo(3.seconds)(e28)}
     make a bounded queue of size 2000 then fork 500 takers, and offer more elements than there are takers,
-     the values must be correct after joining those fibers ${upTo(1.second)(e29)}
+     the values must be correct after joining those fibers ${upTo(3.seconds)(e29)}
     make a bounded queue of size 20 then fork 1000 takers, and offer more elements than there are takers and
-     capacity in the queue, the values must be correct after joining those fibers ${upTo(1.second)(
+     capacity in the queue, the values must be correct after joining those fibers ${upTo(3.seconds)(
       e30
     )}
     fork some takers, and offer less elements than there are takers in the queue, the values must be correct
-     after joining those fibers ${upTo(1.second)(e31)}
+     after joining those fibers ${upTo(3.seconds)(e31)}
     make bounded queue of size 0 then offer more elements than there is capacity in the queue, taking elements
-     should work correctly ${upTo(1.second)(e32)}
+     should work correctly ${upTo(3.seconds)(e32)}
     make bounded queue offer more elements than there are takers and capacity in the queue, taking elements
-     should preserve putters queue order ${upTo(1.second)(e33)}
+     should preserve putters queue order ${upTo(3.seconds)(e33)}
     make bounded queue of size 1000 then `offer` one element then `offerAll` some elements without exceeding
      the queue's capacity, when calling `takeAll` the values should be in correct order ${upTo(
-      1.second
+      3.seconds
     )(e34)}
     make bounded queue `offer` some elements then `offerAll` elements exceeding the queue's capacity,
-     the values should be in correct order ${upTo(1.second)(e35)}
+     the values should be in correct order ${upTo(3.seconds)(e35)}
     make a bounded queue of size 3, `take` a value in a fork, then `shutdown` the queue,
-     the fork should terminate ${upTo(1.second)(e36)}
-    make a bounded queue of size 3, `take` a value in a fork, then `shutdown` the queue with a list of exceptions,
-      the fork should terminate with the same list of exceptions ${upTo(1.second)(e37)}
+     the fork should terminate ${upTo(3.seconds)(e36)}
+    make a sliding queue of size 1, `take` a value in a fork, then `shutdown` the queue,
+      the fork should be interrupted ${upTo(3.seconds)(e37)}
     make a bounded queue of size 1, `offer` a value twice, then `shutdown` the queue, the second fork should terminate ${upTo(
-      1.second
+      3.seconds
     )(e38)}
     make a bounded queue of size 1, `shutdown` the queue, then `offer` an element, `offer` should terminate ${upTo(
-      1.second
+      3.seconds
     )(e39)}
     make a bounded queue of size 1, `shutdown` the queue, then `take` an element, `take` should terminate ${upTo(
-      1.second
+      3.seconds
     )(e40)}
     make a bounded queue of size 1, `shutdown` the queue, then `takeAll` elements, `takeAll` should terminate ${upTo(
-      1.second
+      3.seconds
     )(e41)}
     make a bounded queue of size 1, `shutdown` the queue, then `takeUpTo` 1 element, `takeUpTo` should terminate ${upTo(
-      1.second
+      3.seconds
     )(e42)}
     make a bounded queue of size 1, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
-      1.second
+      3.seconds
     )(e43)}
     make a bounded queue, fill it with one offer waiting, calling `take` should free the waiting offer ${upTo(
       30.second
@@ -123,16 +123,16 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       30.second
     )(e47)}
     make a sliding queue of size 3, offering 4 values should return true and the first should be dropped ${upTo(
-      1.second
+      3.seconds
     )(e48)}
-    make a sliding queue of size 0, offering a value should return false${upTo(1.second)(e49)}
-    make a sliding queue of size 100, offer values and retrieve in correct order ${upTo(1.second)(
+    make a sliding queue of size 0, offering a value should return false${upTo(3.seconds)(e49)}
+    make a sliding queue of size 100, offer values and retrieve in correct order ${upTo(3.seconds)(
       e50
     )}
     make a sliding queue, forking takers, offering values and joining fibers should return correct value ${upTo(
-      1.second
+      3.seconds
     )(e51)}
-    make a sliding queue of size 2, offering 6 values the queue slides correctly ${upTo(1.second)(
+    make a sliding queue of size 2, offering 6 values the queue slides correctly ${upTo(3.seconds)(
       e52
     )}
     make a bounded queue, create a shutdown hook completing a promise, then shutdown the queue, the promise should be completed ${upTo(
@@ -145,31 +145,31 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       30.second
     )(e55)}
     make a dropping queue of size 3, offering 4 values and the last should be dropped ${upTo(
-      1.second
+      3.seconds
     )(e56)}
-    make a dropping queue of size 0, offering a value should return false ${upTo(1.second)(e57)}
+    make a dropping queue of size 0, offering a value should return false ${upTo(3.seconds)(e57)}
     make a dropping queue of size 100, offer values up to 200 and retrieve up to 100 in correct order ${upTo(
-      1.second
+      3.seconds
     )(e58)}
     make a dropping queue, forking takers, offering values and joining fibers should return the correct value ${upTo(
-      1.second
+      3.seconds
     )(e59)}
     make a dropping queue of size 2, offering 6 values the queue drops offers corectly ${upTo(
-      1.second
+      3.seconds
     )(e60)}
     make a dropping queue of size 5, offer 3 values and receive all 3 values back and should return true ${upTo(
-      1.second
+      3.seconds
     )(e61)}
     make a dropping queue of size 1, fork a take and then offer 3 values. Must return first item upon join ${upTo(
-      1.second
+      3.seconds
     )(e62)}
     make a sliding queue of size 1, fork a take and then offer 3 values. Must return last item upon join ${upTo(
-      1.second
+      3.seconds
     )(e63)}
-    make a sliding queue of size 5 and offer 3 values. offerAll must return true ${upTo(1.second)(
+    make a sliding queue of size 5 and offer 3 values. offerAll must return true ${upTo(3.seconds)(
       e64
     )}
-    make a bounded queue of size 5 and offer 3 values. offerAll must return true ${upTo(1.second)(
+    make a bounded queue of size 5 and offer 3 values. offerAll must return true ${upTo(3.seconds)(
       e65
     )}
     """
@@ -561,7 +561,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   def e37 =
     unsafeRunSync(
       for {
-        queue <- Queue.bounded[Int](3)
+        queue <- Queue.sliding[Int](1)
         f     <- queue.take.fork
         _     <- queue.shutdown
         _     <- f.join
