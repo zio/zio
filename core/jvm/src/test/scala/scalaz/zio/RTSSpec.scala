@@ -7,7 +7,6 @@ import scala.concurrent.duration._
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
-import scalaz.zio.Errors.FiberFailure
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 
@@ -295,7 +294,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   }
 
   def testErrorInFinalizerIsReported = {
-    var reported: Cause[Nothing] = null
+    var reported: Cause[Any] = null
 
     unsafeRun {
       IO.point[Int](42)

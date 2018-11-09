@@ -4,7 +4,6 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 import scala.collection.mutable
 import scala.util.Try
-import scalaz.zio.Errors.FiberFailure
 import scalaz.zio.ExitResult.Cause.{ Checked, Interruption, Unchecked }
 
 class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {

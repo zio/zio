@@ -1,8 +1,6 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scalaz.zio.Errors.FiberFailure
-
 /**
  * A description of the result of executing an `IO` value. The result is either
  * completed with a value, failed because of an uncaught `E`, or terminated
@@ -62,7 +60,8 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
       case Failed(cause) => terminated(cause)
     }
 }
-object ExitResult {
+
+object ExitResult extends Serializable {
 
   final case class Succeeded[A](value: A)     extends ExitResult[Nothing, A]
   final case class Failed[E](cause: Cause[E]) extends ExitResult[E, Nothing]
@@ -135,7 +134,7 @@ object ExitResult {
     }
   }
 
-  object Cause {
+  object Cause extends Serializable {
 
     final def checked[E](error: E): Cause[E] = Checked(error)
 
