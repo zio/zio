@@ -8,7 +8,7 @@ class RefSpec extends AbstractRTSSpec {
       `write` puts the new value correctly.                                                    $e2
       `update` changes the value and returns the updated value.                                $e3
       `modify` changes the value and returns another value computed from the modification.     $e4
-      `updateSome` changes the a given type State in some cases and returns updated value.     $e5
+      `updateSome` changes a given type State in some cases and returns the updated value.     $e5
     """
 
   val (current, update) = ("value", "new value")
@@ -48,7 +48,6 @@ class RefSpec extends AbstractRTSSpec {
     )
 
   def e5 = {
-
     sealed trait State
     case object Active  extends State
     case object Changed extends State
