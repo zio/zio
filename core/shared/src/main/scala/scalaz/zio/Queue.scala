@@ -89,11 +89,11 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) extends Serializable 
    * empty. If any fibers are interrupted, returns true, otherwise, returns
    * false.
    */
-  final def interruptTake(t: Throwable): IO[Nothing, Boolean] =
+  final def interruptTake: IO[Nothing, Boolean] =
     IO.flatten(ref.modify {
       case Deficit(takers) if takers.nonEmpty =>
         val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
-          IO.forkAll[Nothing, Boolean](takers.map(_.interrupt(t)))
+          IO.forkAll[Nothing, Boolean](takers.map(_.interrupt))
         (forked.flatMap(_.join).map(_.forall(identity)), Deficit(IQueue.empty[Promise[Nothing, A]]))
       case s =>
         (IO.now(false), s)
@@ -104,11 +104,11 @@ class Queue[A] private (capacity: Int, ref: Ref[State[A]]) extends Serializable 
    * at capacity. If any fibers are interrupted, returns true, otherwise,
    * returns  false.
    */
-  final def interruptOffer(t: Throwable): IO[Nothing, Boolean] =
+  final def interruptOffer: IO[Nothing, Boolean] =
     IO.flatten(ref.modify {
       case Surplus(_, putters) if putters.nonEmpty =>
         val forked: IO[Nothing, Fiber[Nothing, List[Boolean]]] =
-          IO.forkAll[Nothing, Boolean](putters.map(_._2.interrupt(t)))
+          IO.forkAll[Nothing, Boolean](putters.map(_._2.interrupt))
         (forked.flatMap(_.join).map(_.forall(identity)), Deficit(IQueue.empty[Promise[Nothing, A]]))
       case s =>
         (IO.now(false), s)
