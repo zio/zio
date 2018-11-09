@@ -10,6 +10,8 @@ import scala.collection.immutable.{ Queue => IQueue }
 
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
+  type AcquireTasks = (IO[Nothing, Unit], IO[Nothing, Unit])
+
   final def count: IO[Nothing, Long] = state.get.map(count_)
 
   final def available: IO[Nothing, Long] = state.get.map {
@@ -22,25 +24,36 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   final def release: IO[Nothing, Unit] = releaseN(1)
 
   final def withPermit[E, A](task: IO[E, A]): IO[E, A] =
-    IO.bracket[E, Unit, A](acquire)(_ => release)(_ => task)
+    IO.bracket0[E, AcquireTasks, A](prepare(1L))(cleanup) { case (acquire, _) => acquire *> task }
 
-  final def acquireN(requested: Long): IO[Nothing, Unit] = {
-    val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, Boolean], State) = {
-      case (p, Right(n)) if n >= requested => p.complete(()) -> Right(n - requested)
-      case (p, Right(n))                   => IO.now(false)  -> Left(IQueue(p -> (requested - n)))
-      case (p, Left(q))                    => IO.now(false)  -> Left(q.enqueue(p -> requested))
-    }
+  final def acquireN(requested: Long): IO[Nothing, Unit] =
+    assertNonNegative(requested) *> IO.bracket0[Nothing, AcquireTasks, Unit](prepare(requested))(cleanup)(_._1)
 
-    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
-      case (_, p) =>
-        state.update {
-          case Left(q) => Left(q.filterNot(_._1 == p))
-          case x       => x
-        }.void
-    }
+  final private def prepare(n: Long): IO[Nothing, AcquireTasks] = {
+    def restore(p: Promise[Nothing, Unit], n: Long): IO[Nothing, Unit] =
+      IO.flatten(state.modify {
+        case Left(q) =>
+          q.find(_._1 == p).fold(releaseN(n) -> Left(q))(x => releaseN(n - x._2) -> Left(q.filter(_._1 != p)))
+        case Right(m) => IO.unit -> Right(m + n)
+      })
 
-    assertNonNegative(requested) *> Promise.bracket[Nothing, State, Unit, Boolean](state)(acquire)(release)
+    if (n == 0)
+      IO.now((IO.unit, IO.unit))
+    else
+      Promise.make[Nothing, Unit].flatMap { p =>
+        state.modify {
+          case Right(m) if m >= n => (IO.unit, releaseN(n)) -> Right(m - n)
+          case Right(m)           => (p.get, restore(p, n)) -> Left(IQueue(p -> (n - m)))
+          case Left(q)            => (p.get, restore(p, n)) -> Left(q.enqueue(p -> n))
+        }
+      }
   }
+
+  final private def cleanup[E, A](ops: AcquireTasks, res: ExitResult[E, A]): IO[Nothing, Unit] =
+    res match {
+      case ExitResult.Terminated(_) => ops._2
+      case _                        => IO.unit
+    }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
     @tailrec def loop(
