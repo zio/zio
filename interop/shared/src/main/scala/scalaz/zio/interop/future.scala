@@ -10,8 +10,8 @@ object future {
     def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): IO[Throwable, A] =
       IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
         ftr().onComplete {
-          case Success(a) => cb(ExitResult.Completed(a))
-          case Failure(t) => cb(ExitResult.Failed(t))
+          case Success(a) => cb(ExitResult.succeeded(a))
+          case Failure(t) => cb(ExitResult.checked(t))
         }(ec)
       }
   }
@@ -23,17 +23,17 @@ object future {
         def observe: IO[Nothing, ExitResult[Throwable, A]] = IO.async {
           cb: Callback[Nothing, ExitResult[Throwable, A]] =>
             ftr.onComplete {
-              case Success(a) => cb(ExitResult.Completed(ExitResult.Completed(a)))
-              case Failure(t) => cb(ExitResult.Completed(ExitResult.Failed(t)))
+              case Success(a) => cb(ExitResult.succeeded(ExitResult.succeeded(a)))
+              case Failure(t) => cb(ExitResult.succeeded(ExitResult.checked(t)))
             }(ec)
         }
         def tryObserve: IO[Nothing, Option[ExitResult[Throwable, A]]] = IO.sync {
           ftr.value map {
-            case Success(a) => ExitResult.Completed(a)
-            case Failure(t) => ExitResult.Failed(t)
+            case Success(a) => ExitResult.succeeded(a)
+            case Failure(t) => ExitResult.checked(t)
           }
         }
-        def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = join.attempt.void
+        def interrupt: IO[Nothing, Unit] = join.attempt.void
       }
   }
 
