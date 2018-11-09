@@ -16,7 +16,8 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
 
   def retryCollect[E, A, E1 >: E, S](
     io: IO[E, A],
-    retry: Schedule[E1, S]
+    retry: Schedule[E1, S],
+    clock: Clock = Clock.Live
   ): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
     type State = retry.State
 
@@ -24,7 +25,7 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
       io.redeem(
         err =>
           retry
-            .update(err, state)
+            .update(err, state, clock)
             .flatMap(
               step =>
                 if (!step.cont) IO.now((Left(err), (step.delay, step.finish()) :: ss))
@@ -33,7 +34,7 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
         suc => IO.now((Right(suc), ss))
       )
 
-    retry.initial.flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
+    retry.initial(clock).flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
   }
 
   def retryN = {

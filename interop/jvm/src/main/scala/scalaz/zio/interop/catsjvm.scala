@@ -4,7 +4,6 @@ package interop
 import cats.effect.{ Effect, ExitCase }
 import cats.syntax.functor._
 import cats.{ effect, _ }
-
 import scala.util.control.NonFatal
 
 abstract class CatsPlatform extends CatsInstances {
@@ -33,16 +32,11 @@ sealed abstract class CatsInstances2 {
 }
 
 private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
-  protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = {
-    case ExitResult.Completed(a)       => Right(a)
-    case ExitResult.Failed(t, _)       => Left(t)
-    case ExitResult.Terminated(Nil)    => Left(Errors.TerminatedFiber)
-    case ExitResult.Terminated(t :: _) => Left(t)
-  }
+  protected def exitResultToEither[A]: ExitResult[Throwable, A] => Either[Throwable, A] = _.toEither
 
   protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
-    case Left(t)  => ExitResult.Failed(t)
-    case Right(r) => ExitResult.Completed(r)
+    case Left(t)  => ExitResult.checked(t)
+    case Right(r) => ExitResult.succeeded(r)
   }
 
   override def never[A]: Task[A] =
@@ -84,11 +78,9 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     acquire: Task[A]
   )(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     acquire.bracket0[Throwable, B] { (a, exitResult) =>
-      val exitCase = exitResult match {
-        case ExitResult.Completed(_)           => ExitCase.Completed
-        case ExitResult.Failed(error, defects) => ExitCase.Error(Errors.UnhandledError(error, defects))
-        case ExitResult.Terminated(Nil)        => ExitCase.Error(Errors.TerminatedFiber)
-        case ExitResult.Terminated(t :: _)     => ExitCase.Error(t)
+      val exitCase = exitResult.toEither match {
+        case Right(_)    => ExitCase.Completed
+        case Left(error) => ExitCase.Error(error)
       }
       release(a, exitCase)
         .catchAll(IO.terminate(_))

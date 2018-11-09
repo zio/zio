@@ -2,10 +2,9 @@ package scalaz.zio
 
 import org.scalacheck._
 import org.specs2.ScalaCheck
-import scalaz.zio.ExitResult.{ Completed, Failed, Terminated }
-
 import scala.collection.mutable
 import scala.util.Try
+import scalaz.zio.ExitResult.Cause.{ Checked, Interruption, Unchecked }
 
 class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
@@ -50,7 +49,7 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   def t3 = {
     val list = List("1", "h", "3")
     val res  = Try(unsafeRun(IO.traverse(list)(x => IO.point[Int](x.toInt))))
-    res must beAFailedTry.withThrowable[NumberFormatException]
+    res must beAFailedTry.withThrowable[FiberFailure]
   }
 
   def t4 = {
@@ -77,13 +76,15 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 
   def testDone = {
-    val error      = new Error("something went wrong")
-    val completed  = Completed[Nothing, Int](1)
-    val terminated = Terminated[Nothing, Int](error :: Nil)
-    val failed     = Failed[Error, Int](error)
+    val error                               = new Error("something went wrong")
+    val completed                           = ExitResult.succeeded(1)
+    val interrupted: ExitResult[Error, Int] = ExitResult.interrupted
+    val terminated: ExitResult[Error, Int]  = ExitResult.unchecked(error)
+    val failed: ExitResult[Error, Int]      = ExitResult.checked(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(terminated)) must throwA(error)
-    unsafeRun(IO.done(failed)) must throwA(Errors.UnhandledError(error))
+    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interruption))
+    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Unchecked(error)))
+    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Checked(error)))
   }
 }

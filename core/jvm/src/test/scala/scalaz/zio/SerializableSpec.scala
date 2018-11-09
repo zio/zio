@@ -116,7 +116,7 @@ class SerializableSpec extends AbstractRTSSpec {
       } yield returnedStatus
     )
     val result = exitResult match {
-      case ExitResult.Completed(value) => value
+      case ExitResult.Succeeded(value) => value
       case _                           => List.empty
     }
     result must_=== list

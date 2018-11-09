@@ -13,7 +13,7 @@ trait GenIO {
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] =
-    Arbitrary.arbitrary[A].map(a => IO.async[E, A](cb => cb(ExitResult.Completed(a))))
+    Arbitrary.arbitrary[A].map(a => IO.async[E, A](cb => cb(ExitResult.succeeded(a))))
 
   /**
    * Randomly uses either `genSyncSuccess` or `genAsyncSuccess` with equal probability.
@@ -29,7 +29,7 @@ trait GenIO {
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncFailure[E: Arbitrary, A]: Gen[IO[E, A]] =
-    Arbitrary.arbitrary[E].map(err => IO.async[E, A](cb => cb(ExitResult.Failed(err))))
+    Arbitrary.arbitrary[E].map(err => IO.async[E, A](cb => cb(ExitResult.checked(err))))
 
   /**
    * Randomly uses either `genSyncFailure` or `genAsyncFailure` with equal probability.
