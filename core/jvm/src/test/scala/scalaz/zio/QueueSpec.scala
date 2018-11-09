@@ -42,7 +42,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.take.fork
-      check <- (queue.interruptTake(new Exception("interrupt take in e2")) <* IO.sleep(1.millis))
+      check <- (queue.interruptTake <* IO.sleep(1.millis))
                 .repeat(Schedule.doUntil(a => a))
       _ <- queue.offer(25)
       v <- queue.take
@@ -53,7 +53,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](0)
       _     <- queue.offer(14).fork
-      check <- (queue.interruptOffer(new Exception("interrupt offer in e3")) <* IO.sleep(1.millis))
+      check <- (queue.interruptOffer <* IO.sleep(1.millis))
                 .repeat(Schedule.doUntil(a => a))
       _ <- queue.offer(12)
       v <- queue.take

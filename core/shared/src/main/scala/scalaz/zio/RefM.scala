@@ -1,5 +1,6 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
+import scalaz.zio.ExitResult.Cause
 
 /**
  * A mutable atomic reference for the `IO` monad. This is the `IO` equivalent of
@@ -51,29 +52,26 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
   final def modify[B](f: A => IO[Nothing, (B, A)]): IO[Nothing, B] =
     for {
       promise <- Promise.make[Nothing, B]
-      ref     <- Ref[Option[List[Throwable]]](None)
+      ref     <- Ref[Option[Cause[Nothing]]](None)
       bundle  = RefM.Bundle(ref, f, promise)
       b <- (for {
             _ <- queue.offer(bundle)
             b <- promise.get
-          } yield b).onTermination(ts => bundle.interrupted.set(Some(ts)))
+          } yield b).onTermination(cause => bundle.interrupted.set(Some(cause)))
     } yield b
 }
 
 object RefM extends Serializable {
   private[RefM] final case class Bundle[A, B](
-    interrupted: Ref[Option[List[Throwable]]],
+    interrupted: Ref[Option[Cause[Nothing]]],
     update: A => IO[Nothing, (B, A)],
     promise: Promise[Nothing, B]
   ) {
-    final def run(a: A, ref: Ref[A], onDefect: List[Throwable] => IO[Nothing, Unit]): IO[Nothing, Unit] =
+    final def run(a: A, ref: Ref[A], onDefect: Cause[Nothing] => IO[Nothing, Unit]): IO[Nothing, Unit] =
       interrupted.get.flatMap {
-        case Some(ts) => onDefect(ts)
+        case Some(cause) => onDefect(cause)
         case None =>
-          update(a).sandboxed.redeem({
-            case Left(ts) => onDefect(ts)
-            case Right(n) => n
-          }, {
+          update(a).sandboxed.redeem(onDefect, {
             case (b, a) => ref.set(a) <* promise.complete(b)
           })
       }
@@ -85,7 +83,7 @@ object RefM extends Serializable {
   final def apply[A](
     a: A,
     n: Int = 1000,
-    onDefect: List[Throwable] => IO[Nothing, Unit] = _ => IO.unit
+    onDefect: Cause[Nothing] => IO[Nothing, Unit] = _ => IO.unit
   ): IO[Nothing, RefM[A]] =
     for {
       ref   <- Ref(a)
