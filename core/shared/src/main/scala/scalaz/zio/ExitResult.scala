@@ -26,8 +26,7 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
       case e @ Failed(_) => e
     }
 
-  final def bimap[E1, A1](f: E => E1, g: A => A1): ExitResult[E1, A1] =
-    leftMap(f).map(g)
+  final def bimap[E1, A1](f: E => E1, g: A => A1): ExitResult[E1, A1] = leftMap(f).map(g)
 
   final def zip[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
@@ -59,6 +58,11 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
       case Succeeded(v)  => completed(v)
       case Failed(cause) => terminated(cause)
     }
+
+  final def causeOption: Option[Cause[E]] = self match {
+    case Succeeded(_)  => None
+    case Failed(cause) => Some(cause)
+  }
 }
 
 object ExitResult extends Serializable {
