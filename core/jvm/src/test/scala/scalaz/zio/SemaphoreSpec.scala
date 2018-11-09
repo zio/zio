@@ -71,7 +71,7 @@ class SemaphoreSpec extends AbstractRTSSpec {
     unsafeRun(for {
       s <- Semaphore(n)
       _ <- s.withPermit(s.release).timeout(1.milli).attempt
-      permits <- s.release *> IO.sleep(10.millis) *> s.available
+      permits <- s.release *> IO.sleep(10.millis) *> s.count
     }yield permits must_=== 1L)
   }
 
