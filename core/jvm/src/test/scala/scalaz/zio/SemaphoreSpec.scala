@@ -59,20 +59,20 @@ class SemaphoreSpec extends AbstractRTSSpec {
 
   def e6 = {
     val n = 1L
-        unsafeRun(for {
-          s <- Semaphore(n)
-          _ <- s.acquireN(2).timeout(1.milli).attempt
-          permits <-  s.release *> IO.sleep(10.millis) *> s.count
-        } yield permits) must_=== 2
+    unsafeRun(for {
+      s       <- Semaphore(n)
+      _       <- s.acquireN(2).timeout(1.milli).attempt
+      permits <- s.release *> IO.sleep(10.millis) *> s.count
+    } yield permits) must_=== 2
   }
 
   def e7 = {
     val n = 0L
     unsafeRun(for {
-      s <- Semaphore(n)
-      _ <- s.withPermit(s.release).timeout(1.milli).attempt
+      s       <- Semaphore(n)
+      _       <- s.withPermit(s.release).timeout(1.milli).attempt
       permits <- s.release *> IO.sleep(10.millis) *> s.count
-    }yield permits must_=== 1L)
+    } yield permits must_=== 1L)
   }
 
   def offsettingReleasesAcquires(

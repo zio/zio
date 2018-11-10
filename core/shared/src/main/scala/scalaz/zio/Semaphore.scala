@@ -10,8 +10,6 @@ import scala.collection.immutable.{ Queue => IQueue }
 
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
-  type AcquireTasks = (IO[Nothing, Unit], IO[Nothing, Unit])
-
   final def count: IO[Nothing, Long] = state.get.map(count_)
 
   final def available: IO[Nothing, Long] = state.get.map {
@@ -24,11 +22,17 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   final def release: IO[Nothing, Unit] = releaseN(1)
 
   final def withPermit[E, A](task: IO[E, A]): IO[E, A] =
-    IO.bracket0[E, AcquireTasks, A](prepare(1L))(cleanup) { case (acquire, _) => acquire *> task }
+    IO.bracket0[E, AcquireTasks, A](prepare(1L))(cleanup) { _._1 *> task }
 
-  final def acquireN(requested: Long): IO[Nothing, Unit] =
-    assertNonNegative(requested) *> IO.bracket0[Nothing, AcquireTasks, Unit](prepare(requested))(cleanup)(_._1)
+  /**
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
+  final def acquireN(n: Long): IO[Nothing, Unit] =
+    assertNonNegative(n) *> IO.bracket0[Nothing, AcquireTasks, Unit](prepare(n))(cleanup)(_._1)
 
+  /**
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
   final private def prepare(n: Long): IO[Nothing, AcquireTasks] = {
     def restore(p: Promise[Nothing, Unit], n: Long): IO[Nothing, Unit] =
       IO.flatten(state.modify {
@@ -61,9 +65,9 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
       io: IO[Nothing, Boolean],
       st: Option[(Entry, IQueue[Entry])]
     ): (IO[Nothing, Boolean], State) = (n, st) match {
-      case (n, None)                          => io -> Right(n)
-      case (n, Some(((p2, n2), q))) if n < n2 => io -> Left(q :+ (p2 -> (n2 - n)))
-      case (n, Some(((p2, n2), q)))           => loop(n - n2, io *> p2.complete(()), q.dequeueOption)
+      case (_, None)                          => io -> Right(n)
+      case (_, Some(((p2, n2), q))) if n < n2 => io -> Left(q :+ (p2 -> (n2 - n)))
+      case (_, Some(((p2, n2), q)))           => loop(n - n2, io *> p2.complete(()), q.dequeueOption)
     }
 
     val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, Boolean], State) = {
@@ -89,6 +93,8 @@ object Semaphore extends Serializable {
 }
 
 private object internals {
+
+  type AcquireTasks = (IO[Nothing, Unit], IO[Nothing, Unit])
 
   type Entry = (Promise[Nothing, Unit], Long)
 
