@@ -29,7 +29,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     catch exceptions thrown by lazy block                $catchBlockExceptionFiber
     return an `IO` that fails if `Future` fails          $propagateExceptionFromFutureFiber
     return an `IO` that produces the value from `Future` $produceValueFromFutureFiber
-  `Future.toIO` must
+  `Future.unsafeToIO` must
     convert a completed `Future` to an IO                $convertCompletedFutureToIO
     convert a failed Future to an failed IO              $convertFailedFutureToIO
   `Future.toFiber` must
@@ -139,7 +139,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   val convertCompletedFutureToIO = {
     def future: Future[Int] = Future.successful(42)
-    unsafeRun(future.toIO) must_=== 42
+    unsafeRun(future.unsafeToIO) must_=== 42
   }
 
   val convertCompletedFutureToFiber = {
@@ -149,7 +149,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   val convertFailedFutureToIO = {
     def future: Future[Int] = Future.failed(new Exception("fast failing"))
-    unsafeRun(future.toIO) must throwA[Exception](message = "fast failing")
+    unsafeRun(future.unsafeToIO) must throwA[Exception](message = "fast failing")
   }
 
   val convertFailedFutureToFiber = {
