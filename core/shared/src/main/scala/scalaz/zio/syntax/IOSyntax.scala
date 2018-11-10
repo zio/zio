@@ -1,4 +1,5 @@
 package scalaz.zio.syntax
+import scalaz.zio.ExitResult.Cause
 import scalaz.zio.{ Fiber, IO }
 
 object IOSyntax {
@@ -24,7 +25,7 @@ object IOSyntax {
     def absolved: IO[E, A] = IO.absolve(io)
   }
 
-  final class IOUnsandboxedSyntax[E, A](val io: IO[Either[List[Throwable], E], A]) extends AnyVal {
+  final class IOUnsandboxedSyntax[E, A](val io: IO[Cause[E], A]) extends AnyVal {
     def unsandboxed: IO[E, A] = IO.unsandbox(io)
   }
 
