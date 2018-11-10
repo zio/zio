@@ -25,14 +25,14 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     IO.bracket0[E, AcquireTasks, A](prepare(1L))(cleanup) { _._1 *> task }
 
   /**
-    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
-    */
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
   final def acquireN(n: Long): IO[Nothing, Unit] =
     assertNonNegative(n) *> IO.bracket0[Nothing, AcquireTasks, Unit](prepare(n))(cleanup)(_._1)
 
   /**
-    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
-    */
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
   final private def prepare(n: Long): IO[Nothing, AcquireTasks] = {
     def restore(p: Promise[Nothing, Unit], n: Long): IO[Nothing, Unit] =
       IO.flatten(state.modify {
@@ -56,15 +56,15 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   final private def cleanup[E, A](ops: AcquireTasks, res: ExitResult[E, A]): IO[Nothing, Unit] =
     res match {
       case ExitResult.Failed(_) => ops._2
-      case _                        => IO.unit
+      case _                    => IO.unit
     }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
     @tailrec def loop(
-                       n: Long,
-                       io: IO[Nothing, Boolean],
-                       st: Option[(Entry, IQueue[Entry])]
-                     ): (IO[Nothing, Boolean], State) = (n, st) match {
+      n: Long,
+      io: IO[Nothing, Boolean],
+      st: Option[(Entry, IQueue[Entry])]
+    ): (IO[Nothing, Boolean], State) = (n, st) match {
       case (_, None)                          => io -> Right(n)
       case (_, Some(((p2, n2), q))) if n < n2 => io -> Left(q :+ (p2 -> (n2 - n)))
       case (_, Some(((p2, n2), q)))           => loop(n - n2, io *> p2.complete(()), q.dequeueOption)
