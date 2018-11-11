@@ -165,15 +165,19 @@ class Queue[A] private (
   }
 
   /**
-   * Adds a shutdown hook that will be executed when `shutdown` is called.
-   * If the queue is already shutdown, the hook will be executed immediately.
+   * Adds a shutdown hook that suspends until `shutdown` is called.
+   * The hook will resume immediately when the queue is already shutdown.
    */
-  final def onShutdown(io: IO[Nothing, Unit]): IO[Nothing, Unit] =
-    IO.flatten(ref.modify {
-      case Deficit(takers, hook)         => IO.unit -> Deficit(takers, hook *> io)
-      case Surplus(queue, putters, hook) => IO.unit -> Surplus(queue, putters, hook *> io)
-      case state @ Shutdown              => io      -> state
-    })
+  final def awaitShutdown(io: IO[Nothing, Unit]): IO[Nothing, Unit] =
+    Promise
+      .make[Nothing, Unit]
+      .flatMap(promise => {
+        val hook = promise.complete(())
+        IO.flatten(ref.modifySome(hook *> io) {
+          case Deficit(takers, hook)         => IO.unit -> Deficit(takers, hook *> io)
+          case Surplus(queue, putters, hook) => IO.unit -> Surplus(queue, putters, hook *> io)
+        }) *> promise.get
+      })
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
