@@ -112,7 +112,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     sync forever                            $testInterruptSyncForever
   """
 
-  import DurationConversions._
+  import scalaz.zio.duration._
 
   def testPoint =
     unsafeRun(IO.point(1)) must_=== 1
@@ -370,14 +370,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       log = makeLogger(ref)
       f <- IO
             .bracket(
-              IO.bracket(IO.unit)(_ => log("start 1") *> IO.sleep(10.ms) *> log("release 1"))(
+              IO.bracket(IO.unit)(_ => log("start 1") *> IO.sleep(10.millis) *> log("release 1"))(
                 _ => IO.unit
               )
-            )(_ => log("start 2") *> IO.sleep(10.ms) *> log("release 2"))(_ => IO.unit)
+            )(_ => log("start 2") *> IO.sleep(10.millis) *> log("release 2"))(_ => IO.unit)
             .fork
-      _ <- (ref.get <* IO.sleep(1.ms)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
+      _ <- (ref.get <* IO.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
       _ <- f.interrupt
-      _ <- (ref.get <* IO.sleep(1.ms)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
+      _ <- (ref.get <* IO.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
       l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
@@ -388,7 +388,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Int]
       s <- (p1.complete(()) *> p2.get)
-            .ensuring(r.set(true).void.delay(10.ms))
+            .ensuring(r.set(true).void.delay(10.millis))
             .fork
       _    <- p1.get
       _    <- s.interrupt
@@ -468,7 +468,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   }
 
   def testSleepZeroReturns =
-    unsafeRun(IO.sleep(1.ns)) must_=== ((): Unit)
+    unsafeRun(IO.sleep(1.nanos)) must_=== ((): Unit)
 
   def testForkJoinIsId =
     unsafeRun(IO.point[Int](42).fork.flatMap(_.join)) must_=== 42
@@ -584,8 +584,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   def testSupervise = {
     var counter = 0
     unsafeRun((for {
-      _ <- (IO.sleep(200.ms) *> IO.unit).fork
-      _ <- (IO.sleep(400.ms) *> IO.unit).fork
+      _ <- (IO.sleep(200.millis) *> IO.unit).fork
+      _ <- (IO.sleep(400.millis) *> IO.unit).fork
     } yield ()).supervised { fs =>
       fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt *> IO.sync(counter += 1))
     })
@@ -608,12 +608,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24))).attempt) must_=== Right(24)
 
   def testRaceAllOfFailures =
-    unsafeRun(IO.raceAll[Int, Nothing](IO.fail(24).delay(10.ms), List(IO.fail(24))).attempt) must_=== Left(
+    unsafeRun(IO.raceAll[Int, Nothing](IO.fail(24).delay(10.millis), List(IO.fail(24))).attempt) must_=== Left(
       24
     )
 
   def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24).delay(1.ms))).attempt) must_=== Right(
+    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24).delay(1.millis))).attempt) must_=== Right(
       24
     )
 
@@ -677,7 +677,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     unsafeRun(
       for {
         f <- test.fork
-        c <- (IO.sync[Int](c.get) <* IO.sleep(1.ms)).repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
+        c <- (IO.sync[Int](c.get) <* IO.sleep(1.millis)).repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
       } yield c must be_>=(1)
     )
 

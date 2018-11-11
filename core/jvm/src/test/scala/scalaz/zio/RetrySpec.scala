@@ -1,6 +1,7 @@
 package scalaz.zio
 
 import org.specs2.ScalaCheck
+import scalaz.zio.duration._
 
 class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "RetrySpec".title ^ s2"""
@@ -54,15 +55,15 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val io = IO.sync[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
-    val strategy = Schedule.spaced(200.ms).whileInput[String](_ == "KeepTryingError")
+    val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
-    val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.ms, _)))
+    val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
     retried must_=== expected
   }
 
   def fixedWithErrorPredicateJittered = {
     var i                  = 0
-    val duration: Duration = 200.ms
+    val duration: Duration = 200.millis
     val io = IO.sync[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }

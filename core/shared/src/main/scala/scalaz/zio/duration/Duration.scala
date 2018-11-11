@@ -34,7 +34,7 @@ final object Duration {
     }
 
     def *(factor: Double): Duration =
-      if (!factor.isInfinite && !factor.isNaN) new Finite((nanos * factor).round)
+      if (!factor.isInfinite && !factor.isNaN) Finite((nanos * factor).round)
       else Infinity
 
     def compare(other: Duration) = other match {
