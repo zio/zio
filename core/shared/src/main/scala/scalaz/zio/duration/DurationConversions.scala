@@ -7,10 +7,10 @@ trait DurationConversions extends Any {
 
   protected def asDuration(unit: TimeUnit): Duration
 
-  def nanoseconds  = asDuration(NANOSECONDS)
-  def nanos        = nanoseconds
-  def nanosecond   = nanoseconds
-  def nano         = nanoseconds
+  def nanoseconds = asDuration(NANOSECONDS)
+  def nanos       = nanoseconds
+  def nanosecond  = nanoseconds
+  def nano        = nanoseconds
 
   def microseconds = asDuration(MICROSECONDS)
   def micros       = microseconds
@@ -22,16 +22,16 @@ trait DurationConversions extends Any {
   def millisecond  = milliseconds
   def milli        = milliseconds
 
-  def seconds      = asDuration(SECONDS)
-  def second       = seconds
+  def seconds = asDuration(SECONDS)
+  def second  = seconds
 
-  def minutes      = asDuration(MINUTES)
-  def minute       = minutes
+  def minutes = asDuration(MINUTES)
+  def minute  = minutes
 
-  def hours        = asDuration(HOURS)
-  def hour         = hours
+  def hours = asDuration(HOURS)
+  def hour  = hours
 
-  def days         = asDuration(DAYS)
-  def day          = days
+  def days = asDuration(DAYS)
+  def day  = days
 
 }

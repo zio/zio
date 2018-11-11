@@ -78,7 +78,7 @@ val jitteredExp = Schedule.exponential(10.milliseconds).jittered
 Modifies the delay of a schedule:
 
 ```tut:silent
-val boosted = Schedule.spaced(1.secons).delayed(_ + 100.milliseconds)
+val boosted = Schedule.spaced(1.second).delayed(_ + 100.milliseconds)
 ```
 
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy:
