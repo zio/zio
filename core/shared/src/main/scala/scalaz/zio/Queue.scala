@@ -165,17 +165,18 @@ class Queue[A] private (
   }
 
   /**
-   * Adds a shutdown hook that suspends until `shutdown` is called.
+   * Receives a notification that the queue is shutdown.
    * The hook will resume immediately when the queue is already shutdown.
    */
-  final def awaitShutdown(io: IO[Nothing, Unit]): IO[Nothing, Unit] =
+  final def awaitShutdown: IO[Nothing, Unit] =
     Promise
       .make[Nothing, Unit]
       .flatMap(promise => {
-        val hook = promise.complete(())
-        IO.flatten(ref.modifySome(hook *> io) {
-          case Deficit(takers, hook)         => IO.unit -> Deficit(takers, hook *> io)
-          case Surplus(queue, putters, hook) => IO.unit -> Surplus(queue, putters, hook *> io)
+        val io = promise.complete(())
+        IO.flatten(ref.modify {
+          case Deficit(takers, hook)         => IO.unit -> Deficit(takers, hook <* io)
+          case Surplus(queue, putters, hook) => IO.unit -> Surplus(queue, putters, hook <* io)
+          case state @ Shutdown              => io.void -> state
         }) *> promise.get
       })
 
