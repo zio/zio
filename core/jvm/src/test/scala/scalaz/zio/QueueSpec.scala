@@ -724,7 +724,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     for {
       queue <- Queue.bounded[Int](3)
       p     <- Promise.make[Nothing, Boolean]
-      _     <- queue.awaitShutdown(p.complete(true).void).fork
+      _     <- (queue.awaitShutdown *> p.complete(true)).fork
       _     <- queue.shutdown
       res   <- p.get
     } yield res must beTrue
@@ -735,8 +735,8 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue <- Queue.bounded[Int](3)
       p1    <- Promise.make[Nothing, Boolean]
       p2    <- Promise.make[Nothing, Boolean]
-      _     <- queue.awaitShutdown(p1.complete(true).void).fork
-      _     <- queue.awaitShutdown(p2.complete(true).void).fork
+      _     <- (queue.awaitShutdown *> p1.complete(true)).fork
+      _     <- (queue.awaitShutdown *> p2.complete(true)).fork
       _     <- queue.shutdown
       res1  <- p1.get
       res2  <- p2.get
@@ -748,7 +748,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       queue <- Queue.bounded[Int](3)
       _     <- queue.shutdown
       p     <- Promise.make[Nothing, Boolean]
-      _     <- queue.awaitShutdown(p.complete(true).void).fork
+      _     <- (queue.awaitShutdown *> p.complete(true)).fork
       res   <- p.get
     } yield res must beTrue
   )
