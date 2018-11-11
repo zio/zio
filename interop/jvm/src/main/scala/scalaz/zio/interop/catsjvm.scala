@@ -2,7 +2,6 @@ package scalaz.zio
 package interop
 
 import cats.effect.{Concurrent, ContextShift, Effect, ExitCase}
-import cats.syntax.functor._
 import cats.{effect, _}
 import scalaz.zio.ExitResult.Cause
 
@@ -35,8 +34,8 @@ abstract class CatsInstances extends CatsInstances1 {
       zioClock.sleep(duration.length, duration.unit)
   }
 
-  implicit val taskEffectInstances: Concurrent[Task] with Effect[Task] with SemigroupK[Task] =
-    new CatsConcurrent
+  implicit val taskEffectInstances: effect.ConcurrentEffect[Task] with SemigroupK[Task] =
+    new CatsConcurrentEffect
 
   implicit val taskParallelInstance: Parallel[Task, Task.Par] =
     parallelInstance(taskEffectInstances)
@@ -59,11 +58,23 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
   override def runCancelable[A](fa: Task[A])(
     cb: Either[scala.Throwable, A] => effect.IO[Unit]
   ): effect.SyncIO[effect.CancelToken[Task]] =
-    effect.SyncIO {
-      unsafeRunAsync(fa) { exit =>
-        cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())
+    MonadError[effect.SyncIO, Throwable].rethrow {
+      effect.SyncIO {
+        exitResultToEither {
+          this.unsafeRunSync {
+            fa.fork.flatMap { fiber =>
+              fiber.observe.flatMap(exit => IO.sync(cb(exitResultToEither[A](exit)))).fork *>
+                IO.now(fiber.interrupt)
+            }
+          }
+        }
       }
-    }.void
+    }
+
+  override def liftIO[A](ioa: effect.IO[A]): Task[A] =
+    IO.sync(System.out println "liftIO running") *>
+      super.liftIO(ioa)
+        .peek(_ => IO.sync(System.out println "liftIO ran"))
 }
 
 private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
@@ -93,18 +104,13 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
           System.out println s"cancelable error $e"
           throw e
       }
-      System.out println "cancelable ran"
-
-      scalaz.zio.Async.maybeLaterIO { () =>
-      IO.sync(System.out println "cancel token running") *>
+      val token0: Async[Nothing, A] = Async.maybeLaterIO { () =>
+        IO.sync(System.out println "cancel token running") *>
         token.catchAll(IO.terminate)
       }
-    }.peek(_ => Task(System.out println "cancelable outer ran"))
-
-  override def liftIO[A](ioa: effect.IO[A]): Task[A] =
-    IO.sync(System.out println "liftIO running") *>
-      super.liftIO(ioa)
-        .peek(_ => IO.sync(System.out println "liftIO ran"))
+      System.out println "cancelable ran"
+      token0
+    }.peek(_ => Task(System.out println "cancelable finished"))
 
   override def race[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
     racePair(fa, fb).flatMap {
@@ -132,7 +138,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
       ).supervised { fibers =>
         for {
           finished <- finished.get
-          _ <- IO.sync(System.out println s"On race interrupt, race got child fibers: ${fibers.size}, $finished")
+          _ <- IO.sync(System.out println s"On race interrupt, race got child fibers: ${fibers.size}, notCancel=$finished")
           _ <- IO.when(!finished)(Fiber.interruptAll(fibers))
         } yield ()
       }
@@ -202,10 +208,10 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     fa: Task[A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
     effect.SyncIO {
-      unsafeRunAsync(fa) { exit =>
+      this.unsafeRunAsync(fa) { exit =>
         cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())
       }
-    }.void
+    }
 
   override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
     IO.async { kk: Callback[Throwable, A] =>
@@ -236,12 +242,14 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       Task(System.out println "acquire running") *>
         acquire.peek(_ => Task(System.out println "acquire ran"))
     } {
-      release(_)
-        .peek(_ => Task(System.out println "release ran"))
+      a =>
+      (Task(System.out println "release running") *>
+      release(a)
+        .peek(_ => Task(System.out println "release ran")))
         .catchAll(IO.terminate)
     } { a =>
       Task(System.out println "use running") *>
-        use(a).peek(_ => Task(System.out println "use ran"))
+        use(a).run.flatMap(r => Task(System.out println s"use ran with $r") *> r.fold(IO.now, IO.fail0))
     }
 
   override def bracketCase[A, B](
@@ -252,12 +260,13 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
         acquire.peek(_ => Task(System.out println "acquire ran"))
     } { (a, exitResult) =>
       val exitCase = exitResultToExitCase(exitResult)
+      (Task(System.out println "release running") *>
       release(a, exitCase)
-        .peek(_ => Task(System.out println "release ran"))
+        .peek(_ => Task(System.out println "release ran")))
         .catchAll(IO.terminate)
     } { a =>
       Task(System.out println "use running") *>
-        use(a).peek(_ => Task(System.out println "use ran"))
+        use(a).run.flatMap(r => Task(System.out println s"use ran with $r") *> r.fold(IO.now, IO.fail0))
     }
 
   override def uncancelable[A](fa: Task[A]): Task[A] =
