@@ -6,15 +6,7 @@ import scala.collection.immutable.{ Queue => IQueue }
 import Queue.internal._
 
 /**
- * A `Queue` is a lightweight, asynchronous queue. This implementation is
- * naive, if functional, and could benefit from significant optimization.
- *
- * TODO:
- *
- * 1. Investigate using a faster option than `Queue`, because `Queue` has
- *    `O(n)` `length` method.
- * 2. Benchmark to see how slow this implementation is and if there are any
- *    easy ways to improve performance.
+ *  A `Queue[A]` is a lightweight, asynchronous queue for values of type `A`.
  */
 class Queue[A] private (
   capacity: Option[Int],
@@ -23,156 +15,9 @@ class Queue[A] private (
 ) extends Serializable {
 
   /**
-   * Retrieves the size of the queue, which is equal to the number of elements
-   * in the queue. This may be negative if fibers are suspended waiting for
-   * elements to be added to the queue.
-   */
-  final val size: IO[Nothing, Int] = ref.get.flatMap(_.size)
-
-  /**
    * Places one value in the queue.
    */
   final def offer(a: A): IO[Nothing, Boolean] = offerAll(List(a))
-
-  /**
-   * Removes all the values in the queue and returns the list of the values. If the queue
-   * is empty returns empty list.
-   */
-  final val takeAll: IO[Nothing, List[A]] =
-    IO.flatten(ref.modify[IO[Nothing, List[A]]] {
-      case Surplus(values, putters, hook) =>
-        val (newState, promises) = moveNPutters(Surplus(IQueue.empty, putters, hook), values.size)
-        (promises *> IO.point(values.toList), newState)
-      case state @ Deficit(_, _) => (IO.point(List.empty[A]), state)
-      case state @ Shutdown      => (IO.interrupt, state)
-    })
-
-  final private def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
-    val (newSurplus, _, completedPutters) =
-      surplus.putters.foldLeft((Surplus(surplus.queue, IQueue.empty, surplus.shutdownHook), n, IO.unit)) {
-        case ((surplus, 0, io), p) =>
-          (Surplus(surplus.queue, surplus.putters.enqueue(p), surplus.shutdownHook), 0, io)
-        case ((surplus, cpt, io), (values, promise)) =>
-          val (add, rest) = values.splitAt(cpt)
-          if (rest.isEmpty)
-            (
-              Surplus(
-                surplus.queue.enqueue(add.toList),
-                surplus.putters,
-                surplus.shutdownHook
-              ),
-              cpt - add.size, // if we have more elements in putters we can complete the next elements until cpt = 0
-              io *> promise.complete(true).void
-            )
-          else
-            (
-              Surplus(
-                surplus.queue.enqueue(add.toList),
-                surplus.putters.enqueue((rest, promise)),
-                surplus.shutdownHook
-              ),
-              0,
-              io
-            )
-      }
-    (newSurplus, completedPutters)
-  }
-
-  /**
-   * Removes the oldest value in the queue. If the queue is empty, this will
-   * return a computation that resumes when an item has been added to the queue.
-   */
-  final val take: IO[Nothing, A] = {
-
-    val acquire: (Promise[Nothing, A], State[A]) => (IO[Nothing, Boolean], State[A]) = {
-      case (p, Deficit(takers, hook)) => (IO.now(false), Deficit(takers.enqueue(p), hook))
-      case (p, Surplus(values, putters, hook)) =>
-        strategy match {
-          case Sliding | Dropping if capacity.exists(_ < 1) =>
-            (IO.never, Surplus(IQueue.empty, putters, hook))
-          case _ =>
-            values.dequeueOption match {
-              case None if putters.isEmpty =>
-                (IO.now(false), Deficit(IQueue.empty.enqueue(p), hook))
-              case None =>
-                val (newSurplus, promise) =
-                  moveNPutters(Surplus(values, putters, hook), 1)
-                newSurplus.queue.dequeueOption match {
-                  case None => (promise *> IO.now(false), newSurplus)
-                  case Some((a, values)) =>
-                    (
-                      promise *> p.complete(a),
-                      Surplus(values, newSurplus.putters, hook)
-                    )
-                }
-              case Some((a, values)) =>
-                val (newSurplus, promise) =
-                  moveNPutters(Surplus(values, putters, hook), 1)
-                (promise *> p.complete(a), newSurplus)
-
-            }
-        }
-      case (p, state @ Shutdown) => (p.interrupt, state)
-    }
-
-    val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
-      case (_, p) => p.poll.void <> removeTaker(p)
-    }
-
-    Promise.bracket[Nothing, State[A], A, Boolean](ref)(acquire)(release)
-
-  }
-
-  /**
-   * Takes up to max number of values in the queue.
-   */
-  final def takeUpTo(max: Int): IO[Nothing, List[A]] =
-    IO.flatten(ref.modify[IO[Nothing, List[A]]] {
-      case Surplus(values, putters, hook) =>
-        val (q1, q2)             = values.splitAt(max)
-        val (newState, promises) = moveNPutters(Surplus(q2, putters, hook), q1.size)
-        (promises *> IO.point(q1.toList), newState)
-      case state @ Deficit(_, _) => (IO.now(Nil), state)
-      case state @ Shutdown      => (IO.interrupt, state)
-    })
-
-  /**
-   * Interrupts any fibers that are suspended on `offer` or `take`.
-   * Future calls to `offer*` and `take*` will be interrupted immediately.
-   */
-  final val shutdown: IO[Nothing, Unit] =
-    IO.flatten(ref.modify {
-      case Surplus(_, putters, hook) if putters.nonEmpty =>
-        val forked = IO
-          .forkAll[Nothing, Boolean](putters.toList.map {
-            case (_, p) => p.interrupt
-          })
-          .flatMap(_.join)
-        (forked *> hook, Shutdown)
-      case Deficit(takers, hook) if takers.nonEmpty =>
-        val forked = IO
-          .forkAll[Nothing, Boolean](
-            takers.toList.map(p => p.interrupt)
-          )
-          .flatMap(_.join)
-        (forked *> hook, Shutdown)
-      case Shutdown => (IO.unit, Shutdown)
-      case state    => (state.shutdownHook, Shutdown)
-    })
-
-  final private def removePutter(putter: Promise[Nothing, Boolean]): IO[Nothing, Unit] =
-    ref.update {
-      case Surplus(values, putters, hook) =>
-        Surplus(values, putters.filterNot { case (_, p) => p == putter }, hook)
-      case d => d
-    }.void
-
-  final private def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] =
-    ref.update {
-      case Deficit(takers, hook) =>
-        Deficit(takers.filterNot(_ == taker), hook)
-      case d => d
-    }.void
 
   /**
    * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and returns always true
@@ -329,6 +174,157 @@ class Queue[A] private (
       case Surplus(queue, putters, hook) => IO.unit -> Surplus(queue, putters, hook *> io)
       case state @ Shutdown              => io      -> state
     })
+
+  /**
+   * Retrieves the size of the queue, which is equal to the number of elements
+   * in the queue. This may be negative if fibers are suspended waiting for
+   * elements to be added to the queue.
+   */
+  final val size: IO[Nothing, Int] = ref.get.flatMap(_.size)
+
+  /**
+   * Interrupts any fibers that are suspended on `offer` or `take`.
+   * Future calls to `offer*` and `take*` will be interrupted immediately.
+   */
+  final val shutdown: IO[Nothing, Unit] =
+    IO.flatten(ref.modify {
+      case Surplus(_, putters, hook) =>
+        if (putters.nonEmpty) {
+          val forked = IO
+            .forkAll[Nothing, Boolean](putters.toList.map {
+              case (_, p) => p.interrupt
+            })
+            .flatMap(_.join)
+          (forked *> hook, Shutdown)
+        } else (hook, Shutdown)
+      case Deficit(takers, hook) =>
+        if (takers.nonEmpty) {
+          val forked = IO
+            .forkAll[Nothing, Boolean](
+              takers.toList.map(p => p.interrupt)
+            )
+            .flatMap(_.join)
+          (forked *> hook, Shutdown)
+        } else (hook, Shutdown)
+      case Shutdown => (IO.unit, Shutdown)
+    })
+
+  /**
+   * Removes the oldest value in the queue. If the queue is empty, this will
+   * return a computation that resumes when an item has been added to the queue.
+   */
+  final val take: IO[Nothing, A] = {
+
+    val acquire: (Promise[Nothing, A], State[A]) => (IO[Nothing, Boolean], State[A]) = {
+      case (p, Deficit(takers, hook)) => (IO.now(false), Deficit(takers.enqueue(p), hook))
+      case (p, Surplus(values, putters, hook)) =>
+        strategy match {
+          case Sliding | Dropping if capacity.exists(_ < 1) =>
+            (IO.never, Surplus(IQueue.empty, putters, hook))
+          case _ =>
+            values.dequeueOption match {
+              case None if putters.isEmpty =>
+                (IO.now(false), Deficit(IQueue.empty.enqueue(p), hook))
+              case None =>
+                val (newSurplus, promise) =
+                  moveNPutters(Surplus(values, putters, hook), 1)
+                newSurplus.queue.dequeueOption match {
+                  case None => (promise *> IO.now(false), newSurplus)
+                  case Some((a, values)) =>
+                    (
+                      promise *> p.complete(a),
+                      Surplus(values, newSurplus.putters, hook)
+                    )
+                }
+              case Some((a, values)) =>
+                val (newSurplus, promise) =
+                  moveNPutters(Surplus(values, putters, hook), 1)
+                (promise *> p.complete(a), newSurplus)
+
+            }
+        }
+      case (p, state @ Shutdown) => (p.interrupt, state)
+    }
+
+    val release: (Boolean, Promise[Nothing, A]) => IO[Nothing, Unit] = {
+      case (_, p) => p.poll.void <> removeTaker(p)
+    }
+
+    Promise.bracket[Nothing, State[A], A, Boolean](ref)(acquire)(release)
+
+  }
+
+  /**
+   * Removes all the values in the queue and returns the list of the values. If the queue
+   * is empty returns empty list.
+   */
+  final val takeAll: IO[Nothing, List[A]] =
+    IO.flatten(ref.modify[IO[Nothing, List[A]]] {
+      case Surplus(values, putters, hook) =>
+        val (newState, promises) = moveNPutters(Surplus(IQueue.empty, putters, hook), values.size)
+        (promises *> IO.point(values.toList), newState)
+      case state @ Deficit(_, _) => (IO.point(List.empty[A]), state)
+      case state @ Shutdown      => (IO.interrupt, state)
+    })
+
+  /**
+   * Takes up to max number of values in the queue.
+   */
+  final def takeUpTo(max: Int): IO[Nothing, List[A]] =
+    IO.flatten(ref.modify[IO[Nothing, List[A]]] {
+      case Surplus(values, putters, hook) =>
+        val (q1, q2)             = values.splitAt(max)
+        val (newState, promises) = moveNPutters(Surplus(q2, putters, hook), q1.size)
+        (promises *> IO.point(q1.toList), newState)
+      case state @ Deficit(_, _) => (IO.now(Nil), state)
+      case state @ Shutdown      => (IO.interrupt, state)
+    })
+
+  private final def moveNPutters(surplus: Surplus[A], n: Int): (Surplus[A], IO[Nothing, Unit]) = {
+    val (newSurplus, _, completedPutters) =
+      surplus.putters.foldLeft((Surplus(surplus.queue, IQueue.empty, surplus.shutdownHook), n, IO.unit)) {
+        case ((surplus, 0, io), p) =>
+          (Surplus(surplus.queue, surplus.putters.enqueue(p), surplus.shutdownHook), 0, io)
+        case ((surplus, cpt, io), (values, promise)) =>
+          val (add, rest) = values.splitAt(cpt)
+          if (rest.isEmpty)
+            (
+              Surplus(
+                surplus.queue.enqueue(add.toList),
+                surplus.putters,
+                surplus.shutdownHook
+              ),
+              cpt - add.size, // if we have more elements in putters we can complete the next elements until cpt = 0
+              io *> promise.complete(true).void
+            )
+          else
+            (
+              Surplus(
+                surplus.queue.enqueue(add.toList),
+                surplus.putters.enqueue((rest, promise)),
+                surplus.shutdownHook
+              ),
+              0,
+              io
+            )
+      }
+    (newSurplus, completedPutters)
+  }
+
+  private final def removePutter(putter: Promise[Nothing, Boolean]): IO[Nothing, Unit] =
+    ref.update {
+      case Surplus(values, putters, hook) =>
+        Surplus(values, putters.filterNot { case (_, p) => p == putter }, hook)
+      case d => d
+    }.void
+
+  private final def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] =
+    ref.update {
+      case Deficit(takers, hook) =>
+        Deficit(takers.filterNot(_ == taker), hook)
+      case d => d
+    }.void
+
 }
 
 object Queue {
@@ -360,7 +356,7 @@ object Queue {
    */
   final def unbounded[A]: IO[Nothing, Queue[A]] = createQueue(None, BackPressure)
 
-  private def createQueue[A](
+  private final def createQueue[A](
     capacity: Option[Int],
     strategy: SurplusStrategy
   ): IO[Nothing, Queue[A]] =
@@ -378,7 +374,6 @@ object Queue {
 
     sealed trait State[+A] {
       def size: IO[Nothing, Int]
-      def shutdownHook: IO[Nothing, Unit]
     }
 
     final case class Deficit[A](takers: IQueue[Promise[Nothing, A]], shutdownHook: IO[Nothing, Unit]) extends State[A] {
@@ -386,8 +381,7 @@ object Queue {
     }
 
     final case object Shutdown extends State[Nothing] {
-      def size: IO[Nothing, Int]          = IO.interrupt
-      def shutdownHook: IO[Nothing, Unit] = IO.unit
+      def size: IO[Nothing, Int] = IO.interrupt
     }
 
     final case class Surplus[A](
