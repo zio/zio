@@ -46,13 +46,13 @@ class RefMSpec extends AbstractRTSSpec {
 
     unsafeRun(
       for {
-        refM    <- RefM[State](Active)
+        refM   <- RefM[State](Active)
         value1 <- refM.updateSome { case Active => IO.now(Changed) }
         value2 <- refM.updateSome { case Closed => IO.now(Active) }
         value3 <- refM.updateSome {
-          case Active  => IO.now(Changed)
-          case Changed => IO.now(Closed)
-        }
+                   case Active  => IO.now(Changed)
+                   case Changed => IO.now(Closed)
+                 }
       } yield
         (value1 must beTheSameAs(Changed)) and (value2 must beTheSameAs(Changed)) and (value3 must beTheSameAs(Closed))
     )
