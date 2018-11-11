@@ -13,6 +13,7 @@ import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 import scala.util.{Failure, Success}
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
+class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with ExamplesTimeout {
 
   def is = s2"""
   RTS synchronous correctness
@@ -715,8 +716,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       fiber   <- async.fork
       _ <- IO.async[Throwable, Unit] { cb =>
         latch.future.onComplete {
-          case Success(a) => cb(ExitResult.Completed(a))
-          case Failure(t) => cb(ExitResult.Failed(t))
+          case Success(a) => cb(ExitResult.succeeded(a))
+          case Failure(t) => cb(ExitResult.checked(t))
         }(scala.concurrent.ExecutionContext.global)
       }
       _       <- fiber.interrupt
@@ -759,10 +760,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(for {
       pa <- Promise.make[Nothing, Int]
       pb <- Promise.make[Nothing, Int]
+
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
-      f <- (p1.complete(()).bracket_(pa.complete(1).void)(IO.never) race p2.complete(()).bracket_(pb.complete(2).void)(IO.never)).supervised.fork
+      f <- (
+        p1.complete(()).bracket_(pa.complete(1).void)(IO.never) race
+          p2.complete(()).bracket_(pb.complete(2).void)(IO.never)
+        ).supervised.fork
       _ <- p1.get *> p2.get
+
       _ <- f.interrupt
       r <- pa.get seq pb.get
     } yield r) must_=== (1 -> 2)
@@ -771,10 +777,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(for {
       pa <- Promise.make[Nothing, Int]
       pb <- Promise.make[Nothing, Int]
+
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
-      f <- (p1.complete(()).bracket_(pa.complete(1).void)(IO.never).fork *> p2.complete(()).bracket_(pb.complete(2).void)(IO.never).fork).supervised.fork
+      f <- (
+        p1.complete(()).bracket_(pa.complete(1).void)(IO.never).fork *>
+          p2.complete(()).bracket_(pb.complete(2).void)(IO.never).fork *>
+          IO.never
+        ).supervised.fork
       _ <- p1.get *> p2.get
+
       _ <- f.interrupt
       r <- pa.get seq pb.get
     } yield r) must_=== (1 -> 2)
@@ -797,7 +809,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.fail(42).race(IO.now(24)).attempt) must_=== Right(24)
 
   def testRaceChoosesWinnerInTerminate =
-    unsafeRun(IO.terminate.race(IO.now(24)).attempt) must_=== Right(24)
+    unsafeRun(IO.terminate(new Throwable{}).race(IO.now(24)).attempt) must_=== Right(24)
 
   def testRaceChoosesFailure =
     unsafeRun(IO.fail(42).race(IO.fail(42)).attempt) must_=== Left(42)
@@ -826,7 +838,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(for {
       s <- Semaphore(0L)
       effect <- Promise.make[Nothing, Int]
-      winner = s.acquire *> IO.async[Throwable, Unit](_(ExitResult.Completed(())))
+      winner = s.acquire *> IO.async[Throwable, Unit](_(ExitResult.succeeded(())))
       loser = IO.bracket(s.release)(_ => effect.complete(42).void)(_ => IO.never)
       race = winner raceBoth loser
       _ <- race.attempt
@@ -875,8 +887,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testTimeoutTerminate =
     unsafeRunSync(
-      IO.terminate(ExampleError).timeout[Option[Int]](None)(Some(_))(1.hour)
-    ) must_=== ExitResult.Terminated(List(ExampleError))
+      IO.terminate(ExampleError).timeout(1.hour): IO[Nothing, Option[Int]]
+    ) must_=== ExitResult.unchecked(ExampleError)
 
   def testDeadlockRegression = {
 
