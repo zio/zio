@@ -123,25 +123,14 @@ val res: IO[Nothing, Unit] = for {
 } yield ()
 ```
 
-You can optionally pass a list of `Throwable` to `shutdown` so that they are given back as interruption `causes` to the failing fibers.
-
-```tut:silent
-val res: IO[Nothing, Unit] = for {
-  queue <- Queue.bounded[Int](3)
-  f <- queue.take.fork
-  _ <- queue.shutdown(new Exception("fail1"), new Exception("fail2")) // will interrupt f with those 2 exceptions
-  _ <- f.join // will throw
-} yield ()
-```
-
-You can use `onShutdown` to register a hook that will be called when the queue is shut down. It is possible to register multiple hooks.
+You can use `awaitShutdown` to execute an action when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.
 ```tut:silent
 val res: IO[Nothing, Unit] = for {
   queue <- Queue.bounded[Int](3)
   p <- Promise.make[Nothing, Boolean]
-  _ <- queue.onShutdown(p.complete(true).void)
+  f <- queue.awaitShutdown.fork
   _ <- queue.shutdown
-  res <- p.get // will return true
+  _ <- f.join
 } yield ()
 ```
 
