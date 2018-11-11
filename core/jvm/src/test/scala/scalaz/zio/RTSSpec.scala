@@ -46,6 +46,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with ExamplesTi
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
     catch failing finalizers with fail      $testFailOfMultipleFailingFinalizers
     catch failing finalizers with terminate $testTerminateOfMultipleFailingFinalizers
+    run preserves interruption status       $testRunInterruptIsInterrupted
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -419,6 +420,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with ExamplesTi
       _    <- s.interrupt
       test <- r.get
     } yield test must_=== true)
+
+  def testRunInterruptIsInterrupted =
+    unsafeRun(for {
+      p <- Promise.make[Nothing, Unit]
+      f <- (p.complete(()) *> IO.never).run.fork
+      _ <- p.get
+      _ <- f.interrupt
+      test <- f.observe.map(_.causeOption.exists(_.isInterrupted))
+    } yield test) must_=== true
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
