@@ -3,9 +3,9 @@ package scalaz.zio
 
 import scala.annotation.switch
 import scala.concurrent.ExecutionContext
-import scalaz.zio.DurationConversions._
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.IO.Redeem
+import scalaz.zio.duration._
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -968,7 +968,7 @@ object IO extends Serializable {
    * Shifts execution to a thread in the default `ExecutionContext`.
    */
   final def shift: IO[Nothing, Unit] =
-    IO.sleep(0.s)
+    IO.sleep(0.seconds)
 
   /**
    * Shifts the operation to another execution context.
