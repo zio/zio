@@ -45,6 +45,12 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
     modify(a => f(a).map(a => (a, a)))
 
   /**
+    * Atomically modifies the `RefM` with the specified partial function.
+    * if the function is undefined in the current value it returns the old value without changing it.
+    */
+  final def updateSome(f: PartialFunction[A, IO[Nothing, A]]): IO[Nothing, A] =
+    modify(a => f.applyOrElse(a, (_: A) => IO.now(a)).map(a => (a, a)))
+  /**
    * Atomically modifies the `RefM` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
