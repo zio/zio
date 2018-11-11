@@ -89,25 +89,25 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make bounded queue `offer` some elements then `offerAll` elements exceeding the queue's capacity,
      the values should be in correct order ${upTo(3.seconds)(e35)}
     make a bounded queue of size 3, `take` a value in a fork, then `shutdown` the queue,
-     the fork should terminate ${upTo(3.seconds)(e36)}
+     the fork should be interrupted ${upTo(3.seconds)(e36)}
     make a sliding queue of size 1, `take` a value in a fork, then `shutdown` the queue,
       the fork should be interrupted ${upTo(3.seconds)(e37)}
-    make a bounded queue of size 1, `offer` a value twice, then `shutdown` the queue, the second fork should terminate ${upTo(
+    make a bounded queue of size 1, `offer` a value twice, then `shutdown` the queue, the second fork should be interrupted ${upTo(
       3.seconds
     )(e38)}
-    make a bounded queue of size 1, `shutdown` the queue, then `offer` an element, `offer` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then `offer` an element, `offer` should be interrupted ${upTo(
       3.seconds
     )(e39)}
-    make a bounded queue of size 1, `shutdown` the queue, then `take` an element, `take` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then `take` an element, `take` should be interrupted ${upTo(
       3.seconds
     )(e40)}
-    make a bounded queue of size 1, `shutdown` the queue, then `takeAll` elements, `takeAll` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then `takeAll` elements, `takeAll` should be interrupted ${upTo(
       3.seconds
     )(e41)}
-    make a bounded queue of size 1, `shutdown` the queue, then `takeUpTo` 1 element, `takeUpTo` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then `takeUpTo` 1 element, `takeUpTo` should be interrupted ${upTo(
       3.seconds
     )(e42)}
-    make a bounded queue of size 1, `shutdown` the queue, then get the `size`, `size` should terminate ${upTo(
+    make a bounded queue of size 1, `shutdown` the queue, then get the `size`, `size` should be interrupted ${upTo(
       3.seconds
     )(e43)}
     make a bounded queue, fill it with one offer waiting, calling `take` should free the waiting offer ${upTo(
