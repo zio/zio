@@ -4,13 +4,13 @@ package interop
 import java.io.{ByteArrayOutputStream, PrintStream}
 
 import cats.Eq
-import cats.effect.{Concurrent, ContextShift}
-import cats.effect.laws.ConcurrentLaws
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift}
+import cats.effect.laws.{ConcurrentEffectLaws, ConcurrentLaws}
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.laws.discipline.{ConcurrentTests, EffectTests, Parameters}
+import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests, EffectTests, Parameters}
 import cats.effect.laws.util.{TestContext, TestInstances}
 import cats.implicits._
-import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
+import cats.laws.discipline.{AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests}
 import cats.syntax.all._
 import org.scalacheck.{Arbitrary, Cogen}
 import org.scalatest.prop.Checkers
@@ -31,27 +31,27 @@ object ConcurrentTestsIO {
         override val contextShift: ContextShift[Task] = cs
 //        implicit val clock: Clock = Clock.Live
 
-        // FIXME: Not implemneted yet
+        // FIXME: Not implemented yet
         override def asyncFRegisterCanBeCancelled[A](a: A) =
           F.pure(a) <-> F.pure(a)
-
-        // FIXME: Impossible for ZIO to pass because of a lack of ExitCase.Canceled
-        override def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) =
-          F.pure(f(a, a)) <-> F.pure(f(a, a))
-
-        // FIXME: Impossible to pass for now because of .supervised being broken on race
-        override def raceCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) =
-          F.pure(f(a, b)) <-> F.pure(f(a, b))
-
-        // FIXME: Impossible to pass for now because of .supervised being broken on race
-        override def racePairCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) =
-          F.pure(f(a, b)) <-> F.pure(f(a, b))
       }
     }
 }
 
+object ConcurrentEffectTestsIO {
+  def apply()(implicit c: ConcurrentEffect[Task], cs: ContextShift[Task]): ConcurrentEffectTests[Task] =
+    new ConcurrentEffectTests[Task] {
+      def laws = new ConcurrentEffectLaws[Task] {
+        override val F: ConcurrentEffect[Task] = c
+        override val contextShift: ContextShift[Task] = cs
+//        implicit val clock: Clock = Clock.Live
 
-
+        // FIXME: Not implemented yet
+        override def asyncFRegisterCanBeCancelled[A](a: A) =
+          F.pure(a) <-> F.pure(a)
+      }
+    }
+}
 
 class catzSpec
     extends FunSuite
