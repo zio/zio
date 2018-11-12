@@ -55,6 +55,25 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
   }
 
   /**
+   * Atomically modifies the `Ref` with the specified partial function.
+   * if the function is undefined in the current value it returns the old value without changing it.
+   */
+  final def updateSome(pf: PartialFunction[A, A]): IO[Nothing, A] = IO.sync {
+    var loop    = true
+    var next: A = null.asInstanceOf[A]
+
+    while (loop) {
+      val current = value.get
+
+      next = pf.applyOrElse(current, (_: A) => current)
+
+      loop = !value.compareAndSet(current, next)
+    }
+
+    next
+  }
+
+  /**
    * Atomically modifies the `Ref` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
@@ -67,6 +86,29 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
       val current = value.get
 
       val tuple = f(current)
+
+      b = tuple._1
+
+      loop = !value.compareAndSet(current, tuple._2)
+    }
+
+    b
+  }
+
+  /**
+   * Atomically modifies the `Ref` with the specified partial function, which computes
+   * a return value for the modification if the function is defined in the current value
+   * otherwise it returns a default value.
+   * This is a more powerful version of `updateSome`.
+   */
+  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): IO[Nothing, B] = IO.sync {
+    var loop = true
+    var b: B = null.asInstanceOf[B]
+
+    while (loop) {
+      val current = value.get
+
+      val tuple = pf.applyOrElse(current, (_: A) => (default, current))
 
       b = tuple._1
 
