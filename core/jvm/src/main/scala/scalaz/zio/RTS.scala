@@ -3,9 +3,12 @@ package scalaz.zio
 
 import java.util.concurrent._
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
+
+import scalaz.zio.ExitResult.Cause
+import scalaz.zio.internal.RejectedExecutionHandlers
+
 import scala.annotation.{ switch, tailrec }
 import scala.concurrent.duration.Duration
-import scalaz.zio.ExitResult.Cause
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -167,6 +170,7 @@ private object RTS {
   final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Any] => IO[Nothing, Unit])
       extends Fiber[E, A] {
     import java.util.{ Collections, Set, WeakHashMap }
+
     import FiberStatus._
     import rts.{ MaxResumptionDepth, YieldMaxOpCount }
 
@@ -930,12 +934,21 @@ private object RTS {
         c2()
       }
 
+  /**
+   * Create a default [[RejectedExecutionHandler]] for [[RTS]], the default implementation
+   * will return one that always try to run the submitted [[Runnable]]. You could override
+   * this method to provide dedicated implementation for your user case.
+   * */
+  def newDefaultRejectedExecutionHandler: RejectedExecutionHandler =
+    RejectedExecutionHandlers.saneSafeRejectedExecutionHandler
+
   final def newDefaultThreadPool(): ExecutorService = {
-    val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-    val keepAliveTime = 1000L
-    val timeUnit      = TimeUnit.MILLISECONDS
-    val workQueue     = new LinkedBlockingQueue[Runnable]()
-    val threadFactory = new NamedThreadFactory("zio", true)
+    val corePoolSize             = Runtime.getRuntime.availableProcessors() * 2
+    val keepAliveTime            = 1000L
+    val timeUnit                 = TimeUnit.MILLISECONDS
+    val workQueue                = new LinkedBlockingQueue[Runnable]()
+    val threadFactory            = new NamedThreadFactory("zio", true)
+    val rejectedExecutionHandler = newDefaultRejectedExecutionHandler
 
     val threadPool = new ThreadPoolExecutor(
       corePoolSize,
@@ -943,7 +956,8 @@ private object RTS {
       keepAliveTime,
       timeUnit,
       workQueue,
-      threadFactory
+      threadFactory,
+      rejectedExecutionHandler
     )
     threadPool.allowCoreThreadTimeOut(true)
 
