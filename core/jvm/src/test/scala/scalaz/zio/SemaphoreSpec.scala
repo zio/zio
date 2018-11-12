@@ -57,6 +57,9 @@ class SemaphoreSpec extends AbstractRTSSpec {
     } yield () must_=== (()))
   }
 
+  /**
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
   def e6 = {
     val n = 1L
     unsafeRun(for {
@@ -66,6 +69,9 @@ class SemaphoreSpec extends AbstractRTSSpec {
     } yield permits) must_=== 2
   }
 
+  /**
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
   def e7 = {
     val n = 0L
     unsafeRun(for {

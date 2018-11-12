@@ -21,18 +21,18 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 
   final def release: IO[Nothing, Unit] = releaseN(1)
 
-  final def withPermit[E, A](task: IO[E, A]): IO[E, A] = prepare(1L).bracket(_._2)(_._1 *> task)
+  final def withPermit[E, A](task: IO[E, A]): IO[E, A] = prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
 
   /**
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
    */
   final def acquireN(n: Long): IO[Nothing, Unit] =
-    assertNonNegative(n) *> IO.bracket0[Nothing, AcquireTasks, Unit](prepare(n))(cleanup)(_._1)
+    assertNonNegative(n) *> IO.bracket0[Nothing, Acquisition, Unit](prepare(n))(cleanup)(_.awaitAcquire)
 
   /**
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
    */
-  final private def prepare(n: Long): IO[Nothing, AcquireTasks] = {
+  final private def prepare(n: Long): IO[Nothing, Acquisition] = {
     def restore(p: Promise[Nothing, Unit], n: Long): IO[Nothing, Unit] =
       IO.flatten(state.modify {
         case Left(q) =>
@@ -41,20 +41,20 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
       })
 
     if (n == 0)
-      IO.now((IO.unit, IO.unit))
+      IO.now(Acquisition(IO.unit, IO.unit))
     else
       Promise.make[Nothing, Unit].flatMap { p =>
         state.modify {
-          case Right(m) if m >= n => (IO.unit, releaseN(n)) -> Right(m - n)
-          case Right(m)           => (p.get, restore(p, n)) -> Left(IQueue(p -> (n - m)))
-          case Left(q)            => (p.get, restore(p, n)) -> Left(q.enqueue(p -> n))
+          case Right(m) if m >= n => Acquisition(IO.unit, releaseN(n)) -> Right(m - n)
+          case Right(m)           => Acquisition(p.get, restore(p, n)) -> Left(IQueue(p -> (n - m)))
+          case Left(q)            => Acquisition(p.get, restore(p, n)) -> Left(q.enqueue(p -> n))
         }
       }
   }
 
-  final private def cleanup[E, A](ops: AcquireTasks, res: ExitResult[E, A]): IO[Nothing, Unit] =
+  final private def cleanup[E, A](ops: Acquisition, res: ExitResult[E, A]): IO[Nothing, Unit] =
     res match {
-      case ExitResult.Failed(c) if c.isInterrupted => ops._2
+      case ExitResult.Failed(c) if c.isInterrupted => ops.release
       case _                                       => IO.unit
     }
 
@@ -92,7 +92,7 @@ object Semaphore extends Serializable {
 
 private object internals {
 
-  type AcquireTasks = (IO[Nothing, Unit], IO[Nothing, Unit])
+  final case class Acquisition(awaitAcquire: IO[Nothing, Unit], release: IO[Nothing, Unit])
 
   type Entry = (Promise[Nothing, Unit], Long)
 
