@@ -5,7 +5,6 @@ import scala.annotation.switch
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import scalaz.zio.ExitResult.Cause
-import scalaz.zio.IO.Redeem
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -228,12 +227,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * it will depend on the `IO`s returned by the given continuations.
    */
   final def redeem[E2, B](err: E => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
+    redeem0((cause: Cause[E]) => cause.checkedOrRefail.fold(err, IO.fail0), succ)
+
+  /**
+   * A more powerful version of redeem that allows recovering from any kind of failure.
+   */
+  final def redeem0[E2, B](err: Cause[E] => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
       case IO.Tags.Fail =>
         val io = self.asInstanceOf[IO.Fail[E]]
-        io.cause.checkedOrRefail.fold(err, IO.fail0)
+        err(io.cause)
 
-      case _ => new IO.Redeem(self, (cause: Cause[E]) => cause.checkedOrRefail.fold(err, IO.fail0), succ)
+      case _ => new IO.Redeem(self, err, succ)
     }
 
   /**
@@ -605,11 +610,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
-    new Redeem[E, Nothing, A, ExitResult[E, A]](
-      self,
-      cause => IO.now(ExitResult.failed(cause)),
-      succ => IO.now(ExitResult.succeeded(succ))
-    )
+    redeem0(cause => IO.now(ExitResult.failed(cause)), succ => IO.now(ExitResult.succeeded(succ)))
 
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
@@ -639,11 +640,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    *   }
    * }}}
    */
-  final def sandboxed: IO[Cause[E], A] =
-    self.run.flatMap {
-      case ExitResult.Succeeded(value) => IO.now(value)
-      case ExitResult.Failed(cause)    => IO.fail(cause)
-    }
+  final def sandboxed: IO[Cause[E], A] = redeem0(IO.fail, IO.now)
 
   /**
    * Companion helper to `sandboxed`.
