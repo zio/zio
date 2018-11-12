@@ -475,7 +475,7 @@ private object RTS {
                   case IO.Tags.Fail =>
                     val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                    val finalizer = unwindStack(true)
+                    val finalizer = unwindStack(!io.cause.isInterrupted)
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
