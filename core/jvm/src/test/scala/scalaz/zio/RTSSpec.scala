@@ -89,6 +89,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
     bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
+    redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
     supervise fibers                        ${upTo(1.second)(testSupervise)}
     race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
     race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
@@ -539,6 +540,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
       } yield ()
 
     unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
+  }
+
+  def testRedeemEnsuringInterrupt = {
+    val io = for {
+      p1  <- Promise.make[Nothing, Boolean]
+      f1  <- IO.never.catchAll(IO.fail).ensuring(p1.complete(true).void).fork
+      _   <- f1.interrupt
+      res <- p1.get
+    } yield res
+
+    unsafeRun(io) must_=== true
   }
 
   def testAsyncPureIsInterruptible = {
