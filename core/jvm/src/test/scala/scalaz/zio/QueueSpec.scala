@@ -64,25 +64,25 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
     make a bounded queue of size 0 then call `offerAll` with a list of 3 elements. The producer should be suspended and
      the queue should have the same size as the elements offered ${upTo(3.seconds)(e24)}
     `offerAll` can be interrupted and all resources are released ${upTo(3.seconds)(e25)}
-    `offerAll should preserve the order of the list ${upTo(3.seconds)(e26)}
+    `offerAll should preserve the order of the list ${upTo(5.seconds)(e26)}
     `offerAll` does preserve the order of the list when it exceeds the queue's capacity ${upTo(
-      3.seconds
+      5.seconds
     )(e27)}
-    make a bounded queue of size 1000 then fork 2000 takers, and offer as many elements as there are takers,
-     the values must be correct after joining those fibers ${upTo(3.seconds)(e28)}
-    make a bounded queue of size 2000 then fork 500 takers, and offer more elements than there are takers,
-     the values must be correct after joining those fibers ${upTo(3.seconds)(e29)}
-    make a bounded queue of size 20 then fork 1000 takers, and offer more elements than there are takers and
-     capacity in the queue, the values must be correct after joining those fibers ${upTo(3.seconds)(
+    make a bounded queue of size 50 then fork 100 takers, and offer as many elements as there are takers,
+     the values must be correct after joining those fibers ${upTo(5.seconds)(e28)}
+    make a bounded queue of size 200 then fork 50 takers, and offer more elements than there are takers,
+     the values must be correct after joining those fibers ${upTo(5.seconds)(e29)}
+    make a bounded queue of size 20 then fork 100 takers, and offer more elements than there are takers and
+     capacity in the queue, the values must be correct after joining those fibers ${upTo(5.seconds)(
       e30
     )}
     fork some takers, and offer less elements than there are takers in the queue, the values must be correct
-     after joining those fibers ${upTo(3.seconds)(e31)}
+     after joining those fibers ${upTo(5.seconds)(e31)}
     make bounded queue of size 0 then offer more elements than there is capacity in the queue, taking elements
      should work correctly ${upTo(3.seconds)(e32)}
     make bounded queue offer more elements than there are takers and capacity in the queue, taking elements
      should preserve putters queue order ${upTo(3.seconds)(e33)}
-    make bounded queue of size 1000 then `offer` one element then `offerAll` some elements without exceeding
+    make bounded queue of size 100 then `offer` one element then `offerAll` some elements without exceeding
      the queue's capacity, when calling `takeAll` the values should be in correct order ${upTo(
       3.seconds
     )(e34)}
@@ -423,28 +423,28 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e26 =
     unsafeRun(for {
-      queue  <- Queue.bounded[Int](1000)
-      orders = Range.inclusive(1, 1000).toList
+      queue  <- Queue.bounded[Int](100)
+      orders = Range.inclusive(1, 100).toList
       _      <- queue.offerAll(orders)
-      _      <- waitForSize(queue, 1000)
+      _      <- waitForSize(queue, 100)
       l      <- queue.takeAll
     } yield l must_=== orders)
 
   def e27 =
     unsafeRun(for {
-      queue  <- Queue.bounded[Int](1000)
-      orders = Range.inclusive(1, 2000).toList
+      queue  <- Queue.bounded[Int](100)
+      orders = Range.inclusive(1, 200).toList
       _      <- queue.offerAll(orders).fork
-      _      <- waitForSize(queue, 2000)
+      _      <- waitForSize(queue, 200)
       l      <- queue.takeAll
-    } yield l must_=== Range.inclusive(1, 1000).toList)
+    } yield l must_=== Range.inclusive(1, 100).toList)
 
   def e28 =
     unsafeRun(for {
-      queue  <- Queue.bounded[Int](1000)
-      orders = Range.inclusive(1, 2000).toList
-      takers <- IO.forkAll(List.fill(2000)(queue.take))
-      _      <- waitForSize(queue, -2000)
+      queue  <- Queue.bounded[Int](50)
+      orders = Range.inclusive(1, 100).toList
+      takers <- IO.forkAll(List.fill(100)(queue.take))
+      _      <- waitForSize(queue, -100)
       _      <- queue.offerAll(orders)
       l      <- takers.join
       s      <- queue.size
@@ -452,40 +452,40 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
 
   def e29 =
     unsafeRun(for {
-      queue  <- Queue.bounded[Int](2000)
-      orders = Range.inclusive(1, 1000).toList
-      takers <- IO.forkAll(List.fill(500)(queue.take))
-      _      <- waitForSize(queue, -500)
+      queue  <- Queue.bounded[Int](200)
+      orders = Range.inclusive(1, 100).toList
+      takers <- IO.forkAll(List.fill(50)(queue.take))
+      _      <- waitForSize(queue, -50)
       _      <- queue.offerAll(orders)
       l      <- takers.join
       s      <- queue.size
-      values = orders.take(500)
-    } yield (l must containTheSameElementsAs(values)).and(s must_=== 500))
+      values = orders.take(50)
+    } yield (l must containTheSameElementsAs(values)).and(s must_=== 50))
 
   def e30 =
     unsafeRun(for {
       queue  <- Queue.bounded[Int](20)
-      orders = Range.inclusive(1, 2000).toList
-      takers <- IO.forkAll(List.fill(1000)(queue.take))
-      _      <- waitForSize(queue, -1000)
+      orders = Range.inclusive(1, 200).toList
+      takers <- IO.forkAll(List.fill(100)(queue.take))
+      _      <- waitForSize(queue, -100)
       _      <- queue.offerAll(orders).fork
       l      <- takers.join
       s      <- queue.size
-      values = orders.take(1000)
-    } yield (l must containTheSameElementsAs(values)).and(s must_=== 1000))
+      values = orders.take(100)
+    } yield (l must containTheSameElementsAs(values)).and(s must_=== 100))
 
   def e31 =
     unsafeRun(for {
-      queue  <- Queue.bounded[Int](2000)
-      values = Range.inclusive(1, 1000).toList
-      takers <- IO.forkAll(List.fill(1000)(queue.take))
-      _      <- waitForSize(queue, -1000)
-      _      <- IO.forkAll(List.fill(1000)(queue.take))
-      _      <- waitForSize(queue, -2000)
+      queue  <- Queue.bounded[Int](200)
+      values = Range.inclusive(1, 100).toList
+      takers <- IO.forkAll(List.fill(100)(queue.take))
+      _      <- waitForSize(queue, -100)
+      _      <- IO.forkAll(List.fill(100)(queue.take))
+      _      <- waitForSize(queue, -200)
       _      <- queue.offerAll(values)
       l      <- takers.join
       s      <- queue.size
-    } yield (l must containTheSameElementsAs(values)).and(s must_=== -1000))
+    } yield (l must containTheSameElementsAs(values)).and(s must_=== -100))
 
   def e32 =
     unsafeRun(for {

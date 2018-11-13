@@ -231,7 +231,7 @@ private object RTS {
      * action that produces a list (possibly empty) of errors during finalization.
      * If needed, catch exceptions and apply redeem error handling.
      */
-    final def unwindStack: IO[Nothing, Option[Cause[Nothing]]] = {
+    final def unwindStack(catchError: Boolean): IO[Nothing, Option[Cause[Nothing]]] = {
       var errorHandler: Any => IO[Any, Any]              = null
       var finalizer: IO[Nothing, Option[Cause[Nothing]]] = null
 
@@ -239,7 +239,7 @@ private object RTS {
       // finalizers.
       while ((errorHandler eq null) && !stack.isEmpty) {
         stack.pop() match {
-          case a: IO.Redeem[_, _, _, _] =>
+          case a: IO.Redeem[_, _, _, _] if catchError =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
             val f: IO[Nothing, Option[Cause[Nothing]]] =
@@ -475,7 +475,7 @@ private object RTS {
                   case IO.Tags.Fail =>
                     val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                    val finalizer = unwindStack
+                    val finalizer = unwindStack(!io.cause.isInterrupted)
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -824,7 +824,7 @@ private object RTS {
                 }
             }
 
-            val finalizer = unwindStack
+            val finalizer = unwindStack(false)
 
             if (finalizer ne null) {
               fork(finalizer.flatMap {
