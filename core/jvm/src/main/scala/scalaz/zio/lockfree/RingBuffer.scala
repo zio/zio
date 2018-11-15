@@ -127,13 +127,12 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
     var curHead = 0L
 
     val aTail   = tail
-    var curTail = 0L
+    var curTail = aTail.get()
     var curIdx  = 0
 
     var state = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      curTail = aTail.get()
       curIdx = posToIdx(curTail, aMask)
       curSeq = aSeq.get(curIdx)
 
@@ -154,27 +153,27 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
           // just spin for a little while.
           state = STATE_LOOP
         }
-      } else if (curSeq > curTail) {
-        // Another thread beat us, and enqueued an element at that
-        // location. We need to resyncronize with `tail` and try
-        // again.
-        state = STATE_LOOP
-      } else { // curSeq == curTail
+      } else if (curSeq == curTail) {
         // We're at the right spot. At this point we can try to
         // reserve the place for enqueue by doing CAS on tail.
         if (aTail.compareAndSet(curTail, curTail + 1)) {
           // We successfuly reserved a place to enqueue.
           state = STATE_RESERVED
         } else {
-          // There was a concurrent offer that won CAS. We need to try again.
+          // There was a concurrent offer that won CAS. We need to try again at the next location.
+          curTail += 1
           state = STATE_LOOP
         }
+      } else { // curSeq > curTail
+        // Another thread beat us, and enqueued an element at that
+        // location. We need to resyncronize with `tail` and try
+        // again.
+        curTail = aTail.get()
+        state = STATE_LOOP
       }
     }
 
-    if (state == STATE_FULL) {
-      false
-    } else if (state == STATE_RESERVED) {
+    if (state == STATE_RESERVED) {
       // To add an element into the queue we do
       // 1. plain store into `buf`,
       // 2. volatile write of a `seq` value.
@@ -188,8 +187,8 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
       aBuf(curIdx) = a
       aSeq.lazySet(curIdx, curTail + 1)
       true
-    } else {
-      sys.error(s"RingBuffer.offer(): impossible state $state on offer")
+    } else { // state == STATE_FULL
+      false
     }
   }
 
@@ -204,7 +203,7 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
     var curSeq = 0L
 
     val aHead   = head
-    var curHead = 0L
+    var curHead = aHead.get()
     var curIdx  = 0
 
     val aTail   = tail
@@ -213,14 +212,31 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
     var state = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      curHead = aHead.get()
       curIdx = posToIdx(curHead, aMask)
       curSeq = aSeq.get(curIdx)
 
-      if (curSeq == curHead) {
-        // This means there is no item available to dequeue. However
-        // there may be in-flight enqueue, and we need to check for
-        // that.
+      if (curSeq <= curHead) {
+        // There may be two distinct cases:
+        // 1. curSeq == curHead
+        //    This means there is no item available to dequeue. However
+        //    there may be in-flight enqueue, and we need to check for
+        //    that.
+        // 2. curSeq < curHead
+        //    This is a tricky case. Polling thread T1 can observe
+        //    `curSeq < curHead` if thread T0 started dequeing at
+        //    position `curSeq` but got descheduled. Meantime enqueing
+        //    threads enqueued another (capacity - 1) elements, and other
+        //    dequeueing threads dequeued all of them. So, T1 wrapped
+        //    around the buffer and cannot proceed until T0 finishes its
+        //    dequeue.
+        //
+        //    It may sound surprising that a thread get descheduled
+        //    during dequeue for `capacity` number of operations, but
+        //    it's actually pretty easy to observe such situations even
+        //    at queue capacity of 4096 elements.
+        //
+        //    Anyway, in this case we can report that the queue is empty.
+
         curTail = aTail.get()
         if (curHead >= curTail) {
           // There is no concurrent enqueue happening. We can report
@@ -240,36 +256,19 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
           // Successfully reserved the spot and can proceed to dequeueing.
           state = STATE_RESERVED
         } else {
-          // Another concurrent dequeue won. Let's try again.
+          // Another concurrent dequeue won. Let's try again at the next location.
+          curHead += 1
           state = STATE_LOOP
         }
-      } else if (curSeq >= curHead + 1) {
+      } else { // curSeq >= curHead + 1
         // Either this thread got delayed or some other thread beat
         // it. We need to resyncronize with `head` and try again.
+        curHead = aHead.get()
         state = STATE_LOOP
-      } else { // curSeq < curHead
-
-        // This is a tricky case. Polling thread T1 can observe
-        // `curSeq < curHead` if thread T0 started dequeing at
-        // position `curSeq` but got descheduled. Meantime enqueing
-        // threads enqueued another (capacity - 1) elements, and other
-        // dequeueing threads dequeued all of them. So, T1 wrapped
-        // around the buffer and cannot proceed until T0 finishes its
-        // dequeue.
-        //
-        // It may sound surprising that a thread get descheduled
-        // during dequeue for `capacity` number of operations, but
-        // it's actually pretty easy to observe such situations even
-        // at queue capacity of 4096 elements.
-        //
-        // At this point we can report that the queue is empty.
-        state = STATE_EMPTY
       }
     }
 
-    if (state == STATE_EMPTY) {
-      None
-    } else if (state == STATE_RESERVED) {
+    if (state == STATE_RESERVED) {
       // See the comment in offer method about volatile writes and
       // visibility guarantees.
       val deqElement = aBuf(curIdx)
@@ -279,7 +278,7 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
 
       Some(deqElement)
     } else {
-      sys.error(s"RingBuffer.poll(): impossible state $state")
+      None
     }
   }
 
@@ -289,5 +288,3 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
 
   private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
 }
-
-object RingBuffer {}

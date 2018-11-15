@@ -12,7 +12,7 @@ import org.openjdk.jmh.annotations._
 @Threads(1)
 @State(Scope.Thread)
 class SingleThreadedOfferBenchmark {
-  val Ops: Int     = 1 << 16
+  val Ops: Int   = 1 << 16
   val Token: Int = 1
 
   @volatile var preventUnrolling = true

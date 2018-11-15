@@ -56,14 +56,54 @@ class ConcurrentQueueBenchmark {
     }
 
   @Benchmark
-  @Group("Asymmetric")
-  @GroupThreads(16)
-  def offerAsymmetric(counters: OfferCounters): Unit = doOffer(counters)
+  @Group("Gr1SPSC")
+  @GroupThreads(1)
+  def gr1OfferSPSC(counters: OfferCounters): Unit = doOffer(counters)
 
   @Benchmark
-  @Group("Asymmetric")
+  @Group("Gr1SPSC")
+  @GroupThreads(1)
+  def gr1PollSPSC(counters: PollCounters): Unit = doPoll(counters)
+
+  @Benchmark
+  @Group("Gr2ModerateContention")
+  @GroupThreads(4)
+  def gr2OfferModerate(counters: OfferCounters): Unit = doOffer(counters)
+
+  @Benchmark
+  @Group("Gr2ModerateContention")
+  @GroupThreads(4)
+  def gr2PollModerate(counters: PollCounters): Unit = doPoll(counters)
+
+  @Benchmark
+  @Group("Gr3HighContention")
   @GroupThreads(8)
-  def pollAsymmetric(counters: PollCounters): Unit = doPoll(counters)
+  def gr3OfferHigh(counters: OfferCounters): Unit = doOffer(counters)
+
+  @Benchmark
+  @Group("Gr3HighContention")
+  @GroupThreads(8)
+  def gr3PollHigh(counters: PollCounters): Unit = doPoll(counters)
+
+  @Benchmark
+  @Group("Gr4ContendedOffer")
+  @GroupThreads(6)
+  def gr4OfferContendedOffer(counters: OfferCounters): Unit = doOffer(counters)
+
+  @Benchmark
+  @Group("Gr4ContendedOffer")
+  @GroupThreads(2)
+  def gr4PollContendedOffer(counters: PollCounters): Unit = doPoll(counters)
+
+  @Benchmark
+  @Group("Gr5ContendedPoll")
+  @GroupThreads(2)
+  def gr5OfferContendedPoll(counters: OfferCounters): Unit = doOffer(counters)
+
+  @Benchmark
+  @Group("Gr5ContendedPoll")
+  @GroupThreads(6)
+  def gr5PollContendedPoll(counters: PollCounters): Unit = doPoll(counters)
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def doOffer(counters: OfferCounters): Unit = {
