@@ -42,7 +42,7 @@ class ConcurrentQueueBenchmark {
   @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools"))
   var qType: String = _
 
-  var q: LockFreeQueue[Int] = _
+  var q: MutableConcurrentQueue[Int] = _
 
   def backoff(): Unit = {}
 

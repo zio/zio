@@ -23,7 +23,7 @@ class SingleThreadedOfferBenchmark {
   @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools", "Unsafe"))
   var qType: String = _
 
-  var q: LockFreeQueue[Int] = _
+  var q: MutableConcurrentQueue[Int] = _
 
   @Setup(Level.Invocation)
   def createQ(): Unit =

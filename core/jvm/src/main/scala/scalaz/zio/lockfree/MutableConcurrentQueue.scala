@@ -1,6 +1,6 @@
 package scalaz.zio.lockfree
 
-trait LockFreeQueue[A] {
+trait MutableConcurrentQueue[A] {
   val capacity: Int
 
   def offer(a: A): Boolean
