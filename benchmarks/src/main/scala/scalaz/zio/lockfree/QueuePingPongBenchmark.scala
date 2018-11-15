@@ -3,7 +3,7 @@ package scalaz.zio.lockfree
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
-import org.openjdk.jmh.infra.{Blackhole, Control}
+import org.openjdk.jmh.infra.{ Blackhole, Control }
 
 object QueuePingPongBenchmark {
   @AuxCounters
