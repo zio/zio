@@ -70,20 +70,21 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   def repeatFail = {
     // a method that increment ref and fail with the incremented value in error message
-    def incr(ref: Ref[Int]): IO[String, Int] = {
+    def incr(ref: Ref[Int]): IO[String, Int] =
       for {
-        i <- ref.update(_+1)
+        i <- ref.update(_ + 1)
         _ <- IO.fail(s"Error: $i")
       } yield i
-    }
 
-    val repeated = unsafeRun((for {
-      ref <- Ref(0)
-      _   <- incr(ref).repeat(Schedule.recurs(42))
-    } yield ()).redeem(
-      err => IO.now(err)
-    , _   => IO.now("it should not be a success at all")
-    ))
+    val repeated = unsafeRun(
+      (for {
+        ref <- Ref(0)
+        _   <- incr(ref).repeat(Schedule.recurs(42))
+      } yield ()).redeem(
+        err => IO.now(err),
+        _ => IO.now("it should not be a success at all")
+      )
+    )
 
     repeated must_=== "Error: 1"
   }

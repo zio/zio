@@ -65,19 +65,20 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     /*
      * A function that increments ref each time it is called.
      */
-    def incr(ref: Ref[Int]): IO[String, Int] = {
+    def incr(ref: Ref[Int]): IO[String, Int] =
       for {
         i <- ref.update(_ + 1)
         x <- IO.fail(s"Error: $i")
       } yield x
-    }
-    val retried = unsafeRun((for {
-      ref <- Ref(0)
-      i   <- incr(ref).retry(Schedule.recurs(0))
-    } yield i).redeem(
-      err => IO.now(err)
-    , _   => IO.now("it should not be a success")
-    ))
+    val retried = unsafeRun(
+      (for {
+        ref <- Ref(0)
+        i   <- incr(ref).retry(Schedule.recurs(0))
+      } yield i).redeem(
+        err => IO.now(err),
+        _ => IO.now("it should not be a success")
+      )
+    )
 
     retried must_=== "Error: 1"
   }
