@@ -2,9 +2,9 @@ package scalaz.zio.lockfree.impls
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
-import scalaz.zio.lockfree.LockFreeQueue
+import scalaz.zio.lockfree.MutableConcurrentQueue
 
-class JucConcurrentQueue[A] extends LockFreeQueue[A] {
+class JucConcurrentQueue[A] extends MutableConcurrentQueue[A] {
   override val capacity: Int = Int.MaxValue
 
   private val jucConcurrentQueue = new ConcurrentLinkedQueue[A]()

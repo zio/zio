@@ -33,8 +33,8 @@ class QueuePingPongBenchmark {
   @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools"))
   var qType: String = _
 
-  var qIn: LockFreeQueue[Int]  = _
-  var qOut: LockFreeQueue[Int] = _
+  var qIn: MutableConcurrentQueue[Int]  = _
+  var qOut: MutableConcurrentQueue[Int] = _
 
   @Setup
   def setup(): Unit = {

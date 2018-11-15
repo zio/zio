@@ -1,8 +1,8 @@
 package scalaz.zio.lockfree.impls
 
-import scalaz.zio.lockfree.LockFreeQueue
+import scalaz.zio.lockfree.MutableConcurrentQueue
 
-class JCToolsQueue[A](desiredCapacity: Int) extends LockFreeQueue[A] {
+class JCToolsQueue[A](desiredCapacity: Int) extends MutableConcurrentQueue[A] {
   private val jctools = new org.jctools.queues.MpmcArrayQueue[A](desiredCapacity)
 
   override val capacity: Int = jctools.capacity()

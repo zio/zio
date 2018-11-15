@@ -2,11 +2,11 @@ package scalaz.zio.lockfree.impls
 
 import java.util.concurrent.locks.ReentrantLock
 
-import scalaz.zio.lockfree.LockFreeQueue
+import scalaz.zio.lockfree.MutableConcurrentQueue
 
 import scala.reflect.ClassTag
 
-class SingleLockQueue[A: ClassTag](override val capacity: Int) extends LockFreeQueue[A] {
+class SingleLockQueue[A: ClassTag](override val capacity: Int) extends MutableConcurrentQueue[A] {
   val lock = new ReentrantLock()
 
   // GuardedBy "lock"

@@ -1,10 +1,10 @@
 package scalaz.zio.lockfree.impls
 
-import scalaz.zio.lockfree.LockFreeQueue
+import scalaz.zio.lockfree.MutableConcurrentQueue
 
 import scala.reflect.ClassTag
 
-class UnsafeQueue[A: ClassTag](override val capacity: Int) extends LockFreeQueue[A] {
+class UnsafeQueue[A: ClassTag](override val capacity: Int) extends MutableConcurrentQueue[A] {
   private val buf: Array[A] = Array.ofDim[A](capacity)
   var head: Long = 0
   var tail: Long = 0
