@@ -44,6 +44,11 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
 
   final def seq[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, (R, R1)] =
     seqWith(ff)((_, _))
+
+  final def parWith[E1 >: E, R1, R2](ff: Managed[E1, R1])(f: (R, R1) => R2): Managed[E1, R2] = ???
+
+  final def par[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, (R, R1)] =
+    parWith(ff)((_, _))
 }
 
 object Managed {
