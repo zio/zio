@@ -34,16 +34,16 @@ class SingleLockQueue[A: ClassTag](override val capacity: Int) extends MutableCo
     }
   }
 
-  override def poll(): Option[A] = {
+  override def poll(default: A): A = {
     lock.lock()
 
     try {
       if (isEmpty()) {
-        None
+        default
       } else {
         val el = buf((head % capacity).asInstanceOf[Int])
         head += 1
-        Some(el)
+        el
       }
     } finally {
       lock.unlock()

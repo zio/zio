@@ -11,31 +11,34 @@ import org.openjdk.jmh.annotations._
 @Fork(1)
 @Threads(1)
 @State(Scope.Thread)
-class SingleThreadedOfferBenchmark {
-  val Ops: Int   = 1 << 16
-  val Token: Int = 1
+class OfferBenchmark {
+  val Ops: Int = 1 << 16
 
-  @volatile var preventUnrolling = true
+  def mkEl(): AnyRef = new Object()
+
+  @volatile var noUnrolling = true
 
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools", "Unsafe"))
+  @Param(Array("RingBuffer", "JCTools", "JucConcurrent", "JucBlocking", "Unsafe"))
   var qType: String = _
 
-  var q: MutableConcurrentQueue[Int] = _
+  var q: MutableConcurrentQueue[AnyRef] = _
 
   @Setup(Level.Invocation)
   def createQ(): Unit =
-    q = impls.queueByType(qType, qCapacity)
+    q = impls.queueByTypeA(qType, qCapacity)
 
   @Benchmark
   @OperationsPerInvocation(1 << 16)
   def offer(): Unit = {
-    val lq = q
+    val aQ = q
     var i  = 0
-    while (i < Ops && preventUnrolling) {
-      assert(lq.offer(Token))
+
+    while (i < Ops && noUnrolling) {
+      val anEl = mkEl()
+      aQ.offer(anEl)
       i += 1
     }
   }

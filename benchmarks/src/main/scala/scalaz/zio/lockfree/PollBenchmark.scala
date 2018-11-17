@@ -11,37 +11,40 @@ import org.openjdk.jmh.annotations._
 @Fork(1)
 @Threads(1)
 @State(Scope.Thread)
-class SingleThreadedPollBenchmark {
-  val Ops: Int   = 1 << 16
-  val Token: Int = 1
+class PollBenchmark {
+  val Ops: Int = 1 << 16
 
-  @volatile var preventUnrolling = true
+  def mkEl: AnyRef    = new Object()
+  val emptyEl: AnyRef = null.asInstanceOf[AnyRef]
+
+  @volatile var noUnrolling = true
 
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools", "Unsafe"))
+  @Param(Array("RingBuffer", "JCTools", "JucConcurrent", "JucBlocking", "Unsafe"))
   var qType: String = _
 
-  var q: MutableConcurrentQueue[Int] = _
+  var q: MutableConcurrentQueue[AnyRef] = _
 
   @Setup(Level.Trial)
   def createQ(): Unit =
-    q = impls.queueByType(qType, qCapacity)
+    q = impls.queueByTypeA(qType, qCapacity)
 
   @Setup(Level.Invocation)
   def fill(): Unit = {
     var i = 0
-    while (i < Ops) { q.offer(Token); i += 1 }
+    while (i < Ops) { val anEl = mkEl; q.offer(anEl); i += 1 }
   }
 
   @Benchmark
   @OperationsPerInvocation(1 << 16)
   def poll(): Unit = {
-    val lq = q
+    val aQ = q
     var i  = 0
-    while (i < Ops && preventUnrolling) {
-      lq.poll()
+
+    while (i < Ops && noUnrolling) {
+      aQ.poll(emptyEl)
       i += 1
     }
   }
