@@ -146,7 +146,7 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
           // we can just report that the queue is full.
           state = STATE_FULL
         } else {
-          // This means that the consumer move the head of the queue
+          // This means that the consumer moved the head of the queue
           // (i.e. reserved a place to dequeue from), but hasn't yet
           // loaded an element from `buf` and hasn't updated the
           // `seq`. However, this should happen momentarity, so we can
@@ -165,9 +165,9 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
           state = STATE_LOOP
         }
       } else { // curSeq > curTail
-        // Another thread beat us, and enqueued an element at that
-        // location. We need to resyncronize with `tail` and try
-        // again.
+        // Either some other thread beat us enqueued an right element
+        // or this thread got delayed. We need to resynchronize with
+        // `tail` and try again.
         curTail = aTail.get()
         state = STATE_LOOP
       }
@@ -192,7 +192,7 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
     }
   }
 
-  override def poll(): Option[A] = {
+  override def poll(default: A): A = {
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
@@ -260,9 +260,9 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
           curHead += 1
           state = STATE_LOOP
         }
-      } else { // curSeq >= curHead + 1
-        // Either this thread got delayed or some other thread beat
-        // it. We need to resyncronize with `head` and try again.
+      } else { // curSeq > curHead + 1
+        // Either some other thread beat us or this thread got
+        // delayed. We need to resyncronize with `head` and try again.
         curHead = aHead.get()
         state = STATE_LOOP
       }
@@ -276,9 +276,9 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
 
       aSeq.lazySet(curIdx, curHead + aCapacity)
 
-      Some(deqElement)
+      deqElement
     } else {
-      None
+      default
     }
   }
 

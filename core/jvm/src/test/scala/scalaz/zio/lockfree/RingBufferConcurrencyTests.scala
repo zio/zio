@@ -33,8 +33,8 @@ object RingBufferConcurrencyTests {
 
     @Arbiter
     def arbiter(r: II_Result): Unit = {
-      r.r1 = q.poll().getOrElse(-1)
-      r.r2 = q.poll().getOrElse(-2)
+      r.r1 = q.poll(-1)
+      r.r2 = q.poll(-2)
     }
   }
 
@@ -75,8 +75,8 @@ object RingBufferConcurrencyTests {
 
     @Arbiter
     def arbiter(r: IIIIII_Result): Unit = {
-      r.r1 = q.poll().getOrElse(-1)
-      r.r2 = q.poll().getOrElse(-2)
+      r.r1 = q.poll(-1)
+      r.r2 = q.poll(-2)
 
       r.r3 = offer11
       r.r4 = offer12
@@ -135,14 +135,14 @@ object RingBufferConcurrencyTests {
 
     @Actor
     def actor2(): Unit = {
-      p11 = q.poll().getOrElse(-10)
-      p12 = q.poll().getOrElse(-11)
+      p11 = q.poll(-10)
+      p12 = q.poll(-11)
     }
 
     @Actor
     def actor3(): Unit = {
-      p21 = q.poll().getOrElse(-20)
-      p22 = q.poll().getOrElse(-21)
+      p21 = q.poll(-20)
+      p22 = q.poll(-21)
     }
 
     @Arbiter

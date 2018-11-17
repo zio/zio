@@ -15,7 +15,10 @@ class JCToolsQueue[A](desiredCapacity: Int) extends MutableConcurrentQueue[A] {
 
   override def offer(a: A): Boolean = jctools.offer(a)
 
-  override def poll(): Option[A] = Option(jctools.poll())
+  override def poll(default: A): A = {
+    val res = jctools.poll()
+    if (res != null) res else default
+  }
 
   override def isEmpty(): Boolean = jctools.isEmpty()
 

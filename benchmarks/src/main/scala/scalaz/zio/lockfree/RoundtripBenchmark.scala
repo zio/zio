@@ -11,23 +11,26 @@ import org.openjdk.jmh.annotations._
 @Fork(1)
 @Threads(1)
 @State(Scope.Thread)
-class SingleThreadedRoundtrip {
-  val Token: Int = 1
+class RoundtripBenchmark {
+  type QueueElement = () => Int
 
-  @Param(Array("1", "10"))
+  def mkEl(): QueueElement  = () => 1
+  val emptyEl: QueueElement = () => -1
+
+  @Param(Array("1", "4"))
   var batchSize: Int = _
 
-  @Param(Array("65536"))
+  @Param(Array("8"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JucBlocking", "JucConcurrent", "JCTools", "Unsafe"))
+  @Param(Array("RingBuffer", "JCTools", "JucConcurrent", "JucBlocking", "Unsafe"))
   var qType: String = _
 
-  var q: MutableConcurrentQueue[Int] = _
+  var q: MutableConcurrentQueue[QueueElement] = _
 
   @Setup(Level.Trial)
-  def setup(): Unit =
-    q = impls.queueByType(qType, qCapacity)
+  def createQ(): Unit =
+    q = impls.queueByTypeA(qType, qCapacity)
 
   @Benchmark
   def offerAndPoll(): Int = {
@@ -35,14 +38,15 @@ class SingleThreadedRoundtrip {
 
     var i = 0
     while (i < bSize) {
-      q.offer(Token)
+      q.offer(mkEl())
       i += 1
     }
 
     i = 0
     var result: Int = 0
     while (i < batchSize) {
-      result = q.poll().get
+      val delayed = q.poll(emptyEl)
+      result += delayed()
       i += 1
     }
     result

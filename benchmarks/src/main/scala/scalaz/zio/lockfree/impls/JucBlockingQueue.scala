@@ -17,7 +17,10 @@ class JucBlockingQueue[A] extends MutableConcurrentQueue[A] {
 
   override def offer(a: A): Boolean = jucBlockingQueue.offer(a)
 
-  override def poll(): Option[A] = Option(jucBlockingQueue.poll())
+  override def poll(default: A): A = {
+    val res = jucBlockingQueue.poll()
+    if (res != null) res else default
+  }
 
   override def isEmpty(): Boolean = jucBlockingQueue.isEmpty
 

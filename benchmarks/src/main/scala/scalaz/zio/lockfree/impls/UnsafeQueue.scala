@@ -18,13 +18,13 @@ class UnsafeQueue[A: ClassTag](override val capacity: Int) extends MutableConcur
       true
     }
 
-  override def poll(): Option[A] =
+  override def poll(default: A): A =
     if (isEmpty()) {
-      None
+      default
     } else {
       val el = buf((head % capacity).asInstanceOf[Int])
       head += 1
-      Some(el)
+      el
     }
 
   override def isEmpty(): Boolean =
