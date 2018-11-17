@@ -36,10 +36,15 @@ trait RTS {
   }
 
   final def unsafeShutdownAndWait(timeout: Duration): Unit = {
-    scheduledExecutor.shutdown()
-    scheduledExecutor.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
-    threadPool.shutdown()
-    threadPool.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
+    if (timeout == Duration.Zero) {
+      scheduledExecutor.shutdownNow()
+      threadPool.shutdownNow()
+    } else {
+      scheduledExecutor.shutdown()
+      scheduledExecutor.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
+      threadPool.shutdown()
+      threadPool.awaitTermination(timeout.toMillis, TimeUnit.MILLISECONDS)
+    }
     ()
   }
 
