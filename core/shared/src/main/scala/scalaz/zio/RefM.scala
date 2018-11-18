@@ -45,6 +45,13 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
     modify(a => f(a).map(a => (a, a)))
 
   /**
+   * Atomically modifies the `RefM` with the specified partial function.
+   * if the function is undefined in the current value it returns the old value without changing it.
+   */
+  final def updateSome(pf: PartialFunction[A, IO[Nothing, A]]): IO[Nothing, A] =
+    modify(a => pf.applyOrElse(a, (_: A) => IO.now(a)).map(a => (a, a)))
+
+  /**
    * Atomically modifies the `RefM` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
@@ -54,6 +61,23 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
       promise <- Promise.make[Nothing, B]
       ref     <- Ref[Option[Cause[Nothing]]](None)
       bundle  = RefM.Bundle(ref, f, promise)
+      b <- (for {
+            _ <- queue.offer(bundle)
+            b <- promise.get
+          } yield b).onTermination(cause => bundle.interrupted.set(Some(cause)))
+    } yield b
+
+  /**
+   * Atomically modifies the `RefM` with the specified function, which computes
+   * a return value for the modification if the function is defined in the current value
+   * otherwise it returns a default value.
+   * This is a more powerful version of `updateSome`.
+   */
+  final def modifySome[B](default: B)(pf: PartialFunction[A, IO[Nothing, (B, A)]]): IO[Nothing, B] =
+    for {
+      promise <- Promise.make[Nothing, B]
+      ref     <- Ref[Option[Cause[Nothing]]](None)
+      bundle  = RefM.Bundle(ref, pf.orElse[A, IO[Nothing, (B, A)]] { case a => IO.now(default -> a) }, promise)
       b <- (for {
             _ <- queue.offer(bundle)
             b <- promise.get
