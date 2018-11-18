@@ -137,7 +137,7 @@ class IOUnsandboxedSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck
     """
 
   def t1 = forAll(Gen.alphaStr) { str =>
-    val io: IO[Either[List[Throwable], Nothing], String] = IO.sync(str).sandboxed
+    val io = IO.sync(str).sandboxed
     unsafeRun(for {
       unsandbox1 <- io.unsandboxed
       unsandbox2 <- IO.unsandbox(io)

@@ -17,10 +17,16 @@ options:
       url: usage/bracket.html
     - title: Fibers
       url: usage/fibers.html
+    - title: FiberLocal
+      url: usage/fiberlocal.html
+    - title: Promise
+      url: usage/promise.html
     - title: Schedules
       url: usage/schedules.html
     - title: Ref
       url: usage/ref.html
+    - title: Queue
+      url: usage/queue.html
     - title: Performance
       url: usage/performance.html
     - title: Console

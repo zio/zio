@@ -3,7 +3,7 @@ sudo: false
 
 # Main Scala version
 scala:
-- 2.12.6
+- 2.12.7
 
 jdk:
 - openjdk8
@@ -37,7 +37,7 @@ jobs:
     - &test
       stage: test
       name: "Test for 2.12"
-      script: sbt ++$TRAVIS_SCALA_VERSION coverage test coverageReport
+      script: sbt ++$TRAVIS_SCALA_VERSION coverage test coverageReport package packageSrc
       after_success: bash <(curl -s https://codecov.io/bash)
     - &microsite
       stage: microsite

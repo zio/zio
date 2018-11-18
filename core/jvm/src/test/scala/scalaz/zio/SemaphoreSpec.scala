@@ -3,6 +3,8 @@
 
 package scalaz.zio
 
+import scala.concurrent.duration.DurationLong
+
 class SemaphoreSpec extends AbstractRTSSpec {
 
   def is =
@@ -13,6 +15,9 @@ class SemaphoreSpec extends AbstractRTSSpec {
       `acquire` permits in parallel $e2
       `acquireN`s can be parallel with `releaseN`s $e3
       individual `acquireN`s can be parallel with individual `releaseN`s $e4
+      semaphores and fibers play ball together $e5
+      `acquire` doesn't leak permits upon cancellation $e6
+      `withPermit` does not leak fibers or permits upon cancellation $e7
     """
 
   def e1 = {
@@ -43,8 +48,43 @@ class SemaphoreSpec extends AbstractRTSSpec {
       (s, permits) => IO.parTraverse(permits.reverse)(amount => s.releaseN(amount)).void
     )
 
-  def offsettingReleasesAcquires(acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],
-                                 releases: (Semaphore, Vector[Long]) => IO[Nothing, Unit]) = {
+  def e5 = {
+    val n = 1L
+    unsafeRun(for {
+      s <- Semaphore(n).peek(_.acquire)
+      _ <- s.release.fork
+      _ <- s.acquire
+    } yield () must_=== (()))
+  }
+
+  /**
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
+  def e6 = {
+    val n = 1L
+    unsafeRun(for {
+      s       <- Semaphore(n)
+      _       <- s.acquireN(2).timeout(1.milli).attempt
+      permits <- s.release *> IO.sleep(10.millis) *> s.count
+    } yield permits) must_=== 2
+  }
+
+  /**
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
+  def e7 = {
+    val n = 0L
+    unsafeRun(for {
+      s       <- Semaphore(n)
+      _       <- s.withPermit(s.release).timeout(1.milli).attempt
+      permits <- s.release *> IO.sleep(10.millis) *> s.count
+    } yield permits must_=== 1L)
+  }
+
+  def offsettingReleasesAcquires(
+    acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],
+    releases: (Semaphore, Vector[Long]) => IO[Nothing, Unit]
+  ) = {
     val permits = Vector(1L, 0L, 20L, 4L, 0L, 5L, 2L, 1L, 1L, 3L)
 
     unsafeRun(for {
