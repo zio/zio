@@ -10,26 +10,31 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
       for a given number of times with random jitter $retryNJittered
       fixed delay with error predicate $fixedWithErrorPredicate
       fixed delay with error predicate and random jitter $fixedWithErrorPredicateJittered
+  Retry according to a provided strategy
+    for up to 10 times $recurs10Retry
     """
 
-  def retryCollect[E, A, E1 >: E, S](io: IO[E, A],
-                                     retry: Schedule[E1, S]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
+  def retryCollect[E, A, E1 >: E, S](
+    io: IO[E, A],
+    retry: Schedule[E1, S],
+    clock: Clock = Clock.Live
+  ): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
     type State = retry.State
 
     def loop(state: State, ss: List[(Duration, S)]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] =
       io.redeem(
         err =>
           retry
-            .update(err, state)
+            .update(err, state, clock)
             .flatMap(
               step =>
                 if (!step.cont) IO.now((Left(err), (step.delay, step.finish()) :: ss))
                 else loop(step.state, (step.delay, step.finish()) :: ss)
-          ),
+            ),
         suc => IO.now((Right(suc), ss))
       )
 
-    retry.initial.flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
+    retry.initial(clock).flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
   }
 
   def retryN = {
@@ -66,5 +71,16 @@ class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val retried          = (error, results.collect { case (dur, count) if dur <= duration => (duration, count) })
     val expected         = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((duration, _)))
     retried must_=== expected
+  }
+
+  def recurs10Retry = {
+    var i                            = 0
+    val strategy: Schedule[Any, Int] = Schedule.recurs(10)
+    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+      if (i < 5) IO.fail("KeepTryingError") else IO.point(i)
+    }
+    val result   = unsafeRun(io.retry(strategy))
+    val expected = 5
+    result must_=== expected
   }
 }

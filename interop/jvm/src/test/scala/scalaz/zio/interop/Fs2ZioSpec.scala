@@ -29,9 +29,11 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
   }
 
   def testCaseJoin[F[_]: Effect]: F[List[Int]] = {
-    def one: F[Int]                   = Effect[F].delay(1)
-    val s: Stream[F, Int]             = Stream.eval(one)
-    val ss: Stream[F, Stream[F, Int]] = Stream.emits(List(s, s))
-    ss.join(2).compile.toList
+    def one: F[Int]       = Effect[F].delay(1)
+    val s: Stream[F, Int] = Stream.eval(one)
+    // TODO: there is no join anymore and we can't satisfy parJoin requirements yet
+    //val ss: Stream[F, Stream[F, Int]] = Stream.emits(List(s, s))
+    //ss.join(2).compile.toList
+    s.interleave(s).compile.toList
   }
 }

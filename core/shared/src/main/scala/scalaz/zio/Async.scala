@@ -1,5 +1,6 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
+import scalaz.zio.ExitResult.Cause
 
 /**
  * The `Async` class describes the return value of an asynchronous effect
@@ -11,8 +12,19 @@ package scalaz.zio
  * which represents an interruptible asynchronous action where the canceler has the
  * form `Throwable => IO[Nothing, Unit]`
  */
-sealed abstract class Async[+E, +A]
-object Async {
+sealed abstract class Async[+E, +A] extends Product with Serializable { self =>
+  def fold[E1, B](
+    f: A => ExitResult[E1, B],
+    g: Cause[E] => ExitResult[E1, B]
+  ): Async[E1, B] =
+    self match {
+      case Async.Now(r)          => Async.Now(r.fold(f, g))
+      case Async.MaybeLater(c)   => Async.MaybeLater(c)
+      case Async.MaybeLaterIO(c) => Async.MaybeLaterIO(c)
+    }
+}
+
+object Async extends Serializable {
 
   val NoOpCanceler: Canceler         = () => ()
   val NoOpPureCanceler: PureCanceler = () => IO.unit

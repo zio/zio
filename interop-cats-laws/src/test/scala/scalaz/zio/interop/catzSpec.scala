@@ -4,10 +4,11 @@ package interop
 import java.io.{ ByteArrayOutputStream, PrintStream }
 
 import cats.Eq
-import cats.effect.laws.discipline.EffectTests
+import cats.effect.laws.discipline.{ EffectTests, Parameters }
+import cats.effect.laws.discipline.arbitrary._
 import cats.effect.laws.util.{ TestContext, TestInstances }
 import cats.implicits._
-import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, SemigroupKTests }
+import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
 import cats.syntax.all._
 import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
@@ -56,10 +57,15 @@ class catzSpec extends FunSuite with Matchers with Checkers with Discipline with
   }
 
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
-  checkAllAsync("MonadError[IO[Int, ?]]", implicit e => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
-  checkAllAsync("Alternative[IO[Int, ?]]", implicit e => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
-  checkAllAsync("SemigroupK[IO[Nothing, ?]]", implicit e => SemigroupKTests[IO[Nothing, ?]].semigroupK[Int])
-  checkAllAsync("Bifunctor[IO]", implicit e => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
+  checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
+  checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
+  checkAllAsync(
+    "Alternative[IO[Option[Unit], ?]]",
+    (_) => AlternativeTests[IO[Option[Unit], ?]].alternative[Int, Int, Int]
+  )
+  checkAllAsync("SemigroupK[IO[Nothing, ?]]", (_) => SemigroupKTests[IO[Nothing, ?]].semigroupK[Int])
+  checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
+  checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Task.Par].parallel[Int, Int])
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
     new Eq[IO[E, A]] {
@@ -67,7 +73,18 @@ class catzSpec extends FunSuite with Matchers with Checkers with Discipline with
         unsafeRun(io1.attempt) === unsafeRun(io2.attempt)
     }
 
+  implicit def catsParEQ[E, A: Eq]: Eq[ParIO[E, A]] =
+    new Eq[ParIO[E, A]] {
+      def eqv(io1: ParIO[E, A], io2: ParIO[E, A]): Boolean =
+        unsafeRun(Par.unwrap(io1).attempt) === unsafeRun(Par.unwrap(io2).attempt)
+    }
+
+  implicit def params: Parameters =
+    Parameters.default.copy(allowNonTerminationLaws = false)
+
   implicit def ioArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
     Arbitrary(genSuccess[E, A])
 
+  implicit def ioParArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[ParIO[E, A]] =
+    Arbitrary(genSuccess[E, A].map(Par.apply))
 }

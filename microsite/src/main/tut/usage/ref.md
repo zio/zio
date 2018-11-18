@@ -35,23 +35,6 @@ def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
   }
 ```
 
-## Compare and swap
-
-`Ref`s provide atomic [CAS](https://en.wikipedia.org/wiki/Compare-and-swap) primitives in the form of `trySet` and `compareAndSet`, which both yield a `Boolean` indicating whether the operation succeeded or not. This is useful to avoid concurrency problems such as phantom writes, as in the classic bank account withdrawal example:
-
-```tut:silent
-val account: IO[Nothing, Ref[Int]] = Ref(100)
-val john = (act: Ref[Int]) => act.get.flatMap(v => act.compareAndSet(v, v - 30))
-val gaston = (act: Ref[Int]) => act.get.flatMap(v => act.compareAndSet(v, v - 70))
-val res: IO[Nothing, Int] = for {
-  accountR <- account
-  _ <- john(accountR) par gaston(accountR)
-  v <- accountR.get
-} yield v
-```
-
-This example is non-deterministic, as both John and Gaston can either receive some money or none at all, but in all cases sequential consistency is maintained thanks to `compareAndSet`. Of course, the bank implementing this logic had to shut down after two days, but that's a story for another day.
-
 ## State transformers
 
 Those who live on the dark side of mutation sometimes have it easy; they can add state everywhere like it's Christmas. Behold:
@@ -71,7 +54,7 @@ As functional programmers, we know better and have captured state mutation in th
 
 ```tut:silent
 Ref(0).flatMap { idCounter =>
-  def freshVar: IO[Nothing, String] = 
+  def freshVar: IO[Nothing, String] =
     idCounter.modify(cpt => (s"var${cpt + 1}", cpt + 1))
 
   for {
@@ -106,7 +89,7 @@ object S {
           if (v < 0)
             IO.fail(())
           else
-            vref.compareAndSet(v, v - 1).flatMap {
+            vref.modify(v0 => if (v0 == v) (true, v - 1) else (false, v)).flatMap {
               case false => IO.fail(())
               case true  => IO.unit
             }
@@ -123,7 +106,7 @@ import scala.concurrent.duration.Duration
 import scala.util.Random
 for {
   dancefloor <- S(10)
-  dancers <- IO.parTraverse(1 to 100) { i => 
+  dancers <- IO.parTraverse(1 to 100) { i =>
     dancefloor.P *> (IO.sync(Duration.fromNanos(Random.nextDouble * 1000000)).flatMap { d =>
       IO.sync(println(s"${i} checking my boots")) *> IO.sleep(d) *> IO.sync(println(s"${i} dancing like it's 99"))
     }) *> dancefloor.V

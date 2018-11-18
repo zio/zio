@@ -24,11 +24,22 @@ package scalaz.zio
 trait Fiber[+E, +A] { self =>
 
   /**
-   * Joins the fiber, with suspends the joining fiber until the result of the
-   * fiber has been determined. Attempting to join a fiber that has been or is
-   * killed before producing its result will result in a catchable error.
+   * Observes the fiber, which suspends the observing fiber until the result of the
+   * fiber has been determined.
    */
-  def join: IO[E, A]
+  def observe: IO[Nothing, ExitResult[E, A]]
+
+  /**
+   * Tentatively observes the fiber, but returns immediately if it is not already done.
+   */
+  def tryObserve: IO[Nothing, Option[ExitResult[E, A]]]
+
+  /**
+   * Joins the fiber, which suspends the joining fiber until the result of the
+   * fiber has been determined. Attempting to join a fiber that has errored will
+   * result in a catchable error, _if_ that error does not result from interruption.
+   */
+  final def join: IO[E, A] = observe.flatMap(IO.done)
 
   /**
    * Interrupts the fiber with no specified reason. If the fiber has already
@@ -36,31 +47,7 @@ trait Fiber[+E, +A] { self =>
    * immediately. Otherwise, it will resume when the fiber has been
    * successfully interrupted or has produced its result.
    */
-  def interrupt: IO[Nothing, Unit] = interrupt0(Nil)
-
-  /**
-   * Interrupts the fiber with the specified error(s). If the fiber has already
-   * terminated, either successfully or with error, this will resume
-   * immediately. Otherwise, it will resume when the fiber has been
-   * successfully interrupted or has produced its result.
-   */
-  def interrupt(t: Throwable, ts: Throwable*): IO[Nothing, Unit] = interrupt0(t :: ts.toList)
-
-  /**
-   * Interrupts the fiber with a list of error(s).
-   */
-  def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]
-
-  /**
-   * Add an exit handler for when the fiber terminates and receive information
-   * on whether the fiber terminated normally, with unhandled error, or with
-   * exception.
-   *
-   * The specified action will be invoked after the fiber has finished running
-   * (including all finalizers). If the specified action throws an exception,
-   * it will be reported to the parent fiber's unhandled error handler.
-   */
-  def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]): IO[Nothing, Unit]
+  def interrupt: IO[Nothing, Unit]
 
   /**
    * Zips this fiber with the specified fiber, combining their results using
@@ -69,30 +56,16 @@ trait Fiber[+E, +A] { self =>
    */
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
-      def join: IO[E1, C] =
-        self.join.seqWith(that.join)(f)
+      def observe: IO[Nothing, ExitResult[E1, C]] =
+        self.observe.seqWith(that.observe)(_.zipWith(_)(f, _ && _))
 
-      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] =
-        self.interrupt0(ts) *> that.interrupt0(ts)
-
-      def onComplete(fc: ExitResult[E1, C] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-        self.onComplete { ra: ExitResult[E, A] =>
-          that.onComplete { rb: ExitResult[E1, B] =>
-            (ra, rb) match {
-              case (ExitResult.Completed(a), ExitResult.Completed(b))   => fc(ExitResult.Completed(f(a, b)))
-              case (ExitResult.Failed(e, ts), rb)                       => fc(ExitResult.Failed(e, combine(ts, rb)))
-              case (ExitResult.Terminated(ts), rb)                      => fc(ExitResult.Terminated(combine(ts, rb)))
-              case (ExitResult.Completed(_), ExitResult.Failed(e, ts))  => fc(ExitResult.Failed(e, ts))
-              case (ExitResult.Completed(_), ExitResult.Terminated(ts)) => fc(ExitResult.Terminated(ts))
-            }
-          }
+      def tryObserve: IO[Nothing, Option[ExitResult[E1, C]]] =
+        self.tryObserve.seqWith(that.tryObserve) {
+          case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ && _))
+          case _                    => None
         }
 
-      private def combine(ts: List[Throwable], r: ExitResult[_, _]) = r match {
-        case ExitResult.Failed(_, ts2)  => ts ++ ts2
-        case ExitResult.Terminated(ts2) => ts ++ ts2
-        case _                          => ts
-      }
+      def interrupt: IO[Nothing, Unit] = self.interrupt *> that.interrupt
     }
 
   /**
@@ -119,28 +92,25 @@ trait Fiber[+E, +A] { self =>
    */
   final def map[B](f: A => B): Fiber[E, B] =
     new Fiber[E, B] {
-      def join: IO[E, B] = self.join.map(f)
-
-      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit] = self.interrupt0(ts)
-
-      def onComplete(fb: ExitResult[E, B] => IO[Nothing, Unit]): IO[Nothing, Unit] =
-        self.onComplete { r: ExitResult[E, A] =>
-          fb(r.map(f))
-        }
+      def observe: IO[Nothing, ExitResult[E, B]]            = self.observe.map(_.map(f))
+      def tryObserve: IO[Nothing, Option[ExitResult[E, B]]] = self.tryObserve.map(_.map(_.map(f)))
+      def interrupt: IO[Nothing, Unit]                      = self.interrupt
     }
 }
 
 object Fiber {
+  final case class Descriptor(id: FiberId)
+
   final def point[E, A](a: => A): Fiber[E, A] =
     new Fiber[E, A] {
-      def join: IO[E, A]                                       = IO.point(a)
-      def interrupt0(ts: List[Throwable]): IO[Nothing, Unit]   = IO.unit
-      def onComplete(f: ExitResult[E, A] => IO[Nothing, Unit]) = f(ExitResult.Completed(a))
+      def observe: IO[Nothing, ExitResult[E, A]]            = IO.point(ExitResult.succeeded(a))
+      def tryObserve: IO[Nothing, Option[ExitResult[E, A]]] = IO.point(Some(ExitResult.succeeded(a)))
+      def interrupt: IO[Nothing, Unit]                      = IO.unit
     }
 
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
     fs.foldLeft(IO.unit)((io, f) => io *> f.interrupt)
 
   final def joinAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt.void)
+    fs.foldLeft(IO.unit)((io, f) => io *> f.observe.void)
 }
