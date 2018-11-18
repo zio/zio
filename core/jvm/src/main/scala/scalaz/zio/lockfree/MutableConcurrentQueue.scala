@@ -1,5 +1,10 @@
 package scalaz.zio.lockfree
 
+object MutableConcurrentQueue {
+  def bounded[A](desiredCapacity: Int): MutableConcurrentQueue[A] = new impls.RingBuffer[A](desiredCapacity)
+  def unbounded[A]: MutableConcurrentQueue[A]                     = new impls.JucCLQ[A]
+}
+
 /**
  * A MutableConcurrentQueue interface to use under the hood in ZIO.
  *

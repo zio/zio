@@ -5,6 +5,8 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.{ Blackhole, Control }
 
+import BenchUtils._
+
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Warmup(iterations = 10, time = 1)
@@ -21,7 +23,7 @@ class PingPongBenchmark {
   @Param(Array("4"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "JucConcurrent", "JucBlocking"))
+  @Param(Array("RingBuffer", "JCTools", "JucCLQ", "JucBlocking"))
   var qType: String = _
 
   var qIn: MutableConcurrentQueue[AnyRef]  = _
@@ -29,8 +31,8 @@ class PingPongBenchmark {
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    qIn = impls.queueByTypeA(qType, qCapacity)
-    qOut = impls.queueByTypeA(qType, qCapacity)
+    qIn = queueByType(qType, qCapacity)
+    qOut = queueByType(qType, qCapacity)
   }
 
   @Benchmark

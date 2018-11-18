@@ -4,7 +4,9 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
+
 import scalaz.zio.lockfree.ProducerConsumerBenchmark.{ OfferCounters, PollCounters }
+import BenchUtils._
 
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -24,7 +26,7 @@ class ProducerConsumerBenchmark {
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "JucConcurrent", "JucBlocking"))
+  @Param(Array("RingBuffer", "JCTools", "JucCLQ", "JucBlocking"))
   var qType: String = _
 
   var q: MutableConcurrentQueue[QueueElement] = _
@@ -35,14 +37,14 @@ class ProducerConsumerBenchmark {
 
   @Setup(Level.Trial)
   def createQ(): Unit =
-    q = impls.queueByTypeA(qType, qCapacity)
+    q = queueByType(qType, qCapacity)
 
-  // @Benchmark
+  @Benchmark
   @Group("Group1SPSC")
   @GroupThreads(1)
   def group1Offer(counters: OfferCounters): Unit = doOffer(counters)
 
-  // @Benchmark
+  @Benchmark
   @Group("Group1SPSC")
   @GroupThreads(1)
   def group1Poll(counters: PollCounters): Unit = doPoll(counters)
