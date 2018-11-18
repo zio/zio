@@ -48,12 +48,16 @@ object RingBufferConcurrencyTests {
     Array(
       new Outcome(id = Array("11, 12, 1, 1, -1, -1"), expect = ACCEPTABLE, desc = "First thread wins both offers"),
       new Outcome(id = Array("21, 22, -1, -1, 1, 1"), expect = ACCEPTABLE, desc = "Second thread wins both offers"),
-      new Outcome(id = Array("11, 21, 1, -1, 1, -1"),
-                  expect = ACCEPTABLE,
-                  desc = "First thread wins first offer, second thread wins second offer"),
-      new Outcome(id = Array("21, 11, 1, -1, 1, -1"),
-                  expect = ACCEPTABLE,
-                  desc = "Second thread wins first offer, first thread wins second offer")
+      new Outcome(
+        id = Array("11, 21, 1, -1, 1, -1"),
+        expect = ACCEPTABLE,
+        desc = "First thread wins first offer, second thread wins second offer"
+      ),
+      new Outcome(
+        id = Array("21, 11, 1, -1, 1, -1"),
+        expect = ACCEPTABLE,
+        desc = "Second thread wins first offer, first thread wins second offer"
+      )
     )
   )
   @State
@@ -94,9 +98,11 @@ object RingBufferConcurrencyTests {
   @JCStressTest
   @Outcome.Outcomes(
     Array(
-      new Outcome(id = Array("-10, -11, -20, -21"),
-                  expect = ACCEPTABLE,
-                  desc = "Both pollers finish before offer starts"),
+      new Outcome(
+        id = Array("-10, -11, -20, -21"),
+        expect = ACCEPTABLE,
+        desc = "Both pollers finish before offer starts"
+      ),
       /*
        * Only the first offer finishes before pollers start polling.
        * Acceptable outcomes are those when at most one poller gets the element during 1st or 2nd poll.
