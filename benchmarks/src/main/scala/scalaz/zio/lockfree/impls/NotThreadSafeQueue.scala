@@ -2,19 +2,17 @@ package scalaz.zio.lockfree.impls
 
 import scalaz.zio.lockfree.MutableConcurrentQueue
 
-import scala.reflect.ClassTag
-
-class UnsafeQueue[A: ClassTag](override val capacity: Int) extends MutableConcurrentQueue[A] {
-  private val buf: Array[A] = Array.ofDim[A](capacity)
-  var head: Long            = 0
-  var tail: Long            = 0
+class NotThreadSafeQueue[A](override val capacity: Int) extends MutableConcurrentQueue[A] {
+  private val buf: Array[AnyRef] = Array.ofDim[AnyRef](capacity)
+  var head: Long                 = 0
+  var tail: Long                 = 0
 
   override def offer(a: A): Boolean =
     if (isFull()) {
       false
     } else {
       tail += 1
-      buf((tail % capacity).asInstanceOf[Int]) = a
+      buf((tail % capacity).asInstanceOf[Int]) = a.asInstanceOf[AnyRef]
       true
     }
 
@@ -24,7 +22,7 @@ class UnsafeQueue[A: ClassTag](override val capacity: Int) extends MutableConcur
     } else {
       val el = buf((head % capacity).asInstanceOf[Int])
       head += 1
-      el
+      el.asInstanceOf[A]
     }
 
   override def isEmpty(): Boolean =

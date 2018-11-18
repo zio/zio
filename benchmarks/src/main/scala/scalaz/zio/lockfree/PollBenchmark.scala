@@ -4,6 +4,8 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 
+import BenchUtils._
+
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
 @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
@@ -22,14 +24,14 @@ class PollBenchmark {
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "JucConcurrent", "JucBlocking", "Unsafe"))
+  @Param(Array("RingBuffer", "JCTools", "JucCLQ", "JucBlocking", "NotThreadSafe"))
   var qType: String = _
 
   var q: MutableConcurrentQueue[AnyRef] = _
 
   @Setup(Level.Trial)
   def createQ(): Unit =
-    q = impls.queueByTypeA(qType, qCapacity)
+    q = queueByType(qType, qCapacity)
 
   @Setup(Level.Invocation)
   def fill(): Unit = {

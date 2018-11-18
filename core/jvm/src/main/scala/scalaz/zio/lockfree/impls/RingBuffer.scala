@@ -1,7 +1,7 @@
-package scalaz.zio.lockfree
+package scalaz.zio.lockfree.impls
 
 import java.util.concurrent.atomic.{ AtomicLong, AtomicLongArray }
-import scala.reflect.ClassTag
+import scalaz.zio.lockfree.{ nextPow2, MutableConcurrentQueue }
 
 /**
  * A lock-free array based bounded queue. It is thread-safe and can be
@@ -69,11 +69,15 @@ import scala.reflect.ClassTag
  * suffer ~20% performance loss.
  *
  * The design is heavily inspired by such libraries as
- * [[https://github.com/JCTools/JCTools JCTools]] and
- * [[https://github.com/LMAX-Exchange/disruptor
- * LMAX-Disruptor]]. Compared to JCTools this implementation doesn't
- * rely on [[sun.misc.Unsafe]], so it is arguably more portable, and
- * should be easier to read.
+ * [[https://github.com/LMAX-Exchange/disruptor]] and
+ * [[https://github.com/JCTools/JCTools]] which is based off
+ * D. Vyukov's design
+ * [[http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue]]
+ *
+ * Compared to JCTools this implementation doesn't rely on
+ * [[sun.misc.Unsafe]], so it is arguably more portable, and should be
+ * easier to read. It's also very extensively commented, including
+ * reasoning, assumptions, and hacks.
  *
  * =Alternative designs=
  *
@@ -91,11 +95,11 @@ import scala.reflect.ClassTag
  * a way yet). This translates into worse performance on average, and
  * better performance in some very specific situations.
  */
-class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurrentQueue[A] {
+class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] {
   final val capacity: Int   = nextPow2(desiredCapacity)
   private val idxMask: Long = (capacity - 1).toLong
 
-  private val buf: Array[A]        = new Array[A](capacity)
+  private val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
   private val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
 
@@ -184,7 +188,7 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
       // The volatile write can actually be relaxed to ordered store
       // (`lazySet`).  See Doug Lea's response in
       // [[http://cs.oswego.edu/pipermail/concurrency-interest/2011-October/008296.html]].
-      aBuf(curIdx) = a
+      aBuf(curIdx) = a.asInstanceOf[AnyRef]
       aSeq.lazySet(curIdx, curTail + 1)
       true
     } else { // state == STATE_FULL
@@ -272,11 +276,11 @@ class RingBuffer[A: ClassTag](val desiredCapacity: Int) extends MutableConcurren
       // See the comment in offer method about volatile writes and
       // visibility guarantees.
       val deqElement = aBuf(curIdx)
-      aBuf(curIdx) = null.asInstanceOf[A]
+      aBuf(curIdx) = null
 
       aSeq.lazySet(curIdx, curHead + aCapacity)
 
-      deqElement
+      deqElement.asInstanceOf[A]
     } else {
       default
     }
