@@ -20,7 +20,15 @@ import scalaz.zio.interop.catz._
 import scala.util.control.NonFatal
 import scala.concurrent.duration._
 
-class catzSpec extends FunSuite with BeforeAndAfterAll with Matchers with Checkers with Discipline with TestInstances with GenIO with RTS {
+class catzSpec
+    extends FunSuite
+    with BeforeAndAfterAll
+    with Matchers
+    with Checkers
+    with Discipline
+    with TestInstances
+    with GenIO
+    with RTS {
   override def afterAll() = {
     println("ScalaTest: Shutting down RTS...")
     unsafeShutdownAndWait(Duration.Zero)
