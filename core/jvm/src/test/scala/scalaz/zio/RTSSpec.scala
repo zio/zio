@@ -6,11 +6,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.specification.AroundTimeout
+import org.specs2.specification.{ AroundTimeout, ExamplesTimeout }
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 
-class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
+class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout with ExamplesTimeout {
 
   def is = s2"""
   RTS synchronous correctness
