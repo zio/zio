@@ -2,6 +2,7 @@
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
+
 import org.openjdk.jmh.annotations._
 import scala.concurrent.Await
 
@@ -35,9 +36,61 @@ class IODeepAttemptBenchmark {
 
     def descend(n: Int): Future[BigInt] =
       if (n == depth) Future.failed(new Exception("Oh noes!"))
-      else if (n == halfway) descend(n + 1).recover { case _ => 50 } else descend(n + 1).map(_ + n)
+      else if (n == halfway) descend(n + 1).recover { case _ => 50 }
+      else descend(n + 1).map(_ + n)
 
     Await.result(descend(0), Inf)
+  }
+
+  @Benchmark
+  def completableFutureDeepAttempt(): BigInt = {
+    import java.util.concurrent.CompletableFuture
+
+    def descent(n: Int): CompletableFuture[BigInt] = {
+      if (n == depth) {
+        val f = new CompletableFuture[BigInt]()
+        f.completeExceptionally(new Exception("Oh noes!"))
+        f
+      } else if (n == halfway) {
+        descent(n + 1).exceptionally(_ => 50)
+      } else {
+        descent(n + 1).thenApply(_ + n)
+      }
+    }
+
+    descent(0).get()
+  }
+
+  @Benchmark
+  def monoDeepAttempt(): BigInt = {
+    import reactor.core.publisher.Mono
+
+    def descent(n: Int): Mono[BigInt] = {
+      if (n == depth)
+        Mono.error(new Exception("Oh noes!"))
+      else if (n == halfway)
+        descent(n + 1).onErrorReturn(BigInt.apply(50))
+      else
+        descent(n + 1).map(_ + n)
+    }
+
+    descent(0).block()
+  }
+
+  @Benchmark
+  def rxSingleDeepAttempt(): BigInt = {
+    import io.reactivex.Single
+    def descent(n: Int): Single[BigInt] = {
+      if (n == depth)
+        Single.error(new Exception("Oh noes!"))
+      else if (n == halfway)
+        descent(n + 1)
+          .onErrorReturn(_ => 50)
+      else
+        descent(n + 1).map(_ + n)
+    }
+
+    descent(0).blockingGet()
   }
 
   @Benchmark
@@ -49,7 +102,7 @@ class IODeepAttemptBenchmark {
       else if (n == halfway) descend(n + 1).attempt.map(_.fold(_ => 50, a => a))
       else descend(n + 1).map(_ + n)
 
-    descend(0).runSyncMaybe.right.get
+    descend(0).runSyncStep.right.get
   }
 
   @Benchmark

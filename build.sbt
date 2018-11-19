@@ -121,9 +121,12 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
+        "io.reactivex.rxjava2" % "rxjava" % "2.2.3",
+        "com.google.code.findbugs" % "jsr305" % "3.0.0",
+        "io.projectreactor" % "reactor-core" % "3.2.2.RELEASE",
         "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
         "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
-        "io.monix"       %% "monix"         % "3.0.0-RC1",
+        "io.monix"       %% "monix"         % "3.0.0-RC2",
         "org.typelevel"  %% "cats-effect"   % "1.0.0"
       )
   )

@@ -4,8 +4,8 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 
-import scala.concurrent.duration.Duration
 import scala.collection.immutable.Range
+import scala.concurrent.duration.Duration
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -37,6 +37,24 @@ class ArrayFillBenchmarks {
       } yield ()
     )
   }
+
+  @Benchmark
+  def monoArrayFill() = {
+    import reactor.core.publisher.Mono
+
+    def arrayFill(array: Array[Int])(i: Int): Mono[Unit] =
+      if (i >= array.length) Mono.just(())
+      else Mono.defer(() => Mono.just(array.update(i, i)))
+        .flatMap(_ => arrayFill(array)(i + 1))
+
+
+    (for {
+      array <- Mono.defer(() => Mono.just(createTestArray))
+      _ <- arrayFill(array)(0)
+    } yield ())
+      .block()
+  }
+
   @Benchmark
   def catsArrayFill() = {
     import cats.effect.IO
@@ -52,8 +70,8 @@ class ArrayFillBenchmarks {
   }
   @Benchmark
   def monixArrayFill() = {
-    import monix.eval.Task
     import IOBenchmarks.monixScheduler
+    import monix.eval.Task
 
     def arrayFill(array: Array[Int])(i: Int): Task[Unit] =
       if (i >= array.length) Task.unit

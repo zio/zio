@@ -2,10 +2,11 @@
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
-import org.openjdk.jmh.annotations._
-import scala.concurrent.Await
 
-import IOBenchmarks._
+import org.openjdk.jmh.annotations._
+import scalaz.zio.IOBenchmarks._
+
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -32,12 +33,65 @@ class IOShallowAttemptBenchmark {
     import scala.concurrent.duration.Duration.Inf
 
     def throwup(n: Int): Future[BigInt] =
-      if (n == 0) throwup(n + 1) recover { case _ => 0 } else if (n == depth) Future(1)
+      if (n == 0) throwup(n + 1) recover { case _ => 0 }
+      else if (n == depth) Future(1)
       else
         throwup(n + 1).recover { case _ => 0 }
           .flatMap(_ => Future.failed(new Exception("Oh noes!")))
 
     Await.result(throwup(0), Inf)
+  }
+
+  @Benchmark
+  def completableFutureShallowAttempt(): BigInt = {
+    import java.util.concurrent.CompletableFuture
+
+    def throwup(n: Int): CompletableFuture[BigInt] = {
+      if (n == 0) throwup(n + 1).exceptionally(_ => 0)
+      else if (n == depth) CompletableFuture.completedFuture(1)
+      else
+        throwup(n + 1).exceptionally(_ => 0)
+        .thenCompose(_ => {
+          val f = new CompletableFuture[BigInt]()
+          f.completeExceptionally(new Exception("Oh noes!"))
+          f
+        })
+    }
+
+    throwup(0)
+      .get()
+  }
+
+  @Benchmark
+  def monoShallowAttempt(): BigInt = {
+    import reactor.core.publisher.Mono
+
+    def throwup(n: Int): Mono[BigInt] = {
+      if (n == 0) throwup(n + 1).onErrorReturn(0)
+      else if (n == depth) Mono.just(1)
+      else
+        throwup(n + 1).onErrorReturn(0)
+        .flatMap(_ => Mono.error(new Exception("Oh noes!")))
+    }
+
+    throwup(0)
+      .block()
+  }
+
+  @Benchmark
+  def rxSingleShallowAttempt(): BigInt = {
+    import io.reactivex.Single
+
+    def throwup(n: Int): Single[BigInt] = {
+      if (n == 0) throwup(n + 1).onErrorReturn(_ => 0)
+      else if (n == depth) Single.just(1)
+      else
+        throwup(n + 1).onErrorReturn(_ => 0)
+          .flatMap(_ => Single.error(new Exception("Oh noes!")))
+    }
+
+    throwup(0)
+      .blockingGet()
   }
 
   @Benchmark
@@ -53,7 +107,7 @@ class IOShallowAttemptBenchmark {
           case Right(_) => Task.raiseError(new Error("Oh noes!"))
         }
 
-    throwup(0).runSyncMaybe.right.get
+    throwup(0).runSyncStep.right.get
   }
 
   @Benchmark
