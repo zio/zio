@@ -2,10 +2,11 @@
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
-import org.openjdk.jmh.annotations._
-import scala.concurrent.Await
 
-import IOBenchmarks._
+import org.openjdk.jmh.annotations._
+import scalaz.zio.IOBenchmarks._
+
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -42,6 +43,54 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
+  def completableFutureDeepFlatMap(): BigInt = {
+    import java.util.concurrent.CompletableFuture
+
+    def fib(n: Int): CompletableFuture[BigInt] = {
+      if (n <= 1) CompletableFuture.completedFuture(n)
+      else
+        fib(n - 1).thenCompose { a =>
+          fib(n - 2).thenCompose(b => CompletableFuture.completedFuture(a + b))
+        }
+    }
+
+    fib(depth)
+      .get()
+  }
+
+  @Benchmark
+  def monoDeepFlatMap(): BigInt = {
+    import reactor.core.publisher.Mono
+
+    def fib(n: Int): Mono[BigInt] = {
+      if (n <= 1) Mono.just(n)
+      else
+        fib(n - 1).flatMap { a =>
+          fib(n - 2).flatMap(b => Mono.just(a + b))
+        }
+    }
+
+    fib(depth)
+      .block()
+  }
+
+  @Benchmark
+  def rxSingleDeepFlatMap(): BigInt = {
+    import io.reactivex.Single
+
+    def fib(n: Int): Single[BigInt] = {
+      if (n <= 1) Single.just(n)
+      else
+        fib(n - 1).flatMap { a =>
+          fib(n - 2).flatMap(b => Single.just(a + b))
+        }
+    }
+
+    fib(depth)
+      .blockingGet()
+  }
+
+  @Benchmark
   def monixDeepFlatMap(): BigInt = {
     import monix.eval.Task
 
@@ -52,7 +101,7 @@ class IODeepFlatMapBenchmark {
           fib(n - 2).flatMap(b => Task.eval(a + b))
         }
 
-    fib(depth).runSyncMaybe.right.get
+    fib(depth).runSyncStep.right.get
   }
 
   @Benchmark
