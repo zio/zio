@@ -117,9 +117,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * TODO: Replace with optimized primitive.
    */
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
-    def coordinate[A, B](f: (A, B) => C)(winner: Fiber[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
-      winner.observe.flatMap {
-        case ExitResult.Succeeded(_)  => winner.zipWith(loser)(f).join
+    def coordinate[A, B](f: (A, B) => C)(winner: ExitResult[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
+      winner match {
+        case ExitResult.Succeeded(_)  => Fiber.done(winner).zipWith(loser)(f).join
         case ExitResult.Failed(cause) => loser.interrupt *> IO.fail0(cause)
       }
     (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
@@ -147,7 +147,15 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * then the action will fail with some error.
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
-    raceWith(that)(_.join.map(Left(_)) <* _.interrupt, _.join.map(Right(_)) <* _.interrupt)
+    raceWith(that)(
+      (_, _) match {
+        case (ExitResult.Succeeded(a), right) => IO.now(Left(a)) <* right.interrupt
+        case (ExitResult.Failed(c), right) => right.interrupt *> IO.fail0(c)
+      },
+      (_, _) match {
+        case (ExitResult.Succeeded(b), left) => IO.now(Right(b)) <* left.interrupt
+        case (ExitResult.Failed(c), left) => left.interrupt *> IO.fail0(c)
+      })
 
   /**
    * Races this action with the specified action, invoking the
@@ -156,29 +164,30 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def raceWith[E1, E2, B, C](
     that: IO[E1, B]
   )(
-    leftWins: (Fiber[E, A], Fiber[E1, B]) => IO[E2, C],
-    rightWins: (Fiber[E1, B], Fiber[E, A]) => IO[E2, C]
+    leftDone: (ExitResult[E, A], Fiber[E1, B]) => IO[E2, C],
+    rightDone: (ExitResult[E1, B], Fiber[E, A]) => IO[E2, C]
   ): IO[E2, C] = {
     def arbiter[E0, E1, A, B](
-      f: (Fiber[E0, A], Fiber[E1, B]) => IO[E2, C],
-      winner: Fiber[E0, A],
+      f: (ExitResult[E0, A], Fiber[E1, B]) => IO[E2, C],
       loser: Fiber[E1, B],
-      race: Ref[IO.Race],
+      race: Ref[Boolean],
       done: Promise[E2, C]
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
       race
-        .modify(r => r.won(res.succeeded) -> r.next(res.succeeded))
-        .flatMap(IO.when(_)(f(winner, loser).to(done).void))
+        .modify(
+          if (_) IO.unit -> false
+          else f(res, loser).to(done).void -> true)
+        .flatMap(identity)
 
     for {
       done   <- Promise.make[E2, C]
-      race   <- Ref[IO.Race](IO.Race.Started)
+      race   <- Ref[Boolean](false)
       fibers <- Ref[(Option[Fiber[E, A]], Option[Fiber[E1, B]])]((None, None))
       c <- (for {
             left  <- self.fork.peek(left => fibers.update(t => (Some(left), t._2))).uninterruptibly
             right <- that.fork.peek(right => fibers.update(t => (t._1, Some(right)))).uninterruptibly
-            _     <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
-            _     <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
+            _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
+            _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
             c     <- done.get
           } yield c).ensuring(
             fibers.get.flatMap {
@@ -807,25 +816,6 @@ object IO extends Serializable {
 
   final class Descriptor private[IO] extends IO[Nothing, Fiber.Descriptor] {
     override def tag = Tags.Descriptor
-  }
-
-  private[zio] sealed abstract class Race { self =>
-    def won(succeeded: Boolean): Boolean = self match {
-      case Race.Started if !succeeded => false
-      case Race.Done                  => false
-      case _                          => true
-    }
-
-    def next(succeeded: Boolean): Race = self match {
-      case Race.Started if !succeeded => Race.OtherFailed
-      case _                          => Race.Done
-    }
-  }
-
-  private[zio] object Race {
-    case object Started     extends Race
-    case object OtherFailed extends Race
-    case object Done        extends Race
   }
 
   /**
