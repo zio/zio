@@ -101,13 +101,16 @@ trait Fiber[+E, +A] { self =>
 object Fiber {
   final case class Descriptor(id: FiberId)
 
-  final def point[E, A](a: => A): Fiber[E, A] =
+  final def done[E, A](exit: => ExitResult[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
-      def observe: IO[Nothing, ExitResult[E, A]]            = IO.point(ExitResult.succeeded(a))
-      def tryObserve: IO[Nothing, Option[ExitResult[E, A]]] = IO.point(Some(ExitResult.succeeded(a)))
+      def observe: IO[Nothing, ExitResult[E, A]]            = IO.point(exit)
+      def tryObserve: IO[Nothing, Option[ExitResult[E, A]]] = IO.point(Some(exit))
       def interrupt: IO[Nothing, Unit]                      = IO.unit
     }
 
+  final def point[E, A](a: => A): Fiber[E, A] =
+    done(ExitResult.succeeded(a))
+    
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
     fs.foldLeft(IO.unit)((io, f) => io *> f.interrupt)
 
