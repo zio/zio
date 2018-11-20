@@ -51,7 +51,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         _ <- fail.complete(())
         _ <- released.get
       } yield ()).timeout(2.seconds)
-    } must_=== Some(())
+    } must beSome(())
 
   def bracketTerminate =
     unsafeRun {
@@ -72,7 +72,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         _ <- terminate.complete(())
         _ <- released.get
       } yield ()).timeout(2.seconds)
-    } must_=== Some(())
+    } must beSome(())
 
   def bracketInterrupt =
     unsafeRun {
@@ -80,8 +80,8 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         started  <- Promise.make[Nothing, Unit]
         released <- Promise.make[Nothing, Unit]
         f <- Stream
-              .bracket(started.complete(()).void)(_ => released.complete(()).void)
-              .evalMap[Task, Unit](_ => IO.never)
+              .bracket(IO.unit)(_ => released.complete(()).void)
+              .evalMap[Task, Unit](_ => started.complete(()) *> IO.never)
               .compile
               .drain
               .fork
@@ -90,7 +90,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         _ <- f.interrupt
         _ <- released.get
       } yield ()).timeout(2.seconds)
-    } must_=== Some(())
+    } must beSome(())
 
   def testCaseJoin[F[_]: Effect]: F[List[Int]] = {
     def one: F[Int]       = Effect[F].delay(1)
