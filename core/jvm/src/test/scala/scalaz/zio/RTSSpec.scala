@@ -97,7 +97,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     raceAll of values                       ${upTo(1.second)(testRaceAllOfValues)}
     raceAll of failures                     ${upTo(1.second)(testRaceAllOfFailures)}
     raceAll of failures & one success       ${upTo(1.second)(testRaceAllOfFailuresOneSuccess)}
-    par regression                          ${upTo(5.seconds)(testPar)}
+    par regression                          ${upTo(30.seconds)(testPar)}
     par of now values                       ${upTo(5.seconds)(testRepeatedPar)}
     mergeAll                                $testMergeAll
     mergeAllEmpty                           $testMergeAllEmpty
