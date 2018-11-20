@@ -174,19 +174,19 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       done   <- Promise.make[E2, C]
       race   <- Ref[IO.Race](IO.Race.Started)
       fibers <- Ref[(Option[Fiber[E, A]], Option[Fiber[E1, B]])]((None, None))
-      c      <- (for {
-                  left   <- self.fork.peek(left => fibers.update(t => (Some(left), t._2))).uninterruptibly
-                  right  <- that.fork.peek(right => fibers.update(t => (t._1, Some(right)))).uninterruptibly
-                  _      <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
-                  _      <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
-                  c      <- done.get
-                } yield c).ensuring(
-                  fibers.get.flatMap {
-                    case (l, r) =>
-                      l.fold(IO.unit)(_.interrupt) *>
-                      r.fold(IO.unit)(_.interrupt)
-                  }
-                )
+      c <- (for {
+            left  <- self.fork.peek(left => fibers.update(t => (Some(left), t._2))).uninterruptibly
+            right <- that.fork.peek(right => fibers.update(t => (t._1, Some(right)))).uninterruptibly
+            _     <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
+            _     <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
+            c     <- done.get
+          } yield c).ensuring(
+            fibers.get.flatMap {
+              case (l, r) =>
+                l.fold(IO.unit)(_.interrupt) *>
+                  r.fold(IO.unit)(_.interrupt)
+            }
+          )
     } yield c
   }
 
