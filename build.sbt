@@ -88,7 +88,7 @@ lazy val interop = crossProject(JSPlatform, JVMPlatform)
       "org.scalaz"    %%% "scalaz-core"               % "7.2.+"    % Optional,
       "org.typelevel" %%% "cats-effect"               % "1.0.0"    % Optional,
       "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"    % Test,
-      "co.fs2"        %%% "fs2-core"                  % "1.0.0-M5" % Test
+      "co.fs2"        %%% "fs2-core"                  % "1.0.0"    % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
