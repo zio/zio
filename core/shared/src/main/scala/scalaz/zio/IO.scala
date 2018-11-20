@@ -150,11 +150,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     raceWith(that)(
       (_, _) match {
         case (ExitResult.Succeeded(a), right) => IO.now(Left(a)) <* right.interrupt
-        case (ExitResult.Failed(c), right)    => right.interrupt *> IO.fail0(c)
+        case (ExitResult.Failed(_), right)    => right.join.map(Right(_))
       },
       (_, _) match {
         case (ExitResult.Succeeded(b), left) => IO.now(Right(b)) <* left.interrupt
-        case (ExitResult.Failed(c), left)    => left.interrupt *> IO.fail0(c)
+        case (ExitResult.Failed(_), left)    => left.join.map(Left(_))
       }
     )
 
