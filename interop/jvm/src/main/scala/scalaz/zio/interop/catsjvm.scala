@@ -6,19 +6,19 @@ import cats.{effect, _}
 import scalaz.zio.ExitResult.Cause
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
+import scala.concurrent.duration.{FiniteDuration, NANOSECONDS, TimeUnit}
 
 abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
 }
 
 abstract class CatsInstances extends CatsInstances1 {
-  def ioContextShift[E](ec: ExecutionContext): ContextShift[IO[E, ?]] = new ContextShift[IO[E, ?]] {
+  implicit def ioContextShift[E]: ContextShift[IO[E, ?]] = new ContextShift[IO[E, ?]] {
     override def shift: IO[E, Unit] =
-      IO.shift(ec)
+      IO.shift
 
     override def evalOn[A](ec: ExecutionContext)(fa: IO[E, A]): IO[E, A] =
-      IO.shift(ec) *> fa <* IO.sleep(Duration.Zero)
+      fa.on(ec)
   }
 
   implicit def ioTimer[E](implicit zioClock: Clock): effect.Timer[IO[E, ?]] = new effect.Timer[IO[E, ?]] {
