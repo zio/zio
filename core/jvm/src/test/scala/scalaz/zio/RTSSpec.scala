@@ -6,11 +6,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.specification.{ AroundTimeout, ExamplesTimeout }
+import org.specs2.specification.AroundTimeout
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 
-class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout with ExamplesTimeout {
+class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
   def is = s2"""
   RTS synchronous correctness
@@ -106,7 +106,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     timeout of failure                      ${upTo(5.seconds)(testTimeoutFailure)}
 
   RTS regression tests
-    regression 1                            $testDeadlockRegression
+    regression 1                            ${upTo(20.seconds)(testDeadlockRegression)}
     check interruption regression 1         ${upTo(20.seconds)(testInterruptionRegression1)}
 
   RTS interrupt fiber tests

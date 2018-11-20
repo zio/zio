@@ -191,8 +191,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
           } yield c).ensuring(
             fibers.get.flatMap {
               case (l, r) =>
-                l.fold(IO.unit)(_.interrupt) *>
-                  r.fold(IO.unit)(_.interrupt)
+                l.fold(IO.unit)(_.interrupt) *> r.fold(IO.unit)(_.interrupt)
             }
           )
     } yield c
