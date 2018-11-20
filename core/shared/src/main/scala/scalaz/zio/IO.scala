@@ -175,8 +175,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       done: Promise[E2, C]
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
       race
-        .modify((if (_) IO.unit else f(res, loser).to(done).void) -> true)
-        .flatMap(identity)
+        .modify((b: Boolean) =>
+          (if (b) IO.unit else f(res, loser).to(done).void) -> true)
+        .flatMap(identity(_))
 
     for {
       done   <- Promise.make[E2, C]
