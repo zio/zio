@@ -175,8 +175,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
       race
         .modify(
-          if (_) IO.unit -> false
-          else f(res, loser).to(done).void -> true)
+          (if (_) IO.unit else f(res, loser).to(done).void) -> true)
         .flatMap(identity)
 
     for {
