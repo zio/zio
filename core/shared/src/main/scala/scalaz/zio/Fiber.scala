@@ -110,7 +110,7 @@ object Fiber {
 
   final def point[E, A](a: => A): Fiber[E, A] =
     done(ExitResult.succeeded(a))
-    
+
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
     fs.foldLeft(IO.unit)((io, f) => io *> f.interrupt)
 
