@@ -106,7 +106,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     timeout of failure                      ${upTo(5.seconds)(testTimeoutFailure)}
 
   RTS regression tests
-    regression 1                            ${upTo(20.seconds)(testDeadlockRegression)}
+    deadlock regression 1                   ${upTo(20.seconds)(testDeadlockRegression)}
     check interruption regression 1         ${upTo(20.seconds)(testInterruptionRegression1)}
 
   RTS interrupt fiber tests
@@ -659,10 +659,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
     import java.util.concurrent.Executors
 
+    val rts = new RTS {}
+
     val e = Executors.newSingleThreadExecutor()
 
     (0 until 10000).foreach { _ =>
-      unsafeRun {
+      rts.unsafeRun {
         IO.async[Nothing, Int] { cb =>
           val c: Callable[Unit] = () => cb(ExitResult.succeeded(1))
           val _                 = e.submit(c)
