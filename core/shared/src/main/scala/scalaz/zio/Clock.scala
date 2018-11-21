@@ -2,6 +2,7 @@
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
+import scalaz.zio.duration.Duration
 
 trait Clock extends Serializable {
   def currentTime(unit: TimeUnit): IO[Nothing, Long]
