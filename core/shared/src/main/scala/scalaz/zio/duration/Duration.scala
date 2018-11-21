@@ -1,4 +1,4 @@
-package scalaz.zio
+package scalaz.zio.duration
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
@@ -29,7 +29,7 @@ final object Duration {
   final case class Finite private (nanos: Long) extends Duration {
 
     def +(other: Duration): Duration = other match {
-      case Finite(otherNanos) => new Finite(nanos + otherNanos)
+      case Finite(otherNanos) => Finite(nanos + otherNanos)
       case Infinity           => Infinity
     }
 

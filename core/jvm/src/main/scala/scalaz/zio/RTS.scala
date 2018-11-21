@@ -5,6 +5,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import scala.annotation.{ switch, tailrec }
 import scalaz.zio.ExitResult.Cause
+import scalaz.zio.duration.Duration
 
 /**
  * This trait provides a high-performance implementation of a runtime system for

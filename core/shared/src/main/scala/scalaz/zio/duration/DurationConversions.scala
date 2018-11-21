@@ -1,4 +1,4 @@
-package scalaz.zio
+package scalaz.zio.duration
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit._
