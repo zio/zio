@@ -95,7 +95,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
         val newState = oldState match {
           case Pending(joiners) =>
             action =
-              IO.forkAll(joiners.map(k => IO.sync[Unit](k(r)))) *>
+              IO.forkAll_(joiners.map(k => IO.sync[Unit](k(r)))) *>
                 IO.now[Boolean](true)
 
             Done(r)

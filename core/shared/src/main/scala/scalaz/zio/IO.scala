@@ -39,7 +39,7 @@ import scalaz.zio.ExitResult.Cause
  * In order to integrate with Scala, `IO` values must be interpreted into the
  * Scala runtime. This process of interpretation executes the effects described
  * by a given immutable `IO` value. For more information on interpreting `IO`
- * values, see the default interpreter in `RTS` or the safe main function in
+ * values, see the defaultf interpreter in `RTS` or the safe main function in
  * `App`.
  */
 sealed abstract class IO[+E, +A] extends Serializable { self =>
@@ -1074,11 +1074,18 @@ object IO extends Serializable {
    */
   final def forkAll[E, A](as: Iterable[IO[E, A]]): IO[Nothing, Fiber[E, List[A]]] =
     as.foldRight(IO.point(Fiber.point[E, List[A]](List()))) { (aIO, asFiberIO) =>
-      asFiberIO.par(aIO.fork).map {
+      asFiberIO.seq(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
       }
     }
+
+  /**
+   * Forks all of the specified values, and returns a composite fiber that
+   * produces a list of their results, in order.
+   */
+  final def forkAll_[E, A](as: Iterable[IO[E, A]]): IO[Nothing, Unit] =
+    as.foldRight(IO.unit)(_.fork *> _)
 
   /**
    * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
