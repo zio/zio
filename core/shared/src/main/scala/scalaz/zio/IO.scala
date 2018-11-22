@@ -149,14 +149,16 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
     raceWith(that)(
-      (_, _) match {
-        case (ExitResult.Succeeded(a), right) => IO.now(Left(a)) <* right.interrupt
-        case (ExitResult.Failed(_), right)    => right.join.map(Right(_))
-      },
-      (_, _) match {
-        case (ExitResult.Succeeded(b), left) => IO.now(Right(b)) <* left.interrupt
-        case (ExitResult.Failed(_), left)    => left.join.map(Left(_))
-      }
+      (exit, right) =>
+        exit.redeem[E1, Either[A, B]](
+          _ => right.join.map(Right(_)),
+          a => IO.now(Left(a)) <* right.interrupt
+        ),
+      (exit, left) =>
+        exit.redeem[E1, Either[A, B]](
+          _ => left.join.map(Left(_)),
+          b => IO.now(Right(b)) <* left.interrupt
+        )
     )
 
   /**
@@ -175,9 +177,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       race: Ref[Int],
       done: Promise[E2, C]
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
-      race
-        .modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1))
-        .flatMap(identity(_))
+      IO.flatten(race.modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1)))
 
     for {
       done <- Promise.make[E2, C]
