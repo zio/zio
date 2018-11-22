@@ -32,7 +32,7 @@ trait RTS {
   final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] = {
     val context = newFiberContext[E, A](defaultHandler)
     context.evaluate(io)
-    context.runSync
+    context.await
   }
 
   final def unsafeShutdownAndWait(timeout: Duration): Unit = {
@@ -199,7 +199,7 @@ private object RTS {
     /**
      * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
      */
-    final def runSync: ExitResult[E, A] = {
+    final def await: ExitResult[E, A] = {
       val result = new AtomicReference[ExitResult[E, A]](null)
 
       register { (r: ExitResult[E, A]) =>

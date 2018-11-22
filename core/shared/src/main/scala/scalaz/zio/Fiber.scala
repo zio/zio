@@ -96,6 +96,17 @@ trait Fiber[+E, +A] { self =>
       def tryObserve: IO[Nothing, Option[ExitResult[E, B]]] = self.tryObserve.map(_.map(_.map(f)))
       def interrupt: IO[Nothing, Unit]                      = self.interrupt
     }
+
+  /**
+   * Maps the output of this fiber to the specified constant.
+   */
+  final def const[B](b: => B): Fiber[E, B] =
+    map(_ => b)
+
+  /**
+   * Maps the output of this fiber to `()`.
+   */
+  final def void: Fiber[E, Unit] = const(())
 }
 
 object Fiber {
