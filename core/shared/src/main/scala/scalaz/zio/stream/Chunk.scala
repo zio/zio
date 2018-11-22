@@ -1,6 +1,7 @@
 package scalaz.zio.stream
 
 import scalaz.zio._
+
 import scala.reflect._
 
 /**
@@ -44,14 +45,14 @@ sealed trait Chunk[@specialized +A] { self =>
    * Drops the first `n` elements of the chunk.
    */
   final def drop(n: Int): Chunk[A] =
-    self match {
-      case Chunk.Slice(c, o, l) =>
-        Chunk.Slice(c, o + n, l - n)
-      case c @ Chunk.Singleton(_) =>
-        if (n <= 0) c else Chunk.empty
-      case _ =>
-        Chunk.Slice(self, n, self.length - n)
-    }
+    if (n <= 0) self else
+      self match {
+        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + n, l - n)
+        case Chunk.Singleton(_) if n > 0 => Chunk.empty
+        case c @ Chunk.Singleton(_) => c
+        case Chunk.Empty => Chunk.empty
+        case _ => Chunk.Slice(self, n, self.length - n)
+      }
 
   /**
    * Drops all elements so long as the predicate returns true.
@@ -91,7 +92,7 @@ sealed trait Chunk[@specialized +A] { self =>
    * Returns a filtered subset of this chunk.
    */
   def filter(f: A => Boolean): Chunk[A] = {
-    implicit val B = Chunk.classTagOf(this)
+    implicit val B: ClassTag[A] = Chunk.classTagOf(this)
 
     val len  = self.length
     val dest = Array.ofDim[A](len)
@@ -135,7 +136,7 @@ sealed trait Chunk[@specialized +A] { self =>
 
     if (B0 == null) Chunk.empty
     else {
-      implicit val B = B0
+      implicit val B: ClassTag[B] = B0
 
       val dest: Array[B] = Array.ofDim(total)
 
@@ -320,15 +321,15 @@ sealed trait Chunk[@specialized +A] { self =>
    */
   final def take(n: Int): Chunk[A] =
     if (n <= 0) Chunk.Empty
+    else if (n >= length) this
     else
       self match {
+        case Chunk.Empty => Chunk.Empty
         case Chunk.Slice(c, o, l) =>
           if (n >= l) this
           else Chunk.Slice(c, o, n)
-        case c @ Chunk.Singleton(_) =>
-          c
-        case _ =>
-          Chunk.Slice(self, 0, n)
+        case c @ Chunk.Singleton(_) => c
+        case _ => Chunk.Slice(self, 0, n)
       }
 
   /**
@@ -360,8 +361,20 @@ sealed trait Chunk[@specialized +A] { self =>
     dest
   }
 
+  def toSeq: Seq[A] = {
+    val seqBuilder = Seq.newBuilder[A]
+    var i = 0
+    val len = length
+    seqBuilder.sizeHint(len)
+    while (i < len) {
+      seqBuilder += apply(i)
+      i += 1
+    }
+    seqBuilder.result()
+  }
+
   override def toString: String =
-    toArray.mkString("Chunk(", ",", ")")
+    toArray.mkString(s"${self.getClass.getSimpleName}(", ",", ")")
 
   /**
    * Effectfully traverses the elements of this chunk.
@@ -468,6 +481,8 @@ sealed trait Chunk[@specialized +A] { self =>
 
   protected[zio] def apply(n: Int): A
   protected[zio] def foreach(f: A => Unit): Unit
+
+  //noinspection AccessorLikeMethodIsUnit
   protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit
 }
 
@@ -476,7 +491,7 @@ object Chunk {
   /**
    * Returns a chunk from a number of values.
    */
-  final def apply[A](as: A*) = fromIterable(as)
+  final def apply[A](as: A*): Chunk[A] = fromIterable(as)
 
   /**
    * Returns the empty chunk.
@@ -612,7 +627,7 @@ object Chunk {
 
       if (B0 == null) Chunk.empty
       else {
-        implicit val B = B0
+        implicit val B: ClassTag[B] = B0
 
         val dest: Array[B] = Array.ofDim(total)
 
@@ -683,12 +698,14 @@ object Chunk {
 
     override def materialize[A1 >: A]: Chunk[A1] = this
 
+    /**
+      * Takes all elements so long as the predicate returns true.
+      */
     override def takeWhile(f: A => Boolean): Chunk[A] = {
-      val self = array
-      val len  = self.length
+      val len = length
 
       var i = 0
-      while (i < len && f(self(i))) {
+      while (i < len && f(apply(i))) {
         i += 1
       }
 
@@ -732,14 +749,19 @@ object Chunk {
     }
   }
 
-  private case object Empty extends Chunk[Nothing] {
+  private case object Empty extends Chunk[Nothing] { self =>
     override def length: Int = 0
 
-    protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to ${n}")
+    protected[zio] def apply(n: Int): Nothing = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
     protected[zio] def foreach(f: Nothing => Unit): Unit = ()
 
     protected[zio] def toArray[A1 >: Nothing](n: Int, dest: Array[A1]): Unit = ()
+
+    override def toArray[A1]: Array[A1] = {
+      implicit val A1: ClassTag[A1] = Chunk.classTagOf(self)
+      Array.empty
+    }
   }
 
   private case class Singleton[A](a: A) extends Chunk[A] {
@@ -749,7 +771,7 @@ object Chunk {
 
     override def apply(n: Int): A =
       if (n == 0) a
-      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to ${n}")
+      else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $n")
 
     override def foreach(f: A => Unit): Unit = f(a)
 
@@ -757,10 +779,12 @@ object Chunk {
       dest(n) = a
   }
 
-  private case class Slice[@specialized A](private val chunk: Chunk[A], offset: Int, length: Int) extends Chunk[A] {
+  private case class Slice[@specialized A](private val chunk: Chunk[A], offset: Int, l: Int) extends Chunk[A] {
     implicit lazy val classTag: ClassTag[A] = classTagOf(chunk)
 
     override def apply(n: Int): A = chunk.apply(offset + n)
+
+    override def length: Int = l
 
     override def foreach(f: A => Unit): Unit = {
       var i = 0
@@ -786,7 +810,7 @@ object Chunk {
   private case class VectorChunk[@specialized A](private val vector: Vector[A]) extends Chunk[A] {
     implicit lazy val classTag: ClassTag[A] = Tags.fromValue(vector(0))
 
-    def length = vector.length
+    def length: Int = vector.length
 
     override def apply(n: Int): A = vector(n)
 
