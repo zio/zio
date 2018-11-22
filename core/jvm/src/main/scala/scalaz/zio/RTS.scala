@@ -197,7 +197,7 @@ private object RTS {
       }
 
     /**
-     * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
+     * Awaits for the result of the fiber to be computed.
      */
     final def await: ExitResult[E, A] = {
       val result = new AtomicReference[ExitResult[E, A]](null)
