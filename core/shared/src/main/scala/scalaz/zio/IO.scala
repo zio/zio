@@ -172,29 +172,23 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     def arbiter[E0, E1, A, B](
       f: (ExitResult[E0, A], Fiber[E1, B]) => IO[E2, C],
       loser: Fiber[E1, B],
-      race: Ref[Boolean],
+      race: Ref[Int],
       done: Promise[E2, C]
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
       race
-        .modify((b: Boolean) => (if (b) IO.unit else f(res, loser).to(done).void) -> true)
+        .modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1))
         .flatMap(identity(_))
 
     for {
-      done   <- Promise.make[E2, C]
-      race   <- Ref[Boolean](false)
-      fibers <- Ref[(Option[Fiber[E, A]], Option[Fiber[E1, B]])]((None, None))
-      c <- (for {
-            left  <- self.fork.peek(left => fibers.update(t => (Some(left), t._2))).uninterruptibly
-            right <- that.fork.peek(right => fibers.update(t => (t._1, Some(right)))).uninterruptibly
+      done <- Promise.make[E2, C]
+      race <- Ref[Int](0)
+      _ <- (for {
+            left  <- self.fork
+            right <- that.fork
             _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
-            c     <- done.get
-          } yield c).ensuring(
-            fibers.get.flatMap {
-              case (l, r) =>
-                l.fold(IO.unit)(_.interrupt) *> r.fold(IO.unit)(_.interrupt)
-            }
-          )
+          } yield ()).uninterruptibly
+      c <- done.get
     } yield c
   }
 
@@ -363,7 +357,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     Managed[E, A](this)(release)
 
   /**
-   * Runs the specified action if this action errors, providing the error to the
+   * Runs the specified action if this action fails, providing the error to the
    * action if it exists. The provided action will not be interrupted.
    */
   final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
@@ -372,6 +366,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
         eb match {
           case ExitResult.Succeeded(_)  => IO.unit
           case t @ ExitResult.Failed(_) => cleanup(t)
+        }
+    )(_ => self)
+
+  /**
+   * Runs the specified action if this action is interrupted.
+   */
+  final def onInterrupt(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
+    IO.bracket0(IO.unit)(
+      (_, eb: ExitResult[E, A]) =>
+        eb match {
+          case ExitResult.Succeeded(_)  => IO.unit
+          case t @ ExitResult.Failed(c) => if (c.isInterrupted) cleanup(t) else IO.unit
         }
     )(_ => self)
 

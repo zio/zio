@@ -1,6 +1,5 @@
 package scalaz.zio
 
-import org.scalacheck.Prop.forAll
 import org.scalacheck._
 import org.specs2.ScalaCheck
 import scalaz.zio.syntax._
@@ -146,7 +145,7 @@ class IOUnsandboxedSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck
 }
 
 class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
-  def is = "IOUnsandboxedSyntaxSpec".title ^ s2"""
+  def is       = "IOUnsandboxedSyntaxSpec".title ^ s2"""
    Generate an Iterable of Char:
       `.mergeAll` extension method returns the same IO[E, B] as `IO.mergeAll` does. $t1
     Generate an Iterable of Char:
@@ -156,9 +155,10 @@ class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     Generate an Iterable of Char:
       `.sequence` extension method returns the same IO[E, List[A]] as `IO.sequence` does. $t4
     """
+  val TestData = "supercalifragilisticexpialadocious".toList
 
-  def t1 = forAll(Gen.listOf(Gen.alphaChar)) { charList =>
-    val ios                          = charList.map(IO.now)
+  def t1 = {
+    val ios                          = TestData.map(IO.now)
     val zero                         = List.empty[Char]
     def merger[A](as: List[A], a: A) = a :: as
     unsafeRun(for {
@@ -167,16 +167,16 @@ class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     } yield merged1 must ===(merged2))
   }
 
-  def t2 = forAll(Gen.listOf(Gen.alphaChar)) { charList =>
-    val ios = charList.map(IO.sync(_))
+  def t2 = {
+    val ios = TestData.map(IO.sync(_))
     unsafeRun(for {
       parAll1 <- ios.parAll
       parAll2 <- IO.parAll(ios)
     } yield parAll1 must ===(parAll2))
   }
 
-  def t3 = forAll(Gen.listOf(Gen.alphaChar)) { charList =>
-    val ios: Iterable[IO[String, Char]] = charList.map(IO.sync(_))
+  def t3 = {
+    val ios: Iterable[IO[String, Char]] = TestData.map(IO.sync(_))
     unsafeRun(for {
       f1       <- ios.forkAll
       forkAll1 <- f1.join
@@ -185,8 +185,8 @@ class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     } yield forkAll1 must ===(forkAll2))
   }
 
-  def t4 = forAll(Gen.listOf(Gen.alphaChar)) { charList =>
-    val ios = charList.map(IO.sync(_))
+  def t4 = {
+    val ios = TestData.map(IO.sync(_))
     unsafeRun(for {
       sequence1 <- ios.sequence
       sequence2 <- IO.sequence(ios)
@@ -195,8 +195,6 @@ class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
 }
 
 class IOSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
-  import Prop.forAll
-
   def is = "IOSyntaxSpec".title ^ s2"""
    Generate a String:
       `.raceAll` extension method returns the same IO[E, A] as `IO.raceAll` does. $t1
@@ -204,8 +202,10 @@ class IOSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
       `.supervice` extension method returns the same IO[E, A] as `IO.supervise` does. $t2
     """
 
-  def t1 = forAll(Gen.alphaStr) { str =>
-    val io  = IO.sync(str)
+  val TestData = "supercalifragilisticexpialadocious"
+
+  def t1 = {
+    val io  = IO.sync(TestData)
     val ios = List.empty[IO[Nothing, String]]
     unsafeRun(for {
       race1 <- io.raceAll(ios)
@@ -213,8 +213,8 @@ class IOSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     } yield race1 must ===(race2))
   }
 
-  def t2 = forAll(Gen.alphaStr) { str =>
-    val io = IO.sync(str)
+  def t2 = {
+    val io = IO.sync(TestData)
     unsafeRun(for {
       supervise1 <- io.supervised
       supervise2 <- IO.supervise(io)

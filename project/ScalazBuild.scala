@@ -60,7 +60,6 @@ object Scalaz {
     ),
     logBuffered := false,
     parallelExecution in Test := false,
-    testOptions in Test += Tests.Argument("sequential"),
     incOptions ~= (_.withLogRecompileOnMacro(false))
   )
 

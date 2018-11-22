@@ -855,5 +855,5 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
   )
 
   private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
-    (queue.size <* IO.sleep(1.millis)).repeat(Schedule.doWhile(_ != size))
+    (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != size))
 }
