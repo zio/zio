@@ -2,36 +2,57 @@
 package scalaz.zio
 
 /**
- * A description of the result of executing an `IO` value. The result is either
- * completed with a value, failed because of an uncaught `E`, or terminated
- * due to interruption or runtime error.
+ * An `ExitResult[E, A]` describes the result of executing an `IO` value. The
+ * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
  */
 sealed abstract class ExitResult[+E, +A] extends Product with Serializable { self =>
   import ExitResult._
 
+  /**
+   * Converts the `ExitResult` to an `Either[Throwable, A]`, by wrapping the
+   * cause in `FiberFailure` (if the result is failed).
+   */
   final def toEither: Either[Throwable, A] = self match {
     case Succeeded(value) => Right(value)
     case Failed(cause)    => Left(FiberFailure(cause))
   }
 
+  /**
+   * Maps over the error type.
+   */
   final def leftMap[E1](f: E => E1): ExitResult[E1, A] =
     self match {
       case e @ Succeeded(_) => e
       case Failed(c)        => failed(c.map(f))
     }
 
+  /**
+   * Maps over the value type.
+   */
   final def map[A1](f: A => A1): ExitResult[E, A1] =
     self match {
       case Succeeded(v)  => ExitResult.succeeded(f(v))
       case e @ Failed(_) => e
     }
 
+  /**
+   * Maps over both the error and value type.
+   */
   final def bimap[E1, A1](f: E => E1, g: A => A1): ExitResult[E1, A1] = leftMap(f).map(g)
 
+  /**
+   * Zips this result together with the specified result.
+   */
   final def zip[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
+  /**
+   * Zips this result together with the specified result, in parallel.
+   */
   final def zipPar[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] = zipWith(that)((_, _), _ && _)
 
+  /**
+   * Zips this together with the specified result using the combination functions.
+   */
   final def zipWith[E1 >: E, B, C](that: ExitResult[E1, B])(
     f: (A, B) => C,
     g: (Cause[E], Cause[E1]) => Cause[E1]
@@ -43,22 +64,46 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
       case (_, e @ Failed(_))           => e
     }
 
+  /**
+   * Appends this result to the specified result by choosing the left-most value
+   * that does not fail.
+   *
+   * TODO: This seems to need fixing.
+   */
   final def <>[E1, A1 >: A](that: ExitResult[E1, A1]): ExitResult[E1, A1] = self match {
     case Failed(cause) if cause.isChecked => that
     case _                                => self.asInstanceOf[ExitResult[E1, A1]]
   }
 
+  /**
+   * Determines if the result is a success.
+   */
   final def succeeded: Boolean = self match {
     case Succeeded(_) => true
     case _            => false
   }
 
-  final def fold[Z](completed: A => Z, terminated: Cause[E] => Z): Z =
+  /**
+   * Folds over the value or cause.
+   */
+  final def fold[Z](completed: A => Z, failed: Cause[E] => Z): Z =
     self match {
       case Succeeded(v)  => completed(v)
-      case Failed(cause) => terminated(cause)
+      case Failed(cause) => failed(cause)
     }
 
+  /**
+   * Effectfully folds over the value or cause.
+   */
+  final def redeem[E1, B](failed: Cause[E] => IO[E1, B], completed: A => IO[E1, B]): IO[E1, B] =
+    self match {
+      case Failed(cause) => failed(cause)
+      case Succeeded(v)  => completed(v)
+    }
+
+  /**
+   * Returns the cause of the failure, if this result is a failure.
+   */
   final def causeOption: Option[Cause[E]] = self match {
     case Succeeded(_)  => None
     case Failed(cause) => Some(cause)
