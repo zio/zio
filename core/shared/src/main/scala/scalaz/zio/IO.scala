@@ -119,10 +119,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
     def coordinate[A, B](f: (A, B) => C)(winner: ExitResult[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
       winner match {
-        case ExitResult.Succeeded(_)  => Fiber.done(winner).zipWith(loser)(f).join
+        case ExitResult.Succeeded(a)  => loser.join.map(f(a, _))
         case ExitResult.Failed(cause) => loser.interrupt *> IO.fail0(cause)
       }
-    (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
+    val g = (b: B, a: A) => f(a, b)
+    (self raceWith that)(coordinate(f), coordinate(g))
   }
 
   /**
