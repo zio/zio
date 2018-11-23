@@ -1,11 +1,11 @@
-package scalaz.zio.lockfree
+package scalaz.zio.internal
 
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
-import scalaz.zio.lockfree.ProducerConsumerBenchmark.{ OfferCounters, PollCounters }
+import scalaz.zio.internal.ProducerConsumerBenchmark.{ OfferCounters, PollCounters }
 import BenchUtils._
 
 @BenchmarkMode(Array(Mode.Throughput))

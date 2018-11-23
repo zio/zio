@@ -1,7 +1,7 @@
-package scalaz.zio.lockfree.impls
+package scalaz.zio.internal.impls
 
 import java.util.concurrent.atomic.{ AtomicLong, AtomicLongArray }
-import scalaz.zio.lockfree.{ nextPow2, MutableConcurrentQueue }
+import scalaz.zio.internal.{ nextPow2, MutableConcurrentQueue }
 
 /**
  * A lock-free array based bounded queue. It is thread-safe and can be
