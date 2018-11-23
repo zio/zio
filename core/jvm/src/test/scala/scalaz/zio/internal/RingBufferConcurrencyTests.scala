@@ -1,10 +1,10 @@
-package scalaz.zio.lockfree
+package scalaz.zio.internal
 
 import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.annotations.Expect._
 import org.openjdk.jcstress.infra.results.{ IIIIII_Result, IIII_Result, II_Result }
 
-import scalaz.zio.lockfree.impls.RingBuffer
+import scalaz.zio.internal.impls.RingBuffer
 
 object RingBufferConcurrencyTests {
   /*
