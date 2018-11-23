@@ -9,7 +9,7 @@ import Scalaz._
 
 import scalaz72._
 
-class scalaz72Spec extends AbstractRTSSpec with ScalaCheck with GenIO {
+class scalaz72Spec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with ScalaCheck with GenIO {
 
   def is = s2"""
     laws must hold for

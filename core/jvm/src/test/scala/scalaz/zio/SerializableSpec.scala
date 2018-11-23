@@ -2,7 +2,7 @@ package scalaz.zio
 
 import java.io._
 
-class SerializableSpec extends AbstractRTSSpec {
+class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def serializeAndBack[T](a: T): IO[_, T] = {
 
