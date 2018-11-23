@@ -6,11 +6,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.specification.AroundTimeout
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 
-class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
+class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def is = s2"""
   RTS synchronous correctness
@@ -48,7 +47,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     fail ensuring                           $testEvalOfFailEnsuring
     fail on error                           $testEvalOfFailOnError
     finalizer errors not caught             $testErrorInFinalizerCannotBeCaught
-    finalizer errors reported               ${upTo(1.second)(testErrorInFinalizerIsReported)}
+    finalizer errors reported               $testErrorInFinalizerIsReported
     bracket result is usage result          $testExitResultIsUsageResult
     error in just acquisition               $testBracketErrorInAcquisition
     error in just release                   $testBracketErrorInRelease
@@ -57,7 +56,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     rethrown caught error in release        $testBracketRethrownCaughtErrorInRelease
     rethrown caught error in usage          $testBracketRethrownCaughtErrorInUsage
     test eval of async fail                 $testEvalOfAsyncAttemptOfFail
-    bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1)}
+    bracket regression 1                    $testBracketRegression1
     interrupt waits for finalizer           $testInterruptWaitsForFinalizer
 
   RTS synchronous stack safety
@@ -75,39 +74,39 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     simple async must return                $testAsyncEffectReturns
     simple asyncIO must return              $testAsyncIOEffectReturns
     deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
-    sleep 0 must return                     ${upTo(1.second)(testSleepZeroReturns)}
+    sleep 0 must return                     $testSleepZeroReturns
 
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
-    interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
-    asyncPure is interruptible              ${upTo(1.second)(testAsyncPureIsInterruptible)}
-    async is interruptible                  ${upTo(1.second)(testAsyncIsInterruptible)}
-    bracket is uninterruptible              ${testBracketAcquireIsUninterruptible}
-    bracket0 is uninterruptible             ${testBracket0AcquireIsUninterruptible}
+    interrupt of never                      $testNeverIsInterruptible
+    asyncPure is interruptible              $testAsyncPureIsInterruptible
+    async is interruptible                  $testAsyncIsInterruptible
+    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
+    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
     bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
     bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
-    supervise fibers                        ${upTo(1.second)(testSupervise)}
-    race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
-    race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
-    race of value & never                   ${upTo(1.second)(testRaceOfValueNever)}
-    raceAll of values                       ${upTo(1.second)(testRaceAllOfValues)}
-    raceAll of failures                     ${upTo(1.second)(testRaceAllOfFailures)}
-    raceAll of failures & one success       ${upTo(1.second)(testRaceAllOfFailuresOneSuccess)}
-    par regression                          ${upTo(30.seconds)(testPar)}
-    par of now values                       ${upTo(5.seconds)(testRepeatedPar)}
+    supervise fibers                        $testSupervise
+    race of fail with success               $testRaceChoosesWinner
+    race of fail with fail                  $testRaceChoosesFailure
+    race of value & never                   $testRaceOfValueNever
+    raceAll of values                       $testRaceAllOfValues
+    raceAll of failures                     $testRaceAllOfFailures
+    raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
+    par regression                          $testPar
+    par of now values                       $testRepeatedPar
     mergeAll                                $testMergeAll
     mergeAllEmpty                           $testMergeAllEmpty
     reduceAll                               $testReduceAll
     reduceAll Empty List                    $testReduceAllEmpty
-    timeout of failure                      ${upTo(5.seconds)(testTimeoutFailure)}
+    timeout of failure                      $testTimeoutFailure
 
   RTS regression tests
-    deadlock regression 1                   ${upTo(20.seconds)(testDeadlockRegression)}
-    check interruption regression 1         ${upTo(20.seconds)(testInterruptionRegression1)}
+    deadlock regression 1                   $testDeadlockRegression
+    check interruption regression 1         $testInterruptionRegression1
 
   RTS interrupt fiber tests
     sync forever                            $testInterruptSyncForever

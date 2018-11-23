@@ -6,7 +6,7 @@ import scala.collection.mutable
 import scala.util.Try
 import scalaz.zio.ExitResult.Cause.{ Checked, Interruption, Unchecked }
 
-class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOSpec".title ^ s2"""

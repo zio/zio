@@ -4,7 +4,10 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 import scalaz.zio.syntax._
 
-class IOCreationEagerSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends AbstractRTSSpec
+    with GenIO
+    with ScalaCheck {
   import Prop.forAll
 
   def is = "IOEagerSyntaxSpec".title ^ s2"""
@@ -40,7 +43,10 @@ class IOCreationEagerSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaChe
 
 }
 
-class IOCreationLazySyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends AbstractRTSSpec
+    with GenIO
+    with ScalaCheck {
   import Prop.forAll
 
   def is = "IOLazySyntaxSpec".title ^ s2"""
@@ -94,7 +100,10 @@ class IOCreationLazySyntaxSpec extends AbstractRTSSpec with GenIO with ScalaChec
 
 }
 
-class IOFlattenSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOFlattenSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends AbstractRTSSpec
+    with GenIO
+    with ScalaCheck {
   import Prop.forAll
 
   def is = "IOFlattenSyntaxSpec".title ^ s2"""
@@ -110,7 +119,10 @@ class IOFlattenSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 }
 
-class IOAbsolveSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOAbsolveSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends AbstractRTSSpec
+    with GenIO
+    with ScalaCheck {
   import Prop.forAll
 
   def is = "IOAbsolveSyntaxSpec".title ^ s2"""
@@ -127,7 +139,10 @@ class IOAbsolveSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 }
 
-class IOUnsandboxedSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOUnsandboxedSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends AbstractRTSSpec
+    with GenIO
+    with ScalaCheck {
   import Prop.forAll
 
   def is = "IOUnsandboxedSyntaxSpec".title ^ s2"""
@@ -144,7 +159,10 @@ class IOUnsandboxedSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck
   }
 }
 
-class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends AbstractRTSSpec
+    with GenIO
+    with ScalaCheck {
   def is       = "IOUnsandboxedSyntaxSpec".title ^ s2"""
    Generate an Iterable of Char:
       `.mergeAll` extension method returns the same IO[E, B] as `IO.mergeAll` does. $t1
@@ -194,7 +212,7 @@ class IOIterableSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 }
 
-class IOSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "IOSyntaxSpec".title ^ s2"""
    Generate a String:
       `.raceAll` extension method returns the same IO[E, A] as `IO.raceAll` does. $t1
@@ -222,7 +240,7 @@ class IOSyntaxSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 }
 
-class IOTuplesSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOTupleSpec".title ^ s2"""
