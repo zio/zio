@@ -180,15 +180,17 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       IO.flatten(race.modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1)))
 
     for {
-      done <- Promise.make[E2, C]
-      race <- Ref[Int](0)
-      _ <- (for {
-            left  <- self.fork
-            right <- that.fork
+      done  <- Promise.make[E2, C]
+      race  <- Ref[Int](0)
+      child <- Ref[Fiber[_, _]](Fiber.point(()))
+      c <- ((for {
+            left  <- self.fork.peek(f => child update (_ zip f))
+            right <- that.fork.peek(f => child update (_ zip f))
             _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
-          } yield ()).uninterruptibly
-      c <- done.get
+          } yield ()).uninterruptibly *> done.get).onInterrupt(
+            child.get flatMap (_.interrupt)
+          )
     } yield c
   }
 
@@ -372,14 +374,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Runs the specified action if this action is interrupted.
    */
-  final def onInterrupt(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
-    IO.bracket0(IO.unit)(
-      (_, eb: ExitResult[E, A]) =>
-        eb match {
-          case ExitResult.Succeeded(_)  => IO.unit
-          case t @ ExitResult.Failed(c) => if (c.isInterrupted) cleanup(t) else IO.unit
-        }
-    )(_ => self)
+  final def onInterrupt(cleanup: IO[Nothing, Unit]): IO[E, A] =
+    self.ensuring(
+      IO.descriptor flatMap (descriptor => if (descriptor.interrupted) cleanup else IO.unit)
+    )
 
   /**
    * Runs the specified action if this action is terminated, either because of
