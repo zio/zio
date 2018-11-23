@@ -110,7 +110,7 @@ trait Fiber[+E, +A] { self =>
 }
 
 object Fiber {
-  final case class Descriptor(id: FiberId)
+  final case class Descriptor(id: FiberId, interrupted: Boolean)
 
   final def done[E, A](exit: => ExitResult[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
