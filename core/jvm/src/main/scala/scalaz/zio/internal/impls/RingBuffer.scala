@@ -97,27 +97,27 @@ import scalaz.zio.internal.{ nextPow2, MutableConcurrentQueue }
  */
 class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] {
   final val capacity: Int   = nextPow2(desiredCapacity)
-  private val idxMask: Long = (capacity - 1).toLong
+  private[this] val idxMask: Long = (capacity - 1).toLong
 
-  private val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
-  private val seq: AtomicLongArray = new AtomicLongArray(capacity)
+  private[this] val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
+  private[this] val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
 
-  private val head: AtomicLong = new AtomicLong(0L)
-  private val tail: AtomicLong = new AtomicLong(0L)
+  private[this] val head: AtomicLong = new AtomicLong(0L)
+  private[this] val tail: AtomicLong = new AtomicLong(0L)
 
-  private final val STATE_LOOP     = 0
-  private final val STATE_EMPTY    = -1
-  private final val STATE_FULL     = -2
-  private final val STATE_RESERVED = 1
+  private[this] final val STATE_LOOP     = 0
+  private[this] final val STATE_EMPTY    = -1
+  private[this] final val STATE_FULL     = -2
+  private[this] final val STATE_RESERVED = 1
 
-  override def size(): Int = (tail.get() - head.get()).toInt
+  override final def size(): Int = (tail.get() - head.get()).toInt
 
-  override def enqueuedCount(): Long = tail.get()
+  override final def enqueuedCount(): Long = tail.get()
 
-  override def dequeuedCount(): Long = head.get()
+  override final def dequeuedCount(): Long = head.get()
 
-  override def offer(a: A): Boolean = {
+  override final def offer(a: A): Boolean = {
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
@@ -196,7 +196,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
     }
   }
 
-  override def poll(default: A): A = {
+  override final def poll(default: A): A = {
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
@@ -286,9 +286,9 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
     }
   }
 
-  override def isEmpty(): Boolean = tail.get() == head.get()
+  override final def isEmpty(): Boolean = tail.get() == head.get()
 
-  override def isFull(): Boolean = tail.get() == head.get() + capacity - 1
+  override final def isFull(): Boolean = tail.get() == head.get() + capacity - 1
 
   private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
 }

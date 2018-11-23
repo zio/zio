@@ -15,8 +15,8 @@ import BenchUtils._
 @Fork(5)
 @State(Scope.Group)
 class ProducerConsumerBenchmark {
-  val DELAY_PRODUCER: Long = 100
-  var DELAY_CONSUMER: Long = 100
+  val DELAY_PRODUCER: Long = 100L
+  val DELAY_CONSUMER: Long = 100L
 
   type QueueElement = AnyRef
 
