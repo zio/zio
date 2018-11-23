@@ -43,10 +43,11 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   /*
    * Retry `once` means that we try to exec `io`, get and error,
-   * try again to exec `io`, and whatever the output return it.
+   * try again to exec `io`, and whatever the output is, return that
+   * second result.
    * The three following tests test retry when:
    * - the first time succeeds (no retry)
-   * - the first time succeeds and the second fails (one retry, result success)
+   * - the first time fails and the second succeeds (one retry, result success)
    * - both first time and retry fail (one retry, result failure)
    */
   // no retry on success
@@ -60,7 +61,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     retried must_=== 1
   }
 
-  // 0 retry means one attempt execution in all
+  // 0 retry means "one execution in all, no retry, whatever the output"
   def retryRecurs0 = {
     /*
      * A function that increments ref each time it is called.
