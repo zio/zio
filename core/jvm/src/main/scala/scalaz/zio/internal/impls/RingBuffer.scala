@@ -1,7 +1,7 @@
 package scalaz.zio.internal.impls
 
 import java.util.concurrent.atomic.{ AtomicLong, AtomicLongArray }
-import scalaz.zio.internal.{ nextPow2, MutableConcurrentQueue }
+import scalaz.zio.internal.MutableConcurrentQueue
 
 /**
  * A lock-free array based bounded queue. It is thread-safe and can be
@@ -96,7 +96,7 @@ import scalaz.zio.internal.{ nextPow2, MutableConcurrentQueue }
  * better performance in some very specific situations.
  */
 class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] {
-  final val capacity: Int   = nextPow2(desiredCapacity)
+  final val capacity: Int         = nextPow2(desiredCapacity)
   private[this] val idxMask: Long = (capacity - 1).toLong
 
   private[this] val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
@@ -291,4 +291,13 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
   override final def isFull(): Boolean = tail.get() == head.get() + capacity - 1
 
   private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
+
+  /*
+   * Used only once during queue creation. Doesn't need to be
+   * performant or anything.
+   */
+  private def nextPow2(n: Int): Int = {
+    val nextPow = (Math.log(n.toDouble) / Math.log(2.0)).ceil.toInt
+    Math.pow(2.0, nextPow.toDouble).toInt.max(2)
+  }
 }
