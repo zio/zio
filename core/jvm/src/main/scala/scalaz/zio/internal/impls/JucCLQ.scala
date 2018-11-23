@@ -1,7 +1,7 @@
-package scalaz.zio.lockfree.impls
+package scalaz.zio.internal.impls
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import scalaz.zio.lockfree.MutableConcurrentQueue
+import scalaz.zio.internal.MutableConcurrentQueue
 import java.util.concurrent.atomic.AtomicLong
 
 class JucCLQ[A] extends MutableConcurrentQueue[A] {

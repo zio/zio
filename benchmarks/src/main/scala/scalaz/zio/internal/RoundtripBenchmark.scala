@@ -1,4 +1,4 @@
-package scalaz.zio.lockfree
+package scalaz.zio.internal
 
 import java.util.concurrent.TimeUnit
 

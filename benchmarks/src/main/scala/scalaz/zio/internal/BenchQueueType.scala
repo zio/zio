@@ -1,4 +1,4 @@
-package scalaz.zio.lockfree;
+package scalaz.zio.internal;
 
 sealed abstract class BenchQueueType(val name: String) extends Product with Serializable
 

@@ -1,6 +1,6 @@
-package scalaz.zio.lockfree
+package scalaz.zio.internal
 
-import scalaz.zio.lockfree.impls._
+import scalaz.zio.internal.impls._
 
 object BenchUtils {
   def queueByType[A](

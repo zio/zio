@@ -1,4 +1,4 @@
-package scalaz.zio.lockfree
+package scalaz.zio.internal
 
 object MutableConcurrentQueue {
   def bounded[A](desiredCapacity: Int): MutableConcurrentQueue[A] = new impls.RingBuffer[A](desiredCapacity)

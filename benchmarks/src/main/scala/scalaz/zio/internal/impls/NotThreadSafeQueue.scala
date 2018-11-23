@@ -1,6 +1,6 @@
-package scalaz.zio.lockfree.impls
+package scalaz.zio.internal.impls
 
-import scalaz.zio.lockfree.MutableConcurrentQueue
+import scalaz.zio.internal.MutableConcurrentQueue
 
 class NotThreadSafeQueue[A](override val capacity: Int) extends MutableConcurrentQueue[A] {
   private val buf: Array[AnyRef] = Array.ofDim[AnyRef](capacity)

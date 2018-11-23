@@ -1,6 +1,6 @@
-package scalaz.zio.lockfree.impls
+package scalaz.zio.internal.impls
 
-import scalaz.zio.lockfree.MutableConcurrentQueue
+import scalaz.zio.internal.MutableConcurrentQueue
 
 /**
  * JCToolsQueue is defined only under `benchmarks` so `coreJVM` doesn't
