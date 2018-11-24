@@ -40,6 +40,6 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     val result = unsafeRun(program)
 
     result must haveSize(2)
-    result.size must be_===(cleanups.size)
+    result.size === cleanups.size
   }
 }
