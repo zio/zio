@@ -39,7 +39,9 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
   final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]): Managed[E1, R1] =
     new Managed[E1, R1] {
       type R0 = R1
+
       def acquire: IO[E, R1] = IO.never
+
       def release: R1 => IO[Nothing, Unit] = _ => IO.unit
 
       override def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
