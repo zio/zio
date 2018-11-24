@@ -1136,8 +1136,28 @@ object IO extends Serializable {
    */
   final def parTraverse[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     as.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
-      fn(a).par(io).map { case (b, bs) => b :: bs }
+      fn(a).parWith(io)((b, bs) => b :: bs)
     }
+
+  /**
+   * Evaluate the elements of a traversable data structure in parallel
+   * and collect the results. Only up to `n` tasks run in parallel.
+   * This is a version of `foreachPar`, with a throttle.
+   */
+  final def foreachParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    for {
+      semaphore <- Semaphore(n)
+      bs <- parTraverse(as) { a =>
+             semaphore.withPermit(fn(a))
+           }
+    } yield bs
+
+  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
+  /**
+   * Alias for foreachParN
+   */
+  final def traverseParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    foreachParN(n)(as)(fn)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
@@ -1152,6 +1172,21 @@ object IO extends Serializable {
    */
   final def parAll[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
     parTraverse(as)(identity)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect
+   * the results. Only up to `n` tasks run in parallel.
+   * This is a version of `collectPar`, with a throttle.
+   */
+  final def collectParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+    foreachParN(n)(as)(identity)
+
+  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
+  /**
+   * Alias for `collectParN`
+   */
+  final def sequenceParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+    collectParN(n)(as)
 
   /**
    * Races an `IO[E, A]` against elements of a `Iterable[IO[E, A]]`. Yields
