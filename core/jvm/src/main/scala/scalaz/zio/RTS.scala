@@ -128,12 +128,6 @@ private object RTS {
 
     final def isEmpty: Boolean = size == 0
 
-    final def clear(): Unit = {
-      array = new Array[AnyRef](13)
-      size = 0
-      nesting = 0
-    }
-
     final def push(a: Cont): Unit =
       if (size == 13) {
         array = Array(array, a, null, null, null, null, null, null, null, null, null, null, null)

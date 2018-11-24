@@ -39,7 +39,7 @@ import scalaz.zio.ExitResult.Cause
  * In order to integrate with Scala, `IO` values must be interpreted into the
  * Scala runtime. This process of interpretation executes the effects described
  * by a given immutable `IO` value. For more information on interpreting `IO`
- * values, see the defaultf interpreter in `RTS` or the safe main function in
+ * values, see the default interpreter in `RTS` or the safe main function in
  * `App`.
  */
 sealed abstract class IO[+E, +A] extends Serializable { self =>
