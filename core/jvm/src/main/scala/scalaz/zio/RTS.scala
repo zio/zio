@@ -603,13 +603,13 @@ private object RTS {
 
     @tailrec
     final def enterAsync(): FiberState[E, A] = {
-      val oldStatus = state.get
+      val oldState = state.get
 
-      oldStatus match {
+      oldState match {
         case Executing(interrupted, _, observers) =>
           val newState = Executing(interrupted, FiberStatus.Suspended(None), observers)
 
-          if (!state.compareAndSet(oldStatus, newState)) enterAsync()
+          if (!state.compareAndSet(oldState, newState)) enterAsync()
           else newState
 
         case _ => throw new Error("Entering async but already done!")
@@ -625,11 +625,11 @@ private object RTS {
 
     @tailrec
     final def shouldResumeAsync(): Boolean = {
-      val oldStatus = state.get
+      val oldState = state.get
 
-      oldStatus match {
+      oldState match {
         case Executing(interrupted, status, observers) if status.suspended =>
-          if (!state.compareAndSet(oldStatus, Executing(interrupted, FiberStatus.Running, observers)))
+          if (!state.compareAndSet(oldState, Executing(interrupted, FiberStatus.Running, observers)))
             shouldResumeAsync()
           else true
 
@@ -673,11 +673,11 @@ private object RTS {
 
     @tailrec
     final def done(v: ExitResult[E, A]): Unit = {
-      val oldStatus = state.get
+      val oldState = state.get
 
-      oldStatus match {
+      oldState match {
         case Executing(_, _, observers) =>
-          if (!state.compareAndSet(oldStatus, Done(v))) done(v)
+          if (!state.compareAndSet(oldState, Done(v))) done(v)
           else {
             notifyObservers(v, observers)
             reportUnhandled(v)
@@ -697,13 +697,13 @@ private object RTS {
 
     private final def kill0(k: Callback[E, Unit]): Async[Nothing, Unit] = {
 
-      val oldStatus = state.get
+      val oldState = state.get
 
-      oldStatus match {
+      oldState match {
         case Executing(_, status, observers0) if status.suspended && noInterrupt == 0 =>
           val observers = makeInterruptObserver(k) :: observers0
 
-          if (!state.compareAndSet(oldStatus, Executing(true, FiberStatus.Running, observers))) kill0(k)
+          if (!state.compareAndSet(oldState, Executing(true, FiberStatus.Running, observers))) kill0(k)
           else {
             killed = true
 
@@ -720,7 +720,7 @@ private object RTS {
         case Executing(_, status, observers0) =>
           val observers = makeInterruptObserver(k) :: observers0
 
-          if (!state.compareAndSet(oldStatus, Executing(true, status, observers))) kill0(k)
+          if (!state.compareAndSet(oldState, Executing(true, status, observers))) kill0(k)
           else {
             killed = true
             Async.later
@@ -732,13 +732,13 @@ private object RTS {
 
     @tailrec
     private final def observe0(k: Callback[Nothing, ExitResult[E, A]]): Async[Nothing, ExitResult[E, A]] = {
-      val oldStatus = state.get
+      val oldState = state.get
 
-      oldStatus match {
+      oldState match {
         case Executing(interrupted, status, observers0) =>
           val observers = k :: observers0
 
-          if (!state.compareAndSet(oldStatus, Executing(interrupted, status, observers))) observe0(k)
+          if (!state.compareAndSet(oldState, Executing(interrupted, status, observers))) observe0(k)
           else Async.later
 
         case Done(v) => Async.now(ExitResult.succeeded(v))
