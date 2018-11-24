@@ -112,6 +112,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
     finalizer can detect interruption       $testFinalizerCanDetectInterruption
+    interruption of raced                   $testInterruptedOfRaceInterruptsContestents
   """
 
   def testPoint =
@@ -563,6 +564,20 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     } yield res
 
     unsafeRun(io) must_=== true
+  }
+
+  def testInterruptedOfRaceInterruptsContestents = {
+    val io = for {
+      ref   <- Ref(0)
+      cont  <- Promise.make[Nothing, Unit]
+      io    = cont.complete(()) *> IO.never.onInterrupt(ref.update(_ + 1).void)
+      raced <- (io race io).fork
+      _     <- cont.get
+      _     <- raced.interrupt
+      count <- ref.get
+    } yield count
+
+    unsafeRun(io) must_=== 2
   }
 
   def testAsyncPureIsInterruptible = {
