@@ -112,6 +112,15 @@ trait Fiber[+E, +A] { self =>
 object Fiber {
   final case class Descriptor(id: FiberId, interrupted: Boolean)
 
+  final val unit: Fiber[Nothing, Unit] = Fiber.point(())
+
+  final val never: Fiber[Nothing, Nothing] =
+    new Fiber[Nothing, Nothing] {
+      def observe: IO[Nothing, ExitResult[Nothing, Nothing]]      = IO.never
+      def poll: IO[Nothing, Option[ExitResult[Nothing, Nothing]]] = IO.point(None)
+      def interrupt: IO[Nothing, Unit]                            = IO.never
+    }
+
   final def done[E, A](exit: => ExitResult[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
       def observe: IO[Nothing, ExitResult[E, A]]      = IO.point(exit)

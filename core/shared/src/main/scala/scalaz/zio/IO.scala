@@ -182,7 +182,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     for {
       done  <- Promise.make[E2, C]
       race  <- Ref[Int](0)
-      child <- Ref[Fiber[_, _]](Fiber.point(()))
+      child <- Ref[Fiber[_, _]](Fiber.unit)
       c <- ((for {
             left  <- self.fork.peek(f => child update (_ zip f))
             right <- that.fork.peek(f => child update (_ zip f))
