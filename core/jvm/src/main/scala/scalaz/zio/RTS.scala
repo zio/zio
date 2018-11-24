@@ -98,19 +98,14 @@ trait RTS {
     if (duration == Duration.Zero) {
       submit(block)
 
-      Async.later[E, Unit]
+      Async.later
     } else {
       val future = scheduledExecutor.schedule(new Runnable {
         def run: Unit = submit(block)
       }, duration.toNanos, TimeUnit.NANOSECONDS)
 
-      Async.maybeLater { () =>
-        future.cancel(true); ()
-      }
+      Async.maybeLater(IO.sync { future.cancel(true); () })
     }
-
-  final def impureCanceler(canceler: PureCanceler): Canceler =
-    () => unsafeRun(canceler())
 
   /** Utility function to avoid catching truly fatal exceptions. Do not allocate
    * memory here since this would defeat the point of checking for OOME.
@@ -412,17 +407,10 @@ private object RTS {
                             curIo = null
                           }
 
-                        case Async.MaybeLater(canceler) =>
-                          // We have a canceler, attempt to store a reference to
-                          // it in case the async computation is interrupted:
-                          awaitAsync(id, canceler)
-
-                          curIo = null
-
-                        case Async.MaybeLaterIO(pureCancel) =>
+                        case Async.MaybeLater(cancel) =>
                           // As for the case above this stores an impure canceler
                           // obtained performing the pure canceler on the same thread
-                          awaitAsync(id, rts.impureCanceler(pureCancel))
+                          awaitAsync(id, cancel)
 
                           curIo = null
                       }
@@ -638,12 +626,12 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(interrupted, reentrancy, resume, cancel, observers) =>
+        case Suspended(interrupted, reentrancy, resume, cancel, observers) =>
           val newReentrancy = reentrancy + 1
 
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(interrupted, newReentrancy, resume + 1, cancel, observers)
+                Suspended(interrupted, newReentrancy, resume + 1, cancel, observers)
               ))
             enterAsyncStart()
           else newReentrancy
@@ -653,7 +641,7 @@ private object RTS {
 
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(interrupted, newReentrancy, 1, None, observers)
+                Suspended(interrupted, newReentrancy, 1, None, observers)
               ))
             enterAsyncStart()
           else newReentrancy
@@ -663,7 +651,7 @@ private object RTS {
 
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(true, newReentrancy, 1, None, observers)
+                Suspended(true, newReentrancy, 1, None, observers)
               ))
             enterAsyncStart()
           else newReentrancy
@@ -675,7 +663,7 @@ private object RTS {
     }
 
     final def reentrancy: Int = status.get match {
-      case s @ AsyncRegion(_, _, _, _, _) => s.reentrancy
+      case s @ Suspended(_, _, _, _, _) => s.reentrancy
 
       case _ => 0
     }
@@ -685,12 +673,12 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(interrupted, 1, 0, _, observers) =>
+        case Suspended(interrupted, 1, 0, _, observers) =>
           // No more resumptions left and exiting last async boundary initiation:
           if (!status.compareAndSet(oldStatus, Executing(interrupted, observers)))
             enterAsyncEnd()
 
-        case x @ AsyncRegion(_, reentrancy, _, _, _) =>
+        case x @ Suspended(_, reentrancy, _, _, _) =>
           if (!status.compareAndSet(
                 oldStatus,
                 x.copy(reentrancy = reentrancy - 1)
@@ -706,7 +694,7 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case x @ AsyncRegion(_, reentrancy, _, _, _) if (id == reentrancy) =>
+        case x @ Suspended(_, reentrancy, _, _, _) if (id == reentrancy) =>
           if (!status.compareAndSet(
                 oldStatus,
                 x.copy(cancel = Some(c))
@@ -722,16 +710,16 @@ private object RTS {
       val oldStatus = status.get
 
       oldStatus match {
-        case AsyncRegion(interrupted, 0, 1, _, observers) =>
+        case Suspended(interrupted, 0, 1, _, observers) =>
           // No more resumptions are left!
           if (!status.compareAndSet(oldStatus, Executing(interrupted, observers)))
             shouldResumeAsync()
           else true
 
-        case AsyncRegion(interrupted, reentrancy, resume, _, observers) =>
+        case Suspended(interrupted, reentrancy, resume, _, observers) =>
           if (!status.compareAndSet(
                 oldStatus,
-                AsyncRegion(interrupted, reentrancy, resume - 1, None, observers)
+                Suspended(interrupted, reentrancy, resume - 1, None, observers)
               ))
             shouldResumeAsync()
           else true
@@ -786,7 +774,7 @@ private object RTS {
             reportErrors(v)
           }
 
-        case AsyncRegion(_, _, _, _, observers) =>
+        case Suspended(_, _, _, _, observers) =>
           // TODO: Guard against errant `done` or not?
           if (!status.compareAndSet(oldStatus, Done(v))) done(v)
           else {
@@ -830,10 +818,10 @@ private object RTS {
             kill0(k)
           else {
             killed = true
-            Async.later[Nothing, Unit]
+            Async.later
           }
 
-        case AsyncRegion(_, _, resume, cancelOpt, observers0) if (resume > 0 && noInterrupt == 0) =>
+        case Suspended(_, _, resume, cancelOpt, observers0) if (resume > 0 && noInterrupt == 0) =>
           val observers = mkKillerObserver(k) :: observers0
 
           if (!status.compareAndSet(oldStatus, Interrupting(observers))) kill0(k)
@@ -842,10 +830,7 @@ private object RTS {
 
             // We interrupted async before it could resume. Now we have to
             // cancel the computation, if possible, and handle any finalizers.
-            val canceler = cancelOpt match {
-              case None         => IO.unit
-              case Some(cancel) => IO.sync(cancel())
-            }
+            val canceler = cancelOpt.getOrElse(IO.unit)
 
             // Interruption may not be interrupted:
             noInterrupt += 1
@@ -854,10 +839,10 @@ private object RTS {
             // and returning Async.later:
             rts.submit(evaluate(canceler *> IO.interrupt))
 
-            Async.later[Nothing, Unit]
+            Async.later
           }
 
-        case s @ AsyncRegion(_, _, _, _, _) =>
+        case s @ Suspended(_, _, _, _, _) =>
           val newStatus =
             s.copy(
               interrupted = true,
@@ -867,7 +852,7 @@ private object RTS {
           if (!status.compareAndSet(oldStatus, newStatus)) kill0(k)
           else {
             killed = true
-            Async.later[Nothing, Unit]
+            Async.later
           }
 
         case Interrupting(observers0) =>
@@ -876,7 +861,7 @@ private object RTS {
           if (!status.compareAndSet(oldStatus, Interrupting(observers))) kill0(k)
           else {
             killed = true
-            Async.later[Nothing, Unit]
+            Async.later
           }
 
         case Done(_) =>
@@ -894,19 +879,19 @@ private object RTS {
           val newStatus = s.copy(observers = cb :: s.observers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
-          else Async.later[Nothing, ExitResult[E, A]]
+          else Async.later
 
-        case s @ AsyncRegion(_, _, _, _, _) =>
+        case s @ Suspended(_, _, _, _, _) =>
           val newStatus = s.copy(observers = cb :: s.observers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
-          else Async.later[Nothing, ExitResult[E, A]]
+          else Async.later
 
         case s @ Interrupting(_) =>
           val newStatus = s.copy(observers = cb :: s.observers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
-          else Async.later[Nothing, ExitResult[E, A]]
+          else Async.later
 
         case Done(v) => Async.now(ExitResult.succeeded(v))
       }
@@ -935,7 +920,7 @@ private object RTS {
       interrupted: Boolean,
       observers: List[Callback[Nothing, ExitResult[E, A]]]
     ) extends FiberStatus[E, A]
-    final case class AsyncRegion[E, A](
+    final case class Suspended[E, A](
       interrupted: Boolean,
       reentrancy: Int,
       resume: Int,
@@ -954,18 +939,6 @@ private object RTS {
   }
 
   val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.succeeded(())
-
-  final def combineCancelers(c1: Canceler, c2: Canceler): Canceler =
-    if (c1 eq null) {
-      if (c2 eq null) null
-      else c2
-    } else if (c2 eq null) {
-      c1
-    } else
-      () => {
-        c1()
-        c2()
-      }
 
   final def newDefaultThreadPool(): ExecutorService = {
     val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
