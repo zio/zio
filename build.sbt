@@ -146,8 +146,8 @@ lazy val microsite = project.module
         |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
         |""".stripMargin
     ),
-    micrositeName := "ZIO",
-    micrositeDescription := "ZIO",
+    micrositeName := "",
+    micrositeDescription := "Type-safe, composable concurrency for Scala",
     micrositeAuthor := "ZIO contributors",
     micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-zio",
     micrositeGitterChannelUrl := "scalaz/scalaz-zio",
