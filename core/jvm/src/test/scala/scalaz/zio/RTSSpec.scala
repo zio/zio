@@ -546,10 +546,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testRedeemEnsuringInterrupt = {
     val io = for {
-      p1  <- Promise.make[Nothing, Boolean]
-      f1  <- IO.never.catchAll(IO.fail).ensuring(p1.complete(true).void).fork
-      _   <- f1.interrupt
-      res <- p1.get
+      cont <- Promise.make[Nothing, Unit]
+      p1   <- Promise.make[Nothing, Boolean]
+      f1   <- (cont.complete(()) *> IO.never).catchAll(IO.fail).ensuring(p1.complete(true).void).fork
+      _    <- cont.get
+      _    <- f1.interrupt
+      res  <- p1.get
     } yield res
 
     unsafeRun(io) must_=== true
