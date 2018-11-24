@@ -3,6 +3,7 @@ package scalaz.zio
 
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
@@ -79,16 +80,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
-    interrupt of never                      $testNeverIsInterruptible
-    asyncPure is interruptible              $testAsyncPureIsInterruptible
-    async is interruptible                  $testAsyncIsInterruptible
-    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
-    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
-    bracket use is interruptible            $testBracketUseIsInterruptible
-    bracket0 use is interruptible           $testBracket0UseIsInterruptible
-    bracket release called on interrupt     $testBracketReleaseOnInterrupt
-    bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
-    redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
     supervise fibers                        $testSupervise
     race of fail with success               $testRaceChoosesWinner
     race of fail with fail                  $testRaceChoosesFailure
@@ -108,8 +99,19 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     deadlock regression 1                   $testDeadlockRegression
     check interruption regression 1         $testInterruptionRegression1
 
-  RTS interrupt fiber tests
-    sync forever                            $testInterruptSyncForever
+  RTS interruption
+    sync forever is interruptible           $testInterruptSyncForever
+    interrupt of never                      $testNeverIsInterruptible
+    asyncPure is interruptible              $testAsyncPureIsInterruptible
+    async is interruptible                  $testAsyncIsInterruptible
+    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
+    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
+    bracket use is interruptible            $testBracketUseIsInterruptible
+    bracket0 use is interruptible           $testBracket0UseIsInterruptible
+    bracket release called on interrupt     $testBracketReleaseOnInterrupt
+    bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
+    redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
+    finalizer can detect interruption       $testFinalizerCanDetectInterruption
   """
 
   def testPoint =
@@ -552,6 +554,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(io) must_=== true
   }
 
+  def testFinalizerCanDetectInterruption = {
+    val io = for {
+      p1  <- Promise.make[Nothing, Boolean]
+      f1  <- IO.never.ensuring(IO.descriptor.flatMap(d => p1.complete(d.interrupted)).void).fork
+      _   <- f1.interrupt
+      res <- p1.get
+    } yield res
+
+    unsafeRun(io) must_=== true
+  }
+
   def testAsyncPureIsInterruptible = {
     val io =
       for {
@@ -715,14 +728,32 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     if (n <= 0) 0
     else n + sum(n - 1)
 
-  def deepMapPoint(n: Int): IO[Throwable, Int] =
-    if (n <= 0) IO.point(n) else IO.point(n - 1).map(_ + 1)
+  def deepMapPoint(n: Int): IO[Nothing, Int] = {
+    @tailrec
+    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+      if (n <= 0) acc
+      else loop(n - 1, acc.map(_ + 1))
 
-  def deepMapNow(n: Int): IO[Throwable, Int] =
-    if (n <= 0) IO.now(n) else IO.now(n - 1).map(_ + 1)
+    loop(n, IO.point(0))
+  }
 
-  def deepMapEffect(n: Int): IO[Throwable, Int] =
-    if (n <= 0) IO.sync(n) else IO.sync(n - 1).map(_ + 1)
+  def deepMapNow(n: Int): IO[Nothing, Int] = {
+    @tailrec
+    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+      if (n <= 0) acc
+      else loop(n - 1, acc.map(_ + 1))
+
+    loop(n, IO.now(0))
+  }
+
+  def deepMapEffect(n: Int): IO[Nothing, Int] = {
+    @tailrec
+    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+      if (n <= 0) acc
+      else loop(n - 1, acc.map(_ + 1))
+
+    loop(n, IO.sync(0))
+  }
 
   def deepErrorEffect(n: Int): IO[Throwable, Unit] =
     if (n == 0) IO.syncThrowable(throw ExampleError)

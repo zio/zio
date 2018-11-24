@@ -84,6 +84,14 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
   }
 
   /**
+   * Determines if the result is interrupted.
+   */
+  final def interrupted: Boolean = self match {
+    case Succeeded(_) => false
+    case Failed(c)    => c.interrupted
+  }
+
+  /**
    * Folds over the value or cause.
    */
   final def fold[Z](completed: A => Z, failed: Cause[E] => Z): Z =
@@ -100,14 +108,6 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
       case Failed(cause) => failed(cause)
       case Succeeded(v)  => completed(v)
     }
-
-  /**
-   * Returns the cause of the failure, if this result is a failure.
-   */
-  final def causeOption: Option[Cause[E]] = self match {
-    case Succeeded(_)  => None
-    case Failed(cause) => Some(cause)
-  }
 }
 
 object ExitResult extends Serializable {
@@ -119,7 +119,7 @@ object ExitResult extends Serializable {
   final def failed[E](cause: Cause[E]): ExitResult[E, Nothing] = Failed(cause)
 
   final def checked[E](error: E): ExitResult[E, Nothing]          = failed(Cause.checked(error))
-  final def interrupted: ExitResult[Nothing, Nothing]             = failed(Cause.interrupted)
+  final val interrupted: ExitResult[Nothing, Nothing]             = failed(Cause.interrupted)
   final def unchecked(t: Throwable): ExitResult[Nothing, Nothing] = failed(Cause.unchecked(t))
 
   sealed abstract class Cause[+E] extends Product with Serializable { self =>
@@ -147,11 +147,11 @@ object ExitResult extends Serializable {
         case _                 => false
       }
 
-    final def isInterrupted: Boolean =
+    final def interrupted: Boolean =
       self match {
         case Interruption      => true
-        case Then(left, right) => left.isInterrupted || right.isInterrupted
-        case Both(left, right) => left.isInterrupted || right.isInterrupted
+        case Then(left, right) => left.interrupted || right.interrupted
+        case Both(left, right) => left.interrupted || right.interrupted
         case _                 => false
       }
 
@@ -189,7 +189,7 @@ object ExitResult extends Serializable {
 
     final def unchecked(defect: Throwable): Cause[Nothing] = Unchecked(defect)
 
-    final def interrupted: Cause[Nothing] = Interruption
+    final val interrupted: Cause[Nothing] = Interruption
 
     final case class Checked[E](value: E)        extends Cause[E]
     final case class Unchecked(value: Throwable) extends Cause[Nothing]
