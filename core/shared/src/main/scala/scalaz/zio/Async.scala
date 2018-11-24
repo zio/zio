@@ -13,20 +13,20 @@ import scalaz.zio.ExitResult.Cause
  * form `Throwable => IO[Nothing, Unit]`
  */
 sealed abstract class Async[+E, +A] extends Product with Serializable { self =>
-  def fold[E1, B](
+  final def fold[E1, B](
     f: A => ExitResult[E1, B],
     g: Cause[E] => ExitResult[E1, B]
   ): Async[E1, B] =
     self match {
-      case Async.Now(r)        => Async.Now(r.fold(f, g))
-      case Async.MaybeLater(c) => Async.MaybeLater(c)
+      case Async.Now(r)            => Async.Now(r.fold(f, g))
+      case x @ Async.MaybeLater(_) => x
     }
 }
 
 object Async extends Serializable {
   // TODO: Optimize this common case to less overhead with opaque types
-  final case class Now[E, A](value: ExitResult[E, A])   extends Async[E, A]
-  final case class MaybeLater[E, A](canceler: Canceler) extends Async[E, A]
+  final case class Now[E, A](value: ExitResult[E, A]) extends Async[E, A]
+  final case class MaybeLater(canceler: Canceler)     extends Async[Nothing, Nothing]
 
   /**
    * Constructs an `Async` that represents an uninterruptible asynchronous
@@ -55,6 +55,6 @@ object Async extends Serializable {
    * results are no longer needed because the fiber computing them has been
    * terminated.
    */
-  final def maybeLater[E, A](canceler: Canceler): Async[E, A] =
+  final def maybeLater(canceler: Canceler): Async[Nothing, Nothing] =
     MaybeLater(canceler)
 }

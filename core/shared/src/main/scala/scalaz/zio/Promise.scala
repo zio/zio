@@ -38,7 +38,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
 
         val newState = oldState match {
           case Pending(joiners) =>
-            result = Async.maybeLater[E, A](interruptJoiner(k))
+            result = Async.maybeLater(interruptJoiner(k))
 
             Pending(k :: joiners)
           case s @ Done(value) =>
