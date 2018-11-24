@@ -558,7 +558,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testFinalizerCanDetectInterruption = {
     val io = for {
       p1  <- Promise.make[Nothing, Boolean]
-      f1  <- IO.never.ensuring(IO.descriptor.flatMap(d => p1.complete(d.interrupted)).void).fork
+      c   <- Promise.make[Nothing, Unit]
+      f1  <- (c.complete(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.complete(d.interrupted)).void).fork
+      _   <- c.get
       _   <- f1.interrupt
       res <- p1.get
     } yield res
