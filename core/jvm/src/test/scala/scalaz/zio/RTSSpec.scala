@@ -572,7 +572,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       ref   <- Ref(0)
       cont  <- Promise.make[Nothing, Unit]
-      io    = cont.complete(()) *> IO.never.onInterrupt(ref.update(_ + 1).void)
+      io    = (cont.complete(()) *> IO.never).onInterrupt(ref.update(_ + 1).void)
       raced <- (io race io).fork
       _     <- cont.get
       _     <- raced.interrupt
