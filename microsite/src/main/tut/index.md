@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: home
 position: 1
 section: home
 title: "Home"
