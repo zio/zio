@@ -117,12 +117,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * TODO: Replace with optimized primitive.
    */
   final def parWith[E1 >: E, B, C](that: IO[E1, B])(f: (A, B) => C): IO[E1, C] = {
-    def coordinate[A, B](f: (A, B) => C)(winner: Fiber[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
-      winner.observe.flatMap {
-        case ExitResult.Succeeded(_)  => winner.zipWith(loser)(f).join
+    def coordinate[A, B](f: (A, B) => C)(winner: ExitResult[E1, A], loser: Fiber[E1, B]): IO[E1, C] =
+      winner match {
+        case ExitResult.Succeeded(a)  => loser.join.map(f(a, _))
         case ExitResult.Failed(cause) => loser.interrupt *> IO.fail0(cause)
       }
-    (self raceWith that)(coordinate(f), coordinate((y: B, x: A) => f(x, y)))
+    val g = (b: B, a: A) => f(a, b)
+    (self raceWith that)(coordinate(f), coordinate(g))
   }
 
   /**
@@ -147,7 +148,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * then the action will fail with some error.
    */
   final def raceBoth[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
-    raceWith(that)(_.join.map(Left(_)) <* _.interrupt, _.join.map(Right(_)) <* _.interrupt)
+    raceWith(that)(
+      (exit, right) =>
+        exit.redeem[E1, Either[A, B]](
+          _ => right.join.map(Right(_)),
+          a => IO.now(Left(a)) <* right.interrupt
+        ),
+      (exit, left) =>
+        exit.redeem[E1, Either[A, B]](
+          _ => left.join.map(Left(_)),
+          b => IO.now(Right(b)) <* left.interrupt
+        )
+    )
 
   /**
    * Races this action with the specified action, invoking the
@@ -156,29 +168,30 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def raceWith[E1, E2, B, C](
     that: IO[E1, B]
   )(
-    leftWins: (Fiber[E, A], Fiber[E1, B]) => IO[E2, C],
-    rightWins: (Fiber[E1, B], Fiber[E, A]) => IO[E2, C]
+    leftDone: (ExitResult[E, A], Fiber[E1, B]) => IO[E2, C],
+    rightDone: (ExitResult[E1, B], Fiber[E, A]) => IO[E2, C]
   ): IO[E2, C] = {
     def arbiter[E0, E1, A, B](
-      f: (Fiber[E0, A], Fiber[E1, B]) => IO[E2, C],
-      winner: Fiber[E0, A],
+      f: (ExitResult[E0, A], Fiber[E1, B]) => IO[E2, C],
       loser: Fiber[E1, B],
-      race: Ref[IO.Race],
+      race: Ref[Int],
       done: Promise[E2, C]
     )(res: ExitResult[E0, A]): IO[Nothing, _] =
-      race
-        .modify(r => r.won(res.succeeded) -> r.next(res.succeeded))
-        .flatMap(IO.when(_)(f(winner, loser).to(done).void))
+      IO.flatten(race.modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1)))
 
-    (for {
+    for {
       done  <- Promise.make[E2, C]
-      race  <- Ref[IO.Race](IO.Race.Started)
-      left  <- self.fork
-      right <- that.fork
-      _     <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
-      _     <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
-      c     <- done.get
-    } yield c).supervised
+      race  <- Ref[Int](0)
+      child <- Ref[Fiber[_, _]](Fiber.unit)
+      c <- ((for {
+            left  <- self.fork.peek(f => child update (_ zip f))
+            right <- that.fork.peek(f => child update (_ zip f))
+            _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
+            _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
+          } yield ()).uninterruptibly *> done.get).onInterrupt(
+            child.get flatMap (_.interrupt)
+          )
+    } yield c
   }
 
   /**
@@ -346,7 +359,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     Managed[E, A](this)(release)
 
   /**
-   * Runs the specified action if this action errors, providing the error to the
+   * Runs the specified action if this action fails, providing the error to the
    * action if it exists. The provided action will not be interrupted.
    */
   final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
@@ -357,6 +370,14 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
           case t @ ExitResult.Failed(_) => cleanup(t)
         }
     )(_ => self)
+
+  /**
+   * Runs the specified action if this action is interrupted.
+   */
+  final def onInterrupt(cleanup: IO[Nothing, Unit]): IO[E, A] =
+    self.ensuring(
+      IO.descriptor flatMap (descriptor => if (descriptor.interrupted) cleanup else IO.unit)
+    )
 
   /**
    * Runs the specified action if this action is terminated, either because of
@@ -800,25 +821,6 @@ object IO extends Serializable {
     override def tag = Tags.Descriptor
   }
 
-  private[zio] sealed abstract class Race { self =>
-    def won(succeeded: Boolean): Boolean = self match {
-      case Race.Started if !succeeded => false
-      case Race.Done                  => false
-      case _                          => true
-    }
-
-    def next(succeeded: Boolean): Race = self match {
-      case Race.Started if !succeeded => Race.OtherFailed
-      case _                          => Race.Done
-    }
-  }
-
-  private[zio] object Race {
-    case object Started     extends Race
-    case object OtherFailed extends Race
-    case object Done        extends Race
-  }
-
   /**
    * Lifts a strictly evaluated value into the `IO` monad.
    */
@@ -989,7 +991,7 @@ object IO extends Serializable {
     new AsyncEffect((callback: Callback[E, A]) => {
       register(callback)
 
-      Async.later[E, A]
+      Async.later
     })
 
   /**
@@ -1070,11 +1072,18 @@ object IO extends Serializable {
    */
   final def forkAll[E, A](as: Iterable[IO[E, A]]): IO[Nothing, Fiber[E, List[A]]] =
     as.foldRight(IO.point(Fiber.point[E, List[A]](List()))) { (aIO, asFiberIO) =>
-      asFiberIO.par(aIO.fork).map {
+      asFiberIO.seq(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
       }
     }
+
+  /**
+   * Forks all of the specified values, and returns a composite fiber that
+   * produces a list of their results, in order.
+   */
+  final def forkAll_[E, A](as: Iterable[IO[E, A]]): IO[Nothing, Unit] =
+    as.foldRight(IO.unit)(_.fork *> _)
 
   /**
    * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
@@ -1090,7 +1099,7 @@ object IO extends Serializable {
         b <- f.join
       } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
         case (a, f) =>
-          f.tryObserve.flatMap {
+          f.poll.flatMap {
             case Some(r) => release(a, r)
             case None    => f.interrupt *> f.observe.flatMap(release(a, _))
           }

@@ -2,18 +2,22 @@ package scalaz.zio
 
 import scala.concurrent.duration._
 import org.specs2.Specification
-import org.specs2.specification.core.Fragments
+import org.specs2.specification.{ AroundEach, AroundTimeout }
+import org.specs2.execute.{ AsResult, Failure, Result, Skipped }
 import scalaz.zio.ExitResult.Cause
 
-trait AbstractRTSSpec extends Specification with RTS {
+abstract class AbstractRTSSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends Specification
+    with RTS
+    with AroundEach
+    with AroundTimeout {
   override def defaultHandler: Cause[Any] => IO[Nothing, Unit] = _ => IO.unit
 
-  lazy val ShutdownRTS =
-    step {
-      println("Shutting down RTS...")
-      unsafeShutdownAndWait(Duration.Zero)
-    }
+  val DefaultTimeout = 60.seconds
 
-  override def map(fs: => Fragments) =
-    fs.append(ShutdownRTS)
+  override final def around[R: AsResult](r: => R): Result =
+    AsResult.safely(upTo(DefaultTimeout)(r)) match {
+      case Skipped(m, e) if m contains "TIMEOUT" => Failure(m, e)
+      case other                                 => other
+    }
 }

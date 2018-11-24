@@ -58,6 +58,7 @@ object Scalaz {
       compilerPlugin("com.github.tomasmikula" %% "pascal"          % "0.2.1"),
       compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "1.0")
     ),
+    parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false))
   )
 

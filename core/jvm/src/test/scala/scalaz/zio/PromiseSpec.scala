@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class PromiseSpec extends AbstractRTSSpec {
+class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is = "PromiseSpec".title ^ s2"""
         Make a promise and retrieve its value correctly after complete it with:
