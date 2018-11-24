@@ -991,7 +991,7 @@ object IO extends Serializable {
     new AsyncEffect((callback: Callback[E, A]) => {
       register(callback)
 
-      Async.later[E, A]
+      Async.later
     })
 
   /**

@@ -18,23 +18,15 @@ sealed abstract class Async[+E, +A] extends Product with Serializable { self =>
     g: Cause[E] => ExitResult[E1, B]
   ): Async[E1, B] =
     self match {
-      case Async.Now(r)          => Async.Now(r.fold(f, g))
-      case Async.MaybeLater(c)   => Async.MaybeLater(c)
-      case Async.MaybeLaterIO(c) => Async.MaybeLaterIO(c)
+      case Async.Now(r)        => Async.Now(r.fold(f, g))
+      case Async.MaybeLater(c) => Async.MaybeLater(c)
     }
 }
 
 object Async extends Serializable {
-
-  val NoOpCanceler: Canceler         = () => ()
-  val NoOpPureCanceler: PureCanceler = () => IO.unit
-
-  private val _Later: Async[Nothing, Nothing] = MaybeLater(NoOpCanceler)
-
   // TODO: Optimize this common case to less overhead with opaque types
-  final case class Now[E, A](value: ExitResult[E, A])         extends Async[E, A]
-  final case class MaybeLater[E, A](canceler: Canceler)       extends Async[E, A]
-  final case class MaybeLaterIO[E, A](canceler: PureCanceler) extends Async[E, A]
+  final case class Now[E, A](value: ExitResult[E, A])   extends Async[E, A]
+  final case class MaybeLater[E, A](canceler: Canceler) extends Async[E, A]
 
   /**
    * Constructs an `Async` that represents an uninterruptible asynchronous
@@ -43,7 +35,7 @@ object Async extends Serializable {
    *
    * See `IO.async0` for more information.
    */
-  final def later[E, A]: Async[E, A] = _Later.asInstanceOf[Async[E, A]]
+  final val later: Async[Nothing, Nothing] = MaybeLater(IO.unit)
 
   /**
    * Constructs an `Async` that represents a synchronous return. The
@@ -65,7 +57,4 @@ object Async extends Serializable {
    */
   final def maybeLater[E, A](canceler: Canceler): Async[E, A] =
     MaybeLater(canceler)
-
-  final def maybeLaterIO[E, A](canceler: PureCanceler): Async[E, A] =
-    MaybeLaterIO(canceler)
 }
