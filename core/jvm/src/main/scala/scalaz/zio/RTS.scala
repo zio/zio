@@ -137,9 +137,15 @@ private object RTS {
     private[this] var size    = 0
     private[this] var nesting = 0
 
-    def isEmpty: Boolean = size == 0
+    final def isEmpty: Boolean = size == 0
 
-    def push(a: Cont): Unit =
+    final def clear(): Unit = {
+      array = new Array[AnyRef](13)
+      size = 0
+      nesting = 0
+    }
+
+    final def push(a: Cont): Unit =
       if (size == 13) {
         array = Array(array, a, null, null, null, null, null, null, null, null, null, null, null)
         size = 2
@@ -149,7 +155,7 @@ private object RTS {
         size += 1
       }
 
-    def pop(): Cont = {
+    final def pop(): Cont = {
       val idx = size - 1
       var a   = array(idx)
       if (idx == 0 && nesting > 0) {
@@ -480,7 +486,7 @@ private object RTS {
                   case IO.Tags.Fail =>
                     val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                    val finalizer = unwindStack(!io.cause.isInterrupted)
+                    val finalizer = unwindStack(!io.cause.interrupted)
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -652,7 +658,17 @@ private object RTS {
             enterAsyncStart()
           else newReentrancy
 
-        case _ =>
+        case Interrupting(observers) =>
+          val newReentrancy = 1
+
+          if (!status.compareAndSet(
+                oldStatus,
+                AsyncRegion(true, newReentrancy, 1, None, observers)
+              ))
+            enterAsyncStart()
+          else newReentrancy
+
+        case Done(_) =>
           // If this is hit, there's a bug somewhere.
           throw new Error("Defect: Fiber is in Done state")
       }
@@ -778,6 +794,13 @@ private object RTS {
             reportErrors(v)
           }
 
+        case Interrupting(observers) =>
+          if (!status.compareAndSet(oldStatus, Done(v))) done(v)
+          else {
+            purgeObservers(v, observers)
+            reportErrors(v)
+          }
+
         case Done(_) => // Huh?
       }
     }
@@ -810,38 +833,28 @@ private object RTS {
             Async.later[Nothing, Unit]
           }
 
-        case AsyncRegion(_, _, resume, cancelOpt, observers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.interrupted
+        case AsyncRegion(_, _, resume, cancelOpt, observers0) if (resume > 0 && noInterrupt == 0) =>
+          val observers = mkKillerObserver(k) :: observers0
 
-          if (!status.compareAndSet(oldStatus, Done(v))) kill0(k)
+          if (!status.compareAndSet(oldStatus, Interrupting(observers))) kill0(k)
           else {
             killed = true
 
             // We interrupted async before it could resume. Now we have to
             // cancel the computation, if possible, and handle any finalizers.
-            cancelOpt match {
-              case None =>
-              case Some(cancel) =>
-                try cancel()
-                catch {
-                  case t: Throwable if (rts.nonFatal(t)) =>
-                    fork(unhandled(Cause.unchecked(t)), unhandled)
-                }
+            val canceler = cancelOpt match {
+              case None         => IO.unit
+              case Some(cancel) => IO.sync(cancel())
             }
 
-            val finalizer = unwindStack(false)
+            // Interruption may not be interrupted:
+            noInterrupt += 1
 
-            if (finalizer ne null) {
-              fork(finalizer.flatMap {
-                case None     => IO.unit
-                case Some(ts) => unhandled(ts)
-              }, unhandled)
-                .runAsync(
-                  (_: ExitResult[Nothing, Unit]) => purgeObservers(v, mkKillerObserver(k) :: observers)
-                )
-              Async.later[Nothing, Unit]
-            } else Async.now(SuccessUnit)
+            // TODO: Slight race condition here between this
+            // and returning Async.later:
+            rts.submit(evaluate(canceler *> IO.interrupt))
 
+            Async.later[Nothing, Unit]
           }
 
         case s @ AsyncRegion(_, _, _, _, _) =>
@@ -852,6 +865,15 @@ private object RTS {
             )
 
           if (!status.compareAndSet(oldStatus, newStatus)) kill0(k)
+          else {
+            killed = true
+            Async.later[Nothing, Unit]
+          }
+
+        case Interrupting(observers0) =>
+          val observers = mkKillerObserver(k) :: observers0
+
+          if (!status.compareAndSet(oldStatus, Interrupting(observers))) kill0(k)
           else {
             killed = true
             Async.later[Nothing, Unit]
@@ -875,6 +897,12 @@ private object RTS {
           else Async.later[Nothing, ExitResult[E, A]]
 
         case s @ AsyncRegion(_, _, _, _, _) =>
+          val newStatus = s.copy(observers = cb :: s.observers)
+
+          if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
+          else Async.later[Nothing, ExitResult[E, A]]
+
+        case s @ Interrupting(_) =>
           val newStatus = s.copy(observers = cb :: s.observers)
 
           if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
@@ -915,7 +943,11 @@ private object RTS {
       observers: List[Callback[Nothing, ExitResult[E, A]]]
     ) extends FiberStatus[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
-      override def interrupted: Boolean = false
+      def interrupted: Boolean = value.interrupted
+    }
+    final case class Interrupting[E, A](observers: List[Callback[Nothing, ExitResult[E, A]]])
+        extends FiberStatus[E, A] {
+      def interrupted: Boolean = true
     }
 
     def Initial[E, A] = Executing[E, A](interrupted = false, Nil)
