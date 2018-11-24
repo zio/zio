@@ -52,6 +52,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   )
 
 lazy val coreJVM = core.jvm
+  .configure(_.enablePlugins(JCStressPlugin))
   .settings(
     // In the repl most warnings are useless or worse.
     // This is intentionally := as it's more direct to enumerate the few
