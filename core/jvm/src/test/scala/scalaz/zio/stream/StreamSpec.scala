@@ -3,15 +3,21 @@ package scalaz.zio.stream
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import scalaz.zio.{ AbstractRTSSpec, GenIO, IO }
+import scala.concurrent.duration._
 
-class StreamSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+
+  override val DefaultTimeout = 5.seconds
+
+  import ArbitraryChunk._
+
   def is = "StreamSpec".title ^ s2"""
   PureStream.filter       $filter
   PureStream.dropWhile    $dropWhile
   PureStream.takeWhile    $takeWhile
   PureStream.map          $map
   PureStream.mapConcat    $mapConcat
-  PureStream.scan         $scan
+  Stream.scan             $scan
   Stream.unfold           $unfold
   Stream.unfoldM          $unfoldM
   Stream.range            $range
@@ -27,6 +33,13 @@ class StreamSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   Stream.merge            $merge
   Stream.mergeEither      $mergeEither
   Stream.mergeWith        $mergeWith
+  Stream.scanM            $scanM
+  Stream.transduce        $transduce
+  Stream.withEffect       $withEffect
+  Stream.zipWith          $zipWith
+  Stream.fromIterable     $fromIterable
+  Stream.fromChunk        $fromChunk
+  Stream.peel             $peel
   """
 
   def slurp[E, A](s: Stream[E, A]) = s match {
@@ -69,6 +82,11 @@ class StreamSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
 
   def scan = {
     val stream = Stream(1, 1, 1).scan(0)((acc, el) => (acc + el, acc + el))
+    (slurp(stream) must_=== List(1, 2, 3)) and (slurpM(stream) must_=== List(1, 2, 3))
+  }
+
+  def scanM = {
+    val stream = Stream(1, 1, 1).scanM(0)((acc, el) => IO.now((acc + el, acc + el)))
     (slurp(stream) must_=== List(1, 2, 3)) and (slurpM(stream) must_=== List(1, 2, 3))
   }
 
@@ -181,5 +199,51 @@ class StreamSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
 
     slurpM(merge) must containTheSameElementsAs(List("1", "2", "1", "2"))
+  }
+
+  def transduce = {
+    val s          = Stream('1', '2', ',', '3', '4')
+    val parser     = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
+    val transduced = s.transduce(parser)
+
+    slurpM(transduced) must_=== List(12, 34)
+  }
+
+  def peel = {
+    val s      = Stream('1', '2', ',', '3', '4')
+    val parser = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
+    val peeled = s.peel(parser).use {
+      case (n, rest) =>
+        IO.now((n, slurpM(rest)))
+    }
+
+    unsafeRun(peeled) must_=== ((12, List('3', '4')))
+  }
+
+  def withEffect = {
+    var sum     = 0
+    val s       = Stream(1, 1).withEffect(a => IO.sync(sum += a))
+    val slurped = slurp(s)
+
+    slurped must_=== List(1, 1) and (sum must_=== 2)
+  }
+
+  def zipWith = {
+    val s1     = Stream(1, 2, 3)
+    val s2     = Stream(1, 2)
+    val zipped = s1.zipWith(s2)((a, b) => a.flatMap(a => b.map(a + _)))
+
+    slurpM(zipped) must_=== List(2, 4)
+  }
+
+  def fromIterable = prop { (l: List[Int]) =>
+    val s = Stream.fromIterable(l)
+    slurpM(s) must_=== l and (slurp(s) must_=== l)
+  }
+
+  def fromChunk = prop { (c: Chunk[Int]) =>
+    val s = Stream.fromChunk(c)
+
+    slurpM(s) must_=== c.toSeq.toList and (slurp(s) must_=== c.toSeq.toList)
   }
 }

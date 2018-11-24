@@ -4,7 +4,7 @@ import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO }
 
-class SinkSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "SinkSpec".title ^ s2"""
   A sink written with Sink.foldM works properly. $jsonNumArrayParsingSinkFoldM
   A sink written with combinators works properly. $jsonNumArrayParsingSinkWithCombinators

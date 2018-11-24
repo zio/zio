@@ -194,11 +194,6 @@ class CSVStreamBenchmarks {
 
     unsafeRun(stream.run(Sink.drain))
   }
-
-  // @Benchmark
-  // def scalazChunkCsvTokenize = {
-  //   // TODO
-  // }
 }
 
 object CSV {

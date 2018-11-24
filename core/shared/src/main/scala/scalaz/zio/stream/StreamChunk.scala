@@ -66,8 +66,8 @@ trait StreamChunk[+E, @specialized +A] { self =>
   final def foreach[E1 >: E](f: A => IO[E1, Unit]): IO[E1, Unit] =
     foreach0[E1](f(_).const(true))
 
-  final def withEffect[E1 >: E, A1 >: A](f0: A1 => IO[E1, Unit]): StreamChunk[E1, A] =
-    StreamChunk(chunks.withEffect[E1, Chunk[A1]] { as =>
+  final def withEffect[E1 >: E](f0: A => IO[E1, Unit]): StreamChunk[E1, A] =
+    StreamChunk(chunks.withEffect[E1] { as =>
       as.traverse_(f0)
     })
 
