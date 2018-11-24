@@ -38,7 +38,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
 
         val newState = oldState match {
           case Pending(joiners) =>
-            result = Async.maybeLater[E, A](interruptJoiner(k))
+            result = Async.maybeLater(interruptJoiner(k))
 
             Pending(k :: joiners)
           case s @ Done(value) =>
@@ -95,7 +95,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
         val newState = oldState match {
           case Pending(joiners) =>
             action =
-              IO.forkAll(joiners.map(k => IO.sync[Unit](k(r)))) *>
+              IO.forkAll_(joiners.map(k => IO.sync[Unit](k(r)))) *>
                 IO.now[Boolean](true)
 
             Done(r)
@@ -112,7 +112,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private def interruptJoiner(joiner: Callback[E, A]): Canceler = { () =>
+  private def interruptJoiner(joiner: Callback[E, A]): Canceler = IO.sync {
     var retry = true
 
     while (retry) {

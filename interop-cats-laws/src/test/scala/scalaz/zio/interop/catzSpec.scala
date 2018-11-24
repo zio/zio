@@ -18,7 +18,6 @@ import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
 
 import scala.util.control.NonFatal
-import scala.concurrent.duration._
 
 class catzSpec
     extends FunSuite
@@ -29,10 +28,6 @@ class catzSpec
     with TestInstances
     with GenIO
     with RTS {
-  override def afterAll() = {
-    println("ScalaTest: Shutting down RTS...")
-    unsafeShutdownAndWait(Duration.Zero)
-  }
 
   /**
    * Silences `System.err`, only printing the output in case exceptions are

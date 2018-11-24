@@ -3,14 +3,14 @@ package scalaz.zio
 
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.specification.{ AroundTimeout, ExamplesTimeout }
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 
-class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout with ExamplesTimeout {
+class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def is = s2"""
   RTS synchronous correctness
@@ -48,7 +48,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     fail ensuring                           $testEvalOfFailEnsuring
     fail on error                           $testEvalOfFailOnError
     finalizer errors not caught             $testErrorInFinalizerCannotBeCaught
-    finalizer errors reported               ${upTo(1.second)(testErrorInFinalizerIsReported)}
+    finalizer errors reported               $testErrorInFinalizerIsReported
     bracket result is usage result          $testExitResultIsUsageResult
     error in just acquisition               $testBracketErrorInAcquisition
     error in just release                   $testBracketErrorInRelease
@@ -57,7 +57,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     rethrown caught error in release        $testBracketRethrownCaughtErrorInRelease
     rethrown caught error in usage          $testBracketRethrownCaughtErrorInUsage
     test eval of async fail                 $testEvalOfAsyncAttemptOfFail
-    bracket regression 1                    ${upTo(10.seconds)(testBracketRegression1)}
+    bracket regression 1                    $testBracketRegression1
     interrupt waits for finalizer           $testInterruptWaitsForFinalizer
 
   RTS synchronous stack safety
@@ -68,49 +68,49 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
     deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
 
-  RTS asynchronous stack safety
-    deep bind of async chain                $testDeepBindOfAsyncChainIsStackSafe
-
   RTS asynchronous correctness
     simple async must return                $testAsyncEffectReturns
     simple asyncIO must return              $testAsyncIOEffectReturns
     deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
-    sleep 0 must return                     ${upTo(1.second)(testSleepZeroReturns)}
+    sleep 0 must return                     $testSleepZeroReturns
+    shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
 
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
-    interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
-    asyncPure is interruptible              ${upTo(1.second)(testAsyncPureIsInterruptible)}
-    async is interruptible                  ${upTo(1.second)(testAsyncIsInterruptible)}
-    bracket is uninterruptible              ${testBracketAcquireIsUninterruptible}
-    bracket0 is uninterruptible             ${testBracket0AcquireIsUninterruptible}
+    supervise fibers                        $testSupervise
+    race of fail with success               $testRaceChoosesWinner
+    race of fail with fail                  $testRaceChoosesFailure
+    race of value & never                   $testRaceOfValueNever
+    raceAll of values                       $testRaceAllOfValues
+    raceAll of failures                     $testRaceAllOfFailures
+    raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
+    par regression                          $testPar
+    par of now values                       $testRepeatedPar
+    mergeAll                                $testMergeAll
+    mergeAllEmpty                           $testMergeAllEmpty
+    reduceAll                               $testReduceAll
+    reduceAll Empty List                    $testReduceAllEmpty
+    timeout of failure                      $testTimeoutFailure
+
+  RTS regression tests
+    deadlock regression 1                   $testDeadlockRegression
+    check interruption regression 1         $testInterruptionRegression1
+
+  RTS interruption
+    sync forever is interruptible           $testInterruptSyncForever
+    interrupt of never                      $testNeverIsInterruptible
+    asyncPure is interruptible              $testAsyncPureIsInterruptible
+    async is interruptible                  $testAsyncIsInterruptible
+    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
+    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
     bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
     bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
-    supervise fibers                        ${upTo(1.second)(testSupervise)}
-    race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
-    race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
-    race of value & never                   ${upTo(1.second)(testRaceOfValueNever)}
-    raceAll of values                       ${upTo(1.second)(testRaceAllOfValues)}
-    raceAll of failures                     ${upTo(1.second)(testRaceAllOfFailures)}
-    raceAll of failures & one success       ${upTo(1.second)(testRaceAllOfFailuresOneSuccess)}
-    par regression                          ${upTo(5.seconds)(testPar)}
-    par of now values                       ${upTo(5.seconds)(testRepeatedPar)}
-    mergeAll                                $testMergeAll
-    mergeAllEmpty                           $testMergeAllEmpty
-    reduceAll                               $testReduceAll
-    reduceAll Empty List                    $testReduceAllEmpty
-    timeout of failure                      ${upTo(5.seconds)(testTimeoutFailure)}
-
-  RTS regression tests
-    regression 1                            $testDeadlockRegression
-    check interruption regression 1         ${upTo(20.seconds)(testInterruptionRegression1)}
-
-  RTS interrupt fiber tests
-    sync forever                            $testInterruptSyncForever
+    finalizer can detect interruption       $testFinalizerCanDetectInterruption
+    interruption of raced                   $testInterruptedOfRaceInterruptsContestents
   """
 
   def testPoint =
@@ -437,14 +437,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
         .foldLeft(IO.async[Int, Int](k => k(ExitResult.succeeded(42))))((acc, _) => IO.absolve(acc.attempt))
     ) must_=== 42
 
-  def testDeepBindOfAsyncChainIsStackSafe = {
-    val result = (0 until 10000).foldLeft[IO[Throwable, Int]](IO.point[Int](0)) { (acc, _) =>
-      acc.flatMap(n => IO.async[Throwable, Int](_(ExitResult.succeeded[Int](n + 1))))
-    }
-
-    unsafeRun(result) must_=== 10000
-  }
-
   def testAsyncEffectReturns =
     unsafeRun(IO.async[Throwable, Int](cb => cb(ExitResult.succeeded(42)))) must_=== 42
 
@@ -468,6 +460,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testSleepZeroReturns =
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
+
+  def testShallowBindOfAsyncChainIsCorrect = {
+    val result = (0 until 10).foldLeft[IO[Throwable, Int]](IO.point[Int](0)) { (acc, _) =>
+      acc.flatMap(n => IO.async[Throwable, Int](_(ExitResult.succeeded[Int](n + 1))))
+    }
+
+    unsafeRun(result) must_=== 10
+  }
 
   def testForkJoinIsId =
     unsafeRun(IO.point[Int](42).fork.flatMap(_.join)) must_=== 42
@@ -544,13 +544,42 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
   def testRedeemEnsuringInterrupt = {
     val io = for {
+      cont <- Promise.make[Nothing, Unit]
+      p1   <- Promise.make[Nothing, Boolean]
+      f1   <- (cont.complete(()) *> IO.never).catchAll(IO.fail).ensuring(p1.complete(true).void).fork
+      _    <- cont.get
+      _    <- f1.interrupt
+      res  <- p1.get
+    } yield res
+
+    unsafeRun(io) must_=== true
+  }
+
+  def testFinalizerCanDetectInterruption = {
+    val io = for {
       p1  <- Promise.make[Nothing, Boolean]
-      f1  <- IO.never.catchAll(IO.fail).ensuring(p1.complete(true).void).fork
+      c   <- Promise.make[Nothing, Unit]
+      f1  <- (c.complete(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.complete(d.interrupted)).void).fork
+      _   <- c.get
       _   <- f1.interrupt
       res <- p1.get
     } yield res
 
     unsafeRun(io) must_=== true
+  }
+
+  def testInterruptedOfRaceInterruptsContestents = {
+    val io = for {
+      ref   <- Ref(0)
+      cont  <- Promise.make[Nothing, Unit]
+      io    = cont.complete(()) *> IO.never.onInterrupt(ref.update(_ + 1).void)
+      raced <- (io race io).fork
+      _     <- cont.get
+      _     <- raced.interrupt
+      count <- ref.get
+    } yield count
+
+    unsafeRun(io) must_=== 2
   }
 
   def testAsyncPureIsInterruptible = {
@@ -659,14 +688,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
 
     import java.util.concurrent.Executors
 
+    val rts = new RTS {}
+
     val e = Executors.newSingleThreadExecutor()
 
-    for (_ <- (0 until 10000)) {
-      val t = IO.async[Nothing, Int] { cb =>
-        val c: Callable[Unit] = () => cb(ExitResult.succeeded(1))
-        val _                 = e.submit(c)
+    (0 until 10000).foreach { _ =>
+      rts.unsafeRun {
+        IO.async[Nothing, Int] { cb =>
+          val c: Callable[Unit] = () => cb(ExitResult.succeeded(1))
+          val _                 = e.submit(c)
+        }
       }
-      unsafeRun(t)
     }
 
     e.shutdown() must_=== (())
@@ -713,14 +745,32 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
     if (n <= 0) 0
     else n + sum(n - 1)
 
-  def deepMapPoint(n: Int): IO[Throwable, Int] =
-    if (n <= 0) IO.point(n) else IO.point(n - 1).map(_ + 1)
+  def deepMapPoint(n: Int): IO[Nothing, Int] = {
+    @tailrec
+    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+      if (n <= 0) acc
+      else loop(n - 1, acc.map(_ + 1))
 
-  def deepMapNow(n: Int): IO[Throwable, Int] =
-    if (n <= 0) IO.now(n) else IO.now(n - 1).map(_ + 1)
+    loop(n, IO.point(0))
+  }
 
-  def deepMapEffect(n: Int): IO[Throwable, Int] =
-    if (n <= 0) IO.sync(n) else IO.sync(n - 1).map(_ + 1)
+  def deepMapNow(n: Int): IO[Nothing, Int] = {
+    @tailrec
+    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+      if (n <= 0) acc
+      else loop(n - 1, acc.map(_ + 1))
+
+    loop(n, IO.now(0))
+  }
+
+  def deepMapEffect(n: Int): IO[Nothing, Int] = {
+    @tailrec
+    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+      if (n <= 0) acc
+      else loop(n - 1, acc.map(_ + 1))
+
+    loop(n, IO.sync(0))
+  }
 
   def deepErrorEffect(n: Int): IO[Throwable, Unit] =
     if (n == 0) IO.syncThrowable(throw ExampleError)
