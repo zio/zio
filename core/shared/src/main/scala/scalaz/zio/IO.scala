@@ -1099,7 +1099,7 @@ object IO extends Serializable {
         b <- f.join
       } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
         case (a, f) =>
-          f.tryObserve.flatMap {
+          f.poll.flatMap {
             case Some(r) => release(a, r)
             case None    => f.interrupt *> f.observe.flatMap(release(a, _))
           }

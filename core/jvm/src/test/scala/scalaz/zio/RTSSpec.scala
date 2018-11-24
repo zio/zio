@@ -68,14 +68,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
     deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
 
-  RTS asynchronous stack safety
-    deep bind of async chain                $testDeepBindOfAsyncChainIsStackSafe
-
   RTS asynchronous correctness
     simple async must return                $testAsyncEffectReturns
     simple asyncIO must return              $testAsyncIOEffectReturns
     deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
     sleep 0 must return                     $testSleepZeroReturns
+    shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
 
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
@@ -439,14 +437,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         .foldLeft(IO.async[Int, Int](k => k(ExitResult.succeeded(42))))((acc, _) => IO.absolve(acc.attempt))
     ) must_=== 42
 
-  def testDeepBindOfAsyncChainIsStackSafe = {
-    val result = (0 until 10000).foldLeft[IO[Throwable, Int]](IO.point[Int](0)) { (acc, _) =>
-      acc.flatMap(n => IO.async[Throwable, Int](_(ExitResult.succeeded[Int](n + 1))))
-    }
-
-    unsafeRun(result) must_=== 10000
-  }
-
   def testAsyncEffectReturns =
     unsafeRun(IO.async[Throwable, Int](cb => cb(ExitResult.succeeded(42)))) must_=== 42
 
@@ -470,6 +460,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testSleepZeroReturns =
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
+
+  def testShallowBindOfAsyncChainIsCorrect = {
+    val result = (0 until 10).foldLeft[IO[Throwable, Int]](IO.point[Int](0)) { (acc, _) =>
+      acc.flatMap(n => IO.async[Throwable, Int](_(ExitResult.succeeded[Int](n + 1))))
+    }
+
+    unsafeRun(result) must_=== 10
+  }
 
   def testForkJoinIsId =
     unsafeRun(IO.point[Int](42).fork.flatMap(_.join)) must_=== 42
