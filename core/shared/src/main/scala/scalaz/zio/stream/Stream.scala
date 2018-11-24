@@ -262,67 +262,75 @@ trait Stream[+E, +A] { self =>
    * remainder is valid only within the scope of `Managed`.
    */
   final def peel[E1 >: E, A1 >: A, R](sink: Sink[E1, A1, A1, R]): Managed[E1, (R, Stream[E1, A1])] = {
-    type Folder = (Any, A1) => IO[E1, Step[Any]]
-    type Fold   = (Any, Folder)
+    type Folder = (Any, A1) => IO[E1, Any]
+    type Cont   = Any => Boolean
+    type Fold   = (Any, Cont, Folder)
     type State  = Either[sink.State, Fold]
     type Result = (R, Stream[E1, A1])
 
-    def feed[S](chunk: Chunk[A1], i: Int = 0)(s: S, f: (S, A1) => IO[E1, Step[S]]): IO[E1, Step[S]] =
-      if (i >= chunk.length) IO.now(Step.Cont(s))
-      else {
-        val a1 = chunk(i)
+    def feed[S](chunk: Chunk[A1])(s: S, cont: S => Boolean, f: (S, A1) => IO[E1, S]): IO[E1, S] =
+      chunk.foldMLazy(s)(cont)(f)
 
-        f(s, a1).flatMap {
-          case Step.Stop(s) => IO.now(Step.Stop(s))
-          case Step.Cont(s) => feed(chunk, i + 1)(s, f)
-        }
-      }
-
-    def tail(resume: Promise[Nothing, Fold], done: Promise[E1, Step[Any]]): Stream[E1, A1] =
+    def tail(resume: Promise[Nothing, Fold], done: Promise[E1, Any]): Stream[E1, A1] =
       new Stream[E1, A1] {
-        override def fold[E2 >: E1, A2 >: A1, S](s: S)(f: (S, A2) => IO[E2, Step[S]]): IO[E2, Step[S]] =
-          resume.complete(s -> f.asInstanceOf[Folder]) *>
-            done.get.asInstanceOf[IO[E2, Step[S]]]
+        override def foldLazy[E2 >: E1, A2 >: A1, S](s: S)(cont: S => Boolean)(f: (S, A2) => IO[E2, S]): IO[E2, S] =
+          if (!cont(s)) IO.now(s)
+          else
+            resume.complete((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
+              done.get.asInstanceOf[IO[E2, S]]
       }
 
-    def acquire(lstate: sink.State): IO[Nothing, (Fiber[E1, Step[State]], Promise[E1, Result])] =
+    def acquire(lstate: sink.State): IO[Nothing, (Fiber[E1, State], Promise[E1, Result])] =
       for {
         resume <- Promise.make[Nothing, Fold]
-        done   <- Promise.make[E1, Step[Any]]
+        done   <- Promise.make[E1, Any]
         result <- Promise.make[E1, Result]
         fiber <- self
-                  .fold[E1, A1, State](Left(lstate)) {
+                  .foldLazy[E1, A1, State](Left(lstate))(
+                    s =>
+                      s match {
+                        case Left(_)             => true
+                        case Right((s, cont, _)) => cont(s)
+                      }
+                  ) {
                     case (Left(lstate), a) =>
                       sink.step(lstate, a).flatMap { step =>
-                        if (Sink.Step.cont(step)) IO.now(Step.Cont(Left(Sink.Step.state(step))))
+                        if (Sink.Step.cont(step)) IO.now(Left(Sink.Step.state(step)))
                         else {
                           val lstate = Sink.Step.state(step)
-                          val as     = Chunk(a) ++ Sink.Step.leftover(step)
+                          val as     = Sink.Step.leftover(step)
 
                           sink.extract(lstate).flatMap { r =>
                             result.complete(r -> tail(resume, done)) *>
                               resume.get
-                                .flatMap(t => feed(as)(t._1, t._2).map(step => step.map(s => Right(s -> t._2))))
+                                .flatMap(t => feed(as)(t._1, t._2, t._3).map(s => Right((s, t._2, t._3))))
                           }
                         }
                       }
-                    case (Right((rstate, f)), a) =>
-                      f(rstate, a).flatMap {
-                        case Step.Stop(rstate) =>
-                          IO.now(Step.Stop(Right(rstate -> f)))
-
-                        case Step.Cont(rstate) =>
-                          IO.now(Step.Cont(Right(rstate -> f)))
+                    case (Right((rstate, cont, f)), a) =>
+                      f(rstate, a).flatMap { rstate =>
+                        IO.now(Right((rstate, cont, f)))
                       }
                   }
                   .onError(result.done(_).void)
                   .fork
-                  .flatMap(fiber => fiber.observe.flatMap(done.done(_).fork.void).const(fiber))
+        _ <- fiber.observe.flatMap {
+              case ExitResult.Succeeded(Left(_)) =>
+                done.done(
+                  ExitResult.unchecked(new Exception("Logic error: Stream.peel's inner stream ended with a Left"))
+                )
+              case ExitResult.Succeeded(Right((rstate, _, _))) => done.complete(rstate)
+              case e @ ExitResult.Failed(_)                    => done.done(e)
+            }.fork.void
       } yield (fiber, result)
 
     Managed
       .liftIO(sink.initial)
-      .flatMap(step => Managed(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap(t => Managed.liftIO(t._2.get)))
+      .flatMap { step =>
+        Managed(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap { t =>
+          Managed.liftIO(t._2.get)
+        }
+      }
   }
 
   /**
@@ -382,15 +390,15 @@ trait Stream[+E, +A] { self =>
    * Statefully maps over the elements of this stream to produce new elements.
    */
   def scan[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): Stream[E, B] = new Stream[E, B] {
-    override def fold[E1 >: E, B1 >: B, S](s: S)(f: (S, B1) => IO[E1, Step[S]]): IO[E1, Step[S]] =
+    override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
       self
-        .fold[E1, A, (S, S1)](s -> s1) {
+        .foldLazy[E1, A, (S, S1)](s -> s1)(tp => cont(tp._1)) {
           case ((s, s1), a) =>
             val (s2, b) = f1(s1, a)
 
-            f(s, b).map(_.map(s => s -> s2))
+            f(s, b).map(s => s -> s2)
         }
-        .map(_.map(_._1))
+        .map(_._1)
   }
 
   /**
@@ -398,16 +406,16 @@ trait Stream[+E, +A] { self =>
    * new elements.
    */
   final def scanM[E1 >: E, S1, B](s1: S1)(f1: (S1, A) => IO[E1, (S1, B)]): Stream[E1, B] = new Stream[E1, B] {
-    override def fold[E2 >: E1, B1 >: B, S](s: S)(f: (S, B1) => IO[E2, Step[S]]): IO[E2, Step[S]] =
+    override def foldLazy[E2 >: E1, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E2, S]): IO[E2, S] =
       self
-        .fold[E2, A, (S, S1)](s -> s1) {
+        .foldLazy[E2, A, (S, S1)](s -> s1)(tp => cont(tp._1)) {
           case ((s, s1), a) =>
             f1(s1, a).flatMap {
               case (s1, b) =>
-                f(s, b).map(_.map(s => s -> s1))
+                f(s, b).map(s => s -> s1)
             }
         }
-        .map(_.map(_._1))
+        .map(_._1)
   }
 
   /**
@@ -421,8 +429,14 @@ trait Stream[+E, +A] { self =>
    * evaluates to `true`.
    */
   def takeWhile(pred: A => Boolean): Stream[E, A] = new Stream[E, A] {
-    override def fold[E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => IO[E1, Step[S]]): IO[E1, Step[S]] =
-      self.fold[E1, A, S](s)((s, a) => if (pred(a)) f(s, a) else IO.now(Step.Stop(s)))
+    override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
+      self
+        .foldLazy[E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) {
+          case ((_, s), a) =>
+            if (pred(a)) f(s, a).map(true -> _)
+            else IO.now(false             -> s)
+        }
+        .map(_._2)
   }
 
   /**
@@ -444,42 +458,53 @@ trait Stream[+E, +A] { self =>
    */
   final def transduce[E1 >: E, A1 >: A, C](sink: Sink[E1, A1, A1, C]): Stream[E1, C] =
     new Stream[E1, C] {
-      override def fold[E2 >: E1, C1 >: C, S2](s2: S2)(f: (S2, C1) => IO[E2, Step[S2]]): IO[E2, Step[S2]] = {
-        def feed(s1: sink.State, s2: S2, a: Chunk[A1]): IO[E2, Step[(sink.State, S2)]] =
+      override def foldLazy[E2 >: E1, C1 >: C, S2](
+        s2: S2
+      )(cont: S2 => Boolean)(f: (S2, C1) => IO[E2, S2]): IO[E2, S2] = {
+        def feed(s1: sink.State, s2: S2, a: Chunk[A1]): IO[E2, Sink.Step[(sink.State, S2), A1]] =
           sink.stepChunk(s1, a).flatMap { step =>
-            if (Sink.Step.cont(step)) IO.now(Step.cont((Sink.Step.state(step), s2)))
+            if (Sink.Step.cont(step)) IO.now(Sink.Step.leftMap(step)((_, s2)))
             else {
-              sink
-                .extract(Sink.Step.state(step))
-                .flatMap(
-                  c =>
-                    f(s2, c).flatMap {
-                      case Step.Cont(s2) =>
-                        sink.initial.flatMap(s1 => feed(Sink.Step.state(s1), s2, Sink.Step.leftover(s1)))
-                      case Step.Stop(s2) => IO.now(Step.Stop((s1, s2)))
-                    }
-                )
+              sink.extract(Sink.Step.state(step)).flatMap { c =>
+                f(s2, c) flatMap { s2 =>
+                  if (cont(s2))
+                    sink.initial.flatMap(initStep => feed(Sink.Step.state(initStep), s2, Sink.Step.leftover(step)))
+                  else IO.now(Sink.Step.more((s1, s2)))
+                }
+              }
             }
           }
 
-        sink.initial
-          .flatMap(
-            s1 =>
-              self.fold[E2, A, (sink.State, S2)]((Sink.Step.state(s1), s2)) {
-                case ((s1, s2), a) => feed(s1, s2, Chunk(a))
-              }
-          )
-          .map(_.map(_._2))
+        sink.initial.flatMap { initStep =>
+          val s1 = Sink.Step.leftMap(initStep)((_, s2))
+
+          self
+            .foldLazy[E2, A, Sink.Step[(sink.State, S2), A1]](s1)(step => cont(Sink.Step.state(step)._2)) { (s, a) =>
+              val (s1, s2) = Sink.Step.state(s)
+
+              feed(s1, s2, Chunk(a))
+            }
+            .flatMap { step =>
+              val (s1, s2) = Sink.Step.state(step)
+
+              sink
+                .extract(s1)
+                .redeem(
+                  _ => IO.now(s2),
+                  c => f(s2, c)
+                )
+            }
+        }
       }
     }
 
   /**
    * Adds an effect to consumption of every element of the stream.
    */
-  final def withEffect[E1 >: E, A1 >: A](f0: A1 => IO[E1, Unit]): Stream[E1, A] =
+  final def withEffect[E1 >: E](f0: A => IO[E1, Unit]): Stream[E1, A] =
     new Stream[E1, A] {
-      override def fold[E2 >: E1, A2 >: A, S](s: S)(f: (S, A2) => IO[E2, Step[S]]): IO[E2, Step[S]] =
-        self.fold[E2, A, S](s)((s, a2) => f0(a2) *> f(s, a2))
+      override def foldLazy[E2 >: E1, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E2, S]): IO[E2, S] =
+        self.foldLazy[E2, A, S](s)(cont)((s, a2) => f0(a2) *> f(s, a2))
     }
 
   /**
@@ -497,14 +522,14 @@ trait Stream[+E, +A] { self =>
     f0: (Option[A], Option[B]) => Option[C]
   ): Stream[E1, C] =
     new Stream[E1, C] {
-      override def fold[E2 >: E1, A1 >: C, S](s: S)(f: (S, A1) => IO[E2, Step[S]]): IO[E2, Step[S]] = {
-        def loop(q1: Queue[Take[E2, A]], q2: Queue[Take[E2, B]], s: S): IO[E2, Step[S]] =
+      override def foldLazy[E2 >: E1, A1 >: C, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E2, S]) = {
+        def loop(q1: Queue[Take[E2, A]], q2: Queue[Take[E2, B]], s: S): IO[E2, S] =
           Take.option(q1.take).seqWith(Take.option(q2.take))(f0).flatMap {
-            case None => IO.now(Step.Cont(s))
+            case None => IO.now(s)
             case Some(c) =>
-              f(s, c).flatMap {
-                case Step.Cont(s) => loop(q1, q2, s)
-                case s            => IO.now(s)
+              f(s, c).flatMap { s =>
+                if (cont(s)) loop(q1, q2, s)
+                else IO.now(s)
               }
           }
 
@@ -516,12 +541,12 @@ trait Stream[+E, +A] { self =>
    * Zips this stream together with the index of elements of the stream.
    */
   def zipWithIndex: Stream[E, (A, Int)] = new Stream[E, (A, Int)] {
-    override def fold[E1 >: E, A1 >: (A, Int), S](s: S)(f: (S, A1) => IO[E1, Step[S]]): IO[E1, Step[S]] =
+    override def foldLazy[E1 >: E, A1 >: (A, Int), S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
       self
-        .fold[E1, A, (S, Int)]((s, 0)) {
-          case ((s, index), a) => f(s, (a, index)).map(_.map(s => (s, index + 1)))
+        .foldLazy[E1, A, (S, Int)]((s, 0))(tp => cont(tp._1)) {
+          case ((s, index), a) => f(s, (a, index)).map(s => (s, index + 1))
         }
-        .map(_.map(_._1))
+        .map(_._1)
   }
 }
 
@@ -561,29 +586,27 @@ object Stream {
    * Constructs a pure stream from the specified `Iterable`.
    */
   final def fromIterable[A](it: Iterable[A]): Stream[Nothing, A] = new StreamPure[A] {
-    override def fold[E >: Nothing, A1 >: A, S](s: S)(f: (S, A1) => IO[E, Step[S]]): IO[E, Step[S]] = {
+    override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] = {
       val iterator = it.iterator
 
-      def loop(s: S): IO[E, Step[S]] =
-        IO.flatten(IO.sync {
-          if (iterator.hasNext) f(s, iterator.next).flatMap {
-            case Step.Cont(s) => loop(s)
-            case s            => IO.now(s)
-          } else IO.now(Step.Cont(s))
-        })
+      def loop(s: S): IO[E, S] =
+        IO.flatten {
+          IO.sync {
+            if (iterator.hasNext && cont(s))
+              f(s, iterator.next).flatMap(loop)
+            else IO.now(s)
+          }
+        }
 
       loop(s)
     }
 
-    override def foldPure[A1 >: A, S](s: S)(f: (S, A1) => Step[S]): Step[S] = {
+    override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = {
       val iterator = it.iterator
 
-      def loop(s: S): Step[S] =
-        if (iterator.hasNext)
-          f(s, iterator.next) match {
-            case Step.Cont(s) => loop(s)
-            case s            => s
-          } else Step.cont(s)
+      def loop(s: S): S =
+        if (iterator.hasNext && cont(s)) loop(f(s, iterator.next))
+        else s
 
       loop(s)
     }
@@ -591,52 +614,43 @@ object Stream {
 
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
     new StreamPure[A] {
-      override def fold[E >: Nothing, A1 >: A, S](s: S)(f: (S, A1) => IO[E, Step[S]]): IO[E, Step[S]] =
-        c.foldM[E, Step[S]](Step.cont(s)) { (step, a) =>
-          step.fold(f(_, a), s => IO.now(Step.stop(s)))
-        }
+      override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
+        c.foldMLazy(s)(cont)(f)
 
-      override def foldPure[A1 >: A, S](s: S)(f: (S, A1) => Step[S]): Step[S] = {
-        def loop(i: Int, s: S): Step[S] =
-          if (i >= c.length) Step.cont(s)
-          else {
-            val step = f(s, c(i))
-            step match {
-              case Step.Cont(_) => loop(i + 1, step.extract)
-              case _            => step
-            }
-          }
-
-        loop(0, s)
-      }
+      override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
+        c.foldLeftLazy(s)(cont)(f)
     }
 
   /**
    * Returns the empty stream.
    */
   final val empty: Stream[Nothing, Nothing] = new StreamPure[Nothing] {
-    override def fold[E >: Nothing, A1 >: Nothing, S](s: S)(f: (S, A1) => IO[E, Step[S]]): IO[E, Step[S]] =
-      IO.now(Step.Cont(s))
+    override def foldLazy[E >: Nothing, A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
+      IO.now(s)
 
-    override def foldPure[A1 >: Nothing, S](s: S)(f: (S, A1) => Step[S]): Step[S] = Step.cont(s)
+    override def foldPureLazy[A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = s
   }
 
   /**
    * Constructs a singleton stream.
    */
   final def point[A](a: => A): Stream[Nothing, A] = new StreamPure[A] {
-    override def fold[E >: Nothing, A1 >: A, S](s: S)(f: (S, A1) => IO[E, Step[S]]): IO[E, Step[S]] =
-      f(s, a)
+    override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
+      if (cont(s)) f(s, a)
+      else IO.now(s)
 
-    override def foldPure[A1 >: A, S](s: S)(f: (S, A1) => Step[S]): Step[S] = f(s, a)
+    override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
+      if (cont(s)) f(s, a)
+      else s
   }
 
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
    */
   final def lift[E, A](fa: IO[E, A]): Stream[E, A] = new Stream[E, A] {
-    override def fold[E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => IO[E1, Step[S]]): IO[E1, Step[S]] =
-      fa.flatMap(f(s, _))
+    override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
+      if (cont(s)) fa.flatMap(f(s, _))
+      else IO.now(s)
   }
 
   /**
@@ -651,8 +665,8 @@ object Stream {
    */
   final def unwrap[E, A](stream: IO[E, Stream[E, A]]): Stream[E, A] =
     new Stream[E, A] {
-      override def fold[E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => IO[E1, Step[S]]): IO[E1, Step[S]] =
-        stream.flatMap(_.fold[E1, A1, S](s)(f))
+      override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
+        stream.flatMap(_.foldLazy[E1, A1, S](s)(cont)(f))
     }
 
   /**
@@ -665,13 +679,14 @@ object Stream {
 
   final def managed[E, A, B](m: Managed[E, A])(read: A => IO[E, Option[B]]) =
     new Stream[E, B] {
-      override def fold[E1 >: E, B1 >: B, S](s: S)(f: (S, B1) => IO[E1, Step[S]]): IO[E1, Step[S]] =
-        m use { a =>
-          read(a).flatMap {
-            case None    => IO.now(Step.Stop(s))
-            case Some(b) => f(s, b)
-          }
-        }
+      override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
+        if (cont(s))
+          m use { a =>
+            read(a).flatMap {
+              case None    => IO.now(s)
+              case Some(b) => f(s, b)
+            }
+          } else IO.now(s)
     }
 
   /**
@@ -686,18 +701,19 @@ object Stream {
    */
   final def unfoldM[S, E, A](s: S)(f0: S => IO[E, Option[(A, S)]]): Stream[E, A] =
     new Stream[E, A] {
-      override def fold[E1 >: E, A1 >: A, S2](s2: S2)(f: (S2, A1) => IO[E1, Step[S2]]): IO[E1, Step[S2]] = {
-        def loop(s: S, s2: S2): IO[E1, Step[(S, S2)]] =
-          f0(s).flatMap {
-            case None => IO.now(Step.Stop((s, s2)))
-            case Some((a, s)) =>
-              f(s2, a).flatMap {
-                case Step.Stop(s2) => IO.now(Step.Stop((s, s2)))
-                case Step.Cont(s2) => loop(s, s2)
-              }
-          }
+      override def foldLazy[E1 >: E, A1 >: A, S2](
+        s2: S2
+      )(cont: S2 => Boolean)(f: (S2, A1) => IO[E1, S2]): IO[E1, S2] = {
+        def loop(s: S, s2: S2): IO[E1, (S, S2)] =
+          if (!cont(s2)) IO.now((s, s2))
+          else
+            f0(s) flatMap {
+              case None => IO.now((s, s2))
+              case Some((a, s)) =>
+                f(s2, a).flatMap(loop(s, _))
+            }
 
-        loop(s, s2).map(_.map(_._2))
+        loop(s, s2).map(_._2)
       }
     }
 
@@ -706,32 +722,32 @@ object Stream {
    */
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): Stream[Nothing, A] =
     new StreamPure[A] {
-      override def fold[E, A1 >: A, S2](s2: S2)(f: (S2, A1) => IO[E, Step[S2]]): IO[E, Step[S2]] = {
-        def loop(s: S, s2: S2): IO[E, Step[(S, S2)]] =
-          f0(s) match {
-            case None => IO.now(Step.Stop((s, s2)))
-            case Some((a, s)) =>
-              f(s2, a).flatMap {
-                case Step.Stop(s2) => IO.now(Step.Stop((s, s2)))
-                case Step.Cont(s2) => loop(s, s2)
-              }
-          }
-
-        loop(s, s2).map(_.map(_._2))
-      }
-
-      override def foldPure[A1 >: A, S2](s2: S2)(f: (S2, A1) => Step[S2]): Step[S2] = {
-        def loop(s: S, s2: S2): Step[(S, S2)] =
-          f0(s) match {
-            case None => Step.Stop((s, s2))
-            case Some((a, s)) =>
-              f(s2, a) match {
-                case Step.Stop(s2) => Step.Stop((s, s2))
-                case Step.Cont(s2) => loop(s, s2)
-              }
-          }
+      override def foldLazy[E1 >: Nothing, A1 >: A, S2](
+        s2: S2
+      )(cont: S2 => Boolean)(f: (S2, A1) => IO[E1, S2]): IO[E1, S2] = {
+        def loop(s: S, s2: S2): IO[E1, (S, S2)] =
+          if (!cont(s2)) IO.now((s, s2))
+          else
+            f0(s) match {
+              case None => IO.now((s, s2))
+              case Some((a, s)) =>
+                f(s2, a).flatMap(loop(s, _))
+            }
 
         loop(s, s2).map(_._2)
+      }
+
+      override def foldPureLazy[A1 >: A, S2](s2: S2)(cont: S2 => Boolean)(f: (S2, A1) => S2): S2 = {
+        def loop(s: S, s2: S2): (S, S2) =
+          if (!cont(s2)) (s, s2)
+          else
+            f0(s) match {
+              case None => (s, s2)
+              case Some((a, s)) =>
+                loop(s, f(s2, a))
+            }
+
+        loop(s, s2)._2
       }
     }
 

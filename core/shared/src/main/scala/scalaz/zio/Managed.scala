@@ -112,7 +112,7 @@ object Managed {
     new Managed[E, R] {
       type R0 = R
 
-      protected def acquire: IO[E, R] = IO.never
+      protected def acquire: IO[E, R] = fa
 
       protected def release: R => IO[Nothing, _] = _ => IO.unit
 
@@ -125,6 +125,12 @@ object Managed {
    */
   final def unwrap[E, R](fa: IO[E, Managed[E, R]]): Managed[E, R] =
     new Managed[E, R] {
+      type R0 = R
+
+      protected def acquire: IO[E, R] = IO.never
+
+      protected def release: R => IO[Nothing, Unit] = _ => IO.unit
+
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         fa.flatMap(_.use(f))
     }
@@ -136,7 +142,7 @@ object Managed {
     new Managed[Nothing, R] {
       type R0 = R
 
-      protected def acquire: IO[Nothing, R] = IO.never
+      protected def acquire: IO[Nothing, R] = IO.now(r)
 
       protected def release: R => IO[Nothing, _] = _ => IO.unit
 
@@ -150,7 +156,7 @@ object Managed {
     new Managed[Nothing, R] {
       type R0 = R
 
-      protected def acquire: IO[Nothing, R] = IO.never
+      protected def acquire: IO[Nothing, R] = IO.point(r)
 
       protected def release: R => IO[Nothing, _] = _ => IO.unit
 

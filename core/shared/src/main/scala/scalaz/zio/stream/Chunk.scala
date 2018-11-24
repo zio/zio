@@ -45,13 +45,14 @@ sealed trait Chunk[@specialized +A] { self =>
    * Drops the first `n` elements of the chunk.
    */
   final def drop(n: Int): Chunk[A] =
-    if (n <= 0) self else
+    if (n <= 0) self
+    else
       self match {
-        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + n, l - n)
+        case Chunk.Slice(c, o, l)        => Chunk.Slice(c, o + n, l - n)
         case Chunk.Singleton(_) if n > 0 => Chunk.empty
-        case c @ Chunk.Singleton(_) => c
-        case Chunk.Empty => Chunk.empty
-        case _ => Chunk.Slice(self, n, self.length - n)
+        case c @ Chunk.Singleton(_)      => c
+        case Chunk.Empty                 => Chunk.empty
+        case _                           => Chunk.Slice(self, n, self.length - n)
       }
 
   /**
@@ -329,7 +330,7 @@ sealed trait Chunk[@specialized +A] { self =>
           if (n >= l) this
           else Chunk.Slice(c, o, n)
         case c @ Chunk.Singleton(_) => c
-        case _ => Chunk.Slice(self, 0, n)
+        case _                      => Chunk.Slice(self, 0, n)
       }
 
   /**
@@ -363,8 +364,8 @@ sealed trait Chunk[@specialized +A] { self =>
 
   def toSeq: Seq[A] = {
     val seqBuilder = Seq.newBuilder[A]
-    var i = 0
-    val len = length
+    var i          = 0
+    val len        = length
     seqBuilder.sizeHint(len)
     while (i < len) {
       seqBuilder += apply(i)
@@ -699,13 +700,14 @@ object Chunk {
     override def materialize[A1 >: A]: Chunk[A1] = this
 
     /**
-      * Takes all elements so long as the predicate returns true.
-      */
+     * Takes all elements so long as the predicate returns true.
+     */
     override def takeWhile(f: A => Boolean): Chunk[A] = {
-      val len = length
+      val self = array
+      val len  = length
 
       var i = 0
-      while (i < len && f(apply(i))) {
+      while (i < len && f(self(i))) {
         i += 1
       }
 
