@@ -93,18 +93,13 @@ object Managed {
     }
 
   /**
-   * Lifts an IO[E, R] into Managed[E, R] with no-op release. Use with care.
+   * Lifts an IO[E, R] into Managed[E, R] with no release action. Use
+   * with care.
    */
   final def liftIO[E, R](fa: IO[E, R]): Managed[E, R] =
     new Managed[E, R] {
-      type R0 = R
-
-      private def acquire: IO[E, R] = fa
-
-      private def release: R => IO[Nothing, Unit] = _ => IO.unit
-
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
-        acquire.bracket[E1, A](release)(f)
+        fa.flatMap(f)
     }
 
   /**
@@ -112,14 +107,7 @@ object Managed {
    */
   final def now[R](r: R): Managed[Nothing, R] =
     new Managed[Nothing, R] {
-      type R0 = R
-
-      private def acquire: IO[Nothing, R] = IO.now(r)
-
-      private def release: R => IO[Nothing, Unit] = _ => IO.unit
-
-      def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] =
-        acquire.bracket[Nothing, A](release)(f)
+      def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
     }
 
   /**
@@ -127,14 +115,7 @@ object Managed {
    */
   final def point[R](r: => R): Managed[Nothing, R] =
     new Managed[Nothing, R] {
-      type R0 = R
-
-      private def acquire: IO[Nothing, R] = IO.point(r)
-
-      private def release: R => IO[Nothing, Unit] = _ => IO.unit
-
-      def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] =
-        acquire.bracket[Nothing, A](release)(f)
+      def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
     }
 
   final def traverse[E, R, A](as: Iterable[A])(f: A => Managed[E, R]): Managed[E, List[R]] =
