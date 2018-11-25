@@ -56,15 +56,15 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
     seqWith(that)((_, _))
 
   final def parWith[E1 >: E, R1, R2](that: Managed[E1, R1])(f0: (R0, that.R0) => R2): Managed[E1, R2] = {
-    val acquireBoth = acquire.par(that.acquire)
+    val acquireBoth = self.acquire.par(that.acquire)
 
-    def releaseBoth(pair: (R0, that.R0)): IO[Nothing, Unit] =
-      release(pair._1).par(that.release(pair._2)) *> IO.unit
+    def releaseBoth(pair: (self.R0, that.R0)): IO[Nothing, Unit] =
+      self.release(pair._1).par(that.release(pair._2)) *> IO.unit
 
     new Managed[E1, R2] {
       type R0 = R2
 
-      override def use[E2 >: E1, A](f: R2 => IO[E2, A]): IO[E2, A] =
+      def use[E2 >: E1, A](f: R2 => IO[E2, A]): IO[E2, A] =
         acquireBoth.bracket[E2, A](releaseBoth) {
           case (r, r1) => f(f0(r, r1))
         }
