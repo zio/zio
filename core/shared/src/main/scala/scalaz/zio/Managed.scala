@@ -14,9 +14,9 @@ package scalaz.zio
 sealed abstract class Managed[+E, +R] extends Serializable { self =>
   type R0 <: R
 
-  private def acquire: IO[E, R0] = IO.never
+  protected def acquire: IO[E, R0]
 
-  private def release: R0 => IO[Nothing, Unit] = _ => IO.unit
+  protected def release: R0 => IO[Nothing, Unit]
 
   def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A]
 
@@ -27,7 +27,11 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
     new Managed[E, R1] {
       type R0 = R1
 
-      override def use[E1 >: E, A](f: R1 => IO[E1, A]): IO[E1, A] =
+      protected def acquire: IO[E, R1] = IO.never
+
+      protected def release: R1 => IO[Nothing, Unit] = _ => IO.unit
+
+      def use[E1 >: E, A](f: R1 => IO[E1, A]): IO[E1, A] =
         self.use(r => f(f0(r)))
     }
 
@@ -35,7 +39,11 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
     new Managed[E1, R1] {
       type R0 = R1
 
-      override def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
+      protected def acquire: IO[E1, R1] = IO.never
+
+      protected def release: R1 => IO[Nothing, Unit] = _ => IO.unit
+
+      def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
         self.use { r =>
           f0(r).use { r1 =>
             f(r1)
@@ -55,23 +63,27 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
   final def seq[E1 >: E, R1](that: Managed[E1, R1]): Managed[E1, (R, R1)] =
     seqWith(that)((_, _))
 
-  final def parWith[E1 >: E, R1, R2](that: Managed[E1, R1])(f0: (R0, that.R0) => R2): Managed[E1, R2] = {
-    val acquireBoth = self.acquire.par(that.acquire)
-
-    def releaseBoth(pair: (self.R0, that.R0)): IO[Nothing, Unit] =
-      self.release(pair._1).par(that.release(pair._2)) *> IO.unit
-
+  final def parWith[E1 >: E, R1, R2](that: Managed[E1, R1])(f0: (self.R0, that.R0) => R2): Managed[E1, R2] =
     new Managed[E1, R2] {
       type R0 = R2
 
-      def use[E2 >: E1, A](f: R2 => IO[E2, A]): IO[E2, A] =
+      protected def acquire: IO[E1, R2] = IO.never
+
+      protected def release: R2 => IO[Nothing, Unit] = _ => IO.unit
+
+      def use[E2 >: E1, A](f: R2 => IO[E2, A]): IO[E2, A] = {
+        val acquireBoth = self.acquire.par(that.acquire)
+
+        def releaseBoth(pair: (self.R0, that.R0)): IO[Nothing, Unit] =
+          self.release(pair._1).par(that.release(pair._2)) *> IO.unit
+
         acquireBoth.bracket[E2, A](releaseBoth) {
           case (r, r1) => f(f0(r, r1))
         }
+      }
     }
-  }
 
-  final def par[E1 >: E, R1](that: Managed[E1, R1]): Managed[E1, (R0, that.R0)] =
+  final def par[E1 >: E, R1](that: Managed[E1, R1]): Managed[E1, (self.R0, that.R0)] =
     parWith(that)((_, _))
 }
 
@@ -84,9 +96,9 @@ object Managed {
     new Managed[E, R] {
       type R0 = R
 
-      private def acquire: IO[E, R] = a
+      protected def acquire: IO[E, R] = a
 
-      private def release: R => IO[Nothing, Unit] = r
+      protected def release: R => IO[Nothing, Unit] = r
 
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         acquire.bracket[E1, A](release)(f)
@@ -98,6 +110,12 @@ object Managed {
    */
   final def liftIO[E, R](fa: IO[E, R]): Managed[E, R] =
     new Managed[E, R] {
+      type R0 = R
+
+      protected def acquire: IO[E, R] = IO.never
+
+      protected def release: R => IO[Nothing, Unit] = _ => IO.unit
+
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         fa.flatMap(f)
     }
@@ -107,6 +125,12 @@ object Managed {
    */
   final def now[R](r: R): Managed[Nothing, R] =
     new Managed[Nothing, R] {
+      type R0 = R
+
+      protected def acquire: IO[Nothing, R] = IO.never
+
+      protected def release: R => IO[Nothing, Unit] = _ => IO.unit
+
       def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
     }
 
@@ -115,6 +139,12 @@ object Managed {
    */
   final def point[R](r: => R): Managed[Nothing, R] =
     new Managed[Nothing, R] {
+      type R0 = R
+
+      protected def acquire: IO[Nothing, R] = IO.never
+
+      protected def release: R => IO[Nothing, Unit] = _ => IO.unit
+
       def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
     }
 
