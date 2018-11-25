@@ -36,4 +36,18 @@ class ClockSpec extends AbstractRTSSpec {
         time2 <- Live.currentTime(TimeUnit.MILLISECONDS)
       } yield (time1 < time2) must beTrue
     )
+
+  def e4 =
+    unsafeRun(
+      for {
+        ref    <- Ref(Clock.Test.Zero)
+        clock  <- Clock.Test(ref)
+        time1  <- clock.currentTime(TimeUnit.MILLISECONDS)
+        _      <- clock.sleep(1, TimeUnit.MILLISECONDS)
+        time2  <- clock.currentTime(TimeUnit.MILLISECONDS)
+        sleeps <- clock.ref.get.map(_.sleeps)
+      } yield
+        (sleeps must_=== List((1, TimeUnit.MILLISECONDS))) and
+          ((time2 - time1) must_=== 1)
+    )
 }
