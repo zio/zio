@@ -27,7 +27,7 @@ object future {
               case Failure(t) => cb(ExitResult.succeeded(ExitResult.checked(t)))
             }(ec)
         }
-        def tryObserve: IO[Nothing, Option[ExitResult[Throwable, A]]] = IO.sync {
+        def poll: IO[Nothing, Option[ExitResult[Throwable, A]]] = IO.sync {
           ftr.value map {
             case Success(a) => ExitResult.succeeded(a)
             case Failure(t) => ExitResult.checked(t)

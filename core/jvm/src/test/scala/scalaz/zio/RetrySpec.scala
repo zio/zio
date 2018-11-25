@@ -3,7 +3,7 @@ package scalaz.zio
 import scala.concurrent.duration._
 import org.specs2.ScalaCheck
 
-class RetrySpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "RetrySpec".title ^ s2"""
    Retry on failure according to a provided strategy
       for a given number of times $retryN

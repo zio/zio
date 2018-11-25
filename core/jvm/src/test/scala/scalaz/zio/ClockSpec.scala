@@ -2,7 +2,7 @@ package scalaz.zio
 
 import java.util.concurrent.TimeUnit
 
-class ClockSpec extends AbstractRTSSpec {
+class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is = "ClockSpec".title ^ s2"""
       Sleep does not sleep forever                      $e1

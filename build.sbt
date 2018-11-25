@@ -52,6 +52,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   )
 
 lazy val coreJVM = core.jvm
+  .configure(_.enablePlugins(JCStressPlugin))
   .settings(
     // In the repl most warnings are useless or worse.
     // This is intentionally := as it's more direct to enumerate the few
@@ -85,10 +86,10 @@ lazy val interop = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz"    %%% "scalaz-core"               % "7.2.+"    % Optional,
-      "org.typelevel" %%% "cats-effect"               % "1.0.0"    % Optional,
-      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"    % Test,
-      "co.fs2"        %%% "fs2-core"                  % "1.0.0-M5" % Test
+      "org.scalaz"    %%% "scalaz-core"               % "7.2.+" % Optional,
+      "org.typelevel" %%% "cats-effect"               % "1.0.0" % Optional,
+      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+" % Test,
+      "co.fs2"        %%% "fs2-core"                  % "1.0.0" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )

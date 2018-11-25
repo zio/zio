@@ -1,5 +1,16 @@
 package scalaz.zio
 
+/**
+ * A `Managed[E, R]` is a managed resource of type `R`, which may be used by
+ * invoking the `use` method of the resource. The resource will be automatically
+ * acquired before the resource is used, and automatically released after the
+ * resource is used.
+ *
+ * Resources do not survive the scope of `use`, meaning that if you attempt to
+ * capture the resource, leak it from `use`, and then use it after the resource
+ * has been consumed, the resource will not be valid anymore and may fail with
+ * some checked error, as per the type of the functions provided by the resource.
+ */
 sealed abstract class Managed[+E, +R] extends Serializable { self =>
   def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A]
 
@@ -38,11 +49,11 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
 object Managed {
 
   /**
-   * Lifts an IO[E, R] into Managed[E, R] with a release action.
+   * Lifts an `IO[E, R]`` into `Managed[E, R]`` with a release action.
    */
-  def apply[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]) =
+  final def apply[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]) =
     new Managed[E, R] {
-      def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+      final def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         acquire.bracket[E1, A](release)(f)
     }
 
@@ -50,33 +61,33 @@ object Managed {
    * Lifts an IO[E, R] into Managed[E, R] with no release action. Use
    * with care.
    */
-  def liftIO[E, R](fa: IO[E, R]) =
+  final def liftIO[E, R](fa: IO[E, R]) =
     new Managed[E, R] {
-      def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+      final def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         fa.flatMap(f)
     }
 
   /**
    * Lifts a strict, pure value into a Managed.
    */
-  def now[R](r: R): Managed[Nothing, R] =
+  final def now[R](r: R): Managed[Nothing, R] =
     new Managed[Nothing, R] {
-      def use[E, A](f: R => IO[E, A]): IO[E, A] = f(r)
+      final def use[E, A](f: R => IO[E, A]): IO[E, A] = f(r)
     }
 
   /**
    * Lifts a by-name, pure value into a Managed.
    */
-  def point[R](r: => R): Managed[Nothing, R] =
+  final def point[R](r: => R): Managed[Nothing, R] =
     new Managed[Nothing, R] {
-      def use[E, A](f: R => IO[E, A]): IO[E, A] = f(r)
+      final def use[E, A](f: R => IO[E, A]): IO[E, A] = f(r)
     }
 
-  def traverse[E, R, A](as: Iterable[A])(f: A => Managed[E, R]): Managed[E, List[R]] =
+  final def traverse[E, R, A](as: Iterable[A])(f: A => Managed[E, R]): Managed[E, List[R]] =
     as.foldRight[Managed[E, List[R]]](now(Nil)) { (a, m) =>
       f(a).seqWith(m)(_ :: _)
     }
 
-  def sequence[E, R, A](ms: Iterable[Managed[E, R]]): Managed[E, List[R]] =
+  final def sequence[E, R, A](ms: Iterable[Managed[E, R]]): Managed[E, List[R]] =
     traverse(ms)(identity)
 }
