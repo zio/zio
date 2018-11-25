@@ -3,9 +3,9 @@ package scalaz.zio.duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit._
 
-trait DurationConversions extends Any {
+class DurationSyntax(n: Long) {
 
-  protected def asDuration(unit: TimeUnit): Duration
+  protected def asDuration(unit: TimeUnit): Duration = Duration(n, unit)
 
   def nanoseconds = asDuration(NANOSECONDS)
   def nanos       = nanoseconds

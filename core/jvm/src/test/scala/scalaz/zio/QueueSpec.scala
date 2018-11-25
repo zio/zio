@@ -1,13 +1,14 @@
 package scalaz.zio
 
 import scala.collection.immutable.Range
-import scala.concurrent.duration._
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
 
 class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
-  def is =
+  def is = {
+    import scala.concurrent.duration._
+
     "QueueSpec".title ^ s2"""
     Make a Queue and
     add values then call
@@ -173,6 +174,7 @@ class QueueSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTi
       e65
     )}
     """
+  }
 
   import scalaz.zio.duration._
 
