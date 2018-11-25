@@ -115,6 +115,13 @@ lazy val interopCatsLaws = project.module
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
 
+lazy val interopJava = project.module
+  .in(file("interop-java"))
+  .dependsOn(coreJVM, interopJVM)
+  .settings(
+    skip in publish := true
+  )
+
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
   .enablePlugins(JmhPlugin)
