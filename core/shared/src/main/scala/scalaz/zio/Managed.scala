@@ -14,12 +14,11 @@ package scalaz.zio
 sealed abstract class Managed[+E, +R] extends Serializable { self =>
   type R0 <: R
 
-  def acquire: IO[E, R0]
+  private def acquire: IO[E, R0] = IO.never
 
-  def release: R0 => IO[Nothing, Unit]
+  private def release: R0 => IO[Nothing, Unit] = _ => IO.unit
 
-  def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
-    acquire.bracket[E1, A](release)(f)
+  def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A]
 
   final def use_[E1 >: E, A](f: IO[E1, A]): IO[E1, A] =
     use(_ => f)
@@ -28,10 +27,6 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
     new Managed[E, R1] {
       type R0 = R1
 
-      def acquire: IO[E, R1] = IO.never
-
-      def release: R1 => IO[Nothing, Unit] = _ => IO.unit
-
       override def use[E1 >: E, A](f: R1 => IO[E1, A]): IO[E1, A] =
         self.use(r => f(f0(r)))
     }
@@ -39,10 +34,6 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
   final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]): Managed[E1, R1] =
     new Managed[E1, R1] {
       type R0 = R1
-
-      def acquire: IO[E, R1] = IO.never
-
-      def release: R1 => IO[Nothing, Unit] = _ => IO.unit
 
       override def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
         self.use { r =>
@@ -73,10 +64,6 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
     new Managed[E1, R2] {
       type R0 = R2
 
-      def acquire: IO[E1, R2] = IO.never
-
-      def release: R2 => IO[Nothing, Unit] = _ => IO.unit
-
       override def use[E2 >: E1, A](f: R2 => IO[E2, A]): IO[E2, A] =
         acquireBoth.bracket[E2, A](releaseBoth) {
           case (r, r1) => f(f0(r, r1))
@@ -97,9 +84,12 @@ object Managed {
     new Managed[E, R] {
       type R0 = R
 
-      def acquire: IO[E, R] = a
+      private def acquire: IO[E, R] = a
 
-      def release: R => IO[Nothing, Unit] = r
+      private def release: R => IO[Nothing, Unit] = r
+
+      def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+        acquire.bracket[E1, A](release)(f)
     }
 
   /**
@@ -109,9 +99,12 @@ object Managed {
     new Managed[E, R] {
       type R0 = R
 
-      def acquire: IO[E, R] = fa
+      private def acquire: IO[E, R] = fa
 
-      def release: R => IO[Nothing, Unit] = _ => IO.unit
+      private def release: R => IO[Nothing, Unit] = _ => IO.unit
+
+      def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+        acquire.bracket[E1, A](release)(f)
     }
 
   /**
@@ -121,9 +114,12 @@ object Managed {
     new Managed[Nothing, R] {
       type R0 = R
 
-      def acquire: IO[Nothing, R] = IO.now(r)
+      private def acquire: IO[Nothing, R] = IO.now(r)
 
-      def release: R => IO[Nothing, Unit] = _ => IO.unit
+      private def release: R => IO[Nothing, Unit] = _ => IO.unit
+
+      def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] =
+        acquire.bracket[Nothing, A](release)(f)
     }
 
   /**
@@ -133,9 +129,12 @@ object Managed {
     new Managed[Nothing, R] {
       type R0 = R
 
-      def acquire: IO[Nothing, R] = IO.point(r)
+      private def acquire: IO[Nothing, R] = IO.point(r)
 
-      def release: R => IO[Nothing, Unit] = _ => IO.unit
+      private def release: R => IO[Nothing, Unit] = _ => IO.unit
+
+      def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] =
+        acquire.bracket[Nothing, A](release)(f)
     }
 
   final def traverse[E, R, A](as: Iterable[A])(f: A => Managed[E, R]): Managed[E, List[R]] =
