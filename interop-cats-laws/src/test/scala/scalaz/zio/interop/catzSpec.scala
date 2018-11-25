@@ -12,14 +12,22 @@ import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests,
 import cats.syntax.all._
 import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
-import org.scalatest.{ FunSuite, Matchers }
+import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
 import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
 
 import scala.util.control.NonFatal
 
-class catzSpec extends FunSuite with Matchers with Checkers with Discipline with TestInstances with GenIO with RTS {
+class catzSpec
+    extends FunSuite
+    with BeforeAndAfterAll
+    with Matchers
+    with Checkers
+    with Discipline
+    with TestInstances
+    with GenIO
+    with RTS {
 
   /**
    * Silences `System.err`, only printing the output in case exceptions are

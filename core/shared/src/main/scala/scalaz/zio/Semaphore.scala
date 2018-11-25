@@ -54,8 +54,8 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 
   final private def cleanup[E, A](ops: Acquisition, res: ExitResult[E, A]): IO[Nothing, Unit] =
     res match {
-      case ExitResult.Failed(c) if c.isInterrupted => ops.release
-      case _                                       => IO.unit
+      case ExitResult.Failed(c) if c.interrupted => ops.release
+      case _                                     => IO.unit
     }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {

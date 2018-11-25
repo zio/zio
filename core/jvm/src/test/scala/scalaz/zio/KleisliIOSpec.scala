@@ -2,7 +2,7 @@ package scalaz.zio
 
 import KleisliIO._
 
-class KleisliIOSpec extends AbstractRTSSpec {
+class KleisliIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
   def is = "KleisliIOSpec".title ^ s2"""
    Check if the functions in `KleisliIO` work correctly
      `lift` lifts from A => B into effectful function $e1
