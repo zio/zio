@@ -3,7 +3,6 @@ package scalaz.zio
 
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
-import scala.concurrent.duration._
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
@@ -12,7 +11,10 @@ import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
-  def is = s2"""
+  def is = {
+    import scala.concurrent.duration._
+
+    s2"""
   RTS synchronous correctness
     widen Nothing                           $testWidenNothing
     evaluation of point                     $testPoint
@@ -111,6 +113,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with AroundTime
   RTS interrupt fiber tests
     sync forever                            $testInterruptSyncForever
   """
+  }
 
   import scalaz.zio.duration._
 

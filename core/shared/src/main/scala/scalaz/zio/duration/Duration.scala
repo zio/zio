@@ -10,9 +10,14 @@ sealed trait Duration extends Ordered[Duration] {
 
   def *(factor: Double): Duration
 
-  def max(other: Duration): Duration = if (this > other) this else other
+  final def max(other: Duration): Duration = if (this > other) this else other
 
-  def min(other: Duration): Duration = if (this < other) this else other
+  final def min(other: Duration): Duration = if (this < other) this else other
+
+  final def fold[Z](infinity: => Z, finite: Duration.Finite => Z): Z = this match {
+    case Duration.Infinity  => infinity
+    case f: Duration.Finite => finite(f)
+  }
 
 }
 
@@ -20,7 +25,7 @@ final object Duration {
 
   object Finite {
 
-    def apply(nanos: Long): Duration =
+    final def apply(nanos: Long): Duration =
       if (nanos >= 0) new Finite(nanos)
       else Infinity
 
@@ -28,46 +33,48 @@ final object Duration {
 
   final case class Finite private (nanos: Long) extends Duration {
 
-    def +(other: Duration): Duration = other match {
+    final def +(other: Duration): Duration = other match {
       case Finite(otherNanos) => Finite(nanos + otherNanos)
       case Infinity           => Infinity
     }
 
-    def *(factor: Double): Duration =
+    final def *(factor: Double): Duration =
       if (!factor.isInfinite && !factor.isNaN) Finite((nanos * factor).round)
       else Infinity
 
-    def compare(other: Duration) = other match {
+    final def compare(other: Duration) = other match {
       case Finite(otherNanos) => nanos compare otherNanos
       case Infinity           => -1
     }
 
-    def copy(nanos: Long = this.nanos): Duration = Finite(nanos)
+    final def copy(nanos: Long = this.nanos): Duration = Finite(nanos)
 
-    def toMillis: Long = TimeUnit.NANOSECONDS.toMillis(nanos)
+    final def isZero: Boolean = nanos == 0
 
-    def toNanos: Long = nanos
+    final def toMillis: Long = TimeUnit.NANOSECONDS.toMillis(nanos)
+
+    final def toNanos: Long = nanos
   }
 
   final case object Infinity extends Duration {
 
-    def +(other: Duration): Duration = Infinity
+    final def +(other: Duration): Duration = Infinity
 
-    def *(factor: Double): Duration = Infinity
+    final def *(factor: Double): Duration = Infinity
 
-    def compare(other: Duration) = if (other == this) 0 else 1
+    final def compare(other: Duration) = if (other == this) 0 else 1
 
   }
 
-  def apply(amount: Long, unit: TimeUnit): Duration = apply(unit.toNanos(amount))
+  final def apply(amount: Long, unit: TimeUnit): Duration = apply(unit.toNanos(amount))
 
-  def apply(nanos: Long): Duration = Finite(nanos)
+  final def apply(nanos: Long): Duration = Finite(nanos)
 
-  def fromScalaDuration(duration: ScalaDuration): Duration = duration match {
+  final def fromScalaDuration(duration: ScalaDuration): Duration = duration match {
     case d: ScalaFiniteDuration => apply(d.toNanos)
     case _                      => Infinity
   }
 
-  val Zero: Duration = Finite(0)
+  final val Zero: Duration = Finite(0)
 
 }
