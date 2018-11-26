@@ -998,7 +998,15 @@ object IO extends Serializable {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
+  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] =
+    for {
+      p   <- Promise.make[E, A]
+      ref <- Ref[Fiber[E, Any]](Fiber.unit)
+      a <- (for {
+            _ <- register(p.unsafeDone(_)).fork.peek(ref.set(_)).uninterruptibly
+            a <- p.get
+          } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
+    } yield a
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
