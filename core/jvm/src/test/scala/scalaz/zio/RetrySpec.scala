@@ -43,13 +43,14 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   /*
    * Retry `once` means that we try to exec `io`, get and error,
-   * try again to exec `io`, and whatever the output is, return that
+   * try again to exec `io`, and whatever the output is, we return that
    * second result.
    * The three following tests test retry when:
    * - the first time succeeds (no retry)
    * - the first time fails and the second succeeds (one retry, result success)
    * - both first time and retry fail (one retry, result failure)
    */
+
   // no retry on success
   def notRetryOnSuccess = {
     val retried = unsafeRun(for {
@@ -59,29 +60,6 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     } yield i)
 
     retried must_=== 1
-  }
-
-  // 0 retry means "one execution in all, no retry, whatever the output"
-  def retryRecurs0 = {
-    /*
-     * A function that increments ref each time it is called.
-     */
-    def incr(ref: Ref[Int]): IO[String, Int] =
-      for {
-        i <- ref.update(_ + 1)
-        x <- IO.fail(s"Error: $i")
-      } yield x
-    val retried = unsafeRun(
-      (for {
-        ref <- Ref(0)
-        i   <- incr(ref).retry(Schedule.recurs(0))
-      } yield i).redeem(
-        err => IO.now(err),
-        _ => IO.now("it should not be a success")
-      )
-    )
-
-    retried must_=== "Error: 1"
   }
 
   // one retry on failure
@@ -127,6 +105,29 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     )
 
     retried must_=== "Error: 2"
+  }
+
+  // 0 retry means "one execution in all, no retry, whatever the output"
+  def retryRecurs0 = {
+    /*
+     * A function that increments ref each time it is called.
+     */
+    def incr(ref: Ref[Int]): IO[String, Int] =
+      for {
+        i <- ref.update(_ + 1)
+        x <- IO.fail(s"Error: $i")
+      } yield x
+    val retried = unsafeRun(
+      (for {
+        ref <- Ref(0)
+        i   <- incr(ref).retry(Schedule.recurs(0))
+      } yield i).redeem(
+        err => IO.now(err),
+        _ => IO.now("it should not be a success")
+      )
+    )
+
+    retried must_=== "Error: 1"
   }
 
   def retryN = {
