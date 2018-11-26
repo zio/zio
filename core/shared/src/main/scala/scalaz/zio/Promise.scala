@@ -112,6 +112,26 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
+  private[zio] final def unsafeDone(r: ExitResult[E, A]): Unit = {
+    var retry: Boolean                = true
+    var joiners: List[Callback[E, A]] = null
+
+    while (retry) {
+      val oldState = state.get
+
+      val newState = oldState match {
+        case Pending(js) =>
+          joiners = js
+          Done(r)
+        case _ => oldState
+      }
+
+      retry = state.compareAndSet(oldState, newState)
+    }
+
+    if (joiners ne null) joiners.foreach(_(r))
+  }
+
   private def interruptJoiner(joiner: Callback[E, A]): Canceler = IO.sync {
     var retry = true
 
