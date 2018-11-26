@@ -391,13 +391,6 @@ private object RTS {
                         curIo = null
                     }
 
-                  case IO.Tags.AsyncIOEffect =>
-                    val io = curIo.asInstanceOf[IO.AsyncIOEffect[E, Any]]
-
-                    curIo = IO.async[E, Any] { callback =>
-                      rts.unsafeRunAsync(io.register(callback))(_ => ())
-                    }
-
                   case IO.Tags.Redeem =>
                     val io = curIo.asInstanceOf[IO.Redeem[E, Any, Any, Any]]
 

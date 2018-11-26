@@ -734,16 +734,15 @@ object IO extends Serializable {
     final val SyncEffect      = 3
     final val Fail            = 4
     final val AsyncEffect     = 5
-    final val AsyncIOEffect   = 6
-    final val Redeem          = 7
-    final val Fork            = 8
-    final val Suspend         = 9
-    final val Uninterruptible = 10
-    final val Sleep           = 11
-    final val Supervise       = 12
-    final val Supervisor      = 13
-    final val Ensuring        = 14
-    final val Descriptor      = 15
+    final val Redeem          = 6
+    final val Fork            = 7
+    final val Suspend         = 8
+    final val Uninterruptible = 9
+    final val Sleep           = 10
+    final val Supervise       = 11
+    final val Supervisor      = 12
+    final val Ensuring        = 13
+    final val Descriptor      = 14
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -763,10 +762,6 @@ object IO extends Serializable {
 
   final class AsyncEffect[E, A] private[IO] (val register: (Callback[E, A]) => Async[E, A]) extends IO[E, A] {
     override def tag = Tags.AsyncEffect
-  }
-
-  final class AsyncIOEffect[E, A] private[IO] (val register: (Callback[E, A]) => IO[E, Unit]) extends IO[E, A] {
-    override def tag = Tags.AsyncIOEffect
   }
 
   final class Redeem[E, E2, A, B] private[IO] (
