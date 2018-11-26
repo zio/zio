@@ -20,7 +20,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     } yield s
 
   /*
-   * A repeat with a negative number of times should not execute the action at all
+   * A repeat with a negative number of times should not repeat the action at all
    */
   def repeatNeg = {
     val repeated = unsafeRun(repeat(-5))
@@ -28,7 +28,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   }
 
   /*
-   * A repeat with 0 number of times should not execute the action at all
+   * A repeat with 0 number of times should not repeat the action at all
    */
   def repeat0 = {
     val n        = 0
