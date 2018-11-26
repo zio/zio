@@ -2,7 +2,7 @@ package scalaz.zio
 
 import org.specs2.ScalaCheck
 
-class RepeatSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "RepeatSpec".title ^ s2"""
    Repeat on success according to a provided strategy
       for 'recurs(a negative number)' repeats 0 additional time $repeatNeg
@@ -20,7 +20,7 @@ class RepeatSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     } yield s
 
   /*
-   * A repeat with a negative number of times should not execute the action at all
+   * A repeat with a negative number of times should not repeat the action at all
    */
   def repeatNeg = {
     val repeated = unsafeRun(repeat(-5))
@@ -28,7 +28,7 @@ class RepeatSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
   }
 
   /*
-   * A repeat with 0 number of times should not execute the action at all
+   * A repeat with 0 number of times should not repeat the action at all
    */
   def repeat0 = {
     val n        = 0
