@@ -126,7 +126,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
         case _ => oldState
       }
 
-      retry = state.compareAndSet(oldState, newState)
+      retry = !state.compareAndSet(oldState, newState)
     }
 
     if (joiners ne null) joiners.foreach(_(r))
