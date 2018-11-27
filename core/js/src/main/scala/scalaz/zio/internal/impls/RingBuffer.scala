@@ -4,96 +4,12 @@ import java.util.concurrent.atomic.{ AtomicLong, AtomicLongArray }
 import scalaz.zio.internal.MutableConcurrentQueue
 
 /**
- * A lock-free array based bounded queue. It is thread-safe and can be
- * used in multiple-producer/multiple-consumer (MPMC) setting.
- *
- * =Main concepts=
- *
- * A simple array based queue of size N uses an array `buf` of size N
- * as an underlying storage. There are 2 pointers `head` and
- * `tail`. The element is enqueued into `buf` at position `tail % N`
- * and dequeued from `head % N`. Each time an enqueue happens `tail`
- * is incremented, similarly when dequeue happens `head` is
- * incremented.
- *
- * Since pointers wrap around the array as they get incremented such
- * data structure is also called a
- * [[https://en.wikipedia.org/wiki/Circular_buffer circular buffer]]
- * or a ring buffer.
- *
- * Because queue is bounded, enqueue and dequeue may fail, which is
- * captured in the semantics of `offer` and `poll` methods.
- *
- * Using `offer` as an example, the algorithm can be broken down
- * roughly into three steps:
- *  1. Find a place to insert an element.
- *  2. Reserve this place, put an element and make it visible to
- *     other threads (store and publish).
- *  3. If there was no place on step 1 return false, otherwise
- *     returns true.
- *
- * Steps 1 and 2 are usually done in a loop to accommodate the
- * possibility of failure due to race. Depending on the
- * implementation of these steps the resulting queue will have
- * different characteristics. For instance, the more sub-steps are
- * between reserve and publish in step 2, the higher is the chance
- * that one thread will delay other threads due to being descheduled.
- *
- * =Notes on the design=
- *
- * The queue uses a `buf` array to store elements. It uses `seq`
- * array to store longs which serve as:
- * 1. an indicator to producer/consumer threads whether the slot is
- *    right for enqueue/dequeue,
- * 2. an indicator whether the queue is empty/full,
- * 3. a mechanism to ''publish'' changes to `buf` via volatile write
- *    (can even be relaxed to ordered store).
- * See comments in `offer`/`poll` methods for more details on `seq`.
- *
- * The benefit of using `seq` + `head`/`tail` counters is that there
- * are no allocations during enqueue/dequeue and very little
- * overhead. The downside is it doubles (on 64bit) or triples
- * (compressed OOPs) the amount of memory needed for queue.
- *
- * Concurrent enqueues and concurrent dequeues are possible. However
- * there is no ''helping'', so threads can delay other threads, and
- * thus the queue doesn't provide full set of lock-free
- * guarantees. In practice it's usually not a problem, since benefits
- * are simplicity, zero GC pressure and speed.
- *
- * The real capacity of the queue is the next power of 2 of the
- * `desiredCapacity`. The reason is `head % N` and `tail % N` are
- * rather cheap when can be done as a simple mask (N is pow 2), and
- * pretty expensive when involve an `idiv` instruction. The queue can
- * be made to work with arbitrary sizes but the user will have to
- * suffer ~20% performance loss.
- *
- * The design is heavily inspired by such libraries as
- * [[https://github.com/LMAX-Exchange/disruptor]] and
- * [[https://github.com/JCTools/JCTools]] which is based off
- * D. Vyukov's design
- * [[http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue]]
- *
- * Compared to JCTools this implementation doesn't rely on
- * [[sun.misc.Unsafe]], so it is arguably more portable, and should be
- * easier to read. It's also very extensively commented, including
- * reasoning, assumptions, and hacks.
- *
- * =Alternative designs=
- *
- * There is an alternative design described in
- * [[http://pirkelbauer.com/papers/icapp16.pdf the paper]] A Portable
- * Lock-Free Bounded Queue by Pirkelbauer et al.
- *
- * It provides full lock-free guarantees, which generally means that
- * one out of many contending threads is guaranteed to make progress
- * in a finite number of steps. The design thus is not susceptible to
- * threads delaying other threads.
- *
- * However the helping scheme is rather involved and cannot be
- * implemented without allocations (at least I couldn't come up with
- * a way yet). This translates into worse performance on average, and
- * better performance in some very specific situations.
+  * See [[coreJVM/scalaz.zio.internal.impls.RingBuffer]] for details
+  * on design, tradeoffs, etc.
+  *
+  * This is a scalajs-compatible version that uses [[AtomicLong]]
+  * `head` and `tail` counters instead of [[AtomicLongFieldUpdater]]
+  * since those are not supported by scala-js.
  */
 class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] {
   final val capacity: Int         = nextPow2(desiredCapacity)
@@ -122,7 +38,6 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
     // them after every volatile read in a loop below.
     val aCapacity = capacity
     val aMask     = idxMask
-    val aBuf      = buf
 
     val aSeq   = seq
     var curSeq = 0L
@@ -188,7 +103,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
       // The volatile write can actually be relaxed to ordered store
       // (`lazySet`).  See Doug Lea's response in
       // [[http://cs.oswego.edu/pipermail/concurrency-interest/2011-October/008296.html]].
-      aBuf(curIdx) = a.asInstanceOf[AnyRef]
+      buf(curIdx) = a.asInstanceOf[AnyRef]
       aSeq.lazySet(curIdx, curTail + 1)
       true
     } else { // state == STATE_FULL
@@ -288,7 +203,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
 
   override final def isEmpty(): Boolean = tail.get() == head.get()
 
-  override final def isFull(): Boolean = tail.get() == head.get() + capacity - 1
+  override final def isFull(): Boolean = tail.get() == head.get() + capacity
 
   private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
 
