@@ -994,9 +994,7 @@ object IO extends Serializable {
       p   <- Promise.make[E, A]
       ref <- Ref[Fiber[E, _]](Fiber.unit)
       a <- (for {
-            _ <- register(p.unsafeDone(_, { r =>
-                  d.executor.submit(r); ()
-                })).fork.peek(ref.set(_)).uninterruptibly
+            _ <- register(p.unsafeDone(_, d.executor.execute)).fork.peek(ref.set(_)).uninterruptibly
             a <- p.get
           } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
     } yield a

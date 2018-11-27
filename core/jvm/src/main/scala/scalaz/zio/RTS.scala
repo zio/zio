@@ -4,6 +4,7 @@ package scalaz.zio
 import java.util.concurrent._
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import scala.annotation.{ switch, tailrec }
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 import scalaz.zio.ExitResult.Cause
 
@@ -329,7 +330,7 @@ private object RTS {
                         curIo = io.flatMapper(io2.effect())
 
                       case IO.Tags.Descriptor =>
-                        val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.threadPool, unhandled)
+                        val value = getDescriptor
 
                         curIo = io.flatMapper(value)
 
@@ -479,7 +480,7 @@ private object RTS {
                     curIo = io.io
 
                   case IO.Tags.Descriptor =>
-                    val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.threadPool, unhandled)
+                    val value = getDescriptor
 
                     curIo = nextInstr[E](value, stack)
 
@@ -516,6 +517,9 @@ private object RTS {
         }
       }
     }
+
+    private final def getDescriptor: Fiber.Descriptor =
+      Fiber.Descriptor(fiberId, state.get.interrupted, ExecutionContext.fromExecutor(rts.threadPool), unhandled)
 
     /**
      * Forks an `IO` with the specified failure handler.
