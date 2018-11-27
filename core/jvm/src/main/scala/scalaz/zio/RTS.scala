@@ -89,11 +89,6 @@ trait RTS {
     ()
   }
 
-  final def submitRunnable(run: Runnable): Unit = {
-    threadPool.submit(run)
-    ()
-  }
-
   final def schedule[E, A](block: => A, duration: Duration): Async[E, Unit] =
     if (duration == Duration.Zero) {
       submit(block)
