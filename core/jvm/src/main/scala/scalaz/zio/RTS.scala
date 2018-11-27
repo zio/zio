@@ -89,7 +89,7 @@ trait RTS {
     ()
   }
 
-  final def schedule[E, A](block: => A, duration: Duration): Async[E, Unit] =
+  final def schedule[E, A](block: => A, duration: Duration): Async[E, A] =
     if (duration == Duration.Zero) {
       submit(block)
 
@@ -328,6 +328,13 @@ private object RTS {
                         val value = getDescriptor
 
                         curIo = io.flatMapper(value)
+
+                      case IO.Tags.Sleep =>
+                        val io2 = nested.asInstanceOf[IO.Sleep]
+
+                        curIo = IO.async0[E, Any] { k =>
+                          rts.schedule(rts.unsafeRunAsync(io.flatMapper(()))(k), io2.duration)
+                        }
 
                       case _ =>
                         // Fallback case. We couldn't evaluate the LHS so we have to
