@@ -4,6 +4,7 @@ package scalaz.zio
 import java.util.concurrent._
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import scala.annotation.{ switch, tailrec }
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 import scalaz.zio.ExitResult.Cause
 
@@ -324,7 +325,7 @@ private object RTS {
                         curIo = io.flatMapper(io2.effect())
 
                       case IO.Tags.Descriptor =>
-                        val value = Fiber.Descriptor(fiberId, state.get.interrupted)
+                        val value = getDescriptor
 
                         curIo = io.flatMapper(value)
 
@@ -391,13 +392,6 @@ private object RTS {
                         curIo = null
                     }
 
-                  case IO.Tags.AsyncIOEffect =>
-                    val io = curIo.asInstanceOf[IO.AsyncIOEffect[E, Any]]
-
-                    curIo = IO.async[E, Any] { callback =>
-                      rts.unsafeRunAsync(io.register(callback))(_ => ())
-                    }
-
                   case IO.Tags.Redeem =>
                     val io = curIo.asInstanceOf[IO.Redeem[E, Any, Any, Any]]
 
@@ -421,11 +415,6 @@ private object RTS {
                     if (curIo eq null) {
                       result = ExitResult.succeeded(value)
                     }
-
-                  case IO.Tags.Suspend =>
-                    val io = curIo.asInstanceOf[IO.Suspend[E, Any]]
-
-                    curIo = io.value()
 
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
@@ -475,22 +464,13 @@ private object RTS {
                       }
                     }
 
-                  case IO.Tags.Supervisor =>
-                    val value = unhandled
-
-                    curIo = nextInstr[E](value, stack)
-
-                    if (curIo eq null) {
-                      result = ExitResult.succeeded(value)
-                    }
-
                   case IO.Tags.Ensuring =>
                     val io = curIo.asInstanceOf[IO.Ensuring[E, Any]]
                     stack.push(new Finalizer(io.finalizer))
                     curIo = io.io
 
                   case IO.Tags.Descriptor =>
-                    val value = Fiber.Descriptor(fiberId, state.get.interrupted)
+                    val value = getDescriptor
 
                     curIo = nextInstr[E](value, stack)
 
@@ -527,6 +507,9 @@ private object RTS {
         }
       }
     }
+
+    private final def getDescriptor: Fiber.Descriptor =
+      Fiber.Descriptor(fiberId, state.get.interrupted, ExecutionContext.fromExecutor(rts.threadPool), unhandled)
 
     /**
      * Forks an `IO` with the specified failure handler.

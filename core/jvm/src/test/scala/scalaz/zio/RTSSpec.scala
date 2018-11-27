@@ -72,6 +72,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     simple async must return                $testAsyncEffectReturns
     simple asyncIO must return              $testAsyncIOEffectReturns
     deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
+    interrupt of asyncPure register         $testAsyncPureInterruptRegister
     sleep 0 must return                     $testSleepZeroReturns
     shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
 
@@ -457,6 +458,20 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
     unsafeRun(stackIOs(procNum + 1)) must_=== 42
   }
+
+  def testAsyncPureInterruptRegister =
+    unsafeRun(for {
+      release <- Promise.make[Nothing, Unit]
+      acquire <- Promise.make[Nothing, Unit]
+      fiber <- IO
+                .asyncPure[Nothing, Unit] { _ =>
+                  IO.bracket(acquire.complete(()))(_ => release.complete(()).void)(_ => IO.never)
+                }
+                .fork
+      _ <- acquire.get
+      _ <- fiber.interrupt.fork
+      a <- release.get
+    } yield a) must_=== (())
 
   def testSleepZeroReturns =
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
