@@ -58,65 +58,65 @@ public abstract class MutableQueueFieldsPadding<A> extends TailPadding<A> {
     public static final AtomicLongFieldUpdater<HeadPadding> headUpdater = AtomicLongFieldUpdater.newUpdater(HeadPadding.class, "headCounter");
     public static final AtomicLongFieldUpdater<TailPadding> tailUpdater = AtomicLongFieldUpdater.newUpdater(TailPadding.class, "tailCounter");
 
-    long p200;
-    long p202;
-    long p203;
-    long p204;
-    long p205;
-    long p206;
-    long p207;
-    long p208;
-    long p209;
-    long p210;
-    long p211;
-    long p212;
-    long p213;
-    long p214;
-    long p215;
+    protected long p200;
+    protected long p202;
+    protected long p203;
+    protected long p204;
+    protected long p205;
+    protected long p206;
+    protected long p207;
+    protected long p208;
+    protected long p209;
+    protected long p210;
+    protected long p211;
+    protected long p212;
+    protected long p213;
+    protected long p214;
+    protected long p215;
 }
 
 // Aux classes below
 
 abstract class ClassFieldsPadding<A> extends MutableConcurrentQueue<A> {
-    int p000;
-    long p002;
-    long p003;
-    long p004;
-    long p005;
-    long p006;
-    long p007;
-    long p008;
-    long p009;
-    long p010;
-    long p011;
-    long p012;
-    long p013;
-    long p014;
-    long p015;
+    protected int p000;
+    protected long p002;
+    protected long p003;
+    protected long p004;
+    protected long p005;
+    protected long p006;
+    protected long p007;
+    protected long p008;
+    protected long p009;
+    protected long p010;
+    protected long p011;
+    protected long p012;
+    protected long p013;
+    protected long p014;
+    protected long p015;
 }
 
 abstract class HeadPadding<A> extends ClassFieldsPadding<A> {
-    volatile long headCounter;
+    protected volatile long headCounter;
 }
 
 abstract class PreTailPadding<A> extends HeadPadding<A> {
-    long p100;
-    long p102;
-    long p103;
-    long p104;
-    long p105;
-    long p106;
-    long p107;
-    long p108;
-    long p109;
-    long p110;
-    long p111;
-    long p112;
-    long p113;
-    long p114;
-    long p115;
+    protected long p100;
+    protected long p102;
+    protected long p103;
+    protected long p104;
+    protected long p105;
+    protected long p106;
+    protected long p107;
+    protected long p108;
+    protected long p109;
+    protected long p110;
+    protected long p111;
+    protected long p112;
+    protected long p113;
+    protected long p114;
+    protected long p115;
 }
 
 abstract class TailPadding<A> extends PreTailPadding<A> {
-    volatile long tailCounter;
+    protected volatile long tailCounter;
 }
