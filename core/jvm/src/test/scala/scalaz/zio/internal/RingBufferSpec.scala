@@ -24,21 +24,21 @@ class RingBufferSpec extends Specification {
 
   def e2 = {
     val q = MutableConcurrentQueue.bounded[Int](2)
-    q.offer(1) must beTrue
-    q.size must_=== 1
-    q.offer(2) must beTrue
-    q.size must_=== 2
-    q.offer(3) must beFalse
-    q.isFull must beTrue
+    (q.offer(1) must beTrue)
+      .and(q.size must_=== 1)
+      .and(q.offer(2) must beTrue)
+      .and(q.size must_=== 2)
+      .and(q.offer(3) must beFalse)
+      .and(q.isFull must beTrue)
   }
 
   def e3 = {
     val q = MutableConcurrentQueue.bounded[Int](2)
     q.offer(1)
     q.offer(2)
-    q.poll(-1) must_=== 2
-    q.poll(-1) must_=== 1
-    q.poll(-1) must_=== -1
-    q.isEmpty must beTrue
+    (q.poll(-1) must_=== 1)
+      .and(q.poll(-1) must_=== 2)
+      .and(q.poll(-1) must_=== -1)
+      .and(q.isEmpty must beTrue)
   }
 }
