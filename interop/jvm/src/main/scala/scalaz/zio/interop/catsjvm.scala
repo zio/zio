@@ -3,7 +3,7 @@ package interop
 
 import cats.effect.{Concurrent, ContextShift, Effect, ExitCase}
 import cats.{effect, _}
-import scalaz.zio.ExitResult.Cause
+import scalaz.zio.ExitResult.{Cause, Failed, Succeeded}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, NANOSECONDS, TimeUnit}
@@ -65,7 +65,9 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
 //        this.unsafeRunAsync[Throwable, Unit](fa.run.map { exit =>
 //          cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())
 //        })(_ => ())
+//        Task(())
 
+        // deliberately incorrect impl, any use of .fork in unsafeRuns seems to cause breakage...
         this.unsafeRunAsync[Throwable, Unit] {
           for {
             _ <- IO.sync {
@@ -75,19 +77,19 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
                 cb(value).unsafeRunAsync(_ => ())
               }
               ()
-            } // FIXME: Uncommenting this breaks liftIO tests, seems impossible
-              // .fork
+            } // FIXME: Uncommenting the fork breaks toIO/liftIO tests, even though it shouldn't impact them
+//               .fork
           } yield ()
         }(_ => ())
         Task(())
       }
 
   // TODO
-  override def toIO[A](fa: Task[A]): effect.IO[A] =
-    effect.IO.cancelable { cb =>
-      runCancelable(fa)(r => effect.IO(cb(r))).unsafeRunSync()
-      effect.IO(())
-    }
+//  override def toIO[A](fa: Task[A]): effect.IO[A] =
+//    effect.IO.cancelable { cb =>
+//      runCancelable(fa)(r => effect.IO(cb(r))).unsafeRunSync()
+//      effect.IO(())
+//    }
 
 //    effect.IO.cancelable { cb =>
 //      runAsync(fa)(r => effect.IO(cb(r))).unsafeRunSync()
@@ -128,7 +130,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
           System.out println s"cancelable error $e"
           throw e
       }
-      val token0: Async[Nothing, A] = Async.maybeLaterIO { () =>
+      val token0: Async[Nothing, A] = Async.maybeLater {
         IO.sync(System.out println "cancel token running") *>
         token.catchAll(IO.terminate)
       }
@@ -143,7 +145,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
       case Right((fiberA, b)) =>
         fiberA.cancel.const(Right(b)).peek(_ => Task(System.out println "race: won B"))
     }
-      .supervised   // FIXME: supervised should work here, but doesn't, see "supervise fibers in race"
+      .supervised
       .catchAll(Task(System.out println "race: failed, got exception") *> IO.fail(_))
 
   override def start[A](fa: Task[A]): Task[effect.Fiber[Task, A]] =
@@ -152,7 +154,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
   override def racePair[A, B](fa: Task[A],
                               fb: Task[B]): Task[Either[(A, effect.Fiber[Task, B]), (effect.Fiber[Task, A], B)]] =
     Ref(false).flatMap { finished =>
-      raceWithUnsupervised(fa.sandboxWith(_.attempt), fb.sandboxWith(_.attempt))(
+      (fa.sandboxWith(_.attempt) raceWith fb.sandboxWith(_.attempt))(
         { case (l, f) =>
           finished.set(true) *>
             fromEitherCancelOnError(l, f).map(lv => Left((lv, unsandboxFiber(f)))) },
@@ -172,48 +174,23 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
   private def unsandboxFiber[E, A](f: Fiber[Nothing, Either[Cause[E], A]]): effect.Fiber[IO[E, ?], A] =
     toFiberFlatMapped[Nothing, E, Either[Cause[E], A], A](f, res => IO.unsandbox(IO.fromEither(res)))
 
-  private[this] final def raceWithUnsupervised[E, A, E1, E2, B, C](
-    self: IO[E, A],
-    that: IO[E1, B]
-  )(
-    leftWins: (Fiber[E, A], Fiber[E1, B]) => IO[E2, C],
-    rightWins: (Fiber[E1, B], Fiber[E, A]) => IO[E2, C]
-  ): IO[E2, C] = {
-    def arbiter[E0, E1, A, B](
-      f: (Fiber[E0, A], Fiber[E1, B]) => IO[E2, C],
-      winner: Fiber[E0, A],
-      loser: Fiber[E1, B],
-      race: Ref[IO.Race],
-      done: Promise[E2, C]
-    )(res: ExitResult[E0, A]): IO[Nothing, _] =
-      race
-        .modify(r => r.won(res.succeeded) -> r.next(res.succeeded))
-        .flatMap(IO.when(_)(f(winner, loser).to(done).void))
-
-    for {
-      done  <- Promise.make[E2, C]
-      race  <- Ref[IO.Race](IO.Race.Started)
-      left  <- self.fork
-      right <- that.fork
-      _     <- left.observe.flatMap(arbiter(leftWins, left, right, race, done)).fork
-      _     <- right.observe.flatMap(arbiter(rightWins, right, left, race, done)).fork
-      c     <- done.get
-    } yield c
-  }
-
-  @inline final protected def fromEitherCancelOnError[E, A, B](res: Fiber[Nothing, Either[Cause[E], A]], other: Fiber[Nothing, B]): IO[E, A] =
-    res.join flatMap {
-      case Left(e) => other.interrupt *> IO.fail0(e)
-      case Right(v) => IO.now(v)
+  @inline final protected def fromEitherCancelOnError[E, A, B](res: ExitResult[Nothing, Either[Cause[E], A]], other: Fiber[Nothing, B]): IO[E, A] =
+    res match {
+      case Failed(e) =>
+        other.interrupt *> IO.fail0(e)
+      case Succeeded(Left(e)) =>
+        other.interrupt *> IO.fail0(e)
+      case Succeeded(Right(v)) =>
+        IO.now(v)
     }
 }
 
 private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
   @inline final protected def exitResultToEither[A](e: ExitResult[Throwable, A]): Either[Throwable, A] =
-    e.causeOption.map(_.checked[Throwable]) match {
-      case Some(t :: Nil) => Left(t)
-      case _ => e.toEither
-    }
+    e.fold(Right(_), _.checked[Throwable] match {
+      case t :: Nil => Left(t)
+      case _        => e.toEither
+    })
 
   @inline final protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
     case Left(t)  => ExitResult.checked(t)
@@ -222,7 +199,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
 
   @inline final protected def exitResultToExitCase[A]: ExitResult[Throwable, A] => ExitCase[Throwable] = {
     case ExitResult.Succeeded(_)                         => ExitCase.Completed
-    case ExitResult.Failed(cause) if cause.isInterrupted => ExitCase.Canceled
+    case ExitResult.Failed(cause) if cause.interrupted   => ExitCase.Canceled
     case ExitResult.Failed(cause)                        =>
       cause.checked match {
         case t :: Nil => ExitCase.Error(t)
