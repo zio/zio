@@ -867,7 +867,7 @@ object IO extends Serializable {
    * will be undefined and most likely involve the physical explosion of your
    * computer in a heap of rubble.
    */
-  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = 
+  final def suspend[E, A](io: => IO[E, A]): IO[E, A] =
     IO.flatten(IO.sync(io))
 
   /**
