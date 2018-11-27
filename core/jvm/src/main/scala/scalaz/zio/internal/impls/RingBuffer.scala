@@ -103,8 +103,8 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
   private[this] val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
 
-  private[this] val head = MutableQueueFieldsPadding.head
-  private[this] val tail = MutableQueueFieldsPadding.tail
+  private[this] val head = MutableQueueFieldsPadding.headUpdater
+  private[this] val tail = MutableQueueFieldsPadding.tailUpdater
 
   private[this] final val STATE_LOOP     = 0
   private[this] final val STATE_EMPTY    = -1
@@ -122,7 +122,6 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
     // them after every volatile read in a loop below.
     val aCapacity = capacity
     val aMask     = idxMask
-    val aBuf      = buf
 
     val aSeq   = seq
     var curSeq = 0L
@@ -188,7 +187,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
       // The volatile write can actually be relaxed to ordered store
       // (`lazySet`).  See Doug Lea's response in
       // [[http://cs.oswego.edu/pipermail/concurrency-interest/2011-October/008296.html]].
-      aBuf(curIdx) = a.asInstanceOf[AnyRef]
+      buf(curIdx) = a.asInstanceOf[AnyRef]
       aSeq.lazySet(curIdx, curTail + 1)
       true
     } else { // state == STATE_FULL
