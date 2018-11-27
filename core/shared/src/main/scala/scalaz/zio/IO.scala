@@ -740,9 +740,8 @@ object IO extends Serializable {
     final val Uninterruptible = 9
     final val Sleep           = 10
     final val Supervise       = 11
-    final val Supervisor      = 12
-    final val Ensuring        = 13
-    final val Descriptor      = 14
+    final val Ensuring        = 12
+    final val Descriptor      = 13
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -802,10 +801,6 @@ object IO extends Serializable {
 
   final class Fail[E] private[IO] (val cause: Cause[E]) extends IO[E, Nothing] {
     override def tag = Tags.Fail
-  }
-
-  final class Supervisor private[IO] () extends IO[Nothing, Throwable => IO[Nothing, Unit]] {
-    override def tag = Tags.Supervisor
   }
 
   final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
@@ -999,7 +994,9 @@ object IO extends Serializable {
       p   <- Promise.make[E, A]
       ref <- Ref[Fiber[E, _]](Fiber.unit)
       a <- (for {
-            _ <- register(p.unsafeDone(_, { r => d.executor.submit(r); () })).fork.peek(ref.set(_)).uninterruptibly
+            _ <- register(p.unsafeDone(_, { r =>
+                  d.executor.submit(r); ()
+                })).fork.peek(ref.set(_)).uninterruptibly
             a <- p.get
           } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
     } yield a
@@ -1061,7 +1058,8 @@ object IO extends Serializable {
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  final def supervisor: IO[Nothing, Throwable => IO[Nothing, Unit]] = new Supervisor()
+  final def supervisor: IO[Nothing, Cause[Nothing] => IO[Nothing, Unit]] =
+    descriptor.map(_.supervisor)
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no

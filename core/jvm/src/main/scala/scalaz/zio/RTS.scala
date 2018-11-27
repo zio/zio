@@ -329,7 +329,7 @@ private object RTS {
                         curIo = io.flatMapper(io2.effect())
 
                       case IO.Tags.Descriptor =>
-                        val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.threadPool)
+                        val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.threadPool, unhandled)
 
                         curIo = io.flatMapper(value)
 
@@ -473,22 +473,13 @@ private object RTS {
                       }
                     }
 
-                  case IO.Tags.Supervisor =>
-                    val value = unhandled
-
-                    curIo = nextInstr[E](value, stack)
-
-                    if (curIo eq null) {
-                      result = ExitResult.succeeded(value)
-                    }
-
                   case IO.Tags.Ensuring =>
                     val io = curIo.asInstanceOf[IO.Ensuring[E, Any]]
                     stack.push(new Finalizer(io.finalizer))
                     curIo = io.io
 
                   case IO.Tags.Descriptor =>
-                    val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.threadPool)
+                    val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.threadPool, unhandled)
 
                     curIo = nextInstr[E](value, stack)
 
