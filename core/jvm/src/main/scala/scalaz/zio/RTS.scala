@@ -416,11 +416,6 @@ private object RTS {
                       result = ExitResult.succeeded(value)
                     }
 
-                  case IO.Tags.Suspend =>
-                    val io = curIo.asInstanceOf[IO.Suspend[E, Any]]
-
-                    curIo = io.value()
-
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
 
