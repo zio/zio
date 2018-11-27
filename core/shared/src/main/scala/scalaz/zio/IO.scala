@@ -736,12 +736,11 @@ object IO extends Serializable {
     final val AsyncEffect     = 5
     final val Redeem          = 6
     final val Fork            = 7
-    final val Suspend         = 8
-    final val Uninterruptible = 9
-    final val Sleep           = 10
-    final val Supervise       = 11
-    final val Ensuring        = 12
-    final val Descriptor      = 13
+    final val Uninterruptible = 8
+    final val Sleep           = 9
+    final val Supervise       = 10
+    final val Ensuring        = 11
+    final val Descriptor      = 12
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -778,10 +777,6 @@ object IO extends Serializable {
   final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Cause[Any] => IO[Nothing, Unit]])
       extends IO[Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
-  }
-
-  final class Suspend[E, A] private[IO] (val value: () => IO[E, A]) extends IO[E, A] {
-    override def tag = Tags.Suspend
   }
 
   final class Uninterruptible[E, A] private[IO] (val io: IO[E, A]) extends IO[E, A] {
@@ -872,7 +867,8 @@ object IO extends Serializable {
    * will be undefined and most likely involve the physical explosion of your
    * computer in a heap of rubble.
    */
-  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = new Suspend(() => io)
+  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = 
+    IO.flatten(IO.sync(io))
 
   /**
    * Interrupts the fiber executing this action, running all finalizers.
