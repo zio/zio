@@ -110,7 +110,7 @@ trait Fiber[+E, +A] { self =>
 }
 
 object Fiber {
-  final case class Descriptor(id: FiberId, interrupted: Boolean)
+  final case class Descriptor(id: FiberId, interrupted: Boolean, submit: Runnable => Unit)
 
   final val unit: Fiber[Nothing, Unit] = Fiber.point(())
 

@@ -88,6 +88,11 @@ trait RTS {
     ()
   }
 
+  final def submitRunnable(run: Runnable): Unit = {
+    threadPool.submit(run)
+    ()
+  }
+
   final def schedule[E, A](block: => A, duration: Duration): Async[E, Unit] =
     if (duration == Duration.Zero) {
       submit(block)
@@ -324,7 +329,7 @@ private object RTS {
                         curIo = io.flatMapper(io2.effect())
 
                       case IO.Tags.Descriptor =>
-                        val value = Fiber.Descriptor(fiberId, state.get.interrupted)
+                        val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.submitRunnable)
 
                         curIo = io.flatMapper(value)
 
@@ -483,7 +488,7 @@ private object RTS {
                     curIo = io.io
 
                   case IO.Tags.Descriptor =>
-                    val value = Fiber.Descriptor(fiberId, state.get.interrupted)
+                    val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.submitRunnable)
 
                     curIo = nextInstr[E](value, stack)
 
