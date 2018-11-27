@@ -995,11 +995,11 @@ object IO extends Serializable {
    */
   final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] =
     for {
+      d   <- descriptor
       p   <- Promise.make[E, A]
-      ref <- Ref[Fiber[E, Any]](Fiber.unit)
+      ref <- Ref[Fiber[E, _]](Fiber.unit)
       a <- (for {
-            f <- register(p.unsafeDone(_)).fork.peek(ref.set(_)).uninterruptibly
-            _ <- f.join
+            _ <- register(p.unsafeDone(_, d.submit)).fork.peek(ref.set(_)).uninterruptibly
             a <- p.get
           } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
     } yield a
