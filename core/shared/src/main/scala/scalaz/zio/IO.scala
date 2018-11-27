@@ -734,16 +734,13 @@ object IO extends Serializable {
     final val SyncEffect      = 3
     final val Fail            = 4
     final val AsyncEffect     = 5
-    final val AsyncIOEffect   = 6
-    final val Redeem          = 7
-    final val Fork            = 8
-    final val Suspend         = 9
-    final val Uninterruptible = 10
-    final val Sleep           = 11
-    final val Supervise       = 12
-    final val Supervisor      = 13
-    final val Ensuring        = 14
-    final val Descriptor      = 15
+    final val Redeem          = 6
+    final val Fork            = 7
+    final val Uninterruptible = 8
+    final val Sleep           = 9
+    final val Supervise       = 10
+    final val Ensuring        = 11
+    final val Descriptor      = 12
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -765,10 +762,6 @@ object IO extends Serializable {
     override def tag = Tags.AsyncEffect
   }
 
-  final class AsyncIOEffect[E, A] private[IO] (val register: (Callback[E, A]) => IO[E, Unit]) extends IO[E, A] {
-    override def tag = Tags.AsyncIOEffect
-  }
-
   final class Redeem[E, E2, A, B] private[IO] (
     val value: IO[E, A],
     val err: Cause[E] => IO[E2, B],
@@ -784,10 +777,6 @@ object IO extends Serializable {
   final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Cause[Any] => IO[Nothing, Unit]])
       extends IO[Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
-  }
-
-  final class Suspend[E, A] private[IO] (val value: () => IO[E, A]) extends IO[E, A] {
-    override def tag = Tags.Suspend
   }
 
   final class Uninterruptible[E, A] private[IO] (val io: IO[E, A]) extends IO[E, A] {
@@ -807,10 +796,6 @@ object IO extends Serializable {
 
   final class Fail[E] private[IO] (val cause: Cause[E]) extends IO[E, Nothing] {
     override def tag = Tags.Fail
-  }
-
-  final class Supervisor private[IO] () extends IO[Nothing, Throwable => IO[Nothing, Unit]] {
-    override def tag = Tags.Supervisor
   }
 
   final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
@@ -882,7 +867,8 @@ object IO extends Serializable {
    * will be undefined and most likely involve the physical explosion of your
    * computer in a heap of rubble.
    */
-  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = new Suspend(() => io)
+  final def suspend[E, A](io: => IO[E, A]): IO[E, A] =
+    IO.flatten(IO.sync(io))
 
   /**
    * Interrupts the fiber executing this action, running all finalizers.
@@ -998,7 +984,16 @@ object IO extends Serializable {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
+  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] =
+    for {
+      d   <- descriptor
+      p   <- Promise.make[E, A]
+      ref <- Ref[Fiber[E, _]](Fiber.unit)
+      a <- (for {
+            _ <- register(p.unsafeDone(_, d.executor.execute)).fork.peek(ref.set(_)).uninterruptibly
+            a <- p.get
+          } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
+    } yield a
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -1057,7 +1052,8 @@ object IO extends Serializable {
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  final def supervisor: IO[Nothing, Throwable => IO[Nothing, Unit]] = new Supervisor()
+  final def supervisor: IO[Nothing, Cause[Nothing] => IO[Nothing, Unit]] =
+    descriptor.map(_.supervisor)
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
