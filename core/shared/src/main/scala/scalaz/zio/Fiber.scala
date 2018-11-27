@@ -112,7 +112,12 @@ trait Fiber[+E, +A] { self =>
 }
 
 object Fiber {
-  final case class Descriptor(id: FiberId, interrupted: Boolean, executor: ExecutorService)
+  final case class Descriptor(
+    id: FiberId,
+    interrupted: Boolean,
+    executor: ExecutorService,
+    supervisor: ExitResult.Cause[Nothing] => IO[Nothing, Unit]
+  )
 
   final val unit: Fiber[Nothing, Unit] = Fiber.point(())
 
