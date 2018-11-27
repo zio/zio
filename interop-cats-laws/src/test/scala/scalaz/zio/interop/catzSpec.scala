@@ -2,15 +2,15 @@ package scalaz.zio
 package interop
 
 import cats.Eq
-import cats.effect.{Concurrent, ConcurrentEffect, ContextShift}
-import cats.effect.laws.{ConcurrentEffectLaws, ConcurrentLaws}
+import cats.effect.{ Concurrent, ConcurrentEffect, ContextShift }
+import cats.effect.laws.{ ConcurrentEffectLaws, ConcurrentLaws }
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests, EffectTests, Parameters}
-import cats.effect.laws.util.{TestContext, TestInstances}
+import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests, EffectTests, Parameters }
+import cats.effect.laws.util.{ TestContext, TestInstances }
 import cats.implicits._
-import cats.laws.discipline.{AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests}
+import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
 import cats.syntax.all._
-import org.scalacheck.{Arbitrary, Cogen}
+import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
 import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
 import org.typelevel.discipline.Laws
@@ -19,7 +19,6 @@ import scalaz.zio.interop.catz._
 import cats.laws._
 
 trait ConcurrentLawsIO extends ConcurrentLaws[Task] {
-
 
   // FIXME: Not implemented yet
   override def asyncFRegisterCanBeCancelled[A](a: A) =
@@ -73,7 +72,7 @@ object ConcurrentTestsIO {
   def apply()(implicit c: Concurrent[Task], cs: ContextShift[Task]): ConcurrentTests[Task] =
     new ConcurrentTests[Task] {
       def laws = new ConcurrentLawsIO {
-        override val F: Concurrent[Task] = c
+        override val F: Concurrent[Task]              = c
         override val contextShift: ContextShift[Task] = cs
       }
     }
@@ -83,7 +82,7 @@ object ConcurrentEffectTestsIO {
   def apply()(implicit c: ConcurrentEffect[Task], cs: ContextShift[Task]): ConcurrentEffectTests[Task] =
     new ConcurrentEffectTests[Task] {
       def laws = new ConcurrentEffectLaws[Task] with ConcurrentLawsIO {
-        override val F: ConcurrentEffect[Task] = c
+        override val F: ConcurrentEffect[Task]        = c
         override val contextShift: ContextShift[Task] = cs
 
         // FIXME: Not implemented yet

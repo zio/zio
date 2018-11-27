@@ -86,10 +86,10 @@ lazy val interop = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz"    %%% "scalaz-core"               % "7.2.+"  % Optional,
+      "org.scalaz"    %%% "scalaz-core"               % "7.2.+"         % Optional,
       "org.typelevel" %%% "cats-effect"               % "1.0.0-1182d8c" % Optional,
-      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"  % Test,
-      "co.fs2"        %%% "fs2-core"                  % "1.0.0" % Test
+      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+"         % Test,
+      "co.fs2"        %%% "fs2-core"                  % "1.0.0"         % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
@@ -108,8 +108,8 @@ lazy val interopCatsLaws = project.module
     skip in publish := true,
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"          % "1.0.0-1182d8c" % Test,
-      "org.typelevel"              %% "cats-testkit"              % "1.3.1" % Test,
-      "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8" % Test
+      "org.typelevel"              %% "cats-testkit"              % "1.3.1"         % Test,
+      "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"         % Test
     ),
     dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test,
     scalacOptions in Test ++= Seq("-Yrangepos")
