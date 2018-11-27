@@ -329,7 +329,7 @@ private object RTS {
                         curIo = io.flatMapper(io2.effect())
 
                       case IO.Tags.Descriptor =>
-                        val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.submitRunnable)
+                        val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.threadPool)
 
                         curIo = io.flatMapper(value)
 
@@ -488,7 +488,7 @@ private object RTS {
                     curIo = io.io
 
                   case IO.Tags.Descriptor =>
-                    val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.submitRunnable)
+                    val value = Fiber.Descriptor(fiberId, state.get.interrupted, rts.threadPool)
 
                     curIo = nextInstr[E](value, stack)
 
