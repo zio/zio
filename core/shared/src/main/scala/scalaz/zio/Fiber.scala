@@ -1,6 +1,8 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
+import java.util.concurrent.ExecutorService
+
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
  * whole thread (but may consume much less, depending on contention). Fibers are
@@ -110,7 +112,7 @@ trait Fiber[+E, +A] { self =>
 }
 
 object Fiber {
-  final case class Descriptor(id: FiberId, interrupted: Boolean, submit: Runnable => Unit)
+  final case class Descriptor(id: FiberId, interrupted: Boolean, executor: ExecutorService)
 
   final val unit: Fiber[Nothing, Unit] = Fiber.point(())
 
