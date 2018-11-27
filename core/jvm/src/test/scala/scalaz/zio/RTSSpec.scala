@@ -11,9 +11,9 @@ import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
 
 import scala.util.{Failure, Success}
+
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
-class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with ExamplesTimeout {
 
   def is = s2"""
   RTS synchronous correctness
@@ -427,7 +427,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with ExamplesTi
       f <- (p.complete(()) *> IO.never).run.fork
       _ <- p.get
       _ <- f.interrupt
-      test <- f.observe.map(_.causeOption.exists(_.isInterrupted))
+      test <- f.observe.map(_.interrupted)
     } yield test) must_=== true
 
   def testEvalOfDeepSyncEffect = {
@@ -695,7 +695,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with ExamplesTi
   def testAsync0IsInterruptible = {
     val io =
       for {
-        fiber <- IO.async0[Nothing, Unit](_ => Async.maybeLaterIO(() => IO.sync(System.out println "interrupted") *> IO.sync(while (true) {}))).fork
+        fiber <- IO.async0[Nothing, Unit](_ => Async.maybeLater(IO.sync(System.out println "interrupted") *> IO.sync(while (true) {}))).fork
         _     <- fiber.interrupt
       } yield 42
 
@@ -722,7 +722,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec with ExamplesTi
     val io = for {
       release <- Promise.make[Nothing, Int]
       latch    = scala.concurrent.Promise[Unit]()
-      async    = IO.async0[Nothing, Nothing] { _ => latch.success(()); Async.maybeLaterIO(() => release.complete(42).void) }
+      async    = IO.async0[Nothing, Nothing] { _ => latch.success(()); Async.maybeLater(release.complete(42).void) }
       fiber   <- async.fork
       _ <- IO.async[Throwable, Unit] { cb =>
         latch.future.onComplete {
