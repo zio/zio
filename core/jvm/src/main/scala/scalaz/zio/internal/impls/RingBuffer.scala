@@ -1,8 +1,7 @@
-package scalaz.zio.lockfree.impls
+package scalaz.zio.internal.impls
 
 import java.util.concurrent.atomic.AtomicLongArray
-import scalaz.zio.lockfree.nextPow2
-import scalaz.zio.lockfree.impls.padding.{ PadHeadTailFields, HeadField, TailField }
+import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
 
 /**
  * A lock-free array based bounded queue. It is thread-safe and can be
@@ -96,31 +95,29 @@ import scalaz.zio.lockfree.impls.padding.{ PadHeadTailFields, HeadField, TailFie
  * a way yet). This translates into worse performance on average, and
  * better performance in some very specific situations.
  */
-class RingBuffer[A](val desiredCapacity: Int) extends PadHeadTailFields[A] {
+class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[A] {
   final val capacity: Int   = nextPow2(desiredCapacity)
-  private val idxMask: Long = (capacity - 1).toLong
+  private[this] val idxMask: Long = (capacity - 1).toLong
 
-  private val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
-  private val seq: AtomicLongArray = new AtomicLongArray(capacity)
+  private[this] val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
+  private[this] val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
 
-  // private val head: AtomicLong = new AtomicLong(0L)
-  // private val tail: AtomicLong = new AtomicLong(0L)
-  val head = HeadField.head
-  val tail = TailField.tail
+  private[this] val head = MutableQueueFieldsPadding.head
+  private[this] val tail = MutableQueueFieldsPadding.tail
 
-  private final val STATE_LOOP     = 0
-  private final val STATE_EMPTY    = -1
-  private final val STATE_FULL     = -2
-  private final val STATE_RESERVED = 1
+  private[this] final val STATE_LOOP     = 0
+  private[this] final val STATE_EMPTY    = -1
+  private[this] final val STATE_FULL     = -2
+  private[this] final val STATE_RESERVED = 1
 
-  override def size(): Int = (tail.get(this) - head.get(this)).toInt
+  override final def size(): Int = (tail.get(this) - head.get(this)).toInt
 
-  override def enqueuedCount(): Long = tail.get(this)
+  override final def enqueuedCount(): Long = tail.get(this)
 
-  override def dequeuedCount(): Long = head.get(this)
+  override final def dequeuedCount(): Long = head.get(this)
 
-  override def offer(a: A): Boolean = {
+  override final def offer(a: A): Boolean = {
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
@@ -199,7 +196,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends PadHeadTailFields[A] {
     }
   }
 
-  override def poll(default: A): A = {
+  override final def poll(default: A): A = {
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
@@ -289,9 +286,18 @@ class RingBuffer[A](val desiredCapacity: Int) extends PadHeadTailFields[A] {
     }
   }
 
-  override def isEmpty(): Boolean = tail.get(this) == head.get(this)
+  override final def isEmpty(): Boolean = tail.get(this) == head.get(this)
 
-  override def isFull(): Boolean = tail.get(this) == head.get(this) + capacity - 1
+  override final def isFull(): Boolean = tail.get(this) == head.get(this) + capacity
 
   private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
+
+  /*
+   * Used only once during queue creation. Doesn't need to be
+   * performant or anything.
+   */
+  private def nextPow2(n: Int): Int = {
+    val nextPow = (Math.log(n.toDouble) / Math.log(2.0)).ceil.toInt
+    Math.pow(2.0, nextPow.toDouble).toInt.max(2)
+  }
 }
