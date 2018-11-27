@@ -96,13 +96,26 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
  * better performance in some very specific situations.
  */
 class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[A] {
-  final val capacity: Int   = nextPow2(desiredCapacity)
+  final val capacity: Int         = nextPow2(desiredCapacity)
   private[this] val idxMask: Long = (capacity - 1).toLong
 
   private[this] val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
   private[this] val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
 
+  /*
+   * To ensure good performance reads/writes to `head` and `tail`
+   * fields need to be independant, e.g. they shouldn't fall on the
+   * same (adjacent) cache-line.
+   *
+   * We can make those counters regular volatile long fields and space
+   * them out, but we still need a way to do CAS on them. The only way
+   * to do this except `Unsafe` is to use [[AtomicLongFieldUpdater]],
+   * which is exactly what we have here.
+   *
+   * @see [[MutableQueueFieldsPadding]] for more details on padding
+   * and object's memory layout.
+   */
   private[this] val head = MutableQueueFieldsPadding.headUpdater
   private[this] val tail = MutableQueueFieldsPadding.tailUpdater
 

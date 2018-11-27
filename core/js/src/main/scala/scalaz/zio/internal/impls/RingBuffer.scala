@@ -4,12 +4,12 @@ import java.util.concurrent.atomic.{ AtomicLong, AtomicLongArray }
 import scalaz.zio.internal.MutableConcurrentQueue
 
 /**
-  * See [[coreJVM/scalaz.zio.internal.impls.RingBuffer]] for details
-  * on design, tradeoffs, etc.
-  *
-  * This is a scalajs-compatible version that uses [[AtomicLong]]
-  * `head` and `tail` counters instead of [[AtomicLongFieldUpdater]]
-  * since those are not supported by scala-js.
+ * See [[coreJVM/scalaz.zio.internal.impls.RingBuffer]] for details
+ * on design, tradeoffs, etc.
+ *
+ * This is a scalajs-compatible version that uses [[AtomicLong]]
+ * `head` and `tail` counters instead of [[AtomicLongFieldUpdater]]
+ * since those are not supported by scala-js.
  */
 class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] {
   final val capacity: Int         = nextPow2(desiredCapacity)
