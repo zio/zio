@@ -42,4 +42,3 @@ class RingBufferSpec extends Specification {
       .and(q.isEmpty must beTrue)
   }
 }
-
