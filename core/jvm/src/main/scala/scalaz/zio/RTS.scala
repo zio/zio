@@ -23,7 +23,7 @@ trait RTS {
   final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io).toEither.fold(throw _, identity)
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
-    val context = newFiberContext[E, A](defaultHandler)
+    val context = newFiberContext[E, A](Nil, defaultHandler)
     context.evaluate(io)
     context.runAsync(k)
   }
@@ -32,7 +32,7 @@ trait RTS {
    * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
    */
   final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] = {
-    val context = newFiberContext[E, A](defaultHandler)
+    val context = newFiberContext[E, A](Nil, defaultHandler)
     context.evaluate(io)
     context.await
   }
@@ -75,12 +75,14 @@ trait RTS {
    */
   val YieldMaxOpCount = 1024
 
-  private final def newFiberContext[E, A](handler: Cause[Any] => IO[Nothing, Unit]): FiberContext[E, A] = {
-    val nextFiberId = fiberCounter.incrementAndGet()
-    val context     = new FiberContext[E, A](this, nextFiberId, handler)
+  private final def newFiberContext[E, A](
+    ancestry: List[FiberId],
+    handler: Cause[Any] => IO[Nothing, Unit]
+  ): FiberContext[E, A] =
+    new FiberContext[E, A](this, nextFiberId(), ancestry, handler)
 
-    context
-  }
+  private final def nextFiberId(): Long =
+    fiberCounter.incrementAndGet()
 
   final def submit[A](block: => A): Unit = {
     threadPool.submit(new Runnable {
@@ -160,8 +162,12 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Any] => IO[Nothing, Unit])
-      extends Fiber[E, A] {
+  final class FiberContext[E, A](
+    rts: RTS,
+    val fiberId: FiberId,
+    val ancestry: List[FiberId],
+    val unhandled: Cause[Any] => IO[Nothing, Unit]
+  ) extends Fiber[E, A] {
     import java.util.{ Collections, Set, WeakHashMap }
     import FiberState._
     import rts.YieldMaxOpCount
@@ -497,13 +503,19 @@ private object RTS {
     }
 
     private final def getDescriptor: Fiber.Descriptor =
-      Fiber.Descriptor(fiberId, state.get.interrupted, ExecutionContext.fromExecutor(rts.threadPool), unhandled)
+      Fiber.Descriptor(
+        fiberId,
+        ancestry,
+        state.get.interrupted,
+        ExecutionContext.fromExecutor(rts.threadPool),
+        unhandled
+      )
 
     /**
      * Forks an `IO` with the specified failure handler.
      */
     final def fork[E, A](io: IO[E, A], handler: Cause[Any] => IO[Nothing, Unit]): FiberContext[E, A] = {
-      val context = rts.newFiberContext[E, A](handler)
+      val context = rts.newFiberContext[E, A](fiberId :: ancestry, handler)
 
       rts.submit(context.evaluate(io))
 

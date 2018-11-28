@@ -114,10 +114,16 @@ trait Fiber[+E, +A] { self =>
 object Fiber {
   final case class Descriptor(
     id: FiberId,
+    ancestry: List[FiberId],
     interrupted: Boolean,
     executor: ExecutionContext,
     supervisor: ExitResult.Cause[Nothing] => IO[Nothing, Unit]
-  )
+  ) {
+
+    def rootFiberId: FiberId =
+      ancestry.lastOption.getOrElse(id)
+
+  }
 
   final val unit: Fiber[Nothing, Unit] = Fiber.point(())
 

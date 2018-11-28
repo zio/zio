@@ -93,6 +93,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     reduceAll                               $testReduceAll
     reduceAll Empty List                    $testReduceAllEmpty
     timeout of failure                      $testTimeoutFailure
+    fork ancestry                           $testForkAncestry
 
   RTS regression tests
     deadlock regression 1                   $testDeadlockRegression
@@ -716,6 +717,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(
       IO.fail("Uh oh").timeout(1.hour)
     ) must (throwA[FiberFailure])
+
+  def testForkAncestry =
+    unsafeRun(
+      for {
+        r <- IO.descriptor
+        f <- IO.descriptor.fork
+        s <- f.join
+      } yield List(r.id) == s.ancestry
+    ) must_=== true
 
   def testDeadlockRegression = {
 
