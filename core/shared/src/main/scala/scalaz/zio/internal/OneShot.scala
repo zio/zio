@@ -5,14 +5,15 @@ package scalaz.zio.internal
  * A variable that can be set a single time. The synchronous,
  * effectful equivalent of `Promise`.
  */
-private[zio] class OneShot[A <: AnyRef] private (@volatile var value: A) {
+private[zio] class OneShot[A] private (@volatile var value: A) {
+
   /**
    * Sets the variable to the value. The behavior of this function
    * is undefined if the variable has already been set.
    */
   final def set(v: A): Unit =
     this.synchronized {
-      if (!(value eq null)) throw new Error("Defect: OneShot being set twice")
+      if (value != null) throw new Error("Defect: OneShot being set twice")
 
       value = v
 
@@ -23,9 +24,9 @@ private[zio] class OneShot[A <: AnyRef] private (@volatile var value: A) {
    * Retrieves the value of the variable, blocking if necessary.
    */
   final def get: A = {
-    while (value eq null) {
+    while (value == null) {
       this.synchronized {
-        if (value eq null) this.wait()
+        if (value == null) this.wait()
       }
     }
 
@@ -34,8 +35,9 @@ private[zio] class OneShot[A <: AnyRef] private (@volatile var value: A) {
 }
 
 object OneShot {
+
   /**
    * Makes a new (unset) variable.
    */
-  final def make[A <: AnyRef]: OneShot[A] = new OneShot(null.asInstanceOf[A])
+  final def make[A]: OneShot[A] = new OneShot(null.asInstanceOf[A])
 }
