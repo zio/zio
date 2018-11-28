@@ -12,13 +12,15 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
    * is undefined if the variable has already been set.
    */
   final def set(v: A): Unit =
-    this.synchronized {
-      if (value != null) throw new Error("Defect: OneShot being set twice")
+    if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
 
-      value = v
+  this.synchronized {
+    if (value != null) throw new Error("Defect: OneShot variable being set twice")
 
-      this.notifyAll()
-    }
+    value = v
+
+    this.notifyAll()
+  }
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
