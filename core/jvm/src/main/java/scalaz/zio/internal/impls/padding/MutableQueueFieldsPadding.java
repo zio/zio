@@ -42,30 +42,32 @@ import scalaz.zio.internal.MutableConcurrentQueue;
  * (truncated):
  *
  * scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
- * OFFSET  SIZE   TYPE DESCRIPTION
- *      0    12        (object header)
- *     12     4    int ClassFieldsPadding.p000
- *     16     8   long ClassFieldsPadding.p002
- *    ........................................
- *    120     8   long ClassFieldsPadding.p015
- *    128     8   long HeadPadding.headCounter
- *    136     8   long PreTailPadding.p100
- *    144     8   long PreTailPadding.p102
- *    ...................................
- *    248     8   long PreTailPadding.p115
- *    256     8   long TailPadding.tailCounter
- *    264     8   long MutableQueueFieldsPadding.p200
- *    272     8   long MutableQueueFieldsPadding.p202
- *    ...............................................
- *    376     8   long MutableQueueFieldsPadding.p215
- * Instance size: 384 bytes
- * Space losses: 0 bytes internal + 0 bytes external = 0 bytes total
+ *  OFFSET  SIZE   TYPE DESCRIPTION
+ *       0    12        (object header)
+ *      12     4        (alignment/padding gap)
+ *      16     8   long ClassFieldsPadding.p000
+ *      24     8   long ClassFieldsPadding.p001
+ *     ........................................
+ *     136     8   long ClassFieldsPadding.p015
+ *     144     8   long HeadPadding.headCounter
+ *     152     8   long PreTailPadding.p100
+ *     160     8   long PreTailPadding.p101
+ *     ....................................
+ *     272     8   long PreTailPadding.p115
+ *     280     8   long TailPadding.tailCounter
+ *     288     8   long MutableQueueFieldsPadding.p200
+ *     296     8   long MutableQueueFieldsPadding.p201
+ *     ...............................................
+ *     408     8   long MutableQueueFieldsPadding.p215
+ * Instance size: 416 bytes
+ * Space losses: 4 bytes internal + 0 bytes external = 4 bytes total
  */
 public abstract class MutableQueueFieldsPadding<A> extends TailPadding<A> {
     public static final AtomicLongFieldUpdater<HeadPadding> headUpdater = AtomicLongFieldUpdater.newUpdater(HeadPadding.class, "headCounter");
     public static final AtomicLongFieldUpdater<TailPadding> tailUpdater = AtomicLongFieldUpdater.newUpdater(TailPadding.class, "tailCounter");
 
     protected long p200;
+    protected long p201;
     protected long p202;
     protected long p203;
     protected long p204;
@@ -85,7 +87,8 @@ public abstract class MutableQueueFieldsPadding<A> extends TailPadding<A> {
 // Aux classes below
 
 abstract class ClassFieldsPadding<A> extends MutableConcurrentQueue<A> {
-    protected int p000;
+    protected long p000;
+    protected long p001;
     protected long p002;
     protected long p003;
     protected long p004;
@@ -108,6 +111,7 @@ abstract class HeadPadding<A> extends ClassFieldsPadding<A> {
 
 abstract class PreTailPadding<A> extends HeadPadding<A> {
     protected long p100;
+    protected long p101;
     protected long p102;
     protected long p103;
     protected long p104;
