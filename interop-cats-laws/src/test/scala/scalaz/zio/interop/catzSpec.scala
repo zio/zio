@@ -18,26 +18,29 @@ import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
 import cats.laws._
 
-import scala.concurrent.ExecutionContext.global
-
 trait ConcurrentLawsIO extends ConcurrentLaws[Task] {
+
+  // FIXME: lock on "racePair cancels loser" on 33rd iteration
 
   // FIXME: Very frequent freezes [same as above?]
   // FIXME: random freezes on "async cancelable receives cancel signal"
-  override def asyncCancelableReceivesCancelSignal[A](a: A) = {
-    val lh = for {
-      release <- scalaz.zio.Promise.make[Nothing, A]
-      latch    = scala.concurrent.Promise[Unit]()
-      async    = IO.async0[Nothing, Unit] { _ => latch.success(()); Async.maybeLater(release.complete(a).void) }
-      fiber   <- async.fork
-      _       <- F.liftIO(cats.effect.IO.fromFuture(cats.effect.IO.pure(latch.future)))
+//  override def asyncCancelableReceivesCancelSignal[A](a: A) = {
+//    val lh = for {
+//      release <- scalaz.zio.Promise.make[Nothing, A]
+//      latch    = scala.concurrent.Promise[Unit]()
+//      async    = IO.async0[Nothing, Unit] { _ => latch.success(()); Async.maybeLater(release.complete(a).void) }
+//      fiber   <- async.fork
 //      _       <- Task.fromFuture(Task(latch.future))(global)
-      _       <- fiber.interrupt.fork
-      result  <- release.get
-    } yield result
+//      _       <- fiber.interrupt.fork
+//      result  <- release.get
+//    } yield result
+//
+//    lh <-> F.pure(a)
+//  }
 
-    lh <-> F.pure(a)
-  }
+  // FIXME: Occasional freezes
+//  override def asyncFRegisterCanBeCancelled[A](a: A) =
+//    F.pure(a) <-> F.pure(a)
 
   // FIXME: random freezes on "bracket release is called on cancel" -
   //  no "release running" msg after interrupt (though there was "use running")
@@ -129,7 +132,12 @@ class catzSpec
   }
 
 //  checkAllAsync("ConcurrentEffect[Task]", implicit e => ConcurrentEffectTestsIO().concurrentEffect[Int, Int, Int])
-  checkAllAsync("Concurrent[Task]", (_) => ConcurrentTestsIO().concurrent[Int, Int, Int])
+  (1 to 50).foreach { s =>
+    checkAllAsync(s"Concurrent[Task]$s", (_) => ConcurrentTestsIO().concurrent[Int, Int, Int])
+  }
+//  (1 to 50).map { s =>
+//    checkAllAsync(s"Effect[Task]$s", implicit e => EffectTests[Task].effect[Int, Int, Int])
+//  }
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
   checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
