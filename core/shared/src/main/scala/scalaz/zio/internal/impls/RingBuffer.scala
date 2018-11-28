@@ -288,7 +288,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
 
   override final def isEmpty(): Boolean = tail.get() == head.get()
 
-  override final def isFull(): Boolean = tail.get() == head.get() + capacity - 1
+  override final def isFull(): Boolean = tail.get() == head.get() + capacity
 
   private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
 
