@@ -150,8 +150,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
         fiberB.cancel.const(Left(a)).peek(_ => Task(System.out println "race: won A"))
       case Right((fiberA, b)) =>
         fiberA.cancel.const(Right(b)).peek(_ => Task(System.out println "race: won B"))
-    }.supervised
-      .catchAll(Task(System.out println "race: failed, got exception") *> IO.fail(_))
+    }.catchAll(e => Task(System.out println s"race: failed, got exception ${e.getMessage} ${stackTrace(e)}") *> IO.fail(e))
 
   override def start[A](fa: Task[A]): Task[effect.Fiber[Task, A]] =
     fa.fork.map(toFiber).peek(_ => Task(System.out println "start ran"))
@@ -160,28 +159,18 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     fa: Task[A],
     fb: Task[B]
   ): Task[Either[(A, effect.Fiber[Task, B]), (effect.Fiber[Task, A], B)]] =
-    Ref(false).flatMap { finished =>
-      (fa.sandboxWith(_.attempt) raceWith fb.sandboxWith(_.attempt))(
-        {
-          case (l, f) =>
-            finished.set(true) *>
-              fromEitherCancelOnError(l, f).map(lv => Left((lv, unsandboxFiber(f))))
-        }, {
-          case (r, f) =>
-            finished.set(true) *>
-              fromEitherCancelOnError(r, f).map(rv => Right((unsandboxFiber(f), rv)))
-        }
-      ).supervised { fibers =>
-        for {
-          finished <- finished.get
-          _ <- IO.sync(
-                System.out println s"On race interrupt, race got child fibers: ${fibers.size}, notCancel=$finished"
-              )
-          _ <- IO.when(!finished)(Fiber.interruptAll(fibers))
-          _ <- IO.sync(System.out println s"On race interrupt, TERMINATE FINISHED")
-        } yield ()
-      }
-    }
+    (fa.sandboxed.attempt raceWith fb.sandboxed.attempt)(
+      { case (l, f) => fromEitherCancelOnError(l, f).map(lv => Left((lv, unsandboxFiber(f)))) },
+      { case (r, f) => fromEitherCancelOnError(r, f).map(rv => Right((unsandboxFiber(f), rv))) }
+    ).catchAll(e => Task(System.out println s"racePair: failed, got exception ${e.getMessage} ${stackTrace(e)}") *> IO.fail(e))
+
+  private[this] def stackTrace(t: Throwable): String = {
+    import java.io.{PrintWriter, StringWriter}
+    val sw = new StringWriter
+    val pw = new PrintWriter(sw)
+    t.printStackTrace(pw)
+    sw.toString
+  }
 
   private def unsandboxFiber[E, A](f: Fiber[Nothing, Either[Cause[E], A]]): effect.Fiber[IO[E, ?], A] =
     toFiberFlatMapped[Nothing, E, Either[Cause[E], A], A](f, res => IO.unsandbox(IO.fromEither(res)))
@@ -192,7 +181,8 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
   ): IO[E, A] =
     res match {
       case Failed(e) =>
-        other.interrupt *> IO.fail0(e)
+        IO.sync(System.out println s"Suspicious state in fromEitherCancelOnError $res") *>
+          other.interrupt *> IO.fail0(e)
       case Succeeded(Left(e)) =>
         other.interrupt *> IO.fail0(e)
       case Succeeded(Right(v)) =>
