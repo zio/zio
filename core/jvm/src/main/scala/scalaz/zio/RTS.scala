@@ -195,7 +195,7 @@ private object RTS {
 
       register(result.set(_)) match {
         case Async.Now(v) => result.set(v)
-        case _ =>
+        case _            =>
       }
 
       result.get
@@ -569,7 +569,7 @@ private object RTS {
     @tailrec
     final def enterAsync(): OneShot[Canceler] = {
       val oldState = state.get
-      val cancel = OneShot.make[Canceler]
+      val cancel   = OneShot.make[Canceler]
 
       oldState match {
         case Executing(interrupted, _, observers) =>
@@ -721,7 +721,7 @@ private object RTS {
   }
   sealed abstract class FiberStatus extends Serializable with Product
   object FiberStatus {
-    final case object Running extends FiberStatus
+    final case object Running                                      extends FiberStatus
     final case class Suspended(cancel: OneShot[IO[Nothing, Unit]]) extends FiberStatus
   }
 
