@@ -9,11 +9,12 @@ import scalaz.zio.internal.MutableConcurrentQueue
 /**
  *  A `Queue[A]` is a lightweight, asynchronous queue for values of type `A`.
  */
-class Queue[A] private (queue: MutableConcurrentQueue[A],
-                        takers: MutableConcurrentQueue[Promise[Nothing, A]],
-                        shutdownHook: Ref[Option[IO[Nothing, Unit]]],
-                        strategy: Strategy[A])
-    extends Serializable {
+class Queue[A] private (
+  queue: MutableConcurrentQueue[A],
+  takers: MutableConcurrentQueue[Promise[Nothing, A]],
+  shutdownHook: Ref[Option[IO[Nothing, Unit]]],
+  strategy: Strategy[A]
+) extends Serializable {
 
   private final val checkShutdownState: IO[Nothing, Unit] =
     shutdownHook.get.flatMap(_.fold[IO[Nothing, Unit]](IO.interrupt)(_ => IO.unit))
