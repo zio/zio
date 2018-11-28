@@ -79,6 +79,36 @@ trait ConcurrentLawsIO extends ConcurrentLaws[Task] {
 //    received <-> F.pure(f(a, a))
 //  }
 
+  override def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) = {
+    val received = for {
+      // A deferred that waits for `use` to get executed
+      startLatch <- Promise.make[Nothing, A]
+      // A deferred that waits for `release` to be executed
+      exitLatch <- Promise.make[Nothing, A]
+      // What we're actually testing
+      bracketed = IO.now(a).bracket0[Nothing, Unit] {
+        case (r, e) if e.interrupted => exitLatch.complete(r) *> IO.sync(println("exitLatch filled"))
+        case x@(_, _) =>
+          val msg = s"Unexpected combination $x"
+          System.out println msg
+          throw new Exception(msg)
+      }(a => startLatch.complete(a) *> IO.never)
+      // Forked execution, allowing us to cancel it later
+      fiber <- bracketed.fork
+      // Waits for the `use` action to execute
+      _ <- IO.sync(System.out println "STARTING start get")
+      waitStart <- startLatch.get
+      // Triggers cancellation
+      _ <- IO.sync(System.out println "STARTING cancel")
+      _ <- fiber.interrupt.fork
+      // Observes cancellation via bracket's `release`
+      _ <- IO.sync(System.out println "STARTING final get")
+      waitExit <- exitLatch.get
+    } yield f(waitStart, waitExit)
+
+    (received: Task[B]) <-> IO.now(f(a, a))
+  }
+
 }
 
 object ConcurrentTestsIO {
