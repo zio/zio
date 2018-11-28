@@ -1,6 +1,7 @@
 ---
-layout: docs
-section: usage
+layout: page
+position: 3
+section: home
 title:  "FiberLocal"
 ---
 
