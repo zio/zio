@@ -339,23 +339,23 @@ object Queue {
    * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
    * until there is more room in the queue.
    */
-  final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](capacity), BackPressure())
+  final def bounded[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), BackPressure())
 
   /**
    * Makes a new bounded queue with sliding strategy.
    * When the capacity of the queue is reached, new elements will be added and the old elements
    * will be dropped.
    */
-  final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](capacity), Sliding())
+  final def sliding[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Sliding())
 
   /**
    * Makes a new bounded queue with the dropping strategy.
    * When the capacity of the queue is reached, new elements will be dropped.
    */
-  final def dropping[A](capacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](capacity), Dropping())
+  final def dropping[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Dropping())
 
   /**
    * Makes a new unbounded queue.
