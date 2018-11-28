@@ -95,7 +95,7 @@ import scalaz.zio.internal.MutableConcurrentQueue
  * a way yet). This translates into worse performance on average, and
  * better performance in some very specific situations.
  */
-class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] {
+class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] with Serializable {
   final val capacity: Int         = nextPow2(desiredCapacity)
   private[this] val idxMask: Long = (capacity - 1).toLong
 
