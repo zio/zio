@@ -7,6 +7,7 @@ import scala.annotation.{ switch, tailrec }
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 import scalaz.zio.ExitResult.Cause
+import scalaz.zio.internal.OneShot
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -190,24 +191,11 @@ private object RTS {
      * Awaits for the result of the fiber to be computed.
      */
     final def await: ExitResult[E, A] = {
-      val result = new AtomicReference[ExitResult[E, A]](null)
+      val result = OneShot.make[ExitResult[E, A]]
 
-      register { (r: ExitResult[E, A]) =>
-        result.synchronized {
-          result.set(r)
-
-          result.notifyAll()
-        }
-      } match {
-        case Async.Now(v) =>
-          result.set(v)
-
+      register(result.set(_)) match {
+        case Async.Now(v) => result.set(v)
         case _ =>
-          while (result.get eq null) {
-            result.synchronized {
-              if (result.get eq null) result.wait()
-            }
-          }
       }
 
       result.get
@@ -373,7 +361,7 @@ private object RTS {
                   case IO.Tags.AsyncEffect =>
                     val io = curIo.asInstanceOf[IO.AsyncEffect[E, Any]]
 
-                    val oldState = enterAsync()
+                    val cancel = enterAsync()
 
                     io.register(resumeAsync) match {
                       case Async.Now(value) =>
@@ -385,9 +373,9 @@ private object RTS {
                           curIo = null
                         }
 
-                      case Async.MaybeLater(cancel) =>
+                      case Async.MaybeLater(cancel0) =>
                         // Store the canceler:
-                        setCanceler(oldState, cancel)
+                        cancel.set(cancel0)
 
                         curIo = null
                     }
@@ -579,33 +567,27 @@ private object RTS {
       }
 
     @tailrec
-    final def enterAsync(): FiberState[E, A] = {
+    final def enterAsync(): OneShot[Canceler] = {
       val oldState = state.get
+      val cancel = OneShot.make[Canceler]
 
       oldState match {
         case Executing(interrupted, _, observers) =>
-          val newState = Executing(interrupted, FiberStatus.Suspended(None), observers)
+          val newState = Executing(interrupted, FiberStatus.Suspended(cancel), observers)
 
           if (!state.compareAndSet(oldState, newState)) enterAsync()
-          else newState
+          else cancel
 
         case _ => throw new Error("Entering async but already done!")
       }
     }
-
-    final def setCanceler(oldState: FiberState[E, A], cancel: Canceler): Unit =
-      oldState match {
-        case Executing(interrupted, _, observers) =>
-          val _ = state.compareAndSet(oldState, Executing(interrupted, FiberStatus.Suspended(Some(cancel)), observers))
-        case _ =>
-      }
 
     @tailrec
     final def shouldResumeAsync(): Boolean = {
       val oldState = state.get
 
       oldState match {
-        case Executing(interrupted, status, observers) if status.suspended =>
+        case Executing(interrupted, FiberStatus.Suspended(_), observers) =>
           if (!state.compareAndSet(oldState, Executing(interrupted, FiberStatus.Running, observers)))
             shouldResumeAsync()
           else true
@@ -677,7 +659,7 @@ private object RTS {
       val oldState = state.get
 
       oldState match {
-        case Executing(_, status, observers0) if status.suspended && noInterrupt == 0 =>
+        case Executing(_, FiberStatus.Suspended(cancel), observers0) if noInterrupt == 0 =>
           val observers = makeInterruptObserver(k) :: observers0
 
           if (!state.compareAndSet(oldState, Executing(true, FiberStatus.Running, observers))) kill0(k)
@@ -687,9 +669,7 @@ private object RTS {
             // Interruption may not be interrupted:
             noInterrupt += 1
 
-            val cancel = status.cancel.getOrElse(IO.unit)
-
-            rts.submit(evaluate(cancel *> IO.interrupt))
+            rts.submit(evaluate(cancel.get *> IO.interrupt))
 
             Async.later
           }
@@ -739,21 +719,13 @@ private object RTS {
       observers.reverse.foreach(k => rts.submit(k(result)))
     }
   }
-  sealed abstract class FiberStatus extends Serializable with Product {
-    final def suspended: Boolean = this match {
-      case FiberStatus.Running      => false
-      case FiberStatus.Suspended(_) => true
-    }
-    def cancel: Option[Canceler]
-  }
+  sealed abstract class FiberStatus extends Serializable with Product
   object FiberStatus {
-    final case object Running extends FiberStatus {
-      final def cancel: Option[Canceler] = None
-    }
-    final case class Suspended(cancel: Option[IO[Nothing, Unit]]) extends FiberStatus
+    final case object Running extends FiberStatus
+    final case class Suspended(cancel: OneShot[IO[Nothing, Unit]]) extends FiberStatus
   }
 
-  sealed abstract class FiberState[E, A] extends Serializable with Product {
+  sealed abstract class FiberState[+E, +A] extends Serializable with Product {
 
     /** indicates if the fiber was interrupted */
     def interrupted: Boolean
