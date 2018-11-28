@@ -20,10 +20,6 @@ import cats.laws._
 
 trait ConcurrentLawsIO extends ConcurrentLaws[Task] {
 
-  // FIXME: Not implemented yet
-  override def asyncFRegisterCanBeCancelled[A](a: A) =
-    F.pure(a) <-> F.pure(a)
-
   // FIXME: Very frequent freezes [same as above?]
   // FIXME: random freezes on "async cancelable receives cancel signal"
 //  override def asyncCancelableReceivesCancelSignal[A](a: A) =
