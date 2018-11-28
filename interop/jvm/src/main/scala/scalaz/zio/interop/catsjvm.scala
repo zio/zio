@@ -112,6 +112,9 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     override val join: Task[A] = f.join
   }
 
+  override def liftIO[A](ioa: cats.effect.IO[A]): Task[A] =
+    Concurrent.liftIO(ioa)(this)
+
   private[this] def toFiberFlatMapped[E1, E >: E1, A, B](
     f: Fiber[E1, A],
     flatMap: A => IO[E, B]
@@ -267,10 +270,6 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       Task(System.out println "use running") *>
         use(a)
           .peek(_ => Task(System.out println "use ran"))
-    // FIXME: uncommenting one of these two lines breaks 'race cancels both' or 'race cancels loser' tests
-
-//          .catchAll(IO.fail)
-//          .run.flatMap(r => Task(System.out println s"use ran with $r") *> r.fold(IO.now, IO.fail0))
     }
 
   override def bracketCase[A, B](
@@ -288,8 +287,6 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       Task(System.out println "use running") *>
         use(a)
           .peek(_ => Task(System.out println "use ran"))
-//          .catchAll(IO.fail)
-//          .run.flatMap(r => Task(System.out println s"use ran with $r") *> r.fold(IO.now, IO.fail0))
     }
 
   override def uncancelable[A](fa: Task[A]): Task[A] =
