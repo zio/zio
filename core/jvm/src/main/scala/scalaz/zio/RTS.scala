@@ -509,7 +509,7 @@ private object RTS {
     private[this] final val resumeAsync: ExitResult[E, Any] => Unit =
       value => if (shouldResumeAsync()) resumeEvaluate(value)
 
-    final def interrupt: IO[Nothing, Unit] = IO.async0(kill0(_))
+    final def interrupt: IO[Nothing, Unit] = IO.async0[Nothing, Unit](kill0(_))
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
