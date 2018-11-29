@@ -2,6 +2,7 @@ package scalaz.zio.internal.impls
 
 import java.util.concurrent.atomic.AtomicLongArray
 import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
+import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
 
 /**
  * A lock-free array based bounded queue. It is thread-safe and can be
@@ -68,6 +69,18 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
  * be made to work with arbitrary sizes but the user will have to
  * suffer ~20% performance loss.
  *
+ * To ensure good performance reads/writes to `head` and `tail`
+ * fields need to be independant, e.g. they shouldn't fall on the
+ * same (adjacent) cache-line.
+ *
+ * We can make those counters regular volatile long fields and space
+ * them out, but we still need a way to do CAS on them. The only way
+ * to do this except `Unsafe` is to use [[AtomicLongFieldUpdater]],
+ * which is exactly what we have here.
+ *
+ * @see [[MutableQueueFieldsPadding]] for more details on padding
+ * and object's memory layout.
+ *
  * The design is heavily inspired by such libraries as
  * [[https://github.com/LMAX-Exchange/disruptor]] and
  * [[https://github.com/JCTools/JCTools]] which is based off
@@ -95,7 +108,7 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
  * a way yet). This translates into worse performance on average, and
  * better performance in some very specific situations.
  */
-class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[A] {
+class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[A] with Serializable {
   final val capacity: Int         = nextPow2(desiredCapacity)
   private[this] val idxMask: Long = (capacity - 1).toLong
 
@@ -103,32 +116,16 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
   private[this] val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
 
-  /*
-   * To ensure good performance reads/writes to `head` and `tail`
-   * fields need to be independant, e.g. they shouldn't fall on the
-   * same (adjacent) cache-line.
-   *
-   * We can make those counters regular volatile long fields and space
-   * them out, but we still need a way to do CAS on them. The only way
-   * to do this except `Unsafe` is to use [[AtomicLongFieldUpdater]],
-   * which is exactly what we have here.
-   *
-   * @see [[MutableQueueFieldsPadding]] for more details on padding
-   * and object's memory layout.
-   */
-  private[this] val head = MutableQueueFieldsPadding.headUpdater
-  private[this] val tail = MutableQueueFieldsPadding.tailUpdater
-
   private[this] final val STATE_LOOP     = 0
   private[this] final val STATE_EMPTY    = -1
   private[this] final val STATE_FULL     = -2
   private[this] final val STATE_RESERVED = 1
 
-  override final def size(): Int = (tail.get(this) - head.get(this)).toInt
+  override final def size(): Int = (tailUpdater.get(this) - headUpdater.get(this)).toInt
 
-  override final def enqueuedCount(): Long = tail.get(this)
+  override final def enqueuedCount(): Long = tailUpdater.get(this)
 
-  override final def dequeuedCount(): Long = head.get(this)
+  override final def dequeuedCount(): Long = headUpdater.get(this)
 
   override final def offer(a: A): Boolean = {
     // Loading all instance fields locally. Otherwise JVM will reload
@@ -139,10 +136,10 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
     val aSeq   = seq
     var curSeq = 0L
 
-    val aHead   = head
+    val aHead   = headUpdater
     var curHead = 0L
 
-    val aTail   = tail
+    val aTail   = tailUpdater
     var curTail = aTail.get(this)
     var curIdx  = 0
 
@@ -218,11 +215,11 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
     val aSeq   = seq
     var curSeq = 0L
 
-    val aHead   = head
+    val aHead   = headUpdater
     var curHead = aHead.get(this)
     var curIdx  = 0
 
-    val aTail   = tail
+    val aTail   = tailUpdater
     var curTail = 0L
 
     var state = STATE_LOOP
@@ -298,9 +295,9 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
     }
   }
 
-  override final def isEmpty(): Boolean = tail.get(this) == head.get(this)
+  override final def isEmpty(): Boolean = tailUpdater.get(this) == headUpdater.get(this)
 
-  override final def isFull(): Boolean = tail.get(this) == head.get(this) + capacity
+  override final def isFull(): Boolean = tailUpdater.get(this) == headUpdater.get(this) + capacity
 
   private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
 

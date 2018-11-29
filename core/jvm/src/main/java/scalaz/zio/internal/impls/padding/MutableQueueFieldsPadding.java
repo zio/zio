@@ -1,5 +1,6 @@
 package scalaz.zio.internal.impls.padding;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import scalaz.zio.internal.MutableConcurrentQueue;
@@ -62,7 +63,7 @@ import scalaz.zio.internal.MutableConcurrentQueue;
  * Instance size: 416 bytes
  * Space losses: 4 bytes internal + 0 bytes external = 4 bytes total
  */
-public abstract class MutableQueueFieldsPadding<A> extends TailPadding<A> {
+public abstract class MutableQueueFieldsPadding<A> extends TailPadding<A> implements Serializable {
     public static final AtomicLongFieldUpdater<HeadPadding> headUpdater = AtomicLongFieldUpdater.newUpdater(HeadPadding.class, "headCounter");
     public static final AtomicLongFieldUpdater<TailPadding> tailUpdater = AtomicLongFieldUpdater.newUpdater(TailPadding.class, "tailCounter");
 
@@ -86,7 +87,7 @@ public abstract class MutableQueueFieldsPadding<A> extends TailPadding<A> {
 
 // Aux classes below
 
-abstract class ClassFieldsPadding<A> extends MutableConcurrentQueue<A> {
+abstract class ClassFieldsPadding<A> extends MutableConcurrentQueue<A> implements Serializable {
     protected long p000;
     protected long p001;
     protected long p002;
@@ -105,11 +106,11 @@ abstract class ClassFieldsPadding<A> extends MutableConcurrentQueue<A> {
     protected long p015;
 }
 
-abstract class HeadPadding<A> extends ClassFieldsPadding<A> {
+abstract class HeadPadding<A> extends ClassFieldsPadding<A> implements Serializable {
     protected volatile long headCounter;
 }
 
-abstract class PreTailPadding<A> extends HeadPadding<A> {
+abstract class PreTailPadding<A> extends HeadPadding<A> implements Serializable {
     protected long p100;
     protected long p101;
     protected long p102;
@@ -128,6 +129,6 @@ abstract class PreTailPadding<A> extends HeadPadding<A> {
     protected long p115;
 }
 
-abstract class TailPadding<A> extends PreTailPadding<A> {
+abstract class TailPadding<A> extends PreTailPadding<A> implements Serializable {
     protected volatile long tailCounter;
 }
