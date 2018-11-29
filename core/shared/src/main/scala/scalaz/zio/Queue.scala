@@ -52,7 +52,7 @@ class Queue[A] private (
   private final def completeTakers(poll: IO[Nothing, Option[(Promise[Nothing, A], A)]]): IO[Nothing, Unit] =
     poll.flatMap {
       case None          => IO.unit
-      case Some((p2, a)) => p2.complete(a).void *> strategy.onQueueEmptySpace(queue) *> completeTakers(poll)
+      case Some((p2, a)) => p2.complete(a) *> strategy.onQueueEmptySpace(queue) *> completeTakers(poll)
     }
 
   private final def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] = IO.sync(unsafeRemove(takers, taker))
