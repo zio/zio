@@ -112,6 +112,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
     finalizer can detect interruption       $testFinalizerCanDetectInterruption
     interruption of raced                   $testInterruptedOfRaceInterruptsContestents
+    cancelation is guaranteed               $testCancelationIsGuaranteed
   """
 
   def testPoint =
@@ -586,15 +587,32 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testInterruptedOfRaceInterruptsContestents = {
     val io = for {
       ref   <- Ref(0)
-      cont  <- Promise.make[Nothing, Unit]
-      io    = (cont.complete(()) *> IO.never).onInterrupt(ref.update(_ + 1).void)
-      raced <- (io race io).fork
-      _     <- cont.get
+      cont1 <- Promise.make[Nothing, Unit]
+      cont2 <- Promise.make[Nothing, Unit]
+      make  = (p: Promise[Nothing, Unit]) => (p.complete(()) *> IO.never).onInterrupt(ref.update(_ + 1).void)
+      raced <- (make(cont1) race (make(cont2))).fork
+      _     <- cont1.get *> cont2.get
       _     <- raced.interrupt
       count <- ref.get
     } yield count
 
     unsafeRun(io) must_=== 2
+  }
+
+  def testCancelationIsGuaranteed = {
+    val io = for {
+      release <- scalaz.zio.Promise.make[Nothing, Int]
+      latch   = internal.OneShot.make[Unit]
+      async = IO.async0[Nothing, Unit] { _ =>
+        latch.set(()); Async.maybeLater(release.complete(42).void)
+      }
+      fiber  <- async.fork
+      _      <- IO.sync(latch.get)
+      _      <- fiber.interrupt.fork
+      result <- release.get
+    } yield result
+
+    unsafeRun(io) must_=== 42
   }
 
   def testAsyncPureIsInterruptible = {
