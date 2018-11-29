@@ -48,6 +48,9 @@ class RingBufferSpec extends Specification {
     val q = MutableConcurrentQueue.bounded[Int](2)
     q.offer(1)
     val returnQ = serializeAndDeserialize(q)
-    returnQ.poll(-1) must_=== 1
+    returnQ.offer(2)
+    (returnQ.poll(-1) must_=== 1)
+      .and(returnQ.poll(-1) must_=== 2)
+      .and(returnQ.poll(-1) must_=== -1)
   }
 }
