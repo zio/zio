@@ -24,6 +24,11 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
   }
 
   /**
+   * Determines if the variable has been set.
+   */
+  final def isSet: Boolean = value != null
+
+  /**
    * Retrieves the value of the variable, blocking if necessary.
    */
   final def get: A = {
