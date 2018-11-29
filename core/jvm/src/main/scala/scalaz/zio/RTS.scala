@@ -20,7 +20,8 @@ trait RTS {
    * Effectfully and synchronously interprets an `IO[E, A]`, either throwing an
    * error, running forever, or producing an `A`.
    */
-  final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io).toEither.fold(throw _, identity)
+  final def unsafeRun[E, A](io: IO[E, A]): A =
+    unsafeRunSync(io).fold[A](c => throw FiberFailure(c), identity _)
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
     val context = newFiberContext[E, A](defaultHandler)
@@ -348,7 +349,7 @@ private object RTS {
                     // Enter suspended state:
                     val cancel = enterAsync()
 
-                    if (cancel != null) {
+                    if (!(cancel eq null)) {
                       // It's possible we were interrupted prior to entering
                       // suspended state. So we have to check that condition,
                       // and if so, do not initiate the async effect (because
@@ -419,9 +420,7 @@ private object RTS {
                         // No finalizer, so immediately produce the error.
                         curIo = null
 
-                        val cause = if (state.get.interrupted) io.cause ++ Cause.interrupted else io.cause
-
-                        done(ExitResult.failed(cause))
+                        done(ExitResult.failed(io.cause))
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -430,11 +429,12 @@ private object RTS {
                         )
                       }
                     } else {
-                      // Error caught:
+                      // Error caught, next continuation on the stack will deal
+                      // with it, so we just have to compute it here:
                       if (finalizer eq null) {
                         curIo = nextInstr(io.cause)
                       } else {
-                        curIo = doNotInterrupt(finalizer).map(cause => cause.foldLeft(io.cause)(_ ++ _))
+                        curIo = doNotInterrupt(finalizer).map(_.foldLeft(io.cause)(_ ++ _))
                       }
                     }
 
@@ -509,7 +509,7 @@ private object RTS {
     private[this] final val resumeAsync: ExitResult[E, Any] => Unit =
       value => if (shouldResumeAsync()) resumeEvaluate(value)
 
-    final def interrupt: IO[Nothing, Unit] = IO.async0[Nothing, Unit](kill0(_))
+    final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]](kill0(_))
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
@@ -605,11 +605,9 @@ private object RTS {
       io.ensuring(exitUninterruptible)
     }
 
-    private[this] final def register(cb: Callback[E, A]): Async[E, A] =
-      observe0 {
-        case ExitResult.Succeeded(r)  => cb(r)
-        case ExitResult.Failed(cause) => cb(ExitResult.failed(cause))
-      }.fold(ExitResult.failed(_), identity)
+    private[this] final def register(k: Callback[E, A]): Async[E, A] =
+      observe0(x => k(ExitResult.flatten(x)))
+        .fold(ExitResult.failed(_), identity)
 
     @tailrec
     private[this] final def done(v: ExitResult[E, A]): Unit = {
@@ -632,17 +630,14 @@ private object RTS {
       case _                        =>
     }
 
-    private[this] final def makeInterruptObserver(k: Callback[Nothing, Unit]): Callback[Nothing, ExitResult[E, A]] =
-      _ => k(SuccessUnit)
-
     @tailrec
-    private[this] final def kill0(k: Callback[Nothing, Unit]): Async[Nothing, Unit] = {
+    private[this] final def kill0(k: Callback[Nothing, ExitResult[E, A]]): Async[Nothing, ExitResult[E, A]] = {
 
       val oldState = state.get
 
       oldState match {
         case Executing(_, FiberStatus.Suspended(cancel), observers0) if noInterrupt == 0 =>
-          val observers = makeInterruptObserver(k) :: observers0
+          val observers = k :: observers0
 
           if (!state.compareAndSet(oldState, Executing(true, FiberStatus.Running, observers))) kill0(k)
           else {
@@ -657,7 +652,7 @@ private object RTS {
           }
 
         case Executing(_, status, observers0) =>
-          val observers = makeInterruptObserver(k) :: observers0
+          val observers = k :: observers0
 
           if (!state.compareAndSet(oldState, Executing(true, status, observers))) kill0(k)
           else {
@@ -665,7 +660,7 @@ private object RTS {
             Async.later
           }
 
-        case Done(_) => Async.now(SuccessUnit)
+        case Done(e) => Async.now(ExitResult.succeeded(e))
       }
     }
 
