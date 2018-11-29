@@ -33,7 +33,8 @@ object future {
             case Failure(t) => ExitResult.checked(t)
           }
         }
-        def interrupt: IO[Nothing, Unit] = join.attempt.void
+        def interrupt: IO[Nothing, ExitResult[Throwable, A]] =
+          join.redeemPure(ExitResult.checked(_), ExitResult.succeeded(_))
       }
   }
 
