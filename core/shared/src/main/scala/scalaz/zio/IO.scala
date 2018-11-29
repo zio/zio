@@ -189,7 +189,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
             _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
           } yield ()).uninterruptibly *> done.get).onInterrupt(
-            child.get flatMap (_.interrupt)
+            child.get flatMap (_.interrupt.void)
           )
     } yield c
   }
@@ -992,7 +992,7 @@ object IO extends Serializable {
       a <- (for {
             _ <- register(p.unsafeDone(_, d.executor.execute)).fork.peek(ref.set(_)).uninterruptibly
             a <- p.get
-          } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
+          } yield a).onInterrupt(ref.get.flatMap(_.interrupt.void))
     } yield a
 
   /**
@@ -1091,14 +1091,11 @@ object IO extends Serializable {
   )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
     Ref[Option[(A, Fiber[E, B])]](None).flatMap { m =>
       (for {
-        f <- acquire.flatMap(a => use(a).fork.flatMap(f => m.set(Some(a -> f)).const(f))).uninterruptibly
+        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(Some(a -> f)))).uninterruptibly
         b <- f.join
       } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
         case (a, f) =>
-          f.poll.flatMap {
-            case Some(r) => release(a, r)
-            case None    => f.interrupt *> f.observe.flatMap(release(a, _))
-          }
+          f.interrupt.flatMap(release(a, _))
       }))
     }
 
