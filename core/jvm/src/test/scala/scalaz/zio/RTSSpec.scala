@@ -634,7 +634,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       exitValue  <- exitLatch.get
     } yield startValue + exitValue
 
-    (0 to 100).map { run =>
+    (0 to 100).map { _ =>
       unsafeRun(io) must_=== 42
     }.reduce(_ and _)
   }
