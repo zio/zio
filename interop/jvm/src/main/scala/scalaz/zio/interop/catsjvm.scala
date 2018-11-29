@@ -34,8 +34,8 @@ abstract class CatsInstances extends CatsInstances1 {
       zioClock.sleep(duration.length, duration.unit)
   }
 
-  implicit val taskEffectInstances: effect.ConcurrentEffect[Task] with SemigroupK[Task] =
-    new CatsConcurrentEffect
+  implicit val taskEffectInstances: effect.Concurrent[Task] with Effect[Task] with SemigroupK[Task] =
+    new CatsConcurrent
 
   implicit val taskParallelInstance: Parallel[Task, Task.Par] =
     parallelInstance(taskEffectInstances)
@@ -52,62 +52,6 @@ sealed abstract class CatsInstances1 extends CatsInstances2 {
 sealed abstract class CatsInstances2 {
   implicit def ioInstances[E]: MonadError[IO[E, ?], E] with Bifunctor[IO] with SemigroupK[IO[E, ?]] =
     new CatsMonadError[E] with CatsSemigroupK[E] with CatsBifunctor
-}
-
-private class CatsConcurrentEffect extends CatsConcurrent with effect.ConcurrentEffect[Task] {
-  override def runCancelable[A](fa: Task[A])(
-    cb: Either[Throwable, A] => effect.IO[Unit]
-  ): effect.SyncIO[effect.CancelToken[Task]] =
-    effect.SyncIO {
-//      val fiber = unsafeRun {
-//        fa.run.flatMap {
-//          exit =>
-////            IO.sync(cb(exitResultToEither(exit)).unsafeRunAsync(_ => ()))
-//            liftIO(cb(exitResultToEither(exit)))
-////            IO.sync(cb(exitResultToEither(exit)).unsafeRunAsync(_ => ()))
-//        }.fork
-//      }
-//
-//      fiber.interrupt.void
-
-//        this.unsafeRunAsync[Throwable, Unit](fa.run.map { exit =>
-//          cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())
-//        })(_ => ())
-//        Task(())
-
-      // deliberately incorrect impl, any use of .fork in unsafeRuns seems to cause breakage...
-      this.unsafeRunAsync[Throwable, Unit] {
-        for {
-          _ <- IO.sync {
-                this.unsafeRunAsync(fa) { exit =>
-                  val value = exitResultToEither(exit)
-                  cb(value).unsafeRunAsync(_ => ())
-                }
-                ()
-              } // FIXME: Uncommenting the fork breaks toIO/liftIO tests, even though it shouldn't impact them
-//               .fork
-        } yield ()
-      }(_ => ())
-      Task(())
-    }
-
-  // TODO
-//  override def toIO[A](fa: Task[A]): effect.IO[A] =
-//    effect.IO.cancelable { cb =>
-//      runCancelable(fa)(r => effect.IO(cb(r))).unsafeRunSync()
-//      effect.IO(())
-//    }
-
-//    effect.IO.cancelable { cb =>
-//      runAsync(fa)(r => effect.IO(cb(r))).unsafeRunSync()
-//      unsafeRun(fa.run.flatMap(r => IO.sync(cb(exitResultToEither(r)))).fork)
-//    }
-
-//    effect.IO.cancelable { k =>
-//      val f = unsafeRun(fa.run.flatMap(r => IO.sync(k(exitResultToEither(r)))).fork)
-//      effect.IO(unsafeRun(f.interrupt))
-//    }
-
 }
 
 private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
