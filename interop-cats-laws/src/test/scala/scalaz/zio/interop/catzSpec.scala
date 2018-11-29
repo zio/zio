@@ -3,14 +3,14 @@ package interop
 
 import cats.Eq
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.laws.discipline.{ConcurrentTests, EffectTests, Parameters}
-import cats.effect.laws.util.{TestContext, TestInstances}
+import cats.effect.laws.discipline.{ ConcurrentTests, EffectTests, Parameters }
+import cats.effect.laws.util.{ TestContext, TestInstances }
 import cats.implicits._
-import cats.laws.discipline.{AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests}
+import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
 import cats.syntax.all._
-import org.scalacheck.{Arbitrary, Cogen}
+import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
-import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
+import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
 import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
