@@ -65,17 +65,6 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     }
 
   /**
-   * Appends this result to the specified result by choosing the left-most value
-   * that does not fail.
-   *
-   * TODO: This seems to need fixing.
-   */
-  final def <>[E1, A1 >: A](that: ExitResult[E1, A1]): ExitResult[E1, A1] = self match {
-    case Failed(cause) if cause.isChecked => that
-    case _                                => self.asInstanceOf[ExitResult[E1, A1]]
-  }
-
-  /**
    * Determines if the result is a success.
    */
   final def succeeded: Boolean = self match {
@@ -94,10 +83,20 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
   /**
    * Folds over the value or cause.
    */
-  final def fold[Z](completed: A => Z, failed: Cause[E] => Z): Z =
+  final def fold[Z](failed: Cause[E] => Z, completed: A => Z): Z =
     self match {
       case Succeeded(v)  => completed(v)
       case Failed(cause) => failed(cause)
+    }
+
+  /**
+   * Chooses the value produced by this exit result, if success, or the
+   * default value otherwise.
+   */
+  final def orElse[A1 >: A](default: A1): ExitResult[Nothing, A1] =
+    self match {
+      case Succeeded(v) => Succeeded(v)
+      case Failed(_)    => Succeeded(default)
     }
 
   /**

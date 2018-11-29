@@ -113,6 +113,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     finalizer can detect interruption       $testFinalizerCanDetectInterruption
     interruption of raced                   $testInterruptedOfRaceInterruptsContestents
     cancelation is guaranteed               $testCancelationIsGuaranteed
+    interruption of unending bracket        $testInterruptionOfUnendingBracket
   """
 
   def testPoint =
@@ -612,7 +613,30 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       result <- release.get
     } yield result
 
-    unsafeRun(io) must_=== 42
+    (0 to 100).map { _ =>
+      unsafeRun(io) must_=== 42
+    }.reduce(_ and _)
+  }
+
+  def testInterruptionOfUnendingBracket = {
+    val io = for {
+      startLatch <- Promise.make[Nothing, Int]
+      exitLatch  <- Promise.make[Nothing, Int]
+      bracketed = IO
+        .now(21)
+        .bracket0[Nothing, Unit] {
+          case (r, e) if e.interrupted => exitLatch.complete(r).void
+          case (_, _)                  => IO.terminate(new Error("Unexpected case"))
+        }(a => startLatch.complete(a) *> IO.never)
+      fiber      <- bracketed.fork
+      startValue <- startLatch.get
+      _          <- fiber.interrupt.fork
+      exitValue  <- exitLatch.get
+    } yield startValue + exitValue
+
+    (0 to 100).map { run =>
+      unsafeRun(io) must_=== 42
+    }.reduce(_ and _)
   }
 
   def testAsyncPureIsInterruptible = {
