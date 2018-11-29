@@ -36,6 +36,15 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     }
 
   /**
+   * Flat maps over the value ty pe.
+   */
+  final def flatMap[E1 >: E, A1](f: A => ExitResult[E1, A1]): ExitResult[E1, A1] =
+    self match {
+      case Succeeded(a)  => f(a)
+      case e @ Failed(_) => e
+    }
+
+  /**
    * Maps over both the error and value type.
    */
   final def bimap[E1, A1](f: E => E1, g: A => A1): ExitResult[E1, A1] = leftMap(f).map(g)
@@ -90,16 +99,6 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     }
 
   /**
-   * Chooses the value produced by this exit result, if success, or the
-   * default value otherwise.
-   */
-  final def orElse[A1 >: A](default: A1): ExitResult[Nothing, A1] =
-    self match {
-      case Succeeded(v) => Succeeded(v)
-      case Failed(_)    => Succeeded(default)
-    }
-
-  /**
    * Effectfully folds over the value or cause.
    */
   final def redeem[E1, B](failed: Cause[E] => IO[E1, B], completed: A => IO[E1, B]): IO[E1, B] =
@@ -120,6 +119,9 @@ object ExitResult extends Serializable {
   final def checked[E](error: E): ExitResult[E, Nothing]          = failed(Cause.checked(error))
   final val interrupted: ExitResult[Nothing, Nothing]             = failed(Cause.interrupted)
   final def unchecked(t: Throwable): ExitResult[Nothing, Nothing] = failed(Cause.unchecked(t))
+
+  final def flatten[E, A](exit: ExitResult[E, ExitResult[E, A]]): ExitResult[E, A] =
+    exit.flatMap(identity _)
 
   sealed abstract class Cause[+E] extends Product with Serializable { self =>
     import Cause._
