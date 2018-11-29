@@ -360,6 +360,10 @@ private object RTS {
                             if (shouldResumeAsync()) {
                               curIo = IO.done(value)
                             } else {
+                              // Interrupted already. Have to set canceler or
+                              // the interruptor will get stuck.
+                              cancel.set(IO.unit)
+
                               curIo = null
                             }
 
