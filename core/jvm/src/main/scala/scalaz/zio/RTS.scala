@@ -189,10 +189,7 @@ private object RTS {
     final def await: ExitResult[E, A] = {
       val result = OneShot.make[ExitResult[E, A]]
 
-      register(result.set(_)) match {
-        case Async.Now(v) => result.set(v)
-        case _            =>
-      }
+      runAsync(result.set(_))
 
       result.get
     }
@@ -206,9 +203,9 @@ private object RTS {
     }
 
     /**
-     * Empties the stack, collecting all finalizers and coalescing them into an
-     * action that produces a list (possibly empty) of errors during finalization.
-     * If needed, catch exceptions and apply redeem error handling.
+     * Unwinds the stack, collecting all finalizers and coalescing them into an
+     * `IO` that produces an option of a cause of finalizer failures. If needed,
+     * catch exceptions and apply redeem error handling.
      */
     final def unwindStack(catchError: Boolean): IO[Nothing, Option[Cause[Nothing]]] = {
       def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
@@ -611,7 +608,7 @@ private object RTS {
     private[this] final def register(cb: Callback[E, A]): Async[E, A] =
       observe0 {
         case ExitResult.Succeeded(r)  => cb(r)
-        case ExitResult.Failed(cause) => if (!cause.isChecked) cb(ExitResult.failed(cause))
+        case ExitResult.Failed(cause) => cb(ExitResult.failed(cause))
       }.fold(ExitResult.failed(_), identity)
 
     @tailrec
