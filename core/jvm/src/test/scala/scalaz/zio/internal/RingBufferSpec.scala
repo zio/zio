@@ -1,7 +1,7 @@
 package scalaz.zio.internal
 
 import org.specs2.Specification
-import scalaz.zio.SerializationUtil._
+import scalaz.zio.SerializableSpec._
 
 /*
  * This spec is just a sanity check and tests RingBuffer correctness
@@ -47,7 +47,7 @@ class RingBufferSpec extends Specification {
   def e4 = {
     val q = MutableConcurrentQueue.bounded[Int](2)
     q.offer(1)
-    val returnQ = getObjFromBytes[MutableConcurrentQueue[Int]](serializeToBytes(q))
+    val returnQ = serializeAndDeserialize(q)
     returnQ.poll(-1) must_=== 1
   }
 }

@@ -2,7 +2,7 @@ package scalaz.zio.internal.impls
 
 import java.util.concurrent.atomic.AtomicLongArray
 import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
-import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{headUpdater, tailUpdater}
+import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
 
 /**
  * A lock-free array based bounded queue. It is thread-safe and can be
