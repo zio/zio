@@ -344,6 +344,11 @@ private object RTS {
                   case IO.Tags.AsyncEffect =>
                     val io = curIo.asInstanceOf[IO.AsyncEffect[E, Any]]
 
+                    // By default, we'll resume asynchronously, so this
+                    // evaluation loop may halt:
+                    curIo = null
+
+                    // Enter suspended state:
                     val cancel = enterAsync()
 
                     if (cancel != null) {
@@ -351,33 +356,24 @@ private object RTS {
                       // suspended state. So we have to check that condition,
                       // and if so, do not initiate the async effect (because
                       // otherwise, it would not be interrupted).
-                      if (state.get.interrupted && noInterrupt == 0) curIo = IO.interrupt
-                      else {
-                        io.register(resumeAsync) match {
-                          case Async.Now(value) =>
-                            // Value returned synchronously, callback will never be
-                            // invoked. Attempt resumption now:
-                            if (shouldResumeAsync()) {
-                              curIo = IO.done(value)
-                            } else {
-                              // Interrupted already. Have to set canceler or
-                              // the interruptor will get stuck.
-                              cancel.set(IO.unit)
+                      try {
+                        if (state.get.interrupted && noInterrupt == 0) curIo = IO.interrupt
+                        else
+                          io.register(resumeAsync) match {
+                            case Async.Now(value) =>
+                              // Value returned synchronously, callback will never be
+                              // invoked. Attempt resumption now:
+                              if (shouldResumeAsync()) {
+                                curIo = IO.done(value)
+                              }
 
-                              curIo = null
-                            }
-
-                          case Async.MaybeLater(cancel0) =>
-                            // Store the canceler:
-                            cancel.set(cancel0)
-
-                            // Resumption will happen asynchronously:
-                            curIo = null
-                        }
+                            case Async.MaybeLater(cancel0) => cancel.set(cancel0)
+                          }
+                      } finally {
+                        // May not allow exit of the code block without the
+                        // cancel action being set (could hang interruptor):
+                        if (!cancel.isSet) cancel.set(IO.unit)
                       }
-                    } else {
-                      // Already done:
-                      curIo = null
                     }
 
                   case IO.Tags.Redeem =>
@@ -505,7 +501,6 @@ private object RTS {
     private final def resumeEvaluate(value: ExitResult[E, Any]): Unit =
       value match {
         case ExitResult.Succeeded(v) =>
-          // Async produced a value:
           val io = nextInstr(v)
 
           if (!(io eq null)) evaluate(io)
@@ -518,13 +513,8 @@ private object RTS {
      *
      * @param value The value produced by the asynchronous computation.
      */
-    private final def resumeAsync[A](value: ExitResult[E, Any]): Unit =
-      if (shouldResumeAsync()) {
-        resumeEvaluate(value)
-      }
-
-    final def changeErrorUnit(k: Callback[Nothing, Unit]): Callback[E, Unit] =
-      exit => k(exit.orElse(()))
+    private[this] final val resumeAsync: ExitResult[E, Any] => Unit =
+      value => if (shouldResumeAsync()) resumeEvaluate(value)
 
     final def interrupt: IO[Nothing, Unit] = IO.async0[Nothing, Unit](kill0(_))
 
