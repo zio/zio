@@ -404,9 +404,9 @@ private object RTS {
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep]
 
-                    curIo = IO.async0[E, Any] { callback =>
+                    curIo = IO.async0[E, Any] { k =>
                       rts
-                        .schedule(callback(SuccessUnit), io.duration)
+                        .schedule(k(SuccessUnit), io.duration)
                     }
 
                   case IO.Tags.Supervise =>
@@ -522,7 +522,7 @@ private object RTS {
     final def changeErrorUnit(k: Callback[Nothing, Unit]): Callback[E, Unit] =
       exit => k(exit.orElse(()))
 
-    final def interrupt: IO[Nothing, Unit] = IO.async0[Nothing, Unit](k => kill0(changeErrorUnit(k)))
+    final def interrupt: IO[Nothing, Unit] = IO.async0[Nothing, Unit](kill0(_))
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
@@ -643,10 +643,10 @@ private object RTS {
       case _                        =>
     }
 
-    private[this] final def makeInterruptObserver(cb: Callback[E, Unit]): Callback[Nothing, ExitResult[E, A]] =
-      _ => cb(SuccessUnit)
+    private[this] final def makeInterruptObserver(k: Callback[Nothing, Unit]): Callback[Nothing, ExitResult[E, A]] =
+      x => k(x.fold(_ => SuccessUnit, _ => SuccessUnit))
 
-    private[this] final def kill0(k: Callback[E, Unit]): Async[Nothing, Unit] = {
+    private[this] final def kill0(k: Callback[Nothing, Unit]): Async[Nothing, Unit] = {
 
       val oldState = state.get
 
@@ -722,20 +722,15 @@ private object RTS {
     /** indicates if the fiber was interrupted */
     def interrupted: Boolean
 
-    def done: Boolean
-
   }
   object FiberState extends Serializable {
     final case class Executing[E, A](
       interrupted: Boolean,
       status: FiberStatus,
       observers: List[Callback[Nothing, ExitResult[E, A]]]
-    ) extends FiberState[E, A] {
-      def done: Boolean = false
-    }
+    ) extends FiberState[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberState[E, A] {
       def interrupted: Boolean = value.interrupted
-      def done: Boolean        = true
     }
 
     def Initial[E, A] = Executing[E, A](false, FiberStatus.Running, Nil)
