@@ -1,6 +1,7 @@
 package scalaz.zio.internal
 
 import org.specs2.Specification
+import scalaz.zio.SerializableSpec._
 
 /*
  * This spec is just a sanity check and tests RingBuffer correctness
@@ -15,6 +16,7 @@ class RingBufferSpec extends Specification {
      returns a queue of size 2 which is the next power of 2. $e1
      `offer` of 2 items succeeds, further offers fail. $e2
      `poll` of 2 items from full queue succeeds, further `poll`s return default value. $e3
+     can be serialized. $e4
     """
 
   def e1 = {
@@ -40,5 +42,15 @@ class RingBufferSpec extends Specification {
       .and(q.poll(-1) must_=== 2)
       .and(q.poll(-1) must_=== -1)
       .and(q.isEmpty must beTrue)
+  }
+
+  def e4 = {
+    val q = MutableConcurrentQueue.bounded[Int](2)
+    q.offer(1)
+    val returnQ = serializeAndDeserialize(q)
+    returnQ.offer(2)
+    (returnQ.poll(-1) must_=== 1)
+      .and(returnQ.poll(-1) must_=== 2)
+      .and(returnQ.poll(-1) must_=== -1)
   }
 }
