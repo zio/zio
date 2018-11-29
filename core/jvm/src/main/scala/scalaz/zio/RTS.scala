@@ -211,6 +211,9 @@ private object RTS {
      * If needed, catch exceptions and apply redeem error handling.
      */
     final def unwindStack(catchError: Boolean): IO[Nothing, Option[Cause[Nothing]]] = {
+      def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
+        c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
+
       var errorHandler: Any => IO[Any, Any]              = null
       var finalizer: IO[Nothing, Option[Cause[Nothing]]] = null
 
@@ -239,9 +242,6 @@ private object RTS {
 
       finalizer
     }
-
-    private final def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
-      c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
 
     /**
      * The main interpreter loop for `IO` actions. For purely synchronous actions,
@@ -345,7 +345,7 @@ private object RTS {
                     val io = curIo.asInstanceOf[IO.AsyncEffect[E, Any]]
 
                     // By default, we'll resume asynchronously, so this
-                    // evaluation loop may halt:
+                    // evaluation loop should halt:
                     curIo = null
 
                     // Enter suspended state:
@@ -361,17 +361,13 @@ private object RTS {
                         else
                           io.register(resumeAsync) match {
                             case Async.Now(value) =>
-                              // Value returned synchronously, callback will never be
-                              // invoked. Attempt resumption now:
-                              if (shouldResumeAsync()) {
-                                curIo = IO.done(value)
-                              }
+                              if (shouldResumeAsync()) curIo = IO.done(value)
 
                             case Async.MaybeLater(cancel0) => cancel.set(cancel0)
                           }
                       } finally {
                         // May not allow exit of the code block without the
-                        // cancel action being set (could hang interruptor):
+                        // cancel action being set (could hang interruptor!):
                         if (!cancel.isSet) cancel.set(IO.unit)
                       }
                     }
@@ -479,7 +475,7 @@ private object RTS {
       }
     }
 
-    private final def getDescriptor: Fiber.Descriptor =
+    private[this] final def getDescriptor: Fiber.Descriptor =
       Fiber.Descriptor(fiberId, state.get.interrupted, ExecutionContext.fromExecutor(rts.threadPool), unhandled)
 
     /**
@@ -498,7 +494,7 @@ private object RTS {
      *
      * @param value The value which will be used to resume the sync evaluation.
      */
-    private final def resumeEvaluate(value: ExitResult[E, Any]): Unit =
+    private[this] final def resumeEvaluate(value: ExitResult[E, Any]): Unit =
       value match {
         case ExitResult.Succeeded(v) =>
           val io = nextInstr(v)
@@ -516,13 +512,13 @@ private object RTS {
     private[this] final val resumeAsync: ExitResult[E, Any] => Unit =
       value => if (shouldResumeAsync()) resumeEvaluate(value)
 
-    final def interrupt: IO[Nothing, Unit] = IO.async0[Nothing, Unit](kill0(_))
+    final def interrupt: IO[Nothing, Unit] = IO.async0(kill0(_))
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
     final def poll: IO[Nothing, Option[ExitResult[E, A]]] = IO.sync(poll0)
 
-    final def enterSupervision: IO[E, Unit] = IO.sync {
+    private[this] final def enterSupervision: IO[E, Unit] = IO.sync {
       supervising += 1
 
       def newWeakSet[A]: Set[A] = Collections.newSetFromMap[A](new WeakHashMap[A, java.lang.Boolean]())
@@ -532,7 +528,7 @@ private object RTS {
       supervised = set :: supervised
     }
 
-    final def supervise(child: FiberContext[_, _]): Unit =
+    private[this] final def supervise(child: FiberContext[_, _]): Unit =
       if (supervising > 0) {
         supervised match {
           case Nil =>
@@ -544,7 +540,7 @@ private object RTS {
       }
 
     @tailrec
-    final def enterAsync(): OneShot[Canceler] = {
+    private[this] final def enterAsync(): OneShot[Canceler] = {
       val oldState = state.get
       val cancel   = OneShot.make[Canceler]
 
@@ -560,7 +556,7 @@ private object RTS {
     }
 
     @tailrec
-    final def shouldResumeAsync(): Boolean = {
+    private[this] final def shouldResumeAsync(): Boolean = {
       val oldState = state.get
 
       oldState match {
@@ -573,7 +569,9 @@ private object RTS {
       }
     }
 
-    final def exitSupervision(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]): IO[Nothing, Unit] = {
+    private[this] final def exitSupervision(
+      supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]
+    ): IO[Nothing, Unit] = {
       import collection.JavaConverters._
       IO.flatten(IO.sync {
         supervising -= 1
@@ -638,8 +636,9 @@ private object RTS {
     }
 
     private[this] final def makeInterruptObserver(k: Callback[Nothing, Unit]): Callback[Nothing, ExitResult[E, A]] =
-      x => k(x.fold(_ => SuccessUnit, _ => SuccessUnit))
+      _ => k(SuccessUnit)
 
+    @tailrec
     private[this] final def kill0(k: Callback[Nothing, Unit]): Async[Nothing, Unit] = {
 
       val oldState = state.get
