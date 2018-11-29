@@ -1,11 +1,10 @@
 ---
-layout: page
-position: 2
-section: home
-title:  "Schedule"
+layout: docs
+section: usage
+title:  "Schedules"
 ---
 
-# Schedule
+# Schedules
 
 ```tut:silent
 import scalaz.zio._

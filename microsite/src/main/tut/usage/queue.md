@@ -1,8 +1,7 @@
 ---
-layout: page
-position: 2
-section: home
-title:  "Queue"
+layout: docs
+section: usage
+title:  "Queues"
 ---
 
 # Queue
