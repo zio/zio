@@ -63,6 +63,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     bracket regression 1                    $testBracketRegression1
     interrupt waits for finalizer           $testInterruptWaitsForFinalizer
 
+  RTS synchronous stack safety
+    deep map of point                       $testDeepMapOfPoint
+    deep map of now                         $testDeepMapOfNow
+    deep map of sync effect                 $testDeepMapOfSyncEffectIsStackSafe
+    deep attempt                            $testDeepAttemptIsStackSafe
+    deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
+    deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
+
   RTS asynchronous correctness
     simple async must return                $testAsyncEffectReturns
     simple asyncIO must return              $testAsyncIOEffectReturns
