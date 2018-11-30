@@ -1145,10 +1145,10 @@ object IO extends Serializable {
            }
     } yield bs
 
-  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
   /**
    * Alias for foreachParN
    */
+  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
   final def traverseParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     foreachParN(n)(as)(fn)
 
@@ -1174,10 +1174,10 @@ object IO extends Serializable {
   final def collectParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     foreachParN(n)(as)(identity)
 
-  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
   /**
    * Alias for `collectParN`
    */
+  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
   final def sequenceParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     collectParN(n)(as)
 
