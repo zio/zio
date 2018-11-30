@@ -1,10 +1,11 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.annotation.switch
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
 import scalaz.zio.ExitResult.Cause
+
+import scala.annotation.switch
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -159,6 +160,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
           _ => left.join.map(Left(_)),
           b => IO.now(Right(b)) <* left.interrupt
         )
+    )
+
+  /**
+   * Races this action with the specified action, returning the first
+   * result to *finish*, whether with by producing a value or by failing
+   * with an error. If either of two actions fails before the other succeeds,
+   * the whole race will fail with that error.
+   */
+  final def raceAttempt[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
+    raceWith(that)(
+      { case (l, f) => l.fold(f.interrupt *> IO.fail0(_), a => IO.now(Left(a))) },
+      { case (r, f) => r.fold(f.interrupt *> IO.fail0(_), a => IO.now(Right(a))) }
     )
 
   /**
