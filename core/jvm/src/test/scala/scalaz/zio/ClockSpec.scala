@@ -41,7 +41,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     unsafeRun(
       for {
         ref    <- Ref(Clock.Test.Zero)
-        clock  <- Clock.Test(ref)
+        clock  <- IO.now(Clock.Test(ref))
         time1  <- clock.currentTime(TimeUnit.MILLISECONDS)
         _      <- clock.sleep(1, TimeUnit.MILLISECONDS)
         time2  <- clock.currentTime(TimeUnit.MILLISECONDS)
