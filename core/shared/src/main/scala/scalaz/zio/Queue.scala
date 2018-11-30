@@ -134,16 +134,18 @@ class Queue[A] private (
     for {
       _    <- checkShutdownState
       item <- IO.sync(queue.poll(null.asInstanceOf[A]))
-      res <- if (item != null) strategy.onQueueEmptySpace(queue).map(_ => item)
-            else
-              for {
-                p <- Promise.make[Nothing, A]
-                // add the promise to takers, then try take again in case a value was added since
-                _ <- IO.sync(takers.offer(p)) *> completeTakers
-                // wait for the promise to be completed, and clean up resources in case of interruption
-                res <- p.get.ensuring(p.poll.void <> removeTaker(p))
-              } yield res
-    } yield res
+      a <- if (item != null) strategy.onQueueEmptySpace(queue).map(_ => item)
+          else
+            for {
+              p <- Promise.make[Nothing, A]
+              // add the promise to takers, then try take again in case a value was added since
+              a <- (IO.sync(takers.offer(p)) *> completeTakers)
+                  // wait for the promise to be completed
+                    .flatMap(_ => p.get)
+                    // clean up resources in case of interruption
+                    .ensuring(p.poll.void <> removeTaker(p))
+            } yield a
+    } yield a
 
   /**
    * Removes all the values in the queue and returns the list of the values. If the queue
@@ -291,9 +293,8 @@ object Queue {
 
         for {
           p <- Promise.make[Nothing, Boolean]
-          _ <- IO.sync(unsafeOffer(as, p))
-          _ <- onQueueEmptySpace(queue)
-          _ <- p.get.ensuring(p.poll.void <> IO.sync(unsafeRemove(p)))
+          _ <- (IO.sync(unsafeOffer(as, p)) *> onQueueEmptySpace(queue) *> p.get)
+                .ensuring(p.poll.void <> IO.sync(unsafeRemove(p)))
         } yield true
       }
 
