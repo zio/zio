@@ -88,7 +88,7 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater
  * [[http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue]]
  *
  * Compared to JCTools this implementation doesn't rely on
- * [[sun.misc.Unsafe]], so it is arguably more portable, and should be
+ * sun.misc.Unsafe, so it is arguably more portable, and should be
  * easier to read. It's also very extensively commented, including
  * reasoning, assumptions, and hacks.
  *
