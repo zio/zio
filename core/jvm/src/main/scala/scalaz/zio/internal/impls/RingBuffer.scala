@@ -75,10 +75,10 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater
  *
  * We can make those counters regular volatile long fields and space
  * them out, but we still need a way to do CAS on them. The only way
- * to do this except `Unsafe` is to use [[AtomicLongFieldUpdater]],
+ * to do this except `Unsafe` is to use `AtomicLongFieldUpdater`,
  * which is exactly what we have here.
  *
- * @see [[MutableQueueFieldsPadding]] for more details on padding
+ * @see [[scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding]] for more details on padding
  * and object's memory layout.
  *
  * The design is heavily inspired by such libraries as
@@ -88,7 +88,7 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater
  * [[http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue]]
  *
  * Compared to JCTools this implementation doesn't rely on
- * sun.misc.Unsafe, so it is arguably more portable, and should be
+ * `sun.misc.Unsafe`, so it is arguably more portable, and should be
  * easier to read. It's also very extensively commented, including
  * reasoning, assumptions, and hacks.
  *
