@@ -1,0 +1,131 @@
+<html><head><title>: Queues</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="ZIO contributors" /><meta name="description" content="Type-safe, composable concurrency for Scala" /><meta name="og:image" content="/scalaz-zio/img/poster.png" /><meta name="og:title" content=": Queues" /><meta name="og:site_name" content="" /><meta name="og:url" content="https://scalaz.github.io/scalaz-zio/" /><meta name="og:type" content="website" /><meta name="og:description" content="Type-safe, composable concurrency for Scala" /><link rel="icon" type="image/png" href="/scalaz-zio/img/favicon.png" /><meta name="twitter:title" content=": Queues" /><meta name="twitter:image" content="https://scalaz.github.io/scalaz-zio/img/poster.png" /><meta name="twitter:description" content="Type-safe, composable concurrency for Scala" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="512x512" href="/scalaz-zio/img/favicon.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scalaz-zio/highlight/styles/default.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/codemirror.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/scalaz-zio/" class="brand"><div class="brand-wrapper"><span></span></div></a></li> <li><a href="/scalaz-zio/usage/index.html" class="">Usage</a> <ul class="sub_section"> <li><a href="/scalaz-zio/usage/main.html" class="">Main</a></li> <li><a href="/scalaz-zio/usage/purity.html" class="">Purity</a></li> <li><a href="/scalaz-zio/usage/mapping.html" class="">Mapping/Chaining</a></li> <li><a href="/scalaz-zio/usage/failure.html" class="">Failure</a></li> <li><a href="/scalaz-zio/usage/bracket.html" class="">Brackets</a></li> <li><a href="/scalaz-zio/usage/fibers.html" class="">Fibers</a></li> <li><a href="/scalaz-zio/usage/fiberlocal.html" class="">FiberLocal</a></li> <li><a href="/scalaz-zio/usage/promise.html" class="">Promise</a></li> <li><a href="/scalaz-zio/usage/schedules.html" class="">Schedules</a></li> <li><a href="/scalaz-zio/usage/ref.html" class="">Ref</a></li> <li><a href="/scalaz-zio/usage/queue.html" class="">Queue</a></li> <li><a href="/scalaz-zio/usage/performance.html" class="">Performance</a></li> <li><a href="/scalaz-zio/usage/console.html" class="">Console</a></li> <li><a href="/scalaz-zio/usage/system.html" class="">System</a></li></ul></li></ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter(' Type-safe, composable concurrency for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook(' Type-safe, composable concurrency for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="scalaz" data-github-repo="scalaz-zio"><div class="content-wrapper"><section><h1 id="queue">Queue</h1>
+
+<p><code class="highlighter-rouge">Queue</code> is a lightweight in-memory queue built on ZIO with composable and transparent back-pressure. It is fully asynchronous (no locks or blocking), purely-functional and type-safe.</p>
+
+<p>A <code class="highlighter-rouge">Queue[A]</code> contains values of type <code class="highlighter-rouge">A</code> and has two basic operations: <code class="highlighter-rouge">offer</code> which places an <code class="highlighter-rouge">A</code> in the <code class="highlighter-rouge">Queue</code>, and <code class="highlighter-rouge">take</code> which removes and returns the oldest value in the <code class="highlighter-rouge">Queue</code>.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio._</span>
+
+<span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
+  <span class="n">v1</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">take</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">v1</span>
+</code></pre></div></div>
+
+<h2 id="creating-a-queue">Creating a queue</h2>
+
+<p>A <code class="highlighter-rouge">Queue</code> can be bounded (with a limited capacity) or unbounded.
+There are various strategies to process new values when the queue is full:</p>
+<ul>
+  <li>the default <code class="highlighter-rouge">bounded</code> queue is back-pressured: when full, any offering fiber will be suspended until the queue is able to add the item</li>
+  <li>a <code class="highlighter-rouge">dropping</code> queue will drop new items when the queue is full</li>
+  <li>a <code class="highlighter-rouge">sliding</code> queue will drop old items when the queue is full</li>
+</ul>
+
+<p>To create a back-pressured bounded queue:</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>To create a dropping queue:</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">dropping</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>To create a sliding queue:</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">sliding</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>To create an unbounded queue:</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">unbounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span>
+</code></pre></div></div>
+
+<h2 id="adding-items-to-a-queue">Adding items to a queue</h2>
+
+<p>The simplest way to add a value to the queue is <code class="highlighter-rouge">offer</code>:</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<p>When using a back-pressured queue, offer might be suspended if the queue is full: you can use <code class="highlighter-rouge">fork</code> to wait in a different fiber.</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">1</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
+  <span class="n">f</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">1</span><span class="o">).</span><span class="n">fork</span> <span class="c1">// will be suspended because the queue is full
+</span>  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">take</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">f</span><span class="o">.</span><span class="n">join</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<p>It is also possible to add multiple values at once with <code class="highlighter-rouge">offerAll</code>:</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+  <span class="n">items</span> <span class="k">=</span> <span class="nc">Range</span><span class="o">.</span><span class="n">inclusive</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">10</span><span class="o">).</span><span class="n">toList</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offerAll</span><span class="o">(</span><span class="n">items</span><span class="o">)</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<h2 id="consuming-items-from-a-queue">Consuming items from a queue</h2>
+
+<p><code class="highlighter-rouge">take</code> removes the oldest item from the queue and returns it. If the queue is empty, this will return a computation that resumes when an item has been added to the queue: you can use <code class="highlighter-rouge">fork</code> to wait for an item in a different fiber.</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">String</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+  <span class="n">f</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">take</span><span class="o">.</span><span class="n">fork</span> <span class="c1">// will be suspended because the queue is empty
+</span>  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="s">"something"</span><span class="o">)</span>
+  <span class="n">v</span> <span class="k">&lt;-</span> <span class="n">f</span><span class="o">.</span><span class="n">join</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">v</span>
+</code></pre></div></div>
+
+<p>You can consume multiple items at once with <code class="highlighter-rouge">takeUpTo</code>. If the queue doesn’t have enough items to return, it will return all the items without waiting for more offers.</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">20</span><span class="o">)</span>
+  <span class="n">list</span>  <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">takeUpTo</span><span class="o">(</span><span class="mi">5</span><span class="o">)</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">list</span>
+</code></pre></div></div>
+
+<p>Similarly, you can get all items at once with <code class="highlighter-rouge">takeAll</code>. It also returns without waiting (an empty list if the queue is empty).</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">20</span><span class="o">)</span>
+  <span class="n">list</span>  <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">takeAll</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">list</span>
+</code></pre></div></div>
+
+<h2 id="shutting-down-a-queue">Shutting down a queue</h2>
+
+<p>It is possible with <code class="highlighter-rouge">shutdown</code> to interrupt all the fibers that are suspended on <code class="highlighter-rouge">offer*</code> or <code class="highlighter-rouge">take*</code>. It will also empty the queue and make all future calls to <code class="highlighter-rouge">offer*</code> and <code class="highlighter-rouge">take*</code> terminate immediately.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">3</span><span class="o">)</span>
+  <span class="n">f</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">take</span><span class="o">.</span><span class="n">fork</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">shutdown</span> <span class="c1">// will interrupt f
+</span>  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">f</span><span class="o">.</span><span class="n">join</span> <span class="c1">// will throw
+</span><span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<p>You can use <code class="highlighter-rouge">awaitShutdown</code> to execute an action when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">3</span><span class="o">)</span>
+  <span class="n">p</span> <span class="k">&lt;-</span> <span class="nc">Promise</span><span class="o">.</span><span class="n">make</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Boolean</span><span class="o">]</span>
+  <span class="n">f</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">awaitShutdown</span><span class="o">.</span><span class="n">fork</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">shutdown</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">f</span><span class="o">.</span><span class="n">join</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<h2 id="additional-resources-and-examples">Additional resources and examples</h2>
+
+<ul>
+  <li><a href="https://www.slideshare.net/jdegoes/zio-queue">ZIO Queue Talk by John De Goes @ ScalaWave 2018</a></li>
+  <li><a href="https://www.slideshare.net/wiemzin/psug-zio-queue">ZIO Queue Talk by Wiem Zine Elabidine @ PSUG 2018</a></li>
+  <li><a href="https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58">Elevator Control System using ZIO</a></li>
+  <li><a href="https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1">Scalaz 8 IO vs Akka (typed) actors vs Monix</a></li>
+</ul>
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
+hljs.initHighlighting();
+              </script><script>((window.gitter = {}).chat = {}).options = {
+room: 'scalaz/scalaz-zio'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/scalaz-zio/js/main.js"></script></body></html>

@@ -1,12 +1,13 @@
 @import url(https://fonts.googleapis.com/css?family=Lato:400,300,700);
 .technologies {
-  background: #251605; }
+  
+  background: #fff; }
 
 #site-header .navbar-wrapper a {
-  color: #fff; }
+  color: #f9b32a; }
 
 #site-footer {
-  background: #491119; }
+  background: #530b0e; }
 
 ::-moz-selection {
   background: #ED2124;
@@ -16,14 +17,13 @@
   background: #ED2124;
   color: #FFFFFF; }
 
-.jumbotron {
-  background-color: #251605; }
+
   .jumbotron .btn-outline-inverse {
     border: 2px solid #FFFFFF;
     color: #FFFFFF; }
     .jumbotron .btn-outline-inverse:hover, .jumbotron .btn-outline-inverse:focus {
       background: #FFFFFF;
-      color: #251605; }
+     }
 
 pre {
   background: rgba(244, 243, 244, 0.6); }
@@ -41,21 +41,21 @@ body.docs {
   background-color: #F4F3F4; }
 
 #sidebar-wrapper {
-  background: #251605; }
+  background: #530b0e; }
 
 #page-content-wrapper .nav a {
-  color: #837F84; }
+  color: #530b0e; }
   #page-content-wrapper .nav a:hover {
-    color: #453E46; }
+    color: #530b0e; }
   #page-content-wrapper .nav a i {
     font-size: 18px; }
 
 .sidebar-nav > li a:hover {
-  background: #491119; }
+  background: #86201e; }
 .sidebar-nav > li a.active {
-  border-left: 3px solid #ED2124;
+  border-left: 3px solid #86201e;
   color: #fff; }
 .sidebar-nav > .sidebar-brand a {
-  background: #491119; }
+  background: #530b0e; }
   .sidebar-nav > .sidebar-brand a:hover {
-    background: #491119; }
+    background: #530b0e; }
