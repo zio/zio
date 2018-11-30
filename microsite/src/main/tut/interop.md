@@ -1,12 +1,11 @@
 ---
 layout: page
-position: 2
+position: 3
 section: home
 title:  "Interop"
 ---
 
-ZIO Interop module
-==================
+# ZIO Interop Module
 
 This module provides the following integrations:
 
