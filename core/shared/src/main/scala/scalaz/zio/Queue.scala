@@ -78,7 +78,7 @@ class Queue[A] private (
       _                      <- checkShutdownState
       takers                 <- IO.sync(unsafePollN(takers, as.size))
       (forTakers, remaining) = as.splitAt(takers.size)
-      _                      <- IO.parTraverse(takers zip forTakers) { case (taker, item) => taker.complete(item) }
+      _                      <- IO.traverse(takers zip forTakers) { case (taker, item) => taker.complete(item) }
       added <- if (remaining.nonEmpty) {
                 // not enough takers, offer to the queue
                 for {
