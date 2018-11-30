@@ -25,6 +25,8 @@ class catzSpec
     with GenIO
     with RTS {
 
+  override def defaultHandler: ExitResult.Cause[Any] => IO[Nothing, Unit] = _ => IO.unit
+
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()
     val ruleSet = f(context)
