@@ -21,39 +21,28 @@ class Queue[A] private (
 
   private final val pollTakersThenQueue: IO[Nothing, Option[(Promise[Nothing, A], A)]] = IO.sync {
     // check if there is both a taker and an item in the queue, starting by the taker
-    val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-    val taker     = takers.poll(nullTaker)
-    if (taker == nullTaker) {
-      None
-    } else {
-      queue.poll(null.asInstanceOf[A]) match {
-        case null =>
-          unsafeOfferAll(takers, taker :: unsafePollAll(takers))
-          None
-        case a => Some((taker, a))
+    if (!queue.isEmpty()) {
+      val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
+      val taker     = takers.poll(nullTaker)
+      if (taker == nullTaker) {
+        None
+      } else {
+        queue.poll(null.asInstanceOf[A]) match {
+          case null =>
+            unsafeOfferAll(takers, taker :: unsafePollAll(takers))
+            None
+          case a => Some((taker, a))
+        }
       }
-    }
+    } else None
   }
 
-  private final val pollQueueThenTakers: IO[Nothing, Option[(Promise[Nothing, A], A)]] = IO.sync {
-    // check if there is both a taker and an item in the queue, starting by the queue
-    queue.poll(null.asInstanceOf[A]) match {
-      case null => None
-      case a =>
-        val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
-        val taker     = takers.poll(nullTaker)
-        if (taker == nullTaker) {
-          unsafeOfferAll(queue, a :: unsafePollAll(queue))
-          None
-        } else Some((taker, a))
-    }
-  }
-
-  private final def completeTakers(poll: IO[Nothing, Option[(Promise[Nothing, A], A)]]): IO[Nothing, Unit] =
-    poll.flatMap {
+  private final val completeTakers: IO[Nothing, Unit] = {
+    pollTakersThenQueue.flatMap {
       case None          => IO.unit
-      case Some((p2, a)) => p2.complete(a) *> strategy.onQueueEmptySpace(queue) *> completeTakers(poll)
+      case Some((p2, a)) => p2.complete(a) *> strategy.onQueueEmptySpace(queue) *> completeTakers
     }
+  }
 
   private final def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] = IO.sync(unsafeRemove(takers, taker))
 
@@ -95,7 +84,7 @@ class Queue[A] private (
                 for {
                   surplus <- IO.sync(unsafeOfferAll(queue, remaining.toList))
                   res     <- if (surplus.isEmpty) IO.now(true) else strategy.handleSurplus(surplus, queue)
-                  _       <- completeTakers(pollTakersThenQueue) // try take again in case a taker was added while offering
+                  _       <- completeTakers // try take again in case a taker was added while offering
                 } yield res
               } else IO.now(true)
     } yield added
@@ -150,7 +139,7 @@ class Queue[A] private (
               for {
                 p <- Promise.make[Nothing, A]
                 // add the promise to takers, then try take again in case a value was added since
-                _ <- IO.sync(takers.offer(p)) *> completeTakers(pollQueueThenTakers)
+                _ <- IO.sync(takers.offer(p)) *> completeTakers
                 // wait for the promise to be completed, and clean up resources in case of interruption
                 res <- p.get.ensuring(p.poll.void <> removeTaker(p))
               } yield res
@@ -303,6 +292,7 @@ object Queue {
         for {
           p <- Promise.make[Nothing, Boolean]
           _ <- IO.sync(unsafeOffer(as, p))
+          _ <- onQueueEmptySpace(queue)
           _ <- p.get.ensuring(p.poll.void <> IO.sync(unsafeRemove(p)))
         } yield true
       }
