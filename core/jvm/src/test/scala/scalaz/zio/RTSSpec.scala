@@ -63,14 +63,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     bracket regression 1                    $testBracketRegression1
     interrupt waits for finalizer           $testInterruptWaitsForFinalizer
 
-  RTS synchronous stack safety
-    deep map of point                       $testDeepMapOfPoint
-    deep map of now                         $testDeepMapOfNow
-    deep map of sync effect                 $testDeepMapOfSyncEffectIsStackSafe
-    deep attempt                            $testDeepAttemptIsStackSafe
-    deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
-    deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
-
   RTS asynchronous correctness
     simple async must return                $testAsyncEffectReturns
     simple asyncIO must return              $testAsyncIOEffectReturns
@@ -91,23 +83,22 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
     bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
-    async0 is interruptible                 $testAsync0IsInterruptible
     asyncPure creation is interruptible     ${upTo(1.second)(testAsyncPureCreationIsInterruptible)}
     async0 runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
     supervise fibers                        ${upTo(1.second)(testSupervise)}
     supervise fibers in supervised          ${upTo(1.second)(testSupervised)}
     supervise fibers in race                ${upTo(1.second)(testSuperviseRace)}
-    supervise fibers in fork                ${upTo(1.second)(testSuperviseFork)}
-    race of fail with success               ${upTo(1.second)(testRaceChoosesWinner)}
-    race of terminate with success          ${upTo(1.second)(testRaceChoosesWinnerInTerminate)}
-    race of fail with fail                  ${upTo(1.second)(testRaceChoosesFailure)}
-    race of value & never                   ${upTo(1.second)(testRaceOfValueNever)}
-    raceAll of values                       ${upTo(1.second)(testRaceAllOfValues)}
-    raceAll of failures                     ${upTo(1.second)(testRaceAllOfFailures)}
-    raceAll of failures & one success       ${upTo(1.second)(testRaceAllOfFailuresOneSuccess)}
-    raceBoth interrupts loser               ${upTo(1.second)(testRaceBothInterruptsLoser)}
-    raceBoth interrupts loser (promise)     ${upTo(1.second)(testRaceBothInterruptsLoserPromiseVersion)}
+    supervise fibers in fork                $testSuperviseFork
+    race of fail with success               $testRaceChoosesWinner
+    race of terminate with success          $testRaceChoosesWinnerInTerminate
+    race of fail with fail                  $testRaceChoosesFailure
+    race of value & never                   $testRaceOfValueNever
+    raceAll of values                       $testRaceAllOfValues
+    raceAll of failures                     $testRaceAllOfFailures
+    raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
+    raceBoth interrupts loser               $testRaceBothInterruptsLoser
+    raceBoth interrupts loser (promise)     $testRaceBothInterruptsLoserPromiseVersion
     par regression                          ${upTo(5.seconds)(testPar)}
     par of now values                       ${upTo(5.seconds)(testRepeatedPar)}
     mergeAll                                $testMergeAll
@@ -691,20 +682,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(io) must_=== 42
   }
 
-  def testAsync0IsInterruptible = {
-    val io =
-      for {
-        fiber <- IO
-                  .async0[Nothing, Unit](
-                    _ => Async.maybeLater(IO.sync(System.out println "interrupted") *> IO.sync(while (true) {}))
-                  )
-                  .fork
-        _ <- fiber.interrupt
-      } yield 42
-
-    unsafeRun(io) must_=== 42
-  }
-
   def testAsyncPureCreationIsInterruptible = {
     val io = for {
       release <- Promise.make[Nothing, Int]
@@ -864,8 +841,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(for {
       s      <- Promise.make[Nothing, Unit]
       effect <- Promise.make[Nothing, Int]
-//      winner = s.get *> IO.fromEither(Left(new Exception)) // unsupported
-      winner = s.get *> IO.fromEither(Right(()))
+      winner = s.get *> IO.fromEither(Left(new Exception))
       loser  = IO.bracket(s.complete(()))(_ => effect.complete(42).void)(_ => IO.never)
       race   = winner raceBoth loser
       _      <- race.attempt
