@@ -28,7 +28,7 @@ class Queue[A] private (
     } else {
       queue.poll(null.asInstanceOf[A]) match {
         case null =>
-          takers.offer(taker)
+          unsafeOfferAll(takers, taker :: unsafePollAll(takers))
           None
         case a => Some((taker, a))
       }
@@ -43,7 +43,7 @@ class Queue[A] private (
         val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
         val taker     = takers.poll(nullTaker)
         if (taker == nullTaker) {
-          queue.offer(a)
+          unsafeOfferAll(queue, a :: unsafePollAll(queue))
           None
         } else Some((taker, a))
     }
