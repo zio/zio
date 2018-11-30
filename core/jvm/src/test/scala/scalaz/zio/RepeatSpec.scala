@@ -11,6 +11,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       for 'once' does repeats 1 additional time $once
       for 'recurs(a positive given number)' repeats that additional number of time $repeatN
    Repeat on failure does not actually repeat $repeatFail
+   Repeat a scheduled repeat repeats the whole number $repeatRepeat
     """
 
   val repeat: Int => IO[Nothing, Int] = (n: Int) =>
@@ -66,6 +67,23 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val n        = 42
     val repeated = unsafeRun(repeat(n))
     repeated must_=== n + 1
+  }
+
+  // this test fails
+  def repeatRepeat = {
+    val n        = 42
+    val repeated = unsafeRun(for {
+      ref <- Ref(0)
+      io  =  ref.update(_ + 1).repeat(Schedule.recurs(n))
+      s   <- io.repeat(Schedule.recurs(1))
+    } yield s)
+    // I would expect the second repeat to repeat everything a second time, but
+    // in fact I get:
+    //   2 != 86
+    //   Expected :86
+    //   Actual   :2
+    // And I can't understand why.
+    repeated must_=== (n + 1) * 2
   }
 
   def repeatFail = {
