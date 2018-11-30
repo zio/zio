@@ -313,10 +313,10 @@ object Queue {
           if (!queue.isFull()) {
             putters.poll(null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]) match {
               case null => io
-              case item @ (a, p, lastItem) =>
+              case putter @ (a, p, lastItem) =>
                 if (queue.offer(a)) unsafeMovePutters(if (lastItem) p.complete(true) *> io else io)
                 else {
-                  putters.offer(item)
+                  unsafeOfferAll(putters, putter :: unsafePollAll(putters))
                   io
                 }
             }
