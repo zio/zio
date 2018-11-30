@@ -36,6 +36,15 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     }
 
   /**
+   * Flat maps over the value ty pe.
+   */
+  final def flatMap[E1 >: E, A1](f: A => ExitResult[E1, A1]): ExitResult[E1, A1] =
+    self match {
+      case Succeeded(a)  => f(a)
+      case e @ Failed(_) => e
+    }
+
+  /**
    * Maps over both the error and value type.
    */
   final def bimap[E1, A1](f: E => E1, g: A => A1): ExitResult[E1, A1] = leftMap(f).map(g)
@@ -65,17 +74,6 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
     }
 
   /**
-   * Appends this result to the specified result by choosing the left-most value
-   * that does not fail.
-   *
-   * TODO: This seems to need fixing.
-   */
-  final def <>[E1, A1 >: A](that: ExitResult[E1, A1]): ExitResult[E1, A1] = self match {
-    case Failed(cause) if cause.isChecked => that
-    case _                                => self.asInstanceOf[ExitResult[E1, A1]]
-  }
-
-  /**
    * Determines if the result is a success.
    */
   final def succeeded: Boolean = self match {
@@ -94,7 +92,7 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
   /**
    * Folds over the value or cause.
    */
-  final def fold[Z](completed: A => Z, failed: Cause[E] => Z): Z =
+  final def fold[Z](failed: Cause[E] => Z, completed: A => Z): Z =
     self match {
       case Succeeded(v)  => completed(v)
       case Failed(cause) => failed(cause)
@@ -121,6 +119,9 @@ object ExitResult extends Serializable {
   final def checked[E](error: E): ExitResult[E, Nothing]          = failed(Cause.checked(error))
   final val interrupted: ExitResult[Nothing, Nothing]             = failed(Cause.interrupted)
   final def unchecked(t: Throwable): ExitResult[Nothing, Nothing] = failed(Cause.unchecked(t))
+
+  final def flatten[E, A](exit: ExitResult[E, ExitResult[E, A]]): ExitResult[E, A] =
+    exit.flatMap(identity _)
 
   sealed abstract class Cause[+E] extends Product with Serializable { self =>
     import Cause._

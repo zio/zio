@@ -6,6 +6,7 @@ import scala.collection.mutable
 class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "ManagedSpec".title ^ s2"""
   Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse
+  Properly performs parallel acquire and release. $parallelAcquireAndRelease
   """
 
   def invokesCleanupsInReverse = {
@@ -26,5 +27,19 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(program)
 
     effects must be_===(List(1, 2, 3, 3, 2, 1))
+  }
+
+  def parallelAcquireAndRelease = {
+    val cleanups = new mutable.ListBuffer[String]
+
+    def managed(v: String): Managed[Nothing, String] =
+      Managed(IO.now(v))(_ => IO.sync { cleanups += v; () })
+
+    val program = managed("A").parWith(managed("B"))(_ + _).use(IO.now)
+
+    val result = unsafeRun(program)
+
+    result must haveSize(2)
+    result.size === cleanups.size
   }
 }

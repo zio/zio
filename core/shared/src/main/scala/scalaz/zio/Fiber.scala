@@ -1,6 +1,8 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
+import scala.concurrent.ExecutionContext
+
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
  * whole thread (but may consume much less, depending on contention). Fibers are
@@ -44,10 +46,9 @@ trait Fiber[+E, +A] { self =>
   /**
    * Interrupts the fiber with no specified reason. If the fiber has already
    * terminated, either successfully or with error, this will resume
-   * immediately. Otherwise, it will resume when the fiber has been
-   * successfully interrupted or has produced its result.
+   * immediately. Otherwise, it will resume when the fiber completes.
    */
-  def interrupt: IO[Nothing, Unit]
+  def interrupt: IO[Nothing, ExitResult[E, A]]
 
   /**
    * Zips this fiber with the specified fiber, combining their results using
@@ -65,7 +66,7 @@ trait Fiber[+E, +A] { self =>
           case _                    => None
         }
 
-      def interrupt: IO[Nothing, Unit] = self.interrupt *> that.interrupt
+      def interrupt: IO[Nothing, ExitResult[E1, C]] = self.interrupt.seqWith(that.interrupt)(_.zipWith(_)(f, _ && _))
     }
 
   /**
@@ -94,7 +95,7 @@ trait Fiber[+E, +A] { self =>
     new Fiber[E, B] {
       def observe: IO[Nothing, ExitResult[E, B]]      = self.observe.map(_.map(f))
       def poll: IO[Nothing, Option[ExitResult[E, B]]] = self.poll.map(_.map(_.map(f)))
-      def interrupt: IO[Nothing, Unit]                = self.interrupt
+      def interrupt: IO[Nothing, ExitResult[E, B]]    = self.interrupt.map(_.map(f))
     }
 
   /**
@@ -110,7 +111,12 @@ trait Fiber[+E, +A] { self =>
 }
 
 object Fiber {
-  final case class Descriptor(id: FiberId, interrupted: Boolean)
+  final case class Descriptor(
+    id: FiberId,
+    interrupted: Boolean,
+    executor: ExecutionContext,
+    supervisor: ExitResult.Cause[Nothing] => IO[Nothing, Unit]
+  )
 
   final val unit: Fiber[Nothing, Unit] = Fiber.point(())
 
@@ -118,21 +124,21 @@ object Fiber {
     new Fiber[Nothing, Nothing] {
       def observe: IO[Nothing, ExitResult[Nothing, Nothing]]      = IO.never
       def poll: IO[Nothing, Option[ExitResult[Nothing, Nothing]]] = IO.point(None)
-      def interrupt: IO[Nothing, Unit]                            = IO.never
+      def interrupt: IO[Nothing, ExitResult[Nothing, Nothing]]    = IO.never
     }
 
   final def done[E, A](exit: => ExitResult[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
       def observe: IO[Nothing, ExitResult[E, A]]      = IO.point(exit)
       def poll: IO[Nothing, Option[ExitResult[E, A]]] = IO.point(Some(exit))
-      def interrupt: IO[Nothing, Unit]                = IO.unit
+      def interrupt: IO[Nothing, ExitResult[E, A]]    = IO.point(exit)
     }
 
   final def point[E, A](a: => A): Fiber[E, A] =
     done(ExitResult.succeeded(a))
 
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.interrupt)
+    fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
 
   final def joinAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
     fs.foldLeft(IO.unit)((io, f) => io *> f.observe.void)

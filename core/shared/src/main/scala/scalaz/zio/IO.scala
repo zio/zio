@@ -189,7 +189,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
             _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
           } yield ()).uninterruptibly *> done.get).onInterrupt(
-            child.get flatMap (_.interrupt)
+            child.get flatMap (_.interrupt.void)
           )
     } yield c
   }
@@ -734,16 +734,13 @@ object IO extends Serializable {
     final val SyncEffect      = 3
     final val Fail            = 4
     final val AsyncEffect     = 5
-    final val AsyncIOEffect   = 6
-    final val Redeem          = 7
-    final val Fork            = 8
-    final val Suspend         = 9
-    final val Uninterruptible = 10
-    final val Sleep           = 11
-    final val Supervise       = 12
-    final val Supervisor      = 13
-    final val Ensuring        = 14
-    final val Descriptor      = 15
+    final val Redeem          = 6
+    final val Fork            = 7
+    final val Uninterruptible = 8
+    final val Sleep           = 9
+    final val Supervise       = 10
+    final val Ensuring        = 11
+    final val Descriptor      = 12
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -765,10 +762,6 @@ object IO extends Serializable {
     override def tag = Tags.AsyncEffect
   }
 
-  final class AsyncIOEffect[E, A] private[IO] (val register: (Callback[E, A]) => IO[E, Unit]) extends IO[E, A] {
-    override def tag = Tags.AsyncIOEffect
-  }
-
   final class Redeem[E, E2, A, B] private[IO] (
     val value: IO[E, A],
     val err: Cause[E] => IO[E2, B],
@@ -784,10 +777,6 @@ object IO extends Serializable {
   final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Cause[Any] => IO[Nothing, Unit]])
       extends IO[Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
-  }
-
-  final class Suspend[E, A] private[IO] (val value: () => IO[E, A]) extends IO[E, A] {
-    override def tag = Tags.Suspend
   }
 
   final class Uninterruptible[E, A] private[IO] (val io: IO[E, A]) extends IO[E, A] {
@@ -807,10 +796,6 @@ object IO extends Serializable {
 
   final class Fail[E] private[IO] (val cause: Cause[E]) extends IO[E, Nothing] {
     override def tag = Tags.Fail
-  }
-
-  final class Supervisor private[IO] () extends IO[Nothing, Throwable => IO[Nothing, Unit]] {
-    override def tag = Tags.Supervisor
   }
 
   final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
@@ -882,7 +867,8 @@ object IO extends Serializable {
    * will be undefined and most likely involve the physical explosion of your
    * computer in a heap of rubble.
    */
-  final def suspend[E, A](io: => IO[E, A]): IO[E, A] = new Suspend(() => io)
+  final def suspend[E, A](io: => IO[E, A]): IO[E, A] =
+    IO.flatten(IO.sync(io))
 
   /**
    * Interrupts the fiber executing this action, running all finalizers.
@@ -998,7 +984,16 @@ object IO extends Serializable {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] = new AsyncIOEffect(register)
+  final def asyncPure[E, A](register: (Callback[E, A]) => IO[Nothing, Unit]): IO[E, A] =
+    for {
+      d   <- descriptor
+      p   <- Promise.make[E, A]
+      ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
+      a <- (for {
+            _ <- register(p.unsafeDone(_, d.executor.execute)).fork.peek(ref.set(_)).uninterruptibly
+            a <- p.get
+          } yield a).onInterrupt(ref.get.flatMap(_.interrupt.void))
+    } yield a
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -1057,7 +1052,8 @@ object IO extends Serializable {
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  final def supervisor: IO[Nothing, Throwable => IO[Nothing, Unit]] = new Supervisor()
+  final def supervisor: IO[Nothing, Cause[Nothing] => IO[Nothing, Unit]] =
+    descriptor.map(_.supervisor)
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
@@ -1095,14 +1091,11 @@ object IO extends Serializable {
   )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
     Ref[Option[(A, Fiber[E, B])]](None).flatMap { m =>
       (for {
-        f <- acquire.flatMap(a => use(a).fork.flatMap(f => m.set(Some(a -> f)).const(f))).uninterruptibly
+        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(Some(a -> f)))).uninterruptibly
         b <- f.join
       } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
         case (a, f) =>
-          f.poll.flatMap {
-            case Some(r) => release(a, r)
-            case None    => f.interrupt *> f.observe.flatMap(release(a, _))
-          }
+          f.interrupt.flatMap(release(a, _))
       }))
     }
 
@@ -1136,8 +1129,28 @@ object IO extends Serializable {
    */
   final def parTraverse[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     as.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
-      fn(a).par(io).map { case (b, bs) => b :: bs }
+      fn(a).parWith(io)((b, bs) => b :: bs)
     }
+
+  /**
+   * Evaluate the elements of a traversable data structure in parallel
+   * and collect the results. Only up to `n` tasks run in parallel.
+   * This is a version of `foreachPar`, with a throttle.
+   */
+  final def foreachParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    for {
+      semaphore <- Semaphore(n)
+      bs <- parTraverse(as) { a =>
+             semaphore.withPermit(fn(a))
+           }
+    } yield bs
+
+  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
+  /**
+   * Alias for foreachParN
+   */
+  final def traverseParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    foreachParN(n)(as)(fn)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
@@ -1152,6 +1165,21 @@ object IO extends Serializable {
    */
   final def parAll[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
     parTraverse(as)(identity)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect
+   * the results. Only up to `n` tasks run in parallel.
+   * This is a version of `collectPar`, with a throttle.
+   */
+  final def collectParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+    foreachParN(n)(as)(identity)
+
+  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
+  /**
+   * Alias for `collectParN`
+   */
+  final def sequenceParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+    collectParN(n)(as)
 
   /**
    * Races an `IO[E, A]` against elements of a `Iterable[IO[E, A]]`. Yields

@@ -72,6 +72,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     simple async must return                $testAsyncEffectReturns
     simple asyncIO must return              $testAsyncIOEffectReturns
     deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
+    interrupt of asyncPure register         $testAsyncPureInterruptRegister
     sleep 0 must return                     $testSleepZeroReturns
     shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
 
@@ -111,6 +112,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
     finalizer can detect interruption       $testFinalizerCanDetectInterruption
     interruption of raced                   $testInterruptedOfRaceInterruptsContestents
+    cancelation is guaranteed               $testCancelationIsGuaranteed
+    interruption of unending bracket        $testInterruptionOfUnendingBracket
   """
 
   def testPoint =
@@ -458,6 +461,20 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(stackIOs(procNum + 1)) must_=== 42
   }
 
+  def testAsyncPureInterruptRegister =
+    unsafeRun(for {
+      release <- Promise.make[Nothing, Unit]
+      acquire <- Promise.make[Nothing, Unit]
+      fiber <- IO
+                .asyncPure[Nothing, Unit] { _ =>
+                  IO.bracket(acquire.complete(()))(_ => release.complete(()).void)(_ => IO.never)
+                }
+                .fork
+      _ <- acquire.get
+      _ <- fiber.interrupt.fork
+      a <- release.get
+    } yield a) must_=== (())
+
   def testSleepZeroReturns =
     unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
 
@@ -571,15 +588,55 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testInterruptedOfRaceInterruptsContestents = {
     val io = for {
       ref   <- Ref(0)
-      cont  <- Promise.make[Nothing, Unit]
-      io    = (cont.complete(()) *> IO.never).onInterrupt(ref.update(_ + 1).void)
-      raced <- (io race io).fork
-      _     <- cont.get
+      cont1 <- Promise.make[Nothing, Unit]
+      cont2 <- Promise.make[Nothing, Unit]
+      make  = (p: Promise[Nothing, Unit]) => (p.complete(()) *> IO.never).onInterrupt(ref.update(_ + 1).void)
+      raced <- (make(cont1) race (make(cont2))).fork
+      _     <- cont1.get *> cont2.get
       _     <- raced.interrupt
       count <- ref.get
     } yield count
 
     unsafeRun(io) must_=== 2
+  }
+
+  def testCancelationIsGuaranteed = {
+    val io = for {
+      release <- scalaz.zio.Promise.make[Nothing, Int]
+      latch   = internal.OneShot.make[Unit]
+      async = IO.async0[Nothing, Unit] { _ =>
+        latch.set(()); Async.maybeLater(release.complete(42).void)
+      }
+      fiber  <- async.fork
+      _      <- IO.sync(latch.get)
+      _      <- fiber.interrupt.fork
+      result <- release.get
+    } yield result
+
+    (0 to 100).map { _ =>
+      unsafeRun(io) must_=== 42
+    }.reduce(_ and _)
+  }
+
+  def testInterruptionOfUnendingBracket = {
+    val io = for {
+      startLatch <- Promise.make[Nothing, Int]
+      exitLatch  <- Promise.make[Nothing, Int]
+      bracketed = IO
+        .now(21)
+        .bracket0[Nothing, Unit] {
+          case (r, e) if e.interrupted => exitLatch.complete(r).void
+          case (_, _)                  => IO.terminate(new Error("Unexpected case"))
+        }(a => startLatch.complete(a) *> IO.never)
+      fiber      <- bracketed.fork
+      startValue <- startLatch.get
+      _          <- fiber.interrupt.fork
+      exitValue  <- exitLatch.get
+    } yield startValue + exitValue
+
+    (0 to 100).map { _ =>
+      unsafeRun(io) must_=== 42
+    }.reduce(_ and _)
   }
 
   def testAsyncPureIsInterruptible = {
