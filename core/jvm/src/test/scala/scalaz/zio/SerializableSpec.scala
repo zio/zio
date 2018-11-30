@@ -5,19 +5,7 @@ import java.io._
 class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def serializeAndBack[T](a: T): IO[_, T] = {
-
-    def serializeToBytes[T](a: T): Array[Byte] = {
-      val bf  = new ByteArrayOutputStream()
-      val oos = new ObjectOutputStream(bf)
-      oos.writeObject(a)
-      oos.close()
-      bf.toByteArray
-    }
-
-    def getObjFromBytes[T](bytes: Array[Byte]): T = {
-      val ios = new ObjectInputStream(new ByteArrayInputStream(bytes))
-      ios.readObject().asInstanceOf[T]
-    }
+    import SerializableSpec._
 
     for {
       obj       <- IO.sync(serializeToBytes(a))
@@ -121,4 +109,21 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     }
     result must_=== list
   }
+}
+
+object SerializableSpec {
+  def serializeToBytes[T](a: T): Array[Byte] = {
+    val bf  = new ByteArrayOutputStream()
+    val oos = new ObjectOutputStream(bf)
+    oos.writeObject(a)
+    oos.close()
+    bf.toByteArray
+  }
+
+  def getObjFromBytes[T](bytes: Array[Byte]): T = {
+    val ios = new ObjectInputStream(new ByteArrayInputStream(bytes))
+    ios.readObject().asInstanceOf[T]
+  }
+
+  def serializeAndDeserialize[T](a: T): T = getObjFromBytes(serializeToBytes(a))
 }

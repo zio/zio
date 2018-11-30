@@ -14,8 +14,8 @@ import scalaz.zio.ExitResult.Cause
  */
 sealed abstract class Async[+E, +A] extends Product with Serializable { self =>
   final def fold[E1, B](
-    f: A => ExitResult[E1, B],
-    g: Cause[E] => ExitResult[E1, B]
+    f: Cause[E] => ExitResult[E1, B],
+    g: A => ExitResult[E1, B]
   ): Async[E1, B] =
     self match {
       case Async.Now(r)            => Async.Now(r.fold(f, g))
