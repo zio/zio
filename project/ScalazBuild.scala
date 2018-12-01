@@ -59,7 +59,8 @@ object Scalaz {
       compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "1.0")
     ),
     parallelExecution in Test := true,
-    incOptions ~= (_.withLogRecompileOnMacro(false))
+    incOptions ~= (_.withLogRecompileOnMacro(false)),
+    autoAPIMappings := true
   )
 
   implicit class ModuleHelper(p: Project) {
