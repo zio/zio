@@ -153,25 +153,25 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       (exit, right) =>
         exit.redeem[E1, Either[A, B]](
           _ => right.join.map(Right(_)),
-          a => IO.now(Left(a)) <* right.interrupt
+          a => IO.nowLeft(a) <* right.interrupt
         ),
       (exit, left) =>
         exit.redeem[E1, Either[A, B]](
           _ => left.join.map(Left(_)),
-          b => IO.now(Right(b)) <* left.interrupt
+          b => IO.nowRight(b) <* left.interrupt
         )
     )
 
   /**
    * Races this action with the specified action, returning the first
-   * result to *finish*, whether with by producing a value or by failing
+   * result to *finish*, whether it is by producing a value or by failing
    * with an error. If either of two actions fails before the other succeeds,
-   * the whole race will fail with that error.
+   * the entire race will fail with that error.
    */
-  final def raceAttempt[E1 >: E, B](that: IO[E1, B]): IO[E1, Either[A, B]] =
+  final def raceAttempt[E1 >: E, A1 >: A](that: IO[E1, A1]): IO[E1, A1] =
     raceWith(that)(
-      { case (l, f) => l.fold(f.interrupt *> IO.fail0(_), a => IO.now(Left(a))) },
-      { case (r, f) => r.fold(f.interrupt *> IO.fail0(_), a => IO.now(Right(a))) }
+      { case (l, f) => l.fold(f.interrupt *> IO.fail0(_), IO.now) },
+      { case (r, f) => r.fold(f.interrupt *> IO.fail0(_), IO.now) }
     )
 
   /**
@@ -521,7 +521,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule.update(a, state, clock).flatMap { step =>
-            if (!step.cont) IO.now(Right(step.finish()))
+            if (!step.cont) IO.nowRight(step.finish())
             else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
           }
       )
@@ -567,7 +567,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
                 if (decision.cont) IO.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
             ),
-        succ => IO.now(Right(succ))
+        succ => IO.nowRight(succ)
       )
 
     policy.initial(clock).flatMap(loop)
@@ -603,7 +603,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def timeout0[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    self.map(f).sandboxWith(io => IO.absolve(io.attempt race IO.now(Right(z)).delay(duration)))
+    self.map(f).sandboxWith(io => IO.absolve(io.attempt race IO.nowRight(z).delay(duration)))
 
   /**
    * Flattens a nested action with a specified duration.
