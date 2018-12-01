@@ -1,5 +1,6 @@
 package scalaz.zio.java;
 
+import scala.PartialFunction$;
 import scala.collection.JavaConverters;
 import scala.runtime.BoxedUnit;
 import scala.runtime.Nothing$;
@@ -185,6 +186,38 @@ public class IO<E, A> {
 
     public <E2> IO<E2, A> catchAll(Function<E, IO<E2, A>> h) {
         return new IO<>(delegate.catchAll(h.andThen(io -> io.delegate)::apply));
+    }
+
+    // TODO find out what  PartialFunction should look like in Java
+    public IO<E, A> forSome(Function<E, IO<E, A>> f) {
+        scala.PartialFunction<E, IO<E, A>> pf = PartialFunction$.MODULE$.apply(f::apply);
+
+        return new IO<>(delegate.catchSome(pf.andThen(io -> io.delegate)));
+    }
+
+    // TODO not sure how to call this from java
+    // final def const[B](b: => B): IO[E, B] = self.map(_ => b)
+
+    // TODO right name for *> ?
+    public <B> IO<E, B> flatConst(IO<E, B> io) {
+        return new IO<>(delegate.$times$greater(() -> io.delegate));
+    }
+
+    // TODO right name for <* ?
+    public <B> IO<E, A> andDo(IO<E, B> io) {
+        return new IO<>(delegate.$less$times(() -> io.delegate));
+    }
+
+    public <B, C> IO<E, C> seqWith(IO<E, B> that, BiFunction<A, B, C> f) {
+        return new IO<>(delegate.seqWith(that.delegate, f::apply));
+    }
+
+    public <B> IO<E, Tuple<A, B>> seq(IO<E, B> that) {
+        return new IO<>(delegate.seq(that.delegate).map(Tuple::fromScala));
+    }
+
+    public IO<E, Void> forever() {
+        return new IO<>(delegate.forever().map(nothing -> null));
     }
 
     // TODO other transformation/composition methods...
