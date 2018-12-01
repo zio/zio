@@ -3,7 +3,6 @@ package interop
 
 import cats.effect.{ Concurrent, ContextShift, Effect, ExitCase }
 import cats.{ effect, _ }
-import scalaz.zio.ExitResult.{ Failed, Succeeded }
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS, TimeUnit }
@@ -66,12 +65,10 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
 
   override def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
     IO.async0 { kk: Callback[Throwable, A] =>
-      val token = try {
+      val token: effect.CancelToken[Task] = {
         k(e => kk(eitherToExitResult(e)))
-      } catch {
-        case e: Throwable =>
-          throw e
       }
+
       val token0: Async[Nothing, A] = Async.maybeLater {
         token.catchAll(IO.terminate)
       }
@@ -94,20 +91,9 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     fb: Task[B]
   ): Task[Either[(A, effect.Fiber[Task, B]), (effect.Fiber[Task, A], B)]] =
     (fa raceWith fb)(
-      { case (l, f) => fromEitherCancelOnError(l, f).map(lv => Left((lv, toFiber(f)))) },
-      { case (r, f) => fromEitherCancelOnError(r, f).map(rv => Right((toFiber(f), rv))) }
+      { case (l, f) => l.fold(f.interrupt *> IO.fail0(_), IO.now).map(lv => Left((lv, toFiber(f)))) },
+      { case (r, f) => r.fold(f.interrupt *> IO.fail0(_), IO.now).map(rv => Right((toFiber(f), rv))) }
     )
-
-  @inline final protected def fromEitherCancelOnError[E, A, B](
-    res: ExitResult[E, A],
-    other: Fiber[E, B]
-  ): IO[E, A] =
-    res match {
-      case Failed(e) =>
-        other.interrupt *> IO.fail0(e)
-      case Succeeded(v) =>
-        IO.now(v)
-    }
 }
 
 private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {

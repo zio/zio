@@ -82,21 +82,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
-    interrupt of never                      ${upTo(1.second)(testNeverIsInterruptible)}
-    asyncPure is interruptible              ${upTo(1.second)(testAsyncPureIsInterruptible)}
-    async is interruptible                  ${upTo(1.second)(testAsyncIsInterruptible)}
+    interrupt of never                      $testNeverIsInterruptible
+    asyncPure is interruptible              $testAsyncPureIsInterruptible
+    async is interruptible                  $testAsyncIsInterruptible
     bracket acquire is uninterruptible      $testBracketAcquireIsUninterruptible
     bracket0 acquire is uninterruptible     $testBracket0AcquireIsUninterruptible
     bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
     bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
-    asyncPure creation is interruptible     ${upTo(1.second)(testAsyncPureCreationIsInterruptible)}
+    asyncPure creation is interruptible     $testAsyncPureCreationIsInterruptible
     async0 runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
-    supervise fibers                        ${upTo(1.second)(testSupervise)}
-    supervise fibers in supervised          ${upTo(1.second)(testSupervised)}
-    supervise fibers in race                ${upTo(1.second)(testSuperviseRace)}
+    supervise fibers                        $testSupervise
+    supervise fibers in supervised          $testSupervised
+    supervise fibers in race                $testSuperviseRace
     supervise fibers in fork                $testSuperviseFork
     race of fail with success               $testRaceChoosesWinner
     race of terminate with success          $testRaceChoosesWinnerInTerminate
@@ -107,14 +107,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
     raceBoth interrupts loser               $testRaceBothInterruptsLoser
     raceAttempt interrupts loser            $testRaceAttemptInterruptsLoser
-    par regression                          ${upTo(5.seconds)(testPar)}
-    par of now values                       ${upTo(5.seconds)(testRepeatedPar)}
+    par regression                          $testPar
+    par of now values                       $testRepeatedPar
     mergeAll                                $testMergeAll
     mergeAllEmpty                           $testMergeAllEmpty
     reduceAll                               $testReduceAll
     reduceAll Empty List                    $testReduceAllEmpty
-    timeout of failure                      ${upTo(1.seconds)(testTimeoutFailure)}
-    timeout of terminate                    ${upTo(1.seconds)(testTimeoutTerminate)}
+    timeout of failure                      $testTimeoutFailure
+    timeout of terminate                    $testTimeoutTerminate
 
   RTS regression tests
     deadlock regression 1                   $testDeadlockRegression
