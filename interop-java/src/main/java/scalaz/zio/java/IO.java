@@ -210,12 +210,10 @@ public class IO<E, A> {
     // TODO not sure how to call this from java
     // final def const[B](b: => B): IO[E, B] = self.map(_ => b)
 
-    // TODO right name for *> ?
     public <B> IO<E, B> then(IO<E, B> io) {
         return new IO<>(delegate.$times$greater(() -> io.delegate));
     }
 
-    // TODO right name for <* ?
     public <B> IO<E, A> thenIgnore(IO<E, B> io) {
         return new IO<>(delegate.$less$times(() -> io.delegate));
     }
