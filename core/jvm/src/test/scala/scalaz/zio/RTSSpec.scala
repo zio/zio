@@ -723,15 +723,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testRaceAttemptInterruptsLoser =
-     unsafeRun(for {
-       s      <- Promise.make[Nothing, Unit]
-       effect <- Promise.make[Nothing, Int]
-       winner = s.get *> IO.fromEither(Left(new Exception))
-       loser  = IO.bracket(s.complete(()))(_ => effect.complete(42).void)(_ => IO.never)
-       race   = winner raceAttempt loser
-       _      <- race.attempt
-       b      <- effect.get
-     } yield b) must_=== 42
+    unsafeRun(for {
+      s      <- Promise.make[Nothing, Unit]
+      effect <- Promise.make[Nothing, Int]
+      winner = s.get *> IO.fromEither(Left(new Exception))
+      loser  = IO.bracket(s.complete(()))(_ => effect.complete(42).void)(_ => IO.never)
+      race   = winner raceAttempt loser
+      _      <- race.attempt
+      b      <- effect.get
+    } yield b) must_=== 42
 
   def testPar =
     (0 to 1000).map { _ =>
