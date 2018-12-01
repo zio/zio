@@ -10,6 +10,7 @@ import scalaz.zio.Managed;
 import scalaz.zio.java.data.Tuple;
 import scalaz.zio.java.data.Either;
 
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -22,11 +23,19 @@ public class IO<E, A> {
         this.delegate = delegate;
     }
 
-    private static scalaz.zio.IO<Nothing$, BoxedUnit> toScala(IO<Void, Unit> io) {
+    private static scalaz.zio.IO<Nothing$, BoxedUnit> toScala(IO<Void, Done> io) {
         return io.delegate.bimap(
                 _void -> null,
-                unit -> BoxedUnit.UNIT
+                done -> BoxedUnit.UNIT
         );
+    }
+
+    private static <E, A> IO<E, A> fromScalaError(scalaz.zio.IO<E, Nothing$> io) {
+        return new IO(io);
+    }
+
+    private static <E, A> IO<E, A> fromScalaValue(scalaz.zio.IO<Nothing$, A> io) {
+        return new IO(io);
     }
 
     public <B> IO<E, B> map(Function<A, B> f) {
@@ -43,11 +52,11 @@ public class IO<E, A> {
 
     // TODO do we want a separate java Fiber?
     public IO<Void, Fiber<E, A>> fork() {
-        return new IO<>(delegate.fork()).leftMap(nothing -> null);
+        return IO.fromScalaValue(delegate.fork());
     }
 
-    public IO<Void, Fiber<E, A>> fork0(Function<ExitResult.Cause<Object>, IO<Void, Unit>> f) {
-        return new IO<>(delegate.fork0(f.andThen(IO::toScala)::apply)).leftMap(nothing -> null);
+    public IO<Void, Fiber<E, A>> fork0(Function<ExitResult.Cause<Object>, IO<Void, Done>> f) {
+        return IO.fromScalaValue(delegate.fork0(f.andThen(IO::toScala)::apply));
     }
 
     public <E1 extends E, B, C> IO<E1, C> parWith(IO<E1, B> that, BiFunction<A, B, C> f) {
@@ -109,7 +118,7 @@ public class IO<E, A> {
         return new IO<>(delegate.attempt().bimap(nothing -> null, Either::fromScala));
     }
 
-    public <B> IO<E, B> bracket(Function<A, IO<Void, Unit>> release, Function<A, IO<E, B>> use) {
+    public <B> IO<E, B> bracket(Function<A, IO<Void, Done>> release, Function<A, IO<E, B>> use) {
         return new IO<>(delegate.bracket(
                 release.andThen(IO::toScala)::apply,
                 use.andThen(io -> io.delegate)::apply
@@ -117,7 +126,7 @@ public class IO<E, A> {
     }
 
     // TODO find a better name for all method names ending in "0" and "_"
-    public <B> IO<E, B> bracket0(BiFunction<A, ExitResult<E, B>, IO<Void, Unit>> release,
+    public <B> IO<E, B> bracket0(BiFunction<A, ExitResult<E, B>, IO<Void, Done>> release,
                                  Function<A, IO<E, B>> use) {
         return new IO<>(delegate.<E, B>bracket0(
                 release.andThen(IO::toScala)::apply,
@@ -125,11 +134,11 @@ public class IO<E, A> {
         ));
     }
 
-    public <B> IO<E, B> bracket_(IO<Void, Unit> release, IO<E, B> use) {
+    public <B> IO<E, B> bracket_(IO<Void, Done> release, IO<E, B> use) {
         return new IO<>(delegate.bracket_(toScala(release), use.delegate));
     }
 
-    public IO<E, A> ensuring(IO<Void, Unit> finalizer) {
+    public IO<E, A> ensuring(IO<Void, Done> finalizer) {
         return new IO<>(delegate.ensuring(toScala(finalizer)));
     }
 
@@ -137,7 +146,7 @@ public class IO<E, A> {
     // final def on(ec: ExecutionContext): IO[E, A]
     // final def forkOn(ec: ExecutionContext): IO[E, Fiber[E, A]]
 
-    public <B> IO<E, B> bracketOnError(Function<A, IO<Void, Unit>> release, Function<A, IO<E, B>> use) {
+    public <B> IO<E, B> bracketOnError(Function<A, IO<Void, Done>> release, Function<A, IO<E, B>> use) {
         return new IO<>(delegate.bracketOnError(
                 release.andThen(IO::toScala)::apply,
                 use.andThen(io -> io.delegate)::apply
@@ -145,21 +154,21 @@ public class IO<E, A> {
     }
 
     // TODO do we want a java Managed ?
-    public Managed<E, A> managed(Function<A, IO<Void, Unit>> release) {
+    public Managed<E, A> managed(Function<A, IO<Void, Done>> release) {
         return delegate.managed(release.andThen(IO::toScala)::apply);
     }
 
-    public IO<E, A> onError(Function<ExitResult<E, Void>, IO<Void, Unit>> cleanup) {
+    public IO<E, A> onError(Function<ExitResult<E, Void>, IO<Void, Done>> cleanup) {
         Function<ExitResult<E, Nothing$>, ExitResult<E, Void>> f = exitResult -> exitResult.map(_nothing -> null);
 
         return new IO<>(delegate.onError(f.andThen(cleanup).andThen(IO::toScala)::apply));
     }
 
-    public IO<E, A> onInterrupt(IO<Void, Unit> cleanup) {
+    public IO<E, A> onInterrupt(IO<Void, Done> cleanup) {
         return new IO<>(delegate.onInterrupt(toScala(cleanup)));
     }
 
-    public IO<E, A> onTermination(Function<ExitResult.Cause<Void>, IO<Void, Unit>> cleanup) {
+    public IO<E, A> onTermination(Function<ExitResult.Cause<Void>, IO<Void, Done>> cleanup) {
         Function<ExitResult.Cause<Nothing$>, ExitResult.Cause<Void>> f = cause -> cause.map(nothing -> null);
 
         return new IO<>(delegate.onTermination(f.andThen(cleanup).andThen(IO::toScala)::apply));
@@ -169,7 +178,7 @@ public class IO<E, A> {
         return new IO<>(delegate.supervised());
     }
 
-    public IO<E, A> supervised(Function<Iterable<Fiber<?, ?>>, IO<Void, Unit>> supervisor) {
+    public IO<E, A> supervised(Function<Iterable<Fiber<?, ?>>, IO<Void, Done>> supervisor) {
         Function<scala.collection.Iterable<Fiber<?, ?>>, Iterable<Fiber<?, ?>>> asJavaIterable =
                 JavaConverters::asJavaIterable;
 
@@ -188,9 +197,12 @@ public class IO<E, A> {
         return new IO<>(delegate.catchAll(h.andThen(io -> io.delegate)::apply));
     }
 
-    // TODO find out what  PartialFunction should look like in Java
-    public IO<E, A> forSome(Function<E, IO<E, A>> f) {
-        scala.PartialFunction<E, IO<E, A>> pf = PartialFunction$.MODULE$.apply(f::apply);
+    public IO<E, A> forSome(Function<E, Optional<A>> f) {
+        scala.PartialFunction<E, IO<E, A>> pf = PartialFunction$.MODULE$.apply(
+                e -> f.apply(e)
+                        .map(a -> IO.<E, A>safeCast(IO.now(a)))
+                        .orElse(safeCastError(IO.fail(e)))
+        );
 
         return new IO<>(delegate.catchSome(pf.andThen(io -> io.delegate)));
     }
@@ -199,12 +211,12 @@ public class IO<E, A> {
     // final def const[B](b: => B): IO[E, B] = self.map(_ => b)
 
     // TODO right name for *> ?
-    public <B> IO<E, B> flatConst(IO<E, B> io) {
+    public <B> IO<E, B> then(IO<E, B> io) {
         return new IO<>(delegate.$times$greater(() -> io.delegate));
     }
 
     // TODO right name for <* ?
-    public <B> IO<E, A> andDo(IO<E, B> io) {
+    public <B> IO<E, A> thenIgnore(IO<E, B> io) {
         return new IO<>(delegate.$less$times(() -> io.delegate));
     }
 
@@ -217,17 +229,17 @@ public class IO<E, A> {
     }
 
     public IO<E, Void> forever() {
-        return new IO<>(delegate.forever().map(nothing -> null));
+        return fromScalaError(delegate.forever());
     }
 
     // TODO other transformation/composition methods...
 
     public static <A> IO<Void, A> now(A a) {
-        return new IO<>(scalaz.zio.IO$.MODULE$.now(a)).leftMap(nothing -> null);
+        return fromScalaValue(scalaz.zio.IO$.MODULE$.now(a));
     }
 
     public static <A> IO<Void, A> point(Supplier<A> a) {
-        return new IO<>(scalaz.zio.IO$.MODULE$.point(a::get)).leftMap(nothing -> null);
+        return fromScalaValue(scalaz.zio.IO$.MODULE$.point(a::get));
     }
 
     public static <E, A> IO<E, A> fail(E error) {
@@ -237,9 +249,17 @@ public class IO<E, A> {
     // TODO other construction methods...
 
     // TODO come up with a better name
-    public static class Unit {
-        private Unit() { }
+    public static class Done {
+        private Done() { }
 
-        public static Unit instance = new Unit();
+        public static Done instance = new Done();
+    }
+
+    public static <E, A> IO<E, A> safeCast(IO<Void, A> io) {
+        return (IO<E, A>) io;
+    }
+
+    public static <E, A> IO<E, A> safeCastError(IO<E, Void> io) {
+        return (IO<E, A>) io;
     }
 }
