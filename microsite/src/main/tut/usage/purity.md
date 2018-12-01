@@ -65,8 +65,18 @@ def readFile(name: String): IO[String, Array[Byte]] =
 
 You can use the `async` method of `IO` to import effectful asynchronous code into your purely functional program:
 
-<!-- We are just making up an HTTP library here, so can't run this through tut -->
-```scala
+```tut:invisible
+case class HttpException()
+case class Request()
+case class Response()
+
+object Http {
+  def req(req: Request, cb: ExitResult[HttpException, Response] => Unit): Unit =
+    cb(ExitResult.succeeded(Response()))
+}
+```
+
+```tut:silent
 def makeRequest(req: Request): IO[HttpException, Response] =
   IO.async(cb => Http.req(req, cb))
 ```

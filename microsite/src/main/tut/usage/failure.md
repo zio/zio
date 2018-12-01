@@ -57,10 +57,9 @@ val z: IO[IOException, Array[Byte]] = openFile("primary.json").catchAll(_ => ope
 
 If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the `catchSome` method:
 
-<!-- https://github.com/scalaz/scalaz-zio/issues/164 -->
-```scala
+```tut:silent
 val z: IO[IOException, Array[Byte]] = openFile("primary.json").catchSome {
-  case FileNotFoundException(_) => openFile("backup.json")
+  case x: java.io.FileNotFoundException => openFile("backup.json")
 }
 ```
 
@@ -72,10 +71,16 @@ val z: IO[IOException, Array[Byte]] = openFile("primary.json").orElse(openFile("
 
 If you want more control on the next action and better performance you can use the primitive which all the previous operations are based on, it's called `redeem` and it can be seen as the combination of `flatMap` and `catchAll`. It is useful if you find yourself using combinations of `attempt` or `catchAll` with `flatMap`, using `redeem` you can achieve the same and avoid the intermediate `Either` allocation and the subsequent call to `flatMap`.
 
-<!-- Inventing APIs here -->
-```scala
+```tut:invisible
+sealed abstract class Content
+case class NoContent(t: Throwable) extends Content
+case class OkContent(s: String) extends Content
+def readUrls(file: String): IO[Throwable, List[String]] = IO.now("Hello" :: Nil)
+def fetchContent(urls: List[String]): IO[Nothing, Content] = IO.now(OkContent("Roger"))
+```
+```tut:silent
 val z: IO[Nothing, Content] =
-  readUrls("urls.json").redeem[Nothing](e => IO.point(NoContent(cause = e)))(fetchContent)
+  readUrls("urls.json").redeem(e => IO.point(NoContent(e)), fetchContent)
 ```
 
 # Retry
