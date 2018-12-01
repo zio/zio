@@ -48,7 +48,7 @@ object future {
   }
 
   class FutureOps[A](private val delayedFuture: () => Future[A]) extends AnyVal {
-    def unsafeToIO(implicit ec: ExecutionContext): IO[Throwable, A]       = IOObjOps(IO).fromFuture(delayedFuture)(ec)
+    def unsafeToIO(implicit ec: ExecutionContext): IO[Throwable, A] = IOObjOps(IO).fromFuture(delayedFuture)(ec)
     def toFiber(implicit ec: ExecutionContext): Fiber[Throwable, A] = FiberObjOps(Fiber).fromFuture(delayedFuture())(ec)
   }
 
