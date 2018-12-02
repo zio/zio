@@ -3,8 +3,8 @@ package interop
 
 import scalaz.zio.ExitResult.Cause
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 object future {
 
@@ -42,12 +42,11 @@ object future {
                   case Failure(t) => IO.point(ExitResult.checked(t))
                 }
               case None =>
-                IO.async {
-                  cb: Callback[Nothing, ExitResult[Throwable, A]] =>
-                    ftr.onComplete {
-                      case Success(a) => cb(ExitResult.succeeded(ExitResult.succeeded(a)))
-                      case Failure(t) => cb(ExitResult.succeeded(ExitResult.checked(t)))
-                    }(ec)
+                IO.async { cb: Callback[Nothing, ExitResult[Throwable, A]] =>
+                  ftr.onComplete {
+                    case Success(a) => cb(ExitResult.succeeded(ExitResult.succeeded(a)))
+                    case Failure(t) => cb(ExitResult.succeeded(ExitResult.checked(t)))
+                  }(ec)
                 }
             }
           }
