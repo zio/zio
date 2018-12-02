@@ -354,13 +354,19 @@ trait Schedule[-A, +B] extends Serializable { self =>
   /**
    * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0.
    */
-  final def jittered: Schedule[A, B] = jittered(0.0, 1.0)
+  final def jittered: Schedule[A, B] = jittered(IO.sync(util.Random.nextDouble()))
 
   /**
-   * Applies random jitter to the schedule bounded by the specified factors.
+   * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0, with a given random generator.
    */
-  final def jittered(min: Double, max: Double): Schedule[A, B] =
-    modifyDelay((_, d) => IO.sync(util.Random.nextDouble()).map(random => d * min * (1 - random) + d * max * random))
+  final def jittered(random: IO[Nothing, Double]): Schedule[A, B] =
+    jittered(0.0, 1.0, random)
+
+  /**
+   * Applies random jitter to the schedule bounded by the specified factors, with a given random generator.
+   */
+  final def jittered(min: Double, max: Double, random: IO[Nothing, Double]): Schedule[A, B] =
+    modifyDelay((_, d) => random.map(random => d * min * (1 - random) + d * max * random))
 
   /**
    * Sends every input value to the specified sink.
