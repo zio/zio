@@ -40,6 +40,9 @@ Brackets have compositional semantics, so if a bracket is nested inside another 
 
 A helper method called `ensuring` provides a simpler analogue of `finally`:
 
-```scala
-val composite = action1.ensuring(cleanupAction)
+```tut:silent
+var i: Int = 0
+val action: IO[Throwable, String] = IO.sync(i += 1) *> IO.fail(new Throwable("Boom!"))
+val cleanupAction: IO[Nothing, Unit] = IO.sync(i -= 1)
+val composite = action.ensuring(cleanupAction)
 ```
