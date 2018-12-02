@@ -1,18 +1,31 @@
 package scalaz.zio
 package interop
 
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.{ Failure, Success }
+import scalaz.zio.ExitResult.Cause
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 object future {
 
   implicit class IOObjOps(private val ioObj: IO.type) extends AnyVal {
     def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): IO[Throwable, A] =
-      IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
-        ftr().onComplete {
-          case Success(a) => cb(ExitResult.succeeded(a))
-          case Failure(t) => cb(ExitResult.checked(t))
-        }(ec)
+      IO.suspend {
+        val f = ftr()
+        f.value match {
+          case Some(result) =>
+            result match {
+              case Success(a) => IO.point(a)
+              case Failure(t) => IO.fail0(Cause.checked(t))
+            }
+          case None =>
+            IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
+              f.onComplete {
+                case Success(a) => cb(ExitResult.succeeded(a))
+                case Failure(t) => cb(ExitResult.checked(t))
+              }(ec)
+            }
+        }
       }
   }
 
@@ -20,19 +33,33 @@ object future {
     def fromFuture[A](_ftr: => Future[A])(ec: ExecutionContext): Fiber[Throwable, A] =
       new Fiber[Throwable, A] {
         private lazy val ftr = _ftr
-        def observe: IO[Nothing, ExitResult[Throwable, A]] = IO.async {
-          cb: Callback[Nothing, ExitResult[Throwable, A]] =>
-            ftr.onComplete {
-              case Success(a) => cb(ExitResult.succeeded(ExitResult.succeeded(a)))
-              case Failure(t) => cb(ExitResult.succeeded(ExitResult.checked(t)))
-            }(ec)
-        }
-        def poll: IO[Nothing, Option[ExitResult[Throwable, A]]] = IO.sync {
-          ftr.value map {
-            case Success(a) => ExitResult.succeeded(a)
-            case Failure(t) => ExitResult.checked(t)
+        def observe: IO[Nothing, ExitResult[Throwable, A]] =
+          IO.suspend {
+            ftr.value match {
+              case Some(result) =>
+                result match {
+                  case Success(a) => IO.point(ExitResult.succeeded(a))
+                  case Failure(t) => IO.point(ExitResult.checked(t))
+                }
+              case None =>
+                IO.async {
+                  cb: Callback[Nothing, ExitResult[Throwable, A]] =>
+                    ftr.onComplete {
+                      case Success(a) => cb(ExitResult.succeeded(ExitResult.succeeded(a)))
+                      case Failure(t) => cb(ExitResult.succeeded(ExitResult.checked(t)))
+                    }(ec)
+                }
+            }
           }
-        }
+
+        def poll: IO[Nothing, Option[ExitResult[Throwable, A]]] =
+          IO.sync {
+            ftr.value map {
+              case Success(a) => ExitResult.succeeded(a)
+              case Failure(t) => ExitResult.checked(t)
+            }
+          }
+
         def interrupt: IO[Nothing, ExitResult[Throwable, A]] =
           join.redeemPure(ExitResult.checked(_), ExitResult.succeeded(_))
       }
