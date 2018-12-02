@@ -162,6 +162,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     )
 
   /**
+   * Races this action with the specified action, returning the first
+   * result to *finish*, whether it is by producing a value or by failing
+   * with an error. If either of two actions fails before the other succeeds,
+   * the entire race will fail with that error.
+   */
+  final def raceAttempt[E1 >: E, A1 >: A](that: IO[E1, A1]): IO[E1, A1] =
+    raceWith(that)(
+      { case (l, f) => l.fold(f.interrupt *> IO.fail0(_), IO.now) },
+      { case (r, f) => r.fold(f.interrupt *> IO.fail0(_), IO.now) }
+    )
+
+  /**
    * Races this action with the specified action, invoking the
    * specified finisher as soon as one value or the other has been computed.
    */
