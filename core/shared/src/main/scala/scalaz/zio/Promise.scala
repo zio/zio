@@ -169,7 +169,7 @@ object Promise {
     ref: Ref[A]
   )(
     acquire: (Promise[E, B], A) => (IO[Nothing, C], A)
-  )(release: (C, Promise[E, B]) => IO[Nothing, Any]): IO[E, B] =
+  )(release: (C, Promise[E, B]) => IO[Nothing, _]): IO[E, B] =
     for {
       pRef <- Ref[Option[(C, Promise[E, B])]](None)
       b <- (for {
