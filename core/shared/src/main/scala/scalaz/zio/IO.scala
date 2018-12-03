@@ -106,7 +106,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0(handler: Cause[Any] => IO[Nothing, Unit]): IO[Nothing, Fiber[E, A]] =
+  final def fork0(handler: Cause[Any] => IO[Nothing, Any]): IO[Nothing, Fiber[E, A]] =
     new IO.Fork(this, Some(handler))
 
   /**
@@ -314,7 +314,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }
    * }}}
    */
-  final def bracket[E1 >: E, B](release: A => IO[Nothing, Unit])(use: A => IO[E1, B]): IO[E1, B] =
+  final def bracket[E1 >: E, B](release: A => IO[Nothing, Any])(use: A => IO[E1, B]): IO[E1, B] =
     IO.bracket[E1, A, B](this)(release)(use)
 
   /**
@@ -322,7 +322,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * or not `use` succeeded to the release action.
    */
   final def bracket0[E1 >: E, B](
-    release: (A, ExitResult[E1, B]) => IO[Nothing, Unit]
+    release: (A, ExitResult[E1, B]) => IO[Nothing, Any]
   )(use: A => IO[E1, B]): IO[E1, B] =
     IO.bracket0[E1, A, B](this)(release)(use)
 
@@ -330,7 +330,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * A less powerful variant of `bracket` where the value produced by this
    * action is not needed.
    */
-  final def bracket_[E1 >: E, B](release: IO[Nothing, Unit])(use: IO[E1, B]): IO[E1, B] =
+  final def bracket_[E1 >: E, B](release: IO[Nothing, Any])(use: IO[E1, B]): IO[E1, B] =
     IO.bracket[E1, A, B](self)(_ => release)(_ => use)
 
   /**
@@ -339,7 +339,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * because it's possible the fiber will be interrupted after acquisition but
    * before the finalizer is added.
    */
-  final def ensuring(finalizer: IO[Nothing, Unit]): IO[E, A] =
+  final def ensuring(finalizer: IO[Nothing, Any]): IO[E, A] =
     new IO.Ensuring(self, finalizer)
 
   /**
@@ -358,7 +358,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Executes the release action only if there was an error.
    */
-  final def bracketOnError[E1 >: E, B](release: A => IO[Nothing, Unit])(use: A => IO[E1, B]): IO[E1, B] =
+  final def bracketOnError[E1 >: E, B](release: A => IO[Nothing, Any])(use: A => IO[E1, B]): IO[E1, B] =
     IO.bracket0[E1, A, B](this)(
       (a: A, eb: ExitResult[E1, B]) =>
         eb match {
@@ -367,14 +367,14 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
         }
     )(use)
 
-  final def managed(release: A => IO[Nothing, Unit]): Managed[E, A] =
+  final def managed(release: A => IO[Nothing, Any]): Managed[E, A] =
     Managed[E, A](this)(release)
 
   /**
    * Runs the specified action if this action fails, providing the error to the
    * action if it exists. The provided action will not be interrupted.
    */
-  final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Unit]): IO[E, A] =
+  final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, Any]): IO[E, A] =
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
@@ -386,7 +386,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Runs the specified action if this action is interrupted.
    */
-  final def onInterrupt(cleanup: IO[Nothing, Unit]): IO[E, A] =
+  final def onInterrupt(cleanup: IO[Nothing, Any]): IO[E, A] =
     self.ensuring(
       IO.descriptor flatMap (descriptor => if (descriptor.interrupted) cleanup else IO.unit)
     )
@@ -395,7 +395,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Runs the specified action if this action is terminated, either because of
    * a defect or because of interruption.
    */
-  final def onTermination(cleanup: Cause[Nothing] => IO[Nothing, Unit]): IO[E, A] =
+  final def onTermination(cleanup: Cause[Nothing] => IO[Nothing, Any]): IO[E, A] =
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
@@ -414,7 +414,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Supervises this action, which ensures that any fibers that are forked by
    * the action are handled by the provided supervisor.
    */
-  final def supervised(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]): IO[E, A] =
+  final def supervised(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Any]): IO[E, A] =
     IO.superviseWith(self)(supervisor)
 
   /**
@@ -786,7 +786,7 @@ object IO extends Serializable {
     final def apply(v: A): IO[E2, B] = succ(v)
   }
 
-  final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Cause[Any] => IO[Nothing, Unit]])
+  final class Fork[E, A] private[IO] (val value: IO[E, A], val handler: Option[Cause[Any] => IO[Nothing, Any]])
       extends IO[Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
   }
@@ -801,7 +801,7 @@ object IO extends Serializable {
 
   final class Supervise[E, A] private[IO] (
     val value: IO[E, A],
-    val supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]
+    val supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Any]
   ) extends IO[E, A] {
     override def tag = Tags.Supervise
   }
@@ -810,7 +810,7 @@ object IO extends Serializable {
     override def tag = Tags.Fail
   }
 
-  final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Unit]) extends IO[E, A] {
+  final class Ensuring[E, A] private[IO] (val io: IO[E, A], val finalizer: IO[Nothing, Any]) extends IO[E, A] {
     override def tag = Tags.Ensuring
   }
 
@@ -863,7 +863,7 @@ object IO extends Serializable {
   /**
    * Supervises the specified action's spawned fibers.
    */
-  final def superviseWith[E, A](io: IO[E, A])(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]): IO[E, A] =
+  final def superviseWith[E, A](io: IO[E, A])(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Any]): IO[E, A] =
     new Supervise(io, supervisor)
 
   /**
@@ -1064,7 +1064,7 @@ object IO extends Serializable {
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */
-  final def supervisor: IO[Nothing, Cause[Nothing] => IO[Nothing, Unit]] =
+  final def supervisor: IO[Nothing, Cause[Nothing] => IO[Nothing, Any]] =
     descriptor.map(_.supervisor)
 
   /**
@@ -1100,12 +1100,12 @@ object IO extends Serializable {
    */
   final def bracket0[E, A, B](
     acquire: IO[E, A]
-  )(release: (A, ExitResult[E, B]) => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
+  )(release: (A, ExitResult[E, B]) => IO[Nothing, Any])(use: A => IO[E, B]): IO[E, B] =
     Ref[Option[(A, Fiber[E, B])]](None).flatMap { m =>
       (for {
         f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(Some(a -> f)))).uninterruptibly
         b <- f.join
-      } yield b).ensuring(m.get.flatMap(_.fold(IO.unit) {
+      } yield b).ensuring(m.get.flatMap(_.fold(unit: IO[Nothing, Any]) {
         case (a, f) =>
           f.interrupt.flatMap(release(a, _))
       }))
@@ -1118,12 +1118,12 @@ object IO extends Serializable {
    */
   final def bracket[E, A, B](
     acquire: IO[E, A]
-  )(release: A => IO[Nothing, Unit])(use: A => IO[E, B]): IO[E, B] =
+  )(release: A => IO[Nothing, Any])(use: A => IO[E, B]): IO[E, B] =
     Ref[Option[A]](None).flatMap { m =>
       (for {
         a <- acquire.flatMap(a => m.set(Some(a)).const(a)).uninterruptibly
         b <- use(a)
-      } yield b).ensuring(m.get.flatMap(_.fold(unit)(release(_))))
+      } yield b).ensuring(m.get.flatMap(_.fold(unit: IO[Nothing, Any])(release(_))))
     }
 
   /**

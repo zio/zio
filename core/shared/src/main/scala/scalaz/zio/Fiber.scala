@@ -115,7 +115,7 @@ object Fiber {
     id: FiberId,
     interrupted: Boolean,
     executor: ExecutionContext,
-    supervisor: ExitResult.Cause[Nothing] => IO[Nothing, Unit]
+    supervisor: ExitResult.Cause[Nothing] => IO[Nothing, Any]
   )
 
   final val unit: Fiber[Nothing, Unit] = Fiber.point(())
