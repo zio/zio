@@ -1,11 +1,9 @@
 package scalaz.zio
 package interop
 
-import java.io.{ ByteArrayOutputStream, PrintStream }
-
 import cats.Eq
-import cats.effect.laws.discipline.{ EffectTests, Parameters }
 import cats.effect.laws.discipline.arbitrary._
+import cats.effect.laws.discipline.{ ConcurrentTests, EffectTests, Parameters }
 import cats.effect.laws.util.{ TestContext, TestInstances }
 import cats.implicits._
 import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
@@ -17,8 +15,6 @@ import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
 
-import scala.util.control.NonFatal
-
 class catzSpec
     extends FunSuite
     with BeforeAndAfterAll
@@ -29,30 +25,7 @@ class catzSpec
     with GenIO
     with RTS {
 
-  /**
-   * Silences `System.err`, only printing the output in case exceptions are
-   * thrown by the executed `thunk`.
-   */
-  def silenceSystemErr[A](thunk: => A): A = synchronized {
-    // Silencing System.err
-    val oldErr    = System.err
-    val outStream = new ByteArrayOutputStream()
-    val fakeErr   = new PrintStream(outStream)
-    System.setErr(fakeErr)
-    try {
-      val result = thunk
-      System.setErr(oldErr)
-      result
-    } catch {
-      case NonFatal(e) =>
-        System.setErr(oldErr)
-        // In case of errors, print whatever was caught
-        fakeErr.close()
-        val out = outStream.toString("utf-8")
-        if (out.nonEmpty) oldErr.println(out)
-        throw e
-    }
-  }
+  override def defaultHandler: ExitResult.Cause[Any] => IO[Nothing, Unit] = _ => IO.unit
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()
@@ -60,10 +33,13 @@ class catzSpec
 
     for ((id, prop) ← ruleSet.all.properties)
       test(name + "." + id) {
-        silenceSystemErr(check(prop))
+        check(prop)
       }
   }
 
+  (1 to 50).foreach { s =>
+    checkAllAsync(s"Concurrent[Task] $s", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
+  }
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
   checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
@@ -77,8 +53,15 @@ class catzSpec
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
     new Eq[IO[E, A]] {
-      def eqv(io1: IO[E, A], io2: IO[E, A]): Boolean =
-        unsafeRun(io1.attempt) === unsafeRun(io2.attempt)
+      def eqv(io1: IO[E, A], io2: IO[E, A]): Boolean = {
+        val v1  = unsafeRunSync(io1)
+        val v2  = unsafeRunSync(io2)
+        val res = v1 === v2
+        if (!res) {
+          println(s"Mismatch: $v1 != $v2")
+        }
+        res
+      }
     }
 
   implicit def catsParEQ[E, A: Eq]: Eq[ParIO[E, A]] =

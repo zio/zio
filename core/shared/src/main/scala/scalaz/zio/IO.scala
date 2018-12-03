@@ -1,10 +1,11 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.annotation.switch
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
 import scalaz.zio.ExitResult.Cause
+
+import scala.annotation.switch
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -152,12 +153,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       (exit, right) =>
         exit.redeem[E1, Either[A, B]](
           _ => right.join.map(Right(_)),
-          a => IO.now(Left(a)) <* right.interrupt
+          a => IO.nowLeft(a) <* right.interrupt
         ),
       (exit, left) =>
         exit.redeem[E1, Either[A, B]](
           _ => left.join.map(Left(_)),
-          b => IO.now(Right(b)) <* left.interrupt
+          b => IO.nowRight(b) <* left.interrupt
         )
     )
 
@@ -520,7 +521,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule.update(a, state, clock).flatMap { step =>
-            if (!step.cont) IO.now(Right(step.finish()))
+            if (!step.cont) IO.nowRight(step.finish())
             else IO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
           }
       )
@@ -566,7 +567,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
                 if (decision.cont) IO.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
             ),
-        succ => IO.now(Right(succ))
+        succ => IO.nowRight(succ)
       )
 
     policy.initial(clock).flatMap(loop)
@@ -602,7 +603,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def timeout0[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    self.map(f).sandboxWith(io => IO.absolve(io.attempt race IO.now(Right(z)).delay(duration)))
+    self.map(f).sandboxWith(io => IO.absolve(io.attempt race IO.nowRight(z).delay(duration)))
 
   /**
    * Flattens a nested action with a specified duration.

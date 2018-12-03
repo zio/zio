@@ -43,7 +43,7 @@ private class IOMonadError[E] extends IOMonad[E] with MonadError[IO[E, ?], E] {
   override def raiseError[A](e: E): IO[E, A]                            = IO.fail(e)
 }
 
-// lossy, throws away errors using the "first success" interpretation of Plus
+/** lossy, throws away errors using the "first success" interpretation of Plus */
 private trait IOPlus[E] extends Plus[IO[E, ?]] {
   override def plus[A](a: IO[E, A], b: => IO[E, A]): IO[E, A] = a.orElse(b)
 }
