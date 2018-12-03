@@ -303,7 +303,7 @@ private object RTS {
                       case IO.Tags.SyncEffect =>
                         val io2 = nested.asInstanceOf[IO.SyncEffect[Any]]
 
-                        curIo = io.flatMapper(io2.effect())
+                        curIo = io.flatMapper(io2.effect(ExecutionContext.fromExecutor(rts.threadPool)))
 
                       case IO.Tags.Descriptor =>
                         val value = getDescriptor
@@ -335,7 +335,7 @@ private object RTS {
                   case IO.Tags.SyncEffect =>
                     val io = curIo.asInstanceOf[IO.SyncEffect[Any]]
 
-                    val value = io.effect()
+                    val value = io.effect(ExecutionContext.fromExecutor(rts.threadPool))
 
                     curIo = nextInstr(value)
 
