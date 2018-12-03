@@ -766,7 +766,7 @@ object IO extends Serializable {
     override def tag = Tags.Strict
   }
 
-  final class SyncEffect[A] private[IO] (val effect: () => A) extends IO[Nothing, A] {
+  final class SyncEffect[A] private[IO] (val effect: ExecutionContext => A) extends IO[Nothing, A] {
     override def tag = Tags.SyncEffect
   }
 
@@ -904,7 +904,17 @@ object IO extends Serializable {
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def sync[A](effect: => A): IO[Nothing, A] = new SyncEffect(() => effect)
+  final def sync[A](effect: => A): IO[Nothing, A] = syncSubmit(_ => effect)
+
+  /**
+   * Imports a synchronous effect into a pure `IO` value.
+   * This variant of `sync` lets you reuse the current execution context of the fiber.
+   *
+   * {{{
+   * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
+   * }}}
+   */
+  final def syncSubmit[A](effect: ExecutionContext => A): IO[Nothing, A] = new SyncEffect[A](effect)
 
   /**
    *
@@ -1002,7 +1012,7 @@ object IO extends Serializable {
       p   <- Promise.make[E, A]
       ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
       a <- (for {
-            _ <- register(p.unsafeDone(_, d.executor.execute)).fork.peek(ref.set(_)).uninterruptibly
+            _ <- register(p.unsafeDone(_, d.executor)).fork.peek(ref.set(_)).uninterruptibly
             a <- p.get
           } yield a).onInterrupt(ref.get.flatMap(_.interrupt.void))
     } yield a
