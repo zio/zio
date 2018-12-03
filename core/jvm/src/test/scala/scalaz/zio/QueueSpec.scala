@@ -490,6 +490,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       for {
         queue <- Queue.bounded[Int](3)
         f     <- queue.take.fork
+        _     <- waitForSize(queue, -1)
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
@@ -500,6 +501,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       for {
         queue <- Queue.sliding[Int](1)
         f     <- queue.take.fork
+        _     <- waitForSize(queue, -1)
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
