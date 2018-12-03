@@ -491,7 +491,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Repeats this action with the specified schedule until the schedule
    * completes, or until the first failure.
    * Repeats are done in addition to the first execution so that
-   * `io.repeat(Schedule.once)` means "execute io and in case of success repeat io once".
+   * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
    */
   final def repeat[B](schedule: Schedule[A, B], clock: Clock = Clock.Live): IO[E, B] =
     repeatOrElse[E, B](schedule, (e, _) => IO.fail(e), clock)
@@ -533,9 +533,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
   /**
    * Retries with the specified retry policy.
-   * Retries are done following the failure of the original io (up to a fixed maximum with
+   * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
-   * "execute io and in case of failure, try again once".
+   * "execute `io` and in case of failure, try again once".
    */
   final def retry[E1 >: E, S](policy: Schedule[E1, S], clock: Clock = Clock.Live): IO[E1, A] =
     retryOrElse(policy, (e: E1, _: S) => IO.fail(e), clock)

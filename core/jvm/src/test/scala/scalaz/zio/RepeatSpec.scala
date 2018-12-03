@@ -69,7 +69,6 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     repeated must_=== n + 1
   }
 
-  // this test fails
   def repeatRepeat = {
     val n = 42
     val repeated = unsafeRun(for {
@@ -78,12 +77,6 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       _   <- io.repeat(Schedule.recurs(1))
       res <- ref.get
     } yield res)
-    // I would expect the second repeat to repeat everything a second time, but
-    // in fact I get:
-    //   2 != 86
-    //   Expected :86
-    //   Actual   :2
-    // And I can't understand why.
     repeated must_=== (n + 1) * 2
   }
 
