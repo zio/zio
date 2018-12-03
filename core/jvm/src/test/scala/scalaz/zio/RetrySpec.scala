@@ -7,9 +7,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   def is = "RetrySpec".title ^ s2"""
    Retry on failure according to a provided strategy
       for a given number of times $retryN
-      for a given number of times with random jitter $retryNJittered
+      for a given number of times with random jitter in (0, 1) $retryNUnitIntervalJittered
+      for a given number of times with random jitter in custom interval $retryNCustomIntervalJittered
       fixed delay with error predicate $fixedWithErrorPredicate
-      fixed delay with error predicate and random jitter $fixedWithErrorPredicateJittered
   Retry according to a provided strategy
     for up to 10 times $recurs10Retry
     """
@@ -43,10 +43,26 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     retried must_=== expected
   }
 
-  def retryNJittered = {
-    val retried  = unsafeRun(retryCollect(IO.fail("Error"), Schedule.recurs(5).jittered))
-    val expected = (Left("Error"), List(1, 2, 3, 4, 5).map((Duration.Zero, _)))
-    retried must_=== expected
+  def retryNUnitIntervalJittered = {
+    val jitter: IO[Nothing, Double]  = IO.sync(0.5)
+    val schedule: Schedule[Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(jitter)
+    val scheduled: List[(Duration, Int)] = unsafeRun(
+      schedule.run(List(1, 2, 3, 4, 5), Clock.Live)
+    )
+
+    val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
+    scheduled must_=== expected
+  }
+
+  def retryNCustomIntervalJittered = {
+    val jitter: IO[Nothing, Double]  = IO.sync(0.5)
+    val schedule: Schedule[Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4, jitter)
+    val scheduled: List[(Duration, Int)] = unsafeRun(
+      schedule.run(List(1, 2, 3, 4, 5), Clock.Live)
+    )
+
+    val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
+    scheduled must_=== expected
   }
 
   def fixedWithErrorPredicate = {
@@ -57,19 +73,6 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
     val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
-    retried must_=== expected
-  }
-
-  def fixedWithErrorPredicateJittered = {
-    var i                  = 0
-    val duration: Duration = 200.millis
-    val io = IO.sync[Unit](i += 1).flatMap { _ =>
-      if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
-    }
-    val strategy         = Schedule.spaced(duration).jittered.whileInput[String](_ == "KeepTryingError")
-    val (error, results) = unsafeRun(retryCollect(io, strategy))
-    val retried          = (error, results.collect { case (dur, count) if dur <= duration => (duration, count) })
-    val expected         = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((duration, _)))
     retried must_=== expected
   }
 
