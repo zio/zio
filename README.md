@@ -4,15 +4,23 @@
 | --- | --- | --- | --- | --- | --- |
 | [![Build Status][Badge-Travis]][Link-Travis] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Scaladex dependencies badge][Badge-Scaladex]][Link-Scaladex] |
 
-The ZIO library provides a general-purpose effect monad and associated abstractions for purely functional Scala applications.
+ZIO is a zero-dependency Scala library for asynchronous and concurrent programming.
 
-The package strives to deliver on the following design goals:
+Powered by highly-scalable, non-blocking fibers that never waste resources, ZIO lets you build scalable, resilient, and reactive applications that meet the needs of your business.
 
- - **Principled**. A purely functional interface for effectful code with rigorous, well-defined semantics.
- - **Performant**. A low-level, highly-optimized runtime system that offers performance better than or comparable to other effect monads.
- - **Pragmatic**. The composable, orthogonal primitives necessary to build real world software, including primitives for concurrent and asynchronous programming.
+ - **High-performance**. Build fast applications with 100x the performance of Scala's `Future`.
+ - **Type-safe**. Use the Scala compiler to find bugs at compile time.
+ - **Concurrent**. Easily build massively concurrent applications.
+ - **Asynchronous**. Escape callback hell with a unified model of computation.
+ - **Resource-safe**. Build apps that never leak resources.
+ - **Functional**. Rapidly compose solutions to complex problems from simple building blocks.
 
-**Documentation** and **Examples** can be found on the [microsite](https://scalaz.github.io/scalaz-zio/).
+See the following references for more information:
+
+ - [Microsite](https://scalaz.github.io/scalaz-zio/)
+ - [Contributor's Guide](CONTRIBUTING.md)
+ - [License](LICENSE)
+ - [Issues](https://github.com/scalaz/scalaz-zio/issues)
 
 ---
 
@@ -22,7 +30,7 @@ The package strives to deliver on the following design goals:
 
 ### Legal
 
-Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
+Copyright (C) 2017-2018 John A. De Goes and the ZIO Contributors. All rights reserved.
 
 
 [Link-Codecov]: https://codecov.io/gh/scalaz/scalaz-zio?branch=master "Codecov"

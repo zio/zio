@@ -5,7 +5,7 @@ sealed abstract class BenchQueueType(val name: String) extends Product with Seri
 object BenchQueueType {
   def lookup(tpe: String): Option[BenchQueueType] = tpe match {
     case RingBufferType.name    => Some(RingBufferType)
-    case JucCLQType.name        => Some(JucCLQType)
+    case LinkedQueueType.name   => Some(LinkedQueueType)
     case JucBlockingType.name   => Some(JucBlockingType)
     case JCToolsType.name       => Some(JCToolsType)
     case NotThreadSafeType.name => Some(NotThreadSafeType)
@@ -14,7 +14,7 @@ object BenchQueueType {
 }
 
 case object RingBufferType    extends BenchQueueType("RingBuffer")
-case object JucCLQType        extends BenchQueueType("JucCLQ")
+case object LinkedQueueType   extends BenchQueueType("LinkedQueue")
 case object JucBlockingType   extends BenchQueueType("JucBlocking")
 case object JCToolsType       extends BenchQueueType("JCTools")
 case object NotThreadSafeType extends BenchQueueType("NotThreadSafe")
