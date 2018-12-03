@@ -1120,7 +1120,7 @@ object IO extends Serializable {
       (for {
         a <- acquire.flatMap(a => m.set(Some(a)).const(a)).uninterruptibly
         b <- use(a)
-      } yield b).ensuring(m.get.flatMap(_.map(release(_)).getOrElse(unit)))
+      } yield b).ensuring(m.get.flatMap(_.map(release).getOrElse(unit)))
     }
 
   /**
