@@ -596,7 +596,7 @@ object Schedule extends Serializable {
    * of repetitions so far.
    *
    * If 0 or negative numbers are given, the operation is not done at all so
-   * that in (op: IO[E, A]).repeat(Schedule.recurs(0)) , op is not done at all.
+   * that in `(op: IO[E, A]).repeat(Schedule.recurs(0)) `, op is not done at all.
    */
   final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ <= n)
 
