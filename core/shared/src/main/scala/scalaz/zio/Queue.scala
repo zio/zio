@@ -3,6 +3,7 @@
 package scalaz.zio
 
 import scala.annotation.tailrec
+import scala.concurrent.ExecutionContext
 import scalaz.zio.Queue.internal._
 import scalaz.zio.internal.MutableConcurrentQueue
 
@@ -19,7 +20,7 @@ class Queue[A] private (
   private final val checkShutdownState: IO[Nothing, Unit] =
     shutdownHook.get.flatMap(_.fold[IO[Nothing, Unit]](IO.interrupt)(_ => IO.unit))
 
-  private final val pollTakersThenQueue: IO[Nothing, Option[(Promise[Nothing, A], A)]] = IO.sync {
+  private final def pollTakersThenQueue(): Option[(Promise[Nothing, A], A)] =
     // check if there is both a taker and an item in the queue, starting by the taker
     if (!queue.isEmpty()) {
       val nullTaker = null.asInstanceOf[Promise[Nothing, A]]
@@ -35,14 +36,16 @@ class Queue[A] private (
         }
       }
     } else None
-  }
 
-  private final val completeTakers: IO[Nothing, Unit] = {
-    pollTakersThenQueue.flatMap {
-      case None          => IO.unit
-      case Some((p2, a)) => p2.complete(a) *> strategy.onQueueEmptySpace(queue) *> completeTakers
+  @tailrec
+  private final def unsafeCompleteTakers(context: ExecutionContext): Unit =
+    pollTakersThenQueue() match {
+      case None =>
+      case Some((p, a)) =>
+        unsafeCompletePromise(p, a, context)
+        strategy.unsafeOnQueueEmptySpace(queue, context)
+        unsafeCompleteTakers(context)
     }
-  }
 
   private final def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] = IO.sync(unsafeRemove(takers, taker))
 
@@ -75,16 +78,30 @@ class Queue[A] private (
    */
   final def offerAll(as: Iterable[A]): IO[Nothing, Boolean] =
     for {
-      _                      <- checkShutdownState
-      takers                 <- IO.sync(unsafePollN(takers, as.size))
-      (forTakers, remaining) = as.splitAt(takers.size)
-      _                      <- IO.parTraverse(takers zip forTakers) { case (taker, item) => taker.complete(item) }
+      _ <- checkShutdownState
+
+      remaining <- IO.syncSubmit { context =>
+                    val pTakers                = unsafePollN(takers, as.size)
+                    val (forTakers, remaining) = as.splitAt(pTakers.size)
+                    (pTakers zip forTakers).foreach {
+                      case (taker, item) => unsafeCompletePromise(taker, item, context)
+                    }
+                    remaining
+                  }
+
       added <- if (remaining.nonEmpty) {
                 // not enough takers, offer to the queue
                 for {
-                  surplus <- IO.sync(unsafeOfferAll(queue, remaining.toList))
-                  res     <- if (surplus.isEmpty) IO.now(true) else strategy.handleSurplus(surplus, queue)
-                  _       <- completeTakers // try take again in case a taker was added while offering
+                  surplus <- IO.syncSubmit { context =>
+                              val as = unsafeOfferAll(queue, remaining.toList)
+                              unsafeCompleteTakers(context)
+                              as
+                            }
+                  res <- if (surplus.isEmpty) IO.now(true)
+                        else
+                          strategy.handleSurplus(surplus, queue) <* IO.syncSubmit(
+                            context => unsafeCompleteTakers(context)
+                          )
                 } yield res
               } else IO.now(true)
     } yield added
@@ -116,7 +133,7 @@ class Queue[A] private (
    * Interrupts any fibers that are suspended on `offer` or `take`.
    * Future calls to `offer*` and `take*` will be interrupted immediately.
    */
-  final val shutdown: IO[Nothing, Unit] = for {
+  final val shutdown: IO[Nothing, Unit] = (for {
     hook <- shutdownHook.modify {
              case None       => (IO.unit, None)
              case Some(hook) => (hook, None)
@@ -124,7 +141,7 @@ class Queue[A] private (
     takers <- IO.sync(unsafePollAll(takers))
     _      <- IO.parTraverse(takers)(_.interrupt) *> hook
     _      <- strategy.shutdown
-  } yield ()
+  } yield ()).uninterruptibly
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
@@ -132,18 +149,30 @@ class Queue[A] private (
    */
   final val take: IO[Nothing, A] =
     for {
-      _    <- checkShutdownState
-      item <- IO.sync(queue.poll(null.asInstanceOf[A]))
-      res <- if (item != null) strategy.onQueueEmptySpace(queue).map(_ => item)
-            else
-              for {
-                p <- Promise.make[Nothing, A]
-                // add the promise to takers, then try take again in case a value was added since
-                _ <- IO.sync(takers.offer(p)) *> completeTakers
-                // wait for the promise to be completed, and clean up resources in case of interruption
-                res <- p.get.ensuring(p.poll.void <> removeTaker(p))
-              } yield res
-    } yield res
+      _ <- checkShutdownState
+
+      item <- IO.syncSubmit { context =>
+               val item = queue.poll(null.asInstanceOf[A])
+               if (item != null) strategy.unsafeOnQueueEmptySpace(queue, context)
+               item
+             }
+
+      a <- if (item != null) IO.point(item)
+          else
+            for {
+              p <- Promise.make[Nothing, A]
+              // add the promise to takers, then try take again in case a value was added since
+              a <- IO.syncSubmit { context =>
+                    val a = takers.offer(p)
+                    unsafeCompleteTakers(context)
+                    a
+                  }
+                  // wait for the promise to be completed
+                    .flatMap(_ => p.get)
+                    // clean up resources in case of interruption
+                    .ensuring(p.poll.void <> removeTaker(p))
+            } yield a
+    } yield a
 
   /**
    * Removes all the values in the queue and returns the list of the values. If the queue
@@ -151,20 +180,28 @@ class Queue[A] private (
    */
   final val takeAll: IO[Nothing, List[A]] =
     for {
-      _   <- checkShutdownState
-      res <- IO.sync(unsafePollAll(queue))
-      _   <- strategy.onQueueEmptySpace(queue)
-    } yield res
+      _ <- checkShutdownState
+
+      as <- IO.syncSubmit { context =>
+             val as = unsafePollAll(queue)
+             strategy.unsafeOnQueueEmptySpace(queue, context)
+             as
+           }
+    } yield as
 
   /**
    * Takes up to max number of values in the queue.
    */
   final def takeUpTo(max: Int): IO[Nothing, List[A]] =
     for {
-      _   <- checkShutdownState
-      res <- IO.sync(unsafePollN(queue, max))
-      _   <- strategy.onQueueEmptySpace(queue)
-    } yield res
+      _ <- checkShutdownState
+
+      as <- IO.syncSubmit { context =>
+             val as = unsafePollN(queue, max)
+             strategy.unsafeOnQueueEmptySpace(queue, context)
+             as
+           }
+    } yield as
 
 }
 
@@ -221,10 +258,13 @@ object Queue {
       ()
     }
 
+    final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, context: ExecutionContext): Unit =
+      p.unsafeDone(ExitResult.succeeded(a), context.execute)
+
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean]
 
-      def onQueueEmptySpace(queue: MutableConcurrentQueue[A]): IO[Nothing, Unit]
+      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: ExecutionContext): Unit
 
       def surplusSize: Int
 
@@ -247,7 +287,7 @@ object Queue {
         IO.sync(unsafeSlidingOffer(as)).map(_ => !loss)
       }
 
-      final def onQueueEmptySpace(queue: MutableConcurrentQueue[A]): IO[Nothing, Unit] = IO.unit
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: ExecutionContext): Unit = ()
 
       final def surplusSize: Int = 0
 
@@ -258,7 +298,7 @@ object Queue {
       // do nothing, drop the surplus
       final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean] = IO.now(false)
 
-      final def onQueueEmptySpace(queue: MutableConcurrentQueue[A]): IO[Nothing, Unit] = IO.unit
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: ExecutionContext): Unit = ()
 
       final def surplusSize: Int = 0
 
@@ -291,28 +331,31 @@ object Queue {
 
         for {
           p <- Promise.make[Nothing, Boolean]
-          _ <- IO.sync(unsafeOffer(as, p))
-          _ <- onQueueEmptySpace(queue)
-          _ <- p.get.ensuring(p.poll.void <> IO.sync(unsafeRemove(p)))
+          _ <- (IO.syncSubmit { context =>
+                unsafeOffer(as, p)
+                unsafeOnQueueEmptySpace(queue, context)
+              } *> p.get).ensuring(p.poll.void <> IO.sync(unsafeRemove(p)))
         } yield true
       }
 
-      final def onQueueEmptySpace(queue: MutableConcurrentQueue[A]): IO[Nothing, Unit] = {
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: ExecutionContext): Unit = {
         @tailrec
-        def unsafeMovePutters(io: IO[Nothing, Unit]): IO[Nothing, Unit] =
+        def unsafeMovePutters(): Unit =
           if (!queue.isFull()) {
             putters.poll(null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]) match {
-              case null => io
+              case null =>
               case putter @ (a, p, lastItem) =>
-                if (queue.offer(a)) unsafeMovePutters(if (lastItem) p.complete(true) *> io else io)
-                else {
+                if (queue.offer(a)) {
+                  if (lastItem) unsafeCompletePromise(p, true, context)
+                  unsafeMovePutters()
+                } else {
                   unsafeOfferAll(putters, putter :: unsafePollAll(putters))
-                  io
+                  ()
                 }
             }
-          } else io
+          }
 
-        IO.flatten(IO.sync(unsafeMovePutters(IO.unit)))
+        unsafeMovePutters()
       }
 
       final def surplusSize: Int = putters.size()
