@@ -497,7 +497,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       acquire <- Promise.make[Nothing, Unit]
       fiber <- IO
                 .asyncPure[Nothing, Unit] { _ =>
-                  IO.bracket(acquire.complete(()))(_ => release.complete(()).void)(_ => IO.never)
+                  IO.bracket(acquire.complete(()))(_ => release.complete(()))(_ => IO.never)
                 }
                 .fork
       _ <- acquire.get
@@ -593,7 +593,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       cont <- Promise.make[Nothing, Unit]
       p1   <- Promise.make[Nothing, Boolean]
-      f1   <- (cont.complete(()) *> IO.never).catchAll(IO.fail).ensuring(p1.complete(true).void).fork
+      f1   <- (cont.complete(()) *> IO.never).catchAll(IO.fail).ensuring(p1.complete(true)).fork
       _    <- cont.get
       _    <- f1.interrupt
       res  <- p1.get
@@ -606,7 +606,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       p1  <- Promise.make[Nothing, Boolean]
       c   <- Promise.make[Nothing, Unit]
-      f1  <- (c.complete(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.complete(d.interrupted)).void).fork
+      f1  <- (c.complete(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.complete(d.interrupted))).fork
       _   <- c.get
       _   <- f1.interrupt
       res <- p1.get
@@ -620,7 +620,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       ref   <- Ref(0)
       cont1 <- Promise.make[Nothing, Unit]
       cont2 <- Promise.make[Nothing, Unit]
-      make  = (p: Promise[Nothing, Unit]) => (p.complete(()) *> IO.never).onInterrupt(ref.update(_ + 1).void)
+      make  = (p: Promise[Nothing, Unit]) => (p.complete(()) *> IO.never).onInterrupt(ref.update(_ + 1))
       raced <- (make(cont1) race (make(cont2))).fork
       _     <- cont1.get *> cont2.get
       _     <- raced.interrupt
@@ -655,7 +655,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       bracketed = IO
         .now(21)
         .bracket0[Nothing, Unit] {
-          case (r, e) if e.interrupted => exitLatch.complete(r).void
+          case (r, e) if e.interrupted => exitLatch.complete(r)
           case (_, _)                  => IO.terminate(new Error("Unexpected case"))
         }(a => startLatch.complete(a) *> IO.never)
       fiber      <- bracketed.fork
@@ -856,7 +856,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       s      <- Promise.make[Nothing, Unit]
       effect <- Promise.make[Nothing, Int]
       winner = s.get *> IO.fromEither(Left(new Exception))
-      loser  = IO.bracket(s.complete(()))(_ => effect.complete(42).void)(_ => IO.never)
+      loser  = IO.bracket(s.complete(()))(_ => effect.complete(42))(_ => IO.never)
       race   = winner raceAttempt loser
       _      <- race.attempt
       b      <- effect.get
