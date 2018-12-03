@@ -994,11 +994,11 @@ object IO extends Serializable {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (Callback[E, A]) => IO[E, Unit]): IO[E, A] =
+  final def asyncPure[E, A](register: (Callback[E, A]) => IO[Nothing, Unit]): IO[E, A] =
     for {
       d   <- descriptor
       p   <- Promise.make[E, A]
-      ref <- Ref[Fiber[E, _]](Fiber.unit)
+      ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
       a <- (for {
             _ <- register(p.unsafeDone(_, d.executor.execute)).fork.peek(ref.set(_)).uninterruptibly
             a <- p.get
@@ -1155,10 +1155,10 @@ object IO extends Serializable {
            }
     } yield bs
 
-  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
   /**
    * Alias for foreachParN
    */
+  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
   final def traverseParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     foreachParN(n)(as)(fn)
 
@@ -1184,10 +1184,10 @@ object IO extends Serializable {
   final def collectParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     foreachParN(n)(as)(identity)
 
-  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
   /**
    * Alias for `collectParN`
    */
+  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
   final def sequenceParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     collectParN(n)(as)
 
