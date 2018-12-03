@@ -76,7 +76,7 @@ trait RTS {
    */
   val YieldMaxOpCount = 1024
 
-  private final def newFiberContext[E, A](handler: Cause[Any] => IO[Nothing, Unit]): FiberContext[E, A] = {
+  private final def newFiberContext[E, A](handler: Cause[Any] => IO[Nothing, Any]): FiberContext[E, A] = {
     val nextFiberId = fiberCounter.incrementAndGet()
     val context     = new FiberContext[E, A](this, nextFiberId, handler)
 
@@ -157,7 +157,7 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Any] => IO[Nothing, Unit])
+  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Any] => IO[Nothing, Any])
       extends Fiber[E, A] {
     import java.util.{ Collections, Set, WeakHashMap }
     import FiberState._
@@ -195,7 +195,7 @@ private object RTS {
       result.get
     }
 
-    private class Finalizer(val finalizer: IO[Nothing, Unit]) extends Function[Any, IO[E, Any]] {
+    private class Finalizer(val finalizer: IO[Nothing, Any]) extends Function[Any, IO[E, Any]] {
       final def apply(v: Any): IO[E, Any] = {
         noInterrupt += 1
 
@@ -478,7 +478,7 @@ private object RTS {
     /**
      * Forks an `IO` with the specified failure handler.
      */
-    final def fork[E, A](io: IO[E, A], handler: Cause[Any] => IO[Nothing, Unit]): FiberContext[E, A] = {
+    final def fork[E, A](io: IO[E, A], handler: Cause[Any] => IO[Nothing, Any]): FiberContext[E, A] = {
       val context = rts.newFiberContext[E, A](handler)
 
       rts.submit(context.evaluate(io))
@@ -567,13 +567,13 @@ private object RTS {
     }
 
     private[this] final def exitSupervision(
-      supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]
-    ): IO[Nothing, Unit] = {
+      supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Any]
+    ): IO[Nothing, Any] = {
       import collection.JavaConverters._
       IO.flatten(IO.sync {
         supervising -= 1
 
-        var action = IO.unit
+        var action: IO[Nothing, Any] = IO.unit
 
         supervised = supervised match {
           case Nil => Nil

@@ -169,7 +169,7 @@ object Promise {
     ref: Ref[A]
   )(
     acquire: (Promise[E, B], A) => (IO[Nothing, C], A)
-  )(release: (C, Promise[E, B]) => IO[Nothing, Unit]): IO[E, B] =
+  )(release: (C, Promise[E, B]) => IO[Nothing, Any]): IO[E, B] =
     for {
       pRef <- Ref[Option[(C, Promise[E, B])]](None)
       b <- (for {
@@ -183,7 +183,7 @@ object Promise {
                   case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.now(p))
                 }.uninterruptibly
             b <- p.get
-          } yield b).ensuring(pRef.get.flatMap(_.fold(IO.unit)(t => release(t._1, t._2))))
+          } yield b).ensuring(pRef.get.flatMap(_.fold(IO.unit: IO[Nothing, Any])(t => release(t._1, t._2))))
     } yield b
 
   private[zio] object internal {
