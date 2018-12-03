@@ -1105,10 +1105,10 @@ object IO extends Serializable {
       (for {
         f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(Some(a -> f)))).uninterruptibly
         b <- f.join
-      } yield b).ensuring(m.get.flatMap(_.fold(unit: IO[Nothing, Any]) {
-        case (a, f) =>
-          f.interrupt.flatMap(release(a, _))
-      }))
+       } yield b).ensuring(m.get.flatMap {
+        case Some((a, f)) => f.interrupt.flatMap(release(a, _))
+        case None         => unit
+      })
     }
 
   /**
@@ -1123,7 +1123,10 @@ object IO extends Serializable {
       (for {
         a <- acquire.flatMap(a => m.set(Some(a)).const(a)).uninterruptibly
         b <- use(a)
-      } yield b).ensuring(m.get.flatMap(_.fold(unit: IO[Nothing, Any])(release(_))))
+      } yield b).ensuring(m.get.flatMap {
+        case Some(v) => release(v)
+        case None    => unit
+      })
     }
 
   /**
