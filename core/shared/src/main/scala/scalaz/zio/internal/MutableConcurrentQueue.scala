@@ -40,7 +40,7 @@ abstract class MutableConcurrentQueue[A] {
    *
    * @note that if there's no meaningful default for your type, you
    * can alway use `poll(null)`. Not the best, but reasonable price
-   * to pay for lower heap churn from not using `Option` here.
+   * to pay for lower heap churn from not using [[scala.Option]] here.
    */
   def poll(default: A): A
 
@@ -56,7 +56,7 @@ abstract class MutableConcurrentQueue[A] {
    * @return the number of elements that have ever been added to the
    * queue.
    *
-   * @note that `Long` is used here, since `Int` will be
+   * @note that [[scala.Long]] is used here, since [[scala.Int]] will be
    * overflowed really quickly for busy queues.
    *
    * @note if you know how much time the queue is alive, you can
