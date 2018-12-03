@@ -64,6 +64,11 @@ trait RTS {
   val threadPool: ExecutorService = newDefaultThreadPool()
 
   /**
+   * The fiber's execution context.
+   */
+  lazy val executionContext = ExecutionContext.fromExecutor(threadPool)
+
+  /**
    * The thread pool for scheduling timed tasks.
    */
   lazy val scheduledExecutor: ScheduledExecutorService = newDefaultScheduledExecutor()
@@ -303,7 +308,7 @@ private object RTS {
                       case IO.Tags.SyncEffect =>
                         val io2 = nested.asInstanceOf[IO.SyncEffect[Any]]
 
-                        curIo = io.flatMapper(io2.effect(ExecutionContext.fromExecutor(rts.threadPool)))
+                        curIo = io.flatMapper(io2.effect(rts.executionContext))
 
                       case IO.Tags.Descriptor =>
                         val value = getDescriptor
@@ -335,7 +340,7 @@ private object RTS {
                   case IO.Tags.SyncEffect =>
                     val io = curIo.asInstanceOf[IO.SyncEffect[Any]]
 
-                    val value = io.effect(ExecutionContext.fromExecutor(rts.threadPool))
+                    val value = io.effect(rts.executionContext)
 
                     curIo = nextInstr(value)
 

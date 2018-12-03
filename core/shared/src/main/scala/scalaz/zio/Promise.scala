@@ -3,7 +3,7 @@
 package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicReference
-
+import scala.concurrent.ExecutionContext
 import Promise.internal._
 
 /**
@@ -112,7 +112,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private[zio] final def unsafeDone(r: ExitResult[E, A], submit: Runnable => Unit): Unit = {
+  private[zio] final def unsafeDone(r: ExitResult[E, A], executionContext: ExecutionContext): Unit = {
     var retry: Boolean                = true
     var joiners: List[Callback[E, A]] = null
 
@@ -129,7 +129,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.reverse.foreach(k => submit(() => k(r)))
+    if (joiners ne null) joiners.reverse.foreach(k => executionContext.execute(() => k(r)))
   }
 
   private def interruptJoiner(joiner: Callback[E, A]): Canceler = IO.sync {

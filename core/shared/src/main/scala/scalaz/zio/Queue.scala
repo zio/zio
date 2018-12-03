@@ -259,7 +259,7 @@ object Queue {
     }
 
     final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, context: ExecutionContext): Unit =
-      p.unsafeDone(ExitResult.succeeded(a), context.execute)
+      p.unsafeDone(ExitResult.succeeded(a), context)
 
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean]
