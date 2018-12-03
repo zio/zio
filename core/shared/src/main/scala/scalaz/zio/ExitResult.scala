@@ -1,7 +1,7 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
  * An `ExitResult[E, A]` describes the result of executing an `IO` value. The
@@ -129,7 +129,10 @@ object ExitResult extends Serializable {
     e.fold(checked(_), succeeded(_))
 
   final def fromTry[A](t: Try[A]): ExitResult[Throwable, A] =
-    t.fold(checked(_), succeeded(_))
+    t match {
+      case Success(a) => succeeded(a)
+      case Failure(t) => checked(t)
+    }
 
   final def flatten[E, A](exit: ExitResult[E, ExitResult[E, A]]): ExitResult[E, A] =
     exit.flatMap(identity _)

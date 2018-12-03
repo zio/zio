@@ -115,7 +115,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   val lazyOnParamInlineFiber = {
     var evaluated = false
-    def ftr = Future { evaluated = true }
+    def ftr       = Future { evaluated = true }
     Fiber.fromFuture(ftr _)(ec)
     evaluated must beFalse
   }
