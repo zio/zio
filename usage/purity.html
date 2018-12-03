@@ -54,9 +54,8 @@ because the <code class="highlighter-rouge">Nothing</code> type is <em>uninhabit
 
 <p>You can use the <code class="highlighter-rouge">async</code> method of <code class="highlighter-rouge">IO</code> to import effectful asynchronous code into your purely functional program:</p>
 
-<!-- We are just making up an HTTP library here, so can't run this through tut -->
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">makeRequest</span><span class="o">(</span><span class="n">req</span><span class="k">:</span> <span class="kt">Request</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">HttpException</span>, <span class="kt">Response</span><span class="o">]</span> <span class="k">=</span>
-  <span class="nc">IO</span><span class="o">.</span><span class="n">async</span><span class="o">(</span><span class="n">cb</span> <span class="k">=&gt;</span> <span class="nc">Http</span><span class="o">.</span><span class="n">req</span><span class="o">(</span><span class="n">req</span><span class="o">,</span> <span class="n">cb</span><span class="o">))</span>
+  <span class="nc">IO</span><span class="o">.</span><span class="n">async</span><span class="o">[</span><span class="kt">HttpException</span>, <span class="kt">Response</span><span class="o">](</span><span class="n">cb</span> <span class="k">=&gt;</span> <span class="nc">Http</span><span class="o">.</span><span class="n">req</span><span class="o">(</span><span class="n">req</span><span class="o">,</span> <span class="n">cb</span><span class="o">))</span>
 </code></pre></div></div>
 
 <p>In this example, it’s assumed the <code class="highlighter-rouge">Http.req</code> method will invoke the specified callback when the result has been asynchronously computed.</p>

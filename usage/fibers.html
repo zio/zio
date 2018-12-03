@@ -11,9 +11,9 @@
   <span class="k">for</span> <span class="o">{</span>
     <span class="n">fiber1</span>   <span class="k">&lt;-</span> <span class="n">analyzeData</span><span class="o">(</span><span class="n">data</span><span class="o">).</span><span class="n">fork</span>  <span class="c1">// IO[E, Analysis]
 </span>    <span class="n">fiber2</span>   <span class="k">&lt;-</span> <span class="n">validateData</span><span class="o">(</span><span class="n">data</span><span class="o">).</span><span class="n">fork</span> <span class="c1">// IO[E, Boolean]
-</span>    <span class="o">...</span> <span class="c1">// Do other stuff
+</span>    <span class="c1">// Do other stuff
 </span>    <span class="n">valid</span>    <span class="k">&lt;-</span> <span class="n">fiber2</span><span class="o">.</span><span class="n">join</span>
-    <span class="k">_</span>        <span class="k">&lt;-</span> <span class="k">if</span> <span class="o">(!</span><span class="n">valid</span><span class="o">)</span> <span class="n">fiber1</span><span class="o">.</span><span class="n">interrupt</span><span class="o">(</span><span class="nc">DataValidationError</span><span class="o">(</span><span class="n">data</span><span class="o">))</span>
+    <span class="k">_</span>        <span class="k">&lt;-</span> <span class="k">if</span> <span class="o">(!</span><span class="n">valid</span><span class="o">)</span> <span class="n">fiber1</span><span class="o">.</span><span class="n">interrupt</span>
                 <span class="k">else</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span>
     <span class="n">analyzed</span> <span class="k">&lt;-</span> <span class="n">fiber1</span><span class="o">.</span><span class="n">join</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">analyzed</span>
@@ -70,7 +70,7 @@
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">bigCompute</span><span class="o">(</span><span class="n">m1</span><span class="k">:</span> <span class="kt">Matrix</span><span class="o">,</span> <span class="n">m2</span><span class="k">:</span> <span class="kt">Matrix</span><span class="o">,</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Matrix</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Matrix</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
     <span class="n">t</span> <span class="k">&lt;-</span> <span class="n">computeInverse</span><span class="o">(</span><span class="n">m1</span><span class="o">).</span><span class="n">par</span><span class="o">(</span><span class="n">computeInverse</span><span class="o">(</span><span class="n">m2</span><span class="o">))</span>
-    <span class="k">val</span> <span class="o">(</span><span class="n">i1</span><span class="o">,</span> <span class="n">i2</span><span class="o">)</span> <span class="k">=</span> <span class="n">t</span>
+    <span class="o">(</span><span class="n">i1</span><span class="o">,</span> <span class="n">i2</span><span class="o">)</span> <span class="k">=</span> <span class="n">t</span>
     <span class="n">r</span> <span class="k">&lt;-</span> <span class="n">applyMatrices</span><span class="o">(</span><span class="n">i1</span><span class="o">,</span> <span class="n">i2</span><span class="o">,</span> <span class="n">v</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">r</span>
 </code></pre></div></div>
@@ -81,7 +81,7 @@
 
 <p>Two <code class="highlighter-rouge">IO</code> actions can be <em>raced</em>, which means they will be executed in parallel, and the value of the first action that completes successfully will be returned.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">action1</span><span class="o">.</span><span class="n">race</span><span class="o">(</span><span class="n">action2</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">fib</span><span class="o">(</span><span class="mi">100</span><span class="o">)</span> <span class="n">race</span> <span class="n">fib</span><span class="o">(</span><span class="mi">200</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">race</code> combinator is resource-safe, which means that if one of the two actions returns a value, the other one will be interrupted, to prevent wasting resources.</p>

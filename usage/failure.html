@@ -37,9 +37,8 @@
 
 <p>If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the <code class="highlighter-rouge">catchSome</code> method:</p>
 
-<!-- https://github.com/scalaz/scalaz-zio/issues/164 -->
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">IOException</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span> <span class="n">openFile</span><span class="o">(</span><span class="s">"primary.json"</span><span class="o">).</span><span class="n">catchSome</span> <span class="o">{</span>
-  <span class="k">case</span> <span class="nc">FileNotFoundException</span><span class="o">(</span><span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">openFile</span><span class="o">(</span><span class="s">"backup.json"</span><span class="o">)</span>
+  <span class="k">case</span> <span class="n">x</span><span class="k">:</span> <span class="kt">java.io.FileNotFoundException</span> <span class="o">=&gt;</span> <span class="n">openFile</span><span class="o">(</span><span class="s">"backup.json"</span><span class="o">)</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -50,9 +49,8 @@
 
 <p>If you want more control on the next action and better performance you can use the primitive which all the previous operations are based on, it’s called <code class="highlighter-rouge">redeem</code> and it can be seen as the combination of <code class="highlighter-rouge">flatMap</code> and <code class="highlighter-rouge">catchAll</code>. It is useful if you find yourself using combinations of <code class="highlighter-rouge">attempt</code> or <code class="highlighter-rouge">catchAll</code> with <code class="highlighter-rouge">flatMap</code>, using <code class="highlighter-rouge">redeem</code> you can achieve the same and avoid the intermediate <code class="highlighter-rouge">Either</code> allocation and the subsequent call to <code class="highlighter-rouge">flatMap</code>.</p>
 
-<!-- Inventing APIs here -->
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Content</span><span class="o">]</span> <span class="k">=</span>
-  <span class="n">readUrls</span><span class="o">(</span><span class="s">"urls.json"</span><span class="o">).</span><span class="n">redeem</span><span class="o">[</span><span class="kt">Nothing</span><span class="o">](</span><span class="n">e</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="nc">NoContent</span><span class="o">(</span><span class="n">cause</span> <span class="k">=</span> <span class="n">e</span><span class="o">)))(</span><span class="n">fetchContent</span><span class="o">)</span>
+  <span class="n">readUrls</span><span class="o">(</span><span class="s">"urls.json"</span><span class="o">).</span><span class="n">redeem</span><span class="o">(</span><span class="n">e</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="nc">NoContent</span><span class="o">(</span><span class="n">e</span><span class="o">)),</span> <span class="n">fetchContent</span><span class="o">)</span>
 </code></pre></div></div>
 
 <h1 id="retry">Retry</h1>
