@@ -105,7 +105,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     raceAll of values                       $testRaceAllOfValues
     raceAll of failures                     $testRaceAllOfFailures
     raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
-    raceBoth interrupts loser               $testRaceBothInterruptsLoser
+    raceAttempt interrupts loser            $testRaceAttemptInterruptsLoser
     par regression                          $testPar
     par of now values                       $testRepeatedPar
     mergeAll                                $testMergeAll
@@ -850,6 +850,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
     unsafeRun(countdown(50)) must_=== 150
   }
+
+  def testRaceAttemptInterruptsLoser =
+    unsafeRun(for {
+      s      <- Promise.make[Nothing, Unit]
+      effect <- Promise.make[Nothing, Int]
+      winner = s.get *> IO.fromEither(Left(new Exception))
+      loser  = IO.bracket(s.complete(()))(_ => effect.complete(42).void)(_ => IO.never)
+      race   = winner raceAttempt loser
+      _      <- race.attempt
+      b      <- effect.get
+    } yield b) must_=== 42
 
   def testPar =
     (0 to 1000).map { _ =>

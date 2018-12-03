@@ -163,6 +163,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     )
 
   /**
+   * Races this action with the specified action, returning the first
+   * result to *finish*, whether it is by producing a value or by failing
+   * with an error. If either of two actions fails before the other succeeds,
+   * the entire race will fail with that error.
+   */
+  final def raceAttempt[E1 >: E, A1 >: A](that: IO[E1, A1]): IO[E1, A1] =
+    raceWith(that)(
+      { case (l, f) => l.fold(f.interrupt *> IO.fail0(_), IO.now) },
+      { case (r, f) => r.fold(f.interrupt *> IO.fail0(_), IO.now) }
+    )
+
+  /**
    * Races this action with the specified action, invoking the
    * specified finisher as soon as one value or the other has been computed.
    */
@@ -1146,10 +1158,10 @@ object IO extends Serializable {
            }
     } yield bs
 
-  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
   /**
    * Alias for foreachParN
    */
+  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
   final def traverseParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
     foreachParN(n)(as)(fn)
 
@@ -1175,10 +1187,10 @@ object IO extends Serializable {
   final def collectParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     foreachParN(n)(as)(identity)
 
-  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
   /**
    * Alias for `collectParN`
    */
+  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
   final def sequenceParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     collectParN(n)(as)
 
