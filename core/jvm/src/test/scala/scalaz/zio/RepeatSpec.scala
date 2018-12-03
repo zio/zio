@@ -71,12 +71,13 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   // this test fails
   def repeatRepeat = {
-    val n        = 42
+    val n = 42
     val repeated = unsafeRun(for {
       ref <- Ref(0)
-      io  =  ref.update(_ + 1).repeat(Schedule.recurs(n))
-      s   <- io.repeat(Schedule.recurs(1))
-    } yield s)
+      io  = ref.update(_ + 1).repeat(Schedule.recurs(n))
+      _   <- io.repeat(Schedule.recurs(1))
+      res <- ref.get
+    } yield res)
     // I would expect the second repeat to repeat everything a second time, but
     // in fact I get:
     //   2 != 86
