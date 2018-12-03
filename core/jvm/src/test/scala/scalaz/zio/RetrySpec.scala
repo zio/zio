@@ -154,7 +154,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       schedule.run(List(1, 2, 3, 4, 5), Clock.Live)
     )
 
-    val expected = List(1, 2, 3, 4, 5, 6).map((1500.millis, _))
+    val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
     scheduled must_=== expected
   }
 
