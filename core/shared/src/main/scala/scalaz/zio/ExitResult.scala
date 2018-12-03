@@ -122,6 +122,9 @@ object ExitResult extends Serializable {
   final val interrupted: ExitResult[Nothing, Nothing]             = failed(Cause.interrupted)
   final def unchecked(t: Throwable): ExitResult[Nothing, Nothing] = failed(Cause.unchecked(t))
 
+  final def fromOption[A](o: Option[A]): ExitResult[Unit, A] =
+    o.fold(_ => Cause.checked(()))(succeeded(_))
+
   final def fromEither[E, A](e: Either[E, A]): ExitResult[E, A] =
     e.fold(checked(_), succeeded(_))
 
