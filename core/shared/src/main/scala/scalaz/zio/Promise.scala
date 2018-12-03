@@ -183,7 +183,10 @@ object Promise {
                   case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.now(p))
                 }.uninterruptibly
             b <- p.get
-          } yield b).ensuring(pRef.get.flatMap(_.fold(IO.unit: IO[Nothing, Any])(t => release(t._1, t._2))))
+          } yield b).ensuring(pRef.get.flatMap {
+            case Some(t) => release(t._1, t._2)
+            case None    => IO.unit
+          })
     } yield b
 
   private[zio] object internal {
