@@ -15,8 +15,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
   private[this] val idxMask: Long = (capacity - 1).toLong
 
   private[this] val buf: Array[AnyRef] = new Array[AnyRef](capacity)
-  private[this] val seq: Array[Long]   = new Array[Long](capacity)
-  0.until(capacity).foreach(i => seq.update(i, i.toLong))
+  private[this] val seq: Array[Long]   = 0.until(capacity).map(_.toLong).toArray
 
   private[this] var head: Long = 0L
   private[this] var tail: Long = 0L
