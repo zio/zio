@@ -30,7 +30,20 @@ lazy val root = project
     skip in publish := true,
     console := (console in Compile in coreJVM).value
   )
-  .aggregate(coreJVM, coreJS, interopJVM, interopJS, interopCatsLaws, benchmarks, microsite)
+  .aggregate(
+    coreJVM,
+    coreJS,
+    interopSharedJVM,
+    interopSharedJS,
+    interopCatsJVM,
+    interopCatsJS,
+    interopFutureJVM,
+    interopFutureJS,
+    interopScalaz7xJVM,
+    interopScalaz7xJS,
+    benchmarks,
+    microsite
+  )
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
@@ -80,40 +93,73 @@ lazy val coreJVM = core.jvm
 
 lazy val coreJS = core.js
 
-lazy val interop = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop"))
-  .settings(stdSettings("zio-interop"))
+lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-shared"))
+  .settings(stdSettings("zio-interop-shared"))
+  .dependsOn(core % "test->test;compile->compile")
+  .settings(
+    scalacOptions in Test ++= Seq("-Yrangepos")
+  )
+
+lazy val interopSharedJVM = interopShared.jvm
+
+lazy val interopSharedJS = interopShared.js
+
+lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-cats"))
+  .settings(stdSettings("zio-interop-cats"))
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz"    %%% "scalaz-core"               % "7.2.+" % Optional,
-      "org.typelevel" %%% "cats-effect"               % "1.0.0" % Optional,
-      "org.scalaz"    %%% "scalaz-scalacheck-binding" % "7.2.+" % Test,
-      "co.fs2"        %%% "fs2-core"                  % "1.0.0" % Test
+      "org.typelevel" %%% "cats-effect" % "1.0.0" % Optional,
+      "co.fs2"        %%% "fs2-core"    % "1.0.0" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
 
-lazy val interopJVM = interop.jvm
-
-lazy val interopJS = interop.js
-
-// Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
-// TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
-lazy val interopCatsLaws = project.module
-  .in(file("interop-cats-laws"))
-  .settings(stdSettings("zio-interop-cats-laws"))
-  .dependsOn(coreJVM % "test->test", interopJVM % "test->compile")
+lazy val interopCatsJVM = interopCats.jvm
+  .dependsOn(interopSharedJVM)
+  // Below is for the cats law spec
+  // Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
+  // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
   .settings(
-    skip in publish := true,
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"          % "1.0.0-1182d8c" % Test,
       "org.typelevel"              %% "cats-testkit"              % "1.3.1"         % Test,
       "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"         % Test
     ),
-    dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test,
+    dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test
+  )
+
+lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
+
+lazy val interopFuture = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-future"))
+  .settings(stdSettings("zio-interop-future"))
+  .dependsOn(core % "test->test;compile->compile")
+  .settings(
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
+
+lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
+
+lazy val interopFutureJS = interopFuture.js.dependsOn(interopSharedJS)
+
+lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-scala7x"))
+  .settings(stdSettings("zio-interop-scala7x"))
+  .dependsOn(core % "test->test;compile->compile")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.scalaz" %%% "scalaz-core"               % "7.2.+" % Optional,
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.+" % Test
+    ),
+    scalacOptions in Test ++= Seq("-Yrangepos")
+  )
+
+lazy val interopScalaz7xJVM = interopScalaz7x.jvm.dependsOn(interopSharedJVM)
+
+lazy val interopScalaz7xJS = interopScalaz7x.js.dependsOn(interopSharedJS)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
@@ -131,7 +177,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val microsite = project.module
-  .dependsOn(coreJVM)
+  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM)
   .enablePlugins(MicrositesPlugin)
   .settings(
     scalacOptions -= "-Yno-imports",
