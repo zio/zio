@@ -63,14 +63,12 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
           tail = curTail + 1
           state = STATE_RESERVED
         } else {
-          // There was a concurrent offer that won CAS. We need to try again at the next location.
+          // Try again at the next location.
           curTail += 1
           state = STATE_LOOP
         }
       } else { // curSeq > curTail
-        // Either some other thread beat us enqueued an right element
-        // or this thread got delayed. We need to resynchronize with
-        // `tail` and try again.
+        // Resynchronize with `tail` and try again.
         curTail = tail
         state = STATE_LOOP
       }
@@ -79,14 +77,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
     if (state == STATE_RESERVED) {
       // To add an element into the queue we do
       // 1. plain store into `buf`,
-      // 2. volatile write of a `seq` value.
-      // Following volatile read of `curTail + 1` guarantees
-      // that plain store will be visible as it happens before in
-      // program order.
-      //
-      // The volatile write can actually be relaxed to ordered store
-      // (`lazySet`).  See Doug Lea's response in
-      // [[http://cs.oswego.edu/pipermail/concurrency-interest/2011-October/008296.html]].
+      // 2. plain store into `seq`.
       buf(curIdx) = a.asInstanceOf[AnyRef]
       seq(curIdx) = curTail + 1
       true
@@ -148,21 +139,18 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
           head = curHead + 1
           state = STATE_RESERVED
         } else {
-          // Another concurrent dequeue won. Let's try again at the next location.
+          // Try again at the next location.
           curHead += 1
           state = STATE_LOOP
         }
       } else { // curSeq > curHead + 1
-        // Either some other thread beat us or this thread got
-        // delayed. We need to resyncronize with `head` and try again.
+        // Resynchronize with `head` and try again.
         curHead = head
         state = STATE_LOOP
       }
     }
 
     if (state == STATE_RESERVED) {
-      // See the comment in offer method about volatile writes and
-      // visibility guarantees.
       val deqElement = buf(curIdx)
       buf(curIdx) = null
       seq(curIdx) = curHead + capacity
