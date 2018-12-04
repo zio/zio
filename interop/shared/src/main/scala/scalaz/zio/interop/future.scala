@@ -1,8 +1,6 @@
 package scalaz.zio
 package interop
 
-import scalaz.zio.ExitResult.Cause
-
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 
@@ -19,7 +17,7 @@ object future {
               case Failure(t) => cb(ExitResult.checked(t))
             }(ec)
           }
-        )(_.fold(t => IO.fail0(Cause.checked(t)), IO.point(_)))
+        )(IO.fromTry(_))
       }
   }
 
