@@ -354,13 +354,19 @@ trait Schedule[-A, +B] extends Serializable { self =>
   /**
    * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0.
    */
-  final def jittered: Schedule[A, B] = jittered(0.0, 1.0)
+  final def jittered: Schedule[A, B] = jittered(IO.sync(util.Random.nextDouble()))
 
   /**
-   * Applies random jitter to the schedule bounded by the specified factors.
+   * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0, with a given random generator.
    */
-  final def jittered(min: Double, max: Double): Schedule[A, B] =
-    modifyDelay((_, d) => IO.sync(util.Random.nextDouble()).map(random => d * min * (1 - random) + d * max * random))
+  final def jittered(random: IO[Nothing, Double]): Schedule[A, B] =
+    jittered(0.0, 1.0, random)
+
+  /**
+   * Applies random jitter to the schedule bounded by the specified factors, with a given random generator.
+   */
+  final def jittered(min: Double, max: Double, random: IO[Nothing, Double]): Schedule[A, B] =
+    modifyDelay((_, d) => random.map(random => d * min * (1 - random) + d * max * random))
 
   /**
    * Sends every input value to the specified sink.
@@ -552,7 +558,7 @@ object Schedule extends Serializable {
   /**
    * A schedule that executes once.
    */
-  final val once: Schedule[Any, Unit] = forever.whileOutput(_ => false).void
+  final val once: Schedule[Any, Unit] = recurs(1).void
 
   /**
    * A new schedule derived from the specified schedule which adds the delay
@@ -588,8 +594,11 @@ object Schedule extends Serializable {
   /**
    * A schedule that recurs the specified number of times. Returns the number
    * of repetitions so far.
+   *
+   * If 0 or negative numbers are given, the operation is not done at all so
+   * that in `(op: IO[E, A]).repeat(Schedule.recurs(0)) `, op is not done at all.
    */
-  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ < n)
+  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ <= n)
 
   /**
    * A schedule that recurs forever without delay. Returns the elapsed time
