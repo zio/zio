@@ -15,6 +15,8 @@ This module provides the following integrations:
 
 ## Stdlib `Future`
 
+Checkout `interop-future` module for inter-operation support.
+
 ### From `Future`
 
 This is the extension method added to `IO` companion object:
@@ -67,7 +69,7 @@ val itsHappening: Future[MoarData] = unsafeRun(safeFuture)
 
 ### `IO` Instances
 
-If you are a happy Scalaz 7.2 user `interop` module offers `IO` instances for several typeclasses, check out [the source code](shared/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.
+If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `IO` instances for several typeclasses, check out [the source code](shared/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.
 
 #### Example
 
@@ -101,6 +103,8 @@ def par[E, A](io: IO[E, A]): IO[E, A] @@ Parallel = Tag(io)
 ```
 
 ## Typelevel
+
+Checkout `interop-cats` module for inter-operation support.
 
 ### `IO` cats' `Effect` instance
 

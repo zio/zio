@@ -3,7 +3,7 @@
 package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicReference
-
+import scala.concurrent.ExecutionContext
 import Promise.internal._
 
 /**
@@ -112,7 +112,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private[zio] final def unsafeDone(r: ExitResult[E, A], submit: Runnable => Unit): Unit = {
+  private[zio] final def unsafeDone(r: ExitResult[E, A], executionContext: ExecutionContext): Unit = {
     var retry: Boolean                = true
     var joiners: List[Callback[E, A]] = null
 
@@ -129,7 +129,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.reverse.foreach(k => submit(() => k(r)))
+    if (joiners ne null) joiners.reverse.foreach(k => executionContext.execute(() => k(r)))
   }
 
   private def interruptJoiner(joiner: Callback[E, A]): Canceler = IO.sync {
@@ -169,7 +169,7 @@ object Promise {
     ref: Ref[A]
   )(
     acquire: (Promise[E, B], A) => (IO[Nothing, C], A)
-  )(release: (C, Promise[E, B]) => IO[Nothing, Unit]): IO[E, B] =
+  )(release: (C, Promise[E, B]) => IO[Nothing, _]): IO[E, B] =
     for {
       pRef <- Ref[Option[(C, Promise[E, B])]](None)
       b <- (for {
@@ -183,7 +183,7 @@ object Promise {
                   case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.now(p))
                 }.uninterruptibly
             b <- p.get
-          } yield b).ensuring(pRef.get.flatMap(_.fold(IO.unit)(t => release(t._1, t._2))))
+          } yield b).ensuring(pRef.get.flatMap(_.map(t => release(t._1, t._2)).getOrElse(IO.unit)))
     } yield b
 
   private[zio] object internal {
