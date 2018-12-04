@@ -19,22 +19,11 @@ import scalaz.zio._
  *
  */
 trait Stream[+E, +A] { self =>
-  import Stream._
 
   /**
    * Executes an effectful fold over the stream of values.
    */
-  def fold[E1 >: E, A1 >: A, S](s: S)(f: (S, A1) => IO[E1, Step[S]]): IO[E1, Step[S]] =
-    foldLazy[E1, A1, Step[S]](Step.cont(s)) {
-      case Step.Cont(_) => true
-      case _            => false
-    }((s, a) => f(s.extract, a))
-
-  def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
-    fold[E1, A1, S](s) { (s, a) =>
-      if (cont(s)) f(s, a).map(Step.cont)
-      else IO.now(Step.stop(s))
-    }.map(_.extract)
+  def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S]
 
   def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): IO[E, S] =
     foldLazy(s)(_ => true)((s, a) => IO.now(f(s, a)))
@@ -389,7 +378,7 @@ trait Stream[+E, +A] { self =>
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
-  def scan[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): Stream[E, B] = new Stream[E, B] {
+  def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): Stream[E, B] = new Stream[E, B] {
     override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
       self
         .foldLazy[E1, A, (S, S1)](s -> s1)(tp => cont(tp._1)) {
@@ -405,7 +394,7 @@ trait Stream[+E, +A] { self =>
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
-  final def scanM[E1 >: E, S1, B](s1: S1)(f1: (S1, A) => IO[E1, (S1, B)]): Stream[E1, B] = new Stream[E1, B] {
+  final def mapAccumM[E1 >: E, S1, B](s1: S1)(f1: (S1, A) => IO[E1, (S1, B)]): Stream[E1, B] = new Stream[E1, B] {
     override def foldLazy[E2 >: E1, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E2, S]): IO[E2, S] =
       self
         .foldLazy[E2, A, (S, S1)](s -> s1)(tp => cont(tp._1)) {
@@ -551,35 +540,6 @@ trait Stream[+E, +A] { self =>
 }
 
 object Stream {
-  sealed trait Step[+A] {
-    final def extract: A = this match {
-      case Step.Cont(value) => value
-      case Step.Stop(value) => value
-    }
-
-    final def map[B](f: A => B): Step[B] = this match {
-      case Step.Cont(value) => Step.Cont(f(value))
-      case Step.Stop(value) => Step.Stop(f(value))
-    }
-
-    final def duplicate: Step[Step[A]] = this match {
-      case Step.Cont(value) => Step.Cont(Step.Cont(value))
-      case Step.Stop(value) => Step.Stop(Step.Stop(value))
-    }
-
-    final def fold[Z](cont: A => Z, stop: A => Z): Z = this match {
-      case Step.Cont(a) => cont(a)
-      case Step.Stop(a) => stop(a)
-    }
-  }
-  object Step {
-    final case class Cont[A](value: A) extends Step[A]
-    final case class Stop[A](value: A) extends Step[A]
-
-    def cont[A](a: A): Step[A] = Cont(a)
-    def stop[A](a: A): Step[A] = Stop(a)
-  }
-
   final def apply[A](as: A*): Stream[Nothing, A] = fromIterable(as)
 
   /**

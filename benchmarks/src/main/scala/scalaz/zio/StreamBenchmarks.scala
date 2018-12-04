@@ -174,7 +174,7 @@ class CSVStreamBenchmarks {
     val chunks = genCsvChunks.map(Chunk.fromArray(_))
     val stream = StreamChunk
       .fromChunks(chunks: _*)
-      .scan[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) {
+      .mapAccum[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) {
         case (acc, char) =>
           if (char == CSV.ColumnSep) {
             Vector.empty[Char] ->

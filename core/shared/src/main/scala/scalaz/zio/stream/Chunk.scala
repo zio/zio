@@ -44,16 +44,20 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Drops the first `n` elements of the chunk.
    */
-  final def drop(n: Int): Chunk[A] =
+  final def drop(n: Int): Chunk[A] = {
+    val len = self.length
+
     if (n <= 0) self
+    else if (n == len) Chunk.empty
     else
       self match {
         case Chunk.Slice(c, o, l)        => Chunk.Slice(c, o + n, l - n)
         case Chunk.Singleton(_) if n > 0 => Chunk.empty
         case c @ Chunk.Singleton(_)      => c
         case Chunk.Empty                 => Chunk.empty
-        case _                           => Chunk.Slice(self, n, self.length - n)
+        case _                           => Chunk.Slice(self, n, len - n)
       }
+  }
 
   /**
    * Drops all elements so long as the predicate returns true.
@@ -66,9 +70,7 @@ sealed trait Chunk[@specialized +A] { self =>
       i += 1
     }
 
-    if (i == len) Chunk.empty
-    else if (i == 0) this
-    else Chunk.Slice(self, i, len - i)
+    drop(i)
   }
 
   override def equals(that: Any): Boolean = that match {
@@ -128,10 +130,16 @@ sealed trait Chunk[@specialized +A] { self =>
     var B0: ClassTag[B] = null.asInstanceOf[ClassTag[B]]
     while (i < len) {
       val chunk = f(self(i))
-      if (chunk.length > 0) B0 = Chunk.classTagOf(chunk)
-      chunks ::= chunk
+
+      if (chunk.length > 0) {
+        if (B0 == null)
+          B0 = Chunk.classTagOf(chunk)
+
+        chunks ::= chunk
+        total += chunk.length
+      }
+
       i += 1
-      total += chunk.length
     }
     chunks = chunks.reverse
 
@@ -287,14 +295,15 @@ sealed trait Chunk[@specialized +A] { self =>
   final def mkString: String = mkString("")
 
   /**
-   * Scans over the chunk, statefully producing new elements of type `B`.
+   * Statefully maps over the chunk, producing new elements of type `B`.
    */
-  final def scan[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, Chunk[B]) = {
+  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, Chunk[B]) = {
     var s: S1          = s1
     var i              = 0
     var dest: Array[B] = null.asInstanceOf[Array[B]]
+    val len            = self.length
 
-    while (i < self.length) {
+    while (i < len) {
       val a = self(i)
       val t = f1(s, a)
 
@@ -304,7 +313,7 @@ sealed trait Chunk[@specialized +A] { self =>
       if (dest == null) {
         implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
 
-        dest = Array.ofDim(self.length)
+        dest = Array.ofDim(len)
       }
 
       dest(i) = b
@@ -344,9 +353,7 @@ sealed trait Chunk[@specialized +A] { self =>
       i += 1
     }
 
-    if (i == 0) Chunk.Empty
-    else if (i == len) this
-    else Chunk.Slice(this, 0, i)
+    take(i)
   }
 
   /**
@@ -409,17 +416,17 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Effectfully traverses the elements of this chunk purely for the effects.
    */
-  final def traverse_[E](f: A => IO[E, Unit]): IO[E, Unit] = {
-    val len             = self.length
-    var io: IO[E, Unit] = IO.unit
-    var i               = 0
+  final def traverse_[E](f: A => IO[E, _]): IO[E, Unit] = {
+    val len          = self.length
+    var io: IO[E, _] = IO.unit
+    var i            = 0
 
     while (i < len) {
       io = io *> f(self(i))
       i += 1
     }
 
-    io
+    io.void
   }
 
   /**
@@ -582,9 +589,7 @@ object Chunk {
         i += 1
       }
 
-      if (i == len) Chunk.empty
-      else if (i == 0) this
-      else Chunk.Slice(this, i, len - i)
+      drop(i)
     }
 
     override def filter(f: A => Boolean): Chunk[A] = {
@@ -619,10 +624,16 @@ object Chunk {
       var B0: ClassTag[B] = null.asInstanceOf[ClassTag[B]]
       while (i < len) {
         val chunk = f(self(i))
-        if (chunk.length > 0) B0 = Chunk.classTagOf(chunk)
-        chunks ::= chunk
+
+        if (chunk.length > 0) {
+          if (B0 == null)
+            B0 = Chunk.classTagOf(chunk)
+
+          chunks ::= chunk
+          total += chunk.length
+        }
+
         i += 1
-        total += chunk.length
       }
       chunks = chunks.reverse
 
@@ -711,9 +722,7 @@ object Chunk {
         i += 1
       }
 
-      if (i == 0) Chunk.Empty
-      else if (i == len) this
-      else Chunk.Slice(this, 0, i)
+      take(i)
     }
 
     override def toArray[A1 >: A]: Array[A1] = array.asInstanceOf[Array[A1]]

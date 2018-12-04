@@ -3,22 +3,7 @@ package scalaz.zio.stream
 import scalaz.zio._
 
 private[stream] trait StreamChunkPure[@specialized +A] extends StreamChunk[Nothing, A] { self =>
-  import Stream.Step
-
   val chunks: StreamPure[Chunk[A]]
-
-  def foldPure[A1 >: A, S](s: S)(f: (S, A1) => Step[S]): Step[S] =
-    chunks.foldPure(s) { (s, as) =>
-      def loop(s: S, i: Int): Step[S] =
-        if (i >= as.length) Step.cont(s)
-        else
-          f(s, as(i)) match {
-            case s: Step.Cont[S] => loop(s.extract, i + 1)
-            case s               => s
-          }
-
-      loop(s, 0)
-    }
 
   def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
     chunks.foldPureLazy(s)(cont) { (s, as) =>
