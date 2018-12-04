@@ -1,6 +1,5 @@
 package scalaz.zio.internal.impls
 
-import java.util.concurrent.atomic.{ AtomicLong, AtomicLongArray }
 import scalaz.zio.internal.MutableConcurrentQueue
 
 /**
@@ -15,52 +14,41 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
   final val capacity: Int         = nextPow2(desiredCapacity)
   private[this] val idxMask: Long = (capacity - 1).toLong
 
-  private[this] val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
-  private[this] val seq: AtomicLongArray = new AtomicLongArray(capacity)
-  0.until(capacity).foreach(i => seq.set(i, i.toLong))
+  private[this] val buf: Array[AnyRef] = new Array[AnyRef](capacity)
+  private[this] val seq: Array[Long]   = new Array[Long](capacity)
+  0.until(capacity).foreach(i => seq.update(i, i.toLong))
 
-  private[this] val head: AtomicLong = new AtomicLong(0L)
-  private[this] val tail: AtomicLong = new AtomicLong(0L)
+  private[this] var head: Long = 0L
+  private[this] var tail: Long = 0L
 
   private[this] final val STATE_LOOP     = 0
   private[this] final val STATE_EMPTY    = -1
   private[this] final val STATE_FULL     = -2
   private[this] final val STATE_RESERVED = 1
 
-  override final def size(): Int = (tail.get() - head.get()).toInt
+  override final def size(): Int = (tail - head).toInt
 
-  override final def enqueuedCount(): Long = tail.get()
+  override final def enqueuedCount(): Long = tail
 
-  override final def dequeuedCount(): Long = head.get()
+  override final def dequeuedCount(): Long = head
 
   override final def offer(a: A): Boolean = {
-    // Loading all instance fields locally. Otherwise JVM will reload
-    // them after every volatile read in a loop below.
-    val aCapacity = capacity
-    val aMask     = idxMask
-
-    val aSeq   = seq
-    var curSeq = 0L
-
-    val aHead   = head
+    var curSeq  = 0L
     var curHead = 0L
-
-    val aTail   = tail
-    var curTail = aTail.get()
+    var curTail = tail
     var curIdx  = 0
-
-    var state = STATE_LOOP
+    var state   = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      curIdx = posToIdx(curTail, aMask)
-      curSeq = aSeq.get(curIdx)
+      curIdx = posToIdx(curTail, idxMask)
+      curSeq = seq(curIdx)
 
       if (curSeq < curTail) {
         // This means we're about to wrap around the buffer, i.e. the
         // queue is likely full. But there may be a dequeuing
         // happening at the moment, so we need to check for this.
-        curHead = aHead.get()
-        if (curTail >= curHead + aCapacity) {
+        curHead = head
+        if (curTail >= curHead + capacity) {
           // This case implies that there is no in-progress dequeue,
           // we can just report that the queue is full.
           state = STATE_FULL
@@ -75,8 +63,9 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
       } else if (curSeq == curTail) {
         // We're at the right spot. At this point we can try to
         // reserve the place for enqueue by doing CAS on tail.
-        if (aTail.compareAndSet(curTail, curTail + 1)) {
+        if (tail == curTail) {
           // We successfuly reserved a place to enqueue.
+          tail = curTail + 1
           state = STATE_RESERVED
         } else {
           // There was a concurrent offer that won CAS. We need to try again at the next location.
@@ -87,7 +76,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
         // Either some other thread beat us enqueued an right element
         // or this thread got delayed. We need to resynchronize with
         // `tail` and try again.
-        curTail = aTail.get()
+        curTail = tail
         state = STATE_LOOP
       }
     }
@@ -104,7 +93,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
       // (`lazySet`).  See Doug Lea's response in
       // [[http://cs.oswego.edu/pipermail/concurrency-interest/2011-October/008296.html]].
       buf(curIdx) = a.asInstanceOf[AnyRef]
-      aSeq.lazySet(curIdx, curTail + 1)
+      seq(curIdx) = curTail + 1
       true
     } else { // state == STATE_FULL
       false
@@ -112,27 +101,15 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
   }
 
   override final def poll(default: A): A = {
-    // Loading all instance fields locally. Otherwise JVM will reload
-    // them after every volatile read in a loop below.
-    val aCapacity = capacity
-    val aMask     = idxMask
-    val aBuf      = buf
-
-    val aSeq   = seq
-    var curSeq = 0L
-
-    val aHead   = head
-    var curHead = aHead.get()
+    var curSeq  = 0L
+    var curHead = head
     var curIdx  = 0
-
-    val aTail   = tail
     var curTail = 0L
-
-    var state = STATE_LOOP
+    var state   = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      curIdx = posToIdx(curHead, aMask)
-      curSeq = aSeq.get(curIdx)
+      curIdx = posToIdx(curHead, idxMask)
+      curSeq = seq(curIdx)
 
       if (curSeq <= curHead) {
         // There may be two distinct cases:
@@ -156,7 +133,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
         //
         //    Anyway, in this case we can report that the queue is empty.
 
-        curTail = aTail.get()
+        curTail = tail
         if (curHead >= curTail) {
           // There is no concurrent enqueue happening. We can report
           // that that queue is empty.
@@ -171,8 +148,9 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
       } else if (curSeq == curHead + 1) {
         // We're at the right spot, and can try to reserve the spot
         // for dequeue.
-        if (aHead.compareAndSet(curHead, curHead + 1)) {
+        if (head == curHead) {
           // Successfully reserved the spot and can proceed to dequeueing.
+          head = curHead + 1
           state = STATE_RESERVED
         } else {
           // Another concurrent dequeue won. Let's try again at the next location.
@@ -182,7 +160,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
       } else { // curSeq > curHead + 1
         // Either some other thread beat us or this thread got
         // delayed. We need to resyncronize with `head` and try again.
-        curHead = aHead.get()
+        curHead = head
         state = STATE_LOOP
       }
     }
@@ -190,10 +168,9 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
     if (state == STATE_RESERVED) {
       // See the comment in offer method about volatile writes and
       // visibility guarantees.
-      val deqElement = aBuf(curIdx)
-      aBuf(curIdx) = null
-
-      aSeq.lazySet(curIdx, curHead + aCapacity)
+      val deqElement = buf(curIdx)
+      buf(curIdx) = null
+      seq(curIdx) = curHead + capacity
 
       deqElement.asInstanceOf[A]
     } else {
@@ -201,9 +178,9 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
     }
   }
 
-  override final def isEmpty(): Boolean = tail.get() == head.get()
+  override final def isEmpty(): Boolean = tail == head
 
-  override final def isFull(): Boolean = tail.get() == head.get() + capacity
+  override final def isFull(): Boolean = tail == head + capacity
 
   private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
 
