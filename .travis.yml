@@ -3,7 +3,7 @@ sudo: false
 
 # Main Scala version
 scala:
-- 2.12.7
+- 2.12.8
 
 jdk:
 - openjdk8
