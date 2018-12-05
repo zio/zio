@@ -66,7 +66,7 @@ trait RTS {
   /**
    * The fiber's execution context.
    */
-  lazy val executionContext = ExecutionContext.fromExecutor(threadPool)
+  val executionContext: ExecutionContext = ExecutionContext.fromExecutor(threadPool)
 
   /**
    * The thread pool for scheduling timed tasks.
