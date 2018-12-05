@@ -85,6 +85,7 @@ lazy val coreJVM = core.jvm
                                                |import scalaz._
                                                |import scalaz.zio._
                                                |import scalaz.zio.console._
+                                               |import scalaz.zio.stream._
                                                |object replRTS extends RTS {}
                                                |import replRTS._
                                                |implicit class RunSyntax[E, A](io: IO[E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
@@ -168,11 +169,12 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
-        "io.monix"       %% "monix"         % "3.0.0-RC1",
-        "org.typelevel"  %% "cats-effect"   % "1.0.0",
-        "co.fs2"         %% "fs2-core"      % "1.0.0"
+        "org.scala-lang"    % "scala-reflect"  % scalaVersion.value,
+        "org.scala-lang"    % "scala-compiler" % scalaVersion.value % Provided,
+        "io.monix"          %% "monix"         % "3.0.0-RC1",
+        "org.typelevel"     %% "cats-effect"   % "1.0.0",
+        "co.fs2"            %% "fs2-core"      % "1.0.0",
+        "com.typesafe.akka" %% "akka-stream"   % "2.5.17"
       )
   )
 
