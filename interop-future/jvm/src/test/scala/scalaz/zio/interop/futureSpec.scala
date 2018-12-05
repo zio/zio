@@ -110,31 +110,32 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val lazyOnParamRefFiber = {
     var evaluated = false
     def ftr       = Future { evaluated = true }
-    Fiber.fromFuture(ftr)(ec)
+    Fiber.fromFuture(ftr _)(ec)
     evaluated must beFalse
   }
 
   val lazyOnParamInlineFiber = {
     var evaluated = false
-    Fiber.fromFuture(Future { evaluated = true })(ec)
+    def ftr       = Future { evaluated = true }
+    Fiber.fromFuture(ftr _)(ec)
     evaluated must beFalse
   }
 
   val catchBlockExceptionFiber = {
     val ex                     = new Exception("no future for you!")
     def noFuture: Future[Unit] = throw ex
-    unsafeRun(Fiber.fromFuture(noFuture)(ec).join) must (throwA(FiberFailure(Unchecked(ex))))
+    unsafeRun(Fiber.fromFuture(noFuture _)(ec).join) must (throwA(FiberFailure(Unchecked(ex))))
   }
 
   val propagateExceptionFromFutureFiber = {
     val ex                    = new Exception("no value for you!")
     def noValue: Future[Unit] = Future { throw ex }
-    unsafeRun(Fiber.fromFuture(noValue)(ec).join) must (throwA(FiberFailure(Checked(ex))))
+    unsafeRun(Fiber.fromFuture(noValue _)(ec).join) must (throwA(FiberFailure(Checked(ex))))
   }
 
   val produceValueFromFutureFiber = {
     def someValue: Future[Int] = Future { 42 }
-    unsafeRun(Fiber.fromFuture(someValue)(ec).join) must_=== 42
+    unsafeRun(Fiber.fromFuture(someValue _)(ec).join) must_=== 42
   }
 
 }
