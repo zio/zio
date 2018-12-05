@@ -1,5 +1,5 @@
 package scalaz.zio
-import java.util.concurrent.{ExecutorService, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ ExecutorService, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit }
 import scalaz.zio.RTS.NamedThreadFactory
 
 class CustomRTS(threadPoolSize: Int) extends RTS {
