@@ -170,7 +170,7 @@ class Queue[A] private (
                   // wait for the promise to be completed
                     .flatMap(_ => p.get)
                     // clean up resources in case of interruption
-                    .onTermination(_ => removeTaker(p))
+                    .ensuring(p.poll.void <> removeTaker(p))
             } yield a
     } yield a
 
@@ -334,7 +334,7 @@ object Queue {
           _ <- (IO.syncSubmit { context =>
                 unsafeOffer(as, p)
                 unsafeOnQueueEmptySpace(queue, context)
-              } *> p.get).onTermination(_ => IO.sync(unsafeRemove(p)))
+              } *> p.get).ensuring(p.poll.void <> IO.sync(unsafeRemove(p)))
         } yield true
       }
 
