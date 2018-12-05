@@ -3,13 +3,16 @@ package scalaz.zio
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
-import cats.effect.ContextShift
+import cats.effect.{ ContextShift, IO => CIO }
+import cats.implicits._
 import org.openjdk.jmh.annotations._
-import scalaz.zio.IOBenchmarks._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Warmup(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
+@Fork(1)
 /**
  * This benchmark offers and takes a number of items in parallel, without back pressure.
  */
@@ -17,6 +20,20 @@ class QueueParallelBenchmark {
 
   val totalSize   = 10000
   val parallelism = 5
+  val rts         = new CustomRTS(parallelism)
+
+  import rts._
+
+  implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
+
+  var zioQ: Queue[Int]                     = _
+  var fs2Q: fs2.concurrent.Queue[CIO, Int] = _
+
+  @Setup(Level.Trial)
+  def createQueues(): Unit = {
+    zioQ = unsafeRun(Queue.bounded[Int](totalSize))
+    fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
+  }
 
   @Benchmark
   def zioQueue(): Int = {
@@ -26,9 +43,8 @@ class QueueParallelBenchmark {
       else task.flatMap(_ => repeat(task, max - 1))
 
     val io = for {
-      queue  <- Queue.bounded[Int](totalSize)
-      offers <- IO.forkAll(List.fill(parallelism)(repeat(queue.offer(0).map(_ => ()), totalSize / parallelism))).fork
-      takes  <- IO.forkAll(List.fill(parallelism)(repeat(queue.take.map(_ => ()), totalSize / parallelism))).fork
+      offers <- IO.forkAll(List.fill(parallelism)(repeat(zioQ.offer(0).map(_ => ()), totalSize / parallelism))).fork
+      takes  <- IO.forkAll(List.fill(parallelism)(repeat(zioQ.take.map(_ => ()), totalSize / parallelism))).fork
       _      <- offers.join
       _      <- takes.join
     } yield 0
@@ -38,19 +54,14 @@ class QueueParallelBenchmark {
 
   @Benchmark
   def fs2Queue(): Int = {
-    import cats.effect.{ IO => CIO }
-    import cats.implicits._
-
-    implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
     def repeat(task: CIO[Unit], max: Int): CIO[Unit] =
       if (max < 1) CIO.unit
       else task >> repeat(task, max - 1)
 
     val io = for {
-      queue  <- fs2.concurrent.Queue.bounded[CIO, Int](totalSize)
-      offers <- List.fill(parallelism)(repeat(queue.enqueue1(0), totalSize / parallelism)).sequence.start
-      takes  <- List.fill(parallelism)(repeat(queue.dequeue1.map(_ => ()), totalSize / parallelism)).sequence.start
+      offers <- List.fill(parallelism)(repeat(fs2Q.enqueue1(0), totalSize / parallelism)).sequence.start
+      takes  <- List.fill(parallelism)(repeat(fs2Q.dequeue1.map(_ => ()), totalSize / parallelism)).sequence.start
       _      <- offers.join
       _      <- takes.join
     } yield 0

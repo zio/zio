@@ -4,18 +4,34 @@ package scalaz.zio
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import cats.effect.ContextShift
+import cats.effect.{ IO => CIO }
+import cats.implicits._
 import org.openjdk.jmh.annotations._
 import scalaz.zio.IOBenchmarks._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Warmup(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
+@Fork(1)
 /**
  * This benchmark sequentially offers a number of items to the queue, then takes them out of the queue.
  */
 class QueueSequentialBenchmark {
 
   val totalSize = 10000
+
+  implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
+
+  var zioQ: Queue[Int]                     = _
+  var fs2Q: fs2.concurrent.Queue[CIO, Int] = _
+
+  @Setup(Level.Trial)
+  def createQueues(): Unit = {
+    zioQ = unsafeRun(Queue.bounded[Int](totalSize))
+    fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
+  }
 
   @Benchmark
   def zioQueue(): Int = {
@@ -25,9 +41,8 @@ class QueueSequentialBenchmark {
       else task.flatMap(_ => repeat(task, max - 1))
 
     val io = for {
-      queue <- Queue.bounded[Int](totalSize)
-      _     <- repeat(queue.offer(0).map(_ => ()), totalSize)
-      _     <- repeat(queue.take.map(_ => ()), totalSize)
+      _ <- repeat(zioQ.offer(0).map(_ => ()), totalSize)
+      _ <- repeat(zioQ.take.map(_ => ()), totalSize)
     } yield 0
 
     unsafeRun(io)
@@ -35,19 +50,14 @@ class QueueSequentialBenchmark {
 
   @Benchmark
   def fs2Queue(): Int = {
-    import cats.effect.{ IO => CIO }
-    import cats.implicits._
-
-    implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
     def repeat(task: CIO[Unit], max: Int): CIO[Unit] =
       if (max < 1) CIO.unit
       else task >> repeat(task, max - 1)
 
     val io = for {
-      queue <- fs2.concurrent.Queue.bounded[CIO, Int](totalSize)
-      _     <- repeat(queue.enqueue1(0), totalSize)
-      _     <- repeat(queue.dequeue1.map(_ => ()), totalSize)
+      _ <- repeat(fs2Q.enqueue1(0), totalSize)
+      _ <- repeat(fs2Q.dequeue1.map(_ => ()), totalSize)
     } yield 0
 
     io.unsafeRunSync()
