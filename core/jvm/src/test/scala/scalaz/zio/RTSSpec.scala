@@ -68,6 +68,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     deep map of now                         $testDeepMapOfNow
     deep map of sync effect                 $testDeepMapOfSyncEffectIsStackSafe
     deep attempt                            $testDeepAttemptIsStackSafe
+    deep flatMap                            $testDeepFlatMapIsStackSafe
     deep absolve/attempt is identity        $testDeepAbsolveAttemptIsIdentity
     deep async absolve/attempt is identity  $testDeepAsyncAbsolveAttemptIsIdentity
 
@@ -460,6 +461,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun((0 until 10000).foldLeft(IO.syncThrowable[Unit](())) { (acc, _) =>
       acc.attempt.void
     }) must_=== (())
+
+  def testDeepFlatMapIsStackSafe = {
+    def fib(n: Int, a: BigInt = 0, b: BigInt = 1): IO[Error, BigInt] =
+      IO.now(a + b).flatMap { b2 =>
+        if (n > 0)
+          fib(n - 1, b, b2)
+        else
+          IO.now(b2)
+      }
+
+    val future = fib(1000)
+    unsafeRun(future) must_=== BigInt(
+      "113796925398360272257523782552224175572745930353730513145086634176691092536145985470146129334641866902783673042322088625863396052888690096969577173696370562180400527049497109023054114771394568040040412172632376"
+    )
+  }
 
   def testDeepAbsolveAttemptIsIdentity =
     unsafeRun((0 until 1000).foldLeft(IO.point[Int](42))((acc, _) => IO.absolve(acc.attempt))) must_=== 42
