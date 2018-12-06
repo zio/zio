@@ -41,7 +41,7 @@ trait Env {
   final def unsafeRunSync[E, A](unhandled: Cause[Any] => IO[Nothing, _], io: IO[E, A]): ExitResult[E, A] = {
     val result = OneShot.make[ExitResult[E, A]]
 
-    unsafeRunAsync(unhandled, io, result.set(_))
+    unsafeRunAsync(unhandled, io, (x: ExitResult[E, A]) => result.set(x))
 
     result.get
   }
