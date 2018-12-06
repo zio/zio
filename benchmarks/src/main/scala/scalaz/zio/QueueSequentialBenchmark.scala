@@ -12,15 +12,15 @@ import scalaz.zio.IOBenchmarks._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
-@Fork(1)
+@Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
+@Fork(3)
 /**
  * This benchmark sequentially offers a number of items to the queue, then takes them out of the queue.
  */
 class QueueSequentialBenchmark {
 
-  val totalSize = 10000
+  val totalSize = 1000
 
   implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
