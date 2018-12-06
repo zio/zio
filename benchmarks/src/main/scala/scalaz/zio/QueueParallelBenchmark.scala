@@ -20,7 +20,7 @@ class QueueParallelBenchmark {
 
   val totalSize   = 10000
   val parallelism = 5
-  val rts         = new CustomRTS(parallelism)
+  val rts         = new FixedThreadPoolRTS(parallelism)
 
   import rts._
 
