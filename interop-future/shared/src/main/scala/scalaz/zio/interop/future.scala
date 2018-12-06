@@ -7,17 +7,26 @@ import scala.util.{ Failure, Success }
 object future {
 
   implicit class IOObjOps(private val ioObj: IO.type) extends AnyVal {
+    private def unsafeFutureToIO[A](f: Future[A], ec: ExecutionContext): IO[Throwable, A] =
+      f.value.fold(
+        IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
+          f.onComplete {
+            case Success(a) => cb(ExitResult.succeeded(a))
+            case Failure(t) => cb(ExitResult.checked(t))
+          }(ec)
+        }
+      )(IO.fromTry(_))
+
     def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): IO[Throwable, A] =
       IO.suspend {
-        val f = ftr()
-        f.value.fold(
-          IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
-            f.onComplete {
-              case Success(a) => cb(ExitResult.succeeded(a))
-              case Failure(t) => cb(ExitResult.checked(t))
-            }(ec)
-          }
-        )(IO.fromTry(_))
+        unsafeFutureToIO(ftr(), ec)
+      }
+
+    def fromFutureAction[A](ftr: ExecutionContext => Future[A]): IO[Throwable, A] =
+      IO.flatten {
+        IO.syncSubmit { ec =>
+          unsafeFutureToIO(ftr(ec), ec)
+        }
       }
   }
 
