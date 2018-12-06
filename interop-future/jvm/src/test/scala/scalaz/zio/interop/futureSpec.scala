@@ -5,7 +5,7 @@ import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.ExitResult.Cause.{ Checked, Unchecked }
 import scalaz.zio.interop.future._
 
-import scala.concurrent.Future
+import scala.concurrent.{ ExecutionContext, Future }
 
 class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
@@ -16,6 +16,10 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     catch exceptions thrown by lazy block                $catchBlockException
     return an `IO` that fails if `Future` fails          $propagateExceptionFromFuture
     return an `IO` that produces the value from `Future` $produceValueFromFuture
+  `IO.fromFutureAction` must
+    catch exceptions thrown by lazy block                $futureActionCatchBlockException
+    return an `IO` that fails if `Future` fails          $futureActionPropagateExceptionFromFuture
+    return an `IO` that produces the value from `Future` $futureActionProduceValueFromFuture
   `IO.toFuture` must
     produce always a successful `IO` of `Future`         $toFutureAlwaysSucceeds
     be polymorphic in error type                         $toFuturePoly
@@ -78,6 +82,26 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val produceValueFromFutureTask = {
     val someValue: Future[Int] = Future { 42 }
     unsafeRun(Task.fromFuture(Task { someValue })(ec)) must_=== 42
+  }
+
+  val futureActionCatchBlockException = {
+    val ex = new Exception("no future for you!")
+    def noFuture(ec: ExecutionContext): Future[Unit] = {
+      val _ = ec
+      throw ex
+    }
+    unsafeRun(IO.fromFutureAction(noFuture)) must (throwA(FiberFailure(Unchecked(ex))))
+  }
+
+  val futureActionPropagateExceptionFromFuture = {
+    val ex                                          = new Exception("no value for you!")
+    def noValue(ec: ExecutionContext): Future[Unit] = Future { throw ex }(ec)
+    unsafeRun(IO.fromFutureAction(noValue)) must throwA(FiberFailure(Checked(ex)))
+  }
+
+  val futureActionProduceValueFromFuture = {
+    def someValue(ec: ExecutionContext): Future[Int] = Future { 42 }(ec)
+    unsafeRun(IO.fromFutureAction(someValue)) must_=== 42
   }
 
   val toFutureAlwaysSucceeds = {
