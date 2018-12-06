@@ -6,24 +6,22 @@ import scala.concurrent.ExecutionContext
 import cats.effect.{ ContextShift, IO => CIO }
 import cats.implicits._
 import org.openjdk.jmh.annotations._
+import scalaz.zio.IOBenchmarks._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
-@Fork(1)
+@Warmup(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
+@Fork(3)
 /**
  * This benchmark offers and takes a number of items in parallel, with a very small queue to enforce back pressure mechanism is used.
  */
 class QueueBackPressureBenchmark {
 
   val queueSize   = 2
-  val totalSize   = 10000
+  val totalSize   = 1000
   val parallelism = 5
-  val rts         = new FixedThreadPoolRTS(parallelism)
-
-  import rts._
 
   implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
