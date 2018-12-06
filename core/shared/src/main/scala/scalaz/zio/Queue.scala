@@ -3,7 +3,7 @@
 package scalaz.zio
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
+import scalaz.zio.internal.Env
 import scalaz.zio.Queue.internal._
 import scalaz.zio.internal.MutableConcurrentQueue
 
@@ -38,7 +38,7 @@ class Queue[A] private (
     } else None
 
   @tailrec
-  private final def unsafeCompleteTakers(context: ExecutionContext): Unit =
+  private final def unsafeCompleteTakers(context: Env): Unit =
     pollTakersThenQueue() match {
       case None =>
       case Some((p, a)) =>
@@ -258,13 +258,13 @@ object Queue {
       ()
     }
 
-    final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, context: ExecutionContext): Unit =
+    final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, context: Env): Unit =
       p.unsafeDone(ExitResult.succeeded(a), context)
 
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean]
 
-      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: ExecutionContext): Unit
+      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Env): Unit
 
       def surplusSize: Int
 
@@ -287,7 +287,7 @@ object Queue {
         IO.sync(unsafeSlidingOffer(as)).map(_ => !loss)
       }
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: ExecutionContext): Unit = ()
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Env): Unit = ()
 
       final def surplusSize: Int = 0
 
@@ -298,7 +298,7 @@ object Queue {
       // do nothing, drop the surplus
       final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean] = IO.now(false)
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: ExecutionContext): Unit = ()
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Env): Unit = ()
 
       final def surplusSize: Int = 0
 
@@ -338,7 +338,7 @@ object Queue {
         } yield true
       }
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: ExecutionContext): Unit = {
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Env): Unit = {
         @tailrec
         def unsafeMovePutters(): Unit =
           if (!queue.isFull()) {
