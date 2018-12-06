@@ -2,9 +2,10 @@
 package scalaz.zio
 
 import scalaz.zio.ExitResult.Cause
+import scalaz.zio.internal.Env
 
-import scala.annotation.switch
 import scala.concurrent.ExecutionContext
+import scala.annotation.switch
 import scala.concurrent.duration._
 
 /**
@@ -772,7 +773,7 @@ object IO extends Serializable {
     override def tag = Tags.Strict
   }
 
-  final class SyncEffect[A] private[IO] (val effect: ExecutionContext => A) extends IO[Nothing, A] {
+  final class SyncEffect[A] private[IO] (val effect: Env => A) extends IO[Nothing, A] {
     override def tag = Tags.SyncEffect
   }
 
@@ -920,7 +921,7 @@ object IO extends Serializable {
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def syncSubmit[A](effect: ExecutionContext => A): IO[Nothing, A] = new SyncEffect[A](effect)
+  final def syncSubmit[A](effect: Env => A): IO[Nothing, A] = new SyncEffect[A](effect)
 
   /**
    *
@@ -1014,11 +1015,10 @@ object IO extends Serializable {
    */
   final def asyncPure[E, A](register: (Callback[E, A]) => IO[Nothing, Unit]): IO[E, A] =
     for {
-      d   <- descriptor
       p   <- Promise.make[E, A]
       ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
       a <- (for {
-            _ <- register(p.unsafeDone(_, d.executor)).fork.peek(ref.set(_)).uninterruptibly
+            _ <- IO.flatten(IO.syncSubmit(env => register(p.unsafeDone(_, env)))).fork.peek(ref.set(_)).uninterruptibly
             a <- p.get
           } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
     } yield a

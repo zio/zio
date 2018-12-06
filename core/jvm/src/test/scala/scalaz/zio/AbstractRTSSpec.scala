@@ -11,7 +11,7 @@ abstract class AbstractRTSSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     with RTS
     with AroundEach
     with AroundTimeout {
-  override def defaultHandler: Cause[Any] => IO[Nothing, Unit] = _ => IO.unit
+  override val reportError: Cause[Any] => IO[Nothing, _] = _ => IO.unit
 
   val DefaultTimeout = 60.seconds
 
