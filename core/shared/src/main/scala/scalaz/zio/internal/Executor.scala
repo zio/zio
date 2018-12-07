@@ -85,7 +85,7 @@ object Executor extends Serializable {
         val maxPoolSize   = Int.MaxValue
         val keepAliveTime = 1000L
         val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new LinkedBlockingQueue[Runnable]()
+        val workQueue     = new SynchronousQueue[Runnable]()
         val threadFactory = new NamedThreadFactory("zio-blocking", true)
 
         val threadPool = new ThreadPoolExecutor(
@@ -152,7 +152,7 @@ object Executor extends Serializable {
             def run: Unit =
               try runnable.run()
               finally {
-                val _ = _dequeuedCount.decrementAndGet()
+                val _ = _dequeuedCount.incrementAndGet()
               }
           })
 
@@ -172,7 +172,7 @@ object Executor extends Serializable {
    */
   final def fromThreadPoolExecutor(es: ThreadPoolExecutor): Executor =
     new Executor {
-      def concurrency: Int = es.getCorePoolSize()
+      def concurrency: Int = es.getMaximumPoolSize()
 
       def capacity: Int = {
         val queue = es.getQueue()
@@ -180,14 +180,14 @@ object Executor extends Serializable {
         val remaining = queue.remainingCapacity()
 
         if (remaining == Int.MaxValue) remaining
-        else remaining - queue.size
+        else remaining + queue.size
       }
 
-      def size: Int = es.getQueue().size + es.getActiveCount()
+      def size: Int = es.getQueue().size
 
       def enqueuedCount: Long = es.getTaskCount()
 
-      def dequeuedCount: Long = enqueuedCount - size
+      def dequeuedCount: Long = enqueuedCount - size.toLong
 
       def submit(runnable: Runnable): Boolean =
         try {
