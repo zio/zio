@@ -1,4 +1,4 @@
-![ZIO Logo](./ZIO.svg)
+![ZIO Logo](./ZIO.png)
 
 | CI | Coverage | Snapshot | Release | Issues | Users |
 | --- | --- | --- | --- | --- | --- |
