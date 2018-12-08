@@ -2,7 +2,7 @@ package scalaz.zio.duration
 
 import scalaz.zio.AbstractRTSSpec
 
-class DurationSpec extends AbstractRTSSpec {
+class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is = "DurationSpec".title ^ s2"""
         Make a Duration from positive nanos and check that:
