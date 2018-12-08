@@ -1,6 +1,8 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
+import scala.util.{ Failure, Success, Try }
+
 /**
  * An `ExitResult[E, A]` describes the result of executing an `IO` value. The
  * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
@@ -119,6 +121,18 @@ object ExitResult extends Serializable {
   final def checked[E](error: E): ExitResult[E, Nothing]          = failed(Cause.checked(error))
   final val interrupted: ExitResult[Nothing, Nothing]             = failed(Cause.interrupted)
   final def unchecked(t: Throwable): ExitResult[Nothing, Nothing] = failed(Cause.unchecked(t))
+
+  final def fromOption[A](o: Option[A]): ExitResult[Unit, A] =
+    o.fold[ExitResult[Unit, A]](checked(()))(succeeded(_))
+
+  final def fromEither[E, A](e: Either[E, A]): ExitResult[E, A] =
+    e.fold(checked(_), succeeded(_))
+
+  final def fromTry[A](t: Try[A]): ExitResult[Throwable, A] =
+    t match {
+      case Success(a) => succeeded(a)
+      case Failure(t) => checked(t)
+    }
 
   final def flatten[E, A](exit: ExitResult[E, ExitResult[E, A]]): ExitResult[E, A] =
     exit.flatMap(identity _)
