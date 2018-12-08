@@ -106,7 +106,7 @@ trait RTS {
     case Duration.Infinity => Async.later
     case Duration.Zero =>
       submit(block)
-      
+
       Async.later
     case d: Duration.Finite =>
       val future = scheduledExecutor.schedule(new Runnable {
@@ -114,7 +114,7 @@ trait RTS {
       }, d.toNanos, TimeUnit.NANOSECONDS)
 
       Async.maybeLater(IO.sync { future.cancel(true); () })
-    }
+  }
 
   /** Utility function to avoid catching truly fatal exceptions. Do not allocate
    * memory here since this would defeat the point of checking for OOME.

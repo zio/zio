@@ -1,14 +1,12 @@
 package scalaz.zio
 
 import scala.collection.immutable.Range
-import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
+import scalaz.zio.duration._
 
 class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
-  def is = {
-    import scala.concurrent.duration._
-
+  def is =
     "QueueSpec".title ^ s2"""
     Make a Queue and
     add values then call
@@ -104,9 +102,6 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     make a sliding queue of size 5 and offer 3 values. offerAll must return true $e64
     make a bounded queue of size 5 and offer 3 values. offerAll must return true $e65
     """
-  }
-
-  import scalaz.zio.duration._
 
   def e1 = unsafeRun(
     for {

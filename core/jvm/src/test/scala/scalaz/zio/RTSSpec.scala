@@ -8,14 +8,13 @@ import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
+import scalaz.zio.duration._
 
 import scala.util.{ Failure, Success }
 
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def is = {
-    import scala.concurrent.duration._
-
     s2"""
   RTS synchronous correctness
     widen Nothing                           $testWidenNothing
@@ -140,8 +139,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     interruption of unending bracket        $testInterruptionOfUnendingBracket
   """
   }
-
-  import scalaz.zio.duration._
 
   def testPoint =
     unsafeRun(IO.point(1)) must_=== 1
