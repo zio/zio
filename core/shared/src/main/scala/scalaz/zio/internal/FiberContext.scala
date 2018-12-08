@@ -116,7 +116,7 @@ private[zio] final class FiberContext[E, A](
               // which destroys performance, so we create a temp val here.
               val tmpIo = curIo
 
-              env.executor(Executor.Type.Asynchronous).submit(() => evaluate(tmpIo))
+              env.executor(Executor.Yielding).submit(() => evaluate(tmpIo))
 
               curIo = null
             } else {
@@ -242,7 +242,7 @@ private[zio] final class FiberContext[E, A](
 
                   curIo = IO.async0[E, Any] { k =>
                     val canceler = env.scheduler
-                      .schedule(env.executor(Executor.Type.Asynchronous), () => k(SuccessUnit), io.duration)
+                      .schedule(env.executor(Executor.Yielding), () => k(SuccessUnit), io.duration)
 
                     Async.maybeLater(IO.sync { val _ = canceler() })
                   }
@@ -341,7 +341,7 @@ private[zio] final class FiberContext[E, A](
   final def fork[E, A](io: IO[E, A], unhandled: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] = {
     val context = env.newFiberContext[E, A](unhandled)
 
-    env.executor(Executor.Type.Asynchronous).submit(() => context.evaluate(io))
+    env.executor(Executor.Yielding).submit(() => context.evaluate(io))
 
     context
   }
@@ -500,7 +500,7 @@ private[zio] final class FiberContext[E, A](
       // TODO: Pay attention to return value of `submit`
       val _ =
         env
-          .executor(Executor.Type.Asynchronous)
+          .executor(Executor.Yielding)
           .submit(() => env.unsafeRunAsync(_ => IO.unit, unhandled(cause), (_: ExitResult[Nothing, _]) => ()))
 
     case _ =>
@@ -521,7 +521,7 @@ private[zio] final class FiberContext[E, A](
           noInterrupt += 1
 
           env
-            .executor(Executor.Type.Asynchronous)
+            .executor(Executor.Yielding)
             .submit(() => evaluate(cancel.get *> IO.interrupt))
 
           Async.later
@@ -569,7 +569,7 @@ private[zio] final class FiberContext[E, A](
     observers.reverse.foreach(
       k =>
         env
-          .executor(Executor.Type.Asynchronous)
+          .executor(Executor.Yielding)
           .submit(() => k(result))
     )
   }

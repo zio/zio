@@ -11,6 +11,11 @@ import scala.concurrent.ExecutionContext
 trait Executor {
 
   /**
+   * The role the executor is optimized for.
+   */
+  def role: Executor.Role
+
+  /**
    * The concurrency level of the executor.
    */
   def concurrency: Int
@@ -59,69 +64,71 @@ trait Executor {
 }
 
 object Executor extends Serializable {
-  sealed abstract class Type extends Product with Serializable
-  object Type extends Serializable {
+  sealed abstract class Role extends Product with Serializable
 
-    /**
-     * An executor optimized for synchronous tasks, which yield
-     * to the runtime infrequently or never.
-     */
-    final case object Synchronous extends Type
+  /**
+   * An executor optimized for synchronous tasks, which yield
+   * to the runtime infrequently or never.
+   */
+  final case object Unyielding extends Role
 
-    /**
-     * An executor optimized for asynchronous tasks, which yield
-     * frequently to the runtime.
-     */
-    final case object Asynchronous extends Type
-  }
+  /**
+   * An executor optimized for asynchronous tasks, which yield
+   * frequently to the runtime.
+   */
+  final case object Yielding extends Role
 
   /**
    * Creates a new default executor of the specified type.
    */
-  final def newDefaultExecutor(tpe: Type): Executor = tpe match {
-    case Type.Synchronous =>
-      fromThreadPoolExecutor {
-        val corePoolSize  = Int.MaxValue
-        val maxPoolSize   = Int.MaxValue
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new SynchronousQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
+  final def newDefaultExecutor(role: Role): Executor = role match {
+    case Unyielding =>
+      fromThreadPoolExecutor(
+        role, {
+          val corePoolSize  = Int.MaxValue
+          val maxPoolSize   = Int.MaxValue
+          val keepAliveTime = 1000L
+          val timeUnit      = TimeUnit.MILLISECONDS
+          val workQueue     = new SynchronousQueue[Runnable]()
+          val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
 
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-        threadPool.allowCoreThreadTimeOut(true)
+          val threadPool = new ThreadPoolExecutor(
+            corePoolSize,
+            maxPoolSize,
+            keepAliveTime,
+            timeUnit,
+            workQueue,
+            threadFactory
+          )
+          threadPool.allowCoreThreadTimeOut(true)
 
-        threadPool
-      }
+          threadPool
+        }
+      )
 
-    case Type.Asynchronous =>
-      fromThreadPoolExecutor {
-        val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-        val maxPoolSize   = corePoolSize
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new LinkedBlockingQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-yielding", true)
+    case Yielding =>
+      fromThreadPoolExecutor(
+        role, {
+          val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
+          val maxPoolSize   = corePoolSize
+          val keepAliveTime = 1000L
+          val timeUnit      = TimeUnit.MILLISECONDS
+          val workQueue     = new LinkedBlockingQueue[Runnable]()
+          val threadFactory = new NamedThreadFactory("zio-default-yielding", true)
 
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-        threadPool.allowCoreThreadTimeOut(true)
+          val threadPool = new ThreadPoolExecutor(
+            corePoolSize,
+            maxPoolSize,
+            keepAliveTime,
+            timeUnit,
+            workQueue,
+            threadFactory
+          )
+          threadPool.allowCoreThreadTimeOut(true)
 
-        threadPool
-      }
+          threadPool
+        }
+      )
   }
 
   /**
@@ -129,12 +136,14 @@ object Executor extends Serializable {
    * supply the concurrency level, since `ExecutionContext` cannot
    * provide this detail.
    */
-  final def fromExecutionContext(n: Int, ec: ExecutionContext): Executor =
+  final def fromExecutionContext(role0: Role, n: Int, ec: ExecutionContext): Executor =
     new Executor {
       import java.util.concurrent.atomic.AtomicLong
 
       val _enqueuedCount = new AtomicLong()
       val _dequeuedCount = new AtomicLong()
+
+      def role = role0
 
       def concurrency: Int = n
 
@@ -170,8 +179,10 @@ object Executor extends Serializable {
   /**
    * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
    */
-  final def fromThreadPoolExecutor(es: ThreadPoolExecutor): Executor =
+  final def fromThreadPoolExecutor(role0: Role, es: ThreadPoolExecutor): Executor =
     new Executor {
+      def role = role0
+
       def concurrency: Int = es.getMaximumPoolSize()
 
       def capacity: Int = {

@@ -1014,7 +1014,7 @@ object IO extends Serializable {
    * runtime system.
    */
   final def blocking[E, A](io: IO[E, A]): IO[E, A] =
-    IO.flatten(sync0(env => lock(env.executor(Executor.Type.Synchronous))(io)))
+    IO.flatten(sync0(env => lock(env.executor(Executor.Unyielding))(io)))
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
