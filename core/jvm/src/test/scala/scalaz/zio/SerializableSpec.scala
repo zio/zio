@@ -36,6 +36,7 @@ class SerializableSpec extends AbstractRTSSpec {
       IO is serializable $e5
       KleisliIO is serializable $e6
       FiberStatus is serializable $e7
+      Duration is serializable $e8
     """
 
   def e1 = {
@@ -120,5 +121,17 @@ class SerializableSpec extends AbstractRTSSpec {
       case _                           => List.empty
     }
     result must_=== list
+  }
+
+  def e8 = {
+    import scalaz.zio.duration.Duration
+    val duration = Duration.fromNanos(1)
+    val returnDuration = unsafeRun(
+      for {
+        returnDuration <- serializeAndBack(duration)
+      } yield returnDuration
+    )
+
+    returnDuration must_=== duration
   }
 }
