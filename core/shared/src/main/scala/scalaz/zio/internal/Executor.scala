@@ -86,7 +86,7 @@ object Executor extends Serializable {
         val keepAliveTime = 1000L
         val timeUnit      = TimeUnit.MILLISECONDS
         val workQueue     = new SynchronousQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-blocking", true)
+        val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
 
         val threadPool = new ThreadPoolExecutor(
           corePoolSize,
@@ -108,7 +108,7 @@ object Executor extends Serializable {
         val keepAliveTime = 1000L
         val timeUnit      = TimeUnit.MILLISECONDS
         val workQueue     = new LinkedBlockingQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio", true)
+        val threadFactory = new NamedThreadFactory("zio-default-yielding", true)
 
         val threadPool = new ThreadPoolExecutor(
           corePoolSize,
