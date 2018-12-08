@@ -80,7 +80,7 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      remaining <- IO.syncSubmit { context =>
+      remaining <- IO.sync0 { context =>
                     val pTakers                = unsafePollN(takers, as.size)
                     val (forTakers, remaining) = as.splitAt(pTakers.size)
                     (pTakers zip forTakers).foreach {
@@ -92,14 +92,14 @@ class Queue[A] private (
       added <- if (remaining.nonEmpty) {
                 // not enough takers, offer to the queue
                 for {
-                  surplus <- IO.syncSubmit { context =>
+                  surplus <- IO.sync0 { context =>
                               val as = unsafeOfferAll(queue, remaining.toList)
                               unsafeCompleteTakers(context)
                               as
                             }
                   res <- if (surplus.isEmpty) IO.now(true)
                         else
-                          strategy.handleSurplus(surplus, queue) <* IO.syncSubmit(
+                          strategy.handleSurplus(surplus, queue) <* IO.sync0(
                             context => unsafeCompleteTakers(context)
                           )
                 } yield res
@@ -151,7 +151,7 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      item <- IO.syncSubmit { context =>
+      item <- IO.sync0 { context =>
                val item = queue.poll(null.asInstanceOf[A])
                if (item != null) strategy.unsafeOnQueueEmptySpace(queue, context)
                item
@@ -162,7 +162,7 @@ class Queue[A] private (
             for {
               p <- Promise.make[Nothing, A]
               // add the promise to takers, then try take again in case a value was added since
-              a <- IO.syncSubmit { context =>
+              a <- IO.sync0 { context =>
                     val a = takers.offer(p)
                     unsafeCompleteTakers(context)
                     a
@@ -182,7 +182,7 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      as <- IO.syncSubmit { context =>
+      as <- IO.sync0 { context =>
              val as = unsafePollAll(queue)
              strategy.unsafeOnQueueEmptySpace(queue, context)
              as
@@ -196,7 +196,7 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      as <- IO.syncSubmit { context =>
+      as <- IO.sync0 { context =>
              val as = unsafePollN(queue, max)
              strategy.unsafeOnQueueEmptySpace(queue, context)
              as
@@ -331,7 +331,7 @@ object Queue {
 
         for {
           p <- Promise.make[Nothing, Boolean]
-          _ <- (IO.syncSubmit { context =>
+          _ <- (IO.sync0 { context =>
                 unsafeOffer(as, p)
                 unsafeOnQueueEmptySpace(queue, context)
               } *> p.get).ensuring(p.poll.void <> IO.sync(unsafeRemove(p)))
