@@ -581,7 +581,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * A more powerful variation of `timed` that allows specifying the clock.
    */
   final def timed0[E1 >: E](nanoTime: IO[E1, Long]): IO[E1, (Duration, A)] =
-    summarized[E1, Long, Duration]((start, end) => Duration(end - start))(nanoTime)
+    summarized[E1, Long, Duration]((start, end) => Duration.fromNanos(end - start))(nanoTime)
 
   /**
    * Summarizes a action by computing some value before and after execution, and

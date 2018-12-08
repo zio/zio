@@ -600,7 +600,7 @@ object Schedule extends Serializable {
       _.nanoTime,
       (_, start, clock) =>
         for {
-          duration <- clock.nanoTime.map(_ - start).map(Duration.apply)
+          duration <- clock.nanoTime.map(_ - start).map(Duration.fromNanos)
         } yield Decision.cont(Duration.Zero, start, duration)
     )
   }
@@ -679,7 +679,7 @@ object Schedule extends Serializable {
                 val n = 1 +
                   (if (await < 0) ((now - start) / nanos).toInt else n0)
 
-                Decision.cont(Duration(await.max(0L)), (start, n, i + 1), i + 1)
+                Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
               }
           }
       )

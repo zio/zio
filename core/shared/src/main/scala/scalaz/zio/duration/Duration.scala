@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 import scala.math.Ordered
 
-sealed trait Duration extends Ordered[Duration] {
+sealed trait Duration extends Ordered[Duration] with Serializable with Product {
 
   def +(other: Duration): Duration
 
@@ -66,12 +66,12 @@ final object Duration {
 
   }
 
-  final def apply(amount: Long, unit: TimeUnit): Duration = apply(unit.toNanos(amount))
+  final def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
 
-  final def apply(nanos: Long): Duration = Finite(nanos)
+  final def fromNanos(nanos: Long): Duration = Finite(nanos)
 
   final def fromScalaDuration(duration: ScalaDuration): Duration = duration match {
-    case d: ScalaFiniteDuration => apply(d.toNanos)
+    case d: ScalaFiniteDuration => fromNanos(d.toNanos)
     case _                      => Infinity
   }
 
