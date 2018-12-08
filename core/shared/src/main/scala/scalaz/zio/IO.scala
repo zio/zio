@@ -219,14 +219,22 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * otherwise executes the specified action.
    */
   final def <>[E2, A1 >: A](that: => IO[E2, A1]): IO[E2, A1] =
-    self.redeem(_ => that, IO.now)
+    self.fork.flatMap(_.observe).flatMap {
+      case ExitResult.Succeeded(a)                                          => IO.now(a)
+      case ExitResult.Failed(cause) if cause.interrupted || cause.isChecked => that
+      case ExitResult.Failed(cause)                                         => IO.fail0(cause.asInstanceOf[Cause[E2]])
+    }
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
   final def <||>[E2, B](that: => IO[E2, B]): IO[E2, Either[A, B]] =
-    self.redeem(_ => that.map(Right(_)), IO.nowLeft)
+    self.fork.flatMap(_.observe).flatMap {
+      case ExitResult.Succeeded(a)                                          => IO.now(Left(a))
+      case ExitResult.Failed(cause) if cause.interrupted || cause.isChecked => that.map(Right(_))
+      case ExitResult.Failed(cause)                                         => IO.fail0(cause.asInstanceOf[Cause[E2]])
+    }
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into

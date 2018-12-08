@@ -1,11 +1,9 @@
 package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
-
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, GenIO, IO }
+import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO, Queue }
 import scala.concurrent.duration._
-import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO }
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
 
@@ -43,6 +41,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   Stream.zipWith       $zipWith
   Stream.fromIterable  $fromIterable
   Stream.fromChunk     $fromChunk
+  Stream.fromQueue     $fromQueue
   Stream.peel          $peel
   """
 
@@ -276,7 +275,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     (slurpM(s) must_=== Succeeded(c.toSeq.toList)) and (slurp(s) must_=== Succeeded(c.toSeq.toList))
   }
 
-  /* TODO add this test once redeem0 can catch interruptions
   private def fromQueue = prop { _: Chunk[Int] =>
     val s = unsafeRun {
       for {
@@ -286,5 +284,4 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     }
     (slurpM(s) must_=== Succeeded(List.empty[Int]))
   }
- */
 }

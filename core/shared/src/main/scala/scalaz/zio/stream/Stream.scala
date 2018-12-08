@@ -653,11 +653,7 @@ object Stream {
    * Constructs an infinite stream from a `Queue`.
    */
   final def fromQueue[A](queue: Queue[A]): Stream[Nothing, A] =
-    unfoldM(())(
-      _ =>
-        queue.take
-          .redeem0(cause => if (cause.interrupted) IO.now(None) else IO.fail0(cause), a => IO.now(Some((a, ()))))
-    )
+    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.now(None))
 
   /**
    * Constructs a stream from effectful state. This method should not be used
