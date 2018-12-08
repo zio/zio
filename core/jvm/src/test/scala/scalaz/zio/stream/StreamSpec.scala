@@ -275,4 +275,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s = Stream.fromChunk(c)
     (slurpM(s) must_=== Succeeded(c.toSeq.toList)) and (slurp(s) must_=== Succeeded(c.toSeq.toList))
   }
+
+  /* TODO add this test once redeem0 can catch interruptions
+  private def fromQueue = prop { _: Chunk[Int] =>
+    val s = unsafeRun {
+      for {
+        queue <- Queue.bounded[Int](100)
+        _     <- queue.shutdown
+      } yield Stream.fromQueue(queue)
+    }
+    (slurpM(s) must_=== Succeeded(List.empty[Int]))
+  }
+ */
 }
