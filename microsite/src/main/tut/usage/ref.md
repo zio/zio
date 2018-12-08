@@ -102,12 +102,12 @@ object S {
 Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
 
 ```tut:silent
-import scala.concurrent.duration.Duration
+import scalaz.zio.duration.Duration
 import scala.util.Random
 val party: IO[Nothing, Unit] = for {
   dancefloor <- S(10)
   dancers <- IO.parTraverse(1 to 100) { i =>
-    dancefloor.P *> (IO.sync(Duration.fromNanos(Random.nextDouble * 1000000)).flatMap { d =>
+    dancefloor.P *> (IO.sync(Duration.fromNanos((Random.nextDouble * 1000000).round)).flatMap { d =>
       IO.sync(println(s"${i} checking my boots")) *> IO.sleep(d) *> IO.sync(println(s"${i} dancing like it's 99"))
     }) *> dancefloor.V
   }
