@@ -14,7 +14,7 @@ trait Env {
   /**
    * Retrieves the executor for the specified type of tasks.
    */
-  def executor(tpe: Executor.Type): Executor
+  def executor(tpe: Executor.Role): Executor
 
   /**
    * Retrieves the scheduler.
@@ -78,12 +78,12 @@ object Env {
    */
   final def newDefaultEnv(): Env =
     new Env {
-      val sync  = Executor.newDefaultExecutor(Executor.Type.Synchronous)
-      val async = Executor.newDefaultExecutor(Executor.Type.Asynchronous)
+      val sync  = Executor.newDefaultExecutor(Executor.Unyielding)
+      val async = Executor.newDefaultExecutor(Executor.Yielding)
 
-      def executor(tpe: Executor.Type): Executor = tpe match {
-        case Executor.Type.Synchronous  => sync
-        case Executor.Type.Asynchronous => async
+      def executor(tpe: Executor.Role): Executor = tpe match {
+        case Executor.Unyielding => sync
+        case Executor.Yielding   => async
       }
 
       val scheduler = Scheduler.newDefaultScheduler()

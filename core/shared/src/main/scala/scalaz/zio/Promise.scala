@@ -129,7 +129,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.reverse.foreach(k => env.executor(Executor.Type.Asynchronous).submit(() => k(r)))
+    if (joiners ne null) joiners.reverse.foreach(k => env.executor(Executor.Yielding).submit(() => k(r)))
   }
 
   private def interruptJoiner(joiner: Callback[E, A]): Canceler = IO.sync {
