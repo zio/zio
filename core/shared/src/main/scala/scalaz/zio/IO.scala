@@ -269,10 +269,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
   /**
    * Less powerful version of `redeem` which always returns a successful
-   * `IO[E2, B]` after applying one of the given mapping functions depending
-   * on the result of `this` `IO`
+   * `IO[Nothing, B]` after applying one of the given mapping functions depending
+   * on the result of this `IO`
    */
-  final def redeemPure[E2, B](err: E => B, succ: A => B): IO[E2, B] =
+  final def redeemPure[B](err: E => B, succ: A => B): IO[Nothing, B] =
     redeem(err.andThen(IO.now), succ.andThen(IO.now))
 
   /**
