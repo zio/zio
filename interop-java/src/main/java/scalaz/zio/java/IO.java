@@ -4,10 +4,8 @@ import scala.PartialFunction$;
 import scala.collection.JavaConverters;
 import scala.runtime.BoxedUnit;
 import scala.runtime.Nothing$;
-import scalaz.zio.ExitResult;
-import scalaz.zio.Fiber;
-import scalaz.zio.Managed;
-import scalaz.zio.java.data.Tuple;
+import scalaz.zio.*;
+import scalaz.zio.java.data.Pair;
 import scalaz.zio.java.data.Either;
 
 import java.util.Optional;
@@ -63,8 +61,8 @@ public class IO<E, A> {
         return new IO<>(delegate.parWith(that.delegate, f::apply));
     }
 
-    public <E1 extends E, B> IO<E1, Tuple<A, B>> par(IO<E1, B> that) {
-        return new IO<>(delegate.par(that.delegate).map(Tuple::fromScala));
+    public <E1 extends E, B> IO<E1, Pair<A, B>> par(IO<E1, B> that) {
+        return new IO<>(delegate.par(that.delegate).map(Pair::fromScala));
     }
 
     public IO<E, A> race(IO<E, A> that) {
@@ -89,7 +87,7 @@ public class IO<E, A> {
         return new IO<>(delegate.orElse(() -> that.delegate));
     }
 
-    // TODO is this the right name for <||> ?
+    // TODO is this the second name for <||> ?
     public <E2, B> IO<E2, Either<A, B>> fallbackTo(IO<E2, B> that) {
         return new IO<>(delegate.$less$bar$bar$greater(() -> that.delegate).map(Either::fromScala));
     }
@@ -222,12 +220,68 @@ public class IO<E, A> {
         return new IO<>(delegate.seqWith(that.delegate, f::apply));
     }
 
-    public <B> IO<E, Tuple<A, B>> seq(IO<E, B> that) {
-        return new IO<>(delegate.seq(that.delegate).map(Tuple::fromScala));
+    public <B> IO<E, Pair<A, B>> seq(IO<E, B> that) {
+        return new IO<>(delegate.seq(that.delegate).map(Pair::fromScala));
     }
 
     public IO<E, Void> forever() {
         return fromScalaError(delegate.forever());
+    }
+
+    // TODO how do we want java Schedule and Clock ? Are there replacements in the std lib already ?
+    public <B> IO<E, B> repeat(Schedule<A, B> schedule, Clock clock) {
+        return new IO<>(delegate.repeat(schedule, clock));
+    }
+
+    public <B> IO<E, B> repeat(Schedule<A, B> schedule) {
+        return repeat(schedule, Clock.Live$.MODULE$);
+    }
+
+    public <E2, B> IO<E2, B> repeatOrElse(Schedule<A, B> schedule, BiFunction<E, Optional<B>, IO<E2, B>> orElse, Clock clock) {
+        BiFunction<E, scala.Option<B>, IO<E2, B>> f =
+                (e, opt) -> orElse.apply(e, Optional.ofNullable(opt.getOrElse(null)));
+        return new IO<>(delegate.repeatOrElse(schedule, f.andThen(io -> io.delegate)::apply, clock));
+    }
+
+    public <E2, B> IO<E2, B> repeatOrElse(Schedule<A, B> schedule, BiFunction<E, Optional<B>, IO<E2, B>> orElse) {
+        return repeatOrElse(schedule, orElse, Clock.Live$.MODULE$);
+    }
+
+    public <E2, B, C> IO<E2, Either<C, B>> repeatOrElse0(Schedule<A, B> schedule, BiFunction<E, Optional<B>, IO<E2, C>> orElse, Clock clock) {
+        BiFunction<E, scala.Option<B>, IO<E2, C>> f =
+                (e, opt) -> orElse.apply(e, Optional.ofNullable(opt.getOrElse(null)));
+        return new IO<>(delegate.repeatOrElse0(schedule, f.andThen(io -> io.delegate)::apply, clock)).map(Either::fromScala);
+    }
+
+    public <E2, B, C> IO<E2, Either<C, B>> repeatOrElse0(Schedule<A, B> schedule, BiFunction<E, Optional<B>, IO<E2, C>> orElse) {
+        return repeatOrElse0(schedule, orElse, Clock.Live$.MODULE$);
+    }
+
+    public <S> IO<E, A> retry(Schedule<E, S> schedule, Clock clock) {
+        return new IO<>(delegate.retry(schedule, clock));
+    }
+
+    public <S> IO<E, A> retry(Schedule<E, S> schedule) {
+        return retry(schedule, Clock.Live$.MODULE$);
+    }
+
+    public <S, E2> IO<E2, A> retryOrElse(Schedule<E, S> policy, BiFunction<E, S, IO<E2, A>> orElse, Clock clock) {
+        return new IO<>(delegate.retryOrElse(policy, orElse.andThen(io -> io.delegate)::apply, clock));
+    }
+
+    public <S, E2> IO<E2, A> retryOrElse(Schedule<E, S> policy, BiFunction<E, S, IO<E2, A>> orElse) {
+        return retryOrElse(policy, orElse, Clock.Live$.MODULE$);
+    }
+
+    public <S, E2, B> IO<E2, Either<B, A>> retryOrElse0(Schedule<E, S> policy, BiFunction<E, S, IO<E2, B>> orElse, Clock clock) {
+        return new IO<>(delegate.retryOrElse0(policy, orElse.andThen(io -> io.delegate)::apply, clock)).map(Either::fromScala);
+    }
+
+    // TODO not sure how to call this from java
+    // final def void: IO[E, Unit] = const(())
+
+    public <B> IO<E, A> peek(Function<A, IO<E, B>> f) {
+        return new IO<>(delegate.peek(f.andThen(io -> io.delegate)::apply));
     }
 
     // TODO other transformation/composition methods...

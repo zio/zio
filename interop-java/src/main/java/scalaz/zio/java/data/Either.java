@@ -6,7 +6,7 @@ import java.util.function.Function;
 public abstract class Either<L, R> {
 
     public static class Left<L, R> extends Either<L, R> {
-        final L value;
+        public final L value;
 
         public Left(L value) {
             this.value = value;
@@ -20,7 +20,7 @@ public abstract class Either<L, R> {
     }
 
     public static class Right<L, R> extends Either<L, R> {
-        final R value;
+        public final R value;
 
         public Right(R value) {
             this.value = value;
@@ -61,5 +61,5 @@ public abstract class Either<L, R> {
         fold(f, g);
     }
 
-
+    // TODO equals and hashcode
 }
