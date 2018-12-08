@@ -12,6 +12,11 @@ import java.util.concurrent.atomic.AtomicLong
 trait Env {
 
   /**
+   * Retrieves the default executor.
+   */
+  def defaultExecutor: Executor = executor(Executor.Yielding)
+
+  /**
    * Retrieves the executor for the specified type of tasks.
    */
   def executor(tpe: Executor.Role): Executor
