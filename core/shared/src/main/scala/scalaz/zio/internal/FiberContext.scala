@@ -335,7 +335,7 @@ private[zio] final class FiberContext[E, A](
     locked = locked.drop(1)
 
   private[this] final def getDescriptor: Fiber.Descriptor =
-    Fiber.Descriptor(fiberId, state.get.interrupted, unhandled, env)
+    Fiber.Descriptor(fiberId, state.get.interrupted, unhandled, executor)
 
   /**
    * Forks an `IO` with the specified failure handler.

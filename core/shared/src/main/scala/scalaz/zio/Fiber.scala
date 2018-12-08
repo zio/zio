@@ -1,7 +1,7 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scalaz.zio.internal.Env
+import scalaz.zio.internal.Executor
 
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
@@ -115,7 +115,7 @@ object Fiber {
     id: FiberId,
     interrupted: Boolean,
     supervisor: ExitResult.Cause[Nothing] => IO[Nothing, _],
-    env: Env
+    executor: Executor
   )
 
   final val unit: Fiber[Nothing, Unit] = Fiber.point(())
