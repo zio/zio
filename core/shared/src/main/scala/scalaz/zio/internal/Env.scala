@@ -68,7 +68,7 @@ trait Env {
    * Helper function to create a new fiber context.
    */
   private[internal] final def newFiberContext[E, A](unhandled: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] =
-    new FiberContext[E, A](1024, this, Env.fiberCounter.getAndIncrement(), unhandled)
+    new FiberContext[E, A](this, Env.fiberCounter.getAndIncrement(), unhandled)
 }
 
 object Env {

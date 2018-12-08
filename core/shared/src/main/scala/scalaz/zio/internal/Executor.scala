@@ -41,6 +41,11 @@ trait Executor {
   def dequeuedCount: Long
 
   /**
+   * The number of operations a fiber should run before yielding.
+   */
+  def yieldOpCount: Int
+
+  /**
    * Submits a task for execution.
    */
   def submit(runnable: Runnable): Boolean
@@ -64,7 +69,12 @@ trait Executor {
 }
 
 object Executor extends Serializable {
-  sealed abstract class Role extends Product with Serializable
+  sealed abstract class Role extends Product with Serializable {
+    def defaultYieldOpCount: Int = this match {
+      case Unyielding => Int.MaxValue
+      case Yielding   => 1024
+    }
+  }
 
   /**
    * An executor optimized for synchronous tasks, which yield
@@ -155,6 +165,8 @@ object Executor extends Serializable {
 
       def dequeuedCount: Long = _dequeuedCount.get
 
+      def yieldOpCount = role.defaultYieldOpCount
+
       def submit(runnable: Runnable): Boolean =
         try {
           ec.execute(new Runnable() {
@@ -199,6 +211,8 @@ object Executor extends Serializable {
       def enqueuedCount: Long = es.getTaskCount()
 
       def dequeuedCount: Long = enqueuedCount - size.toLong
+
+      def yieldOpCount = role.defaultYieldOpCount
 
       def submit(runnable: Runnable): Boolean =
         try {
