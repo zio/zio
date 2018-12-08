@@ -452,6 +452,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   }
 
   /**
+   * Translates the checked error (if present) into termination.
+   */
+  final def orTerminate[E1 >: E](implicit ev: E1 =:= Throwable): IO[Nothing, A] =
+    self.leftMap(ev).catchAll(IO.terminate)
+
+  /**
    * Maps this action to the specified constant while preserving the
    * effects of this action.
    */
@@ -645,6 +651,19 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def delay(duration: Duration): IO[E, A] =
     IO.sleep(duration) *> self
+
+  /**
+   * Locks the execution of this action to the specified executor.
+   */
+  final def lock(executor: Executor): IO[E, A] =
+    IO.lock(executor)(self)
+
+  /**
+   * Marks this action as unyielding to the runtime system for better
+   * scheduling.
+   */
+  final def unyielding: IO[E, A] =
+    IO.unyielding(self)
 
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
@@ -1011,10 +1030,15 @@ object IO extends Serializable {
 
   /**
    * A combinator that allows you to identify long-running `IO` values to the
-   * runtime system.
+   * runtime system for improved scheduling.
    */
-  final def blocking[E, A](io: IO[E, A]): IO[E, A] =
+  final def unyielding[E, A](io: IO[E, A]): IO[E, A] =
     IO.flatten(sync0(env => lock(env.executor(Executor.Unyielding))(io)))
+
+  /**
+   * Yields to the runtime system, starting on a fresh stack.
+   */
+  final def yieldTo: IO[Nothing, Unit] = IO.sleep(Duration.Zero)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
@@ -1036,7 +1060,11 @@ object IO extends Serializable {
       p   <- Promise.make[E, A]
       ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
       a <- (for {
-            _ <- IO.flatten(IO.sync0(env => register(p.unsafeDone(_, env)))).fork.peek(ref.set(_)).uninterruptibly
+            _ <- IO
+                  .flatten(IO.sync0(env => register(p.unsafeDone(_, env.defaultExecutor))))
+                  .fork
+                  .peek(ref.set(_))
+                  .uninterruptibly
             a <- p.get
           } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
     } yield a
