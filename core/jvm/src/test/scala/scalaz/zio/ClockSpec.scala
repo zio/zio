@@ -2,7 +2,7 @@ package scalaz.zio
 
 import java.util.concurrent.TimeUnit
 
-class ClockSpec extends AbstractRTSSpec {
+class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is = "ClockSpec".title ^ s2"""
       Sleep does not sleep forever                      $e1
@@ -35,5 +35,19 @@ class ClockSpec extends AbstractRTSSpec {
         _     <- Live.sleep(1, TimeUnit.MILLISECONDS)
         time2 <- Live.currentTime(TimeUnit.MILLISECONDS)
       } yield (time1 < time2) must beTrue
+    )
+
+  def e4 =
+    unsafeRun(
+      for {
+        ref    <- Ref(Clock.Test.Zero)
+        clock  <- IO.now(Clock.Test(ref))
+        time1  <- clock.currentTime(TimeUnit.MILLISECONDS)
+        _      <- clock.sleep(1, TimeUnit.MILLISECONDS)
+        time2  <- clock.currentTime(TimeUnit.MILLISECONDS)
+        sleeps <- clock.ref.get.map(_.sleeps)
+      } yield
+        (sleeps must_=== List((1, TimeUnit.MILLISECONDS))) and
+          ((time2 - time1) must_=== 1)
     )
 }

@@ -3,7 +3,7 @@
 package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicReference
-
+import scala.concurrent.ExecutionContext
 import Promise.internal._
 
 /**
@@ -38,7 +38,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
 
         val newState = oldState match {
           case Pending(joiners) =>
-            result = Async.maybeLater[E, A](interruptJoiner(k))
+            result = Async.maybeLater(interruptJoiner(k))
 
             Pending(k :: joiners)
           case s @ Done(value) =>
@@ -95,7 +95,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
         val newState = oldState match {
           case Pending(joiners) =>
             action =
-              IO.forkAll(joiners.map(k => IO.sync[Unit](k(r)))) *>
+              IO.forkAll_(joiners.map(k => IO.sync[Unit](k(r)))) *>
                 IO.now[Boolean](true)
 
             Done(r)
@@ -112,7 +112,27 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private def interruptJoiner(joiner: Callback[E, A]): Canceler = { () =>
+  private[zio] final def unsafeDone(r: ExitResult[E, A], executionContext: ExecutionContext): Unit = {
+    var retry: Boolean                = true
+    var joiners: List[Callback[E, A]] = null
+
+    while (retry) {
+      val oldState = state.get
+
+      val newState = oldState match {
+        case Pending(js) =>
+          joiners = js
+          Done(r)
+        case _ => oldState
+      }
+
+      retry = !state.compareAndSet(oldState, newState)
+    }
+
+    if (joiners ne null) joiners.reverse.foreach(k => executionContext.execute(() => k(r)))
+  }
+
+  private def interruptJoiner(joiner: Callback[E, A]): Canceler = IO.sync {
     var retry = true
 
     while (retry) {
@@ -149,7 +169,7 @@ object Promise {
     ref: Ref[A]
   )(
     acquire: (Promise[E, B], A) => (IO[Nothing, C], A)
-  )(release: (C, Promise[E, B]) => IO[Nothing, Unit]): IO[E, B] =
+  )(release: (C, Promise[E, B]) => IO[Nothing, _]): IO[E, B] =
     for {
       pRef <- Ref[Option[(C, Promise[E, B])]](None)
       b <- (for {
@@ -163,7 +183,7 @@ object Promise {
                   case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.now(p))
                 }.uninterruptibly
             b <- p.get
-          } yield b).ensuring(pRef.get.flatMap(_.fold(IO.unit)(t => release(t._1, t._2))))
+          } yield b).ensuring(pRef.get.flatMap(_.map(t => release(t._1, t._2)).getOrElse(IO.unit)))
     } yield b
 
   private[zio] object internal {

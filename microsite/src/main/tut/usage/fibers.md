@@ -14,14 +14,24 @@ You can `fork` any `IO[E, A]` to immediately yield an `IO[Nothing, Fiber[E, A]]`
 import scalaz.zio._
 ```
 
-```scala
+```tut:invisible
+sealed abstract class Analysis
+case object Analyzed extends Analysis
+
+val data: String = "tut"
+
+def analyzeData[A](data: A): IO[Nothing, Analysis] = IO.now(Analyzed)
+def validateData[A](data: A): IO[Nothing, Boolean] = IO.now(true)
+```
+
+```tut:silent
 val analyzed =
   for {
     fiber1   <- analyzeData(data).fork  // IO[E, Analysis]
     fiber2   <- validateData(data).fork // IO[E, Boolean]
-    ... // Do other stuff
+    // Do other stuff
     valid    <- fiber2.join
-    _        <- if (!valid) fiber1.interrupt(DataValidationError(data))
+    _        <- if (!valid) fiber1.interrupt
                 else IO.unit
     analyzed <- fiber1.join
   } yield analyzed
@@ -71,11 +81,17 @@ There are no circumstances in which any errors will be "lost", which makes the `
 
 To execute actions in parallel, the `par` method can be used:
 
-```scala
+```tut:invisible
+case class Matrix()
+def computeInverse(m: Matrix): IO[Nothing, Matrix] = IO.now(m)
+def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): IO[Nothing, Matrix] = IO.now(m1)
+```
+
+```tut:silent
 def bigCompute(m1: Matrix, m2: Matrix, v: Matrix): IO[Nothing, Matrix] =
   for {
     t <- computeInverse(m1).par(computeInverse(m2))
-    val (i1, i2) = t
+    (i1, i2) = t
     r <- applyMatrices(i1, i2, v)
   } yield r
 ```
@@ -86,8 +102,8 @@ The `par` combinator has resource-safe semantics. If one computation fails, the 
 
 Two `IO` actions can be *raced*, which means they will be executed in parallel, and the value of the first action that completes successfully will be returned.
 
-```scala
-action1.race(action2)
+```tut:silent
+fib(100) race fib(200)
 ```
 
 The `race` combinator is resource-safe, which means that if one of the two actions returns a value, the other one will be interrupted, to prevent wasting resources.

@@ -4,8 +4,10 @@ package scalaz.zio
 import java.util.concurrent._
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicLong, AtomicReference }
 import scala.annotation.{ switch, tailrec }
+import scala.concurrent.ExecutionContext
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.duration.Duration
+import scalaz.zio.internal.OneShot
 
 /**
  * This trait provides a high-performance implementation of a runtime system for
@@ -18,7 +20,8 @@ trait RTS {
    * Effectfully and synchronously interprets an `IO[E, A]`, either throwing an
    * error, running forever, or producing an `A`.
    */
-  final def unsafeRun[E, A](io: IO[E, A]): A = unsafeRunSync(io).toEither.fold(throw _, identity)
+  final def unsafeRun[E, A](io: IO[E, A]): A =
+    unsafeRunSync(io).fold[A](c => throw FiberFailure(c), identity _)
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: Callback[E, A]): Unit = {
     val context = newFiberContext[E, A](defaultHandler)
@@ -32,7 +35,7 @@ trait RTS {
   final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] = {
     val context = newFiberContext[E, A](defaultHandler)
     context.evaluate(io)
-    context.runSync
+    context.await
   }
 
   final def unsafeShutdownAndWait(timeout: Duration): Unit = {
@@ -42,10 +45,15 @@ trait RTS {
       case Duration.Infinity  => while (!es.isTerminated) es.awaitTermination(Long.MaxValue, TimeUnit.DAYS)
     }
 
-    scheduledExecutor.shutdown()
-    awaitTermination(scheduledExecutor)
-    threadPool.shutdown()
-    awaitTermination(threadPool)
+    if (timeout == Duration.Zero) {
+      scheduledExecutor.shutdownNow()
+      threadPool.shutdownNow()
+    } else {
+      scheduledExecutor.shutdown()
+      awaitTermination(scheduledExecutor)
+      threadPool.shutdown()
+      awaitTermination(threadPool)
+    }
     ()
   }
 
@@ -62,15 +70,14 @@ trait RTS {
   val threadPool: ExecutorService = newDefaultThreadPool()
 
   /**
+   * The fiber's execution context.
+   */
+  val executionContext: ExecutionContext = ExecutionContext.fromExecutor(threadPool)
+
+  /**
    * The thread pool for scheduling timed tasks.
    */
   lazy val scheduledExecutor: ScheduledExecutorService = newDefaultScheduledExecutor()
-
-  /**
-   * This determines the maximum number of resumptions placed on the stack
-   * before a fiber is shifted over to a new thread to prevent stack overflow.
-   */
-  val MaxResumptionDepth = 10
 
   /**
    * Determines the maximum number of operations executed by a fiber before
@@ -80,7 +87,7 @@ trait RTS {
    */
   val YieldMaxOpCount = 1024
 
-  private final def newFiberContext[E, A](handler: Cause[Any] => IO[Nothing, Unit]): FiberContext[E, A] = {
+  private final def newFiberContext[E, A](handler: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] = {
     val nextFiberId = fiberCounter.incrementAndGet()
     val context     = new FiberContext[E, A](this, nextFiberId, handler)
 
@@ -96,23 +103,18 @@ trait RTS {
   }
 
   final def schedule[E, A](block: => A, duration: Duration): Async[E, Unit] = duration match {
-    case Duration.Infinity => Async.later[E, Unit]
+    case Duration.Infinity => Async.later
     case Duration.Zero =>
       submit(block)
-
-      Async.later[E, Unit]
+      
+      Async.later
     case d: Duration.Finite =>
       val future = scheduledExecutor.schedule(new Runnable {
         def run: Unit = submit(block)
       }, d.toNanos, TimeUnit.NANOSECONDS)
 
-      Async.maybeLater { () =>
-        future.cancel(true); ()
-      }
-  }
-
-  final def impureCanceler(canceler: PureCanceler): Canceler =
-    () => unsafeRun(canceler())
+      Async.maybeLater(IO.sync { future.cancel(true); () })
+    }
 
   /** Utility function to avoid catching truly fatal exceptions. Do not allocate
    * memory here since this would defeat the point of checking for OOME.
@@ -128,10 +130,6 @@ private object RTS {
    */
   private val fiberCounter = new AtomicLong(0)
 
-  @inline
-  final def nextInstr[E](value: Any, stack: Stack): IO[E, Any] =
-    if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]] else null
-
   final class Stack() {
     type Cont = Any => IO[_, Any]
 
@@ -139,9 +137,9 @@ private object RTS {
     private[this] var size    = 0
     private[this] var nesting = 0
 
-    def isEmpty: Boolean = size == 0
+    final def isEmpty: Boolean = size == 0
 
-    def push(a: Cont): Unit =
+    final def push(a: Cont): Unit =
       if (size == 13) {
         array = Array(array, a, null, null, null, null, null, null, null, null, null, null, null)
         size = 2
@@ -151,7 +149,7 @@ private object RTS {
         size += 1
       }
 
-    def pop(): Cont = {
+    final def pop(): Cont = {
       val idx = size - 1
       var a   = array(idx)
       if (idx == 0 && nesting > 0) {
@@ -171,17 +169,17 @@ private object RTS {
   /**
    * An implementation of Fiber that maintains context necessary for evaluation.
    */
-  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Any] => IO[Nothing, Unit])
+  final class FiberContext[E, A](rts: RTS, val fiberId: FiberId, val unhandled: Cause[Any] => IO[Nothing, _])
       extends Fiber[E, A] {
     import java.util.{ Collections, Set, WeakHashMap }
-    import FiberStatus._
-    import rts.{ MaxResumptionDepth, YieldMaxOpCount }
+    import FiberState._
+    import rts.YieldMaxOpCount
 
     // Accessed from multiple threads:
-    private[this] val status = new AtomicReference[FiberStatus[E, A]](FiberStatus.Initial[E, A])
+    private[this] val state  = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
     private[this] var killed = false
 
-    // TODO: A lot can be pulled out of status to increase performance
+    // TODO: A lot can be pulled out of state to increase performance
     // Also the size of this structure should be minimized with laziness used
     // to optimize further, to make forking a cheaper operation.
 
@@ -199,33 +197,17 @@ private object RTS {
       }
 
     /**
-     * Effectfully interprets an `IO`, blocking if necessary to obtain the result.
+     * Awaits for the result of the fiber to be computed.
      */
-    final def runSync: ExitResult[E, A] = {
-      val result = new AtomicReference[ExitResult[E, A]](null)
+    final def await: ExitResult[E, A] = {
+      val result = OneShot.make[ExitResult[E, A]]
 
-      register { (r: ExitResult[E, A]) =>
-        result.synchronized {
-          result.set(r)
-
-          result.notifyAll()
-        }
-      } match {
-        case Async.Now(v) =>
-          result.set(v)
-
-        case _ =>
-          while (result.get eq null) {
-            result.synchronized {
-              if (result.get eq null) result.wait()
-            }
-          }
-      }
+      runAsync(result.set(_))
 
       result.get
     }
 
-    private class Finalizer(val finalizer: IO[Nothing, Unit]) extends Function[Any, IO[E, Any]] {
+    private class Finalizer(val finalizer: IO[Nothing, _]) extends Function[Any, IO[E, Any]] {
       final def apply(v: Any): IO[E, Any] = {
         noInterrupt += 1
 
@@ -234,11 +216,14 @@ private object RTS {
     }
 
     /**
-     * Empties the stack, collecting all finalizers and coalescing them into an
-     * action that produces a list (possibly empty) of errors during finalization.
-     * If needed, catch exceptions and apply redeem error handling.
+     * Unwinds the stack, collecting all finalizers and coalescing them into an
+     * `IO` that produces an option of a cause of finalizer failures. If needed,
+     * catch exceptions and apply redeem error handling.
      */
-    final def unwindStack: IO[Nothing, Option[Cause[Nothing]]] = {
+    final def unwindStack(catchError: Boolean): IO[Nothing, Option[Cause[Nothing]]] = {
+      def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
+        c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
+
       var errorHandler: Any => IO[Any, Any]              = null
       var finalizer: IO[Nothing, Option[Cause[Nothing]]] = null
 
@@ -246,11 +231,11 @@ private object RTS {
       // finalizers.
       while ((errorHandler eq null) && !stack.isEmpty) {
         stack.pop() match {
-          case a: IO.Redeem[_, _, _, _] =>
+          case a: IO.Redeem[_, _, _, _] if catchError =>
             errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
           case f0: Finalizer =>
             val f: IO[Nothing, Option[Cause[Nothing]]] =
-              f0.finalizer.sandboxed.redeemPure[Nothing, Option[Cause[Nothing]]](Some(_), _ => None)
+              f0.finalizer.sandboxed.redeemPure[Option[Cause[Nothing]]](Some(_), _ => None)
             if (finalizer eq null) finalizer = f
             else finalizer = finalizer.seqWith(f)(zipCauses)
           case _ =>
@@ -267,9 +252,6 @@ private object RTS {
 
       finalizer
     }
-
-    private final def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
-      c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
 
     /**
      * The main interpreter loop for `IO` actions. For purely synchronous actions,
@@ -289,8 +271,7 @@ private object RTS {
           // Put the maximum operation count on the stack for fast access:
           val maxopcount = YieldMaxOpCount
 
-          var result: ExitResult[E, Any] = null
-          var opcount: Int               = 0
+          var opcount: Int = 0
 
           while (curIo ne null) {
             // Check to see if the fiber should continue executing or not:
@@ -334,10 +315,10 @@ private object RTS {
                       case IO.Tags.SyncEffect =>
                         val io2 = nested.asInstanceOf[IO.SyncEffect[Any]]
 
-                        curIo = io.flatMapper(io2.effect())
+                        curIo = io.flatMapper(io2.effect(rts.executionContext))
 
                       case IO.Tags.Descriptor =>
-                        val value = Fiber.Descriptor(fiberId)
+                        val value = getDescriptor
 
                         curIo = io.flatMapper(value)
 
@@ -354,81 +335,51 @@ private object RTS {
 
                     val value = io.value()
 
-                    curIo = nextInstr[E](value, stack)
-
-                    if (curIo eq null) {
-                      result = ExitResult.succeeded(value)
-                    }
+                    curIo = nextInstr(value)
 
                   case IO.Tags.Strict =>
                     val io = curIo.asInstanceOf[IO.Strict[Any]]
 
                     val value = io.value
 
-                    curIo = nextInstr[E](value, stack)
-
-                    if (curIo eq null) {
-                      result = ExitResult.succeeded(value)
-                    }
+                    curIo = nextInstr(value)
 
                   case IO.Tags.SyncEffect =>
                     val io = curIo.asInstanceOf[IO.SyncEffect[Any]]
 
-                    val value = io.effect()
+                    val value = io.effect(rts.executionContext)
 
-                    curIo = nextInstr[E](value, stack)
-
-                    if (curIo eq null) {
-                      result = ExitResult.succeeded(value)
-                    }
+                    curIo = nextInstr(value)
 
                   case IO.Tags.AsyncEffect =>
                     val io = curIo.asInstanceOf[IO.AsyncEffect[E, Any]]
 
-                    val id = enterAsyncStart()
+                    // By default, we'll resume asynchronously, so this
+                    // evaluation loop should halt:
+                    curIo = null
 
-                    try {
-                      io.register(resumeAsync) match {
-                        case Async.Now(value) =>
-                          // Value returned synchronously, callback will never be
-                          // invoked. Attempt resumption now:
-                          if (shouldResumeAsync()) {
-                            value match {
-                              case ExitResult.Succeeded(v) =>
-                                curIo = nextInstr[E](v, stack)
+                    // Enter suspended state:
+                    val cancel = enterAsync()
 
-                                if (curIo eq null) {
-                                  result = value
-                                }
-                              case ExitResult.Failed(cause) =>
-                                curIo = IO.fail0(cause)
-                            }
-                          } else {
-                            // Completion handled by interruptor:
-                            curIo = null
+                    if (!(cancel eq null)) {
+                      // It's possible we were interrupted prior to entering
+                      // suspended state. So we have to check that condition,
+                      // and if so, do not initiate the async effect (because
+                      // otherwise, it would not be interrupted).
+                      try {
+                        if (state.get.interrupted && noInterrupt == 0) curIo = IO.interrupt
+                        else
+                          io.register(resumeAsync) match {
+                            case Async.Now(value) =>
+                              if (shouldResumeAsync()) curIo = IO.done(value)
+
+                            case Async.MaybeLater(cancel0) => cancel.set(cancel0)
                           }
-
-                        case Async.MaybeLater(canceler) =>
-                          // We have a canceler, attempt to store a reference to
-                          // it in case the async computation is interrupted:
-                          awaitAsync(id, canceler)
-
-                          curIo = null
-
-                        case Async.MaybeLaterIO(pureCancel) =>
-                          // As for the case above this stores an impure canceler
-                          // obtained performing the pure canceler on the same thread
-                          awaitAsync(id, rts.impureCanceler(pureCancel))
-
-                          curIo = null
+                      } finally {
+                        // May not allow exit of the code block without the
+                        // cancel action being set (could hang interruptor!):
+                        if (!cancel.isSet) cancel.set(IO.unit)
                       }
-                    } finally enterAsyncEnd()
-
-                  case IO.Tags.AsyncIOEffect =>
-                    val io = curIo.asInstanceOf[IO.AsyncIOEffect[E, Any]]
-
-                    curIo = IO.async[E, Any] { callback =>
-                      rts.unsafeRunAsync(io.register(callback))(_ => ())
                     }
 
                   case IO.Tags.Redeem =>
@@ -449,16 +400,7 @@ private object RTS {
 
                     supervise(value)
 
-                    curIo = nextInstr[E](value, stack)
-
-                    if (curIo eq null) {
-                      result = ExitResult.succeeded(value)
-                    }
-
-                  case IO.Tags.Suspend =>
-                    val io = curIo.asInstanceOf[IO.Suspend[E, Any]]
-
-                    curIo = io.value()
+                    curIo = nextInstr(value)
 
                   case IO.Tags.Uninterruptible =>
                     val io = curIo.asInstanceOf[IO.Uninterruptible[E, Any]]
@@ -468,9 +410,9 @@ private object RTS {
                   case IO.Tags.Sleep =>
                     val io = curIo.asInstanceOf[IO.Sleep]
 
-                    curIo = IO.async0[E, Any] { callback =>
+                    curIo = IO.async0[E, Any] { k =>
                       rts
-                        .schedule(callback(SuccessUnit), io.duration)
+                        .schedule(k(SuccessUnit), io.duration)
                     }
 
                   case IO.Tags.Supervise =>
@@ -482,7 +424,7 @@ private object RTS {
                   case IO.Tags.Fail =>
                     val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                    val finalizer = unwindStack
+                    val finalizer = unwindStack(!io.cause.interrupted)
 
                     if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -490,8 +432,7 @@ private object RTS {
                         // No finalizer, so immediately produce the error.
                         curIo = null
 
-                        val cause = if (status.get.interrupted) io.cause ++ Cause.interrupted else io.cause
-                        result = ExitResult.failed(cause)
+                        done(ExitResult.failed(io.cause))
                       } else {
                         // We have finalizers to run. We'll resume executing with the
                         // uncaught failure after we have executed all the finalizers:
@@ -500,21 +441,13 @@ private object RTS {
                         )
                       }
                     } else {
-                      // Error caught:
+                      // Error caught, next continuation on the stack will deal
+                      // with it, so we just have to compute it here:
                       if (finalizer eq null) {
-                        curIo = nextInstr[E](io.cause, stack)
+                        curIo = nextInstr(io.cause)
                       } else {
-                        curIo = doNotInterrupt(finalizer).map(cause => cause.foldLeft(io.cause)(_ ++ _))
+                        curIo = doNotInterrupt(finalizer).map(_.foldLeft(io.cause)(_ ++ _))
                       }
-                    }
-
-                  case IO.Tags.Supervisor =>
-                    val value = unhandled
-
-                    curIo = nextInstr[E](value, stack)
-
-                    if (curIo eq null) {
-                      result = ExitResult.succeeded(value)
                     }
 
                   case IO.Tags.Ensuring =>
@@ -523,13 +456,9 @@ private object RTS {
                     curIo = io.io
 
                   case IO.Tags.Descriptor =>
-                    val value = Fiber.Descriptor(fiberId)
+                    val value = getDescriptor
 
-                    curIo = nextInstr[E](value, stack)
-
-                    if (curIo eq null) {
-                      result = ExitResult.succeeded(value)
-                    }
+                    curIo = nextInstr(value)
                 }
               }
             } else {
@@ -542,12 +471,6 @@ private object RTS {
 
             opcount = opcount + 1
           }
-
-          if (result ne null) {
-            done(result.asInstanceOf[ExitResult[E, A]])
-          }
-
-          curIo = null // Ensure termination of outer loop
         } catch {
           // Catastrophic error handler. Any error thrown inside the interpreter is
           // either a bug in the interpreter or a bug in the user's code. Let the
@@ -561,7 +484,13 @@ private object RTS {
       }
     }
 
-    final def fork[E, A](io: IO[E, A], handler: Cause[Any] => IO[Nothing, Unit]): FiberContext[E, A] = {
+    private[this] final def getDescriptor: Fiber.Descriptor =
+      Fiber.Descriptor(fiberId, state.get.interrupted, ExecutionContext.fromExecutor(rts.threadPool), unhandled)
+
+    /**
+     * Forks an `IO` with the specified failure handler.
+     */
+    final def fork[E, A](io: IO[E, A], handler: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] = {
       val context = rts.newFiberContext[E, A](handler)
 
       rts.submit(context.evaluate(io))
@@ -574,14 +503,12 @@ private object RTS {
      *
      * @param value The value which will be used to resume the sync evaluation.
      */
-    private final def resumeEvaluate(value: ExitResult[E, Any]): Unit =
+    private[this] final def resumeEvaluate(value: ExitResult[E, Any]): Unit =
       value match {
         case ExitResult.Succeeded(v) =>
-          // Async produced a value:
-          val io = nextInstr[E](v, stack)
+          val io = nextInstr(v)
 
-          if (io eq null) done(value.asInstanceOf[ExitResult[E, A]])
-          else evaluate(io)
+          if (!(io eq null)) evaluate(io)
 
         case ExitResult.Failed(cause) => evaluate(IO.fail0(cause))
       }
@@ -591,24 +518,16 @@ private object RTS {
      *
      * @param value The value produced by the asynchronous computation.
      */
-    private final def resumeAsync[A](value: ExitResult[E, Any]): Unit =
-      if (shouldResumeAsync()) {
-        // Take care not to overflow the stack in cases of 'deeply' nested
-        // asynchronous callbacks.
-        if (this.reentrancy > MaxResumptionDepth) {
-          rts.submit(resumeEvaluate(value))
-        } else resumeEvaluate(value)
-      }
+    private[this] final val resumeAsync: ExitResult[E, Any] => Unit =
+      value => if (shouldResumeAsync()) resumeEvaluate(value)
 
-    final def changeErrorUnit(cb: Callback[Nothing, Unit]): Callback[E, Unit] = x => cb(x <> SuccessUnit)
-
-    final def interrupt: IO[Nothing, Unit] = IO.async0[Nothing, Unit](cb => kill0(changeErrorUnit(cb)))
+    final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]](kill0(_))
 
     final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
 
-    final def tryObserve: IO[Nothing, Option[ExitResult[E, A]]] = IO.sync(tryObserve0)
+    final def poll: IO[Nothing, Option[ExitResult[E, A]]] = IO.sync(poll0)
 
-    final def enterSupervision: IO[E, Unit] = IO.sync {
+    private[this] final def enterSupervision: IO[E, Unit] = IO.sync {
       supervising += 1
 
       def newWeakSet[A]: Set[A] = Collections.newSetFromMap[A](new WeakHashMap[A, java.lang.Boolean]())
@@ -618,7 +537,7 @@ private object RTS {
       supervised = set :: supervised
     }
 
-    final def supervise(child: FiberContext[_, _]): Unit =
+    private[this] final def supervise(child: FiberContext[_, _]): Unit =
       if (supervising > 0) {
         supervised match {
           case Nil =>
@@ -630,95 +549,28 @@ private object RTS {
       }
 
     @tailrec
-    final def enterAsyncStart(): Int = {
-      val oldStatus = status.get
+    private[this] final def enterAsync(): OneShot[Canceler] = {
+      val oldState = state.get
+      val cancel   = OneShot.make[Canceler]
 
-      oldStatus match {
-        case AsyncRegion(interrupted, reentrancy, resume, cancel, observers) =>
-          val newReentrancy = reentrancy + 1
+      oldState match {
+        case Executing(interrupted, _, observers) =>
+          val newState = Executing(interrupted, FiberStatus.Suspended(cancel), observers)
 
-          if (!status.compareAndSet(
-                oldStatus,
-                AsyncRegion(interrupted, newReentrancy, resume + 1, cancel, observers)
-              ))
-            enterAsyncStart()
-          else newReentrancy
+          if (!state.compareAndSet(oldState, newState)) enterAsync()
+          else cancel
 
-        case Executing(interrupted, observers) =>
-          val newReentrancy = 1
-
-          if (!status.compareAndSet(
-                oldStatus,
-                AsyncRegion(interrupted, newReentrancy, 1, None, observers)
-              ))
-            enterAsyncStart()
-          else newReentrancy
-
-        case _ =>
-          // If this is hit, there's a bug somewhere.
-          throw new Error("Defect: Fiber is in Done state")
-      }
-    }
-
-    final def reentrancy: Int = status.get match {
-      case s @ AsyncRegion(_, _, _, _, _) => s.reentrancy
-
-      case _ => 0
-    }
-
-    @tailrec
-    final def enterAsyncEnd(): Unit = {
-      val oldStatus = status.get
-
-      oldStatus match {
-        case AsyncRegion(interrupted, 1, 0, _, observers) =>
-          // No more resumptions left and exiting last async boundary initiation:
-          if (!status.compareAndSet(oldStatus, Executing(interrupted, observers)))
-            enterAsyncEnd()
-
-        case x @ AsyncRegion(_, reentrancy, _, _, _) =>
-          if (!status.compareAndSet(
-                oldStatus,
-                x.copy(reentrancy = reentrancy - 1)
-              ))
-            enterAsyncEnd()
-
-        case _ =>
+        case _ => null
       }
     }
 
     @tailrec
-    final def awaitAsync(id: Int, c: Canceler): Unit = {
-      val oldStatus = status.get
+    private[this] final def shouldResumeAsync(): Boolean = {
+      val oldState = state.get
 
-      oldStatus match {
-        case x @ AsyncRegion(_, reentrancy, _, _, _) if (id == reentrancy) =>
-          if (!status.compareAndSet(
-                oldStatus,
-                x.copy(cancel = Some(c))
-              ))
-            awaitAsync(id, c)
-
-        case _ =>
-      }
-    }
-
-    @tailrec
-    final def shouldResumeAsync(): Boolean = {
-      val oldStatus = status.get
-
-      oldStatus match {
-        case AsyncRegion(interrupted, 0, 1, _, observers) =>
-          // No more resumptions are left!
-          if (!status.compareAndSet(oldStatus, Executing(interrupted, observers)))
-            shouldResumeAsync()
-          else true
-
-        case AsyncRegion(interrupted, reentrancy, resume, _, observers) =>
-          if (!status.compareAndSet(
-                oldStatus,
-                AsyncRegion(interrupted, reentrancy, resume - 1, None, observers)
-              ))
+      oldState match {
+        case Executing(interrupted, FiberStatus.Suspended(_), observers) =>
+          if (!state.compareAndSet(oldState, Executing(interrupted, FiberStatus.Running, observers)))
             shouldResumeAsync()
           else true
 
@@ -726,12 +578,14 @@ private object RTS {
       }
     }
 
-    final def exitSupervision(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, Unit]): IO[Nothing, Unit] = {
+    private[this] final def exitSupervision(
+      supervisor: Iterable[Fiber[_, _]] => IO[Nothing, _]
+    ): IO[Nothing, _] = {
       import collection.JavaConverters._
       IO.flatten(IO.sync {
         supervising -= 1
 
-        var action = IO.unit
+        var action: IO[Nothing, _] = IO.unit
 
         supervised = supervised match {
           case Nil => Nil
@@ -745,197 +599,141 @@ private object RTS {
     }
 
     @inline
-    final def shouldDie: Boolean = killed && noInterrupt == 0
+    private[this] final def shouldDie: Boolean = killed && noInterrupt == 0
 
-    private final val exitUninterruptible: IO[Nothing, Unit] = IO.sync { noInterrupt -= 1 }
+    @inline
+    private[this] final def nextInstr(value: Any): IO[E, Any] =
+      if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]]
+      else {
+        done(ExitResult.succeeded(value.asInstanceOf[A]))
 
-    private final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
+        null
+      }
+
+    private[this] final val exitUninterruptible: IO[Nothing, Unit] = IO.sync { noInterrupt -= 1 }
+
+    private[this] final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
       this.noInterrupt += 1
       io.ensuring(exitUninterruptible)
     }
 
-    final def register(cb: Callback[E, A]): Async[E, A] =
-      observe0 {
-        case ExitResult.Succeeded(r)  => cb(r)
-        case ExitResult.Failed(cause) => if (!cause.isChecked) cb(ExitResult.failed(cause))
-      }.fold(identity, ExitResult.failed(_))
+    private[this] final def register(k: Callback[E, A]): Async[E, A] =
+      observe0(x => k(ExitResult.flatten(x)))
+        .fold(ExitResult.failed(_), identity)
 
     @tailrec
-    final def done(v: ExitResult[E, A]): Unit = {
-      val oldStatus = status.get
+    private[this] final def done(v: ExitResult[E, A]): Unit = {
+      val oldState = state.get
 
-      oldStatus match {
-        case Executing(_, observers) =>
-          if (!status.compareAndSet(oldStatus, Done(v))) done(v)
+      oldState match {
+        case Executing(_, _, observers) =>
+          if (!state.compareAndSet(oldState, Done(v))) done(v)
           else {
-            purgeObservers(v, observers)
-            reportErrors(v)
-          }
-
-        case AsyncRegion(_, _, _, _, observers) =>
-          // TODO: Guard against errant `done` or not?
-          if (!status.compareAndSet(oldStatus, Done(v))) done(v)
-          else {
-            purgeObservers(v, observers)
-            reportErrors(v)
+            notifyObservers(v, observers)
+            reportUnhandled(v)
           }
 
         case Done(_) => // Huh?
       }
     }
 
-    final def reportErrors(v: ExitResult[E, A]): Unit = v match {
-      case ExitResult.Failed(cause) =>
-        cause.checkedOrRefail match {
-          case Right(c) => rts.submit(rts.unsafeRun(unhandled(c)))
-          case _        =>
-        }
-      case _ =>
+    private[this] final def reportUnhandled(v: ExitResult[E, A]): Unit = v match {
+      case ExitResult.Failed(cause) => rts.submit(rts.unsafeRun(unhandled(cause)))
+      case _                        =>
     }
 
-    private final def mkKillerObserver(cb: Callback[E, Unit]): Callback[Nothing, ExitResult[E, A]] =
-      _ => cb(SuccessUnit)
+    @tailrec
+    private[this] final def kill0(k: Callback[Nothing, ExitResult[E, A]]): Async[Nothing, ExitResult[E, A]] = {
 
-    private final def kill0(k: Callback[E, Unit]): Async[Nothing, Unit] = {
+      val oldState = state.get
 
-      val oldStatus = status.get
+      oldState match {
+        case Executing(_, FiberStatus.Suspended(cancel), observers0) if noInterrupt == 0 =>
+          val observers = k :: observers0
 
-      oldStatus match {
-        case Executing(_, observers) =>
-          if (!status.compareAndSet(
-                oldStatus,
-                Executing(interrupted = true, mkKillerObserver(k) :: observers)
-              ))
-            kill0(k)
-          else {
-            killed = true
-            Async.later[Nothing, Unit]
-          }
-
-        case AsyncRegion(_, _, resume, cancelOpt, observers) if (resume > 0 && noInterrupt == 0) =>
-          val v = ExitResult.interrupted
-
-          if (!status.compareAndSet(oldStatus, Done(v))) kill0(k)
+          if (!state.compareAndSet(oldState, Executing(true, FiberStatus.Running, observers))) kill0(k)
           else {
             killed = true
 
-            // We interrupted async before it could resume. Now we have to
-            // cancel the computation, if possible, and handle any finalizers.
-            cancelOpt match {
-              case None =>
-              case Some(cancel) =>
-                try cancel()
-                catch {
-                  case t: Throwable if (rts.nonFatal(t)) =>
-                    fork(unhandled(Cause.unchecked(t)), unhandled)
-                }
-            }
+            // Interruption may not be interrupted:
+            noInterrupt += 1
 
-            val finalizer = unwindStack
+            rts.submit(evaluate(cancel.get *> IO.interrupt))
 
-            if (finalizer ne null) {
-              fork(finalizer.flatMap {
-                case None     => IO.unit
-                case Some(ts) => unhandled(ts)
-              }, unhandled)
-                .runAsync(
-                  (_: ExitResult[Nothing, Unit]) => purgeObservers(v, mkKillerObserver(k) :: observers)
-                )
-              Async.later[Nothing, Unit]
-            } else Async.now(SuccessUnit)
-
+            Async.later
           }
 
-        case s @ AsyncRegion(_, _, _, _, _) =>
-          val newStatus =
-            s.copy(
-              interrupted = true,
-              observers = mkKillerObserver(k) :: s.observers
-            )
+        case Executing(_, status, observers0) =>
+          val observers = k :: observers0
 
-          if (!status.compareAndSet(oldStatus, newStatus)) kill0(k)
+          if (!state.compareAndSet(oldState, Executing(true, status, observers))) kill0(k)
           else {
             killed = true
-            Async.later[Nothing, Unit]
+            Async.later
           }
 
-        case Done(_) =>
-          killed = true
-          Async.now(SuccessUnit)
+        case Done(e) => Async.now(ExitResult.succeeded(e))
       }
     }
 
     @tailrec
-    private final def observe0(cb: Callback[Nothing, ExitResult[E, A]]): Async[Nothing, ExitResult[E, A]] = {
-      val oldStatus = status.get
+    private[this] final def observe0(k: Callback[Nothing, ExitResult[E, A]]): Async[Nothing, ExitResult[E, A]] = {
+      val oldState = state.get
 
-      oldStatus match {
-        case s @ Executing(_, _) =>
-          val newStatus = s.copy(observers = cb :: s.observers)
+      oldState match {
+        case Executing(interrupted, status, observers0) =>
+          val observers = k :: observers0
 
-          if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
-          else Async.later[Nothing, ExitResult[E, A]]
-
-        case s @ AsyncRegion(_, _, _, _, _) =>
-          val newStatus = s.copy(observers = cb :: s.observers)
-
-          if (!status.compareAndSet(oldStatus, newStatus)) observe0(cb)
-          else Async.later[Nothing, ExitResult[E, A]]
+          if (!state.compareAndSet(oldState, Executing(interrupted, status, observers))) observe0(k)
+          else Async.later
 
         case Done(v) => Async.now(ExitResult.succeeded(v))
       }
     }
 
-    private final def tryObserve0: Option[ExitResult[E, A]] =
-      status.get match {
+    private[this] final def poll0: Option[ExitResult[E, A]] =
+      state.get match {
         case Done(r) => Some(r)
         case _       => None
       }
 
-    private final def purgeObservers(v: ExitResult[E, A], observers: List[Callback[Nothing, ExitResult[E, A]]]): Unit =
+    private[this] final def notifyObservers(
+      v: ExitResult[E, A],
+      observers: List[Callback[Nothing, ExitResult[E, A]]]
+    ): Unit = {
+      val result = ExitResult.succeeded(v)
+
       // To preserve fair scheduling, we submit all resumptions on the thread
       // pool in order of their submission.
-      observers.reverse.foreach(k => rts.submit(k(ExitResult.succeeded(v))))
+      observers.reverse.foreach(k => rts.submit(k(result)))
+    }
+  }
+  sealed abstract class FiberStatus extends Serializable with Product
+  object FiberStatus {
+    final case object Running                                      extends FiberStatus
+    final case class Suspended(cancel: OneShot[IO[Nothing, Unit]]) extends FiberStatus
   }
 
-  sealed abstract class FiberStatus[E, A] extends Serializable with Product {
+  sealed abstract class FiberState[+E, +A] extends Serializable with Product {
 
     /** indicates if the fiber was interrupted */
     def interrupted: Boolean
 
   }
-  object FiberStatus extends Serializable {
+  object FiberState extends Serializable {
     final case class Executing[E, A](
       interrupted: Boolean,
+      status: FiberStatus,
       observers: List[Callback[Nothing, ExitResult[E, A]]]
-    ) extends FiberStatus[E, A]
-    final case class AsyncRegion[E, A](
-      interrupted: Boolean,
-      reentrancy: Int,
-      resume: Int,
-      cancel: Option[Canceler],
-      observers: List[Callback[Nothing, ExitResult[E, A]]]
-    ) extends FiberStatus[E, A]
-    final case class Done[E, A](value: ExitResult[E, A]) extends FiberStatus[E, A] {
-      override def interrupted: Boolean = false
+    ) extends FiberState[E, A]
+    final case class Done[E, A](value: ExitResult[E, A]) extends FiberState[E, A] {
+      def interrupted: Boolean = value.interrupted
     }
 
-    def Initial[E, A] = Executing[E, A](interrupted = false, Nil)
+    def Initial[E, A] = Executing[E, A](false, FiberStatus.Running, Nil)
   }
 
   val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.succeeded(())
-
-  final def combineCancelers(c1: Canceler, c2: Canceler): Canceler =
-    if (c1 eq null) {
-      if (c2 eq null) null
-      else c2
-    } else if (c2 eq null) {
-      c1
-    } else
-      () => {
-        c1()
-        c2()
-      }
 
   final def newDefaultThreadPool(): ExecutorService = {
     val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2

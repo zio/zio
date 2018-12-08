@@ -1,12 +1,11 @@
 ---
 layout: page
-position: 2
+position: 3
 section: home
 title:  "Interop"
 ---
 
-ZIO Interop module
-==================
+# ZIO Interop Module
 
 This module provides the following integrations:
 
@@ -15,6 +14,8 @@ This module provides the following integrations:
 - `IO` instance for cats' `Effect` typeclass
 
 ## Stdlib `Future`
+
+Checkout `interop-future` module for inter-operation support.
 
 ### From `Future`
 
@@ -68,7 +69,7 @@ val itsHappening: Future[MoarData] = unsafeRun(safeFuture)
 
 ### `IO` Instances
 
-If you are a happy Scalaz 7.2 user `interop` module offers `IO` instances for several typeclasses, check out [the source code](shared/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.
+If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `IO` instances for several typeclasses, check out [the source code](shared/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.
 
 #### Example
 
@@ -102,6 +103,8 @@ def par[E, A](io: IO[E, A]): IO[E, A] @@ Parallel = Tag(io)
 ```
 
 ## Typelevel
+
+Checkout `interop-cats` module for inter-operation support.
 
 ### `IO` cats' `Effect` instance
 

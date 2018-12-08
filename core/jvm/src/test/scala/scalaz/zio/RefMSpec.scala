@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class RefMSpec extends AbstractRTSSpec {
+class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is = "RefMSpec".title ^ s2"""
    Create a new RefM with a specified value and check if:
