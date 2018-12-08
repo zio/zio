@@ -21,28 +21,45 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 
   final def release: IO[Nothing, Unit] = releaseN(1)
 
-  final def withPermit[E, A](task: IO[E, A]): IO[E, A] =
-    IO.bracket[E, Unit, A](acquire)(_ => release)(_ => task)
+  final def withPermit[E, A](task: IO[E, A]): IO[E, A] = prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
 
-  final def acquireN(requested: Long): IO[Nothing, Unit] = {
-    val acquire: (Promise[Nothing, Unit], State) => (IO[Nothing, Boolean], State) = {
-      case (p, Right(n)) if n >= requested => p.complete(()) -> Right(n - requested)
-      case (p, Right(n))                   => IO.now(false)  -> Left(IQueue(p -> (requested - n)))
-      case (p, Left(q))                    => IO.now(false)  -> Left(q.enqueue(p -> requested))
-    }
+  /**
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
+  final def acquireN(n: Long): IO[Nothing, Unit] =
+    assertNonNegative(n) *> IO.bracket0[Nothing, Acquisition, Unit](prepare(n))(cleanup)(_.awaitAcquire)
 
-    val release: (Boolean, Promise[Nothing, Unit]) => IO[Nothing, Unit] = {
-      case (_, p) =>
-        state.update {
-          case Left(q) => Left(q.filterNot(_._1 == p))
-          case x       => x
-        }.void
-    }
+  /**
+   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   */
+  final private def prepare(n: Long): IO[Nothing, Acquisition] = {
+    def restore(p: Promise[Nothing, Unit], n: Long): IO[Nothing, Unit] =
+      IO.flatten(state.modify {
+        case Left(q) =>
+          q.find(_._1 == p).fold(releaseN(n) -> Left(q))(x => releaseN(n - x._2) -> Left(q.filter(_._1 != p)))
+        case Right(m) => IO.unit -> Right(m + n)
+      })
 
-    assertNonNegative(requested) *> Promise.bracket[Nothing, State, Unit, Boolean](state)(acquire)(release)
+    if (n == 0)
+      IO.now(Acquisition(IO.unit, IO.unit))
+    else
+      Promise.make[Nothing, Unit].flatMap { p =>
+        state.modify {
+          case Right(m) if m >= n => Acquisition(IO.unit, releaseN(n)) -> Right(m - n)
+          case Right(m)           => Acquisition(p.get, restore(p, n)) -> Left(IQueue(p -> (n - m)))
+          case Left(q)            => Acquisition(p.get, restore(p, n)) -> Left(q.enqueue(p -> n))
+        }
+      }
   }
 
+  final private def cleanup[E, A](ops: Acquisition, res: ExitResult[E, A]): IO[Nothing, Unit] =
+    res match {
+      case ExitResult.Failed(c) if c.interrupted => ops.release
+      case _                                     => IO.unit
+    }
+
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
+
     @tailrec def loop(n: Long, state: State, acc: IO[Nothing, Unit]): (IO[Nothing, Unit], State) = state match {
       case Right(m) => acc -> Right(n + m)
       case Left(q) =>
@@ -59,6 +76,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     }
 
     IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptibly
+
   }
 
   private final def count_(state: State): Long = state match {
@@ -73,6 +91,8 @@ object Semaphore extends Serializable {
 }
 
 private object internals {
+
+  final case class Acquisition(awaitAcquire: IO[Nothing, Unit], release: IO[Nothing, Unit])
 
   type Entry = (Promise[Nothing, Unit], Long)
 

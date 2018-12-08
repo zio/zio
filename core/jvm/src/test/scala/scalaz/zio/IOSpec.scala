@@ -6,7 +6,7 @@ import scala.collection.mutable
 import scala.util.Try
 import scalaz.zio.ExitResult.Cause.{ Checked, Interruption, Unchecked }
 
-class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOSpec".title ^ s2"""
@@ -24,6 +24,10 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
       `IO.parAll` returns the list of Ints in the same order. $t6
    Create a list of Ints and map with IO.point:
       `IO.forkAll` returns the list of Ints in the same order. $t7
+   Create a list of Strings and pass an f: String => IO[Nothing, Int]:
+      `IO.collectParN` returns the list of Ints in the same order. $t8
+   Create a list of Ints and pass an f: Int => IO[Nothing, Int]:
+      `IO.foreachParN` returns the list of created Strings in the appropriate order. $t9
    Check done lifts exit result into IO. $testDone
     """
 
@@ -73,6 +77,18 @@ class IOSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     val list = List(1, 2, 3).map(IO.point[Int](_))
     val res  = unsafeRun(IO.forkAll(list).flatMap(_.join))
     res must be_===(List(1, 2, 3))
+  }
+
+  def t8 = {
+    val list = List(1, 2, 3).map(IO.point[Int](_))
+    val res  = unsafeRun(IO.collectParN(2)(list))
+    res must be_===(List(1, 2, 3))
+  }
+
+  def t9 = {
+    val list = List(1, 2, 3)
+    val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.point(x.toString)))
+    res must be_===(List("1", "2", "3"))
   }
 
   def testDone = {

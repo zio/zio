@@ -39,7 +39,7 @@ def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
 
 Those who live on the dark side of mutation sometimes have it easy; they can add state everywhere like it's Christmas. Behold:
 
-```scala
+```tut:silent
 var idCounter = 0
 def freshVar: String = {
   idCounter += 1
@@ -101,15 +101,16 @@ object S {
 
 Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
 
-```
+```tut:silent
 import scala.concurrent.duration.Duration
 import scala.util.Random
-for {
+val party: IO[Nothing, Unit] = for {
   dancefloor <- S(10)
   dancers <- IO.parTraverse(1 to 100) { i =>
     dancefloor.P *> (IO.sync(Duration.fromNanos(Random.nextDouble * 1000000)).flatMap { d =>
       IO.sync(println(s"${i} checking my boots")) *> IO.sleep(d) *> IO.sync(println(s"${i} dancing like it's 99"))
     }) *> dancefloor.V
+  }
 } yield ()
 ```
 

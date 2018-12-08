@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class FiberLocalSpec extends AbstractRTSSpec {
+class FiberLocalSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is =
     "FiberLocalSpec".title ^ s2"""
