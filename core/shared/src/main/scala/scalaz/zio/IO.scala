@@ -256,7 +256,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     redeem0((cause: Cause[E]) => cause.checkedOrRefail.fold(err, IO.fail0), succ)
 
   /**
-   * A more powerful version of redeem that allows recovering from any kind of failure.
+   * A more powerful version of redeem that allows recovering from any kind of failure except interruptions.
    */
   final def redeem0[E2, B](err: Cause[E] => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
