@@ -11,7 +11,6 @@ import scalaz.zio._
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-  yieldOp: Int,
   env: Env,
   val fiberId: FiberId,
   val unhandled: Cause[Any] => IO[Nothing, _]
@@ -83,6 +82,9 @@ private[zio] final class FiberContext[E, A](
     finalizer
   }
 
+  private[this] final def executor: Executor =
+    locked.headOption.getOrElse(env.defaultExecutor)
+
   /**
    * The main interpreter loop for `IO` actions. For purely synchronous actions,
    * this will run to completion unless required to yield to other fibers.
@@ -99,7 +101,7 @@ private[zio] final class FiberContext[E, A](
     while (curIo ne null) {
       try {
         // Put the maximum operation count on the stack for fast access:
-        val maxopcount = yieldOp
+        val maxopcount = executor.yieldOpCount
 
         var opcount: Int = 0
 
