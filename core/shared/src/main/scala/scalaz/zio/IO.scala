@@ -2,7 +2,7 @@
 package scalaz.zio
 
 import scalaz.zio.ExitResult.Cause
-import scalaz.zio.internal.Env
+import scalaz.zio.internal.{ Env, Executor }
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
@@ -760,6 +760,7 @@ object IO extends Serializable {
     final val Supervise       = 10
     final val Ensuring        = 11
     final val Descriptor      = 12
+    final val Lock            = 13
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -823,6 +824,10 @@ object IO extends Serializable {
 
   final class Descriptor private[IO] extends IO[Nothing, Fiber.Descriptor] {
     override def tag = Tags.Descriptor
+  }
+
+  final class Lock[E, A] private[IO] (val executor: Executor, val io: IO[E, A]) extends IO[E, A] {
+    override def tag = Tags.Lock
   }
 
   /**
@@ -890,17 +895,17 @@ object IO extends Serializable {
     IO.flatten(IO.sync(io))
 
   /**
-   * Interrupts the fiber executing this action, running all finalizers.
+   * Returns an `IO` that is interrupted.
    */
   final def interrupt: IO[Nothing, Nothing] = fail0(Cause.interrupted)
 
   /**
-   * Terminates the fiber executing this action with the specified error, running all finalizers.
+   * Returns an `IO` that terminates with the specified `Throwable`.
    */
   final def terminate(t: Throwable): IO[Nothing, Nothing] = fail0(Cause.unchecked(t))
 
   /**
-   * Terminates the fiber executing this action with the specified cause, running all finalizers.
+   * Returns an `IO` that fails with the specified `Cause`.
    */
   final def fail0[E](cause: Cause[E]): IO[E, Nothing] = new Fail(cause)
 
@@ -911,7 +916,7 @@ object IO extends Serializable {
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def sync[A](effect: => A): IO[Nothing, A] = syncSubmit(_ => effect)
+  final def sync[A](effect: => A): IO[Nothing, A] = sync0(_ => effect)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -921,7 +926,7 @@ object IO extends Serializable {
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def syncSubmit[A](effect: Env => A): IO[Nothing, A] = new SyncEffect[A](effect)
+  final def sync0[A](effect: Env => A): IO[Nothing, A] = new SyncEffect[A](effect)
 
   /**
    *
@@ -999,6 +1004,19 @@ object IO extends Serializable {
     }
 
   /**
+   * Locks the `io` to the specified executor.
+   */
+  final def lock[E, A](executor: Executor)(io: IO[E, A]): IO[E, A] =
+    new Lock(executor, io)
+
+  /**
+   * A combinator that allows you to identify long-running `IO` values to the
+   * runtime system.
+   */
+  final def blocking[E, A](io: IO[E, A]): IO[E, A] =
+    IO.flatten(sync0(env => lock(env.executor(Executor.Type.Synchronous))(io)))
+
+  /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
    * the more expressive variant of this function.
    */
@@ -1018,7 +1036,7 @@ object IO extends Serializable {
       p   <- Promise.make[E, A]
       ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
       a <- (for {
-            _ <- IO.flatten(IO.syncSubmit(env => register(p.unsafeDone(_, env)))).fork.peek(ref.set(_)).uninterruptibly
+            _ <- IO.flatten(IO.sync0(env => register(p.unsafeDone(_, env)))).fork.peek(ref.set(_)).uninterruptibly
             a <- p.get
           } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
     } yield a

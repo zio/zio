@@ -21,17 +21,13 @@ private[zio] final class FiberContext[E, A](
   import FiberState._
 
   // Accessed from multiple threads:
-  private[this] val state  = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
-  private[this] var killed = false
-
-  // TODO: A lot can be pulled out of state to increase performance
-  // Also the size of this structure should be minimized with laziness used
-  // to optimize further, to make forking a cheaper operation.
+  private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
 
   // Accessed from within a single thread (not necessarily the same):
-  @volatile private[this] var noInterrupt                               = 0
-  @volatile private[this] var supervised: List[Set[FiberContext[_, _]]] = Nil
-  @volatile private[this] var supervising                               = 0
+  @volatile private[this] var noInterrupt = 0
+  @volatile private[this] var supervised  = List.empty[Set[FiberContext[_, _]]]
+  @volatile private[this] var supervising = 0
+  @volatile private[this] var locked      = List.empty[Executor]
 
   private[this] val stack: Stack[Any => IO[Any, Any]] = new Stack[Any => IO[Any, Any]]()
 
@@ -201,7 +197,7 @@ private[zio] final class FiberContext[E, A](
                     // and if so, do not initiate the async effect (because
                     // otherwise, it would not be interrupted).
                     try {
-                      if (state.get.interrupted && noInterrupt == 0) curIo = IO.interrupt
+                      if (shouldDie) curIo = IO.interrupt
                       else
                         io.register(resumeAsync) match {
                           case Async.Now(value) =>
@@ -295,6 +291,16 @@ private[zio] final class FiberContext[E, A](
                   val value = getDescriptor
 
                   curIo = nextInstr(value)
+
+                case IO.Tags.Lock =>
+                  val io = curIo.asInstanceOf[IO.Lock[E, Any]]
+
+                  lock(io.executor)
+
+                  curIo = null
+
+                  // TODO: Pay attention to return value of `submit`
+                  val _ = io.executor.submit(() => evaluate(io.io.ensuring(IO.sync(unlock()))))
               }
             }
           } else {
@@ -320,6 +326,12 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
+  private[this] final def lock(executor: Executor): Unit =
+    locked = executor :: locked
+
+  private[this] final def unlock(): Unit =
+    locked = locked.drop(1)
+
   private[this] final def getDescriptor: Fiber.Descriptor =
     Fiber.Descriptor(fiberId, state.get.interrupted, unhandled, env)
 
@@ -344,7 +356,7 @@ private[zio] final class FiberContext[E, A](
       case ExitResult.Succeeded(v) =>
         val io = nextInstr(v)
 
-        if (!(io eq null)) evaluate(io)
+        if (io ne null) evaluate(io)
 
       case ExitResult.Failed(cause) => evaluate(IO.fail0(cause))
     }
@@ -355,7 +367,17 @@ private[zio] final class FiberContext[E, A](
    * @param value The value produced by the asynchronous computation.
    */
   private[this] final val resumeAsync: ExitResult[E, Any] => Unit =
-    value => if (shouldResumeAsync()) resumeEvaluate(value)
+    value =>
+      if (shouldResumeAsync()) {
+        if (locked eq Nil) {
+          resumeEvaluate(value)
+        } else {
+          val executor = locked.head
+
+          // TODO: Pay attention to return value of `submit`
+          val _ = executor.submit(() => resumeEvaluate(value))
+        }
+      }
 
   final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]](kill0(_))
 
@@ -435,7 +457,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   @inline
-  private[this] final def shouldDie: Boolean = killed && noInterrupt == 0
+  private[this] final def shouldDie: Boolean = noInterrupt == 0 && state.get.interrupted
 
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
@@ -475,6 +497,7 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def reportUnhandled(v: ExitResult[E, A]): Unit = v match {
     case ExitResult.Failed(cause) =>
+      // TODO: Pay attention to return value of `submit`
       val _ =
         env
           .executor(Executor.Type.Asynchronous)
@@ -494,8 +517,6 @@ private[zio] final class FiberContext[E, A](
 
         if (!state.compareAndSet(oldState, Executing(true, FiberStatus.Running, observers))) kill0(k)
         else {
-          killed = true
-
           // Interruption may not be interrupted:
           noInterrupt += 1
 
@@ -510,10 +531,7 @@ private[zio] final class FiberContext[E, A](
         val observers = k :: observers0
 
         if (!state.compareAndSet(oldState, Executing(true, status, observers))) kill0(k)
-        else {
-          killed = true
-          Async.later
-        }
+        else Async.later
 
       case Done(e) => Async.now(ExitResult.succeeded(e))
     }
