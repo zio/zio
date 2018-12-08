@@ -205,7 +205,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   @silent
   def testEvalOfRedeemOfSyncEffectError =
     unsafeRun(
-      IO.syncThrowable[Unit](throw ExampleError).redeemPure[Throwable, Option[Throwable]](Some(_), _ => None)
+      IO.syncThrowable[Unit](throw ExampleError).redeemPure[Option[Throwable]](Some(_), _ => None)
     ) must_=== Some(ExampleError)
 
   def testEvalOfAttemptOfFail = Seq(
