@@ -653,7 +653,16 @@ object Stream {
    * Constructs an infinite stream from a `Queue`.
    */
   final def fromQueue[A](queue: Queue[A]): Stream[Nothing, A] =
-    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.now(None))
+    new Stream[Nothing, A] {
+      override def foldLazy[Nothing, A1 >: A, S](
+        s: S
+      )(cont: S => Boolean)(f: (S, A1) => IO[Nothing, S]): IO[Nothing, S] = {
+        def loop(s: S): IO[Nothing, S] =
+          if (!cont(s)) queue.shutdown.map(_ => s)
+          else queue.take.flatMap(a => f(s, a).flatMap(loop)) <> IO.now(s)
+        loop(s)
+      }
+    }
 
   /**
    * Constructs a stream from effectful state. This method should not be used
