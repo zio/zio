@@ -219,22 +219,27 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * otherwise executes the specified action.
    */
   final def <>[E2, A1 >: A](that: => IO[E2, A1]): IO[E2, A1] =
-    self.fork.flatMap(_.observe).flatMap {
-      case ExitResult.Succeeded(a)                                          => IO.now(a)
-      case ExitResult.Failed(cause) if cause.interrupted || cause.isChecked => that
-      case ExitResult.Failed(cause)                                         => IO.fail0(cause.asInstanceOf[Cause[E2]])
-    }
+    redeemOrElse(that, IO.now)
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
   final def <||>[E2, B](that: => IO[E2, B]): IO[E2, Either[A, B]] =
-    self.fork.flatMap(_.observe).flatMap {
-      case ExitResult.Succeeded(a)                                          => IO.now(Left(a))
-      case ExitResult.Failed(cause) if cause.interrupted || cause.isChecked => that.map(Right(_))
-      case ExitResult.Failed(cause)                                         => IO.fail0(cause.asInstanceOf[Cause[E2]])
+    redeemOrElse(that.map(Right(_)), IO.nowLeft)
+
+  private final def redeemOrElse[E2, B](that: => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] = {
+    val err = (cause: Cause[E]) =>
+      if (cause.interrupted || cause.isChecked) that else IO.fail0(cause.asInstanceOf[Cause[Nothing]])
+
+    (self.tag: @switch) match {
+      case IO.Tags.Fail =>
+        val io = self.asInstanceOf[IO.Fail[E]]
+        err(io.cause)
+
+      case _ => new IO.Redeem(self, err, succ, recoverFromInterruption = true)
     }
+  }
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
@@ -791,7 +796,8 @@ object IO extends Serializable {
   final class Redeem[E, E2, A, B] private[IO] (
     val value: IO[E, A],
     val err: Cause[E] => IO[E2, B],
-    val succ: A => IO[E2, B]
+    val succ: A => IO[E2, B],
+    val recoverFromInterruption: Boolean = false
   ) extends IO[E2, B]
       with Function[A, IO[E2, B]] {
 
