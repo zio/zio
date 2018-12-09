@@ -42,6 +42,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   Stream.fromIterable  $fromIterable
   Stream.fromChunk     $fromChunk
   Stream.fromQueue     $fromQueue
+  Stream.toQueue       $toQueue
   Stream.peel          $peel
   """
 
@@ -288,5 +289,15 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       } yield items
     }
     result must_=== Succeeded(c.toSeq.toList)
+  }
+
+  private def toQueue = prop { c: Chunk[Int] =>
+    val s = Stream.fromChunk(c)
+    val result = unsafeRunSync {
+      s.toQueue(100).use { queue: Queue[Take[Nothing, Int]] =>
+        (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != c.length + 1)) *> queue.takeAll
+      }
+    }
+    result must_=== Succeeded(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
   }
 }

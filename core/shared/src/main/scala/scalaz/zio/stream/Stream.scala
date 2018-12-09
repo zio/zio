@@ -434,10 +434,10 @@ trait Stream[+E, +A] { self =>
    */
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[Nothing, Queue[Take[E1, A1]]] =
     for {
-      queue    <- Managed.liftIO(Queue.bounded[Take[E1, A1]](capacity))
+      queue    <- Managed(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
       offerVal = (a: A) => queue.offer(Take.Value(a)).void
       offerErr = (e: E) => queue.offer(Take.Fail(e))
-      enqueuer = (self.foreach[E](offerVal).catchAll(offerErr) *> queue.offer(Take.End).forever).fork
+      enqueuer = (self.foreach[E](offerVal).catchAll(offerErr) *> queue.offer(Take.End)).fork
       _        <- Managed(enqueuer)(_.interrupt)
     } yield queue
 
@@ -652,17 +652,8 @@ object Stream {
   /**
    * Constructs an infinite stream from a `Queue`.
    */
-  final def fromQueue[A](queue: Queue[A], shutdownQueueOnEnd: Boolean = true): Stream[Nothing, A] =
-    new Stream[Nothing, A] {
-      override def foldLazy[Nothing, A1 >: A, S](
-        s: S
-      )(cont: S => Boolean)(f: (S, A1) => IO[Nothing, S]): IO[Nothing, S] = {
-        def loop(s: S): IO[Nothing, S] =
-          if (!cont(s)) if (shutdownQueueOnEnd) queue.shutdown.map(_ => s) else IO.now(s)
-          else queue.take.flatMap(a => f(s, a).flatMap(loop)) <> IO.now(s)
-        loop(s)
-      }
-    }
+  final def fromQueue[A](queue: Queue[A]): Stream[Nothing, A] =
+    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.now(None))
 
   /**
    * Constructs a stream from effectful state. This method should not be used
