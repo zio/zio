@@ -49,12 +49,7 @@ trait Executor {
 }
 
 object Executor extends Serializable {
-  sealed abstract class Role extends Product with Serializable {
-    def defaultYieldOpCount: Int = this match {
-      case Unyielding => Int.MaxValue
-      case Yielding   => 1024
-    }
-  }
+  sealed abstract class Role extends Product with Serializable
 
   /**
    * An executor optimized for synchronous tasks, which yield
@@ -73,52 +68,48 @@ object Executor extends Serializable {
    */
   final def newDefaultExecutor(role: Role): Executor = role match {
     case Unyielding =>
-      fromThreadPoolExecutor(
-        role, {
-          val corePoolSize  = Int.MaxValue
-          val maxPoolSize   = Int.MaxValue
-          val keepAliveTime = 1000L
-          val timeUnit      = TimeUnit.MILLISECONDS
-          val workQueue     = new SynchronousQueue[Runnable]()
-          val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
+      fromThreadPoolExecutor(role, _ => Int.MaxValue) {
+        val corePoolSize  = Int.MaxValue
+        val maxPoolSize   = Int.MaxValue
+        val keepAliveTime = 1000L
+        val timeUnit      = TimeUnit.MILLISECONDS
+        val workQueue     = new SynchronousQueue[Runnable]()
+        val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
 
-          val threadPool = new ThreadPoolExecutor(
-            corePoolSize,
-            maxPoolSize,
-            keepAliveTime,
-            timeUnit,
-            workQueue,
-            threadFactory
-          )
-          threadPool.allowCoreThreadTimeOut(true)
+        val threadPool = new ThreadPoolExecutor(
+          corePoolSize,
+          maxPoolSize,
+          keepAliveTime,
+          timeUnit,
+          workQueue,
+          threadFactory
+        )
+        threadPool.allowCoreThreadTimeOut(true)
 
-          threadPool
-        }
-      )
+        threadPool
+      }
 
     case Yielding =>
-      fromThreadPoolExecutor(
-        role, {
-          val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-          val maxPoolSize   = corePoolSize
-          val keepAliveTime = 1000L
-          val timeUnit      = TimeUnit.MILLISECONDS
-          val workQueue     = new LinkedBlockingQueue[Runnable]()
-          val threadFactory = new NamedThreadFactory("zio-default-yielding", true)
+      fromThreadPoolExecutor(role, _ => Int.1024) {
+        val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
+        val maxPoolSize   = corePoolSize
+        val keepAliveTime = 1000L
+        val timeUnit      = TimeUnit.MILLISECONDS
+        val workQueue     = new LinkedBlockingQueue[Runnable]()
+        val threadFactory = new NamedThreadFactory("zio-default-yielding", true)
 
-          val threadPool = new ThreadPoolExecutor(
-            corePoolSize,
-            maxPoolSize,
-            keepAliveTime,
-            timeUnit,
-            workQueue,
-            threadFactory
-          )
-          threadPool.allowCoreThreadTimeOut(true)
+        val threadPool = new ThreadPoolExecutor(
+          corePoolSize,
+          maxPoolSize,
+          keepAliveTime,
+          timeUnit,
+          workQueue,
+          threadFactory
+        )
+        threadPool.allowCoreThreadTimeOut(true)
 
-          threadPool
-        }
-      )
+        threadPool
+      }
   }
 
   /**
@@ -126,7 +117,7 @@ object Executor extends Serializable {
    * supply the concurrency level, since `ExecutionContext` cannot
    * provide this detail.
    */
-  final def fromExecutionContext(role0: Role, n: Int, ec: ExecutionContext): Executor =
+  final def fromExecutionContext(role0: Role, yieldOpCount0: ExecutrionMetrics => Int, concurrency0: Int)(ec: ExecutionContext): Executor =
     new Executor {
       import java.util.concurrent.atomic.AtomicLong
 
@@ -136,7 +127,7 @@ object Executor extends Serializable {
       def role = role0
 
       val metrics = new ExecutionMetrics {
-        def concurrency: Int = n
+        def concurrency: Int = concurrency0
 
         def capacity: Int = Int.MaxValue
 
@@ -147,7 +138,7 @@ object Executor extends Serializable {
         def dequeuedCount: Long = _dequeuedCount.get
       }
 
-      def yieldOpCount = role.defaultYieldOpCount
+      def yieldOpCount = yieldOpCount0(metrics)
 
       def submit(runnable: Runnable): Boolean =
         try {
@@ -173,7 +164,7 @@ object Executor extends Serializable {
   /**
    * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
    */
-  final def fromThreadPoolExecutor(role0: Role, es: ThreadPoolExecutor): Executor =
+  final def fromThreadPoolExecutor(role0: Role, yieldOpCount0: ExecutionMetrics => Int)(es: ThreadPoolExecutor): Executor =
     new Executor {
       def role = role0
 
@@ -196,7 +187,7 @@ object Executor extends Serializable {
         def dequeuedCount: Long = enqueuedCount - size.toLong
       }
 
-      def yieldOpCount = role.defaultYieldOpCount
+      def yieldOpCount = yieldOpCount0(metrics)
 
       def submit(runnable: Runnable): Boolean =
         try {
