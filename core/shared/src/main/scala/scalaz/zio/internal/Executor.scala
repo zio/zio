@@ -38,7 +38,7 @@ trait Executor {
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
-  lazy val asExecutionContext: ExecutionContext =
+  lazy val asEC: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
         if (!submit(r)) throw new RejectedExecutionException("Rejected: " + r.toString)

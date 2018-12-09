@@ -26,7 +26,7 @@ object future {
     def fromFutureAction[A](ftr: ExecutionContext => Future[A]): IO[Throwable, A] =
       IO.flatten {
         IO.sync0 { env =>
-          val ec = env.executor(Executor.Yielding).asExecutionContext
+          val ec = env.executor(Executor.Yielding).asEC
 
           unsafeFutureToIO(ftr(ec), ec)
         }
