@@ -235,8 +235,8 @@ trait Stream[+E, +A] { self =>
           putR   = (b: B) => queue.offer(Right(Take.Value(b))).void
           catchL = (e: E2) => queue.offer(Left(Take.Fail(e)))
           catchR = (e: E2) => queue.offer(Right(Take.Fail(e)))
-          endL   = queue.offer(Left(Take.End)).forever
-          endR   = queue.offer(Right(Take.End)).forever
+          endL   = queue.offer(Left(Take.End))
+          endR   = queue.offer(Right(Take.End))
           _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
           _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
           step   <- loop(false, false, s, queue)
@@ -437,7 +437,7 @@ trait Stream[+E, +A] { self =>
       queue    <- Managed.liftIO(Queue.bounded[Take[E1, A1]](capacity))
       offerVal = (a: A) => queue.offer(Take.Value(a)).void
       offerErr = (e: E) => queue.offer(Take.Fail(e))
-      enqueuer = (self.foreach[E](offerVal).catchAll(offerErr) *> queue.offer(Take.End).forever).fork
+      enqueuer = (self.foreach[E](offerVal).catchAll(offerErr) *> queue.offer(Take.End)).fork
       _        <- Managed(enqueuer)(_.interrupt)
     } yield queue
 
