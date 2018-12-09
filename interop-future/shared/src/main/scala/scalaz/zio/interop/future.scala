@@ -1,5 +1,6 @@
 package scalaz.zio.interop
 import scalaz.zio.{ Callback, ExitResult, Fiber, IO }
+import scalaz.zio.internal.Executor
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
@@ -24,7 +25,9 @@ object future {
 
     def fromFutureAction[A](ftr: ExecutionContext => Future[A]): IO[Throwable, A] =
       IO.flatten {
-        IO.syncSubmit { ec =>
+        IO.sync0 { env =>
+          val ec = env.executor(Executor.Yielding).asEC
+
           unsafeFutureToIO(ftr(ec), ec)
         }
       }

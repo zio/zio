@@ -26,7 +26,6 @@ import scalaz.zio.duration.Duration
  * }}}
  */
 trait App extends RTS {
-
   sealed abstract class ExitStatus extends Serializable with Product
   object ExitStatus extends Serializable {
     case class ExitNow(code: Int)                         extends ExitStatus
@@ -57,8 +56,8 @@ trait App extends RTS {
     ) match {
       case ExitStatus.ExitNow(code) =>
         sys.exit(code)
-      case ExitStatus.ExitWhenDone(code, timeout) =>
-        unsafeShutdownAndWait(timeout)
+      case ExitStatus.ExitWhenDone(code, _) =>
+        // TODO: Shutdown
         sys.exit(code)
       case ExitStatus.DoNotExit =>
     }
