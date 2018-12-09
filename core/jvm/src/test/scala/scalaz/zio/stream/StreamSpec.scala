@@ -294,7 +294,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   private def toQueue = prop { c: Chunk[Int] =>
     val s = Stream.fromChunk(c)
     val result = unsafeRunSync {
-      s.toQueue(100).use { queue: Queue[Take[Nothing, Int]] =>
+      s.toQueue(1000).use { queue: Queue[Take[Nothing, Int]] =>
         (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != c.length + 1)) *> queue.takeAll
       }
     }
