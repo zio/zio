@@ -33,8 +33,8 @@ abstract class CatsInstances extends CatsInstances1 {
       zioClock.sleep(duration.length, duration.unit)
   }
 
-  implicit val taskEffectInstances: effect.Concurrent[Task] with Effect[Task] with SemigroupK[Task] =
-    new CatsConcurrent
+  implicit val taskEffectInstances: effect.ConcurrentEffect[Task] with SemigroupK[Task] =
+    new CatsConcurrentEffect
 
   implicit val taskParallelInstance: Parallel[Task, Task.Par] =
     parallelInstance(taskEffectInstances)
@@ -53,8 +53,54 @@ sealed abstract class CatsInstances2 {
     new CatsMonadError[E] with CatsSemigroupK[E] with CatsBifunctor
 }
 
+private class CatsConcurrentEffect extends CatsConcurrent with effect.ConcurrentEffect[Task] {
+  def runCancelable[A](
+    fa: Task[A]
+  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[Task]] =
+    effect.SyncIO {
+      this.unsafeRun {
+        fa.fork.flatMap { f =>
+          f.observe
+            .flatMap(exit => IO.syncThrowable(cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())))
+            .fork
+            .const(f.interrupt.void)
+        }
+      }
+    }
+
+//      def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[Task]] = {
+//    effect.SyncIO {
+//      this.unsafeRun {
+//        fa.sandboxed.redeemPure(ExitResult.Failed(_), ExitResult.Succeeded(_))
+//          .flatMap(exit => IO.syncThrowable(cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())))
+//          .fork.flatMap { f =>
+//            IO.now(f.interrupt.void)
+//        }
+//      }
+//    }
+  // misses ExitCase.Canceled
+
+//    var canceler: effect.CancelToken[Task] = null
+//    runAsync(fa.fork.flatMap {
+//      f => Task { canceler = f.interrupt.void } *> f.join
+//    })(cb).flatMap(_ => effect.SyncIO {
+//      var cont = true
+//      while (cont) {
+//        if (canceler != null) {
+//          cont = false
+//        }
+//      }
+//      canceler
+//    })
+
+  override def toIO[A](fa: Task[A]): effect.IO[A] =
+    effect.ConcurrentEffect.toIOFromRunCancelable(fa)(this)
+//    effect.Effect.toIOFromRunAsync(fa)(this)
+}
+
 private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
-  private[this] def toFiber[A](f: Fiber[Throwable, A]): effect.Fiber[Task, A] = new effect.Fiber[Task, A] {
+
+  protected[this] final def toFiber[A](f: Fiber[Throwable, A]): effect.Fiber[Task, A] = new effect.Fiber[Task, A] {
     override val cancel: Task[Unit] = f.interrupt.void
 
     override val join: Task[A] = f.join
@@ -144,13 +190,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     }
 
   override def suspend[A](thunk: => Task[A]): Task[A] =
-    IO.suspend(
-      try {
-        thunk
-      } catch {
-        case e: Throwable => IO.fail(e)
-      }
-    )
+    IO.flatten(IO.syncThrowable(thunk))
 
   override def delay[A](thunk: => A): Task[A] =
     IO.syncThrowable(thunk)
