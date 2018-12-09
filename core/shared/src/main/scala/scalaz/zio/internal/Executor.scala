@@ -11,34 +11,14 @@ import scala.concurrent.ExecutionContext
 trait Executor {
 
   /**
+   * Execution metrics.
+   */
+  def metrics: ExecutionMetrics
+
+  /**
    * The role the executor is optimized for.
    */
   def role: Executor.Role
-
-  /**
-   * The concurrency level of the executor.
-   */
-  def concurrency: Int
-
-  /**
-   * The capacity of the executor.
-   */
-  def capacity: Int
-
-  /**
-   * The number of tasks remaining to be executed.
-   */
-  def size: Int
-
-  /**
-   * The number of tasks that have been enqueued, over all time.
-   */
-  def enqueuedCount: Long
-
-  /**
-   * The number of tasks that have been dequeued, over all time.
-   */
-  def dequeuedCount: Long
 
   /**
    * The number of operations a fiber should run before yielding.
@@ -155,15 +135,17 @@ object Executor extends Serializable {
 
       def role = role0
 
-      def concurrency: Int = n
+      val metrics = new ExecutionMetrics {
+        def concurrency: Int = n
 
-      def capacity: Int = Int.MaxValue
+        def capacity: Int = Int.MaxValue
 
-      def size: Int = (enqueuedCount - dequeuedCount).toInt
+        def size: Int = (enqueuedCount - dequeuedCount).toInt
 
-      def enqueuedCount: Long = _enqueuedCount.get
+        def enqueuedCount: Long = _enqueuedCount.get
 
-      def dequeuedCount: Long = _dequeuedCount.get
+        def dequeuedCount: Long = _dequeuedCount.get
+      }
 
       def yieldOpCount = role.defaultYieldOpCount
 
@@ -195,22 +177,24 @@ object Executor extends Serializable {
     new Executor {
       def role = role0
 
-      def concurrency: Int = es.getMaximumPoolSize()
+      val metrics = new ExecutionMetrics {
+        def concurrency: Int = es.getMaximumPoolSize()
 
-      def capacity: Int = {
-        val queue = es.getQueue()
+        def capacity: Int = {
+          val queue = es.getQueue()
 
-        val remaining = queue.remainingCapacity()
+          val remaining = queue.remainingCapacity()
 
-        if (remaining == Int.MaxValue) remaining
-        else remaining + queue.size
+          if (remaining == Int.MaxValue) remaining
+          else remaining + queue.size
+        }
+
+        def size: Int = es.getQueue().size
+
+        def enqueuedCount: Long = es.getTaskCount()
+
+        def dequeuedCount: Long = enqueuedCount - size.toLong
       }
-
-      def size: Int = es.getQueue().size
-
-      def enqueuedCount: Long = es.getTaskCount()
-
-      def dequeuedCount: Long = enqueuedCount - size.toLong
 
       def yieldOpCount = role.defaultYieldOpCount
 
