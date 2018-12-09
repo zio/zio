@@ -1,8 +1,8 @@
 package scalaz.zio
 
 import scala.collection.immutable.Range
-import scala.concurrent.duration._
 import org.specs2.specification.AroundTimeout
+import scalaz.zio.duration._
 
 class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 

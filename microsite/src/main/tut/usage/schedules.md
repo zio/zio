@@ -28,7 +28,7 @@ A `Schedule[A, B]` consumes `A` values, and based on these events and internal s
 # Base Schedules
 
 ```tut:invisible
-import scala.concurrent.duration._
+import scalaz.zio.duration._
 ```
 
 A schedule that always recurs:
@@ -97,5 +97,5 @@ Combines two schedules through union, by recurring if either schedule wants to
 recur, using the minimum of the two delays between recurrences:
 
 ```tut:silent
-val expCapped = Schedule.exponential(100.milliseconds) || Schedule.spaced(1.seconds)
+val expCapped = Schedule.exponential(100.milliseconds) || Schedule.spaced(1.second)
 ```

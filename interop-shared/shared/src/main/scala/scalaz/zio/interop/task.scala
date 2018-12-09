@@ -2,8 +2,8 @@ package scalaz.zio
 package interop
 
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.concurrent.duration.Duration
 import scala.util.{ Failure, Success }
+import scalaz.zio.duration.Duration
 
 object Task {
   type Par[A] = Par.T[Throwable, A]
