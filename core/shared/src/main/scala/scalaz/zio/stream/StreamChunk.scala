@@ -76,7 +76,7 @@ trait StreamChunk[+E, @specialized +A] { self =>
             val remaining = as.takeWhile(pred)
 
             if (remaining.length == as.length) f(s._2, as).map(true -> _)
-            else f(s._2, as).map(false                              -> _)
+            else f(s._2, remaining).map(false                       -> _)
           }
           .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
     })
