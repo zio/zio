@@ -1,7 +1,7 @@
 // Copyright (C) 2018 - 2019 John A. De Goes. All rights reserved.
 package scalaz.zio.internal
 
-import scala.concurrent.duration._
+import scalaz.zio.duration._
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -39,12 +39,13 @@ object Scheduler {
 
       val _size = new AtomicInteger()
 
-      override def schedule(executor: Executor, task: Runnable, duration: Duration): CancelToken =
-        if (duration == Duration.Zero) {
+      override def schedule(executor: Executor, task: Runnable, duration: Duration): CancelToken = duration match {
+        case Duration.Infinity => ConstFalse
+        case Duration.Zero =>
           executor.submit(task)
 
           ConstFalse
-        } else {
+        case duration: Duration.Finite =>
           _size.incrementAndGet
 
           val future = service.schedule(new Runnable {
@@ -63,7 +64,7 @@ object Scheduler {
 
             canceled
           }
-        }
+      }
 
       override def size: Int = _size.get
 

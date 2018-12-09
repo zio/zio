@@ -1,7 +1,7 @@
 // Copyright (C) 2017 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.concurrent.duration.Duration
+import scalaz.zio.duration.Duration
 
 /**
  * The entry point for a purely-functional application on the JVM.

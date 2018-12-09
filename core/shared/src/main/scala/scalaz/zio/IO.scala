@@ -2,11 +2,11 @@
 package scalaz.zio
 
 import scalaz.zio.ExitResult.Cause
+import scalaz.zio.duration._
 import scalaz.zio.internal.{ Env, Executor }
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
-import scala.concurrent.duration._
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
