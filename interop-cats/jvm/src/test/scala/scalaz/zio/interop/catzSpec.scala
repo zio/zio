@@ -14,6 +14,7 @@ import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
 import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
+import scalaz.zio.internal.Env
 
 class catzSpec
     extends FunSuite
@@ -25,7 +26,7 @@ class catzSpec
     with GenIO
     with RTS {
 
-  override val reportError: ExitResult.Cause[Any] => IO[Nothing, _] = _ => IO.unit
+  override lazy val env = Env.newDefaultEnv(_ => IO.unit)
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()

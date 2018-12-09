@@ -31,6 +31,11 @@ trait Executor {
   def submit(runnable: Runnable): Boolean
 
   /**
+   * Whether or not the caller is being run on this executor.
+   */
+  def here: Boolean
+
+  /**
    * Initiates shutdown of the executor.
    */
   def shutdown(): Unit
@@ -117,7 +122,9 @@ object Executor extends Serializable {
    * supply the concurrency level, since `ExecutionContext` cannot
    * provide this detail.
    */
-  final def fromExecutionContext(role0: Role, yieldOpCount0: ExecutionMetrics => Int, concurrency0: Int)(ec: ExecutionContext): Executor =
+  final def fromExecutionContext(role0: Role, yieldOpCount0: ExecutionMetrics => Int, concurrency0: Int)(
+    ec: ExecutionContext
+  ): Executor =
     new Executor {
       import java.util.concurrent.atomic.AtomicLong
 
@@ -158,13 +165,17 @@ object Executor extends Serializable {
             false
         }
 
+      def here = false
+
       def shutdown(): Unit = ()
     }
 
   /**
    * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
    */
-  final def fromThreadPoolExecutor(role0: Role, yieldOpCount0: ExecutionMetrics => Int)(es: ThreadPoolExecutor): Executor =
+  final def fromThreadPoolExecutor(role0: Role, yieldOpCount0: ExecutionMetrics => Int)(
+    es: ThreadPoolExecutor
+  ): Executor =
     new Executor {
       def role = role0
 
@@ -197,6 +208,8 @@ object Executor extends Serializable {
         } catch {
           case _: RejectedExecutionException => false
         }
+
+      def here = false
 
       def shutdown(): Unit = { val _ = es.shutdown() }
     }

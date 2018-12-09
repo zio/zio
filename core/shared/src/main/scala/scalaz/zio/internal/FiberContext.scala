@@ -64,7 +64,7 @@ private[zio] final class FiberContext[E, A](
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
         case f0: Finalizer =>
           val f: IO[Nothing, Option[Cause[Nothing]]] =
-            f0.finalizer.sandboxed.redeemPure[Option[Cause[Nothing]]](Some(_), _ => None)
+            f0.finalizer.redeem0(c => IO.now(Some(c)), _ => IO.now(None))
           if (finalizer eq null) finalizer = f
           else finalizer = finalizer.seqWith(f)(zipCauses)
         case _ =>
@@ -93,7 +93,7 @@ private[zio] final class FiberContext[E, A](
    *
    * @param io0 The `IO` to evaluate on the fiber.
    */
-  final def evaluate(io0: IO[E, _]): Unit = {
+  final def evaluateNow(io0: IO[E, _]): Unit = {
     // Do NOT accidentally capture any of local variables in a closure,
     // or Scala will wrap them in ObjectRef and performance will plummet.
     var curIo: IO[E, Any] = io0.as[Any]
@@ -110,16 +110,11 @@ private[zio] final class FiberContext[E, A](
           if (!shouldDie) {
             // Fiber does not need to be interrupted, but might need to yield:
             if (opcount == maxopcount) {
-              // Cooperatively yield to other fibers currently suspended.
-              opcount = 0
-
               // Cannot capture `curIo` since it will be boxed into `ObjectRef`,
-              // which destroys performance, so we create a temp val here.
+              // which destroys performance. So put `curIo` into a temp val:
               val tmpIo = curIo
 
-              env.defaultExecutor.submit(() => evaluate(tmpIo))
-
-              curIo = null
+              curIo = IO.yieldNow *> tmpIo
             } else {
               // Fiber is neither being interrupted nor needs to yield. Execute
               // the next instruction in the program:
@@ -192,7 +187,7 @@ private[zio] final class FiberContext[E, A](
                   // Enter suspended state:
                   val cancel = enterAsync()
 
-                  if (!(cancel eq null)) {
+                  if (cancel ne null) {
                     // It's possible we were interrupted prior to entering
                     // suspended state. So we have to check that condition,
                     // and if so, do not initiate the async effect (because
@@ -296,12 +291,12 @@ private[zio] final class FiberContext[E, A](
                 case IO.Tags.Lock =>
                   val io = curIo.asInstanceOf[IO.Lock[E, Any]]
 
-                  lock(io.executor)
+                  curIo = (lock(io.executor) *> io.io).ensuring(unlock)
+
+                case IO.Tags.Yield =>
+                  evaluateLater(IO.unit)
 
                   curIo = null
-
-                  // TODO: Pay attention to return value of `submit`
-                  val _ = io.executor.submit(() => evaluate(io.io.ensuring(IO.sync(unlock()))))
               }
             }
           } else {
@@ -327,11 +322,11 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def lock(executor: Executor): Unit =
-    locked = executor :: locked
+  private[this] final def lock(executor: Executor): IO[Nothing, Unit] =
+    IO.sync { locked = executor :: locked } *> IO.yieldNow
 
-  private[this] final def unlock(): Unit =
-    locked = locked.drop(1)
+  private[this] final def unlock: IO[Nothing, Unit] =
+    IO.sync { locked = locked.drop(1) } *> IO.yieldNow
 
   private[this] final def getDescriptor: Fiber.Descriptor =
     Fiber.Descriptor(fiberId, state.get.interrupted, unhandled, executor)
@@ -342,25 +337,15 @@ private[zio] final class FiberContext[E, A](
   final def fork[E, A](io: IO[E, A], unhandled: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] = {
     val context = env.newFiberContext[E, A](unhandled)
 
-    env.defaultExecutor.submit(() => context.evaluate(io))
+    env.defaultExecutor.submit(() => context.evaluateNow(io))
 
     context
   }
 
-  /**
-   * Resumes a synchronous evaluation given the newly produced value.
-   *
-   * @param value The value which will be used to resume the sync evaluation.
-   */
-  private[this] final def resumeEvaluate(value: ExitResult[E, Any]): Unit =
-    value match {
-      case ExitResult.Succeeded(v) =>
-        val io = nextInstr(v)
-
-        if (io ne null) evaluate(io)
-
-      case ExitResult.Failed(cause) => evaluate(IO.fail0(cause))
-    }
+  private[this] final def evaluateLater(io: IO[E, Any]): Unit = {
+    // TODO: Pay attention to return value of `submit`
+    val _ = executor.submit(() => evaluateNow(io))
+  }
 
   /**
    * Resumes an asynchronous computation.
@@ -370,14 +355,8 @@ private[zio] final class FiberContext[E, A](
   private[this] final val resumeAsync: ExitResult[E, Any] => Unit =
     value =>
       if (shouldResumeAsync()) {
-        if (locked eq Nil) {
-          resumeEvaluate(value)
-        } else {
-          val executor = locked.head
-
-          // TODO: Pay attention to return value of `submit`
-          val _ = executor.submit(() => resumeEvaluate(value))
-        }
+        if (locked eq Nil) evaluateNow(IO.done(value))
+        else evaluateLater(IO.done(value))
       }
 
   final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]](kill0(_))
@@ -498,10 +477,7 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def reportUnhandled(v: ExitResult[E, A]): Unit = v match {
     case ExitResult.Failed(cause) =>
-      env.unsafeRunAsync(
-        _ => IO.unit,
-        unhandled(cause),
-        (_: ExitResult[Nothing, _]) => ())
+      env.unsafeRunAsync(unhandled(cause), (_: ExitResult[Nothing, _]) => ())
 
     case _ =>
   }
@@ -520,9 +496,7 @@ private[zio] final class FiberContext[E, A](
           // Interruption may not be interrupted:
           noInterrupt += 1
 
-          env
-            .executor(Executor.Yielding)
-            .submit(() => evaluate(cancel.get *> IO.interrupt))
+          evaluateLater(cancel.get *> IO.interrupt)
 
           Async.later
         }
@@ -568,14 +542,13 @@ private[zio] final class FiberContext[E, A](
     // pool in order of their submission.
     observers.reverse.foreach(
       k =>
-        env
-          .executor(Executor.Yielding)
+        env.defaultExecutor
           .submit(() => k(result))
     )
   }
 }
 private[zio] object FiberContext {
-  private val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.succeeded(())
+  private final val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.succeeded(())
 
   sealed abstract class FiberStatus extends Serializable with Product
   object FiberStatus {
