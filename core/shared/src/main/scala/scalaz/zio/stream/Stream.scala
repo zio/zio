@@ -652,13 +652,13 @@ object Stream {
   /**
    * Constructs an infinite stream from a `Queue`.
    */
-  final def fromQueue[A](queue: Queue[A]): Stream[Nothing, A] =
+  final def fromQueue[A](queue: Queue[A], shutdownQueueOnEnd: Boolean = true): Stream[Nothing, A] =
     new Stream[Nothing, A] {
       override def foldLazy[Nothing, A1 >: A, S](
         s: S
       )(cont: S => Boolean)(f: (S, A1) => IO[Nothing, S]): IO[Nothing, S] = {
         def loop(s: S): IO[Nothing, S] =
-          if (!cont(s)) queue.shutdown.map(_ => s)
+          if (!cont(s)) if (shutdownQueueOnEnd) queue.shutdown.map(_ => s) else IO.now(s)
           else queue.take.flatMap(a => f(s, a).flatMap(loop)) <> IO.now(s)
         loop(s)
       }
