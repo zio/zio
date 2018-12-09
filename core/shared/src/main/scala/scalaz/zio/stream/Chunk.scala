@@ -422,7 +422,8 @@ sealed trait Chunk[@specialized +A] { self =>
     var i            = 0
 
     while (i < len) {
-      io = io *> f(self(i))
+      val a = self(i)
+      io = io *> f(a)
       i += 1
     }
 
