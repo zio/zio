@@ -32,10 +32,15 @@ trait Env {
   def nonFatal(t: Throwable): Boolean
 
   /**
+   * Reports the specified failure.
+   */
+  def reportFailure(cause: Cause[_]): IO[Nothing, _]
+
+  /**
    * Awaits for the result of the fiber to be computed.
    */
-  final def unsafeRun[E, A](unhandled: Cause[Any] => IO[Nothing, _], io: IO[E, A]): A = {
-    val exit = unsafeRunSync(unhandled, io)
+  final def unsafeRun[E, A](io: IO[E, A]): A = {
+    val exit = unsafeRunSync(io)
 
     exit.fold(cause => throw new FiberFailure(cause), identity)
   }
@@ -43,10 +48,10 @@ trait Env {
   /**
    * Awaits for the result of the fiber to be computed.
    */
-  final def unsafeRunSync[E, A](unhandled: Cause[Any] => IO[Nothing, _], io: IO[E, A]): ExitResult[E, A] = {
+  final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] = {
     val result = OneShot.make[ExitResult[E, A]]
 
-    unsafeRunAsync(unhandled, io, (x: ExitResult[E, A]) => result.set(x))
+    unsafeRunAsync(io, (x: ExitResult[E, A]) => result.set(x))
 
     result.get
   }
@@ -54,13 +59,12 @@ trait Env {
   /**
    */
   final def unsafeRunAsync[E, A](
-    unhandled: Cause[Any] => IO[Nothing, _],
     io: IO[E, A],
     k: ExitResult[E, A] => Unit
   ): Unit = {
-    val context = newFiberContext[E, A](unhandled)
+    val context = newFiberContext[E, A](reportFailure(_))
 
-    context.evaluate(io)
+    context.evaluateNow(io)
     context.runAsync(k)
   }
 
@@ -81,7 +85,7 @@ object Env {
   /**
    * Creates a new default environment.
    */
-  final def newDefaultEnv(): Env =
+  final def newDefaultEnv(reportFailure0: Cause[_] => IO[Nothing, _]): Env =
     new Env {
       val sync  = Executor.newDefaultExecutor(Executor.Unyielding)
       val async = Executor.newDefaultExecutor(Executor.Yielding)
@@ -95,5 +99,8 @@ object Env {
 
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]
+
+      def reportFailure(cause: Cause[_]): IO[Nothing, _] =
+        reportFailure0(cause)
     }
 }

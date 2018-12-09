@@ -780,6 +780,7 @@ object IO extends Serializable {
     final val Ensuring        = 11
     final val Descriptor      = 12
     final val Lock            = 13
+    final val Yield           = 14
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -841,12 +842,16 @@ object IO extends Serializable {
     override def tag = Tags.Ensuring
   }
 
-  final class Descriptor private[IO] extends IO[Nothing, Fiber.Descriptor] {
+  final object Descriptor extends IO[Nothing, Fiber.Descriptor] {
     override def tag = Tags.Descriptor
   }
 
   final class Lock[E, A] private[IO] (val executor: Executor, val io: IO[E, A]) extends IO[E, A] {
     override def tag = Tags.Lock
+  }
+
+  final object Yield extends IO[Nothing, Unit] {
+    override def tag = Tags.Yield
   }
 
   /**
@@ -1038,7 +1043,7 @@ object IO extends Serializable {
   /**
    * Yields to the runtime system, starting on a fresh stack.
    */
-  final def yieldTo: IO[Nothing, Unit] = IO.sleep(Duration.Zero)
+  final def yieldNow: IO[Nothing, Unit] = Yield
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
@@ -1276,7 +1281,5 @@ object IO extends Serializable {
   /**
    * Returns information about the current fiber, such as its fiber identity.
    */
-  private[zio] final def descriptor: IO[Nothing, Fiber.Descriptor] =
-    new Descriptor
-
+  final def descriptor: IO[Nothing, Fiber.Descriptor] = Descriptor
 }
