@@ -3,7 +3,7 @@
 package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.concurrent.ExecutionContext
+import scalaz.zio.internal.Executor
 import Promise.internal._
 
 /**
@@ -75,8 +75,8 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   final def error(e: E): IO[Nothing, Boolean] = done(ExitResult.checked(e))
 
   /**
-   * Interrupts the promise with no specified reason. This will interrupt
-   * all fibers waiting on the value of the promise.
+   * Completes the promise with interruption. This will interrupt all fibers
+   * waiting on the value of the promise.
    */
   final def interrupt: IO[Nothing, Boolean] = done(ExitResult.interrupted)
 
@@ -112,7 +112,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       action
     })
 
-  private[zio] final def unsafeDone(r: ExitResult[E, A], executionContext: ExecutionContext): Unit = {
+  private[zio] final def unsafeDone(r: ExitResult[E, A], exec: Executor): Unit = {
     var retry: Boolean                = true
     var joiners: List[Callback[E, A]] = null
 
@@ -129,7 +129,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.reverse.foreach(k => executionContext.execute(() => k(r)))
+    if (joiners ne null) joiners.reverse.foreach(k => exec.submit(() => k(r)))
   }
 
   private def interruptJoiner(joiner: Callback[E, A]): Canceler = IO.sync {
