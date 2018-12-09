@@ -90,7 +90,7 @@ object Executor extends Serializable {
       }
 
     case Yielding =>
-      fromThreadPoolExecutor(role, _ => Int.1024) {
+      fromThreadPoolExecutor(role, _ => 1024) {
         val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
         val maxPoolSize   = corePoolSize
         val keepAliveTime = 1000L
@@ -117,7 +117,7 @@ object Executor extends Serializable {
    * supply the concurrency level, since `ExecutionContext` cannot
    * provide this detail.
    */
-  final def fromExecutionContext(role0: Role, yieldOpCount0: ExecutrionMetrics => Int, concurrency0: Int)(ec: ExecutionContext): Executor =
+  final def fromExecutionContext(role0: Role, yieldOpCount0: ExecutionMetrics => Int, concurrency0: Int)(ec: ExecutionContext): Executor =
     new Executor {
       import java.util.concurrent.atomic.AtomicLong
 
