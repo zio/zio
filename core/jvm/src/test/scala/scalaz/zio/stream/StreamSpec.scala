@@ -278,11 +278,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   private def fromQueue = prop { c: Chunk[Int] =>
     val result = unsafeRunSync {
       for {
-        queue <- Queue.bounded[Int](100)
+        queue <- Queue.unbounded[Int]
         _     <- queue.offerAll(c.toSeq)
         s     = Stream.fromQueue(queue)
         fiber <- s.foldLazy(List[Int]())(_ => true)((acc, el) => IO.now(el :: acc)).map(str => str.reverse).fork
-        _     <- (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ > 0))
+        _     <- (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != -1)) // 1 taker
         _     <- queue.shutdown
         items <- fiber.join
       } yield items
