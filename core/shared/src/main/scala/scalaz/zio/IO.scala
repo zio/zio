@@ -349,13 +349,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * to the default one.
    */
   final def on(ec: ExecutionContext): IO[E, A] =
-    IO.shift(ec).bracket_(IO.shift)(self)
+    self.lock(Executor.fromExecutionContext(Executor.Yielding, _ => Int.MaxValue, Int.MaxValue)(ec))
 
   /**
    * Forks an action that will be executed on the specified `ExecutionContext`.
    */
   final def forkOn(ec: ExecutionContext): IO[E, Fiber[E, A]] =
-    (IO.shift(ec) *> self).fork
+    self.on(ec).fork
 
   /**
    * Executes the release action only if there was an error.
@@ -1010,8 +1010,9 @@ object IO extends Serializable {
   /**
    * Shifts execution to a thread in the default `ExecutionContext`.
    */
+  @deprecated("use yieldNow", "0.6.0")
   final def shift: IO[Nothing, Unit] =
-    IO.sleep(0.seconds)
+    yieldNow
 
   /**
    * Shifts the operation to another execution context.
@@ -1020,6 +1021,7 @@ object IO extends Serializable {
    *   IO.shift(myPool) *> myTask
    * }}}
    */
+  @deprecated("use lock or on", "0.6.0")
   final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
     IO.async { cb: Callback[Nothing, Unit] =>
       ec.execute(new Runnable {
