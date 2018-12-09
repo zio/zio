@@ -111,14 +111,13 @@ private[zio] final class FiberContext[E, A](
             // Fiber does not need to be interrupted, but might need to yield:
             if (opcount == maxopcount) {
               // Cooperatively yield to other fibers currently suspended.
-              // FIXME: Replace with the new design.
               opcount = 0
 
               // Cannot capture `curIo` since it will be boxed into `ObjectRef`,
               // which destroys performance, so we create a temp val here.
               val tmpIo = curIo
 
-              env.executor(Executor.Yielding).submit(() => evaluate(tmpIo))
+              env.defaultExecutor.submit(() => evaluate(tmpIo))
 
               curIo = null
             } else {
@@ -244,7 +243,7 @@ private[zio] final class FiberContext[E, A](
 
                   curIo = IO.async0[E, Any] { k =>
                     val canceler = env.scheduler
-                      .schedule(env.executor(Executor.Yielding), () => k(SuccessUnit), io.duration)
+                      .schedule(executor, () => k(SuccessUnit), io.duration)
 
                     Async.maybeLater(IO.sync { val _ = canceler() })
                   }
@@ -343,7 +342,7 @@ private[zio] final class FiberContext[E, A](
   final def fork[E, A](io: IO[E, A], unhandled: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] = {
     val context = env.newFiberContext[E, A](unhandled)
 
-    env.executor(Executor.Yielding).submit(() => context.evaluate(io))
+    env.defaultExecutor.submit(() => context.evaluate(io))
 
     context
   }
@@ -499,11 +498,10 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def reportUnhandled(v: ExitResult[E, A]): Unit = v match {
     case ExitResult.Failed(cause) =>
-      // TODO: Pay attention to return value of `submit`
-      val _ =
-        env
-          .executor(Executor.Yielding)
-          .submit(() => env.unsafeRunAsync(_ => IO.unit, unhandled(cause), (_: ExitResult[Nothing, _]) => ()))
+      env.unsafeRunAsync(
+        _ => IO.unit,
+        unhandled(cause),
+        (_: ExitResult[Nothing, _]) => ())
 
     case _ =>
   }
