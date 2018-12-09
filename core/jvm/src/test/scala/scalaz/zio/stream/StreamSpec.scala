@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO, Queue }
+import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO, Queue, Schedule }
 import scala.concurrent.duration._
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
@@ -275,13 +275,18 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     (slurpM(s) must_=== Succeeded(c.toSeq.toList)) and (slurp(s) must_=== Succeeded(c.toSeq.toList))
   }
 
-  private def fromQueue = prop { _: Chunk[Int] =>
-    val s = unsafeRun {
+  private def fromQueue = prop { c: Chunk[Int] =>
+    val result = unsafeRunSync {
       for {
         queue <- Queue.bounded[Int](100)
+        _     <- queue.offerAll(c.toSeq)
+        s     = Stream.fromQueue(queue)
+        fiber <- s.foldLazy(List[Int]())(_ => true)((acc, el) => IO.now(el :: acc)).map(str => str.reverse).fork
+        _     <- (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ > 0))
         _     <- queue.shutdown
-      } yield Stream.fromQueue(queue)
+        items <- fiber.join
+      } yield items
     }
-    (slurpM(s) must_=== Succeeded(List.empty[Int]))
+    result must_=== Succeeded(c.toSeq.toList)
   }
 }
