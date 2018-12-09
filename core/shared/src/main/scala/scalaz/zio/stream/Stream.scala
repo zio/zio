@@ -208,26 +208,26 @@ trait Stream[+E, +A] { self =>
         type Elem = Either[Take[E2, A], Take[E2, B]]
 
         def loop(leftDone: Boolean, rightDone: Boolean, s: S, queue: Queue[Elem]): IO[E2, S] =
-          queue.take.flatMap {
-            case Left(Take.Fail(e))  => IO.fail(e)
-            case Right(Take.Fail(e)) => IO.fail(e)
-            case Left(Take.End) =>
-              if (rightDone) IO.now(s)
-              else loop(true, rightDone, s, queue)
-            case Left(Take.Value(a)) =>
-              f(s, l(a)).flatMap { s =>
-                if (cont(s)) loop(leftDone, rightDone, s, queue)
-                else IO.now(s)
-              }
-            case Right(Take.End) =>
-              if (leftDone) IO.now(s)
-              else loop(leftDone, true, s, queue)
-            case Right(Take.Value(b)) =>
-              f(s, r(b)).flatMap { s =>
-                if (cont(s)) loop(leftDone, rightDone, s, queue)
-                else IO.now(s)
-              }
-          }
+          if (cont(s)) {
+            queue.take.flatMap {
+              case Left(Take.Fail(e))  => IO.fail(e)
+              case Right(Take.Fail(e)) => IO.fail(e)
+              case Left(Take.End) =>
+                if (rightDone) IO.now(s)
+                else loop(true, rightDone, s, queue)
+              case Left(Take.Value(a)) =>
+                f(s, l(a)).flatMap { s2 =>
+                  loop(leftDone, rightDone, s2, queue)
+                }
+              case Right(Take.End) =>
+                if (leftDone) IO.now(s)
+                else loop(leftDone, true, s, queue)
+              case Right(Take.Value(b)) =>
+                f(s, r(b)).flatMap { s2 =>
+                  loop(leftDone, rightDone, s2, queue)
+                }
+            }
+          } else IO.now(s)
 
         (for {
           queue  <- Queue.bounded[Elem](capacity)
