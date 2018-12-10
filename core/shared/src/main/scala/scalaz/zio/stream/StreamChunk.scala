@@ -130,38 +130,10 @@ object StreamChunk {
     }
 
   def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    new StreamChunk[Nothing, A] {
-      val chunks = new StreamPure[Chunk[A]] {
-        override def foldLazy[E >: Nothing, A1 >: Chunk[A], S](
-          s: S
-        )(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] = {
-          val iterator = as.iterator
-
-          def loop(s: S): IO[E, S] =
-            IO.flatten {
-              IO.sync {
-                if (iterator.hasNext && cont(s)) f(s, iterator.next).flatMap(loop)
-                else IO.now(s)
-              }
-            }
-
-          loop(s)
-        }
-
-        override def foldPureLazy[A1 >: Chunk[A], S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = {
-          val iterator = as.iterator
-
-          def loop(s: S): S =
-            if (iterator.hasNext && cont(s)) loop(f(s, iterator.next))
-            else s
-
-          loop(s)
-        }
-      }
-    }
+    StreamChunkPure(StreamPure.fromIterable(as))
 
   def point[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
-    StreamChunk(Stream.point(as))
+    StreamChunkPure(StreamPure.point(as))
 
-  def empty: StreamChunk[Nothing, Nothing] = StreamChunk(Stream.empty)
+  def empty: StreamChunk[Nothing, Nothing] = StreamChunkPure(StreamPure.empty)
 }
