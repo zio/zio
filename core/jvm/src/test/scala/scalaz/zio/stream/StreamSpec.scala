@@ -2,8 +2,9 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO, Queue, Schedule }
+import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO, Queue }
 import scala.concurrent.duration._
+import scalaz.zio.QueueSpec.waitForSize
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
 
@@ -283,7 +284,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
         _     <- queue.offerAll(c.toSeq)
         s     = Stream.fromQueue(queue)
         fiber <- s.foldLazy(List[Int]())(_ => true)((acc, el) => IO.now(el :: acc)).map(str => str.reverse).fork
-        _     <- (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != -1)) // 1 taker
+        _     <- waitForSize(queue, -1)
         _     <- queue.shutdown
         items <- fiber.join
       } yield items
@@ -295,7 +296,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s = Stream.fromChunk(c)
     val result = unsafeRunSync {
       s.toQueue(1000).use { queue: Queue[Take[Nothing, Int]] =>
-        (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != c.length + 1)) *> queue.takeAll
+        waitForSize(queue, c.length + 1) *> queue.takeAll
       }
     }
     result must_=== Succeeded(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
