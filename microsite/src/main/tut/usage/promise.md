@@ -70,8 +70,8 @@ Here is a scenario where we use a `Promise` to hand-off a value between two `Fib
 
 ```tut:silent
 import java.io.IOException
-import scala.concurrent.duration._
 import scalaz.zio.console._
+import scalaz.zio.duration._
 
 val program: IO[IOException, Unit] = for {
 promise         <-  Promise.make[Nothing, String]
