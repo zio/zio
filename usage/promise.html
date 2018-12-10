@@ -58,8 +58,8 @@ that the Promise successfully completed with an <code class="highlighter-rouge">
 <p>Here is a scenario where we use a <code class="highlighter-rouge">Promise</code> to hand-off a value between two <code class="highlighter-rouge">Fiber</code>s</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io.IOException</span>
-<span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
 <span class="k">import</span> <span class="nn">scalaz.zio.console._</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.duration._</span>
 
 <span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">IOException</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
 <span class="n">promise</span>         <span class="k">&lt;-</span>  <span class="nc">Promise</span><span class="o">.</span><span class="n">make</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span>
