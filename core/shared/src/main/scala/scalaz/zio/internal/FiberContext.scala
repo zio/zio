@@ -238,7 +238,7 @@ private[zio] final class FiberContext[E, A](
 
                   curIo = IO.async0[E, Any] { k =>
                     val canceler = env.scheduler
-                      .schedule(executor, () => k(SuccessUnit), io.duration)
+                      .schedule(executor, () => k(IO.unit), io.duration)
 
                     Async.maybeLater(IO.sync { val _ = canceler() })
                   }
@@ -352,16 +352,20 @@ private[zio] final class FiberContext[E, A](
    *
    * @param value The value produced by the asynchronous computation.
    */
-  private[this] final val resumeAsync: ExitResult[E, Any] => Unit =
-    value =>
+  private[this] final val resumeAsync: IO[E, Any] => Unit =
+    io =>
       if (shouldResumeAsync()) {
-        if (locked eq Nil) evaluateNow(IO.done(value))
-        else evaluateLater(IO.done(value))
+        if (locked eq Nil) evaluateNow(io)
+        else evaluateLater(io)
       }
 
-  final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]](kill0(_))
+  final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
+    kill0(x => k(IO.done(x)))
+  }
 
-  final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0(observe0)
+  final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
+    observe0(x => k(IO.done(x)))
+  }
 
   final def poll: IO[Nothing, Option[ExitResult[E, A]]] = IO.sync(poll0)
 
@@ -548,8 +552,6 @@ private[zio] final class FiberContext[E, A](
   }
 }
 private[zio] object FiberContext {
-  private final val SuccessUnit: ExitResult[Nothing, Unit] = ExitResult.succeeded(())
-
   sealed abstract class FiberStatus extends Serializable with Product
   object FiberStatus {
     final case object Running                                      extends FiberStatus

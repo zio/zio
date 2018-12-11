@@ -86,6 +86,8 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def done(r: ExitResult[E, A]): IO[Nothing, Boolean] =
     IO.flatten(IO.sync {
+      val io = IO.done(r)
+
       var action: IO[Nothing, Boolean] = null.asInstanceOf[IO[Nothing, Boolean]]
       var retry                        = true
 
@@ -95,7 +97,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
         val newState = oldState match {
           case Pending(joiners) =>
             action =
-              IO.forkAll_(joiners.map(k => IO.sync[Unit](k(r)))) *>
+              IO.forkAll_(joiners.map(k => IO.sync[Unit](k(io)))) *>
                 IO.now[Boolean](true)
 
             Done(r)
@@ -113,8 +115,9 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   private[zio] final def unsafeDone(r: ExitResult[E, A], exec: Executor): Unit = {
-    var retry: Boolean                = true
-    var joiners: List[Callback[E, A]] = null
+    var retry: Boolean                  = true
+    var joiners: List[IO[E, A] => Unit] = null
+    val io                              = IO.done(r)
 
     while (retry) {
       val oldState = state.get
@@ -129,10 +132,10 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.reverse.foreach(k => exec.submit(() => k(r)))
+    if (joiners ne null) joiners.reverse.foreach(k => exec.submit(() => k(io)))
   }
 
-  private def interruptJoiner(joiner: Callback[E, A]): Canceler = IO.sync {
+  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.sync {
     var retry = true
 
     while (retry) {
@@ -187,8 +190,8 @@ object Promise {
     } yield b
 
   private[zio] object internal {
-    sealed abstract class State[E, A]                             extends Serializable with Product
-    final case class Pending[E, A](joiners: List[Callback[E, A]]) extends State[E, A]
-    final case class Done[E, A](value: ExitResult[E, A])          extends State[E, A]
+    sealed abstract class State[E, A]                               extends Serializable with Product
+    final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
+    final case class Done[E, A](value: ExitResult[E, A])            extends State[E, A]
   }
 }
