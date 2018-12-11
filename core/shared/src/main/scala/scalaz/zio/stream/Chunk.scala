@@ -393,13 +393,14 @@ sealed trait Chunk[@specialized +A] { self =>
     var i                      = 0
 
     while (i < len) {
-      array = array.seqWith(f(self.apply(i))) { (array, b) =>
+      val j = i
+      array = array.seqWith(f(self(j))) { (array, b) =>
         val array2 = if (array == null) {
           implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
           Array.ofDim[B](len)
         } else array
 
-        array2(i) = b
+        array2(j) = b
         array2
       }
 
@@ -422,7 +423,8 @@ sealed trait Chunk[@specialized +A] { self =>
     var i            = 0
 
     while (i < len) {
-      io = io *> f(self(i))
+      val a = self(i)
+      io = io *> f(a)
       i += 1
     }
 
