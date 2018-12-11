@@ -798,7 +798,7 @@ object IO extends Serializable {
     override def tag = Tags.SyncEffect
   }
 
-  final class AsyncEffect[E, A] private[IO] (val register: (Callback[E, A]) => Async[E, A]) extends IO[E, A] {
+  final class AsyncEffect[E, A] private[IO] (val register: (IO[E, A] => Unit) => Async[E, A]) extends IO[E, A] {
     override def tag = Tags.AsyncEffect
   }
 
@@ -1021,9 +1021,9 @@ object IO extends Serializable {
    * }}}
    */
   final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
-    IO.async { cb: Callback[Nothing, Unit] =>
+    IO.async { (k: IO[Nothing, Unit] => Unit) =>
       ec.execute(new Runnable {
-        override def run(): Unit = cb(ExitResult.succeeded(()))
+        override def run(): Unit = k(IO.unit)
       })
     }
 
@@ -1049,8 +1049,8 @@ object IO extends Serializable {
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
    * the more expressive variant of this function.
    */
-  final def async[E, A](register: (Callback[E, A]) => Unit): IO[E, A] =
-    new AsyncEffect((callback: Callback[E, A]) => {
+  final def async[E, A](register: (IO[E, A] => Unit) => Unit): IO[E, A] =
+    new AsyncEffect((callback: IO[E, A] => Unit) => {
       register(callback)
 
       Async.later
@@ -1060,13 +1060,13 @@ object IO extends Serializable {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (Callback[E, A]) => IO[Nothing, Unit]): IO[E, A] =
+  final def asyncPure[E, A](register: (IO[E, A] => Unit) => IO[Nothing, Unit]): IO[E, A] =
     for {
       p   <- Promise.make[E, A]
       ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
       a <- (for {
             _ <- IO
-                  .flatten(IO.sync0(env => register(p.unsafeDone(_, env.defaultExecutor))))
+                  .flatten(IO.sync0(env => register(io => env.unsafeRunAsync_(io.to(p)))))
                   .fork
                   .peek(ref.set(_))
                   .uninterruptibly
@@ -1082,7 +1082,7 @@ object IO extends Serializable {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def async0[E, A](register: (Callback[E, A]) => Async[E, A]): IO[E, A] = new AsyncEffect(register)
+  final def async0[E, A](register: (IO[E, A] => Unit) => Async[E, A]): IO[E, A] = new AsyncEffect(register)
 
   /**
    * Returns a action that will never produce anything. The moral

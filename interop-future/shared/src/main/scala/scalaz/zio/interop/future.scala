@@ -1,6 +1,5 @@
 package scalaz.zio.interop
-import scalaz.zio.{ Callback, ExitResult, Fiber, IO }
-import scalaz.zio.internal.Executor
+import scalaz.zio.{ ExitResult, Fiber, IO }
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
@@ -10,10 +9,10 @@ object future {
   implicit class IOObjOps(private val ioObj: IO.type) extends AnyVal {
     private def unsafeFutureToIO[A](f: Future[A], ec: ExecutionContext): IO[Throwable, A] =
       f.value.fold(
-        IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
+        IO.async { (cb: IO[Throwable, A] => Unit) =>
           f.onComplete {
-            case Success(a) => cb(ExitResult.succeeded(a))
-            case Failure(t) => cb(ExitResult.checked(t))
+            case Success(a) => cb(IO.now(a))
+            case Failure(t) => cb(IO.fail(t))
           }(ec)
         }
       )(IO.fromTry(_))
@@ -24,13 +23,11 @@ object future {
       }
 
     def fromFutureAction[A](ftr: ExecutionContext => Future[A]): IO[Throwable, A] =
-      IO.flatten {
-        IO.sync0 { env =>
-          val ec = env.executor(Executor.Yielding).asEC
-
-          unsafeFutureToIO(ftr(ec), ec)
-        }
-      }
+      for {
+        d  <- IO.descriptor
+        ec = d.executor.asEC
+        a  <- unsafeFutureToIO(ftr(ec), ec)
+      } yield a
   }
 
   implicit class FiberObjOps(private val fiberObj: Fiber.type) extends AnyVal {
@@ -40,10 +37,10 @@ object future {
         def observe: IO[Nothing, ExitResult[Throwable, A]] =
           IO.suspend {
             ftr.value.fold(
-              IO.async { cb: Callback[Nothing, ExitResult[Throwable, A]] =>
+              IO.async { (cb: IO[Nothing, ExitResult[Throwable, A]] => Unit) =>
                 ftr.onComplete {
-                  case Success(a) => cb(ExitResult.succeeded(ExitResult.succeeded(a)))
-                  case Failure(t) => cb(ExitResult.succeeded(ExitResult.checked(t)))
+                  case Success(a) => cb(IO.now(ExitResult.succeeded(a)))
+                  case Failure(t) => cb(IO.now(ExitResult.checked(t)))
                 }(ec)
               }
             )(t => IO.point(ExitResult.fromTry(t)))

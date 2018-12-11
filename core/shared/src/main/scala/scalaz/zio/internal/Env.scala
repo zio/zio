@@ -57,6 +57,7 @@ trait Env {
   }
 
   /**
+   * Runs the `io` asynchronously.
    */
   final def unsafeRunAsync[E, A](
     io: IO[E, A],
@@ -66,6 +67,15 @@ trait Env {
 
     context.evaluateNow(io)
     context.runAsync(k)
+  }
+
+  /**
+   * Runs the `io` asynchronously, ignoring the results.
+   */
+  final def unsafeRunAsync_[E, A](io: IO[E, A]): Unit = {
+    val context = newFiberContext[E, A](reportFailure(_))
+
+    val _ = context.evaluateNow(io)
   }
 
   /**

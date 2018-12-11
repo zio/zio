@@ -483,23 +483,23 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafeRun(
       (0 until 1000)
-        .foldLeft(IO.async[Int, Int](k => k(ExitResult.succeeded(42))))((acc, _) => IO.absolve(acc.attempt))
+        .foldLeft(IO.async[Int, Int](k => k(IO.now(42))))((acc, _) => IO.absolve(acc.attempt))
     ) must_=== 42
 
   def testAsyncEffectReturns =
-    unsafeRun(IO.async[Throwable, Int](cb => cb(ExitResult.succeeded(42)))) must_=== 42
+    unsafeRun(IO.async[Throwable, Int](k => k(IO.now(42)))) must_=== 42
 
   def testAsyncIOEffectReturns =
-    unsafeRun(IO.asyncPure[Throwable, Int](cb => IO.sync(cb(ExitResult.succeeded(42))))) must_=== 42
+    unsafeRun(IO.asyncPure[Throwable, Int](k => IO.sync(k(IO.now(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
     def stackIOs(count: Int): IO[Nothing, Int] =
-      if (count <= 0) IO.done(ExitResult.succeeded(42))
+      if (count <= 0) IO.now(42)
       else asyncIO(stackIOs(count - 1))
 
     def asyncIO(cont: IO[Nothing, Int]): IO[Nothing, Int] =
-      IO.asyncPure[Nothing, Int] { cb =>
-        IO.sleep(5.millis) *> cont *> IO.sync(cb(ExitResult.succeeded(42)))
+      IO.asyncPure[Nothing, Int] { k =>
+        IO.sleep(5.millis) *> cont *> IO.sync(k(IO.now(42)))
       }
 
     val procNum = Runtime.getRuntime.availableProcessors()
@@ -526,7 +526,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testShallowBindOfAsyncChainIsCorrect = {
     val result = (0 until 10).foldLeft[IO[Throwable, Int]](IO.point[Int](0)) { (acc, _) =>
-      acc.flatMap(n => IO.async[Throwable, Int](_(ExitResult.succeeded[Int](n + 1))))
+      acc.flatMap(n => IO.async[Throwable, Int](_(IO.now(n + 1))))
     }
 
     unsafeRun(result) must_=== 10
@@ -729,10 +729,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         latch.success(()); Async.maybeLater(release.complete(42).void)
       }
       fiber <- async.fork
-      _ <- IO.async[Throwable, Unit] { cb =>
+      _ <- IO.async[Throwable, Unit] { k =>
             latch.future.onComplete {
-              case Success(a) => cb(ExitResult.succeeded(a))
-              case Failure(t) => cb(ExitResult.checked(t))
+              case Success(a) => k(IO.now(a))
+              case Failure(t) => k(IO.fail(t))
             }(scala.concurrent.ExecutionContext.global)
           }
       _      <- fiber.interrupt
@@ -852,7 +852,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(for {
       s      <- Semaphore(0L)
       effect <- Promise.make[Nothing, Int]
-      winner = s.acquire *> IO.async[Throwable, Unit](_(ExitResult.succeeded(())))
+      winner = s.acquire *> IO.async[Throwable, Unit](_(IO.unit))
       loser  = IO.bracket(s.release)(_ => effect.complete(42).void)(_ => IO.never)
       race   = winner raceBoth loser
       _      <- race.attempt
@@ -913,8 +913,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
     (0 until 10000).foreach { _ =>
       rts.unsafeRun {
-        IO.async[Nothing, Int] { cb =>
-          val c: Callable[Unit] = () => cb(ExitResult.succeeded(1))
+        IO.async[Nothing, Int] { k =>
+          val c: Callable[Unit] = () => k(IO.now(1))
           val _                 = e.submit(c)
         }
       }
@@ -958,7 +958,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val InterruptCause3 = new Exception("Oh noes 3!")
 
   def asyncExampleError[A]: IO[Throwable, A] =
-    IO.async[Throwable, A](_(ExitResult.checked(ExampleError)))
+    IO.async[Throwable, A](_(IO.fail(ExampleError)))
 
   def sum(n: Int): Int =
     if (n <= 0) 0
@@ -1013,7 +1013,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         v2 <- f2.join
       } yield v1 + v2
 
-  def AsyncUnit[E] = IO.async[E, Unit](_(ExitResult.succeeded(())))
+  def AsyncUnit[E] = IO.async[E, Unit](_(IO.unit))
 
   def testMergeAll =
     unsafeRun(

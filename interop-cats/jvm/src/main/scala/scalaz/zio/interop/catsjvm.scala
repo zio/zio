@@ -64,15 +64,12 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     Concurrent.liftIO(ioa)(this)
 
   override def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
-    IO.async0 { kk: Callback[Throwable, A] =>
+    IO.async0 { (kk: IO[Throwable, A] => Unit) =>
       val token: effect.CancelToken[Task] = {
-        k(e => kk(eitherToExitResult(e)))
+        k(e => kk(eitherToIO(e)))
       }
 
-      val token0: Async[Nothing, A] = Async.maybeLater {
-        token.catchAll(IO.terminate)
-      }
-      token0
+      Async.maybeLater(token.orTerminate)
     }
 
   override def race[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
@@ -103,9 +100,9 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       case _        => e.toEither
     }, Right(_))
 
-  @inline final protected def eitherToExitResult[A]: Either[Throwable, A] => ExitResult[Throwable, A] = {
-    case Left(t)  => ExitResult.checked(t)
-    case Right(r) => ExitResult.succeeded(r)
+  @inline final protected def eitherToIO[A]: Either[Throwable, A] => IO[Throwable, A] = {
+    case Left(t)  => IO.fail(t)
+    case Right(r) => IO.now(r)
   }
 
   @inline final protected def exitResultToExitCase[A]: ExitResult[Throwable, A] => ExitCase[Throwable] = {
@@ -131,13 +128,13 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     }
 
   override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
-    IO.async { kk: Callback[Throwable, A] =>
-      k(eitherToExitResult andThen kk)
+    IO.async { (kk: IO[Throwable, A] => Unit) =>
+      k(eitherToIO andThen kk)
     }
 
   override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    IO.asyncPure { kk: Callback[Throwable, A] =>
-      k(eitherToExitResult andThen kk).catchAll(IO.terminate)
+    IO.asyncPure { (kk: IO[Throwable, A] => Unit) =>
+      k(eitherToIO andThen kk).orTerminate
     }
 
   override def suspend[A](thunk: => Task[A]): Task[A] =
@@ -155,21 +152,21 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(
     release: A => Task[Unit]
   ): Task[B] =
-    IO.bracket(acquire)(release(_).catchAll(IO.terminate))(use)
+    IO.bracket(acquire)(release(_).orTerminate)(use)
 
   override def bracketCase[A, B](
     acquire: Task[A]
   )(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     IO.bracket0[Throwable, A, B](acquire) { (a, exitResult) =>
       val exitCase = exitResultToExitCase(exitResult)
-      release(a, exitCase).catchAll(IO.terminate)
+      release(a, exitCase).orTerminate
     }(use)
 
   override def uncancelable[A](fa: Task[A]): Task[A] =
     fa.uninterruptibly
 
   override def guarantee[A](fa: Task[A])(finalizer: Task[Unit]): Task[A] =
-    fa.ensuring(finalizer.catchAll(IO.terminate))
+    fa.ensuring(finalizer.orTerminate)
 }
 
 private class CatsMonad[E] extends Monad[IO[E, ?]] {
