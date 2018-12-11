@@ -1,5 +1,6 @@
 package scalaz.zio.duration
 
+import java.time.{ Duration => JavaDuration }
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 import scala.math.Ordered
@@ -19,6 +20,12 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
     case f: Duration.Finite => finite(f)
   }
 
+  final def asScala: ScalaDuration =
+    fold(ScalaDuration.Inf, d => ScalaFiniteDuration(d.toNanos, TimeUnit.NANOSECONDS))
+
+  /* The `java.time.Duration` returned for an infinite Duration is technically "only" ~2x10^16 hours long (Long.MaxValue number of seconds) */
+  final def asJava: JavaDuration =
+    fold(JavaDuration.ofSeconds(Long.MaxValue), d => JavaDuration.ofNanos(d.toNanos))
 }
 
 final object Duration {
@@ -70,7 +77,7 @@ final object Duration {
 
   final def fromNanos(nanos: Long): Duration = Finite(nanos)
 
-  final def fromScalaDuration(duration: ScalaDuration): Duration = duration match {
+  final def fromScala(duration: ScalaDuration): Duration = duration match {
     case d: ScalaFiniteDuration => fromNanos(d.toNanos)
     case _                      => Infinity
   }
