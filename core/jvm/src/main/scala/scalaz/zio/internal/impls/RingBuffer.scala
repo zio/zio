@@ -79,12 +79,15 @@ object RingBuffer {
  * guarantees. In practice it's usually not a problem, since benefits
  * are simplicity, zero GC pressure and speed.
  *
- * The real capacity of the queue is the next power of 2 of the
- * `desiredCapacity`. The reason is `head % N` and `tail % N` are
- * rather cheap when can be done as a simple mask (N is pow 2), and
- * pretty expensive when involve an `idiv` instruction. The queue can
- * be made to work with arbitrary sizes but the user will have to
- * suffer ~20% performance loss.
+ * There are 2 implementations of a RingBuffer:
+ * 1. `RingBufferArb` that supports queues with arbitrary capacity;
+ * 2. `RingBufferPow2` that supports queues with only power of 2
+ *     capacities.
+ *
+ * The reason is `head % N` and `tail % N` are rather cheap when can
+ * be done as a simple mask (N is pow 2), and pretty expensive when
+ * involve an `idiv` instruction. The difference is especially
+ * pronounced in tight loops (see. RoundtripBenchmark).
  *
  * To ensure good performance reads/writes to `head` and `tail`
  * fields need to be independant, e.g. they shouldn't fall on the
@@ -125,9 +128,7 @@ object RingBuffer {
  * a way yet). This translates into worse performance on average, and
  * better performance in some very specific situations.
  */
-abstract class RingBuffer[A](override final val capacity: Int)
-    extends MutableQueueFieldsPadding[A]
-    with Serializable {
+abstract class RingBuffer[A](override final val capacity: Int) extends MutableQueueFieldsPadding[A] with Serializable {
   private val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
   private val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
