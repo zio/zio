@@ -8,8 +8,6 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
 import scalaz.zio.interop.catz._
 
-import scala.concurrent.duration._
-
 class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
   def is = s2"""
@@ -23,9 +21,15 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
     work when fiber is interrupted           ${bracketInterrupt}
   """
 
-  def simpleJoin(ints: => List[Int]) = upTo(2.seconds) {
-    ints must_=== List(1, 1)
+  def simpleJoin(ints: => List[Int]) = {
+    import scala.concurrent.duration._
+
+    upTo(2.seconds) {
+      ints must_=== List(1, 1)
+    }
   }
+
+  import scalaz.zio.duration._
 
   def fIsCats = testCaseJoin[cats.effect.IO].unsafeRunSync()
 
@@ -50,7 +54,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         _ <- started.get
         _ <- fail.complete(())
         _ <- released.get
-      } yield ()).timeout(2.seconds)
+      } yield ()).timeout(10.seconds)
     } must beSome(())
 
   def bracketTerminate =
@@ -71,7 +75,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         _ <- started.get
         _ <- terminate.complete(())
         _ <- released.get
-      } yield ()).timeout(2.seconds)
+      } yield ()).timeout(10.seconds)
     } must beSome(())
 
   def bracketInterrupt =
@@ -89,7 +93,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         _ <- started.get
         _ <- f.interrupt
         _ <- released.get
-      } yield ()).timeout(2.seconds)
+      } yield ()).timeout(10.seconds)
     } must beSome(())
 
   def testCaseJoin[F[_]: Effect]: F[List[Int]] = {

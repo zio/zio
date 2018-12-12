@@ -436,7 +436,7 @@ trait Stream[+E, +A] { self =>
    */
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[Nothing, Queue[Take[E1, A1]]] =
     for {
-      queue    <- Managed.liftIO(Queue.bounded[Take[E1, A1]](capacity))
+      queue    <- Managed(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
       offerVal = (a: A) => queue.offer(Take.Value(a)).void
       offerErr = (e: E) => queue.offer(Take.Fail(e))
       enqueuer = (self.foreach[E](offerVal).catchAll(offerErr) *> queue.offer(Take.End)).fork
@@ -547,32 +547,7 @@ object Stream {
   /**
    * Constructs a pure stream from the specified `Iterable`.
    */
-  final def fromIterable[A](it: Iterable[A]): Stream[Nothing, A] = new StreamPure[A] {
-    override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] = {
-      val iterator = it.iterator
-
-      def loop(s: S): IO[E, S] =
-        IO.flatten {
-          IO.sync {
-            if (iterator.hasNext && cont(s))
-              f(s, iterator.next).flatMap(loop)
-            else IO.now(s)
-          }
-        }
-
-      loop(s)
-    }
-
-    override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = {
-      val iterator = it.iterator
-
-      def loop(s: S): S =
-        if (iterator.hasNext && cont(s)) loop(f(s, iterator.next))
-        else s
-
-      loop(s)
-    }
-  }
+  final def fromIterable[A](it: Iterable[A]): Stream[Nothing, A] = StreamPure.fromIterable(it)
 
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
     new StreamPure[A] {
@@ -586,25 +561,12 @@ object Stream {
   /**
    * Returns the empty stream.
    */
-  final val empty: Stream[Nothing, Nothing] = new StreamPure[Nothing] {
-    override def foldLazy[E >: Nothing, A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      IO.now(s)
-
-    override def foldPureLazy[A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = s
-  }
+  final val empty: Stream[Nothing, Nothing] = StreamPure.empty
 
   /**
    * Constructs a singleton stream.
    */
-  final def point[A](a: => A): Stream[Nothing, A] = new StreamPure[A] {
-    override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      if (cont(s)) f(s, a)
-      else IO.now(s)
-
-    override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
-      if (cont(s)) f(s, a)
-      else s
-  }
+  final def point[A](a: => A): Stream[Nothing, A] = StreamPure.point(a)
 
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
@@ -655,7 +617,7 @@ object Stream {
    * Constructs an infinite stream from a `Queue`.
    */
   final def fromQueue[A](queue: Queue[A]): Stream[Nothing, A] =
-    unfoldM(())(_ => queue.take.map(a => Some((a, ()))))
+    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.now(None))
 
   /**
    * Constructs a stream from effectful state. This method should not be used
