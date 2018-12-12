@@ -41,7 +41,7 @@ class RingBufferMethodDispatchBenchmark {
 
   @Benchmark
   @Group("OnlyPow2")
-  @GroupThreads(4)
+  @GroupThreads(1)
   def onlyPow2Pow2(): Int = {
     doOffer(q1, batchSize)
     doPoll(q1)
@@ -49,7 +49,7 @@ class RingBufferMethodDispatchBenchmark {
 
   @Benchmark
   @Group("Pow2Unbounded")
-  @GroupThreads(3)
+  @GroupThreads(1)
   def puPow2(): Int = {
     doOffer(q1, batchSize)
     doPoll(q1)
@@ -65,7 +65,7 @@ class RingBufferMethodDispatchBenchmark {
 
   @Benchmark
   @Group("All")
-  @GroupThreads(2)
+  @GroupThreads(1)
   def allPow2(): Int = {
     doOffer(q1, batchSize)
     doPoll(q1)
