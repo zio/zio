@@ -69,7 +69,7 @@ trait Env {
   }
 
   /**
-   * Shuts down executors. You can try calling other method after this
+   * Shuts down executors. You can try calling others method after this
    * one, but I predict you're going to be disappointed.
    */ 
   final def shutdown(): Unit = {
