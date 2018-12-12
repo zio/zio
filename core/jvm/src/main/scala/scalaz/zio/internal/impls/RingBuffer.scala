@@ -133,10 +133,12 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
   private val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
 
-  private final val STATE_LOOP     = 0
-  private final val STATE_EMPTY    = -1
-  private final val STATE_FULL     = -2
-  private final val STATE_RESERVED = 1
+  private[this] final val STATE_LOOP     = 0
+  private[this] final val STATE_EMPTY    = -1
+  private[this] final val STATE_FULL     = -2
+  private[this] final val STATE_RESERVED = 1
+
+  protected def posToIdx(pos: Long, capacity: Int): Int
 
   override final def size(): Int = (tailUpdater.get(this) - headUpdater.get(this)).toInt
 
@@ -148,7 +150,6 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
-    // val aMask     = idxMask
 
     val aSeq   = seq
     var curSeq = 0L
@@ -226,7 +227,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
-    // val aMask     = idxMask
+
     val aBuf = buf
 
     val aSeq   = seq
@@ -315,15 +316,4 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
   override final def isEmpty(): Boolean = tailUpdater.get(this) == headUpdater.get(this)
 
   override final def isFull(): Boolean = tailUpdater.get(this) == headUpdater.get(this) + capacity
-
-  protected def posToIdx(pos: Long, capacity: Int): Int //= (pos & mask).toInt
-
-  /*
-   * Used only once during queue creation. Doesn't need to be
-   * performant or anything.
-   */
-  // private def nextPow2(n: Int): Int = {
-  //   val nextPow = (Math.log(n.toDouble) / Math.log(2.0)).ceil.toInt
-  //   Math.pow(2.0, nextPow.toDouble).toInt.max(2)
-  // }
 }
