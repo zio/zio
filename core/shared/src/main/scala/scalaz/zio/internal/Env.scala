@@ -69,6 +69,16 @@ trait Env {
   }
 
   /**
+   * Shuts down executors. You can try calling other method after this
+   * one, but I predict you're going to be disappointed.
+   */ 
+  final def shutdown(): Unit = {
+    executor(Executor.Yielding).shutdown()
+    executor(Executor.Unyielding).shutdown()
+    scheduler.shutdown()
+  }
+
+  /**
    * Helper function to create a new fiber context.
    */
   private[internal] final def newFiberContext[E, A](unhandled: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] =
