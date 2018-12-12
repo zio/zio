@@ -10,10 +10,7 @@ object RingBuffer {
  * See [[scalaz.zio.internal.impls.RingBuffer]] for details
  * on design, tradeoffs, etc.
  */
-class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] {
-  final val capacity: Int         = nextPow2(desiredCapacity)
-  private[this] val idxMask: Long = (capacity - 1).toLong
-
+class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQueue[A] {
   private[this] val buf: Array[AnyRef] = new Array[AnyRef](capacity)
   private[this] val seq: Array[Long]   = 0.until(capacity).map(_.toLong).toArray
 
@@ -39,7 +36,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
     var state   = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      curIdx = posToIdx(curTail, idxMask)
+      curIdx = posToIdx(curTail, capacity)
       curSeq = seq(curIdx)
 
       if (curSeq < curTail) {
@@ -98,7 +95,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
     var state   = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      curIdx = posToIdx(curHead, idxMask)
+      curIdx = posToIdx(curHead, capacity)
       curSeq = seq(curIdx)
 
       if (curSeq <= curHead) {
@@ -169,14 +166,5 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableConcurrentQueue[A] 
 
   override final def isFull(): Boolean = tail == head + capacity
 
-  private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
-
-  /*
-   * Used only once during queue creation. Doesn't need to be
-   * performant or anything.
-   */
-  private def nextPow2(n: Int): Int = {
-    val nextPow = (Math.log(n.toDouble) / Math.log(2.0)).ceil.toInt
-    Math.pow(2.0, nextPow.toDouble).toInt.max(2)
-  }
+  private def posToIdx(pos: Long, capacity: Int): Int = (pos % capacity.toLong).toInt
 }
