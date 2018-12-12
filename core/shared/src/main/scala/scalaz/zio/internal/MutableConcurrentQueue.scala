@@ -1,8 +1,10 @@
 package scalaz.zio.internal
 
 object MutableConcurrentQueue {
-  def bounded[A](desiredCapacity: Int): MutableConcurrentQueue[A] = new impls.RingBuffer[A](desiredCapacity)
-  def unbounded[A]: MutableConcurrentQueue[A]                     = new impls.LinkedQueue[A]
+  import scalaz.zio.internal.impls._
+
+  def bounded[A](desiredCapacity: Int): MutableConcurrentQueue[A] = RingBuffer.build[A](desiredCapacity)
+  def unbounded[A]: MutableConcurrentQueue[A]                     = new LinkedQueue[A]
 }
 
 /**

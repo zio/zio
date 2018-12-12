@@ -2,6 +2,10 @@ package scalaz.zio.internal.impls
 
 import scalaz.zio.internal.MutableConcurrentQueue
 
+object RingBuffer {
+  def build[A](requiredCapacity: Int): MutableConcurrentQueue[A] = new RingBuffer(requiredCapacity)
+}
+
 /**
  * See [[scalaz.zio.internal.impls.RingBuffer]] for details
  * on design, tradeoffs, etc.
