@@ -9,15 +9,15 @@ import org.specs2.Specification
 class RingBufferSpec extends Specification {
   def is =
     "RingBufferSpec".title ^ s2"""
-    Make a bounded MutableConcurrentQueue of size 1
-     returns a queue of size 2 which is the next power of 2. $e1
+    Make a bounded MutableConcurrentQueue of size 3
+     returns a queue of size 3. $e1
      `offer` of 2 items succeeds, further offers fail. $e2
      `poll` of 2 items from full queue succeeds, further `poll`s return default value. $e3
     """
 
   def e1 = {
-    val q = MutableConcurrentQueue.bounded(1)
-    q.capacity must_=== 2
+    val q = MutableConcurrentQueue.bounded(3)
+    q.capacity must_=== 3
   }
 
   def e2 = {
