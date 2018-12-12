@@ -1,8 +1,9 @@
 package scalaz.zio
 
 import scala.collection.immutable.Range
-import scala.concurrent.duration._
 import org.specs2.specification.AroundTimeout
+import scalaz.zio.QueueSpec.waitForSize
+import scalaz.zio.duration._
 
 class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
 
@@ -794,6 +795,11 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     } yield oa must beTrue
   )
 
-  private def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
+}
+
+object QueueSpec {
+
+  def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
     (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != size))
+
 }

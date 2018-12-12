@@ -2,10 +2,11 @@
 package scalaz.zio
 
 import scalaz.zio.ExitResult.Cause
+import scalaz.zio.duration._
+import scalaz.zio.internal.{ Env, Executor }
 
-import scala.annotation.switch
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
+import scala.annotation.switch
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -219,14 +220,27 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * otherwise executes the specified action.
    */
   final def <>[E2, A1 >: A](that: => IO[E2, A1]): IO[E2, A1] =
-    self.redeem(_ => that, IO.now)
+    redeemOrElse(that, IO.now)
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
   final def <||>[E2, B](that: => IO[E2, B]): IO[E2, Either[A, B]] =
-    self.redeem(_ => that.map(Right(_)), IO.nowLeft)
+    redeemOrElse(that.map(Right(_)), IO.nowLeft)
+
+  private final def redeemOrElse[E2, B](that: => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] = {
+    val err = (cause: Cause[E]) =>
+      if (cause.interrupted || cause.isChecked) that else IO.fail0(cause.asInstanceOf[Cause[Nothing]])
+
+    (self.tag: @switch) match {
+      case IO.Tags.Fail =>
+        val io = self.asInstanceOf[IO.Fail[E]]
+        err(io.cause)
+
+      case _ => new IO.Redeem(self, err, succ, recoverFromInterruption = true)
+    }
+  }
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
@@ -256,7 +270,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     redeem0((cause: Cause[E]) => cause.checkedOrRefail.fold(err, IO.fail0), succ)
 
   /**
-   * A more powerful version of redeem that allows recovering from any kind of failure.
+   * A more powerful version of redeem that allows recovering from any kind of failure except interruptions.
    */
   final def redeem0[E2, B](err: Cause[E] => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
@@ -269,10 +283,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
   /**
    * Less powerful version of `redeem` which always returns a successful
-   * `IO[E2, B]` after applying one of the given mapping functions depending
-   * on the result of `this` `IO`
+   * `IO[Nothing, B]` after applying one of the given mapping functions depending
+   * on the result of this `IO`
    */
-  final def redeemPure[E2, B](err: E => B, succ: A => B): IO[E2, B] =
+  final def redeemPure[B](err: E => B, succ: A => B): IO[Nothing, B] =
     redeem(err.andThen(IO.now), succ.andThen(IO.now))
 
   /**
@@ -449,6 +463,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
     self.redeem[E1, A1](tryRescue, IO.now)
   }
+
+  /**
+   * Translates the checked error (if present) into termination.
+   */
+  final def orTerminate[E1 >: E](implicit ev: E1 =:= Throwable): IO[Nothing, A] =
+    self.leftMap(ev).catchAll(IO.terminate)
 
   /**
    * Maps this action to the specified constant while preserving the
@@ -646,6 +666,19 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.sleep(duration) *> self
 
   /**
+   * Locks the execution of this action to the specified executor.
+   */
+  final def lock(executor: Executor): IO[E, A] =
+    IO.lock(executor)(self)
+
+  /**
+   * Marks this action as unyielding to the runtime system for better
+   * scheduling.
+   */
+  final def unyielding: IO[E, A] =
+    IO.unyielding(self)
+
+  /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
@@ -759,6 +792,8 @@ object IO extends Serializable {
     final val Supervise       = 10
     final val Ensuring        = 11
     final val Descriptor      = 12
+    final val Lock            = 13
+    final val Yield           = 14
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -772,7 +807,7 @@ object IO extends Serializable {
     override def tag = Tags.Strict
   }
 
-  final class SyncEffect[A] private[IO] (val effect: ExecutionContext => A) extends IO[Nothing, A] {
+  final class SyncEffect[A] private[IO] (val effect: Env => A) extends IO[Nothing, A] {
     override def tag = Tags.SyncEffect
   }
 
@@ -783,7 +818,8 @@ object IO extends Serializable {
   final class Redeem[E, E2, A, B] private[IO] (
     val value: IO[E, A],
     val err: Cause[E] => IO[E2, B],
-    val succ: A => IO[E2, B]
+    val succ: A => IO[E2, B],
+    val recoverFromInterruption: Boolean = false
   ) extends IO[E2, B]
       with Function[A, IO[E2, B]] {
 
@@ -820,8 +856,16 @@ object IO extends Serializable {
     override def tag = Tags.Ensuring
   }
 
-  final class Descriptor private[IO] extends IO[Nothing, Fiber.Descriptor] {
+  final object Descriptor extends IO[Nothing, Fiber.Descriptor] {
     override def tag = Tags.Descriptor
+  }
+
+  final class Lock[E, A] private[IO] (val executor: Executor, val io: IO[E, A]) extends IO[E, A] {
+    override def tag = Tags.Lock
+  }
+
+  final object Yield extends IO[Nothing, Unit] {
+    override def tag = Tags.Yield
   }
 
   /**
@@ -889,17 +933,17 @@ object IO extends Serializable {
     IO.flatten(IO.sync(io))
 
   /**
-   * Interrupts the fiber executing this action, running all finalizers.
+   * Returns an `IO` that is interrupted.
    */
   final def interrupt: IO[Nothing, Nothing] = fail0(Cause.interrupted)
 
   /**
-   * Terminates the fiber executing this action with the specified error, running all finalizers.
+   * Returns an `IO` that terminates with the specified `Throwable`.
    */
   final def terminate(t: Throwable): IO[Nothing, Nothing] = fail0(Cause.unchecked(t))
 
   /**
-   * Terminates the fiber executing this action with the specified cause, running all finalizers.
+   * Returns an `IO` that fails with the specified `Cause`.
    */
   final def fail0[E](cause: Cause[E]): IO[E, Nothing] = new Fail(cause)
 
@@ -910,7 +954,7 @@ object IO extends Serializable {
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def sync[A](effect: => A): IO[Nothing, A] = syncSubmit(_ => effect)
+  final def sync[A](effect: => A): IO[Nothing, A] = sync0(_ => effect)
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -920,7 +964,7 @@ object IO extends Serializable {
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def syncSubmit[A](effect: ExecutionContext => A): IO[Nothing, A] = new SyncEffect[A](effect)
+  final def sync0[A](effect: Env => A): IO[Nothing, A] = new SyncEffect[A](effect)
 
   /**
    *
@@ -998,6 +1042,24 @@ object IO extends Serializable {
     }
 
   /**
+   * Locks the `io` to the specified executor.
+   */
+  final def lock[E, A](executor: Executor)(io: IO[E, A]): IO[E, A] =
+    new Lock(executor, io)
+
+  /**
+   * A combinator that allows you to identify long-running `IO` values to the
+   * runtime system for improved scheduling.
+   */
+  final def unyielding[E, A](io: IO[E, A]): IO[E, A] =
+    IO.flatten(sync0(env => lock(env.executor(Executor.Unyielding))(io)))
+
+  /**
+   * Yields to the runtime system, starting on a fresh stack.
+   */
+  final def yieldNow: IO[Nothing, Unit] = Yield
+
+  /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
    * the more expressive variant of this function.
    */
@@ -1014,11 +1076,14 @@ object IO extends Serializable {
    */
   final def asyncPure[E, A](register: (Callback[E, A]) => IO[Nothing, Unit]): IO[E, A] =
     for {
-      d   <- descriptor
       p   <- Promise.make[E, A]
       ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
       a <- (for {
-            _ <- register(p.unsafeDone(_, d.executor)).fork.peek(ref.set(_)).uninterruptibly
+            _ <- IO
+                  .flatten(IO.sync0(env => register(p.unsafeDone(_, env.defaultExecutor))))
+                  .fork
+                  .peek(ref.set(_))
+                  .uninterruptibly
             a <- p.get
           } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
     } yield a
@@ -1230,7 +1295,5 @@ object IO extends Serializable {
   /**
    * Returns information about the current fiber, such as its fiber identity.
    */
-  private[zio] final def descriptor: IO[Nothing, Fiber.Descriptor] =
-    new Descriptor
-
+  final def descriptor: IO[Nothing, Fiber.Descriptor] = Descriptor
 }
