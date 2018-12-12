@@ -24,7 +24,7 @@ class PollBenchmark {
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "JucCLQ", "JucBlocking", "NotThreadSafe"))
+  @Param(Array("RingBuffer", "JCTools", "LinkedQueue", "JucBlocking", "NotThreadSafe"))
   var qType: String = _
 
   var q: MutableConcurrentQueue[AnyRef] = _

@@ -23,7 +23,7 @@ class PingPongBenchmark {
   @Param(Array("4"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "JucCLQ", "JucBlocking"))
+  @Param(Array("RingBuffer", "JCTools", "LinkedQueue", "JucBlocking"))
   var qType: String = _
 
   var qIn: MutableConcurrentQueue[AnyRef]  = _
