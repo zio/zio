@@ -4,8 +4,11 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 
-// import BenchUtils._
-
+/*
+ * Main purposes of this set of benchmarks are:
+ * 1. Get a feel for perf when JVM has several subclasses in the profile.
+ * 2. Get profiled assembly.
+ */
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
 @Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
