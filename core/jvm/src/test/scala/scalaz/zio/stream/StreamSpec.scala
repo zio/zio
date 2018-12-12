@@ -14,87 +14,92 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   import ArbitraryChunk._
 
   def is = "StreamSpec".title ^ s2"""
-  PureStream.filter    $filter
-  PureStream.dropWhile $dropWhile
-  PureStream.takeWhile $takeWhile
-  PureStream.mapProp   $map
-  PureStream.mapConcat $mapConcat
-  Stream.scan          $mapAccum
-  Stream.++            $concat
-  Stream.unfold        $unfold
-  Stream.unfoldM       $unfoldM
-  Stream.range         $range
-  Stream.take          $take
-  Stream.zipWithIndex  $zipWithIndex
-  Stream.foreach0      $foreach0
-  Stream.foreach       $foreach
-  Stream.collect       $collect
-  Stream.monadLaw1     $monadLaw1
-  Stream.monadLaw2     $monadLaw2
-  Stream.monadLaw3     $monadLaw3
-  Stream.forever       $forever
-  Stream.joinWith      $joinWith
-  Stream.merge         $merge
-  Stream.mergeEither   $mergeEither
-  Stream.mergeWith     $mergeWith
-  Stream.scanM         $mapAccumM
-  Stream.transduce     $transduce
-  Stream.withEffect    $withEffect
-  Stream.zipWith       $zipWith
-  Stream.fromIterable  $fromIterable
-  Stream.fromChunk     $fromChunk
-  Stream.peel          $peel
+  PureStream.filter         $filter
+  PureStream.dropWhile      $dropWhile
+  PureStream.takeWhile      $takeWhile
+  PureStream.mapProp        $map
+  PureStream.mapConcat      $mapConcat
+  Stream.scan               $mapAccum
+  Stream.++                 $concat
+  Stream.unfold             $unfold
+  Stream.unfoldM            $unfoldM
+  Stream.range              $range
+  Stream.take               $take
+  Stream.zipWithIndex       $zipWithIndex
+  Stream.foreach0           $foreach0
+  Stream.foreach            $foreach
+  Stream.collect            $collect
+  Stream.monadLaw1          $monadLaw1
+  Stream.monadLaw2          $monadLaw2
+  Stream.monadLaw3          $monadLaw3
+  Stream.forever            $forever
+  Stream.joinWith           $joinWith
+
+  Stream merging
+    merge                   $merge
+    mergeEither             $mergeEither
+    mergeWith               $mergeWith
+    mergeWith short circuit $mergeWithShortCircuit
+
+  Stream.scanM              $mapAccumM
+  Stream.transduce          $transduce
+  Stream.withEffect         $withEffect
+  Stream.zipWith            $zipWith
+  Stream.fromIterable       $fromIterable
+  Stream.fromChunk          $fromChunk
+  Stream.peel               $peel
   """
 
   import ArbitraryStream._
   import ExitResult._
 
-  private def slurp[E, A](s: Stream[E, A]): ExitResult[E, List[A]] = s match {
-    case s: StreamPure[A] =>
-      succeeded(s.foldPureLazy(List[A]())(_ => true)((acc, el) => el :: acc).reverse)
-    case s => slurpM(s)
-  }
+  private def slurp[E, A](s: Stream[E, A]): ExitResult[E, List[A]] =
+    slurp0(s)(_ => true)
 
-  private def slurpM[E, A](s: Stream[E, A]): ExitResult[E, List[A]] =
-    unsafeRunSync {
-      s.foldLazy(List[A]())(_ => true)((acc, el) => IO.now(el :: acc)).map(str => str.reverse)
-    }
+  private def slurp0[E, A](s: Stream[E, A])(cont: List[A] => Boolean): ExitResult[E, List[A]] = s match {
+    case s: StreamPure[A] =>
+      succeeded(s.foldPureLazy(List[A]())(cont)((acc, el) => el :: acc).reverse)
+    case s =>
+      unsafeRunSync {
+        s.foldLazy(List[A]())(cont)((acc, el) => IO.now(el :: acc)).map(str => str.reverse)
+      }
+  }
 
   private def filter =
     prop { (s: Stream[String, String], p: String => Boolean) =>
-      slurpM(s.filter(p)) must_=== slurpM(s).map(_.filter(p))
+      slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))
     }
 
   private def dropWhile =
     prop { (s: Stream[String, String], p: String => Boolean) =>
-      slurpM(s.dropWhile(p)) must_=== slurpM(s).map(_.dropWhile(p))
+      slurp(s.dropWhile(p)) must_=== slurp(s).map(_.dropWhile(p))
     }
 
   private def takeWhile =
     prop { (s: Stream[String, String], p: String => Boolean) =>
-      val streamTakeWhile = slurpM(s.takeWhile(p))
-      val listTakeWhile   = slurpM(s).map(_.takeWhile(p))
+      val streamTakeWhile = slurp(s.takeWhile(p))
+      val listTakeWhile   = slurp(s).map(_.takeWhile(p))
       listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
     }
 
   private def map =
     prop { (s: Stream[String, String], f: String => Int) =>
-      slurpM(s.map(f)) must_=== slurpM(s).map(_.map(f))
+      slurp(s.map(f)) must_=== slurp(s).map(_.map(f))
     }
 
   private def concat =
     prop { (s1: Stream[String, String], s2: Stream[String, String]) =>
-      val listConcat = (slurpM(s1) zip slurpM(s2)).map {
+      val listConcat = (slurp(s1) zip slurp(s2)).map {
         case (left, right) => left ++ right
       }
-      val streamConcat = slurpM(s1 ++ s2)
+      val streamConcat = slurp(s1 ++ s2)
       (streamConcat.succeeded && listConcat.succeeded) ==> (streamConcat must_=== listConcat)
     }
 
   private def mapConcat = {
     import ArbitraryChunk._
     prop { (s: Stream[String, String], f: String => Chunk[Int]) =>
-      slurp(s.mapConcat(f)) must_=== slurpM(s).map(_.flatMap(v => f(v).toSeq))
+      slurp(s.mapConcat(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
     }
   }
 
@@ -108,22 +113,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   private def mapAccumM = {
     val stream = Stream(1, 1, 1).mapAccumM(0)((acc, el) => IO.now((acc + el, acc + el)))
-    (slurp(stream) must_=== Succeeded(List(1, 2, 3))) and (slurpM(stream) must_=== Succeeded(List(1, 2, 3)))
+    (slurp(stream) must_=== Succeeded(List(1, 2, 3))) and (slurp(stream) must_=== Succeeded(List(1, 2, 3)))
   }
 
   private def unfold = {
     val s = Stream.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None)
-    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurpM(s) must_=== Succeeded((0 to 9).toList))
+    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurp(s) must_=== Succeeded((0 to 9).toList))
   }
 
   private def unfoldM = {
     val s = Stream.unfoldM(0)(i => if (i < 10) IO.now(Some((i, i + 1))) else IO.now(None))
-    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurpM(s) must_=== Succeeded((0 to 9).toList))
+    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurp(s) must_=== Succeeded((0 to 9).toList))
   }
 
   private def range = {
     val s = Stream.range(0, 9)
-    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurpM(s) must_=== Succeeded((0 to 9).toList))
+    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurp(s) must_=== Succeeded((0 to 9).toList))
   }
 
   private def take =
@@ -166,7 +171,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       case Right(n) => n
     }
 
-    slurp(s) must_=== Succeeded(List(2)) and (slurpM(s) must_=== Succeeded(List(2)))
+    slurp(s) must_=== Succeeded(List(2)) and (slurp(s) must_=== Succeeded(List(2)))
   }
 
   private def monadLaw1 =
@@ -231,12 +236,21 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     slurp(merge).toEither.right.get must containTheSameElementsAs(List("1", "2", "1", "2"))
   }
 
+  private def mergeWithShortCircuit = {
+    val s1 = Stream(1, 2)
+    val s2 = Stream(1, 2)
+
+    val merge = s1.mergeWith(s2)(_.toString, _.toString)
+
+    slurp0(merge)(_ => false).toEither.right.get must_=== List()
+  }
+
   private def transduce = {
     val s          = Stream('1', '2', ',', '3', '4')
     val parser     = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
     val transduced = s.transduce(parser)
 
-    slurpM(transduced) must_=== Succeeded(List(12, 34))
+    slurp(transduced) must_=== Succeeded(List(12, 34))
   }
 
   private def peel = {
@@ -244,7 +258,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val parser = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
     val peeled = s.peel(parser).use {
       case (n, rest) =>
-        IO.now((n, slurpM(rest)))
+        IO.now((n, slurp(rest)))
     }
 
     unsafeRun(peeled) must_=== ((12, Succeeded(List('3', '4'))))
@@ -263,16 +277,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s2     = Stream(1, 2)
     val zipped = s1.zipWith(s2)((a, b) => a.flatMap(a => b.map(a + _)))
 
-    slurpM(zipped) must_=== Succeeded(List(2, 4))
+    slurp(zipped) must_=== Succeeded(List(2, 4))
   }
 
   private def fromIterable = prop { l: List[Int] =>
     val s = Stream.fromIterable(l)
-    slurpM(s) must_=== Succeeded(l) and (slurp(s) must_=== Succeeded(l))
+    slurp(s) must_=== Succeeded(l) and (slurp(s) must_=== Succeeded(l))
   }
 
   private def fromChunk = prop { c: Chunk[Int] =>
     val s = Stream.fromChunk(c)
-    (slurpM(s) must_=== Succeeded(c.toSeq.toList)) and (slurp(s) must_=== Succeeded(c.toSeq.toList))
+    (slurp(s) must_=== Succeeded(c.toSeq.toList)) and (slurp(s) must_=== Succeeded(c.toSeq.toList))
   }
 }
