@@ -23,7 +23,7 @@ class OfferBenchmark {
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "LinkedQueue", "JucBlocking", "NotThreadSafe"))
+  @Param(Array("RingBufferPow2", "JCTools", "LinkedQueue", "JucBlocking", "NotThreadSafe"))
   var qType: String = _
 
   var q: MutableConcurrentQueue[AnyRef] = _

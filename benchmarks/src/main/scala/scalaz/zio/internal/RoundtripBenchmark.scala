@@ -25,7 +25,7 @@ class RoundtripBenchmark {
   @Param(Array("8"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "LinkedQueue", "JucBlocking", "NotThreadSafe"))
+  @Param(Array("RingBufferPow2", "RingBufferArb", "JCTools", "LinkedQueue", "JucBlocking", "NotThreadSafe"))
   var qType: String = _
 
   var q: MutableConcurrentQueue[QueueElement] = _
@@ -36,15 +36,22 @@ class RoundtripBenchmark {
 
   @Benchmark
   def offerAndPoll(): Int = {
-    val bSize = batchSize
+    doOffer(q, batchSize)
+    doPoll(q)
+  }
 
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def doOffer(q: MutableConcurrentQueue[QueueElement], bSize: Int): Unit = {
     var i = 0
     while (i < bSize) {
       q.offer(mkEl())
       i += 1
     }
+  }
 
-    i = 0
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  def doPoll(q: MutableConcurrentQueue[QueueElement]): Int = {
+    var i           = 0
     var result: Int = 0
     while (i < batchSize) {
       val delayed = q.poll(emptyEl)
@@ -53,6 +60,4 @@ class RoundtripBenchmark {
     }
     result
   }
-
-  def doOffer(): Unit = {}
 }

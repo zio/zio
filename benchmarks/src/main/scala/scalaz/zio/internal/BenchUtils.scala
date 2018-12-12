@@ -7,11 +7,12 @@ object BenchUtils {
     tpe: BenchQueueType,
     capacity: Int
   ): MutableConcurrentQueue[A] = tpe match {
-    case RingBufferType    => new RingBuffer(capacity)
-    case LinkedQueueType   => new LinkedQueue
-    case JucBlockingType   => new JucBlockingQueue
-    case JCToolsType       => new JCToolsQueue(capacity)
-    case NotThreadSafeType => new NotThreadSafeQueue(capacity)
+    case RingBufferPow2Type => new RingBufferPow2(capacity)
+    case RingBufferArbType  => new RingBufferArb(capacity)
+    case LinkedQueueType    => new LinkedQueue
+    case JucBlockingType    => new JucBlockingQueue
+    case JCToolsType        => new JCToolsQueue(capacity)
+    case NotThreadSafeType  => new NotThreadSafeQueue(capacity)
   }
 
   def queueByType[A](tpe: String, capacity: Int): MutableConcurrentQueue[A] =
