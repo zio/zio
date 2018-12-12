@@ -26,7 +26,7 @@ class ProducerConsumerBenchmark {
   @Param(Array("65536"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "JucCLQ", "JucBlocking"))
+  @Param(Array("RingBuffer", "JCTools", "LinkedQueue", "JucBlocking"))
   var qType: String = _
 
   var q: MutableConcurrentQueue[QueueElement] = _

@@ -25,7 +25,7 @@ class RoundtripBenchmark {
   @Param(Array("8"))
   var qCapacity: Int = _
 
-  @Param(Array("RingBuffer", "JCTools", "JucCLQ", "JucBlocking", "NotThreadSafe"))
+  @Param(Array("RingBuffer", "JCTools", "LinkedQueue", "JucBlocking", "NotThreadSafe"))
   var qType: String = _
 
   var q: MutableConcurrentQueue[QueueElement] = _
@@ -53,4 +53,6 @@ class RoundtripBenchmark {
     }
     result
   }
+
+  def doOffer(): Unit = {}
 }
