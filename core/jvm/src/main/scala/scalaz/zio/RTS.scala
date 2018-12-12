@@ -1,6 +1,6 @@
 package scalaz.zio
 
-import scalaz.zio.internal.Env
+import scalaz.zio.internal.{ Env, Executor }
 
 trait RTS {
   lazy val env =
@@ -14,4 +14,10 @@ trait RTS {
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit =
     env.unsafeRunAsync(io, k)
+
+  final def shutdown(): Unit = {
+    env.executor(Executor.Yielding).shutdown()
+    env.executor(Executor.Unyielding).shutdown()
+    env.scheduler.shutdown()
+  }
 }
