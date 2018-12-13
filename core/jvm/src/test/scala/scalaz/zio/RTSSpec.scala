@@ -4,17 +4,18 @@ package scalaz.zio
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
-import scala.concurrent.duration._
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.ExitResult.Cause
 import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
+import scalaz.zio.duration._
 
 import scala.util.{ Failure, Success }
 
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
-  def is = s2"""
+  def is = {
+    s2"""
   RTS synchronous correctness
     widen Nothing                           $testWidenNothing
     evaluation of point                     $testPoint
@@ -137,6 +138,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     cancelation is guaranteed               $testCancelationIsGuaranteed
     interruption of unending bracket        $testInterruptionOfUnendingBracket
   """
+  }
 
   def testPoint =
     unsafeRun(IO.point(1)) must_=== 1
@@ -394,14 +396,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       log = makeLogger(ref)
       f <- IO
             .bracket(
-              IO.bracket(IO.unit)(_ => log("start 1") *> IO.sleep(10.milliseconds) *> log("release 1"))(
+              IO.bracket(IO.unit)(_ => log("start 1") *> IO.sleep(10.millis) *> log("release 1"))(
                 _ => IO.unit
               )
-            )(_ => log("start 2") *> IO.sleep(10.milliseconds) *> log("release 2"))(_ => IO.unit)
+            )(_ => log("start 2") *> IO.sleep(10.millis) *> log("release 2"))(_ => IO.unit)
             .fork
-      _ <- (ref.get <* IO.sleep(1.millisecond)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
+      _ <- (ref.get <* IO.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
       _ <- f.interrupt
-      _ <- (ref.get <* IO.sleep(1.millisecond)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
+      _ <- (ref.get <* IO.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
       l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
@@ -522,7 +524,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     } yield a) must_=== (())
 
   def testSleepZeroReturns =
-    unsafeRun(IO.sleep(1.nanoseconds)) must_=== ((): Unit)
+    unsafeRun(IO.sleep(1.nanos)) must_=== ((): Unit)
 
   def testShallowBindOfAsyncChainIsCorrect = {
     val result = (0 until 10).foldLeft[IO[Throwable, Int]](IO.point[Int](0)) { (acc, _) =>
@@ -763,8 +765,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testSupervise = {
     var counter = 0
     unsafeRun((for {
-      _ <- (IO.sleep(200.milliseconds) *> IO.unit).fork
-      _ <- (IO.sleep(400.milliseconds) *> IO.unit).fork
+      _ <- (IO.sleep(200.millis) *> IO.unit).fork
+      _ <- (IO.sleep(400.millis) *> IO.unit).fork
     } yield ()).supervised { fs =>
       fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt *> IO.sync(counter += 1))
     })
@@ -839,12 +841,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24))).attempt) must_=== Right(24)
 
   def testRaceAllOfFailures =
-    unsafeRun(IO.raceAll[Int, Nothing](IO.fail(24).delay(10.milliseconds), List(IO.fail(24))).attempt) must_=== Left(
+    unsafeRun(IO.raceAll[Int, Nothing](IO.fail(24).delay(10.millis), List(IO.fail(24))).attempt) must_=== Left(
       24
     )
 
   def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24).delay(1.milliseconds))).attempt) must_=== Right(
+    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24).delay(1.millis))).attempt) must_=== Right(
       24
     )
 

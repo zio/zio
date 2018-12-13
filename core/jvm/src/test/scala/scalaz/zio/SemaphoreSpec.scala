@@ -3,7 +3,7 @@
 
 package scalaz.zio
 
-import scala.concurrent.duration.DurationLong
+import scalaz.zio.duration._
 
 class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
