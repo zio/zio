@@ -26,6 +26,12 @@ trait Executor {
   def submit(runnable: Runnable): Boolean
 
   /**
+   * Submits a task for execution or throws.
+   */
+  final def submitOrThrow(runnable: Runnable): Unit =
+    if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
+
+  /**
    * Whether or not the caller is being run on this executor.
    */
   def here: Boolean
