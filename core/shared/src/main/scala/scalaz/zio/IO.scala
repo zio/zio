@@ -376,12 +376,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Runs the specified action if this action fails, providing the error to the
    * action if it exists. The provided action will not be interrupted.
    */
-  final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, _]): IO[E, A] =
+  final def onError(cleanup: Cause[E] => IO[Nothing, _]): IO[E, A] =
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
           case ExitResult.Succeeded(_)  => IO.unit
-          case t @ ExitResult.Failed(_) => cleanup(t)
+          case ExitResult.Failed(cause) => cleanup(cause)
         }
     )(_ => self)
 
@@ -740,7 +740,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Keep or break a promise based on the result of this action.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): IO[Nothing, Boolean] =
-    self.run.flatMap(p.done(_))
+    self.run.flatMap(x => p.done(IO.done(x)))
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
@@ -1046,7 +1046,7 @@ object IO extends Serializable {
   final def yieldNow: IO[Nothing, Unit] = Yield
 
   /**
-   * Imports an asynchronous effect into a pure `IO` value. See `async0` for
+   * Imports an asynchronous effect into a pure `IO` value. See `asyncInterrupt` for
    * the more expressive variant of this function.
    */
   final def async[E, A](register: (IO[E, A] => Unit) => Unit): IO[E, A] =
@@ -1082,7 +1082,24 @@ object IO extends Serializable {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def async0[E, A](register: (IO[E, A] => Unit) => Async[E, A]): IO[E, A] = new AsyncEffect(register)
+  final def asyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler, IO[E, A]]): IO[E, A] = {
+    import internal.OneShot
+
+    IO.sync(OneShot.make[IO[Nothing, _]])
+      .flatMap(
+        ref =>
+          IO.flatten {
+            new AsyncEffect[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
+              try register(io => k(IO.now(io))) match {
+                case Left(canceler) =>
+                  ref.set(canceler)
+                  Async.later
+                case Right(io) => Async.now(IO.now(io))
+              } finally if (!ref.isSet) ref.set(IO.unit)
+            }).onInterrupt(IO.flatten(IO.sync(ref.get)))
+          }
+      )
+  }
 
   /**
    * Returns a action that will never produce anything. The moral
@@ -1168,11 +1185,11 @@ object IO extends Serializable {
   final def bracket0[E, A, B](
     acquire: IO[E, A]
   )(release: (A, ExitResult[E, B]) => IO[Nothing, _])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[(A, Fiber[E, B])]](None).flatMap { m =>
+    Ref[IO[Nothing, Any]](IO.unit).flatMap { m =>
       (for {
-        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(Some(a -> f)))).uninterruptibly
+        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptibly
         b <- f.join
-      } yield b).ensuring(m.get.flatMap(_.map { case (a, f) => f.interrupt.flatMap(release(a, _)) }.getOrElse(unit)))
+      } yield b).ensuring(IO.flatten(m.get))
     }
 
   /**

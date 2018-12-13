@@ -93,7 +93,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
     bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
     asyncPure creation is interruptible     $testAsyncPureCreationIsInterruptible
-    async0 runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
+    asyncInterrupt runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
     supervise fibers                        $testSupervise
     supervise fibers in supervised          $testSupervised
@@ -292,8 +292,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testEvalOfFailOnError = {
-    var finalized = false
-    val cleanup: ExitResult[Throwable, Nothing] => IO[Nothing, Unit] =
+    @volatile var finalized = false
+    val cleanup: Cause[Throwable] => IO[Nothing, Unit] =
       _ => IO.sync[Unit] { finalized = true; () }
 
     unsafeRun(
@@ -650,8 +650,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       release <- scalaz.zio.Promise.make[Nothing, Int]
       latch   = internal.OneShot.make[Unit]
-      async = IO.async0[Nothing, Unit] { _ =>
-        latch.set(()); Async.maybeLater(release.complete(42).void)
+      async = IO.asyncInterrupt[Nothing, Unit] { _ =>
+        latch.set(()); Left(release.complete(42).void)
       }
       fiber  <- async.fork
       _      <- IO.sync(latch.get)
@@ -725,8 +725,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       release <- Promise.make[Nothing, Int]
       latch   = scala.concurrent.Promise[Unit]()
-      async = IO.async0[Nothing, Nothing] { _ =>
-        latch.success(()); Async.maybeLater(release.complete(42).void)
+      async = IO.asyncInterrupt[Nothing, Nothing] { _ =>
+        latch.success(()); Left(release.complete(42).void)
       }
       fiber <- async.fork
       _ <- IO.async[Throwable, Unit] { k =>

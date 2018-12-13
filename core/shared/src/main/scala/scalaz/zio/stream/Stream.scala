@@ -301,15 +301,15 @@ trait Stream[+E, +A] { self =>
                         IO.now(Right((rstate, cont, f)))
                       }
                   }
-                  .onError(result.done(_).void)
+                  .onError(c => result.done(IO.fail0(c)).void)
                   .fork
         _ <- fiber.observe.flatMap {
               case ExitResult.Succeeded(Left(_)) =>
                 done.done(
-                  ExitResult.unchecked(new Exception("Logic error: Stream.peel's inner stream ended with a Left"))
+                  IO.terminate(new Exception("Logic error: Stream.peel's inner stream ended with a Left"))
                 )
               case ExitResult.Succeeded(Right((rstate, _, _))) => done.complete(rstate)
-              case e @ ExitResult.Failed(_)                    => done.done(e)
+              case ExitResult.Failed(c)                        => done.done(IO.fail0(c))
             }.fork.void
       } yield (fiber, result)
 

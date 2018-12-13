@@ -64,12 +64,12 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     Concurrent.liftIO(ioa)(this)
 
   override def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
-    IO.async0 { (kk: IO[Throwable, A] => Unit) =>
+    IO.asyncInterrupt { (kk: IO[Throwable, A] => Unit) =>
       val token: effect.CancelToken[Task] = {
         k(e => kk(eitherToIO(e)))
       }
 
-      Async.maybeLater(token.orTerminate)
+      Left(token.orTerminate)
     }
 
   override def race[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
