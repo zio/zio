@@ -330,15 +330,13 @@ private[zio] final class FiberContext[E, A](
   final def fork[E, A](io: IO[E, A], unhandled: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] = {
     val context = env.newFiberContext[E, A](unhandled)
 
-    env.defaultExecutor.submit(() => context.evaluateNow(io))
+    env.defaultExecutor.submitOrThrow(() => context.evaluateNow(io))
 
     context
   }
 
-  private[this] final def evaluateLater(io: IO[E, Any]): Unit = {
-    // TODO: Pay attention to return value of `submit`
-    val _ = executor.submit(() => evaluateNow(io))
-  }
+  private[this] final def evaluateLater(io: IO[E, Any]): Unit =
+    executor.submitOrThrow(() => evaluateNow(io))
 
   /**
    * Resumes an asynchronous computation.
@@ -545,7 +543,7 @@ private[zio] final class FiberContext[E, A](
     observers.reverse.foreach(
       k =>
         env.defaultExecutor
-          .submit(() => k(result))
+          .submitOrThrow(() => k(result))
     )
   }
 }
