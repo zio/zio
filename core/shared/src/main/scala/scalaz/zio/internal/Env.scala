@@ -39,11 +39,8 @@ trait Env {
   /**
    * Awaits for the result of the fiber to be computed.
    */
-  final def unsafeRun[E, A](io: IO[E, A]): A = {
-    val exit = unsafeRunSync(io)
-
-    exit.fold(cause => throw new FiberFailure(cause), identity)
-  }
+  final def unsafeRun[E, A](io: IO[E, A]): A =
+    unsafeRunSync(io).fold(cause => throw new FiberFailure(cause), identity)
 
   /**
    * Awaits for the result of the fiber to be computed.
