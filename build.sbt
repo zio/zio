@@ -147,8 +147,8 @@ lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
 lazy val interopFutureJS = interopFuture.js.dependsOn(interopSharedJS)
 
 lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-scala7x"))
-  .settings(stdSettings("zio-interop-scala7x"))
+  .in(file("interop-scalaz7x"))
+  .settings(stdSettings("zio-interop-scalaz7x"))
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(

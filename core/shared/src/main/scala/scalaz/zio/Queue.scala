@@ -81,7 +81,7 @@ class Queue[A] private (
       _ <- checkShutdownState
 
       remaining <- IO.sync0 { context =>
-                    val pTakers                = unsafePollN(takers, as.size)
+                    val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
                     val (forTakers, remaining) = as.splitAt(pTakers.size)
                     (pTakers zip forTakers).foreach {
                       case (taker, item) => unsafeCompletePromise(taker, item, context)
