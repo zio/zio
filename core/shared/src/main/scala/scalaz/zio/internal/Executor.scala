@@ -11,11 +11,6 @@ import scala.concurrent.ExecutionContext
 trait Executor {
 
   /**
-   * Execution metrics.
-   */
-  def metrics: ExecutionMetrics
-
-  /**
    * The role the executor is optimized for.
    */
   def role: Executor.Role
@@ -118,51 +113,23 @@ object Executor extends Serializable {
   }
 
   /**
-   * Creates an `Executor` from a Scala `ExecutionContext`. You must manually
-   * supply the concurrency level, since `ExecutionContext` cannot
-   * provide this detail.
+   * Creates an `Executor` from a Scala `ExecutionContext`.
    */
-  final def fromExecutionContext(role0: Role, yieldOpCount0: ExecutionMetrics => Int, concurrency0: Int)(
+  final def fromExecutionContext(role0: Role, yieldOpCount0: Int)(
     ec: ExecutionContext
   ): Executor =
     new Executor {
-      import java.util.concurrent.atomic.AtomicLong
-
-      val _enqueuedCount = new AtomicLong()
-      val _dequeuedCount = new AtomicLong()
-
       def role = role0
 
-      val metrics = new ExecutionMetrics {
-        def concurrency: Int = concurrency0
-
-        def capacity: Int = Int.MaxValue
-
-        def size: Int = (enqueuedCount - dequeuedCount).toInt
-
-        def enqueuedCount: Long = _enqueuedCount.get
-
-        def dequeuedCount: Long = _dequeuedCount.get
-      }
-
-      def yieldOpCount = yieldOpCount0(metrics)
+      def yieldOpCount = yieldOpCount0
 
       def submit(runnable: Runnable): Boolean =
         try {
-          ec.execute(new Runnable() {
-            def run: Unit =
-              try runnable.run()
-              finally {
-                val _ = _dequeuedCount.incrementAndGet()
-              }
-          })
-
-          val _ = _enqueuedCount.incrementAndGet()
+          ec.execute(runnable)
 
           true
         } catch {
-          case _: RejectedExecutionException =>
-            false
+          case _: RejectedExecutionException => false
         }
 
       def here = false
