@@ -1104,13 +1104,13 @@ object IO extends Serializable {
         ref =>
           IO.flatten {
             new AsyncEffect[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
-              try register(io => k(IO.now(io))) match {
+              register(io => k(IO.now(io))) match {
                 case Left(canceler) =>
                   ref.set(canceler)
                   Async.later
                 case Right(io) => Async.now(IO.now(io))
-              } finally if (!ref.isSet) ref.set(IO.unit)
-            }).onInterrupt(IO.flatten(IO.sync(ref.get)))
+              }
+            }).onInterrupt(IO.flatten(IO.sync(if (ref.isSet) ref.get() else IO.unit)))
           }
       )
   }
