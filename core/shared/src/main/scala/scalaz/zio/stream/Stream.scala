@@ -229,18 +229,20 @@ trait Stream[+E, +A] { self =>
               }
           }
 
-        (for {
-          queue  <- Queue.bounded[Elem](capacity)
-          putL   = (a: A) => queue.offer(Left(Take.Value(a))).void
-          putR   = (b: B) => queue.offer(Right(Take.Value(b))).void
-          catchL = (e: E2) => queue.offer(Left(Take.Fail(e)))
-          catchR = (e: E2) => queue.offer(Right(Take.Fail(e)))
-          endL   = queue.offer(Left(Take.End)).forever
-          endR   = queue.offer(Right(Take.End)).forever
-          _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
-          _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
-          step   <- loop(false, false, s, queue)
-        } yield step).supervised
+        if (cont(s)) {
+          (for {
+            queue  <- Queue.bounded[Elem](capacity)
+            putL   = (a: A) => queue.offer(Left(Take.Value(a))).void
+            putR   = (b: B) => queue.offer(Right(Take.Value(b))).void
+            catchL = (e: E2) => queue.offer(Left(Take.Fail(e)))
+            catchR = (e: E2) => queue.offer(Right(Take.Fail(e)))
+            endL   = queue.offer(Left(Take.End))
+            endR   = queue.offer(Right(Take.End))
+            _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
+            _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
+            step   <- loop(false, false, s, queue)
+          } yield step).supervised
+        } else IO.now(s)
       }
     }
 
