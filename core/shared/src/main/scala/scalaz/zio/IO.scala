@@ -196,14 +196,14 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     for {
       done  <- Promise.make[E2, C]
       race  <- Ref[Int](0)
-      child <- Ref[Fiber[_, _]](Fiber.unit)
+      child <- Ref[IO[Nothing, Any]](IO.unit)
       c <- ((for {
-            left  <- self.fork.peek(f => child update (_ zip f))
-            right <- that.fork.peek(f => child update (_ zip f))
+            left  <- self.fork.peek(f => child update (_ *> f.interrupt))
+            right <- that.fork.peek(f => child update (_ *> f.interrupt))
             _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
           } yield ()).uninterruptibly *> done.get).onInterrupt(
-            child.get flatMap (_.interrupt)
+            IO.flatten(child.get)
           )
     } yield c
   }
@@ -1063,15 +1063,15 @@ object IO extends Serializable {
   final def asyncPure[E, A](register: (IO[E, A] => Unit) => IO[Nothing, Unit]): IO[E, A] =
     for {
       p   <- Promise.make[E, A]
-      ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
+      ref <- Ref[IO[Nothing, Any]](IO.unit)
       a <- (for {
             _ <- IO
                   .flatten(IO.sync0(env => register(io => env.unsafeRunAsync_(io.to(p)))))
                   .fork
-                  .peek(ref.set(_))
+                  .peek(f => ref.set(f.interrupt))
                   .uninterruptibly
             a <- p.get
-          } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
+          } yield a).onInterrupt(IO.flatten(ref.get))
     } yield a
 
   /**
@@ -1200,11 +1200,11 @@ object IO extends Serializable {
   final def bracket[E, A, B](
     acquire: IO[E, A]
   )(release: A => IO[Nothing, _])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[A]](None).flatMap { m =>
+    Ref[IO[Nothing, Any]](IO.unit).flatMap { m =>
       (for {
-        a <- acquire.flatMap(a => m.set(Some(a)).const(a)).uninterruptibly
+        a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptibly
         b <- use(a)
-      } yield b).ensuring(m.get.flatMap(_.map(release).getOrElse(unit)))
+      } yield b).ensuring(IO.flatten(m.get))
     }
 
   /**
