@@ -4,11 +4,11 @@ import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.annotations.Expect._
 import org.openjdk.jcstress.infra.results.{ IIIIII_Result, IIII_Result, II_Result }
 
-import scalaz.zio.internal.impls.RingBuffer
+import scalaz.zio.internal.impls.RingBufferPow2
 
-object RingBufferConcurrencyTests {
+object RingBufferPow2ConcurrencyTests {
   /*
-   * Tests that [[RingBuffer.offer]] is atomic.
+   * Tests that [[RingBufferPow2.offer]] is atomic.
    */
   @JCStressTest
   @Outcome.Outcomes(
@@ -19,7 +19,7 @@ object RingBufferConcurrencyTests {
   )
   @State
   class OfferTest {
-    val q = new RingBuffer[Int](2)
+    val q = RingBufferPow2[Int](2)
 
     @Actor
     def actor1(): Unit = {
@@ -41,7 +41,7 @@ object RingBufferConcurrencyTests {
   }
 
   /*
-   * Tests that [[RingBuffer.offer]] honors capacity, i.e. operations are atomic and no values get lost or overwritten.
+   * Tests that [[RingBufferPow2.offer]] honors capacity, i.e. operations are atomic and no values get lost or overwritten.
    */
   @JCStressTest
   @Outcome.Outcomes(
@@ -62,7 +62,7 @@ object RingBufferConcurrencyTests {
   )
   @State
   class OfferTestMaxedCapacity {
-    val q                                    = new RingBuffer[Int](2)
+    val q                                    = RingBufferPow2[Int](2)
     var (offer11, offer12, offer21, offer22) = (0, 0, 0, 0)
 
     @Actor
@@ -131,7 +131,7 @@ object RingBufferConcurrencyTests {
   )
   @State
   class OfferPollTest {
-    val q                    = new RingBuffer[Int](2)
+    val q                    = RingBufferPow2[Int](2)
     var (p11, p12, p21, p22) = (0, 0, 0, 0)
 
     @Actor

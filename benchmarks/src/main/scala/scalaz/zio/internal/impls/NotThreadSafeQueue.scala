@@ -11,29 +11,33 @@ class NotThreadSafeQueue[A](override val capacity: Int) extends MutableConcurren
     if (isFull()) {
       false
     } else {
-      tail += 1
       buf((tail % capacity).asInstanceOf[Int]) = a.asInstanceOf[AnyRef]
+      tail += 1
       true
     }
 
-  override def poll(default: A): A =
-    if (isEmpty()) {
+  override def poll(default: A): A = {
+    val idx = (head % capacity).toInt
+
+    val el = buf(idx)
+    if (el == null) {
       default
     } else {
-      val el = buf((head % capacity).asInstanceOf[Int])
+      buf(idx) = null
       head += 1
       el.asInstanceOf[A]
     }
+  }
 
   override def isEmpty(): Boolean =
     head == tail
 
   override def isFull(): Boolean =
-    head + capacity - 1 == tail
+    head + capacity == tail
 
   override def enqueuedCount(): Long = tail
 
   override def dequeuedCount(): Long = head
 
-  override def size(): Int = capacity - (head - tail).toInt
+  override def size(): Int = (tail - head).toInt
 }
