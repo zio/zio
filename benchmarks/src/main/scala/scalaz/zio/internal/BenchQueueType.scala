@@ -4,17 +4,19 @@ sealed abstract class BenchQueueType(val name: String) extends Product with Seri
 
 object BenchQueueType {
   def lookup(tpe: String): Option[BenchQueueType] = tpe match {
-    case RingBufferType.name    => Some(RingBufferType)
-    case LinkedQueueType.name   => Some(LinkedQueueType)
-    case JucBlockingType.name   => Some(JucBlockingType)
-    case JCToolsType.name       => Some(JCToolsType)
-    case NotThreadSafeType.name => Some(NotThreadSafeType)
-    case _                      => None
+    case RingBufferPow2Type.name => Some(RingBufferPow2Type)
+    case RingBufferArbType.name  => Some(RingBufferArbType)
+    case LinkedQueueType.name    => Some(LinkedQueueType)
+    case JucBlockingType.name    => Some(JucBlockingType)
+    case JCToolsType.name        => Some(JCToolsType)
+    case NotThreadSafeType.name  => Some(NotThreadSafeType)
+    case _                       => None
   }
 }
 
-case object RingBufferType    extends BenchQueueType("RingBuffer")
-case object LinkedQueueType   extends BenchQueueType("LinkedQueue")
-case object JucBlockingType   extends BenchQueueType("JucBlocking")
-case object JCToolsType       extends BenchQueueType("JCTools")
-case object NotThreadSafeType extends BenchQueueType("NotThreadSafe")
+case object RingBufferPow2Type extends BenchQueueType("RingBufferPow2")
+case object RingBufferArbType  extends BenchQueueType("RingBufferArb")
+case object LinkedQueueType    extends BenchQueueType("LinkedQueue")
+case object JucBlockingType    extends BenchQueueType("JucBlocking")
+case object JCToolsType        extends BenchQueueType("JCTools")
+case object NotThreadSafeType  extends BenchQueueType("NotThreadSafe")
