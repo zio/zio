@@ -788,12 +788,11 @@ object IO extends Serializable {
     final val Redeem          = 6
     final val Fork            = 7
     final val Uninterruptible = 8
-    final val Sleep           = 9
-    final val Supervise       = 10
-    final val Ensuring        = 11
-    final val Descriptor      = 12
-    final val Lock            = 13
-    final val Yield           = 14
+    final val Supervise       = 9
+    final val Ensuring        = 10
+    final val Descriptor      = 11
+    final val Lock            = 12
+    final val Yield           = 13
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -835,10 +834,6 @@ object IO extends Serializable {
 
   final class Uninterruptible[E, A] private[IO] (val io: IO[E, A]) extends IO[E, A] {
     override def tag = Tags.Uninterruptible
-  }
-
-  final class Sleep private[IO] (val duration: Duration) extends IO[Nothing, Unit] {
-    override def tag = Tags.Sleep
   }
 
   final class Supervise[E, A] private[IO] (
@@ -902,7 +897,17 @@ object IO extends Serializable {
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  final def sleep(duration: Duration): IO[Nothing, Unit] = new Sleep(duration)
+  final def sleep(duration: Duration): IO[Nothing, Unit] =
+    IO.sync0(identity)
+      .flatMap(
+        env =>
+          IO.asyncInterrupt[Nothing, Unit] { k =>
+            val canceler = env.scheduler
+              .schedule(() => k(IO.unit), duration)
+
+            Left(IO.sync(canceler()))
+          }
+      )
 
   /**
    * Supervises the specified action, which ensures that any actions directly
@@ -957,14 +962,24 @@ object IO extends Serializable {
   final def sync[A](effect: => A): IO[Nothing, A] = sync0(_ => effect)
 
   /**
-   * Imports a synchronous effect into a pure `IO` value.
-   * This variant of `sync` lets you reuse the current execution context of the fiber.
+   * Imports a synchronous effect into a pure `IO` value. This variant of `sync`
+   * lets you use the execution environment of the fiber.
    *
    * {{{
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
   final def sync0[A](effect: Env => A): IO[Nothing, A] = new SyncEffect[A](effect)
+
+  /**
+   * Imports a synchronous effect into a pure `IO` value. This variant of `sync`
+   * lets you use the current executor of the fiber.
+   */
+  final def syncExec[A](effect: Executor => A): IO[Nothing, A] =
+    for {
+      exec <- IO.descriptor.map(_.executor)
+      a    <- IO.sync(effect(exec))
+    } yield a
 
   /**
    *
@@ -1073,7 +1088,7 @@ object IO extends Serializable {
 
   /**
    * Imports an asynchronous effect into a pure `IO` value, possibly returning
-   * the value asynchronously.
+   * the value synchronously.
    */
   final def async0[E, A](register: (IO[E, A] => Unit) => Async[E, A]): IO[E, A] =
     new AsyncEffect(register)
@@ -1108,7 +1123,7 @@ object IO extends Serializable {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
-    IO.sync(new AtomicBoolean(false) -> OneShot.make[IO[Nothing, Any]]).flatMap {
+    IO.sync((new AtomicBoolean(false), OneShot.make[IO[Nothing, Any]])).flatMap {
       case (started, cancel) =>
         IO.flatten {
           async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {

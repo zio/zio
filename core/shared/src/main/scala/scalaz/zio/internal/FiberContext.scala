@@ -215,16 +215,6 @@ private[zio] final class FiberContext[E, A](
 
                   curIo = doNotInterrupt(io.io)
 
-                case IO.Tags.Sleep =>
-                  val io = curIo.asInstanceOf[IO.Sleep]
-
-                  curIo = IO.asyncInterrupt[E, Any] { k =>
-                    val canceler = env.scheduler
-                      .schedule(executor, () => k(IO.unit), io.duration)
-
-                    Left(IO.sync(canceler()))
-                  }
-
                 case IO.Tags.Supervise =>
                   val io = curIo.asInstanceOf[IO.Supervise[E, Any]]
 
@@ -333,11 +323,7 @@ private[zio] final class FiberContext[E, A](
    * @param value The value produced by the asynchronous computation.
    */
   private[this] final val resumeAsync: IO[E, Any] => Unit =
-    io =>
-      if (exitAsync()) {
-        if (locked eq Nil) evaluateNow(io)
-        else evaluateLater(io)
-      }
+    io => if (exitAsync()) evaluateLater(io)
 
   final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
     kill0(x => k(IO.done(x)))
