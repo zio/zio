@@ -71,7 +71,7 @@ trait Env {
   /**
    * Shuts down executors. You can try calling others method after this
    * one, but I predict you're going to be disappointed.
-   */ 
+   */
   final def shutdown(): Unit = {
     executor(Executor.Yielding).shutdown()
     executor(Executor.Unyielding).shutdown()
