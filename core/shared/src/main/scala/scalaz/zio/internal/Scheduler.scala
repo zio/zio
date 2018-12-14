@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger
 trait Scheduler {
   import Scheduler.CancelToken
 
-  def schedule(executor: Executor, task: Runnable, duration: Duration): CancelToken
+  def schedule(task: Runnable, duration: Duration): CancelToken
 
   /**
    * The number of tasks scheduled.
@@ -39,10 +39,10 @@ object Scheduler {
 
       val _size = new AtomicInteger()
 
-      override def schedule(executor: Executor, task: Runnable, duration: Duration): CancelToken = duration match {
+      override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
         case Duration.Infinity => ConstFalse
         case Duration.Zero =>
-          executor.submit(task)
+          task.run()
 
           ConstFalse
         case duration: Duration.Finite =>
@@ -50,9 +50,8 @@ object Scheduler {
 
           val future = service.schedule(new Runnable {
             def run: Unit =
-              try {
-                val _ = executor.submit(task)
-              } finally {
+              try task.run()
+              finally {
                 val _ = _size.decrementAndGet
               }
           }, duration.toNanos, TimeUnit.NANOSECONDS)
