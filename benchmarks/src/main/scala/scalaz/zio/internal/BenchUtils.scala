@@ -7,8 +7,8 @@ object BenchUtils {
     tpe: BenchQueueType,
     capacity: Int
   ): MutableConcurrentQueue[A] = tpe match {
-    case RingBufferPow2Type => new RingBufferPow2(capacity)
-    case RingBufferArbType  => new RingBufferArb(capacity)
+    case RingBufferPow2Type => RingBufferPow2(capacity)
+    case RingBufferArbType  => RingBufferArb(capacity)
     case LinkedQueueType    => new LinkedQueue
     case JucBlockingType    => new JucBlockingQueue
     case JCToolsType        => new JCToolsQueue(capacity)
