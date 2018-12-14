@@ -1,5 +1,7 @@
 package scalaz.zio.internal
 
+import org.specs2.Specification
+
 /*
  * This spec is just a sanity check and tests RingBuffer correctness
  * in a single-threaded case.
@@ -14,8 +16,6 @@ class MutableConcurrentQueueSpec extends Specification {
     With a RingBuffer of capacity 2
      `offer` of 2 items succeeds, further offers fail. $e2
      `poll` of 2 items from full queue succeeds, further `poll`s return default value. $e3
-
-    RingBuffer can be serialized. $e4
     """
 
   def minSize = {
