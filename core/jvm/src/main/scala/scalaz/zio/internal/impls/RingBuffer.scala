@@ -5,10 +5,17 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
 import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
 
 object RingBuffer {
-  def build[A](capacity: Int): RingBuffer[A] = {
-    val pow2Cap = nextPow2(capacity)
-    if (capacity == pow2Cap) new RingBufferPow2(capacity)
-    else new RingBufferArb(capacity)
+
+  /**
+   * @note mimimum supported capacity is 2
+   */
+  def apply[A](requestedCapacity: Int): RingBuffer[A] = {
+    val effectiveCapacity = Math.max(requestedCapacity, 2)
+
+    if (nextPow2(effectiveCapacity) == effectiveCapacity)
+      RingBufferPow2(effectiveCapacity)
+    else
+      RingBufferArb(effectiveCapacity)
   }
 
   /*

@@ -374,8 +374,8 @@ object Queue {
    * provide better performance by utilising an optimised version of
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
-  final def bounded[A](capacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](capacity), BackPressure())
+  final def bounded[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), BackPressure())
 
   /**
    * Makes a new bounded queue with sliding strategy.
@@ -386,8 +386,8 @@ object Queue {
    * provide better performance by utilising an optimised version of
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
-  final def sliding[A](capacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](capacity), Sliding())
+  final def sliding[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Sliding())
 
   /**
    * Makes a new bounded queue with the dropping strategy.
@@ -397,8 +397,8 @@ object Queue {
    * provide better performance by utilising an optimised version of
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
-  final def dropping[A](capacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](capacity), Dropping())
+  final def dropping[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Dropping())
 
   /**
    * Makes a new unbounded queue.
