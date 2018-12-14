@@ -1,7 +1,10 @@
 package scalaz.zio.internal.impls
 
-import scalaz.zio.internal.impls.padding.OneElementQueueFields
-import scalaz.zio.internal.impls.padding.OneElementQueueFields.{ refUpdater, headUpdater, tailUpdater }
+import java.io.Serializable
+
+import java.util.concurrent.atomic.{ AtomicReference, AtomicLong }
+
+import scalaz.zio.internal.MutableConcurrentQueue
 
 object OneElementConcurrentQueue {
   final val STATE_LOOP     = 0
@@ -10,35 +13,39 @@ object OneElementConcurrentQueue {
   final val STATE_RESERVED = 2
 }
 
-class OneElementConcurrentQueue[A] extends OneElementQueueFields[A] {
+class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   import OneElementConcurrentQueue._
+
+  private[this] val ref = new AtomicReference[AnyRef]()
+  private[this] val headCounter = new AtomicLong(0L)
+  private[this] val tailCounter = new AtomicLong(0L)
 
   val capacity: Int = 1
 
-  def dequeuedCount(): Long = headUpdater.get(this)
-  def enqueuedCount(): Long = tailUpdater.get(this)
+  def dequeuedCount(): Long = headCounter.get()
+  def enqueuedCount(): Long = tailCounter.get()
 
-  def isEmpty(): Boolean = refUpdater.get(this) == null
+  def isEmpty(): Boolean = ref.get() == null
   def isFull(): Boolean  = !isEmpty()
 
   def offer(a: A): Boolean = {
     assert(a != null)
 
     var state = STATE_LOOP
-    val aTail = tailUpdater
+    val aTail = tailCounter
 
-    val aHead   = headUpdater
-    var curHead = aHead.get(this)
+    val aHead   = headCounter
+    var curHead = aHead.get()
 
     while (state == STATE_LOOP) {
-      if (isFull() || curHead + 1 == aTail.get(this)) {
+      if (isFull() || curHead + 1 == aTail.get()) {
         state = STATE_FULL
       } else { // try to reserve the opportunity to offer
-        if (aTail.compareAndSet(this, curHead, curHead + 1)) {
-          refUpdater.lazySet(this, a.asInstanceOf[AnyRef])
+        if (aTail.compareAndSet(curHead, curHead + 1)) {
+          ref.lazySet(a.asInstanceOf[AnyRef])
           state = STATE_RESERVED
         } else {
-          curHead = aHead.get(this)
+          curHead = aHead.get()
         }
       }
     }
@@ -51,21 +58,21 @@ class OneElementConcurrentQueue[A] extends OneElementQueueFields[A] {
     var state = STATE_LOOP
     var el    = null.asInstanceOf[AnyRef]
 
-    val aHead   = headUpdater
-    var curHead = aHead.get(this)
+    val aHead   = headCounter
+    var curHead = aHead.get()
 
-    val aTail = tailUpdater
+    val aTail = tailCounter
 
     while (state == STATE_LOOP) {
-      if (isEmpty() || aTail.get(this) == curHead) {
+      if (isEmpty() || aTail.get() == curHead) {
         state = STATE_EMPTY
       } else {
-        if (aHead.compareAndSet(this, curHead, curHead + 1)) {
-          el = refUpdater.get(this)
-          refUpdater.lazySet(this, null.asInstanceOf[AnyRef])
+        if (aHead.compareAndSet(curHead, curHead + 1)) {
+          el = ref.get()
+          ref.lazySet(null.asInstanceOf[AnyRef])
           state = STATE_RESERVED
         } else {
-          curHead = aHead.get(this)
+          curHead = aHead.get()
         }
       }
     }
