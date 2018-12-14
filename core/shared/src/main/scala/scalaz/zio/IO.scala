@@ -1105,22 +1105,24 @@ object IO extends Serializable {
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
   final def asyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler, IO[E, A]]): IO[E, A] = {
-    import java.util.concurrent.atomic.AtomicReference
+    import java.util.concurrent.atomic.AtomicBoolean
+    import internal.OneShot
 
-    IO.sync(new AtomicReference[IO[Nothing, Any]](IO.unit))
-      .flatMap(
-        cancel =>
-          IO.flatten {
-            async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
-              register(io => k(IO.now(io))) match {
-                case Left(canceler) =>
-                  cancel.set(canceler)
-                  Async.later
-                case Right(io) => Async.now(IO.now(io))
-              }
-            })
-          }.onInterrupt(IO.flatten(IO.sync(cancel.get())))
-      )
+    IO.sync(new AtomicBoolean(false) -> OneShot.make[IO[Nothing, Any]]).flatMap {
+      case (started, cancel) =>
+        IO.flatten {
+          async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
+            started.set(true)
+
+            try register(io => k(IO.now(io))) match {
+              case Left(canceler) =>
+                cancel.set(canceler)
+                Async.later
+              case Right(io) => Async.now(IO.now(io))
+            } finally if (!cancel.isSet) cancel.set(IO.unit)
+          })
+        }.onInterrupt(IO.flatten(IO.sync(if (started.get) cancel.get() else IO.unit)))
+    }
   }
 
   /**
