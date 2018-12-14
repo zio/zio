@@ -1097,21 +1097,21 @@ object IO extends Serializable {
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
   final def asyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler, IO[E, A]]): IO[E, A] = {
-    import internal.OneShot
+    import java.util.concurrent.atomic.AtomicReference
 
-    IO.sync(OneShot.make[IO[Nothing, _]])
+    IO.sync(new AtomicReference[IO[Nothing, Any]](IO.unit))
       .flatMap(
-        ref =>
+        cancel =>
           IO.flatten {
             new AsyncEffect[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
               register(io => k(IO.now(io))) match {
                 case Left(canceler) =>
-                  ref.set(canceler)
+                  cancel.set(canceler)
                   Async.later
                 case Right(io) => Async.now(IO.now(io))
               }
-            }).onInterrupt(IO.flatten(IO.sync(if (ref.isSet) ref.get() else IO.unit)))
-          }
+            })
+          }.onInterrupt(IO.flatten(IO.sync(cancel.get())))
       )
   }
 
