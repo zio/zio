@@ -4,6 +4,30 @@ import java.util.concurrent.atomic.AtomicLongArray
 import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding
 import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
 
+object RingBuffer {
+
+  /**
+   * @note mimimum supported capacity is 2
+   */
+  def apply[A](requestedCapacity: Int): RingBuffer[A] = {
+    val effectiveCapacity = Math.max(requestedCapacity, 2)
+
+    if (nextPow2(effectiveCapacity) == effectiveCapacity)
+      RingBufferPow2(effectiveCapacity)
+    else
+      RingBufferArb(effectiveCapacity)
+  }
+
+  /*
+   * Used only once during queue creation. Doesn't need to be
+   * performant or anything.
+   */
+  def nextPow2(n: Int): Int = {
+    val nextPow = (Math.log(n.toDouble) / Math.log(2.0)).ceil.toInt
+    Math.pow(2.0, nextPow.toDouble).toInt.max(2)
+  }
+}
+
 /**
  * A lock-free array based bounded queue. It is thread-safe and can be
  * used in multiple-producer/multiple-consumer (MPMC) setting.
@@ -62,12 +86,15 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater
  * guarantees. In practice it's usually not a problem, since benefits
  * are simplicity, zero GC pressure and speed.
  *
- * The real capacity of the queue is the next power of 2 of the
- * `desiredCapacity`. The reason is `head % N` and `tail % N` are
- * rather cheap when can be done as a simple mask (N is pow 2), and
- * pretty expensive when involve an `idiv` instruction. The queue can
- * be made to work with arbitrary sizes but the user will have to
- * suffer ~20% performance loss.
+ * There are 2 implementations of a RingBuffer:
+ * 1. `RingBufferArb` that supports queues with arbitrary capacity;
+ * 2. `RingBufferPow2` that supports queues with only power of 2
+ *     capacities.
+ *
+ * The reason is `head % N` and `tail % N` are rather cheap when can
+ * be done as a simple mask (N is pow 2), and pretty expensive when
+ * involve an `idiv` instruction. The difference is especially
+ * pronounced in tight loops (see. RoundtripBenchmark).
  *
  * To ensure good performance reads/writes to `head` and `tail`
  * fields need to be independant, e.g. they shouldn't fall on the
@@ -108,18 +135,17 @@ import scalaz.zio.internal.impls.padding.MutableQueueFieldsPadding.{ headUpdater
  * a way yet). This translates into worse performance on average, and
  * better performance in some very specific situations.
  */
-class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[A] with Serializable {
-  final val capacity: Int         = nextPow2(desiredCapacity)
-  private[this] val idxMask: Long = (capacity - 1).toLong
-
-  private[this] val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
-  private[this] val seq: AtomicLongArray = new AtomicLongArray(capacity)
+abstract class RingBuffer[A](override final val capacity: Int) extends MutableQueueFieldsPadding[A] with Serializable {
+  private val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
+  private val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
 
   private[this] final val STATE_LOOP     = 0
   private[this] final val STATE_EMPTY    = -1
   private[this] final val STATE_FULL     = -2
   private[this] final val STATE_RESERVED = 1
+
+  protected def posToIdx(pos: Long, capacity: Int): Int
 
   override final def size(): Int = (tailUpdater.get(this) - headUpdater.get(this)).toInt
 
@@ -131,7 +157,6 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
-    val aMask     = idxMask
 
     val aSeq   = seq
     var curSeq = 0L
@@ -146,7 +171,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
     var state = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      curIdx = posToIdx(curTail, aMask)
+      curIdx = posToIdx(curTail, aCapacity)
       curSeq = aSeq.get(curIdx)
 
       if (curSeq < curTail) {
@@ -209,8 +234,8 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
     val aCapacity = capacity
-    val aMask     = idxMask
-    val aBuf      = buf
+
+    val aBuf = buf
 
     val aSeq   = seq
     var curSeq = 0L
@@ -225,7 +250,7 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
     var state = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      curIdx = posToIdx(curHead, aMask)
+      curIdx = posToIdx(curHead, aCapacity)
       curSeq = aSeq.get(curIdx)
 
       if (curSeq <= curHead) {
@@ -298,15 +323,4 @@ class RingBuffer[A](val desiredCapacity: Int) extends MutableQueueFieldsPadding[
   override final def isEmpty(): Boolean = tailUpdater.get(this) == headUpdater.get(this)
 
   override final def isFull(): Boolean = tailUpdater.get(this) == headUpdater.get(this) + capacity
-
-  private def posToIdx(pos: Long, mask: Long): Int = (pos & mask).toInt
-
-  /*
-   * Used only once during queue creation. Doesn't need to be
-   * performant or anything.
-   */
-  private def nextPow2(n: Int): Int = {
-    val nextPow = (Math.log(n.toDouble) / Math.log(2.0)).ceil.toInt
-    Math.pow(2.0, nextPow.toDouble).toInt.max(2)
-  }
 }
