@@ -748,9 +748,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io =
       for {
         fiber <- IO.bracket[Nothing, Unit, Unit](IO.unit)(_ => IO.unit)(_ => IO.never).fork
-        res   <- fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+        res   <- fiber.interrupt
       } yield res
-    unsafeRun(io) must_=== 0
+    unsafeRun(io) must_=== ExitResult.interrupted
   }
 
   def testBracket0UseIsInterruptible = {
