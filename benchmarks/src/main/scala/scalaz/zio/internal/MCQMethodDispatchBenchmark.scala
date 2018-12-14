@@ -34,8 +34,8 @@ class RingBufferMethodDispatchBenchmark {
 
   @Setup(Level.Trial)
   def createQ(): Unit = {
-    q1 = new impls.RingBufferPow2[QueueElement](qCapacity)
-    q2 = new impls.RingBufferArb[QueueElement](qCapacity)
+    q1 = impls.RingBufferPow2[QueueElement](qCapacity)
+    q2 = impls.RingBufferArb[QueueElement](qCapacity)
     q3 = new impls.LinkedQueue[QueueElement]
   }
 
