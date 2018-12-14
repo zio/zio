@@ -180,26 +180,15 @@ private[zio] final class FiberContext[E, A](
                 case IO.Tags.AsyncEffect =>
                   val io = curIo.asInstanceOf[IO.AsyncEffect[E, Any]]
 
-                  // By default, we'll resume asynchronously, so this
-                  // evaluation loop should halt:
-                  curIo = null
-
                   // Enter suspended state:
                   if (enterAsync()) {
-                    // It's possible we were interrupted prior to entering
-                    // suspended state. So we have to check that condition,
-                    // and if so, do not initiate the async effect (because
-                    // otherwise, it would not be interrupted).
+                    io.register(resumeAsync) match {
+                      case Async.Now(io) =>
+                        if (shouldResumeAsync()) curIo = io
 
-                    if (shouldDie) curIo = IO.interrupt
-                    else
-                      io.register(resumeAsync) match {
-                        case Async.Now(io) =>
-                          if (shouldResumeAsync()) curIo = io
-
-                        case Async.Later =>
-                      }
-                  }
+                      case Async.Later => curIo = null
+                    }
+                  } else curIo = IO.interrupt
 
                 case IO.Tags.Redeem =>
                   val io = curIo.asInstanceOf[IO.Redeem[E, Any, Any, Any]]
@@ -390,7 +379,7 @@ private[zio] final class FiberContext[E, A](
         val newState = Executing(interrupted, FiberStatus.Suspended, observers)
 
         if (!state.compareAndSet(oldState, newState)) enterAsync()
-        else true
+        else !shouldDie
 
       case _ => false
     }
