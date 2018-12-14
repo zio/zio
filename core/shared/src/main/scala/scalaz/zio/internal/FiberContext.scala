@@ -184,7 +184,7 @@ private[zio] final class FiberContext[E, A](
                   if (enterAsync()) {
                     io.register(resumeAsync) match {
                       case Async.Now(io) =>
-                        if (shouldResumeAsync()) curIo = io
+                        if (exitAsync()) curIo = io
 
                       case Async.Later => curIo = null
                     }
@@ -334,16 +334,16 @@ private[zio] final class FiberContext[E, A](
    */
   private[this] final val resumeAsync: IO[E, Any] => Unit =
     io =>
-      if (shouldResumeAsync()) {
+      if (exitAsync()) {
         if (locked eq Nil) evaluateNow(io)
         else evaluateLater(io)
       }
 
-  final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.asyncInterrupt[Nothing, ExitResult[E, A]] { k =>
+  final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
     kill0(x => k(IO.done(x)))
   }
 
-  final def observe: IO[Nothing, ExitResult[E, A]] = IO.asyncInterrupt[Nothing, ExitResult[E, A]] { k =>
+  final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
     observe0(x => k(IO.done(x)))
   }
 
@@ -379,20 +379,24 @@ private[zio] final class FiberContext[E, A](
         val newState = Executing(interrupted, FiberStatus.Suspended, observers)
 
         if (!state.compareAndSet(oldState, newState)) enterAsync()
-        else !shouldDie
+        else if (shouldDie) {
+          // Fiber interrupted, so go back into running state:
+          exitAsync()
+          false
+        } else true
 
       case _ => false
     }
   }
 
   @tailrec
-  private[this] final def shouldResumeAsync(): Boolean = {
+  private[this] final def exitAsync(): Boolean = {
     val oldState = state.get
 
     oldState match {
       case Executing(interrupted, FiberStatus.Suspended, observers) =>
         if (!state.compareAndSet(oldState, Executing(interrupted, FiberStatus.Running, observers)))
-          shouldResumeAsync()
+          exitAsync()
         else true
 
       case _ => false
@@ -464,7 +468,7 @@ private[zio] final class FiberContext[E, A](
   @tailrec
   private[this] final def kill0(
     k: Callback[Nothing, ExitResult[E, A]]
-  ): Either[Canceler, IO[Nothing, ExitResult[E, A]]] = {
+  ): Async[Nothing, ExitResult[E, A]] = {
 
     val oldState = state.get
 
@@ -479,25 +483,25 @@ private[zio] final class FiberContext[E, A](
 
           evaluateLater(IO.interrupt)
 
-          Left(IO.unit)
+          Async.later
         }
 
       case Executing(_, status, observers0) =>
         val observers = k :: observers0
 
         if (!state.compareAndSet(oldState, Executing(true, status, observers))) kill0(k)
-        else Left(IO.unit)
+        else Async.later
 
-      case Done(e) => Right(IO.now(e))
+      case Done(e) => Async.now(IO.now(e))
     }
   }
 
   private[this] final def observe0(
     k: Callback[Nothing, ExitResult[E, A]]
-  ): Either[Canceler, IO[Nothing, ExitResult[E, A]]] =
+  ): Async[Nothing, ExitResult[E, A]] =
     register0(k) match {
-      case null => Left(IO.unit)
-      case x    => Right(IO.now(x))
+      case null => Async.later
+      case x    => Async.now(IO.now(x))
     }
 
   @tailrec
