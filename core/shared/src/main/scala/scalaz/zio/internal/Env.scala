@@ -39,18 +39,18 @@ trait Env {
   /**
    * Awaits for the result of the fiber to be computed.
    */
-  final def unsafeRun[E, A](io: IO[E, A], timeout: Long = Long.MaxValue): A =
-    unsafeRunSync(io, timeout).fold(cause => throw new FiberFailure(cause), identity)
+  final def unsafeRun[E, A](io: IO[E, A]): A =
+    unsafeRunSync(io).fold(cause => throw new FiberFailure(cause), identity)
 
   /**
    * Awaits for the result of the fiber to be computed.
    */
-  final def unsafeRunSync[E, A](io: IO[E, A], timeout: Long = Long.MaxValue): ExitResult[E, A] = {
+  final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] = {
     val result = OneShot.make[ExitResult[E, A]]
 
     unsafeRunAsync(io, (x: ExitResult[E, A]) => result.set(x))
 
-    result.get(timeout)
+    result.get()
   }
 
   /**
