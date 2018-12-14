@@ -1,23 +1,36 @@
 package scalaz.zio.internal
 
 import org.specs2.Specification
+import scalaz.zio.SerializableSpec._
 
 /*
  * This spec is just a sanity check and tests RingBuffer correctness
  * in a single-threaded case.
+ *
+ * Concurrent tests are run via jcstress and are in [[RingBufferConcurrencyTests]].
  */
-class RingBufferSpec extends Specification {
+class MutableConcurrentQueueSpec extends Specification {
   def is =
-    "RingBufferSpec".title ^ s2"""
-    Make a bounded MutableConcurrentQueue of size 1
-     returns a queue of size 2 which is the next power of 2. $e1
+    "MutableConcurrentQueueSpec".title ^ s2"""
+    Make a bounded MutableConcurrentQueue
+     of capacity 1 returns a queue of capacity 2. $minSize
+     of capacity 3 returns a queue of capacity 3. $e1
+
+    With a RingBuffer of capacity 2
      `offer` of 2 items succeeds, further offers fail. $e2
      `poll` of 2 items from full queue succeeds, further `poll`s return default value. $e3
+
+    RingBuffer can be serialized. $e4
     """
 
-  def e1 = {
+  def minSize = {
     val q = MutableConcurrentQueue.bounded(1)
     q.capacity must_=== 2
+  }
+
+  def e1 = {
+    val q = MutableConcurrentQueue.bounded(3)
+    q.capacity must_=== 3
   }
 
   def e2 = {
@@ -38,5 +51,15 @@ class RingBufferSpec extends Specification {
       .and(q.poll(-1) must_=== 2)
       .and(q.poll(-1) must_=== -1)
       .and(q.isEmpty must beTrue)
+  }
+
+  def e4 = {
+    val q = MutableConcurrentQueue.bounded[Int](2)
+    q.offer(1)
+    val returnQ = serializeAndDeserialize(q)
+    returnQ.offer(2)
+    (returnQ.poll(-1) must_=== 1)
+      .and(returnQ.poll(-1) must_=== 2)
+      .and(returnQ.poll(-1) must_=== -1)
   }
 }
