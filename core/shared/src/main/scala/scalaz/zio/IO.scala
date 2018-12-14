@@ -1060,15 +1060,23 @@ object IO extends Serializable {
   final def yieldNow: IO[Nothing, Unit] = Yield
 
   /**
-   * Imports an asynchronous effect into a pure `IO` value. See `asyncInterrupt` for
-   * the more expressive variant of this function.
+   * Imports an asynchronous effect into a pure `IO` value. See `async0` for
+   * the more expressive variant of this function that can return a value
+   * synchronously.
    */
   final def async[E, A](register: (IO[E, A] => Unit) => Unit): IO[E, A] =
-    new AsyncEffect((callback: IO[E, A] => Unit) => {
+    async0((callback: IO[E, A] => Unit) => {
       register(callback)
 
       Async.later
     })
+
+  /**
+   * Imports an asynchronous effect into a pure `IO` value, possibly returning
+   * the value asynchronously.
+   */
+  final def async0[E, A](register: (IO[E, A] => Unit) => Async[E, A]): IO[E, A] =
+    new AsyncEffect(register)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
@@ -1103,7 +1111,7 @@ object IO extends Serializable {
       .flatMap(
         cancel =>
           IO.flatten {
-            new AsyncEffect[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
+            async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
               register(io => k(IO.now(io))) match {
                 case Left(canceler) =>
                   cancel.set(canceler)

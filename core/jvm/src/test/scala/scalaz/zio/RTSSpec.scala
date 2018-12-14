@@ -656,12 +656,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         latch.set(()); Left(release.complete(42).void)
       }
       fiber  <- async.fork
-      _      <- IO.sync(latch.get(1000 * 20))
+      _      <- IO.sync(latch.get(1000))
       _      <- fiber.interrupt.fork
       result <- release.get
     } yield result
 
-    (0 to 100).map { _ =>
+    (0 to 1000).map { _ =>
       unsafeRun(io) must_=== 42
     }.reduce(_ and _)
   }
