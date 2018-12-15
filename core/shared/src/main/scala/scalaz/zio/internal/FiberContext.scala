@@ -181,14 +181,12 @@ private[zio] final class FiberContext[E, A](
                   val io = curIo.asInstanceOf[IO.AsyncEffect[E, Any]]
 
                   // Enter suspended state:
-                  if (enterAsync()) {
+                  curIo = if (enterAsync()) {
                     io.register(resumeAsync) match {
-                      case Async.Now(io) =>
-                        if (exitAsync()) curIo = io
-
-                      case Async.Later => curIo = null
+                      case Async.Now(io) => if (exitAsync()) io else null
+                      case Async.Later   => null
                     }
-                  } else curIo = IO.interrupt
+                  } else IO.interrupt
 
                 case IO.Tags.Redeem =>
                   val io = curIo.asInstanceOf[IO.Redeem[E, Any, Any, Any]]
