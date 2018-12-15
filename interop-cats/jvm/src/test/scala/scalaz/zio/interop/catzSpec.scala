@@ -46,7 +46,7 @@ class catzSpec
 
         (l, r) match {
           case (Right(l), Right(r)) => A.eqv(l, r)
-          case (Left(l), Left(r))   => l.getClass == r.getClass
+          case (Left(l), Left(r))   => Eq[Throwable].eqv(l, r)
           case _                    => false
         }
       }
