@@ -61,7 +61,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
   }
 
   override def liftIO[A](ioa: cats.effect.IO[A]): Task[A] =
-    Concurrent.liftIO(ioa)(this)
+    IO.fromEither(scala.util.Try(ioa.unsafeRunSync).toEither)
 
   override def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
     IO.asyncInterrupt { (kk: IO[Throwable, A] => Unit) =>
@@ -118,14 +118,15 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
   override def never[A]: Task[A] =
     IO.never
 
+  override def toIO[A](
+    fa: Task[A]
+  ): effect.IO[A] =
+    effect.IO(this.unsafeRun(fa))
+
   override def runAsync[A](
     fa: Task[A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
-    effect.SyncIO {
-      this.unsafeRunAsync(fa) { exit =>
-        cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())
-      }
-    }
+    toIO(fa).runAsync(cb)
 
   override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
     IO.async { (kk: IO[Throwable, A] => Unit) =>
