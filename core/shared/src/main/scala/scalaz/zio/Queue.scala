@@ -347,7 +347,7 @@ object Queue {
                   unsafeMovePutters()
                 } else {
                   unsafeOfferAll(putters, putter :: unsafePollAll(putters))
-                  ()
+                  if (!queue.isFull()) unsafeMovePutters() else ()
                 }
             }
           }
