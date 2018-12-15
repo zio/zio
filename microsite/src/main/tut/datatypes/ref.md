@@ -1,7 +1,7 @@
 ---
 layout: docs
-section: usage
-title:  "Refs"
+section: datatypes
+title:  "Ref"
 ---
 
 # Ref

@@ -1,7 +1,7 @@
 ---
 layout: docs
-section: usage
-title:  "Queues"
+section: datatypes
+title:  "Queue"
 ---
 
 # Queue
