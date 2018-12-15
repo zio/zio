@@ -31,7 +31,7 @@ class Queue[A] private (
         queue.poll(null.asInstanceOf[A]) match {
           case null =>
             unsafeOfferAll(takers, taker :: unsafePollAll(takers))
-            None
+            pollTakersThenQueue()
           case a => Some((taker, a))
         }
       }
@@ -347,7 +347,7 @@ object Queue {
                   unsafeMovePutters()
                 } else {
                   unsafeOfferAll(putters, putter :: unsafePollAll(putters))
-                  if (!queue.isFull()) unsafeMovePutters() else ()
+                  unsafeMovePutters()
                 }
             }
           }
