@@ -40,7 +40,7 @@ trait Env {
    * Awaits for the result of the fiber to be computed.
    */
   final def unsafeRun[E, A](io: IO[E, A]): A =
-    unsafeRunSync(io).fold(cause => throw new FiberFailure(cause), identity)
+    unsafeRunSync(io).getOrElse(c => throw new FiberFailure(c))
 
   /**
    * Awaits for the result of the fiber to be computed.
