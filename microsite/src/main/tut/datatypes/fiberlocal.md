@@ -1,6 +1,6 @@
 ---
 layout: docs
-section: usage
+section: datatypes
 title:  "FiberLocal"
 ---
 

@@ -18,15 +18,6 @@ Powered by highly-scalable, non-blocking fibers that never waste resources, ZIO 
  - **Resource-safe**. Build apps that never leak resources.
  - **Functional**. Rapidly compose solutions to complex problems from simple building blocks.
 
-# Getting Started
-
-Include ZIO in your project by adding the following to your `build.sbt`:
-
-```tut:evaluated
-if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
-println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
-```
-
 # Why IO?
 
 At the core of ZIO is `IO`, a powerful data type inspired by Haskell's `IO` monad. The `IO` data type allows you to model asynchronous, concurrent, and effectful computations as a pure value.
