@@ -753,7 +753,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Keep or break a promise based on the result of this action.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): IO[Nothing, Boolean] =
-    self.run.flatMap(x => p.done(IO.done(x)))
+    self.redeem(p.error, p.complete).onTermination(_ => p.interrupt)
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
