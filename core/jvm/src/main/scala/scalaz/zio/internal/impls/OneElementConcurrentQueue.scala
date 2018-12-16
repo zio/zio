@@ -4,6 +4,30 @@ import java.util.concurrent.atomic.{ AtomicReference, LongAdder }
 
 import scalaz.zio.internal.MutableConcurrentQueue
 
+/**
+ * This is a specialized implementation of MutableConcurrentQueue of
+ * capacity 1. Since capacity 1 queues are by default used under the
+ * hood in Streams as intermediate resource they should be very cheap
+ * to create and throw away. Hence this queue is optimized (unlike
+ * RingBuffer*) for a very small footprint, while still being plenty
+ * fast.
+ *
+ * Allocating an object takes only 32 bytes + 16+ bytes in long adders (so 48+ bytes total),
+ * which is 10x less that a smalles RingBuffer.
+ *
+ * scalaz.zio.internal.impls.OneElementConcurrentQueue object internals:
+ *  OFFSET  SIZE                                          TYPE DESCRIPTION
+ *       0     4                                               (object header)
+ *       4     4                                               (object header)
+ *       8     4                                               (object header)
+ *      12     4                                           int OneElementConcurrentQueue.capacity
+ *      16     4   java.util.concurrent.atomic.AtomicReference OneElementConcurrentQueue.ref
+ *      20     4         java.util.concurrent.atomic.LongAdder OneElementConcurrentQueue.deqAdder
+ *      24     4         java.util.concurrent.atomic.LongAdder OneElementConcurrentQueue.enqAdder
+ *      28     4                                               (loss due to the next object alignment)
+ * Instance size: 32 bytes
+ * Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+ */
 class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] {
   private[this] final val ref      = new AtomicReference[AnyRef]()
   private[this] final val deqAdder = new LongAdder()
