@@ -14,7 +14,7 @@ abstract class CatsPlatform extends CatsInstances {
 abstract class CatsInstances extends CatsInstances1 {
   implicit def ioContextShift[E]: ContextShift[IO[E, ?]] = new ContextShift[IO[E, ?]] {
     override def shift: IO[E, Unit] =
-      IO.shift
+      IO.yieldNow
 
     override def evalOn[A](ec: ExecutionContext)(fa: IO[E, A]): IO[E, A] =
       fa.on(ec)
