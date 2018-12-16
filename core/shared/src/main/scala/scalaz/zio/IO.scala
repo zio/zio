@@ -682,7 +682,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
-    redeem0(cause => IO.now(ExitResult.failed(cause)), succ => IO.now(ExitResult.succeeded(succ)))
+    new IO.Redeem[E, Nothing, A, ExitResult[E, A]](
+      self,
+      cause => IO.now(ExitResult.failed(cause)),
+      succ => IO.now(ExitResult.succeeded(succ)),
+      recoverFromInterruption = true
+    )
 
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
