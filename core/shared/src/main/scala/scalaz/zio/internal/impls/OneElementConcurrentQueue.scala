@@ -2,84 +2,78 @@ package scalaz.zio.internal.impls
 
 import java.io.Serializable
 
-import java.util.concurrent.atomic.{ AtomicReference, AtomicLong }
+import java.util.concurrent.atomic.{ AtomicReference, AtomicLong, AtomicBoolean }
 
 import scalaz.zio.internal.MutableConcurrentQueue
 
-object OneElementConcurrentQueue {
-  final val STATE_LOOP     = 0
-  final val STATE_FULL     = 1
-  final val STATE_EMPTY    = -1
-  final val STATE_RESERVED = 2
-}
-
 class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
-  import OneElementConcurrentQueue._
+  private[this] final val ref = new AtomicReference[AnyRef]()
 
-  private[this] val ref = new AtomicReference[AnyRef]()
-  private[this] val headCounter = new AtomicLong(0L)
-  private[this] val tailCounter = new AtomicLong(0L)
+  private[this] final val headCounter = new AtomicLong(0L)
+  private[this] final val deqInProgress = new AtomicBoolean(false)
 
-  val capacity: Int = 1
+  private[this] final val tailCounter = new AtomicLong(0L)
+  private[this] final val enqInProgress = new AtomicBoolean(false)
 
-  def dequeuedCount(): Long = headCounter.get()
-  def enqueuedCount(): Long = tailCounter.get()
+  final val capacity: Int = 1
 
-  def isEmpty(): Boolean = ref.get() == null
-  def isFull(): Boolean  = !isEmpty()
+  final override def dequeuedCount(): Long = headCounter.get()
+  final override def enqueuedCount(): Long = tailCounter.get()
 
-  def offer(a: A): Boolean = {
+  final override def isEmpty(): Boolean = ref.get() == null
+  final override def isFull(): Boolean  = !isEmpty()
+
+  final override def offer(a: A): Boolean = {
     assert(a != null)
 
-    var state = STATE_LOOP
-    val aTail = tailCounter
+    var res = false
+    var looping = true
 
-    val aHead   = headCounter
-    var curHead = aHead.get()
-
-    while (state == STATE_LOOP) {
-      if (isFull() || curHead + 1 == aTail.get()) {
-        state = STATE_FULL
+    while (looping) {
+      if (isFull()) {
+        looping = false
       } else { // try to reserve the opportunity to offer
-        if (aTail.compareAndSet(curHead, curHead + 1)) {
-          ref.lazySet(a.asInstanceOf[AnyRef])
-          state = STATE_RESERVED
-        } else {
-          curHead = aHead.get()
+        if (enqInProgress.compareAndSet(false, true)) {
+          if (ref.get() == null) {
+            ref.lazySet(a.asInstanceOf[AnyRef])
+            tailCounter.lazySet(tailCounter.get() + 1)
+            res = true
+          }
+
+          enqInProgress.lazySet(false)
+          looping = false
         }
       }
     }
 
-    if (state == STATE_RESERVED) true
-    else false
+    res
   }
 
-  def poll(default: A): A = {
-    var state = STATE_LOOP
-    var el    = null.asInstanceOf[AnyRef]
+  final override def poll(default: A): A = {
+    var res     = default
+    var looping = true
 
-    val aHead   = headCounter
-    var curHead = aHead.get()
-
-    val aTail = tailCounter
-
-    while (state == STATE_LOOP) {
-      if (isEmpty() || aTail.get() == curHead) {
-        state = STATE_EMPTY
+    while (looping) {
+      if (isEmpty()) {
+        looping = false
       } else {
-        if (aHead.compareAndSet(curHead, curHead + 1)) {
-          el = ref.get()
-          ref.lazySet(null.asInstanceOf[AnyRef])
-          state = STATE_RESERVED
-        } else {
-          curHead = aHead.get()
+        if (deqInProgress.compareAndSet(false, true)) {
+          val el = ref.get().asInstanceOf[A]
+
+          if (el != null) {
+            res = el
+            ref.lazySet(null.asInstanceOf[AnyRef])
+            headCounter.lazySet(headCounter.get() + 1)
+          }
+
+          deqInProgress.lazySet(false)
+          looping = false
         }
       }
     }
 
-    if (state == STATE_RESERVED) el.asInstanceOf[A]
-    else default
+    res
   }
 
-  def size(): Int = if (isEmpty()) 0 else 1
+  final override def size(): Int = if (isEmpty()) 0 else 1
 }
