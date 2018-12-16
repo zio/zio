@@ -256,7 +256,7 @@ object Queue {
     }
 
     final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, context: Env): Unit =
-      p.unsafeDone(ExitResult.succeeded(a), context.defaultExecutor)
+      p.unsafeDone(IO.now(a), context.defaultExecutor)
 
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean]

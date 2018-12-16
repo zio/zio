@@ -11,6 +11,14 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
   import ExitResult._
 
   /**
+   * Retrieves the `A` if succeeded, or else returns the specified default `A`.
+   */
+  final def getOrElse[A1 >: A](orElse: Cause[E] => A1): A1 = self match {
+    case Succeeded(value) => value
+    case Failed(cause)    => orElse(cause)
+  }
+
+  /**
    * Converts the `ExitResult` to an `Either[Throwable, A]`, by wrapping the
    * cause in `FiberFailure` (if the result is failed).
    */

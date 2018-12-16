@@ -71,14 +71,14 @@ case class Request()
 case class Response()
 
 object Http {
-  def req(req: Request, cb: ExitResult[HttpException, Response] => Unit): Unit =
-    cb(ExitResult.succeeded(Response()))
+  def req(req: Request, k: IO[HttpException, Response] => Unit): Unit =
+    k(IO.now(Response()))
 }
 ```
 
 ```tut:silent
 def makeRequest(req: Request): IO[HttpException, Response] =
-  IO.async[HttpException, Response](cb => Http.req(req, cb))
+  IO.async[HttpException, Response](k => Http.req(req, k))
 ```
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.
