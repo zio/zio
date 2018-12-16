@@ -35,8 +35,8 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
       } else {
         if (enqInProgress.compareAndSet(false, true)) { // get an exclusive right to offer
           if (ref.get() == null) {
-            ref.lazySet(a.asInstanceOf[AnyRef])
             tailCounter.lazySet(tailCounter.get() + 1)
+            ref.lazySet(a.asInstanceOf[AnyRef])
             res = true
           }
 
@@ -62,8 +62,8 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
 
           if (el != null) {
             res = el
-            ref.lazySet(null.asInstanceOf[AnyRef])
             headCounter.lazySet(headCounter.get() + 1)
+            ref.lazySet(null.asInstanceOf[AnyRef])
           }
 
           deqInProgress.lazySet(false)
