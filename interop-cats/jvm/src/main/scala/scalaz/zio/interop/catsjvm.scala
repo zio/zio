@@ -61,7 +61,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
   }
 
   override def liftIO[A](ioa: cats.effect.IO[A]): Task[A] =
-    IO.fromEither(scala.util.Try(ioa.unsafeRunSync).toEither)
+    IO.fromTry(scala.util.Try(ioa.unsafeRunSync))
 
   override def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
     IO.asyncInterrupt { (kk: IO[Throwable, A] => Unit) =>
