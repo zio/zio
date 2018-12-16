@@ -1,0 +1,26 @@
+.jumbotron {
+    background: url("../img/jumbotron_pattern.png") no-repeat center fixed;
+    background-size: 100% 100%;
+}
+
+.technologies {
+    display: none;
+}
+
+#site-footer {
+    background: #530b0e;
+}
+
+#page-content-wrapper .nav a {
+    color: #530b0e;
+}
+
+#page-content-wrapper .nav a:hover,
+#page-content-wrapper .nav a:focus {
+    color: #86201e;
+}
+
+.sidebar-nav .sidebar-brand a,
+.sidebar-nav .sidebar-brand a:hover {
+    background-color: #530b0e;
+}
