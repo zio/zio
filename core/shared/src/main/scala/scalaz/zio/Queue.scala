@@ -20,6 +20,7 @@ class Queue[A] private (
   private final val checkShutdownState: IO[Nothing, Unit] =
     shutdownHook.get.flatMap(_.fold[IO[Nothing, Unit]](IO.interrupt)(_ => IO.unit))
 
+  @tailrec
   private final def pollTakersThenQueue(): Option[(Promise[Nothing, A], A)] =
     // check if there is both a taker and an item in the queue, starting by the taker
     if (!queue.isEmpty()) {
