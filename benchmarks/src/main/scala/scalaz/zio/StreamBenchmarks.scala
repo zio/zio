@@ -145,8 +145,8 @@ class CSVStreamBenchmarks {
     val chunks = genCsvChunks.map(FS2Chunk.array(_))
     val stream = FS2Stream(chunks: _*)
       .flatMap(FS2Stream.chunk(_))
-      .scan((Vector.empty[Char], Vector.empty[CSV.Token])) {
-        case ((acc, _), char) =>
+      .mapAccumulate(Vector.empty[Char]) {
+        case (acc, char) =>
           if (char == CSV.ColumnSep) {
             Vector.empty[Char] ->
               ((if (acc.length > 0)
