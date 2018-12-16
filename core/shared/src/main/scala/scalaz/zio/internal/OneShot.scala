@@ -31,11 +31,13 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
   /**
    * Retrieves the value of the variable, blocking if necessary.
    */
-  final def get: A = {
-    while (value == null) {
+  final def get(timeout: Long = Long.MaxValue): A = {
+    if (value == null) {
       this.synchronized {
-        if (value == null) this.wait()
+        if (value == null) this.wait(timeout)
       }
+
+      if (value == null) throw new Error("Timed out waiting for variable to be set")
     }
 
     value
