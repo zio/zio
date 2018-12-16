@@ -216,9 +216,9 @@ lazy val microsite = project.module
     micrositeDocumentationLabelDescription := "Scaladoc",
     micrositeBaseUrl := "/scalaz-zio",
     micrositePalette := Map(
-      "brand-primary"   -> "#ED2124",
-      "brand-secondary" -> "#251605",
-      "brand-tertiary"  -> "#491119",
+      "brand-primary"   -> "#86201e",
+      "brand-secondary" -> "#530b0e",
+      "brand-tertiary"  -> "#86201e",
       "gray-dark"       -> "#453E46",
       "gray"            -> "#837F84",
       "gray-light"      -> "#E3E2E3",
