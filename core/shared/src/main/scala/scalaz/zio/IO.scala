@@ -362,7 +362,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * to the default one.
    */
   final def on(ec: ExecutionContext): IO[E, A] =
-    self.lock(Executor.fromExecutionContext(Executor.Yielding, _ => Int.MaxValue, Int.MaxValue)(ec))
+    self.lock(Executor.fromExecutionContext(Executor.Yielding, Int.MaxValue)(ec))
 
   /**
    * Forks an action that will be executed on the specified `ExecutionContext`.
