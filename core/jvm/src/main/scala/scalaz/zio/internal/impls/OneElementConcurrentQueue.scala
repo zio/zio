@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.{ AtomicReference, LongAdder }
 
 import scalaz.zio.internal.MutableConcurrentQueue
 
-class OneElementConcQueueAdderMetric[A] extends MutableConcurrentQueue[A] {
+class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] {
   private[this] final val ref      = new AtomicReference[AnyRef]()
   private[this] final val deqAdder = new LongAdder()
   private[this] final val enqAdder = new LongAdder()

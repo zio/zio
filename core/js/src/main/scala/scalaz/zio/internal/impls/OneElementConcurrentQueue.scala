@@ -32,8 +32,8 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
     while (looping) {
       if (isFull()) {
         looping = false
-      } else { // try to reserve the opportunity to offer
-        if (enqInProgress.compareAndSet(false, true)) {
+      } else {
+        if (enqInProgress.compareAndSet(false, true)) { // get an exclusive right to offer
           if (ref.get() == null) {
             ref.lazySet(a.asInstanceOf[AnyRef])
             tailCounter.lazySet(tailCounter.get() + 1)
@@ -57,7 +57,7 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
       if (isEmpty()) {
         looping = false
       } else {
-        if (deqInProgress.compareAndSet(false, true)) {
+        if (deqInProgress.compareAndSet(false, true)) { // get an exclusive right to poll
           val el = ref.get().asInstanceOf[A]
 
           if (el != null) {
