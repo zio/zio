@@ -134,7 +134,7 @@ class CSVStreamBenchmarks {
                 Vector(CSV.NewCol))
           } else (acc :+ char) -> Vector.empty[CSV.Token]
       }
-      .flatMapConcat(t => AkkaSource(t._2))
+      .mapConcat(t => t._2)
       .toMat(AkkaSink.ignore)(Keep.right)
 
     Await.result(program.run, Duration.Inf)
