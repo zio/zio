@@ -2,7 +2,7 @@ package scalaz.zio.internal
 
 import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.annotations.Expect._
-import org.openjdk.jcstress.infra.results.{ I_Result, II_Result, IIII_Result }
+import org.openjdk.jcstress.infra.results.{ IIII_Result, II_Result, I_Result }
 
 import scalaz.zio.internal.impls.OneElementConcurrentQueue
 
@@ -56,7 +56,7 @@ object OneElementConcurrentQueueConcurrencyTests {
   )
   @State
   class OfferNoOverwritesTest {
-    val q = new OneElementConcurrentQueue[Int]()
+    val q                        = new OneElementConcurrentQueue[Int]()
     var (o1, o2, o3, p1, p2, p3) = (-42, -42, -42, -42, -42, -42)
 
     @Actor
@@ -153,11 +153,10 @@ object OneElementConcurrentQueueConcurrencyTests {
       new Outcome(id = Array("1, -2, -3, -4"), expect = ACCEPTABLE),
       new Outcome(id = Array("-1, 2, -3, -4"), expect = ACCEPTABLE),
       // Only first poller succeeds
-      new Outcome(id = Array("1, -2, 1, -4"), expect = ACCEPTABLE), // +1 -> -2 -> +3 -> -4
-      new Outcome(id = Array("1, 2, 1, -4"), expect = ACCEPTABLE), // +1 -> +3 -> -> -4 -> +2
-
-      new Outcome(id = Array("-1, 2, 2, -4"), expect = ACCEPTABLE), // +2 -> -1 -> -> +3 -> -4
-      new Outcome(id = Array("1, 2, 2, -4"), expect = ACCEPTABLE), // +2 -> +3 -> -4 -> +1
+      new Outcome(id = Array("1, -2, 1, -4"), expect = ACCEPTABLE),
+      new Outcome(id = Array("1, 2, 1, -4"), expect = ACCEPTABLE),
+      new Outcome(id = Array("-1, 2, 2, -4"), expect = ACCEPTABLE),
+      new Outcome(id = Array("1, 2, 2, -4"), expect = ACCEPTABLE),
       // Only second poller succeeds
       new Outcome(id = Array("1, -2, -3, 1"), expect = ACCEPTABLE),
       new Outcome(id = Array("1, 2, -3, 1"), expect = ACCEPTABLE),
@@ -170,7 +169,7 @@ object OneElementConcurrentQueueConcurrencyTests {
   )
   @State
   class PollNoNullsTest {
-    val q        = new OneElementConcurrentQueue[Int]()
+    val q                = new OneElementConcurrentQueue[Int]()
     var (o1, o2, p1, p2) = (-42, -42, -42, -42)
 
     @Actor

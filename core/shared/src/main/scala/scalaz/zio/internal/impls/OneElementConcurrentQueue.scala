@@ -2,17 +2,17 @@ package scalaz.zio.internal.impls
 
 import java.io.Serializable
 
-import java.util.concurrent.atomic.{ AtomicReference, AtomicLong, AtomicBoolean }
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import scalaz.zio.internal.MutableConcurrentQueue
 
 class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   private[this] final val ref = new AtomicReference[AnyRef]()
 
-  private[this] final val headCounter = new AtomicLong(0L)
+  private[this] final val headCounter   = new AtomicLong(0L)
   private[this] final val deqInProgress = new AtomicBoolean(false)
 
-  private[this] final val tailCounter = new AtomicLong(0L)
+  private[this] final val tailCounter   = new AtomicLong(0L)
   private[this] final val enqInProgress = new AtomicBoolean(false)
 
   final val capacity: Int = 1
@@ -26,7 +26,7 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
   final override def offer(a: A): Boolean = {
     assert(a != null)
 
-    var res = false
+    var res     = false
     var looping = true
 
     while (looping) {
