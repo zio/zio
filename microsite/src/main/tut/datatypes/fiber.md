@@ -1,7 +1,7 @@
 ---
 layout: docs
-section: usage
-title:  "Fibers"
+section: datatypes
+title:  "Fiber"
 ---
 
 # Fibers
@@ -109,3 +109,13 @@ fib(100) race fib(200)
 The `race` combinator is resource-safe, which means that if one of the two actions returns a value, the other one will be interrupted, to prevent wasting resources.
 
 The `race` and even `par` combinators are a specialization of a much-more powerful combinator called `raceWith`, which allows executing user-defined logic when the first of two actions succeeds.
+
+## Thread Shifting - JVM
+
+By default, fibers make no guarantees as to which thread they execute on. They may shift between threads, especially as they execute for long periods of time.
+
+Fibers only ever shift onto the thread pool of the runtime system, which means that by default, fibers running for a sufficiently long time will always return to the runtime system's thread pool, even when their (asynchronous) resumptions were initiated from other threads.
+
+For performance reasons, fibers will attempt to execute on the same thread for a (configurable) minimum period, before yielding to other fibers. Fibers that resume from asynchronous callbacks will resume on the initiating thread, and continue for some time before yielding and resuming on the runtime thread pool.
+
+These defaults help guarantee stack safety and cooperative multitasking. They can be changed in `RTS` if automatic thread shifting is not desired.

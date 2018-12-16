@@ -1,35 +1,99 @@
 options:
-  - title: Usage
-    url: usage/index.html
-    menu_section: usage
-    menu_type: usage
+  - title: Overview
+    url: overview/
+    menu_section: overview
+    menu_type: overview
 
     nested_options:
-    - title: Main
-      url: usage/main.html
-    - title: Purity
-      url: usage/purity.html
-    - title: Mapping/Chaining
-      url: usage/mapping.html
-    - title: Failure
-      url: usage/failure.html
-    - title: Brackets
-      url: usage/bracket.html
-    - title: Fibers
-      url: usage/fibers.html
+    - title: IO
+      url: overview/io.html
+    - title: Success & Failure
+      url: overview/success_failure.html
+    - title: Composition
+      url: overview/composition.html
+    - title: Error Handling
+      url: overview/error_handling.html
+    - title: Effects
+      url: overview/effects.html
+
+  - title: Data Types
+    url: datatypes/
+    menu_section: datatypes
+    menu_type: datatypes
+
+    nested_options:
+    - title: Fiber
+      url: datatypes/fiber.html
     - title: FiberLocal
-      url: usage/fiberlocal.html
+      url: datatypes/fiberlocal.html
+    - title: IO
+      url: datatypes/io.html
+    - title: Managed
+      url: datatypes/managed.html
     - title: Promise
-      url: usage/promise.html
-    - title: Schedules
-      url: usage/schedules.html
-    - title: Ref
-      url: usage/ref.html
+      url: datatypes/promise.html
     - title: Queue
-      url: usage/queue.html
-    - title: Performance
-      url: usage/performance.html
-    - title: Console
-      url: usage/console.html
-    - title: System
-      url: usage/system.html
+      url: datatypes/queue.html
+    - title: Ref
+      url: datatypes/ref.html
+    - title: Schedule
+      url: datatypes/schedule.html
+    - title: Semaphore
+      url: datatypes/semaphore.html
+    - title: Stream
+      url: datatypes/stream.html
+
+  - title: Interop
+    url: interop/
+    menu_section: interop
+    menu_type: interop
+
+    nested_options:
+    - title: Cats Effect
+      url: interop/catseffect.html
+    - title: Future
+      url: interop/future.html
+    - title: Java
+      url: interop/java.html
+    - title: Javascript
+      url: interop/javascript.html
+    - title: Monix
+      url: interop/monix.html
+    - title: Scalaz 7.x
+      url: interop/scalaz7x.html
+    - title: Scalaz 8
+      url: interop/scalaz8.html
+
+  - title: Use Cases
+    url: usecases/
+    menu_section: usecases
+    menu_type: usecases
+
+    nested_options:
+      - title: Asynchronous
+        url: usecases/asynchronous.html
+      - title: Concurrency
+        url: usecases/concurrency.html
+      - title: Parallelism
+        url: usecases/parallelism.html
+      - title: Queueing
+        url: usecases/queuing.html
+      - title: Scheduling
+        url: usecases/scheduling.html
+      - title: Streaming
+        url: usecases/streaming.html
+
+  - title: Advanced
+    url: advanced/
+    menu_section: advanced
+    menu_type: advanced
+
+    nested_options:
+      - title: Error Model
+        url: advanced/error_model.html
+      - title: Performance
+        url: advanced/performance.html
+      - title: RTS
+        url: advanced/rts.html
+      - title: System
+        url: advanced/system.html

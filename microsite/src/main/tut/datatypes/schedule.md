@@ -1,10 +1,10 @@
 ---
 layout: docs
-section: usage
-title:  "Schedules"
+section: datatypes
+title:  "Schedule"
 ---
 
-# Schedules
+# Schedule
 
 ```tut:silent
 import scalaz.zio._
