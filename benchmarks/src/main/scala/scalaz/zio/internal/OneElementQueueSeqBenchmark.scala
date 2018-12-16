@@ -1,10 +1,9 @@
 package scalaz.zio.internal
 
 import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 
-import BenchUtils._
+import scalaz.zio.internal.impls._
 
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -19,19 +18,25 @@ class OneElementQueueSeqBenchmark {
   def mkEl(): QueueElement  = () => 1
   val emptyEl: QueueElement = () => -1
 
-  @Param(Array("OneElementQueue", "RingBufferPow2"))
-  var qType: String = _
-
-  var q: MutableConcurrentQueue[QueueElement] = _
+  var oneElQ: MutableConcurrentQueue[QueueElement] = new OneElementConcurrentQueue
+  var pow2RB: MutableConcurrentQueue[QueueElement] = RingBufferPow2(2)
 
   @Setup(Level.Trial)
-  def createQ(): Unit =
-    q = queueByType(qType, 1)
+  def createQ(): Unit = {
+    oneElQ = new OneElementConcurrentQueue()
+    pow2RB = RingBufferPow2(2)
+  }
 
   @Benchmark
-  def offerAndPoll(): Int = {
-    doOffer(q)
-    doPoll(q)
+  def oneElOfferAndPoll(): Int = {
+    doOffer(oneElQ)
+    doPoll(oneElQ)
+  }
+
+  @Benchmark
+  def pow2RBOfferAndPoll(): Int = {
+    doOffer(pow2RB)
+    doPoll(pow2RB)
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
