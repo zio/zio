@@ -2,18 +2,18 @@ package scalaz.zio
 package interop
 
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.concurrent.duration.Duration
 import scala.util.{ Failure, Success }
+import scalaz.zio.duration.Duration
 
 object Task {
   type Par[A] = Par.T[Throwable, A]
 
   final def apply[A](effect: => A): Task[A] = IO.syncThrowable(effect)
 
-  final def now[A](effect: A): Task[A]                                              = IO.now(effect)
-  final def point[A](effect: => A): Task[A]                                         = IO.point(effect)
-  final def sync[A](effect: => A): Task[A]                                          = IO.sync(effect)
-  final def async[A](register: (ExitResult[Throwable, A] => Unit) => Unit): Task[A] = IO.async(register)
+  final def now[A](effect: A): Task[A]                                      = IO.now(effect)
+  final def point[A](effect: => A): Task[A]                                 = IO.point(effect)
+  final def sync[A](effect: => A): Task[A]                                  = IO.sync(effect)
+  final def async[A](register: (IO[Throwable, A] => Unit) => Unit): Task[A] = IO.async(register)
 
   final def fail[A](error: Throwable): Task[A] = IO.fail(error)
 
@@ -22,12 +22,12 @@ object Task {
 
   final def fromFuture[E, A](io: Task[Future[A]])(ec: ExecutionContext): Task[A] =
     io.attempt.flatMap { f =>
-      IO.async { (cb: ExitResult[Throwable, A] => Unit) =>
+      IO.async { (cb: IO[Throwable, A] => Unit) =>
         f.fold(
-          t => cb(ExitResult.checked(t)),
+          t => cb(IO.fail(t)),
           _.onComplete {
-            case Success(a) => cb(ExitResult.succeeded(a))
-            case Failure(t) => cb(ExitResult.checked(t))
+            case Success(a) => cb(IO.now(a))
+            case Failure(t) => cb(IO.fail(t))
           }(ec)
         )
       }

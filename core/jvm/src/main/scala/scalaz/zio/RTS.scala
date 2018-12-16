@@ -14,4 +14,6 @@ trait RTS {
 
   final def unsafeRunAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit =
     env.unsafeRunAsync(io, k)
+
+  final def shutdown(): Unit = env.shutdown()
 }

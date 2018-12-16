@@ -1,14 +1,14 @@
 // Copyright (C) 2018 - 2019 John A. De Goes. All rights reserved.
 package scalaz.zio.internal
 
-import scala.concurrent.duration._
+import scalaz.zio.duration._
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
 trait Scheduler {
   import Scheduler.CancelToken
 
-  def schedule(executor: Executor, task: Runnable, duration: Duration): CancelToken
+  def schedule(task: Runnable, duration: Duration): CancelToken
 
   /**
    * The number of tasks scheduled.
@@ -39,19 +39,19 @@ object Scheduler {
 
       val _size = new AtomicInteger()
 
-      override def schedule(executor: Executor, task: Runnable, duration: Duration): CancelToken =
-        if (duration == Duration.Zero) {
-          executor.submit(task)
+      override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+        case Duration.Infinity => ConstFalse
+        case Duration.Zero =>
+          task.run()
 
           ConstFalse
-        } else {
+        case duration: Duration.Finite =>
           _size.incrementAndGet
 
           val future = service.schedule(new Runnable {
             def run: Unit =
-              try {
-                val _ = executor.submit(task)
-              } finally {
+              try task.run()
+              finally {
                 val _ = _size.decrementAndGet
               }
           }, duration.toNanos, TimeUnit.NANOSECONDS)
@@ -63,7 +63,7 @@ object Scheduler {
 
             canceled
           }
-        }
+      }
 
       override def size: Int = _size.get
 

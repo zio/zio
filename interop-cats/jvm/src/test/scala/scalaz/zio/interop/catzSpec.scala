@@ -54,9 +54,11 @@ class catzSpec
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
     new Eq[IO[E, A]] {
+      import scalaz.zio.duration._
+
       def eqv(io1: IO[E, A], io2: IO[E, A]): Boolean = {
-        val v1  = unsafeRunSync(io1)
-        val v2  = unsafeRunSync(io2)
+        val v1  = unsafeRunSync(io1.timeout(20.seconds)).map(_.get)
+        val v2  = unsafeRunSync(io2.timeout(20.seconds)).map(_.get)
         val res = v1 === v2
         if (!res) {
           println(s"Mismatch: $v1 != $v2")

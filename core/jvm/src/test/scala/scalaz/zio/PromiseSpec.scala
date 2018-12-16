@@ -38,7 +38,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        s <- p.done(ExitResult.succeeded(14))
+        s <- p.done(IO.now(14))
         v <- p.get
       } yield s must beTrue and (v must_=== 14)
     )
@@ -56,7 +56,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done(ExitResult.checked("error in e4"))
+        s <- p.done(IO.fail("error in e4"))
         v <- p.get.attempt
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
@@ -66,7 +66,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       for {
         p <- Promise.make[Nothing, Int]
         _ <- p.complete(1)
-        s <- p.done(ExitResult.succeeded(9))
+        s <- p.done(IO.now(9))
         v <- p.get
       } yield s must beFalse and (v must_=== 1)
     )
@@ -99,7 +99,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       for {
         p      <- Promise.make[String, Int]
         _      <- p.complete(12)
-        result <- p.poll
+        result <- p.poll.flatMap(_.run)
       } yield result must_=== ExitResult.succeeded(12)
     }
 
@@ -108,7 +108,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       for {
         p      <- Promise.make[String, Int]
         _      <- p.error("failure")
-        result <- p.poll
+        result <- p.poll.flatMap(_.run)
       } yield result must_=== ExitResult.checked("failure")
     }
 
@@ -117,7 +117,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       for {
         p             <- Promise.make[String, Int]
         _             <- p.interrupt
-        attemptResult <- p.poll
+        attemptResult <- p.poll.flatMap(_.run)
       } yield attemptResult must_=== ExitResult.interrupted
     }
 
