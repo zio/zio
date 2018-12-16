@@ -23,9 +23,9 @@ class OneElementQueueConcBenchmark {
   def mkEl(): QueueElement  = new Object()
   val emptyEl: QueueElement = null.asInstanceOf[QueueElement]
 
-  val qCapacity: Int = 2 // because we want to construct RingBuffer* and JCTools as well
+  val qCapacity: Int = 2 // because we want to construct RingBuffer* as well
 
-  @Param(Array("OneElementQueue", "OneElementQueueNoMetric", "OneElementQueueMetric", "RingBufferPow2", "JCTools"))
+  @Param(Array("OneElementQueue", "OneElementQueueNoMetric", "RingBufferPow2"))
   var qType: String = _
 
   var q: MutableConcurrentQueue[QueueElement] = _

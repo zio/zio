@@ -11,7 +11,6 @@ object BenchUtils {
     case RingBufferArbType           => RingBufferArb(capacity)
     case OneElementQueueType         => new OneElementConcurrentQueue()
     case OneElementQueueNoMetricType => new OneElementConcQueueNoMetric()
-    case OneElementQueueMetricType   => new OneElementConcQueueAdderMetric()
     case LinkedQueueType             => new LinkedQueue
     case JucBlockingType             => new JucBlockingQueue
     case JCToolsType                 => new JCToolsQueue(capacity)
