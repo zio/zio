@@ -1,7 +1,7 @@
 package scalaz.zio
 
-import scala.concurrent.duration._
 import org.specs2.ScalaCheck
+import scalaz.zio.duration._
 
 class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "RetrySpec".title ^ s2"""
@@ -23,6 +23,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     retry: Schedule[E1, S],
     clock: Clock = Clock.Live
   ): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
+
     type State = retry.State
 
     def loop(state: State, ss: List[(Duration, S)]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] =

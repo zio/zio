@@ -2,11 +2,11 @@
 package scalaz.zio
 
 import scalaz.zio.ExitResult.Cause
+import scalaz.zio.duration._
 import scalaz.zio.internal.{ Env, Executor }
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
-import scala.concurrent.duration._
 
 /**
  * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
@@ -196,14 +196,14 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     for {
       done  <- Promise.make[E2, C]
       race  <- Ref[Int](0)
-      child <- Ref[Fiber[_, _]](Fiber.unit)
+      child <- Ref[IO[Nothing, Any]](IO.unit)
       c <- ((for {
-            left  <- self.fork.peek(f => child update (_ zip f))
-            right <- that.fork.peek(f => child update (_ zip f))
+            left  <- self.fork.peek(f => child update (_ *> f.interrupt))
+            right <- that.fork.peek(f => child update (_ *> f.interrupt))
             _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
           } yield ()).uninterruptibly *> done.get).onInterrupt(
-            child.get flatMap (_.interrupt)
+            IO.flatten(child.get)
           )
     } yield c
   }
@@ -220,14 +220,27 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * otherwise executes the specified action.
    */
   final def <>[E2, A1 >: A](that: => IO[E2, A1]): IO[E2, A1] =
-    self.redeem(_ => that, IO.now)
+    redeemOrElse(that, IO.now)
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
   final def <||>[E2, B](that: => IO[E2, B]): IO[E2, Either[A, B]] =
-    self.redeem(_ => that.map(Right(_)), IO.nowLeft)
+    redeemOrElse(that.map(Right(_)), IO.nowLeft)
+
+  private final def redeemOrElse[E2, B](that: => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] = {
+    val err = (cause: Cause[E]) =>
+      if (cause.interrupted || cause.isChecked) that else IO.fail0(cause.asInstanceOf[Cause[Nothing]])
+
+    (self.tag: @switch) match {
+      case IO.Tags.Fail =>
+        val io = self.asInstanceOf[IO.Fail[E]]
+        err(io.cause)
+
+      case _ => new IO.Redeem(self, err, succ, recoverFromInterruption = true)
+    }
+  }
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
@@ -257,7 +270,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     redeem0((cause: Cause[E]) => cause.checkedOrRefail.fold(err, IO.fail0), succ)
 
   /**
-   * A more powerful version of redeem that allows recovering from any kind of failure.
+   * A more powerful version of redeem that allows recovering from any kind of failure except interruptions.
    */
   final def redeem0[E2, B](err: Cause[E] => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
     (self.tag: @switch) match {
@@ -376,12 +389,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Runs the specified action if this action fails, providing the error to the
    * action if it exists. The provided action will not be interrupted.
    */
-  final def onError(cleanup: ExitResult[E, Nothing] => IO[Nothing, _]): IO[E, A] =
+  final def onError(cleanup: Cause[E] => IO[Nothing, _]): IO[E, A] =
     IO.bracket0(IO.unit)(
       (_, eb: ExitResult[E, A]) =>
         eb match {
           case ExitResult.Succeeded(_)  => IO.unit
-          case t @ ExitResult.Failed(_) => cleanup(t)
+          case ExitResult.Failed(cause) => cleanup(cause)
         }
     )(_ => self)
 
@@ -740,7 +753,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Keep or break a promise based on the result of this action.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): IO[Nothing, Boolean] =
-    self.run.flatMap(p.done(_))
+    self.run.flatMap(x => p.done(IO.done(x)))
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
@@ -775,12 +788,11 @@ object IO extends Serializable {
     final val Redeem          = 6
     final val Fork            = 7
     final val Uninterruptible = 8
-    final val Sleep           = 9
-    final val Supervise       = 10
-    final val Ensuring        = 11
-    final val Descriptor      = 12
-    final val Lock            = 13
-    final val Yield           = 14
+    final val Supervise       = 9
+    final val Ensuring        = 10
+    final val Descriptor      = 11
+    final val Lock            = 12
+    final val Yield           = 13
   }
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
@@ -798,14 +810,15 @@ object IO extends Serializable {
     override def tag = Tags.SyncEffect
   }
 
-  final class AsyncEffect[E, A] private[IO] (val register: (Callback[E, A]) => Async[E, A]) extends IO[E, A] {
+  final class AsyncEffect[E, A] private[IO] (val register: (IO[E, A] => Unit) => Async[E, A]) extends IO[E, A] {
     override def tag = Tags.AsyncEffect
   }
 
   final class Redeem[E, E2, A, B] private[IO] (
     val value: IO[E, A],
     val err: Cause[E] => IO[E2, B],
-    val succ: A => IO[E2, B]
+    val succ: A => IO[E2, B],
+    val recoverFromInterruption: Boolean = false
   ) extends IO[E2, B]
       with Function[A, IO[E2, B]] {
 
@@ -821,10 +834,6 @@ object IO extends Serializable {
 
   final class Uninterruptible[E, A] private[IO] (val io: IO[E, A]) extends IO[E, A] {
     override def tag = Tags.Uninterruptible
-  }
-
-  final class Sleep private[IO] (val duration: Duration) extends IO[Nothing, Unit] {
-    override def tag = Tags.Sleep
   }
 
   final class Supervise[E, A] private[IO] (
@@ -888,7 +897,17 @@ object IO extends Serializable {
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  final def sleep(duration: Duration): IO[Nothing, Unit] = new Sleep(duration)
+  final def sleep(duration: Duration): IO[Nothing, Unit] =
+    IO.sync0(identity)
+      .flatMap(
+        env =>
+          IO.asyncInterrupt[Nothing, Unit] { k =>
+            val canceler = env.scheduler
+              .schedule(() => k(IO.unit), duration)
+
+            Left(IO.sync(canceler()))
+          }
+      )
 
   /**
    * Supervises the specified action, which ensures that any actions directly
@@ -943,14 +962,24 @@ object IO extends Serializable {
   final def sync[A](effect: => A): IO[Nothing, A] = sync0(_ => effect)
 
   /**
-   * Imports a synchronous effect into a pure `IO` value.
-   * This variant of `sync` lets you reuse the current execution context of the fiber.
+   * Imports a synchronous effect into a pure `IO` value. This variant of `sync`
+   * lets you use the execution environment of the fiber.
    *
    * {{{
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
    * }}}
    */
   final def sync0[A](effect: Env => A): IO[Nothing, A] = new SyncEffect[A](effect)
+
+  /**
+   * Imports a synchronous effect into a pure `IO` value. This variant of `sync`
+   * lets you use the current executor of the fiber.
+   */
+  final def syncExec[A](effect: Executor => A): IO[Nothing, A] =
+    for {
+      exec <- IO.descriptor.map(_.executor)
+      a    <- IO.sync(effect(exec))
+    } yield a
 
   /**
    *
@@ -1023,9 +1052,9 @@ object IO extends Serializable {
    */
   @deprecated("use lock or on", "0.6.0")
   final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
-    IO.async { cb: Callback[Nothing, Unit] =>
+    IO.async { (k: IO[Nothing, Unit] => Unit) =>
       ec.execute(new Runnable {
-        override def run(): Unit = cb(ExitResult.succeeded(()))
+        override def run(): Unit = k(IO.unit)
       })
     }
 
@@ -1049,31 +1078,39 @@ object IO extends Serializable {
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. See `async0` for
-   * the more expressive variant of this function.
+   * the more expressive variant of this function that can return a value
+   * synchronously.
    */
-  final def async[E, A](register: (Callback[E, A]) => Unit): IO[E, A] =
-    new AsyncEffect((callback: Callback[E, A]) => {
+  final def async[E, A](register: (IO[E, A] => Unit) => Unit): IO[E, A] =
+    async0((callback: IO[E, A] => Unit) => {
       register(callback)
 
       Async.later
     })
 
   /**
+   * Imports an asynchronous effect into a pure `IO` value, possibly returning
+   * the value synchronously.
+   */
+  final def async0[E, A](register: (IO[E, A] => Unit) => Async[E, A]): IO[E, A] =
+    new AsyncEffect(register)
+
+  /**
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E, A](register: (Callback[E, A]) => IO[Nothing, Unit]): IO[E, A] =
+  final def asyncPure[E, A](register: (IO[E, A] => Unit) => IO[Nothing, _]): IO[E, A] =
     for {
       p   <- Promise.make[E, A]
-      ref <- Ref[Fiber[Nothing, _]](Fiber.unit)
+      ref <- Ref[IO[Nothing, Any]](IO.unit)
       a <- (for {
             _ <- IO
-                  .flatten(IO.sync0(env => register(p.unsafeDone(_, env.defaultExecutor))))
+                  .flatten(IO.sync0(env => register(io => env.unsafeRunAsync_(io.to(p)))))
                   .fork
-                  .peek(ref.set(_))
+                  .peek(f => ref.set(f.interrupt))
                   .uninterruptibly
             a <- p.get
-          } yield a).onInterrupt(ref.get.flatMap(_.interrupt))
+          } yield a).onInterrupt(IO.flatten(ref.get))
     } yield a
 
   /**
@@ -1084,7 +1121,26 @@ object IO extends Serializable {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def async0[E, A](register: (Callback[E, A]) => Async[E, A]): IO[E, A] = new AsyncEffect(register)
+  final def asyncInterrupt[E, A](register: (IO[E, A] => Unit) => Either[Canceler, IO[E, A]]): IO[E, A] = {
+    import java.util.concurrent.atomic.AtomicBoolean
+    import internal.OneShot
+
+    IO.sync((new AtomicBoolean(false), OneShot.make[IO[Nothing, Any]])).flatMap {
+      case (started, cancel) =>
+        IO.flatten {
+          async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
+            started.set(true)
+
+            try register(io => k(IO.now(io))) match {
+              case Left(canceler) =>
+                cancel.set(canceler)
+                Async.later
+              case Right(io) => Async.now(IO.now(io))
+            } finally if (!cancel.isSet) cancel.set(IO.unit)
+          })
+        }.onInterrupt(IO.flatten(IO.sync(if (started.get) cancel.get() else IO.unit)))
+    }
+  }
 
   /**
    * Returns a action that will never produce anything. The moral
@@ -1170,11 +1226,11 @@ object IO extends Serializable {
   final def bracket0[E, A, B](
     acquire: IO[E, A]
   )(release: (A, ExitResult[E, B]) => IO[Nothing, _])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[(A, Fiber[E, B])]](None).flatMap { m =>
+    Ref[IO[Nothing, Any]](IO.unit).flatMap { m =>
       (for {
-        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(Some(a -> f)))).uninterruptibly
+        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptibly
         b <- f.join
-      } yield b).ensuring(m.get.flatMap(_.map { case (a, f) => f.interrupt.flatMap(release(a, _)) }.getOrElse(unit)))
+      } yield b).ensuring(IO.flatten(m.get))
     }
 
   /**
@@ -1185,11 +1241,11 @@ object IO extends Serializable {
   final def bracket[E, A, B](
     acquire: IO[E, A]
   )(release: A => IO[Nothing, _])(use: A => IO[E, B]): IO[E, B] =
-    Ref[Option[A]](None).flatMap { m =>
+    Ref[IO[Nothing, Any]](IO.unit).flatMap { m =>
       (for {
-        a <- acquire.flatMap(a => m.set(Some(a)).const(a)).uninterruptibly
+        a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptibly
         b <- use(a)
-      } yield b).ensuring(m.get.flatMap(_.map(release).getOrElse(unit)))
+      } yield b).ensuring(IO.flatten(m.get))
     }
 
   /**

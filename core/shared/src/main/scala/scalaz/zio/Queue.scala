@@ -49,9 +49,6 @@ class Queue[A] private (
 
   private final def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] = IO.sync(unsafeRemove(takers, taker))
 
-  /**
-   * For performance reasons, the actual capacity of the queue is the next power of 2 of the requested capacity.
-   */
   final val capacity: Int = queue.capacity
 
   /**
@@ -81,7 +78,7 @@ class Queue[A] private (
       _ <- checkShutdownState
 
       remaining <- IO.sync0 { context =>
-                    val pTakers                = unsafePollN(takers, as.size)
+                    val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
                     val (forTakers, remaining) = as.splitAt(pTakers.size)
                     (pTakers zip forTakers).foreach {
                       case (taker, item) => unsafeCompletePromise(taker, item, context)
@@ -259,7 +256,7 @@ object Queue {
     }
 
     final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, context: Env): Unit =
-      p.unsafeDone(ExitResult.succeeded(a), context.defaultExecutor)
+      p.unsafeDone(IO.now(a), context.defaultExecutor)
 
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean]
@@ -372,6 +369,10 @@ object Queue {
    * Makes a new bounded queue.
    * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
    * until there is more room in the queue.
+   *
+   * @note when possible use only power of 2 capacities; this will
+   * provide better performance by utilising an optimised version of
+   * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def bounded[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
     createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), BackPressure())
@@ -380,6 +381,10 @@ object Queue {
    * Makes a new bounded queue with sliding strategy.
    * When the capacity of the queue is reached, new elements will be added and the old elements
    * will be dropped.
+   *
+   * @note when possible use only power of 2 capacities; this will
+   * provide better performance by utilising an optimised version of
+   * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def sliding[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
     createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Sliding())
@@ -387,6 +392,10 @@ object Queue {
   /**
    * Makes a new bounded queue with the dropping strategy.
    * When the capacity of the queue is reached, new elements will be dropped.
+   *
+   * @note when possible use only power of 2 capacities; this will
+   * provide better performance by utilising an optimised version of
+   * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def dropping[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
     createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Dropping())

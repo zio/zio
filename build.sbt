@@ -147,8 +147,8 @@ lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
 lazy val interopFutureJS = interopFuture.js.dependsOn(interopSharedJS)
 
 lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-scala7x"))
-  .settings(stdSettings("zio-interop-scala7x"))
+  .in(file("interop-scalaz7x"))
+  .settings(stdSettings("zio-interop-scalaz7x"))
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
@@ -175,7 +175,15 @@ lazy val benchmarks = project.module
         "org.typelevel"     %% "cats-effect"   % "1.0.0",
         "co.fs2"            %% "fs2-core"      % "1.0.0",
         "com.typesafe.akka" %% "akka-stream"   % "2.5.17"
-      )
+      ),
+    scalacOptions in Compile in console := Seq(
+      "-Ypartial-unification",
+      "-language:higherKinds",
+      "-language:existentials",
+      "-Yno-adapted-args",
+      "-Xsource:2.13",
+      "-Yrepl-class-based"
+    )
   )
 
 lazy val microsite = project.module
