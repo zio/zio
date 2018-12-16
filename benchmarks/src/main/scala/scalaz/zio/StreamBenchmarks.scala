@@ -36,9 +36,9 @@ class StreamBenchmarks {
 
   @Benchmark
   def akkaChunkFilterMapSum = {
-    val chunks = (1 to chunkCount).flatMap(i => Array.fill(chunkSize)(i))
+    val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     val program = AkkaSource
-      .fromIterator(() => chunks.iterator)
+      .fromIterator(() => chunks.iterator.flatten)
       .filter(_ % 2 == 0)
       .map(_.toLong)
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
@@ -117,7 +117,7 @@ class CSVStreamBenchmarks {
     val chunks = genCsvChunks
 
     val program = AkkaSource
-      .fromIterator(() => chunks.flatten.iterator)
+      .fromIterator(() => chunks.iterator.flatten)
       .scan((Vector.empty[Char], Vector.empty[CSV.Token])) {
         case ((acc, _), char) =>
           if (char == CSV.ColumnSep) {
