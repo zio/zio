@@ -6,15 +6,18 @@ import scalaz.zio.internal.MutableConcurrentQueue
 
 class OneElementConcQueueNoMetric[A] extends MutableConcurrentQueue[A] {
   private[this] final val ref = new AtomicReference[AnyRef]()
-  val capacity: Int           = 1
 
-  def dequeuedCount(): Long = throw new NotImplementedError("dequeuedCount is not supported")
-  def enqueuedCount(): Long = throw new NotImplementedError("enqueuedCount is not supported")
+  override final val capacity: Int           = 1
 
-  def isEmpty(): Boolean = ref.get() == null
-  def isFull(): Boolean  = !isEmpty()
+  override final def dequeuedCount(): Long =
+    throw new NotImplementedError("dequeuedCount is not supported")
+  override final def enqueuedCount(): Long =
+    throw new NotImplementedError("enqueuedCount is not supported")
 
-  def offer(a: A): Boolean = {
+  override final def isEmpty(): Boolean = ref.get() == null
+  override final def isFull(): Boolean  = !isEmpty()
+
+  override final def offer(a: A): Boolean = {
     assert(a != null)
 
     val aRef    = ref
@@ -34,7 +37,7 @@ class OneElementConcQueueNoMetric[A] extends MutableConcurrentQueue[A] {
     ret
   }
 
-  def poll(default: A): A = {
+  override final def poll(default: A): A = {
     var ret     = default
     var looping = true
     val aRef    = ref
@@ -54,5 +57,5 @@ class OneElementConcQueueNoMetric[A] extends MutableConcurrentQueue[A] {
     ret
   }
 
-  def size(): Int = if (isEmpty()) 0 else 1
+  override final def size(): Int = if (isEmpty()) 0 else 1
 }

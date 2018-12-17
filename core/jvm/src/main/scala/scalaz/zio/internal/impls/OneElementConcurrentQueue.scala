@@ -34,15 +34,15 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
   private[this] final val deqAdder = new LongAdder()
   private[this] final val enqAdder = new LongAdder()
 
-  val capacity: Int = 1
+  override final val capacity: Int = 1
 
-  def dequeuedCount(): Long = deqAdder.sum()
-  def enqueuedCount(): Long = enqAdder.sum()
+  override final def dequeuedCount(): Long = deqAdder.sum()
+  override final def enqueuedCount(): Long = enqAdder.sum()
 
-  def isEmpty(): Boolean = ref.get() == null
-  def isFull(): Boolean  = !isEmpty()
+  override final def isEmpty(): Boolean = ref.get() == null
+  override final def isFull(): Boolean  = !isEmpty()
 
-  def offer(a: A): Boolean = {
+  override final def offer(a: A): Boolean = {
     assert(a != null)
 
     val aRef    = ref
@@ -63,7 +63,7 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
     ret
   }
 
-  def poll(default: A): A = {
+  override final def poll(default: A): A = {
     var ret     = default
     var looping = true
     val aRef    = ref
@@ -84,5 +84,5 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
     ret
   }
 
-  def size(): Int = if (isEmpty()) 0 else 1
+  override final def size(): Int = if (isEmpty()) 0 else 1
 }
