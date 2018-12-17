@@ -7,7 +7,7 @@ import scalaz.zio.internal.MutableConcurrentQueue
 class OneElementConcQueueNoMetric[A] extends MutableConcurrentQueue[A] {
   private[this] final val ref = new AtomicReference[AnyRef]()
 
-  override final val capacity: Int           = 1
+  override final val capacity: Int = 1
 
   override final def dequeuedCount(): Long =
     throw new NotImplementedError("dequeuedCount is not supported")
