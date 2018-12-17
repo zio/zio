@@ -109,9 +109,9 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     case ExitResult.Succeeded(_)                       => ExitCase.Completed
     case ExitResult.Failed(cause) if cause.interrupted => ExitCase.Canceled
     case ExitResult.Failed(cause) =>
-      cause.checked match {
-        case t :: Nil => ExitCase.Error(t)
-        case _        => ExitCase.Error(FiberFailure(cause))
+      cause.checkedOrRefail match {
+        case Left(t) => ExitCase.Error(t)
+        case _       => ExitCase.Error(FiberFailure(cause))
       }
   }
 
