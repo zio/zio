@@ -20,7 +20,7 @@ object Task {
   final def unit: Task[Unit]                      = IO.unit
   final def sleep(duration: Duration): Task[Unit] = IO.sleep(duration)
 
-  final def fromFuture[E, A](io: Task[Future[A]])(ec: ExecutionContext): Task[A] =
+  final def fromFutureTask[E, A](ec: ExecutionContext)(io: Task[Future[A]]): Task[A] =
     io.attempt.flatMap { f =>
       IO.async { (cb: IO[Throwable, A] => Unit) =>
         f.fold(

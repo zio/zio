@@ -179,6 +179,16 @@ lazy val interopScalaz7xJVM = interopScalaz7x.jvm.dependsOn(interopSharedJVM)
 
 lazy val interopScalaz7xJS = interopScalaz7x.js.dependsOn(interopSharedJS)
 
+lazy val interopJavaConcurrent = crossProject(JVMPlatform)
+  .in(file("interop-javaconcurrent"))
+  .settings(stdSettings("zio-interop-javaconcurrent"))
+  .dependsOn(core % "test->test;compile->compile")
+  .settings(
+    scalacOptions in Test ++= Seq("-Yrangepos")
+  )
+
+lazy val interopJavaConcurrentJVM = interopJavaConcurrent.jvm.dependsOn(interopSharedJVM)
+
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
   .enablePlugins(JmhPlugin)
