@@ -1,5 +1,6 @@
 package scalaz.zio.internal.impls
 
+import java.io.Serializable
 import java.util.concurrent.atomic.{ AtomicReference, LongAdder }
 
 import scalaz.zio.internal.MutableConcurrentQueue
@@ -28,7 +29,7 @@ import scalaz.zio.internal.MutableConcurrentQueue
  * Instance size: 32 bytes
  * Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
  */
-class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] {
+class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   private[this] final val ref      = new AtomicReference[AnyRef]()
   private[this] final val deqAdder = new LongAdder()
   private[this] final val enqAdder = new LongAdder()
