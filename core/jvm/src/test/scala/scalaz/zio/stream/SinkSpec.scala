@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO }
+import scalaz.zio.{ AbstractRTSSpec, Exit, GenIO, IO }
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "SinkSpec".title ^ s2"""
@@ -20,37 +20,37 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
 
     val numArrayParser =
       Sink
-        .foldM(IO.now((ParserState.Start: ParserState, List.empty[Int]))) { (s, a: Char) =>
+        .foldM(IO.succeed((ParserState.Start: ParserState, List.empty[Int]))) { (s, a: Char) =>
           s match {
             case (ParserState.Start, acc) =>
               a match {
-                case a if a.isWhitespace => IO.now(Sink.Step.more((ParserState.Start, acc)))
-                case '['                 => IO.now(Sink.Step.more((ParserState.Element(""), acc)))
+                case a if a.isWhitespace => IO.succeed(Sink.Step.more((ParserState.Start, acc)))
+                case '['                 => IO.succeed(Sink.Step.more((ParserState.Element(""), acc)))
                 case _                   => IO.fail("Expected '['")
               }
 
             case (ParserState.Element(el), acc) =>
               a match {
-                case a if a.isDigit => IO.now(Sink.Step.more((ParserState.Element(el + a), acc)))
-                case ','            => IO.now(Sink.Step.more((ParserState.Element(""), acc :+ el.toInt)))
-                case ']'            => IO.now(Sink.Step.done((ParserState.Done, acc :+ el.toInt), Chunk.empty))
+                case a if a.isDigit => IO.succeed(Sink.Step.more((ParserState.Element(el + a), acc)))
+                case ','            => IO.succeed(Sink.Step.more((ParserState.Element(""), acc :+ el.toInt)))
+                case ']'            => IO.succeed(Sink.Step.done((ParserState.Done, acc :+ el.toInt), Chunk.empty))
                 case _              => IO.fail("Expected a digit or ,")
               }
 
             case (ParserState.Done, acc) =>
-              IO.now(Sink.Step.done((ParserState.Done, acc), Chunk.empty))
+              IO.succeed(Sink.Step.done((ParserState.Done, acc), Chunk.empty))
           }
         }
         .map(_._2)
         .chunked
 
-    val src1         = StreamChunk.point(Chunk.fromArray(Array('[', '1', '2')))
-    val src2         = StreamChunk.point(Chunk.fromArray(Array('3', ',', '4', ']')))
+    val src1         = StreamChunk.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
+    val src2         = StreamChunk.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
     val partialParse = unsafeRunSync(src1.run(numArrayParser))
     val fullParse    = unsafeRunSync((src1 ++ src2).run(numArrayParser))
 
-    (partialParse must_=== (ExitResult.Succeeded(List()))) and
-      (fullParse must_=== (ExitResult.Succeeded(List(123, 4))))
+    (partialParse must_=== (Exit.Success(List()))) and
+      (fullParse must_=== (Exit.Success(List(123, 4))))
   }
 
   def jsonNumArrayParsingSinkWithCombinators = {
@@ -70,12 +70,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
         case _                   => Sink.fail("Expected '['")
       }
 
-    val src1         = StreamChunk.point(Chunk.fromArray(Array('[', '1', '2')))
-    val src2         = StreamChunk.point(Chunk.fromArray(Array('3', ',', '4', ']')))
+    val src1         = StreamChunk.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
+    val src2         = StreamChunk.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
     val partialParse = unsafeRunSync(src1.run(start.chunked))
     val fullParse    = unsafeRunSync((src1 ++ src2).run(start.chunked))
 
-    (partialParse must_=== (ExitResult.checked("Expected closing brace; instead: None"))) and
-      (fullParse must_=== (ExitResult.Succeeded(List(123, 4))))
+    (partialParse must_=== (Exit.checked("Expected closing brace; instead: None"))) and
+      (fullParse must_=== (Exit.Success(List(123, 4))))
   }
 }

@@ -33,9 +33,9 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     val cleanups = new mutable.ListBuffer[String]
 
     def managed(v: String): Managed[Nothing, String] =
-      Managed(IO.now(v))(_ => IO.sync { cleanups += v; () })
+      Managed(IO.succeed(v))(_ => IO.sync { cleanups += v; () })
 
-    val program = managed("A").parWith(managed("B"))(_ + _).use(IO.now)
+    val program = managed("A").zipWithPar(managed("B"))(_ + _).use(IO.succeed)
 
     val result = unsafeRun(program)
 

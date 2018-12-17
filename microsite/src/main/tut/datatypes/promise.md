@@ -18,38 +18,39 @@ Promises can be created using `Promise.make[E, A]`, which returns `IO[Nothing, P
 
 ## Operations
 
-You can complete a `Promise[Exception, String]` named `p` successfully with a value using `p.complete(...)`.
-For example, `p.complete("I'm done!")`. The act of completing a Promise results in an `IO[Nothing, Boolean]`, where
+You can complete a `Promise[Exception, String]` named `p` successfully with a value using `p.succeed(...)`.
+For example, `p.succeed("I'm done!")`. The act of completing a Promise results in an `IO[Nothing, Boolean]`, where
 the `Boolean` represents whether the promise value has been set (`true`) or whether it was already set (`false`).
 This is demonstrated below:
 
 ```tut:silent
 import scalaz.zio._
+import scalaz.zio.syntax._
 ```
 
 ```tut:silent
 val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
-val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.complete("I'm done"))
+val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.succeed("I'm done"))
 ```
 
-You can also signal failure using `error(...)`. For example,
+You can also signal failure using `fail(...)`. For example,
 
 ```tut:silent
 val ioPromise: IO[Nothing, Promise[Exception, Nothing]] = Promise.make[Exception, Nothing]
-val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.error(new Exception("boom")))
+val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.fail(new Exception("boom")))
 ```
 
 To re-iterate, the `Boolean` tells us whether or not the operation took place successfully (`true`) i.e. the Promise
 was set with the value or the error.
 
-As an alternative to using `done(...)` or `error(...)` you can also use `complete(...)` with an `ExitResult[E, A]` where
+As an alternative to using `succeed(...)` or `fail(...)` you can also use `succeed(...)` with an `Exit[E, A]` where
 `E` signals an error and `A` signals a successful value.
 
-You can get a value from a Promise using `get`
+You can get a value from a Promise using `await`
 
 ```tut:silent
 val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
-val ioGet: IO[Exception, String] = ioPromise.flatMap(promise => promise.get)
+val ioGet: IO[Exception, String] = ioPromise.flatMap(promise => promise.await)
 ```
 
 The computation will suspend (in a non-blocking fashion) until the Promise is completed with a value or an error.
@@ -58,7 +59,8 @@ you can use `poll`:
 
 ```tut:silent
 val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
-val ioIsItDone: IO[Unit, IO[Exception, String]] = ioPromise.flatMap(p => p.poll)
+val ioIsItDone: IO[Nothing, Option[IO[Exception, String]]] = ioPromise.flatMap(p => p.poll)
+val ioIsItDone2: IO[Unit, IO[Exception, String]] = ioPromise.flatMap(p => p.poll.get)
 ```
 
 If the Promise was not completed when you called `poll` then the IO will fail with the `Unit` value otherwise,
@@ -75,8 +77,8 @@ import scalaz.zio.duration._
 
 val program: IO[IOException, Unit] = for {
 promise         <-  Promise.make[Nothing, String]
-sendHelloWorld  =   (IO.now("hello world") <* IO.sleep(1.second)).flatMap(promise.complete)
-getAndPrint     =   promise.get.flatMap(putStrLn)
+sendHelloWorld  =   (IO.succeed("hello world") <* IO.sleep(1.second)).flatMap(promise.succeed)
+getAndPrint     =   promise.await.flatMap(putStrLn)
 fiberA          <-  sendHelloWorld.fork
 fiberB          <-  getAndPrint.fork
 _               <-  (fiberA zip fiberB).join
@@ -84,6 +86,6 @@ _               <-  (fiberA zip fiberB).join
 ```
 
 In the example above, we create a Promise and have a Fiber (`fiberA`) complete that promise after 1 second and a second
-Fiber (`fiberB`) will call `get` on that Promise to obtain a `String` and then print it to screen. The example prints
+Fiber (`fiberB`) will call `await` on that Promise to obtain a `String` and then print it to screen. The example prints
 `hello world` to the screen after 1 second. Remember, this is just a description of the program and not the execution
 itself.
