@@ -12,10 +12,10 @@ trait RTS {
   final def unsafeRun[E, A](io: IO[E, A]): A =
     env.unsafeRun(io)
 
-  final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] =
+  final def unsafeRunSync[E, A](io: IO[E, A]): Exit[E, A] =
     env.unsafeRunSync(io)
 
-  final def unsafeRunAsync[E, A](io: IO[E, A])(k: ExitResult[E, A] => Unit): Unit =
+  final def unsafeRunAsync[E, A](io: IO[E, A])(k: Exit[E, A] => Unit): Unit =
     env.unsafeRunAsync(io, k)
 
   final def shutdown(): Unit = env.shutdown()

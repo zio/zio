@@ -3,7 +3,7 @@ package scalaz.zio.internal
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.{ switch, tailrec }
-import scalaz.zio.ExitResult.Cause
+import scalaz.zio.Exit.Cause
 
 import scalaz.zio._
 
@@ -31,7 +31,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val stack: Stack[Any => IO[Any, Any]] = new Stack[Any => IO[Any, Any]]()
 
   final def runAsync(k: Callback[E, A]): Unit =
-    register0(xx => k(ExitResult.flatten(xx))) match {
+    register0(xx => k(Exit.flatten(xx))) match {
       case null =>
       case v    => k(v)
     }
@@ -64,9 +64,9 @@ private[zio] final class FiberContext[E, A](
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
         case f0: Finalizer =>
           val f: IO[Nothing, Option[Cause[Nothing]]] =
-            f0.finalizer.redeem0(c => IO.now(Some(c)), _ => IO.now(None))
+            f0.finalizer.redeem0(c => IO.succeed(Some(c)), _ => IO.succeed(None))
           if (finalizer eq null) finalizer = f
-          else finalizer = finalizer.seqWith(f)(zipCauses)
+          else finalizer = finalizer.zipWith(f)(zipCauses)
         case _ =>
       }
     }
@@ -230,12 +230,12 @@ private[zio] final class FiberContext[E, A](
                       // No finalizer, so immediately produce the error.
                       curIo = null
 
-                      done(ExitResult.failed(io.cause))
+                      done(Exit.fail(io.cause))
                     } else {
                       // We have finalizers to run. We'll resume executing with the
                       // uncaught failure after we have executed all the finalizers:
                       curIo = doNotInterrupt(finalizer).flatMap(
-                        cause => IO.fail0(cause.foldLeft(io.cause)(_ ++ _))
+                        cause => IO.halt(cause.foldLeft(io.cause)(_ ++ _))
                       )
                     }
                   } else {
@@ -281,7 +281,7 @@ private[zio] final class FiberContext[E, A](
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
         case t: Throwable if (env.nonFatal(t)) =>
-          curIo = terminate(IO.terminate(t))
+          curIo = terminate(IO.die(t))
       }
     }
   }
@@ -317,19 +317,15 @@ private[zio] final class FiberContext[E, A](
   private[this] final val resumeAsync: IO[E, Any] => Unit =
     io => if (exitAsync()) evaluateLater(io)
 
-  final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
+  final def interrupt: IO[Nothing, Exit[E, A]] = IO.async0[Nothing, Exit[E, A]] { k =>
     kill0(x => k(IO.done(x)))
   }
 
-  final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
+  final def await: IO[Nothing, Exit[E, A]] = IO.async0[Nothing, Exit[E, A]] { k =>
     observe0(x => k(IO.done(x)))
   }
 
-  final def poll: IO[Unit, ExitResult[E, A]] =
-    IO.sync(poll0).flatMap {
-      case None       => IO.fail(())
-      case Some(exit) => IO.now(exit)
-    }
+  final def poll: IO[Nothing, Option[Exit[E, A]]] = IO.sync(poll0)
 
   private[this] final def enterSupervision: IO[E, Unit] = IO.sync {
     supervising += 1
@@ -418,7 +414,7 @@ private[zio] final class FiberContext[E, A](
   private[this] final def nextInstr(value: Any): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]]
     else {
-      done(ExitResult.succeeded(value.asInstanceOf[A]))
+      done(Exit.succeed(value.asInstanceOf[A]))
 
       null
     }
@@ -449,7 +445,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[this] final def done(v: ExitResult[E, A]): Unit = {
+  private[this] final def done(v: Exit[E, A]): Unit = {
     val oldState = state.get
 
     oldState match {
@@ -464,17 +460,17 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def reportUnhandled(v: ExitResult[E, A]): Unit = v match {
-    case ExitResult.Failed(cause) =>
-      env.unsafeRunAsync(unhandled(cause), (_: ExitResult[Nothing, _]) => ())
+  private[this] final def reportUnhandled(v: Exit[E, A]): Unit = v match {
+    case Exit.Failure(cause) =>
+      env.unsafeRunAsync(unhandled(cause), (_: Exit[Nothing, _]) => ())
 
     case _ =>
   }
 
   @tailrec
   private[this] final def kill0(
-    k: Callback[Nothing, ExitResult[E, A]]
-  ): Async[Nothing, ExitResult[E, A]] = {
+    k: Callback[Nothing, Exit[E, A]]
+  ): Async[Nothing, Exit[E, A]] = {
 
     val oldState = state.get
 
@@ -498,20 +494,20 @@ private[zio] final class FiberContext[E, A](
         if (!state.compareAndSet(oldState, Executing(true, true, status, observers))) kill0(k)
         else Async.later
 
-      case Done(e) => Async.now(IO.now(e))
+      case Done(e) => Async.now(IO.succeed(e))
     }
   }
 
   private[this] final def observe0(
-    k: Callback[Nothing, ExitResult[E, A]]
-  ): Async[Nothing, ExitResult[E, A]] =
+    k: Callback[Nothing, Exit[E, A]]
+  ): Async[Nothing, Exit[E, A]] =
     register0(k) match {
       case null => Async.later
-      case x    => Async.now(IO.now(x))
+      case x    => Async.now(IO.succeed(x))
     }
 
   @tailrec
-  private[this] final def register0(k: Callback[Nothing, ExitResult[E, A]]): ExitResult[E, A] = {
+  private[this] final def register0(k: Callback[Nothing, Exit[E, A]]): Exit[E, A] = {
     val oldState = state.get
 
     oldState match {
@@ -525,17 +521,17 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def poll0: Option[ExitResult[E, A]] =
+  private[this] final def poll0: Option[Exit[E, A]] =
     state.get match {
       case Done(r) => Some(r)
       case _       => None
     }
 
   private[this] final def notifyObservers(
-    v: ExitResult[E, A],
-    observers: List[Callback[Nothing, ExitResult[E, A]]]
+    v: Exit[E, A],
+    observers: List[Callback[Nothing, Exit[E, A]]]
   ): Unit = {
-    val result = ExitResult.succeeded(v)
+    val result = Exit.succeed(v)
 
     // To preserve fair scheduling, we submit all resumptions on the thread
     // pool in order of their submission.
@@ -567,9 +563,9 @@ private[zio] object FiberContext {
       interrupted: Boolean,
       terminating: Boolean,
       status: FiberStatus,
-      observers: List[Callback[Nothing, ExitResult[E, A]]]
+      observers: List[Callback[Nothing, Exit[E, A]]]
     ) extends FiberState[E, A]
-    final case class Done[E, A](value: ExitResult[E, A]) extends FiberState[E, A] {
+    final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A] {
       def interrupted: Boolean = value.interrupted
       def terminating: Boolean = false
     }
