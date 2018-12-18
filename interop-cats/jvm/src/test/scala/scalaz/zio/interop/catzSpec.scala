@@ -38,6 +38,20 @@ class catzSpec
       }
   }
 
+  override implicit def eqIO[A](implicit A: Eq[A], ec: TestContext): Eq[cats.effect.IO[A]] =
+    new Eq[cats.effect.IO[A]] {
+      def eqv(x: cats.effect.IO[A], y: cats.effect.IO[A]): Boolean = {
+        val l = x.attempt.unsafeRunSync
+        val r = y.attempt.unsafeRunSync
+
+        (l, r) match {
+          case (Right(l), Right(r)) => A.eqv(l, r)
+          case (Left(l), Left(r))   => l == r
+          case _                    => false
+        }
+      }
+    }
+
   (1 to 50).foreach { s =>
     checkAllAsync(s"Concurrent[Task] $s", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
   }
