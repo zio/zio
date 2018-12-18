@@ -13,27 +13,36 @@ class MutableConcurrentQueueSpec extends Specification {
   def is =
     "MutableConcurrentQueueSpec".title ^ s2"""
     Make a bounded MutableConcurrentQueue
-     of capacity 1 returns a queue of capacity 2. $minSize
-     of capacity 3 returns a queue of capacity 3. $e1
+     of capacity 1 return a queue of capacity 1. $minSize
+     of capacity 2 returns a queue of capacity 2. $exactSize1
+     of capacity 3 returns a queue of capacity 3. $exactSize2
 
     With a RingBuffer of capacity 2
-     `offer` of 2 items succeeds, further offers fail. $e2
-     `poll` of 2 items from full queue succeeds, further `poll`s return default value. $e3
+     `offer` of 2 items succeeds, further offers fail. $offerCheck
+     `poll` of 2 items from full queue succeeds, further `poll`s return default value. $pollCheck
 
-    RingBuffer can be serialized. $e4
+    Serialization works for
+     a one element queue. $oneElSerDe
+     a pow 2 capacity ring buffer. $pow2SerDe
+     an arbitrary capacity ring buffer. $arbSerDe
     """
 
   def minSize = {
     val q = MutableConcurrentQueue.bounded(1)
+    q.capacity must_=== 1
+  }
+
+  def exactSize1 = {
+    val q = MutableConcurrentQueue.bounded(2)
     q.capacity must_=== 2
   }
 
-  def e1 = {
+  def exactSize2 = {
     val q = MutableConcurrentQueue.bounded(3)
     q.capacity must_=== 3
   }
 
-  def e2 = {
+  def offerCheck = {
     val q = MutableConcurrentQueue.bounded[Int](2)
     (q.offer(1) must beTrue)
       .and(q.size must_=== 1)
@@ -43,7 +52,7 @@ class MutableConcurrentQueueSpec extends Specification {
       .and(q.isFull must beTrue)
   }
 
-  def e3 = {
+  def pollCheck = {
     val q = MutableConcurrentQueue.bounded[Int](2)
     q.offer(1)
     q.offer(2)
@@ -53,7 +62,26 @@ class MutableConcurrentQueueSpec extends Specification {
       .and(q.isEmpty must beTrue)
   }
 
-  def e4 = {
+  def oneElSerDe = {
+    val q = MutableConcurrentQueue.bounded[Int](1)
+    q.offer(1)
+    val returnQ = serializeAndDeserialize(q)
+    returnQ.offer(2)
+    (returnQ.poll(-1) must_=== 1)
+      .and(returnQ.poll(-1) must_=== -1)
+  }
+
+  def pow2SerDe = {
+    val q = MutableConcurrentQueue.bounded[Int](3)
+    q.offer(1)
+    val returnQ = serializeAndDeserialize(q)
+    returnQ.offer(2)
+    (returnQ.poll(-1) must_=== 1)
+      .and(returnQ.poll(-1) must_=== 2)
+      .and(returnQ.poll(-1) must_=== -1)
+  }
+
+  def arbSerDe = {
     val q = MutableConcurrentQueue.bounded[Int](2)
     q.offer(1)
     val returnQ = serializeAndDeserialize(q)

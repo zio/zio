@@ -10,12 +10,10 @@ object RingBuffer {
    * @note mimimum supported capacity is 2
    */
   def apply[A](requestedCapacity: Int): RingBuffer[A] = {
-    val effectiveCapacity = Math.max(requestedCapacity, 2)
+    assert(requestedCapacity >= 2)
 
-    if (nextPow2(effectiveCapacity) == effectiveCapacity)
-      RingBufferPow2(effectiveCapacity)
-    else
-      RingBufferArb(effectiveCapacity)
+    if (nextPow2(requestedCapacity) == requestedCapacity) RingBufferPow2(requestedCapacity)
+    else RingBufferArb(requestedCapacity)
   }
 
   /*
@@ -26,6 +24,11 @@ object RingBuffer {
     val nextPow = (Math.log(n.toDouble) / Math.log(2.0)).ceil.toInt
     Math.pow(2.0, nextPow.toDouble).toInt.max(2)
   }
+
+  private final val STATE_LOOP     = 0
+  private final val STATE_EMPTY    = -1
+  private final val STATE_FULL     = -2
+  private final val STATE_RESERVED = 1
 }
 
 /**
@@ -136,14 +139,11 @@ object RingBuffer {
  * better performance in some very specific situations.
  */
 abstract class RingBuffer[A](override final val capacity: Int) extends MutableQueueFieldsPadding[A] with Serializable {
+  import RingBuffer.{ STATE_EMPTY, STATE_FULL, STATE_LOOP, STATE_RESERVED }
+
   private val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
   private val seq: AtomicLongArray = new AtomicLongArray(capacity)
   0.until(capacity).foreach(i => seq.set(i, i.toLong))
-
-  private[this] final val STATE_LOOP     = 0
-  private[this] final val STATE_EMPTY    = -1
-  private[this] final val STATE_FULL     = -2
-  private[this] final val STATE_RESERVED = 1
 
   protected def posToIdx(pos: Long, capacity: Int): Int
 
