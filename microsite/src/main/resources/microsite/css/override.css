@@ -1,6 +1,25 @@
 .jumbotron {
-    background: url("../img/jumbotron_pattern.png") no-repeat center fixed;
-    background-size: 100% 100%;
+    background: #000000 url("../img/jumbotron_pattern.png") no-repeat fixed center top;
+    padding-top: 166px;
+    padding-bottom: 0;
+}
+
+@media screen and (min-width: 576px) {
+    .jumbotron {
+        padding-top: 190px;
+        padding-bottom: 38px;
+    }
+}
+
+.jumbotron h1 {
+    font-size: 30px;
+}
+
+@media screen and (min-width: 768px) {
+    .jumbotron h1,
+    .jumbotron .h1 {
+        font-size: 36px;
+    }
 }
 
 .technologies {
@@ -8,19 +27,49 @@
 }
 
 #site-footer {
-    background: #530b0e;
+    background: #000000;
+}
+
+
+.sidebar-nav .sidebar-brand a,
+.sidebar-nav .sidebar-brand a:hover {
+    background-color: #000000;
+}
+
+.sidebar-nav > .sidebar-brand a .brand-wrapper {
+    width: 111px;
+    height: 36px;
+    background: url("../img/sidebar_brand.png") no-repeat;
+}
+
+@media (min--moz-device-pixel-ratio: 1.3), (-o-min-device-pixel-ratio: 2.6 / 2), (-webkit-min-device-pixel-ratio: 1.3), (min-device-pixel-ratio: 1.3), (min-resolution: 1.3dppx) {
+    .sidebar-nav > .sidebar-brand a .brand-wrapper {
+        /* on retina, use image that's scaled by 2 */
+        background-image: url("../img/sidebar_brand2x.png");
+        background-size: 111px 36px;
+    }
+}
+
+#site-header .navbar-wrapper .brand .icon-wrapper {
+    position: relative;
+    width: 136px;
+    height: 44px;
+    background: url("../img/navbar_brand.png") no-repeat;
+}
+
+@media (min--moz-device-pixel-ratio: 1.3), (-o-min-device-pixel-ratio: 2.6 / 2), (-webkit-min-device-pixel-ratio: 1.3), (min-device-pixel-ratio: 1.3), (min-resolution: 1.3dppx) {
+    #site-header .navbar-wrapper .brand .icon-wrapper {
+        /* on retina, use image that's scaled by 2 */
+        background-image: url("../img/navbar_brand2x.png");
+        background-size: 136px 44px;
+    }
 }
 
 #page-content-wrapper .nav a {
-    color: #530b0e;
+    color: #990000;
 }
 
 #page-content-wrapper .nav a:hover,
 #page-content-wrapper .nav a:focus {
-    color: #86201e;
-}
-
-.sidebar-nav .sidebar-brand a,
-.sidebar-nav .sidebar-brand a:hover {
-    background-color: #530b0e;
+    color: #ed6300;
 }
