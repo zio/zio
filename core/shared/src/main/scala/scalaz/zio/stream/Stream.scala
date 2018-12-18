@@ -514,17 +514,23 @@ trait Stream[+E, +A] { self =>
   ): Stream[E1, C] =
     new Stream[E1, C] {
       override def foldLazy[E2 >: E1, A1 >: C, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E2, S]) = {
-        def loop(q1: Queue[Take[E2, A]], q2: Queue[Take[E2, B]], s: S): IO[E2, S] =
-          Take.option(q1.take).seqWith(Take.option(q2.take))(f0).flatMap {
-            case None => IO.now(s)
-            case Some(c) =>
-              f(s, c).flatMap { s =>
-                if (cont(s)) loop(q1, q2, s)
-                else IO.now(s)
-              }
-          }
+        def loop(leftDone: Boolean, rightDone: Boolean, q1: Queue[Take[E2, A]], q2: Queue[Take[E2, B]], s: S): IO[E2, S] = {
+          val takeLeft = if (leftDone) IO.now(None) else Take.option(q1.take)
+          val takeRight = if (rightDone) IO.now(None) else Take.option(q2.take)
 
-        self.toQueue[E2, A](lc).use(q1 => that.toQueue[E2, B](rc).use(q2 => loop(q1, q2, s)))
+          takeLeft.seq(takeRight).flatMap { case (left, right) =>
+            f0(left, right) match {
+              case None => IO.now(s)
+              case Some(c) =>
+                f(s, c).flatMap { s =>
+                  if (cont(s)) loop(left.isEmpty, right.isEmpty, q1, q2, s)
+                  else IO.now(s)
+                }
+            }
+          }
+        }
+
+        self.toQueue[E2, A](lc).use(q1 => that.toQueue[E2, B](rc).use(q2 => loop(false, false, q1, q2, s)))
       }
     }
 
