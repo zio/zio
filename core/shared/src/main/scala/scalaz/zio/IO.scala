@@ -238,7 +238,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
         val io = self.asInstanceOf[IO.Fail[E]]
         err(io.cause)
 
-      case _ => new IO.Redeem(self, err, succ, recoverFromInterruption = true)
+      case _ => new IO.Redeem(self, err, succ)
     }
   }
 
@@ -685,8 +685,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     new IO.Redeem[E, Nothing, A, ExitResult[E, A]](
       self,
       cause => IO.now(ExitResult.failed(cause)),
-      succ => IO.now(ExitResult.succeeded(succ)),
-      recoverFromInterruption = true
+      succ => IO.now(ExitResult.succeeded(succ))
     )
 
   /**
@@ -822,8 +821,7 @@ object IO extends Serializable {
   final class Redeem[E, E2, A, B] private[IO] (
     val value: IO[E, A],
     val err: Cause[E] => IO[E2, B],
-    val succ: A => IO[E2, B],
-    val recoverFromInterruption: Boolean = false
+    val succ: A => IO[E2, B]
   ) extends IO[E2, B]
       with Function[A, IO[E2, B]] {
 
