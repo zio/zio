@@ -433,9 +433,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testRunSwallowsInnerInterrupt =
     unsafeRun(for {
-      p    <- Promise.make[Nothing, Int]
-      _    <- IO.interrupt.run *> p.complete(42)
-      res  <- p.get
+      p   <- Promise.make[Nothing, Int]
+      _   <- IO.interrupt.run *> p.complete(42)
+      res <- p.get
     } yield res) must_=== 42
 
   def testEvalOfDeepSyncEffect = {
