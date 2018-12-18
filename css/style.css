@@ -457,8 +457,7 @@ body {
   .jumbotron h1 {
     margin-bottom: 45px; }
   .jumbotron .btn-outline-inverse {
-    border: 2px solid #fff;
-    color: #fff; }
+    border: 2px solid #fff; }
     .jumbotron .btn-outline-inverse:hover, .jumbotron .btn-outline-inverse:focus {
       background: #fff; }
   @media screen and (min-width: 768px) {
