@@ -60,7 +60,7 @@ private[zio] final class FiberContext[E, A](
     // finalizers.
     while ((errorHandler eq null) && !stack.isEmpty) {
       stack.pop() match {
-        case a: IO.Redeem[_, _, _, _] if catchError || a.recoverFromInterruption =>
+        case a: IO.Redeem[_, _, _, _] if catchError =>
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
         case f0: Finalizer =>
           val f: IO[Nothing, Option[Cause[Nothing]]] =
@@ -222,7 +222,7 @@ private[zio] final class FiberContext[E, A](
                 case IO.Tags.Fail =>
                   val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                  val finalizer = unwindStack(!io.cause.interrupted)
+                  val finalizer = unwindStack(!state.get.interrupted)
 
                   if (stack.isEmpty) {
                     // Error not caught, stack is empty:
