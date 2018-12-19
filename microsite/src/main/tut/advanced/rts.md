@@ -4,4 +4,4 @@ section: advanced
 title:  "RTS"
 ---
 
-# RTS
+# {{page.title}}

@@ -13,29 +13,49 @@ ZIO provides a `system` package to interface with this functionality.
 import scalaz.zio.system
 ```
 
-## Current system time
+## Time
+
+With `currentTime`, you can retrieve the current time as a `java.time.Instant`:
 
 ```tut
-// Current time as java.time.Instant
+//
 system.currentTime
+```
 
-// Current time in milliseconds since Jan 1, 1970 (accuracy depends on underlying system)
+If you need the current time in milliseconds since January 1, 1970, then you can use the `currentTimeMillis` method:
+
+```tut
 system.currentTimeMillis
+```
 
-// Returns the current value of the running Java Virtual Machine's high-resolution time source
-// It is not related to any other notion of system or wall-clock time
+Finally, if you need a high-resolution time source, not connected to system or wall-clock time, then you can use `nanoTime`:
+
+```tut
 system.nanoTime
 ```
 
-## Environment / Properties
+## Environment Variables
+
+With the `env` method, you can safely read an environment variable:
 
 ```tut
 // Read an environment variable
 system.env("JAVA_HOME")
+```
 
+## Properties
+
+With the `property` method, you can safely access Java properties:
+
+```tut
 // Read a system property
 system.property("java.version")
+```
 
-// System's line separator
+## Miscellaneous
+
+With the `lineSeparator` method, you can determine the line separator for the underlying platform:
+
+```tut
 system.lineSeparator
 ```

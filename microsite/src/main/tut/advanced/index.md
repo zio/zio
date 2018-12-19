@@ -5,4 +5,4 @@ section: advanced
 title:  "Advanced"
 ---
 
-# Advanced
+# {{page.title}}

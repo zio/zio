@@ -4,4 +4,4 @@ section: overview
 title:  "Success & Failure"
 ---
 
-# Success & Failure
+# {{page.title}}

@@ -4,4 +4,4 @@ section: usecases
 title:  "Queueing"
 ---
 
-# Queueing
+# {{page.title}}

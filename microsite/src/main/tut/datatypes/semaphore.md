@@ -4,4 +4,4 @@ section: datatypes
 title:  "Semaphore"
 ---
 
-# Semaphore
+# {{page.title}}

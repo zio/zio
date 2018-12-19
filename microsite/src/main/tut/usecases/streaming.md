@@ -4,4 +4,4 @@ section: usecases
 title:  "Streaming"
 ---
 
-# Streaming
+# {{page.title}}
