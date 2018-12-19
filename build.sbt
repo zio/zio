@@ -43,6 +43,7 @@ lazy val root = project
     interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
+    interopJavaConcurrentJVM,
     benchmarks,
     microsite
   )
@@ -214,7 +215,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val microsite = project.module
-  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM)
+  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaConcurrentJVM)
   .enablePlugins(MicrositesPlugin)
   .settings(
     scalacOptions -= "-Yno-imports",
