@@ -13,17 +13,17 @@ import scalaz.zio._
 Schedules allow you to define and compose flexible recurrence schedules, which can be used to repeat actions, or retry actions in the event of errors. Schedules are used in the following functions:
 
  * **Repetition**
-   * `IO.repeat` — Repeats an action until the schedule is done.
-   * `IO.repeatOrElse` — Repeats an action until the schedule is done, with a fallback for errors.
-   * `IO.repeatOrElse0` — Repeats an action until the schedule is done, with a more powerful fallback for errors.
+   * `IO#repeat` — Repeats an action until the schedule is done.
+   * `IO#repeatOrElse` — Repeats an action until the schedule is done, with a fallback for errors.
+   * `IO#repeatOrElse0` — Repeats an action until the schedule is done, with a more powerful fallback for errors.
  * **Retries**
-   * `IO.retry` – Retries an action until it succeeds.
-   * `IO.retryOrElse` — Retries an action until it succeeds, with a fallback for errors.
-   * `IO.retryOrElse0` — Retries an action until it succeeds, with a more powerful fallback for errors.
+   * `IO#retry` – Retries an action until it succeeds.
+   * `IO#retryOrElse` — Retries an action until it succeeds, with a fallback for errors.
+   * `IO#retryOrElse0` — Retries an action until it succeeds, with a more powerful fallback for errors.
 
 Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways.
 
-A `Schedule[A, B]` consumes `A` values, and based on these events and internal state, decides whether to recur at some future time or wrap up. Every decision is accompanied by a (possibly zero) delay, and an output value of type `B`.
+A `Schedule[A, B]` consumes input values of type `A` (errors in the case of `retry`, or values in the case of `repeat`), and based on these values and internal state, decides whether to recur or conclude. Every decision is accompanied by a (possibly zero) delay, indicating how much time before the next recurrence, and an output value of type `B`.
 
 # Base Schedules
 

@@ -4,11 +4,11 @@ section: datatypes
 title:  "Queue"
 ---
 
-# Queue
+# {{page.title}}
 
 `Queue` is a lightweight in-memory queue built on ZIO with composable and transparent back-pressure. It is fully asynchronous (no locks or blocking), purely-functional and type-safe.
 
-A `Queue[A]` contains values of type `A` and has two basic operations: `offer` which places an `A` in the `Queue`, and `take` which removes and returns the oldest value in the `Queue`.
+A `Queue[A]` contains values of type `A` and has two basic operations: `offer`, which places an `A` in the `Queue`, and `take` which removes and returns the oldest value in the `Queue`.
 
 ```tut:silent
 import scalaz.zio._
@@ -23,10 +23,12 @@ val res: IO[Nothing, Int] = for {
 ## Creating a queue
 
 A `Queue` can be bounded (with a limited capacity) or unbounded.
-There are various strategies to process new values when the queue is full:
-- the default `bounded` queue is back-pressured: when full, any offering fiber will be suspended until the queue is able to add the item
-- a `dropping` queue will drop new items when the queue is full
-- a `sliding` queue will drop old items when the queue is full
+
+There are several strategies to process new values when the queue is full:
+
+- The default `bounded` queue is back-pressured: when full, any offering fiber will be suspended until the queue is able to add the item;
+- A `dropping` queue will drop new items when the queue is full;
+- A `sliding` queue will drop old items when the queue is full.
 
 To create a back-pressured bounded queue:
 ```tut:silent
@@ -51,6 +53,7 @@ val queue: IO[Nothing, Queue[Int]] = Queue.unbounded[Int]
 ## Adding items to a queue
 
 The simplest way to add a value to the queue is `offer`:
+
 ```tut:silent
 val res: IO[Nothing, Unit] = for {
   queue <- Queue.bounded[Int](100)
@@ -58,7 +61,8 @@ val res: IO[Nothing, Unit] = for {
 } yield ()
 ```
 
-When using a back-pressured queue, offer might be suspended if the queue is full: you can use `fork` to wait in a different fiber.
+When using a back-pressured queue, offer might suspend if the queue is full: you can use `fork` to wait in a different fiber.
+
 ```tut:silent
 val res: IO[Nothing, Unit] = for {
   queue <- Queue.bounded[Int](1)
@@ -70,6 +74,7 @@ val res: IO[Nothing, Unit] = for {
 ```
 
 It is also possible to add multiple values at once with `offerAll`:
+
 ```tut:silent
 val res: IO[Nothing, Unit] = for {
   queue <- Queue.bounded[Int](100)
@@ -78,9 +83,10 @@ val res: IO[Nothing, Unit] = for {
 } yield ()
 ```
 
-## Consuming items from a queue
+## Consuming Items from a Queue
 
-`take` removes the oldest item from the queue and returns it. If the queue is empty, this will return a computation that resumes when an item has been added to the queue: you can use `fork` to wait for an item in a different fiber.
+The `take` operation removes the oldest item from the queue and returns it. If the queue is empty, this will suspend, and resume only when an item has been added to the queue. As with `offer`, you can use `fork` to wait for the value in a different fiber.
+
 ```tut:silent
 val res: IO[Nothing, String] = for {
   queue <- Queue.bounded[String](100)
@@ -91,6 +97,7 @@ val res: IO[Nothing, String] = for {
 ```
 
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
+
 ```tut:silent
 val res: IO[Nothing, List[Int]] = for {
   queue <- Queue.bounded[Int](100)
@@ -101,6 +108,7 @@ val res: IO[Nothing, List[Int]] = for {
 ```
 
 Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty list if the queue is empty).
+
 ```tut:silent
 val res: IO[Nothing, List[Int]] = for {
   queue <- Queue.bounded[Int](100)
@@ -110,7 +118,7 @@ val res: IO[Nothing, List[Int]] = for {
 } yield list
 ```
 
-## Shutting down a queue
+## Shutting Down a Queue
 
 It is possible with `shutdown` to interrupt all the fibers that are suspended on `offer*` or `take*`. It will also empty the queue and make all future calls to `offer*` and `take*` terminate immediately.
 
@@ -119,11 +127,12 @@ val res: IO[Nothing, Unit] = for {
   queue <- Queue.bounded[Int](3)
   f <- queue.take.fork
   _ <- queue.shutdown // will interrupt f
-  _ <- f.join // will throw
+  _ <- f.join // Will terminate
 } yield ()
 ```
 
 You can use `awaitShutdown` to execute an action when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.
+
 ```tut:silent
 val res: IO[Nothing, Unit] = for {
   queue <- Queue.bounded[Int](3)
@@ -134,7 +143,7 @@ val res: IO[Nothing, Unit] = for {
 } yield ()
 ```
 
-## Additional resources and examples
+## Additional Resources
 
 - [ZIO Queue Talk by John De Goes @ ScalaWave 2018](https://www.slideshare.net/jdegoes/zio-queue)
 - [ZIO Queue Talk by Wiem Zine Elabidine @ PSUG 2018](https://www.slideshare.net/wiemzin/psug-zio-queue)

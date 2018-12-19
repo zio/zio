@@ -4,4 +4,4 @@ section: interop
 title:  "Java"
 ---
 
-# Java
+# {{page.title}}
