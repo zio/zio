@@ -4,7 +4,7 @@ section: datatypes
 title:  "Schedule"
 ---
 
-# Schedule
+# {{page.title}}
 
 ```tut:silent
 import scalaz.zio._
