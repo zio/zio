@@ -34,7 +34,7 @@ trait Fiber[+E, +A] { self =>
   /**
    * Tentatively observes the fiber, but returns immediately if it is not already done.
    */
-  def poll: IO[Nothing, Option[ExitResult[E, A]]]
+  def poll: IO[Unit, ExitResult[E, A]]
 
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the
@@ -60,10 +60,9 @@ trait Fiber[+E, +A] { self =>
       def observe: IO[Nothing, ExitResult[E1, C]] =
         self.observe.seqWith(that.observe)(_.zipWith(_)(f, _ && _))
 
-      def poll: IO[Nothing, Option[ExitResult[E1, C]]] =
+      def poll: IO[Unit, ExitResult[E1, C]] =
         self.poll.seqWith(that.poll) {
-          case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ && _))
-          case _                    => None
+          case (ra, rb) => ra.zipWith(rb)(f, _ && _)
         }
 
       def interrupt: IO[Nothing, ExitResult[E1, C]] = self.interrupt.seqWith(that.interrupt)(_.zipWith(_)(f, _ && _))
@@ -93,9 +92,9 @@ trait Fiber[+E, +A] { self =>
    */
   final def map[B](f: A => B): Fiber[E, B] =
     new Fiber[E, B] {
-      def observe: IO[Nothing, ExitResult[E, B]]      = self.observe.map(_.map(f))
-      def poll: IO[Nothing, Option[ExitResult[E, B]]] = self.poll.map(_.map(_.map(f)))
-      def interrupt: IO[Nothing, ExitResult[E, B]]    = self.interrupt.map(_.map(f))
+      def observe: IO[Nothing, ExitResult[E, B]]   = self.observe.map(_.map(f))
+      def poll: IO[Unit, ExitResult[E, B]]         = self.poll.map(_.map(f))
+      def interrupt: IO[Nothing, ExitResult[E, B]] = self.interrupt.map(_.map(f))
     }
 
   /**
@@ -122,16 +121,16 @@ object Fiber {
 
   final val never: Fiber[Nothing, Nothing] =
     new Fiber[Nothing, Nothing] {
-      def observe: IO[Nothing, ExitResult[Nothing, Nothing]]      = IO.never
-      def poll: IO[Nothing, Option[ExitResult[Nothing, Nothing]]] = IO.point(None)
-      def interrupt: IO[Nothing, ExitResult[Nothing, Nothing]]    = IO.never
+      def observe: IO[Nothing, ExitResult[Nothing, Nothing]]   = IO.never
+      def poll: IO[Unit, ExitResult[Nothing, Nothing]]         = IO.fail(())
+      def interrupt: IO[Nothing, ExitResult[Nothing, Nothing]] = IO.never
     }
 
   final def done[E, A](exit: => ExitResult[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
-      def observe: IO[Nothing, ExitResult[E, A]]      = IO.point(exit)
-      def poll: IO[Nothing, Option[ExitResult[E, A]]] = IO.point(Some(exit))
-      def interrupt: IO[Nothing, ExitResult[E, A]]    = IO.point(exit)
+      def observe: IO[Nothing, ExitResult[E, A]]   = IO.point(exit)
+      def poll: IO[Unit, ExitResult[E, A]]         = IO.point(exit)
+      def interrupt: IO[Nothing, ExitResult[E, A]] = IO.point(exit)
     }
 
   final def point[E, A](a: => A): Fiber[E, A] =
