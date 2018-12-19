@@ -4,7 +4,7 @@ section: interop
 title:  "Cats Effects"
 ---
 
-# Cats Effects
+# {{page.title}}
 
 Checkout `interop-cats` module for inter-operation support.
 
@@ -21,6 +21,8 @@ For convenience we have defined an alias as follow:
 Therefore, we provide an instance of `Effect[Task]`.
 
 #### Example
+
+The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:
 
 ```scala
 import doobie.imports._

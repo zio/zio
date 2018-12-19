@@ -4,7 +4,7 @@ section: interop
 title:  "Future"
 ---
 
-# Future
+# {{page.title}}
 
 ## Stdlib `Future`
 
@@ -21,7 +21,7 @@ def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): IO[Throwable, A] 
 There are a few things to clarify here:
 
 - `ftr`, the expression producing the `Future` value, is a *thunk* (or `Function0`). The reason for that is, `Future` is eager, it means as soon as you call `Future.apply` the effect has started performing, that's not a desired behavior in Pure FP (which ZIO encourages). So it's recommended to declare expressions creating `Future`s using `def` instead of `val`.
-- Also you have to be explicit on which EC you want to use, having it as implicit in stdlib is a bad practice we don't want to cargo cult.
+- Also you have to be explicit on which EC you want to use, having it implicit, as in the standard library, is a bad practice.
 - Finally, as you can see, the `IO` returned fixes the error type to `Throwable` since that's the only possible cause for a failed `Future`.
 
 #### Example

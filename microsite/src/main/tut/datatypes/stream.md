@@ -4,4 +4,4 @@ section: datatypes
 title:  "Stream"
 ---
 
-# Stream
+# {{page.title}}

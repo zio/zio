@@ -4,4 +4,4 @@ section: interop
 title:  "Scalaz 8"
 ---
 
-# Scalaz 8
+# {{page.title}}

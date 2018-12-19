@@ -4,7 +4,7 @@ section: advanced
 title:  "Performance"
 ---
 
-# Performance
+# {{page.title}}
 
 `scalaz.zio` has excellent performance, featuring a hand-optimized, low-level interpreter that achieves zero allocations for right-associated binds, and minimal allocations for left-associated binds.
 

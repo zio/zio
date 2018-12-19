@@ -4,22 +4,22 @@ section: datatypes
 title:  "Promise"
 ---
 
-# Promise
+# {{page.title}}
 
-A `Promise` is a variable that can be set exactly once. The type signature of Promise is `Promise[E, A]` where `E` is
-used to indicate an error and `A` is used to indicate that a value has been successfully set
+A `Promise` is a variable that can be set exactly once. The type signature of Promise is `Promise[E, A]`, where `E` is
+used to indicate an error and `A` is used to indicate that a value has been successfully set.
 
-Promises are used to build higher level concurrency primitives and are often used in situations where multiple `Fiber`s
+Promises are used to build higher level concurrency primitives, and are often used in situations where multiple `Fiber`s
 need to coordinate passing values to each other.
 
 ## Creation
-Promises can be created using `Promise.make[E, A]` which result in a `IO[Nothing, Promise[E, A]]` which is a description
-to create a Promise but not the actual creation of a Promise construct. This is because the creation of a Promise is
-effectful.
+
+Promises can be created using `Promise.make[E, A]`, which returns `IO[Nothing, Promise[E, A]]`. This is a description of creating a promise, but not the actual promise. Promises cannot be created outside of IO, because creating them involves allocating mutable memory, which is an effect and must be safely captured in IO.
 
 ## Operations
+
 You can complete a `Promise[Exception, String]` named `p` successfully with a value using `p.complete(...)`.
-For example, `p.complete("I'm done!")`. The act of completing a Promise results in an `IO[Nothing, Boolean]` where
+For example, `p.complete("I'm done!")`. The act of completing a Promise results in an `IO[Nothing, Boolean]`, where
 the `Boolean` represents whether the promise value has been set (`true`) or whether it was already set (`false`).
 This is demonstrated below:
 
@@ -54,7 +54,7 @@ val ioGet: IO[Exception, String] = ioPromise.flatMap(promise => promise.get)
 
 The computation will suspend (in a non-blocking fashion) until the Promise is completed with a value or an error.
 If you don't want to suspend and you only want to query the state of whether or not the Promise has been completed,
-you can use `poll`
+you can use `poll`:
 
 ```tut:silent
 val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]

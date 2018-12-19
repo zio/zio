@@ -4,4 +4,4 @@ section: interop
 title:  "Javascript"
 ---
 
-# Javascript
+# {{page.title}}

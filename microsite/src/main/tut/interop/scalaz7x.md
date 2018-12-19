@@ -4,7 +4,7 @@ section: interop
 title:  "Scalaz 7.x"
 ---
 
-# Scalaz 7.x
+# {{page.title}}
 
 ### `IO` Instances
 

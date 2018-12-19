@@ -331,7 +331,11 @@ private[zio] final class FiberContext[E, A](
     observe0(x => k(IO.done(x)))
   }
 
-  final def poll: IO[Nothing, Option[ExitResult[E, A]]] = IO.sync(poll0)
+  final def poll: IO[Unit, ExitResult[E, A]] =
+    IO.sync(poll0).flatMap {
+      case None       => IO.fail(())
+      case Some(exit) => IO.now(exit)
+    }
 
   private[this] final def enterSupervision: IO[E, Unit] = IO.sync {
     supervising += 1

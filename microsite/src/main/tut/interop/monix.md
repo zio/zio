@@ -4,4 +4,4 @@ section: interop
 title:  "Monix"
 ---
 
-# Monix
+# {{page.title}}

@@ -4,4 +4,4 @@ section: overview
 title:  "Composition"
 ---
 
-# Composition
+# {{page.title}}

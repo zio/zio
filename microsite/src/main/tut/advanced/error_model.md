@@ -4,4 +4,4 @@ section: advanced
 title:  "Error Model"
 ---
 
-# Error Model
+# {{page.title}}

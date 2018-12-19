@@ -4,4 +4,4 @@ section: usecases
 title:  "Concurrency"
 ---
 
-# Concurrency
+# {{page.title}}

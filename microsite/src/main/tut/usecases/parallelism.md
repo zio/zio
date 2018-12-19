@@ -4,4 +4,4 @@ section: usecases
 title:  "Parallelism"
 ---
 
-# Parallelism
+# {{page.title}}

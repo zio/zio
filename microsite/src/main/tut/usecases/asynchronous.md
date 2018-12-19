@@ -4,4 +4,4 @@ section: usecases
 title:  "Asynchronous"
 ---
 
-# Asynchronous
+# {{page.title}}
