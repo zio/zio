@@ -4,4 +4,4 @@ section: usecases
 title:  "Retrying"
 ---
 
-# Retrying
+# {{page.title}}

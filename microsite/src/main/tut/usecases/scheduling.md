@@ -4,4 +4,4 @@ section: usecases
 title:  "Scheduling"
 ---
 
-# Scheduling
+# {{page.title}}

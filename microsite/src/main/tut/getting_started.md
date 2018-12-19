@@ -14,9 +14,9 @@ if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeR
 println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
 ```
 
-## Main
+# Main
 
-Your main function can extend `App`, which provides a complete runtime system and allows your entire program to be purely functional.
+Your main function can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
 ```tut:silent
 import scalaz.zio.{App, IO}
@@ -33,24 +33,37 @@ object MyApp extends App {
     for {
       _ <- putStrLn("Hello! What is your name?")
       n <- getStrLn
-      _ <- putStrLn("Hello, " + n + ", good to meet you!")
+      _ <- putStrLn(s"Hello, ${n}, good to meet you!")
     } yield ()
 }
 ```
 
-## Console
+If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can use a runtime system in order to execute your `IO` programs:
 
-ZIO provides a few primitives for interacting with the console.
-These can be imported using the following
+```tut:silent
+import scalaz.zio._
+import scalaz.zio.console._
+
+object IntegrationExample {
+  val rts = new RTS{}
+
+  rts.unsafeRun(putStrLn("Hello World!"))
+}
+```
+
+# Console
+
+ZIO provides a few primitives for interacting with the console. These can be imported using the following:
 
 ```tut:silent
 import scalaz.zio.console._
 ```
 
-### Print to screen
+## Printing Output
 
 Printing to the screen is one of the most basic I/O operations.
-In order to do so and preserve referential transparency, we can use `putStr` and `putStrLn`
+
+In order to do so in a purely functional way, we can use `putStr` and `putStrLn`:
 
 ```tut
 // Print without trailing line break
@@ -60,11 +73,13 @@ putStr("Hello World")
 putStrLn("Hello World")
 ```
 
-### Read console input
+## Reading Input
 
-For use cases that require user-provided input via the console, `getStrLn` allows importing
-values into a pure program.
+If you need to read input from the console, you can use `getStrLn`:
 
 ```tut
 val echo = getStrLn.flatMap(putStrLn)
 ```
+# Learning More
+
+To learn more about ZIO, see the [Overview](overview/index.html).

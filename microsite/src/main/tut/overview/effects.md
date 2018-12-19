@@ -4,4 +4,4 @@ section: overview
 title:  "Effects"
 ---
 
-# Effects
+# {{page.title}}

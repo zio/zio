@@ -1186,6 +1186,20 @@ object IO extends Serializable {
     }
 
   /**
+   * Creates an `IO` value that represents the exit value of the specified
+   * fiber.
+   */
+  final def fromFiber[E, A](fiber: Fiber[E, A]): IO[E, A] =
+    fiber.join
+
+  /**
+   * Creates an `IO` value that represents the exit value of the specified
+   * fiber.
+   */
+  final def fromFiberM[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
+    fiber.flatMap(_.join)
+
+  /**
    * Retrieves the supervisor associated with the fiber running the action
    * returned by this method.
    */

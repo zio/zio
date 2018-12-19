@@ -4,4 +4,4 @@ section: datatypes
 title:  "Managed"
 ---
 
-# Managed
+# {{page.title}}

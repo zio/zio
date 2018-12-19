@@ -4,7 +4,7 @@ section: overview
 title:  "Error Handling"
 ---
 
-# Error Handling
+# {{page.title}}
 
 You can create `IO` actions that describe failure with `IO.fail`:
 
