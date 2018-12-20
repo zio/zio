@@ -50,7 +50,7 @@ private[zio] final class FiberContext[E, A](
    * `IO` that produces an option of a cause of finalizer failures. If needed,
    * catch exceptions and apply redeem error handling.
    */
-  final def unwindStack(catchError: Boolean): IO[Nothing, Option[Cause[Nothing]]] = {
+  final def unwindStack: IO[Nothing, Option[Cause[Nothing]]] = {
     def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
       c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
 
@@ -61,7 +61,7 @@ private[zio] final class FiberContext[E, A](
     // finalizers.
     while ((errorHandler eq null) && !stack.isEmpty) {
       stack.pop() match {
-        case a: IO.Redeem[_, _, _, _] if catchError =>
+        case a: IO.Redeem[_, _, _, _] if allowRecovery =>
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
         case f0: Finalizer =>
           val f: IO[Nothing, Option[Cause[Nothing]]] =
@@ -223,7 +223,7 @@ private[zio] final class FiberContext[E, A](
                 case IO.Tags.Fail =>
                   val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                  val finalizer = unwindStack(!shouldDie && !this.terminating)
+                  val finalizer = unwindStack
 
                   if (stack.isEmpty) {
                     // Error not caught, stack is empty:
@@ -415,6 +415,9 @@ private[zio] final class FiberContext[E, A](
 
   @inline
   private[this] final def shouldDie: Boolean = noInterrupt == 0 && state.get.interrupted
+
+  @inline
+  private[this] final def allowRecovery: Boolean = !terminating && !shouldDie
 
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
