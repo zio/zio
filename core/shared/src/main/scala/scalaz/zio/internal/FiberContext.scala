@@ -27,6 +27,7 @@ private[zio] final class FiberContext[E, A](
   @volatile private[this] var supervised  = List.empty[Set[FiberContext[_, _]]]
   @volatile private[this] var supervising = 0
   @volatile private[this] var locked      = List.empty[Executor]
+  @volatile private[this] var terminating = false
 
   private[this] val stack: Stack[Any => IO[Any, Any]] = new Stack[Any => IO[Any, Any]]()
 
@@ -222,7 +223,7 @@ private[zio] final class FiberContext[E, A](
                 case IO.Tags.Fail =>
                   val io = curIo.asInstanceOf[IO.Fail[E]]
 
-                  val finalizer = unwindStack(!state.get.interrupted)
+                  val finalizer = unwindStack(!shouldDie && !this.terminating)
 
                   if (stack.isEmpty) {
                     // Error not caught, stack is empty:
@@ -272,6 +273,7 @@ private[zio] final class FiberContext[E, A](
           } else {
             // Interruption cannot be interrupted:
             this.noInterrupt += 1
+            this.terminating = true
 
             // Fiber was interrupted
             curIo = IO.interrupt
