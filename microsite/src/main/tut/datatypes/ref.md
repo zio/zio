@@ -1,12 +1,12 @@
 ---
 layout: docs
-section: usage
-title:  "Refs"
+section: datatypes
+title:  "Ref"
 ---
 
-# Ref
+# {{page.title}}
 
-A `Ref[A]` is a mutable location that contains a value of type `A`. The two basic operations are `set` which fills the `Ref` with a new value, and `get` which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
+`Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
 
 ```tut:silent
 import scalaz.zio._
@@ -35,7 +35,7 @@ def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
   }
 ```
 
-## State transformers
+## State Transformers
 
 Those who live on the dark side of mutation sometimes have it easy; they can add state everywhere like it's Christmas. Behold:
 

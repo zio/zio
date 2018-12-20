@@ -36,9 +36,9 @@ class StreamBenchmarks {
 
   @Benchmark
   def akkaChunkFilterMapSum = {
-    val chunks = (1 to chunkCount).flatMap(i => Array.fill(chunkSize)(i))
+    val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     val program = AkkaSource
-      .fromIterator(() => chunks.iterator)
+      .fromIterator(() => chunks.iterator.flatten)
       .filter(_ % 2 == 0)
       .map(_.toLong)
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
@@ -117,7 +117,7 @@ class CSVStreamBenchmarks {
     val chunks = genCsvChunks
 
     val program = AkkaSource
-      .fromIterator(() => chunks.flatten.iterator)
+      .fromIterator(() => chunks.iterator.flatten)
       .scan((Vector.empty[Char], Vector.empty[CSV.Token])) {
         case ((acc, _), char) =>
           if (char == CSV.ColumnSep) {
@@ -134,7 +134,7 @@ class CSVStreamBenchmarks {
                 Vector(CSV.NewCol))
           } else (acc :+ char) -> Vector.empty[CSV.Token]
       }
-      .flatMapConcat(t => AkkaSource(t._2))
+      .mapConcat(t => t._2)
       .toMat(AkkaSink.ignore)(Keep.right)
 
     Await.result(program.run, Duration.Inf)
@@ -145,8 +145,8 @@ class CSVStreamBenchmarks {
     val chunks = genCsvChunks.map(FS2Chunk.array(_))
     val stream = FS2Stream(chunks: _*)
       .flatMap(FS2Stream.chunk(_))
-      .scan((Vector.empty[Char], Vector.empty[CSV.Token])) {
-        case ((acc, _), char) =>
+      .mapAccumulate(Vector.empty[Char]) {
+        case (acc, char) =>
           if (char == CSV.ColumnSep) {
             Vector.empty[Char] ->
               ((if (acc.length > 0)

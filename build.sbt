@@ -204,7 +204,7 @@ lazy val microsite = project.module
         |""".stripMargin
     ),
     micrositeName := "",
-    micrositeDescription := "Type-safe, composable concurrency for Scala",
+    micrositeDescription := "Type-safe, composable asynchronous and concurrent programming for Scala",
     micrositeAuthor := "ZIO contributors",
     micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-zio",
     micrositeGitterChannelUrl := "scalaz/scalaz-zio",
@@ -216,9 +216,9 @@ lazy val microsite = project.module
     micrositeDocumentationLabelDescription := "Scaladoc",
     micrositeBaseUrl := "/scalaz-zio",
     micrositePalette := Map(
-      "brand-primary"   -> "#ED2124",
-      "brand-secondary" -> "#251605",
-      "brand-tertiary"  -> "#491119",
+      "brand-primary"   -> "#990000",
+      "brand-secondary" -> "#000000",
+      "brand-tertiary"  -> "#990000",
       "gray-dark"       -> "#453E46",
       "gray"            -> "#837F84",
       "gray-light"      -> "#E3E2E3",

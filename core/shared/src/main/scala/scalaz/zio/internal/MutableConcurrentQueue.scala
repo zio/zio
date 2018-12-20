@@ -4,14 +4,15 @@ object MutableConcurrentQueue {
   import scalaz.zio.internal.impls._
 
   /**
-   * @note minimum supported capacity is 2
-   *
    * @note in case you need extreme performance, make sure to use capacity
    * which is a power of 2 throughout your system. This will allow to
    * use a more performant ring buffer implementation.
    */
-  def bounded[A](requestedCapacity: Int): MutableConcurrentQueue[A] = RingBuffer[A](requestedCapacity)
-  def unbounded[A]: MutableConcurrentQueue[A]                       = new LinkedQueue[A]
+  def bounded[A](capacity: Int): MutableConcurrentQueue[A] =
+    if (capacity == 1) new OneElementConcurrentQueue()
+    else RingBuffer[A](capacity)
+
+  def unbounded[A]: MutableConcurrentQueue[A] = new LinkedQueue[A]
 }
 
 /**
