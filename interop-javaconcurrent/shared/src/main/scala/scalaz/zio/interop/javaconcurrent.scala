@@ -54,14 +54,13 @@ object javaconcurrent {
         def observe: IO[Nothing, ExitResult[Throwable, A]] =
           IO.fromFutureJava(() => ftr).redeemPure(ExitResult.checked, ExitResult.succeeded)
 
-        def poll: IO[Nothing, Option[ExitResult[Throwable, A]]] =
+        def poll: IO[Unit, ExitResult[Throwable, A]] =
           IO.suspend {
             if (ftr.isDone) {
               IO.syncException(ftr.get())
                 .redeemPure(ExitResult.checked, ExitResult.succeeded)
-                .map(Some(_))
             } else {
-              IO.now(None)
+              IO.fail(())
             }
           }
 
