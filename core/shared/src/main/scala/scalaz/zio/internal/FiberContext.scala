@@ -288,6 +288,7 @@ private[zio] final class FiberContext[E, A](
         case t: Throwable if (env.nonFatal(t)) =>
           // Interruption cannot be interrupted:
           this.noInterrupt += 1
+          this.terminating = true
 
           curIo = IO.terminate(t)
       }
@@ -473,6 +474,7 @@ private[zio] final class FiberContext[E, A](
         else {
           // Interruption may not be interrupted:
           noInterrupt += 1
+          terminating = true
 
           evaluateLater(IO.interrupt)
 
