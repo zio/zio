@@ -1,8 +1,10 @@
 package scalaz.zio.interop
 
-import java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
+import java.util.concurrent.{ CompletableFuture, CompletionException, CompletionStage, Future }
 
 import scalaz.zio.{ ExitResult, Fiber, IO }
+
+import scala.concurrent.ExecutionException
 
 object javaconcurrent {
 
@@ -14,7 +16,13 @@ object javaconcurrent {
           if (v != null) {
             cb(IO.now(v))
           } else {
-            cb(IO.fail(t))
+            val io = t match {
+              case e: CompletionException =>
+                IO.fail(e.getCause)
+              case t: Throwable =>
+                IO.fail(t)
+            }
+            cb(io)
           }
         }
       }
@@ -27,17 +35,35 @@ object javaconcurrent {
         unsafeCompletionStageToIO(cs())
       }
 
-    private def unsafeFutureJavaToIO[A](future: Future[A]): IO[Exception, A] =
-      if (future.isDone) {
-        IO.syncException(future.get())
-      } else {
-        IO.unyielding(IO.syncException(future.get()))
-      }
+    private def unsafeFutureJavaToIO[A](future: Future[A]): IO[Throwable, A] = {
+      def unwrap[B](f: Future[B]): IO[Throwable, B] =
+        IO.flatten {
+          IO.sync {
+            try {
+              val result = f.get()
+              IO.now(result)
+            } catch {
+              case e: ExecutionException =>
+                IO.fail(e.getCause)
+              case _: InterruptedException =>
+                IO.interrupt
+              case t: Throwable => // CancellationException
+                IO.fail(t)
+            }
+          }
+        }
 
-    def fromFutureJavaIO[A, E >: Exception](futureIo: IO[E, Future[A]]): IO[E, A] =
+      if (future.isDone) {
+        unwrap(future)
+      } else {
+        IO.unyielding(unwrap(future))
+      }
+    }
+
+    def fromFutureJavaIO[A, E >: Throwable](futureIo: IO[E, Future[A]]): IO[E, A] =
       futureIo.flatMap(unsafeFutureJavaToIO)
 
-    def fromFutureJava[A](future: () => Future[A]): IO[Exception, A] =
+    def fromFutureJava[A](future: () => Future[A]): IO[Throwable, A] =
       IO.suspend {
         unsafeFutureJavaToIO(future())
       }
