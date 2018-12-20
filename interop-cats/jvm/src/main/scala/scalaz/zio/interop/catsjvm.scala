@@ -14,7 +14,7 @@ abstract class CatsPlatform extends CatsInstances {
 abstract class CatsInstances extends CatsInstances1 {
   implicit def ioContextShift[E]: ContextShift[IO[E, ?]] = new ContextShift[IO[E, ?]] {
     override def shift: IO[E, Unit] =
-      IO.shift
+      IO.yieldNow
 
     override def evalOn[A](ec: ExecutionContext)(fa: IO[E, A]): IO[E, A] =
       fa.on(ec)
@@ -61,7 +61,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
   }
 
   override def liftIO[A](ioa: cats.effect.IO[A]): Task[A] =
-    IO.fromTry(scala.util.Try(ioa.unsafeRunSync))
+    Concurrent.liftIO(ioa)(this)
 
   override def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
     IO.asyncInterrupt { (kk: IO[Throwable, A] => Unit) =>
@@ -109,9 +109,9 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     case ExitResult.Succeeded(_)                       => ExitCase.Completed
     case ExitResult.Failed(cause) if cause.interrupted => ExitCase.Canceled
     case ExitResult.Failed(cause) =>
-      cause.checked match {
-        case t :: Nil => ExitCase.Error(t)
-        case _        => ExitCase.Error(FiberFailure(cause))
+      cause.checkedOrRefail match {
+        case Left(t) => ExitCase.Error(t)
+        case _       => ExitCase.Error(FiberFailure(cause))
       }
   }
 
@@ -121,12 +121,16 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
   override def toIO[A](
     fa: Task[A]
   ): effect.IO[A] =
-    effect.IO(this.unsafeRun(fa))
+    effect.Effect.toIOFromRunAsync(fa)(this)
 
   override def runAsync[A](
     fa: Task[A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
-    toIO(fa).runAsync(cb)
+    effect.SyncIO {
+      this.unsafeRunAsync(fa) { exit =>
+        cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())
+      }
+    }
 
   override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
     IO.async { (kk: IO[Throwable, A] => Unit) =>

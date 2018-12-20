@@ -1,10 +1,10 @@
 ---
 layout: docs
-section: usage
+section: datatypes
 title:  "FiberLocal"
 ---
 
-# FiberLocal
+# {{page.title}}
 
 A `FiberLocal[A]` is a container for fiber-local storage that enables you to bind a value of type `A` to a fiber. Fiber-local data can be accessed only by the fiber it is bound to, for as long as it remains bound, via a `FiberLocal` reference.
 

@@ -24,15 +24,18 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   Stream.unfoldM            $unfoldM
   Stream.range              $range
   Stream.take               $take
-  Stream.zipWithIndex       $zipWithIndex
   Stream.foreach0           $foreach0
   Stream.foreach            $foreach
   Stream.collect            $collect
-  Stream.monadLaw1          $monadLaw1
-  Stream.monadLaw2          $monadLaw2
-  Stream.monadLaw3          $monadLaw3
   Stream.forever            $forever
-  Stream.joinWith           $joinWith
+  Stream.scanM              $mapAccumM
+  Stream.transduce          $transduce
+  Stream.withEffect         $withEffect
+  Stream.fromIterable       $fromIterable
+  Stream.fromChunk          $fromChunk
+  Stream.fromQueue          $fromQueue
+  Stream.toQueue            $toQueue
+  Stream.peel               $peel
 
   Stream merging
     merge                   $merge
@@ -40,15 +43,15 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     mergeWith               $mergeWith
     mergeWith short circuit $mergeWithShortCircuit
 
-  Stream.scanM              $mapAccumM
-  Stream.transduce          $transduce
-  Stream.withEffect         $withEffect
-  Stream.zipWith            $zipWith
-  Stream.fromIterable       $fromIterable
-  Stream.fromChunk          $fromChunk
-  Stream.fromQueue          $fromQueue
-  Stream.toQueue            $toQueue
-  Stream.peel               $peel
+  Stream zipping
+    zipWith                 $zipWith
+    zipWithIndex            $zipWithIndex
+    zipWith ignore RHS      $zipWithIgnoreRhs
+
+  Stream monad laws
+    left identity           $monadLaw1
+    right identity          $monadLaw2
+    associativity           $monadLaw3
   """
 
   import ArbitraryStream._
@@ -103,9 +106,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       slurp(s.mapConcat(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
     }
   }
-
-  private def zipWithIndex =
-    prop((s: Stream[String, String]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
 
   private def mapAccum = {
     val stream = Stream(1, 1, 1).mapAccum(0)((acc, el) => (acc + el, acc + el))
@@ -201,17 +201,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     sum must_=== 9
   }
 
-  private def joinWith = {
-    val s1 = Stream(1, 1)
-    val s2 = Stream(2, 2)
-    val join = s1.joinWith(s2, 1, 1)(
-      (a: IO[Nothing, Option[Int]], b: IO[Nothing, Option[Int]]) =>
-        a.seqWith(b)((a, b) => a flatMap (a => b map ((a, _))))
-    )
-
-    slurp(join) must_=== Succeeded(List((1, 2), (1, 2)))
-  }
-
   private def merge =
     prop { (s1: Stream[String, Int], s2: Stream[String, Int]) =>
       val mergedStream = slurp(s1 merge s2).map(_.toSet)
@@ -279,6 +268,17 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val zipped = s1.zipWith(s2)((a, b) => a.flatMap(a => b.map(a + _)))
 
     slurp(zipped) must_=== Succeeded(List(2, 4))
+  }
+
+  private def zipWithIndex =
+    prop((s: Stream[String, String]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
+
+  private def zipWithIgnoreRhs = {
+    val s1     = Stream(1, 2, 3)
+    val s2     = Stream(1, 2)
+    val zipped = s1.zipWith(s2)((a, _) => a)
+
+    slurp(zipped) must_=== Succeeded(List(1, 2, 3))
   }
 
   private def fromIterable = prop { l: List[Int] =>

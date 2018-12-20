@@ -46,8 +46,8 @@ object future {
             )(t => IO.point(ExitResult.fromTry(t)))
           }
 
-        def poll: IO[Nothing, Option[ExitResult[Throwable, A]]] =
-          IO.sync(ftr.value.map(ExitResult.fromTry))
+        def poll: IO[Unit, ExitResult[Throwable, A]] =
+          IO.sync(ftr.value.map(ExitResult.fromTry)).flatMap(IO.fromOption(_))
 
         def interrupt: IO[Nothing, ExitResult[Throwable, A]] =
           join.redeemPure(ExitResult.checked(_), ExitResult.succeeded(_))

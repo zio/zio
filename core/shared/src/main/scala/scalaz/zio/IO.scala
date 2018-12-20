@@ -362,13 +362,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * to the default one.
    */
   final def on(ec: ExecutionContext): IO[E, A] =
-    IO.shift(ec).bracket_(IO.shift)(self)
+    self.lock(Executor.fromExecutionContext(Executor.Yielding, Int.MaxValue)(ec))
 
   /**
    * Forks an action that will be executed on the specified `ExecutionContext`.
    */
   final def forkOn(ec: ExecutionContext): IO[E, Fiber[E, A]] =
-    (IO.shift(ec) *> self).fork
+    self.on(ec).fork
 
   /**
    * Executes the release action only if there was an error.
@@ -1042,8 +1042,9 @@ object IO extends Serializable {
   /**
    * Shifts execution to a thread in the default `ExecutionContext`.
    */
+  @deprecated("use yieldNow", "0.6.0")
   final def shift: IO[Nothing, Unit] =
-    IO.sleep(0.seconds)
+    yieldNow
 
   /**
    * Shifts the operation to another execution context.
@@ -1052,6 +1053,7 @@ object IO extends Serializable {
    *   IO.shift(myPool) *> myTask
    * }}}
    */
+  @deprecated("use lock or on", "0.6.0")
   final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
     IO.async { (k: IO[Nothing, Unit] => Unit) =>
       ec.execute(new Runnable {
@@ -1185,6 +1187,20 @@ object IO extends Serializable {
       case scala.util.Success(v) => IO.now(v)
       case scala.util.Failure(t) => IO.fail(t)
     }
+
+  /**
+   * Creates an `IO` value that represents the exit value of the specified
+   * fiber.
+   */
+  final def fromFiber[E, A](fiber: Fiber[E, A]): IO[E, A] =
+    fiber.join
+
+  /**
+   * Creates an `IO` value that represents the exit value of the specified
+   * fiber.
+   */
+  final def fromFiberM[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
+    fiber.flatMap(_.join)
 
   /**
    * Retrieves the supervisor associated with the fiber running the action

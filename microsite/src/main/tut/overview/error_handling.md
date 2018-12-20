@@ -1,10 +1,10 @@
 ---
 layout: docs
-section: usage
-title:  "Failure"
+section: overview
+title:  "Error Handling"
 ---
 
-# Failure
+# {{page.title}}
 
 You can create `IO` actions that describe failure with `IO.fail`:
 
