@@ -135,32 +135,6 @@ trait Stream[+E, +A] { self =>
     }
 
   /**
-   * Joins two streams together with a specified join function.
-   */
-  final def joinWith[E1 >: E, B, C](that: Stream[E1, B], lc: Int = 1, rc: Int = 1)(
-    f0: (IO[E1, Option[A]], IO[E1, Option[B]]) => IO[E1, Option[C]]
-  ): Stream[E1, C] =
-    new Stream[E1, C] {
-      override def foldLazy[E2 >: E1, A1 >: C, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E2, S]): IO[E2, S] = {
-        def loop(q1: Queue[Take[E1, A]], q2: Queue[Take[E1, B]], s: S): IO[E2, S] =
-          f0(Take.option(q1.take), Take.option(q2.take)) flatMap {
-            case None => IO.now(s)
-            case Some(c) =>
-              f(s, c) flatMap { s =>
-                if (cont(s)) loop(q1, q2, s)
-                else IO.now(s)
-              }
-          }
-
-        self.toQueue[E1, A](lc).use { q1 =>
-          that.toQueue[E1, B](rc).use { q2 =>
-            loop(q1, q2, s)
-          }
-        }
-      }
-    }
-
-  /**
    * Maps over elements of the stream with the specified function.
    */
   def map[B](f0: A => B): Stream[E, B] = new Stream[E, B] {
