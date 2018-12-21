@@ -1,13 +1,12 @@
 package scalaz.zio
 
-import scalaz.zio.ExitResult.Cause.Interruption
 import scalaz.zio.internal.Env
 
 trait RTS {
   lazy val env =
     Env.newDefaultEnv {
-      case Interruption => IO.unit // do not log interruptions
-      case cause        => IO.sync(println(cause.toString))
+      case cause if cause.interrupted => IO.unit // do not log interruptions
+      case cause                      => IO.sync(println(cause.toString))
     }
 
   final def unsafeRun[E, A](io: IO[E, A]): A =
