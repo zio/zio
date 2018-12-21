@@ -1,0 +1,117 @@
+<html><head><title>: Overview</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="ZIO contributors" /><meta name="description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="og:image" content="/scalaz-zio/img/poster.png" /><meta name="image" property="og:image" content="/scalaz-zio/img/poster.png" /><meta name="og:title" content=": Overview" /><meta name="title" property="og:title" content=": Overview" /><meta name="og:site_name" content="" /><meta name="og:url" content="https://scalaz.github.io/scalaz-zio/" /><meta name="og:type" content="website" /><meta name="og:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><link rel="icon" type="image/png" href="/scalaz-zio/img/favicon.png" /><meta name="twitter:title" content=": Overview" /><meta name="twitter:image" content="/scalaz-zio/img/poster.png" /><meta name="twitter:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="512x512" href="/scalaz-zio/img/favicon.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scalaz-zio/highlight/styles/default.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/codemirror.css" /><link rel="stylesheet" href="/scalaz-zio/css/override.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/scalaz-zio/" class="brand"><div class="brand-wrapper"><span></span></div></a></li> <li><a href="/scalaz-zio/overview/" class=" active ">Overview</a> <ul class="sub_section"> <li><a href="/scalaz-zio/overview/io.html" class="">IO</a></li> <li><a href="/scalaz-zio/overview/success_failure.html" class="">Success & Failure</a></li> <li><a href="/scalaz-zio/overview/composition.html" class="">Composition</a></li> <li><a href="/scalaz-zio/overview/error_handling.html" class="">Error Handling</a></li> <li><a href="/scalaz-zio/overview/effects.html" class="">Effects</a></li></ul></li>    </ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="scalaz" data-github-repo="scalaz-zio"><div class="content-wrapper"><section><h1 id="overview">Overview</h1>
+
+<p>ZIO is a library for asynchronous and concurrent programming that is based on pure functional programming.</p>
+
+<p>Unlike non-functional Scala programs, ZIO programs only use pure functions, which are:</p>
+
+<ul>
+  <li><strong>Total</strong> — Functions return a value for every input.</li>
+  <li><strong>Deterministic</strong> — Functions return the same value for the same input.</li>
+  <li><strong>Free of Side Effects</strong> — The only effect that calling a function has is computing the return value.</li>
+</ul>
+
+<p>Pure functions are easier to understand, easier to test, and easier to refactor.</p>
+
+<p>Pure programs do not interact with the real world. However, they can build data structures that <em>describe</em> interaction with the real world.</p>
+
+<p>The next section introduces this concept.</p>
+
+<h2 id="programs-as-values">Programs As Values</h2>
+
+<p>We can build a simple model of a console program that has just three instructions:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">sealed</span> <span class="k">trait</span> <span class="nc">Console</span><span class="o">[</span><span class="kt">+A</span><span class="o">]</span>
+<span class="nc">case</span> <span class="k">class</span> <span class="nc">Return</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">value</span><span class="k">:</span> <span class="o">()</span> <span class="o">=&gt;</span> <span class="n">A</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Console</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">PrintLine</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">line</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">rest</span><span class="k">:</span> <span class="kt">Console</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">Console</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">ReadLine</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">rest</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span> <span class="nc">Console</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">Console</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+</code></pre></div></div>
+
+<p>In this model, <code class="highlighter-rouge">Console[A]</code> represents a console program that returns a value of type <code class="highlighter-rouge">A</code>. The <code class="highlighter-rouge">Console</code> data structure is a tree, and at the very end of the program, you will find a <code class="highlighter-rouge">Return</code> instruction that returns the specified value.</p>
+
+<p>Using this data structure, we can build an interactive program:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">PrintLine</span><span class="o">(</span><span class="s">"Hello, what is your name?"</span><span class="o">,</span>
+  <span class="nc">ReadLine</span><span class="o">(</span><span class="n">name</span> <span class="k">=&gt;</span>
+    <span class="nc">PrintLine</span><span class="o">(</span><span class="n">s</span><span class="s">"Good to meet you, ${name}"</span><span class="o">))</span>
+<span class="o">)</span>
+</code></pre></div></div>
+
+<p>This program is an immutable value. However, it can be translated into a series of effects quite simply:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">interpret</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">program</span><span class="k">:</span> <span class="kt">Program</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=</span> <span class="n">program</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="nc">Return</span><span class="o">(</span><span class="n">value</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">value</span><span class="o">()</span>
+  <span class="k">case</span> <span class="nc">PrintLine</span><span class="o">(</span><span class="n">line</span><span class="o">,</span> <span class="n">rest</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">println</span><span class="o">(</span><span class="n">line</span><span class="o">);</span> <span class="n">interpret</span><span class="o">(</span><span class="n">rest</span><span class="o">)</span>
+  <span class="k">case</span> <span class="nc">ReadLine</span><span class="o">(</span><span class="n">rest</span><span class="o">)</span> <span class="n">interpret</span><span class="o">(</span><span class="n">rest</span><span class="o">(</span><span class="n">scala</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="nc">StdIn</span><span class="o">.</span><span class="n">readLine</span><span class="o">()))</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>It’s not very convenient to build console programs using the three constructors, so instead, we can define helper functions:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">printLine</span><span class="o">(</span><span class="n">line</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Console</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">PrintLine</span><span class="o">(</span><span class="n">line</span><span class="o">,</span> <span class="nc">Return</span><span class="o">(()))</span>
+<span class="k">val</span> <span class="n">readLine</span><span class="k">:</span> <span class="kt">Console</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">ReadLine</span><span class="o">(</span><span class="n">line</span> <span class="k">=&gt;</span> <span class="nc">Return</span><span class="o">(</span><span class="n">line</span><span class="o">))</span>
+<span class="k">def</span> <span class="n">success</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">Program</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Return</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>Similarly, it’s not easy to compose these values into more complex values, but if we add <code class="highlighter-rouge">map</code> and <code class="highlighter-rouge">flatMap</code> methods to <code class="highlighter-rouge">Console</code>, then we can use Scala’s for comprehension syntax to build programs in a very imperative-looking way:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">sealed</span> <span class="k">trait</span> <span class="nc">Console</span><span class="o">[</span><span class="kt">+A</span><span class="o">]</span> <span class="o">{</span> <span class="n">self</span> <span class="k">=&gt;</span>
+  <span class="k">def</span> <span class="n">map</span><span class="o">[</span><span class="kt">B</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="n">B</span><span class="o">)</span><span class="k">:</span> <span class="kt">Console</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span> <span class="k">=</span>
+    <span class="n">flatMap</span><span class="o">(</span><span class="n">a</span> <span class="k">=&gt;</span> <span class="n">success</span><span class="o">(</span><span class="n">f</span><span class="o">(</span><span class="n">a</span><span class="o">)))</span>
+
+  <span class="k">def</span> <span class="n">flatMap</span><span class="o">[</span><span class="kt">B</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="nc">Console</span><span class="o">[</span><span class="kt">B</span><span class="o">])</span><span class="k">:</span> <span class="kt">Console</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span> <span class="k">=</span>
+    <span class="n">self</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">Return</span><span class="o">(</span><span class="n">value</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">f</span><span class="o">(</span><span class="n">value</span><span class="o">())</span>
+      <span class="k">case</span> <span class="nc">PrintLine</span><span class="o">(</span><span class="n">line</span><span class="o">,</span> <span class="n">rest</span><span class="o">)</span> <span class="k">=&gt;</span>
+        <span class="nc">PrintLine</span><span class="o">(</span><span class="n">line</span><span class="o">,</span> <span class="n">rest</span><span class="o">.</span><span class="n">flatMap</span><span class="o">(</span><span class="n">f</span><span class="o">))</span>
+      <span class="k">case</span> <span class="nc">ReadLine</span><span class="o">(</span><span class="n">rest</span><span class="o">)</span> <span class="k">=&gt;</span>
+        <span class="nc">ReadLine</span><span class="o">(</span><span class="n">line</span> <span class="k">=&gt;</span> <span class="n">rest</span><span class="o">(</span><span class="n">line</span><span class="o">).</span><span class="n">flatMap</span><span class="o">(</span><span class="n">f</span><span class="o">))</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Now we can compose programs very simply, using for comprehensions:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">Console</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="k">_</span>    <span class="k">&lt;-</span> <span class="n">printLine</span><span class="o">(</span><span class="s">"What's your name?"</span><span class="o">)</span>
+    <span class="n">name</span> <span class="k">&lt;-</span> <span class="n">readLine</span>
+    <span class="k">_</span>    <span class="k">&lt;-</span> <span class="n">printLine</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello, ${name}, good to meet you!"</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">name</span>
+</code></pre></div></div>
+
+<p>When we wish to execute this program (which is not a functional operation), we can call <code class="highlighter-rouge">interpret</code> on the <code class="highlighter-rouge">Console</code> value.</p>
+
+<p>Purely functional programs are like this: instead of interacting with the real world, they build a tree-like data structure, which describes interaction with the real world.</p>
+
+<p>At the end of the world, typically in your application’s main function, you use an interpreter, called a <em>runtime system</em> in ZIO, to translate the data structure, which models an effectful program, into the real world interactions that it describes.</p>
+
+<p>This approach lets you write purely functional programs and benefit from the advanced features of ZIO’s runtime system, which are not possible with non-functional programming.</p>
+
+<h2 id="io">IO</h2>
+
+<p>At the core of ZIO is <code class="highlighter-rouge">IO</code>, a powerful data type inspired by Haskell’s <code class="highlighter-rouge">IO</code> monad. The <code class="highlighter-rouge">IO</code> data type allows you to model asynchronous, concurrent, and effectful computations as a pure value.</p>
+
+<p>Effect types like <code class="highlighter-rouge">IO</code> are how purely functional programs interact with the real world. Functional programmers use them to build complex, real world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.</p>
+
+<p>However, there are many practical reasons to build your programs using <code class="highlighter-rouge">IO</code>, including all of the following:</p>
+
+<ul>
+  <li><strong>Asynchronicity</strong>. Like Scala’s own <code class="highlighter-rouge">Future</code>, <code class="highlighter-rouge">IO</code> lets you easily write asynchronous code without blocking or callbacks. Compared to <code class="highlighter-rouge">Future</code>, <code class="highlighter-rouge">IO</code> has significantly better performance and cleaner, more expressive, and more composable semantics.</li>
+  <li><strong>Composability</strong>. Purely functional code can’t be combined with impure code that has side-effects without sacrificing the straightforward reasoning properties of functional programming. <code class="highlighter-rouge">IO</code> lets you wrap up all effects into a purely functional package that lets you build composable real world programs.</li>
+  <li><strong>Concurrency</strong>. <code class="highlighter-rouge">IO</code> has all the concurrency features of <code class="highlighter-rouge">Future</code>, and more, based on a clean fiber concurrency model designed to scale well past the limits of native threads. <code class="highlighter-rouge">IO</code>’s concurrency primitives do not leak resources under any circumstances.</li>
+  <li><strong>Interruptibility</strong>. All concurrent computations can be interrupted, in a way that still guarantees resources are cleaned up safely, allowing you to write aggressively parallel code that doesn’t waste valuable resources or bring down production servers.</li>
+  <li><strong>Resource Safety</strong>. <code class="highlighter-rouge">IO</code> provides composable resource-safe primitives that ensure resources like threads, sockets, and file handles are not leaked, which allows you to build long-running, robust applications. These applications will not leak resources, even in the presence of errors or interruption.</li>
+  <li><strong>Immutability</strong>. <code class="highlighter-rouge">IO</code>, like Scala’s immutable collection types, is an immutable data structure. All <code class="highlighter-rouge">IO</code> methods and functions return new <code class="highlighter-rouge">IO</code> values. This lets you reason about <code class="highlighter-rouge">IO</code> values the same way you reason about immutable collections.</li>
+  <li><strong>Reification</strong>. <code class="highlighter-rouge">IO</code> reifies programs. In non-functional Scala programming, you cannot pass programs around or store them in data structures, because programs are not values. But <code class="highlighter-rouge">IO</code> turns your programs into ordinary values, and lets you pass them around and compose them with ease.</li>
+  <li><strong>Performance</strong>. Although simple, synchronous <code class="highlighter-rouge">IO</code> programs tend to be slower than the equivalent imperative Scala, <code class="highlighter-rouge">IO</code> is extremely fast given all the expressive features and strong guarantees it provides. Ordinary imperative Scala could not match this level of expressivity and performance without tedious, error-prone boilerplate that no one would write in real-life.</li>
+</ul>
+
+<p>While functional programmers <em>must</em> use <code class="highlighter-rouge">IO</code> (or something like it) to represent effects, nearly all programmers will find the features of <code class="highlighter-rouge">IO</code> help them build scalable, performant, concurrent, and leak-free applications faster and with stronger correctness guarantees than legacy techniques allow.</p>
+
+<p>Use <code class="highlighter-rouge">IO</code> because it’s simply not practical to write real-world, correct software without it.</p>
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
+hljs.initHighlighting();
+              </script><script>((window.gitter = {}).chat = {}).options = {
+room: 'scalaz/scalaz-zio'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/scalaz-zio/js/main.js"></script></body></html>
