@@ -39,6 +39,8 @@ lazy val root = project
     interopCatsJS,
     interopFutureJVM,
     interopFutureJS,
+    interopMonixJVM,
+    interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
     benchmarks,
@@ -146,6 +148,21 @@ lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
 
 lazy val interopFutureJS = interopFuture.js.dependsOn(interopSharedJS)
 
+lazy val interopMonix = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-monix"))
+  .settings(stdSettings("zio-interop-monix"))
+  .dependsOn(core % "test->test;compile->compile")
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.monix" %%% "monix" % "3.0.0-RC2" % Optional
+    ),
+    scalacOptions in Test ++= Seq("-Yrangepos")
+  )
+
+lazy val interopMonixJVM = interopMonix.jvm.dependsOn(interopSharedJVM)
+
+lazy val interopMonixJS = interopMonix.js.dependsOn(interopSharedJS)
+
 lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-scalaz7x"))
   .settings(stdSettings("zio-interop-scalaz7x"))
@@ -171,7 +188,7 @@ lazy val benchmarks = project.module
       Seq(
         "org.scala-lang"    % "scala-reflect"  % scalaVersion.value,
         "org.scala-lang"    % "scala-compiler" % scalaVersion.value % Provided,
-        "io.monix"          %% "monix"         % "3.0.0-RC1",
+        "io.monix"          %% "monix"         % "3.0.0-RC2",
         "org.typelevel"     %% "cats-effect"   % "1.0.0",
         "co.fs2"            %% "fs2-core"      % "1.0.0",
         "com.typesafe.akka" %% "akka-stream"   % "2.5.17"
