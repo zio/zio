@@ -428,7 +428,7 @@ private[zio] final class FiberContext[E, A](
   private[this] final def shouldDie: Boolean = noInterrupt == 0 && state.get.interrupted
 
   @inline
-  private[this] final def allowRecovery: Boolean = !(state.get.interrupted && state.get.terminating) && !shouldDie
+  private[this] final def allowRecovery: Boolean = !state.get.terminating && !shouldDie
 
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
@@ -568,8 +568,8 @@ private[zio] object FiberContext {
       observers: List[Callback[Nothing, ExitResult[E, A]]]
     ) extends FiberState[E, A] {
       def terminating: Boolean = status match {
-        case FiberStatus.Terminating => true
-        case _                       => false
+        case FiberStatus.Terminating if interrupted => true
+        case _                                      => false
       }
     }
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberState[E, A] {
