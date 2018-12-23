@@ -340,7 +340,7 @@ trait Stream[+E, +A] { self =>
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-   def run[E1 >: E, A0, A1 >: A, B](sink: Sink[E1, A0, A1, B]): IO[E1, B] =
+  def run[E1 >: E, A0, A1 >: A, B](sink: Sink[E1, A0, A1, B]): IO[E1, B] =
     sink.initial
       .flatMap(
         state =>
