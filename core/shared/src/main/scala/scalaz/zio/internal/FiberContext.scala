@@ -287,7 +287,6 @@ private[zio] final class FiberContext[E, A](
         case t: Throwable if (env.nonFatal(t)) =>
           // Interruption cannot be interrupted:
           this.noInterrupt += 1
-          terminating0()
 
           curIo = IO.terminate(t)
       }
@@ -568,8 +567,8 @@ private[zio] object FiberContext {
       observers: List[Callback[Nothing, ExitResult[E, A]]]
     ) extends FiberState[E, A] {
       def terminating: Boolean = status match {
-        case FiberStatus.Terminating if interrupted => true
-        case _                                      => false
+        case FiberStatus.Terminating => true
+        case _                       => false
       }
     }
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberState[E, A] {
