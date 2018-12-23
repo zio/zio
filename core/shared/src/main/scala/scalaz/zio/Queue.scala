@@ -159,14 +159,14 @@ class Queue[A] private (
           else
             for {
               p <- Promise.make[Nothing, A]
-              // add the promise to takers, then try take again in case a value was added since
+              // add the promise to takers, then:
+              // - try take again in case a value was added since
+              // - wait for the promise to be completed
+              // - clean up resources in case of interruption
               a <- (IO.sync0 { context =>
                     takers.offer(p)
                     unsafeCompleteTakers(context)
                   } *> p.get).onInterrupt(removeTaker(p))
-              // wait for the promise to be completed
-              // .flatMap(_ => p.get)
-              // clean up resources in case of interruption
 
             } yield a
     } yield a
