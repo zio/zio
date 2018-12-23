@@ -285,9 +285,6 @@ private[zio] final class FiberContext[E, A](
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
         case t: Throwable if (env.nonFatal(t)) =>
-          // Interruption cannot be interrupted:
-          this.noInterrupt += 1
-
           curIo = IO.terminate(t)
       }
     }
