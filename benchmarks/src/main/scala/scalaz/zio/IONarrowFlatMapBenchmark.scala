@@ -43,7 +43,7 @@ class IONarrowFlatMapBenchmark {
       if (i < size) Task.eval(i + 1).flatMap(loop)
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncMaybe.right.get
+    Task.eval(0).flatMap(loop).runSyncStep.right.get
   }
 
   @Benchmark
