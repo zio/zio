@@ -6,5 +6,5 @@ trait App {
    * The main function of the application, which will be passed the command-line
    * arguments to the program.
    */
-  final def run(args: List[String]): IO[Nothing, Unit]
+  def run(args: List[String]): IO[Nothing, Unit]
 }
