@@ -429,17 +429,17 @@ private[zio] final class FiberContext[E, A](
 
   @tailrec
   private[this] final def terminating(): IO[Nothing, Nothing] = {
-    
+
     val oldState = state.get
     oldState match {
       case Executing(interrupted, _, status, observers) =>
-      if (!state.compareAndSet(oldState, Executing(interrupted, true, status, observers))) 
-        terminating()
-      else {
-        // Interruption cannot be interrupted:
-        noInterrupt += 1
-        IO.interrupt
-      }
+        if (!state.compareAndSet(oldState, Executing(interrupted, true, status, observers)))
+          terminating()
+        else {
+          // Interruption cannot be interrupted:
+          noInterrupt += 1
+          IO.interrupt
+        }
 
       case _ => null
     }
