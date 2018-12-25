@@ -294,8 +294,8 @@ private[zio] final class FiberContext[E, A](
   private[this] final def terminating0(): Unit = {
     val oldState = state.get
     oldState match {
-      case Executing(interrupted, _, observers) =>
-        if (!state.compareAndSet(oldState, Executing(interrupted, FiberStatus.Terminating, observers))) terminating0()
+      case Executing(interrupted, _, status, observers) =>
+        if (!state.compareAndSet(oldState, Executing(interrupted, true, status, observers))) terminating0()
 
       case _ => // Nope
     }
@@ -372,8 +372,8 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(interrupted, _, observers) =>
-        val newState = Executing(interrupted, FiberStatus.Suspended, observers)
+      case Executing(interrupted, terminating, _, observers) =>
+        val newState = Executing(interrupted, terminating, FiberStatus.Suspended, observers)
 
         if (!state.compareAndSet(oldState, newState)) enterAsync()
         else if (shouldDie) {
@@ -391,8 +391,8 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(interrupted, FiberStatus.Suspended, observers) =>
-        if (!state.compareAndSet(oldState, Executing(interrupted, FiberStatus.Running, observers)))
+      case Executing(interrupted, terminating, FiberStatus.Suspended, observers) =>
+        if (!state.compareAndSet(oldState, Executing(interrupted, terminating, FiberStatus.Running, observers)))
           exitAsync()
         else true
 
@@ -447,7 +447,7 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(_, _, observers) =>
+      case Executing(_, _, _, observers) =>
         if (!state.compareAndSet(oldState, Done(v))) done(v)
         else {
           notifyObservers(v, observers)
@@ -473,10 +473,10 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(_, FiberStatus.Suspended, observers0) if noInterrupt == 0 =>
+      case Executing(_, _, FiberStatus.Suspended, observers0) if noInterrupt == 0 =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(true, FiberStatus.Terminating, observers))) kill0(k)
+        if (!state.compareAndSet(oldState, Executing(true, true, FiberStatus.Running, observers))) kill0(k)
         else {
           // Interruption may not be interrupted:
           noInterrupt += 1
@@ -486,10 +486,10 @@ private[zio] final class FiberContext[E, A](
           Async.later
         }
 
-      case Executing(_, status, observers0) =>
+      case Executing(_, _, status, observers0) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(true, status, observers))) kill0(k)
+        if (!state.compareAndSet(oldState, Executing(true, true, status, observers))) kill0(k)
         else Async.later
 
       case Done(e) => Async.now(IO.now(e))
@@ -509,10 +509,10 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(interrupted, status, observers0) =>
+      case Executing(interrupted, terminating, status, observers0) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(interrupted, status, observers))) register0(k)
+        if (!state.compareAndSet(oldState, Executing(interrupted, terminating, status, observers))) register0(k)
         else null
 
       case Done(v) => v
@@ -543,9 +543,8 @@ private[zio] final class FiberContext[E, A](
 private[zio] object FiberContext {
   sealed abstract class FiberStatus extends Serializable with Product
   object FiberStatus {
-    final case object Running     extends FiberStatus
-    final case object Suspended   extends FiberStatus
-    final case object Terminating extends FiberStatus
+    final case object Running   extends FiberStatus
+    final case object Suspended extends FiberStatus
   }
 
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
@@ -560,19 +559,15 @@ private[zio] object FiberContext {
   object FiberState extends Serializable {
     final case class Executing[E, A](
       interrupted: Boolean,
+      terminating: Boolean,
       status: FiberStatus,
       observers: List[Callback[Nothing, ExitResult[E, A]]]
-    ) extends FiberState[E, A] {
-      def terminating: Boolean = status match {
-        case FiberStatus.Terminating => true
-        case _                       => false
-      }
-    }
+    ) extends FiberState[E, A]
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberState[E, A] {
       def interrupted: Boolean = value.interrupted
       def terminating: Boolean = false
     }
 
-    def Initial[E, A] = Executing[E, A](false, FiberStatus.Running, Nil)
+    def Initial[E, A] = Executing[E, A](false, false, FiberStatus.Running, Nil)
   }
 }
