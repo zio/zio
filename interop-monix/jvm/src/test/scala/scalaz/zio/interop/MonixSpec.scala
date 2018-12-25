@@ -1,6 +1,6 @@
 package scalaz.zio.interop
 
-import monix.eval.{ Task => MTask }
+import monix.eval
 import monix.execution.Scheduler
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.ExitResult.Cause.Checked
@@ -25,7 +25,7 @@ class MonixSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def propagateTaskFailure = {
     val error = new Exception
-    val task  = MTask.raiseError[Int](error)
+    val task  = eval.Task.raiseError[Int](error)
     val io    = IO.fromTask(task)
 
     unsafeRun(io) must throwAn(FiberFailure(Checked(error)))
@@ -33,7 +33,7 @@ class MonixSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def propagateTaskResult = {
     val value = 10
-    val task  = MTask(value)
+    val task  = eval.Task(value)
     val io    = IO.fromTask(task)
 
     unsafeRun(io) === value
@@ -41,7 +41,7 @@ class MonixSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def toTaskAlwaysSucceeds = {
     val task = IO.fail(new Exception).toTask
-    unsafeRun(task) must beAnInstanceOf[MTask[Unit]]
+    unsafeRun(task) must beAnInstanceOf[eval.Task[Unit]]
   }
 
   def propagateIOFailure = {
