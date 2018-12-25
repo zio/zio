@@ -566,12 +566,6 @@ private[zio] object FiberContext {
       status: FiberStatus,
       observers: List[Callback[Nothing, ExitResult[E, A]]]
     ) extends FiberState[E, A]
-    // final case class Terminating[E, A](
-    //   observers: List[Callback[Nothing, ExitResult[E, A]]]
-    // ) extends FiberState[E, A] {
-    //   def interrupted: Boolean = true
-    //   def terminating: Boolean = true
-    // }
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberState[E, A] {
       def interrupted: Boolean = value.interrupted
       def terminating: Boolean = false
