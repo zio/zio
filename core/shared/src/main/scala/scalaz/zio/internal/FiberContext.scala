@@ -270,12 +270,8 @@ private[zio] final class FiberContext[E, A](
               }
             }
           } else {
-            // Interruption cannot be interrupted:
-            this.noInterrupt += 1
-            terminating0()
-
             // Fiber was interrupted
-            curIo = IO.interrupt
+            curIo = terminating()
           }
 
           opcount = opcount + 1
@@ -287,17 +283,6 @@ private[zio] final class FiberContext[E, A](
         case t: Throwable if (env.nonFatal(t)) =>
           curIo = IO.terminate(t)
       }
-    }
-  }
-
-  @tailrec
-  private[this] final def terminating0(): Unit = {
-    val oldState = state.get
-    oldState match {
-      case Executing(interrupted, _, status, observers) =>
-        if (!state.compareAndSet(oldState, Executing(interrupted, true, status, observers))) terminating0()
-
-      case _ => // Nope
     }
   }
 
@@ -443,6 +428,24 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
+  private[this] final def terminating(): IO[Nothing, Nothing] = {
+    
+    val oldState = state.get
+    oldState match {
+      case Executing(interrupted, _, status, observers) =>
+      if (!state.compareAndSet(oldState, Executing(interrupted, true, status, observers))) 
+        terminating()
+      else {
+        // Interruption cannot be interrupted:
+        noInterrupt += 1
+        IO.interrupt
+      }
+
+      case _ => null
+    }
+  }
+
+  @tailrec
   private[this] final def done(v: ExitResult[E, A]): Unit = {
     val oldState = state.get
 
@@ -563,6 +566,12 @@ private[zio] object FiberContext {
       status: FiberStatus,
       observers: List[Callback[Nothing, ExitResult[E, A]]]
     ) extends FiberState[E, A]
+    // final case class Terminating[E, A](
+    //   observers: List[Callback[Nothing, ExitResult[E, A]]]
+    // ) extends FiberState[E, A] {
+    //   def interrupted: Boolean = true
+    //   def terminating: Boolean = true
+    // }
     final case class Done[E, A](value: ExitResult[E, A]) extends FiberState[E, A] {
       def interrupted: Boolean = value.interrupted
       def terminating: Boolean = false
