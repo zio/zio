@@ -3,7 +3,7 @@ package interop
 
 import cats.Eq
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.laws.discipline.{ EffectTests, Parameters }
+import cats.effect.laws.discipline.{ ConcurrentTests, EffectTests, Parameters }
 import cats.effect.laws.util.{ TestContext, TestInstances }
 import cats.implicits._
 import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
@@ -32,10 +32,7 @@ class catzSpec
     val context = TestContext()
     val ruleSet = f(context)
 
-    for ((id, prop) ← ruleSet.all.properties)
-      test(name + "." + id) {
-        check(prop)
-      }
+    checkAll(name, ruleSet)
   }
 
   override implicit def eqIO[A](implicit A: Eq[A], ec: TestContext): Eq[cats.effect.IO[A]] =
@@ -44,7 +41,7 @@ class catzSpec
       import scala.concurrent.duration._
 
       def eqv(x: cats.effect.IO[A], y: cats.effect.IO[A]): Boolean = {
-        val duration = 20.seconds
+        val duration = 10.seconds
         val leftM    = x.attempt.unsafeRunTimed(duration)
         val rightM   = y.attempt.unsafeRunTimed(duration)
 
@@ -60,9 +57,9 @@ class catzSpec
       }
     }
 
-  // (1 to 50).foreach { s =>
-  //   checkAllAsync(s"Concurrent[Task] $s", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
-  // }
+  (1 to 50).foreach { s =>
+    checkAllAsync(s"Concurrent[Task] $s", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
+  }
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
   checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
