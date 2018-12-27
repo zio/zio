@@ -49,7 +49,7 @@ class IODeepAttemptBenchmark {
       else if (n == halfway) descend(n + 1).attempt.map(_.fold(_ => 50, a => a))
       else descend(n + 1).map(_ + n)
 
-    descend(0).runSyncMaybe.right.get
+    descend(0).runSyncStep.right.get
   }
 
   @Benchmark
