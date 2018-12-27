@@ -40,15 +40,23 @@ class catzSpec
 
   override implicit def eqIO[A](implicit A: Eq[A], ec: TestContext): Eq[cats.effect.IO[A]] =
     new Eq[cats.effect.IO[A]] {
-      def eqv(x: cats.effect.IO[A], y: cats.effect.IO[A]): Boolean = {
-        val l = x.attempt.unsafeRunSync
-        val r = y.attempt.unsafeRunSync
+      import cats.syntax.apply._
+      import scala.concurrent.duration._
 
-        (l, r) match {
-          case (Right(l), Right(r)) => A.eqv(l, r)
-          case (Left(l), Left(r))   => l == r
-          case _                    => false
+      def eqv(x: cats.effect.IO[A], y: cats.effect.IO[A]): Boolean = {
+        val duration = 20.seconds
+        val leftM    = x.attempt.unsafeRunTimed(duration)
+        val rightM   = y.attempt.unsafeRunTimed(duration)
+
+        val res = (leftM, rightM).mapN {
+          (_, _) match {
+            case (Right(l), Right(r)) => A.eqv(l, r)
+            case (Left(l), Left(r))   => l == r
+            case _                    => false
+          }
         }
+
+        res.getOrElse(false)
       }
     }
 
