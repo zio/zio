@@ -13,8 +13,8 @@ import scalaz.zio.internal.MutableConcurrentQueue
  * RingBuffer*) for a very small footprint, while still being plenty
  * fast.
  *
- * Allocating an object takes only 32 bytes + 16+ bytes in long adders (so 48+ bytes total),
- * which is 10x less that a smalles RingBuffer.
+ * Allocating an object takes only 24 bytes + 8+ bytes in long adder (so 32+ bytes total),
+ * which is 15x less than the smallest RingBuffer.
  *
  * scalaz.zio.internal.impls.OneElementConcurrentQueue object internals:
  *  OFFSET  SIZE                                          TYPE DESCRIPTION
@@ -24,20 +24,18 @@ import scalaz.zio.internal.MutableConcurrentQueue
  *      12     4                                           int OneElementConcurrentQueue.capacity
  *      16     4   java.util.concurrent.atomic.AtomicReference OneElementConcurrentQueue.ref
  *      20     4         java.util.concurrent.atomic.LongAdder OneElementConcurrentQueue.deqAdder
- *      24     4         java.util.concurrent.atomic.LongAdder OneElementConcurrentQueue.enqAdder
- *      28     4                                               (loss due to the next object alignment)
- * Instance size: 32 bytes
- * Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+ * Instance size: 24 bytes
+ * Space losses: 0 bytes internal + 0 bytes external = 0 bytes total
  */
 class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   private[this] final val ref      = new AtomicReference[AnyRef]()
   private[this] final val deqAdder = new LongAdder()
-  private[this] final val enqAdder = new LongAdder()
 
   override final val capacity: Int = 1
 
   override final def dequeuedCount(): Long = deqAdder.sum()
-  override final def enqueuedCount(): Long = enqAdder.sum()
+  override final def enqueuedCount(): Long =
+    if (isEmpty()) dequeuedCount() else dequeuedCount() + 1
 
   override final def isEmpty(): Boolean = ref.get() == null
   override final def isFull(): Boolean  = !isEmpty()
@@ -54,7 +52,6 @@ class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serial
       else {
         if (aRef.compareAndSet(null, a.asInstanceOf[AnyRef])) {
           ret = true
-          enqAdder.increment()
           looping = false
         }
       }
