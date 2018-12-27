@@ -53,7 +53,7 @@ class IOShallowAttemptBenchmark {
           case Right(_) => Task.raiseError(new Error("Oh noes!"))
         }
 
-    throwup(0).runSyncMaybe.right.get
+    throwup(0).runSyncStep.right.get
   }
 
   @Benchmark

@@ -52,7 +52,7 @@ class IODeepFlatMapBenchmark {
           fib(n - 2).flatMap(b => Task.eval(a + b))
         }
 
-    fib(depth).runSyncMaybe.right.get
+    fib(depth).runSyncStep.right.get
   }
 
   @Benchmark
