@@ -271,7 +271,7 @@ private[zio] final class FiberContext[E, A](
             }
           } else {
             // Fiber was interrupted
-            curIo = terminating()
+            curIo = terminate(IO.interrupt)
           }
 
           opcount = opcount + 1
@@ -281,7 +281,7 @@ private[zio] final class FiberContext[E, A](
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
         case t: Throwable if (env.nonFatal(t)) =>
-          curIo = IO.terminate(t)
+          curIo = terminate(IO.terminate(t))
       }
     }
   }
@@ -409,7 +409,10 @@ private[zio] final class FiberContext[E, A](
   private[this] final def shouldDie: Boolean = noInterrupt == 0 && state.get.interrupted
 
   @inline
-  private[this] final def allowRecovery: Boolean = !state.get.terminating && !shouldDie
+  private[this] final def allowRecovery: Boolean = {
+    val currentState = state.get
+    !currentState.interrupted || !currentState.terminating && noInterrupt != 0
+  }
 
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
@@ -428,17 +431,17 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[this] final def terminating(): IO[Nothing, Nothing] = {
+  private[this] final def terminate(io: IO[Nothing, Nothing]): IO[Nothing, Nothing] = {
 
     val oldState = state.get
     oldState match {
       case Executing(interrupted, _, status, observers) =>
         if (!state.compareAndSet(oldState, Executing(interrupted, true, status, observers)))
-          terminating()
+          terminate(io)
         else {
           // Interruption cannot be interrupted:
           noInterrupt += 1
-          IO.interrupt
+          io
         }
 
       case _ => null
