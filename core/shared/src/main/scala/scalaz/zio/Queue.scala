@@ -375,7 +375,7 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def bounded[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), BackPressure())
+    IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
 
   /**
    * Makes a new bounded queue with sliding strategy.
@@ -387,7 +387,7 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def sliding[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Sliding())
+    IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
 
   /**
    * Makes a new bounded queue with the dropping strategy.
@@ -398,12 +398,13 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def dropping[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
-    createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Dropping())
+    IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
 
   /**
    * Makes a new unbounded queue.
    */
-  final def unbounded[A]: IO[Nothing, Queue[A]] = createQueue(MutableConcurrentQueue.unbounded[A], Dropping())
+  final def unbounded[A]: IO[Nothing, Queue[A]] =
+    IO.sync(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
 
   private final def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): IO[Nothing, Queue[A]] =
     Ref[Option[IO[Nothing, Unit]]](Some(IO.unit))
