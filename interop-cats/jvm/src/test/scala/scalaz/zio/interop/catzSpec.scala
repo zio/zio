@@ -32,29 +32,33 @@ class catzSpec
     val context = TestContext()
     val ruleSet = f(context)
 
-    for ((id, prop) ← ruleSet.all.properties)
-      test(name + "." + id) {
-        check(prop)
-      }
+    checkAll(name, ruleSet)
   }
 
   override implicit def eqIO[A](implicit A: Eq[A], ec: TestContext): Eq[cats.effect.IO[A]] =
     new Eq[cats.effect.IO[A]] {
-      def eqv(x: cats.effect.IO[A], y: cats.effect.IO[A]): Boolean = {
-        val l = x.attempt.unsafeRunSync
-        val r = y.attempt.unsafeRunSync
+      import cats.syntax.apply._
+      import scala.concurrent.duration._
 
-        (l, r) match {
-          case (Right(l), Right(r)) => A.eqv(l, r)
-          case (Left(l), Left(r))   => l == r
-          case _                    => false
+      def eqv(x: cats.effect.IO[A], y: cats.effect.IO[A]): Boolean = {
+        val duration = 10.seconds
+        val leftM    = x.attempt.unsafeRunTimed(duration)
+        val rightM   = y.attempt.unsafeRunTimed(duration)
+
+        val res = (leftM, rightM).mapN {
+          (_, _) match {
+            case (Right(l), Right(r)) => A.eqv(l, r)
+            case (Left(l), Left(r))   => l == r
+            case _                    => false
+          }
         }
+
+        res.getOrElse(false)
       }
     }
 
-  (1 to 50).foreach { s =>
-    checkAllAsync(s"Concurrent[Task] $s", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
-  }
+  // TODO: reintroduce repeated ConcurrentTests as they're removed due to the hanging CI builds (see https://github.com/scalaz/scalaz-zio/pull/482)
+  checkAllAsync("Concurrent[Task]", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
   checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
   checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
