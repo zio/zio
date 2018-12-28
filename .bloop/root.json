@@ -1,0 +1,158 @@
+{
+    "version" : "1.1.0-M2",
+    "project" : {
+        "name" : "root",
+        "directory" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio",
+        "sources" : [
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\src\\main\\scala-2.12",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\src\\main\\scala",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\src\\main\\java",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\target\\scala-2.12\\src_managed\\main"
+        ],
+        "dependencies" : [
+            "coreJVM",
+            "coreJS",
+            "interopSharedJVM",
+            "interopSharedJS",
+            "interopCatsJVM",
+            "interopCatsJS",
+            "interopFutureJVM",
+            "interopFutureJS",
+            "interopMonixJVM",
+            "interopMonixJS",
+            "interopScalaz7xJVM",
+            "interopScalaz7xJS",
+            "benchmarks",
+            "microsite"
+        ],
+        "classpath" : [
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-library_2.12\\jars\\scalajs-library_2.12-0.6.26.jar"
+        ],
+        "out" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\root",
+        "classesDir" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\root\\scala-2.12\\classes",
+        "resources" : [
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\src\\main\\resources",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\target\\scala-2.12\\resource_managed\\main"
+        ],
+        "scala" : {
+            "organization" : "org.scala-lang",
+            "name" : "scala-compiler",
+            "version" : "2.12.8",
+            "options" : [
+                "-P:semanticdb:failures:warning",
+                "-P:semanticdb:sourceroot:D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio",
+                "-Yrangepos",
+                "-Xplugin-require:semanticdb",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-compiler_2.12.8\\jars\\scalajs-compiler_2.12.8-0.6.26.jar",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\org.scalameta\\semanticdb-scalac_2.12.8\\jars\\semanticdb-scalac_2.12.8-4.1.0.jar"
+            ],
+            "jars" : [
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-compiler\\jars\\scala-compiler-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-reflect\\jars\\scala-reflect-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-xml_2.12\\bundles\\scala-xml_2.12-1.0.6.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\jline\\jline\\jars\\jline-2.14.6.jar"
+            ],
+            "setup" : {
+                "order" : "mixed",
+                "addLibraryToBootClasspath" : true,
+                "addCompilerToClasspath" : false,
+                "addExtraJarsToClasspath" : false,
+                "manageBootClasspath" : true,
+                "filterLibraryFromClasspath" : true
+            }
+        },
+        "java" : {
+            "options" : [
+            ]
+        },
+        "test" : {
+            "frameworks" : [
+                {
+                    "names" : [
+                        "org.scalacheck.ScalaCheckFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.specs2.runner.Specs2Framework",
+                        "org.specs2.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.specs.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.scalatest.tools.Framework",
+                        "org.scalatest.tools.ScalaTestFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "com.novocode.junit.JUnitFramework"
+                    ]
+                }
+            ],
+            "options" : {
+                "excludes" : [
+                ],
+                "arguments" : [
+                ]
+            }
+        },
+        "platform" : {
+            "name" : "js",
+            "config" : {
+                "version" : "0.6.26",
+                "mode" : "debug",
+                "kind" : "none",
+                "emitSourceMaps" : false,
+                "jsdom" : false,
+                "toolchain" : [
+                ]
+            },
+            "mainClass" : [
+            ]
+        },
+        "resolution" : {
+            "modules" : [
+                {
+                    "organization" : "org.scala-lang",
+                    "name" : "scala-library",
+                    "version" : "2.12.8",
+                    "artifacts" : [
+                        {
+                            "name" : "scala-library",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar"
+                        },
+                        {
+                            "name" : "scala-library",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\srcs\\scala-library-2.12.8-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scala-js",
+                    "name" : "scalajs-library_2.12",
+                    "version" : "0.6.26",
+                    "artifacts" : [
+                        {
+                            "name" : "scalajs-library_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-library_2.12\\jars\\scalajs-library_2.12-0.6.26.jar"
+                        },
+                        {
+                            "name" : "scalajs-library_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-library_2.12\\srcs\\scalajs-library_2.12-0.6.26-sources.jar"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

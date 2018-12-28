@@ -1,0 +1,802 @@
+{
+    "version" : "1.1.0-M2",
+    "project" : {
+        "name" : "benchmarks-test",
+        "directory" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\benchmarks",
+        "sources" : [
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\benchmarks\\src\\test\\scala-2.12",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\benchmarks\\src\\test\\scala",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\benchmarks\\src\\test\\java",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\benchmarks\\target\\scala-2.12\\src_managed\\test"
+        ],
+        "dependencies" : [
+            "coreJVM",
+            "benchmarks"
+        ],
+        "classpath" : [
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\benchmarks\\scala-2.12\\classes",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\coreJVM\\scala-2.12\\classes",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\pl.project13.scala\\sbt-jmh-extras\\jars\\sbt-jmh-extras-0.3.4.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-core\\jars\\jmh-core-1.21.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\net.sf.jopt-simple\\jopt-simple\\jars\\jopt-simple-4.6.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-math3\\jars\\commons-math3-3.2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-bytecode\\jars\\jmh-generator-bytecode-1.21.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-reflection\\jars\\jmh-generator-reflection-1.21.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-asm\\jars\\jmh-generator-asm-1.21.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm\\jars\\asm-5.0.3.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-reflect\\jars\\scala-reflect-2.12.8.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix_2.12\\jars\\monix_2.12-3.0.0-RC2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-execution_2.12\\jars\\monix-execution_2.12-3.0.0-RC2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-effect_2.12\\jars\\cats-effect_2.12-1.1.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-core_2.12\\jars\\cats-core_2.12-1.5.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-macros_2.12\\jars\\cats-macros_2.12-1.5.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\machinist_2.12\\jars\\machinist_2.12-0.6.6.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-kernel_2.12\\jars\\cats-kernel_2.12-1.5.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.jctools\\jctools-core\\bundles\\jctools-core-2.1.1.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.reactivestreams\\reactive-streams\\jars\\reactive-streams-1.0.2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-catnap_2.12\\jars\\monix-catnap_2.12-3.0.0-RC2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-eval_2.12\\jars\\monix-eval_2.12-3.0.0-RC2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-tail_2.12\\jars\\monix-tail_2.12-3.0.0-RC2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-reactive_2.12\\jars\\monix-reactive_2.12-3.0.0-RC2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-java_2.12\\jars\\monix-java_2.12-3.0.0-RC2.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\co.fs2\\fs2-core_2.12\\jars\\fs2-core_2.12-1.0.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scodec\\scodec-bits_2.12\\bundles\\scodec-bits_2.12-1.1.5.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-stream_2.12\\jars\\akka-stream_2.12-2.5.17.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-actor_2.12\\jars\\akka-actor_2.12-2.5.17.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\config\\bundles\\config-1.3.3.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-java8-compat_2.12\\bundles\\scala-java8-compat_2.12-0.8.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-protobuf_2.12\\jars\\akka-protobuf_2.12-2.5.17.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\ssl-config-core_2.12\\bundles\\ssl-config-core_2.12-0.2.4.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-parser-combinators_2.12\\bundles\\scala-parser-combinators_2.12-1.1.1.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jcstress\\jcstress-core\\jars\\jcstress-core-0.3.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalacheck\\scalacheck_2.12\\jars\\scalacheck_2.12-1.14.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-interface\\jars\\test-interface-1.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-compiler\\jars\\scala-compiler-2.12.8.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-xml_2.12\\bundles\\scala-xml_2.12-1.0.6.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ghik\\silencer-lib_2.12\\jars\\silencer-lib_2.12-1.0.jar"
+        ],
+        "out" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\benchmarks",
+        "classesDir" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\benchmarks\\scala-2.12\\test-classes",
+        "resources" : [
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\benchmarks\\src\\test\\resources",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\benchmarks\\target\\scala-2.12\\resource_managed\\test"
+        ],
+        "scala" : {
+            "organization" : "org.scala-lang",
+            "name" : "scala-compiler",
+            "version" : "2.12.8",
+            "options" : [
+                "-deprecation",
+                "-encoding",
+                "UTF-8",
+                "-explaintypes",
+                "-Yrangepos",
+                "-feature",
+                "-Xfuture",
+                "-Ypartial-unification",
+                "-language:higherKinds",
+                "-language:existentials",
+                "-unchecked",
+                "-Yno-adapted-args",
+                "-Xlint:_,-type-parameter-shadow",
+                "-Xsource:2.13",
+                "-Ywarn-inaccessible",
+                "-Ywarn-infer-any",
+                "-Ywarn-nullary-override",
+                "-Ywarn-nullary-unit",
+                "-Ywarn-numeric-widen",
+                "-Ywarn-value-discard",
+                "-Xfatal-warnings",
+                "-opt-warnings",
+                "-Ywarn-extra-implicit",
+                "-Ywarn-unused:_,imports",
+                "-Ywarn-unused:imports",
+                "-opt:l:inline",
+                "-opt-inline-from:<source>",
+                "-P:semanticdb:failures:warning",
+                "-P:semanticdb:sourceroot:D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio",
+                "-Yrangepos",
+                "-Xplugin-require:semanticdb",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\org.spire-math\\kind-projector_2.12\\jars\\kind-projector_2.12-0.9.7.jar",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\com.github.tomasmikula\\pascal_2.12\\jars\\pascal_2.12-0.2.1.jar",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ghik\\silencer-plugin_2.12\\jars\\silencer-plugin_2.12-1.0.jar",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\org.scalameta\\semanticdb-scalac_2.12.8\\jars\\semanticdb-scalac_2.12.8-4.1.0.jar"
+            ],
+            "jars" : [
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-compiler\\jars\\scala-compiler-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-reflect\\jars\\scala-reflect-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-xml_2.12\\bundles\\scala-xml_2.12-1.0.6.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\jline\\jline\\jars\\jline-2.14.6.jar"
+            ],
+            "setup" : {
+                "order" : "mixed",
+                "addLibraryToBootClasspath" : true,
+                "addCompilerToClasspath" : false,
+                "addExtraJarsToClasspath" : false,
+                "manageBootClasspath" : true,
+                "filterLibraryFromClasspath" : true
+            }
+        },
+        "java" : {
+            "options" : [
+            ]
+        },
+        "test" : {
+            "frameworks" : [
+                {
+                    "names" : [
+                        "org.scalacheck.ScalaCheckFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.specs2.runner.Specs2Framework",
+                        "org.specs2.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.specs.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.scalatest.tools.Framework",
+                        "org.scalatest.tools.ScalaTestFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "com.novocode.junit.JUnitFramework"
+                    ]
+                }
+            ],
+            "options" : {
+                "excludes" : [
+                ],
+                "arguments" : [
+                ]
+            }
+        },
+        "platform" : {
+            "name" : "jvm",
+            "config" : {
+                "home" : "C:\\Program Files\\Java\\jre1.8.0_192",
+                "options" : [
+                ]
+            },
+            "mainClass" : [
+            ]
+        },
+        "resolution" : {
+            "modules" : [
+                {
+                    "organization" : "org.scala-lang",
+                    "name" : "scala-library",
+                    "version" : "2.12.8",
+                    "artifacts" : [
+                        {
+                            "name" : "scala-library",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar"
+                        },
+                        {
+                            "name" : "scala-library",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\srcs\\scala-library-2.12.8-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "pl.project13.scala",
+                    "name" : "sbt-jmh-extras",
+                    "version" : "0.3.4",
+                    "artifacts" : [
+                        {
+                            "name" : "sbt-jmh-extras",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\pl.project13.scala\\sbt-jmh-extras\\jars\\sbt-jmh-extras-0.3.4.jar"
+                        },
+                        {
+                            "name" : "sbt-jmh-extras",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\pl.project13.scala\\sbt-jmh-extras\\srcs\\sbt-jmh-extras-0.3.4-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.openjdk.jmh",
+                    "name" : "jmh-core",
+                    "version" : "1.21",
+                    "artifacts" : [
+                        {
+                            "name" : "jmh-core",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-core\\jars\\jmh-core-1.21.jar"
+                        },
+                        {
+                            "name" : "jmh-core",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-core\\srcs\\jmh-core-1.21-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "net.sf.jopt-simple",
+                    "name" : "jopt-simple",
+                    "version" : "4.6",
+                    "artifacts" : [
+                        {
+                            "name" : "jopt-simple",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\net.sf.jopt-simple\\jopt-simple\\jars\\jopt-simple-4.6.jar"
+                        },
+                        {
+                            "name" : "jopt-simple",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\net.sf.jopt-simple\\jopt-simple\\srcs\\jopt-simple-4.6-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.apache.commons",
+                    "name" : "commons-math3",
+                    "version" : "3.2",
+                    "artifacts" : [
+                        {
+                            "name" : "commons-math3",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-math3\\jars\\commons-math3-3.2.jar"
+                        },
+                        {
+                            "name" : "commons-math3",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-math3\\srcs\\commons-math3-3.2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.openjdk.jmh",
+                    "name" : "jmh-generator-bytecode",
+                    "version" : "1.21",
+                    "artifacts" : [
+                        {
+                            "name" : "jmh-generator-bytecode",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-bytecode\\jars\\jmh-generator-bytecode-1.21.jar"
+                        },
+                        {
+                            "name" : "jmh-generator-bytecode",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-bytecode\\srcs\\jmh-generator-bytecode-1.21-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.openjdk.jmh",
+                    "name" : "jmh-generator-reflection",
+                    "version" : "1.21",
+                    "artifacts" : [
+                        {
+                            "name" : "jmh-generator-reflection",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-reflection\\jars\\jmh-generator-reflection-1.21.jar"
+                        },
+                        {
+                            "name" : "jmh-generator-reflection",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-reflection\\srcs\\jmh-generator-reflection-1.21-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.openjdk.jmh",
+                    "name" : "jmh-generator-asm",
+                    "version" : "1.21",
+                    "artifacts" : [
+                        {
+                            "name" : "jmh-generator-asm",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-asm\\jars\\jmh-generator-asm-1.21.jar"
+                        },
+                        {
+                            "name" : "jmh-generator-asm",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-asm\\srcs\\jmh-generator-asm-1.21-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.ow2.asm",
+                    "name" : "asm",
+                    "version" : "5.0.3",
+                    "artifacts" : [
+                        {
+                            "name" : "asm",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm\\jars\\asm-5.0.3.jar"
+                        },
+                        {
+                            "name" : "asm",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm\\srcs\\asm-5.0.3-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scala-lang",
+                    "name" : "scala-reflect",
+                    "version" : "2.12.8",
+                    "artifacts" : [
+                        {
+                            "name" : "scala-reflect",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-reflect\\jars\\scala-reflect-2.12.8.jar"
+                        },
+                        {
+                            "name" : "scala-reflect",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-reflect\\srcs\\scala-reflect-2.12.8-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "io.monix",
+                    "name" : "monix_2.12",
+                    "version" : "3.0.0-RC2",
+                    "artifacts" : [
+                        {
+                            "name" : "monix_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix_2.12\\jars\\monix_2.12-3.0.0-RC2.jar"
+                        },
+                        {
+                            "name" : "monix_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix_2.12\\srcs\\monix_2.12-3.0.0-RC2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "io.monix",
+                    "name" : "monix-execution_2.12",
+                    "version" : "3.0.0-RC2",
+                    "artifacts" : [
+                        {
+                            "name" : "monix-execution_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-execution_2.12\\jars\\monix-execution_2.12-3.0.0-RC2.jar"
+                        },
+                        {
+                            "name" : "monix-execution_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-execution_2.12\\srcs\\monix-execution_2.12-3.0.0-RC2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.jctools",
+                    "name" : "jctools-core",
+                    "version" : "2.1.1",
+                    "artifacts" : [
+                        {
+                            "name" : "jctools-core",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.jctools\\jctools-core\\bundles\\jctools-core-2.1.1.jar"
+                        },
+                        {
+                            "name" : "jctools-core",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.jctools\\jctools-core\\srcs\\jctools-core-2.1.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.reactivestreams",
+                    "name" : "reactive-streams",
+                    "version" : "1.0.2",
+                    "artifacts" : [
+                        {
+                            "name" : "reactive-streams",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.reactivestreams\\reactive-streams\\jars\\reactive-streams-1.0.2.jar"
+                        },
+                        {
+                            "name" : "reactive-streams",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.reactivestreams\\reactive-streams\\srcs\\reactive-streams-1.0.2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "io.monix",
+                    "name" : "monix-catnap_2.12",
+                    "version" : "3.0.0-RC2",
+                    "artifacts" : [
+                        {
+                            "name" : "monix-catnap_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-catnap_2.12\\jars\\monix-catnap_2.12-3.0.0-RC2.jar"
+                        },
+                        {
+                            "name" : "monix-catnap_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-catnap_2.12\\srcs\\monix-catnap_2.12-3.0.0-RC2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "io.monix",
+                    "name" : "monix-eval_2.12",
+                    "version" : "3.0.0-RC2",
+                    "artifacts" : [
+                        {
+                            "name" : "monix-eval_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-eval_2.12\\jars\\monix-eval_2.12-3.0.0-RC2.jar"
+                        },
+                        {
+                            "name" : "monix-eval_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-eval_2.12\\srcs\\monix-eval_2.12-3.0.0-RC2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "io.monix",
+                    "name" : "monix-tail_2.12",
+                    "version" : "3.0.0-RC2",
+                    "artifacts" : [
+                        {
+                            "name" : "monix-tail_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-tail_2.12\\jars\\monix-tail_2.12-3.0.0-RC2.jar"
+                        },
+                        {
+                            "name" : "monix-tail_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-tail_2.12\\srcs\\monix-tail_2.12-3.0.0-RC2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "io.monix",
+                    "name" : "monix-reactive_2.12",
+                    "version" : "3.0.0-RC2",
+                    "artifacts" : [
+                        {
+                            "name" : "monix-reactive_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-reactive_2.12\\jars\\monix-reactive_2.12-3.0.0-RC2.jar"
+                        },
+                        {
+                            "name" : "monix-reactive_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-reactive_2.12\\srcs\\monix-reactive_2.12-3.0.0-RC2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "io.monix",
+                    "name" : "monix-java_2.12",
+                    "version" : "3.0.0-RC2",
+                    "artifacts" : [
+                        {
+                            "name" : "monix-java_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-java_2.12\\jars\\monix-java_2.12-3.0.0-RC2.jar"
+                        },
+                        {
+                            "name" : "monix-java_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.monix\\monix-java_2.12\\srcs\\monix-java_2.12-3.0.0-RC2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.typelevel",
+                    "name" : "cats-effect_2.12",
+                    "version" : "1.1.0",
+                    "artifacts" : [
+                        {
+                            "name" : "cats-effect_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-effect_2.12\\jars\\cats-effect_2.12-1.1.0.jar"
+                        },
+                        {
+                            "name" : "cats-effect_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-effect_2.12\\srcs\\cats-effect_2.12-1.1.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.typelevel",
+                    "name" : "cats-core_2.12",
+                    "version" : "1.5.0",
+                    "artifacts" : [
+                        {
+                            "name" : "cats-core_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-core_2.12\\jars\\cats-core_2.12-1.5.0.jar"
+                        },
+                        {
+                            "name" : "cats-core_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-core_2.12\\srcs\\cats-core_2.12-1.5.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.typelevel",
+                    "name" : "cats-macros_2.12",
+                    "version" : "1.5.0",
+                    "artifacts" : [
+                        {
+                            "name" : "cats-macros_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-macros_2.12\\jars\\cats-macros_2.12-1.5.0.jar"
+                        },
+                        {
+                            "name" : "cats-macros_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-macros_2.12\\srcs\\cats-macros_2.12-1.5.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.typelevel",
+                    "name" : "machinist_2.12",
+                    "version" : "0.6.6",
+                    "artifacts" : [
+                        {
+                            "name" : "machinist_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\machinist_2.12\\jars\\machinist_2.12-0.6.6.jar"
+                        },
+                        {
+                            "name" : "machinist_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\machinist_2.12\\srcs\\machinist_2.12-0.6.6-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.typelevel",
+                    "name" : "cats-kernel_2.12",
+                    "version" : "1.5.0",
+                    "artifacts" : [
+                        {
+                            "name" : "cats-kernel_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-kernel_2.12\\jars\\cats-kernel_2.12-1.5.0.jar"
+                        },
+                        {
+                            "name" : "cats-kernel_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-kernel_2.12\\srcs\\cats-kernel_2.12-1.5.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "co.fs2",
+                    "name" : "fs2-core_2.12",
+                    "version" : "1.0.0",
+                    "artifacts" : [
+                        {
+                            "name" : "fs2-core_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\co.fs2\\fs2-core_2.12\\jars\\fs2-core_2.12-1.0.0.jar"
+                        },
+                        {
+                            "name" : "fs2-core_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\co.fs2\\fs2-core_2.12\\srcs\\fs2-core_2.12-1.0.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scodec",
+                    "name" : "scodec-bits_2.12",
+                    "version" : "1.1.5",
+                    "artifacts" : [
+                        {
+                            "name" : "scodec-bits_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scodec\\scodec-bits_2.12\\bundles\\scodec-bits_2.12-1.1.5.jar"
+                        },
+                        {
+                            "name" : "scodec-bits_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scodec\\scodec-bits_2.12\\srcs\\scodec-bits_2.12-1.1.5-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "com.typesafe.akka",
+                    "name" : "akka-stream_2.12",
+                    "version" : "2.5.17",
+                    "artifacts" : [
+                        {
+                            "name" : "akka-stream_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-stream_2.12\\jars\\akka-stream_2.12-2.5.17.jar"
+                        },
+                        {
+                            "name" : "akka-stream_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-stream_2.12\\srcs\\akka-stream_2.12-2.5.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "com.typesafe.akka",
+                    "name" : "akka-actor_2.12",
+                    "version" : "2.5.17",
+                    "artifacts" : [
+                        {
+                            "name" : "akka-actor_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-actor_2.12\\jars\\akka-actor_2.12-2.5.17.jar"
+                        },
+                        {
+                            "name" : "akka-actor_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-actor_2.12\\srcs\\akka-actor_2.12-2.5.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "com.typesafe",
+                    "name" : "config",
+                    "version" : "1.3.3",
+                    "artifacts" : [
+                        {
+                            "name" : "config",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\config\\bundles\\config-1.3.3.jar"
+                        },
+                        {
+                            "name" : "config",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\config\\srcs\\config-1.3.3-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scala-lang.modules",
+                    "name" : "scala-java8-compat_2.12",
+                    "version" : "0.8.0",
+                    "artifacts" : [
+                        {
+                            "name" : "scala-java8-compat_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-java8-compat_2.12\\bundles\\scala-java8-compat_2.12-0.8.0.jar"
+                        },
+                        {
+                            "name" : "scala-java8-compat_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-java8-compat_2.12\\srcs\\scala-java8-compat_2.12-0.8.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "com.typesafe.akka",
+                    "name" : "akka-protobuf_2.12",
+                    "version" : "2.5.17",
+                    "artifacts" : [
+                        {
+                            "name" : "akka-protobuf_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-protobuf_2.12\\jars\\akka-protobuf_2.12-2.5.17.jar"
+                        },
+                        {
+                            "name" : "akka-protobuf_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-protobuf_2.12\\srcs\\akka-protobuf_2.12-2.5.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "com.typesafe",
+                    "name" : "ssl-config-core_2.12",
+                    "version" : "0.2.4",
+                    "artifacts" : [
+                        {
+                            "name" : "ssl-config-core_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\ssl-config-core_2.12\\bundles\\ssl-config-core_2.12-0.2.4.jar"
+                        },
+                        {
+                            "name" : "ssl-config-core_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\ssl-config-core_2.12\\srcs\\ssl-config-core_2.12-0.2.4-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scala-lang.modules",
+                    "name" : "scala-parser-combinators_2.12",
+                    "version" : "1.1.1",
+                    "artifacts" : [
+                        {
+                            "name" : "scala-parser-combinators_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-parser-combinators_2.12\\bundles\\scala-parser-combinators_2.12-1.1.1.jar"
+                        },
+                        {
+                            "name" : "scala-parser-combinators_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-parser-combinators_2.12\\srcs\\scala-parser-combinators_2.12-1.1.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.openjdk.jcstress",
+                    "name" : "jcstress-core",
+                    "version" : "0.3",
+                    "artifacts" : [
+                        {
+                            "name" : "jcstress-core",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jcstress\\jcstress-core\\jars\\jcstress-core-0.3.jar"
+                        },
+                        {
+                            "name" : "jcstress-core",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jcstress\\jcstress-core\\srcs\\jcstress-core-0.3-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scalacheck",
+                    "name" : "scalacheck_2.12",
+                    "version" : "1.14.0",
+                    "artifacts" : [
+                        {
+                            "name" : "scalacheck_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalacheck\\scalacheck_2.12\\jars\\scalacheck_2.12-1.14.0.jar"
+                        },
+                        {
+                            "name" : "scalacheck_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalacheck\\scalacheck_2.12\\srcs\\scalacheck_2.12-1.14.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scala-sbt",
+                    "name" : "test-interface",
+                    "version" : "1.0",
+                    "artifacts" : [
+                        {
+                            "name" : "test-interface",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-interface\\jars\\test-interface-1.0.jar"
+                        },
+                        {
+                            "name" : "test-interface",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-interface\\srcs\\test-interface-1.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scala-lang",
+                    "name" : "scala-compiler",
+                    "version" : "2.12.8",
+                    "artifacts" : [
+                        {
+                            "name" : "scala-compiler",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-compiler\\jars\\scala-compiler-2.12.8.jar"
+                        },
+                        {
+                            "name" : "scala-compiler",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-compiler\\srcs\\scala-compiler-2.12.8-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scala-lang.modules",
+                    "name" : "scala-xml_2.12",
+                    "version" : "1.0.6",
+                    "artifacts" : [
+                        {
+                            "name" : "scala-xml_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-xml_2.12\\bundles\\scala-xml_2.12-1.0.6.jar"
+                        },
+                        {
+                            "name" : "scala-xml_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-xml_2.12\\srcs\\scala-xml_2.12-1.0.6-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "com.github.ghik",
+                    "name" : "silencer-lib_2.12",
+                    "version" : "1.0",
+                    "artifacts" : [
+                        {
+                            "name" : "silencer-lib_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ghik\\silencer-lib_2.12\\jars\\silencer-lib_2.12-1.0.jar"
+                        },
+                        {
+                            "name" : "silencer-lib_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ghik\\silencer-lib_2.12\\srcs\\silencer-lib_2.12-1.0-sources.jar"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
