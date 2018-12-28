@@ -1,0 +1,255 @@
+{
+    "version" : "1.1.0-M2",
+    "project" : {
+        "name" : "microsite-test",
+        "directory" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\microsite",
+        "sources" : [
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\microsite\\src\\test\\scala-2.12",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\microsite\\src\\test\\scala",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\microsite\\src\\test\\java",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\microsite\\target\\scala-2.12\\src_managed\\test"
+        ],
+        "dependencies" : [
+            "coreJVM",
+            "interopCatsJVM",
+            "interopFutureJVM",
+            "interopScalaz7xJVM",
+            "microsite"
+        ],
+        "classpath" : [
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\microsite\\scala-2.12\\classes",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\coreJVM\\scala-2.12\\classes",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\interopCatsJVM\\scala-2.12\\classes",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\interopSharedJVM\\scala-2.12\\classes",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\interopFutureJVM\\scala-2.12\\classes",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\interopScalaz7xJVM\\scala-2.12\\classes",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ghik\\silencer-lib_2.12\\jars\\silencer-lib_2.12-1.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\commons-io\\commons-io\\jars\\commons-io-2.6.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jcstress\\jcstress-core\\jars\\jcstress-core-0.3.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\net.sf.jopt-simple\\jopt-simple\\jars\\jopt-simple-4.6.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalacheck\\scalacheck_2.12\\jars\\scalacheck_2.12-1.14.0.jar",
+            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-interface\\jars\\test-interface-1.0.jar"
+        ],
+        "out" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\microsite",
+        "classesDir" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\.bloop\\microsite\\scala-2.12\\test-classes",
+        "resources" : [
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\microsite\\src\\test\\resources",
+            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\microsite\\target\\scala-2.12\\resource_managed\\test"
+        ],
+        "scala" : {
+            "organization" : "org.scala-lang",
+            "name" : "scala-compiler",
+            "version" : "2.12.8",
+            "options" : [
+                "-deprecation",
+                "-encoding",
+                "UTF-8",
+                "-explaintypes",
+                "-Yrangepos",
+                "-feature",
+                "-Xfuture",
+                "-Ypartial-unification",
+                "-language:higherKinds",
+                "-language:existentials",
+                "-unchecked",
+                "-Yno-adapted-args",
+                "-Xsource:2.13",
+                "-Xfatal-warnings",
+                "-opt-warnings",
+                "-opt:l:inline",
+                "-opt-inline-from:<source>",
+                "-P:semanticdb:failures:warning",
+                "-P:semanticdb:sourceroot:D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio",
+                "-Yrangepos",
+                "-Xplugin-require:semanticdb",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\org.spire-math\\kind-projector_2.12\\jars\\kind-projector_2.12-0.9.7.jar",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\com.github.tomasmikula\\pascal_2.12\\jars\\pascal_2.12-0.2.1.jar",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ghik\\silencer-plugin_2.12\\jars\\silencer-plugin_2.12-1.0.jar",
+                "-Xplugin:C:\\Users\\wiem-\\.ivy2\\cache\\org.scalameta\\semanticdb-scalac_2.12.8\\jars\\semanticdb-scalac_2.12.8-4.1.0.jar"
+            ],
+            "jars" : [
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-compiler\\jars\\scala-compiler-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-reflect\\jars\\scala-reflect-2.12.8.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-xml_2.12\\bundles\\scala-xml_2.12-1.0.6.jar",
+                "C:\\Users\\wiem-\\.ivy2\\cache\\jline\\jline\\jars\\jline-2.14.6.jar"
+            ],
+            "setup" : {
+                "order" : "mixed",
+                "addLibraryToBootClasspath" : true,
+                "addCompilerToClasspath" : false,
+                "addExtraJarsToClasspath" : false,
+                "manageBootClasspath" : true,
+                "filterLibraryFromClasspath" : true
+            }
+        },
+        "java" : {
+            "options" : [
+            ]
+        },
+        "test" : {
+            "frameworks" : [
+                {
+                    "names" : [
+                        "org.scalacheck.ScalaCheckFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.specs2.runner.Specs2Framework",
+                        "org.specs2.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.specs.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "org.scalatest.tools.Framework",
+                        "org.scalatest.tools.ScalaTestFramework"
+                    ]
+                },
+                {
+                    "names" : [
+                        "com.novocode.junit.JUnitFramework"
+                    ]
+                }
+            ],
+            "options" : {
+                "excludes" : [
+                ],
+                "arguments" : [
+                ]
+            }
+        },
+        "platform" : {
+            "name" : "jvm",
+            "config" : {
+                "home" : "C:\\Program Files\\Java\\jre1.8.0_192",
+                "options" : [
+                ]
+            },
+            "mainClass" : [
+            ]
+        },
+        "resolution" : {
+            "modules" : [
+                {
+                    "organization" : "org.scala-lang",
+                    "name" : "scala-library",
+                    "version" : "2.12.8",
+                    "artifacts" : [
+                        {
+                            "name" : "scala-library",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\jars\\scala-library-2.12.8.jar"
+                        },
+                        {
+                            "name" : "scala-library",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang\\scala-library\\srcs\\scala-library-2.12.8-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "com.github.ghik",
+                    "name" : "silencer-lib_2.12",
+                    "version" : "1.0",
+                    "artifacts" : [
+                        {
+                            "name" : "silencer-lib_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ghik\\silencer-lib_2.12\\jars\\silencer-lib_2.12-1.0.jar"
+                        },
+                        {
+                            "name" : "silencer-lib_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ghik\\silencer-lib_2.12\\srcs\\silencer-lib_2.12-1.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "commons-io",
+                    "name" : "commons-io",
+                    "version" : "2.6",
+                    "artifacts" : [
+                        {
+                            "name" : "commons-io",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\commons-io\\commons-io\\jars\\commons-io-2.6.jar"
+                        },
+                        {
+                            "name" : "commons-io",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\commons-io\\commons-io\\srcs\\commons-io-2.6-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.openjdk.jcstress",
+                    "name" : "jcstress-core",
+                    "version" : "0.3",
+                    "artifacts" : [
+                        {
+                            "name" : "jcstress-core",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jcstress\\jcstress-core\\jars\\jcstress-core-0.3.jar"
+                        },
+                        {
+                            "name" : "jcstress-core",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jcstress\\jcstress-core\\srcs\\jcstress-core-0.3-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "net.sf.jopt-simple",
+                    "name" : "jopt-simple",
+                    "version" : "4.6",
+                    "artifacts" : [
+                        {
+                            "name" : "jopt-simple",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\net.sf.jopt-simple\\jopt-simple\\jars\\jopt-simple-4.6.jar"
+                        },
+                        {
+                            "name" : "jopt-simple",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\net.sf.jopt-simple\\jopt-simple\\srcs\\jopt-simple-4.6-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scalacheck",
+                    "name" : "scalacheck_2.12",
+                    "version" : "1.14.0",
+                    "artifacts" : [
+                        {
+                            "name" : "scalacheck_2.12",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalacheck\\scalacheck_2.12\\jars\\scalacheck_2.12-1.14.0.jar"
+                        },
+                        {
+                            "name" : "scalacheck_2.12",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalacheck\\scalacheck_2.12\\srcs\\scalacheck_2.12-1.14.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization" : "org.scala-sbt",
+                    "name" : "test-interface",
+                    "version" : "1.0",
+                    "artifacts" : [
+                        {
+                            "name" : "test-interface",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-interface\\jars\\test-interface-1.0.jar"
+                        },
+                        {
+                            "name" : "test-interface",
+                            "classifier" : "sources",
+                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-interface\\srcs\\test-interface-1.0-sources.jar"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
