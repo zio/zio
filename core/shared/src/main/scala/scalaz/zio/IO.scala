@@ -238,7 +238,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
         val io = self.asInstanceOf[IO.Fail[E]]
         err(io.cause)
 
-      case _ => new IO.Redeem(self, err, succ, recoverFromInterruption = true)
+      case _ => new IO.Redeem(self, err, succ)
     }
   }
 
@@ -682,7 +682,11 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run: IO[Nothing, ExitResult[E, A]] =
-    redeem0(cause => IO.now(ExitResult.failed(cause)), succ => IO.now(ExitResult.succeeded(succ)))
+    new IO.Redeem[E, Nothing, A, ExitResult[E, A]](
+      self,
+      cause => IO.now(ExitResult.failed(cause)),
+      succ => IO.now(ExitResult.succeeded(succ))
+    )
 
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
@@ -753,7 +757,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Keep or break a promise based on the result of this action.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): IO[Nothing, Boolean] =
-    self.run.flatMap(x => p.done(IO.done(x)))
+    self.run.flatMap(x => p.done(IO.done(x))).onInterrupt(p.interrupt)
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
@@ -817,8 +821,7 @@ object IO extends Serializable {
   final class Redeem[E, E2, A, B] private[IO] (
     val value: IO[E, A],
     val err: Cause[E] => IO[E2, B],
-    val succ: A => IO[E2, B],
-    val recoverFromInterruption: Boolean = false
+    val succ: A => IO[E2, B]
   ) extends IO[E2, B]
       with Function[A, IO[E2, B]] {
 
