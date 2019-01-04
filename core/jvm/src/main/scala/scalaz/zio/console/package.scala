@@ -8,19 +8,19 @@ package object console {
   /**
    * Prints text to the console.
    */
-  def putStr(line: String): IO[Nothing, Unit] =
+  final def putStr(line: String): IO[Nothing, Unit] =
     IO.sync(scala.Console.print(line))
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLn(line: String): IO[Nothing, Unit] =
+  final def putStrLn(line: String): IO[Nothing, Unit] =
     IO.sync(scala.Console.println(line))
 
   /**
    * Retrieves a line of input from the console.
    */
-  def getStrLn: IO[IOException, String] =
+  final def getStrLn: IO[IOException, String] =
     IO.syncCatch(scala.io.StdIn.readLine()) {
       case e: IOException => e
     }
