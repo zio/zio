@@ -49,7 +49,7 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => Task.eval(i))
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncMaybe.right.get
+    Task.eval(0).flatMap(loop).runSyncStep.right.get
   }
 
   @Benchmark
