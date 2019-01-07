@@ -19,7 +19,7 @@ package object system {
   def env(variable: String): IO[Nothing, Option[String]] = IO.sync(Option(System.getenv(variable)))
 
   /** Retrieve the value of a system property **/
-  def property(prop: String): IO[Throwable, Option[String]] = IO.syncThrowable(Option(System.getProperty(prop)))
+  def property(prop: String): Task[Option[String]] = Task.syncThrowable(Option(System.getProperty(prop)))
 
   /** System-specific line separator **/
   val lineSeparator: IO[Nothing, String] = IO.sync(System.lineSeparator)
