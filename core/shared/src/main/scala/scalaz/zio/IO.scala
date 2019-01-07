@@ -238,7 +238,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
         val io = self.asInstanceOf[ZIO.Fail[E]]
         err(io.cause)
 
-      case _ => new ZIO.Redeem(self, err, succ, recoverFromInterruption = true)
+      case _ => new ZIO.Redeem(self, err, succ)
     }
   }
 
@@ -682,7 +682,11 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run: ZIO[R, Nothing, ExitResult[E, A]] =
-    redeem0(cause => ZIO.now(ExitResult.failed(cause)), succ => ZIO.now(ExitResult.succeeded(succ)))
+    new ZIO.Redeem[R, E, Nothing, A, ExitResult[E, A]](
+      self,
+      cause => IO.now(ExitResult.failed(cause)),
+      succ => IO.now(ExitResult.succeeded(succ))
+    )
 
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
@@ -753,7 +757,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Keep or break a promise based on the result of this action.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): ZIO[R, Nothing, Boolean] =
-    self.run.flatMap(x => p.done(ZIO.done(x)))
+    self.run.flatMap(x => p.done(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
    * An integer that identifies the term in the `IO` sum type to which this
@@ -1321,12 +1325,11 @@ object ZIO extends ZIOFunctions {
   final class AsyncEffect[R, E, A](val register: (ZIO[R, E, A] => Unit) => Async[E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.AsyncEffect
   }
-
+  
   final class Redeem[R, E, E2, A, B](
     val value: ZIO[R, E, A],
     val err: Cause[E] => ZIO[R, E2, B],
-    val succ: A => ZIO[R, E2, B],
-    val recoverFromInterruption: Boolean = false
+    val succ: A => ZIO[R, E2, B]
   ) extends ZIO[R, E2, B]
       with Function[A, ZIO[R, E2, B]] {
 

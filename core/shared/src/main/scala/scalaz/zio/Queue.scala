@@ -159,16 +159,15 @@ class Queue[A] private (
           else
             for {
               p <- Promise.make[Nothing, A]
-              // add the promise to takers, then try take again in case a value was added since
-              a <- IO.sync0 { context =>
-                    val a = takers.offer(p)
+              // add the promise to takers, then:
+              // - try take again in case a value was added since
+              // - wait for the promise to be completed
+              // - clean up resources in case of interruption
+              a <- (IO.sync0 { context =>
+                    takers.offer(p)
                     unsafeCompleteTakers(context)
-                    a
-                  }
-                  // wait for the promise to be completed
-                    .flatMap(_ => p.get)
-                    // clean up resources in case of interruption
-                    .ensuring(p.poll.void <> removeTaker(p))
+                  } *> p.get).onInterrupt(removeTaker(p))
+
             } yield a
     } yield a
 
@@ -332,7 +331,7 @@ object Queue {
           _ <- (IO.sync0 { context =>
                 unsafeOffer(as, p)
                 unsafeOnQueueEmptySpace(queue, context)
-              } *> p.get).ensuring(p.poll.void <> IO.sync(unsafeRemove(p)))
+              } *> p.get).onInterrupt(IO.sync(unsafeRemove(p)))
         } yield true
       }
 
