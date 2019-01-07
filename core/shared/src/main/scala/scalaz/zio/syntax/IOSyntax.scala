@@ -1,13 +1,13 @@
 package scalaz.zio.syntax
 import scalaz.zio.ExitResult.Cause
-import scalaz.zio.{ Fiber, IO }
+import scalaz.zio.{ Fiber, IO, Task }
 
 object IOSyntax {
   final class IOCreationLazySyntax[A](val a: () => A) extends AnyVal {
     def point: IO[Nothing, A]                                   = IO.point(a())
     def sync: IO[Nothing, A]                                    = IO.sync(a())
     def syncException: IO[Exception, A]                         = IO.syncException(a())
-    def syncThrowable: IO[Throwable, A]                         = IO.syncThrowable(a())
+    def syncThrowable: Task[A]                                  = Task.syncThrowable(a())
     def syncCatch[E]: PartialFunction[Throwable, E] => IO[E, A] = IO.syncCatch(a())
   }
 

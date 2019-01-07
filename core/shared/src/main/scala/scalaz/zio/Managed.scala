@@ -77,7 +77,7 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
         def releaseBoth(pair: (self.R0, that.R0)): IO[Nothing, Unit] =
           self.release(pair._1).par(that.release(pair._2)) *> IO.unit
 
-        acquireBoth.bracket[E2, A](releaseBoth) {
+        acquireBoth.bracket[Any, E2, A](releaseBoth) {
           case (r, r1) => f(f0(r, r1))
         }
       }
@@ -101,7 +101,7 @@ object Managed {
       protected def release: R => IO[Nothing, _] = r
 
       def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
-        acquire.bracket[E1, A](release)(f)
+        acquire.bracket[Any, E1, A](release)(f)
     }
 
   /**

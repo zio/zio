@@ -12,19 +12,16 @@ package object zio {
   type Task[A]  = ZIO[Any, Throwable, A]
   type UIO[A]   = ZIO[Any, Nothing, A]
 
-  object IO extends ZIO_A_Any with ZIO_E_Any {
+  object IO extends ZIOFunctions {
     type UpperE = Any
-    type UpperA = Any
     type LowerR = Any
   }
-  object Task extends ZIO_A_Any with ZIO_E_Throwable {
-    type UpperE = Throwable
-    type UpperA = Any
+  object Task extends ZIO_E_Throwable {
+//    type UpperE = Throwable
     type LowerR = Any
   }
-  object UIO extends ZIO_A_Any {
+  object UIO extends ZIOFunctions {
     type UpperE = Nothing
-    type UpperA = Any
     type LowerR = Any
   }
 }

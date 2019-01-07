@@ -13,7 +13,7 @@ import scalaz.zio._
 private[zio] final class FiberContext[E, A](
   env: Env,
   val fiberId: FiberId,
-  val unhandled: Cause[Any] => IO[Nothing, _]
+  val unhandled: Cause[Any] => UIO[_]
 ) extends Fiber[E, A] {
   import java.util.{ Collections, Set, WeakHashMap }
   import FiberContext._
@@ -36,7 +36,7 @@ private[zio] final class FiberContext[E, A](
       case v    => k(v)
     }
 
-  private class Finalizer(val finalizer: IO[Nothing, _]) extends Function[Any, IO[E, Any]] {
+  private class Finalizer(val finalizer: UIO[_]) extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
       noInterrupt += 1
 
@@ -49,21 +49,21 @@ private[zio] final class FiberContext[E, A](
    * `IO` that produces an option of a cause of finalizer failures. If needed,
    * catch exceptions and apply redeem error handling.
    */
-  final def unwindStack(catchError: Boolean): IO[Nothing, Option[Cause[Nothing]]] = {
+  final def unwindStack(catchError: Boolean): UIO[Option[Cause[Nothing]]] = {
     def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
       c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
 
     var errorHandler: Any => IO[Any, Any]              = null
-    var finalizer: IO[Nothing, Option[Cause[Nothing]]] = null
+    var finalizer: UIO[Option[Cause[Nothing]]] = null
 
     // Unwind the stack, looking for exception handlers and coalescing
     // finalizers.
     while ((errorHandler eq null) && !stack.isEmpty) {
       stack.pop() match {
-        case a: ZIO.Redeem[_, _, _, _] if catchError || a.recoverFromInterruption =>
+        case a: ZIO.Redeem[_, _, _, _, _] if catchError || a.recoverFromInterruption =>
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
         case f0: Finalizer =>
-          val f: IO[Nothing, Option[Cause[Nothing]]] =
+          val f: UIO[Option[Cause[Nothing]]] =
             f0.finalizer.redeem0(c => IO.now(Some(c)), _ => IO.now(None))
           if (finalizer eq null) finalizer = f
           else finalizer = finalizer.seqWith(f)(zipCauses)
@@ -120,7 +120,7 @@ private[zio] final class FiberContext[E, A](
               // the next instruction in the program:
               (curIo.tag: @switch) match {
                 case ZIO.Tags.FlatMap =>
-                  val io = curIo.asInstanceOf[ZIO.FlatMap[E, Any, Any]]
+                  val io = curIo.asInstanceOf[ZIO.FlatMap[Any, E, Any, Any]]
 
                   val nested = io.io
 
@@ -178,7 +178,7 @@ private[zio] final class FiberContext[E, A](
                   curIo = nextInstr(value)
 
                 case ZIO.Tags.AsyncEffect =>
-                  val io = curIo.asInstanceOf[ZIO.AsyncEffect[E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.AsyncEffect[Any, E, Any]]
 
                   // Enter suspended state:
                   curIo = if (enterAsync()) {
@@ -189,7 +189,7 @@ private[zio] final class FiberContext[E, A](
                   } else IO.interrupt
 
                 case ZIO.Tags.Redeem =>
-                  val io = curIo.asInstanceOf[ZIO.Redeem[E, Any, Any, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Redeem[Any, E, Any, Any, Any]]
 
                   curIo = io.value
 
@@ -209,12 +209,12 @@ private[zio] final class FiberContext[E, A](
                   curIo = nextInstr(value)
 
                 case ZIO.Tags.Uninterruptible =>
-                  val io = curIo.asInstanceOf[ZIO.Uninterruptible[E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Uninterruptible[Any, E, Any]]
 
                   curIo = doNotInterrupt(io.io)
 
                 case ZIO.Tags.Supervise =>
-                  val io = curIo.asInstanceOf[ZIO.Supervise[E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Supervise[Any, E, Any]]
 
                   curIo = enterSupervision *>
                     io.value.ensuring(exitSupervision(io.supervisor))
@@ -249,7 +249,7 @@ private[zio] final class FiberContext[E, A](
                   }
 
                 case ZIO.Tags.Ensuring =>
-                  val io = curIo.asInstanceOf[ZIO.Ensuring[E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Ensuring[Any, E, Any]]
                   stack.push(new Finalizer(io.finalizer))
                   curIo = io.io
 
@@ -259,7 +259,7 @@ private[zio] final class FiberContext[E, A](
                   curIo = nextInstr(value)
 
                 case ZIO.Tags.Lock =>
-                  val io = curIo.asInstanceOf[ZIO.Lock[E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Lock[Any, E, Any]]
 
                   curIo = (lock(io.executor) *> io.io).ensuring(unlock)
 
@@ -292,10 +292,10 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] final def lock(executor: Executor): IO[Nothing, Unit] =
+  private[this] final def lock(executor: Executor): UIO[Unit] =
     IO.sync { locked = executor :: locked } *> IO.yieldNow
 
-  private[this] final def unlock: IO[Nothing, Unit] =
+  private[this] final def unlock: UIO[Unit] =
     IO.sync { locked = locked.drop(1) } *> IO.yieldNow
 
   private[this] final def getDescriptor: Fiber.Descriptor =
@@ -304,7 +304,7 @@ private[zio] final class FiberContext[E, A](
   /**
    * Forks an `IO` with the specified failure handler.
    */
-  final def fork[E, A](io: IO[E, A], unhandled: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] = {
+  final def fork[E, A](io: IO[E, A], unhandled: Cause[Any] => UIO[_]): FiberContext[E, A] = {
     val context = env.newFiberContext[E, A](unhandled)
 
     env.defaultExecutor.submitOrThrow(() => context.evaluateNow(io))
@@ -323,11 +323,11 @@ private[zio] final class FiberContext[E, A](
   private[this] final val resumeAsync: IO[E, Any] => Unit =
     io => if (exitAsync()) evaluateLater(io)
 
-  final def interrupt: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
+  final def interrupt: UIO[ExitResult[E, A]] = IO.async0[Any, Nothing, ExitResult[E, A]] { k =>
     kill0(x => k(IO.done(x)))
   }
 
-  final def observe: IO[Nothing, ExitResult[E, A]] = IO.async0[Nothing, ExitResult[E, A]] { k =>
+  final def observe: UIO[ExitResult[E, A]] = IO.async0[Any, Nothing, ExitResult[E, A]] { k =>
     observe0(x => k(IO.done(x)))
   }
 
@@ -392,13 +392,13 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] final def exitSupervision(
-    supervisor: Iterable[Fiber[_, _]] => IO[Nothing, _]
-  ): IO[Nothing, _] = {
+    supervisor: Iterable[Fiber[_, _]] => UIO[_]
+  ): UIO[_] = {
     import collection.JavaConverters._
     IO.flatten(IO.sync {
       supervising -= 1
 
-      var action: IO[Nothing, _] = IO.unit
+      var action: UIO[_] = IO.unit
 
       supervised = supervised match {
         case Nil => Nil
@@ -423,7 +423,7 @@ private[zio] final class FiberContext[E, A](
       null
     }
 
-  private[this] final val exitUninterruptible: IO[Nothing, Unit] = IO.sync { noInterrupt -= 1 }
+  private[this] final val exitUninterruptible: UIO[Unit] = IO.sync { noInterrupt -= 1 }
 
   private[this] final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
     this.noInterrupt += 1
