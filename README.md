@@ -46,3 +46,12 @@ Copyright (C) 2017-2018 John A. De Goes and the ZIO Contributors. All rights res
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/org.scalaz/scalaz-zio_2.12.svg "Sonatype Releases"
 [Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/org.scalaz/scalaz-zio_2.12.svg "Sonatype Snapshots"
 [Badge-Travis]: https://travis-ci.org/scalaz/scalaz-zio.svg?branch=master "Travis CI"
+
+### Code Visualization:
+
+Here is a cool visualization of the code evolution
+
+ [![Watch the video](https://img.youtube.com/vi/HHXHdTTEr-Y/0.jpg)](https://www.youtube.com/watch?v=HHXHdTTEr-Y)
+
+ [https://www.youtube.com/watch?v=HHXHdTTEr-Y](https://www.youtube.com/watch?v=HHXHdTTEr-Y)
+
