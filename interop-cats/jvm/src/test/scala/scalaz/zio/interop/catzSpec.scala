@@ -3,16 +3,16 @@ package interop
 
 import cats.Eq
 import cats.effect.concurrent.Deferred
-import cats.effect.{ConcurrentEffect, ContextShift}
+import cats.effect.{ ConcurrentEffect, ContextShift }
 import cats.effect.laws.ConcurrentEffectLaws
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests, EffectTests, Parameters}
-import cats.effect.laws.util.{TestContext, TestInstances}
-import cats.laws.discipline.{AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests}
+import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests, EffectTests, Parameters }
+import cats.effect.laws.util.{ TestContext, TestInstances }
+import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
 import cats.implicits._
-import org.scalacheck.{Arbitrary, Cogen}
+import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
-import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
+import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
 import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
@@ -28,7 +28,7 @@ trait ConcurrentEffectLawsOverrides[F[_]] extends ConcurrentEffectLaws[F] {
     val lh = Deferred.uncancelable[F, Unit].flatMap { release =>
       val latch = Promise[Unit]()
       // Never ending task
-      val ff = F.cancelable[A] {_ =>
+      val ff = F.cancelable[A] { _ =>
 //          F.runAsync(started.complete(()))(_ => IO.unit).unsafeRunSync()
         latch.success(()); release.complete(())
       }
@@ -50,7 +50,7 @@ object IOConcurrentEffectTests {
     new ConcurrentEffectTests[Task] {
       def laws =
         new ConcurrentEffectLaws[Task] with ConcurrentEffectLawsOverrides[Task] {
-          override val F: ConcurrentEffect[Task] = ce
+          override val F: ConcurrentEffect[Task]        = ce
           override val contextShift: ContextShift[Task] = cs
         }
     }
