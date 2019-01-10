@@ -97,17 +97,8 @@ class catzSpec
       }
     }
 
-//  (1 to 50).foreach { s =>
-//    checkAllAsync(
-//      s"ConcurrentEffect[Task] $s",
-//      implicit tctx => {
-//
-//        IOConcurrentEffectTests().concurrentEffect[Int, Int, Int]
-//      }
-//    )
-//  }
-  checkAllAsync(s"ConcurrentEffect[Task]", implicit tctx => IOConcurrentEffectTests().concurrentEffect[Int, Int, Int])
   // TODO: reintroduce repeated ConcurrentTests as they're removed due to the hanging CI builds (see https://github.com/scalaz/scalaz-zio/pull/482)
+  checkAllAsync(s"ConcurrentEffect[Task]", implicit tctx => IOConcurrentEffectTests().concurrentEffect[Int, Int, Int])
   checkAllAsync("Concurrent[Task]", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
   checkAllAsync("Effect[Task]", implicit tctx => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])

@@ -54,7 +54,7 @@ sealed abstract class CatsInstances2 {
 }
 
 private class CatsConcurrentEffect extends CatsConcurrent with effect.ConcurrentEffect[Task] {
-  def runCancelable[A](
+  override def runCancelable[A](
     fa: Task[A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[Task]] =
     effect.SyncIO {
@@ -68,34 +68,8 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
       }
     }
 
-//      def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[Task]] = {
-//    effect.SyncIO {
-//      this.unsafeRun {
-//        fa.sandboxed.redeemPure(ExitResult.Failed(_), ExitResult.Succeeded(_))
-//          .flatMap(exit => IO.syncThrowable(cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())))
-//          .fork.flatMap { f =>
-//            IO.now(f.interrupt.void)
-//        }
-//      }
-//    }
-  // misses ExitCase.Canceled
-
-//    var canceler: effect.CancelToken[Task] = null
-//    runAsync(fa.fork.flatMap {
-//      f => Task { canceler = f.interrupt.void } *> f.join
-//    })(cb).flatMap(_ => effect.SyncIO {
-//      var cont = true
-//      while (cont) {
-//        if (canceler != null) {
-//          cont = false
-//        }
-//      }
-//      canceler
-//    })
-
   override def toIO[A](fa: Task[A]): effect.IO[A] =
     effect.ConcurrentEffect.toIOFromRunCancelable(fa)(this)
-//    effect.Effect.toIOFromRunAsync(fa)(this)
 }
 
 private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
