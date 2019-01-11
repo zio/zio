@@ -1,35 +1,41 @@
 package scalaz.zio
 package interop
 
-import cats.effect.Effect
+import cats.effect
+import cats.effect.{ Concurrent, ConcurrentEffect, ContextShift, Sync }
 import fs2.Stream
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AroundTimeout
 import scalaz.zio.interop.catz._
 
+import scala.concurrent.ExecutionContext.global
+
 class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
   def is = s2"""
-  A simple fs2 join must
+  fs2 parJoin must
     work if `F` is `cats.effect.IO`          ${simpleJoin(fIsCats)}
     work if `F` is `scalaz.zio.interop.Task` ${simpleJoin(fIsZio)}
 
   fs2 resource handling must
-    work when fiber is failed                ${bracketFail}
-    work when fiber is terminated            ${bracketTerminate}
-    work when fiber is interrupted           ${bracketInterrupt}
+    work when fiber is failed                $bracketFail
+    work when fiber is terminated            $bracketTerminate
+    work when fiber is interrupted           $bracketInterrupt
   """
 
   def simpleJoin(ints: => List[Int]) = {
     import scala.concurrent.duration._
 
-    upTo(2.seconds) {
+    upTo(5.seconds) {
       ints must_=== List(1, 1)
     }
   }
 
   import scalaz.zio.duration._
+
+  implicit val cs: ContextShift[effect.IO] = cats.effect.IO.contextShift(global)
+  implicit val catsConcurrent: ConcurrentEffect[effect.IO] = cats.effect.IO.ioConcurrentEffect(cs)
 
   def fIsCats = testCaseJoin[cats.effect.IO].unsafeRunSync()
 
@@ -96,12 +102,10 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
       } yield ()).timeout(10.seconds)
     } must beSome(())
 
-  def testCaseJoin[F[_]: Effect]: F[List[Int]] = {
-    def one: F[Int]       = Effect[F].delay(1)
+  def testCaseJoin[F[_]: Concurrent]: F[List[Int]] = {
+    def one: F[Int]       = Sync[F].delay(1)
     val s: Stream[F, Int] = Stream.eval(one)
-    // TODO: there is no join anymore and we can't satisfy parJoin requirements yet
-    //val ss: Stream[F, Stream[F, Int]] = Stream.emits(List(s, s))
-    //ss.join(2).compile.toList
-    s.interleave(s).compile.toList
+    val ss: Stream[F, Stream[F, Int]] = Stream.emits(List(s, s))
+    ss.parJoin(2).compile.toList
   }
 }
