@@ -19,24 +19,29 @@ import scalaz.zio._
  *
  */
 trait Stream[+E, +A] { self =>
+  import Stream.Fold
 
   /**
    * Executes an effectful fold over the stream of values.
    */
-  def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S]
+  def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S]
 
   def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): IO[E, S] =
-    foldLazy(s)(_ => true)((s, a) => IO.succeed(f(s, a)))
+    self.fold[E, A1, S].flatMap(f0 => f0(s, _ => true, (s, a) => IO.succeed(f(s, a))))
 
   /**
    * Concatenates the specified stream to this stream.
    */
   final def ++[E1 >: E, A1 >: A](that: => Stream[E1, A1]): Stream[E1, A1] =
     new Stream[E1, A1] {
-      override def foldLazy[E2 >: E1, A2 >: A1, S](s: S)(cont: S => Boolean)(f: (S, A2) => IO[E2, S]): IO[E2, S] =
-        self.foldLazy[E2, A, S](s)(cont)(f).flatMap { s =>
-          if (cont(s)) that.foldLazy[E2, A1, S](s)(cont)(f)
-          else IO.succeed(s)
+      override def fold[E2 >: E1, A2 >: A1, S]: Fold[E2, A2, S] =
+        IO.succeedLazy { (s, cont, f) =>
+          self.fold[E2, A, S].flatMap { f0 =>
+            f0(s, cont, f).flatMap { s0 =>
+              if (cont(s0)) that.fold[E2, A1, S].flatMap(f1 => f1(s0, cont, f))
+              else IO.succeed(s)
+            }
+          }
         }
     }
 
@@ -526,6 +531,8 @@ trait Stream[+E, +A] { self =>
 }
 
 object Stream {
+  type Fold[E, A, S] = IO[Nothing, (S, S => Boolean, (S, A) => IO[E, S]) => IO[E, S]]
+
   final def apply[A](as: A*): Stream[Nothing, A] = fromIterable(as)
 
   /**
