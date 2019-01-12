@@ -382,8 +382,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
         }
     )(use)
 
-  final def managed(release: A => ZIO[R, Nothing, _]): Managed[E, A] =
-    Managed[E, A](this)(release) //FIXME
+  final def managed(release: A => UIO[_]): Managed[R, E, A] =
+    Managed[R, E, A](this)(release)
 
   /**
    * Runs the specified action if this action fails, providing the error to the
@@ -1124,7 +1124,7 @@ trait ZIOFunctions extends Serializable {
   final def foreachParN[R >: LowerR, E <: UpperE, A, B](n: Long)(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     for {
       semaphore <- Semaphore(n)
-      bs <- parTraverse(as) { a =>
+      bs <- parTraverse[R, E, A, B](as) { a =>
         semaphore.withPermit(fn(a))
       }
     } yield bs
@@ -1134,21 +1134,21 @@ trait ZIOFunctions extends Serializable {
     */
   @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
   final def traverseParN[R >: LowerR, E <: UpperE, A, B](n: Long)(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    foreachParN(n)(as)(fn)
+    foreachParN[R, E, A, B](n)(as)(fn)
 
   /**
     * Evaluate each effect in the structure from left to right, and collect
     * the results. For parallelism use `parAll`.
     */
   final def sequence[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    traverse(in)(identity)
+    traverse[R, E, ZIO[R, E, A], A](in)(identity(_))
 
   /**
     * Evaluate each effect in the structure in parallel, and collect
     * the results. This is the parallel version of `sequence`.
     */
   final def parAll[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    parTraverse(as)(identity)
+    parTraverse[R, E, ZIO[R, E, A], A](as)(identity(_))
 
   /**
     * Evaluate each effect in the structure in parallel, and collect
@@ -1156,14 +1156,14 @@ trait ZIOFunctions extends Serializable {
     * This is a version of `collectPar`, with a throttle.
     */
   final def collectParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachParN(n)(as)(identity)
+    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(identity(_))
 
   /**
     * Alias for `collectParN`
     */
   @deprecated("Use collectParN", "scalaz-zio 0.3.3")
   final def sequenceParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    collectParN(n)(as)
+    collectParN[R, E, A](n)(as)
 
   /**
     * Races an `IO[E, A]` against elements of a `Iterable[IO[E, A]]`. Yields
@@ -1223,6 +1223,11 @@ trait ZIOFunctions extends Serializable {
     * Returns information about the current fiber, such as its fiber identity.
     */
   final def descriptor: IO[Nothing, Fiber.Descriptor] = ZIO.Descriptor
+}
+
+trait ZIO_E_Any extends ZIOFunctions {
+  type UpperE = Any
+
   /**
     * Lifts an `Option` into an `IO`.
     */
@@ -1272,7 +1277,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
     }
 }
 
-object ZIO extends ZIOFunctions {
+object ZIO extends ZIO_E_Any {
   type UpperE = Any
   type LowerR = Nothing
 
@@ -1325,7 +1330,7 @@ object ZIO extends ZIOFunctions {
   final class AsyncEffect[R, E, A](val register: (ZIO[R, E, A] => Unit) => Async[E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.AsyncEffect
   }
-  
+
   final class Redeem[R, E, E2, A, B](
     val value: ZIO[R, E, A],
     val err: Cause[E] => ZIO[R, E2, B],
