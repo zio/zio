@@ -20,8 +20,8 @@ case object Analyzed extends Analysis
 
 val data: String = "tut"
 
-def analyzeData[A](data: A): IO[Nothing, Analysis] = IO.now(Analyzed)
-def validateData[A](data: A): IO[Nothing, Boolean] = IO.now(true)
+def analyzeData[A](data: A): IO[Nothing, Analysis] = IO.succeed(Analyzed)
+def validateData[A](data: A): IO[Nothing, Boolean] = IO.succeed(true)
 ```
 
 ```tut:silent
@@ -42,7 +42,7 @@ On the JVM, fibers will use threads, but will not consume *unlimited* threads. I
 ```tut:silent
 def fib(n: Int): IO[Nothing, Int] =
   if (n <= 1) {
-    IO.point(1)
+    IO.succeedLazy(1)
   } else {
     for {
       fiber1 <- fib(n - 2).fork
@@ -69,7 +69,7 @@ Separately from errors of type `E`, a fiber may be terminated for the following 
  * The fiber failed to handle some error of type `E`. This can happen only when an `IO.fail` is not handled. For values of type `IO[Nothing, A]`, this type of failure is impossible.
  * The fiber has a defect that leads to a non-recoverable error. There are only two ways this can happen:
      1. A partial function is passed to a higher-order function such as `map` or `flatMap`. For example, `io.map(_ => throw e)`, or `io.flatMap(a => throw e)`. The solution to this problem is to not to pass impure functions to purely functional libraries like ZIO, because doing so leads to violations of laws and destruction of equational reasoning.
-     2. Error-throwing code was embedded into some value via `IO.point`, `IO.sync`, etc. For importing partial effects into `IO`, the proper solution is to use a method such as `syncException`, which safely translates exceptions into values.
+     2. Error-throwing code was embedded into some value via `IO.succeedLazy`, `IO.sync`, etc. For importing partial effects into `IO`, the proper solution is to use a method such as `syncException`, which safely translates exceptions into values.
 
 When a fiber is terminated, the reason for the termination, expressed as a `Throwable`, is passed to the fiber's supervisor, which may choose to log, print the stack trace, restart the fiber, or perform some other action appropriate to the context.
 
@@ -79,24 +79,24 @@ There are no circumstances in which any errors will be "lost", which makes the `
 
 # Parallelism
 
-To execute actions in parallel, the `par` method can be used:
+To execute actions in parallel, the `zipPar` method can be used:
 
 ```tut:invisible
 case class Matrix()
-def computeInverse(m: Matrix): IO[Nothing, Matrix] = IO.now(m)
-def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): IO[Nothing, Matrix] = IO.now(m1)
+def computeInverse(m: Matrix): IO[Nothing, Matrix] = IO.succeed(m)
+def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): IO[Nothing, Matrix] = IO.succeed(m1)
 ```
 
 ```tut:silent
 def bigCompute(m1: Matrix, m2: Matrix, v: Matrix): IO[Nothing, Matrix] =
   for {
-    t <- computeInverse(m1).par(computeInverse(m2))
+    t <- computeInverse(m1).zipPar(computeInverse(m2))
     (i1, i2) = t
     r <- applyMatrices(i1, i2, v)
   } yield r
 ```
 
-The `par` combinator has resource-safe semantics. If one computation fails, the other computation will be interrupted, to prevent wasting resources.
+The `zipPar` combinator has resource-safe semantics. If one computation fails, the other computation will be interrupted, to prevent wasting resources.
 
 ### Racing
 
@@ -108,7 +108,7 @@ fib(100) race fib(200)
 
 The `race` combinator is resource-safe, which means that if one of the two actions returns a value, the other one will be interrupted, to prevent wasting resources.
 
-The `race` and even `par` combinators are a specialization of a much-more powerful combinator called `raceWith`, which allows executing user-defined logic when the first of two actions succeeds.
+The `race` and even `zipPar` combinators are a specialization of a much-more powerful combinator called `raceWith`, which allows executing user-defined logic when the first of two actions succeeds.
 
 ## Thread Shifting - JVM
 

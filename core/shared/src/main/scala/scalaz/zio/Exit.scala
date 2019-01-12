@@ -1,102 +1,100 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.util.{ Failure, Success, Try }
-
 /**
- * An `ExitResult[E, A]` describes the result of executing an `IO` value. The
+ * An `Exit[E, A]` describes the result of executing an `IO` value. The
  * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
  */
-sealed abstract class ExitResult[+E, +A] extends Product with Serializable { self =>
-  import ExitResult._
+sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
+  import Exit._
 
   /**
    * Retrieves the `A` if succeeded, or else returns the specified default `A`.
    */
   final def getOrElse[A1 >: A](orElse: Cause[E] => A1): A1 = self match {
-    case Succeeded(value) => value
-    case Failed(cause)    => orElse(cause)
+    case Success(value) => value
+    case Failure(cause) => orElse(cause)
   }
 
   /**
-   * Converts the `ExitResult` to an `Either[Throwable, A]`, by wrapping the
+   * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the
    * cause in `FiberFailure` (if the result is failed).
    */
   final def toEither: Either[Throwable, A] = self match {
-    case Succeeded(value) => Right(value)
-    case Failed(cause)    => Left(FiberFailure(cause))
+    case Success(value) => Right(value)
+    case Failure(cause) => Left(FiberFailure(cause))
   }
 
   /**
    * Maps over the error type.
    */
-  final def leftMap[E1](f: E => E1): ExitResult[E1, A] =
+  final def leftMap[E1](f: E => E1): Exit[E1, A] =
     self match {
-      case e @ Succeeded(_) => e
-      case Failed(c)        => failed(c.map(f))
+      case e @ Success(_) => e
+      case Failure(c)     => fail(c.map(f))
     }
 
   /**
    * Maps over the value type.
    */
-  final def map[A1](f: A => A1): ExitResult[E, A1] =
+  final def map[A1](f: A => A1): Exit[E, A1] =
     self match {
-      case Succeeded(v)  => ExitResult.succeeded(f(v))
-      case e @ Failed(_) => e
+      case Success(v)     => Exit.succeed(f(v))
+      case e @ Failure(_) => e
     }
 
   /**
    * Flat maps over the value ty pe.
    */
-  final def flatMap[E1 >: E, A1](f: A => ExitResult[E1, A1]): ExitResult[E1, A1] =
+  final def flatMap[E1 >: E, A1](f: A => Exit[E1, A1]): Exit[E1, A1] =
     self match {
-      case Succeeded(a)  => f(a)
-      case e @ Failed(_) => e
+      case Success(a)     => f(a)
+      case e @ Failure(_) => e
     }
 
   /**
    * Maps over both the error and value type.
    */
-  final def bimap[E1, A1](f: E => E1, g: A => A1): ExitResult[E1, A1] = leftMap(f).map(g)
+  final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = leftMap(f).map(g)
 
   /**
    * Zips this result together with the specified result.
    */
-  final def zip[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
   /**
    * Zips this result together with the specified result, in parallel.
    */
-  final def zipPar[E1 >: E, B](that: ExitResult[E1, B]): ExitResult[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
 
   /**
    * Zips this together with the specified result using the combination functions.
    */
-  final def zipWith[E1 >: E, B, C](that: ExitResult[E1, B])(
+  final def zipWith[E1 >: E, B, C](that: Exit[E1, B])(
     f: (A, B) => C,
     g: (Cause[E], Cause[E1]) => Cause[E1]
-  ): ExitResult[E1, C] =
+  ): Exit[E1, C] =
     (self, that) match {
-      case (Succeeded(a), Succeeded(b)) => ExitResult.succeeded(f(a, b))
-      case (Failed(l), Failed(r))       => ExitResult.failed(g(l, r))
-      case (e @ Failed(_), _)           => e
-      case (_, e @ Failed(_))           => e
+      case (Success(a), Success(b)) => Exit.succeed(f(a, b))
+      case (Failure(l), Failure(r)) => Exit.fail(g(l, r))
+      case (e @ Failure(_), _)      => e
+      case (_, e @ Failure(_))      => e
     }
 
   /**
    * Determines if the result is a success.
    */
   final def succeeded: Boolean = self match {
-    case Succeeded(_) => true
-    case _            => false
+    case Success(_) => true
+    case _          => false
   }
 
   /**
    * Determines if the result is interrupted.
    */
   final def interrupted: Boolean = self match {
-    case Succeeded(_) => false
-    case Failed(c)    => c.interrupted
+    case Success(_) => false
+    case Failure(c) => c.interrupted
   }
 
   /**
@@ -104,8 +102,8 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
    */
   final def fold[Z](failed: Cause[E] => Z, completed: A => Z): Z =
     self match {
-      case Succeeded(v)  => completed(v)
-      case Failed(cause) => failed(cause)
+      case Success(v)     => completed(v)
+      case Failure(cause) => failed(cause)
     }
 
   /**
@@ -113,36 +111,36 @@ sealed abstract class ExitResult[+E, +A] extends Product with Serializable { sel
    */
   final def redeem[E1, B](failed: Cause[E] => IO[E1, B], completed: A => IO[E1, B]): IO[E1, B] =
     self match {
-      case Failed(cause) => failed(cause)
-      case Succeeded(v)  => completed(v)
+      case Failure(cause) => failed(cause)
+      case Success(v)     => completed(v)
     }
 }
 
-object ExitResult extends Serializable {
+object Exit extends Serializable {
 
-  final case class Succeeded[A](value: A)     extends ExitResult[Nothing, A]
-  final case class Failed[E](cause: Cause[E]) extends ExitResult[E, Nothing]
+  final case class Success[A](value: A)        extends Exit[Nothing, A]
+  final case class Failure[E](cause: Cause[E]) extends Exit[E, Nothing]
 
-  final def succeeded[A](a: A): ExitResult[Nothing, A]         = Succeeded(a)
-  final def failed[E](cause: Cause[E]): ExitResult[E, Nothing] = Failed(cause)
+  final def succeed[A](a: A): Exit[Nothing, A]         = Success(a)
+  final def fail[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
 
-  final def checked[E](error: E): ExitResult[E, Nothing]          = failed(Cause.checked(error))
-  final val interrupted: ExitResult[Nothing, Nothing]             = failed(Cause.interrupted)
-  final def unchecked(t: Throwable): ExitResult[Nothing, Nothing] = failed(Cause.unchecked(t))
+  final def checked[E](error: E): Exit[E, Nothing]          = fail(Cause.checked(error))
+  final val interrupted: Exit[Nothing, Nothing]             = fail(Cause.interrupted)
+  final def unchecked(t: Throwable): Exit[Nothing, Nothing] = fail(Cause.unchecked(t))
 
-  final def fromOption[A](o: Option[A]): ExitResult[Unit, A] =
-    o.fold[ExitResult[Unit, A]](checked(()))(succeeded(_))
+  final def fromOption[A](o: Option[A]): Exit[Unit, A] =
+    o.fold[Exit[Unit, A]](checked(()))(succeed(_))
 
-  final def fromEither[E, A](e: Either[E, A]): ExitResult[E, A] =
-    e.fold(checked(_), succeeded(_))
+  final def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
+    e.fold(checked(_), succeed(_))
 
-  final def fromTry[A](t: Try[A]): ExitResult[Throwable, A] =
+  final def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
     t match {
-      case Success(a) => succeeded(a)
-      case Failure(t) => checked(t)
+      case scala.util.Success(a) => succeed(a)
+      case scala.util.Failure(t) => checked(t)
     }
 
-  final def flatten[E, A](exit: ExitResult[E, ExitResult[E, A]]): ExitResult[E, A] =
+  final def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
     exit.flatMap(identity _)
 
   sealed abstract class Cause[+E] extends Product with Serializable { self =>

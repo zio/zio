@@ -2,7 +2,7 @@ package scalaz.zio
 package interop
 
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.ExitResult.Cause.{ Checked, Unchecked }
+import scalaz.zio.Exit.Cause.{ Checked, Unchecked }
 import scalaz.zio.interop.future._
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -122,7 +122,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val toFutureValue = {
-    val someIO = IO.now[Int](42)
+    val someIO = IO.succeed[Int](42)
     unsafeRun(someIO.toFuture) must beEqualTo(42).await
   }
 

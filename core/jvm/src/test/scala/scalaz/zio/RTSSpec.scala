@@ -6,8 +6,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.ExitResult.Cause
-import scalaz.zio.ExitResult.Cause.{ Checked, Then, Unchecked }
+import scalaz.zio.Exit.Cause
+import scalaz.zio.Exit.Cause.{ Checked, Then, Unchecked }
 import scalaz.zio.duration._
 
 import scala.util.{ Failure, Success }
@@ -35,9 +35,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     attempt . fail                          $testEvalOfAttemptOfFail
     deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
     deep attempt fail error                 $testAttemptOfDeepFailError
-    attempt . sandboxed . terminate         $testSandboxedAttemptOfTerminate
-    redeem . sandboxed . terminate          $testSandboxedRedeemPureOfTerminate
-    catch sandboxed terminate               $testSandboxedTerminate
+    attempt . sandboxed . terminate         $testSandboxAttemptOfTerminate
+    redeem . sandboxed . terminate          $testSandboxRedeemPureOfTerminate
+    catch sandboxed terminate               $testSandboxTerminate
     uncaught fail                           $testEvalOfUncaughtFail
     uncaught fail supervised                $testEvalOfUncaughtFailSupervised
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
@@ -54,7 +54,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     fail on error                           $testEvalOfFailOnError
     finalizer errors not caught             $testErrorInFinalizerCannotBeCaught
     finalizer errors reported               $testErrorInFinalizerIsReported
-    bracket result is usage result          $testExitResultIsUsageResult
+    bracket exit is usage result            $testExitIsUsageResult
     error in just acquisition               $testBracketErrorInAcquisition
     error in just release                   $testBracketErrorInRelease
     error in just usage                     $testBracketErrorInUsage
@@ -142,7 +142,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testPoint =
-    unsafeRun(IO.point(1)) must_=== 1
+    unsafeRun(IO.succeedLazy(1)) must_=== 1
 
   def testWidenNothing = {
     val op1 = IO.sync[String]("1")
@@ -157,21 +157,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testPointIsLazy =
-    IO.point(throw new Error("Not lazy")) must not(throwA[Throwable])
+    IO.succeedLazy(throw new Error("Not lazy")) must not(throwA[Throwable])
 
   @silent
   def testNowIsEager =
-    IO.now(throw new Error("Eager")) must (throwA[Error])
+    IO.succeed(throw new Error("Eager")) must (throwA[Error])
 
   def testSuspendIsLazy =
     IO.suspend(throw new Error("Eager")) must not(throwA[Throwable])
 
   def testSuspendIsEvaluatable =
-    unsafeRun(IO.suspend(IO.point[Int](42))) must_=== 42
+    unsafeRun(IO.suspend(IO.succeedLazy[Int](42))) must_=== 42
 
   def testSyncEvalLoop = {
     def fibIo(n: Int): IO[Throwable, BigInt] =
-      if (n <= 1) IO.point(n)
+      if (n <= 1) IO.succeedLazy(n)
       else
         for {
           a <- fibIo(n - 1)
@@ -188,12 +188,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testFlipValue = {
-    val io = IO.now(100).flip
+    val io = IO.succeed(100).flip
     unsafeRun(io.attempt) must_=== Left(100)
   }
 
   def testFlipDouble = {
-    val io = IO.point(100)
+    val io = IO.succeedLazy(100)
     unsafeRun(io.flip.flip) must_=== unsafeRun(io)
   }
 
@@ -218,18 +218,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     )
   )
 
-  def testSandboxedAttemptOfTerminate =
-    unsafeRun(IO.sync[Int](throw ExampleError).sandboxed.attempt) must_=== Left(Unchecked(ExampleError))
+  def testSandboxAttemptOfTerminate =
+    unsafeRun(IO.sync[Int](throw ExampleError).sandbox.attempt) must_=== Left(Unchecked(ExampleError))
 
-  def testSandboxedRedeemPureOfTerminate =
+  def testSandboxRedeemPureOfTerminate =
     unsafeRun(
-      IO.sync[Int](throw ExampleError).sandboxed.redeemPure(Some(_), Function.const(None))
+      IO.sync[Int](throw ExampleError).sandbox.redeemPure(Some(_), Function.const(None))
     ) must_=== Some(Unchecked(ExampleError))
 
-  def testSandboxedTerminate =
+  def testSandboxTerminate =
     unsafeRun(
       IO.sync[Cause[Any]](throw ExampleError)
-        .sandboxed
+        .sandbox
         .redeemPure(identity, identity)
     ) must_=== Unchecked(ExampleError)
 
@@ -243,13 +243,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.fail[Throwable](ExampleError).as[Any]) must (throwA(FiberFailure(Checked(ExampleError))))
 
   def testEvalOfUncaughtFailSupervised =
-    unsafeRun(IO.fail[Throwable](ExampleError).supervised.as[Any]) must (throwA(FiberFailure(Checked(ExampleError))))
+    unsafeRun(IO.fail[Throwable](ExampleError).supervise.as[Any]) must (throwA(
+      FiberFailure(Checked(ExampleError))
+    ))
 
   def testEvalOfUncaughtThrownSyncEffect =
     unsafeRun(IO.sync[Int](throw ExampleError)) must (throwA(FiberFailure(Unchecked(ExampleError))))
 
   def testEvalOfUncaughtThrownSupervisedSyncEffect =
-    unsafeRun(IO.sync[Int](throw ExampleError).supervised) must (throwA(FiberFailure(Unchecked(ExampleError))))
+    unsafeRun(IO.sync[Int](throw ExampleError).supervise) must (throwA(FiberFailure(Unchecked(ExampleError))))
 
   def testEvalOfDeepUncaughtThrownSyncEffect =
     unsafeRun(deepErrorEffect(100)) must (throwA(FiberFailure(Checked(ExampleError))))
@@ -264,7 +266,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
         .run
-    ) must_=== ExitResult.failed(
+    ) must_=== Exit.fail(
       Cause.checked(ExampleError) ++
         Cause.unchecked(InterruptCause1) ++
         Cause.unchecked(InterruptCause2) ++
@@ -273,12 +275,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testTerminateOfMultipleFailingFinalizers =
     unsafeRun(
-      IO.terminate(ExampleError)
+      IO.die(ExampleError)
         .ensuring(IO.sync(throw InterruptCause1))
         .ensuring(IO.sync(throw InterruptCause2))
         .ensuring(IO.sync(throw InterruptCause3))
         .run
-    ) must_=== ExitResult.failed(
+    ) must_=== Exit.fail(
       Cause.unchecked(ExampleError) ++
         Cause.unchecked(InterruptCause1) ++
         Cause.unchecked(InterruptCause2) ++
@@ -316,8 +318,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
     val nested: IO[Throwable, Int] =
       IO.fail[Throwable](ExampleError)
-        .ensuring(IO.terminate(e2))
-        .ensuring(IO.terminate(e3))
+        .ensuring(IO.die(e2))
+        .ensuring(IO.die(e3))
 
     unsafeRun(nested) must (throwA(FiberFailure(Then(Checked(ExampleError), Then(Unchecked(e2), Unchecked(e3))))))
   }
@@ -326,9 +328,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     var reported: Cause[Any] = null
 
     unsafeRun {
-      IO.point[Int](42)
-        .ensuring(IO.terminate(ExampleError))
-        .fork0(es => IO.sync[Unit] { reported = es; () })
+      IO.succeedLazy[Int](42)
+        .ensuring(IO.die(ExampleError))
+        .forkWith(es => IO.sync[Unit] { reported = es; () })
     }
 
     // FIXME: Is this an issue with thread synchronization?
@@ -337,15 +339,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     reported must_=== Unchecked(ExampleError)
   }
 
-  def testExitResultIsUsageResult =
-    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.point[Int](42))) must_=== 42
+  def testExitIsUsageResult =
+    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeedLazy[Int](42))) must_=== 42
 
   def testBracketErrorInAcquisition =
     unsafeRun(IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit)) must
       (throwA(FiberFailure(Checked(ExampleError))))
 
   def testBracketErrorInRelease =
-    unsafeRun(IO.bracket(IO.unit)(_ => IO.terminate(ExampleError))(_ => IO.unit)) must
+    unsafeRun(IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)) must
       (throwA(FiberFailure(Unchecked(ExampleError))))
 
   def testBracketErrorInUsage =
@@ -362,7 +364,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testBracketRethrownCaughtErrorInRelease = {
     lazy val actual = unsafeRun(
-      IO.bracket(IO.unit)(_ => IO.terminate(ExampleError))(_ => IO.unit)
+      IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)
     )
 
     actual must (throwA(FiberFailure(Unchecked(ExampleError))))
@@ -414,10 +416,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       r  <- Ref(false)
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Int]
-      s <- (p1.complete(()) *> p2.get)
+      s <- (p1.succeed(()) *> p2.await)
             .ensuring(r.set(true).void.delay(10.millis))
             .fork
-      _    <- p1.get
+      _    <- p1.await
       _    <- s.interrupt
       test <- r.get
     } yield test must_=== true)
@@ -425,17 +427,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testRunInterruptIsInterrupted =
     unsafeRun(for {
       p    <- Promise.make[Nothing, Unit]
-      f    <- (p.complete(()) *> IO.never).run.fork
-      _    <- p.get
+      f    <- (p.succeed(()) *> IO.never).run.fork
+      _    <- p.await
       _    <- f.interrupt
-      test <- f.observe.map(_.interrupted)
+      test <- f.await.map(_.interrupted)
     } yield test) must_=== true
 
   def testRunSwallowsInnerInterrupt =
     unsafeRun(for {
       p   <- Promise.make[Nothing, Int]
-      _   <- IO.interrupt.run *> p.complete(42)
-      res <- p.get
+      _   <- IO.interrupt.run *> p.succeed(42)
+      res <- p.await
     } yield res) must_=== 42
 
   def testEvalOfDeepSyncEffect = {
@@ -474,11 +476,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testDeepFlatMapIsStackSafe = {
     def fib(n: Int, a: BigInt = 0, b: BigInt = 1): IO[Error, BigInt] =
-      IO.now(a + b).flatMap { b2 =>
+      IO.succeed(a + b).flatMap { b2 =>
         if (n > 0)
           fib(n - 1, b, b2)
         else
-          IO.now(b2)
+          IO.succeed(b2)
       }
 
     val future = fib(1000)
@@ -488,28 +490,28 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testDeepAbsolveAttemptIsIdentity =
-    unsafeRun((0 until 1000).foldLeft(IO.point[Int](42))((acc, _) => IO.absolve(acc.attempt))) must_=== 42
+    unsafeRun((0 until 1000).foldLeft(IO.succeedLazy[Int](42))((acc, _) => IO.absolve(acc.attempt))) must_=== 42
 
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafeRun(
       (0 until 1000)
-        .foldLeft(IO.async[Int, Int](k => k(IO.now(42))))((acc, _) => IO.absolve(acc.attempt))
+        .foldLeft(IO.async[Int, Int](k => k(IO.succeed(42))))((acc, _) => IO.absolve(acc.attempt))
     ) must_=== 42
 
   def testAsyncEffectReturns =
-    unsafeRun(IO.async[Throwable, Int](k => k(IO.now(42)))) must_=== 42
+    unsafeRun(IO.async[Throwable, Int](k => k(IO.succeed(42)))) must_=== 42
 
   def testAsyncIOEffectReturns =
-    unsafeRun(IO.asyncPure[Throwable, Int](k => IO.sync(k(IO.now(42))))) must_=== 42
+    unsafeRun(IO.asyncIO[Throwable, Int](k => IO.sync(k(IO.succeed(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
     def stackIOs(count: Int): IO[Nothing, Int] =
-      if (count <= 0) IO.now(42)
+      if (count <= 0) IO.succeed(42)
       else asyncIO(stackIOs(count - 1))
 
     def asyncIO(cont: IO[Nothing, Int]): IO[Nothing, Int] =
-      IO.asyncPure[Nothing, Int] { k =>
-        IO.sleep(5.millis) *> cont *> IO.sync(k(IO.now(42)))
+      IO.asyncIO[Nothing, Int] { k =>
+        IO.sleep(5.millis) *> cont *> IO.sync(k(IO.succeed(42)))
       }
 
     val procNum = Runtime.getRuntime.availableProcessors()
@@ -522,28 +524,28 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       release <- Promise.make[Nothing, Unit]
       acquire <- Promise.make[Nothing, Unit]
       fiber <- IO
-                .asyncPure[Nothing, Unit] { _ =>
-                  IO.bracket(acquire.complete(()))(_ => release.complete(()))(_ => IO.never)
+                .asyncIO[Nothing, Unit] { _ =>
+                  IO.bracket(acquire.succeed(()))(_ => release.succeed(()))(_ => IO.never)
                 }
                 .fork
-      _ <- acquire.get
+      _ <- acquire.await
       _ <- fiber.interrupt.fork
-      a <- release.get
+      a <- release.await
     } yield a) must_=== (())
 
   def testSleepZeroReturns =
     unsafeRun(IO.sleep(1.nanos)) must_=== ((): Unit)
 
   def testShallowBindOfAsyncChainIsCorrect = {
-    val result = (0 until 10).foldLeft[IO[Throwable, Int]](IO.point[Int](0)) { (acc, _) =>
-      acc.flatMap(n => IO.async[Throwable, Int](_(IO.now(n + 1))))
+    val result = (0 until 10).foldLeft[IO[Throwable, Int]](IO.succeedLazy[Int](0)) { (acc, _) =>
+      acc.flatMap(n => IO.async[Throwable, Int](_(IO.succeed(n + 1))))
     }
 
     unsafeRun(result) must_=== 10
   }
 
   def testForkJoinIsId =
-    unsafeRun(IO.point[Int](42).fork.flatMap(_.join)) must_=== 42
+    unsafeRun(IO.succeedLazy[Int](42).fork.flatMap(_.join)) must_=== 42
 
   def testDeepForkJoinIsId = {
     val n = 20
@@ -565,8 +567,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket[Nothing, Unit, Unit](promise.complete(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
-        res     <- promise.get *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+        fiber   <- IO.bracket[Nothing, Unit, Unit](promise.succeed(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        res     <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
@@ -576,9 +578,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       for {
         promise <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracket0[Nothing, Unit, Unit](promise.complete(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
+                  .bracket0[Nothing, Unit, Unit](promise.succeed(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
                   .fork
-        res <- promise.get *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+        res <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
@@ -588,10 +590,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       for {
         p1    <- Promise.make[Nothing, Unit]
         p2    <- Promise.make[Nothing, Unit]
-        fiber <- IO.bracket(IO.unit)(_ => p2.complete(()) *> IO.unit)(_ => p1.complete(()) *> IO.never).fork
-        _     <- p1.get
+        fiber <- IO.bracket(IO.unit)(_ => p2.succeed(()) *> IO.unit)(_ => p1.succeed(()) *> IO.never).fork
+        _     <- p1.await
         _     <- fiber.interrupt
-        _     <- p2.get
+        _     <- p2.await
       } yield ()
 
     unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
@@ -603,13 +605,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         p1 <- Promise.make[Nothing, Unit]
         p2 <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => p2.complete(()) *> IO.unit)(
-                    _ => p1.complete(()) *> IO.never
+                  .bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => p2.succeed(()) *> IO.unit)(
+                    _ => p1.succeed(()) *> IO.never
                   )
                   .fork
-        _ <- p1.get
+        _ <- p1.await
         _ <- fiber.interrupt
-        _ <- p2.get
+        _ <- p2.await
       } yield ()
 
     unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
@@ -619,10 +621,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       cont <- Promise.make[Nothing, Unit]
       p1   <- Promise.make[Nothing, Boolean]
-      f1   <- (cont.complete(()) *> IO.never).catchAll(IO.fail).ensuring(p1.complete(true)).fork
-      _    <- cont.get
+      f1   <- (cont.succeed(()) *> IO.never).catchAll(IO.fail).ensuring(p1.succeed(true)).fork
+      _    <- cont.await
       _    <- f1.interrupt
-      res  <- p1.get
+      res  <- p1.await
     } yield res
 
     unsafeRun(io) must_=== true
@@ -632,10 +634,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       p1  <- Promise.make[Nothing, Boolean]
       c   <- Promise.make[Nothing, Unit]
-      f1  <- (c.complete(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.complete(d.interrupted))).fork
-      _   <- c.get
+      f1  <- (c.succeed(()) *> IO.never).ensuring(IO.descriptor.flatMap(d => p1.succeed(d.interrupted))).fork
+      _   <- c.await
       _   <- f1.interrupt
-      res <- p1.get
+      res <- p1.await
     } yield res
 
     unsafeRun(io) must_=== true
@@ -646,9 +648,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       ref   <- Ref(0)
       cont1 <- Promise.make[Nothing, Unit]
       cont2 <- Promise.make[Nothing, Unit]
-      make  = (p: Promise[Nothing, Unit]) => (p.complete(()) *> IO.never).onInterrupt(ref.update(_ + 1))
+      make  = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> IO.never).onInterrupt(ref.update(_ + 1))
       raced <- (make(cont1) race (make(cont2))).fork
-      _     <- cont1.get *> cont2.get
+      _     <- cont1.await *> cont2.await
       _     <- raced.interrupt
       count <- ref.get
     } yield count
@@ -661,12 +663,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       release <- scalaz.zio.Promise.make[Nothing, Int]
       latch   = internal.OneShot.make[Unit]
       async = IO.asyncInterrupt[Nothing, Unit] { _ =>
-        latch.set(()); Left(release.complete(42).void)
+        latch.set(()); Left(release.succeed(42).void)
       }
       fiber  <- async.fork
       _      <- IO.sync(latch.get(1000))
       _      <- fiber.interrupt.fork
-      result <- release.get
+      result <- release.await
     } yield result
 
     (0 to 1000).map { _ =>
@@ -679,15 +681,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       startLatch <- Promise.make[Nothing, Int]
       exitLatch  <- Promise.make[Nothing, Int]
       bracketed = IO
-        .now(21)
+        .succeed(21)
         .bracket0[Nothing, Unit] {
-          case (r, e) if e.interrupted => exitLatch.complete(r)
-          case (_, _)                  => IO.terminate(new Error("Unexpected case"))
-        }(a => startLatch.complete(a) *> IO.never)
+          case (r, e) if e.interrupted => exitLatch.succeed(r)
+          case (_, _)                  => IO.die(new Error("Unexpected case"))
+        }(a => startLatch.succeed(a) *> IO.never)
       fiber      <- bracketed.fork
-      startValue <- startLatch.get
+      startValue <- startLatch.await
       _          <- fiber.interrupt.fork
-      exitValue  <- exitLatch.get
+      exitValue  <- exitLatch.await
     } yield startValue + exitValue
 
     (0 to 100).map { _ =>
@@ -698,7 +700,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testAsyncPureIsInterruptible = {
     val io =
       for {
-        fiber <- IO.asyncPure[Nothing, Nothing](_ => IO.never).fork
+        fiber <- IO.asyncIO[Nothing, Nothing](_ => IO.never).fork
         _     <- fiber.interrupt
       } yield 42
 
@@ -719,13 +721,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       release <- Promise.make[Nothing, Int]
       acquire <- Promise.make[Nothing, Unit]
-      task = IO.asyncPure[Nothing, Unit] { _ =>
-        IO.bracket(acquire.complete(()))(_ => release.complete(42).void)(_ => IO.never)
+      task = IO.asyncIO[Nothing, Unit] { _ =>
+        IO.bracket(acquire.succeed(()))(_ => release.succeed(42).void)(_ => IO.never)
       }
       fiber <- task.fork
-      _     <- acquire.get
+      _     <- acquire.await
       _     <- fiber.interrupt
-      a     <- release.get
+      a     <- release.await
     } yield a
 
     unsafeRun(io) must_=== 42
@@ -736,17 +738,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       release <- Promise.make[Nothing, Int]
       latch   = scala.concurrent.Promise[Unit]()
       async = IO.asyncInterrupt[Nothing, Nothing] { _ =>
-        latch.success(()); Left(release.complete(42).void)
+        latch.success(()); Left(release.succeed(42).void)
       }
       fiber <- async.fork
       _ <- IO.async[Throwable, Unit] { k =>
             latch.future.onComplete {
-              case Success(a) => k(IO.now(a))
+              case Success(a) => k(IO.succeed(a))
               case Failure(t) => k(IO.fail(t))
             }(scala.concurrent.ExecutionContext.global)
           }
       _      <- fiber.interrupt
-      result <- release.get
+      result <- release.await
     } yield result
 
     unsafeRun(io) must_=== 42
@@ -758,7 +760,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         fiber <- IO.bracket[Nothing, Unit, Unit](IO.unit)(_ => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt
       } yield res
-    unsafeRun(io) must_=== ExitResult.interrupted
+    unsafeRun(io) must_=== Exit.interrupted
   }
 
   def testBracket0UseIsInterruptible = {
@@ -775,7 +777,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun((for {
       _ <- (IO.sleep(200.millis) *> IO.unit).fork
       _ <- (IO.sleep(400.millis) *> IO.unit).fork
-    } yield ()).supervised { fs =>
+    } yield ()).superviseWith { fs =>
       fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt *> IO.sync(counter += 1))
     })
     counter must_=== 2
@@ -789,13 +791,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
       f <- (
-            p1.complete(()).bracket_(pa.complete(1).void)(IO.never) race
-              p2.complete(()).bracket_(pb.complete(2).void)(IO.never)
-          ).supervised.fork
-      _ <- p1.get *> p2.get
+            p1.succeed(()).bracket_(pa.succeed(1).void)(IO.never) race
+              p2.succeed(()).bracket_(pb.succeed(2).void)(IO.never)
+          ).supervise.fork
+      _ <- p1.await *> p2.await
 
       _ <- f.interrupt
-      r <- pa.get seq pb.get
+      r <- pa.await zip pb.await
     } yield r) must_=== (1 -> 2)
 
   def testSuperviseFork =
@@ -806,14 +808,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
       f <- (
-            p1.complete(()).bracket_(pa.complete(1).void)(IO.never).fork *>
-              p2.complete(()).bracket_(pb.complete(2).void)(IO.never).fork *>
+            p1.succeed(()).bracket_(pa.succeed(1).void)(IO.never).fork *>
+              p2.succeed(()).bracket_(pb.succeed(2).void)(IO.never).fork *>
               IO.never
-          ).supervised.fork
-      _ <- p1.get *> p2.get
+          ).supervise.fork
+      _ <- p1.await *> p2.await
 
       _ <- f.interrupt
-      r <- pa.get seq pb.get
+      r <- pa.await zip pb.await
     } yield r) must_=== (1 -> 2)
 
   def testSupervised =
@@ -823,30 +825,30 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       _ <- (for {
             p1 <- Promise.make[Nothing, Unit]
             p2 <- Promise.make[Nothing, Unit]
-            _  <- p1.complete(()).bracket_(pa.complete(1).void)(IO.never).fork
-            _  <- p2.complete(()).bracket_(pb.complete(2).void)(IO.never).fork
-            _  <- p1.get *> p2.get
-          } yield ()).supervised
-      r <- pa.get seq pb.get
+            _  <- p1.succeed(()).bracket_(pa.succeed(1).void)(IO.never).fork
+            _  <- p2.succeed(()).bracket_(pb.succeed(2).void)(IO.never).fork
+            _  <- p1.await *> p2.await
+          } yield ()).supervise
+      r <- pa.await zip pb.await
     } yield r) must_=== (1 -> 2)
 
   def testRaceChoosesWinner =
-    unsafeRun(IO.fail(42).race(IO.now(24)).attempt) must_=== Right(24)
+    unsafeRun(IO.fail(42).race(IO.succeed(24)).attempt) must_=== Right(24)
 
   def testRaceChoosesWinnerInTerminate =
-    unsafeRun(IO.terminate(new Throwable {}).race(IO.now(24)).attempt) must_=== Right(24)
+    unsafeRun(IO.die(new Throwable {}).race(IO.succeed(24)).attempt) must_=== Right(24)
 
   def testRaceChoosesFailure =
     unsafeRun(IO.fail(42).race(IO.fail(42)).attempt) must_=== Left(42)
 
   def testRaceOfValueNever =
-    unsafeRun(IO.point(42).race(IO.never)) must_=== 42
+    unsafeRun(IO.succeedLazy(42).race(IO.never)) must_=== 42
 
   def testRaceOfFailNever =
     unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
 
   def testRaceAllOfValues =
-    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24))).attempt) must_=== Right(24)
+    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.succeed(24))).attempt) must_=== Right(24)
 
   def testRaceAllOfFailures =
     unsafeRun(IO.raceAll[Int, Nothing](IO.fail(24).delay(10.millis), List(IO.fail(24))).attempt) must_=== Left(
@@ -854,7 +856,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     )
 
   def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.now(24).delay(1.millis))).attempt) must_=== Right(
+    unsafeRun(IO.raceAll[Int, Int](IO.fail(42), List(IO.succeed(24).delay(1.millis))).attempt) must_=== Right(
       24
     )
 
@@ -863,16 +865,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       s      <- Semaphore(0L)
       effect <- Promise.make[Nothing, Int]
       winner = s.acquire *> IO.async[Throwable, Unit](_(IO.unit))
-      loser  = IO.bracket(s.release)(_ => effect.complete(42).void)(_ => IO.never)
-      race   = winner raceBoth loser
+      loser  = IO.bracket(s.release)(_ => effect.succeed(42).void)(_ => IO.never)
+      race   = winner raceEither loser
       _      <- race.attempt
-      b      <- effect.get
+      b      <- effect.await
     } yield b) must_=== 42
 
   def testRepeatedPar = {
     def countdown(n: Int): IO[Nothing, Int] =
-      if (n == 0) IO.now(0)
-      else IO.now[Int](1).par(IO.now[Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
+      if (n == 0) IO.succeed(0)
+      else IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
 
     unsafeRun(countdown(50)) must_=== 150
   }
@@ -881,26 +883,26 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(for {
       s      <- Promise.make[Nothing, Unit]
       effect <- Promise.make[Nothing, Int]
-      winner = s.get *> IO.fromEither(Left(new Exception))
-      loser  = IO.bracket(s.complete(()))(_ => effect.complete(42))(_ => IO.never)
+      winner = s.await *> IO.fromEither(Left(new Exception))
+      loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
       race   = winner raceAttempt loser
       _      <- race.attempt
-      b      <- effect.get
+      b      <- effect.await
     } yield b) must_=== 42
 
   def testPar =
     (0 to 1000).map { _ =>
-      unsafeRun(IO.now[Int](1).par(IO.now[Int](2)).flatMap(t => IO.now(t._1 + t._2))) must_=== 3
+      unsafeRun(IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2))) must_=== 3
     }
 
   def testReduceAll =
     unsafeRun(
-      IO.reduceAll[Nothing, Int](IO.point(1), List(2, 3, 4).map(IO.point[Int](_)))(_ + _)
+      IO.reduceAll[Nothing, Int](IO.succeedLazy(1), List(2, 3, 4).map(IO.succeedLazy[Int](_)))(_ + _)
     ) must_=== 10
 
   def testReduceAllEmpty =
     unsafeRun(
-      IO.reduceAll[Nothing, Int](IO.point(1), Seq.empty)(_ + _)
+      IO.reduceAll[Nothing, Int](IO.succeedLazy(1), Seq.empty)(_ + _)
     ) must_=== 1
 
   def testTimeoutFailure =
@@ -910,8 +912,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testTimeoutTerminate =
     unsafeRunSync(
-      IO.terminate(ExampleError).timeout(1.hour): IO[Nothing, Option[Int]]
-    ) must_=== ExitResult.unchecked(ExampleError)
+      IO.die(ExampleError).timeout(1.hour): IO[Nothing, Option[Int]]
+    ) must_=== Exit.unchecked(ExampleError)
 
   def testDeadlockRegression = {
 
@@ -924,7 +926,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     (0 until 10000).foreach { _ =>
       rts.unsafeRun {
         IO.async[Nothing, Int] { k =>
-          val c: Callable[Unit] = () => k(IO.now(1))
+          val c: Callable[Unit] = () => k(IO.succeed(1))
           val _                 = e.submit(c)
         }
       }
@@ -980,7 +982,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       if (n <= 0) acc
       else loop(n - 1, acc.map(_ + 1))
 
-    loop(n, IO.point(0))
+    loop(n, IO.succeedLazy(0))
   }
 
   def deepMapNow(n: Int): IO[Nothing, Int] = {
@@ -989,7 +991,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       if (n <= 0) acc
       else loop(n - 1, acc.map(_ + 1))
 
-    loop(n, IO.now(0))
+    loop(n, IO.succeed(0))
   }
 
   def deepMapEffect(n: Int): IO[Nothing, Int] = {
@@ -1014,7 +1016,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     else fib(n - 1) + fib(n - 2)
 
   def concurrentFib(n: Int): IO[Throwable, BigInt] =
-    if (n <= 1) IO.point[BigInt](n)
+    if (n <= 1) IO.succeedLazy[BigInt](n)
     else
       for {
         f1 <- concurrentFib(n - 1).fork
@@ -1027,7 +1029,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testMergeAll =
     unsafeRun(
-      IO.mergeAll[Nothing, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.point[String](_)))(
+      IO.mergeAll[Nothing, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(
         0,
         f = (b, a) => b + a.length
       )

@@ -1,6 +1,6 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
-import scalaz.zio.ExitResult.Cause
+import scalaz.zio.Exit.Cause
 
 final case class FiberFailure(cause: Cause[Any]) extends Throwable {
   override def getMessage: String = message(cause)

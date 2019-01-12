@@ -25,9 +25,9 @@ trait Sink[+E, +A0, -A, +B] { self =>
     val len = as.length
 
     def loop(s: Step[State, A0], i: Int): IO[E, Step[State, A0]] =
-      if (i >= len) IO.now(s)
+      if (i >= len) IO.succeed(s)
       else if (Step.cont(s)) self.step(Step.state(s), as(i)).flatMap(loop(_, i + 1))
-      else IO.now(s)
+      else IO.succeed(s)
 
     loop(Step.more(state), 0)
   }
@@ -35,7 +35,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
   final def update(state: Step[State, Nothing]): Sink[E, A0, A, B] =
     new Sink[E, A0, A, B] {
       type State = self.State
-      val initial: IO[E, Step[State, Nothing]]             = IO.now(state)
+      val initial: IO[E, Step[State, Nothing]]             = IO.succeed(state)
       def step(state: State, a: A): IO[E, Step[State, A0]] = self.step(state, a)
       def extract(state: State): IO[E, B]                  = self.extract(state)
     }
@@ -95,7 +95,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
         f(a).flatMap(
           b =>
             if (b) self.step(state, a)
-            else IO.now(Step.more(state))
+            else IO.succeed(Step.more(state))
         )
 
       def extract(state: State) = self.extract(state)
@@ -112,7 +112,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
 
       def step(state: State, a: A1) =
         if (f(a)) self.step(state, a)
-        else IO.now(Step.more(state))
+        else IO.succeed(Step.more(state))
 
       def extract(state: State) = self.extract(state)
     }
@@ -196,10 +196,10 @@ trait Sink[+E, +A0, -A, +B] { self =>
           if (Step.cont(s))
             extract(Step.state(s))
               .redeem(
-                _ => IO.now(s),
-                b => if (f(b)) IO.now(Step.done(Step.state(s), Chunk.empty)) else IO.now(s)
+                _ => IO.succeed(s),
+                b => if (f(b)) IO.succeed(Step.done(Step.state(s), Chunk.empty)) else IO.succeed(s)
               )
-          else IO.now(s)
+          else IO.succeed(s)
         }
 
       def extract(state: State): IO[E, B] = self.extract(state)
@@ -214,24 +214,24 @@ trait Sink[+E, +A0, -A, +B] { self =>
       type State = Option[self.State]
 
       val initial = self.initial.map(Step.leftMap(_)(Some(_))) orElse
-        IO.now(Step.done(None, Chunk.empty))
+        IO.succeed(Step.done(None, Chunk.empty))
 
       def step(state: State, a: A): IO[Nothing, Step[State, A0]] =
         state match {
-          case None => IO.now(Step.done(state, Chunk.empty))
+          case None => IO.succeed(Step.done(state, Chunk.empty))
           case Some(state) =>
             self
               .step(state, a)
               .redeem(
-                _ => IO.now(Step.done[State, A0](Some(state), Chunk.empty)),
-                s => IO.now(Step.leftMap(s)(Some(_)))
+                _ => IO.succeed(Step.done[State, A0](Some(state), Chunk.empty)),
+                s => IO.succeed(Step.leftMap(s)(Some(_)))
               )
         }
 
       def extract(state: State): IO[Nothing, Option[B]] =
         state match {
-          case None        => IO.now(None)
-          case Some(state) => self.extract(state).map(Some(_)) orElse IO.now(None)
+          case None        => IO.succeed(None)
+          case Some(state) => self.extract(state).map(Some(_)) orElse IO.succeed(None)
         }
     }
 
@@ -268,15 +268,15 @@ trait Sink[+E, +A0, -A, +B] { self =>
           case Right(s) if !Step.cont(s) => Step.done(Right(Step.state(s)), Step.leftover(s))
         }
 
-      val initial = self.initial.attempt.map(sequence).parWith(that.initial.attempt.map(sequence))(Step.both)
+      val initial = self.initial.attempt.map(sequence).zipWithPar(that.initial.attempt.map(sequence))(Step.both)
 
       def step(state: State, a: A1): IO[E1, Step[State, A2]] =
         state match {
           case (l, r) =>
-            val lr = l.fold(e => IO.now(Left(e)), self.step(_, a).attempt)
-            val rr = r.fold(e => IO.now(Left(e)), that.step(_, a).attempt)
+            val lr = l.fold(e => IO.succeed(Left(e)), self.step(_, a).attempt)
+            val rr = r.fold(e => IO.succeed(Left(e)), that.step(_, a).attempt)
 
-            lr.parWith(rr) {
+            lr.zipWithPar(rr) {
               case (Right(s), _) if !Step.cont(s) => Step.done((Right(Step.state(s)), r), Step.leftover(s))
               case (_, Right(s)) if !Step.cont(s) => Step.done((l, Right(Step.state(s))), Step.leftover(s))
               case (lr, rr)                       => Step.more((lr.right.map(Step.state), rr.right.map(Step.state)))
@@ -300,7 +300,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
 
       def step(state: State, a: A1): IO[E, Step[State, A0]] =
         if (pred(a)) self.step(state, a)
-        else IO.now(Step.done(state, Chunk.empty))
+        else IO.succeed(Step.done(state, Chunk.empty))
 
       def extract(state: State) = self.extract(state)
     }
@@ -314,7 +314,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
       def step(state: State, a: A1): IO[E, Step[State, A0]] =
         if (!state._2) self.step(state._1, a).map(Step.leftMap(_)((_, false)))
         else {
-          if (pred(a)) IO.now(Sink.Step.more((state)))
+          if (pred(a)) IO.succeed(Sink.Step.more((state)))
           else self.step(state._1, a).map(Step.leftMap(_)((_, false)))
         }
 
@@ -412,7 +412,7 @@ object Sink {
     new Sink[E, A0, A, B] {
       type State = Option[(Sink[E, A0, A, B], Any)]
 
-      val initial = IO.now(Step.more(None))
+      val initial = IO.succeed(Step.more(None))
 
       def step(state: State, a: A): IO[E, Step[State, A0]] = state match {
         case None =>
@@ -430,7 +430,7 @@ object Sink {
       }
     }
 
-  final def point[B](b: => B): Sink[Nothing, Nothing, Any, B] =
+  final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
     new SinkPure[Nothing, Nothing, Any, B] {
       type State = Unit
       val initialPure                                          = Step.done((), Chunk.empty)
@@ -447,8 +447,8 @@ object Sink {
   final def liftIO[E, B](b: => IO[E, B]): Sink[E, Nothing, Any, B] =
     new Sink[E, Nothing, Any, B] {
       type State = Unit
-      val initial                                                 = IO.now(Step.done((), Chunk.empty))
-      def step(state: State, a: Any): IO[E, Step[State, Nothing]] = IO.now(Step.done(state, Chunk.empty))
+      val initial                                                 = IO.succeed(Step.done((), Chunk.empty))
+      def step(state: State, a: Any): IO[E, Step[State, Nothing]] = IO.succeed(Step.done(state, Chunk.empty))
       def extract(state: State): IO[E, B]                         = b
     }
 
@@ -497,33 +497,33 @@ object Sink {
       type State = S
       val initial                              = z.map(Step.more)
       def step(s: S, a: A): IO[E, Step[S, A0]] = f(s, a)
-      def extract(s: S): IO[E, S]              = IO.now(s)
+      def extract(s: S): IO[E, S]              = IO.succeed(s)
     }
 
   def readWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, List[A]] =
     Sink
-      .foldM(IO.now(List.empty[A])) { (s, a: A) =>
+      .foldM(IO.succeed(List.empty[A])) { (s, a: A) =>
         p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
       }
       .map(_.reverse)
 
   def readWhile[A](p: A => Boolean): Sink[Nothing, A, A, List[A]] =
-    readWhileM(a => IO.now(p(a)))
+    readWhileM(a => IO.succeed(p(a)))
 
   def ignoreWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, Unit] =
     new Sink[E, A, A, Unit] {
       type State = Unit
 
-      val initial = IO.now(Step.more(()))
+      val initial = IO.succeed(Step.more(()))
 
       def step(state: State, a: A): IO[E, Step[State, A]] =
         p(a).map(if (_) Step.more(()) else Step.done((), Chunk(a)))
 
-      def extract(state: State) = IO.now(())
+      def extract(state: State) = IO.succeed(())
     }
 
   def ignoreWhile[A](p: A => Boolean): Sink[Nothing, A, A, Unit] =
-    ignoreWhileM(a => IO.now(p(a)))
+    ignoreWhileM(a => IO.succeed(p(a)))
 
   def await[A]: Sink[Unit, Nothing, A, A] =
     new SinkPure[Unit, Nothing, A, A] {
@@ -604,7 +604,7 @@ object Sink {
         val r: IO[Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.attempt.map(sequence)
 
         val initial: IO[E1, Step[State, Nothing]] =
-          l.parWith(r) { (l, r) =>
+          l.zipWithPar(r) { (l, r) =>
             Step.both(Step.leftMap(l)(eitherToSide), Step.leftMap(r)(eitherToSide))
           }
 
@@ -615,9 +615,9 @@ object Sink {
                 self
                   .step(s, a)
                   .redeem(
-                    e => IO.now(Step.done(Side.Error(e), Chunk.empty)),
+                    e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
                     s =>
-                      if (Step.cont(s)) IO.now(Step.more(Side.State(Step.state(s))))
+                      if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
                       else
                         self
                           .extract(Step.state(s))
@@ -626,7 +626,7 @@ object Sink {
                             b => Step.done(Side.Value(b), Step.leftover(s))
                           )
                   )
-              case s => IO.now(Step.done(s, Chunk.empty))
+              case s => IO.succeed(Step.done(s, Chunk.empty))
             }
           val rightStep: IO[Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]] =
             state._2 match {
@@ -634,9 +634,9 @@ object Sink {
                 that
                   .step(s, a)
                   .redeem(
-                    e => IO.now(Step.done(Side.Error(e), Chunk.empty)),
+                    e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
                     s =>
-                      if (Step.cont(s)) IO.now(Step.more(Side.State(Step.state(s))))
+                      if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
                       else {
                         that
                           .extract(Step.state(s))
@@ -649,20 +649,20 @@ object Sink {
               case Side.Value((a0, c)) =>
                 val a3 = a0 ++ Chunk(a)
 
-                IO.now(Step.done(Side.Value((a3, c)), a3))
+                IO.succeed(Step.done(Side.Value((a3, c)), a3))
 
-              case s => IO.now(Step.done(s, Chunk.empty))
+              case s => IO.succeed(Step.done(s, Chunk.empty))
             }
 
-          leftStep.seq(rightStep).flatMap {
+          leftStep.zip(rightStep).flatMap {
             case (s1, s2) =>
               if (Step.cont(s1) && Step.cont(s2))
-                IO.now(Step.more((Step.state(s1), Step.state(s2))))
+                IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
               else if (!Step.cont(s1) && !Step.cont(s2)) {
                 // Step.Done(s1, a1), Step.Done(s2, a2)
                 Step.state(s1) match {
-                  case Side.Error(_) => IO.now(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s2)))
-                  case Side.Value(_) => IO.now(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
+                  case Side.Error(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s2)))
+                  case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
                   case Side.State(s) =>
                     self
                       .extract(s)
@@ -671,12 +671,12 @@ object Sink {
                         b => Step.done((Side.Value(b), Step.state(s2)), Step.leftover(s1))
                       )
                 }
-              } else if (Step.cont(s1) && !Step.cont(s2)) IO.now(Step.more((Step.state(s1), Step.state(s2))))
+              } else if (Step.cont(s1) && !Step.cont(s2)) IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
               else {
                 // Step.Done(s1, a1), Step.More(s2)
                 Step.state(s1) match {
-                  case Side.Error(_) => IO.now(Step.more((Step.state(s1), Step.state(s2))))
-                  case Side.Value(_) => IO.now(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
+                  case Side.Error(_) => IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
+                  case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
                   case Side.State(s) =>
                     self.extract(s).redeemPure(Side.Error(_), Side.Value(_)).map(s1 => Step.more((s1, Step.state(s2))))
                 }
@@ -687,14 +687,14 @@ object Sink {
 
         def extract(state: State): IO[E1, Either[B, C]] = {
           def fromRight: IO[E1, Either[B, C]] = state._2 match {
-            case Side.Value((_, c)) => IO.now(Right(c))
+            case Side.Value((_, c)) => IO.succeed(Right(c))
             case Side.State(s)      => that.extract(s).map(Right(_))
             case Side.Error(e)      => IO.fail(e)
           }
 
           state match {
-            case (Side.Value(b), _) => IO.now(Left(b))
-            case (Side.State(s), _) => self.extract(s).redeem(_ => fromRight, b => IO.now(Left(b)))
+            case (Side.Value(b), _) => IO.succeed(Left(b))
+            case (Side.State(s), _) => self.extract(s).redeem(_ => fromRight, b => IO.succeed(Left(b)))
             case _                  => fromRight
           }
         }
@@ -711,7 +711,7 @@ object Sink {
         def step(state: State, a: A): IO[E1, Step[State, A]] = state match {
           case Left(s1) =>
             self.step(s1, a) flatMap { s1 =>
-              if (Step.cont(s1)) IO.now(Step.more(Left(Step.state(s1))))
+              if (Step.cont(s1)) IO.succeed(Step.more(Left(Step.state(s1))))
               else {
                 val as = Step.leftover(s1)
 
@@ -770,9 +770,9 @@ object Sink {
           self
             .step(state._3, a)
             .redeem(
-              e => IO.now(Step.done((Some(e), state._2, state._3), Chunk.empty)),
+              e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
               step =>
-                if (Step.cont(step)) IO.now(Step.more((state._1, state._2, Step.state(step))))
+                if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
                 else {
                   val s  = Step.state(step)
                   val as = Step.leftover(step)
@@ -791,7 +791,7 @@ object Sink {
             )
 
         def extract(state: State): IO[E, S] =
-          IO.now(state._2)
+          IO.succeed(state._2)
       }
 
     final def repeat: Sink[E, A, A, List[B]] =
@@ -810,7 +810,7 @@ object Sink {
           if (!p(a)) self.extract(state._2).map(b => Step.done((f(state._1, b), state._2), Chunk(a)))
           else
             self.step(state._2, a).flatMap { step =>
-              if (Step.cont(step)) IO.now(Step.more((state._1, Step.state(step))))
+              if (Step.cont(step)) IO.succeed(Step.more((state._1, Step.state(step))))
               else {
                 val s  = Step.state(step)
                 val as = Step.leftover(step)
@@ -824,7 +824,7 @@ object Sink {
             }
 
         def extract(state: State): IO[E, S] =
-          IO.now(state._1)
+          IO.succeed(state._1)
       }
 
     final def repeatWhile(p: A => Boolean): Sink[E, A, A, List[B]] =

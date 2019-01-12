@@ -1,5 +1,7 @@
 package scalaz.zio
 
+import scalaz.zio.syntax._
+
 class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is = "PromiseSpec".title ^ s2"""
@@ -19,7 +21,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
 
         poll retrieves the final status immediately
           it `fails' with Unit ` if the promise is not done yet.  $e8
-          Otherwise, it returns the `ExitResult`, whether
+          Otherwise, it returns the `Exit`, whether
             `Completed`                                           $e9
             `Failed`                                              $e10
             `Terminated`.                                         $e11
@@ -29,8 +31,8 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        s <- p.complete(32)
-        v <- p.get
+        s <- p.succeed(32)
+        v <- p.await
       } yield s must beTrue and (v must_=== 32)
     )
 
@@ -38,8 +40,8 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        s <- p.done(IO.now(14))
-        v <- p.get
+        s <- p.done(IO.succeed(14))
+        v <- p.await
       } yield s must beTrue and (v must_=== 14)
     )
 
@@ -47,8 +49,8 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.error("error in e3")
-        v <- p.get.attempt
+        s <- p.fail("error in e3")
+        v <- p.await.attempt
       } yield s must beTrue and (v must_=== Left("error in e3"))
     )
 
@@ -57,7 +59,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       for {
         p <- Promise.make[String, Int]
         s <- p.done(IO.fail("error in e4"))
-        v <- p.get.attempt
+        v <- p.await.attempt
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
 
@@ -65,9 +67,9 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        _ <- p.complete(1)
-        s <- p.done(IO.now(9))
-        v <- p.get
+        _ <- p.succeed(1)
+        s <- p.done(IO.succeed(9))
+        v <- p.await
       } yield s must beFalse and (v must_=== 1)
     )
 
@@ -90,7 +92,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(
       for {
         p       <- Promise.make[String, Int]
-        attempt <- p.poll.attempt
+        attempt <- p.poll.get.attempt
       } yield attempt must beLeft(())
     )
 
@@ -98,18 +100,18 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun {
       for {
         p      <- Promise.make[String, Int]
-        _      <- p.complete(12)
-        result <- p.poll.flatMap(_.run)
-      } yield result must_=== ExitResult.succeeded(12)
+        _      <- p.succeed(12)
+        result <- p.poll.get.flatMap(_.run)
+      } yield result must_=== Exit.succeed(12)
     }
 
   def e10 =
     unsafeRun {
       for {
         p      <- Promise.make[String, Int]
-        _      <- p.error("failure")
-        result <- p.poll.flatMap(_.run)
-      } yield result must_=== ExitResult.checked("failure")
+        _      <- p.fail("failure")
+        result <- p.poll.get.flatMap(_.run)
+      } yield result must_=== Exit.checked("failure")
     }
 
   def e11 =
@@ -117,8 +119,8 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       for {
         p             <- Promise.make[String, Int]
         _             <- p.interrupt
-        attemptResult <- p.poll.flatMap(_.run)
-      } yield attemptResult must_=== ExitResult.interrupted
+        attemptResult <- p.poll.get.flatMap(_.run)
+      } yield attemptResult must_=== Exit.interrupted
     }
 
 }
