@@ -33,10 +33,10 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
             .update(err, state, clock)
             .flatMap(
               step =>
-                if (!step.cont) IO.now((Left(err), (step.delay, step.finish()) :: ss))
+                if (!step.cont) IO.succeed((Left(err), (step.delay, step.finish()) :: ss))
                 else loop(step.state, (step.delay, step.finish()) :: ss)
             ),
-        suc => IO.now((Right(suc), ss))
+        suc => IO.succeed((Right(suc), ss))
       )
 
     retry.initial(clock).flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
@@ -73,7 +73,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     def failOn0(ref: Ref[Int]): IO[String, Int] =
       for {
         i <- ref.update(_ + 1)
-        x <- if (i <= 1) IO.fail(s"Error: $i") else IO.now(i)
+        x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
       } yield x
     val retried = unsafeRun(for {
       ref <- Ref(0)
@@ -100,8 +100,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         ref <- Ref(0)
         _   <- alwaysFail(ref).retry(Schedule.once)
       } yield ()).redeem(
-        err => IO.now(err),
-        _ => IO.now("A failure was expected")
+        err => IO.succeed(err),
+        _ => IO.succeed("A failure was expected")
       )
     )
 
@@ -123,8 +123,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         ref <- Ref(0)
         i   <- incr(ref).retry(Schedule.recurs(0))
       } yield i).redeem(
-        err => IO.now(err),
-        _ => IO.now("it should not be a success")
+        err => IO.succeed(err),
+        _ => IO.succeed("it should not be a success")
       )
     )
 
@@ -174,7 +174,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     var i                            = 0
     val strategy: Schedule[Any, Int] = Schedule.recurs(10)
     val io = IO.sync[Unit](i += 1).flatMap { _ =>
-      if (i < 5) IO.fail("KeepTryingError") else IO.point(i)
+      if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
     }
     val result   = unsafeRun(io.retry(strategy))
     val expected = 5

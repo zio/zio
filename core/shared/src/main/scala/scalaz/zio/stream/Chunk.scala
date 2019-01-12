@@ -166,10 +166,10 @@ sealed trait Chunk[@specialized +A] { self =>
     val len = length
 
     def loop(s: S, i: Int): IO[E, S] =
-      if (i >= len) IO.now(s)
+      if (i >= len) IO.succeed(s)
       else {
         if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
-        else IO.now(s)
+        else IO.succeed(s)
       }
 
     loop(z, 0)
@@ -206,7 +206,7 @@ sealed trait Chunk[@specialized +A] { self =>
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldM[E, S](s: S)(f: (S, A) => IO[E, S]): IO[E, S] =
-    foldLeft[IO[E, S]](IO.now(s)) { (s, a) =>
+    foldLeft[IO[E, S]](IO.succeed(s)) { (s, a) =>
       s.flatMap(f(_, a))
     }
 
@@ -389,12 +389,12 @@ sealed trait Chunk[@specialized +A] { self =>
    */
   final def traverse[E, B](f: A => IO[E, B]): IO[E, Chunk[B]] = {
     val len                    = self.length
-    var array: IO[E, Array[B]] = IO.now(null.asInstanceOf[Array[B]])
+    var array: IO[E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
     var i                      = 0
 
     while (i < len) {
       val j = i
-      array = array.seqWith(f(self(j))) { (array, b) =>
+      array = array.zipWith(f(self(j))) { (array, b) =>
         val array2 = if (array == null) {
           implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
           Array.ofDim[B](len)
@@ -534,7 +534,7 @@ object Chunk {
   /**
    * Returns a singleton chunk.
    */
-  final def point[@specialized A](a: A): Chunk[A] = Singleton(a)
+  final def succeedLazy[@specialized A](a: A): Chunk[A] = Singleton(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.

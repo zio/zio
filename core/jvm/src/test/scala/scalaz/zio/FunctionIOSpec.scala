@@ -1,10 +1,10 @@
 package scalaz.zio
 
-import KleisliIO._
+import FunctionIO._
 
-class KleisliIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
-  def is = "KleisliIOSpec".title ^ s2"""
-   Check if the functions in `KleisliIO` work correctly
+class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+  def is = "FunctionIOSpec".title ^ s2"""
+   Check if the functions in `FunctionIO` work correctly
      `lift` lifts from A => B into effectful function $e1
      `identity` returns the identity of the input without modification $e2
      `>>>` is a symbolic operator of `andThen`which does a Backwards composition of effectul functions $e3
@@ -59,8 +59,8 @@ class KleisliIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e5 =
     unsafeRun(
       for {
-        v <- point(1)
-              .zipWith[Nothing, Int, Int, Int](point(2))((a, b) => a + b)
+        v <- succeedLazy(1)
+              .zipWith[Nothing, Int, Int, Int](succeedLazy(2))((a, b) => a + b)
               .run(1)
       } yield v must_=== 3
     )
@@ -98,7 +98,7 @@ class KleisliIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
     unsafeRun(
       for {
         v1 <- lift[Int, Int](_ * 2).left[Int].run(Left(6))
-        v2 <- point(1).left[String].run(Right("hi"))
+        v2 <- succeedLazy(1).left[String].run(Right("hi"))
       } yield (v1 must beLeft(12)) and (v2 must beRight("hi"))
     )
 
@@ -120,19 +120,19 @@ class KleisliIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e13 =
     unsafeRun(
       for {
-        v1 <- KleisliIO.test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
-        v2 <- KleisliIO.test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
+        v1 <- FunctionIO.test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
+        v2 <- FunctionIO.test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
       } yield (v1 must beRight(Array(1, 2, 5))) and (v2 must beLeft(Array(1, 2, 5, 6)))
     )
 
   def e14a =
     unsafeRun(
       for {
-        v1 <- ifThenElse(lift[Int, Boolean](_ > 0))(point("is positive"))(
-               point("is negative")
+        v1 <- ifThenElse(lift[Int, Boolean](_ > 0))(succeedLazy("is positive"))(
+               succeedLazy("is negative")
              ).run(-1)
-        v2 <- ifThenElse(lift[Int, Boolean](_ > 0))(point("is positive"))(
-               point("is negative")
+        v2 <- ifThenElse(lift[Int, Boolean](_ > 0))(succeedLazy("is positive"))(
+               succeedLazy("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
     )
@@ -140,11 +140,11 @@ class KleisliIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e14b =
     unsafeRun(
       for {
-        v1 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.now(a > 0)))(point("is positive"))(
-               point("is negative")
+        v1 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
+               succeedLazy("is negative")
              ).run(-1)
-        v2 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.now(a > 0)))(point("is positive"))(
-               point("is negative")
+        v2 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
+               succeedLazy("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
     )
@@ -159,7 +159,7 @@ class KleisliIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e15b =
     unsafeRun(
       for {
-        v <- whileDo[Nothing, Int](pure[Nothing, Int, Boolean](a => IO.now[Boolean](a < 10)))(
+        v <- whileDo[Nothing, Int](pure[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10)))(
               pure[Nothing, Int, Int](a => IO.sync[Int](a + 1))
             ).run(1)
       } yield v must_=== 10
