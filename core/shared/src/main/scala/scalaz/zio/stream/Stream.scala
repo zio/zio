@@ -37,8 +37,8 @@ trait Stream[+E, +A] { self =>
       override def fold[E2 >: E1, A2 >: A1, S]: Fold[E2, A2, S] =
         IO.succeedLazy { (s, cont, f) =>
           self.fold[E2, A, S].flatMap { f0 =>
-            f0(s, cont, f).flatMap { s0 =>
-              if (cont(s0)) that.fold[E2, A1, S].flatMap(f1 => f1(s0, cont, f))
+            f0(s, cont, f).flatMap { s =>
+              if (cont(s)) that.fold[E2, A1, S].flatMap(f1 => f1(s, cont, f))
               else IO.succeed(s)
             }
           }
