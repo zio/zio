@@ -52,6 +52,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     left identity           $monadLaw1
     right identity          $monadLaw2
     associativity           $monadLaw3
+
+  Stream stack safety
+    deep flatMap            $deepFlatMap
   """
 
   import ArbitraryStream._
@@ -187,6 +190,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       val rightStream = m.flatMap(x => f(x).flatMap(g))
       slurp(leftStream) must_=== slurp(rightStream)
     }
+
+  private def deepFlatMap = {
+    def fib(n: Int): Stream[Nothing, Int] =
+      if (n <= 1) Stream.point(n)
+      else
+        fib(n - 1).flatMap { a =>
+          fib(n - 2).flatMap { b =>
+            Stream.point(a + b)
+          }
+        }
+
+    val stream   = fib(20)
+    val expected = 6765
+
+    slurp(stream).toEither must beRight(List(expected))
+  }
 
   private def forever = {
     var sum = 0
