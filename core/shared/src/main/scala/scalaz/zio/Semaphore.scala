@@ -21,7 +21,8 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 
   final def release: IO[Nothing, Unit] = releaseN(1)
 
-  final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] = prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
+  final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
+    prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
 
   /**
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
