@@ -575,8 +575,8 @@ object Stream {
 
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
     new StreamPure[A] {
-      override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-        c.foldMLazy(s)(cont)(f)
+      override def fold[E >: Nothing, A1 >: A, S]: Fold[E, A1, S] =
+        IO.point((s, cont, f) => c.foldMLazy(s)(cont)(f))
 
       override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
         c.foldLeftLazy(s)(cont)(f)
@@ -596,9 +596,11 @@ object Stream {
    * Lifts an effect producing an `A` into a stream producing that `A`.
    */
   final def lift[E, A](fa: IO[E, A]): Stream[E, A] = new Stream[E, A] {
-    override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
-      if (cont(s)) fa.flatMap(f(s, _))
-      else IO.succeed(s)
+    override def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        if (cont(s)) fa.flatMap(f(s, _))
+        else IO.succeed(s)
+      }
   }
 
   /**
@@ -629,14 +631,16 @@ object Stream {
 
   final def managed[E, A, B](m: Managed[E, A])(read: A => IO[E, Option[B]]) =
     new Stream[E, B] {
-      override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
-        if (cont(s))
-          m use { a =>
-            read(a).flatMap {
-              case None    => IO.succeed(s)
-              case Some(b) => f(s, b)
-            }
-          } else IO.succeed(s)
+      override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
+        IO.succeedLazy { (s, cont, f) =>
+          if (cont(s))
+            m use { a =>
+              read(a).flatMap {
+                case None    => IO.succeed(s)
+                case Some(b) => f(s, b)
+              }
+            } else IO.succeed(s)
+        }
     }
 
   /**
@@ -651,20 +655,19 @@ object Stream {
    */
   final def unfoldM[S, E, A](s: S)(f0: S => IO[E, Option[(A, S)]]): Stream[E, A] =
     new Stream[E, A] {
-      override def foldLazy[E1 >: E, A1 >: A, S2](
-        s2: S2
-      )(cont: S2 => Boolean)(f: (S2, A1) => IO[E1, S2]): IO[E1, S2] = {
-        def loop(s: S, s2: S2): IO[E1, (S, S2)] =
-          if (!cont(s2)) IO.succeed((s, s2))
-          else
-            f0(s) flatMap {
-              case None => IO.succeed((s, s2))
-              case Some((a, s)) =>
-                f(s2, a).flatMap(loop(s, _))
-            }
+      override def fold[E1 >: E, A1 >: A, S2]: Fold[E1, A1, S2] =
+        IO.succeedLazy { (s2, cont, f) =>
+          def loop(s: S, s2: S2): IO[E1, (S, S2)] =
+            if (!cont(s2)) IO.succeed((s, s2))
+            else
+              f0(s).flatMap {
+                case None => IO.succeed((s, s2))
+                case Some((a, s)) =>
+                  f(s2, a).flatMap(loop(s, _))
+              }
 
-        loop(s, s2).map(_._2)
-      }
+          loop(s, s2).map(_._2)
+        }
     }
 
   /**
@@ -672,20 +675,19 @@ object Stream {
    */
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): Stream[Nothing, A] =
     new StreamPure[A] {
-      override def foldLazy[E1 >: Nothing, A1 >: A, S2](
-        s2: S2
-      )(cont: S2 => Boolean)(f: (S2, A1) => IO[E1, S2]): IO[E1, S2] = {
-        def loop(s: S, s2: S2): IO[E1, (S, S2)] =
-          if (!cont(s2)) IO.succeed((s, s2))
-          else
-            f0(s) match {
-              case None => IO.succeed((s, s2))
-              case Some((a, s)) =>
-                f(s2, a).flatMap(loop(s, _))
-            }
+      override def fold[E1 >: Nothing, A1 >: A, S2]: Fold[E1, A1, S2] =
+        IO.succeedLazy { (s2, cont, f) =>
+          def loop(s: S, s2: S2): IO[E1, (S, S2)] =
+            if (!cont(s2)) IO.succeed((s, s2))
+            else
+              f0(s) match {
+                case None => IO.succeed((s, s2))
+                case Some((a, s)) =>
+                  f(s2, a).flatMap(loop(s, _))
+              }
 
-        loop(s, s2).map(_._2)
-      }
+          loop(s, s2).map(_._2)
+        }
 
       override def foldPureLazy[A1 >: A, S2](s2: S2)(cont: S2 => Boolean)(f: (S2, A1) => S2): S2 = {
         def loop(s: S, s2: S2): (S, S2) =

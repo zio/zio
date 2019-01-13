@@ -99,7 +99,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
 
     override def fold[E, B1 >: B, S]: Stream.Fold[E, B1, S] =
       IO.point { (s, cont, f) =>
-        StreamPure.super.mapConcat(f0).fold[E, B1, S].flatMap(f1 =>f1(s, cont, f))
+        StreamPure.super.mapConcat(f0).fold[E, B1, S].flatMap(f1 => f1(s, cont, f))
       }
   }
 
