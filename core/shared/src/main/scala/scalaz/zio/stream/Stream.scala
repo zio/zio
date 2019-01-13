@@ -148,8 +148,10 @@ trait Stream[+E, +A] { self =>
    * Maps over elements of the stream with the specified function.
    */
   def map[B](f0: A => B): Stream[E, B] = new Stream[E, B] {
-    override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
-      self.foldLazy[E1, A, S](s)(cont)((s, a) => f(s, f0(a)))
+    override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
+      IO.point { (s, cont, f) =>
+        self.fold[E1, A, S].flatMap(f1 => f1(s, cont, (s, a) => f(s, f0(a))))
+      }
   }
 
   /**
