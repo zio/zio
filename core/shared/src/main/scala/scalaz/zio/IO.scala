@@ -45,6 +45,11 @@ import scala.annotation.switch
  * `App`.
  */
 sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
+  /**
+   * Embeds this program into one that requires a "bigger" environment.
+   */
+  def contramap[R0](f: R0 => R): ZIO[R0, E, A] =
+    ZIO.read[R0].flatMap(r0 => self.provide(f(r0)))
 
   /**
    * Maps an `IO[E, A]` into an `IO[E, B]` by applying the specified `A => B` function
