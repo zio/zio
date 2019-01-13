@@ -456,44 +456,39 @@ trait Stream[+E, +A] { self =>
    */
   final def transduce[E1 >: E, A1 >: A, C](sink: Sink[E1, A1, A1, C]): Stream[E1, C] =
     new Stream[E1, C] {
-      override def foldLazy[E2 >: E1, C1 >: C, S2](
-        s2: S2
-      )(cont: S2 => Boolean)(f: (S2, C1) => IO[E2, S2]): IO[E2, S2] = {
-        def feed(s1: sink.State, s2: S2, a: Chunk[A1]): IO[E2, Sink.Step[(sink.State, S2), A1]] =
-          sink.stepChunk(s1, a).flatMap { step =>
-            if (Sink.Step.cont(step)) IO.succeed(Sink.Step.leftMap(step)((_, s2)))
-            else {
-              sink.extract(Sink.Step.state(step)).flatMap { c =>
-                f(s2, c) flatMap { s2 =>
-                  if (cont(s2))
-                    sink.initial.flatMap(initStep => feed(Sink.Step.state(initStep), s2, Sink.Step.leftover(step)))
-                  else IO.succeed(Sink.Step.more((s1, s2)))
+      override def fold[E2 >: E1, C1 >: C, S2]: Fold[E2, C1, S2] =
+        IO.succeedLazy { (s2, cont, f) =>
+          def feed(s1: sink.State, s2: S2, a: Chunk[A1]): IO[E2, Sink.Step[(sink.State, S2), A1]] =
+            sink.stepChunk(s1, a).flatMap { step =>
+              if (Sink.Step.cont(step)) IO.succeed(Sink.Step.leftMap(step)((_, s2)))
+              else {
+                sink.extract(Sink.Step.state(step)).flatMap { c =>
+                  f(s2, c).flatMap { s2 =>
+                    if (cont(s2))
+                      sink.initial.flatMap(initStep => feed(Sink.Step.state(initStep), s2, Sink.Step.leftover(step)))
+                    else IO.succeed(Sink.Step.more((s1, s2)))
+                  }
                 }
               }
             }
+
+          sink.initial.flatMap { initStep =>
+            val s1 = Sink.Step.leftMap(initStep)((_, s2))
+
+            self.fold[E2, A, Sink.Step[(sink.State, S2), A1]].flatMap { f0 =>
+              f0(s1, step => cont(Sink.Step.state(step)._2), { (s, a) =>
+                val (s1, s2) = Sink.Step.state(s)
+                feed(s1, s2, Chunk(a))
+              }).flatMap { step =>
+                val (s1, s2) = Sink.Step.state(step)
+
+                sink
+                  .extract(s1)
+                  .redeem(_ => IO.now(s2), c => f(s2, c))
+              }
+            }
           }
-
-        sink.initial.flatMap { initStep =>
-          val s1 = Sink.Step.leftMap(initStep)((_, s2))
-
-          self
-            .foldLazy[E2, A, Sink.Step[(sink.State, S2), A1]](s1)(step => cont(Sink.Step.state(step)._2)) { (s, a) =>
-              val (s1, s2) = Sink.Step.state(s)
-
-              feed(s1, s2, Chunk(a))
-            }
-            .flatMap { step =>
-              val (s1, s2) = Sink.Step.state(step)
-
-              sink
-                .extract(s1)
-                .redeem(
-                  _ => IO.succeed(s2),
-                  c => f(s2, c)
-                )
-            }
         }
-      }
     }
 
   /**
