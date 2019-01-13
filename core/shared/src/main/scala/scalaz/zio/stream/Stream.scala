@@ -370,15 +370,13 @@ trait Stream[+E, +A] { self =>
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
   def run[E1 >: E, A0, A1 >: A, B](sink: Sink[E1, A0, A1, B]): IO[E1, B] =
-    sink.initial
-      .flatMap(
-        state =>
-          self
-            .foldLazy[E1, A1, Sink.Step[sink.State, A0]](state)(Sink.Step.cont)(
-              (s, a) => sink.step(Sink.Step.state(s), a)
-            )
-            .flatMap(step => sink.extract(Sink.Step.state(step)))
-      )
+    sink.initial.flatMap { state =>
+      self.fold[E1, A1, Sink.Step[sink.State, A0]].flatMap { f =>
+        f(state, Sink.Step.cont, (s, a) => sink.step(Sink.Step.state(s), a)).flatMap { step =>
+          sink.extract(Sink.Step.state(step))
+        }
+      }
+    }
 
   /**
    * Statefully maps over the elements of this stream to produce new elements.
