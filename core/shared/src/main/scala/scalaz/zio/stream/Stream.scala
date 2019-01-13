@@ -516,47 +516,50 @@ trait Stream[+E, +A] { self =>
    * Zips two streams together with a specified function.
    */
   final def zipWith[E1 >: E, B, C](that: Stream[E1, B], lc: Int = 1, rc: Int = 1)(
-    f0: (Option[A], Option[B]) => Option[C]
+    f: (Option[A], Option[B]) => Option[C]
   ): Stream[E1, C] =
     new Stream[E1, C] {
-      override def foldLazy[E2 >: E1, A1 >: C, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E2, S]) = {
-        def loop(
-          leftDone: Boolean,
-          rightDone: Boolean,
-          q1: Queue[Take[E2, A]],
-          q2: Queue[Take[E2, B]],
-          s: S
-        ): IO[E2, S] = {
-          val takeLeft  = if (leftDone) IO.succeed(None) else Take.option(q1.take)
-          val takeRight = if (rightDone) IO.succeed(None) else Take.option(q2.take)
+      override def fold[E2 >: E1, A1 >: C, S]: Fold[E2, A1, S] =
+        IO.succeedLazy { (s, cont, g) =>
+          def loop(
+            leftDone: Boolean,
+            rightDone: Boolean,
+            q1: Queue[Take[E2, A]],
+            q2: Queue[Take[E2, B]],
+            s: S
+          ): IO[E2, S] = {
+            val takeLeft  = if (leftDone) IO.succeed(None) else Take.option(q1.take)
+            val takeRight = if (rightDone) IO.succeed(None) else Take.option(q2.take)
 
-          takeLeft.zip(takeRight).flatMap {
-            case (left, right) =>
-              f0(left, right) match {
-                case None => IO.succeed(s)
-                case Some(c) =>
-                  f(s, c).flatMap { s =>
-                    if (cont(s)) loop(left.isEmpty, right.isEmpty, q1, q2, s)
-                    else IO.succeed(s)
-                  }
-              }
+            takeLeft.zip(takeRight).flatMap {
+              case (left, right) =>
+                f(left, right) match {
+                  case None => IO.succeed(s)
+                  case Some(c) =>
+                    g(s, c).flatMap { s =>
+                      if (cont(s)) loop(left.isEmpty, right.isEmpty, q1, q2, s)
+                      else IO.succeed(s)
+                    }
+                }
+            }
           }
-        }
 
-        self.toQueue[E2, A](lc).use(q1 => that.toQueue[E2, B](rc).use(q2 => loop(false, false, q1, q2, s)))
-      }
+          self.toQueue[E2, A](lc).use(q1 => that.toQueue[E2, B](rc).use(q2 => loop(false, false, q1, q2, s)))
+        }
     }
 
   /**
    * Zips this stream together with the index of elements of the stream.
    */
   def zipWithIndex: Stream[E, (A, Int)] = new Stream[E, (A, Int)] {
-    override def foldLazy[E1 >: E, A1 >: (A, Int), S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
-      self
-        .foldLazy[E1, A, (S, Int)]((s, 0))(tp => cont(tp._1)) {
-          case ((s, index), a) => f(s, (a, index)).map(s => (s, index + 1))
+    override def fold[E1 >: E, A1 >: (A, Int), S]: Fold[E1, A1, S] =
+      IO.point { (s, cont, f) =>
+        self.fold[E1, A, (S, Int)].flatMap { f0 =>
+          f0((s, 0), tp => cont(tp._1), {
+            case ((s, index), a) => f(s, (a, index)).map(s => (s, index + 1))
+          }).map(_._1)
         }
-        .map(_._1)
+      }
   }
 }
 
