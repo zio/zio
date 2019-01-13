@@ -246,7 +246,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   private def peel = {
     val s      = Stream('1', '2', ',', '3', '4')
     val parser = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
-    val peeled = s.peel(parser).use {
+    val peeled = s.peel(parser).use[Any, Int, (Int, ExitResult[Nothing, List[Char]])] {
       case (n, rest) =>
         IO.now((n, slurp(rest)))
     }

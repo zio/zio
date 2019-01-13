@@ -161,7 +161,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def fixedWithErrorPredicate = {
     var i = 0
-    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+    val io = IO.sync[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
