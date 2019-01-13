@@ -11,7 +11,7 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
   /**
    * Reads the value associated with the current fiber.
    */
-  final def get: IO[Nothing, Option[A]] =
+  final def get: UIO[Option[A]] =
     for {
       descriptor <- IO.descriptor
       value      <- state.get
@@ -20,7 +20,7 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
   /**
    * Sets the value associated with the current fiber.
    */
-  final def set(value: A): IO[Nothing, Unit] =
+  final def set(value: A): UIO[Unit] =
     for {
       descriptor <- IO.descriptor
       _          <- state.update(_ + (descriptor.id -> value))
@@ -29,7 +29,7 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
   /**
    * Empties the value associated with the current fiber.
    */
-  final def empty: IO[Nothing, Unit] =
+  final def empty: UIO[Unit] =
     for {
       descriptor <- IO.descriptor
       _          <- state.update(_ - descriptor.id)
@@ -50,7 +50,7 @@ object FiberLocal {
   /**
    * Creates a new `FiberLocal`.
    */
-  final def make[A]: IO[Nothing, FiberLocal[A]] =
+  final def make[A]: UIO[FiberLocal[A]] =
     Ref[internal.State[A]](Map())
       .map(state => new FiberLocal(state))
 
