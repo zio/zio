@@ -97,13 +97,18 @@ trait Stream[+E, +A] { self =>
    * evaluates to `true`.
    */
   def dropWhile(pred: A => Boolean): Stream[E, A] = new Stream[E, A] {
-    override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
-      self
-        .foldLazy[E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
-          case ((true, s), a) if pred(a) => IO.succeed(true   -> s)
-          case ((_, s), a)               => f(s, a).map(false -> _)
+    override def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        self.fold[E1, A, (Boolean, S)].flatMap { f0 =>
+          def func(tp: (Boolean, S), a: A): IO[E1, (Boolean, S)] =
+            (tp, a) match {
+              case ((true, s), a) if pred(a) => IO.succeed(true       -> s)
+              case ((_, s), a)               => f(s, a).map(false -> _)
+            }
+
+          f0(true -> s, tp => cont(tp._2), func).map(_._2)
         }
-        .map(_._2)
+      }
   }
 
   /**
