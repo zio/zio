@@ -194,46 +194,47 @@ trait Stream[+E, +A] { self =>
    */
   final def mergeWith[E1 >: E, B, C](that: Stream[E1, B], capacity: Int = 1)(l: A => C, r: B => C): Stream[E1, C] =
     new Stream[E1, C] {
-      override def foldLazy[E2 >: E1, C1 >: C, S](s: S)(cont: S => Boolean)(f: (S, C1) => IO[E2, S]): IO[E2, S] = {
-        type Elem = Either[Take[E2, A], Take[E2, B]]
+      override def fold[E2 >: E1, C1 >: C, S]: Fold[E2, C1, S] =
+        IO.point { (s, cont, f) =>
+          type Elem = Either[Take[E2, A], Take[E2, B]]
 
-        def loop(leftDone: Boolean, rightDone: Boolean, s: S, queue: Queue[Elem]): IO[E2, S] =
-          queue.take.flatMap {
-            case Left(Take.Fail(e))  => IO.fail(e)
-            case Right(Take.Fail(e)) => IO.fail(e)
-            case Left(Take.End) =>
-              if (rightDone) IO.succeed(s)
-              else loop(true, rightDone, s, queue)
-            case Left(Take.Value(a)) =>
-              f(s, l(a)).flatMap { s =>
-                if (cont(s)) loop(leftDone, rightDone, s, queue)
-                else IO.succeed(s)
-              }
-            case Right(Take.End) =>
-              if (leftDone) IO.succeed(s)
-              else loop(leftDone, true, s, queue)
-            case Right(Take.Value(b)) =>
-              f(s, r(b)).flatMap { s =>
-                if (cont(s)) loop(leftDone, rightDone, s, queue)
-                else IO.succeed(s)
-              }
-          }
+          def loop(leftDone: Boolean, rightDone: Boolean, s: S, queue: Queue[Elem]): IO[E2, S] =
+            queue.take.flatMap {
+              case Left(Take.Fail(e))  => IO.fail(e)
+              case Right(Take.Fail(e)) => IO.fail(e)
+              case Left(Take.End) =>
+                if (rightDone) IO.succeed(s)
+                else loop(true, rightDone, s, queue)
+              case Left(Take.Value(a)) =>
+                f(s, l(a)).flatMap { s =>
+                  if (cont(s)) loop(leftDone, rightDone, s, queue)
+                  else IO.succeed(s)
+                }
+              case Right(Take.End) =>
+                if (leftDone) IO.succeed(s)
+                else loop(leftDone, true, s, queue)
+              case Right(Take.Value(b)) =>
+                f(s, r(b)).flatMap { s =>
+                  if (cont(s)) loop(leftDone, rightDone, s, queue)
+                  else IO.succeed(s)
+                }
+            }
 
-        if (cont(s)) {
-          (for {
-            queue  <- Queue.bounded[Elem](capacity)
-            putL   = (a: A) => queue.offer(Left(Take.Value(a))).void
-            putR   = (b: B) => queue.offer(Right(Take.Value(b))).void
-            catchL = (e: E2) => queue.offer(Left(Take.Fail(e)))
-            catchR = (e: E2) => queue.offer(Right(Take.Fail(e)))
-            endL   = queue.offer(Left(Take.End))
-            endR   = queue.offer(Right(Take.End))
-            _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
-            _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
-            step   <- loop(false, false, s, queue)
-          } yield step).supervise
-        } else IO.succeed(s)
-      }
+          if (cont(s)) {
+            (for {
+              queue  <- Queue.bounded[Elem](capacity)
+              putL   = (a: A) => queue.offer(Left(Take.Value(a))).void
+              putR   = (b: B) => queue.offer(Right(Take.Value(b))).void
+              catchL = (e: E2) => queue.offer(Left(Take.Fail(e)))
+              catchR = (e: E2) => queue.offer(Right(Take.Fail(e)))
+              endL   = queue.offer(Left(Take.End))
+              endR   = queue.offer(Right(Take.End))
+              _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
+              _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
+              step   <- loop(false, false, s, queue)
+            } yield step).supervised
+          } else IO.succeed(s)
+        }
     }
 
   /**
