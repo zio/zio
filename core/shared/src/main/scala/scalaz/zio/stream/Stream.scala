@@ -613,8 +613,10 @@ object Stream {
    */
   final def unwrap[E, A](stream: IO[E, Stream[E, A]]): Stream[E, A] =
     new Stream[E, A] {
-      override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
-        stream.flatMap(_.foldLazy[E1, A1, S](s)(cont)(f))
+      override def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S] =
+        IO.point { (s, cont, f) =>
+          stream.flatMap(_.fold[E1, A1, S].flatMap(f0 => f0(s, cont, f)))
+        }
     }
 
   /**
