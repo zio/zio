@@ -116,8 +116,12 @@ trait Stream[+E, +A] { self =>
    * concatenation of those streams.
    */
   final def flatMap[E1 >: E, B](f0: A => Stream[E1, B]): Stream[E1, B] = new Stream[E1, B] {
-    override def foldLazy[E2 >: E1, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E2, S]): IO[E2, S] =
-      self.foldLazy[E2, A, S](s)(cont)((s, a) => f0(a).foldLazy[E2, B1, S](s)(cont)(f))
+    override def fold[E2 >: E1, B1 >: B, S]: Fold[E2, B1, S] =
+      IO.point { (s, cont, f) =>
+        self.fold[E2, A, S].flatMap { f1 =>
+          f1(s, cont, (s, a) => f0(a).fold[E2, B1, S].flatMap(g => g(s, cont, f)))
+        }
+      }
   }
 
   /**
