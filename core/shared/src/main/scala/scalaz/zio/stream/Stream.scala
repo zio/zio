@@ -382,15 +382,17 @@ trait Stream[+E, +A] { self =>
    * Statefully maps over the elements of this stream to produce new elements.
    */
   def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): Stream[E, B] = new Stream[E, B] {
-    override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
-      self
-        .foldLazy[E1, A, (S, S1)](s -> s1)(tp => cont(tp._1)) {
-          case ((s, s1), a) =>
-            val (s2, b) = f1(s1, a)
+    override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
+      IO.point { (s, cont, f) =>
+        self.fold[E1, A, (S, S1)].flatMap { f0 =>
+          f0(s -> s1, tp => cont(tp._1), {
+            case ((s, s1), a) =>
+              val (s2, b) = f1(s1, a)
 
-            f(s, b).map(s => s -> s2)
+              f(s, b).map(s => s -> s2)
+          }).map(_._1)
         }
-        .map(_._1)
+      }
   }
 
   /**
@@ -398,16 +400,18 @@ trait Stream[+E, +A] { self =>
    * new elements.
    */
   final def mapAccumM[E1 >: E, S1, B](s1: S1)(f1: (S1, A) => IO[E1, (S1, B)]): Stream[E1, B] = new Stream[E1, B] {
-    override def foldLazy[E2 >: E1, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E2, S]): IO[E2, S] =
-      self
-        .foldLazy[E2, A, (S, S1)](s -> s1)(tp => cont(tp._1)) {
-          case ((s, s1), a) =>
-            f1(s1, a).flatMap {
-              case (s1, b) =>
-                f(s, b).map(s => s -> s1)
-            }
+    override def fold[E2 >: E1, B1 >: B, S]: Fold[E2, B1, S] =
+      IO.point { (s, cont, f) =>
+        self.fold[E2, A, (S, S1)].flatMap { f0 =>
+          f0(s -> s1, tp => cont(tp._1), {
+            case ((s, s1), a) =>
+              f1(s1, a).flatMap {
+                case (s1, b) =>
+                  f(s, b).map(s => s -> s1)
+              }
+          }).map(_._1)
         }
-        .map(_._1)
+      }
   }
 
   /**
