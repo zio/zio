@@ -22,7 +22,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       _ <- third
     } yield ()
 
-    val program = composed.use(_ => IO.unit)
+    val program = composed.use[Any, Nothing, Unit](_ => IO.unit)
 
     unsafeRun(program)
 
@@ -35,7 +35,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     def managed(v: String): Managed[Any, Nothing, String] =
       Managed(IO.now(v))(_ => IO.sync { cleanups += v; () })
 
-    val program = managed("A").parWith(managed("B"))(_ + _).use(IO.now)
+    val program = managed("A").parWith(managed("B"))(_ + _).use[Any, Nothing, String](IO.now)
 
     val result = unsafeRun(program)
 
