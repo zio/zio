@@ -69,27 +69,20 @@ trait Stream[+E, +A] { self =>
    * and terminating consumption when the callback returns `false`.
    */
   final def foreach0[E1 >: E](f: A => IO[E1, Boolean]): IO[E1, Unit] =
-<<<<<<< HEAD
-    self
-      .foldLazy[E1, A, Boolean](true)(identity)(
-        (cont, a) =>
-          if (cont) f(a)
-          else IO.succeed(cont)
-      )
-      .void
-=======
-    self.fold[E1, A, Boolean].flatMap(f0 => f0(true, identity, (cont, a) => if (cont) f(a) else IO.now(cont))).void
->>>>>>> Implement Stream.foreach0 in terms of fold
+    self.fold[E1, A, Boolean].flatMap { f0 => 
+      f0(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
+    }.void
 
   /**
    * Performs a filter and map in a single step.
    */
   def collect[B](pf: PartialFunction[A, B]): Stream[E, B] =
     new Stream[E, B] {
-      override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
-        self.foldLazy[E1, A, S](s)(cont) { (s, a) =>
-          if (pf isDefinedAt a) f(s, pf(a))
-          else IO.succeed(s)
+      override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
+        IO.succeedLazy { (s, cont, f) =>
+          self.fold[E1, A, S].flatMap { f0 =>
+            f0(s, cont, (s, a) => if (pf.isDefinedAt(a)) f(s, pf(a)) else IO.succeed(s))
+          }
         }
     }
 
