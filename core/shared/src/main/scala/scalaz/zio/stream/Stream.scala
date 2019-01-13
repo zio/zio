@@ -115,11 +115,11 @@ trait Stream[+E, +A] { self =>
    * Maps each element of this stream to another stream, and returns the
    * concatenation of those streams.
    */
-  final def flatMap[E1 >: E, B](f0: A => Stream[E1, B]): Stream[E1, B] = new Stream[E1, B] {
+  final def flatMap[E1 >: E, B](f: A => Stream[E1, B]): Stream[E1, B] = new Stream[E1, B] {
     override def fold[E2 >: E1, B1 >: B, S]: Fold[E2, B1, S] =
-      IO.point { (s, cont, f) =>
-        self.fold[E2, A, S].flatMap { f1 =>
-          f1(s, cont, (s, a) => f0(a).fold[E2, B1, S].flatMap(g => g(s, cont, f)))
+      IO.point { (s, cont, g) =>
+        self.fold[E2, A, S].flatMap { f0 =>
+          f0(s, cont, (s, a) => f(a).fold[E2, B1, S].flatMap(h => h(s, cont, g)))
         }
       }
   }
@@ -138,7 +138,9 @@ trait Stream[+E, +A] { self =>
       override def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
           def loop(s: S): IO[E1, S] =
-            self.fold[E1, A, S].flatMap(f0 => if (cont(s)) loop(s) else IO.succeed(s))
+            self.fold[E1, A, S].flatMap { f0 =>
+              f0(s, cont, f).flatMap(s => if (cont(s)) loop(s) else IO.succeed(s))
+            }
 
           loop(s)
         }
@@ -147,10 +149,10 @@ trait Stream[+E, +A] { self =>
   /**
    * Maps over elements of the stream with the specified function.
    */
-  def map[B](f0: A => B): Stream[E, B] = new Stream[E, B] {
+  def map[B](f: A => B): Stream[E, B] = new Stream[E, B] {
     override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
-      IO.point { (s, cont, f) =>
-        self.fold[E1, A, S].flatMap(f1 => f1(s, cont, (s, a) => f(s, f0(a))))
+      IO.point { (s, cont, g) =>
+        self.fold[E1, A, S].flatMap(f0 => f0(s, cont, (s, a) => g(s, f(a))))
       }
   }
 
@@ -158,20 +160,20 @@ trait Stream[+E, +A] { self =>
    * Maps each element to a chunk, and flattens the chunks into the output of
    * this stream.
    */
-  def mapConcat[B](f0: A => Chunk[B]): Stream[E, B] = new Stream[E, B] {
+  def mapConcat[B](f: A => Chunk[B]): Stream[E, B] = new Stream[E, B] {
     override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
-      IO.point { (s, cont, f) =>
-        self.fold[E1, A, S].flatMap(f1 => f1(s, cont, (s, a) => f0(a).foldMLazy(s)(cont)(f)))
+      IO.point { (s, cont, g) =>
+        self.fold[E1, A, S].flatMap(f0 => f0(s, cont, (s, a) => f(a).foldMLazy(s)(cont)(g)))
       }
   }
 
   /**
    * Maps over elements of the stream with the specified effectful function.
    */
-  final def mapM[E1 >: E, B](f0: A => IO[E1, B]): Stream[E1, B] = new Stream[E1, B] {
+  final def mapM[E1 >: E, B](f: A => IO[E1, B]): Stream[E1, B] = new Stream[E1, B] {
     override def fold[E2 >: E1, B1 >: B, S]: Fold[E2, B1, S] =
-      IO.point { (s, cont, f) =>
-        self.fold[E2, A, S].flatMap(f1 => f1(s, cont, (s, a) => f0(a).flatMap(f(s, _))))
+      IO.point { (s, cont, g) =>
+        self.fold[E2, A, S].flatMap(f0 => f0(s, cont, (s, a) => f(a).flatMap(g(s, _))))
       }
   }
 
