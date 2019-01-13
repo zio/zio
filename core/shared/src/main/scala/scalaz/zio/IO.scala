@@ -9,47 +9,52 @@ import scala.concurrent.ExecutionContext
 import scala.annotation.switch
 
 /**
- * An `IO[E, A]` ("Eye-Oh of Eeh Aye") is an immutable data structure that
- * describes an effectful action that may fail with an `E`, run forever, or
- * produce a single `A` at some point in the future.
+ * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
+ * that models an effectful program. The program requires an environment `R`,
+ * and the program may fail with an error `E` or produce a single `A`.
  *
- * Conceptually, this structure is equivalent to `EitherT[F, E, A]` for some
- * infallible effect monad `F`, but because monad transformers perform poorly
- * in Scala, this structure bakes in the `EitherT` without runtime overhead.
+ * Conceptually, this structure is equivalent to `ReaderT[R, EitherT[UIO, E, ?]]`
+ * for some infallible effect monad `UIO`, but because monad transformers
+ * perform poorly in Scala, this data structure bakes in the reader effect of
+ * `ReaderT` with the recoverable error effect of `EitherT` without runtime
+ * overhead.
  *
- * `IO` values are ordinary immutable values, and may be used like any other
- * values in purely functional code. Because `IO` values just *describe*
- * effects, which must be interpreted by a separate runtime system, they are
- * entirely pure and do not violate referential transparency.
+ * `ZIO` values are ordinary immutable values, and may be used like any other
+ * values in purely functional code. Because `ZIO` values just *model* effects
+ * (like input / output), which must be interpreted by a separate runtime system,
+ * `ZIO` values are entirely pure and do not violate referential transparency.
  *
- * `IO` values can efficiently describe the following classes of effects:
+ * `ZIO` values can efficiently describe the following classes of effects:
  *
- *  - '''Pure Values''' &mdash; `IO.point`
+ *  - '''Pure Values''' &mdash; `ZIO.succeed`
+ *  - ```Error Effects``` &mdash; `ZIO.fail`
  *  - '''Synchronous Effects''' &mdash; `IO.sync`
  *  - '''Asynchronous Effects''' &mdash; `IO.async`
- *  - '''Concurrent Effects''' &mdash; `io.fork`
- *  - '''Resource Effects''' &mdash; `io.bracket`
+ *  - '''Concurrent Effects''' &mdash; `IO#fork`
+ *  - '''Resource Effects''' &mdash; `IO#bracket`
+ *  - ```Contextual Effects``` &mdash; `ZIO.read`
  *
  * The concurrency model is based on ''fibers'', a user-land lightweight thread,
  * which permit cooperative multitasking, fine-grained interruption, and very
  * high performance with large numbers of concurrently executing fibers.
  *
- * `IO` values compose with other `IO` values in a variety of ways to build
- * complex, rich, interactive applications. See the methods on `IO` for more
- * details about how to compose `IO` values.
+ * `ZIO` values compose with other `ZIO` values in a variety of ways to build
+ * complex, rich, interactive applications. See the methods on `ZIO` for more
+ * details about how to compose `ZIO` values.
  *
- * In order to integrate with Scala, `IO` values must be interpreted into the
+ * In order to integrate with Scala, `ZIO` values must be interpreted into the
  * Scala runtime. This process of interpretation executes the effects described
- * by a given immutable `IO` value. For more information on interpreting `IO`
+ * by a given immutable `ZIO` value. For more information on interpreting `ZIO`
  * values, see the default interpreter in `RTS` or the safe main function in
  * `App`.
  */
 sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
+
   /**
    * Embeds this program into one that requires a "bigger" environment.
    */
-  def contramap[R0](f: R0 => R): ZIO[R0, E, A] =
-    ZIO.read[R0].flatMap(r0 => self.provide(f(r0)))
+  final def contramap[R0](f: R0 => R): ZIO[R0, E, A] =
+    ZIO.readM(r0 => self.provide(f(r0)))
 
   /**
    * Maps an `IO[E, A]` into an `IO[E, B]` by applying the specified `A => B` function
@@ -302,8 +307,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * value is allocated and does not require subsequent calls to `flatMap` to
    * define the next action.
    *
-   * The error parameter of the returned `IO` may be chosen arbitrarily, since
-   * it will depend on the `IO`s returned by the given continuations.
+   * The error parameter of the returned `ZIO` may be chosen arbitrarily, since
+   * it will depend on the `ZIO`s returned by the given continuations.
    */
   final def redeem[R1 <: R, E2, B](err: E => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
     redeem0((cause: Cause[E]) => cause.checkedOrRefail.fold(err, ZIO.halt), succ)
@@ -323,7 +328,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Less powerful version of `redeem` which always returns a successful
    * `IO[Nothing, B]` after applying one of the given mapping functions depending
-   * on the result of this `IO`
+   * on the result of this `ZIO`
    */
   final def redeemPure[B](err: E => B, succ: A => B): ZIO[R, Nothing, B] =
     redeem(err.andThen(ZIO.succeed), succ.andThen(ZIO.succeed))
@@ -338,10 +343,10 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Executes this action, capturing both failure and success and returning
    * the result in an `Either`. This method is useful for recovering from
-   * `IO` actions that may fail.
+   * `ZIO` actions that may fail.
    *
-   * The error parameter of the returned `IO` is Nothing, since
-   * it is guaranteed the `IO` action does not raise any errors.
+   * The error parameter of the returned `ZIO` is Nothing, since
+   * it is guaranteed the `ZIO` action does not raise any errors.
    */
   final def attempt: ZIO[R, Nothing, Either[E, A]] =
     self.redeem(ZIO.succeedLeft, ZIO.succeedRight)
@@ -439,7 +444,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.bracket0[R1, E, Unit, A](ZIO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
-          case Exit.Success(_)  => ZIO.unit
+          case Exit.Success(_)     => ZIO.unit
           case Exit.Failure(cause) => cleanup(cause)
         }
     )(_ => self)
@@ -811,38 +816,36 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     self.run.flatMap(x => p.done(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
-   * An integer that identifies the term in the `IO` sum type to which this
+   * An integer that identifies the term in the `ZIO` sum type to which this
    * instance belongs (e.g. `IO.Tags.Point`).
    */
   def tag: Int
 }
 
 trait ZIOFunctions extends Serializable {
-  // ALL error types in this method must be a subtype of `UpperE`.
+  // ALL error types in this trait must be a subtype of `UpperE`.
   type UpperE
-  // ALL return types in this method must be a subtype of `UpperA`.
-//  type UpperA
-  // ALL environment types must be a supertype of `LowerR`.
+  // ALL environment types in this trait must be a supertype of `LowerR`.
   type LowerR
 
   /**
-   * Creates an `IO` value that represents failure with the specified error.
+   * Creates a `ZIO` value that represents failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
   final def fail[E <: UpperE](error: E): IO[E, Nothing] = halt(Cause.checked(error))
 
   /**
-   * Returns an `IO` that fails with the specified `Cause`.
+   * Returns a `ZIO` that fails with the specified `Cause`.
    */
   final def halt[E <: UpperE](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(cause)
 
   /**
-   * Lifts a strictly evaluated value into the `IO` monad.
+   * Lifts a strictly evaluated value into the `ZIO` monad.
    */
   final def succeed[A](a: A): UIO[A] = new ZIO.Strict(a)
 
   /**
-   * Lifts a non-strictly evaluated value into the `IO` monad. Do not use this
+   * Lifts a non-strictly evaluated value into the `ZIO` monad. Do not use this
    * function to capture effectful code. The result is undefined but may
    * include duplicated effects.
    */
@@ -851,17 +854,28 @@ trait ZIOFunctions extends Serializable {
   @deprecated("Use succeedLazy", "scalaz-zio 0.6.0")
   final def point[A](a: => A): UIO[A] = succeedLazy(a)
 
+  /**
+   * Accesses the environment of the program.
+   */
   final def read[R >: LowerR]: ZIO[R, Nothing, R] =
     readM(succeed)
 
+  /**
+   * Effectfully accesses the environment of the program.
+   */
   final def readM[R >: LowerR, E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.Read(f)
 
+  /**
+   * Given an environment `R`, returns a function that can supply the
+   * environment to programs that require it, removing their need for any
+   * specific environment.
+   */
   final def provide[R >: LowerR, E <: UpperE, A](r: R): ZIO[R, E, A] => IO[E, A] =
     (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
 
   /**
-   * Returns an `IO` that is interrupted.
+   * Returns a `ZIO` that is interrupted.
    */
   final val interrupt: UIO[Nothing] = halt(Cause.interrupted)
 
@@ -873,13 +887,12 @@ trait ZIOFunctions extends Serializable {
     async[Any, Nothing, Nothing](_ => ())
 
   /**
-   * Returns an `IO` that terminates with the specified `Throwable`.
+   * Returns a `ZIO` that terminates with the specified `Throwable`.
    */
-
   final def die(t: Throwable): IO[Nothing, Nothing] = halt(Cause.unchecked(t))
 
   /**
-   * Imports a synchronous effect into a pure `IO` value.
+   * Imports a synchronous effect into a pure `ZIO` value.
    *
    * {{{
    * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
@@ -888,7 +901,7 @@ trait ZIOFunctions extends Serializable {
   final def sync[A](effect: => A): UIO[A] = sync0(_ => effect)
 
   /**
-   * Imports a synchronous effect into a pure `IO` value. This variant of `sync`
+   * Imports a synchronous effect into a pure `ZIO` value. This variant of `sync`
    * lets you use the execution environment of the fiber.
    *
    * {{{
@@ -898,7 +911,7 @@ trait ZIOFunctions extends Serializable {
   final def sync0[A](effect: Env => A): UIO[A] = new ZIO.SyncEffect[A](effect)
 
   /**
-   * Imports a synchronous effect into a pure `IO` value. This variant of `sync`
+   * Imports a synchronous effect into a pure `ZIO` value. This variant of `sync`
    * lets you use the current executor of the fiber.
    */
   final def syncExec[A](effect: Executor => A): UIO[A] =
@@ -960,7 +973,7 @@ trait ZIOFunctions extends Serializable {
     as.foldRight(ZIO.unit)(_.fork *> _)
 
   /**
-   * Creates an `IO` value from `ExitResult`
+   * Creates a `ZIO` value from `ExitResult`
    */
   final def done[E <: UpperE, A](r: Exit[E, A]): IO[E, A] = r match {
     case Exit.Success(b)     => succeed(b)
@@ -988,10 +1001,10 @@ trait ZIOFunctions extends Serializable {
   final def flatten[R >: LowerR, E <: UpperE, A](io: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] = io.flatMap(a => a)
 
   /**
-   * Lazily produces an `IO` value whose construction may have actional costs
+   * Lazily produces a `ZIO` value whose construction may have actional costs
    * that should be deferred until evaluation.
    *
-   * Do not use this method to effectfully construct `IO` values. The results
+   * Do not use this method to effectfully construct `ZIO` values. The results
    * will be undefined and most likely involve the physical explosion of your
    * computer in a heap of rubble.
    */
@@ -999,7 +1012,7 @@ trait ZIOFunctions extends Serializable {
     flatten(sync(io))
 
   /**
-   * Safely imports an exception-throwing synchronous effect into a pure `IO`
+   * Safely imports an exception-throwing synchronous effect into a pure `ZIO`
    * value, translating the specified throwables into `E` with the provided
    * user-defined function.
    */
@@ -1020,14 +1033,14 @@ trait ZIOFunctions extends Serializable {
     new ZIO.Lock(executor, io)
 
   /**
-   * A combinator that allows you to identify long-running `IO` values to the
+   * A combinator that allows you to identify long-running `ZIO` values to the
    * runtime system for improved scheduling.
    */
   final def unyielding[R, E, A](io: ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.flatten(sync0(env => lock(env.executor(Executor.Unyielding))(io)))
 
   /**
-   * Imports an asynchronous effect into a pure `IO` value. See `async0` for
+   * Imports an asynchronous effect into a pure `ZIO` value. See `async0` for
    * the more expressive variant of this function that can return a value
    * synchronously.
    */
@@ -1039,15 +1052,15 @@ trait ZIOFunctions extends Serializable {
     })
 
   /**
-   * Imports an asynchronous effect into a pure `IO` value, possibly returning
+   * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
    * the value synchronously.
    */
   final def async0[R >: LowerR, E <: UpperE, A](register: (ZIO[R, E, A] => Unit) => Async[E, A]): ZIO[R, E, A] =
     new ZIO.AsyncEffect(register)
 
   /**
-   * Imports an asynchronous effect into a pure `IO` value. This formulation is
-   * necessary when the effect is itself expressed in terms of `IO`.
+   * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
+   * necessary when the effect is itself expressed in terms of `ZIO`.
    */
   final def asyncIO[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
     for {
@@ -1069,7 +1082,7 @@ trait ZIOFunctions extends Serializable {
     asyncIO(register)
 
   /**
-   * Imports an asynchronous effect into a pure `IO` value. The effect has the
+   * Imports an asynchronous effect into a pure `ZIO` value. The effect has the
    * option of returning the value synchronously, which is useful in cases
    * where it cannot be determined if the effect is synchronous or asynchronous
    * until the effect is actually executed. The effect also has the option of
@@ -1098,7 +1111,7 @@ trait ZIOFunctions extends Serializable {
   }
 
   /**
-   * Submerges the error case of an `Either` into the `IO`. The inverse
+   * Submerges the error case of an `Either` into the `ZIO`. The inverse
    * operation of `IO.attempt`.
    */
   final def absolve[R >: LowerR, E <: UpperE, A](v: ZIO[R, E, Either[E, A]]): ZIO[R, E, A] =
@@ -1113,20 +1126,20 @@ trait ZIOFunctions extends Serializable {
   final def unsandbox[R >: LowerR, E <: UpperE, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
 
   /**
-   * Lifts an `Either` into an `IO`.
+   * Lifts an `Either` into a `ZIO` value.
    */
   final def fromEither[E <: UpperE, A](v: Either[E, A]): IO[E, A] =
     v.fold(fail, succeed)
 
   /**
-   * Creates an `IO` value that represents the exit value of the specified
+   * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
   final def fromFiber[E <: UpperE, A](fiber: Fiber[E, A]): IO[E, A] =
     fiber.join
 
   /**
-   * Creates an `IO` value that represents the exit value of the specified
+   * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
   final def fromFiberM[E <: UpperE, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
@@ -1294,7 +1307,7 @@ trait ZIOFunctions extends Serializable {
     in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
 
   /**
-   * Strictly-evaluated unit lifted into the `IO` monad.
+   * Strictly-evaluated unit lifted into the `ZIO` monad.
    */
   final val unit: UIO[Unit] = succeed(())
 
@@ -1335,7 +1348,7 @@ trait ZIO_E_Any extends ZIO_E_Throwable {
   type UpperE = Any
 
   /**
-   * Lifts an `Option` into an `IO`.
+   * Lifts an `Option` into a `ZIO`.
    */
   final def fromOption[A](v: Option[A]): IO[Unit, A] =
     v.fold[IO[Unit, A]](fail(()))(succeed(_))
@@ -1347,7 +1360,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
 
   /**
    *
-   * Imports a synchronous effect into a pure `IO` value, translating any
+   * Imports a synchronous effect into a pure `ZIO` value, translating any
    * throwables into a `Throwable` failure in the returned value.
    *
    * {{{
@@ -1360,7 +1373,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
     }
 
   /**
-   * Imports a `Try` into an `IO`.
+   * Imports a `Try` into a `ZIO`.
    */
   final def fromTry[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
     syncThrowable(effect).flatMap {
@@ -1370,7 +1383,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
 
   /**
    *
-   * Imports a synchronous effect into a pure `IO` value, translating any
+   * Imports a synchronous effect into a pure `ZIO` value, translating any
    * exceptions into an `Exception` failure in the returned value.
    *
    * {{{
@@ -1462,8 +1475,7 @@ object ZIO extends ZIO_E_Any {
     final def apply(v: A): ZIO[R, E2, B] = succ(v)
   }
 
-  final class Fork[E, A](val value: IO[E, A], val handler: Option[Cause[Any] => UIO[_]])
-      extends UIO[Fiber[E, A]] {
+  final class Fork[E, A](val value: IO[E, A], val handler: Option[Cause[Any] => UIO[_]]) extends UIO[Fiber[E, A]] {
     override def tag = Tags.Fork
   }
 
