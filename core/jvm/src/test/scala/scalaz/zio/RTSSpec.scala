@@ -662,7 +662,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       release <- scalaz.zio.Promise.make[Nothing, Int]
       latch   = internal.OneShot.make[Unit]
-      async = IO.asyncInterrupt[Nothing, Unit] { _ =>
+      async = IO.asyncInterrupt[Any, Nothing, Unit] { _ =>
         latch.set(()); Left(release.succeed(42).void)
       }
       fiber  <- async.fork
@@ -737,7 +737,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       release <- Promise.make[Nothing, Int]
       latch   = scala.concurrent.Promise[Unit]()
-      async = IO.asyncInterrupt[Nothing, Nothing] { _ =>
+      async = IO.asyncInterrupt[Any, Nothing, Nothing] { _ =>
         latch.success(()); Left(release.succeed(42).void)
       }
       fiber <- async.fork

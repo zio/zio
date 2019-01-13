@@ -957,8 +957,8 @@ trait ZIOFunctions extends Serializable {
    * Forks all of the specified values, and returns a composite fiber that
    * produces a list of their results, in order.
    */
-  final def forkAll[E <: UpperE, A](as: Iterable[IO[E, A]]): UIO[Fiber[E, List[A]]] =
-    as.foldRight(succeed(Fiber.succeedLazy[E, List[A]](List()))) { (aIO, asFiberIO) =>
+  final def forkAll[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Fiber[E, List[A]]] =
+    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeedLazy[E, List[A]](List()))) { (aIO, asFiberIO) =>
       asFiberIO.zip(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
@@ -969,8 +969,8 @@ trait ZIOFunctions extends Serializable {
    * Forks all of the specified values, and returns a composite fiber that
    * produces a list of their results, in order.
    */
-  final def forkAll_[E <: UpperE, A](as: Iterable[IO[E, A]]): UIO[Unit] =
-    as.foldRight(ZIO.unit)(_.fork *> _)
+  final def forkAll_[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Unit] =
+    as.foldRight[ZIO[R, Nothing, Unit]](ZIO.unit)(_.fork *> _)
 
   /**
    * Creates a `ZIO` value from `ExitResult`
@@ -1029,15 +1029,15 @@ trait ZIOFunctions extends Serializable {
   /**
    * Locks the `io` to the specified executor.
    */
-  final def lock[R, E, A](executor: Executor)(io: ZIO[R, E, A]): ZIO[R, E, A] =
+  final def lock[R >: LowerR, E <: UpperE, A](executor: Executor)(io: ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.Lock(executor, io)
 
   /**
    * A combinator that allows you to identify long-running `ZIO` values to the
    * runtime system for improved scheduling.
    */
-  final def unyielding[R, E, A](io: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.flatten(sync0(env => lock(env.executor(Executor.Unyielding))(io)))
+  final def unyielding[R >: LowerR, E <: UpperE, A](io: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.flatten(sync0(env => lock[R, E, A](env.executor(Executor.Unyielding))(io)))
 
   /**
    * Imports an asynchronous effect into a pure `ZIO` value. See `async0` for
@@ -1089,14 +1089,14 @@ trait ZIOFunctions extends Serializable {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def asyncInterrupt[E <: UpperE, A](register: (IO[E, A] => Unit) => Either[Canceler, IO[E, A]]): IO[E, A] = {
+  final def asyncInterrupt[R >: LowerR, E <: UpperE, A](register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
     sync((new AtomicBoolean(false), OneShot.make[IO[Nothing, Any]])).flatMap {
       case (started, cancel) =>
         flatten {
-          async0((k: IO[Nothing, IO[E, A]] => Unit) => {
+          async0((k: UIO[ZIO[R, E, A]] => Unit) => {
             started.set(true)
 
             try register(io => k(ZIO.succeed(io))) match {
@@ -1330,7 +1330,7 @@ trait ZIOFunctions extends Serializable {
     sync0(identity)
       .flatMap(
         env =>
-          asyncInterrupt[Nothing, Unit] { k =>
+          asyncInterrupt[Any, Nothing, Unit] { k =>
             val canceler = env.scheduler
               .schedule(() => k(unit), duration)
 
