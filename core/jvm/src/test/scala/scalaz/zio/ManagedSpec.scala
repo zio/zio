@@ -32,7 +32,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
   def parallelAcquireAndRelease = {
     val cleanups = new mutable.ListBuffer[String]
 
-    def managed(v: String): Managed[Nothing, String] =
+    def managed(v: String): Managed[Any, Nothing, String] =
       Managed(IO.now(v))(_ => IO.sync { cleanups += v; () })
 
     val program = managed("A").parWith(managed("B"))(_ + _).use(IO.now)
