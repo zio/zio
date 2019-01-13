@@ -226,7 +226,7 @@ trait Stream[+E, +A] { self =>
    * `Stream` in a managed resource. Like all `Managed` resources, the provided
    * remainder is valid only within the scope of `Managed`.
    */
-  final def peel[E1 >: E, A1 >: A, R](sink: Sink[E1, A1, A1, R]): Managed[E1, (R, Stream[E1, A1])] = {
+  final def peel[E1 >: E, A1 >: A, R](sink: Sink[E1, A1, A1, R]): Managed[Any, E1, (R, Stream[E1, A1])] = {
     type Folder = (Any, A1) => IO[E1, Any]
     type Cont   = Any => Boolean
     type Fold   = (Any, Cont, Folder)
@@ -408,7 +408,7 @@ trait Stream[+E, +A] { self =>
    * Converts the stream to a managed queue. After managed queue is used, the
    * queue will never again produce values and should be discarded.
    */
-  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[Nothing, Queue[Take[E1, A1]]] =
+  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[Any, Nothing, Queue[Take[E1, A1]]] =
     for {
       queue    <- Managed(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
       offerVal = (a: A) => queue.offer(Take.Value(a)).void
@@ -588,7 +588,7 @@ object Stream {
   )(release: A => IO[Nothing, Unit])(read: A => IO[E, Option[B]]): Stream[E, B] =
     managed(Managed(acquire)(release))(read)
 
-  final def managed[E, A, B](m: Managed[E, A])(read: A => IO[E, Option[B]]) =
+  final def managed[E, A, B](m: Managed[Any, E, A])(read: A => IO[E, Option[B]]) =
     new Stream[E, B] {
       override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
         if (cont(s))

@@ -1225,7 +1225,7 @@ trait ZIOFunctions extends Serializable {
   final def descriptor: IO[Nothing, Fiber.Descriptor] = ZIO.Descriptor
 }
 
-trait ZIO_E_Any extends ZIOFunctions {
+trait ZIO_E_Any extends ZIO_E_Throwable {
   type UpperE = Any
 
   /**
@@ -1237,8 +1237,7 @@ trait ZIO_E_Any extends ZIOFunctions {
 
 trait ZIO_E_Throwable extends ZIOFunctions {
 //   implicit val ThrowableSubtypeOfE: Throwable <:< UpperE
-
-  type UpperE = Throwable
+  type UpperE >: Throwable
 
   /**
     *
@@ -1277,8 +1276,19 @@ trait ZIO_E_Throwable extends ZIOFunctions {
     }
 }
 
+object IO extends ZIO_E_Any {
+  type LowerR = Any
+}
+object Task extends ZIO_E_Throwable {
+  type UpperE = Throwable
+  type LowerR = Any
+}
+object UIO extends ZIOFunctions {
+  type UpperE = Nothing
+  type LowerR = Any
+}
+
 object ZIO extends ZIO_E_Any {
-  type UpperE = Any
   type LowerR = Nothing
 
   @inline
