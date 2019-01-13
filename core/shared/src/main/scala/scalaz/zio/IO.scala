@@ -269,7 +269,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def flatMapError[E2](f: E => IO[Nothing, E2]): IO[E2, A] =
-    self.redeem[E2, A](f.andThen(_.flip), IO.now)
+    self.redeem[E2, A](f.andThen(_.flip), IO.succeed)
 
   /**
    *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
