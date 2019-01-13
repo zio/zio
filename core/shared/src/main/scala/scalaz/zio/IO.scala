@@ -269,7 +269,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def flatMapError[E2](f: E => IO[Nothing, E2]): IO[E2, A] =
-    self.redeem[E2, A](f.andThen(_.flip), IO.now)
+    self.redeem[E2, A](f.andThen(_.flip), IO.succeed)
 
   /**
    *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
@@ -484,7 +484,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Recovers from all errors.
    *
    * {{{
-   * openFile("config.json").catchAll(_ => IO.now(defaultConfig))
+   * openFile("config.json").catchAll(_ => IO.succeed(defaultConfig))
    * }}}
    */
   final def catchAll[E2, A1 >: A](h: E => IO[E2, A1]): IO[E2, A1] =
@@ -747,13 +747,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    *   veryBadIO.sandboxed.catchAll {
    *     case Left((_: ArithmeticException) :: Nil) =>
    *       // Caught defect: divided by zero!
-   *       IO.now(0)
+   *       IO.succeed(0)
    *     case Left(ts) =>
    *       // Caught unknown defects, shouldn't recover!
    *       IO.terminate0(ts)
    *     case Right(e) =>
    *       // Caught error: DomainError!
-   *      IO.now(0)
+   *      IO.succeed(0)
    *   }
    * }}}
    */
@@ -776,7 +776,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    *   veryBadIO.sandboxWith(_.catchSome {
    *     case Left((_: ArithmeticException) :: Nil) =>
    *       // Caught defect: divided by zero!
-   *       IO.now(0)
+   *       IO.succeed(0)
    *   })
    * }}}
    *

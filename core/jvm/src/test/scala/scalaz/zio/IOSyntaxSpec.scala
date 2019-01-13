@@ -12,7 +12,7 @@ class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "IOEagerSyntaxSpec".title ^ s2"""
    Generate a String:
-      `.now` extension method returns the same IO[Nothing, String] as `IO.now` does. $t1
+      `.succeed` extension method returns the same IO[Nothing, String] as `IO.succeed` does. $t1
    Generate a String:
       `.fail` extension method returns the same IO[String, Nothing] as `IO.fail` does. $t2
    Generate a String:

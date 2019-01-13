@@ -13,7 +13,7 @@ import scalaz.zio.Exit.Cause
  * {{{
  * for {
  *   ref <- RefM(2)
- *   v   <- ref.update(_ + putStrLn("Hello World!").attempt.void *> IO.now(3))
+ *   v   <- ref.update(_ + putStrLn("Hello World!").attempt.void *> IO.succeed(3))
  *   _   <- putStrLn("Value = " + v) // Value = 5
  * } yield ()
  * }}}
