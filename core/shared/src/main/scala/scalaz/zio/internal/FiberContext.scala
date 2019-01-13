@@ -197,7 +197,7 @@ private[zio] final class FiberContext[E, A](
                   stack.push(io)
 
                 case ZIO.Tags.Fork =>
-                  val io = curIo.asInstanceOf[ZIO.Fork[Any, _, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Fork[_, Any]]
 
                   val optHandler = io.handler
 
