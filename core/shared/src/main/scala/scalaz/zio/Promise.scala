@@ -29,7 +29,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * until the result is available.
    */
   final def await: IO[E, A] =
-    IO.asyncInterrupt[E, A](k => {
+    IO.asyncInterrupt[Any, E, A](k => {
       var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
       var retry  = true
 
