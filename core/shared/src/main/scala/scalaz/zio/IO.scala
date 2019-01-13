@@ -261,6 +261,22 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.redeem[E2, A](f.andThen(IO.fail), IO.succeed)
 
   /**
+   * Creates a composite action that represents this action followed by another
+   * one that may depend on the error produced by this one.
+   *
+   * {{{
+   * val parsed = readFile("foo.txt").flatMapError(error => logErrorToFile(error))
+   * }}}
+   */
+  final def flatMapError[E2](f: E => IO[Nothing, E2]): IO[E2, A] =
+    self.redeem[E2, A](f.andThen(_.flip), IO.now)
+
+  /**
+   *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
+   */
+  final def flipWith[A1, E1](f: IO[A, E] => IO[A1, E1]): IO[E1, A1] = f(self.flip).flip
+
+  /**
    * Swaps the error/value around, making it easier to handle errors.
    */
   final def flip: IO[A, E] =
@@ -823,6 +839,7 @@ object IO extends Serializable {
     final val Lock            = 12
     final val Yield           = 13
   }
+
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
     override def tag = Tags.FlatMap
   }
