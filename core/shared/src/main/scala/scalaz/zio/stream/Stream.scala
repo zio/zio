@@ -349,20 +349,21 @@ trait Stream[+E, +A] { self =>
    */
   def repeatElems[B](schedule: Schedule[A, B], clock: Clock = Clock.Live): Stream[E, A] =
     new Stream[E, A] {
-      override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]) = {
-        def loop(s: S, sched: schedule.State, a: A): IO[E1, S] =
-          schedule.update(a, sched, clock).flatMap { decision =>
-            if (decision.cont)
-              IO.unit.delay(decision.delay) *> f(s, a).flatMap(loop(_, decision.state, a))
-            else IO.succeed(s)
-          }
+      override def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S] =
+        IO.succeedLazy { (s, cont, f) =>
+          def loop(s: S, sched: schedule.State, a: A): IO[E1, S] =
+            schedule.update(a, sched, clock).flatMap { decision =>
+              if (decision.cont)
+                IO.unit.delay(decision.delay) *> f(s, a).flatMap(loop(_, decision.state, a))
+              else IO.succeed(s)
+            }
 
-        schedule.initial(clock).flatMap { sched =>
-          self.foldLazy[E1, A, S](s)(cont) { (s, a) =>
-            loop(s, sched, a)
+          schedule.initial(clock).flatMap { sched =>
+            self.fold[E1, A, S].flatMap { f =>
+              f(s, cont, (s, a) => loop(s, sched, a))
+            }
           }
         }
-      }
     }
 
   /**
