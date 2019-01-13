@@ -102,14 +102,21 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * } yield a
    * }}}
    */
-  final def fork: IO[Nothing, Fiber[E, A]] = new ZIO.Fork(this, None)
+  final def fork: ZIO[R, Nothing, Fiber[E, A]] =
+    for {
+      r     <- ZIO.read[R]
+      fiber <- new ZIO.Fork(self.provide(r), None)
+    } yield fiber
 
   /**
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def forkWith(handler: Cause[Any] => UIO[_]): IO[Nothing, Fiber[E, A]] =
-    new ZIO.Fork(this, Some(handler))
+  final def forkWith(handler: Cause[Any] => UIO[_]): ZIO[R, Nothing, Fiber[E, A]] =
+    for {
+      r     <- ZIO.read[R]
+      fiber <- new ZIO.Fork(self.provide(r), Some(handler))
+    } yield fiber
 
   /**
    * Executes both this action and the specified action in parallel,
@@ -1450,8 +1457,8 @@ object ZIO extends ZIO_E_Any {
     final def apply(v: A): ZIO[R, E2, B] = succ(v)
   }
 
-  final class Fork[R, E, A](val value: ZIO[R, E, A], val handler: Option[Cause[Any] => UIO[_]])
-      extends IO[Nothing, Fiber[E, A]] {
+  final class Fork[E, A](val value: IO[E, A], val handler: Option[Cause[Any] => UIO[_]])
+      extends UIO[Fiber[E, A]] {
     override def tag = Tags.Fork
   }
 
