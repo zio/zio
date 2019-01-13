@@ -27,6 +27,7 @@ private[zio] final class FiberContext[E, A](
   @volatile private[this] var supervised  = List.empty[Set[FiberContext[_, _]]]
   @volatile private[this] var supervising = 0
   @volatile private[this] var locked      = List.empty[Executor]
+  @volatile private[this] var environment = ().asInstanceOf[Any]
 
   private[this] val stack: Stack[Any => IO[Any, Any]] = new Stack[Any => IO[Any, Any]]()
 
@@ -131,29 +132,29 @@ private[zio] final class FiberContext[E, A](
                     case ZIO.Tags.Point =>
                       val io2 = nested.asInstanceOf[ZIO.Point[E]]
 
-                      curIo = io.flatMapper(io2.value())
+                      curIo = io.k(io2.value())
 
                     case ZIO.Tags.Strict =>
                       val io2 = nested.asInstanceOf[ZIO.Strict[Any]]
 
-                      curIo = io.flatMapper(io2.value)
+                      curIo = io.k(io2.value)
 
                     case ZIO.Tags.SyncEffect =>
                       val io2 = nested.asInstanceOf[ZIO.SyncEffect[Any]]
 
-                      curIo = io.flatMapper(io2.effect(env))
+                      curIo = io.k(io2.effect(env))
 
                     case ZIO.Tags.Descriptor =>
                       val value = getDescriptor
 
-                      curIo = io.flatMapper(value)
+                      curIo = io.k(value)
 
                     case _ =>
                       // Fallback case. We couldn't evaluate the LHS so we have to
                       // use the stack:
                       curIo = nested
 
-                      stack.push(io.flatMapper)
+                      stack.push(io.k)
                   }
 
                 case ZIO.Tags.Point =>
@@ -267,6 +268,18 @@ private[zio] final class FiberContext[E, A](
                   evaluateLater(IO.unit)
 
                   curIo = null
+
+                case ZIO.Tags.Read =>
+                  val io = curIo.asInstanceOf[ZIO.Read[Any, E, Any]]
+
+                  curIo = io.k(environment)
+
+                case ZIO.Tags.Provide =>
+                  val io = curIo.asInstanceOf[ZIO.Provide[Any, E, Any]]
+
+                  environment = io.r
+
+                  curIo = io.next
               }
             }
           } else {
