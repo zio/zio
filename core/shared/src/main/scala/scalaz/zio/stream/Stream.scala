@@ -255,11 +255,13 @@ trait Stream[+E, +A] { self =>
 
     def tail(resume: Promise[Nothing, Fold], done: Promise[E1, Any]): Stream[E1, A1] =
       new Stream[E1, A1] {
-        override def foldLazy[E2 >: E1, A2 >: A1, S](s: S)(cont: S => Boolean)(f: (S, A2) => IO[E2, S]): IO[E2, S] =
-          if (!cont(s)) IO.succeed(s)
-          else
-            resume.succeed((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
-              done.await.asInstanceOf[IO[E2, S]]
+        override def fold[E2 >: E1, A2 >: A1, S]: Stream.Fold[E2, A2, S] =
+          IO.succeedLazy { (s, cont, f) =>
+            if (!cont(s)) IO.succeed(s)
+            else
+              resume.complete((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
+                done.get.asInstanceOf[IO[E2, S]]
+          }
       }
 
     def acquire(lstate: sink.State): IO[Nothing, (Fiber[E1, State], Promise[E1, Result])] =
@@ -268,28 +270,35 @@ trait Stream[+E, +A] { self =>
         done   <- Promise.make[E1, Any]
         result <- Promise.make[E1, Result]
         fiber <- self
-                  .foldLazy[E1, A1, State](Left(lstate)) {
-                    case Left(_)             => true
-                    case Right((s, cont, _)) => cont(s)
-                  } {
-                    case (Left(lstate), a) =>
-                      sink.step(lstate, a).flatMap { step =>
-                        if (Sink.Step.cont(step)) IO.succeed(Left(Sink.Step.state(step)))
-                        else {
-                          val lstate = Sink.Step.state(step)
-                          val as     = Sink.Step.leftover(step)
+                  .fold[E1, A1, State]
+                  .flatMap { f0 =>
+                    f0(
+                      Left(lstate),
+                      s =>
+                        s match {
+                          case Left(_)             => true
+                          case Right((s, cont, _)) => cont(s)
+                        }, {
+                        case (Left(lstate), a) =>
+                          sink.step(lstate, a).flatMap { step =>
+                            if (Sink.Step.cont(step)) IO.succeed(Left(Sink.Step.state(step)))
+                            else {
+                              val lstate = Sink.Step.state(step)
+                              val as     = Sink.Step.leftover(step)
 
-                          sink.extract(lstate).flatMap { r =>
-                            result.succeed(r -> tail(resume, done)) *>
-                              resume.await
-                                .flatMap(t => feed(as)(t._1, t._2, t._3).map(s => Right((s, t._2, t._3))))
+                              sink.extract(lstate).flatMap { r =>
+                                result.complete(r -> tail(resume, done)) *>
+                                  resume.get
+                                    .flatMap(t => feed(as)(t._1, t._2, t._3).map(s => Right((s, t._2, t._3))))
+                              }
+                            }
                           }
-                        }
+                        case (Right((rstate, cont, f)), a) =>
+                          f(rstate, a).flatMap { rstate =>
+                            IO.succeed(Right((rstate, cont, f)))
+                          }
                       }
-                    case (Right((rstate, cont, f)), a) =>
-                      f(rstate, a).flatMap { rstate =>
-                        IO.succeed(Right((rstate, cont, f)))
-                      }
+                    )
                   }
                   .onError(c => result.done(IO.halt(c)).void)
                   .fork
