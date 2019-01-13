@@ -494,10 +494,14 @@ trait Stream[+E, +A] { self =>
   /**
    * Adds an effect to consumption of every element of the stream.
    */
-  final def withEffect[E1 >: E](f0: A => IO[E1, Unit]): Stream[E1, A] =
+  final def withEffect[E1 >: E](f: A => IO[E1, Unit]): Stream[E1, A] =
     new Stream[E1, A] {
-      override def foldLazy[E2 >: E1, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E2, S]): IO[E2, S] =
-        self.foldLazy[E2, A, S](s)(cont)((s, a2) => f0(a2) *> f(s, a2))
+      override def fold[E2 >: E1, A1 >: A, S]: Fold[E2, A1, S] =
+        IO.point { (s, cont, g) =>
+          self.fold[E2, A, S].flatMap { f0 =>
+            f0(s, cont, (s, a2) => f(a2) *> g(s, a2))
+          }
+        }
     }
 
   /**
