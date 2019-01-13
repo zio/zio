@@ -958,11 +958,12 @@ trait ZIOFunctions extends Serializable {
    * produces a list of their results, in order.
    */
   final def forkAll[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Fiber[E, List[A]]] =
-    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeedLazy[E, List[A]](List()))) { (aIO, asFiberIO) =>
-      asFiberIO.zip(aIO.fork).map {
-        case (asFiber, aFiber) =>
-          asFiber.zipWith(aFiber)((as, a) => a :: as)
-      }
+    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeedLazy[E, List[A]](List()))) {
+      (aIO, asFiberIO) =>
+        asFiberIO.zip(aIO.fork).map {
+          case (asFiber, aFiber) =>
+            asFiber.zipWith(aFiber)((as, a) => a :: as)
+        }
     }
 
   /**
@@ -1089,7 +1090,9 @@ trait ZIOFunctions extends Serializable {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def asyncInterrupt[R >: LowerR, E <: UpperE, A](register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]): ZIO[R, E, A] = {
+  final def asyncInterrupt[R >: LowerR, E <: UpperE, A](
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
+  ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
