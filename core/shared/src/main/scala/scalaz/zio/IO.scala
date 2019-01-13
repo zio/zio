@@ -650,6 +650,11 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def peek[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
+   * Provides the `ZIO` program with its required environment.
+   */
+  final def provide(r: R): IO[E, A] = ZIO.provide(r)(self)
+
+  /**
    * Times out an action by the specified duration.
    */
   final def timeout(d: Duration): ZIO[R, E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
@@ -834,7 +839,14 @@ trait ZIOFunctions extends Serializable {
   @deprecated("Use succeedLazy", "scalaz-zio 0.6.0")
   final def point[A](a: => A): UIO[A] = succeedLazy(a)
 
-  final def read[R >: LowerR]: ZIO[R, Nothing, R] = ???
+  final def read[R >: LowerR]: ZIO[R, Nothing, R] =
+    readM(succeed)
+
+  final def readM[R >: LowerR, E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.Read(f)
+
+  final def provide[R >: LowerR, E <: UpperE, A](r: R): ZIO[R, E, A] => IO[E, A] =
+    (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
 
   /**
    * Returns an `IO` that is interrupted.
@@ -1403,8 +1415,10 @@ object ZIO extends ZIO_E_Any {
     final val Descriptor      = 11
     final val Lock            = 12
     final val Yield           = 13
+    final val Read            = 14
+    final val Provide         = 15
   }
-  final class FlatMap[R, E, A0, A](val io: ZIO[R, E, A0], val flatMapper: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  final class FlatMap[R, E, A0, A](val io: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.FlatMap
   }
 
@@ -1470,5 +1484,13 @@ object ZIO extends ZIO_E_Any {
 
   final object Yield extends UIO[Unit] {
     override def tag = Tags.Yield
+  }
+
+  final class Read[R, E, A](val k: R => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.Read
+  }
+
+  final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
+    override def tag = Tags.Provide
   }
 }
