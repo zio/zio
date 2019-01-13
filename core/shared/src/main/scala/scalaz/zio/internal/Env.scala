@@ -2,7 +2,7 @@
 package scalaz.zio.internal
 
 import scalaz.zio._
-import scalaz.zio.ExitResult.Cause
+import scalaz.zio.Exit.Cause
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -45,10 +45,10 @@ trait Env {
   /**
    * Awaits for the result of the fiber to be computed.
    */
-  final def unsafeRunSync[E, A](io: IO[E, A]): ExitResult[E, A] = {
-    val result = OneShot.make[ExitResult[E, A]]
+  final def unsafeRunSync[E, A](io: IO[E, A]): Exit[E, A] = {
+    val result = OneShot.make[Exit[E, A]]
 
-    unsafeRunAsync(io, (x: ExitResult[E, A]) => result.set(x))
+    unsafeRunAsync(io, (x: Exit[E, A]) => result.set(x))
 
     result.get()
   }
@@ -58,7 +58,7 @@ trait Env {
    */
   final def unsafeRunAsync[E, A](
     io: IO[E, A],
-    k: ExitResult[E, A] => Unit
+    k: Exit[E, A] => Unit
   ): Unit = {
     val context = newFiberContext[E, A](reportFailure(_))
 

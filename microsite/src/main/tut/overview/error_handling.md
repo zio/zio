@@ -23,7 +23,7 @@ You can use `Nothing` to describe computations that cannot fail:
 ```tut:invisible
 import java.io.IOException
 
-def readData(file: String): IO[IOException, String] = IO.point(???)
+def readData(file: String): IO[IOException, String] = IO.succeedLazy(???)
 ```
 
 ```tut:silent
@@ -48,7 +48,7 @@ def sqrt(io: IO[Nothing, Double]): IO[String, Double] =
 If you want to catch and recover from all types of errors and effectfully attempt recovery, you can use the `catchAll` method:
 
 ```tut:invisible
-def openFile(s: String): IO[IOException, Array[Byte]] = IO.point(???)
+def openFile(s: String): IO[IOException, Array[Byte]] = IO.succeedLazy(???)
 ```
 
 ```tut:silent
@@ -75,12 +75,12 @@ If you want more control on the next action and better performance you can use t
 sealed abstract class Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
-def readUrls(file: String): IO[Throwable, List[String]] = IO.now("Hello" :: Nil)
-def fetchContent(urls: List[String]): IO[Nothing, Content] = IO.now(OkContent("Roger"))
+def readUrls(file: String): IO[Throwable, List[String]] = IO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): IO[Nothing, Content] = IO.succeed(OkContent("Roger"))
 ```
 ```tut:silent
 val z: IO[Nothing, Content] =
-  readUrls("urls.json").redeem(e => IO.point(NoContent(e)), fetchContent)
+  readUrls("urls.json").redeem(e => IO.succeedLazy(NoContent(e)), fetchContent)
 ```
 
 # Retry

@@ -26,7 +26,7 @@ trait Stream[+E, +A] { self =>
   def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S]
 
   def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): IO[E, S] =
-    foldLazy(s)(_ => true)((s, a) => IO.now(f(s, a)))
+    foldLazy(s)(_ => true)((s, a) => IO.succeed(f(s, a)))
 
   /**
    * Concatenates the specified stream to this stream.
@@ -36,7 +36,7 @@ trait Stream[+E, +A] { self =>
       override def foldLazy[E2 >: E1, A2 >: A1, S](s: S)(cont: S => Boolean)(f: (S, A2) => IO[E2, S]): IO[E2, S] =
         self.foldLazy[E2, A, S](s)(cont)(f).flatMap { s =>
           if (cont(s)) that.foldLazy[E2, A1, S](s)(cont)(f)
-          else IO.now(s)
+          else IO.succeed(s)
         }
     }
 
@@ -48,7 +48,7 @@ trait Stream[+E, +A] { self =>
     override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
       self.foldLazy[E1, A, S](s)(cont) { (s, a) =>
         if (pred(a)) f(s, a)
-        else IO.now(s)
+        else IO.succeed(s)
       }
   }
 
@@ -67,7 +67,7 @@ trait Stream[+E, +A] { self =>
       .foldLazy[E1, A, Boolean](true)(identity)(
         (cont, a) =>
           if (cont) f(a)
-          else IO.now(cont)
+          else IO.succeed(cont)
       )
       .void
 
@@ -79,7 +79,7 @@ trait Stream[+E, +A] { self =>
       override def foldLazy[E1 >: E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E1, S]): IO[E1, S] =
         self.foldLazy[E1, A, S](s)(cont) { (s, a) =>
           if (pf isDefinedAt a) f(s, pf(a))
-          else IO.now(s)
+          else IO.succeed(s)
         }
     }
 
@@ -97,7 +97,7 @@ trait Stream[+E, +A] { self =>
     override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
       self
         .foldLazy[E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
-          case ((true, s), a) if pred(a) => IO.now(true       -> s)
+          case ((true, s), a) if pred(a) => IO.succeed(true   -> s)
           case ((_, s), a)               => f(s, a).map(false -> _)
         }
         .map(_._2)
@@ -127,7 +127,7 @@ trait Stream[+E, +A] { self =>
         def loop(s: S): IO[E1, S] =
           self.foldLazy[E1, A, S](s)(cont)(f) flatMap { s =>
             if (cont(s)) loop(s)
-            else IO.now(s)
+            else IO.succeed(s)
           }
 
         loop(s)
@@ -186,20 +186,20 @@ trait Stream[+E, +A] { self =>
             case Left(Take.Fail(e))  => IO.fail(e)
             case Right(Take.Fail(e)) => IO.fail(e)
             case Left(Take.End) =>
-              if (rightDone) IO.now(s)
+              if (rightDone) IO.succeed(s)
               else loop(true, rightDone, s, queue)
             case Left(Take.Value(a)) =>
               f(s, l(a)).flatMap { s =>
                 if (cont(s)) loop(leftDone, rightDone, s, queue)
-                else IO.now(s)
+                else IO.succeed(s)
               }
             case Right(Take.End) =>
-              if (leftDone) IO.now(s)
+              if (leftDone) IO.succeed(s)
               else loop(leftDone, true, s, queue)
             case Right(Take.Value(b)) =>
               f(s, r(b)).flatMap { s =>
                 if (cont(s)) loop(leftDone, rightDone, s, queue)
-                else IO.now(s)
+                else IO.succeed(s)
               }
           }
 
@@ -215,8 +215,8 @@ trait Stream[+E, +A] { self =>
             _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
             _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
             step   <- loop(false, false, s, queue)
-          } yield step).supervised
-        } else IO.now(s)
+          } yield step).supervise
+        } else IO.succeed(s)
       }
     }
 
@@ -239,10 +239,10 @@ trait Stream[+E, +A] { self =>
     def tail(resume: Promise[Nothing, Fold], done: Promise[E1, Any]): Stream[E1, A1] =
       new Stream[E1, A1] {
         override def foldLazy[E2 >: E1, A2 >: A1, S](s: S)(cont: S => Boolean)(f: (S, A2) => IO[E2, S]): IO[E2, S] =
-          if (!cont(s)) IO.now(s)
+          if (!cont(s)) IO.succeed(s)
           else
-            resume.complete((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
-              done.get.asInstanceOf[IO[E2, S]]
+            resume.succeed((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
+              done.await.asInstanceOf[IO[E2, S]]
       }
 
     def acquire(lstate: sink.State): IO[Nothing, (Fiber[E1, State], Promise[E1, Result])] =
@@ -251,41 +251,38 @@ trait Stream[+E, +A] { self =>
         done   <- Promise.make[E1, Any]
         result <- Promise.make[E1, Result]
         fiber <- self
-                  .foldLazy[E1, A1, State](Left(lstate))(
-                    s =>
-                      s match {
-                        case Left(_)             => true
-                        case Right((s, cont, _)) => cont(s)
-                      }
-                  ) {
+                  .foldLazy[E1, A1, State](Left(lstate)) {
+                    case Left(_)             => true
+                    case Right((s, cont, _)) => cont(s)
+                  } {
                     case (Left(lstate), a) =>
                       sink.step(lstate, a).flatMap { step =>
-                        if (Sink.Step.cont(step)) IO.now(Left(Sink.Step.state(step)))
+                        if (Sink.Step.cont(step)) IO.succeed(Left(Sink.Step.state(step)))
                         else {
                           val lstate = Sink.Step.state(step)
                           val as     = Sink.Step.leftover(step)
 
                           sink.extract(lstate).flatMap { r =>
-                            result.complete(r -> tail(resume, done)) *>
-                              resume.get
+                            result.succeed(r -> tail(resume, done)) *>
+                              resume.await
                                 .flatMap(t => feed(as)(t._1, t._2, t._3).map(s => Right((s, t._2, t._3))))
                           }
                         }
                       }
                     case (Right((rstate, cont, f)), a) =>
                       f(rstate, a).flatMap { rstate =>
-                        IO.now(Right((rstate, cont, f)))
+                        IO.succeed(Right((rstate, cont, f)))
                       }
                   }
-                  .onError(c => result.done(IO.fail0(c)).void)
+                  .onError(c => result.done(IO.halt(c)).void)
                   .fork
-        _ <- fiber.observe.flatMap {
-              case ExitResult.Succeeded(Left(_)) =>
+        _ <- fiber.await.flatMap {
+              case Exit.Success(Left(_)) =>
                 done.done(
-                  IO.terminate(new Exception("Logic error: Stream.peel's inner stream ended with a Left"))
+                  IO.die(new Exception("Logic error: Stream.peel's inner stream ended with a Left"))
                 )
-              case ExitResult.Succeeded(Right((rstate, _, _))) => done.complete(rstate)
-              case ExitResult.Failed(c)                        => done.done(IO.fail0(c))
+              case Exit.Success(Right((rstate, _, _))) => done.succeed(rstate)
+              case Exit.Failure(c)                     => done.done(IO.halt(c))
             }.fork.void
       } yield (fiber, result)
 
@@ -293,7 +290,7 @@ trait Stream[+E, +A] { self =>
       .liftIO(sink.initial)
       .flatMap { step =>
         Managed(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap { t =>
-          Managed.liftIO(t._2.get)
+          Managed.liftIO(t._2.await)
         }
       }
   }
@@ -306,10 +303,10 @@ trait Stream[+E, +A] { self =>
     new Stream[E, A] {
       override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]) = {
         def loop(s: S, sched: schedule.State): IO[E1, S] =
-          self.foldLazy[E1, A1, S](s)(cont)(f).seq(schedule.update((), sched, clock)).flatMap {
+          self.foldLazy[E1, A1, S](s)(cont)(f).zip(schedule.update((), sched, clock)).flatMap {
             case (s, decision) =>
               if (decision.cont) IO.unit.delay(decision.delay) *> loop(s, decision.state)
-              else IO.now(s)
+              else IO.succeed(s)
           }
 
         schedule.initial(clock).flatMap(loop(s, _))
@@ -326,7 +323,7 @@ trait Stream[+E, +A] { self =>
           schedule.update(a, sched, clock).flatMap { decision =>
             if (decision.cont)
               IO.unit.delay(decision.delay) *> f(s, a).flatMap(loop(_, decision.state, a))
-            else IO.now(s)
+            else IO.succeed(s)
           }
 
         schedule.initial(clock).flatMap { sched =>
@@ -399,7 +396,7 @@ trait Stream[+E, +A] { self =>
         .foldLazy[E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) {
           case ((_, s), a) =>
             if (pred(a)) f(s, a).map(true -> _)
-            else IO.now(false             -> s)
+            else IO.succeed(false         -> s)
         }
         .map(_._2)
   }
@@ -428,13 +425,13 @@ trait Stream[+E, +A] { self =>
       )(cont: S2 => Boolean)(f: (S2, C1) => IO[E2, S2]): IO[E2, S2] = {
         def feed(s1: sink.State, s2: S2, a: Chunk[A1]): IO[E2, Sink.Step[(sink.State, S2), A1]] =
           sink.stepChunk(s1, a).flatMap { step =>
-            if (Sink.Step.cont(step)) IO.now(Sink.Step.leftMap(step)((_, s2)))
+            if (Sink.Step.cont(step)) IO.succeed(Sink.Step.leftMap(step)((_, s2)))
             else {
               sink.extract(Sink.Step.state(step)).flatMap { c =>
                 f(s2, c) flatMap { s2 =>
                   if (cont(s2))
                     sink.initial.flatMap(initStep => feed(Sink.Step.state(initStep), s2, Sink.Step.leftover(step)))
-                  else IO.now(Sink.Step.more((s1, s2)))
+                  else IO.succeed(Sink.Step.more((s1, s2)))
                 }
               }
             }
@@ -455,7 +452,7 @@ trait Stream[+E, +A] { self =>
               sink
                 .extract(s1)
                 .redeem(
-                  _ => IO.now(s2),
+                  _ => IO.succeed(s2),
                   c => f(s2, c)
                 )
             }
@@ -495,17 +492,17 @@ trait Stream[+E, +A] { self =>
           q2: Queue[Take[E2, B]],
           s: S
         ): IO[E2, S] = {
-          val takeLeft  = if (leftDone) IO.now(None) else Take.option(q1.take)
-          val takeRight = if (rightDone) IO.now(None) else Take.option(q2.take)
+          val takeLeft  = if (leftDone) IO.succeed(None) else Take.option(q1.take)
+          val takeRight = if (rightDone) IO.succeed(None) else Take.option(q2.take)
 
-          takeLeft.seq(takeRight).flatMap {
+          takeLeft.zip(takeRight).flatMap {
             case (left, right) =>
               f0(left, right) match {
-                case None => IO.now(s)
+                case None => IO.succeed(s)
                 case Some(c) =>
                   f(s, c).flatMap { s =>
                     if (cont(s)) loop(left.isEmpty, right.isEmpty, q1, q2, s)
-                    else IO.now(s)
+                    else IO.succeed(s)
                   }
               }
           }
@@ -553,7 +550,7 @@ object Stream {
   /**
    * Constructs a singleton stream.
    */
-  final def point[A](a: => A): Stream[Nothing, A] = StreamPure.point(a)
+  final def succeedLazy[A](a: => A): Stream[Nothing, A] = StreamPure.succeedLazy(a)
 
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
@@ -561,7 +558,7 @@ object Stream {
   final def lift[E, A](fa: IO[E, A]): Stream[E, A] = new Stream[E, A] {
     override def foldLazy[E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E1, S]): IO[E1, S] =
       if (cont(s)) fa.flatMap(f(s, _))
-      else IO.now(s)
+      else IO.succeed(s)
   }
 
   /**
@@ -594,17 +591,17 @@ object Stream {
         if (cont(s))
           m use { a =>
             read(a).flatMap {
-              case None    => IO.now(s)
+              case None    => IO.succeed(s)
               case Some(b) => f(s, b)
             }
-          } else IO.now(s)
+          } else IO.succeed(s)
     }
 
   /**
    * Constructs an infinite stream from a `Queue`.
    */
   final def fromQueue[A](queue: Queue[A]): Stream[Nothing, A] =
-    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.now(None))
+    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.succeed(None))
 
   /**
    * Constructs a stream from effectful state. This method should not be used
@@ -616,10 +613,10 @@ object Stream {
         s2: S2
       )(cont: S2 => Boolean)(f: (S2, A1) => IO[E1, S2]): IO[E1, S2] = {
         def loop(s: S, s2: S2): IO[E1, (S, S2)] =
-          if (!cont(s2)) IO.now((s, s2))
+          if (!cont(s2)) IO.succeed((s, s2))
           else
             f0(s) flatMap {
-              case None => IO.now((s, s2))
+              case None => IO.succeed((s, s2))
               case Some((a, s)) =>
                 f(s2, a).flatMap(loop(s, _))
             }
@@ -637,10 +634,10 @@ object Stream {
         s2: S2
       )(cont: S2 => Boolean)(f: (S2, A1) => IO[E1, S2]): IO[E1, S2] = {
         def loop(s: S, s2: S2): IO[E1, (S, S2)] =
-          if (!cont(s2)) IO.now((s, s2))
+          if (!cont(s2)) IO.succeed((s, s2))
           else
             f0(s) match {
-              case None => IO.now((s, s2))
+              case None => IO.succeed((s, s2))
               case Some((a, s)) =>
                 f(s2, a).flatMap(loop(s, _))
             }

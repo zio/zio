@@ -7,13 +7,13 @@ trait GenIO {
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.point` constructor.
    */
-  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.point[A](_))
+  def genSyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] = Arbitrary.arbitrary[A].map(IO.succeedLazy[A](_))
 
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncSuccess[E, A: Arbitrary]: Gen[IO[E, A]] =
-    Arbitrary.arbitrary[A].map(a => IO.async[Any, E, A](k => k(IO.now(a))))
+    Arbitrary.arbitrary[A].map(a => IO.async[Any, E, A](k => k(IO.succeed(a))))
 
   /**
    * Randomly uses either `genSyncSuccess` or `genAsyncSuccess` with equal probability.
@@ -105,12 +105,12 @@ trait GenIO {
     gen.map(nextIO => io.flatMap(_ => nextIO))
 
   private def genOfIdentityFlatMaps[E, A](io: IO[E, A]): Gen[IO[E, A]] =
-    Gen.const(io.flatMap(a => IO.point(a)))
+    Gen.const(io.flatMap(a => IO.succeedLazy(a)))
 
   private def genOfRace[E, A](io: IO[E, A]): Gen[IO[E, A]] =
     Gen.const(io.race(IO.never))
 
   private def genOfParallel[E, A](io: IO[E, A])(gen: Gen[IO[E, A]]): Gen[IO[E, A]] =
-    gen.map(parIo => io.par(parIo).map(_._1))
+    gen.map(parIo => io.zipPar(parIo).map(_._1))
 
 }
