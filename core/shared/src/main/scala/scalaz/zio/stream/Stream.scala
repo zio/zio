@@ -56,7 +56,6 @@ trait Stream[+E, +A] { self =>
           f0(s, cont, (s, a) => if (pred(a)) f(s, a) else IO.succeed(s))
         }
       }
-    }
   }
 
   /**
@@ -70,6 +69,7 @@ trait Stream[+E, +A] { self =>
    * and terminating consumption when the callback returns `false`.
    */
   final def foreach0[E1 >: E](f: A => IO[E1, Boolean]): IO[E1, Unit] =
+<<<<<<< HEAD
     self
       .foldLazy[E1, A, Boolean](true)(identity)(
         (cont, a) =>
@@ -77,6 +77,9 @@ trait Stream[+E, +A] { self =>
           else IO.succeed(cont)
       )
       .void
+=======
+    self.fold[E1, A, Boolean].flatMap(f0 => f0(true, identity, (cont, a) => if (cont) f(a) else IO.now(cont))).void
+>>>>>>> Implement Stream.foreach0 in terms of fold
 
   /**
    * Performs a filter and map in a single step.
