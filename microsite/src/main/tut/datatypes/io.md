@@ -16,20 +16,20 @@ A value of type `IO[E, A]` describes an effect that may fail with an `E`, run fo
 
 # Pure Values
 
-You can lift pure values into `IO` with `IO.point`:
+You can lift pure values into `IO` with `IO.succeedLazy`:
 
 ```tut:silent
 import scalaz.zio._
 
-val z: IO[Nothing, String] = IO.point("Hello World")
+val z: IO[Nothing, String] = IO.succeedLazy("Hello World")
 ```
 
 The constructor uses non-strict evaluation, so the parameter will not be evaluated until when and if the `IO` action is executed at runtime, which is useful if the construction is costly and the value may never be needed.
 
-Alternately, you can use the `IO.now` constructor to perform strict evaluation of the value:
+Alternately, you can use the `IO.succeed` constructor to perform strict evaluation of the value:
 
 ```tut:silent
-val z: IO[Nothing, String] = IO.now("Hello World")
+val z: IO[Nothing, String] = IO.succeed("Hello World")
 ```
 
 You should never use either constructor for importing impure code into `IO`. The result of doing so is undefined.
@@ -82,7 +82,7 @@ case class Response()
 
 object Http {
   def req(req: Request, k: IO[HttpException, Response] => Unit): Unit =
-    k(IO.now(Response()))
+    k(IO.succeed(Response()))
 }
 ```
 
@@ -100,7 +100,7 @@ You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a
 ```tut:silent
 import scalaz.zio._
 
-val z: IO[Nothing, Int] = IO.point(21).map(_ * 2)
+val z: IO[Nothing, Int] = IO.succeedLazy(21).map(_ * 2)
 ```
 
 You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `leftMap` method with a function `E => E2`:
@@ -114,8 +114,8 @@ val z: IO[Exception, String] = IO.fail("No no!").leftMap(msg => new Exception(ms
 You can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
 ```tut:silent
-val z: IO[Nothing, List[Int]] = IO.point(List(1, 2, 3)).flatMap { list =>
-  IO.point(list.map(_ + 1))
+val z: IO[Nothing, List[Int]] = IO.succeedLazy(List(1, 2, 3)).flatMap { list =>
+  IO.succeedLazy(list.map(_ + 1))
 }
 ```
 
@@ -123,8 +123,8 @@ You can use Scala's `for` comprehension syntax to make this type of code more co
 
 ```tut:silent
 val z: IO[Nothing, List[Int]] = for {
-  list <- IO.point(List(1, 2, 3))
-  added <- IO.point(list.map(_ + 1))
+  list <- IO.succeedLazy(List(1, 2, 3))
+  added <- IO.succeedLazy(list.map(_ + 1))
 } yield added
 ```
 
@@ -145,8 +145,8 @@ import scalaz.zio._
 ```tut:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.point(???)
-def closeFile(f: File): IO[Nothing, Unit] = IO.point(???)
+def openFile(s: String): IO[IOException, File] = IO.succeedLazy(???)
+def closeFile(f: File): IO[Nothing, Unit] = IO.succeedLazy(???)
 def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```

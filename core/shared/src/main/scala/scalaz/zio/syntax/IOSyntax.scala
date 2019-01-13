@@ -1,10 +1,11 @@
 package scalaz.zio.syntax
-import scalaz.zio.ExitResult.Cause
+
+import scalaz.zio.Exit.Cause
 import scalaz.zio.{ Fiber, IO, Task }
 
 object IOSyntax {
   final class IOCreationLazySyntax[A](val a: () => A) extends AnyVal {
-    def point: IO[Nothing, A]                                   = IO.point(a())
+    def succeedLazy: IO[Nothing, A]                             = IO.succeedLazy(a())
     def sync: IO[Nothing, A]                                    = IO.sync(a())
     def syncException: IO[Exception, A]                         = IO.syncException(a())
     def syncThrowable: Task[A]                                  = Task.syncThrowable(a())
@@ -12,7 +13,7 @@ object IOSyntax {
   }
 
   final class IOCreationEagerSyntax[A](val a: A) extends AnyVal {
-    def now: IO[Nothing, A]                         = IO.now(a)
+    def succeed: IO[Nothing, A]                     = IO.succeed(a)
     def fail: IO[A, Nothing]                        = IO.fail(a)
     def require[AA]: IO[A, Option[AA]] => IO[A, AA] = IO.require(a)
   }
@@ -22,11 +23,11 @@ object IOSyntax {
   }
 
   final class IOAbsolveSyntax[E, A](val io: IO[E, Either[E, A]]) extends AnyVal {
-    def absolved: IO[E, A] = IO.absolve(io)
+    def absolve: IO[E, A] = IO.absolve(io)
   }
 
-  final class IOUnsandboxedSyntax[E, A](val io: IO[Cause[E], A]) extends AnyVal {
-    def unsandboxed: IO[E, A] = IO.unsandbox(io)
+  final class IOUnsandboxSyntax[E, A](val io: IO[Cause[E], A]) extends AnyVal {
+    def unsandbox: IO[E, A] = IO.unsandbox(io)
   }
 
   final class IOUnitSyntax[E](val io: IO[E, Unit]) extends AnyVal {
@@ -36,9 +37,20 @@ object IOSyntax {
 
   final class IOIterableSyntax[E, A](val ios: Iterable[IO[E, A]]) extends AnyVal {
     def mergeAll[B](zero: B, f: (B, A) => B): IO[E, B] = IO.mergeAll(ios)(zero, f)
-    def parAll: IO[E, List[A]]                         = IO.parAll(ios)
+    def collectAllPar: IO[E, List[A]]                  = IO.collectAllPar(ios)
     def forkAll: IO[Nothing, Fiber[E, List[A]]]        = IO.forkAll(ios)
-    def sequence: IO[E, List[A]]                       = IO.sequence(ios)
+    def collectAll: IO[E, List[A]]                     = IO.collectAll(ios)
+  }
+
+  final class IOGetSyntax[A](val io: IO[Nothing, Option[A]]) extends AnyVal {
+    def get: IO[Unit, A] = io.map(_.toRight(())).absolve
+  }
+
+  final class IOOptionSyntax[A](val io: IO[Unit, A]) extends AnyVal {
+    def option: IO[Nothing, Option[A]] = io.attempt.map {
+      case Right(value) => Some(value)
+      case _            => None
+    }
   }
 
   final class IOSyntax[E, A](val io: IO[E, A]) extends AnyVal {

@@ -3,7 +3,7 @@
 package scalaz
 
 package object zio {
-  private[zio] type Callback[E, A] = ExitResult[E, A] => Unit
+  private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
   type Canceler = ZIO[Any, Nothing, _]
   type FiberId  = Long

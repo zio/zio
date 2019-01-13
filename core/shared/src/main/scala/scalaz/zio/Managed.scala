@@ -57,13 +57,13 @@ sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
   final def <*[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A] =
     flatMap(r => that.map(_ => r))
 
-  final def seqWith[R1 <: R, E1 >: E, A1, A2](that: Managed[R1, E1, A1])(f: (A, A1) => A2): Managed[R1, E1, A2] =
+  final def zipWith[R1 <: R, E1 >: E, A1, A2](that: Managed[R1, E1, A1])(f: (A, A1) => A2): Managed[R1, E1, A2] =
     flatMap(r => that.map(r1 => f(r, r1)))
 
-  final def seq[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, (A, A1)] =
-    seqWith(that)((_, _))
+  final def zip[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, (A, A1)] =
+    zipWith(that)((_, _))
 
-  final def parWith[R1 <: R, E1 >: E, A1, A2](that: Managed[R1, E1, A1])(f0: (A, A1) => A2): Managed[R1, E1, A2] =
+  final def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: Managed[R1, E1, A1])(f0: (A, A1) => A2): Managed[R1, E1, A2] =
     new Managed[R1, E1, A2] {
       type A0 = A2
 
@@ -72,10 +72,10 @@ sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
       protected def release: A2 => UIO[Unit] = _ => IO.unit
 
       def use[R2 <: R1, E2 >: E1, A](f: A2 => ZIO[R2, E2, A]): ZIO[R2, E2, A] = {
-        val acquireBoth = self.acquire.par(that.acquire)
+        val acquireBoth = self.acquire.zipPar(that.acquire)
 
         def releaseBoth(pair: (self.A0, that.A0)): UIO[Unit] =
-          self.release(pair._1).par(that.release(pair._2)) *> IO.unit
+          self.release(pair._1).zipPar(that.release(pair._2)) *> IO.unit
 
         acquireBoth.bracket[R2, E2, A](releaseBoth) {
           case (r, r1) => f(f0(r, r1))
@@ -83,8 +83,8 @@ sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
       }
     }
 
-  final def par[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, (A, A1)] =
-    parWith(that)((_, _))
+  final def zipPar[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, (A, A1)] =
+    zipWithPar(that)((_, _))
 }
 
 object Managed {
@@ -138,11 +138,11 @@ object Managed {
   /**
    * Lifts a strict, pure value into a Managed.
    */
-  final def now[A](r: A): Managed[Any, Nothing, A] =
+  final def succeed[A](r: A): Managed[Any, Nothing, A] =
     new Managed[Any, Nothing, A] {
       type A0 = A
 
-      protected def acquire: UIO[A] = IO.now(r)
+      protected def acquire: UIO[A] = IO.succeed(r)
 
       protected def release: A => UIO[_] = _ => IO.unit
 
@@ -152,11 +152,11 @@ object Managed {
   /**
    * Lifts a by-name, pure value into a Managed.
    */
-  final def point[A](r: => A): Managed[Any, Nothing, A] =
+  final def succeedLazy[A](r: => A): Managed[Any, Nothing, A] =
     new Managed[Any, Nothing, A] {
       type A0 = A
 
-      protected def acquire: UIO[A] = IO.point(r)
+      protected def acquire: UIO[A] = IO.succeedLazy(r)
 
       protected def release: A => UIO[_] = _ => IO.unit
 
@@ -164,8 +164,8 @@ object Managed {
     }
 
   final def traverse[R, E, A, A1](as: Iterable[A])(f: A => Managed[R, E, A1]): Managed[R, E, List[A1]] =
-    as.foldRight[Managed[R, E, List[A1]]](now(Nil)) { (a, m) =>
-      f(a).seqWith(m)(_ :: _)
+    as.foldRight[Managed[R, E, List[A1]]](succeed(Nil)) { (a, m) =>
+      f(a).zipWith(m)(_ :: _)
     }
 
   final def sequence[R, E, A](ms: Iterable[Managed[R, E, A]]): Managed[R, E, List[A]] =

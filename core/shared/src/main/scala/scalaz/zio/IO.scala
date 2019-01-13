@@ -1,7 +1,7 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scalaz.zio.ExitResult.Cause
+import scalaz.zio.Exit.Cause
 import scalaz.zio.duration._
 import scalaz.zio.internal.{ Env, Executor }
 
@@ -108,7 +108,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * A more powerful version of `fork` that allows specifying a handler to be
    * invoked on any exceptions that are not handled by the forked fiber.
    */
-  final def fork0(handler: Cause[Any] => UIO[_]): IO[Nothing, Fiber[E, A]] =
+  final def forkWith(handler: Cause[Any] => UIO[_]): IO[Nothing, Fiber[E, A]] =
     new ZIO.Fork(this, Some(handler))
 
   /**
@@ -118,11 +118,11 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    *
    * TODO: Replace with optimized primitive.
    */
-  final def parWith[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] = {
-    def coordinate[A, B](f: (A, B) => C)(winner: ExitResult[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
+  final def zipWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] = {
+    def coordinate[A, B](f: (A, B) => C)(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
       winner match {
-        case ExitResult.Succeeded(a)  => loser.join.map(f(a, _))
-        case ExitResult.Failed(cause) => loser.interrupt *> ZIO.fail0(cause)
+        case Exit.Success(a)     => loser.join.map(f(a, _))
+        case Exit.Failure(cause) => loser.interrupt *> ZIO.halt(cause)
       }
     val g = (b: B, a: A) => f(a, b)
     (self raceWith that)(coordinate(f), coordinate(g))
@@ -133,8 +133,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * returning a tuple of their results. If either individual action fails,
    * then the returned action will fail.
    */
-  final def par[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
-    self.parWith(that)((a, b) => (a, b))
+  final def zipPar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self.zipWithPar(that)((a, b) => (a, b))
 
   /**
    * Races this action with the specified action, returning the first
@@ -142,24 +142,24 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * then the action will fail with some error.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-    raceBoth(that).map(_.merge)
+    raceEither(that).map(_.merge)
 
   /**
    * Races this action with the specified action, returning the first
    * result to produce a value, whichever it is. If neither action succeeds,
    * then the action will fail with some error.
    */
-  final def raceBoth[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
+  final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
     raceWith(that)(
       (exit, right) =>
         exit.redeem[E1, Either[A, B]](
           _ => right.join.map(Right(_)),
-          a => ZIO.nowLeft(a) <* right.interrupt
+          a => ZIO.succeedLeft(a) <* right.interrupt
         ),
       (exit, left) =>
         exit.redeem[E1, Either[A, B]](
           _ => left.join.map(Left(_)),
-          b => ZIO.nowRight(b) <* left.interrupt
+          b => ZIO.succeedRight(b) <* left.interrupt
         )
     )
 
@@ -171,8 +171,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def raceAttempt[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     raceWith(that)(
-      { case (l, f) => l.fold(f.interrupt *> ZIO.fail0(_), ZIO.now) },
-      { case (r, f) => r.fold(f.interrupt *> ZIO.fail0(_), ZIO.now) }
+      { case (l, f) => l.fold(f.interrupt *> ZIO.halt(_), ZIO.succeed) },
+      { case (r, f) => r.fold(f.interrupt *> ZIO.halt(_), ZIO.succeed) }
     )
 
   /**
@@ -182,15 +182,15 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def raceWith[R1 <: R, E1, E2, B, C](
     that: ZIO[R1, E1, B]
   )(
-    leftDone: (ExitResult[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-    rightDone: (ExitResult[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
+    leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
+    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
   ): ZIO[R1, E2, C] = {
     def arbiter[E0, E1, A, B](
-      f: (ExitResult[E0, A], Fiber[E1, B]) => ZIO[R1, E2, C],
+      f: (Exit[E0, A], Fiber[E1, B]) => ZIO[R1, E2, C],
       loser: Fiber[E1, B],
       race: Ref[Int],
       done: Promise[E2, C]
-    )(res: ExitResult[E0, A]): ZIO[R1, Nothing, _] =
+    )(res: Exit[E0, A]): ZIO[R1, Nothing, _] =
       ZIO.flatten(race.modify((c: Int) => (if (c > 0) ZIO.unit else f(res, loser).to(done).void) -> (c + 1)))
 
     for {
@@ -200,9 +200,9 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
       c <- ((for {
             left  <- self.fork.peek(f => child update (_ *> f.interrupt))
             right <- that.fork.peek(f => child update (_ *> f.interrupt))
-            _     <- left.observe.flatMap(arbiter(leftDone, right, race, done)).fork
-            _     <- right.observe.flatMap(arbiter(rightDone, left, race, done)).fork
-          } yield ()).uninterruptibly *> done.get).onInterrupt(
+            _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
+            _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
+          } yield ()).uninterruptible *> done.await).onInterrupt(
             ZIO.flatten(child.get)
           )
     } yield c
@@ -213,25 +213,36 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * otherwise executes the specified action.
    */
   final def orElse[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
-    self <> that
+    redeemOrElse(that, ZIO.succeed)
 
   /**
+   * Alias for orElse.
+   *
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
   final def <>[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
-    redeemOrElse(that, ZIO.now)
+    orElse(that)
 
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
+  final def orElseEither[R1 <: R, E2, B](that: => ZIO[R1, E2, B]): ZIO[R1, E2, Either[A, B]] =
+    redeemOrElse(that.map(Right(_)), ZIO.succeedLeft)
+
+  /**
+   * Alias for orElseEither.
+   *
+   * Executes this action and returns its value, if it succeeds, but
+   * otherwise executes the specified action.
+   */
   final def <||>[R1 <: R, E2, B](that: => ZIO[R1, E2, B]): ZIO[R1, E2, Either[A, B]] =
-    redeemOrElse(that.map(Right(_)), ZIO.nowLeft)
+    orElseEither(that)
 
   private final def redeemOrElse[R1 <: R, E2, B](that: => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] = {
     val err = (cause: Cause[E]) =>
-      if (cause.interrupted || cause.isChecked) that else ZIO.fail0(cause.asInstanceOf[Cause[Nothing]])
+      if (cause.interrupted || cause.isChecked) that else ZIO.halt(cause.asInstanceOf[Cause[Nothing]])
 
     (self.tag: @switch) match {
       case ZIO.Tags.Fail =>
@@ -247,13 +258,29 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * a "larger" error.
    */
   final def leftMap[E2](f: E => E2): ZIO[R, E2, A] =
-    self.redeem(f.andThen(ZIO.fail), ZIO.now[A](_))
+    self.redeem(f.andThen(ZIO.fail), ZIO.succeed)
+
+  /**
+   * Creates a composite action that represents this action followed by another
+   * one that may depend on the error produced by this one.
+   *
+   * {{{
+   * val parsed = readFile("foo.txt").flatMapError(error => logErrorToFile(error))
+   * }}}
+   */
+  final def flatMapError[R1 <: R, E2](f: E => ZIO[R1, Nothing, E2]): ZIO[R1, E2, A] =
+    self.redeem(f.andThen(_.flip), ZIO.succeed)
+
+  /**
+   *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
+   */
+  final def flipWith[R1, A1, E1](f: ZIO[R, A, E] => ZIO[R1, A1, E1]): ZIO[R1, E1, A1] = f(self.flip).flip
 
   /**
    * Swaps the error/value around, making it easier to handle errors.
    */
   final def flip: ZIO[R, A, E] =
-    self.redeem(ZIO.now, ZIO.fail)
+    self.redeem(ZIO.succeed, ZIO.fail)
 
   /**
    * Recovers from errors by accepting one action to execute for the case of an
@@ -267,7 +294,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * it will depend on the `IO`s returned by the given continuations.
    */
   final def redeem[R1 <: R, E2, B](err: E => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    redeem0((cause: Cause[E]) => cause.checkedOrRefail.fold(err, ZIO.fail0), succ)
+    redeem0((cause: Cause[E]) => cause.checkedOrRefail.fold(err, ZIO.halt), succ)
 
   /**
    * A more powerful version of redeem that allows recovering from any kind of failure except interruptions.
@@ -287,7 +314,14 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * on the result of this `IO`
    */
   final def redeemPure[B](err: E => B, succ: A => B): ZIO[R, Nothing, B] =
-    redeem(err.andThen(ZIO.now), succ.andThen(ZIO.now))
+    redeem(err.andThen(ZIO.succeed), succ.andThen(ZIO.succeed))
+
+  /**
+   * Alias for redeemPure
+   */
+  @deprecated("Use redeemPure", "scalaz-zio 0.6.0")
+  final def fold[B](err: E => B, succ: A => B): ZIO[R, Nothing, B] =
+    redeemPure(err, succ)
 
   /**
    * Executes this action, capturing both failure and success and returning
@@ -298,7 +332,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * it is guaranteed the `IO` action does not raise any errors.
    */
   final def attempt: ZIO[R, Nothing, Either[E, A]] =
-    self.redeem(ZIO.nowLeft, ZIO.nowRight)
+    self.redeem(ZIO.succeedLeft, ZIO.succeedRight)
 
   /**
    * When this action represents acquisition of a resource (for example,
@@ -337,7 +371,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * or not `use` succeeded to the release action.
    */
   final def bracket0[R1 <: R, E1 >: E, B](
-    release: (A, ExitResult[E1, B]) => UIO[_]
+    release: (A, Exit[E1, B]) => UIO[_]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     ZIO.bracket0[R1, E1, A, B](this)(release)(use)
 
@@ -375,10 +409,10 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def bracketOnError[R1 <: R, E1 >: E, B](release: A => UIO[_])(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     ZIO.bracket0[R1, E1, A, B](this)(
-      (a: A, eb: ExitResult[E1, B]) =>
+      (a: A, eb: Exit[E1, B]) =>
         eb match {
-          case ExitResult.Failed(_) => release(a)
-          case _                    => ZIO.unit
+          case Exit.Failure(_) => release(a)
+          case _               => ZIO.unit
         }
     )(use)
 
@@ -391,10 +425,10 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def onError[R1 <: R](cleanup: Cause[E] => UIO[_]): ZIO[R1, E, A] =
     ZIO.bracket0[R1, E, Unit, A](ZIO.unit)(
-      (_, eb: ExitResult[E, A]) =>
+      (_, eb: Exit[E, A]) =>
         eb match {
-          case ExitResult.Succeeded(_)  => ZIO.unit
-          case ExitResult.Failed(cause) => cleanup(cause)
+          case Exit.Success(_)  => ZIO.unit
+          case Exit.Failure(cause) => cleanup(cause)
         }
     )(_ => self)
 
@@ -412,10 +446,10 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def onTermination(cleanup: Cause[Nothing] => UIO[_]): ZIO[R, E, A] =
     ZIO.bracket0[R, E, Unit, A](ZIO.unit)(
-      (_, eb: ExitResult[E, A]) =>
+      (_, eb: Exit[E, A]) =>
         eb match {
-          case ExitResult.Failed(cause) => cause.checkedOrRefail.fold(_ => ZIO.unit, cleanup)
-          case _                        => ZIO.unit
+          case Exit.Failure(cause) => cause.checkedOrRefail.fold(_ => ZIO.unit, cleanup)
+          case _                   => ZIO.unit
         }
     )(_ => self)
 
@@ -423,13 +457,13 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Supervises this action, which ensures that any fibers that are forked by
    * the action are interrupted when this action completes.
    */
-  final def supervised: ZIO[R, E, A] = ZIO.supervise(self)
+  final def supervise: ZIO[R, E, A] = ZIO.supervise(self)
 
   /**
    * Supervises this action, which ensures that any fibers that are forked by
    * the action are handled by the provided supervisor.
    */
-  final def supervised(supervisor: Iterable[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
+  final def superviseWith(supervisor: Iterable[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
     ZIO.superviseWith(self)(supervisor)
 
   /**
@@ -437,7 +471,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * being terminated externally, but the action may fail for internal reasons
    * (e.g. an uncaught error) or terminate due to defect.
    */
-  final def uninterruptibly: ZIO[R, E, A] = new ZIO.Uninterruptible(self)
+  final def uninterruptible: ZIO[R, E, A] = new ZIO.Uninterruptible(self)
 
   /**
    * Recovers from all errors.
@@ -447,7 +481,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    */
   final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
-    self.redeem[R1, E2, A1](h, ZIO.now)
+    self.redeem[R1, E2, A1](h, ZIO.succeed)
 
   /**
    * Recovers from some or all of the error cases.
@@ -461,14 +495,14 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = {
     def tryRescue(t: E): ZIO[R1, E1, A1] = pf.applyOrElse(t, (_: E) => ZIO.fail[E1](t))
 
-    self.redeem[R1, E1, A1](tryRescue, ZIO.now)
+    self.redeem[R1, E1, A1](tryRescue, ZIO.succeed)
   }
 
   /**
    * Translates the checked error (if present) into termination.
    */
-  final def orTerminate[E1 >: E](implicit ev: E1 =:= Throwable): ZIO[R, Nothing, A] =
-    self.leftMap(ev).catchAll(ZIO.terminate)
+  final def orDie[E1 >: E](implicit ev: E1 =:= Throwable): ZIO[R, Nothing, A] =
+    self.leftMap(ev).catchAll(ZIO.die)
 
   /**
    * Maps this action to the specified constant while preserving the
@@ -491,15 +525,15 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Sequentially zips this effect with the specified effect using the
    * specified combiner function.
    */
-  final def seqWith[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
+  final def zipWith[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 
   /**
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */
-  final def seq[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
-    self.seqWith(that)((a, b) => (a, b))
+  final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self.zipWith(that)((a, b) => (a, b))
 
   /**
    * Repeats this action forever (until the first error). For more sophisticated
@@ -543,8 +577,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule.update(a, state, clock).flatMap { step =>
-            if (!step.cont) ZIO.nowRight(step.finish())
-            else ZIO.now(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
+            if (!step.cont) ZIO.succeedRight(step.finish())
+            else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
           }
       )
 
@@ -592,7 +626,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
                 if (decision.cont) ZIO.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
             ),
-        succ => ZIO.nowRight(succ)
+        succ => ZIO.succeedRight(succ)
       )
 
     policy.initial(clock).flatMap(loop)
@@ -624,17 +658,17 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Times out this action by the specified duration.
    *
    * {{{
-   * IO.point(1).timeout0(Option.empty[Int])(Some(_))(1.second)
+   * IO.succeed(1).timeout0(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
   final def timeout0[B](z: B)(f: A => B)(duration: Duration): ZIO[R, E, B] =
-    self.map(f).sandboxWith[R, E, B](io => ZIO.absolve(io.attempt race ZIO.nowRight(z).delay(duration)))
+    self.map(f).sandboxWith[R, E, B](io => ZIO.absolve(io.attempt race ZIO.succeedRight(z).delay(duration)))
 
   /**
    * Flattens a nested action with a specified duration.
    */
   final def timeoutFail[E1 >: E](e: E1)(d: Duration): ZIO[R, E1, A] =
-    ZIO.flatten(timeout0[ZIO[R, E1, A]](ZIO.fail(e))(ZIO.now)(d))
+    ZIO.flatten(timeout0[ZIO[R, E1, A]](ZIO.fail(e))(ZIO.succeed)(d))
 
   /**
    * Returns a new action that executes this one and times the execution.
@@ -681,11 +715,11 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
-  final def run: ZIO[R, Nothing, ExitResult[E, A]] =
-    new ZIO.Redeem[R, E, Nothing, A, ExitResult[E, A]](
+  final def run: ZIO[R, Nothing, Exit[E, A]] =
+    new ZIO.Redeem[R, E, Nothing, A, Exit[E, A]](
       self,
-      cause => IO.now(ExitResult.failed(cause)),
-      succ => IO.now(ExitResult.succeeded(succ))
+      cause => ZIO.succeed(Exit.fail(cause)),
+      succ => ZIO.succeed(Exit.succeed(succ))
     )
 
   /**
@@ -716,7 +750,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    *   }
    * }}}
    */
-  final def sandboxed: ZIO[R, Cause[E], A] = redeem0(ZIO.fail, ZIO.now)
+  final def sandbox: ZIO[R, Cause[E], A] = redeem0(ZIO.fail, ZIO.succeed)
 
   /**
    * Companion helper to `sandboxed`.
@@ -745,7 +779,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * be lost and replaced by a `MatchError`
    */
   final def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B]): ZIO[R1, E2, B] =
-    ZIO.unsandbox(f(self.sandboxed))
+    ZIO.unsandbox(f(self.sandbox))
 
   /**
    * Widens the action type to any supertype. While `map` suffices for this
@@ -778,31 +812,34 @@ trait ZIOFunctions extends Serializable {
    * Creates an `IO` value that represents failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
-  final def fail[E <: UpperE](error: E): IO[E, Nothing] = fail0(Cause.checked(error))
+  final def fail[E <: UpperE](error: E): IO[E, Nothing] = halt(Cause.checked(error))
 
   /**
    * Returns an `IO` that fails with the specified `Cause`.
    */
-  final def fail0[E <: UpperE](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(cause)
+  final def halt[E <: UpperE](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(cause)
 
   /**
    * Lifts a strictly evaluated value into the `IO` monad.
    */
-  final def now[A](a: A): UIO[A] = new ZIO.Strict(a)
+  final def succeed[A](a: A): UIO[A] = new ZIO.Strict(a)
 
   /**
    * Lifts a non-strictly evaluated value into the `IO` monad. Do not use this
    * function to capture effectful code. The result is undefined but may
    * include duplicated effects.
    */
-  final def point[A](a: => A): UIO[A] = new ZIO.Point(() => a)
+  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.Point(() => a)
+
+  @deprecated("Use succeedLazy", "scalaz-zio 0.6.0")
+  final def point[A](a: => A): UIO[A] = succeedLazy(a)
 
   final def read[R >: LowerR]: ZIO[R, Nothing, R] = ???
 
   /**
    * Returns an `IO` that is interrupted.
    */
-  final val interrupt: UIO[Nothing] = fail0(Cause.interrupted)
+  final val interrupt: UIO[Nothing] = halt(Cause.interrupted)
 
   /**
    * Returns a action that will never produce anything. The moral
@@ -814,7 +851,8 @@ trait ZIOFunctions extends Serializable {
   /**
    * Returns an `IO` that terminates with the specified `Throwable`.
    */
-  final def terminate(t: Throwable): UIO[Nothing] = fail0(Cause.unchecked(t))
+
+  final def die(t: Throwable): IO[Nothing, Nothing] = halt(Cause.unchecked(t))
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -883,8 +921,8 @@ trait ZIOFunctions extends Serializable {
    * produces a list of their results, in order.
    */
   final def forkAll[E <: UpperE, A](as: Iterable[IO[E, A]]): UIO[Fiber[E, List[A]]] =
-    as.foldRight(point(Fiber.point[E, List[A]](List()))) { (aIO, asFiberIO) =>
-      asFiberIO.seq(aIO.fork).map {
+    as.foldRight(succeed(Fiber.succeedLazy[E, List[A]](List()))) { (aIO, asFiberIO) =>
+      asFiberIO.zip(aIO.fork).map {
         case (asFiber, aFiber) =>
           asFiber.zipWith(aFiber)((as, a) => a :: as)
       }
@@ -900,9 +938,9 @@ trait ZIOFunctions extends Serializable {
   /**
    * Creates an `IO` value from `ExitResult`
    */
-  final def done[E <: UpperE, A](r: ExitResult[E, A]): IO[E, A] = r match {
-    case ExitResult.Succeeded(b)  => now(b)
-    case ExitResult.Failed(cause) => fail0(cause)
+  final def done[E <: UpperE, A](r: Exit[E, A]): IO[E, A] = r match {
+    case Exit.Success(b)     => succeed(b)
+    case Exit.Failure(cause) => halt(cause)
   }
 
   /**
@@ -987,17 +1025,24 @@ trait ZIOFunctions extends Serializable {
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncPure[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] = //Note: I deleted R from register to avoid adding a new param to Async
+  final def asyncIO[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
     for {
       p   <- Promise.make[E, A]
       ref <- Ref[IO[Nothing, Any]](ZIO.unit)
       a <- (for {
             _ <- flatten(sync0(env => register(io => env.unsafeRunAsync_(io.to(p))))).fork
                   .peek(f => ref.set(f.interrupt))
-                  .uninterruptibly
-            a <- p.get
+                  .uninterruptible
+            a <- p.await
           } yield a).onInterrupt(flatten(ref.get))
     } yield a
+
+  /**
+   * Alias for asyncIO
+   */
+  @deprecated("Use asyncIO", "scalaz-zio 0.6.0")
+  final def asyncM[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
+    asyncIO(register)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
@@ -1017,11 +1062,11 @@ trait ZIOFunctions extends Serializable {
           async0((k: IO[Nothing, IO[E, A]] => Unit) => {
             started.set(true)
 
-            try register(io => k(ZIO.now(io))) match {
+            try register(io => k(ZIO.succeed(io))) match {
               case Left(canceler) =>
                 cancel.set(canceler)
                 Async.later
-              case Right(io) => Async.now(ZIO.now(io))
+              case Right(io) => Async.now(ZIO.succeed(io))
             } finally if (!cancel.isSet) cancel.set(ZIO.unit)
           })
         }.onInterrupt(flatten(sync(if (started.get) cancel.get() else ZIO.unit)))
@@ -1041,13 +1086,13 @@ trait ZIOFunctions extends Serializable {
    * Terminates with exceptions on the `Left` side of the `Either` error, if it
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
-  final def unsandbox[R >: LowerR, E <: UpperE, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](fail0)
+  final def unsandbox[R >: LowerR, E <: UpperE, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
 
   /**
    * Lifts an `Either` into an `IO`.
    */
   final def fromEither[E <: UpperE, A](v: Either[E, A]): IO[E, A] =
-    v.fold(fail, now)
+    v.fold(fail, succeed)
 
   /**
    * Creates an `IO` value that represents the exit value of the specified
@@ -1068,7 +1113,7 @@ trait ZIOFunctions extends Serializable {
    * value, then the specified error will be raised.
    */
   final def require[E <: UpperE, A](error: E): IO[E, Option[A]] => IO[E, A] =
-    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(now[A]))
+    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
 
   /**
    * Acquires a resource, do some work with it, and then release that resource. `bracket`
@@ -1080,7 +1125,7 @@ trait ZIOFunctions extends Serializable {
   )(release: A => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     Ref[IO[Nothing, Any]](ZIO.unit).flatMap { m =>
       (for {
-        a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptibly
+        a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptible
         b <- use(a)
       } yield b).ensuring(flatten(m.get))
     }
@@ -1092,31 +1137,45 @@ trait ZIOFunctions extends Serializable {
    */
   final def bracket0[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]
-  )(release: (A, ExitResult[E, B]) => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+  )(release: (A, Exit[E, B]) => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     Ref[IO[Nothing, Any]](ZIO.unit).flatMap { m =>
       (for {
-        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptibly
+        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptible
         b <- f.join
       } yield b).ensuring(flatten(m.get))
     }
 
   /**
    * Apply the function fn to each element of the `Iterable[A]` and
-   * return the results in a new `List[B]`. For parallelism use `parTraverse`.
+   * return the results in a new `List[B]`. For parallelism use `foreachPar`.
    */
-  final def traverse[R >: LowerR, E <: UpperE, A, B](in: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+  final def foreach[R >: LowerR, E <: UpperE, A, B](in: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     in.foldRight[ZIO[R, E, List[B]]](sync(Nil)) { (a, io) =>
-      fn(a).seqWith(io)((b, bs) => b :: bs)
+      fn(a).zipWith(io)((b, bs) => b :: bs)
     }
 
   /**
-   * Evaluate the elements of an `Iterable[A]` in parallel
-   * and collect the results. This is the parallel version of `traverse`.
+   * Alias for foreach
    */
-  final def parTraverse[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+  @deprecated("Use foreach", "scalaz-zio 0.6.0")
+  final def traverse[R >: LowerR, E <: UpperE, A, B](in: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+    foreach[R, E, A, B](in)(fn)
+
+  /**
+   * Evaluate the elements of an `Iterable[A]` in parallel
+   * and collect the results. This is the parallel version of `foreach`.
+   */
+  final def foreachPar[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     as.foldRight[ZIO[R, E, List[B]]](sync(Nil)) { (a, io) =>
-      fn(a).parWith(io)((b, bs) => b :: bs)
+      fn(a).zipWithPar(io)((b, bs) => b :: bs)
     }
+
+  /**
+   * Alias for foreachPar
+   */
+  @deprecated("Use foreachPar", "scalaz-zio 0.6.0")
+  final def traversePar[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+    foreachPar[R, E, A, B](as)(fn)
 
   /**
    * Evaluate the elements of a traversable data structure in parallel
@@ -1128,7 +1187,7 @@ trait ZIOFunctions extends Serializable {
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     for {
       semaphore <- Semaphore(n)
-      bs <- parTraverse[R, E, A, B](as) { a =>
+      bs <- foreachPar[R, E, A, B](as) { a =>
              semaphore.withPermit(fn(a))
            }
     } yield bs
@@ -1144,32 +1203,46 @@ trait ZIOFunctions extends Serializable {
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
-   * the results. For parallelism use `parAll`.
+   * the results. For parallelism use `collectAllPar`.
    */
+  final def collectAll[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    foreach[R, E, ZIO[R, E, A], A](in)(identity(_))
+
+  /**
+   * Alias for collectAll
+   */
+  @deprecated("Use collectAll", "scalaz-zio 0.6.0")
   final def sequence[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    traverse[R, E, ZIO[R, E, A], A](in)(identity(_))
+    collectAll(in)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
-   * the results. This is the parallel version of `sequence`.
+   * the results. This is the parallel version of `collectAll`.
    */
-  final def parAll[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    parTraverse[R, E, ZIO[R, E, A], A](as)(identity(_))
+  final def collectAllPar[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    foreachPar[R, E, ZIO[R, E, A], A](as)(identity(_))
+
+  /**
+   * Alias for collectAllPar
+   */
+  @deprecated("Use collectAllPar", "scalaz-zio 0.6.0")
+  final def sequencePar[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    collectAllPar(as)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
    * the results. Only up to `n` tasks run in parallel.
-   * This is a version of `collectPar`, with a throttle.
+   * This is a version of `collectAllPar`, with a throttle.
    */
-  final def collectParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+  final def collectAllParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreachParN[R, E, ZIO[R, E, A], A](n)(as)(identity(_))
 
   /**
-   * Alias for `collectParN`
+   * Alias for `collectAllParN`
    */
-  @deprecated("Use collectParN", "scalaz-zio 0.3.3")
+  @deprecated("Use collectAllParN", "scalaz-zio 0.3.3")
   final def sequenceParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    collectParN[R, E, A](n)(as)
+    collectAllParN[R, E, A](n)(as)
 
   /**
    * Races an `IO[E, A]` against elements of a `Iterable[IO[E, A]]`. Yields
@@ -1185,7 +1258,7 @@ trait ZIOFunctions extends Serializable {
     f: (A, A) => A
   ): ZIO[R, E, A] =
     as.foldLeft(a) { (l, r) =>
-      l.par(r).map(f.tupled)
+      l.zipPar(r).map(f.tupled)
     }
 
   /**
@@ -1193,13 +1266,13 @@ trait ZIOFunctions extends Serializable {
    */
   final def mergeAll[R >: LowerR, E <: UpperE, A, B](
     in: Iterable[ZIO[R, E, A]]
-  )(zero: B, f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](point[B](zero))((acc, a) => acc.par(a).map(f.tupled))
+  )(zero: => B, f: (B, A) => B): ZIO[R, E, B] =
+    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
 
   /**
    * Strictly-evaluated unit lifted into the `IO` monad.
    */
-  final val unit: UIO[Unit] = now(())
+  final val unit: UIO[Unit] = succeed(())
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -1241,7 +1314,7 @@ trait ZIO_E_Any extends ZIO_E_Throwable {
    * Lifts an `Option` into an `IO`.
    */
   final def fromOption[A](v: Option[A]): IO[Unit, A] =
-    v.fold[IO[Unit, A]](fail(()))(now(_))
+    v.fold[IO[Unit, A]](fail(()))(succeed(_))
 }
 
 trait ZIO_E_Throwable extends ZIOFunctions {
@@ -1267,7 +1340,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    */
   final def fromTry[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
     syncThrowable(effect).flatMap {
-      case scala.util.Success(v) => ZIO.now(v)
+      case scala.util.Success(v) => ZIO.succeed(v)
       case scala.util.Failure(t) => ZIO.fail(t)
     }
 
@@ -1302,18 +1375,18 @@ object ZIO extends ZIO_E_Any {
   type LowerR = Nothing
 
   @inline
-  private final def nowLeft[E, A]: E => IO[Nothing, Either[E, A]] =
-    _nowLeft.asInstanceOf[E => IO[Nothing, Either[E, A]]]
+  private final def succeedLeft[E, A]: E => UIO[Either[E, A]] =
+    _succeedLeft.asInstanceOf[E => UIO[Either[E, A]]]
 
-  private val _nowLeft: Any => IO[Any, Either[Any, Any]] =
-    e2 => now[Either[Any, Any]](Left(e2))
+  private val _succeedLeft: Any => IO[Any, Either[Any, Any]] =
+    e2 => succeed[Either[Any, Any]](Left(e2))
 
   @inline
-  private final def nowRight[E, A]: A => IO[Nothing, Either[E, A]] =
-    _nowRight.asInstanceOf[A => IO[Nothing, Either[E, A]]]
+  private final def succeedRight[E, A]: A => UIO[Either[E, A]] =
+    _succeedRight.asInstanceOf[A => IO[Nothing, Either[E, A]]]
 
-  private val _nowRight: Any => IO[Any, Either[Any, Any]] =
-    a => now[Either[Any, Any]](Right(a))
+  private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
+    a => succeed[Either[Any, Any]](Right(a))
 
   final object Tags {
     final val FlatMap         = 0

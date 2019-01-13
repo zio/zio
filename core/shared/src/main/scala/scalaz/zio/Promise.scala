@@ -28,7 +28,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Retrieves the value of the promise, suspending the fiber running the action
    * until the result is available.
    */
-  final def get: IO[E, A] =
+  final def await: IO[E, A] =
     IO.asyncInterrupt[E, A](k => {
       var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
       var retry  = true
@@ -57,22 +57,22 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Retrieves immediately the completion of this promise if it's available,
    * and fails immediately with `Unit` otherwise
    */
-  final def poll: IO[Unit, IO[E, A]] =
+  final def poll: IO[Nothing, Option[IO[E, A]]] =
     IO.sync(state.get).flatMap {
-      case Pending(_) => IO.fail(())
-      case Done(io)   => IO.now(io)
+      case Pending(_) => IO.succeed(None)
+      case Done(io)   => IO.succeed(Some(io))
     }
 
   /**
    * Completes the promise with the specified value.
    */
-  final def complete(a: A): IO[Nothing, Boolean] = done(IO.now(a))
+  final def succeed(a: A): IO[Nothing, Boolean] = done(IO.succeed(a))
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def error(e: E): IO[Nothing, Boolean] = done(IO.fail(e))
+  final def fail(e: E): IO[Nothing, Boolean] = done(IO.fail(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
@@ -96,12 +96,12 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
           case Pending(joiners) =>
             action =
               IO.forkAll_(joiners.map(k => IO.sync[Unit](k(io)))) *>
-                IO.now[Boolean](true)
+                IO.succeed[Boolean](true)
 
             Done(io)
 
           case Done(_) =>
-            action = IO.now[Boolean](false)
+            action = IO.succeed[Boolean](false)
 
             oldState
         }
@@ -180,9 +180,9 @@ object Promise {
 
                   ((p, io), a2)
                 }.flatMap {
-                  case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.now(p))
-                }.uninterruptibly
-            b <- p.get
+                  case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.succeed(p))
+                }.uninterruptible
+            b <- p.await
           } yield b).ensuring(pRef.get.flatMap(_.map(t => release(t._1, t._2)).getOrElse(IO.unit)))
     } yield b
 

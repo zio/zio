@@ -11,7 +11,7 @@ trait StreamChunk[+E, @specialized +A] { self =>
     }
 
   def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): IO[E, S] =
-    foldLazy(s)(_ => true)((s, a) => IO.now(f(s, a)))
+    foldLazy(s)(_ => true)((s, a) => IO.succeed(f(s, a)))
 
   /**
    * Executes an effectful fold over the stream of chunks.
@@ -41,7 +41,7 @@ trait StreamChunk[+E, @specialized +A] { self =>
     chunks.foreach0[E1] { as =>
       as.foldM(true) { (p, a) =>
         if (p) f(a)
-        else IO.point(p)
+        else IO.succeedLazy(p)
       }
     }
 
@@ -62,7 +62,7 @@ trait StreamChunk[+E, @specialized +A] { self =>
               val remaining = as.dropWhile(pred)
 
               if (remaining.length > 0) f(s, remaining).map(false -> _)
-              else IO.now(true                                    -> s)
+              else IO.succeed(true                                -> s)
             case ((false, s), as) => f(s, as).map(false -> _)
           }
           .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
@@ -132,8 +132,8 @@ object StreamChunk {
   def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
     StreamChunkPure(StreamPure.fromIterable(as))
 
-  def point[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
-    StreamChunkPure(StreamPure.point(as))
+  def succeedLazy[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
+    StreamChunkPure(StreamPure.succeedLazy(as))
 
   def empty: StreamChunk[Nothing, Nothing] = StreamChunkPure(StreamPure.empty)
 }

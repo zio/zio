@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, ExitResult, GenIO, IO, Queue }
+import scalaz.zio.{ AbstractRTSSpec, Exit, GenIO, IO, Queue }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
@@ -55,17 +55,17 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   """
 
   import ArbitraryStream._
-  import ExitResult._
+  import Exit._
 
-  private def slurp[E, A](s: Stream[E, A]): ExitResult[E, List[A]] =
+  private def slurp[E, A](s: Stream[E, A]): Exit[E, List[A]] =
     slurp0(s)(_ => true)
 
-  private def slurp0[E, A](s: Stream[E, A])(cont: List[A] => Boolean): ExitResult[E, List[A]] = s match {
+  private def slurp0[E, A](s: Stream[E, A])(cont: List[A] => Boolean): Exit[E, List[A]] = s match {
     case s: StreamPure[A] =>
-      succeeded(s.foldPureLazy(List[A]())(cont)((acc, el) => el :: acc).reverse)
+      succeed(s.foldPureLazy(List[A]())(cont)((acc, el) => el :: acc).reverse)
     case s =>
       unsafeRunSync {
-        s.foldLazy(List[A]())(cont)((acc, el) => IO.now(el :: acc)).map(str => str.reverse)
+        s.foldLazy(List[A]())(cont)((acc, el) => IO.succeed(el :: acc)).map(str => str.reverse)
       }
   }
 
@@ -109,27 +109,27 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   private def mapAccum = {
     val stream = Stream(1, 1, 1).mapAccum(0)((acc, el) => (acc + el, acc + el))
-    slurp(stream) must_=== Succeeded(List(1, 2, 3))
+    slurp(stream) must_=== Success(List(1, 2, 3))
   }
 
   private def mapAccumM = {
-    val stream = Stream(1, 1, 1).mapAccumM(0)((acc, el) => IO.now((acc + el, acc + el)))
-    (slurp(stream) must_=== Succeeded(List(1, 2, 3))) and (slurp(stream) must_=== Succeeded(List(1, 2, 3)))
+    val stream = Stream(1, 1, 1).mapAccumM(0)((acc, el) => IO.succeed((acc + el, acc + el)))
+    (slurp(stream) must_=== Success(List(1, 2, 3))) and (slurp(stream) must_=== Success(List(1, 2, 3)))
   }
 
   private def unfold = {
     val s = Stream.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None)
-    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurp(s) must_=== Succeeded((0 to 9).toList))
+    slurp(s) must_=== Success((0 to 9).toList) and (slurp(s) must_=== Success((0 to 9).toList))
   }
 
   private def unfoldM = {
-    val s = Stream.unfoldM(0)(i => if (i < 10) IO.now(Some((i, i + 1))) else IO.now(None))
-    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurp(s) must_=== Succeeded((0 to 9).toList))
+    val s = Stream.unfoldM(0)(i => if (i < 10) IO.succeed(Some((i, i + 1))) else IO.succeed(None))
+    slurp(s) must_=== Success((0 to 9).toList) and (slurp(s) must_=== Success((0 to 9).toList))
   }
 
   private def range = {
     val s = Stream.range(0, 9)
-    slurp(s) must_=== Succeeded((0 to 9).toList) and (slurp(s) must_=== Succeeded((0 to 9).toList))
+    slurp(s) must_=== Success((0 to 9).toList) and (slurp(s) must_=== Success((0 to 9).toList))
   }
 
   private def take =
@@ -172,7 +172,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       case Right(n) => n
     }
 
-    slurp(s) must_=== Succeeded(List(2)) and (slurp(s) must_=== Succeeded(List(2)))
+    slurp(s) must_=== Success(List(2)) and (slurp(s) must_=== Success(List(2)))
   }
 
   private def monadLaw1 =
@@ -240,7 +240,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val parser     = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
     val transduced = s.transduce(parser)
 
-    slurp(transduced) must_=== Succeeded(List(12, 34))
+    slurp(transduced) must_=== Success(List(12, 34))
   }
 
   private def peel = {
@@ -248,10 +248,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val parser = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
     val peeled = s.peel(parser).use[Any, Int, (Int, ExitResult[Nothing, List[Char]])] {
       case (n, rest) =>
-        IO.now((n, slurp(rest)))
+        IO.succeed((n, slurp(rest)))
     }
 
-    unsafeRun(peeled) must_=== ((12, Succeeded(List('3', '4'))))
+    unsafeRun(peeled) must_=== ((12, Success(List('3', '4'))))
   }
 
   private def withEffect = {
@@ -259,7 +259,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s       = Stream(1, 1).withEffect(a => IO.sync(sum += a))
     val slurped = slurp(s)
 
-    (slurped must_=== Succeeded(List(1, 1))) and (sum must_=== 2)
+    (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)
   }
 
   private def zipWith = {
@@ -267,7 +267,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s2     = Stream(1, 2)
     val zipped = s1.zipWith(s2)((a, b) => a.flatMap(a => b.map(a + _)))
 
-    slurp(zipped) must_=== Succeeded(List(2, 4))
+    slurp(zipped) must_=== Success(List(2, 4))
   }
 
   private def zipWithIndex =
@@ -278,17 +278,17 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s2     = Stream(1, 2)
     val zipped = s1.zipWith(s2)((a, _) => a)
 
-    slurp(zipped) must_=== Succeeded(List(1, 2, 3))
+    slurp(zipped) must_=== Success(List(1, 2, 3))
   }
 
   private def fromIterable = prop { l: List[Int] =>
     val s = Stream.fromIterable(l)
-    slurp(s) must_=== Succeeded(l) and (slurp(s) must_=== Succeeded(l))
+    slurp(s) must_=== Success(l) and (slurp(s) must_=== Success(l))
   }
 
   private def fromChunk = prop { c: Chunk[Int] =>
     val s = Stream.fromChunk(c)
-    (slurp(s) must_=== Succeeded(c.toSeq.toList)) and (slurp(s) must_=== Succeeded(c.toSeq.toList))
+    (slurp(s) must_=== Success(c.toSeq.toList)) and (slurp(s) must_=== Success(c.toSeq.toList))
   }
 
   private def fromQueue = prop { c: Chunk[Int] =>
@@ -297,13 +297,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
         queue <- Queue.unbounded[Int]
         _     <- queue.offerAll(c.toSeq)
         s     = Stream.fromQueue(queue)
-        fiber <- s.foldLazy(List[Int]())(_ => true)((acc, el) => IO.now(el :: acc)).map(str => str.reverse).fork
+        fiber <- s.foldLazy(List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc)).map(str => str.reverse).fork
         _     <- waitForSize(queue, -1)
         _     <- queue.shutdown
         items <- fiber.join
       } yield items
     }
-    result must_=== Succeeded(c.toSeq.toList)
+    result must_=== Success(c.toSeq.toList)
   }
 
   private def toQueue = prop { c: Chunk[Int] =>
@@ -313,6 +313,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
         waitForSize(queue, c.length + 1) *> queue.takeAll
       }
     }
-    result must_=== Succeeded(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
+    result must_=== Success(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
   }
 }
