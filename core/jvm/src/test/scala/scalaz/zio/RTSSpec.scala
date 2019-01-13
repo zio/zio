@@ -576,7 +576,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       for {
         promise <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracket0[Nothing, Unit, Unit](promise.complete(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
+                  .bracket0[Any, Nothing, Unit, Unit](promise.complete(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
                   .fork
         res <- promise.get *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
@@ -603,7 +603,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         p1 <- Promise.make[Nothing, Unit]
         p2 <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracket0[Nothing, Unit, Unit](IO.unit)((_, _) => p2.complete(()) *> IO.unit)(
+                  .bracket0[Any, Nothing, Unit, Unit](IO.unit)((_, _) => p2.complete(()) *> IO.unit)(
                     _ => p1.complete(()) *> IO.never
                   )
                   .fork

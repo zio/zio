@@ -1071,21 +1071,6 @@ trait ZIOFunctions extends Serializable {
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(now[A]))
 
   /**
-   * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
-   * not only is the acquired resource be cleaned up, the outcome of the computation is also
-   * reified for processing.
-   */
-  final def bracket0[R >: LowerR, E <: UpperE, A, B](
-    acquire: ZIO[R, E, A]
-  )(release: (A, ExitResult[E, B]) => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
-    Ref[IO[Nothing, Any]](ZIO.unit).flatMap { m =>
-      (for {
-        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptibly
-        b <- f.join
-      } yield b).ensuring(flatten(m.get))
-    }
-
-  /**
    * Acquires a resource, do some work with it, and then release that resource. `bracket`
    * will release the resource no matter the outcome of the computation, and will
    * re-throw any exception that occurred in between.
@@ -1097,6 +1082,21 @@ trait ZIOFunctions extends Serializable {
       (for {
         a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptibly
         b <- use(a)
+      } yield b).ensuring(flatten(m.get))
+    }
+
+  /**
+   * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
+   * not only is the acquired resource be cleaned up, the outcome of the computation is also
+   * reified for processing.
+   */
+  final def bracket0[R >: LowerR, E <: UpperE, A, B](
+    acquire: ZIO[R, E, A]
+  )(release: (A, ExitResult[E, B]) => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+    Ref[IO[Nothing, Any]](ZIO.unit).flatMap { m =>
+      (for {
+        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptibly
+        b <- f.join
       } yield b).ensuring(flatten(m.get))
     }
 
