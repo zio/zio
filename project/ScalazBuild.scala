@@ -3,7 +3,7 @@ import Keys._
 
 object Scalaz {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.0"    % "provided")
+  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.3.1"  % "provided")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -56,7 +56,7 @@ object Scalaz {
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
       compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.9"),
       compilerPlugin("com.github.tomasmikula" %% "pascal"          % "0.3"),
-      compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "1.0")
+      compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "1.3.1")
     ),
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
