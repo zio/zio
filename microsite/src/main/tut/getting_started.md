@@ -38,7 +38,7 @@ object MyApp extends App {
 }
 ```
 
-If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can use a runtime system in order to execute your `IO` programs:
+If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can use a runtime system in order to run your programs:
 
 ```tut:silent
 import scalaz.zio._
