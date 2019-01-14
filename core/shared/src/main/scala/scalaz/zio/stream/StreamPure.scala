@@ -36,7 +36,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
       }
 
     override def fold[E, A1 >: A, S]: Stream.Fold[E, A1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.filter(pred).fold[E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
   }
@@ -55,7 +55,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         ._2
 
     override def fold[E, A1 >: A, S]: Stream.Fold[E, A1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.dropWhile(pred).fold[E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
   }
@@ -75,7 +75,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         ._2
 
     override def fold[E, A1 >: A, S]: Stream.Fold[E, A1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.takeWhile(pred).fold[E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
   }
@@ -85,7 +85,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
    */
   override def map[B](f0: A => B): StreamPure[B] = new StreamPure[B] {
     override def fold[E, B1 >: B, S]: Stream.Fold[E, B1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.map(f0).fold[E, B1, S].flatMap(f1 => f1(s, cont, f))
       }
 
@@ -98,7 +98,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
       self.foldPureLazy(s)(cont)((s, a) => f0(a).foldLeftLazy(s)(cont)(f))
 
     override def fold[E, B1 >: B, S]: Stream.Fold[E, B1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.mapConcat(f0).fold[E, B1, S].flatMap(f1 => f1(s, cont, f))
       }
   }
@@ -112,7 +112,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         ._1
 
     override def fold[E, A1 >: (A, Int), S]: Stream.Fold[E, A1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.zipWithIndex.fold[E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
   }
@@ -132,7 +132,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         ._1
 
     override def fold[E, B1 >: B, S]: Stream.Fold[E, B1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.mapAccum(s1)(f1).fold[E, B1, S].flatMap(f0 => f0(s, cont, f))
       }
   }

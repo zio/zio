@@ -50,7 +50,7 @@ trait Stream[+E, +A] { self =>
    * which the predicate evaluates to true.
    */
   def filter(pred: A => Boolean): Stream[E, A] = new Stream[E, A] {
-    override def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S] = {
+    override def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         self.fold[E1, A, S].flatMap { f0 =>
           f0(s, cont, (s, a) => if (pred(a)) f(s, a) else IO.succeed(s))
@@ -69,9 +69,12 @@ trait Stream[+E, +A] { self =>
    * and terminating consumption when the callback returns `false`.
    */
   final def foreach0[E1 >: E](f: A => IO[E1, Boolean]): IO[E1, Unit] =
-    self.fold[E1, A, Boolean].flatMap { f0 => 
-      f0(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
-    }.void
+    self
+      .fold[E1, A, Boolean]
+      .flatMap { f0 =>
+        f0(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
+      }
+      .void
 
   /**
    * Performs a filter and map in a single step.
@@ -102,7 +105,7 @@ trait Stream[+E, +A] { self =>
         self.fold[E1, A, (Boolean, S)].flatMap { f0 =>
           def func(tp: (Boolean, S), a: A): IO[E1, (Boolean, S)] =
             (tp, a) match {
-              case ((true, s), a) if pred(a) => IO.succeed(true       -> s)
+              case ((true, s), a) if pred(a) => IO.succeed(true   -> s)
               case ((_, s), a)               => f(s, a).map(false -> _)
             }
 
@@ -117,7 +120,7 @@ trait Stream[+E, +A] { self =>
    */
   final def flatMap[E1 >: E, B](f: A => Stream[E1, B]): Stream[E1, B] = new Stream[E1, B] {
     override def fold[E2 >: E1, B1 >: B, S]: Fold[E2, B1, S] =
-      IO.point { (s, cont, g) =>
+      IO.succeedLazy { (s, cont, g) =>
         self.fold[E2, A, S].flatMap { f0 =>
           f0(s, cont, (s, a) => f(a).fold[E2, B1, S].flatMap(h => h(s, cont, g)))
         }
@@ -151,7 +154,7 @@ trait Stream[+E, +A] { self =>
    */
   def map[B](f: A => B): Stream[E, B] = new Stream[E, B] {
     override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
-      IO.point { (s, cont, g) =>
+      IO.succeedLazy { (s, cont, g) =>
         self.fold[E1, A, S].flatMap(f0 => f0(s, cont, (s, a) => g(s, f(a))))
       }
   }
@@ -162,7 +165,7 @@ trait Stream[+E, +A] { self =>
    */
   def mapConcat[B](f: A => Chunk[B]): Stream[E, B] = new Stream[E, B] {
     override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
-      IO.point { (s, cont, g) =>
+      IO.succeedLazy { (s, cont, g) =>
         self.fold[E1, A, S].flatMap(f0 => f0(s, cont, (s, a) => f(a).foldMLazy(s)(cont)(g)))
       }
   }
@@ -172,7 +175,7 @@ trait Stream[+E, +A] { self =>
    */
   final def mapM[E1 >: E, B](f: A => IO[E1, B]): Stream[E1, B] = new Stream[E1, B] {
     override def fold[E2 >: E1, B1 >: B, S]: Fold[E2, B1, S] =
-      IO.point { (s, cont, g) =>
+      IO.succeedLazy { (s, cont, g) =>
         self.fold[E2, A, S].flatMap(f0 => f0(s, cont, (s, a) => f(a).flatMap(g(s, _))))
       }
   }
@@ -197,7 +200,7 @@ trait Stream[+E, +A] { self =>
   final def mergeWith[E1 >: E, B, C](that: Stream[E1, B], capacity: Int = 1)(l: A => C, r: B => C): Stream[E1, C] =
     new Stream[E1, C] {
       override def fold[E2 >: E1, C1 >: C, S]: Fold[E2, C1, S] =
-        IO.point { (s, cont, f) =>
+        IO.succeedLazy { (s, cont, f) =>
           type Elem = Either[Take[E2, A], Take[E2, B]]
 
           def loop(leftDone: Boolean, rightDone: Boolean, s: S, queue: Queue[Elem]): IO[E2, S] =
@@ -234,7 +237,7 @@ trait Stream[+E, +A] { self =>
               _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
               _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
               step   <- loop(false, false, s, queue)
-            } yield step).supervised
+            } yield step).supervise
           } else IO.succeed(s)
         }
     }
@@ -261,8 +264,8 @@ trait Stream[+E, +A] { self =>
           IO.succeedLazy { (s, cont, f) =>
             if (!cont(s)) IO.succeed(s)
             else
-              resume.complete((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
-                done.get.asInstanceOf[IO[E2, S]]
+              resume.succeed((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
+                done.await.asInstanceOf[IO[E2, S]]
           }
       }
 
@@ -289,8 +292,8 @@ trait Stream[+E, +A] { self =>
                               val as     = Sink.Step.leftover(step)
 
                               sink.extract(lstate).flatMap { r =>
-                                result.complete(r -> tail(resume, done)) *>
-                                  resume.get
+                                result.succeed(r -> tail(resume, done)) *>
+                                  resume.await
                                     .flatMap(t => feed(as)(t._1, t._2, t._3).map(s => Right((s, t._2, t._3))))
                               }
                             }
@@ -383,7 +386,7 @@ trait Stream[+E, +A] { self =>
    */
   def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): Stream[E, B] = new Stream[E, B] {
     override def fold[E1 >: E, B1 >: B, S]: Fold[E1, B1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         self.fold[E1, A, (S, S1)].flatMap { f0 =>
           f0(s -> s1, tp => cont(tp._1), {
             case ((s, s1), a) =>
@@ -401,7 +404,7 @@ trait Stream[+E, +A] { self =>
    */
   final def mapAccumM[E1 >: E, S1, B](s1: S1)(f1: (S1, A) => IO[E1, (S1, B)]): Stream[E1, B] = new Stream[E1, B] {
     override def fold[E2 >: E1, B1 >: B, S]: Fold[E2, B1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         self.fold[E2, A, (S, S1)].flatMap { f0 =>
           f0(s -> s1, tp => cont(tp._1), {
             case ((s, s1), a) =>
@@ -431,7 +434,7 @@ trait Stream[+E, +A] { self =>
           f0(true -> s, tp => tp._1 && cont(tp._2), {
             case ((_, s), a) =>
               if (pred(a)) f(s, a).map(true -> _)
-              else IO.succeed(false             -> s)
+              else IO.succeed(false         -> s)
           }).map(_._2)
         }
       }
@@ -484,7 +487,7 @@ trait Stream[+E, +A] { self =>
 
                 sink
                   .extract(s1)
-                  .redeem(_ => IO.now(s2), c => f(s2, c))
+                  .redeem(_ => IO.succeed(s2), c => f(s2, c))
               }
             }
           }
@@ -497,7 +500,7 @@ trait Stream[+E, +A] { self =>
   final def withEffect[E1 >: E](f: A => IO[E1, Unit]): Stream[E1, A] =
     new Stream[E1, A] {
       override def fold[E2 >: E1, A1 >: A, S]: Fold[E2, A1, S] =
-        IO.point { (s, cont, g) =>
+        IO.succeedLazy { (s, cont, g) =>
           self.fold[E2, A, S].flatMap { f0 =>
             f0(s, cont, (s, a2) => f(a2) *> g(s, a2))
           }
@@ -553,7 +556,7 @@ trait Stream[+E, +A] { self =>
    */
   def zipWithIndex: Stream[E, (A, Int)] = new Stream[E, (A, Int)] {
     override def fold[E1 >: E, A1 >: (A, Int), S]: Fold[E1, A1, S] =
-      IO.point { (s, cont, f) =>
+      IO.succeedLazy { (s, cont, f) =>
         self.fold[E1, A, (S, Int)].flatMap { f0 =>
           f0((s, 0), tp => cont(tp._1), {
             case ((s, index), a) => f(s, (a, index)).map(s => (s, index + 1))
@@ -576,7 +579,7 @@ object Stream {
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
     new StreamPure[A] {
       override def fold[E >: Nothing, A1 >: A, S]: Fold[E, A1, S] =
-        IO.point((s, cont, f) => c.foldMLazy(s)(cont)(f))
+        IO.succeedLazy((s, cont, f) => c.foldMLazy(s)(cont)(f))
 
       override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
         c.foldLeftLazy(s)(cont)(f)
@@ -616,7 +619,7 @@ object Stream {
   final def unwrap[E, A](stream: IO[E, Stream[E, A]]): Stream[E, A] =
     new Stream[E, A] {
       override def fold[E1 >: E, A1 >: A, S]: Fold[E1, A1, S] =
-        IO.point { (s, cont, f) =>
+        IO.succeedLazy { (s, cont, f) =>
           stream.flatMap(_.fold[E1, A1, S].flatMap(f0 => f0(s, cont, f)))
         }
     }

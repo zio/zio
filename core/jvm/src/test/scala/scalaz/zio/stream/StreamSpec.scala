@@ -193,11 +193,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   private def deepFlatMap = {
     def fib(n: Int): Stream[Nothing, Int] =
-      if (n <= 1) Stream.point(n)
+      if (n <= 1) Stream.succeedLazy(n)
       else
         fib(n - 1).flatMap { a =>
           fib(n - 2).flatMap { b =>
-            Stream.point(a + b)
+            Stream.succeedLazy(a + b)
           }
         }
 

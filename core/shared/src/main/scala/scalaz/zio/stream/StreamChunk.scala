@@ -63,7 +63,7 @@ trait StreamChunk[+E, @specialized +A] { self =>
                 val remaining = as.dropWhile(pred)
 
                 if (remaining.length > 0) f(s, remaining).map(false -> _)
-                else IO.succeed(true                                    -> s)
+                else IO.succeed(true                                -> s)
               case ((false, s), as) => f(s, as).map(false -> _)
             }
             .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
@@ -73,7 +73,7 @@ trait StreamChunk[+E, @specialized +A] { self =>
   def takeWhile(pred: A => Boolean): StreamChunk[E, A] =
     StreamChunk(new Stream[E, Chunk[A]] {
       override def fold[E1 >: E, A1 >: Chunk[A], S]: Stream.Fold[E1, A1, S] =
-        IO.point { (s, cont, f) =>
+        IO.succeedLazy { (s, cont, f) =>
           self
             .foldLazyChunks[E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) { (s, as) =>
               val remaining = as.takeWhile(pred)
@@ -89,7 +89,7 @@ trait StreamChunk[+E, @specialized +A] { self =>
     StreamChunk(
       new Stream[E, Chunk[(A, Int)]] {
         override def fold[E1 >: E, A1 >: Chunk[(A, Int)], S]: Stream.Fold[E1, A1, S] =
-          IO.point { (s, cont, f) =>
+          IO.succeedLazy { (s, cont, f) =>
             chunks.fold[E1, Chunk[A], (S, Int)].flatMap { f0 =>
               f0((s, 0), tp => cont(tp._1), {
                 case ((s, index), as) =>
