@@ -169,8 +169,8 @@ lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core"               % "7.2.+" % Optional,
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.+" % Test
+      "org.scalaz" %%% "scalaz-core"               % "7.3.0-M27" % Optional,
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.3.0-M27" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
