@@ -84,7 +84,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * val parsed = readFile("foo.txt").flatMap(file => parseFile(file))
    * }}}
    */
-  final def flatMap[E1 >: E, B](f0: A => IO[E1, B]): IO[E1, B] = new IO.FlatMap(self, f0)
+  final def flatMap[E1 >: E, B](f0: A => IO[E1, B]): IO[E1, B] = (self.tag: @switch) match {
+    case IO.Tags.Fail => self.asInstanceOf[IO[E1, B]]
+    case _            => new IO.FlatMap(self, f0)
+  }
 
   /**
    * Forks this action into its own separate fiber, returning immediately
