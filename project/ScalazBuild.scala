@@ -54,7 +54,7 @@ object Scalaz {
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.7"),
+      compilerPlugin("org.spire-math"         %% "kind-projector"  % "0.9.9"),
       compilerPlugin("com.github.tomasmikula" %% "pascal"          % "0.2.1"),
       compilerPlugin("com.github.ghik"        %% "silencer-plugin" % "1.0")
     ),
