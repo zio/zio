@@ -84,7 +84,7 @@ val boosted = Schedule.spaced(1.second).delayed(_ + 100.milliseconds)
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy:
 
 ```tut:silent
-val sequential = Schedule.recurs(10) <||> Schedule.spaced(1.second)
+val sequential = Schedule.recurs(10) andThen Schedule.spaced(1.second)
 ```
 
 Combines two schedules through intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences:

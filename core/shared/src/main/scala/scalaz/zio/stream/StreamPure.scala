@@ -6,7 +6,7 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
   def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S
 
   override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): IO[Nothing, S] =
-    IO.now(foldPureLazy(s)(_ => true)(f))
+    IO.succeed(foldPureLazy(s)(_ => true)(f))
 
   override def run[E, A0, A1 >: A, B](sink: Sink[E, A0, A1, B]): IO[E, B] =
     sink match {
@@ -138,7 +138,7 @@ private[stream] object StreamPure {
           IO.sync {
             if (iterator.hasNext && cont(s))
               f(s, iterator.next).flatMap(loop)
-            else IO.now(s)
+            else IO.succeed(s)
           }
         }
 
@@ -159,10 +159,10 @@ private[stream] object StreamPure {
   /**
    * Constructs a singleton stream.
    */
-  final def point[A](a: => A): StreamPure[A] = new StreamPure[A] {
+  final def succeedLazy[A](a: => A): StreamPure[A] = new StreamPure[A] {
     override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
       if (cont(s)) f(s, a)
-      else IO.now(s)
+      else IO.succeed(s)
 
     override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
       if (cont(s)) f(s, a)
@@ -174,7 +174,7 @@ private[stream] object StreamPure {
    */
   final val empty: StreamPure[Nothing] = new StreamPure[Nothing] {
     override def foldLazy[E >: Nothing, A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      IO.now(s)
+      IO.succeed(s)
 
     override def foldPureLazy[A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = s
   }

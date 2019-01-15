@@ -118,7 +118,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     for {
       queue <- Queue.bounded[String](100)
       f1 <- queue.take
-             .seqWith(queue.take)(_ + _)
+             .zipWith(queue.take)(_ + _)
              .fork
       _ <- queue.offer("don't ") *> queue.offer("give up :D")
       v <- f1.join
@@ -130,7 +130,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       queue  <- Queue.bounded[Int](10)
       f      <- IO.forkAll(List.fill(10)(queue.take))
       values = Range.inclusive(1, 10).toList
-      _      <- values.map(queue.offer).foldLeft[IO[Nothing, Boolean]](IO.now(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft[IO[Nothing, Boolean]](IO.succeed(false))(_ *> _)
       v      <- f.join
     } yield v must containTheSameElementsAs(values))
 
@@ -151,7 +151,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       refSuspended <- Ref[Boolean](true)
       _            <- (queue.offer(2).repeat(Schedule.recurs(9)) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
-    } yield isSuspended must beTrue).supervised)
+    } yield isSuspended must beTrue).supervise)
 
   def e6 =
     unsafeRun(
@@ -223,7 +223,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     unsafeRun(for {
       queue  <- Queue.bounded[Int](4)
       values = List(1, 2, 3, 4)
-      _      <- values.map(queue.offer).foldLeft(IO.now(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
       _      <- queue.offer(5).fork
       _      <- waitForSize(queue, 5)
       v      <- queue.takeAll
@@ -322,11 +322,11 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     unsafeRun((for {
       queue  <- Queue.bounded[Int](4)
       values = List(1, 2, 3, 4)
-      _      <- values.map(queue.offer).foldLeft(IO.now(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
       _      <- queue.offer(5).fork
       _      <- waitForSize(queue, 5)
       l      <- queue.takeUpTo(5)
-    } yield l must_=== List(1, 2, 3, 4)).supervised)
+    } yield l must_=== List(1, 2, 3, 4)).supervise)
 
   def e23 =
     unsafeRun(for {
@@ -495,7 +495,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== ExitResult.interrupted
+    ) must_=== Exit.interrupted
 
   def e37 =
     unsafeRunSync(
@@ -506,7 +506,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== ExitResult.interrupted
+    ) must_=== Exit.interrupted
 
   def e38 =
     unsafeRunSync(
@@ -519,7 +519,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== ExitResult.interrupted
+    ) must_=== Exit.interrupted
 
   def e39 =
     unsafeRunSync(
@@ -528,7 +528,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.offer(1)
       } yield ()
-    ) must_=== ExitResult.interrupted
+    ) must_=== Exit.interrupted
 
   def e40 =
     unsafeRunSync(
@@ -537,7 +537,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.take
       } yield ()
-    ) must_=== ExitResult.interrupted
+    ) must_=== Exit.interrupted
 
   def e41 =
     unsafeRunSync(
@@ -546,7 +546,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.takeAll
       } yield ()
-    ) must_=== ExitResult.interrupted
+    ) must_=== Exit.interrupted
 
   def e42 =
     unsafeRunSync(
@@ -555,7 +555,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.takeUpTo(1)
       } yield ()
-    ) must_=== ExitResult.interrupted
+    ) must_=== Exit.interrupted
 
   def e43 =
     unsafeRunSync(
@@ -564,7 +564,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.size
       } yield ()
-    ) must_=== ExitResult.interrupted
+    ) must_=== Exit.interrupted
 
   def e44 = unsafeRun(
     for {
@@ -645,7 +645,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     for {
       queue <- Queue.sliding[Int](5)
       f1 <- queue.take
-             .seqWith(queue.take)(_ + _)
+             .zipWith(queue.take)(_ + _)
              .fork
       _ <- queue.offer(1) *> queue.offer(2)
       v <- f1.join
@@ -664,9 +664,9 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     for {
       queue <- Queue.bounded[Int](3)
       p     <- Promise.make[Nothing, Boolean]
-      _     <- (queue.awaitShutdown *> p.complete(true)).fork
+      _     <- (queue.awaitShutdown *> p.succeed(true)).fork
       _     <- queue.shutdown
-      res   <- p.get
+      res   <- p.await
     } yield res must beTrue
   )
 
@@ -675,11 +675,11 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       queue <- Queue.bounded[Int](3)
       p1    <- Promise.make[Nothing, Boolean]
       p2    <- Promise.make[Nothing, Boolean]
-      _     <- (queue.awaitShutdown *> p1.complete(true)).fork
-      _     <- (queue.awaitShutdown *> p2.complete(true)).fork
+      _     <- (queue.awaitShutdown *> p1.succeed(true)).fork
+      _     <- (queue.awaitShutdown *> p2.succeed(true)).fork
       _     <- queue.shutdown
-      res1  <- p1.get
-      res2  <- p2.get
+      res1  <- p1.await
+      res2  <- p2.await
     } yield (res1 must beTrue).and(res2 must beTrue)
   )
 
@@ -688,14 +688,14 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       queue <- Queue.bounded[Int](3)
       _     <- queue.shutdown
       p     <- Promise.make[Nothing, Boolean]
-      _     <- (queue.awaitShutdown *> p.complete(true)).fork
-      res   <- p.get
+      _     <- (queue.awaitShutdown *> p.succeed(true)).fork
+      res   <- p.await
     } yield res must beTrue
   )
 
   def e56 = unsafeRun(
     for {
-      capacity <- IO.now(4)
+      capacity <- IO.succeed(4)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 5)
       _        <- queue.offerAll(iter)
@@ -705,7 +705,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def e57 = unsafeRun(
     for {
-      capacity <- IO.now(2)
+      capacity <- IO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
       v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
       ta       <- queue.takeAll
@@ -714,7 +714,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def e58 = unsafeRun(
     for {
-      capacity <- IO.now(128)
+      capacity <- IO.succeed(128)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 256)
       _        <- queue.offerAll(iter)
@@ -726,7 +726,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     for {
       queue <- Queue.dropping[Int](5)
       f1 <- queue.take
-             .seqWith(queue.take)(_ + _)
+             .zipWith(queue.take)(_ + _)
              .fork
       _ <- queue.offer(1) *> queue.offer(2)
       v <- f1.join
@@ -735,7 +735,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def e60 = unsafeRun(
     for {
-      capacity <- IO.now(2)
+      capacity <- IO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 6)
       _        <- queue.offerAll(iter)
@@ -745,7 +745,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def e61 = unsafeRun(
     for {
-      capacity <- IO.now(5)
+      capacity <- IO.succeed(5)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 3)
       v1       <- queue.offerAll(iter)
@@ -755,7 +755,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def e62 = unsafeRun(
     for {
-      capacity <- IO.now(2)
+      capacity <- IO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 4)
       f        <- queue.take.fork
@@ -767,7 +767,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def e63 = unsafeRun(
     for {
-      capacity <- IO.now(2)
+      capacity <- IO.succeed(2)
       queue    <- Queue.sliding[Int](capacity)
       iter     = Range.inclusive(1, 4)
       _        <- queue.take.fork
@@ -779,7 +779,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def e64 = unsafeRun(
     for {
-      capacity <- IO.now(5)
+      capacity <- IO.succeed(5)
       queue    <- Queue.sliding[Int](capacity)
       iter     = Range.inclusive(1, 3)
       oa       <- queue.offerAll(iter.toList)
@@ -788,7 +788,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def e65 = unsafeRun(
     for {
-      capacity <- IO.now(5)
+      capacity <- IO.succeed(5)
       queue    <- Queue.bounded[Int](capacity)
       iter     = Range.inclusive(1, 3)
       oa       <- queue.offerAll(iter.toList)

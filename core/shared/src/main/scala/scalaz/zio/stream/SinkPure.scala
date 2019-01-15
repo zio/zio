@@ -5,8 +5,8 @@ import scalaz.zio._
 trait SinkPure[+E, +A0, -A, +B] extends Sink[E, A0, A, B] { self =>
   import Sink.Step
 
-  override def initial              = IO.now(initialPure)
-  override def step(s: State, a: A) = IO.now(stepPure(s, a))
+  override def initial              = IO.succeed(initialPure)
+  override def step(s: State, a: A) = IO.succeed(stepPure(s, a))
   override def extract(s: State)    = IO.fromEither(extractPure(s))
 
   def initialPure: Step[State, Nothing]

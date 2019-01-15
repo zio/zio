@@ -32,7 +32,7 @@ sealed abstract class IOInstances2 {
 
 private class IOMonad[E] extends Monad[IO[E, ?]] with BindRec[IO[E, ?]] {
   override def map[A, B](fa: IO[E, A])(f: A => B): IO[E, B]         = fa.map(f)
-  override def point[A](a: => A): IO[E, A]                          = IO.point(a)
+  override def point[A](a: => A): IO[E, A]                          = IO.succeedLazy(a)
   override def bind[A, B](fa: IO[E, A])(f: A => IO[E, B]): IO[E, B] = fa.flatMap(f)
   override def tailrecM[A, B](f: A => IO[E, A \/ B])(a: A): IO[E, B] =
     f(a).flatMap(_.fold(tailrecM(f), point(_)))
@@ -64,7 +64,7 @@ private trait IOBifunctor extends Bifunctor[IO] {
 }
 
 private class IOParApplicative[E] extends Applicative[scalaz72.ParIO[E, ?]] {
-  override def point[A](a: => A): scalaz72.ParIO[E, A] = Tag(IO.point(a))
+  override def point[A](a: => A): scalaz72.ParIO[E, A] = Tag(IO.succeedLazy(a))
   override def ap[A, B](fa: => scalaz72.ParIO[E, A])(f: => scalaz72.ParIO[E, A => B]): scalaz72.ParIO[E, B] = {
     lazy val fa0: IO[E, A] = Tag.unwrap(fa)
     Tag(Tag.unwrap(f).flatMap(x => fa0.map(x)))
@@ -77,5 +77,5 @@ private class IOParApplicative[E] extends Applicative[scalaz72.ParIO[E, ?]] {
     fa: => scalaz72.ParIO[E, A],
     fb: => scalaz72.ParIO[E, B]
   )(f: (A, B) => C): scalaz72.ParIO[E, C] =
-    Tag(Tag.unwrap(fa).par(Tag.unwrap(fb)).map(f.tupled))
+    Tag(Tag.unwrap(fa).zipPar(Tag.unwrap(fb)).map(f.tupled))
 }

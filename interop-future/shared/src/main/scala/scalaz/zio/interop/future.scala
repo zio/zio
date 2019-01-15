@@ -1,17 +1,18 @@
 package scalaz.zio.interop
-import scalaz.zio.{ ExitResult, Fiber, IO }
+
+import scalaz.zio.{ Exit, Fiber, IO }
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 
-object future {
+object future extends FuturePlatformSpecific {
 
   implicit class IOObjOps(private val ioObj: IO.type) extends AnyVal {
     private def unsafeFutureToIO[A](f: Future[A], ec: ExecutionContext): IO[Throwable, A] =
       f.value.fold(
         IO.async { (cb: IO[Throwable, A] => Unit) =>
           f.onComplete {
-            case Success(a) => cb(IO.now(a))
+            case Success(a) => cb(IO.succeed(a))
             case Failure(t) => cb(IO.fail(t))
           }(ec)
         }
@@ -34,23 +35,23 @@ object future {
     def fromFuture[A](_ftr: () => Future[A])(ec: ExecutionContext): Fiber[Throwable, A] =
       new Fiber[Throwable, A] {
         private lazy val ftr = _ftr()
-        def observe: IO[Nothing, ExitResult[Throwable, A]] =
+        def await: IO[Nothing, Exit[Throwable, A]] =
           IO.suspend {
             ftr.value.fold(
-              IO.async { (cb: IO[Nothing, ExitResult[Throwable, A]] => Unit) =>
+              IO.async { (cb: IO[Nothing, Exit[Throwable, A]] => Unit) =>
                 ftr.onComplete {
-                  case Success(a) => cb(IO.now(ExitResult.succeeded(a)))
-                  case Failure(t) => cb(IO.now(ExitResult.checked(t)))
+                  case Success(a) => cb(IO.succeed(Exit.succeed(a)))
+                  case Failure(t) => cb(IO.succeed(Exit.checked(t)))
                 }(ec)
               }
-            )(t => IO.point(ExitResult.fromTry(t)))
+            )(t => IO.succeedLazy(Exit.fromTry(t)))
           }
 
-        def poll: IO[Unit, ExitResult[Throwable, A]] =
-          IO.sync(ftr.value.map(ExitResult.fromTry)).flatMap(IO.fromOption(_))
+        def poll: IO[Nothing, Option[Exit[Throwable, A]]] =
+          IO.sync(ftr.value.map(Exit.fromTry))
 
-        def interrupt: IO[Nothing, ExitResult[Throwable, A]] =
-          join.redeemPure(ExitResult.checked(_), ExitResult.succeeded(_))
+        def interrupt: IO[Nothing, Exit[Throwable, A]] =
+          join.redeemPure(Exit.checked, Exit.succeed)
       }
   }
 

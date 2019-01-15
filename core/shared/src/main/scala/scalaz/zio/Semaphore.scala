@@ -41,21 +41,21 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
       })
 
     if (n == 0)
-      IO.now(Acquisition(IO.unit, IO.unit))
+      IO.succeed(Acquisition(IO.unit, IO.unit))
     else
       Promise.make[Nothing, Unit].flatMap { p =>
         state.modify {
-          case Right(m) if m >= n => Acquisition(IO.unit, releaseN(n)) -> Right(m - n)
-          case Right(m)           => Acquisition(p.get, restore(p, n)) -> Left(IQueue(p -> (n - m)))
-          case Left(q)            => Acquisition(p.get, restore(p, n)) -> Left(q.enqueue(p -> n))
+          case Right(m) if m >= n => Acquisition(IO.unit, releaseN(n))   -> Right(m - n)
+          case Right(m)           => Acquisition(p.await, restore(p, n)) -> Left(IQueue(p -> (n - m)))
+          case Left(q)            => Acquisition(p.await, restore(p, n)) -> Left(q.enqueue(p -> n))
         }
       }
   }
 
-  final private def cleanup[E, A](ops: Acquisition, res: ExitResult[E, A]): IO[Nothing, Unit] =
+  final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): IO[Nothing, Unit] =
     res match {
-      case ExitResult.Failed(c) if c.interrupted => ops.release
-      case _                                     => IO.unit
+      case Exit.Failure(c) if c.interrupted => ops.release
+      case _                                => IO.unit
     }
 
   final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
@@ -67,15 +67,15 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
           case None => acc -> Right(n)
           case Some(((p, m), q)) =>
             if (n > m)
-              loop(n - m, Left(q), acc <* p.complete(()))
+              loop(n - m, Left(q), acc <* p.succeed(()))
             else if (n == m)
-              (acc <* p.complete(())) -> Left(q)
+              (acc <* p.succeed(())) -> Left(q)
             else
               acc -> Left((p -> (m - n)) +: q)
         }
     }
 
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptibly
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
 
   }
 
@@ -99,7 +99,8 @@ private object internals {
   type State = Either[IQueue[Entry], Long]
 
   def assertNonNegative(n: Long): IO[Nothing, Unit] =
-    if (n < 0) IO.terminate(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
+    if (n < 0)
+      IO.die(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else IO.unit
 
   class NegativeArgument(message: String) extends IllegalArgumentException(message)

@@ -43,17 +43,17 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         released <- Promise.make[Nothing, Unit]
         fail     <- Promise.make[Nothing, Unit]
         _ <- Stream
-              .bracket(started.complete(()).void)(_ => released.complete(()).void)
+              .bracket(started.succeed(()).void)(_ => released.succeed(()).void)
               .evalMap[Task, Unit] { _ =>
-                fail.get *> IO.fail(new Exception())
+                fail.await *> IO.fail(new Exception())
               }
               .compile
               .drain
               .fork
 
-        _ <- started.get
-        _ <- fail.complete(())
-        _ <- released.get
+        _ <- started.await
+        _ <- fail.succeed(())
+        _ <- released.await
       } yield ()).timeout(10.seconds)
     } must beSome(())
 
@@ -64,17 +64,17 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         released  <- Promise.make[Nothing, Unit]
         terminate <- Promise.make[Nothing, Unit]
         _ <- Stream
-              .bracket(started.complete(()).void)(_ => released.complete(()).void)
+              .bracket(started.succeed(()).void)(_ => released.succeed(()).void)
               .evalMap[Task, Unit] { _ =>
-                terminate.get *> IO.terminate(new Exception())
+                terminate.await *> IO.die(new Exception())
               }
               .compile
               .drain
               .fork
 
-        _ <- started.get
-        _ <- terminate.complete(())
-        _ <- released.get
+        _ <- started.await
+        _ <- terminate.succeed(())
+        _ <- released.await
       } yield ()).timeout(10.seconds)
     } must beSome(())
 
@@ -84,15 +84,15 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         started  <- Promise.make[Nothing, Unit]
         released <- Promise.make[Nothing, Unit]
         f <- Stream
-              .bracket(IO.unit)(_ => released.complete(()).void)
-              .evalMap[Task, Unit](_ => started.complete(()) *> IO.never)
+              .bracket(IO.unit)(_ => released.succeed(()).void)
+              .evalMap[Task, Unit](_ => started.succeed(()) *> IO.never)
               .compile
               .drain
               .fork
 
-        _ <- started.get
+        _ <- started.await
         _ <- f.interrupt
-        _ <- released.get
+        _ <- released.await
       } yield ()).timeout(10.seconds)
     } must beSome(())
 

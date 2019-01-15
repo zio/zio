@@ -10,8 +10,8 @@ object Task {
 
   final def apply[A](effect: => A): Task[A] = IO.syncThrowable(effect)
 
-  final def now[A](effect: A): Task[A]                                      = IO.now(effect)
-  final def point[A](effect: => A): Task[A]                                 = IO.point(effect)
+  final def succeed[A](effect: A): Task[A]                                  = IO.succeed(effect)
+  final def succeedLazy[A](effect: => A): Task[A]                           = IO.succeedLazy(effect)
   final def sync[A](effect: => A): Task[A]                                  = IO.sync(effect)
   final def async[A](register: (IO[Throwable, A] => Unit) => Unit): Task[A] = IO.async(register)
 
@@ -26,7 +26,7 @@ object Task {
         f.fold(
           t => cb(IO.fail(t)),
           _.onComplete {
-            case Success(a) => cb(IO.now(a))
+            case Success(a) => cb(IO.succeed(a))
             case Failure(t) => cb(IO.fail(t))
           }(ec)
         )

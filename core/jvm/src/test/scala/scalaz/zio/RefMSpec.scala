@@ -50,10 +50,10 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
     unsafeRun(
       for {
         refM   <- RefM[State](Active)
-        value1 <- refM.updateSome { case Active => IO.now(Changed) }
+        value1 <- refM.updateSome { case Active => IO.succeed(Changed) }
         value2 <- refM.updateSome {
-                   case Active  => IO.now(Changed)
-                   case Changed => IO.now(Closed)
+                   case Active  => IO.succeed(Changed)
+                   case Changed => IO.succeed(Closed)
                  }
       } yield (value1 must beTheSameAs(Changed)) and (value2 must beTheSameAs(Closed))
     )
@@ -62,7 +62,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
     unsafeRun(
       for {
         refM  <- RefM[State](Active)
-        value <- refM.updateSome { case Closed => IO.now(Active) }
+        value <- refM.updateSome { case Closed => IO.succeed(Active) }
       } yield value must beTheSameAs(Active)
     )
 
@@ -79,11 +79,11 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
     unsafeRun(
       for {
         refM   <- RefM[State](Active)
-        r1     <- refM.modifySome[String]("doesn't change the state") { case Active => IO.now("changed" -> Changed) }
+        r1     <- refM.modifySome[String]("doesn't change the state") { case Active => IO.succeed("changed" -> Changed) }
         value1 <- refM.get
         r2 <- refM.modifySome[String]("doesn't change the state") {
-               case Active  => IO.now("changed" -> Changed)
-               case Changed => IO.now("closed"  -> Closed)
+               case Active  => IO.succeed("changed" -> Changed)
+               case Changed => IO.succeed("closed"  -> Closed)
              }
         value2 <- refM.get
       } yield
@@ -96,7 +96,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
     unsafeRun(
       for {
         refM  <- RefM[State](Active)
-        r     <- refM.modifySome[String]("State doesn't change") { case Closed => IO.now("active" -> Active) }
+        r     <- refM.modifySome[String]("State doesn't change") { case Closed => IO.succeed("active" -> Active) }
         value <- refM.get
       } yield (r must beTheSameAs("State doesn't change")) and (value must beTheSameAs(Active))
     )

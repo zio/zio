@@ -41,7 +41,7 @@ import scalaz.zio.interop.monixio._
 
 object UnsafeExample extends RTS {
   def main(args: Array[String]): Unit = {
-    val io1 = IO.now(10)
+    val io1 = IO.succeed(10)
     val t1  = unsafeRun(io1.toTask)
 
     t1.runToFuture.foreach(r => println(s"IO to task result is $r"))
@@ -78,7 +78,7 @@ import scalaz.zio.interop.monixio._
 
 object UnsafeExample extends RTS {
   def main(args: Array[String]): Unit = {
-    val io1 = IO.now(10)
+    val io1 = IO.succeed(10)
     val c1  = unsafeRun(io1.toCoeval) 
 
     println(s"IO to coeval result is ${c1.value}")
