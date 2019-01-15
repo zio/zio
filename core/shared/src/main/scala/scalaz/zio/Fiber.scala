@@ -29,10 +29,11 @@ trait Fiber[+E, +A] { self =>
    * Awaits the fiber, which suspends the awaiting fiber until the result of the
    * fiber has been determined.
    */
-  <<<<<<< HEAD
-  def observe: IO[Nothing, ExitResult[E, A]]
-  =======
+
+def observe: IO[Nothing, ExitResult[E, A]]
+
   def await: IO[Nothing, Exit[E, A]]
+
 
   /**
    * Tentatively observes the fiber, but returns immediately if it is not already done.
@@ -63,94 +64,92 @@ trait Fiber[+E, +A] { self =>
       def await: IO[Nothing, Exit[E1, C]] =
         self.await.zipWith(that.await)(_.zipWith(_)(f, _ && _))
 
-      <<<<<<< HEAD
-      final def poll: IO[Unit, ExitResult[E1, C]] =
+
+    final def poll: IO[Unit, ExitResult[E1, C]] =
         self.poll.seqWith(that.poll) {
-          case (ra, rb) =>
-            ra.zipWith(rb)(f, _ && _)
-            =======
-            def poll: IO[Nothing, Option[Exit[E1, C]]] =
-              self.poll.zipWith(that.poll) {
-                case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ && _))
-                case _                    => None
+          case (ra, rb) => ra.zipWith(rb)(f, _ && _)
 
-              }
+      def poll: IO[Nothing, Option[Exit[E1, C]]] =
+        self.poll.zipWith(that.poll) {
+          case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ && _))
+          case _                    => None
 
-            def interrupt: IO[Nothing, Exit[E1, C]] = self.interrupt.zipWith(that.interrupt)(_.zipWith(_)(f, _ && _))
         }
 
-      /**
-       * Zips this fiber and the specified fiber togther, producing a tuple of their
-       * output.
-       */
-      final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
-        zipWith(that)((a, b) => (a, b))
-
-      /**
-       * Same as `zip` but discards the output of the left hand side.
-       */
-      final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
-        zip(that).map(_._2)
-
-      /**
-       * Same as `zip` but discards the output of the right hand side.
-       */
-      final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
-        zip(that).map(_._1)
-
-      /**
-       * Maps over the value the Fiber computes.
-       */
-      final def map[B](f: A => B): Fiber[E, B] =
-        new Fiber[E, B] {
-          def await: IO[Nothing, Exit[E, B]]        = self.await.map(_.map(f))
-          def poll: IO[Nothing, Option[Exit[E, B]]] = self.poll.map(_.map(_.map(f)))
-          def interrupt: IO[Nothing, Exit[E, B]]    = self.interrupt.map(_.map(f))
-        }
-
-      /**
-       * Maps the output of this fiber to the specified constant.
-       */
-      final def const[B](b: => B): Fiber[E, B] =
-        map(_ => b)
-
-      /**
-       * Maps the output of this fiber to `()`.
-       */
-      final def void: Fiber[E, Unit] = const(())
+      def interrupt: IO[Nothing, Exit[E1, C]] = self.interrupt.zipWith(that.interrupt)(_.zipWith(_)(f, _ && _))
     }
 
-  object Fiber {
-    final case class Descriptor(
-      id: FiberId,
-      interrupted: Boolean,
-      supervisor: Exit.Cause[Nothing] => IO[Nothing, _],
-      executor: Executor
-    )
+  /**
+   * Zips this fiber and the specified fiber togther, producing a tuple of their
+   * output.
+   */
+  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+    zipWith(that)((a, b) => (a, b))
 
-    final val unit: Fiber[Nothing, Unit] = Fiber.succeedLazy(())
+  /**
+   * Same as `zip` but discards the output of the left hand side.
+   */
+  final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+    zip(that).map(_._2)
 
-    final val never: Fiber[Nothing, Nothing] =
-      new Fiber[Nothing, Nothing] {
-        def await: IO[Nothing, Exit[Nothing, Nothing]]        = IO.never
-        def poll: IO[Nothing, Option[Exit[Nothing, Nothing]]] = IO.succeed(None)
-        def interrupt: IO[Nothing, Exit[Nothing, Nothing]]    = IO.never
-      }
+  /**
+   * Same as `zip` but discards the output of the right hand side.
+   */
+  final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+    zip(that).map(_._1)
 
-    final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
-      new Fiber[E, A] {
-        def await: IO[Nothing, Exit[E, A]]        = IO.succeedLazy(exit)
-        def poll: IO[Nothing, Option[Exit[E, A]]] = IO.succeedLazy(Some(exit))
-        def interrupt: IO[Nothing, Exit[E, A]]    = IO.succeedLazy(exit)
-      }
+  /**
+   * Maps over the value the Fiber computes.
+   */
+  final def map[B](f: A => B): Fiber[E, B] =
+    new Fiber[E, B] {
+      def await: IO[Nothing, Exit[E, B]]        = self.await.map(_.map(f))
+      def poll: IO[Nothing, Option[Exit[E, B]]] = self.poll.map(_.map(_.map(f)))
+      def interrupt: IO[Nothing, Exit[E, B]]    = self.interrupt.map(_.map(f))
+    }
 
-    final def succeedLazy[E, A](a: => A): Fiber[E, A] =
-      done(Exit.succeed(a))
+  /**
+   * Maps the output of this fiber to the specified constant.
+   */
+  final def const[B](b: => B): Fiber[E, B] =
+    map(_ => b)
 
-    final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
-      fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
+  /**
+   * Maps the output of this fiber to `()`.
+   */
+  final def void: Fiber[E, Unit] = const(())
+}
 
-    final def joinAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
-      fs.foldLeft(IO.unit)((io, f) => io *> f.await.void)
-  }
+object Fiber {
+  final case class Descriptor(
+    id: FiberId,
+    interrupted: Boolean,
+    supervisor: Exit.Cause[Nothing] => IO[Nothing, _],
+    executor: Executor
+  )
+
+  final val unit: Fiber[Nothing, Unit] = Fiber.succeedLazy(())
+
+  final val never: Fiber[Nothing, Nothing] =
+    new Fiber[Nothing, Nothing] {
+      def await: IO[Nothing, Exit[Nothing, Nothing]]        = IO.never
+      def poll: IO[Nothing, Option[Exit[Nothing, Nothing]]] = IO.succeed(None)
+      def interrupt: IO[Nothing, Exit[Nothing, Nothing]]    = IO.never
+    }
+
+  final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
+    new Fiber[E, A] {
+      def await: IO[Nothing, Exit[E, A]]        = IO.succeedLazy(exit)
+      def poll: IO[Nothing, Option[Exit[E, A]]] = IO.succeedLazy(Some(exit))
+      def interrupt: IO[Nothing, Exit[E, A]]    = IO.succeedLazy(exit)
+    }
+
+  final def succeedLazy[E, A](a: => A): Fiber[E, A] =
+    done(Exit.succeed(a))
+
+  final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
+    fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
+
+  final def joinAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
+    fs.foldLeft(IO.unit)((io, f) => io *> f.await.void)
 }
