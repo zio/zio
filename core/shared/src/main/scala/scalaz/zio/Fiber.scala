@@ -29,11 +29,7 @@ trait Fiber[+E, +A] { self =>
    * Awaits the fiber, which suspends the awaiting fiber until the result of the
    * fiber has been determined.
    */
-
-def observe: IO[Nothing, ExitResult[E, A]]
-
   def await: IO[Nothing, Exit[E, A]]
-
 
   /**
    * Tentatively observes the fiber, but returns immediately if it is not already done.
@@ -64,16 +60,10 @@ def observe: IO[Nothing, ExitResult[E, A]]
       def await: IO[Nothing, Exit[E1, C]] =
         self.await.zipWith(that.await)(_.zipWith(_)(f, _ && _))
 
-
-    final def poll: IO[Unit, ExitResult[E1, C]] =
-        self.poll.seqWith(that.poll) {
-          case (ra, rb) => ra.zipWith(rb)(f, _ && _)
-
       def poll: IO[Nothing, Option[Exit[E1, C]]] =
         self.poll.zipWith(that.poll) {
           case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ && _))
           case _                    => None
-
         }
 
       def interrupt: IO[Nothing, Exit[E1, C]] = self.interrupt.zipWith(that.interrupt)(_.zipWith(_)(f, _ && _))
