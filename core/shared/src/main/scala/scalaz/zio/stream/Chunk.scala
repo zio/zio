@@ -823,7 +823,7 @@ object Chunk {
   private case class VectorChunk[@specialized A](private val vector: Vector[A]) extends Chunk[A] {
     implicit lazy val classTag: ClassTag[A] = Tags.fromValue(vector(0))
 
-    def length: Int = vector.length
+    final def length: Int = vector.length
 
     override def apply(n: Int): A = vector(n)
 
