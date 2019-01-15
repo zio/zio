@@ -2,7 +2,7 @@ package scalaz.zio
 package interop
 
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.ExitResult.Cause.{ Checked, Unchecked }
+import scalaz.zio.Exit.Cause.{ Checked, Unchecked }
 import scalaz.zio.interop.future._
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -16,6 +16,10 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     catch exceptions thrown by lazy block                $catchBlockException
     return an `IO` that fails if `Future` fails          $propagateExceptionFromFuture
     return an `IO` that produces the value from `Future` $produceValueFromFuture
+  `Task.fromFuture` must
+    catch exceptions thrown by lazy block                 $catchBlockExceptionTask
+    return a `Task` that fails if `Future` fails          $propagateExceptionFromFutureTask
+    return a `Task` that produces the value from `Future` $produceValueFromFutureTask
   `IO.fromFutureAction` must
     catch exceptions thrown by lazy block                $futureActionCatchBlockException
     return an `IO` that fails if `Future` fails          $futureActionPropagateExceptionFromFuture
@@ -33,58 +37,63 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     catch exceptions thrown by lazy block                $catchBlockExceptionFiber
     return an `IO` that fails if `Future` fails          $propagateExceptionFromFutureFiber
     return an `IO` that produces the value from `Future` $produceValueFromFutureFiber
+  `RTS.unsafeToFuture` must
+    return a `Future` that produces a value from `IO`    $unsafeToFutureSucceeds
+    return a failing `Future` when the `IO` fails        $unsafeToFutureFails
+    return a failing `Future` with FiberFailure when 
+    `IO` terminates                                      $unsafeToFutureTerminates
   """
 
   val ec = ee.executionContext
 
-  val lazyOnParamRef = {
+  private val lazyOnParamRef = {
     var evaluated = false
     def ftr       = Future { evaluated = true }
     IO.fromFuture(ftr _)(ec)
     evaluated must beFalse
   }
 
-  val lazyOnParamInline = {
+  private val lazyOnParamInline = {
     var evaluated = false
     IO.fromFuture(() => Future { evaluated = true })(ec)
     evaluated must beFalse
   }
 
-  val catchBlockException = {
+  private val catchBlockException = {
     val ex                     = new Exception("no future for you!")
     def noFuture: Future[Unit] = throw ex
     unsafeRun(IO.fromFuture(noFuture _)(ec)) must (throwA(FiberFailure(Unchecked(ex))))
   }
 
-  val catchBlockExceptionTask = {
+  private val catchBlockExceptionTask = {
     val ex                     = new Exception("no value for you!")
     val noFuture: Future[Unit] = Future.failed(ex)
     unsafeRun(Task.fromFuture(Task { noFuture })(ec)) must throwA(FiberFailure(Checked(ex)))
   }
 
-  val propagateExceptionFromFuture = {
+  private val propagateExceptionFromFuture = {
     val ex                    = new Exception("no value for you!")
     def noValue: Future[Unit] = Future { throw ex }
     unsafeRun(IO.fromFuture(noValue _)(ec)) must throwA(FiberFailure(Checked(ex)))
   }
 
-  val propagateExceptionFromFutureTask = {
+  private val propagateExceptionFromFutureTask = {
     val ex                    = new Exception("no value for you!")
     val noValue: Future[Unit] = Future.failed(ex)
     unsafeRun(Task.fromFuture(Task { noValue })(ec)) must throwA(FiberFailure(Checked(ex)))
   }
 
-  val produceValueFromFuture = {
+  private val produceValueFromFuture = {
     def someValue: Future[Int] = Future { 42 }
     unsafeRun(IO.fromFuture(someValue _)(ec)) must_=== 42
   }
 
-  val produceValueFromFutureTask = {
+  private val produceValueFromFutureTask = {
     val someValue: Future[Int] = Future { 42 }
     unsafeRun(Task.fromFuture(Task { someValue })(ec)) must_=== 42
   }
 
-  val futureActionCatchBlockException = {
+  private val futureActionCatchBlockException = {
     val ex = new Exception("no future for you!")
     def noFuture(ec: ExecutionContext): Future[Unit] = {
       val _ = ec
@@ -93,73 +102,86 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.fromFutureAction(noFuture)) must (throwA(FiberFailure(Unchecked(ex))))
   }
 
-  val futureActionPropagateExceptionFromFuture = {
+  private val futureActionPropagateExceptionFromFuture = {
     val ex                                          = new Exception("no value for you!")
     def noValue(ec: ExecutionContext): Future[Unit] = Future { throw ex }(ec)
     unsafeRun(IO.fromFutureAction(noValue)) must throwA(FiberFailure(Checked(ex)))
   }
 
-  val futureActionProduceValueFromFuture = {
+  private val futureActionProduceValueFromFuture = {
     def someValue(ec: ExecutionContext): Future[Int] = Future { 42 }(ec)
     unsafeRun(IO.fromFutureAction(someValue)) must_=== 42
   }
 
-  val toFutureAlwaysSucceeds = {
+  private val toFutureAlwaysSucceeds = {
     val failedIO = IO.fail[Throwable](new Exception("IOs also can fail"))
     unsafeRun(failedIO.toFuture) must beAnInstanceOf[Future[Unit]]
   }
 
-  val toFuturePoly = {
+  private val toFuturePoly = {
     val unitIO: IO[Throwable, Unit]      = IO.unit
     val polyIO: IO[String, Future[Unit]] = unitIO.toFuture
     val _                                = polyIO // avoid warning
     ok
   }
 
-  val toFutureFailed = {
+  private val toFutureFailed = {
     val failedIO = IO.fail[Throwable](new Exception("IOs also can fail"))
     unsafeRun(failedIO.toFuture) must throwA[Exception](message = "IOs also can fail").await
   }
 
   val toFutureValue = {
-    val someIO = IO.now[Int](42)
+    val someIO = IO.succeed[Int](42)
     unsafeRun(someIO.toFuture) must beEqualTo(42).await
   }
 
-  val toFutureE = {
+  private val toFutureE = {
     val failedIO = IO.fail[String]("IOs also can fail")
     unsafeRun(failedIO.toFutureE(new Exception(_))) must throwA[Exception](message = "IOs also can fail").await
   }
 
-  val lazyOnParamRefFiber = {
+  private val lazyOnParamRefFiber = {
     var evaluated = false
     def ftr       = Future { evaluated = true }
     Fiber.fromFuture(ftr _)(ec)
     evaluated must beFalse
   }
 
-  val lazyOnParamInlineFiber = {
+  private val lazyOnParamInlineFiber = {
     var evaluated = false
     def ftr       = Future { evaluated = true }
     Fiber.fromFuture(ftr _)(ec)
     evaluated must beFalse
   }
 
-  val catchBlockExceptionFiber = {
+  private val catchBlockExceptionFiber = {
     val ex                     = new Exception("no future for you!")
     def noFuture: Future[Unit] = throw ex
     unsafeRun(Fiber.fromFuture(noFuture _)(ec).join) must (throwA(FiberFailure(Unchecked(ex))))
   }
 
-  val propagateExceptionFromFutureFiber = {
+  private val propagateExceptionFromFutureFiber = {
     val ex                    = new Exception("no value for you!")
     def noValue: Future[Unit] = Future { throw ex }
     unsafeRun(Fiber.fromFuture(noValue _)(ec).join) must (throwA(FiberFailure(Checked(ex))))
   }
 
-  val produceValueFromFutureFiber = {
+  private val produceValueFromFutureFiber = {
     def someValue: Future[Int] = Future { 42 }
     unsafeRun(Fiber.fromFuture(someValue _)(ec).join) must_=== 42
+  }
+
+  private val unsafeToFutureSucceeds = {
+    this.unsafeToFuture(IO.succeed(5)) must be_===(5).await
+  }
+
+  private val unsafeToFutureFails = {
+    val e: Throwable = new Exception("Ouch")
+    this.unsafeToFuture(IO.fail(e)).failed must be_===(e).await
+  }
+
+  private val unsafeToFutureTerminates = {
+    this.unsafeToFuture(IO.die(new Exception("Bang"))) must throwA[FiberFailure].await
   }
 
 }
