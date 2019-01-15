@@ -330,7 +330,7 @@ private[zio] final class FiberContext[E, A](
   private[this] final def enterSupervision: IO[E, Unit] = IO.sync {
     supervising += 1
 
-   def newWeakSet[A]: Set[A] = Collections.newSetFromMap[A](new WeakHashMap[A, java.lang.Boolean]())
+    def newWeakSet[A]: Set[A] = Collections.newSetFromMap[A](new WeakHashMap[A, java.lang.Boolean]())
 
     val set = newWeakSet[FiberContext[_, _]]
 
@@ -552,7 +552,7 @@ private[zio] object FiberContext {
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
 
     /** indicates if the fiber was interrupted */
-  def interrupted: Boolean
+    def interrupted: Boolean
 
     /** indicates if the fiber is terminating */
     def terminating: Boolean
