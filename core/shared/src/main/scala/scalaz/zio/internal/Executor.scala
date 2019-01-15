@@ -13,12 +13,12 @@ trait Executor {
   /**
    * The role the executor is optimized for.
    */
-def role: Executor.Role
+  def role: Executor.Role
 
   /**
    * The number of operations a fiber should run before yielding.
    */
-def yieldOpCount: Int
+  def yieldOpCount: Int
 
   /**
    * Submits a task for execution.
