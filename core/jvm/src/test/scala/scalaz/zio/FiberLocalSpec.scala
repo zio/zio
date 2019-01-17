@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class FiberLocalSpec extends AbstractRTSSpec {
+class FiberLocalSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is =
     "FiberLocalSpec".title ^ s2"""
@@ -41,8 +41,8 @@ class FiberLocalSpec extends AbstractRTSSpec {
     for {
       local <- FiberLocal.make[Int]
       p     <- Promise.make[Nothing, Unit]
-      _     <- (local.set(10) *> p.complete(())).fork
-      _     <- p.get
+      _     <- (local.set(10) *> p.succeed(())).fork
+      _     <- p.await
       v     <- local.get
     } yield (v must_=== None)
   )
@@ -51,9 +51,9 @@ class FiberLocalSpec extends AbstractRTSSpec {
     for {
       local <- FiberLocal.make[Int]
       p     <- Promise.make[Nothing, Unit]
-      f     <- (local.set(10) *> p.get *> local.get).fork
+      f     <- (local.set(10) *> p.await *> local.get).fork
       _     <- local.set(20)
-      _     <- p.complete(())
+      _     <- p.succeed(())
       v1    <- f.join
       v2    <- local.get
     } yield (v1 must_=== Some(10)) and (v2 must_== Some(20))

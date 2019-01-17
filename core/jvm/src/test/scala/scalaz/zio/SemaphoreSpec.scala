@@ -3,9 +3,9 @@
 
 package scalaz.zio
 
-import scala.concurrent.duration.DurationLong
+import scalaz.zio.duration._
 
-class SemaphoreSpec extends AbstractRTSSpec {
+class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is =
     "SemaphoreSpec".title ^ s2"""
@@ -24,7 +24,7 @@ class SemaphoreSpec extends AbstractRTSSpec {
     val n = 20L
     unsafeRun(for {
       semaphore <- Semaphore(n)
-      available <- IO.traverse((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
+      available <- IO.foreach((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
     } yield available must_=== 0)
   }
 
@@ -32,20 +32,20 @@ class SemaphoreSpec extends AbstractRTSSpec {
     val n = 20L
     unsafeRun(for {
       semaphore <- Semaphore(n)
-      available <- IO.parTraverse((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
+      available <- IO.foreachPar((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
     } yield available must_=== 0)
   }
 
   def e3 =
     offsettingReleasesAcquires(
-      (s, permits) => IO.traverse(permits)(s.acquireN).void,
-      (s, permits) => IO.traverse(permits.reverse)(s.releaseN).void
+      (s, permits) => IO.foreach(permits)(s.acquireN).void,
+      (s, permits) => IO.foreach(permits.reverse)(s.releaseN).void
     )
 
   def e4 =
     offsettingReleasesAcquires(
-      (s, permits) => IO.parTraverse(permits)(amount => s.acquireN(amount)).void,
-      (s, permits) => IO.parTraverse(permits.reverse)(amount => s.releaseN(amount)).void
+      (s, permits) => IO.foreachPar(permits)(amount => s.acquireN(amount)).void,
+      (s, permits) => IO.foreachPar(permits.reverse)(amount => s.releaseN(amount)).void
     )
 
   def e5 = {

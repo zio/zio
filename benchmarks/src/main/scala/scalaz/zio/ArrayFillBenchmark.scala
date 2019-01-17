@@ -20,10 +20,10 @@ class ArrayFillBenchmarks {
   def scalazArrayFill() = {
     import IOBenchmarks.unsafeRun
 
-    def arrayFill(array: Array[Int]): KleisliIO[Nothing, Int, Int] = {
-      val condition = KleisliIO.lift[Int, Boolean]((i: Int) => i < array.length)
+    def arrayFill(array: Array[Int]): FunctionIO[Nothing, Int, Int] = {
+      val condition = FunctionIO.lift[Int, Boolean]((i: Int) => i < array.length)
 
-      KleisliIO.whileDo[Nothing, Int](condition)(KleisliIO.impureVoid[Int, Int] { (i: Int) =>
+      FunctionIO.whileDo[Nothing, Int](condition)(FunctionIO.impureVoid[Int, Int] { (i: Int) =>
         array.update(i, i)
 
         i + 1
@@ -80,6 +80,6 @@ class ArrayFillBenchmarks {
     (for {
       array <- Task.eval(createTestArray)
       _     <- arrayFill(array)(0)
-    } yield ()).runSyncUnsafe(Duration.Inf)
+    } yield ()).runSyncUnsafe(scala.concurrent.duration.Duration.Inf)
   }
 }

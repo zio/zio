@@ -1,8 +1,24 @@
 package scalaz.zio
 
+import scala.concurrent.duration._
 import org.specs2.Specification
-import scalaz.zio.ExitResult.Cause
+import org.specs2.specification.{ AroundEach, AroundTimeout }
+import org.specs2.execute.{ AsResult, Failure, Result, Skipped }
 
-trait AbstractRTSSpec extends Specification with RTS {
-  override def defaultHandler: Cause[Any] => IO[Nothing, Unit] = _ => IO.unit
+import scalaz.zio.internal.Env
+
+abstract class AbstractRTSSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends Specification
+    with RTS
+    with AroundEach
+    with AroundTimeout {
+  override lazy val env = Env.newDefaultEnv(_ => IO.unit)
+
+  val DefaultTimeout = 60.seconds
+
+  override final def around[R: AsResult](r: => R): Result =
+    AsResult.safely(upTo(DefaultTimeout)(r)) match {
+      case Skipped(m, e) if m contains "TIMEOUT" => Failure(m, e)
+      case other                                 => other
+    }
 }

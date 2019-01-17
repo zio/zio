@@ -3,9 +3,10 @@ package scalaz.zio
 import org.specs2.ScalaCheck
 import scala.collection.mutable
 
-class ManagedSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
+class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "ManagedSpec".title ^ s2"""
   Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse
+  Properly performs parallel acquire and release. $parallelAcquireAndRelease
   """
 
   def invokesCleanupsInReverse = {
@@ -26,5 +27,19 @@ class ManagedSpec extends AbstractRTSSpec with GenIO with ScalaCheck {
     unsafeRun(program)
 
     effects must be_===(List(1, 2, 3, 3, 2, 1))
+  }
+
+  def parallelAcquireAndRelease = {
+    val cleanups = new mutable.ListBuffer[String]
+
+    def managed(v: String): Managed[Nothing, String] =
+      Managed(IO.succeed(v))(_ => IO.sync { cleanups += v; () })
+
+    val program = managed("A").zipWithPar(managed("B"))(_ + _).use(IO.succeed)
+
+    val result = unsafeRun(program)
+
+    result must haveSize(2)
+    result.size === cleanups.size
   }
 }
