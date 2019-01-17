@@ -889,7 +889,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Returns a `ZIO` that terminates with the specified `Throwable`.
    */
-  final def die(t: Throwable): IO[Nothing, Nothing] = halt(Cause.unchecked(t))
+  final def die(t: Throwable): UIO[Nothing] = halt(Cause.unchecked(t))
 
   /**
    * Imports a synchronous effect into a pure `ZIO` value.
