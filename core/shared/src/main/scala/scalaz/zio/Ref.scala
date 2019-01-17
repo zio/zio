@@ -33,7 +33,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * Writes a new value to the `Ref` without providing a guarantee of
    * immediate consistency.
    */
-  final def setLater(a: A): IO[Nothing, Unit] = IO.sync(value.lazySet(a))
+  final def setAsync(a: A): IO[Nothing, Unit] = IO.sync(value.lazySet(a))
 
   /**
    * Atomically modifies the `Ref` with the specified function. This is not
