@@ -60,6 +60,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
+  .jsSettings(
+    libraryDependencies += "org.scala-js" %%% "scalajs-java-time" % "0.2.5"
+  )
   .enablePlugins(BuildInfoPlugin)
   .settings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
