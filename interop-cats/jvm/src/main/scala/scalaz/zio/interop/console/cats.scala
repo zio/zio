@@ -12,12 +12,12 @@ object cats {
   /**
    * Prints the string representation of an object to the console.
    */
-  def putStr[A](a: A)(implicit ev: CatsShow[A]): IO[Nothing, Unit] =
+  def putStr[A](a: A)(implicit ev: CatsShow[A]): ZIO[c.Console, Nothing, Unit] =
     c.putStr(ev.show(a))
 
   /**
    * Prints the string representation of an object to the console, including a newline character.
    */
-  def putStrLn[A](a: A)(implicit ev: CatsShow[A]): IO[Nothing, Unit] =
+  def putStrLn[A](a: A)(implicit ev: CatsShow[A]): ZIO[c.Console, Nothing, Unit] =
     c.putStrLn(ev.show(a))
 }

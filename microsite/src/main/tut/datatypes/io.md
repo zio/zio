@@ -88,7 +88,7 @@ object Http {
 
 ```tut:silent
 def makeRequest(req: Request): IO[HttpException, Response] =
-  IO.async[Any, HttpException, Response](k => Http.req(req, k))
+  IO.async[HttpException, Response](k => Http.req(req, k))
 ```
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.

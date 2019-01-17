@@ -75,7 +75,7 @@ import java.io.IOException
 import scalaz.zio.console._
 import scalaz.zio.duration._
 
-val program: IO[IOException, Unit] = for {
+val program: ZIO[Console, IOException, Unit] = for {
 promise         <-  Promise.make[Nothing, String]
 sendHelloWorld  =   (IO.succeed("hello world") <* IO.sleep(1.second)).flatMap(promise.succeed)
 getAndPrint     =   promise.await.flatMap(putStrLn)
