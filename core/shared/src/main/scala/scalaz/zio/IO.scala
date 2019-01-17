@@ -98,7 +98,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * for {
    *   fiber <- subtask.fork
    *   // Do stuff...
-   *   a <- subtask.join
+   *   a <- fiber.join
    * } yield a
    * }}}
    */
