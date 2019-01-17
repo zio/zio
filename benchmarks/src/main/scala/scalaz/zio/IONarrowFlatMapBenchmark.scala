@@ -41,8 +41,10 @@ class IONarrowFlatMapBenchmark {
     import java.util.concurrent.CompletableFuture
 
     def loop(i: Int): CompletableFuture[Int] =
-      if (i < size) CompletableFuture.completedFuture(i + 1)
-        .thenCompose(loop)
+      if (i < size)
+        CompletableFuture
+          .completedFuture(i + 1)
+          .thenCompose(loop)
       else CompletableFuture.completedFuture(i)
 
     CompletableFuture
@@ -58,7 +60,8 @@ class IONarrowFlatMapBenchmark {
       if (i < size) Mono.just(i + 1).flatMap(loop)
       else Mono.just(i)
 
-    Mono.just(0)
+    Mono
+      .just(0)
       .flatMap(loop)
       .block()
   }
@@ -71,7 +74,8 @@ class IONarrowFlatMapBenchmark {
       if (i < size) Single.just(i + 1).flatMap(loop)
       else Single.just(i)
 
-    Single.just(0)
+    Single
+      .just(0)
       .flatMap(loop)
       .blockingGet()
   }

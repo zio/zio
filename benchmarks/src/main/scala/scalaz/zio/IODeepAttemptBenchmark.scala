@@ -36,8 +36,7 @@ class IODeepAttemptBenchmark {
 
     def descend(n: Int): Future[BigInt] =
       if (n == depth) Future.failed(new Exception("Oh noes!"))
-      else if (n == halfway) descend(n + 1).recover { case _ => 50 }
-      else descend(n + 1).map(_ + n)
+      else if (n == halfway) descend(n + 1).recover { case _ => 50 } else descend(n + 1).map(_ + n)
 
     Await.result(descend(0), Inf)
   }
@@ -46,7 +45,7 @@ class IODeepAttemptBenchmark {
   def completableFutureDeepAttempt(): BigInt = {
     import java.util.concurrent.CompletableFuture
 
-    def descent(n: Int): CompletableFuture[BigInt] = {
+    def descent(n: Int): CompletableFuture[BigInt] =
       if (n == depth) {
         val f = new CompletableFuture[BigInt]()
         f.completeExceptionally(new Exception("Oh noes!"))
@@ -56,7 +55,6 @@ class IODeepAttemptBenchmark {
       } else {
         descent(n + 1).thenApply(_ + n)
       }
-    }
 
     descent(0).get()
   }
@@ -65,14 +63,13 @@ class IODeepAttemptBenchmark {
   def monoDeepAttempt(): BigInt = {
     import reactor.core.publisher.Mono
 
-    def descent(n: Int): Mono[BigInt] = {
+    def descent(n: Int): Mono[BigInt] =
       if (n == depth)
         Mono.error(new Exception("Oh noes!"))
       else if (n == halfway)
         descent(n + 1).onErrorReturn(BigInt.apply(50))
       else
         descent(n + 1).map(_ + n)
-    }
 
     descent(0).block()
   }
@@ -80,7 +77,7 @@ class IODeepAttemptBenchmark {
   @Benchmark
   def rxSingleDeepAttempt(): BigInt = {
     import io.reactivex.Single
-    def descent(n: Int): Single[BigInt] = {
+    def descent(n: Int): Single[BigInt] =
       if (n == depth)
         Single.error(new Exception("Oh noes!"))
       else if (n == halfway)
@@ -88,7 +85,6 @@ class IODeepAttemptBenchmark {
           .onErrorReturn(_ => 50)
       else
         descent(n + 1).map(_ + n)
-    }
 
     descent(0).blockingGet()
   }

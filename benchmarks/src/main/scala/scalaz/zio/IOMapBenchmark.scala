@@ -44,10 +44,9 @@ class IOMapBenchmark {
     import java.util.concurrent.CompletableFuture
 
     @tailrec
-    def sumTo(t: CompletableFuture[BigInt], n: Int): CompletableFuture[BigInt] = {
+    def sumTo(t: CompletableFuture[BigInt], n: Int): CompletableFuture[BigInt] =
       if (n <= 1) t
-      else sumTo(t.thenApply(_ + n), n - 1 )
-    }
+      else sumTo(t.thenApply(_ + n), n - 1)
 
     sumTo(CompletableFuture.completedFuture(0), depth)
       .get()
