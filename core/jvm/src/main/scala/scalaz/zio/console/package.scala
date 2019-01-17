@@ -4,6 +4,7 @@ package scalaz.zio
 import java.io.IOException
 
 package object console {
+
   /**
    * Prints text to the console.
    */
