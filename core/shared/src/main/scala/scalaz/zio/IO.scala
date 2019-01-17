@@ -884,7 +884,7 @@ trait ZIOFunctions extends Serializable {
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
   final val never: UIO[Nothing] =
-    async[Any, Nothing, Nothing](_ => ())
+    async[Nothing, Nothing](_ => ())
 
   /**
    * Returns a `ZIO` that terminates with the specified `Throwable`.
@@ -1045,8 +1045,8 @@ trait ZIOFunctions extends Serializable {
    * the more expressive variant of this function that can return a value
    * synchronously.
    */
-  final def async[R >: LowerR, E <: UpperE, A](register: (ZIO[R, E, A] => Unit) => Unit): ZIO[R, E, A] =
-    async0((callback: ZIO[R, E, A] => Unit) => {
+  final def async[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Unit): ZIO[Any, E, A] =
+    async0((callback: ZIO[Any, E, A] => Unit) => {
       register(callback)
 
       Async.later
@@ -1056,7 +1056,7 @@ trait ZIOFunctions extends Serializable {
    * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
    * the value synchronously.
    */
-  final def async0[R >: LowerR, E <: UpperE, A](register: (ZIO[R, E, A] => Unit) => Async[E, A]): ZIO[R, E, A] =
+  final def async0[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Async[E, A]): ZIO[Any, E, A] =
     new ZIO.AsyncEffect(register)
 
   /**
@@ -1462,7 +1462,7 @@ object ZIO extends ZIO_E_Any {
     override def tag = Tags.SyncEffect
   }
 
-  final class AsyncEffect[R, E, A](val register: (ZIO[R, E, A] => Unit) => Async[E, A]) extends ZIO[R, E, A] {
+  final class AsyncEffect[E, A](val register: (ZIO[Any, E, A] => Unit) => Async[E, A]) extends IO[E, A] {
     override def tag = Tags.AsyncEffect
   }
 
