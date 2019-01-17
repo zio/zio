@@ -13,10 +13,10 @@ import scalaz.zio.duration.Duration
  *
  * object MyApp extends App {
  *
- *   def run(args: List[String]): IO[Nothing, ExitStatus] =
- *     myAppLogic.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
+ *   def run(args: List[String]): UIO[ExitStatus] =
+ *     myAppLogic.provide(Console.Live).attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
  *
- *   def myAppLogic: IO[IOException, Unit] =
+ *   def myAppLogic: ZIO[Console, IOException, Unit] =
  *     for {
  *       _ <- putStrLn("Hello! What is your name?")
  *       n <- getStrLn
@@ -37,7 +37,7 @@ trait App extends RTS {
    * The main function of the application, which will be passed the command-line
    * arguments to the program and has to return an `IO` with the errors fully handled.
    */
-  def run(args: List[String]): IO[Nothing, ExitStatus]
+  def run(args: List[String]): UIO[ExitStatus]
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.

@@ -1,28 +1,24 @@
-// Copyright (C) 2017 John A. De Goes. All rights reserved.
+// Copyright (C) 2017-2019 John A. De Goes. All rights reserved.
 package scalaz.zio
 
 import java.io.IOException
 
 package object console {
-
   /**
    * Prints text to the console.
    */
-  def putStr(line: String): IO[Nothing, Unit] =
-    IO.sync(scala.Console.print(line))
+  def putStr(line: String): ZIO[Console, Nothing, Unit] =
+    ZIO.readM(_.console putStr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLn(line: String): IO[Nothing, Unit] =
-    IO.sync(scala.Console.println(line))
+  def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
+    ZIO.readM(_.console putStrLn line)
 
   /**
    * Retrieves a line of input from the console.
    */
-  def getStrLn: IO[IOException, String] =
-    IO.syncCatch(scala.io.StdIn.readLine()) {
-      case e: IOException => e
-    }
-
+  val getStrLn: ZIO[Console, IOException, String] =
+    ZIO.readM(_.console.getStrLn)
 }

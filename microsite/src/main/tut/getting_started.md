@@ -19,17 +19,17 @@ println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${scalaz.zio.
 Your main function can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
 ```tut:silent
-import scalaz.zio.{App, IO}
+import scalaz.zio.{App, IO, UIO, ZIO}
 import scalaz.zio.console._
 
 import java.io.IOException
 
 object MyApp extends App {
 
-  def run(args: List[String]): IO[Nothing, ExitStatus] =
-    myAppLogic.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
+  def run(args: List[String]): UIO[ExitStatus] =
+    myAppLogic.provide(Console.Live).attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
 
-  def myAppLogic: IO[IOException, Unit] =
+  def myAppLogic: ZIO[Console, IOException, Unit] =
     for {
       _ <- putStrLn("Hello! What is your name?")
       n <- getStrLn
@@ -47,7 +47,7 @@ import scalaz.zio.console._
 object IntegrationExample {
   val rts = new RTS{}
 
-  rts.unsafeRun(putStrLn("Hello World!"))
+  rts.unsafeRun(putStrLn("Hello World!").provide(Console.Live))
 }
 ```
 
