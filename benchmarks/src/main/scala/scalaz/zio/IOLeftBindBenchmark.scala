@@ -45,13 +45,13 @@ class IOLeftBindBenchmark {
   def completableFutureLeftBindBenchmark(): Int = {
     import java.util.concurrent.CompletableFuture
 
-    def loop(i: Int): CompletableFuture[Int] = {
+    def loop(i: Int): CompletableFuture[Int] =
       if (i % depth == 0) CompletableFuture.completedFuture(i + 1).thenCompose(loop)
       else if (i < size) loop(i + 1).thenCompose(i => CompletableFuture.completedFuture(i))
       else CompletableFuture.completedFuture(i)
-    }
 
-    CompletableFuture.completedFuture(0)
+    CompletableFuture
+      .completedFuture(0)
       .thenCompose(loop)
       .get()
   }
@@ -60,13 +60,13 @@ class IOLeftBindBenchmark {
   def monoLeftBindBenchmark(): Int = {
     import reactor.core.publisher.Mono
 
-    def loop(i: Int): Mono[Int] = {
+    def loop(i: Int): Mono[Int] =
       if (i % depth == 0) Mono.just(i + 1).flatMap(loop)
       else if (i < size) loop(i + 1).flatMap(i => Mono.just(i))
       else Mono.just(i)
-    }
 
-    Mono.just(0)
+    Mono
+      .just(0)
       .flatMap(loop)
       .block()
   }
@@ -75,13 +75,13 @@ class IOLeftBindBenchmark {
   def rxSingleLeftBindBenchmark(): Int = {
     import io.reactivex.Single
 
-    def loop(i: Int): Single[Int] = {
+    def loop(i: Int): Single[Int] =
       if (i % depth == 0) Single.just(i + 1).flatMap(loop)
       else if (i < size) loop(i + 1).flatMap(i => Single.just(i))
       else Single.just(i)
-    }
 
-    Single.just(0)
+    Single
+      .just(0)
       .flatMap(loop)
       .blockingGet()
   }

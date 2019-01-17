@@ -44,13 +44,14 @@ class ArrayFillBenchmarks {
 
     def arrayFill(array: Array[Int])(i: Int): Mono[Unit] =
       if (i >= array.length) Mono.just(())
-      else Mono.defer(() => Mono.just(array.update(i, i)))
-        .flatMap(_ => arrayFill(array)(i + 1))
-
+      else
+        Mono
+          .defer(() => Mono.just(array.update(i, i)))
+          .flatMap(_ => arrayFill(array)(i + 1))
 
     (for {
       array <- Mono.defer(() => Mono.just(createTestArray))
-      _ <- arrayFill(array)(0)
+      _     <- arrayFill(array)(0)
     } yield ())
       .block()
   }

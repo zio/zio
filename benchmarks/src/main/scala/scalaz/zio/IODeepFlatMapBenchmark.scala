@@ -46,13 +46,12 @@ class IODeepFlatMapBenchmark {
   def completableFutureDeepFlatMap(): BigInt = {
     import java.util.concurrent.CompletableFuture
 
-    def fib(n: Int): CompletableFuture[BigInt] = {
+    def fib(n: Int): CompletableFuture[BigInt] =
       if (n <= 1) CompletableFuture.completedFuture(n)
       else
         fib(n - 1).thenCompose { a =>
           fib(n - 2).thenCompose(b => CompletableFuture.completedFuture(a + b))
         }
-    }
 
     fib(depth)
       .get()
@@ -62,13 +61,12 @@ class IODeepFlatMapBenchmark {
   def monoDeepFlatMap(): BigInt = {
     import reactor.core.publisher.Mono
 
-    def fib(n: Int): Mono[BigInt] = {
+    def fib(n: Int): Mono[BigInt] =
       if (n <= 1) Mono.just(n)
       else
         fib(n - 1).flatMap { a =>
           fib(n - 2).flatMap(b => Mono.just(a + b))
         }
-    }
 
     fib(depth)
       .block()
@@ -78,13 +76,12 @@ class IODeepFlatMapBenchmark {
   def rxSingleDeepFlatMap(): BigInt = {
     import io.reactivex.Single
 
-    def fib(n: Int): Single[BigInt] = {
+    def fib(n: Int): Single[BigInt] =
       if (n <= 1) Single.just(n)
       else
         fib(n - 1).flatMap { a =>
           fib(n - 2).flatMap(b => Single.just(a + b))
         }
-    }
 
     fib(depth)
       .blockingGet()
