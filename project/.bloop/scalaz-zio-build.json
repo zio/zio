@@ -1,271 +1,271 @@
 {
-    "version" : "1.1.0-M2",
+    "version" : "1.1.2",
     "project" : {
         "name" : "scalaz-zio-build",
-        "directory" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project",
+        "directory" : "/Users/John/Documents/github/scalaz-zio/project",
         "sources" : [
-            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\src\\main\\scala-2.12",
-            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\src\\main\\scala",
-            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\src\\main\\java",
-            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\src\\main\\scala-sbt-1.0",
-            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\target\\scala-2.12\\sbt-1.0\\src_managed\\main",
-            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\ScalazBuild.scala"
+            "/Users/John/Documents/github/scalaz-zio/project/src/main/scala-2.12",
+            "/Users/John/Documents/github/scalaz-zio/project/src/main/scala",
+            "/Users/John/Documents/github/scalaz-zio/project/src/main/java",
+            "/Users/John/Documents/github/scalaz-zio/project/src/main/scala-sbt-1.0",
+            "/Users/John/Documents/github/scalaz-zio/project/target/scala-2.12/sbt-1.0/src_managed/main",
+            "/Users/John/Documents/github/scalaz-zio/project/ScalazBuild.scala"
         ],
         "dependencies" : [
         ],
         "classpath" : [
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\ch.epfl.scala\\sbt-bloop\\jars\\sbt-bloop-1.1.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\ch.epfl.scala\\bloop-config_2.12\\jars\\bloop-config_2.12-1.1.1.jar",
-            "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-library.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-parser_2.12\\jars\\circe-parser_2.12-0.9.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-jawn_2.12\\jars\\circe-jawn_2.12-0.9.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-core_2.12\\jars\\circe-core_2.12-0.9.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-numbers_2.12\\jars\\circe-numbers_2.12-0.9.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-core_2.12\\jars\\cats-core_2.12-1.0.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-macros_2.12\\jars\\cats-macros_2.12-1.0.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\machinist_2.12\\jars\\machinist_2.12-0.6.2.jar",
-            "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-reflect.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-kernel_2.12\\jars\\cats-kernel_2.12-1.0.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.spire-math\\jawn-parser_2.12\\jars\\jawn-parser_2.12-0.11.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-derivation_2.12\\jars\\circe-derivation_2.12-0.9.0-M3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.scalameta\\sbt-metals\\jars\\sbt-metals-0.3.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\pl.project13.scala\\sbt-jmh\\jars\\sbt-jmh-0.3.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\pl.project13.scala\\sbt-jmh-extras\\jars\\sbt-jmh-extras-0.3.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-core\\jars\\jmh-core-1.21.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\net.sf.jopt-simple\\jopt-simple\\jars\\jopt-simple-4.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-math3\\jars\\commons-math3-3.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-bytecode\\jars\\jmh-generator-bytecode-1.21.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-reflection\\jars\\jmh-generator-reflection-1.21.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-asm\\jars\\jmh-generator-asm-1.21.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm\\jars\\asm-5.0.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\pl.project13.scala\\sbt-jcstress\\jars\\sbt-jcstress-0.2.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.dwijnand\\sbt-travisci\\jars\\sbt-travisci-1.1.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.dwijnand\\sbt-compat\\jars\\sbt-compat-1.2.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.yaml\\snakeyaml\\bundles\\snakeyaml-1.17.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.scala-js\\sbt-scalajs\\jars\\sbt-scalajs-0.6.26.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-tools_2.12\\jars\\scalajs-tools_2.12-0.6.26.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-ir_2.12\\jars\\scalajs-ir_2.12-0.6.26.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\closure-compiler-java-6\\jars\\closure-compiler-java-6-v20160517.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\closure-compiler-externs-java-6\\jars\\closure-compiler-externs-java-6-v20160517.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\args4j\\args4j\\bundles\\args4j-2.0.26.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.google.guava\\guava\\bundles\\guava-19.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.google.code.gson\\gson\\jars\\gson-2.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.google.code.findbugs\\jsr305\\jars\\jsr305-1.3.9.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.googlecode.json-simple\\json-simple\\bundles\\json-simple-1.1.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-js-envs_2.12\\jars\\scalajs-js-envs_2.12-0.6.26.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.mozilla\\rhino\\jars\\rhino-1.7.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.webjars\\envjs\\jars\\envjs-1.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-sbt-test-adapter_2.12\\jars\\scalajs-sbt-test-adapter_2.12-0.6.26.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-interface\\jars\\test-interface-1.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.portable-scala\\sbt-platform-deps\\jars\\sbt-platform-deps-1.0.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.portable-scala\\sbt-scalajs-crossproject\\jars\\sbt-scalajs-crossproject-0.6.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.portable-scala\\sbt-crossproject\\jars\\sbt-crossproject-0.6.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.47deg\\sbt-microsites\\jars\\sbt-microsites-0.7.27.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.typesafe.sbt\\sbt-ghpages\\jars\\sbt-ghpages-0.6.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.httpcomponents\\httpclient\\jars\\httpclient-4.3.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.httpcomponents\\httpcore\\jars\\httpcore-4.3.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\commons-logging\\commons-logging\\jars\\commons-logging-1.1.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.typesafe.sbt\\sbt-site\\jars\\sbt-site-1.3.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\io.github.jonas\\paradox-material-theme\\jars\\paradox-material-theme-0.4.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered-directives_2.12\\jars\\unfiltered-directives_2.12-0.9.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered_2.12\\jars\\unfiltered_2.12-0.9.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered-util_2.12\\jars\\unfiltered-util_2.12-0.9.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\commons-codec\\commons-codec\\jars\\commons-codec-1.10.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-xml_2.12\\bundles\\scala-xml_2.12-1.0.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered-filter_2.12\\jars\\unfiltered-filter_2.12-0.9.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered-jetty_2.12\\jars\\unfiltered-jetty_2.12-0.9.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-webapp\\jars\\jetty-webapp-9.2.21.v20170120.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-xml\\jars\\jetty-xml-9.2.21.v20170120.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-util\\jars\\jetty-util-9.2.21.v20170120.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-servlet\\jars\\jetty-servlet-9.2.21.v20170120.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-security\\jars\\jetty-security-9.2.21.v20170120.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-server\\jars\\jetty-server-9.2.21.v20170120.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\javax.servlet\\javax.servlet-api\\jars\\javax.servlet-api-3.1.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-http\\jars\\jetty-http-9.2.21.v20170120.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-io\\jars\\jetty-io-9.2.21.v20170120.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.foundweekends\\pamflet-library_2.12\\jars\\pamflet-library_2.12-0.7.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.foundweekends\\pamflet-knockoff_2.12\\jars\\pamflet-knockoff_2.12-0.7.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.foundweekends\\knockoff_2.12\\jars\\knockoff_2.12-0.8.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-parser-combinators_2.12\\bundles\\scala-parser-combinators_2.12-1.0.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.antlr\\stringtemplate\\jars\\stringtemplate-3.2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\antlr\\antlr\\jars\\antlr-2.7.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.asciidoctor\\asciidoctorj\\jars\\asciidoctorj-1.5.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.jruby\\jruby-complete\\bundles\\jruby-complete-1.7.21.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.beust\\jcommander\\jars\\jcommander-1.35.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.lightbend.paradox\\sbt-paradox\\jars\\sbt-paradox-0.3.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.lightbend.paradox\\paradox_2.12\\jars\\paradox_2.12-0.3.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.pegdown\\pegdown\\jars\\pegdown-1.6.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.parboiled\\parboiled-java\\jars\\parboiled-java-1.1.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.parboiled\\parboiled-core\\jars\\parboiled-core-1.1.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm-tree\\jars\\asm-tree-5.0.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm-analysis\\jars\\asm-analysis-5.0.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm-util\\jars\\asm-util-5.0.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.antlr\\ST4\\jars\\ST4-4.0.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.antlr\\antlr-runtime\\jars\\antlr-runtime-3.5.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.typesafe.sbt\\sbt-web\\jars\\sbt-web-1.4.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-actor_2.12\\jars\\akka-actor_2.12-2.5.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\config\\bundles\\config-1.3.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-java8-compat_2.12\\bundles\\scala-java8-compat_2.12-0.8.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.webjars\\webjars-locator-core\\jars\\webjars-locator-core-0.32.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-lang3\\jars\\commons-lang3-3.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-compress\\jars\\commons-compress-1.9.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.fasterxml.jackson.core\\jackson-core\\bundles\\jackson-core-2.7.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.planet42\\laika-sbt\\jars\\laika-sbt-0.7.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.planet42\\laika-core_2.12\\jars\\laika-core_2.12-0.7.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.planet42\\laika-pdf_2.12\\jars\\laika-pdf_2.12-0.7.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\fop\\jars\\fop-2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\xmlgraphics-commons\\jars\\xmlgraphics-commons-2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-svg-dom\\jars\\batik-svg-dom-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-awt-util\\jars\\batik-awt-util-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-util\\jars\\batik-util-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-css\\jars\\batik-css-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-ext\\jars\\batik-ext-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\xml-apis\\xml-apis\\jars\\xml-apis-1.3.04.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\xml-apis\\xml-apis-ext\\jars\\xml-apis-ext-1.3.04.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-dom\\jars\\batik-dom-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-xml\\jars\\batik-xml-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\xalan\\xalan\\jars\\xalan-2.7.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-parser\\jars\\batik-parser-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-bridge\\jars\\batik-bridge-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-anim\\jars\\batik-anim-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-gvt\\jars\\batik-gvt-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-script\\jars\\batik-script-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-transcoder\\jars\\batik-transcoder-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-svggen\\jars\\batik-svggen-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-extension\\jars\\batik-extension-1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.avalon.framework\\avalon-framework-api\\jars\\avalon-framework-api-4.3.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.avalon.framework\\avalon-framework-impl\\jars\\avalon-framework-impl-4.3.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.47deg\\org-policies-core_2.12\\jars\\org-policies-core_2.12-0.9.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.47deg\\github4s_2.12\\jars\\github4s_2.12-0.15.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats_2.12\\jars\\cats_2.12-0.9.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-kernel-laws_2.12\\jars\\cats-kernel-laws_2.12-0.9.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalacheck\\scalacheck_2.12\\jars\\scalacheck_2.12-1.13.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\discipline_2.12\\jars\\discipline_2.12-0.7.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\catalysts-platform_2.12\\jars\\catalysts-platform_2.12-0.0.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\catalysts-macros_2.12\\jars\\catalysts-macros_2.12-0.0.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\macro-compat_2.12\\jars\\macro-compat_2.12-1.1.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-laws_2.12\\jars\\cats-laws_2.12-0.9.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.mpilquist\\simulacrum_2.12\\jars\\simulacrum_2.12-0.10.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-free_2.12\\jars\\cats-free_2.12-0.9.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-jvm_2.12\\jars\\cats-jvm_2.12-0.9.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-generic_2.12\\jars\\circe-generic_2.12-0.8.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.chuusai\\shapeless_2.12\\bundles\\shapeless_2.12-2.3.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.marklister\\base64_2.12\\jars\\base64_2.12-0.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalaj\\scalaj-http_2.12\\jars\\scalaj-http_2.12-2.3.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\net.jcazevedo\\moultingyaml_2.12\\jars\\moultingyaml_2.12-0.4.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.nscala-time\\nscala-time_2.12\\jars\\nscala-time_2.12-2.14.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\joda-time\\joda-time\\jars\\joda-time-2.9.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.joda\\joda-convert\\jars\\joda-convert-1.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.lihaoyi\\scalatags_2.12\\jars\\scalatags_2.12-0.6.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.lihaoyi\\sourcecode_2.12\\bundles\\sourcecode_2.12-0.1.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalactic\\scalactic_2.12\\bundles\\scalactic_2.12-3.0.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.tpolecat\\tut-plugin\\jars\\tut-plugin-0.6.9.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.sksamuel.scrimage\\scrimage-core_2.12\\jars\\scrimage-core_2.12-2.1.8.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.imageio\\imageio-core\\jars\\imageio-core-3.2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.common\\common-lang\\jars\\common-lang-3.2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.common\\common-io\\jars\\common-io-3.2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.common\\common-image\\jars\\common-image-3.2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.imageio\\imageio-jpeg\\jars\\imageio-jpeg-3.2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.imageio\\imageio-metadata\\jars\\imageio-metadata-3.2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.drewnoakes\\metadata-extractor\\jars\\metadata-extractor-2.8.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.adobe.xmp\\xmpcore\\jars\\xmpcore-5.1.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\commons-io\\commons-io\\jars\\commons-io-2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\ar.com.hjg\\pngj\\jars\\pngj-2.1.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.geirsson\\sbt-scalafmt\\jars\\sbt-scalafmt-1.6.0-RC4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.geirsson\\scalafmt-big_2.12\\jars\\scalafmt-big_2.12-1.6.0-RC4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.eed3si9n\\sbt-buildinfo\\jars\\sbt-buildinfo-0.9.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.scoverage\\sbt-scoverage\\jars\\sbt-scoverage-1.5.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scoverage\\scalac-scoverage-plugin_2.12\\jars\\scalac-scoverage-plugin_2.12-1.3.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.geirsson\\sbt-ci-release\\jars\\sbt-ci-release-1.2.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.dwijnand\\sbt-dynver\\jars\\sbt-dynver-3.0.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.typesafe.sbt\\sbt-git\\jars\\sbt-git-1.0.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jgit\\org.eclipse.jgit\\jars\\org.eclipse.jgit-4.9.0.201710071750-r.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.jcraft\\jsch\\jars\\jsch-0.1.54.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.googlecode.javaewah\\JavaEWAH\\bundles\\JavaEWAH-1.1.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.xerial.sbt\\sbt-sonatype\\jars\\sbt-sonatype-2.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.jsuereth\\sbt-pgp\\jars\\sbt-pgp-1.1.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.jsuereth\\pgp-library_2.12\\jars\\pgp-library_2.12-1.1.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.bouncycastle\\bcpg-jdk15on\\jars\\bcpg-jdk15on-1.51.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.bouncycastle\\bcprov-jdk15on\\jars\\bcprov-jdk15on-1.51.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\gigahorse-okhttp_2.12\\jars\\gigahorse-okhttp_2.12-0.3.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\gigahorse-core_2.12\\jars\\gigahorse-core_2.12-0.3.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\ssl-config-core_2.12\\bundles\\ssl-config-core_2.12-0.2.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.reactivestreams\\reactive-streams\\jars\\reactive-streams-1.0.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.slf4j\\slf4j-api\\jars\\slf4j-api-1.7.25.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.squareup.okhttp3\\okhttp\\jars\\okhttp-3.7.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.squareup.okio\\okio\\jars\\okio-1.12.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\sbt\\jars\\sbt-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\main_2.12\\jars\\main_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\logic_2.12\\jars\\logic_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\collections_2.12\\jars\\collections_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\sjson-new-scalajson_2.12\\jars\\sjson-new-scalajson_2.12-0.8.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\sjson-new-core_2.12\\jars\\sjson-new-core_2.12-0.8.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\shaded-scalajson_2.12\\jars\\shaded-scalajson_2.12-1.0.0-M4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-position_2.12\\jars\\util-position_2.12-1.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-relation_2.12\\jars\\util-relation_2.12-1.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\actions_2.12\\jars\\actions_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\completion_2.12\\jars\\completion_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\jline\\jline\\jars\\jline-2.14.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\io_2.12\\jars\\io_2.12-1.2.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.swoval\\apple-file-events\\jars\\apple-file-events-1.3.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\net.java.dev.jna\\jna\\jars\\jna-4.5.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\net.java.dev.jna\\jna-platform\\jars\\jna-platform-4.5.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-control_2.12\\jars\\util-control_2.12-1.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\run_2.12\\jars\\run_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-logging_2.12\\jars\\util-logging_2.12-1.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-interface\\jars\\util-interface-1.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.logging.log4j\\log4j-api\\jars\\log4j-api-2.11.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.logging.log4j\\log4j-core\\jars\\log4j-core-2.11.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.lmax\\disruptor\\jars\\disruptor-3.4.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-classpath_2.12\\jars\\zinc-classpath_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-compiler.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\compiler-interface\\jars\\compiler-interface-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\launcher-interface\\jars\\launcher-interface-1.0.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\task-system_2.12\\jars\\task-system_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\tasks_2.12\\jars\\tasks_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-cache_2.12\\jars\\util-cache_2.12-1.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\sjson-new-murmurhash_2.12\\jars\\sjson-new-murmurhash_2.12-0.8.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\testing_2.12\\jars\\testing_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-agent\\jars\\test-agent-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-tracking_2.12\\jars\\util-tracking_2.12-1.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-apiinfo_2.12\\jars\\zinc-apiinfo_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\compiler-bridge_2.12\\jars\\compiler-bridge_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-classfile_2.12\\jars\\zinc-classfile_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\librarymanagement-core_2.12\\jars\\librarymanagement-core_2.12-1.2.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.squareup.okhttp3\\okhttp-urlconnection\\jars\\okhttp-urlconnection-3.7.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-ivy-integration_2.12\\jars\\zinc-ivy-integration_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-compile-core_2.12\\jars\\zinc-compile-core_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc_2.12\\jars\\zinc_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-core_2.12\\jars\\zinc-core_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-persist_2.12\\jars\\zinc-persist_2.12-1.2.5.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.trueaccord.scalapb\\scalapb-runtime_2.12\\jars\\scalapb-runtime_2.12-0.6.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.trueaccord.lenses\\lenses_2.12\\jars\\lenses_2.12-0.4.12.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.lihaoyi\\fastparse_2.12\\jars\\fastparse_2.12-0.4.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.lihaoyi\\fastparse-utils_2.12\\jars\\fastparse-utils_2.12-0.4.2.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.google.protobuf\\protobuf-java\\bundles\\protobuf-java-3.3.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\sbinary_2.12\\jars\\sbinary_2.12-0.5.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\main-settings_2.12\\jars\\main-settings_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\command_2.12\\jars\\command_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\protocol_2.12\\jars\\protocol_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt.ipcsocket\\ipcsocket\\jars\\ipcsocket-1.0.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\template-resolver\\jars\\template-resolver-0.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\core-macros_2.12\\jars\\core-macros_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\scripted-sbt-redux_2.12\\jars\\scripted-sbt-redux_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-scripted_2.12\\jars\\util-scripted_2.12-1.2.4.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\scripted-plugin_2.12\\jars\\scripted-plugin_2.12-1.2.7.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.logging.log4j\\log4j-slf4j-impl\\jars\\log4j-slf4j-impl-2.11.1.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.cb372\\scalacache-caffeine_2.12\\jars\\scalacache-caffeine_2.12-0.20.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.cb372\\scalacache-core_2.12\\jars\\scalacache-core_2.12-0.20.0.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ben-manes.caffeine\\caffeine\\jars\\caffeine-2.5.6.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\librarymanagement-ivy_2.12\\jars\\librarymanagement-ivy_2.12-1.2.3.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt.ivy\\ivy\\jars\\ivy-2.3.0-sbt-b18f59ea3bc914a297bb6f1a4f7fb0ace399e310.jar",
-            "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-compile_2.12\\jars\\zinc-compile_2.12-1.2.5.jar"
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/ch.epfl.scala/sbt-bloop/jars/sbt-bloop-1.1.2.jar",
+            "/Users/John/.ivy2/cache/ch.epfl.scala/bloop-config_2.12/jars/bloop-config_2.12-1.1.2.jar",
+            "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-library.jar",
+            "/Users/John/.ivy2/cache/io.circe/circe-parser_2.12/jars/circe-parser_2.12-0.9.3.jar",
+            "/Users/John/.ivy2/cache/io.circe/circe-jawn_2.12/jars/circe-jawn_2.12-0.9.3.jar",
+            "/Users/John/.ivy2/cache/io.circe/circe-core_2.12/jars/circe-core_2.12-0.9.3.jar",
+            "/Users/John/.ivy2/cache/io.circe/circe-numbers_2.12/jars/circe-numbers_2.12-0.9.3.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/cats-core_2.12/jars/cats-core_2.12-1.0.1.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/cats-macros_2.12/jars/cats-macros_2.12-1.0.1.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/machinist_2.12/jars/machinist_2.12-0.6.2.jar",
+            "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-reflect.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/cats-kernel_2.12/jars/cats-kernel_2.12-1.0.1.jar",
+            "/Users/John/.ivy2/cache/org.spire-math/jawn-parser_2.12/jars/jawn-parser_2.12-0.11.1.jar",
+            "/Users/John/.ivy2/cache/io.circe/circe-derivation_2.12/jars/circe-derivation_2.12-0.9.0-M3.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.scalameta/sbt-metals/jars/sbt-metals-0.3.3.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/pl.project13.scala/sbt-jmh/jars/sbt-jmh-0.3.4.jar",
+            "/Users/John/.ivy2/cache/pl.project13.scala/sbt-jmh-extras/jars/sbt-jmh-extras-0.3.4.jar",
+            "/Users/John/.ivy2/cache/org.openjdk.jmh/jmh-core/jars/jmh-core-1.21.jar",
+            "/Users/John/.ivy2/cache/net.sf.jopt-simple/jopt-simple/jars/jopt-simple-4.6.jar",
+            "/Users/John/.ivy2/cache/org.apache.commons/commons-math3/jars/commons-math3-3.2.jar",
+            "/Users/John/.ivy2/cache/org.openjdk.jmh/jmh-generator-bytecode/jars/jmh-generator-bytecode-1.21.jar",
+            "/Users/John/.ivy2/cache/org.openjdk.jmh/jmh-generator-reflection/jars/jmh-generator-reflection-1.21.jar",
+            "/Users/John/.ivy2/cache/org.openjdk.jmh/jmh-generator-asm/jars/jmh-generator-asm-1.21.jar",
+            "/Users/John/.ivy2/cache/org.ow2.asm/asm/jars/asm-5.0.3.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/pl.project13.scala/sbt-jcstress/jars/sbt-jcstress-0.2.0.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.dwijnand/sbt-travisci/jars/sbt-travisci-1.1.3.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.dwijnand/sbt-compat/jars/sbt-compat-1.2.6.jar",
+            "/Users/John/.ivy2/cache/org.yaml/snakeyaml/bundles/snakeyaml-1.17.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.scala-js/sbt-scalajs/jars/sbt-scalajs-0.6.26.jar",
+            "/Users/John/.ivy2/cache/org.scala-js/scalajs-tools_2.12/jars/scalajs-tools_2.12-0.6.26.jar",
+            "/Users/John/.ivy2/cache/org.scala-js/scalajs-ir_2.12/jars/scalajs-ir_2.12-0.6.26.jar",
+            "/Users/John/.ivy2/cache/org.scala-js/closure-compiler-java-6/jars/closure-compiler-java-6-v20160517.jar",
+            "/Users/John/.ivy2/cache/org.scala-js/closure-compiler-externs-java-6/jars/closure-compiler-externs-java-6-v20160517.jar",
+            "/Users/John/.ivy2/cache/args4j/args4j/bundles/args4j-2.0.26.jar",
+            "/Users/John/.ivy2/cache/com.google.guava/guava/bundles/guava-19.0.jar",
+            "/Users/John/.ivy2/cache/com.google.code.gson/gson/jars/gson-2.2.4.jar",
+            "/Users/John/.ivy2/cache/com.google.code.findbugs/jsr305/jars/jsr305-1.3.9.jar",
+            "/Users/John/.ivy2/cache/com.googlecode.json-simple/json-simple/bundles/json-simple-1.1.1.jar",
+            "/Users/John/.ivy2/cache/org.scala-js/scalajs-js-envs_2.12/jars/scalajs-js-envs_2.12-0.6.26.jar",
+            "/Users/John/.ivy2/cache/org.mozilla/rhino/jars/rhino-1.7.6.jar",
+            "/Users/John/.ivy2/cache/org.webjars/envjs/jars/envjs-1.2.jar",
+            "/Users/John/.ivy2/cache/org.scala-js/scalajs-sbt-test-adapter_2.12/jars/scalajs-sbt-test-adapter_2.12-0.6.26.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/test-interface/jars/test-interface-1.0.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.portable-scala/sbt-platform-deps/jars/sbt-platform-deps-1.0.0.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.portable-scala/sbt-scalajs-crossproject/jars/sbt-scalajs-crossproject-0.6.0.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.portable-scala/sbt-crossproject/jars/sbt-crossproject-0.6.0.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.47deg/sbt-microsites/jars/sbt-microsites-0.7.27.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.typesafe.sbt/sbt-ghpages/jars/sbt-ghpages-0.6.2.jar",
+            "/Users/John/.ivy2/cache/org.apache.httpcomponents/httpclient/jars/httpclient-4.3.6.jar",
+            "/Users/John/.ivy2/cache/org.apache.httpcomponents/httpcore/jars/httpcore-4.3.3.jar",
+            "/Users/John/.ivy2/cache/commons-logging/commons-logging/jars/commons-logging-1.1.3.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.typesafe.sbt/sbt-site/jars/sbt-site-1.3.2.jar",
+            "/Users/John/.ivy2/cache/io.github.jonas/paradox-material-theme/jars/paradox-material-theme-0.4.0.jar",
+            "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered-directives_2.12/jars/unfiltered-directives_2.12-0.9.1.jar",
+            "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered_2.12/jars/unfiltered_2.12-0.9.1.jar",
+            "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered-util_2.12/jars/unfiltered-util_2.12-0.9.1.jar",
+            "/Users/John/.ivy2/cache/commons-codec/commons-codec/jars/commons-codec-1.10.jar",
+            "/Users/John/.ivy2/cache/org.scala-lang.modules/scala-xml_2.12/bundles/scala-xml_2.12-1.0.6.jar",
+            "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered-filter_2.12/jars/unfiltered-filter_2.12-0.9.1.jar",
+            "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered-jetty_2.12/jars/unfiltered-jetty_2.12-0.9.1.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-webapp/jars/jetty-webapp-9.2.21.v20170120.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-xml/jars/jetty-xml-9.2.21.v20170120.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-util/jars/jetty-util-9.2.21.v20170120.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-servlet/jars/jetty-servlet-9.2.21.v20170120.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-security/jars/jetty-security-9.2.21.v20170120.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-server/jars/jetty-server-9.2.21.v20170120.jar",
+            "/Users/John/.ivy2/cache/javax.servlet/javax.servlet-api/jars/javax.servlet-api-3.1.0.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-http/jars/jetty-http-9.2.21.v20170120.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-io/jars/jetty-io-9.2.21.v20170120.jar",
+            "/Users/John/.ivy2/cache/org.foundweekends/pamflet-library_2.12/jars/pamflet-library_2.12-0.7.1.jar",
+            "/Users/John/.ivy2/cache/org.foundweekends/pamflet-knockoff_2.12/jars/pamflet-knockoff_2.12-0.7.1.jar",
+            "/Users/John/.ivy2/cache/org.foundweekends/knockoff_2.12/jars/knockoff_2.12-0.8.6.jar",
+            "/Users/John/.ivy2/cache/org.scala-lang.modules/scala-parser-combinators_2.12/bundles/scala-parser-combinators_2.12-1.0.5.jar",
+            "/Users/John/.ivy2/cache/org.antlr/stringtemplate/jars/stringtemplate-3.2.1.jar",
+            "/Users/John/.ivy2/cache/antlr/antlr/jars/antlr-2.7.7.jar",
+            "/Users/John/.ivy2/cache/org.asciidoctor/asciidoctorj/jars/asciidoctorj-1.5.4.jar",
+            "/Users/John/.ivy2/cache/org.jruby/jruby-complete/bundles/jruby-complete-1.7.21.jar",
+            "/Users/John/.ivy2/cache/com.beust/jcommander/jars/jcommander-1.35.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.lightbend.paradox/sbt-paradox/jars/sbt-paradox-0.3.2.jar",
+            "/Users/John/.ivy2/cache/com.lightbend.paradox/paradox_2.12/jars/paradox_2.12-0.3.2.jar",
+            "/Users/John/.ivy2/cache/org.pegdown/pegdown/jars/pegdown-1.6.0.jar",
+            "/Users/John/.ivy2/cache/org.parboiled/parboiled-java/jars/parboiled-java-1.1.7.jar",
+            "/Users/John/.ivy2/cache/org.parboiled/parboiled-core/jars/parboiled-core-1.1.7.jar",
+            "/Users/John/.ivy2/cache/org.ow2.asm/asm-tree/jars/asm-tree-5.0.3.jar",
+            "/Users/John/.ivy2/cache/org.ow2.asm/asm-analysis/jars/asm-analysis-5.0.3.jar",
+            "/Users/John/.ivy2/cache/org.ow2.asm/asm-util/jars/asm-util-5.0.3.jar",
+            "/Users/John/.ivy2/cache/org.antlr/ST4/jars/ST4-4.0.8.jar",
+            "/Users/John/.ivy2/cache/org.antlr/antlr-runtime/jars/antlr-runtime-3.5.2.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.typesafe.sbt/sbt-web/jars/sbt-web-1.4.2.jar",
+            "/Users/John/.ivy2/cache/com.typesafe.akka/akka-actor_2.12/jars/akka-actor_2.12-2.5.4.jar",
+            "/Users/John/.ivy2/cache/com.typesafe/config/bundles/config-1.3.1.jar",
+            "/Users/John/.ivy2/cache/org.scala-lang.modules/scala-java8-compat_2.12/bundles/scala-java8-compat_2.12-0.8.0.jar",
+            "/Users/John/.ivy2/cache/org.webjars/webjars-locator-core/jars/webjars-locator-core-0.32.jar",
+            "/Users/John/.ivy2/cache/org.apache.commons/commons-lang3/jars/commons-lang3-3.1.jar",
+            "/Users/John/.ivy2/cache/org.apache.commons/commons-compress/jars/commons-compress-1.9.jar",
+            "/Users/John/.ivy2/cache/com.fasterxml.jackson.core/jackson-core/bundles/jackson-core-2.7.3.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.planet42/laika-sbt/jars/laika-sbt-0.7.5.jar",
+            "/Users/John/.ivy2/cache/org.planet42/laika-core_2.12/jars/laika-core_2.12-0.7.5.jar",
+            "/Users/John/.ivy2/cache/org.planet42/laika-pdf_2.12/jars/laika-pdf_2.12-0.7.5.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/fop/jars/fop-2.1.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/xmlgraphics-commons/jars/xmlgraphics-commons-2.1.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-svg-dom/jars/batik-svg-dom-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-awt-util/jars/batik-awt-util-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-util/jars/batik-util-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-css/jars/batik-css-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-ext/jars/batik-ext-1.8.jar",
+            "/Users/John/.ivy2/cache/xml-apis/xml-apis/jars/xml-apis-1.3.04.jar",
+            "/Users/John/.ivy2/cache/xml-apis/xml-apis-ext/jars/xml-apis-ext-1.3.04.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-dom/jars/batik-dom-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-xml/jars/batik-xml-1.8.jar",
+            "/Users/John/.ivy2/cache/xalan/xalan/jars/xalan-2.7.0.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-parser/jars/batik-parser-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-bridge/jars/batik-bridge-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-anim/jars/batik-anim-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-gvt/jars/batik-gvt-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-script/jars/batik-script-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-transcoder/jars/batik-transcoder-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-svggen/jars/batik-svggen-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-extension/jars/batik-extension-1.8.jar",
+            "/Users/John/.ivy2/cache/org.apache.avalon.framework/avalon-framework-api/jars/avalon-framework-api-4.3.1.jar",
+            "/Users/John/.ivy2/cache/org.apache.avalon.framework/avalon-framework-impl/jars/avalon-framework-impl-4.3.1.jar",
+            "/Users/John/.ivy2/cache/com.47deg/org-policies-core_2.12/jars/org-policies-core_2.12-0.9.2.jar",
+            "/Users/John/.ivy2/cache/com.47deg/github4s_2.12/jars/github4s_2.12-0.15.0.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/cats_2.12/jars/cats_2.12-0.9.0.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/cats-kernel-laws_2.12/jars/cats-kernel-laws_2.12-0.9.0.jar",
+            "/Users/John/.ivy2/cache/org.scalacheck/scalacheck_2.12/jars/scalacheck_2.12-1.13.4.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/discipline_2.12/jars/discipline_2.12-0.7.2.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/catalysts-platform_2.12/jars/catalysts-platform_2.12-0.0.5.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/catalysts-macros_2.12/jars/catalysts-macros_2.12-0.0.5.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/macro-compat_2.12/jars/macro-compat_2.12-1.1.1.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/cats-laws_2.12/jars/cats-laws_2.12-0.9.0.jar",
+            "/Users/John/.ivy2/cache/com.github.mpilquist/simulacrum_2.12/jars/simulacrum_2.12-0.10.0.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/cats-free_2.12/jars/cats-free_2.12-0.9.0.jar",
+            "/Users/John/.ivy2/cache/org.typelevel/cats-jvm_2.12/jars/cats-jvm_2.12-0.9.0.jar",
+            "/Users/John/.ivy2/cache/io.circe/circe-generic_2.12/jars/circe-generic_2.12-0.8.0.jar",
+            "/Users/John/.ivy2/cache/com.chuusai/shapeless_2.12/bundles/shapeless_2.12-2.3.2.jar",
+            "/Users/John/.ivy2/cache/com.github.marklister/base64_2.12/jars/base64_2.12-0.2.4.jar",
+            "/Users/John/.ivy2/cache/org.scalaj/scalaj-http_2.12/jars/scalaj-http_2.12-2.3.0.jar",
+            "/Users/John/.ivy2/cache/net.jcazevedo/moultingyaml_2.12/jars/moultingyaml_2.12-0.4.0.jar",
+            "/Users/John/.ivy2/cache/com.github.nscala-time/nscala-time_2.12/jars/nscala-time_2.12-2.14.0.jar",
+            "/Users/John/.ivy2/cache/joda-time/joda-time/jars/joda-time-2.9.4.jar",
+            "/Users/John/.ivy2/cache/org.joda/joda-convert/jars/joda-convert-1.2.jar",
+            "/Users/John/.ivy2/cache/com.lihaoyi/scalatags_2.12/jars/scalatags_2.12-0.6.7.jar",
+            "/Users/John/.ivy2/cache/com.lihaoyi/sourcecode_2.12/bundles/sourcecode_2.12-0.1.4.jar",
+            "/Users/John/.ivy2/cache/org.scalactic/scalactic_2.12/bundles/scalactic_2.12-3.0.5.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.tpolecat/tut-plugin/jars/tut-plugin-0.6.9.jar",
+            "/Users/John/.ivy2/cache/com.sksamuel.scrimage/scrimage-core_2.12/jars/scrimage-core_2.12-2.1.8.jar",
+            "/Users/John/.ivy2/cache/com.twelvemonkeys.imageio/imageio-core/jars/imageio-core-3.2.1.jar",
+            "/Users/John/.ivy2/cache/com.twelvemonkeys.common/common-lang/jars/common-lang-3.2.1.jar",
+            "/Users/John/.ivy2/cache/com.twelvemonkeys.common/common-io/jars/common-io-3.2.1.jar",
+            "/Users/John/.ivy2/cache/com.twelvemonkeys.common/common-image/jars/common-image-3.2.1.jar",
+            "/Users/John/.ivy2/cache/com.twelvemonkeys.imageio/imageio-jpeg/jars/imageio-jpeg-3.2.1.jar",
+            "/Users/John/.ivy2/cache/com.twelvemonkeys.imageio/imageio-metadata/jars/imageio-metadata-3.2.1.jar",
+            "/Users/John/.ivy2/cache/com.drewnoakes/metadata-extractor/jars/metadata-extractor-2.8.1.jar",
+            "/Users/John/.ivy2/cache/com.adobe.xmp/xmpcore/jars/xmpcore-5.1.2.jar",
+            "/Users/John/.ivy2/cache/commons-io/commons-io/jars/commons-io-2.4.jar",
+            "/Users/John/.ivy2/cache/ar.com.hjg/pngj/jars/pngj-2.1.0.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.geirsson/sbt-scalafmt/jars/sbt-scalafmt-1.6.0-RC4.jar",
+            "/Users/John/.ivy2/cache/com.geirsson/scalafmt-big_2.12/jars/scalafmt-big_2.12-1.6.0-RC4.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.eed3si9n/sbt-buildinfo/jars/sbt-buildinfo-0.9.0.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.scoverage/sbt-scoverage/jars/sbt-scoverage-1.5.1.jar",
+            "/Users/John/.ivy2/cache/org.scoverage/scalac-scoverage-plugin_2.12/jars/scalac-scoverage-plugin_2.12-1.3.1.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.geirsson/sbt-ci-release/jars/sbt-ci-release-1.2.1.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.dwijnand/sbt-dynver/jars/sbt-dynver-3.0.0.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.typesafe.sbt/sbt-git/jars/sbt-git-1.0.0.jar",
+            "/Users/John/.ivy2/cache/org.eclipse.jgit/org.eclipse.jgit/jars/org.eclipse.jgit-4.9.0.201710071750-r.jar",
+            "/Users/John/.ivy2/cache/com.jcraft/jsch/jars/jsch-0.1.54.jar",
+            "/Users/John/.ivy2/cache/com.googlecode.javaewah/JavaEWAH/bundles/JavaEWAH-1.1.6.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.xerial.sbt/sbt-sonatype/jars/sbt-sonatype-2.3.jar",
+            "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.jsuereth/sbt-pgp/jars/sbt-pgp-1.1.1.jar",
+            "/Users/John/.ivy2/cache/com.jsuereth/pgp-library_2.12/jars/pgp-library_2.12-1.1.1.jar",
+            "/Users/John/.ivy2/cache/org.bouncycastle/bcpg-jdk15on/jars/bcpg-jdk15on-1.51.jar",
+            "/Users/John/.ivy2/cache/org.bouncycastle/bcprov-jdk15on/jars/bcprov-jdk15on-1.51.jar",
+            "/Users/John/.ivy2/cache/com.eed3si9n/gigahorse-okhttp_2.12/jars/gigahorse-okhttp_2.12-0.3.0.jar",
+            "/Users/John/.ivy2/cache/com.eed3si9n/gigahorse-core_2.12/jars/gigahorse-core_2.12-0.3.0.jar",
+            "/Users/John/.ivy2/cache/com.typesafe/ssl-config-core_2.12/bundles/ssl-config-core_2.12-0.2.2.jar",
+            "/Users/John/.ivy2/cache/org.reactivestreams/reactive-streams/jars/reactive-streams-1.0.0.jar",
+            "/Users/John/.ivy2/cache/org.slf4j/slf4j-api/jars/slf4j-api-1.7.25.jar",
+            "/Users/John/.ivy2/cache/com.squareup.okhttp3/okhttp/jars/okhttp-3.7.0.jar",
+            "/Users/John/.ivy2/cache/com.squareup.okio/okio/jars/okio-1.12.0.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/sbt/jars/sbt-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/main_2.12/jars/main_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/logic_2.12/jars/logic_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/collections_2.12/jars/collections_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/com.eed3si9n/sjson-new-scalajson_2.12/jars/sjson-new-scalajson_2.12-0.8.2.jar",
+            "/Users/John/.ivy2/cache/com.eed3si9n/sjson-new-core_2.12/jars/sjson-new-core_2.12-0.8.2.jar",
+            "/Users/John/.ivy2/cache/com.eed3si9n/shaded-scalajson_2.12/jars/shaded-scalajson_2.12-1.0.0-M4.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/util-position_2.12/jars/util-position_2.12-1.2.4.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/util-relation_2.12/jars/util-relation_2.12-1.2.4.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/actions_2.12/jars/actions_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/completion_2.12/jars/completion_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/jline/jline/jars/jline-2.14.6.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/io_2.12/jars/io_2.12-1.2.2.jar",
+            "/Users/John/.ivy2/cache/com.swoval/apple-file-events/jars/apple-file-events-1.3.2.jar",
+            "/Users/John/.ivy2/cache/net.java.dev.jna/jna/jars/jna-4.5.0.jar",
+            "/Users/John/.ivy2/cache/net.java.dev.jna/jna-platform/jars/jna-platform-4.5.0.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/util-control_2.12/jars/util-control_2.12-1.2.4.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/run_2.12/jars/run_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/util-logging_2.12/jars/util-logging_2.12-1.2.4.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/util-interface/jars/util-interface-1.2.4.jar",
+            "/Users/John/.ivy2/cache/org.apache.logging.log4j/log4j-api/jars/log4j-api-2.11.1.jar",
+            "/Users/John/.ivy2/cache/org.apache.logging.log4j/log4j-core/jars/log4j-core-2.11.1.jar",
+            "/Users/John/.ivy2/cache/com.lmax/disruptor/jars/disruptor-3.4.2.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc-classpath_2.12/jars/zinc-classpath_2.12-1.2.5.jar",
+            "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-compiler.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/compiler-interface/jars/compiler-interface-1.2.5.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/launcher-interface/jars/launcher-interface-1.0.4.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/task-system_2.12/jars/task-system_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/tasks_2.12/jars/tasks_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/util-cache_2.12/jars/util-cache_2.12-1.2.4.jar",
+            "/Users/John/.ivy2/cache/com.eed3si9n/sjson-new-murmurhash_2.12/jars/sjson-new-murmurhash_2.12-0.8.2.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/testing_2.12/jars/testing_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/test-agent/jars/test-agent-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/util-tracking_2.12/jars/util-tracking_2.12-1.2.4.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc-apiinfo_2.12/jars/zinc-apiinfo_2.12-1.2.5.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/compiler-bridge_2.12/jars/compiler-bridge_2.12-1.2.5.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc-classfile_2.12/jars/zinc-classfile_2.12-1.2.5.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/librarymanagement-core_2.12/jars/librarymanagement-core_2.12-1.2.3.jar",
+            "/Users/John/.ivy2/cache/com.squareup.okhttp3/okhttp-urlconnection/jars/okhttp-urlconnection-3.7.0.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc-ivy-integration_2.12/jars/zinc-ivy-integration_2.12-1.2.5.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc-compile-core_2.12/jars/zinc-compile-core_2.12-1.2.5.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc_2.12/jars/zinc_2.12-1.2.5.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc-core_2.12/jars/zinc-core_2.12-1.2.5.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc-persist_2.12/jars/zinc-persist_2.12-1.2.5.jar",
+            "/Users/John/.ivy2/cache/com.trueaccord.scalapb/scalapb-runtime_2.12/jars/scalapb-runtime_2.12-0.6.0.jar",
+            "/Users/John/.ivy2/cache/com.trueaccord.lenses/lenses_2.12/jars/lenses_2.12-0.4.12.jar",
+            "/Users/John/.ivy2/cache/com.lihaoyi/fastparse_2.12/jars/fastparse_2.12-0.4.2.jar",
+            "/Users/John/.ivy2/cache/com.lihaoyi/fastparse-utils_2.12/jars/fastparse-utils_2.12-0.4.2.jar",
+            "/Users/John/.ivy2/cache/com.google.protobuf/protobuf-java/bundles/protobuf-java-3.3.1.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/sbinary_2.12/jars/sbinary_2.12-0.5.0.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/main-settings_2.12/jars/main-settings_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/command_2.12/jars/command_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/protocol_2.12/jars/protocol_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt.ipcsocket/ipcsocket/jars/ipcsocket-1.0.0.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/template-resolver/jars/template-resolver-0.1.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/core-macros_2.12/jars/core-macros_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/scripted-sbt-redux_2.12/jars/scripted-sbt-redux_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/util-scripted_2.12/jars/util-scripted_2.12-1.2.4.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/scripted-plugin_2.12/jars/scripted-plugin_2.12-1.2.7.jar",
+            "/Users/John/.ivy2/cache/org.apache.logging.log4j/log4j-slf4j-impl/jars/log4j-slf4j-impl-2.11.1.jar",
+            "/Users/John/.ivy2/cache/com.github.cb372/scalacache-caffeine_2.12/jars/scalacache-caffeine_2.12-0.20.0.jar",
+            "/Users/John/.ivy2/cache/com.github.cb372/scalacache-core_2.12/jars/scalacache-core_2.12-0.20.0.jar",
+            "/Users/John/.ivy2/cache/com.github.ben-manes.caffeine/caffeine/jars/caffeine-2.5.6.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/librarymanagement-ivy_2.12/jars/librarymanagement-ivy_2.12-1.2.3.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt.ivy/ivy/jars/ivy-2.3.0-sbt-b18f59ea3bc914a297bb6f1a4f7fb0ace399e310.jar",
+            "/Users/John/.ivy2/cache/org.scala-sbt/zinc-compile_2.12/jars/zinc-compile_2.12-1.2.5.jar"
         ],
-        "out" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\.bloop\\scalaz-zio-build",
-        "classesDir" : "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\.bloop\\scalaz-zio-build\\scala-2.12\\sbt-1.0\\classes",
+        "out" : "/Users/John/Documents/github/scalaz-zio/project/.bloop/scalaz-zio-build",
+        "classesDir" : "/Users/John/Documents/github/scalaz-zio/project/.bloop/scalaz-zio-build/scala-2.12/sbt-1.0/classes",
         "resources" : [
-            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\src\\main\\resources",
-            "D:\\Scala\\github\\scalaz\\users\\wiem\\scalaz-zio\\project\\target\\scala-2.12\\sbt-1.0\\resource_managed\\main"
+            "/Users/John/Documents/github/scalaz-zio/project/src/main/resources",
+            "/Users/John/Documents/github/scalaz-zio/project/target/scala-2.12/sbt-1.0/resource_managed/main"
         ],
         "scala" : {
             "organization" : "org.scala-lang",
@@ -275,11 +275,11 @@
                 "-deprecation"
             ],
             "jars" : [
-                "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\jline.jar",
-                "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-compiler.jar",
-                "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-library.jar",
-                "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-reflect.jar",
-                "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-xml_2.12.jar"
+                "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-library.jar",
+                "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-compiler.jar",
+                "/Users/John/.sbt/boot/scala-2.12.7/lib/jline.jar",
+                "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-reflect.jar",
+                "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-xml_2.12.jar"
             ],
             "setup" : {
                 "order" : "mixed",
@@ -344,7 +344,7 @@
         "platform" : {
             "name" : "jvm",
             "config" : {
-                "home" : "C:\\Program Files\\Java\\jre1.8.0_192",
+                "home" : "/Library/Java/JavaVirtualMachines/jdk1.8.0_60.jdk/Contents/Home/jre",
                 "options" : [
                 ]
             },
@@ -356,22 +356,22 @@
                 {
                     "organization" : "ch.epfl.scala",
                     "name" : "sbt-bloop",
-                    "version" : "1.1.1",
+                    "version" : "1.1.2",
                     "artifacts" : [
                         {
                             "name" : "sbt-bloop",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\ch.epfl.scala\\sbt-bloop\\jars\\sbt-bloop-1.1.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/ch.epfl.scala/sbt-bloop/jars/sbt-bloop-1.1.2.jar"
                         }
                     ]
                 },
                 {
                     "organization" : "ch.epfl.scala",
                     "name" : "bloop-config_2.12",
-                    "version" : "1.1.1",
+                    "version" : "1.1.2",
                     "artifacts" : [
                         {
                             "name" : "bloop-config_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\ch.epfl.scala\\bloop-config_2.12\\jars\\bloop-config_2.12-1.1.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/ch.epfl.scala/bloop-config_2.12/jars/bloop-config_2.12-1.1.2.jar"
                         }
                     ]
                 },
@@ -382,7 +382,7 @@
                     "artifacts" : [
                         {
                             "name" : "scala-library",
-                            "path" : "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-library.jar"
+                            "path" : "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-library.jar"
                         }
                     ]
                 },
@@ -393,7 +393,7 @@
                     "artifacts" : [
                         {
                             "name" : "circe-parser_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-parser_2.12\\jars\\circe-parser_2.12-0.9.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/io.circe/circe-parser_2.12/jars/circe-parser_2.12-0.9.3.jar"
                         }
                     ]
                 },
@@ -404,7 +404,7 @@
                     "artifacts" : [
                         {
                             "name" : "circe-jawn_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-jawn_2.12\\jars\\circe-jawn_2.12-0.9.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/io.circe/circe-jawn_2.12/jars/circe-jawn_2.12-0.9.3.jar"
                         }
                     ]
                 },
@@ -415,7 +415,7 @@
                     "artifacts" : [
                         {
                             "name" : "circe-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-core_2.12\\jars\\circe-core_2.12-0.9.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/io.circe/circe-core_2.12/jars/circe-core_2.12-0.9.3.jar"
                         }
                     ]
                 },
@@ -426,7 +426,7 @@
                     "artifacts" : [
                         {
                             "name" : "circe-numbers_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-numbers_2.12\\jars\\circe-numbers_2.12-0.9.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/io.circe/circe-numbers_2.12/jars/circe-numbers_2.12-0.9.3.jar"
                         }
                     ]
                 },
@@ -437,7 +437,7 @@
                     "artifacts" : [
                         {
                             "name" : "cats-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-core_2.12\\jars\\cats-core_2.12-1.0.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/cats-core_2.12/jars/cats-core_2.12-1.0.1.jar"
                         }
                     ]
                 },
@@ -448,7 +448,7 @@
                     "artifacts" : [
                         {
                             "name" : "cats-macros_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-macros_2.12\\jars\\cats-macros_2.12-1.0.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/cats-macros_2.12/jars/cats-macros_2.12-1.0.1.jar"
                         }
                     ]
                 },
@@ -459,7 +459,7 @@
                     "artifacts" : [
                         {
                             "name" : "machinist_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\machinist_2.12\\jars\\machinist_2.12-0.6.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/machinist_2.12/jars/machinist_2.12-0.6.2.jar"
                         }
                     ]
                 },
@@ -470,7 +470,7 @@
                     "artifacts" : [
                         {
                             "name" : "scala-reflect",
-                            "path" : "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-reflect.jar"
+                            "path" : "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-reflect.jar"
                         }
                     ]
                 },
@@ -481,7 +481,7 @@
                     "artifacts" : [
                         {
                             "name" : "cats-kernel_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-kernel_2.12\\jars\\cats-kernel_2.12-1.0.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/cats-kernel_2.12/jars/cats-kernel_2.12-1.0.1.jar"
                         }
                     ]
                 },
@@ -492,7 +492,7 @@
                     "artifacts" : [
                         {
                             "name" : "jawn-parser_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.spire-math\\jawn-parser_2.12\\jars\\jawn-parser_2.12-0.11.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.spire-math/jawn-parser_2.12/jars/jawn-parser_2.12-0.11.1.jar"
                         }
                     ]
                 },
@@ -503,18 +503,18 @@
                     "artifacts" : [
                         {
                             "name" : "circe-derivation_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-derivation_2.12\\jars\\circe-derivation_2.12-0.9.0-M3.jar"
+                            "path" : "/Users/John/.ivy2/cache/io.circe/circe-derivation_2.12/jars/circe-derivation_2.12-0.9.0-M3.jar"
                         }
                     ]
                 },
                 {
                     "organization" : "org.scalameta",
                     "name" : "sbt-metals",
-                    "version" : "0.3.1",
+                    "version" : "0.3.3",
                     "artifacts" : [
                         {
                             "name" : "sbt-metals",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.scalameta\\sbt-metals\\jars\\sbt-metals-0.3.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.scalameta/sbt-metals/jars/sbt-metals-0.3.3.jar"
                         }
                     ]
                 },
@@ -525,7 +525,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-jmh",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\pl.project13.scala\\sbt-jmh\\jars\\sbt-jmh-0.3.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/pl.project13.scala/sbt-jmh/jars/sbt-jmh-0.3.4.jar"
                         }
                     ]
                 },
@@ -536,7 +536,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-jmh-extras",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\pl.project13.scala\\sbt-jmh-extras\\jars\\sbt-jmh-extras-0.3.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/pl.project13.scala/sbt-jmh-extras/jars/sbt-jmh-extras-0.3.4.jar"
                         }
                     ]
                 },
@@ -547,7 +547,7 @@
                     "artifacts" : [
                         {
                             "name" : "jmh-core",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-core\\jars\\jmh-core-1.21.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.openjdk.jmh/jmh-core/jars/jmh-core-1.21.jar"
                         }
                     ]
                 },
@@ -558,7 +558,7 @@
                     "artifacts" : [
                         {
                             "name" : "jopt-simple",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\net.sf.jopt-simple\\jopt-simple\\jars\\jopt-simple-4.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/net.sf.jopt-simple/jopt-simple/jars/jopt-simple-4.6.jar"
                         }
                     ]
                 },
@@ -569,7 +569,7 @@
                     "artifacts" : [
                         {
                             "name" : "commons-math3",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-math3\\jars\\commons-math3-3.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.commons/commons-math3/jars/commons-math3-3.2.jar"
                         }
                     ]
                 },
@@ -580,7 +580,7 @@
                     "artifacts" : [
                         {
                             "name" : "jmh-generator-bytecode",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-bytecode\\jars\\jmh-generator-bytecode-1.21.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.openjdk.jmh/jmh-generator-bytecode/jars/jmh-generator-bytecode-1.21.jar"
                         }
                     ]
                 },
@@ -591,7 +591,7 @@
                     "artifacts" : [
                         {
                             "name" : "jmh-generator-reflection",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-reflection\\jars\\jmh-generator-reflection-1.21.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.openjdk.jmh/jmh-generator-reflection/jars/jmh-generator-reflection-1.21.jar"
                         }
                     ]
                 },
@@ -602,7 +602,7 @@
                     "artifacts" : [
                         {
                             "name" : "jmh-generator-asm",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.openjdk.jmh\\jmh-generator-asm\\jars\\jmh-generator-asm-1.21.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.openjdk.jmh/jmh-generator-asm/jars/jmh-generator-asm-1.21.jar"
                         }
                     ]
                 },
@@ -613,7 +613,7 @@
                     "artifacts" : [
                         {
                             "name" : "asm",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm\\jars\\asm-5.0.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.ow2.asm/asm/jars/asm-5.0.3.jar"
                         }
                     ]
                 },
@@ -624,7 +624,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-jcstress",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\pl.project13.scala\\sbt-jcstress\\jars\\sbt-jcstress-0.2.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/pl.project13.scala/sbt-jcstress/jars/sbt-jcstress-0.2.0.jar"
                         }
                     ]
                 },
@@ -635,7 +635,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-travisci",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.dwijnand\\sbt-travisci\\jars\\sbt-travisci-1.1.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.dwijnand/sbt-travisci/jars/sbt-travisci-1.1.3.jar"
                         }
                     ]
                 },
@@ -646,7 +646,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-compat",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.dwijnand\\sbt-compat\\jars\\sbt-compat-1.2.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.dwijnand/sbt-compat/jars/sbt-compat-1.2.6.jar"
                         }
                     ]
                 },
@@ -657,7 +657,7 @@
                     "artifacts" : [
                         {
                             "name" : "snakeyaml",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.yaml\\snakeyaml\\bundles\\snakeyaml-1.17.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.yaml/snakeyaml/bundles/snakeyaml-1.17.jar"
                         }
                     ]
                 },
@@ -668,7 +668,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-scalajs",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.scala-js\\sbt-scalajs\\jars\\sbt-scalajs-0.6.26.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.scala-js/sbt-scalajs/jars/sbt-scalajs-0.6.26.jar"
                         }
                     ]
                 },
@@ -679,7 +679,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalajs-tools_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-tools_2.12\\jars\\scalajs-tools_2.12-0.6.26.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-js/scalajs-tools_2.12/jars/scalajs-tools_2.12-0.6.26.jar"
                         }
                     ]
                 },
@@ -690,7 +690,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalajs-ir_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-ir_2.12\\jars\\scalajs-ir_2.12-0.6.26.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-js/scalajs-ir_2.12/jars/scalajs-ir_2.12-0.6.26.jar"
                         }
                     ]
                 },
@@ -701,7 +701,7 @@
                     "artifacts" : [
                         {
                             "name" : "closure-compiler-java-6",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\closure-compiler-java-6\\jars\\closure-compiler-java-6-v20160517.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-js/closure-compiler-java-6/jars/closure-compiler-java-6-v20160517.jar"
                         }
                     ]
                 },
@@ -712,7 +712,7 @@
                     "artifacts" : [
                         {
                             "name" : "closure-compiler-externs-java-6",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\closure-compiler-externs-java-6\\jars\\closure-compiler-externs-java-6-v20160517.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-js/closure-compiler-externs-java-6/jars/closure-compiler-externs-java-6-v20160517.jar"
                         }
                     ]
                 },
@@ -723,7 +723,7 @@
                     "artifacts" : [
                         {
                             "name" : "args4j",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\args4j\\args4j\\bundles\\args4j-2.0.26.jar"
+                            "path" : "/Users/John/.ivy2/cache/args4j/args4j/bundles/args4j-2.0.26.jar"
                         }
                     ]
                 },
@@ -734,7 +734,7 @@
                     "artifacts" : [
                         {
                             "name" : "guava",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.google.guava\\guava\\bundles\\guava-19.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.google.guava/guava/bundles/guava-19.0.jar"
                         }
                     ]
                 },
@@ -745,7 +745,7 @@
                     "artifacts" : [
                         {
                             "name" : "gson",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.google.code.gson\\gson\\jars\\gson-2.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.google.code.gson/gson/jars/gson-2.2.4.jar"
                         }
                     ]
                 },
@@ -756,7 +756,7 @@
                     "artifacts" : [
                         {
                             "name" : "jsr305",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.google.code.findbugs\\jsr305\\jars\\jsr305-1.3.9.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.google.code.findbugs/jsr305/jars/jsr305-1.3.9.jar"
                         }
                     ]
                 },
@@ -767,7 +767,7 @@
                     "artifacts" : [
                         {
                             "name" : "json-simple",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.googlecode.json-simple\\json-simple\\bundles\\json-simple-1.1.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.googlecode.json-simple/json-simple/bundles/json-simple-1.1.1.jar"
                         }
                     ]
                 },
@@ -778,7 +778,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalajs-js-envs_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-js-envs_2.12\\jars\\scalajs-js-envs_2.12-0.6.26.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-js/scalajs-js-envs_2.12/jars/scalajs-js-envs_2.12-0.6.26.jar"
                         }
                     ]
                 },
@@ -789,7 +789,7 @@
                     "artifacts" : [
                         {
                             "name" : "rhino",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.mozilla\\rhino\\jars\\rhino-1.7.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.mozilla/rhino/jars/rhino-1.7.6.jar"
                         }
                     ]
                 },
@@ -800,7 +800,7 @@
                     "artifacts" : [
                         {
                             "name" : "envjs",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.webjars\\envjs\\jars\\envjs-1.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.webjars/envjs/jars/envjs-1.2.jar"
                         }
                     ]
                 },
@@ -811,7 +811,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalajs-sbt-test-adapter_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-js\\scalajs-sbt-test-adapter_2.12\\jars\\scalajs-sbt-test-adapter_2.12-0.6.26.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-js/scalajs-sbt-test-adapter_2.12/jars/scalajs-sbt-test-adapter_2.12-0.6.26.jar"
                         }
                     ]
                 },
@@ -822,7 +822,7 @@
                     "artifacts" : [
                         {
                             "name" : "test-interface",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-interface\\jars\\test-interface-1.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/test-interface/jars/test-interface-1.0.jar"
                         }
                     ]
                 },
@@ -833,7 +833,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-platform-deps",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.portable-scala\\sbt-platform-deps\\jars\\sbt-platform-deps-1.0.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.portable-scala/sbt-platform-deps/jars/sbt-platform-deps-1.0.0.jar"
                         }
                     ]
                 },
@@ -844,7 +844,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-scalajs-crossproject",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.portable-scala\\sbt-scalajs-crossproject\\jars\\sbt-scalajs-crossproject-0.6.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.portable-scala/sbt-scalajs-crossproject/jars/sbt-scalajs-crossproject-0.6.0.jar"
                         }
                     ]
                 },
@@ -855,7 +855,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-crossproject",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.portable-scala\\sbt-crossproject\\jars\\sbt-crossproject-0.6.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.portable-scala/sbt-crossproject/jars/sbt-crossproject-0.6.0.jar"
                         }
                     ]
                 },
@@ -866,7 +866,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-microsites",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.47deg\\sbt-microsites\\jars\\sbt-microsites-0.7.27.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.47deg/sbt-microsites/jars/sbt-microsites-0.7.27.jar"
                         }
                     ]
                 },
@@ -877,7 +877,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-ghpages",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.typesafe.sbt\\sbt-ghpages\\jars\\sbt-ghpages-0.6.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.typesafe.sbt/sbt-ghpages/jars/sbt-ghpages-0.6.2.jar"
                         }
                     ]
                 },
@@ -888,7 +888,7 @@
                     "artifacts" : [
                         {
                             "name" : "httpclient",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.httpcomponents\\httpclient\\jars\\httpclient-4.3.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.httpcomponents/httpclient/jars/httpclient-4.3.6.jar"
                         }
                     ]
                 },
@@ -899,7 +899,7 @@
                     "artifacts" : [
                         {
                             "name" : "httpcore",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.httpcomponents\\httpcore\\jars\\httpcore-4.3.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.httpcomponents/httpcore/jars/httpcore-4.3.3.jar"
                         }
                     ]
                 },
@@ -910,7 +910,7 @@
                     "artifacts" : [
                         {
                             "name" : "commons-logging",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\commons-logging\\commons-logging\\jars\\commons-logging-1.1.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/commons-logging/commons-logging/jars/commons-logging-1.1.3.jar"
                         }
                     ]
                 },
@@ -921,7 +921,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-site",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.typesafe.sbt\\sbt-site\\jars\\sbt-site-1.3.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.typesafe.sbt/sbt-site/jars/sbt-site-1.3.2.jar"
                         }
                     ]
                 },
@@ -932,7 +932,7 @@
                     "artifacts" : [
                         {
                             "name" : "paradox-material-theme",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.github.jonas\\paradox-material-theme\\jars\\paradox-material-theme-0.4.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/io.github.jonas/paradox-material-theme/jars/paradox-material-theme-0.4.0.jar"
                         }
                     ]
                 },
@@ -943,7 +943,7 @@
                     "artifacts" : [
                         {
                             "name" : "unfiltered-directives_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered-directives_2.12\\jars\\unfiltered-directives_2.12-0.9.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered-directives_2.12/jars/unfiltered-directives_2.12-0.9.1.jar"
                         }
                     ]
                 },
@@ -954,7 +954,7 @@
                     "artifacts" : [
                         {
                             "name" : "unfiltered_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered_2.12\\jars\\unfiltered_2.12-0.9.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered_2.12/jars/unfiltered_2.12-0.9.1.jar"
                         }
                     ]
                 },
@@ -965,7 +965,7 @@
                     "artifacts" : [
                         {
                             "name" : "unfiltered-util_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered-util_2.12\\jars\\unfiltered-util_2.12-0.9.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered-util_2.12/jars/unfiltered-util_2.12-0.9.1.jar"
                         }
                     ]
                 },
@@ -976,7 +976,7 @@
                     "artifacts" : [
                         {
                             "name" : "commons-codec",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\commons-codec\\commons-codec\\jars\\commons-codec-1.10.jar"
+                            "path" : "/Users/John/.ivy2/cache/commons-codec/commons-codec/jars/commons-codec-1.10.jar"
                         }
                     ]
                 },
@@ -987,7 +987,7 @@
                     "artifacts" : [
                         {
                             "name" : "scala-xml_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-xml_2.12\\bundles\\scala-xml_2.12-1.0.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-lang.modules/scala-xml_2.12/bundles/scala-xml_2.12-1.0.6.jar"
                         }
                     ]
                 },
@@ -998,7 +998,7 @@
                     "artifacts" : [
                         {
                             "name" : "unfiltered-filter_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered-filter_2.12\\jars\\unfiltered-filter_2.12-0.9.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered-filter_2.12/jars/unfiltered-filter_2.12-0.9.1.jar"
                         }
                     ]
                 },
@@ -1009,7 +1009,7 @@
                     "artifacts" : [
                         {
                             "name" : "unfiltered-jetty_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\ws.unfiltered\\unfiltered-jetty_2.12\\jars\\unfiltered-jetty_2.12-0.9.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/ws.unfiltered/unfiltered-jetty_2.12/jars/unfiltered-jetty_2.12-0.9.1.jar"
                         }
                     ]
                 },
@@ -1020,7 +1020,7 @@
                     "artifacts" : [
                         {
                             "name" : "jetty-webapp",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-webapp\\jars\\jetty-webapp-9.2.21.v20170120.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-webapp/jars/jetty-webapp-9.2.21.v20170120.jar"
                         }
                     ]
                 },
@@ -1031,7 +1031,7 @@
                     "artifacts" : [
                         {
                             "name" : "jetty-xml",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-xml\\jars\\jetty-xml-9.2.21.v20170120.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-xml/jars/jetty-xml-9.2.21.v20170120.jar"
                         }
                     ]
                 },
@@ -1042,7 +1042,7 @@
                     "artifacts" : [
                         {
                             "name" : "jetty-util",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-util\\jars\\jetty-util-9.2.21.v20170120.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-util/jars/jetty-util-9.2.21.v20170120.jar"
                         }
                     ]
                 },
@@ -1053,7 +1053,7 @@
                     "artifacts" : [
                         {
                             "name" : "jetty-servlet",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-servlet\\jars\\jetty-servlet-9.2.21.v20170120.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-servlet/jars/jetty-servlet-9.2.21.v20170120.jar"
                         }
                     ]
                 },
@@ -1064,7 +1064,7 @@
                     "artifacts" : [
                         {
                             "name" : "jetty-security",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-security\\jars\\jetty-security-9.2.21.v20170120.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-security/jars/jetty-security-9.2.21.v20170120.jar"
                         }
                     ]
                 },
@@ -1075,7 +1075,7 @@
                     "artifacts" : [
                         {
                             "name" : "jetty-server",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-server\\jars\\jetty-server-9.2.21.v20170120.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-server/jars/jetty-server-9.2.21.v20170120.jar"
                         }
                     ]
                 },
@@ -1086,7 +1086,7 @@
                     "artifacts" : [
                         {
                             "name" : "javax.servlet-api",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\javax.servlet\\javax.servlet-api\\jars\\javax.servlet-api-3.1.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/javax.servlet/javax.servlet-api/jars/javax.servlet-api-3.1.0.jar"
                         }
                     ]
                 },
@@ -1097,7 +1097,7 @@
                     "artifacts" : [
                         {
                             "name" : "jetty-http",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-http\\jars\\jetty-http-9.2.21.v20170120.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-http/jars/jetty-http-9.2.21.v20170120.jar"
                         }
                     ]
                 },
@@ -1108,7 +1108,7 @@
                     "artifacts" : [
                         {
                             "name" : "jetty-io",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jetty\\jetty-io\\jars\\jetty-io-9.2.21.v20170120.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jetty/jetty-io/jars/jetty-io-9.2.21.v20170120.jar"
                         }
                     ]
                 },
@@ -1119,7 +1119,7 @@
                     "artifacts" : [
                         {
                             "name" : "pamflet-library_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.foundweekends\\pamflet-library_2.12\\jars\\pamflet-library_2.12-0.7.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.foundweekends/pamflet-library_2.12/jars/pamflet-library_2.12-0.7.1.jar"
                         }
                     ]
                 },
@@ -1130,7 +1130,7 @@
                     "artifacts" : [
                         {
                             "name" : "pamflet-knockoff_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.foundweekends\\pamflet-knockoff_2.12\\jars\\pamflet-knockoff_2.12-0.7.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.foundweekends/pamflet-knockoff_2.12/jars/pamflet-knockoff_2.12-0.7.1.jar"
                         }
                     ]
                 },
@@ -1141,7 +1141,7 @@
                     "artifacts" : [
                         {
                             "name" : "knockoff_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.foundweekends\\knockoff_2.12\\jars\\knockoff_2.12-0.8.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.foundweekends/knockoff_2.12/jars/knockoff_2.12-0.8.6.jar"
                         }
                     ]
                 },
@@ -1152,7 +1152,7 @@
                     "artifacts" : [
                         {
                             "name" : "scala-parser-combinators_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-parser-combinators_2.12\\bundles\\scala-parser-combinators_2.12-1.0.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-lang.modules/scala-parser-combinators_2.12/bundles/scala-parser-combinators_2.12-1.0.5.jar"
                         }
                     ]
                 },
@@ -1163,7 +1163,7 @@
                     "artifacts" : [
                         {
                             "name" : "stringtemplate",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.antlr\\stringtemplate\\jars\\stringtemplate-3.2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.antlr/stringtemplate/jars/stringtemplate-3.2.1.jar"
                         }
                     ]
                 },
@@ -1174,7 +1174,7 @@
                     "artifacts" : [
                         {
                             "name" : "antlr",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\antlr\\antlr\\jars\\antlr-2.7.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/antlr/antlr/jars/antlr-2.7.7.jar"
                         }
                     ]
                 },
@@ -1185,7 +1185,7 @@
                     "artifacts" : [
                         {
                             "name" : "asciidoctorj",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.asciidoctor\\asciidoctorj\\jars\\asciidoctorj-1.5.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.asciidoctor/asciidoctorj/jars/asciidoctorj-1.5.4.jar"
                         }
                     ]
                 },
@@ -1196,7 +1196,7 @@
                     "artifacts" : [
                         {
                             "name" : "jruby-complete",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.jruby\\jruby-complete\\bundles\\jruby-complete-1.7.21.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.jruby/jruby-complete/bundles/jruby-complete-1.7.21.jar"
                         }
                     ]
                 },
@@ -1207,7 +1207,7 @@
                     "artifacts" : [
                         {
                             "name" : "jcommander",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.beust\\jcommander\\jars\\jcommander-1.35.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.beust/jcommander/jars/jcommander-1.35.jar"
                         }
                     ]
                 },
@@ -1218,7 +1218,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-paradox",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.lightbend.paradox\\sbt-paradox\\jars\\sbt-paradox-0.3.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.lightbend.paradox/sbt-paradox/jars/sbt-paradox-0.3.2.jar"
                         }
                     ]
                 },
@@ -1229,7 +1229,7 @@
                     "artifacts" : [
                         {
                             "name" : "paradox_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.lightbend.paradox\\paradox_2.12\\jars\\paradox_2.12-0.3.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.lightbend.paradox/paradox_2.12/jars/paradox_2.12-0.3.2.jar"
                         }
                     ]
                 },
@@ -1240,7 +1240,7 @@
                     "artifacts" : [
                         {
                             "name" : "pegdown",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.pegdown\\pegdown\\jars\\pegdown-1.6.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.pegdown/pegdown/jars/pegdown-1.6.0.jar"
                         }
                     ]
                 },
@@ -1251,7 +1251,7 @@
                     "artifacts" : [
                         {
                             "name" : "parboiled-java",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.parboiled\\parboiled-java\\jars\\parboiled-java-1.1.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.parboiled/parboiled-java/jars/parboiled-java-1.1.7.jar"
                         }
                     ]
                 },
@@ -1262,7 +1262,7 @@
                     "artifacts" : [
                         {
                             "name" : "parboiled-core",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.parboiled\\parboiled-core\\jars\\parboiled-core-1.1.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.parboiled/parboiled-core/jars/parboiled-core-1.1.7.jar"
                         }
                     ]
                 },
@@ -1273,7 +1273,7 @@
                     "artifacts" : [
                         {
                             "name" : "asm-tree",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm-tree\\jars\\asm-tree-5.0.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.ow2.asm/asm-tree/jars/asm-tree-5.0.3.jar"
                         }
                     ]
                 },
@@ -1284,7 +1284,7 @@
                     "artifacts" : [
                         {
                             "name" : "asm-analysis",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm-analysis\\jars\\asm-analysis-5.0.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.ow2.asm/asm-analysis/jars/asm-analysis-5.0.3.jar"
                         }
                     ]
                 },
@@ -1295,7 +1295,7 @@
                     "artifacts" : [
                         {
                             "name" : "asm-util",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.ow2.asm\\asm-util\\jars\\asm-util-5.0.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.ow2.asm/asm-util/jars/asm-util-5.0.3.jar"
                         }
                     ]
                 },
@@ -1306,7 +1306,7 @@
                     "artifacts" : [
                         {
                             "name" : "ST4",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.antlr\\ST4\\jars\\ST4-4.0.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.antlr/ST4/jars/ST4-4.0.8.jar"
                         }
                     ]
                 },
@@ -1317,7 +1317,7 @@
                     "artifacts" : [
                         {
                             "name" : "antlr-runtime",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.antlr\\antlr-runtime\\jars\\antlr-runtime-3.5.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.antlr/antlr-runtime/jars/antlr-runtime-3.5.2.jar"
                         }
                     ]
                 },
@@ -1328,7 +1328,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-web",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.typesafe.sbt\\sbt-web\\jars\\sbt-web-1.4.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.typesafe.sbt/sbt-web/jars/sbt-web-1.4.2.jar"
                         }
                     ]
                 },
@@ -1339,7 +1339,7 @@
                     "artifacts" : [
                         {
                             "name" : "akka-actor_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe.akka\\akka-actor_2.12\\jars\\akka-actor_2.12-2.5.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.typesafe.akka/akka-actor_2.12/jars/akka-actor_2.12-2.5.4.jar"
                         }
                     ]
                 },
@@ -1350,7 +1350,7 @@
                     "artifacts" : [
                         {
                             "name" : "config",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\config\\bundles\\config-1.3.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.typesafe/config/bundles/config-1.3.1.jar"
                         }
                     ]
                 },
@@ -1361,7 +1361,7 @@
                     "artifacts" : [
                         {
                             "name" : "scala-java8-compat_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-lang.modules\\scala-java8-compat_2.12\\bundles\\scala-java8-compat_2.12-0.8.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-lang.modules/scala-java8-compat_2.12/bundles/scala-java8-compat_2.12-0.8.0.jar"
                         }
                     ]
                 },
@@ -1372,7 +1372,7 @@
                     "artifacts" : [
                         {
                             "name" : "webjars-locator-core",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.webjars\\webjars-locator-core\\jars\\webjars-locator-core-0.32.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.webjars/webjars-locator-core/jars/webjars-locator-core-0.32.jar"
                         }
                     ]
                 },
@@ -1383,7 +1383,7 @@
                     "artifacts" : [
                         {
                             "name" : "commons-lang3",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-lang3\\jars\\commons-lang3-3.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.commons/commons-lang3/jars/commons-lang3-3.1.jar"
                         }
                     ]
                 },
@@ -1394,7 +1394,7 @@
                     "artifacts" : [
                         {
                             "name" : "commons-compress",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.commons\\commons-compress\\jars\\commons-compress-1.9.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.commons/commons-compress/jars/commons-compress-1.9.jar"
                         }
                     ]
                 },
@@ -1405,7 +1405,7 @@
                     "artifacts" : [
                         {
                             "name" : "jackson-core",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.fasterxml.jackson.core\\jackson-core\\bundles\\jackson-core-2.7.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.fasterxml.jackson.core/jackson-core/bundles/jackson-core-2.7.3.jar"
                         }
                     ]
                 },
@@ -1416,7 +1416,7 @@
                     "artifacts" : [
                         {
                             "name" : "laika-sbt",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.planet42\\laika-sbt\\jars\\laika-sbt-0.7.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.planet42/laika-sbt/jars/laika-sbt-0.7.5.jar"
                         }
                     ]
                 },
@@ -1427,7 +1427,7 @@
                     "artifacts" : [
                         {
                             "name" : "laika-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.planet42\\laika-core_2.12\\jars\\laika-core_2.12-0.7.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.planet42/laika-core_2.12/jars/laika-core_2.12-0.7.5.jar"
                         }
                     ]
                 },
@@ -1438,7 +1438,7 @@
                     "artifacts" : [
                         {
                             "name" : "laika-pdf_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.planet42\\laika-pdf_2.12\\jars\\laika-pdf_2.12-0.7.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.planet42/laika-pdf_2.12/jars/laika-pdf_2.12-0.7.5.jar"
                         }
                     ]
                 },
@@ -1449,7 +1449,7 @@
                     "artifacts" : [
                         {
                             "name" : "fop",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\fop\\jars\\fop-2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/fop/jars/fop-2.1.jar"
                         }
                     ]
                 },
@@ -1460,7 +1460,7 @@
                     "artifacts" : [
                         {
                             "name" : "xmlgraphics-commons",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\xmlgraphics-commons\\jars\\xmlgraphics-commons-2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/xmlgraphics-commons/jars/xmlgraphics-commons-2.1.jar"
                         }
                     ]
                 },
@@ -1471,7 +1471,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-svg-dom",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-svg-dom\\jars\\batik-svg-dom-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-svg-dom/jars/batik-svg-dom-1.8.jar"
                         }
                     ]
                 },
@@ -1482,7 +1482,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-awt-util",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-awt-util\\jars\\batik-awt-util-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-awt-util/jars/batik-awt-util-1.8.jar"
                         }
                     ]
                 },
@@ -1493,7 +1493,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-util",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-util\\jars\\batik-util-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-util/jars/batik-util-1.8.jar"
                         }
                     ]
                 },
@@ -1504,7 +1504,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-css",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-css\\jars\\batik-css-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-css/jars/batik-css-1.8.jar"
                         }
                     ]
                 },
@@ -1515,7 +1515,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-ext",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-ext\\jars\\batik-ext-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-ext/jars/batik-ext-1.8.jar"
                         }
                     ]
                 },
@@ -1526,7 +1526,7 @@
                     "artifacts" : [
                         {
                             "name" : "xml-apis",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\xml-apis\\xml-apis\\jars\\xml-apis-1.3.04.jar"
+                            "path" : "/Users/John/.ivy2/cache/xml-apis/xml-apis/jars/xml-apis-1.3.04.jar"
                         }
                     ]
                 },
@@ -1537,7 +1537,7 @@
                     "artifacts" : [
                         {
                             "name" : "xml-apis-ext",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\xml-apis\\xml-apis-ext\\jars\\xml-apis-ext-1.3.04.jar"
+                            "path" : "/Users/John/.ivy2/cache/xml-apis/xml-apis-ext/jars/xml-apis-ext-1.3.04.jar"
                         }
                     ]
                 },
@@ -1548,7 +1548,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-dom",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-dom\\jars\\batik-dom-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-dom/jars/batik-dom-1.8.jar"
                         }
                     ]
                 },
@@ -1559,7 +1559,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-xml",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-xml\\jars\\batik-xml-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-xml/jars/batik-xml-1.8.jar"
                         }
                     ]
                 },
@@ -1570,7 +1570,7 @@
                     "artifacts" : [
                         {
                             "name" : "xalan",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\xalan\\xalan\\jars\\xalan-2.7.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/xalan/xalan/jars/xalan-2.7.0.jar"
                         }
                     ]
                 },
@@ -1581,7 +1581,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-parser",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-parser\\jars\\batik-parser-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-parser/jars/batik-parser-1.8.jar"
                         }
                     ]
                 },
@@ -1592,7 +1592,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-bridge",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-bridge\\jars\\batik-bridge-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-bridge/jars/batik-bridge-1.8.jar"
                         }
                     ]
                 },
@@ -1603,7 +1603,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-anim",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-anim\\jars\\batik-anim-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-anim/jars/batik-anim-1.8.jar"
                         }
                     ]
                 },
@@ -1614,7 +1614,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-gvt",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-gvt\\jars\\batik-gvt-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-gvt/jars/batik-gvt-1.8.jar"
                         }
                     ]
                 },
@@ -1625,7 +1625,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-script",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-script\\jars\\batik-script-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-script/jars/batik-script-1.8.jar"
                         }
                     ]
                 },
@@ -1636,7 +1636,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-transcoder",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-transcoder\\jars\\batik-transcoder-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-transcoder/jars/batik-transcoder-1.8.jar"
                         }
                     ]
                 },
@@ -1647,7 +1647,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-svggen",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-svggen\\jars\\batik-svggen-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-svggen/jars/batik-svggen-1.8.jar"
                         }
                     ]
                 },
@@ -1658,7 +1658,7 @@
                     "artifacts" : [
                         {
                             "name" : "batik-extension",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.xmlgraphics\\batik-extension\\jars\\batik-extension-1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.xmlgraphics/batik-extension/jars/batik-extension-1.8.jar"
                         }
                     ]
                 },
@@ -1669,7 +1669,7 @@
                     "artifacts" : [
                         {
                             "name" : "avalon-framework-api",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.avalon.framework\\avalon-framework-api\\jars\\avalon-framework-api-4.3.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.avalon.framework/avalon-framework-api/jars/avalon-framework-api-4.3.1.jar"
                         }
                     ]
                 },
@@ -1680,7 +1680,7 @@
                     "artifacts" : [
                         {
                             "name" : "avalon-framework-impl",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.avalon.framework\\avalon-framework-impl\\jars\\avalon-framework-impl-4.3.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.avalon.framework/avalon-framework-impl/jars/avalon-framework-impl-4.3.1.jar"
                         }
                     ]
                 },
@@ -1691,7 +1691,7 @@
                     "artifacts" : [
                         {
                             "name" : "org-policies-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.47deg\\org-policies-core_2.12\\jars\\org-policies-core_2.12-0.9.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.47deg/org-policies-core_2.12/jars/org-policies-core_2.12-0.9.2.jar"
                         }
                     ]
                 },
@@ -1702,7 +1702,7 @@
                     "artifacts" : [
                         {
                             "name" : "github4s_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.47deg\\github4s_2.12\\jars\\github4s_2.12-0.15.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.47deg/github4s_2.12/jars/github4s_2.12-0.15.0.jar"
                         }
                     ]
                 },
@@ -1713,7 +1713,7 @@
                     "artifacts" : [
                         {
                             "name" : "cats_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats_2.12\\jars\\cats_2.12-0.9.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/cats_2.12/jars/cats_2.12-0.9.0.jar"
                         }
                     ]
                 },
@@ -1724,7 +1724,7 @@
                     "artifacts" : [
                         {
                             "name" : "cats-kernel-laws_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-kernel-laws_2.12\\jars\\cats-kernel-laws_2.12-0.9.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/cats-kernel-laws_2.12/jars/cats-kernel-laws_2.12-0.9.0.jar"
                         }
                     ]
                 },
@@ -1735,7 +1735,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalacheck_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalacheck\\scalacheck_2.12\\jars\\scalacheck_2.12-1.13.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scalacheck/scalacheck_2.12/jars/scalacheck_2.12-1.13.4.jar"
                         }
                     ]
                 },
@@ -1746,7 +1746,7 @@
                     "artifacts" : [
                         {
                             "name" : "discipline_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\discipline_2.12\\jars\\discipline_2.12-0.7.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/discipline_2.12/jars/discipline_2.12-0.7.2.jar"
                         }
                     ]
                 },
@@ -1757,7 +1757,7 @@
                     "artifacts" : [
                         {
                             "name" : "catalysts-platform_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\catalysts-platform_2.12\\jars\\catalysts-platform_2.12-0.0.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/catalysts-platform_2.12/jars/catalysts-platform_2.12-0.0.5.jar"
                         }
                     ]
                 },
@@ -1768,7 +1768,7 @@
                     "artifacts" : [
                         {
                             "name" : "catalysts-macros_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\catalysts-macros_2.12\\jars\\catalysts-macros_2.12-0.0.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/catalysts-macros_2.12/jars/catalysts-macros_2.12-0.0.5.jar"
                         }
                     ]
                 },
@@ -1779,7 +1779,7 @@
                     "artifacts" : [
                         {
                             "name" : "macro-compat_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\macro-compat_2.12\\jars\\macro-compat_2.12-1.1.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/macro-compat_2.12/jars/macro-compat_2.12-1.1.1.jar"
                         }
                     ]
                 },
@@ -1790,7 +1790,7 @@
                     "artifacts" : [
                         {
                             "name" : "cats-laws_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-laws_2.12\\jars\\cats-laws_2.12-0.9.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/cats-laws_2.12/jars/cats-laws_2.12-0.9.0.jar"
                         }
                     ]
                 },
@@ -1801,7 +1801,7 @@
                     "artifacts" : [
                         {
                             "name" : "simulacrum_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.mpilquist\\simulacrum_2.12\\jars\\simulacrum_2.12-0.10.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.github.mpilquist/simulacrum_2.12/jars/simulacrum_2.12-0.10.0.jar"
                         }
                     ]
                 },
@@ -1812,7 +1812,7 @@
                     "artifacts" : [
                         {
                             "name" : "cats-free_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-free_2.12\\jars\\cats-free_2.12-0.9.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/cats-free_2.12/jars/cats-free_2.12-0.9.0.jar"
                         }
                     ]
                 },
@@ -1823,7 +1823,7 @@
                     "artifacts" : [
                         {
                             "name" : "cats-jvm_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.typelevel\\cats-jvm_2.12\\jars\\cats-jvm_2.12-0.9.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.typelevel/cats-jvm_2.12/jars/cats-jvm_2.12-0.9.0.jar"
                         }
                     ]
                 },
@@ -1834,7 +1834,7 @@
                     "artifacts" : [
                         {
                             "name" : "circe-generic_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\io.circe\\circe-generic_2.12\\jars\\circe-generic_2.12-0.8.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/io.circe/circe-generic_2.12/jars/circe-generic_2.12-0.8.0.jar"
                         }
                     ]
                 },
@@ -1845,7 +1845,7 @@
                     "artifacts" : [
                         {
                             "name" : "shapeless_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.chuusai\\shapeless_2.12\\bundles\\shapeless_2.12-2.3.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.chuusai/shapeless_2.12/bundles/shapeless_2.12-2.3.2.jar"
                         }
                     ]
                 },
@@ -1856,7 +1856,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalaj-http_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalaj\\scalaj-http_2.12\\jars\\scalaj-http_2.12-2.3.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scalaj/scalaj-http_2.12/jars/scalaj-http_2.12-2.3.0.jar"
                         }
                     ]
                 },
@@ -1867,7 +1867,7 @@
                     "artifacts" : [
                         {
                             "name" : "base64_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.marklister\\base64_2.12\\jars\\base64_2.12-0.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.github.marklister/base64_2.12/jars/base64_2.12-0.2.4.jar"
                         }
                     ]
                 },
@@ -1878,7 +1878,7 @@
                     "artifacts" : [
                         {
                             "name" : "moultingyaml_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\net.jcazevedo\\moultingyaml_2.12\\jars\\moultingyaml_2.12-0.4.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/net.jcazevedo/moultingyaml_2.12/jars/moultingyaml_2.12-0.4.0.jar"
                         }
                     ]
                 },
@@ -1889,7 +1889,7 @@
                     "artifacts" : [
                         {
                             "name" : "nscala-time_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.nscala-time\\nscala-time_2.12\\jars\\nscala-time_2.12-2.14.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.github.nscala-time/nscala-time_2.12/jars/nscala-time_2.12-2.14.0.jar"
                         }
                     ]
                 },
@@ -1900,7 +1900,7 @@
                     "artifacts" : [
                         {
                             "name" : "joda-time",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\joda-time\\joda-time\\jars\\joda-time-2.9.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/joda-time/joda-time/jars/joda-time-2.9.4.jar"
                         }
                     ]
                 },
@@ -1911,7 +1911,7 @@
                     "artifacts" : [
                         {
                             "name" : "joda-convert",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.joda\\joda-convert\\jars\\joda-convert-1.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.joda/joda-convert/jars/joda-convert-1.2.jar"
                         }
                     ]
                 },
@@ -1922,7 +1922,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalatags_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.lihaoyi\\scalatags_2.12\\jars\\scalatags_2.12-0.6.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.lihaoyi/scalatags_2.12/jars/scalatags_2.12-0.6.7.jar"
                         }
                     ]
                 },
@@ -1933,7 +1933,7 @@
                     "artifacts" : [
                         {
                             "name" : "sourcecode_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.lihaoyi\\sourcecode_2.12\\bundles\\sourcecode_2.12-0.1.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.lihaoyi/sourcecode_2.12/bundles/sourcecode_2.12-0.1.4.jar"
                         }
                     ]
                 },
@@ -1944,7 +1944,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalactic_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scalactic\\scalactic_2.12\\bundles\\scalactic_2.12-3.0.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scalactic/scalactic_2.12/bundles/scalactic_2.12-3.0.5.jar"
                         }
                     ]
                 },
@@ -1955,7 +1955,7 @@
                     "artifacts" : [
                         {
                             "name" : "tut-plugin",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.tpolecat\\tut-plugin\\jars\\tut-plugin-0.6.9.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.tpolecat/tut-plugin/jars/tut-plugin-0.6.9.jar"
                         }
                     ]
                 },
@@ -1966,7 +1966,7 @@
                     "artifacts" : [
                         {
                             "name" : "scrimage-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.sksamuel.scrimage\\scrimage-core_2.12\\jars\\scrimage-core_2.12-2.1.8.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.sksamuel.scrimage/scrimage-core_2.12/jars/scrimage-core_2.12-2.1.8.jar"
                         }
                     ]
                 },
@@ -1977,7 +1977,7 @@
                     "artifacts" : [
                         {
                             "name" : "imageio-core",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.imageio\\imageio-core\\jars\\imageio-core-3.2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.twelvemonkeys.imageio/imageio-core/jars/imageio-core-3.2.1.jar"
                         }
                     ]
                 },
@@ -1988,7 +1988,7 @@
                     "artifacts" : [
                         {
                             "name" : "common-lang",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.common\\common-lang\\jars\\common-lang-3.2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.twelvemonkeys.common/common-lang/jars/common-lang-3.2.1.jar"
                         }
                     ]
                 },
@@ -1999,7 +1999,7 @@
                     "artifacts" : [
                         {
                             "name" : "common-io",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.common\\common-io\\jars\\common-io-3.2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.twelvemonkeys.common/common-io/jars/common-io-3.2.1.jar"
                         }
                     ]
                 },
@@ -2010,7 +2010,7 @@
                     "artifacts" : [
                         {
                             "name" : "common-image",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.common\\common-image\\jars\\common-image-3.2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.twelvemonkeys.common/common-image/jars/common-image-3.2.1.jar"
                         }
                     ]
                 },
@@ -2021,7 +2021,7 @@
                     "artifacts" : [
                         {
                             "name" : "imageio-jpeg",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.imageio\\imageio-jpeg\\jars\\imageio-jpeg-3.2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.twelvemonkeys.imageio/imageio-jpeg/jars/imageio-jpeg-3.2.1.jar"
                         }
                     ]
                 },
@@ -2032,7 +2032,7 @@
                     "artifacts" : [
                         {
                             "name" : "imageio-metadata",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.twelvemonkeys.imageio\\imageio-metadata\\jars\\imageio-metadata-3.2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.twelvemonkeys.imageio/imageio-metadata/jars/imageio-metadata-3.2.1.jar"
                         }
                     ]
                 },
@@ -2043,7 +2043,7 @@
                     "artifacts" : [
                         {
                             "name" : "metadata-extractor",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.drewnoakes\\metadata-extractor\\jars\\metadata-extractor-2.8.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.drewnoakes/metadata-extractor/jars/metadata-extractor-2.8.1.jar"
                         }
                     ]
                 },
@@ -2054,7 +2054,7 @@
                     "artifacts" : [
                         {
                             "name" : "xmpcore",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.adobe.xmp\\xmpcore\\jars\\xmpcore-5.1.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.adobe.xmp/xmpcore/jars/xmpcore-5.1.2.jar"
                         }
                     ]
                 },
@@ -2065,7 +2065,7 @@
                     "artifacts" : [
                         {
                             "name" : "commons-io",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\commons-io\\commons-io\\jars\\commons-io-2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/commons-io/commons-io/jars/commons-io-2.4.jar"
                         }
                     ]
                 },
@@ -2076,7 +2076,7 @@
                     "artifacts" : [
                         {
                             "name" : "pngj",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\ar.com.hjg\\pngj\\jars\\pngj-2.1.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/ar.com.hjg/pngj/jars/pngj-2.1.0.jar"
                         }
                     ]
                 },
@@ -2087,7 +2087,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-scalafmt",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.geirsson\\sbt-scalafmt\\jars\\sbt-scalafmt-1.6.0-RC4.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.geirsson/sbt-scalafmt/jars/sbt-scalafmt-1.6.0-RC4.jar"
                         }
                     ]
                 },
@@ -2098,7 +2098,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalafmt-big_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.geirsson\\scalafmt-big_2.12\\jars\\scalafmt-big_2.12-1.6.0-RC4.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.geirsson/scalafmt-big_2.12/jars/scalafmt-big_2.12-1.6.0-RC4.jar"
                         }
                     ]
                 },
@@ -2109,7 +2109,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-buildinfo",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.eed3si9n\\sbt-buildinfo\\jars\\sbt-buildinfo-0.9.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.eed3si9n/sbt-buildinfo/jars/sbt-buildinfo-0.9.0.jar"
                         }
                     ]
                 },
@@ -2120,7 +2120,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-scoverage",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.scoverage\\sbt-scoverage\\jars\\sbt-scoverage-1.5.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.scoverage/sbt-scoverage/jars/sbt-scoverage-1.5.1.jar"
                         }
                     ]
                 },
@@ -2131,7 +2131,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalac-scoverage-plugin_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scoverage\\scalac-scoverage-plugin_2.12\\jars\\scalac-scoverage-plugin_2.12-1.3.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scoverage/scalac-scoverage-plugin_2.12/jars/scalac-scoverage-plugin_2.12-1.3.1.jar"
                         }
                     ]
                 },
@@ -2142,7 +2142,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-ci-release",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.geirsson\\sbt-ci-release\\jars\\sbt-ci-release-1.2.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.geirsson/sbt-ci-release/jars/sbt-ci-release-1.2.1.jar"
                         }
                     ]
                 },
@@ -2153,7 +2153,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-dynver",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.dwijnand\\sbt-dynver\\jars\\sbt-dynver-3.0.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.dwijnand/sbt-dynver/jars/sbt-dynver-3.0.0.jar"
                         }
                     ]
                 },
@@ -2164,7 +2164,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-git",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.typesafe.sbt\\sbt-git\\jars\\sbt-git-1.0.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.typesafe.sbt/sbt-git/jars/sbt-git-1.0.0.jar"
                         }
                     ]
                 },
@@ -2175,7 +2175,7 @@
                     "artifacts" : [
                         {
                             "name" : "org.eclipse.jgit",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.eclipse.jgit\\org.eclipse.jgit\\jars\\org.eclipse.jgit-4.9.0.201710071750-r.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.eclipse.jgit/org.eclipse.jgit/jars/org.eclipse.jgit-4.9.0.201710071750-r.jar"
                         }
                     ]
                 },
@@ -2186,7 +2186,7 @@
                     "artifacts" : [
                         {
                             "name" : "jsch",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.jcraft\\jsch\\jars\\jsch-0.1.54.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.jcraft/jsch/jars/jsch-0.1.54.jar"
                         }
                     ]
                 },
@@ -2197,7 +2197,7 @@
                     "artifacts" : [
                         {
                             "name" : "JavaEWAH",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.googlecode.javaewah\\JavaEWAH\\bundles\\JavaEWAH-1.1.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.googlecode.javaewah/JavaEWAH/bundles/JavaEWAH-1.1.6.jar"
                         }
                     ]
                 },
@@ -2208,7 +2208,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-sonatype",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\org.xerial.sbt\\sbt-sonatype\\jars\\sbt-sonatype-2.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/org.xerial.sbt/sbt-sonatype/jars/sbt-sonatype-2.3.jar"
                         }
                     ]
                 },
@@ -2219,7 +2219,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt-pgp",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\scala_2.12\\sbt_1.0\\com.jsuereth\\sbt-pgp\\jars\\sbt-pgp-1.1.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/scala_2.12/sbt_1.0/com.jsuereth/sbt-pgp/jars/sbt-pgp-1.1.1.jar"
                         }
                     ]
                 },
@@ -2230,7 +2230,7 @@
                     "artifacts" : [
                         {
                             "name" : "pgp-library_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.jsuereth\\pgp-library_2.12\\jars\\pgp-library_2.12-1.1.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.jsuereth/pgp-library_2.12/jars/pgp-library_2.12-1.1.1.jar"
                         }
                     ]
                 },
@@ -2241,7 +2241,7 @@
                     "artifacts" : [
                         {
                             "name" : "bcpg-jdk15on",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.bouncycastle\\bcpg-jdk15on\\jars\\bcpg-jdk15on-1.51.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.bouncycastle/bcpg-jdk15on/jars/bcpg-jdk15on-1.51.jar"
                         }
                     ]
                 },
@@ -2252,7 +2252,7 @@
                     "artifacts" : [
                         {
                             "name" : "bcprov-jdk15on",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.bouncycastle\\bcprov-jdk15on\\jars\\bcprov-jdk15on-1.51.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.bouncycastle/bcprov-jdk15on/jars/bcprov-jdk15on-1.51.jar"
                         }
                     ]
                 },
@@ -2263,7 +2263,7 @@
                     "artifacts" : [
                         {
                             "name" : "gigahorse-okhttp_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\gigahorse-okhttp_2.12\\jars\\gigahorse-okhttp_2.12-0.3.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.eed3si9n/gigahorse-okhttp_2.12/jars/gigahorse-okhttp_2.12-0.3.0.jar"
                         }
                     ]
                 },
@@ -2274,7 +2274,7 @@
                     "artifacts" : [
                         {
                             "name" : "gigahorse-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\gigahorse-core_2.12\\jars\\gigahorse-core_2.12-0.3.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.eed3si9n/gigahorse-core_2.12/jars/gigahorse-core_2.12-0.3.0.jar"
                         }
                     ]
                 },
@@ -2285,7 +2285,7 @@
                     "artifacts" : [
                         {
                             "name" : "ssl-config-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.typesafe\\ssl-config-core_2.12\\bundles\\ssl-config-core_2.12-0.2.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.typesafe/ssl-config-core_2.12/bundles/ssl-config-core_2.12-0.2.2.jar"
                         }
                     ]
                 },
@@ -2296,7 +2296,7 @@
                     "artifacts" : [
                         {
                             "name" : "reactive-streams",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.reactivestreams\\reactive-streams\\jars\\reactive-streams-1.0.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.reactivestreams/reactive-streams/jars/reactive-streams-1.0.0.jar"
                         }
                     ]
                 },
@@ -2307,7 +2307,7 @@
                     "artifacts" : [
                         {
                             "name" : "slf4j-api",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.slf4j\\slf4j-api\\jars\\slf4j-api-1.7.25.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.slf4j/slf4j-api/jars/slf4j-api-1.7.25.jar"
                         }
                     ]
                 },
@@ -2318,7 +2318,7 @@
                     "artifacts" : [
                         {
                             "name" : "okhttp",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.squareup.okhttp3\\okhttp\\jars\\okhttp-3.7.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.squareup.okhttp3/okhttp/jars/okhttp-3.7.0.jar"
                         }
                     ]
                 },
@@ -2329,7 +2329,7 @@
                     "artifacts" : [
                         {
                             "name" : "okio",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.squareup.okio\\okio\\jars\\okio-1.12.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.squareup.okio/okio/jars/okio-1.12.0.jar"
                         }
                     ]
                 },
@@ -2340,7 +2340,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbt",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\sbt\\jars\\sbt-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/sbt/jars/sbt-1.2.7.jar"
                         }
                     ]
                 },
@@ -2351,7 +2351,7 @@
                     "artifacts" : [
                         {
                             "name" : "main_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\main_2.12\\jars\\main_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/main_2.12/jars/main_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2362,7 +2362,7 @@
                     "artifacts" : [
                         {
                             "name" : "logic_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\logic_2.12\\jars\\logic_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/logic_2.12/jars/logic_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2373,7 +2373,7 @@
                     "artifacts" : [
                         {
                             "name" : "collections_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\collections_2.12\\jars\\collections_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/collections_2.12/jars/collections_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2384,7 +2384,7 @@
                     "artifacts" : [
                         {
                             "name" : "sjson-new-scalajson_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\sjson-new-scalajson_2.12\\jars\\sjson-new-scalajson_2.12-0.8.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.eed3si9n/sjson-new-scalajson_2.12/jars/sjson-new-scalajson_2.12-0.8.2.jar"
                         }
                     ]
                 },
@@ -2395,7 +2395,7 @@
                     "artifacts" : [
                         {
                             "name" : "sjson-new-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\sjson-new-core_2.12\\jars\\sjson-new-core_2.12-0.8.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.eed3si9n/sjson-new-core_2.12/jars/sjson-new-core_2.12-0.8.2.jar"
                         }
                     ]
                 },
@@ -2406,7 +2406,7 @@
                     "artifacts" : [
                         {
                             "name" : "shaded-scalajson_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\shaded-scalajson_2.12\\jars\\shaded-scalajson_2.12-1.0.0-M4.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.eed3si9n/shaded-scalajson_2.12/jars/shaded-scalajson_2.12-1.0.0-M4.jar"
                         }
                     ]
                 },
@@ -2417,7 +2417,7 @@
                     "artifacts" : [
                         {
                             "name" : "util-position_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-position_2.12\\jars\\util-position_2.12-1.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/util-position_2.12/jars/util-position_2.12-1.2.4.jar"
                         }
                     ]
                 },
@@ -2428,7 +2428,7 @@
                     "artifacts" : [
                         {
                             "name" : "util-relation_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-relation_2.12\\jars\\util-relation_2.12-1.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/util-relation_2.12/jars/util-relation_2.12-1.2.4.jar"
                         }
                     ]
                 },
@@ -2439,7 +2439,7 @@
                     "artifacts" : [
                         {
                             "name" : "actions_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\actions_2.12\\jars\\actions_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/actions_2.12/jars/actions_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2450,7 +2450,7 @@
                     "artifacts" : [
                         {
                             "name" : "completion_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\completion_2.12\\jars\\completion_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/completion_2.12/jars/completion_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2461,7 +2461,7 @@
                     "artifacts" : [
                         {
                             "name" : "jline",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\jline\\jline\\jars\\jline-2.14.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/jline/jline/jars/jline-2.14.6.jar"
                         }
                     ]
                 },
@@ -2472,7 +2472,7 @@
                     "artifacts" : [
                         {
                             "name" : "io_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\io_2.12\\jars\\io_2.12-1.2.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/io_2.12/jars/io_2.12-1.2.2.jar"
                         }
                     ]
                 },
@@ -2483,7 +2483,7 @@
                     "artifacts" : [
                         {
                             "name" : "apple-file-events",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.swoval\\apple-file-events\\jars\\apple-file-events-1.3.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.swoval/apple-file-events/jars/apple-file-events-1.3.2.jar"
                         }
                     ]
                 },
@@ -2494,7 +2494,7 @@
                     "artifacts" : [
                         {
                             "name" : "jna",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\net.java.dev.jna\\jna\\jars\\jna-4.5.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/net.java.dev.jna/jna/jars/jna-4.5.0.jar"
                         }
                     ]
                 },
@@ -2505,7 +2505,7 @@
                     "artifacts" : [
                         {
                             "name" : "jna-platform",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\net.java.dev.jna\\jna-platform\\jars\\jna-platform-4.5.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/net.java.dev.jna/jna-platform/jars/jna-platform-4.5.0.jar"
                         }
                     ]
                 },
@@ -2516,7 +2516,7 @@
                     "artifacts" : [
                         {
                             "name" : "util-control_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-control_2.12\\jars\\util-control_2.12-1.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/util-control_2.12/jars/util-control_2.12-1.2.4.jar"
                         }
                     ]
                 },
@@ -2527,7 +2527,7 @@
                     "artifacts" : [
                         {
                             "name" : "run_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\run_2.12\\jars\\run_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/run_2.12/jars/run_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2538,7 +2538,7 @@
                     "artifacts" : [
                         {
                             "name" : "util-logging_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-logging_2.12\\jars\\util-logging_2.12-1.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/util-logging_2.12/jars/util-logging_2.12-1.2.4.jar"
                         }
                     ]
                 },
@@ -2549,7 +2549,7 @@
                     "artifacts" : [
                         {
                             "name" : "util-interface",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-interface\\jars\\util-interface-1.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/util-interface/jars/util-interface-1.2.4.jar"
                         }
                     ]
                 },
@@ -2560,7 +2560,7 @@
                     "artifacts" : [
                         {
                             "name" : "log4j-api",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.logging.log4j\\log4j-api\\jars\\log4j-api-2.11.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.logging.log4j/log4j-api/jars/log4j-api-2.11.1.jar"
                         }
                     ]
                 },
@@ -2571,7 +2571,12 @@
                     "artifacts" : [
                         {
                             "name" : "log4j-core",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.logging.log4j\\log4j-core\\jars\\log4j-core-2.11.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.logging.log4j/log4j-core/jars/log4j-core-2.11.1.jar"
+                        },
+                        {
+                            "name" : "log4j-core",
+                            "classifier" : "tests",
+                            "path" : "/Users/John/.ivy2/cache/org.apache.logging.log4j/log4j-core/test-jars/log4j-core-2.11.1-tests.jar"
                         }
                     ]
                 },
@@ -2582,7 +2587,7 @@
                     "artifacts" : [
                         {
                             "name" : "disruptor",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.lmax\\disruptor\\jars\\disruptor-3.4.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.lmax/disruptor/jars/disruptor-3.4.2.jar"
                         }
                     ]
                 },
@@ -2593,7 +2598,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc-classpath_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-classpath_2.12\\jars\\zinc-classpath_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc-classpath_2.12/jars/zinc-classpath_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2604,7 +2609,7 @@
                     "artifacts" : [
                         {
                             "name" : "scala-compiler",
-                            "path" : "C:\\Users\\wiem-\\.sbt\\boot\\scala-2.12.7\\lib\\scala-compiler.jar"
+                            "path" : "/Users/John/.sbt/boot/scala-2.12.7/lib/scala-compiler.jar"
                         }
                     ]
                 },
@@ -2615,7 +2620,7 @@
                     "artifacts" : [
                         {
                             "name" : "compiler-interface",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\compiler-interface\\jars\\compiler-interface-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/compiler-interface/jars/compiler-interface-1.2.5.jar"
                         }
                     ]
                 },
@@ -2626,7 +2631,7 @@
                     "artifacts" : [
                         {
                             "name" : "task-system_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\task-system_2.12\\jars\\task-system_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/task-system_2.12/jars/task-system_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2637,7 +2642,7 @@
                     "artifacts" : [
                         {
                             "name" : "tasks_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\tasks_2.12\\jars\\tasks_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/tasks_2.12/jars/tasks_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2648,7 +2653,7 @@
                     "artifacts" : [
                         {
                             "name" : "util-cache_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-cache_2.12\\jars\\util-cache_2.12-1.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/util-cache_2.12/jars/util-cache_2.12-1.2.4.jar"
                         }
                     ]
                 },
@@ -2659,7 +2664,7 @@
                     "artifacts" : [
                         {
                             "name" : "sjson-new-murmurhash_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.eed3si9n\\sjson-new-murmurhash_2.12\\jars\\sjson-new-murmurhash_2.12-0.8.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.eed3si9n/sjson-new-murmurhash_2.12/jars/sjson-new-murmurhash_2.12-0.8.2.jar"
                         }
                     ]
                 },
@@ -2670,7 +2675,7 @@
                     "artifacts" : [
                         {
                             "name" : "testing_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\testing_2.12\\jars\\testing_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/testing_2.12/jars/testing_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2681,7 +2686,7 @@
                     "artifacts" : [
                         {
                             "name" : "test-agent",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\test-agent\\jars\\test-agent-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/test-agent/jars/test-agent-1.2.7.jar"
                         }
                     ]
                 },
@@ -2692,7 +2697,7 @@
                     "artifacts" : [
                         {
                             "name" : "launcher-interface",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\launcher-interface\\jars\\launcher-interface-1.0.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/launcher-interface/jars/launcher-interface-1.0.4.jar"
                         }
                     ]
                 },
@@ -2703,7 +2708,7 @@
                     "artifacts" : [
                         {
                             "name" : "util-tracking_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-tracking_2.12\\jars\\util-tracking_2.12-1.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/util-tracking_2.12/jars/util-tracking_2.12-1.2.4.jar"
                         }
                     ]
                 },
@@ -2714,7 +2719,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc-apiinfo_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-apiinfo_2.12\\jars\\zinc-apiinfo_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc-apiinfo_2.12/jars/zinc-apiinfo_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2725,7 +2730,7 @@
                     "artifacts" : [
                         {
                             "name" : "compiler-bridge_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\compiler-bridge_2.12\\jars\\compiler-bridge_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/compiler-bridge_2.12/jars/compiler-bridge_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2736,7 +2741,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc-classfile_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-classfile_2.12\\jars\\zinc-classfile_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc-classfile_2.12/jars/zinc-classfile_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2747,7 +2752,7 @@
                     "artifacts" : [
                         {
                             "name" : "librarymanagement-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\librarymanagement-core_2.12\\jars\\librarymanagement-core_2.12-1.2.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/librarymanagement-core_2.12/jars/librarymanagement-core_2.12-1.2.3.jar"
                         }
                     ]
                 },
@@ -2758,7 +2763,7 @@
                     "artifacts" : [
                         {
                             "name" : "okhttp-urlconnection",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.squareup.okhttp3\\okhttp-urlconnection\\jars\\okhttp-urlconnection-3.7.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.squareup.okhttp3/okhttp-urlconnection/jars/okhttp-urlconnection-3.7.0.jar"
                         }
                     ]
                 },
@@ -2769,7 +2774,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc-ivy-integration_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-ivy-integration_2.12\\jars\\zinc-ivy-integration_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc-ivy-integration_2.12/jars/zinc-ivy-integration_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2780,7 +2785,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc-compile-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-compile-core_2.12\\jars\\zinc-compile-core_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc-compile-core_2.12/jars/zinc-compile-core_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2791,7 +2796,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc_2.12\\jars\\zinc_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc_2.12/jars/zinc_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2802,7 +2807,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-core_2.12\\jars\\zinc-core_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc-core_2.12/jars/zinc-core_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2813,7 +2818,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc-persist_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-persist_2.12\\jars\\zinc-persist_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc-persist_2.12/jars/zinc-persist_2.12-1.2.5.jar"
                         }
                     ]
                 },
@@ -2824,7 +2829,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalapb-runtime_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.trueaccord.scalapb\\scalapb-runtime_2.12\\jars\\scalapb-runtime_2.12-0.6.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.trueaccord.scalapb/scalapb-runtime_2.12/jars/scalapb-runtime_2.12-0.6.0.jar"
                         }
                     ]
                 },
@@ -2835,7 +2840,7 @@
                     "artifacts" : [
                         {
                             "name" : "lenses_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.trueaccord.lenses\\lenses_2.12\\jars\\lenses_2.12-0.4.12.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.trueaccord.lenses/lenses_2.12/jars/lenses_2.12-0.4.12.jar"
                         }
                     ]
                 },
@@ -2846,7 +2851,7 @@
                     "artifacts" : [
                         {
                             "name" : "fastparse_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.lihaoyi\\fastparse_2.12\\jars\\fastparse_2.12-0.4.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.lihaoyi/fastparse_2.12/jars/fastparse_2.12-0.4.2.jar"
                         }
                     ]
                 },
@@ -2857,7 +2862,7 @@
                     "artifacts" : [
                         {
                             "name" : "fastparse-utils_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.lihaoyi\\fastparse-utils_2.12\\jars\\fastparse-utils_2.12-0.4.2.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.lihaoyi/fastparse-utils_2.12/jars/fastparse-utils_2.12-0.4.2.jar"
                         }
                     ]
                 },
@@ -2868,7 +2873,7 @@
                     "artifacts" : [
                         {
                             "name" : "protobuf-java",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.google.protobuf\\protobuf-java\\bundles\\protobuf-java-3.3.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.google.protobuf/protobuf-java/bundles/protobuf-java-3.3.1.jar"
                         }
                     ]
                 },
@@ -2879,7 +2884,7 @@
                     "artifacts" : [
                         {
                             "name" : "sbinary_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\sbinary_2.12\\jars\\sbinary_2.12-0.5.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/sbinary_2.12/jars/sbinary_2.12-0.5.0.jar"
                         }
                     ]
                 },
@@ -2890,7 +2895,7 @@
                     "artifacts" : [
                         {
                             "name" : "main-settings_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\main-settings_2.12\\jars\\main-settings_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/main-settings_2.12/jars/main-settings_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2901,7 +2906,7 @@
                     "artifacts" : [
                         {
                             "name" : "command_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\command_2.12\\jars\\command_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/command_2.12/jars/command_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2912,7 +2917,7 @@
                     "artifacts" : [
                         {
                             "name" : "protocol_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\protocol_2.12\\jars\\protocol_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/protocol_2.12/jars/protocol_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2923,7 +2928,7 @@
                     "artifacts" : [
                         {
                             "name" : "ipcsocket",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt.ipcsocket\\ipcsocket\\jars\\ipcsocket-1.0.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt.ipcsocket/ipcsocket/jars/ipcsocket-1.0.0.jar"
                         }
                     ]
                 },
@@ -2934,7 +2939,7 @@
                     "artifacts" : [
                         {
                             "name" : "template-resolver",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\template-resolver\\jars\\template-resolver-0.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/template-resolver/jars/template-resolver-0.1.jar"
                         }
                     ]
                 },
@@ -2945,7 +2950,7 @@
                     "artifacts" : [
                         {
                             "name" : "core-macros_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\core-macros_2.12\\jars\\core-macros_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/core-macros_2.12/jars/core-macros_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2956,7 +2961,7 @@
                     "artifacts" : [
                         {
                             "name" : "scripted-sbt-redux_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\scripted-sbt-redux_2.12\\jars\\scripted-sbt-redux_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/scripted-sbt-redux_2.12/jars/scripted-sbt-redux_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2967,7 +2972,7 @@
                     "artifacts" : [
                         {
                             "name" : "util-scripted_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\util-scripted_2.12\\jars\\util-scripted_2.12-1.2.4.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/util-scripted_2.12/jars/util-scripted_2.12-1.2.4.jar"
                         }
                     ]
                 },
@@ -2978,7 +2983,7 @@
                     "artifacts" : [
                         {
                             "name" : "scripted-plugin_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\scripted-plugin_2.12\\jars\\scripted-plugin_2.12-1.2.7.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/scripted-plugin_2.12/jars/scripted-plugin_2.12-1.2.7.jar"
                         }
                     ]
                 },
@@ -2989,7 +2994,7 @@
                     "artifacts" : [
                         {
                             "name" : "log4j-slf4j-impl",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.apache.logging.log4j\\log4j-slf4j-impl\\jars\\log4j-slf4j-impl-2.11.1.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.apache.logging.log4j/log4j-slf4j-impl/jars/log4j-slf4j-impl-2.11.1.jar"
                         }
                     ]
                 },
@@ -3000,7 +3005,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalacache-caffeine_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.cb372\\scalacache-caffeine_2.12\\jars\\scalacache-caffeine_2.12-0.20.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.github.cb372/scalacache-caffeine_2.12/jars/scalacache-caffeine_2.12-0.20.0.jar"
                         }
                     ]
                 },
@@ -3011,7 +3016,7 @@
                     "artifacts" : [
                         {
                             "name" : "scalacache-core_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.cb372\\scalacache-core_2.12\\jars\\scalacache-core_2.12-0.20.0.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.github.cb372/scalacache-core_2.12/jars/scalacache-core_2.12-0.20.0.jar"
                         }
                     ]
                 },
@@ -3022,7 +3027,7 @@
                     "artifacts" : [
                         {
                             "name" : "caffeine",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\com.github.ben-manes.caffeine\\caffeine\\jars\\caffeine-2.5.6.jar"
+                            "path" : "/Users/John/.ivy2/cache/com.github.ben-manes.caffeine/caffeine/jars/caffeine-2.5.6.jar"
                         }
                     ]
                 },
@@ -3033,7 +3038,7 @@
                     "artifacts" : [
                         {
                             "name" : "librarymanagement-ivy_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\librarymanagement-ivy_2.12\\jars\\librarymanagement-ivy_2.12-1.2.3.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/librarymanagement-ivy_2.12/jars/librarymanagement-ivy_2.12-1.2.3.jar"
                         }
                     ]
                 },
@@ -3044,7 +3049,7 @@
                     "artifacts" : [
                         {
                             "name" : "ivy",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt.ivy\\ivy\\jars\\ivy-2.3.0-sbt-b18f59ea3bc914a297bb6f1a4f7fb0ace399e310.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt.ivy/ivy/jars/ivy-2.3.0-sbt-b18f59ea3bc914a297bb6f1a4f7fb0ace399e310.jar"
                         }
                     ]
                 },
@@ -3055,7 +3060,7 @@
                     "artifacts" : [
                         {
                             "name" : "zinc-compile_2.12",
-                            "path" : "C:\\Users\\wiem-\\.ivy2\\cache\\org.scala-sbt\\zinc-compile_2.12\\jars\\zinc-compile_2.12-1.2.5.jar"
+                            "path" : "/Users/John/.ivy2/cache/org.scala-sbt/zinc-compile_2.12/jars/zinc-compile_2.12-1.2.5.jar"
                         }
                     ]
                 }

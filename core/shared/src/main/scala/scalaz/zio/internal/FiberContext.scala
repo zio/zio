@@ -179,7 +179,7 @@ private[zio] final class FiberContext[E, A](
                   curIo = nextInstr(value)
 
                 case ZIO.Tags.AsyncEffect =>
-                  val io = curIo.asInstanceOf[ZIO.AsyncEffect[Any, E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.AsyncEffect[E, Any]]
 
                   // Enter suspended state:
                   curIo = if (enterAsync()) {
@@ -330,11 +330,11 @@ private[zio] final class FiberContext[E, A](
   private[this] final val resumeAsync: IO[E, Any] => Unit =
     io => if (exitAsync()) evaluateLater(io)
 
-  final def interrupt: UIO[Exit[E, A]] = IO.async0[Any, Nothing, Exit[E, A]] { k =>
+  final def interrupt: UIO[Exit[E, A]] = IO.async0[Nothing, Exit[E, A]] { k =>
     kill0(x => k(IO.done(x)))
   }
 
-  final def await: UIO[Exit[E, A]] = IO.async0[Any, Nothing, Exit[E, A]] { k =>
+  final def await: UIO[Exit[E, A]] = IO.async0[Nothing, Exit[E, A]] { k =>
     observe0(x => k(IO.done(x)))
   }
 
