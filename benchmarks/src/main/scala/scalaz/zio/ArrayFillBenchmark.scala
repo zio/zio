@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 
 import scala.collection.immutable.Range
-import scala.concurrent.duration.Duration
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
