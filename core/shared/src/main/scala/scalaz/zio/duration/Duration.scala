@@ -20,10 +20,10 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
     case f: Duration.Finite => finite(f)
   }
 
-  /* Number of milliseconds. Negative values indicate infinity */
-  def toMillis: Long
+  /* Number of milliseconds. (Long.MaxValue / 1000000) indicates infinity */
+  final def toMillis: Long = TimeUnit.NANOSECONDS.toMillis(toNanos)
 
-  /* Number of nanoseconds. Negative values indicate infinity */
+  /* Number of nanoseconds. Long.MaxValue indicates infinity */
   def toNanos: Long
 
   /* Whether this is a zero duration */
@@ -38,24 +38,20 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
 }
 
 final object Duration {
-
-  object Finite {
-
-    final def apply(nanos: Long): Duration =
-      if (nanos >= 0) new Finite(nanos)
-      else Infinity
-
-  }
-
   final case class Finite private (nanos: Long) extends Duration {
 
     final def +(other: Duration): Duration = other match {
-      case Finite(otherNanos) => Finite(nanos + otherNanos)
-      case Infinity           => Infinity
+      case Finite(otherNanos) =>
+        val sum = nanos + otherNanos
+        (nanos.signum, otherNanos.signum) match {
+          case (a, b) if a == b && a != sum.signum => Infinity // Integer overflow
+          case _                                   => Finite(sum)
+        }
+      case Infinity => Infinity
     }
 
     final def *(factor: Double): Duration =
-      if (!factor.isInfinite && !factor.isNaN) Finite((nanos * factor).round)
+      if (!factor.isInfinite && !factor.isNaN) Duration.fromNanos((nanos * factor).round)
       else Infinity
 
     final def compare(other: Duration) = other match {
@@ -63,11 +59,9 @@ final object Duration {
       case Infinity           => -1
     }
 
-    final def copy(nanos: Long = this.nanos): Duration = Finite(nanos)
+    final def copy(nanos: Long = this.nanos): Duration = Duration.fromNanos(nanos)
 
-    final def isZero: Boolean = nanos == 0
-
-    final def toMillis: Long = TimeUnit.NANOSECONDS.toMillis(nanos)
+    final def isZero: Boolean = nanos == 0L
 
     final def toNanos: Long = nanos
   }
@@ -78,11 +72,9 @@ final object Duration {
 
     final def *(factor: Double): Duration = Infinity
 
-    final def compare(other: Duration) = if (other == this) 0 else 1
+    final def compare(other: Duration) = if (other eq this) 0 else 1
 
-    val toMillis: Long = -1L
-
-    val toNanos: Long = -1L
+    val toNanos: Long = Long.MaxValue
 
     val isZero: Boolean = false
   }
@@ -97,5 +89,4 @@ final object Duration {
   }
 
   final val Zero: Duration = Finite(0)
-
 }
