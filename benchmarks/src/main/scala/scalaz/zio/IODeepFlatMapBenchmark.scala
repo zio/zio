@@ -88,6 +88,20 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
+  def twitterDeepFlatMap(): BigInt = {
+    import com.twitter.util.{ Await, Future }
+
+    def fib(n: Int): Future[BigInt] =
+      if (n <= 1) Future(n)
+      else
+        fib(n - 1).flatMap { a =>
+          fib(n - 2).flatMap(b => Future(a + b))
+        }
+
+    Await.result(fib(depth))
+  }
+
+  @Benchmark
   def monixDeepFlatMap(): BigInt = {
     import monix.eval.Task
 
