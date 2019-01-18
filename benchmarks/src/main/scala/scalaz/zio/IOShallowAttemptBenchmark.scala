@@ -94,6 +94,24 @@ class IOShallowAttemptBenchmark {
   }
 
   @Benchmark
+  def twitterShallowAttempt(): BigInt = {
+    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{ Return, Throw }
+
+    def throwup(n: Int): Future[BigInt] =
+      if (n == 0) throwup(n + 1).rescue {
+        case _ => Future.value(0)
+      } else if (n == depth) Future(1)
+      else
+        throwup(n + 1).transform {
+          case Throw(_)  => Future.value[BigInt](0)
+          case Return(_) => Future.exception[BigInt](new Error("Oh noes!"))
+        }
+
+    Await.result(throwup(0))
+  }
+
+  @Benchmark
   def monixShallowAttempt(): BigInt = {
     import monix.eval.Task
 

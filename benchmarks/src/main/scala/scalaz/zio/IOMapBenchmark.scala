@@ -7,7 +7,6 @@ import org.openjdk.jmh.annotations._
 import scalaz.zio.IOBenchmarks._
 
 import scala.annotation.tailrec
-import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -28,7 +27,7 @@ class IOMapBenchmark {
 
   @Benchmark
   def futureMap(): BigInt = {
-    import scala.concurrent.Future
+    import scala.concurrent.{ Await, Future }
     import scala.concurrent.duration.Duration.Inf
 
     @tailrec
@@ -76,6 +75,19 @@ class IOMapBenchmark {
 
     sumTo(Single.just(0), depth)
       .blockingGet()
+  }
+
+  @Benchmark
+  def twitterFutureMap(): BigInt = {
+    import com.twitter.util.{ Await, Future }
+
+    @tailrec
+    def sumTo(t: Future[BigInt], n: Int): Future[BigInt] =
+      if (n <= 1) t
+      else sumTo(t.map(_ + n), n - 1)
+
+    Await.result(sumTo(Future.apply(0), depth))
+
   }
 
   @Benchmark

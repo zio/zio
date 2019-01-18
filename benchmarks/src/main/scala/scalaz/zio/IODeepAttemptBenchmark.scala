@@ -77,6 +77,7 @@ class IODeepAttemptBenchmark {
   @Benchmark
   def rxSingleDeepAttempt(): BigInt = {
     import io.reactivex.Single
+
     def descent(n: Int): Single[BigInt] =
       if (n == depth)
         Single.error(new Exception("Oh noes!"))
@@ -87,6 +88,19 @@ class IODeepAttemptBenchmark {
         descent(n + 1).map(_ + n)
 
     descent(0).blockingGet()
+  }
+
+  @Benchmark
+  def twitterDeepAttempt(): BigInt = {
+    import com.twitter.util.{ Await, Future }
+
+    def descent(n: Int): Future[BigInt] =
+      if (n == depth)
+        Future.exception(new Error("Oh noes!"))
+      else if (n == halfway)
+        descent(n + 1).handle { case _ => 50 } else descent(n + 1).map(_ + n)
+
+    Await.result(descent(0))
   }
 
   @Benchmark

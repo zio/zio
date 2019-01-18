@@ -81,6 +81,20 @@ class IONarrowFlatMapBenchmark {
   }
 
   @Benchmark
+  def twitterNarrowFlatMap(): Int = {
+    import com.twitter.util.{ Await, Future }
+
+    def loop(i: Int): Future[Int] =
+      if (i < size) Future(i + 1).flatMap(loop)
+      else Future(i)
+
+    Await.result(
+      Future(0)
+        .flatMap(loop)
+    )
+  }
+
+  @Benchmark
   def monixNarrowFlatMap(): Int = {
     import monix.eval.Task
 
