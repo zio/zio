@@ -449,15 +449,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       if (n <= 0) ref.get
       else ref.update(_ + 1) *> incRight(n - 1, ref)
 
-    unsafeRun(for {
+    val l = unsafeRun(for {
       ref <- Ref(0)
       v   <- incLeft(100, ref)
-    } yield v) must_=== 100
+    } yield v)
 
-    unsafeRun(for {
+    val r = unsafeRun(for {
       ref <- Ref(0)
       v   <- incRight(1000, ref)
-    } yield v) must_=== 1000
+    } yield v)
+
+    (l must_=== 0) and (r must_=== 1000)
   }
 
   def testDeepMapOfPoint =
