@@ -342,14 +342,14 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.redeem[Nothing, Either[E, A]](IO.succeedLeft, IO.succeedRight)
 
   /**
-    * Unwraps the optional success of this effect, but can fail with unit value.
-    */
+   * Unwraps the optional success of this effect, but can fail with unit value.
+   */
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): IO[Unit, B] =
     IO.absolve(self.leftMap(ev1).map(_.toRight(())))
 
   /**
-    * Executes this action, skipping the error but returning optionally the success.
-    */
+   * Executes this action, skipping the error but returning optionally the success.
+   */
   final def option: IO[Nothing, Option[A]] =
     self.attempt.map {
       case Right(value) => Some(value)
