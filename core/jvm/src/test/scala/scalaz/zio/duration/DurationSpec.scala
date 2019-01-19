@@ -14,7 +14,6 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           The Duration is Finite                                               $pos1
           Its stdlib representation is correct                                 $pos2
           Its JDK representation is correct                                    $pos3
-          It identifies as "zero"                                              $pos4
           Creating it with a j.u.c.TimeUnit is identical                       $pos5
           It knows its length in ns                                            $pos6
           It knows its length in ms                                            $pos7
@@ -26,7 +25,9 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           10 ns * NaN = Infinity                                               $pos13
           10 ns compared to Infinity is -1                                     $pos14
           10 ns compared to 10 ns is 0                                         $pos15
-
+          multiplied by positive does not overflow to negative                 $pos16
+          multiplied by negative does not overflow to positive                 $pos17
+          multiplied by 0 is Zero                                              $pos18
         Make a Duration from negative nanos and check that:
           The Duration is Finite                                               $neg1
           Its stdlib representation is correct                                 $neg2
@@ -43,6 +44,12 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           -10 ns * NaN = Infinity                                              $neg13
           -10 ns compared to Infinity is -1                                    $neg14
           -10 ns compared to -10 ns is 0                                       $neg15
+          added to other does not overflow to Infinity                         $neg16
+          multiplied by positive does not overflow to positive                 $neg17
+          multiplied by negative does not overflow to negative                 $neg18
+          multiplied by 0 is Zero                                              $neg19
+          multiplied by NegativeInfinity is Infinity                           $neg20
+          multiplied by PositiveInfinity is NegativeInfinity                   $neg21
 
         Take Infinity and check that:
           It returns (Long.MaxValue/1000000) milliseconds                      $inf1
@@ -56,6 +63,14 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           Infinity is not zero                                                 $inf9
           It converts into the infinite s.c.d.Duration                         $inf10
           It converts into a Long.MaxValue second-long JDK Duration            $inf11
+
+        Duration.Zero
+          isZero returns true                                                  $zero1
+          equals Duration.fromNanos(0L)                                        $zero2
+          * Nan remains Zero                                                   $zero3
+          * negative infinity remains Zero                                     $zero4
+          * 3 remains Zero                                                     $zero5
+          * 0 remains Zero                                                     $zero6
 
         Make a Scala stdlib s.c.d.Duration and check that:
           A negative s.c.d.Duration converts to a Finite                       $dur1
@@ -71,9 +86,6 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
 
   def pos3 =
     Duration.fromNanos(2345L).asJava must_=== JavaDuration.ofNanos(2345L)
-
-  def pos4 =
-    Duration.fromNanos(0L).isZero must_=== true
 
   def pos5 =
     Duration(12L, TimeUnit.NANOSECONDS) must_=== Duration.fromNanos(12L)
@@ -107,6 +119,15 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
 
   def pos15 =
     Duration.fromNanos(10L) compare Duration.fromNanos(10L) must_=== 0
+
+  def pos16 =
+    Duration.fromNanos(Long.MaxValue - 1) * 2 must_=== Duration.Infinity
+
+  def pos17 =
+    Duration.fromNanos(Long.MaxValue - 1) * -2 must_=== Duration.fromNanos(Long.MinValue)
+
+  def pos18 =
+    Duration.fromNanos(42) * 0 must_=== Duration.Zero
 
   def neg1 =
     Duration.fromNanos(-1) must haveClass[Duration.Finite]
@@ -153,6 +174,24 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
   def neg15 =
     Duration.fromNanos(-10L) compare Duration.fromNanos(-10L) must_=== 0
 
+  def neg16 =
+    Duration.fromNanos(-42L) + Duration.fromNanos(Long.MinValue) must_=== Duration.fromNanos(Long.MinValue)
+
+  def neg17 =
+    Duration.fromNanos(Long.MinValue + 1) * 2 must_=== Duration.fromNanos(Long.MinValue)
+
+  def neg18 =
+    Duration.fromNanos(Long.MinValue + 1) * (-2) must_=== Duration.Infinity
+
+  def neg19 =
+    Duration.fromNanos(-1000) * 0 must_=== Duration.Zero
+
+  def neg20 =
+    Duration.fromNanos(-1000) * Double.NegativeInfinity must_=== Duration.Infinity
+
+  def neg21 =
+    Duration.fromNanos(-1000) * Double.PositiveInfinity must_=== Duration.fromNanos(Long.MinValue)
+
   def inf1 =
     Duration.Infinity.toMillis must_=== Long.MaxValue / 1000000L
 
@@ -185,6 +224,24 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
 
   def inf11 =
     Duration.Infinity.asJava must_=== JavaDuration.ofSeconds(Long.MaxValue)
+
+  def zero1 =
+    Duration.fromNanos(0L).isZero must_=== true
+
+  def zero2 =
+    Duration.fromNanos(0L) == Duration.Zero must_=== true
+
+  def zero3 =
+    Duration.Zero * Double.NaN == Duration.Zero must_=== true
+
+  def zero4 =
+    Duration.Zero * Double.NegativeInfinity == Duration.Zero must_=== true
+
+  def zero5 =
+    Duration.Zero * 3 == Duration.Zero must_=== true
+
+  def zero6 =
+    Duration.Zero * 0 == Duration.Zero must_=== true
 
   def dur1 =
     Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)) must_=== Duration.fromNanos(-1L)

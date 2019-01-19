@@ -670,7 +670,7 @@ object Schedule extends Serializable {
    */
   final def fixed(interval: Duration): Schedule[Any, Int] = interval match {
     case Duration.Infinity                    => once >>> never
-    case Duration.Finite(nanos) if nanos == 0 => forever
+    case Duration.Finite(nanos) if nanos <= 0 => forever
     case Duration.Finite(nanos) =>
       Schedule[(Long, Int, Int), Any, Int](
         _.nanoTime.map(nt => (nt, 0, 0)),
