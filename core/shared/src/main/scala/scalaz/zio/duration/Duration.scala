@@ -44,15 +44,21 @@ final object Duration {
       case Finite(otherNanos) =>
         val sum = nanos + otherNanos
         (nanos.signum, otherNanos.signum) match {
-          case (a, b) if a == b && a != sum.signum => Infinity // Integer overflow
-          case _                                   => Finite(sum)
+          case (a, b) if a == b && a != sum.signum => // Integer overflow
+            if (a == -1) Duration.Finite(Long.MinValue) else Infinity
+          case _ =>
+            Finite(sum)
         }
       case Infinity => Infinity
     }
 
     final def *(factor: Double): Duration =
-      if (!factor.isInfinite && !factor.isNaN) Duration.fromNanos((nanos * factor).round)
-      else Infinity
+      if (nanos == 0) Duration.Zero
+      else if (!factor.isNaN) {
+        if (1 <= ((Long.MaxValue.toDouble / nanos) / factor).abs) Finite((nanos * factor).round)
+        else if (Math.signum(factor) != Math.signum(nanos.toDouble)) Finite(Long.MinValue)
+        else Infinity
+      } else Infinity
 
     final def compare(other: Duration) = other match {
       case Finite(otherNanos) => nanos compare otherNanos
