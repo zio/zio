@@ -673,7 +673,7 @@ object Schedule extends Serializable {
     case Duration.Finite(nanos) if nanos == 0 => forever
     case Duration.Finite(nanos) =>
       Schedule[(Long, Int, Int), Any, Int](
-        _.nanoTime.map(nt => (nt, 0, 0)),
+        _.nanoTime.map(nt => (nt, 1, 0)),
         (_, t, clock) =>
           t match {
             case (start, n0, i) =>
