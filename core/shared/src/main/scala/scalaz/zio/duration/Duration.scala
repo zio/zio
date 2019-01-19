@@ -5,10 +5,21 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 import scala.math.Ordered
 
+/** Non-negative duration.
+ * Operations that would result in negative value of nanoseconds return zero duration
+ * and ones that would result in `Long.MaxValue` overflow return infinity.
+ * `Infinity` has `Long.MaxValue` nanoseconds value, but for arithmetic operations behaviour is
+ * mathematical infinity like-ish.
+ */
 sealed trait Duration extends Ordered[Duration] with Serializable with Product {
 
+  /** Adds other `Duration`. When nanoseconds overflow `Long.MaxValue` returns `Infinity`.
+   */
   def +(other: Duration): Duration
 
+  /** Multiplies by factor, when nanoseconds overflow `Long.MaxValue` returns `Infinity`,
+   * if factor is negative returns `Duration.Zero`.
+   */
   def *(factor: Double): Duration
 
   final def max(other: Duration): Duration = if (this > other) this else other
@@ -20,21 +31,19 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
     case f: Duration.Finite => finite(f)
   }
 
-  /* Number of milliseconds. Negative values indicate infinity */
+  /** Number of milliseconds.*/
   def toMillis: Long
 
-  /* Number of nanoseconds. Negative values indicate infinity */
+  /** Number of nanoseconds.*/
   def toNanos: Long
 
-  /* Whether this is a zero duration */
+  /** Whether this is a zero duration */
   def isZero: Boolean
 
-  final def asScala: ScalaDuration =
-    fold(ScalaDuration.Inf, d => ScalaFiniteDuration(d.toNanos, TimeUnit.NANOSECONDS))
+  def asScala: ScalaDuration
 
-  /* The `java.time.Duration` returned for an infinite Duration is technically "only" ~2x10^16 hours long (Long.MaxValue number of seconds) */
-  final def asJava: JavaDuration =
-    fold(JavaDuration.ofSeconds(Long.MaxValue), d => JavaDuration.ofNanos(d.toNanos))
+  /** The `java.time.Duration` returned for an infinite Duration is technically "only" ~2x10^16 hours long (`Long.MaxValue` number of seconds) */
+  def asJava: JavaDuration
 }
 
 final object Duration {
@@ -43,19 +52,24 @@ final object Duration {
 
     final def apply(nanos: Long): Duration =
       if (nanos >= 0) new Finite(nanos)
-      else Infinity
+      else Zero
 
   }
 
   final case class Finite private (nanos: Long) extends Duration {
 
     final def +(other: Duration): Duration = other match {
-      case Finite(otherNanos) => Finite(nanos + otherNanos)
-      case Infinity           => Infinity
+      case Finite(otherNanos) =>
+        val sum = nanos + otherNanos
+        // Check for overflow
+        if (sum >= 0) Finite(sum) else Infinity
+      case Infinity => Infinity
     }
 
     final def *(factor: Double): Duration =
-      if (!factor.isInfinite && !factor.isNaN) Finite((nanos * factor).round)
+      if (factor < 0) Zero
+      else if (factor < 1) Finite((nanos * factor).round)
+      else if (factor < Long.MaxValue / nanos) Finite((nanos * factor).round)
       else Infinity
 
     final def compare(other: Duration) = other match {
@@ -70,21 +84,30 @@ final object Duration {
     final def toMillis: Long = TimeUnit.NANOSECONDS.toMillis(nanos)
 
     final def toNanos: Long = nanos
+
+    override def asScala: ScalaDuration = ScalaFiniteDuration(nanos, TimeUnit.NANOSECONDS)
+
+    override def asJava: JavaDuration = JavaDuration.ofNanos(nanos)
   }
 
   final case object Infinity extends Duration {
 
     final def +(other: Duration): Duration = Infinity
 
-    final def *(factor: Double): Duration = Infinity
+    final def *(factor: Double): Duration =
+      if (factor < 0) Duration.Zero else Infinity
 
     final def compare(other: Duration) = if (other == this) 0 else 1
 
-    val toMillis: Long = -1L
+    val toMillis: Long = TimeUnit.NANOSECONDS.toMillis(Long.MaxValue)
 
-    val toNanos: Long = -1L
+    val toNanos: Long = Long.MaxValue
 
     val isZero: Boolean = false
+
+    override def asScala: ScalaDuration = ScalaDuration.Inf
+
+    override def asJava: JavaDuration = JavaDuration.ofSeconds(Long.MaxValue)
   }
 
   final def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
