@@ -351,10 +351,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Executes this action, skipping the error but returning optionally the success.
    */
   final def option: IO[Nothing, Option[A]] =
-    self.attempt.map {
-      case Right(value) => Some(value)
-      case _            => None
-    }
+    self.redeem0(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
   /**
    * When this action represents acquisition of a resource (for example,
