@@ -342,6 +342,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.redeem[Nothing, Either[E, A]](IO.succeedLeft, IO.succeedRight)
 
   /**
+    * Unwraps the optional success of this effect, but can fail with unit value.
+    */
+  final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): IO[Unit, B] =
+    IO.absolve(self.leftMap(ev1).map(_.toRight(())))
+
+  /**
    * When this action represents acquisition of a resource (for example,
    * opening a file, launching a thread, etc.), `bracket` can be used to ensure
    * the acquisition is not interrupted and the resource is released.
