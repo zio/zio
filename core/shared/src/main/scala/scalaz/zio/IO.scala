@@ -348,6 +348,15 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.absolve(self.leftMap(ev1).map(_.toRight(())))
 
   /**
+    * Executes this action, skipping the error but returning optionally the success.
+    */
+  final def option: IO[Nothing, Option[A]] =
+    self.attempt.map {
+      case Right(value) => Some(value)
+      case _            => None
+    }
+
+  /**
    * When this action represents acquisition of a resource (for example,
    * opening a file, launching a thread, etc.), `bracket` can be used to ensure
    * the acquisition is not interrupted and the resource is released.
