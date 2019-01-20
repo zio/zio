@@ -68,7 +68,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   private val catchBlockExceptionTask = {
     val ex                     = new Exception("no value for you!")
     val noFuture: Future[Unit] = Future.failed(ex)
-    unsafeRun(Task.fromFutureTask(ec)(Task { noFuture })) must throwA(FiberFailure(Checked(ex)))
+    unsafeRun(Task.fromFuture(ec)(Task { noFuture })) must throwA(FiberFailure(Checked(ex)))
   }
 
   private val propagateExceptionFromFuture = {
@@ -80,7 +80,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   private val propagateExceptionFromFutureTask = {
     val ex                    = new Exception("no value for you!")
     val noValue: Future[Unit] = Future.failed(ex)
-    unsafeRun(Task.fromFutureTask(ec)(Task { noValue })) must throwA(FiberFailure(Checked(ex)))
+    unsafeRun(Task.fromFuture(ec)(Task { noValue })) must throwA(FiberFailure(Checked(ex)))
   }
 
   private val produceValueFromFuture = {
@@ -90,7 +90,7 @@ class futureSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   private val produceValueFromFutureTask = {
     val someValue: Future[Int] = Future { 42 }
-    unsafeRun(Task.fromFutureTask(ec)(Task { someValue })) must_=== 42
+    unsafeRun(Task.fromFuture(ec)(Task { someValue })) must_=== 42
   }
 
   private val futureActionCatchBlockException = {

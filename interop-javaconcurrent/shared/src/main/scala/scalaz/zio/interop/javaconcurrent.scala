@@ -2,7 +2,7 @@ package scalaz.zio.interop
 
 import java.util.concurrent.{ CompletableFuture, CompletionException, CompletionStage, Future }
 
-import scalaz.zio.{ ExitResult, Fiber, IO }
+import scalaz.zio.{ Exit, Fiber, IO }
 
 import scala.concurrent.ExecutionException
 
@@ -14,7 +14,7 @@ object javaconcurrent {
       IO.async { cb =>
         val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
           if (v != null) {
-            cb(IO.now(v))
+            cb(IO.succeed(v))
           } else {
             val io = t match {
               case e: CompletionException =>
@@ -41,7 +41,7 @@ object javaconcurrent {
           IO.sync {
             try {
               val result = f.get()
-              IO.now(result)
+              IO.succeed(result)
             } catch {
               case e: ExecutionException =>
                 IO.fail(e.getCause)
@@ -77,21 +77,22 @@ object javaconcurrent {
 
       new Fiber[Throwable, A] {
 
-        def observe: IO[Nothing, ExitResult[Throwable, A]] =
-          IO.fromFutureJava(() => ftr).redeemPure(ExitResult.checked, ExitResult.succeeded)
+        def await: IO[Nothing, Exit[Throwable, A]] =
+          IO.fromFutureJava(() => ftr).redeemPure(Exit.checked, Exit.succeed)
 
-        def poll: IO[Unit, ExitResult[Throwable, A]] =
+        def poll: IO[Nothing, Option[Exit[Throwable, A]]] =
           IO.suspend {
             if (ftr.isDone) {
               IO.syncException(ftr.get())
-                .redeemPure(ExitResult.checked, ExitResult.succeeded)
+                .redeemPure(Exit.checked, Exit.succeed)
+                .map(Some(_))
             } else {
-              IO.fail(())
+              IO.succeed(None)
             }
           }
 
-        def interrupt: IO[Nothing, ExitResult[Throwable, A]] =
-          join.redeemPure(ExitResult.checked, ExitResult.succeeded)
+        def interrupt: IO[Nothing, Exit[Throwable, A]] =
+          join.redeemPure(Exit.checked, Exit.succeed)
       }
     }
   }
