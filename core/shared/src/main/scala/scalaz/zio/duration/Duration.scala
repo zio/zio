@@ -20,6 +20,15 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
     case f: Duration.Finite => finite(f)
   }
 
+  /* Number of milliseconds. Negative values indicate infinity */
+  def toMillis: Long
+
+  /* Number of nanoseconds. Negative values indicate infinity */
+  def toNanos: Long
+
+  /* Whether this is a zero duration */
+  def isZero: Boolean
+
   final def asScala: ScalaDuration =
     fold(ScalaDuration.Inf, d => ScalaFiniteDuration(d.toNanos, TimeUnit.NANOSECONDS))
 
@@ -71,6 +80,11 @@ final object Duration {
 
     final def compare(other: Duration) = if (other == this) 0 else 1
 
+    val toMillis: Long = -1L
+
+    val toNanos: Long = -1L
+
+    val isZero: Boolean = false
   }
 
   final def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))

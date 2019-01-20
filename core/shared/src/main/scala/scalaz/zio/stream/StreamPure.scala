@@ -35,8 +35,10 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         else s
       }
 
-    override def foldLazy[E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      StreamPure.super.filter(pred).foldLazy(s)(cont)(f)
+    override def fold[E, A1 >: A, S]: Stream.Fold[E, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        StreamPure.super.filter(pred).fold[E, A1, S].flatMap(f0 => f0(s, cont, f))
+      }
   }
 
   /**
@@ -52,8 +54,10 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         }
         ._2
 
-    override def foldLazy[E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      StreamPure.super.dropWhile(pred).foldLazy(s)(cont)(f)
+    override def fold[E, A1 >: A, S]: Stream.Fold[E, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        StreamPure.super.dropWhile(pred).fold[E, A1, S].flatMap(f0 => f0(s, cont, f))
+      }
   }
 
   /**
@@ -70,16 +74,20 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         }
         ._2
 
-    override def foldLazy[E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      StreamPure.super.takeWhile(pred).foldLazy(s)(cont)(f)
+    override def fold[E, A1 >: A, S]: Stream.Fold[E, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        StreamPure.super.takeWhile(pred).fold[E, A1, S].flatMap(f0 => f0(s, cont, f))
+      }
   }
 
   /**
    * Maps over elements of the stream with the specified function.
    */
   override def map[B](f0: A => B): StreamPure[B] = new StreamPure[B] {
-    override def foldLazy[E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E, S]): IO[E, S] =
-      StreamPure.super.map(f0).foldLazy(s)(cont)(f)
+    override def fold[E, B1 >: B, S]: Stream.Fold[E, B1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        StreamPure.super.map(f0).fold[E, B1, S].flatMap(f1 => f1(s, cont, f))
+      }
 
     override def foldPureLazy[B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => S): S =
       self.foldPureLazy[A, S](s)(cont)((s, a) => f(s, f0(a)))
@@ -89,8 +97,10 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
     override def foldPureLazy[B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => S): S =
       self.foldPureLazy(s)(cont)((s, a) => f0(a).foldLeftLazy(s)(cont)(f))
 
-    override def foldLazy[E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E, S]): IO[E, S] =
-      StreamPure.super.mapConcat(f0).foldLazy(s)(cont)(f)
+    override def fold[E, B1 >: B, S]: Stream.Fold[E, B1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        StreamPure.super.mapConcat(f0).fold[E, B1, S].flatMap(f1 => f1(s, cont, f))
+      }
   }
 
   override def zipWithIndex: StreamPure[(A, Int)] = new StreamPure[(A, Int)] {
@@ -101,8 +111,10 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         }
         ._1
 
-    override def foldLazy[E, A1 >: (A, Int), S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      StreamPure.super.zipWithIndex.foldLazy(s)(cont)(f)
+    override def fold[E, A1 >: (A, Int), S]: Stream.Fold[E, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        StreamPure.super.zipWithIndex.fold[E, A1, S].flatMap(f0 => f0(s, cont, f))
+      }
   }
 
   /**
@@ -119,8 +131,10 @@ private[stream] trait StreamPure[+A] extends Stream[Nothing, A] { self =>
         }
         ._1
 
-    override def foldLazy[E, B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => IO[E, S]): IO[E, S] =
-      StreamPure.super.mapAccum(s1)(f1).foldLazy(s)(cont)(f)
+    override def fold[E, B1 >: B, S]: Stream.Fold[E, B1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        StreamPure.super.mapAccum(s1)(f1).fold[E, B1, S].flatMap(f0 => f0(s, cont, f))
+      }
   }
 }
 
@@ -130,20 +144,21 @@ private[stream] object StreamPure {
    * Constructs a pure stream from the specified `Iterable`.
    */
   final def fromIterable[A](it: Iterable[A]): StreamPure[A] = new StreamPure[A] {
-    override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] = {
-      val iterator = it.iterator
+    override def fold[E >: Nothing, A1 >: A, S]: Stream.Fold[E, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        val iterator = it.iterator
 
-      def loop(s: S): IO[E, S] =
-        IO.flatten {
-          IO.sync {
-            if (iterator.hasNext && cont(s))
-              f(s, iterator.next).flatMap(loop)
-            else IO.succeed(s)
+        def loop(s: S): IO[E, S] =
+          IO.flatten {
+            IO.sync {
+              if (iterator.hasNext && cont(s))
+                f(s, iterator.next).flatMap(loop)
+              else IO.succeed(s)
+            }
           }
-        }
 
-      loop(s)
-    }
+        loop(s)
+      }
 
     override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = {
       val iterator = it.iterator
@@ -160,9 +175,11 @@ private[stream] object StreamPure {
    * Constructs a singleton stream.
    */
   final def succeedLazy[A](a: => A): StreamPure[A] = new StreamPure[A] {
-    override def foldLazy[E >: Nothing, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      if (cont(s)) f(s, a)
-      else IO.succeed(s)
+    override def fold[E >: Nothing, A1 >: A, S]: Stream.Fold[E, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        if (cont(s)) f(s, a)
+        else IO.succeed(s)
+      }
 
     override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
       if (cont(s)) f(s, a)
@@ -173,8 +190,8 @@ private[stream] object StreamPure {
    * Returns the empty stream.
    */
   final val empty: StreamPure[Nothing] = new StreamPure[Nothing] {
-    override def foldLazy[E >: Nothing, A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => IO[E, S]): IO[E, S] =
-      IO.succeed(s)
+    override def fold[E >: Nothing, A1 >: Nothing, S]: Stream.Fold[E, A1, S] =
+      IO.succeedLazy((s, _, _) => IO.succeed(s))
 
     override def foldPureLazy[A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = s
   }
