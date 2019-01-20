@@ -1,7 +1,5 @@
 package scalaz.zio
 
-import scalaz.zio.syntax._
-
 class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
   def is = "PromiseSpec".title ^ s2"""
