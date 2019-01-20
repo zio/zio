@@ -41,17 +41,6 @@ object IOSyntax {
     def collectAll: IO[E, List[A]]                     = IO.collectAll(ios)
   }
 
-  final class IOGetSyntax[A](val io: IO[Nothing, Option[A]]) extends AnyVal {
-    def get: IO[Unit, A] = io.map(_.toRight(())).absolve
-  }
-
-  final class IOOptionSyntax[A](val io: IO[Unit, A]) extends AnyVal {
-    def option: IO[Nothing, Option[A]] = io.attempt.map {
-      case Right(value) => Some(value)
-      case _            => None
-    }
-  }
-
   final class IOSyntax[E, A](val io: IO[E, A]) extends AnyVal {
     def raceAll(ios: Iterable[IO[E, A]]): IO[E, A] = IO.raceAll(io, ios)
     def supervise: IO[E, A]                        = IO.supervise(io)
