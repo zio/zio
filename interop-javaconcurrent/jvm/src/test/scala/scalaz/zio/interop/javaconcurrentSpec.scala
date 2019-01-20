@@ -4,7 +4,7 @@ package interop
 import java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
 
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.ExitResult.Cause.{ Checked, Unchecked }
+import scalaz.zio.Exit.Cause.{ Checked, Unchecked }
 import scalaz.zio.interop.javaconcurrent._
 
 class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
@@ -115,7 +115,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val toCompletableFutureValue = {
-    val someIO = IO.now[Int](42)
+    val someIO = IO.succeed[Int](42)
     unsafeRun(someIO.toCompletableFuture).get() must beEqualTo(42)
   }
 
