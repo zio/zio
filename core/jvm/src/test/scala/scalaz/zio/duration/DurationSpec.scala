@@ -12,8 +12,8 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
   def is = "DurationSpec".title ^ s2"""
         Make a Duration from positive nanos and check that:
           The Duration is Finite                                               $pos1
-          Copy with a negative nanos returns Infinity                          $pos2
-          Multiplying with a negative factor returns Infinity                  $pos3
+          Copy with a negative nanos returns Zero                              $pos2
+          Multiplying with a negative factor returns Zero                      $pos3
           Its stdlib representation is correct                                 $pos4
           Its JDK representation is correct                                    $pos5
           It identifies as "zero"                                              $pos6
@@ -28,9 +28,13 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           10 ns * NaN = Infinity                                               $pos15
           10 ns compared to Infinity is -1                                     $pos16
           10 ns compared to 10 ns is 0                                         $pos17
+          + with positive overflow results in Infinity                         $pos18
+          * with negative duration results in zero                             $pos19
+          * with overflow to positive results in Infinity                      $pos20
+          * with overflow to negative results in Infinity                      $pos21
 
         Make a Duration from negative nanos and check that:
-          The Duration is Infinity                                             $neg1
+          The Duration is Zero                                                 $neg1
 
         Take Infinity and check that:
           It returns -1 milliseconds                                           $inf1
@@ -46,7 +50,7 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           It converts into a Long.MaxValue second-long JDK Duration            $inf11
 
         Make a Scala stdlib s.c.d.Duration and check that:
-          A negative s.c.d.Duration converts to Infinity                       $dur1
+          A negative s.c.d.Duration converts to Zero                           $dur1
           The infinite s.c.d.Duration converts to Infinity                     $dur2
           A positive s.c.d.Duration converts to a Finite                       $dur3
      """
@@ -55,10 +59,10 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
     Duration.fromNanos(1) must haveClass[Duration.Finite]
 
   def pos2 =
-    Duration.fromNanos(1).asInstanceOf[Duration.Finite].copy(-1) must_=== Duration.Infinity
+    Duration.fromNanos(1).asInstanceOf[Duration.Finite].copy(-1) must_=== Duration.Zero
 
   def pos3 =
-    Duration.fromNanos(1) * -1.0 must_=== Duration.Infinity
+    Duration.fromNanos(1) * -1.0 must_=== Duration.Zero
 
   def pos4 =
     Duration.fromNanos(1234L).asScala must_=== ScalaFiniteDuration(1234L, TimeUnit.NANOSECONDS)
@@ -102,14 +106,26 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
   def pos17 =
     Duration.fromNanos(10L) compare Duration.fromNanos(10L) must_=== 0
 
+  def pos18 =
+    Duration.fromNanos(Long.MaxValue - 1) + Duration.fromNanos(42) must_=== Duration.Infinity
+
+  def pos19 =
+    Duration.fromNanos(42) * -7 must_=== Duration.Zero
+
+  def pos20 =
+    Duration.fromNanos(Long.MaxValue) * 3 must_=== Duration.Infinity
+
+  def pos21 =
+    Duration.fromNanos(Long.MaxValue) * 2 must_=== Duration.Infinity
+
   def neg1 =
-    Duration.fromNanos(-1) must_=== Duration.Infinity
+    Duration.fromNanos(-1) must_=== Duration.Zero
 
   def inf1 =
-    Duration.Infinity.toMillis must_=== -1L
+    Duration.Infinity.toMillis must_=== Long.MaxValue / 1000000
 
   def inf2 =
-    Duration.Infinity.toNanos must_=== -1L
+    Duration.Infinity.toNanos must_=== Long.MaxValue
 
   def inf3 =
     Duration.Infinity + Duration.Infinity must_=== Duration.Infinity
@@ -139,7 +155,7 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
     Duration.Infinity.asJava must_=== JavaDuration.ofSeconds(Long.MaxValue)
 
   def dur1 =
-    Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)) must_=== Duration.Infinity
+    Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)) must_=== Duration.Zero
 
   def dur2 =
     Duration.fromScala(ScalaDuration.Inf) must_=== Duration.Infinity
