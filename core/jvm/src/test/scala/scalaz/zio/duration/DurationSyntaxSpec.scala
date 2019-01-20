@@ -25,8 +25,8 @@ class DurationSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extend
     2L.minutes      = fromNanos(120000000000L)               $nano16L
     1L.hour         = fromNanos(3600000000000L)              $nano17L
     2L.hours        = fromNanos(7200000000000L)              $nano18L
-    1L.day          = fromNanos(38400000000000L)             $nano19L
-    2L.days         = fromNanos(76800000000000L)             $nano20L
+    1L.day          = fromNanos(86400000000000L)             $nano19L
+    2L.days         = fromNanos(172800000000000L)            $nano20L
 
     Int:
 
@@ -48,7 +48,7 @@ class DurationSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extend
     2.minutes      = fromNanos(120000000000L)              $nano16
     1.hour         = fromNanos(3600000000000L)             $nano17
     2.hours        = fromNanos(7200000000000L)             $nano18
-    1.day          = fromNanos(38400000000000L)            $nano19
+    1.day          = fromNanos(86400000000000L)            $nano19
     2.days         = fromNanos(76800000000000L)            $nano20
   """
 
