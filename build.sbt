@@ -53,9 +53,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.3.4" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.3.4" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.3.4" % Test
+      "org.specs2" %%% "specs2-core"          % "4.3.6" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.3.6" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.3.6" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
@@ -115,7 +115,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect" % "1.1.0" % Optional,
-      "co.fs2"        %%% "fs2-core"    % "1.0.0" % Test
+      "co.fs2"        %%% "fs2-core"    % "1.0.2" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
@@ -128,7 +128,7 @@ lazy val interopCatsJVM = interopCats.jvm
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"          % "1.1.0" % Test,
-      "org.typelevel"              %% "cats-testkit"              % "1.3.1" % Test,
+      "org.typelevel"              %% "cats-testkit"              % "1.5.0" % Test,
       "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8" % Test
     ),
     dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test
@@ -190,8 +190,8 @@ lazy val benchmarks = project.module
         "org.scala-lang"    % "scala-compiler" % scalaVersion.value % Provided,
         "io.monix"          %% "monix"         % "3.0.0-RC2",
         "org.typelevel"     %% "cats-effect"   % "1.1.0",
-        "co.fs2"            %% "fs2-core"      % "1.0.0",
-        "com.typesafe.akka" %% "akka-stream"   % "2.5.17"
+        "co.fs2"            %% "fs2-core"      % "1.0.2",
+        "com.typesafe.akka" %% "akka-stream"   % "2.5.19"
       ),
     scalacOptions in Compile in console := Seq(
       "-Ypartial-unification",
@@ -212,7 +212,7 @@ lazy val microsite = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % "1.0",
+      "com.github.ghik" %% "silencer-lib" % "1.3.1",
       "commons-io"      % "commons-io"    % "2.6"
     ),
     micrositeFooterText := Some(

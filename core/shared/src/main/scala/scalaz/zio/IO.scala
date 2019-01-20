@@ -94,7 +94,10 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * val parsed = readFile("foo.txt").flatMap(file => parseFile(file))
    * }}}
    */
-  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = new ZIO.FlatMap(self, f0)
+  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = (self.tag: @switch) match {
+    case ZIO.Tags.Fail => self.asInstanceOf[IO[E1, B]]
+    case _             => new ZIO.FlatMap(self, f0)
+  }
 
   /**
    * Forks this action into its own separate fiber, returning immediately
@@ -108,7 +111,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * for {
    *   fiber <- subtask.fork
    *   // Do stuff...
-   *   a <- subtask.join
+   *   a <- fiber.join
    * } yield a
    * }}}
    */
@@ -352,6 +355,18 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     self.redeem(ZIO.succeedLeft, ZIO.succeedRight)
 
   /**
+   * Unwraps the optional success of this effect, but can fail with unit value.
+   */
+  final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
+    ZIO.absolve(self.leftMap(ev1).map(_.toRight(())))
+
+  /**
+   * Executes this action, skipping the error but returning optionally the success.
+   */
+  final def option: ZIO[R, Nothing, Option[A]] =
+    self.redeem0(_ => IO.succeed(None), a => IO.succeed(Some(a)))
+
+  /**
    * When this action represents acquisition of a resource (for example,
    * opening a file, launching a thread, etc.), `bracket` can be used to ensure
    * the acquisition is not interrupted and the resource is released.
@@ -494,7 +509,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Recovers from all errors.
    *
    * {{{
-   * openFile("config.json").catchAll(_ => IO.now(defaultConfig))
+   * openFile("config.json").catchAll(_ => IO.succeed(defaultConfig))
    * }}}
    */
   final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
@@ -762,13 +777,13 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    *   veryBadIO.sandboxed.catchAll {
    *     case Left((_: ArithmeticException) :: Nil) =>
    *       // Caught defect: divided by zero!
-   *       IO.now(0)
+   *       IO.succeed(0)
    *     case Left(ts) =>
    *       // Caught unknown defects, shouldn't recover!
    *       IO.terminate0(ts)
    *     case Right(e) =>
    *       // Caught error: DomainError!
-   *      IO.now(0)
+   *      IO.succeed(0)
    *   }
    * }}}
    */
@@ -791,7 +806,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    *   veryBadIO.sandboxWith(_.catchSome {
    *     case Left((_: ArithmeticException) :: Nil) =>
    *       // Caught defect: divided by zero!
-   *       IO.now(0)
+   *       IO.succeed(0)
    *   })
    * }}}
    *

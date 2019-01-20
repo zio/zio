@@ -8,18 +8,18 @@ package object console {
   /**
    * Prints text to the console.
    */
-  def putStr(line: String): ZIO[Console, Nothing, Unit] =
+  final def putStr(line: String): ZIO[Console, Nothing, Unit] =
     ZIO.readM(_.console putStr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
+  final def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
     ZIO.readM(_.console putStrLn line)
 
   /**
    * Retrieves a line of input from the console.
    */
-  val getStrLn: ZIO[Console, IOException, String] =
+  final val getStrLn: ZIO[Console, IOException, String] =
     ZIO.readM(_.console.getStrLn)
 }

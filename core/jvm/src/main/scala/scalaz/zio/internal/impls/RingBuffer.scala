@@ -9,7 +9,7 @@ object RingBuffer {
   /**
    * @note mimimum supported capacity is 2
    */
-  def apply[A](requestedCapacity: Int): RingBuffer[A] = {
+  final def apply[A](requestedCapacity: Int): RingBuffer[A] = {
     assert(requestedCapacity >= 2)
 
     if (nextPow2(requestedCapacity) == requestedCapacity) RingBufferPow2(requestedCapacity)
@@ -20,7 +20,7 @@ object RingBuffer {
    * Used only once during queue creation. Doesn't need to be
    * performant or anything.
    */
-  def nextPow2(n: Int): Int = {
+  final def nextPow2(n: Int): Int = {
     val nextPow = (Math.log(n.toDouble) / Math.log(2.0)).ceil.toInt
     Math.pow(2.0, nextPow.toDouble).toInt.max(2)
   }

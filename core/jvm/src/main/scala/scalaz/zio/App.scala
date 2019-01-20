@@ -13,7 +13,7 @@ import scalaz.zio.duration.Duration
  *
  * object MyApp extends App {
  *
- *   def run(args: List[String]): UIO[ExitStatus] =
+ *   final def run(args: List[String]): UIO[ExitStatus] =
  *     myAppLogic.provide(Console.Live).attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
  *
  *   def myAppLogic: ZIO[Console, IOException, Unit] =

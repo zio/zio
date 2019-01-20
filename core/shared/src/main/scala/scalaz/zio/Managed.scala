@@ -31,7 +31,7 @@ sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
 
       protected def release: A1 => IO[Nothing, Unit] = _ => IO.unit
 
-      def use[R1 <: R, E1 >: E, A](f: A1 => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+      final def use[R1 <: R, E1 >: E, A](f: A1 => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
         self.use(r => f(f0(r)))
     }
 
@@ -43,7 +43,7 @@ sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
 
       protected def release: A1 => UIO[Unit] = _ => IO.unit
 
-      def use[R2 <: R1, E2 >: E1, A](f: A1 => ZIO[R2, E2, A]): ZIO[R2, E2, A] =
+      final def use[R2 <: R1, E2 >: E1, A](f: A1 => ZIO[R2, E2, A]): ZIO[R2, E2, A] =
         self.use { r =>
           f0(r).use { r1 =>
             f(r1)
@@ -100,7 +100,7 @@ object Managed {
 
       protected def release: A => UIO[_] = r
 
-      def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
+      final def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
         acquire.bracket[R1, E1, A1](release)(f)
     }
 
@@ -116,7 +116,7 @@ object Managed {
 
       protected def release: A => UIO[_] = _ => IO.unit
 
-      def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
+      final def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
         fa flatMap f
     }
 
@@ -131,7 +131,7 @@ object Managed {
 
       protected def release: A => UIO[Unit] = _ => IO.unit
 
-      def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
+      final def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
         fa flatMap (_ use f)
     }
 
@@ -146,7 +146,7 @@ object Managed {
 
       protected def release: A => UIO[_] = _ => IO.unit
 
-      def use[R <: Any, E >: Nothing, A1](f: A => ZIO[R, E, A1]): ZIO[R, E, A1] = f(r)
+      final def use[R <: Any, E >: Nothing, A1](f: A => ZIO[R, E, A1]): ZIO[R, E, A1] = f(r)
     }
 
   /**
@@ -160,7 +160,7 @@ object Managed {
 
       protected def release: A => UIO[_] = _ => IO.unit
 
-      def use[R <: Any, E >: Nothing, A1](f: A => ZIO[R, E, A1]): ZIO[R, E, A1] = f(r)
+      final def use[R <: Any, E >: Nothing, A1](f: A => ZIO[R, E, A1]): ZIO[R, E, A1] = f(r)
     }
 
   final def traverse[R, E, A, A1](as: Iterable[A])(f: A => Managed[R, E, A1]): Managed[R, E, List[A1]] =
