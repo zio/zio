@@ -60,7 +60,7 @@ object javaconcurrent {
       }
     }
 
-    def fromFutureJavaIO[A, E >: Throwable](futureIo: IO[E, Future[A]]): IO[E, A] =
+    def fromFutureJava[A, E >: Throwable](futureIo: IO[E, Future[A]]): IO[E, A] =
       futureIo.flatMap(unsafeFutureJavaToIO)
 
     def fromFutureJava[A](future: () => Future[A]): IO[Throwable, A] =

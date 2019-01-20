@@ -43,7 +43,7 @@ lazy val root = project
     interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
-    interopJavaConcurrentJVM,
+    interopJavaJVM,
     benchmarks,
     microsite
   )
@@ -180,15 +180,15 @@ lazy val interopScalaz7xJVM = interopScalaz7x.jvm.dependsOn(interopSharedJVM)
 
 lazy val interopScalaz7xJS = interopScalaz7x.js.dependsOn(interopSharedJS)
 
-lazy val interopJavaConcurrent = crossProject(JVMPlatform)
-  .in(file("interop-javaconcurrent"))
-  .settings(stdSettings("zio-interop-javaconcurrent"))
+lazy val interopJava = crossProject(JVMPlatform)
+  .in(file("interop-java"))
+  .settings(stdSettings("zio-interop-java"))
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
 
-lazy val interopJavaConcurrentJVM = interopJavaConcurrent.jvm.dependsOn(interopSharedJVM)
+lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
@@ -215,7 +215,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val microsite = project.module
-  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaConcurrentJVM)
+  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM)
   .enablePlugins(MicrositesPlugin)
   .settings(
     scalacOptions -= "-Yno-imports",
