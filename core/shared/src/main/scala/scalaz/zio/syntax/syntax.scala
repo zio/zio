@@ -8,8 +8,6 @@ package object syntax {
   implicit final def ioEagerSyntax[A](a: A): IOCreationEagerSyntax[A]                  = new IOCreationEagerSyntax[A](a)
   implicit final def ioLazySyntax[A](a: => A): IOCreationLazySyntax[A]                 = new IOCreationLazySyntax[A](() => a)
   implicit final def ioFlattenSyntax[E, A](io: IO[E, IO[E, A]]): IOFlattenSyntax[E, A] = new IOFlattenSyntax[E, A](io)
-  implicit final def ioAbsolveSyntax[E, A](io: IO[E, Either[E, A]]): IOAbsolveSyntax[E, A] =
-    new IOAbsolveSyntax[E, A](io)
   implicit final def ioUnsandboxSyntax[E, A](io: IO[Cause[E], A]): IOUnsandboxSyntax[E, A] =
     new IOUnsandboxSyntax(io)
   implicit final def ioUnitSyntax[E](io: IO[E, Unit]): IOUnitSyntax[E]                       = new IOUnitSyntax(io)
