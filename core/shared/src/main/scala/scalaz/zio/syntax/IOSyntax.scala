@@ -21,10 +21,6 @@ object IOSyntax {
     def flatten: IO[E, A] = IO.flatten(io)
   }
 
-  final class IOAbsolveSyntax[E, A](val io: IO[E, Either[E, A]]) extends AnyVal {
-    def absolve: IO[E, A] = IO.absolve(io)
-  }
-
   final class IOUnsandboxSyntax[E, A](val io: IO[Cause[E], A]) extends AnyVal {
     def unsandbox: IO[E, A] = IO.unsandbox(io)
   }

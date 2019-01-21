@@ -345,10 +345,19 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.redeem[Nothing, Either[E, A]](IO.succeedLeft, IO.succeedRight)
 
   /**
+   * Submerges the error case of an `Either` into the `IO`. The inverse
+   * operation of `IO.attempt`.
+   */
+  final def absolve[E1 >: E, B](implicit ev1: A <:< Either[E1, B]): IO[E1, B] =
+    self.flatMap[E1, B] { a =>
+      IO.fromEither(a)
+    }
+
+  /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): IO[Unit, B] =
-    IO.absolve(self.leftMap(ev1).map(_.toRight(())))
+    self.leftMap(ev1).map(_.toRight(())).absolve
 
   /**
    * Executes this action, skipping the error but returning optionally the success.
@@ -684,7 +693,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def timeout0[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    self.map(f).sandboxWith(io => IO.absolve(io.attempt race IO.succeedRight(z).delay(duration)))
+    self.map(f).sandboxWith(io => (io.attempt race IO.succeedRight(z).delay(duration)).absolve)
 
   /**
    * Flattens a nested action with a specified duration.
@@ -1093,14 +1102,13 @@ object IO extends Serializable {
    * user-defined function.
    */
   final def syncCatch[E, A](effect: => A)(f: PartialFunction[Throwable, E]): IO[E, A] =
-    IO.absolve[E, A](
-      IO.sync(
+    IO.sync(
         try {
           val result = effect
           Right(result)
         } catch f andThen Left[E, A]
       )
-    )
+      .absolve
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -1233,13 +1241,6 @@ object IO extends Serializable {
    */
   final val never: IO[Nothing, Nothing] =
     IO.async[Nothing, Nothing](_ => ())
-
-  /**
-   * Submerges the error case of an `Either` into the `IO`. The inverse
-   * operation of `IO.attempt`.
-   */
-  final def absolve[E, A](v: IO[E, Either[E, A]]): IO[E, A] =
-    v.flatMap(fromEither)
 
   /**
    * The inverse operation `IO.sandboxed`

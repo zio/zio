@@ -119,26 +119,6 @@ class IOFlattenSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 }
 
-class IOAbsolveSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
-    with GenIO
-    with ScalaCheck {
-  import Prop.forAll
-
-  def is = "IOAbsolveSyntaxSpec".title ^ s2"""
-   Generate a String:
-      `.absolve` extension method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $t1
-    """
-
-  def t1 = forAll(Gen.alphaStr) { str =>
-    val ioEither: IO[Nothing, Either[Nothing, String]] = IO.succeed(Right(str))
-    unsafeRun(for {
-      abs1 <- ioEither.absolve
-      abs2 <- IO.absolve(ioEither)
-    } yield abs1 must ===(abs2))
-  }
-}
-
 class IOUnsandboxSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends AbstractRTSSpec
     with GenIO
