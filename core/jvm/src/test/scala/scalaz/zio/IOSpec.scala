@@ -29,6 +29,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
    Create a list of Ints and pass an f: Int => IO[Nothing, Int]:
       `IO.foreachParN` returns the list of created Strings in the appropriate order. $t9
    Check done lifts exit result into IO. $testDone
+   Check when executes correct branch only. $testWhen
+   Check whenM executes condition effect and correct branch. $testWhenM
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -102,5 +104,46 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
     unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interruption))
     unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Unchecked(error)))
     unsafeRun(IO.done(failed)) must throwA(FiberFailure(Checked(error)))
+  }
+
+  def testWhen = {
+    var effect: Int              = 0
+    val ioe: IO[Exception, Unit] = IO.sync { effect = 1 }
+    unsafeRun(ioe.when(false)) must_=== (())
+    effect must_=== 0
+    unsafeRun(ioe.when(true)) must_=== (())
+    effect must_=== 1
+
+    val failure                     = new Exception("expected")
+    val failed: IO[Exception, Unit] = IO.fail(failure)
+    unsafeRun(failed.when(false)) must_=== (())
+    unsafeRun(failed.when(true)) must throwA(FiberFailure(Checked(failure)))
+  }
+
+  def testWhenM = {
+    var effect: Int              = 0
+    val ioe: IO[Exception, Unit] = IO.sync { effect = 1 }
+    var conditionEffect: Int     = 0
+    val conditionTrue: IO[Nothing, Boolean] = IO.succeedLazy {
+      conditionEffect = conditionEffect + 1
+      true
+    }
+    val conditionFalse: IO[Nothing, Boolean] = IO.succeedLazy {
+      conditionEffect = conditionEffect + 1
+      false
+    }
+    unsafeRun(ioe.whenM(conditionFalse)) must_=== (())
+    conditionEffect must_=== 1
+    effect must_=== 0
+    unsafeRun(ioe.whenM(conditionTrue)) must_=== (())
+    conditionEffect must_=== 2
+    effect must_=== 1
+
+    val failure                     = new Exception("expected")
+    val failed: IO[Exception, Unit] = IO.fail(failure)
+    unsafeRun(failed.whenM(conditionFalse)) must_=== (())
+    conditionEffect must_=== 3
+    unsafeRun(failed.whenM(conditionTrue)) must throwA(FiberFailure(Checked(failure)))
+    conditionEffect must_=== 4
   }
 }
