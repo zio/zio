@@ -44,7 +44,8 @@ class ArrayFillBenchmarks {
     def arrayFill(array: Array[Int])(i: Int): Mono[Unit] =
       if (i >= array.length) Mono.fromSupplier(() => ())
       else
-        Mono.fromSupplier(() => array.update(i, i))
+        Mono
+          .fromSupplier(() => array.update(i, i))
           .flatMap(_ => arrayFill(array)(i + 1))
 
     (for {
