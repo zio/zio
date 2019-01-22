@@ -194,7 +194,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       race: Ref[Int],
       done: Promise[E2, C]
     )(res: Exit[E0, A]): IO[Nothing, _] =
-      IO.flatten(race.modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1)))
+      race.modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1)).flatten
 
     for {
       done  <- Promise.make[E2, C]
@@ -206,7 +206,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
             _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
           } yield ()).uninterruptible *> done.await).onInterrupt(
-            IO.flatten(child.get)
+            child.get.flatten
           )
     } yield c
   }
@@ -255,6 +255,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       case _ => new IO.Redeem(self, err, succ)
     }
   }
+
+  final def flatten[E1 >: E, B](implicit ev1: A <:< IO[E1, B]): IO[E1, B] =
+    self.flatMap(a => a)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
@@ -697,7 +700,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Flattens a nested action with a specified duration.
    */
   final def timeoutFail[E1 >: E](e: E1)(d: Duration): IO[E1, A] =
-    IO.flatten(timeout0[IO[E1, A]](IO.fail(e))(IO.succeed)(d))
+    timeout0[IO[E1, A]](IO.fail(e))(IO.succeed)(d).flatten
 
   /**
    * Returns a new action that executes this one and times the execution.
@@ -1001,11 +1004,6 @@ object IO extends Serializable {
     new Supervise(io, supervisor)
 
   /**
-   * Flattens a nested action.
-   */
-  final def flatten[E, A](io: IO[E, IO[E, A]]): IO[E, A] = io.flatMap(a => a)
-
-  /**
    * Lazily produces an `IO` value whose construction may have actional costs
    * that should be deferred until evaluation.
    *
@@ -1014,7 +1012,7 @@ object IO extends Serializable {
    * computer in a heap of rubble.
    */
   final def suspend[E, A](io: => IO[E, A]): IO[E, A] =
-    IO.flatten(IO.sync(io))
+    IO.sync(io).flatten
 
   /**
    * Returns an `IO` that is interrupted.
@@ -1153,7 +1151,7 @@ object IO extends Serializable {
    * runtime system for improved scheduling.
    */
   final def unyielding[E, A](io: IO[E, A]): IO[E, A] =
-    IO.flatten(sync0(env => lock(env.executor(Executor.Unyielding))(io)))
+    sync0(env => lock(env.executor(Executor.Unyielding))(io)).flatten
 
   /**
    * Yields to the runtime system, starting on a fresh stack.
@@ -1189,12 +1187,13 @@ object IO extends Serializable {
       ref <- Ref[IO[Nothing, Any]](IO.unit)
       a <- (for {
             _ <- IO
-                  .flatten(IO.sync0(env => register(io => env.unsafeRunAsync_(io.to(p)))))
+                  .sync0(env => register(io => env.unsafeRunAsync_(io.to(p))))
+                  .flatten
                   .fork
                   .peek(f => ref.set(f.interrupt))
                   .uninterruptible
             a <- p.await
-          } yield a).onInterrupt(IO.flatten(ref.get))
+          } yield a).onInterrupt(ref.get.flatten)
     } yield a
 
   /**
@@ -1218,18 +1217,17 @@ object IO extends Serializable {
 
     IO.sync((new AtomicBoolean(false), OneShot.make[IO[Nothing, Any]])).flatMap {
       case (started, cancel) =>
-        IO.flatten {
-          async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
-            started.set(true)
+        async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
+          started.set(true)
 
-            try register(io => k(IO.succeed(io))) match {
-              case Left(canceler) =>
-                cancel.set(canceler)
-                Async.later
-              case Right(io) => Async.now(IO.succeed(io))
-            } finally if (!cancel.isSet) cancel.set(IO.unit)
-          })
-        }.onInterrupt(IO.flatten(IO.sync(if (started.get) cancel.get() else IO.unit)))
+          try register(io => k(IO.succeed(io))) match {
+            case Left(canceler) =>
+              cancel.set(canceler)
+              Async.later
+            case Right(io) => Async.now(IO.succeed(io))
+          } finally if (!cancel.isSet) cancel.set(IO.unit)
+        }).flatten
+          .onInterrupt(IO.sync(if (started.get) cancel.get() else IO.unit).flatten)
     }
   }
 
@@ -1328,7 +1326,7 @@ object IO extends Serializable {
       (for {
         f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptible
         b <- f.join
-      } yield b).ensuring(IO.flatten(m.get))
+      } yield b).ensuring(m.get.flatten)
     }
 
   /**
@@ -1343,7 +1341,7 @@ object IO extends Serializable {
       (for {
         a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptible
         b <- use(a)
-      } yield b).ensuring(IO.flatten(m.get))
+      } yield b).ensuring(m.get.flatten)
     }
 
   /**

@@ -385,7 +385,7 @@ private[zio] final class FiberContext[E, A](
     supervisor: Iterable[Fiber[_, _]] => IO[Nothing, _]
   ): IO[Nothing, _] = {
     import collection.JavaConverters._
-    IO.flatten(IO.sync {
+    IO.sync {
       supervising -= 1
 
       var action: IO[Nothing, _] = IO.unit
@@ -398,7 +398,7 @@ private[zio] final class FiberContext[E, A](
       }
 
       action
-    })
+    }.flatten
   }
 
   @inline

@@ -17,10 +17,6 @@ object IOSyntax {
     def require[AA]: IO[A, Option[AA]] => IO[A, AA] = IO.require(a)
   }
 
-  final class IOFlattenSyntax[E, A](val io: IO[E, IO[E, A]]) extends AnyVal {
-    def flatten: IO[E, A] = IO.flatten(io)
-  }
-
   final class IOUnsandboxSyntax[E, A](val io: IO[Cause[E], A]) extends AnyVal {
     def unsandbox: IO[E, A] = IO.unsandbox(io)
   }

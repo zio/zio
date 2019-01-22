@@ -84,7 +84,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * has already been completed, the method will produce false.
    */
   final def done(io: IO[E, A]): IO[Nothing, Boolean] =
-    IO.flatten(IO.sync {
+    IO.sync {
       var action: IO[Nothing, Boolean] = null.asInstanceOf[IO[Nothing, Boolean]]
       var retry                        = true
 
@@ -109,7 +109,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       }
 
       action
-    })
+    }.flatten
 
   private[zio] final def unsafeDone(io: IO[E, A], exec: Executor): Unit = {
     var retry: Boolean                  = true
