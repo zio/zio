@@ -33,16 +33,14 @@ readData("data.json").attempt.map {
 }
 ```
 
-You can submerge failures with `IO.absolve`, which is the opposite of `attempt` and turns an `IO[E, Either[E, A]]` into an `IO[E, A]`:
+You can submerge failures with `absolve`, which is the opposite of `attempt` and turns an `IO[E, Either[E, A]]` into an `IO[E, A]`:
 
 ```tut:silent
 def sqrt(io: IO[Nothing, Double]): IO[String, Double] =
-  IO.absolve(
-    io.map(value =>
-      if (value < 0.0) Left("Value must be >= 0.0")
-      else Right(Math.sqrt(value))
-    )
-  )
+  io.map(value =>
+    if (value < 0.0) Left("Value must be >= 0.0")
+    else Right(Math.sqrt(value))
+  ).absolve
 ```
 
 If you want to catch and recover from all types of errors and effectfully attempt recovery, you can use the `catchAll` method:
