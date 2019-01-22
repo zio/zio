@@ -100,25 +100,6 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
 }
 
-class IOFlattenSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
-    with GenIO
-    with ScalaCheck {
-  import Prop.forAll
-
-  def is = "IOFlattenSyntaxSpec".title ^ s2"""
-   Generate a String:
-      `.flatten` extension method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $t1
-    """
-
-  def t1 = forAll(Gen.alphaStr) { str =>
-    unsafeRun(for {
-      flatten1 <- IO.succeedLazy(IO.succeedLazy(str)).flatten
-      flatten2 <- IO.flatten(IO.succeedLazy(IO.succeedLazy(str)))
-    } yield flatten1 must ===(flatten2))
-  }
-}
-
 class IOUnsandboxSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends AbstractRTSSpec
     with GenIO

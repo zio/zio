@@ -34,11 +34,11 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    */
   final private def prepare(n: Long): IO[Nothing, Acquisition] = {
     def restore(p: Promise[Nothing, Unit], n: Long): IO[Nothing, Unit] =
-      IO.flatten(state.modify {
+      state.modify {
         case Left(q) =>
           q.find(_._1 == p).fold(releaseN(n) -> Left(q))(x => releaseN(n - x._2) -> Left(q.filter(_._1 != p)))
         case Right(m) => IO.unit -> Right(m + n)
-      })
+      }.flatten
 
     if (n == 0)
       IO.succeed(Acquisition(IO.unit, IO.unit))
@@ -75,7 +75,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
         }
     }
 
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
+    assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit)).flatten.uninterruptible
 
   }
 
