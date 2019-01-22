@@ -76,9 +76,9 @@ class IOLeftBindBenchmark {
     import io.reactivex.Single
 
     def loop(i: Int): Single[Int] =
-      if (i % depth == 0) Single.just(i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => Single.just(i))
-      else Single.just(i)
+      if (i % depth == 0) Single.fromCallable(() => i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => Single.fromCallable(() => i))
+      else Single.fromCallable(() => i)
 
     Single
       .fromCallable(() => 0)
