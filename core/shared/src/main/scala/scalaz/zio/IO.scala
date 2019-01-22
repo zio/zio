@@ -2,8 +2,9 @@
 package scalaz.zio
 
 import scalaz.zio.Exit.Cause
+import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
-import scalaz.zio.internal.{ Env, Executor }
+import scalaz.zio.internal.{Env, Executor}
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
@@ -579,8 +580,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Repeats are done in addition to the first execution so that
    * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
    */
-  final def repeat[B](schedule: Schedule[A, B], clock: Clock = Clock.Live): ZIO[R, E, B] =
-    repeatOrElse[R, E, B](schedule, (e, _) => ZIO.fail(e), clock)
+  final def repeat[B](schedule: Schedule[A, B]): ZIO[Clock with R, E, B] =
+    repeatOrElse[R, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
    * Repeats this action with the specified schedule until the schedule
@@ -589,10 +590,9 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def repeatOrElse[R1 <: R, E2, B](
     schedule: Schedule[A, B],
-    orElse: (E, Option[B]) => ZIO[R1, E2, B],
-    clock: Clock = Clock.Live
-  ): ZIO[R1, E2, B] =
-    repeatOrElse0[R1, B, E2, B](schedule, orElse, clock).map(_.merge)
+    orElse: (E, Option[B]) => ZIO[R1, E2, B]
+  ): ZIO[Clock with R1, E2, B] =
+    repeatOrElse0[R1, B, E2, B](schedule, orElse).map(_.merge)
 
   /**
    * Repeats this action with the specified schedule until the schedule
@@ -601,20 +601,19 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def repeatOrElse0[R1 <: R, B, E2, C](
     schedule: Schedule[A, B],
-    orElse: (E, Option[B]) => ZIO[R1, E2, C],
-    clock: Clock = Clock.Live
-  ): ZIO[R1, E2, Either[C, B]] = {
-    def loop(last: Option[() => B], state: schedule.State): ZIO[R1, E2, Either[C, B]] =
+    orElse: (E, Option[B]) => ZIO[R1, E2, C]
+  ): ZIO[Clock with R1, E2, Either[C, B]] = {
+    def loop(last: Option[() => B], state: schedule.State): ZIO[Clock with R1, E2, Either[C, B]] =
       self.redeem(
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
-          schedule.update(a, state, clock).flatMap { step =>
+          schedule.update(a, state).flatMap { step =>
             if (!step.cont) ZIO.succeedRight(step.finish())
             else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
           }
       )
 
-    schedule.initial(clock).flatMap(loop(None, _))
+    schedule.initial.flatMap(loop(None, _))
   }
 
   /**
@@ -623,8 +622,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[E1 >: E, S](policy: Schedule[E1, S], clock: Clock = Clock.Live): ZIO[R, E1, A] =
-    retryOrElse(policy, (e: E1, _: S) => ZIO.fail(e), clock)
+  final def retry[E1 >: E, S](policy: Schedule[E1, S]): ZIO[Clock with R, E1, A] =
+    retryOrElse(policy, (e: E1, _: S) => ZIO.fail(e))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -633,10 +632,9 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
     policy: Schedule[E1, S],
-    orElse: (E1, S) => ZIO[R1, E2, A2],
-    clock: Clock = Clock.Live
-  ): ZIO[R1, E2, A2] =
-    retryOrElse0(policy, orElse, clock).map(_.merge)
+    orElse: (E1, S) => ZIO[R1, E2, A2]
+  ): ZIO[Clock with R1, E2, A2] =
+    retryOrElse0(policy, orElse).map(_.merge)
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -645,14 +643,13 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def retryOrElse0[R1 <: R, E1 >: E, S, E2, B](
     policy: Schedule[E1, S],
-    orElse: (E1, S) => ZIO[R1, E2, B],
-    clock: Clock = Clock.Live
-  ): ZIO[R1, E2, Either[B, A]] = {
-    def loop(state: policy.State): ZIO[R1, E2, Either[B, A]] =
+    orElse: (E1, S) => ZIO[R1, E2, B]
+  ): ZIO[Clock with R1, E2, Either[B, A]] = {
+    def loop(state: policy.State): ZIO[Clock with R1, E2, Either[B, A]] =
       self.redeem(
         err =>
           policy
-            .update(err, state, clock)
+            .update(err, state)
             .flatMap(
               decision =>
                 if (decision.cont) ZIO.sleep(decision.delay) *> loop(decision.state)
@@ -661,7 +658,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
         succ => ZIO.succeedRight(succ)
       )
 
-    policy.initial(clock).flatMap(loop)
+    policy.initial.flatMap(loop)
   }
 
   /**
