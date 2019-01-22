@@ -349,9 +349,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * operation of `IO.attempt`.
    */
   final def absolve[E1 >: E, B](implicit ev1: A <:< Either[E1, B]): IO[E1, B] =
-    self.flatMap[E1, B] { a =>
-      IO.fromEither(a)
-    }
+    self.flatMap[E1, B](a => IO.fromEither(a))
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
