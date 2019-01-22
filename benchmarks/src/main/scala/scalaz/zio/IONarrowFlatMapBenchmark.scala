@@ -57,11 +57,11 @@ class IONarrowFlatMapBenchmark {
   def monoNarrowFlatMap(): Int = {
     import reactor.core.publisher.Mono
     def loop(i: Int): Mono[Int] =
-      if (i < size) Mono.just(i + 1).flatMap(loop)
-      else Mono.just(i)
+      if (i < size) Mono.fromCallable(() => i + 1).flatMap(loop)
+      else Mono.fromCallable(() => i)
 
     Mono
-      .just(0)
+      .fromCallable(() => 0)
       .flatMap(loop)
       .block()
   }
@@ -71,11 +71,11 @@ class IONarrowFlatMapBenchmark {
     import io.reactivex.Single
 
     def loop(i: Int): Single[Int] =
-      if (i < size) Single.just(i + 1).flatMap(loop)
-      else Single.just(i)
+      if (i < size) Single.fromCallable(() => i + 1).flatMap(loop)
+      else Single.fromCallable(() => i)
 
     Single
-      .just(0)
+      .fromCallable(() => 0)
       .flatMap(loop)
       .blockingGet()
   }

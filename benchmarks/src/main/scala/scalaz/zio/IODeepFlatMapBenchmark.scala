@@ -62,10 +62,10 @@ class IODeepFlatMapBenchmark {
     import reactor.core.publisher.Mono
 
     def fib(n: Int): Mono[BigInt] =
-      if (n <= 1) Mono.just(n)
+      if (n <= 1) Mono.fromSupplier(() => n)
       else
         fib(n - 1).flatMap { a =>
-          fib(n - 2).flatMap(b => Mono.just(a + b))
+          fib(n - 2).flatMap(b => Mono.fromSupplier(() => a + b))
         }
 
     fib(depth)
@@ -77,10 +77,10 @@ class IODeepFlatMapBenchmark {
     import io.reactivex.Single
 
     def fib(n: Int): Single[BigInt] =
-      if (n <= 1) Single.just(n)
+      if (n <= 1) Single.fromCallable(() => n)
       else
         fib(n - 1).flatMap { a =>
-          fib(n - 2).flatMap(b => Single.just(a + b))
+          fib(n - 2).flatMap(b => Single.fromCallable(() => a + b))
         }
 
     fib(depth)

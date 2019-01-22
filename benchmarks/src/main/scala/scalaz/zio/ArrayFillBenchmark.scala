@@ -42,14 +42,13 @@ class ArrayFillBenchmarks {
     import reactor.core.publisher.Mono
 
     def arrayFill(array: Array[Int])(i: Int): Mono[Unit] =
-      if (i >= array.length) Mono.just(())
+      if (i >= array.length) Mono.fromSupplier(() => ())
       else
-        Mono
-          .defer(() => Mono.just(array.update(i, i)))
+        Mono.fromSupplier(() => array.update(i, i))
           .flatMap(_ => arrayFill(array)(i + 1))
 
     (for {
-      array <- Mono.defer(() => Mono.just(createTestArray))
+      array <- Mono.fromSupplier(() => createTestArray)
       _     <- arrayFill(array)(0)
     } yield ())
       .block()
@@ -68,6 +67,7 @@ class ArrayFillBenchmarks {
       _     <- arrayFill(array)(0)
     } yield ()).unsafeRunSync()
   }
+
   @Benchmark
   def monixArrayFill() = {
     import IOBenchmarks.monixScheduler

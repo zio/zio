@@ -33,7 +33,8 @@ class IOShallowAttemptBenchmark {
     import scala.concurrent.duration.Duration.Inf
 
     def throwup(n: Int): Future[BigInt] =
-      if (n == 0) throwup(n + 1) recover { case _ => 0 } else if (n == depth) Future(1)
+      if (n == 0) throwup(n + 1) recover { case _ => 0 }
+      else if (n == depth) Future(1)
       else
         throwup(n + 1).recover { case _ => 0 }
           .flatMap(_ => Future.failed(new Exception("Oh noes!")))
@@ -67,7 +68,7 @@ class IOShallowAttemptBenchmark {
 
     def throwup(n: Int): Mono[BigInt] =
       if (n == 0) throwup(n + 1).onErrorReturn(0)
-      else if (n == depth) Mono.just(1)
+      else if (n == depth) Mono.fromCallable(() => 1)
       else
         throwup(n + 1)
           .onErrorReturn(0)
@@ -83,7 +84,7 @@ class IOShallowAttemptBenchmark {
 
     def throwup(n: Int): Single[BigInt] =
       if (n == 0) throwup(n + 1).onErrorReturn(_ => 0)
-      else if (n == depth) Single.just(1)
+      else if (n == depth) Single.fromCallable(() => 1)
       else
         throwup(n + 1)
           .onErrorReturn(_ => 0)
