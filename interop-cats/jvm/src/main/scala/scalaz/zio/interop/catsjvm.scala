@@ -1,11 +1,12 @@
 package scalaz.zio
 package interop
 
-import cats.effect.{ Concurrent, ContextShift, Effect, ExitCase }
-import cats.{ effect, _ }
+import cats.effect.{Concurrent, ContextShift, Effect, ExitCase}
+import cats.{effect, _}
+import scalaz.zio.clock.Clock
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS, TimeUnit }
+import scala.concurrent.duration.{FiniteDuration, NANOSECONDS, TimeUnit}
 
 abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
