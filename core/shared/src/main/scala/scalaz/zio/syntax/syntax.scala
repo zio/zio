@@ -9,7 +9,6 @@ package object syntax {
   implicit final def ioLazySyntax[A](a: => A): IOCreationLazySyntax[A] = new IOCreationLazySyntax[A](() => a)
   implicit final def ioUnsandboxSyntax[E, A](io: IO[Cause[E], A]): IOUnsandboxSyntax[E, A] =
     new IOUnsandboxSyntax(io)
-  implicit final def ioUnitSyntax[E](io: IO[E, Unit]): IOUnitSyntax[E]                       = new IOUnitSyntax(io)
   implicit final def ioIterableSyntax[E, A](ios: Iterable[IO[E, A]]): IOIterableSyntax[E, A] = new IOIterableSyntax(ios)
   implicit final def ioSyntax[E, A](io: IO[E, A]): IOSyntax[E, A]                            = new IOSyntax(io)
   implicit final def ioTuple2Syntax[E, A, B](ios: (IO[E, A], IO[E, B])): IOTuple2[E, A, B]   = new IOTuple2(ios)

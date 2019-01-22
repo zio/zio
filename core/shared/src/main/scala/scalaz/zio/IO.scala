@@ -568,6 +568,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.zipWith(that)((a, b) => (a, b))
 
   /**
+   * The moral equivalent of `if (p) exp`
+   */
+  final def when[E1 >: E](b: Boolean)(implicit ev1: IO[E, A] <:< IO[E1, Unit]): IO[E1, Unit] =
+    if (b) ev1(self) else IO.unit
+
+  /**
+   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   */
+  final def whenM[E1 >: E](b: IO[Nothing, Boolean])(implicit ev1: IO[E, A] <:< IO[E1, Unit]): IO[E1, Unit] =
+    b.flatMap(b => if (b) ev1(self) else IO.unit)
+
+  /**
    * Repeats this action forever (until the first error). For more sophisticated
    * schedules, see the `repeat` method.
    */
@@ -1105,18 +1117,6 @@ object IO extends Serializable {
         } catch f andThen Left[E, A]
       )
       .absolve
-
-  /**
-   * The moral equivalent of `if (p) exp`
-   */
-  final def when[E](b: Boolean)(io: IO[E, Unit]): IO[E, Unit] =
-    if (b) io else IO.unit
-
-  /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
-   */
-  final def whenM[E](b: IO[Nothing, Boolean])(io: IO[E, Unit]): IO[E, Unit] =
-    b.flatMap(b => if (b) io else IO.unit)
 
   /**
    * Shifts execution to a thread in the default `ExecutionContext`.
