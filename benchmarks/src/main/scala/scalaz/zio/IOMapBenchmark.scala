@@ -60,7 +60,7 @@ class IOMapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    sumTo(Mono.just(0), depth)
+    sumTo(Mono.fromCallable(() => 0), depth)
       .block()
   }
 
@@ -73,7 +73,7 @@ class IOMapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    sumTo(Single.just(0), depth)
+    sumTo(Single.fromCallable(() => 0), depth)
       .blockingGet()
   }
 

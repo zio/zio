@@ -61,12 +61,12 @@ class IOLeftBindBenchmark {
     import reactor.core.publisher.Mono
 
     def loop(i: Int): Mono[Int] =
-      if (i % depth == 0) Mono.just(i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => Mono.just(i))
-      else Mono.just(i)
+      if (i % depth == 0) Mono.fromSupplier(() => i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => Mono.fromSupplier(() => i))
+      else Mono.fromSupplier(() => i)
 
     Mono
-      .just(0)
+      .fromSupplier(() => 0)
       .flatMap(loop)
       .block()
   }
@@ -81,7 +81,7 @@ class IOLeftBindBenchmark {
       else Single.just(i)
 
     Single
-      .just(0)
+      .fromCallable(() => 0)
       .flatMap(loop)
       .blockingGet()
   }
