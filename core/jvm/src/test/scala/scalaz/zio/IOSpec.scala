@@ -31,6 +31,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
    Check done lifts exit result into IO. $testDone
    Check when executes correct branch only. $testWhen
    Check whenM executes condition effect and correct branch. $testWhenM
+   Check unsandbox unwraps exception. $testUnsandbox
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -145,5 +146,17 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
     conditionEffect must_=== 3
     unsafeRun(failed.whenM(conditionTrue)) must throwA(FiberFailure(Checked(failure)))
     conditionEffect must_=== 4
+  }
+
+  def testUnsandbox = {
+    val exception                                = new Exception("fail")
+    val failure: IO[Exit.Cause[Exception], Unit] = IO.fail(Checked(exception))
+    val failureUnsandboxed: IO[Exception, Unit]  = failure.unsandbox
+    val io                                       = failureUnsandboxed.leftMap(_.getMessage).redeem(msg => IO.succeed(msg), _ => IO.succeed("unexpected"))
+    unsafeRun(io) must_=== "fail"
+
+    val success: IO[Exit.Cause[RuntimeException], Int] = IO.succeed(100)
+    val successUnsandboxed: IO[RuntimeException, Int]  = success.unsandbox
+    unsafeRun(successUnsandboxed) must_=== 100
   }
 }

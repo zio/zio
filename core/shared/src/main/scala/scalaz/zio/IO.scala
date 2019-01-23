@@ -781,7 +781,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    *   IO.sync(5 / 0) *> IO.fail(DomainError())
    *
    * val caught: IO[Nothing, Unit] =
-   *   veryBadIO.sandboxed.catchAll {
+   *   veryBadIO.sandbox.catchAll {
    *     case Left((_: ArithmeticException) :: Nil) =>
    *       // Caught defect: divided by zero!
    *       IO.succeed(0)
@@ -797,7 +797,16 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def sandbox: IO[Cause[E], A] = redeem0(IO.fail, IO.succeed)
 
   /**
-   * Companion helper to `sandboxed`.
+   * The inverse operation to `sandbox`
+   *
+   * Terminates with exceptions on the `Left` side of the `Either` error, if it
+   * exists. Otherwise extracts the contained `IO[E, A]`
+   */
+  final def unsandbox[E1, A1 >: A](implicit ev1: E <:< Cause[E1]): IO[E1, A1] =
+    self.catchAll[E1, A1](c => IO.halt(c))
+
+  /**
+   * Companion helper to `sandbox`.
    *
    * Has a performance penalty due to forking a new fiber.
    *
@@ -818,12 +827,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    *
    * Using `sandboxWith` with `catchSome` is better than using
-   * `io.sandboxed.catchAll` with a partial match, because in
+   * `io.sandbox.catchAll` with a partial match, because in
    * the latter, if the match fails, the original defects will
    * be lost and replaced by a `MatchError`
    */
   final def sandboxWith[E2, B](f: IO[Cause[E], A] => IO[Cause[E2], B]): IO[E2, B] =
-    IO.unsandbox(f(self.sandbox))
+    f(self.sandbox).unsandbox
 
   /**
    * Widens the action type to any supertype. While `map` suffices for this
@@ -1237,14 +1246,6 @@ object IO extends Serializable {
    */
   final val never: IO[Nothing, Nothing] =
     IO.async[Nothing, Nothing](_ => ())
-
-  /**
-   * The inverse operation `IO.sandboxed`
-   *
-   * Terminates with exceptions on the `Left` side of the `Either` error, if it
-   * exists. Otherwise extracts the contained `IO[E, A]`
-   */
-  final def unsandbox[E, A](v: IO[Cause[E], A]): IO[E, A] = v.catchAll[E, A](IO.halt)
 
   /**
    * Lifts an `Either` into an `IO`.
