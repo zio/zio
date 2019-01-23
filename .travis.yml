@@ -37,12 +37,12 @@ jobs:
     - &test
       stage: test
       name: "Test for 2.12"
-      script: sbt ++$TRAVIS_SCALA_VERSION coverage test coverageReport package packageSrc
+      script: sbt ++$TRAVIS_SCALA_VERSION coverage test coverageReport package packageSrc publishLocal
       after_success: bash <(curl -s https://codecov.io/bash)
     - &scaladoc
       stage: microsite
       name: "Generate Scaladoc"
-      script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopFutureJS/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc
+      script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopFutureJS/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc interopJavaJVM/doc
     - &microsite
       stage: microsite
       name: "Generate microsite"
