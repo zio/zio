@@ -1,5 +1,4 @@
 package scalaz.zio.syntax
-import scalaz.zio.Exit.Cause
 import scalaz.zio.{ Fiber, IO }
 
 object IOSyntax {
@@ -15,10 +14,6 @@ object IOSyntax {
     def succeed: IO[Nothing, A]                     = IO.succeed(a)
     def fail: IO[A, Nothing]                        = IO.fail(a)
     def require[AA]: IO[A, Option[AA]] => IO[A, AA] = IO.require(a)
-  }
-
-  final class IOUnsandboxSyntax[E, A](val io: IO[Cause[E], A]) extends AnyVal {
-    def unsandbox: IO[E, A] = IO.unsandbox(io)
   }
 
   final class IOIterableSyntax[E, A](val ios: Iterable[IO[E, A]]) extends AnyVal {

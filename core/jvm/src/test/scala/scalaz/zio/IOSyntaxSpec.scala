@@ -100,31 +100,11 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
 }
 
-class IOUnsandboxSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
-    with GenIO
-    with ScalaCheck {
-  import Prop.forAll
-
-  def is = "IOUnsandboxedSyntaxSpec".title ^ s2"""
-   Generate a String:
-      `.unsandboxed` extension method on IO[Either[List[Throwable], E], A] returns the same IO[E, A] as `IO.unsandbox` does. $t1
-    """
-
-  def t1 = forAll(Gen.alphaStr) { str =>
-    val io = IO.sync(str).sandbox
-    unsafeRun(for {
-      unsandbox1 <- io.unsandbox
-      unsandbox2 <- IO.unsandbox(io)
-    } yield unsandbox1 must ===(unsandbox2))
-  }
-}
-
 class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends AbstractRTSSpec
     with GenIO
     with ScalaCheck {
-  def is       = "IOUnsandboxedSyntaxSpec".title ^ s2"""
+  def is       = "IOIterableSyntaxSpec".title ^ s2"""
    Generate an Iterable of Char:
       `.mergeAll` extension method returns the same IO[E, B] as `IO.mergeAll` does. $t1
     Generate an Iterable of Char:
