@@ -13,7 +13,8 @@ import scala.concurrent.ExecutionContext.global
 
 class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
-  def is = s2"""
+  def is = s2"""et
+
   fs2 parJoin must
     work if `F` is `cats.effect.IO`          ${simpleJoin(fIsCats)}
     work if `F` is `scalaz.zio.interop.Task` ${simpleJoin(fIsZio)}
