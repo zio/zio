@@ -7,7 +7,7 @@ import scalaz.zio.IO
 object monixio {
   implicit class IOObjOps(private val obj: IO.type) extends AnyVal {
     def fromTask[A](task: eval.Task[A])(implicit scheduler: Scheduler): Task[A] =
-      Task.fromFuture(Task(task.runToFuture))(scheduler)
+      Task.fromFuture(scheduler)(Task(task.runToFuture))
 
     def fromCoeval[A](coeval: eval.Coeval[A]): Task[A] =
       IO.fromTry(coeval.runTry())
