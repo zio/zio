@@ -6,6 +6,7 @@ import cats.effect.{ Concurrent, ConcurrentEffect, ContextShift, Sync }
 import fs2.Stream
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
+import org.specs2.execute._
 import org.specs2.specification.AroundTimeout
 import scalaz.zio.interop.catz._
 
@@ -13,17 +14,21 @@ import scala.concurrent.ExecutionContext.global
 
 class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
-  def is = s2"""et
-
+  def is = s2"""
   fs2 parJoin must
     work if `F` is `cats.effect.IO`          ${simpleJoin(fIsCats)}
-    work if `F` is `scalaz.zio.interop.Task` ${simpleJoin(fIsZio)}
+    DOES NOT work currently on fs2-1.0.2 if `F` is `scalaz.zio.interop.Task` - ${expectTimeoutFailure(simpleJoin(fIsZio))}
 
   fs2 resource handling must
     work when fiber is failed                $bracketFail
     work when fiber is terminated            $bracketTerminate
     work when fiber is interrupted           $bracketInterrupt
   """
+
+  def expectTimeoutFailure(res: Result) = res match {
+    case Skipped(m, e) if m contains "TIMEOUT" => Success(m, e)
+    case _                                     => Failure("Expected timeout")
+  }
 
   def simpleJoin(ints: => List[Int]) = {
     import scala.concurrent.duration._
@@ -35,7 +40,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
 
   import scalaz.zio.duration._
 
-  implicit val cs: ContextShift[effect.IO] = cats.effect.IO.contextShift(global)
+  implicit val cs: ContextShift[effect.IO]                 = cats.effect.IO.contextShift(global)
   implicit val catsConcurrent: ConcurrentEffect[effect.IO] = cats.effect.IO.ioConcurrentEffect(cs)
 
   def fIsCats = testCaseJoin[cats.effect.IO].unsafeRunSync()
@@ -104,8 +109,8 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
     } must beSome(())
 
   def testCaseJoin[F[_]: Concurrent]: F[List[Int]] = {
-    def one: F[Int]       = Sync[F].delay(1)
-    val s: Stream[F, Int] = Stream.eval(one)
+    def one: F[Int]                   = Sync[F].delay(1)
+    val s: Stream[F, Int]             = Stream.eval(one)
     val ss: Stream[F, Stream[F, Int]] = Stream.emits(List(s, s))
     ss.parJoin(2).compile.toList
   }
