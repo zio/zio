@@ -60,8 +60,8 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
     effect.SyncIO {
       this.unsafeRun {
         fa.fork.flatMap { f =>
-          f.observe
-            .flatMap(exit => IO.syncThrowable(cb(exitResultToEither(exit)).unsafeRunAsync(_ => ())))
+          f.await
+            .flatMap(exit => IO.syncThrowable(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
             .const(f.interrupt.void)
         }
