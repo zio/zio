@@ -123,6 +123,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     check interruption regression 1         $testInterruptionRegression1
 
   RTS interruption
+    blocking IO is interruptible            $testBlockingIOIsInterruptible
     sync forever is interruptible           $testInterruptSyncForever
     interrupt of never                      $testNeverIsInterruptible
     asyncPure is interruptible              $testAsyncPureIsInterruptible
@@ -957,6 +958,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     )
 
   }
+
+  def testBlockingIOIsInterruptible = unsafeRun(
+    for {
+      done  <- Ref(false)
+      fiber <- IO.blocking(while(true){scala.io.StdIn.readLine()}).ensuring(done.set(true)).fork
+      _     <- fiber.interrupt
+      value <- done.get
+    } yield value must_=== true
+  )
 
   def testInterruptSyncForever = unsafeRun(
     for {
