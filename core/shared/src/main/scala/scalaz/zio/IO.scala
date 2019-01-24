@@ -1042,7 +1042,7 @@ object IO extends Serializable {
       import java.util.concurrent.atomic.AtomicReference
 
       val lock   = new ReentrantLock()
-      val thread = new AtomicReference[Thread](null)
+      val thread = new AtomicReference[Option[Thread]](None)
 
       def withLock[B](b: => B): B =
         try {
@@ -1050,20 +1050,22 @@ object IO extends Serializable {
         } finally lock.unlock()
 
       for {
-        onInterrupt <- Ref[IO[Nothing, Unit]](IO.unit)
+        finalizer <- Ref[IO[Nothing, Unit]](IO.unit)
         a <- (for {
-              fiber <- (IO.unyielding(IO.sync[Option[A]] {
-                        withLock(thread.set(Thread.currentThread()))
+              fiber <- (IO.unyielding(IO.sync[Either[Throwable, A]] {
+                        withLock(thread.set(Some(Thread.currentThread())))
 
-                        try Some(effect)
+                        try Right(effect)
                         catch {
-                          case _: InterruptedException => None
-                        } finally withLock(thread.set(null))
-                      }) <* onInterrupt
-                        .set(IO.sync(withLock(if (thread.get ne null) thread.get.interrupt())))).uninterruptible.fork
-              o <- fiber.join
-              a <- o.fold[IO[Nothing, A]](IO.interrupt)(IO.succeed(_))
-            } yield a).ensuring(IO.flatten(onInterrupt.get))
+                          case e: InterruptedException =>
+                            Thread.interrupted
+                            Left(e)
+                        } finally withLock(thread.set(None)) // TODO: Signal finalizer to continue
+                      }) <* finalizer
+                        .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
+              either <- fiber.join
+              a      <- either.fold[IO[Nothing, A]](IO.die, IO.succeed)
+            } yield a).ensuring(IO.flatten(finalizer.get))
       } yield a
     })
 
