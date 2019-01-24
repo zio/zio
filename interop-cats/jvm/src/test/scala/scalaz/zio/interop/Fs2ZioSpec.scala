@@ -14,10 +14,13 @@ import scala.concurrent.ExecutionContext.global
 
 class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
 
-  def is = s2"""
+  def is =
+    s2"""
   fs2 parJoin must
     work if `F` is `cats.effect.IO`          ${simpleJoin(fIsCats)}
-    DOES NOT work currently on fs2-1.0.2 if `F` is `scalaz.zio.interop.Task` - ${expectTimeoutFailure(simpleJoin(fIsZio))}
+    DOES NOT work currently on fs2-1.0.2 if `F` is `scalaz.zio.interop.Task` - ${expectTimeoutFailure(
+      simpleJoin(fIsZio)
+    )}
 
   fs2 resource handling must
     work when fiber is failed                $bracketFail
