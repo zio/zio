@@ -963,7 +963,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     for {
       done  <- Ref(false)
       start <- IO.succeed(internal.OneShot.make[Unit])
-      fiber <- IO.blocking { start.set(()); while (true) { scala.io.StdIn.readLine() } }.ensuring(done.set(true)).fork
+      fiber <- IO.blocking { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
       _     <- IO.succeed(start.get())
       _     <- fiber.interrupt
       value <- done.get
