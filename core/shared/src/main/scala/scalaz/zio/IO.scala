@@ -1031,6 +1031,38 @@ object IO extends Serializable {
   final def halt[E](cause: Cause[E]): IO[E, Nothing] = new Fail(cause)
 
   /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   * 
+   * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
+   * will be interrupted via `Thread.interrupt`.
+   */
+  final def blocking[A](effect: => A): IO[Nothing, A] = IO.flatten(IO.sync {
+    import java.util.concurrent.locks.ReentrantLock 
+    import java.util.concurrent.atomic.AtomicReference
+
+    val lock   = new ReentrantLock()
+    val thread = new AtomicReference[Thread](null)
+
+    def withLock[B](b: => B): B = try { lock.lock(); b } finally lock.unlock()
+
+    for {
+      onInterrupt <- Ref[IO[Nothing, Unit]](IO.unit)
+      a <- (for {
+        fiber <- (IO.unyielding(IO.sync[Option[A]] { 
+          withLock(thread.set(Thread.currentThread()))
+  
+          try Some(effect)
+          catch {
+            case _ : InterruptedException => None
+          } finally withLock(thread.set(null))
+        }) <* onInterrupt.set(IO.sync(withLock(if (thread.get ne null) thread.get.interrupt())))).uninterruptible.fork
+        o <- fiber.join
+        a <- o.fold[IO[Nothing, A]](IO.interrupt)(IO.succeed(_))
+      } yield a).ensuring(IO.flatten(onInterrupt.get))
+    } yield a
+  })
+
+  /**
    * Imports a synchronous effect into a pure `IO` value.
    *
    * {{{
