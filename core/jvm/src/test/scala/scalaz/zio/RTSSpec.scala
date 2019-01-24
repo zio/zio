@@ -962,7 +962,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testBlockingIOIsInterruptible = unsafeRun(
     for {
       done  <- Ref(false)
-      fiber <- IO.blocking(while (true) { scala.io.StdIn.readLine() }).ensuring(done.set(true)).fork
+      start <- IO.succeed(internal.OneShot.make[Unit])
+      fiber <- IO.blocking { start.set(()); while (true) { scala.io.StdIn.readLine() } }.ensuring(done.set(true)).fork
+      _     <- IO.succeed(start.get())
       _     <- fiber.interrupt
       value <- done.get
     } yield value must_=== true
