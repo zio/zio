@@ -54,9 +54,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.3.6" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.3.6" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.3.6" % Test
+      "org.specs2" %%% "specs2-core"          % "4.4.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.4.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.4.0" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
