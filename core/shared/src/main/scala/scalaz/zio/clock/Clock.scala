@@ -10,7 +10,7 @@ trait Clock extends Serializable {
   val clock: Clock.Interface
 }
 
-object Clock {
+object Clock extends Serializable {
   trait Interface {
     def currentTime(unit: TimeUnit): IO[Nothing, Long]
     val nanoTime: IO[Nothing, Long]
@@ -28,6 +28,7 @@ object Clock {
         IO.sleep(Duration(length, unit))
     }
   }
+  object Live extends Live
 
   case class Test(ref: Ref[Test.Data]) extends Clock {
 
@@ -42,8 +43,6 @@ object Clock {
         ref.update(_.adjust(length, unit).sleep(length, unit)).void
     }
   }
-
-  object Live extends Live
 
   object Test {
     val Zero = Data(0, 0, Nil)
