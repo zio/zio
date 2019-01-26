@@ -159,7 +159,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     }
 
   override final def suspend[A](thunk: => Task[A]): Task[A] =
-    IO.flatten(IO.syncThrowable(thunk))
+    IO.syncThrowable(thunk).flatten
 
   override final def delay[A](thunk: => A): Task[A] =
     IO.syncThrowable(thunk)
