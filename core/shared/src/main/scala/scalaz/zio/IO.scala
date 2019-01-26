@@ -211,6 +211,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     } yield c
   }
 
+  def raceAll[E1 >: E, A1 >: A](ios: Iterable[IO[E1, A1]]): IO[E1, A1] = IO.raceAll(self, ios)
+
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
