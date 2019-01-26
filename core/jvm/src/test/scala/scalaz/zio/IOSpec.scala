@@ -187,13 +187,12 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
     } yield abs1 must ===(abs2))
   }
 
-    def testRaceAll = {
-      val io  = IO.sync("supercalifragilisticexpialadocious")
-      val ios = List.empty[IO[Nothing, String]]
-      unsafeRun(for {
-        race1 <- io.raceAll(ios)
-        race2 <- IO.raceAll(io, ios)
-      } yield race1 must ===(race2))
-    }
+  def testRaceAll = {
+    val io  = IO.sync("supercalifragilisticexpialadocious")
+    val ios = List.empty[IO[Nothing, String]]
+    unsafeRun(for {
+      race1 <- io.raceAll(ios)
+      race2 <- IO.raceAll(io, ios)
+    } yield race1 must ===(race2))
   }
 }
