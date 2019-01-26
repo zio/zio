@@ -123,6 +123,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     check interruption regression 1         $testInterruptionRegression1
 
   RTS interruption
+    blocking IO is interruptible            $testBlockingIOIsInterruptible
     sync forever is interruptible           $testInterruptSyncForever
     interrupt of never                      $testNeverIsInterruptible
     asyncPure is interruptible              $testAsyncPureIsInterruptible
@@ -955,6 +956,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     )
 
   }
+
+  def testBlockingIOIsInterruptible = unsafeRun(
+    for {
+      done  <- Ref(false)
+      start <- IO.succeed(internal.OneShot.make[Unit])
+      fiber <- IO.blocking { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
+      _     <- IO.succeed(start.get())
+      _     <- fiber.interrupt
+      value <- done.get
+    } yield value must_=== true
+  )
 
   def testInterruptSyncForever = unsafeRun(
     for {
