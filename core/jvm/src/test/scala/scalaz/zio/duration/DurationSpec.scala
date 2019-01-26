@@ -32,6 +32,7 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           * with negative duration results in zero                             $pos19
           * with overflow to positive results in Infinity                      $pos20
           * with overflow to negative results in Infinity                      $pos21
+          Folding picks up the correct value                                   $pos22
 
         Make a Duration from negative nanos and check that:
           The Duration is Zero                                                 $neg1
@@ -48,6 +49,7 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           Infinity is not zero                                                 $inf9
           It converts into the infinite s.c.d.Duration                         $inf10
           It converts into a Long.MaxValue second-long JDK Duration            $inf11
+          Folding picks up the correct value                                   $inf12
 
         Make a Scala stdlib s.c.d.Duration and check that:
           A negative s.c.d.Duration converts to Zero                           $dur1
@@ -118,6 +120,9 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
   def pos21 =
     Duration.fromNanos(Long.MaxValue) * 2 must_=== Duration.Infinity
 
+  def pos22 =
+    Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite") must_=== "Finite"
+
   def neg1 =
     Duration.fromNanos(-1) must_=== Duration.Zero
 
@@ -153,6 +158,9 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
 
   def inf11 =
     Duration.Infinity.asJava must_=== JavaDuration.ofSeconds(Long.MaxValue)
+
+  def inf12 =
+    Duration.Infinity.fold("Infinity", _ => "Finite") must_=== "Infinity"
 
   def dur1 =
     Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)) must_=== Duration.Zero
