@@ -52,16 +52,16 @@ class IODeepFlatMapBenchmark {
           fib(n - 2).flatMap(b => Task.eval(a + b))
         }
 
-    fib(depth).runSyncMaybe.right.get
+    fib(depth).runSyncStep.right.get
   }
 
   @Benchmark
   def scalazDeepFlatMap(): BigInt = {
     def fib(n: Int): IO[Nothing, BigInt] =
-      if (n <= 1) IO.point[BigInt](n)
+      if (n <= 1) IO.succeedLazy[BigInt](n)
       else
         fib(n - 1).flatMap { a =>
-          fib(n - 2).flatMap(b => IO.point(a + b))
+          fib(n - 2).flatMap(b => IO.succeedLazy(a + b))
         }
 
     unsafeRun(fib(depth))

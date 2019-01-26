@@ -1,7 +1,7 @@
 // Copyright (C) 2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-import scala.concurrent.duration.Duration
+import scalaz.zio.duration.Duration
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -45,17 +45,17 @@ trait Schedule[-A, +B] extends Serializable { self =>
    * schedules. Only as many inputs will be used as necessary to run the
    * schedule to completion, and additional inputs will be discarded.
    */
-  def run(as: Iterable[A], clock: Clock): IO[Nothing, List[(Duration, B)]] = {
+  final def run(as: Iterable[A], clock: Clock): IO[Nothing, List[(Duration, B)]] = {
     def run0(as: List[A], s: State, acc: List[(Duration, B)]): IO[Nothing, List[(Duration, B)]] =
       as match {
-        case Nil => IO.now(acc)
+        case Nil => IO.succeed(acc)
         case a :: as =>
           self.update(a, s, clock).flatMap {
             case Schedule.Decision(cont, delay, s, finish) =>
               val acc2 = (delay -> finish()) :: acc
 
               if (cont) run0(as, s, acc2)
-              else IO.now(acc2)
+              else IO.succeed(acc2)
           }
       }
 
@@ -104,7 +104,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
       update =>
         (a, s, c) =>
           update(a, s, c).flatMap { decision =>
-            if (decision.cont) IO.now(decision)
+            if (decision.cont) IO.succeed(decision)
             else self.initial(c).map(state => decision.copy(cont = true, state = state))
           }
     )
@@ -124,7 +124,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
           ) =>
             update(a, s, c).flatMap { d =>
               if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
-              else IO.now(d)
+              else IO.succeed(d)
             }
           )
     )
@@ -134,14 +134,14 @@ trait Schedule[-A, +B] extends Serializable { self =>
    * is satisfied on the output value of the schedule.
    */
   final def whileOutput(f: B => Boolean): Schedule[A, B] =
-    check((_, b) => IO.now(f(b)))
+    check((_, b) => IO.succeed(f(b)))
 
   /**
    * Returns a new schedule that continues this schedule so long as the
    * predicate is satisfied on the input of the schedule.
    */
   final def whileInput[A1 <: A](f: A1 => Boolean): Schedule[A1, B] =
-    check((a, _) => IO.now(f(a)))
+    check((a, _) => IO.succeed(f(a)))
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
@@ -160,9 +160,9 @@ trait Schedule[-A, +B] extends Serializable { self =>
   )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): Schedule[A1, (B, C)] =
     new Schedule[A1, (B, C)] {
       type State = (self.State, that.State)
-      val initial = (c: Clock) => self.initial(c).seq(that.initial(c))
+      val initial = (c: Clock) => self.initial(c).zip(that.initial(c))
       val update = (a: A1, s: State, c: Clock) =>
-        self.update(a, s._1, c).seqWith(that.update(a, s._2, c))(_.combineWith(_)(g, f))
+        self.update(a, s._1, c).zipWith(that.update(a, s._2, c))(_.combineWith(_)(g, f))
     }
 
   /**
@@ -217,7 +217,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
    * Returns a new schedule that first executes this schedule to completion,
    * and then executes the specified schedule to completion.
    */
-  final def <||>[A1 <: A, C](that: Schedule[A1, C]): Schedule[A1, Either[B, C]] =
+  final def andThenEither[A1 <: A, C](that: Schedule[A1, C]): Schedule[A1, Either[B, C]] =
     new Schedule[A1, Either[B, C]] {
       type State = Either[self.State, that.State]
 
@@ -227,7 +227,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
         state match {
           case Left(v) =>
             self.update(a, v, clock).flatMap { step =>
-              if (step.cont) IO.now(step.bimap(Left(_), Left(_)))
+              if (step.cont) IO.succeed(step.bimap(Left(_), Left(_)))
               else
                 for {
                   state <- that.initial(clock)
@@ -240,16 +240,10 @@ trait Schedule[-A, +B] extends Serializable { self =>
     }
 
   /**
-   * An alias for `<||>`
+   * The same as `andThenEither`, but merges the output.
    */
-  final def andThen[A1 <: A, C](that: Schedule[A1, C]): Schedule[A1, Either[B, C]] =
-    self <||> that
-
-  /**
-   * The same as `<||>`, but merges the output.
-   */
-  final def <>[A1 <: A, B1 >: B](that: Schedule[A1, B1]): Schedule[A1, B1] =
-    (self <||> that).map(_.merge)
+  final def andThen[A1 <: A, B1 >: B](that: Schedule[A1, B1]): Schedule[A1, B1] =
+    andThenEither(that).map(_.merge)
 
   /**
    * Returns a new schedule that maps this schedule to a constant output.
@@ -289,7 +283,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def reconsider[A1 <: A, C](
     f: (A1, Schedule.Decision[State, B]) => Schedule.Decision[State, C]
   ): Schedule[A1, C] =
-    reconsiderM((a, s) => IO.now(f(a, s)))
+    reconsiderM((a, s) => IO.succeed(f(a, s)))
 
   /**
    * A new schedule that applies the current one but runs the specified effect
@@ -349,18 +343,24 @@ trait Schedule[-A, +B] extends Serializable { self =>
    * applied to each delay produced by this schedule.
    */
   final def delayed(f: Duration => Duration): Schedule[A, B] =
-    modifyDelay((_, d) => IO.now(f(d)))
+    modifyDelay((_, d) => IO.succeed(f(d)))
 
   /**
    * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0.
    */
-  final def jittered: Schedule[A, B] = jittered(0.0, 1.0)
+  final def jittered: Schedule[A, B] = jittered(IO.sync(util.Random.nextDouble()))
 
   /**
-   * Applies random jitter to the schedule bounded by the specified factors.
+   * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0, with a given random generator.
    */
-  final def jittered(min: Double, max: Double): Schedule[A, B] =
-    modifyDelay((_, d) => IO.sync(util.Random.nextDouble()).map(random => d * min * (1 - random) + d * max * random))
+  final def jittered(random: IO[Nothing, Double]): Schedule[A, B] =
+    jittered(0.0, 1.0, random)
+
+  /**
+   * Applies random jitter to the schedule bounded by the specified factors, with a given random generator.
+   */
+  final def jittered(min: Double, max: Double, random: IO[Nothing, Double]): Schedule[A, B] =
+    modifyDelay((_, d) => random.map(random => d * min * (1 - random) + d * max * random))
 
   /**
    * Sends every input value to the specified sink.
@@ -372,7 +372,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
    * Sends every output value to the specified sink.
    */
   final def logOutput(f: B => IO[Nothing, Unit]): Schedule[A, B] =
-    updated[A, B](update => (a, s, c) => update(a, s, c).flatMap(step => f(step.finish()) *> IO.now(step)))
+    updated[A, B](update => (a, s, c) => update(a, s, c).flatMap(step => f(step.finish()) *> IO.succeed(step)))
 
   /**
    * Returns a new schedule that collects the outputs of this one into a list.
@@ -384,7 +384,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
    * Returns a new schedule that folds over the outputs of this one.
    */
   final def fold[Z](z: Z)(f: (Z, B) => Z): Schedule[A, Z] =
-    foldM[Z](IO.now(z))((z, b) => IO.now(f(z, b)))
+    foldM[Z](IO.succeed(z))((z, b) => IO.succeed(f(z, b)))
 
   /**
    * Returns a new schedule that effectfully folds over the outputs of this one.
@@ -393,7 +393,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
     new Schedule[A, Z] {
       type State = (self.State, Z)
 
-      val initial = (clock: Clock) => self.initial(clock).seq(z)
+      val initial = (clock: Clock) => self.initial(clock).zip(z)
 
       val update = (a: A, s0: State, clock: Clock) =>
         for {
@@ -410,7 +410,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def >>>[C](that: Schedule[B, C]): Schedule[A, C] =
     new Schedule[A, C] {
       type State = (self.State, that.State)
-      val initial = (clock: Clock) => self.initial(clock).seq(that.initial(clock))
+      val initial = (clock: Clock) => self.initial(clock).zip(that.initial(clock))
       val update = (a: A, s: State, clock: Clock) =>
         self.update(a, s._1, clock).flatMap { step1 =>
           that.update(step1.finish(), s._2, clock).map { step2 =>
@@ -459,9 +459,9 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def ***[C, D](that: Schedule[C, D]): Schedule[(A, C), (B, D)] =
     new Schedule[(A, C), (B, D)] {
       type State = (self.State, that.State)
-      val initial = (clock: Clock) => self.initial(clock).seq(that.initial(clock))
+      val initial = (clock: Clock) => self.initial(clock).zip(that.initial(clock))
       val update = (a: (A, C), s: State, clock: Clock) =>
-        self.update(a._1, s._1, clock).seqWith(that.update(a._2, s._2, clock))(_.combineWith(_)(_ && _, _ max _))
+        self.update(a._1, s._1, clock).zipWith(that.update(a._2, s._2, clock))(_.combineWith(_)(_ && _, _ max _))
     }
 
   /**
@@ -476,7 +476,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
   final def +++[C, D](that: Schedule[C, D]): Schedule[Either[A, C], Either[B, D]] =
     new Schedule[Either[A, C], Either[B, D]] {
       type State = (self.State, that.State)
-      val initial = (clock: Clock) => self.initial(clock).seq(that.initial(clock))
+      val initial = (clock: Clock) => self.initial(clock).zip(that.initial(clock))
       val update = (a: Either[A, C], s: State, clock: Clock) =>
         a match {
           case Left(a)  => self.update(a, s._1, clock).map(_.leftMap((_, s._2)).rightMap(Left(_)))
@@ -506,8 +506,8 @@ object Schedule extends Serializable {
       )
   }
   object Decision {
-    def cont[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(true, d, a, () => b)
-    def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, d, a, () => b)
+    final def cont[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(true, d, a, () => b)
+    final def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, d, a, () => b)
   }
 
   final def apply[S, A, B](
@@ -524,12 +524,12 @@ object Schedule extends Serializable {
    * A schedule that recurs forever, returning each input as the output.
    */
   final def identity[A]: Schedule[A, A] =
-    Schedule[Unit, A, A](_ => IO.unit, (a, s, _) => IO.now(Decision.cont(Duration.Zero, s, a)))
+    Schedule[Unit, A, A](_ => IO.unit, (a, s, _) => IO.succeed(Decision.cont(Duration.Zero, s, a)))
 
   /**
    * A schedule that recurs forever, returning the constant for every output.
    */
-  final def point[A](a: => A): Schedule[Any, A] = forever.const(a)
+  final def succeedLazy[A](a: => A): Schedule[Any, A] = forever.const(a)
 
   /**
    * A schedule that recurs forever, mapping input values through the
@@ -552,14 +552,14 @@ object Schedule extends Serializable {
   /**
    * A schedule that executes once.
    */
-  final val once: Schedule[Any, Unit] = forever.whileOutput(_ => false).void
+  final val once: Schedule[Any, Unit] = recurs(1).void
 
   /**
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */
   final def delayed[A](s: Schedule[A, Duration]): Schedule[A, Duration] =
-    s.modifyDelay((b, d) => IO.now(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
+    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
 
   /**
    * A schedule that recurs forever, collecting all inputs into a list.
@@ -588,8 +588,11 @@ object Schedule extends Serializable {
   /**
    * A schedule that recurs the specified number of times. Returns the number
    * of repetitions so far.
+   *
+   * If 0 or negative numbers are given, the operation is not done at all so
+   * that in `(op: IO[E, A]).repeat(Schedule.recurs(0)) `, op is not done at all.
    */
-  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ < n)
+  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ <= n)
 
   /**
    * A schedule that recurs forever without delay. Returns the elapsed time
@@ -626,14 +629,14 @@ object Schedule extends Serializable {
    * the total elapsed time.
    */
   final def duration(duration: Duration): Schedule[Any, Duration] =
-    elapsed.untilOutput(_.toNanos >= duration.toNanos)
+    elapsed.untilOutput(_ >= duration)
 
   /**
    * A schedule that always recurs without delay, and computes the output
    * through recured application of a function to a base value.
    */
   final def unfold[A](a: => A)(f: A => A): Schedule[Any, A] =
-    unfoldM(IO.point(a))(f.andThen(IO.point[A](_)))
+    unfoldM(IO.succeedLazy(a))(f.andThen(IO.succeedLazy[A](_)))
 
   /**
    * A schedule that always recurs without delay, and computes the output
@@ -665,23 +668,25 @@ object Schedule extends Serializable {
    * |action|                   |action|
    * </pre>
    */
-  final def fixed(interval: Duration): Schedule[Any, Int] =
-    if (interval == Duration.Zero) forever
-    else
+  final def fixed(interval: Duration): Schedule[Any, Int] = interval match {
+    case Duration.Infinity                    => once >>> never
+    case Duration.Finite(nanos) if nanos == 0 => forever
+    case Duration.Finite(nanos) =>
       Schedule[(Long, Int, Int), Any, Int](
-        _.nanoTime.map(nt => (nt, 0, 0)),
+        _.nanoTime.map(nt => (nt, 1, 0)),
         (_, t, clock) =>
           t match {
             case (start, n0, i) =>
               clock.nanoTime.map { now =>
-                val await = ((start + n0 * interval.toNanos) - now)
+                val await = ((start + n0 * nanos) - now)
                 val n = 1 +
-                  (if (await < 0) ((now - start) / interval.toNanos).toInt else n0)
+                  (if (await < 0) ((now - start) / nanos).toInt else n0)
 
                 Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
               }
           }
       )
+  }
 
   /**
    * A schedule that always recurs, increasing delays by summing the

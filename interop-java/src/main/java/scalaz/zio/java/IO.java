@@ -53,16 +53,8 @@ public class IO<E, A> {
         return IO.fromScalaValue(delegate.fork());
     }
 
-    public IO<Void, Fiber<E, A>> fork0(Function<ExitResult.Cause<Object>, IO<Void, Done>> f) {
-        return IO.fromScalaValue(delegate.fork0(f.andThen(IO::toScala)::apply));
-    }
-
-    public <E1 extends E, B, C> IO<E1, C> parWith(IO<E1, B> that, BiFunction<A, B, C> f) {
-        return new IO<>(delegate.parWith(that.delegate, f::apply));
-    }
-
-    public <E1 extends E, B> IO<E1, Pair<A, B>> par(IO<E1, B> that) {
-        return new IO<>(delegate.par(that.delegate).map(Pair::fromScala));
+    public IO<Void, Fiber<E, A>> forkWith(Function<Exit.Cause<Object>, IO<Void, Done>> f) {
+        return IO.fromScalaValue(delegate.forkWith(f.andThen(IO::toScala)::apply));
     }
 
     public IO<E, A> race(IO<E, A> that) {
@@ -70,12 +62,12 @@ public class IO<E, A> {
     }
 
     public <B> IO<E, Either<A, B>> raceBoth(IO<E, B> that) {
-        return new IO<>(delegate.raceBoth(that.delegate).map(Either::fromScala));
+        return new IO<>(delegate.raceEither(that.delegate).map(Either::fromScala));
     }
 
     public <E1, E2, B, C> IO<E2, C> raceWith(IO<E1, B> that,
-                                             BiFunction<ExitResult<E, A>, Fiber<E1, B>, IO<E2, C>> leftDone,
-                                             BiFunction<ExitResult<E1, B>, Fiber<E, A>, IO<E2, C>> rightDone) {
+                                             BiFunction<Exit<E, A>, Fiber<E1, B>, IO<E2, C>> leftDone,
+                                             BiFunction<Exit<E1, B>, Fiber<E, A>, IO<E2, C>> rightDone) {
         return new IO<>(delegate.raceWith(
                 that.delegate,
                 leftDone.andThen(io -> io.delegate)::apply,
@@ -104,12 +96,12 @@ public class IO<E, A> {
         return new IO<>(delegate.redeem(err.andThen(io -> io.delegate)::apply, succ.andThen(io -> io.delegate)::apply));
     }
 
-    public <E2, B> IO<E2, B> redeem0(Function<ExitResult.Cause<E>, IO<E2, B>> err, Function<A, IO<E2, B>> succ) {
+    public <E2, B> IO<E2, B> redeem0(Function<Exit.Cause<E>, IO<E2, B>> err, Function<A, IO<E2, B>> succ) {
       return new IO<>(delegate.redeem0(err.andThen(io -> io.delegate)::apply, succ.andThen(io -> io.delegate)::apply));
     }
 
-    public <E2, B> IO<E2, B> redeemPure(Function<E, B> err, Function<A, B> succ) {
-        return new IO<>(delegate.redeemPure(err::apply, succ::apply));
+    public <B> IO<Void, B> redeemPure(Function<E, B> err, Function<A, B> succ) {
+        return fromScalaValue(delegate.redeemPure(err::apply, succ::apply));
     }
 
     public IO<Void, Either<E, A>> attempt() {
@@ -124,7 +116,7 @@ public class IO<E, A> {
     }
 
     // TODO find a better name for all method names ending in "0" and "_"
-    public <B> IO<E, B> bracket0(BiFunction<A, ExitResult<E, B>, IO<Void, Done>> release,
+    public <B> IO<E, B> bracket0(BiFunction<A, Exit<E, B>, IO<Void, Done>> release,
                                  Function<A, IO<E, B>> use) {
         return new IO<>(delegate.<E, B>bracket0(
                 release.andThen(IO::toScala)::apply,
@@ -156,8 +148,8 @@ public class IO<E, A> {
         return delegate.managed(release.andThen(IO::toScala)::apply);
     }
 
-    public IO<E, A> onError(Function<ExitResult<E, Void>, IO<Void, Done>> cleanup) {
-        Function<ExitResult<E, Nothing$>, ExitResult<E, Void>> f = exitResult -> exitResult.map(_nothing -> null);
+    public IO<E, A> onError(Function<Exit.Cause<E>, IO<Void, Done>> cleanup) {
+        Function<Exit.Cause<E>, Exit.Cause<E>> f = exitResult -> exitResult.map(_nothing -> null);
 
         return new IO<>(delegate.onError(f.andThen(cleanup).andThen(IO::toScala)::apply));
     }
@@ -166,29 +158,29 @@ public class IO<E, A> {
         return new IO<>(delegate.onInterrupt(toScala(cleanup)));
     }
 
-    public IO<E, A> onTermination(Function<ExitResult.Cause<Void>, IO<Void, Done>> cleanup) {
-        Function<ExitResult.Cause<Nothing$>, ExitResult.Cause<Void>> f = cause -> cause.map(nothing -> null);
+    public IO<E, A> onTermination(Function<Exit.Cause<Void>, IO<Void, Done>> cleanup) {
+        Function<Exit.Cause<Nothing$>, Exit.Cause<Void>> f = cause -> cause.map(nothing -> null);
 
         return new IO<>(delegate.onTermination(f.andThen(cleanup).andThen(IO::toScala)::apply));
     }
 
-    public IO<E, A> supervised() {
-        return new IO<>(delegate.supervised());
+    public IO<E, A> supervise() {
+        return new IO<>(delegate.supervise());
     }
 
-    public IO<E, A> supervised(Function<Iterable<Fiber<?, ?>>, IO<Void, Done>> supervisor) {
+    public IO<E, A> superviseWith(Function<Iterable<Fiber<?, ?>>, IO<Void, Done>> supervisor) {
         Function<scala.collection.Iterable<Fiber<?, ?>>, Iterable<Fiber<?, ?>>> asJavaIterable =
                 JavaConverters::asJavaIterable;
 
-        return new IO<>(delegate.supervised(
+        return new IO<>(delegate.superviseWith(
                 asJavaIterable
                         .andThen(supervisor)
                         .andThen(IO::toScala)::apply
         ));
     }
 
-    public IO<E, A> uninterruptibly() {
-        return new IO<>(delegate.uninterruptibly());
+    public IO<E, A> uninterruptible() {
+        return new IO<>(delegate.uninterruptible());
     }
 
     public <E2> IO<E2, A> catchAll(Function<E, IO<E2, A>> h) {
@@ -198,7 +190,7 @@ public class IO<E, A> {
     public IO<E, A> forSome(Function<E, Optional<A>> f) {
         scala.PartialFunction<E, IO<E, A>> pf = PartialFunction$.MODULE$.apply(
                 e -> f.apply(e)
-                        .map(a -> IO.<E, A>safeCast(IO.now(a)))
+                        .map(a -> IO.<E, A>safeCast(IO.succeed(a)))
                         .orElse(safeCastError(IO.fail(e)))
         );
 
@@ -214,18 +206,6 @@ public class IO<E, A> {
 
     public <B> IO<E, A> thenIgnore(IO<E, B> io) {
         return new IO<>(delegate.$less$times(() -> io.delegate));
-    }
-
-    public <B, C> IO<E, C> seqWith(IO<E, B> that, BiFunction<A, B, C> f) {
-        return new IO<>(delegate.seqWith(that.delegate, f::apply));
-    }
-
-    public <B> IO<E, Pair<A, B>> seq(IO<E, B> that) {
-        return new IO<>(delegate.seq(that.delegate).map(Pair::fromScala));
-    }
-
-    public IO<E, Void> forever() {
-        return fromScalaError(delegate.forever());
     }
 
     // TODO how do we want java Schedule and Clock ? Are there replacements in the std lib already ?
@@ -286,8 +266,8 @@ public class IO<E, A> {
 
     // TODO other transformation/composition methods...
 
-    public static <A> IO<Void, A> now(A a) {
-        return fromScalaValue(scalaz.zio.IO$.MODULE$.now(a));
+    public static <A> IO<Void, A> succeed(A a) {
+        return fromScalaValue(scalaz.zio.IO$.MODULE$.succeed(a));
     }
 
     public static <A> IO<Void, A> point(Supplier<A> a) {

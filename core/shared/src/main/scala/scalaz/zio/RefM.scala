@@ -1,6 +1,6 @@
 // Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
-import scalaz.zio.ExitResult.Cause
+import scalaz.zio.Exit.Cause
 
 /**
  * A mutable atomic reference for the `IO` monad. This is the `IO` equivalent of
@@ -13,7 +13,7 @@ import scalaz.zio.ExitResult.Cause
  * {{{
  * for {
  *   ref <- RefM(2)
- *   v   <- ref.update(_ + putStrLn("Hello World!").attempt.void *> IO.now(3))
+ *   v   <- ref.update(_ + putStrLn("Hello World!").attempt.void *> IO.succeed(3))
  *   _   <- putStrLn("Value = " + v) // Value = 5
  * } yield ()
  * }}}
@@ -35,7 +35,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
    * Writes a new value to the `Ref` without providing a guarantee of
    * immediate consistency.
    */
-  final def setLater(a: A): IO[Nothing, Unit] = value.setLater(a)
+  final def setAsync(a: A): IO[Nothing, Unit] = value.setAsync(a)
 
   /**
    * Atomically modifies the `RefM` with the specified function, returning the
@@ -49,7 +49,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
    * if the function is undefined in the current value it returns the old value without changing it.
    */
   final def updateSome(pf: PartialFunction[A, IO[Nothing, A]]): IO[Nothing, A] =
-    modify(a => pf.applyOrElse(a, (_: A) => IO.now(a)).map(a => (a, a)))
+    modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
 
   /**
    * Atomically modifies the `RefM` with the specified function, which computes
@@ -63,7 +63,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
       bundle  = RefM.Bundle(ref, f, promise)
       b <- (for {
             _ <- queue.offer(bundle)
-            b <- promise.get
+            b <- promise.await
           } yield b).onTermination(cause => bundle.interrupted.set(Some(cause)))
     } yield b
 
@@ -77,10 +77,10 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
     for {
       promise <- Promise.make[Nothing, B]
       ref     <- Ref[Option[Cause[Nothing]]](None)
-      bundle  = RefM.Bundle(ref, pf.orElse[A, IO[Nothing, (B, A)]] { case a => IO.now(default -> a) }, promise)
+      bundle  = RefM.Bundle(ref, pf.orElse[A, IO[Nothing, (B, A)]] { case a => IO.succeed(default -> a) }, promise)
       b <- (for {
             _ <- queue.offer(bundle)
-            b <- promise.get
+            b <- promise.await
           } yield b).onTermination(cause => bundle.interrupted.set(Some(cause)))
     } yield b
 }
@@ -95,8 +95,8 @@ object RefM extends Serializable {
       interrupted.get.flatMap {
         case Some(cause) => onDefect(cause)
         case None =>
-          update(a).sandboxed.redeem(onDefect, {
-            case (b, a) => ref.set(a) <* promise.complete(b)
+          update(a).sandbox.redeem(onDefect, {
+            case (b, a) => ref.set(a) <* promise.succeed(b)
           })
       }
   }

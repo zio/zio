@@ -12,6 +12,12 @@ package scalaz.zio
  * some checked error, as per the type of the functions provided by the resource.
  */
 sealed abstract class Managed[+E, +R] extends Serializable { self =>
+  type R0 <: R
+
+  protected def acquire: IO[E, R0]
+
+  protected def release: R0 => IO[Nothing, _]
+
   def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A]
 
   final def use_[E1 >: E, A](f: IO[E1, A]): IO[E1, A] =
@@ -19,13 +25,25 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
 
   final def map[R1](f0: R => R1): Managed[E, R1] =
     new Managed[E, R1] {
-      def use[E1 >: E, A](f: R1 => IO[E1, A]): IO[E1, A] =
+      type R0 = R1
+
+      protected def acquire: IO[E, R1] = IO.never
+
+      protected def release: R1 => IO[Nothing, Unit] = _ => IO.unit
+
+      final def use[E1 >: E, A](f: R1 => IO[E1, A]): IO[E1, A] =
         self.use(r => f(f0(r)))
     }
 
-  final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]) =
+  final def flatMap[E1 >: E, R1](f0: R => Managed[E1, R1]): Managed[E1, R1] =
     new Managed[E1, R1] {
-      def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
+      type R0 = R1
+
+      protected def acquire: IO[E1, R1] = IO.never
+
+      protected def release: R1 => IO[Nothing, Unit] = _ => IO.unit
+
+      final def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
         self.use { r =>
           f0(r).use { r1 =>
             f(r1)
@@ -33,17 +51,40 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
         }
     }
 
-  final def *>[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, R1] =
-    flatMap(_ => ff)
+  final def *>[E1 >: E, R1](that: Managed[E1, R1]): Managed[E1, R1] =
+    flatMap(_ => that)
 
-  final def <*[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, R] =
-    flatMap(r => ff.map(_ => r))
+  final def <*[E1 >: E, R1](that: Managed[E1, R1]): Managed[E1, R] =
+    flatMap(r => that.map(_ => r))
 
-  final def seqWith[E1 >: E, R1, R2](ff: Managed[E1, R1])(f: (R, R1) => R2): Managed[E1, R2] =
-    flatMap(r => ff.map(r1 => f(r, r1)))
+  final def zipWith[E1 >: E, R1, R2](that: Managed[E1, R1])(f: (R, R1) => R2): Managed[E1, R2] =
+    flatMap(r => that.map(r1 => f(r, r1)))
 
-  final def seq[E1 >: E, R1](ff: Managed[E1, R1]): Managed[E1, (R, R1)] =
-    seqWith(ff)((_, _))
+  final def zip[E1 >: E, R1](that: Managed[E1, R1]): Managed[E1, (R, R1)] =
+    zipWith(that)((_, _))
+
+  final def zipWithPar[E1 >: E, R1, R2](that: Managed[E1, R1])(f0: (R, R1) => R2): Managed[E1, R2] =
+    new Managed[E1, R2] {
+      type R0 = R2
+
+      protected def acquire: IO[E1, R2] = IO.never
+
+      protected def release: R2 => IO[Nothing, Unit] = _ => IO.unit
+
+      def use[E2 >: E1, A](f: R2 => IO[E2, A]): IO[E2, A] = {
+        val acquireBoth = self.acquire.zipPar(that.acquire)
+
+        def releaseBoth(pair: (self.R0, that.R0)): IO[Nothing, Unit] =
+          self.release(pair._1).zipPar(that.release(pair._2)) *> IO.unit
+
+        acquireBoth.bracket[E2, A](releaseBoth) {
+          case (r, r1) => f(f0(r, r1))
+        }
+      }
+    }
+
+  final def zipPar[E1 >: E, R1](that: Managed[E1, R1]): Managed[E1, (R, R1)] =
+    zipWithPar(that)((_, _))
 }
 
 object Managed {
@@ -51,8 +92,14 @@ object Managed {
   /**
    * Lifts an `IO[E, R]`` into `Managed[E, R]`` with a release action.
    */
-  final def apply[E, R](acquire: IO[E, R])(release: R => IO[Nothing, Unit]) =
+  final def apply[E, R](a: IO[E, R])(r: R => IO[Nothing, _]): Managed[E, R] =
     new Managed[E, R] {
+      type R0 = R
+
+      protected def acquire: IO[E, R] = a
+
+      protected def release: R => IO[Nothing, _] = r
+
       final def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         acquire.bracket[E1, A](release)(f)
     }
@@ -61,31 +108,64 @@ object Managed {
    * Lifts an IO[E, R] into Managed[E, R] with no release action. Use
    * with care.
    */
-  final def liftIO[E, R](fa: IO[E, R]) =
+  final def liftIO[E, R](fa: IO[E, R]): Managed[E, R] =
     new Managed[E, R] {
-      final def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+      type R0 = R
+
+      protected def acquire: IO[E, R] = fa
+
+      protected def release: R => IO[Nothing, _] = _ => IO.unit
+
+      def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         fa.flatMap(f)
+    }
+
+  /**
+   * Unwraps a `Managed` that is inside an `IO`.
+   */
+  final def unwrap[E, R](fa: IO[E, Managed[E, R]]): Managed[E, R] =
+    new Managed[E, R] {
+      type R0 = R
+
+      protected def acquire: IO[E, R] = IO.never
+
+      protected def release: R => IO[Nothing, Unit] = _ => IO.unit
+
+      final def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+        fa.flatMap(_.use(f))
     }
 
   /**
    * Lifts a strict, pure value into a Managed.
    */
-  final def now[R](r: R): Managed[Nothing, R] =
+  final def succeed[R](r: R): Managed[Nothing, R] =
     new Managed[Nothing, R] {
-      final def use[E, A](f: R => IO[E, A]): IO[E, A] = f(r)
+      type R0 = R
+
+      protected def acquire: IO[Nothing, R] = IO.succeed(r)
+
+      protected def release: R => IO[Nothing, _] = _ => IO.unit
+
+      final def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
     }
 
   /**
    * Lifts a by-name, pure value into a Managed.
    */
-  final def point[R](r: => R): Managed[Nothing, R] =
+  final def succeedLazy[R](r: => R): Managed[Nothing, R] =
     new Managed[Nothing, R] {
-      final def use[E, A](f: R => IO[E, A]): IO[E, A] = f(r)
+      type R0 = R
+
+      protected def acquire: IO[Nothing, R] = IO.succeedLazy(r)
+
+      protected def release: R => IO[Nothing, _] = _ => IO.unit
+
+      final def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
     }
 
   final def traverse[E, R, A](as: Iterable[A])(f: A => Managed[E, R]): Managed[E, List[R]] =
-    as.foldRight[Managed[E, List[R]]](now(Nil)) { (a, m) =>
-      f(a).seqWith(m)(_ :: _)
+    as.foldRight[Managed[E, List[R]]](succeed(Nil)) { (a, m) =>
+      f(a).zipWith(m)(_ :: _)
     }
 
   final def sequence[E, R, A](ms: Iterable[Managed[E, R]]): Managed[E, List[R]] =

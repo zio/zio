@@ -2,7 +2,7 @@
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration._
+import scalaz.zio.duration.Duration
 
 trait Clock extends Serializable {
   def currentTime(unit: TimeUnit): IO[Nothing, Long]
@@ -13,11 +13,11 @@ trait Clock extends Serializable {
 object Clock {
   object Live extends Clock {
     final def currentTime(unit: TimeUnit): IO[Nothing, Long] =
-      system.currentTimeMillis.map(l => unit.convert(l, MILLISECONDS))
+      system.currentTimeMillis.map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
     final val nanoTime: IO[Nothing, Long] = system.nanoTime
 
     final def sleep(length: Long, unit: TimeUnit): IO[Nothing, Unit] =
-      IO.sleep(FiniteDuration(length, unit))
+      IO.sleep(Duration(length, unit))
   }
 }

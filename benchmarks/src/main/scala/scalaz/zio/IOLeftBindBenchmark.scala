@@ -49,17 +49,17 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => Task.eval(i))
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncMaybe.right.get
+    Task.eval(0).flatMap(loop).runSyncStep.right.get
   }
 
   @Benchmark
   def scalazLeftBindBenchmark(): Int = {
     def loop(i: Int): IO[Nothing, Int] =
-      if (i % depth == 0) IO.point[Int](i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => IO.point(i))
-      else IO.point(i)
+      if (i % depth == 0) IO.succeedLazy[Int](i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => IO.succeedLazy(i))
+      else IO.succeedLazy(i)
 
-    unsafeRun(IO.point[Int](0).flatMap(loop))
+    unsafeRun(IO.succeedLazy[Int](0).flatMap(loop))
   }
 
   @Benchmark
