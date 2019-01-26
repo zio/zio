@@ -7,6 +7,7 @@ import scala.Console
 import scala.io.StdIn
 
 package object console {
+
   /**
    * Prints text to the console.
    */
