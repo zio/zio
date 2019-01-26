@@ -12,19 +12,19 @@ ZIO provides a <code class="highlighter-rouge">system</code> package to interfac
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="c1">//
 </span>     <span class="o">|</span> <span class="n">system</span><span class="o">.</span><span class="n">currentTime</span>
-<span class="n">res1</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">java.time.Instant</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mf">6f</span><span class="mi">4</span><span class="n">c4ed9</span>
+<span class="n">res1</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">java.time.Instant</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mi">1</span><span class="n">e914ba7</span>
 </code></pre></div></div>
 
 <p>If you need the current time in milliseconds since January 1, 1970, then you can use the <code class="highlighter-rouge">currentTimeMillis</code> method:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">system</span><span class="o">.</span><span class="n">currentTimeMillis</span>
-<span class="n">res2</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mf">2054d</span><span class="mi">7</span><span class="n">e2</span>
+<span class="n">res2</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mi">58250552</span>
 </code></pre></div></div>
 
 <p>Finally, if you need a high-resolution time source, not connected to system or wall-clock time, then you can use <code class="highlighter-rouge">nanoTime</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">system</span><span class="o">.</span><span class="n">nanoTime</span>
-<span class="n">res3</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mi">2</span><span class="n">e5a0614</span>
+<span class="n">res3</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mf">2d</span><span class="mi">84053</span>
 </code></pre></div></div>
 
 <h2 id="environment-variables">Environment Variables</h2>
@@ -33,7 +33,7 @@ ZIO provides a <code class="highlighter-rouge">system</code> package to interfac
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="c1">// Read an environment variable
 </span>     <span class="o">|</span> <span class="n">system</span><span class="o">.</span><span class="n">env</span><span class="o">(</span><span class="s">"JAVA_HOME"</span><span class="o">)</span>
-<span class="n">res5</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mi">3</span><span class="n">b338249</span>
+<span class="n">res5</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mi">4</span><span class="n">b1f7cc4</span>
 </code></pre></div></div>
 
 <h2 id="properties">Properties</h2>
@@ -42,7 +42,7 @@ ZIO provides a <code class="highlighter-rouge">system</code> package to interfac
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="c1">// Read a system property
 </span>     <span class="o">|</span> <span class="n">system</span><span class="o">.</span><span class="n">property</span><span class="o">(</span><span class="s">"java.version"</span><span class="o">)</span>
-<span class="n">res7</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Throwable</span>,<span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$FlatMap</span><span class="k">@</span><span class="mi">5</span><span class="n">ea53b24</span>
+<span class="n">res7</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Throwable</span>,<span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$FlatMap</span><span class="k">@</span><span class="mf">485f</span><span class="n">de6d</span>
 </code></pre></div></div>
 
 <h2 id="miscellaneous">Miscellaneous</h2>
@@ -50,7 +50,7 @@ ZIO provides a <code class="highlighter-rouge">system</code> package to interfac
 <p>With the <code class="highlighter-rouge">lineSeparator</code> method, you can determine the line separator for the underlying platform:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">system</span><span class="o">.</span><span class="n">lineSeparator</span>
-<span class="n">res8</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mi">721698</span><span class="n">ca</span>
+<span class="n">res8</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">Nothing</span>,<span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">IO$SyncEffect</span><span class="k">@</span><span class="mf">7d</span><span class="mi">5412</span><span class="n">c1</span>
 </code></pre></div></div>
 </section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
 hljs.initHighlighting();

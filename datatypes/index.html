@@ -3,14 +3,15 @@
 <p>ZIO contains a small number of data types that can help you solve complex problems in asynchronous and concurrent programming.</p>
 
 <ul>
-  <li><strong><a href="fiber.html">Fiber</a></strong> — A fiber value models an <code class="highlighter-rouge">IO</code> value that has started running, and is the moral equivalent of a green thread.</li>
+  <li><strong><a href="fiber.html">Fiber</a></strong> — A fiber value models an <code class="highlighter-rouge">IO</code> value that has started running, and is the moral equivalent of a green thread.</li>
   <li><strong><a href="fiberlocal.html">FiberLocal</a></strong> — A <code class="highlighter-rouge">FiberLocal</code> is a variable whose value depends on the fiber that accesses it, and is the moral equivalent of Java’s <code class="highlighter-rouge">ThreadLocal</code>.</li>
   <li><strong><a href="io.html">IO</a></strong> — An <code class="highlighter-rouge">IO</code> is a value that describes an effectful program, which might fail or succeed.</li>
   <li><strong><a href="managed.html">Managed</a></strong> — A <code class="highlighter-rouge">Managed</code> is a value that describes an <code class="highlighter-rouge">IO</code> perishable resource that may be consumed only once inside a given scope.</li>
   <li><strong><a href="promise.html">Promise</a></strong> — A <code class="highlighter-rouge">Promise</code> is a model of a variable that may be set a single time, and awaited on by many fibers.</li>
   <li><strong><a href="queue.html">Queue</a></strong> — A <code class="highlighter-rouge">Queue</code> is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.</li>
-  <li><strong><a href="schedule.html">Schedule</a></strong> — A <code class="highlighter-rouge">Schedule</code> is a model of a recurring schedule, which can be used for repeating successful <code class="highlighter-rouge">IO</code> values, or retrying failed <code class="highlighter-rouge">IO</code> values.</li>
-  <li>**<a href="semaphore.html">Semaphore</a> — A <code class="highlighter-rouge">Semaphore</code> is an asynchronous (non-blocking) semaphore that plays well with ZIO’s interruption.</li>
+  <li><strong><a href="ref.html">Ref</a></strong> — <code class="highlighter-rouge">Ref[A]</code> models a mutable reference to a value of type <code class="highlighter-rouge">A</code>. The two basic operations are <code class="highlighter-rouge">set</code>, which fills the <code class="highlighter-rouge">Ref</code> with a new value, and <code class="highlighter-rouge">get</code>, which retrieves its current content. All operations on a <code class="highlighter-rouge">Ref</code> are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.</li>
+  <li><strong><a href="schedule.html">Schedule</a></strong> — A <code class="highlighter-rouge">Schedule</code> is a model of a recurring schedule, which can be used for repeating successful <code class="highlighter-rouge">IO</code> values, or retrying failed <code class="highlighter-rouge">IO</code> values.</li>
+  <li><strong><a href="semaphore.html">Semaphore</a></strong> — A <code class="highlighter-rouge">Semaphore</code> is an asynchronous (non-blocking) semaphore that plays well with ZIO’s interruption.</li>
   <li><strong><a href="sink.html">Sink</a></strong> — A <code class="highlighter-rouge">Sink</code> is a consumer of values from a <code class="highlighter-rouge">Stream</code>, which may produces a value when it has consumed enough.</li>
   <li><strong><a href="stream.html">Stream</a></strong> — A <code class="highlighter-rouge">Stream</code> is a lazy, concurrent, asynchronous source of values.</li>
 </ul>

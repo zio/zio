@@ -23,7 +23,7 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="o">)</span> <span class="o">{</span>
-    <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
+    <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
     <span class="k">for</span> <span class="o">{</span>
       <span class="n">fiber1</span> <span class="k">&lt;-</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">2</span><span class="o">).</span><span class="n">fork</span>
@@ -52,7 +52,7 @@
   <li>The fiber has a defect that leads to a non-recoverable error. There are only two ways this can happen:
     <ol>
       <li>A partial function is passed to a higher-order function such as <code class="highlighter-rouge">map</code> or <code class="highlighter-rouge">flatMap</code>. For example, <code class="highlighter-rouge">io.map(_ =&gt; throw e)</code>, or <code class="highlighter-rouge">io.flatMap(a =&gt; throw e)</code>. The solution to this problem is to not to pass impure functions to purely functional libraries like ZIO, because doing so leads to violations of laws and destruction of equational reasoning.</li>
-      <li>Error-throwing code was embedded into some value via <code class="highlighter-rouge">IO.point</code>, <code class="highlighter-rouge">IO.sync</code>, etc. For importing partial effects into <code class="highlighter-rouge">IO</code>, the proper solution is to use a method such as <code class="highlighter-rouge">syncException</code>, which safely translates exceptions into values.</li>
+      <li>Error-throwing code was embedded into some value via <code class="highlighter-rouge">IO.succeedLazy</code>, <code class="highlighter-rouge">IO.sync</code>, etc. For importing partial effects into <code class="highlighter-rouge">IO</code>, the proper solution is to use a method such as <code class="highlighter-rouge">syncException</code>, which safely translates exceptions into values.</li>
     </ol>
   </li>
 </ul>
@@ -65,17 +65,17 @@
 
 <h1 id="parallelism">Parallelism</h1>
 
-<p>To execute actions in parallel, the <code class="highlighter-rouge">par</code> method can be used:</p>
+<p>To execute actions in parallel, the <code class="highlighter-rouge">zipPar</code> method can be used:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">bigCompute</span><span class="o">(</span><span class="n">m1</span><span class="k">:</span> <span class="kt">Matrix</span><span class="o">,</span> <span class="n">m2</span><span class="k">:</span> <span class="kt">Matrix</span><span class="o">,</span> <span class="n">v</span><span class="k">:</span> <span class="kt">Matrix</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Matrix</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="n">t</span> <span class="k">&lt;-</span> <span class="n">computeInverse</span><span class="o">(</span><span class="n">m1</span><span class="o">).</span><span class="n">par</span><span class="o">(</span><span class="n">computeInverse</span><span class="o">(</span><span class="n">m2</span><span class="o">))</span>
+    <span class="n">t</span> <span class="k">&lt;-</span> <span class="n">computeInverse</span><span class="o">(</span><span class="n">m1</span><span class="o">).</span><span class="n">zipPar</span><span class="o">(</span><span class="n">computeInverse</span><span class="o">(</span><span class="n">m2</span><span class="o">))</span>
     <span class="o">(</span><span class="n">i1</span><span class="o">,</span> <span class="n">i2</span><span class="o">)</span> <span class="k">=</span> <span class="n">t</span>
     <span class="n">r</span> <span class="k">&lt;-</span> <span class="n">applyMatrices</span><span class="o">(</span><span class="n">i1</span><span class="o">,</span> <span class="n">i2</span><span class="o">,</span> <span class="n">v</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">r</span>
 </code></pre></div></div>
 
-<p>The <code class="highlighter-rouge">par</code> combinator has resource-safe semantics. If one computation fails, the other computation will be interrupted, to prevent wasting resources.</p>
+<p>The <code class="highlighter-rouge">zipPar</code> combinator has resource-safe semantics. If one computation fails, the other computation will be interrupted, to prevent wasting resources.</p>
 
 <h3 id="racing">Racing</h3>
 
@@ -86,7 +86,7 @@
 
 <p>The <code class="highlighter-rouge">race</code> combinator is resource-safe, which means that if one of the two actions returns a value, the other one will be interrupted, to prevent wasting resources.</p>
 
-<p>The <code class="highlighter-rouge">race</code> and even <code class="highlighter-rouge">par</code> combinators are a specialization of a much-more powerful combinator called <code class="highlighter-rouge">raceWith</code>, which allows executing user-defined logic when the first of two actions succeeds.</p>
+<p>The <code class="highlighter-rouge">race</code> and even <code class="highlighter-rouge">zipPar</code> combinators are a specialization of a much-more powerful combinator called <code class="highlighter-rouge">raceWith</code>, which allows executing user-defined logic when the first of two actions succeeds.</p>
 
 <h2 id="thread-shifting---jvm">Thread Shifting - JVM</h2>
 

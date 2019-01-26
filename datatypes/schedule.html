@@ -72,7 +72,7 @@
 
 <p>Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">sequential</span> <span class="k">=</span> <span class="nc">Schedule</span><span class="o">.</span><span class="n">recurs</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span> <span class="o">&lt;||&gt;</span> <span class="nc">Schedule</span><span class="o">.</span><span class="n">spaced</span><span class="o">(</span><span class="mf">1.</span><span class="n">second</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">sequential</span> <span class="k">=</span> <span class="nc">Schedule</span><span class="o">.</span><span class="n">recurs</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span> <span class="n">andThen</span> <span class="nc">Schedule</span><span class="o">.</span><span class="n">spaced</span><span class="o">(</span><span class="mf">1.</span><span class="n">second</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>Combines two schedules through intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences:</p>

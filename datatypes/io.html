@@ -10,18 +10,18 @@
 
 <h1 id="pure-values">Pure Values</h1>
 
-<p>You can lift pure values into <code class="highlighter-rouge">IO</code> with <code class="highlighter-rouge">IO.point</code>:</p>
+<p>You can lift pure values into <code class="highlighter-rouge">IO</code> with <code class="highlighter-rouge">IO.succeedLazy</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio._</span>
 
-<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>The constructor uses non-strict evaluation, so the parameter will not be evaluated until when and if the <code class="highlighter-rouge">IO</code> action is executed at runtime, which is useful if the construction is costly and the value may never be needed.</p>
 
-<p>Alternately, you can use the <code class="highlighter-rouge">IO.now</code> constructor to perform strict evaluation of the value:</p>
+<p>Alternately, you can use the <code class="highlighter-rouge">IO.succeed</code> constructor to perform strict evaluation of the value:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">now</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>You should never use either constructor for importing impure code into <code class="highlighter-rouge">IO</code>. The result of doing so is undefined.</p>
@@ -76,7 +76,7 @@ because the <code class="highlighter-rouge">Nothing</code> type is <em>uninhabit
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio._</span>
 
-<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="mi">21</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">*</span> <span class="mi">2</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="mi">21</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">*</span> <span class="mi">2</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>You can transform an <code class="highlighter-rouge">IO[E, A]</code> into an <code class="highlighter-rouge">IO[E2, A]</code> by calling the <code class="highlighter-rouge">leftMap</code> method with a function <code class="highlighter-rouge">E =&gt; E2</code>:</p>
@@ -88,16 +88,16 @@ because the <code class="highlighter-rouge">Nothing</code> type is <em>uninhabit
 
 <p>You can execute two actions in sequence with the <code class="highlighter-rouge">flatMap</code> method. The second action may depend on the value produced by the first action.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">list</span> <span class="k">=&gt;</span>
-  <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="n">list</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">list</span> <span class="k">=&gt;</span>
+  <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="n">list</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
 <p>You can use Scala’s <code class="highlighter-rouge">for</code> comprehension syntax to make this type of code more compact:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
-  <span class="n">list</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">))</span>
-  <span class="n">added</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">point</span><span class="o">(</span><span class="n">list</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
+  <span class="n">list</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">))</span>
+  <span class="n">added</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="n">list</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="n">added</span>
 </code></pre></div></div>
 
