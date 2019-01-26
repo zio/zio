@@ -64,7 +64,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
     buildInfoPackage := "scalaz.zio",
-    buildInfoObject := "BuildInfo"
+    buildInfoObject := "BuildInfo",
+    coverageExcludedPackages := "<empty>;scalaz.zio.BuildInfo"
   )
 
 lazy val coreJVM = core.jvm
