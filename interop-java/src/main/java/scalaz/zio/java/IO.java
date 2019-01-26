@@ -5,7 +5,6 @@ import scala.collection.JavaConverters;
 import scala.runtime.BoxedUnit;
 import scala.runtime.Nothing$;
 import scalaz.zio.*;
-import scalaz.zio.java.data.Pair;
 import scalaz.zio.java.data.Either;
 
 import java.util.Optional;
@@ -197,8 +196,9 @@ public class IO<E, A> {
         return new IO<>(delegate.catchSome(pf.andThen(io -> io.delegate)));
     }
 
-    // TODO not sure how to call this from java
-    // final def const[B](b: => B): IO[E, B] = self.map(_ => b)
+    public <B> IO<E, B> constant(Supplier<B> b) {
+        return map(a -> b.get());
+    }
 
     public <B> IO<E, B> then(IO<E, B> io) {
         return new IO<>(delegate.$times$greater(() -> io.delegate));
@@ -256,9 +256,6 @@ public class IO<E, A> {
     public <S, E2, B> IO<E2, Either<B, A>> retryOrElse0(Schedule<E, S> policy, BiFunction<E, S, IO<E2, B>> orElse, Clock clock) {
         return new IO<>(delegate.retryOrElse0(policy, orElse.andThen(io -> io.delegate)::apply, clock)).map(Either::fromScala);
     }
-
-    // TODO not sure how to call this from java
-    // final def void: IO[E, Unit] = const(())
 
     public <B> IO<E, A> peek(Function<A, IO<E, B>> f) {
         return new IO<>(delegate.peek(f.andThen(io -> io.delegate)::apply));
