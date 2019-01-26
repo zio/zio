@@ -54,8 +54,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   /**
-   * Retrieves immediately the completion of this promise if it's available,
-   * and fails immediately with `Unit` otherwise
+   * Completes immediately this promise and returns optionally it's result.
    */
   final def poll: IO[Nothing, Option[IO[E, A]]] =
     IO.sync(state.get).flatMap {

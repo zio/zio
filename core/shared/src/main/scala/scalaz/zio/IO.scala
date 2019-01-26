@@ -84,7 +84,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * val parsed = readFile("foo.txt").flatMap(file => parseFile(file))
    * }}}
    */
-  final def flatMap[E1 >: E, B](f0: A => IO[E1, B]): IO[E1, B] = new IO.FlatMap(self, f0)
+  final def flatMap[E1 >: E, B](f0: A => IO[E1, B]): IO[E1, B] = (self.tag: @switch) match {
+    case IO.Tags.Fail => self.asInstanceOf[IO[E1, B]]
+    case _            => new IO.FlatMap(self, f0)
+  }
 
   /**
    * Forks this action into its own separate fiber, returning immediately
@@ -98,7 +101,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * for {
    *   fiber <- subtask.fork
    *   // Do stuff...
-   *   a <- subtask.join
+   *   a <- fiber.join
    * } yield a
    * }}}
    */
@@ -340,6 +343,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def attempt: IO[Nothing, Either[E, A]] =
     self.redeem[Nothing, Either[E, A]](IO.succeedLeft, IO.succeedRight)
+
+  /**
+   * Unwraps the optional success of this effect, but can fail with unit value.
+   */
+  final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): IO[Unit, B] =
+    IO.absolve(self.leftMap(ev1).map(_.toRight(())))
+
+  /**
+   * Executes this action, skipping the error but returning optionally the success.
+   */
+  final def option: IO[Nothing, Option[A]] =
+    self.redeem0(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
   /**
    * When this action represents acquisition of a resource (for example,
@@ -1014,6 +1029,45 @@ object IO extends Serializable {
    * Returns an `IO` that fails with the specified `Cause`.
    */
   final def halt[E](cause: Cause[E]): IO[E, Nothing] = new Fail(cause)
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
+   * will be interrupted via `Thread.interrupt`.
+   */
+  final def blocking[A](effect: => A): IO[Nothing, A] =
+    IO.flatten(IO.sync {
+      import java.util.concurrent.locks.ReentrantLock
+      import java.util.concurrent.atomic.AtomicReference
+
+      val lock   = new ReentrantLock()
+      val thread = new AtomicReference[Option[Thread]](None)
+
+      def withLock[B](b: => B): B =
+        try {
+          lock.lock(); b
+        } finally lock.unlock()
+
+      for {
+        finalizer <- Ref[IO[Nothing, Unit]](IO.unit)
+        a <- (for {
+              fiber <- (IO.unyielding(IO.sync[Either[Throwable, A]] {
+                        withLock(thread.set(Some(Thread.currentThread())))
+
+                        try Right(effect)
+                        catch {
+                          case e: InterruptedException =>
+                            Thread.interrupted
+                            Left(e)
+                        } finally withLock(thread.set(None)) // TODO: Signal finalizer to continue
+                      }) <* finalizer
+                        .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
+              either <- fiber.join
+              a      <- either.fold[IO[Nothing, A]](IO.die, IO.succeed)
+            } yield a).ensuring(IO.flatten(finalizer.get))
+      } yield a
+    })
 
   /**
    * Imports a synchronous effect into a pure `IO` value.

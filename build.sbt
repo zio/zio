@@ -43,6 +43,7 @@ lazy val root = project
     interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
+    interopJavaJVM,
     benchmarks,
     microsite
   )
@@ -53,9 +54,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.3.6" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.3.6" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.3.6" % Test
+      "org.specs2" %%% "specs2-core"          % "4.4.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.4.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.4.0" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
@@ -114,7 +115,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect" % "1.1.0" % Optional,
+      "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional,
       "co.fs2"        %%% "fs2-core"    % "1.0.2" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
@@ -127,7 +128,7 @@ lazy val interopCatsJVM = interopCats.jvm
   // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"          % "1.1.0" % Test,
+      "org.typelevel"              %% "cats-effect-laws"          % "1.2.0" % Test,
       "org.typelevel"              %% "cats-testkit"              % "1.5.0" % Test,
       "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8" % Test
     ),
@@ -179,6 +180,16 @@ lazy val interopScalaz7xJVM = interopScalaz7x.jvm.dependsOn(interopSharedJVM)
 
 lazy val interopScalaz7xJS = interopScalaz7x.js.dependsOn(interopSharedJS)
 
+lazy val interopJava = crossProject(JVMPlatform)
+  .in(file("interop-java"))
+  .settings(stdSettings("zio-interop-java"))
+  .dependsOn(core % "test->test;compile->compile")
+  .settings(
+    scalacOptions in Test ++= Seq("-Yrangepos")
+  )
+
+lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
+
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
   .enablePlugins(JmhPlugin)
@@ -189,12 +200,12 @@ lazy val benchmarks = project.module
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "io.monix"                 %% "monix"           % "3.0.0-RC2",
-        "org.typelevel"            %% "cats-effect"     % "1.1.0",
+        "org.typelevel"            %% "cats-effect"     % "1.2.0",
         "co.fs2"                   %% "fs2-core"        % "1.0.2",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.19",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.3",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.6",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.2.2.RELEASE",
+        "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
         "com.google.code.findbugs" % "jsr305"           % "3.0.0"
       ),
     scalacOptions in Compile in console := Seq(
@@ -208,7 +219,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val microsite = project.module
-  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM)
+  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM)
   .enablePlugins(MicrositesPlugin)
   .settings(
     scalacOptions -= "-Yno-imports",

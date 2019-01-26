@@ -52,6 +52,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     left identity           $monadLaw1
     right identity          $monadLaw2
     associativity           $monadLaw3
+
+  Stream stack safety
+    deep flatMap            $deepFlatMap
   """
 
   import ArbitraryStream._
@@ -65,7 +68,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       succeed(s.foldPureLazy(List[A]())(cont)((acc, el) => el :: acc).reverse)
     case s =>
       unsafeRunSync {
-        s.foldLazy(List[A]())(cont)((acc, el) => IO.succeed(el :: acc)).map(str => str.reverse)
+        s.fold[E, A, List[A]].flatMap(f0 => f0(List[A](), cont, (acc, el) => IO.succeed(el :: acc)).map(_.reverse))
       }
   }
 
@@ -188,6 +191,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       slurp(leftStream) must_=== slurp(rightStream)
     }
 
+  private def deepFlatMap = {
+    def fib(n: Int): Stream[Nothing, Int] =
+      if (n <= 1) Stream.succeedLazy(n)
+      else
+        fib(n - 1).flatMap { a =>
+          fib(n - 2).flatMap { b =>
+            Stream.succeedLazy(a + b)
+          }
+        }
+
+    val stream   = fib(20)
+    val expected = 6765
+
+    slurp(stream).toEither must beRight(List(expected))
+  }
+
   private def forever = {
     var sum = 0
     val s = Stream(1).forever.foreach0(
@@ -297,7 +316,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
         queue <- Queue.unbounded[Int]
         _     <- queue.offerAll(c.toSeq)
         s     = Stream.fromQueue(queue)
-        fiber <- s.foldLazy(List[Int]())(_ => true)((acc, el) => IO.succeed(el :: acc)).map(str => str.reverse).fork
+        fiber <- s.fold[Nothing, Int, List[Int]].flatMap { f0 =>
+                  f0(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
+                    .map(_.reverse)
+                    .fork
+                }
         _     <- waitForSize(queue, -1)
         _     <- queue.shutdown
         items <- fiber.join

@@ -5,7 +5,7 @@ class RingBufferArb[A] private (capacity: Int) extends RingBuffer[A](capacity) {
 }
 
 object RingBufferArb {
-  def apply[A](capacity: Int): RingBufferArb[A] = {
+  final def apply[A](capacity: Int): RingBufferArb[A] = {
     assert(capacity >= 2)
 
     new RingBufferArb(capacity)

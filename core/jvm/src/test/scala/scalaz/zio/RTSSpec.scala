@@ -123,6 +123,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     check interruption regression 1         $testInterruptionRegression1
 
   RTS interruption
+    blocking IO is interruptible            $testBlockingIOIsInterruptible
     sync forever is interruptible           $testInterruptSyncForever
     interrupt of never                      $testNeverIsInterruptible
     asyncPure is interruptible              $testAsyncPureIsInterruptible
@@ -449,15 +450,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       if (n <= 0) ref.get
       else ref.update(_ + 1) *> incRight(n - 1, ref)
 
-    unsafeRun(for {
+    val l = unsafeRun(for {
       ref <- Ref(0)
       v   <- incLeft(100, ref)
-    } yield v) must_=== 100
+    } yield v)
 
-    unsafeRun(for {
+    val r = unsafeRun(for {
       ref <- Ref(0)
       v   <- incRight(1000, ref)
-    } yield v) must_=== 1000
+    } yield v)
+
+    (l must_=== 0) and (r must_=== 1000)
   }
 
   def testDeepMapOfPoint =
@@ -955,6 +958,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     )
 
   }
+
+  def testBlockingIOIsInterruptible = unsafeRun(
+    for {
+      done  <- Ref(false)
+      start <- IO.succeed(internal.OneShot.make[Unit])
+      fiber <- IO.blocking { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
+      _     <- IO.succeed(start.get())
+      _     <- fiber.interrupt
+      value <- done.get
+    } yield value must_=== true
+  )
 
   def testInterruptSyncForever = unsafeRun(
     for {
