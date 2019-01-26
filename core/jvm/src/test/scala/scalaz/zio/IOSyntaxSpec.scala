@@ -157,8 +157,6 @@ class IOSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
   def is = "IOSyntaxSpec".title ^ s2"""
    Generate a String:
       `.raceAll` extension method returns the same IO[E, A] as `IO.raceAll` does. $t1
-   Generate a String:
-      `.supervice` extension method returns the same IO[E, A] as `IO.supervise` does. $t2
     """
 
   val TestData = "supercalifragilisticexpialadocious"
@@ -170,14 +168,6 @@ class IOSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
       race1 <- io.raceAll(ios)
       race2 <- IO.raceAll(io, ios)
     } yield race1 must ===(race2))
-  }
-
-  def t2 = {
-    val io = IO.sync(TestData)
-    unsafeRun(for {
-      supervise1 <- io.supervise
-      supervise2 <- IO.supervise(io)
-    } yield supervise1 must ===(supervise2))
   }
 }
 

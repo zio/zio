@@ -32,6 +32,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
    Check when executes correct branch only. $testWhen
    Check whenM executes condition effect and correct branch. $testWhenM
    Check unsandbox unwraps exception. $testUnsandbox
+   Check supervise returns same value as IO.supervise. $testSupervise
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -158,5 +159,13 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
     val success: IO[Exit.Cause[RuntimeException], Int] = IO.succeed(100)
     val successUnsandboxed: IO[RuntimeException, Int]  = success.unsandbox
     unsafeRun(successUnsandboxed) must_=== 100
+  }
+
+  def testSupervise = {
+    val io = IO.sync("supercalifragilisticexpialadocious")
+    unsafeRun(for {
+      supervise1 <- io.supervise
+      supervise2 <- IO.supervise(io)
+    } yield supervise1 must ===(supervise2))
   }
 }
