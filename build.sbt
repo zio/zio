@@ -142,7 +142,7 @@ lazy val interopFuture = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio-interop-future"))
   .dependsOn(core % "test->test;compile->compile")
   .settings(
-    scalacOptions in Test ++= Seq("-Yrangepos")
+    scalacOptions in Test ++= Seq("-Yrangepos"),
   )
 
 lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
@@ -184,7 +184,10 @@ lazy val interopJava = project.module
   .in(file("interop-java"))
   .dependsOn(coreJVM, interopSharedJVM)
   .settings(
-    skip in publish := true
+    skip in publish := true,
+    libraryDependencies ++= Seq(
+      "org.projectlombok" % "lombok" % "1.16.16" % Compile
+    )
   )
 
 lazy val interopJavaJVM = interopJava
