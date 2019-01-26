@@ -580,8 +580,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Repeats are done in addition to the first execution so that
    * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
    */
-  final def repeat[B](schedule: Schedule[A, B]): ZIO[Clock with R, E, B] =
-    repeatOrElse[R, E, B](schedule, (e, _) => ZIO.fail(e))
+  final def repeat[R1 <: R, B](schedule: Schedule[A, B])(implicit ev: R1 <:< Clock): ZIO[R1, E, B] =
+    repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
    * Repeats this action with the specified schedule until the schedule
@@ -591,7 +591,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def repeatOrElse[R1 <: R, E2, B](
     schedule: Schedule[A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  ): ZIO[Clock with R1, E2, B] =
+  )(implicit ev: R1 <:< Clock): ZIO[R1, E2, B] =
     repeatOrElse0[R1, B, E2, B](schedule, orElse).map(_.merge)
 
   /**
@@ -602,18 +602,18 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def repeatOrElse0[R1 <: R, B, E2, C](
     schedule: Schedule[A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
-  ): ZIO[Clock with R1, E2, Either[C, B]] = {
-    def loop(last: Option[() => B], state: schedule.State): ZIO[Clock with R1, E2, Either[C, B]] =
+  )(implicit ev: R1 <:< Clock): ZIO[R1, E2, Either[C, B]] = {
+    def loop(last: Option[() => B], state: schedule.State): ZIO[R1, E2, Either[C, B]] =
       self.redeem(
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
-          schedule.update(a, state).flatMap { step =>
+          schedule.update(a, state).contramap[R1](ev).flatMap { step =>
             if (!step.cont) ZIO.succeedRight(step.finish())
             else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
           }
       )
 
-    schedule.initial.flatMap(loop(None, _))
+    schedule.initial.contramap(ev).flatMap(loop(None, _))
   }
 
   /**
@@ -622,8 +622,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[E1 >: E, S](policy: Schedule[E1, S]): ZIO[Clock with R, E1, A] =
-    retryOrElse(policy, (e: E1, _: S) => ZIO.fail(e))
+  final def retry[R1 <: R, E1 >: E, S](policy: Schedule[E1, S])(implicit ev: R1 <:< Clock): ZIO[R1, E1, A] =
+    retryOrElse[R1, A, E1, S, E1](policy, (e: E1, _: S) => ZIO.fail(e))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -633,7 +633,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
     policy: Schedule[E1, S],
     orElse: (E1, S) => ZIO[R1, E2, A2]
-  ): ZIO[Clock with R1, E2, A2] =
+  )(implicit ev: R1 <:< Clock): ZIO[R1, E2, A2] =
     retryOrElse0(policy, orElse).map(_.merge)
 
   /**
@@ -644,12 +644,13 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def retryOrElse0[R1 <: R, E1 >: E, S, E2, B](
     policy: Schedule[E1, S],
     orElse: (E1, S) => ZIO[R1, E2, B]
-  ): ZIO[Clock with R1, E2, Either[B, A]] = {
-    def loop(state: policy.State): ZIO[Clock with R1, E2, Either[B, A]] =
+  )(implicit ev: R1 <:< Clock): ZIO[R1, E2, Either[B, A]] = {
+    def loop(state: policy.State): ZIO[R1, E2, Either[B, A]] =
       self.redeem(
         err =>
           policy
             .update(err, state)
+          .contramap(ev)
             .flatMap(
               decision =>
                 if (decision.cont) ZIO.sleep(decision.delay) *> loop(decision.state)
@@ -658,7 +659,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
         succ => ZIO.succeedRight(succ)
       )
 
-    policy.initial.flatMap(loop)
+    policy.initial.contramap(ev).flatMap(loop)
   }
 
   /**
@@ -1037,7 +1038,7 @@ trait ZIOFunctions extends Serializable {
    * forked by the action are killed upon the action's own termination.
    */
   final def supervise[R >: LowerR, E <: UpperE, A](io: ZIO[R, E, A]): ZIO[R, E, A] =
-    superviseWith(io)(Fiber.interruptAll)
+    superviseWith[R, E, A](io)(Fiber.interruptAll)
 
   /**
    * Supervises the specified action's spawned fibers.

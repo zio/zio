@@ -5,13 +5,13 @@ import scalaz.zio._
 private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
   def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S
 
-  override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): IO[Nothing, S] =
+  override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): UIO[S] =
     IO.succeed(foldPureLazy(s)(_ => true)(f))
 
   override def run[E, A0, A1 >: A, B](sink: Sink[E, A0, A1, B]): ZIO[R, E, B] =
     sink match {
       case sink: SinkPure[E, A0, A1, B] =>
-        IO.fromEither(
+        ZIO.fromEither(
           sink.extractPure(
             Sink.Step.state(
               foldPureLazy[A1, Sink.Step[sink.State, A0]](sink.initialPure)(Sink.Step.cont) { (s, a) =>
@@ -103,7 +103,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
       }
   }
 
-  override def zipWithIndex[R1 <: R]: StreamPure[R1, (A, Int)] = new StreamPure[R, (A, Int)] {
+  override def zipWithIndex[R1 <: R]: StreamPure[R1, (A, Int)] = new StreamPure[R1, (A, Int)] {
     override def foldPureLazy[A1 >: (A, Int), S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
       self
         .foldPureLazy[A, (S, Int)]((s, 0))(tp => cont(tp._1)) {
@@ -111,9 +111,9 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
         }
         ._1
 
-    override def fold[R1 <: R, E, A1 >: (A, Int), S]: Stream.Fold[R1, E, A1, S] =
+    override def fold[R2 <: R1, E, A1 >: (A, Int), S]: Stream.Fold[R2, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
-        StreamPure.super.zipWithIndex.fold[R1, E, A1, S].flatMap(f0 => f0(s, cont, f))
+        StreamPure.super.zipWithIndex[R2].fold[R2, E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
   }
 
@@ -149,11 +149,11 @@ private[stream] object StreamPure {
         val iterator = it.iterator
 
         def loop(s: S): ZIO[R1, E, S] =
-          IO.flatten {
-            IO.sync {
+          ZIO.flatten[R1, E, S] {
+            ZIO.sync {
               if (iterator.hasNext && cont(s))
                 f(s, iterator.next).flatMap(loop)
-              else IO.succeed(s)
+              else ZIO.succeed(s)
             }
           }
 

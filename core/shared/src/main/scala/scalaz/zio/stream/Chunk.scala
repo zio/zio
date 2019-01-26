@@ -162,10 +162,10 @@ sealed trait Chunk[@specialized +A] { self =>
     }
   }
 
-  final def foldMLazy[E, S](z: S)(pred: S => Boolean)(f: (S, A) => IO[E, S]): IO[E, S] = {
+  final def foldMLazy[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
     val len = length
 
-    def loop(s: S, i: Int): IO[E, S] =
+    def loop(s: S, i: Int): ZIO[R, E, S] =
       if (i >= len) IO.succeed(s)
       else {
         if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
@@ -205,8 +205,8 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Effectfully folds over the elements in this chunk from the left.
    */
-  final def foldM[E, S](s: S)(f: (S, A) => IO[E, S]): IO[E, S] =
-    foldLeft[IO[E, S]](IO.succeed(s)) { (s, a) =>
+  final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
+    foldLeft[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
       s.flatMap(f(_, a))
     }
 
@@ -417,18 +417,18 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Effectfully traverses the elements of this chunk purely for the effects.
    */
-  final def traverse_[E](f: A => IO[E, _]): IO[E, Unit] = {
+  final def traverse_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = {
     val len          = self.length
-    var io: IO[E, _] = IO.unit
+    var zio: ZIO[R, E, _] = ZIO.unit
     var i            = 0
 
     while (i < len) {
       val a = self(i)
-      io = io *> f(a)
+      zio = zio *> f(a)
       i += 1
     }
 
-    io.void
+    zio.void
   }
 
   /**
