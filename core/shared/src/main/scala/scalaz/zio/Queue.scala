@@ -113,10 +113,10 @@ class Queue[A] private (
     for {
       p  <- Promise.make[Nothing, Unit]
       io = p.succeed(()).void
-      _ <- shutdownHook.modify {
+      _ <- IO.flatten(shutdownHook.modify {
             case None       => (io, None)
             case Some(hook) => (IO.unit, Some(hook *> io))
-          }.flatten
+          })
       _ <- p.await
     } yield ()
 

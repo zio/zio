@@ -149,11 +149,13 @@ private[stream] object StreamPure {
         val iterator = it.iterator
 
         def loop(s: S): IO[E, S] =
-          IO.sync {
-            if (iterator.hasNext && cont(s))
-              f(s, iterator.next).flatMap(loop)
-            else IO.succeed(s)
-          }.flatten
+          IO.flatten {
+            IO.sync {
+              if (iterator.hasNext && cont(s))
+                f(s, iterator.next).flatMap(loop)
+              else IO.succeed(s)
+            }
+          }
 
         loop(s)
       }

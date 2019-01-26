@@ -29,10 +29,13 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
    Create a list of Ints and pass an f: Int => IO[Nothing, Int]:
       `IO.foreachParN` returns the list of created Strings in the appropriate order. $t9
    Check done lifts exit result into IO. $testDone
-   Check when executes correct branch only. $testWhen
-   Check whenM executes condition effect and correct branch. $testWhenM
-   Check unsandbox unwraps exception. $testUnsandbox
-   Check supervise returns same value as IO.supervise. $testSupervise
+   Check `when` executes correct branch only. $testWhen
+   Check `whenM` executes condition effect and correct branch. $testWhenM
+   Check `unsandbox` unwraps exception. $testUnsandbox
+   Check `supervise` returns same value as IO.supervise. $testSupervise
+   Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
+   Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
+   Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -167,5 +170,30 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
       supervise1 <- io.supervise
       supervise2 <- IO.supervise(io)
     } yield supervise1 must ===(supervise2))
+  }
+
+  def testFlatten = forAll(Gen.alphaStr) { str =>
+    unsafeRun(for {
+      flatten1 <- IO.succeedLazy(IO.succeedLazy(str)).flatten
+      flatten2 <- IO.flatten(IO.succeedLazy(IO.succeedLazy(str)))
+    } yield flatten1 must ===(flatten2))
+  }
+
+  def testAbsolve = forAll(Gen.alphaStr) { str =>
+    val ioEither: IO[Nothing, Either[Nothing, String]] = IO.succeed(Right(str))
+    unsafeRun(for {
+      abs1 <- ioEither.absolve
+      abs2 <- IO.absolve(ioEither)
+    } yield abs1 must ===(abs2))
+  }
+
+    def testRaceAll = {
+      val io  = IO.sync("supercalifragilisticexpialadocious")
+      val ios = List.empty[IO[Nothing, String]]
+      unsafeRun(for {
+        race1 <- io.raceAll(ios)
+        race2 <- IO.raceAll(io, ios)
+      } yield race1 must ===(race2))
+    }
   }
 }

@@ -194,7 +194,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       race: Ref[Int],
       done: Promise[E2, C]
     )(res: Exit[E0, A]): IO[Nothing, _] =
-      race.modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1)).flatten
+      IO.flatten(race.modify((c: Int) => (if (c > 0) IO.unit else f(res, loser).to(done).void) -> (c + 1)))
 
     for {
       done  <- Promise.make[E2, C]
@@ -206,7 +206,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
             _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
           } yield ()).uninterruptible *> done.await).onInterrupt(
-            child.get.flatten
+            IO.flatten(child.get)
           )
     } yield c
   }
@@ -353,14 +353,14 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Submerges the error case of an `Either` into the `IO`. The inverse
    * operation of `IO.attempt`.
    */
-  final def absolve[E1 >: E, B](implicit ev1: A <:< Either[E1, B]): IO[E1, B] =
-    self.flatMap[E1, B](a => IO.fromEither(a))
+  final def absolve[E1, B](implicit ev1: IO[E, A] <:< IO[E1, Either[E1, B]]): IO[E1, B] =
+    IO.absolve[E1, B](self)
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): IO[Unit, B] =
-    self.leftMap(ev1).map(_.toRight(())).absolve
+    IO.absolve(self.leftMap(ev1).map(_.toRight(())))
 
   /**
    * Executes this action, skipping the error but returning optionally the success.
@@ -573,13 +573,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * The moral equivalent of `if (p) exp`
    */
   final def when[E1 >: E](b: Boolean)(implicit ev1: IO[E, A] <:< IO[E1, Unit]): IO[E1, Unit] =
-    if (b) ev1(self) else IO.unit
+    IO.when(b)(self)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   final def whenM[E1 >: E](b: IO[Nothing, Boolean])(implicit ev1: IO[E, A] <:< IO[E1, Unit]): IO[E1, Unit] =
-    b.flatMap(b => if (b) ev1(self) else IO.unit)
+    IO.whenM(b)(self)
 
   /**
    * Repeats this action forever (until the first error). For more sophisticated
@@ -708,13 +708,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    */
   final def timeout0[B](z: B)(f: A => B)(duration: Duration): IO[E, B] =
-    self.map(f).sandboxWith(io => (io.attempt race IO.succeedRight(z).delay(duration)).absolve)
+    self.map(f).sandboxWith(io => IO.absolve(io.attempt race IO.succeedRight(z).delay(duration)))
 
   /**
    * Flattens a nested action with a specified duration.
    */
   final def timeoutFail[E1 >: E](e: E1)(d: Duration): IO[E1, A] =
-    timeout0[IO[E1, A]](IO.fail(e))(IO.succeed)(d).flatten
+    IO.flatten(timeout0[IO[E1, A]](IO.fail(e))(IO.succeed)(d))
 
   /**
    * Returns a new action that executes this one and times the execution.
@@ -804,8 +804,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Terminates with exceptions on the `Left` side of the `Either` error, if it
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
-  final def unsandbox[E1, A1 >: A](implicit ev1: E <:< Cause[E1]): IO[E1, A1] =
-    self.catchAll[E1, A1](c => IO.halt(c))
+  final def unsandbox[E1, A1 >: A](implicit ev1: IO[E, A] <:< IO[Cause[E1], A1]): IO[E1, A1] =
+    IO.unsandbox(self)
 
   /**
    * Companion helper to `sandbox`.
@@ -834,7 +834,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * be lost and replaced by a `MatchError`
    */
   final def sandboxWith[E2, B](f: IO[Cause[E], A] => IO[Cause[E2], B]): IO[E2, B] =
-    f(self.sandbox).unsandbox
+    IO.unsandbox(f(self.sandbox))
 
   /**
    * Widens the action type to any supertype. While `map` suffices for this
@@ -1027,6 +1027,11 @@ object IO extends Serializable {
     new Supervise(io, supervisor)
 
   /**
+   * Flattens a nested action.
+   */
+  final def flatten[E, A](io: IO[E, IO[E, A]]): IO[E, A] = io.flatMap(a => a)
+
+  /**
    * Lazily produces an `IO` value whose construction may have actional costs
    * that should be deferred until evaluation.
    *
@@ -1035,7 +1040,7 @@ object IO extends Serializable {
    * computer in a heap of rubble.
    */
   final def suspend[E, A](io: => IO[E, A]): IO[E, A] =
-    IO.sync(io).flatten
+    IO.flatten(IO.sync(io))
 
   /**
    * Returns an `IO` that is interrupted.
@@ -1065,7 +1070,7 @@ object IO extends Serializable {
    * will be interrupted via `Thread.interrupt`.
    */
   final def blocking[A](effect: => A): IO[Nothing, A] =
-    IO.sync {
+    IO.flatten(IO.sync {
       import java.util.concurrent.locks.ReentrantLock
       import java.util.concurrent.atomic.AtomicReference
 
@@ -1093,9 +1098,9 @@ object IO extends Serializable {
                         .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
               either <- fiber.join
               a      <- either.fold[IO[Nothing, A]](IO.die, IO.succeed)
-            } yield a).ensuring(finalizer.get.flatten)
+            } yield a).ensuring(IO.flatten(finalizer.get))
       } yield a
-    }.flatten
+    })
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
@@ -1160,13 +1165,26 @@ object IO extends Serializable {
    * user-defined function.
    */
   final def syncCatch[E, A](effect: => A)(f: PartialFunction[Throwable, E]): IO[E, A] =
-    IO.sync(
+    IO.absolve[E, A](
+      IO.sync(
         try {
           val result = effect
           Right(result)
         } catch f andThen Left[E, A]
       )
-      .absolve
+    )
+
+  /**
+   * The moral equivalent of `if (p) exp`
+   */
+  final def when[E](b: Boolean)(io: IO[E, Unit]): IO[E, Unit] =
+    if (b) io else IO.unit
+
+  /**
+   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   */
+  final def whenM[E](b: IO[Nothing, Boolean])(io: IO[E, Unit]): IO[E, Unit] =
+    b.flatMap(b => if (b) io else IO.unit)
 
   /**
    * Shifts execution to a thread in the default `ExecutionContext`.
@@ -1201,7 +1219,7 @@ object IO extends Serializable {
    * runtime system for improved scheduling.
    */
   final def unyielding[E, A](io: IO[E, A]): IO[E, A] =
-    sync0(env => lock(env.executor(Executor.Unyielding))(io)).flatten
+    IO.flatten(sync0(env => lock(env.executor(Executor.Unyielding))(io)))
 
   /**
    * Yields to the runtime system, starting on a fresh stack.
@@ -1237,13 +1255,12 @@ object IO extends Serializable {
       ref <- Ref[IO[Nothing, Any]](IO.unit)
       a <- (for {
             _ <- IO
-                  .sync0(env => register(io => env.unsafeRunAsync_(io.to(p))))
-                  .flatten
+                  .flatten(IO.sync0(env => register(io => env.unsafeRunAsync_(io.to(p)))))
                   .fork
                   .peek(f => ref.set(f.interrupt))
                   .uninterruptible
             a <- p.await
-          } yield a).onInterrupt(ref.get.flatten)
+          } yield a).onInterrupt(IO.flatten(ref.get))
     } yield a
 
   /**
@@ -1267,17 +1284,18 @@ object IO extends Serializable {
 
     IO.sync((new AtomicBoolean(false), OneShot.make[IO[Nothing, Any]])).flatMap {
       case (started, cancel) =>
-        async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
-          started.set(true)
+        IO.flatten {
+          async0[Nothing, IO[E, A]]((k: IO[Nothing, IO[E, A]] => Unit) => {
+            started.set(true)
 
-          try register(io => k(IO.succeed(io))) match {
-            case Left(canceler) =>
-              cancel.set(canceler)
-              Async.later
-            case Right(io) => Async.now(IO.succeed(io))
-          } finally if (!cancel.isSet) cancel.set(IO.unit)
-        }).flatten
-          .onInterrupt(IO.sync(if (started.get) cancel.get() else IO.unit).flatten)
+            try register(io => k(IO.succeed(io))) match {
+              case Left(canceler) =>
+                cancel.set(canceler)
+                Async.later
+              case Right(io) => Async.now(IO.succeed(io))
+            } finally if (!cancel.isSet) cancel.set(IO.unit)
+          })
+        }.onInterrupt(IO.flatten(IO.sync(if (started.get) cancel.get() else IO.unit)))
     }
   }
 
@@ -1287,6 +1305,21 @@ object IO extends Serializable {
    */
   final val never: IO[Nothing, Nothing] =
     IO.async[Nothing, Nothing](_ => ())
+
+  /**
+   * Submerges the error case of an `Either` into the `IO`. The inverse
+   * operation of `IO.attempt`.
+   */
+  final def absolve[E, A](v: IO[E, Either[E, A]]): IO[E, A] =
+    v.flatMap(fromEither)
+
+  /**
+   * The inverse operation `IO.sandboxed`
+   *
+   * Terminates with exceptions on the `Left` side of the `Either` error, if it
+   * exists. Otherwise extracts the contained `IO[E, A]`
+   */
+  final def unsandbox[E, A](v: IO[Cause[E], A]): IO[E, A] = v.catchAll[E, A](IO.halt)
 
   /**
    * Lifts an `Either` into an `IO`.
@@ -1368,7 +1401,7 @@ object IO extends Serializable {
       (for {
         f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptible
         b <- f.join
-      } yield b).ensuring(m.get.flatten)
+      } yield b).ensuring(IO.flatten(m.get))
     }
 
   /**
@@ -1383,7 +1416,7 @@ object IO extends Serializable {
       (for {
         a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptible
         b <- use(a)
-      } yield b).ensuring(m.get.flatten)
+      } yield b).ensuring(IO.flatten(m.get))
     }
 
   /**

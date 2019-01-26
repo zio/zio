@@ -357,7 +357,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testBracketRethrownCaughtErrorInAcquisition = {
     lazy val actual = unsafeRun(
-      IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit).attempt.absolve
+      IO.absolve(IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit).attempt)
     )
 
     actual must (throwA(FiberFailure(Checked(ExampleError))))
@@ -373,7 +373,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafeRun(
-      IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError).as[Any]).attempt.absolve
+      IO.absolve(
+        IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError).as[Any]).attempt
+      )
     )
 
     actual must (throwA(FiberFailure(Checked(ExampleError))))
@@ -385,8 +387,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
     unsafeRun(io1) must (throwA(FiberFailure(Checked(ExampleError))))
     unsafeRun(io2) must (throwA(FiberFailure(Checked(ExampleError))))
-    unsafeRun(io1.attempt.absolve) must (throwA(FiberFailure(Checked(ExampleError))))
-    unsafeRun(io2.attempt.absolve) must (throwA(FiberFailure(Checked(ExampleError))))
+    unsafeRun(IO.absolve(io1.attempt)) must (throwA(FiberFailure(Checked(ExampleError))))
+    unsafeRun(IO.absolve(io2.attempt)) must (throwA(FiberFailure(Checked(ExampleError))))
   }
 
   def testBracketRegression1 = {
@@ -491,12 +493,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testDeepAbsolveAttemptIsIdentity =
-    unsafeRun((0 until 1000).foldLeft(IO.succeedLazy[Int](42))((acc, _) => acc.attempt.absolve)) must_=== 42
+    unsafeRun((0 until 1000).foldLeft(IO.succeedLazy[Int](42))((acc, _) => IO.absolve(acc.attempt))) must_=== 42
 
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafeRun(
       (0 until 1000)
-        .foldLeft(IO.async[Int, Int](k => k(IO.succeed(42))))((acc, _) => acc.attempt.absolve)
+        .foldLeft(IO.async[Int, Int](k => k(IO.succeed(42))))((acc, _) => IO.absolve(acc.attempt))
     ) must_=== 42
 
   def testAsyncEffectReturns =
