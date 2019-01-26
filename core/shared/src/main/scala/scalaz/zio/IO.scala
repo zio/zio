@@ -1503,6 +1503,14 @@ object IO extends Serializable {
     in.foldLeft[IO[E, B]](IO.succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
 
   /**
+   * Folds an `Iterable[A]` using an effectful function `f`. Works in sequence.
+   */
+  final def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => IO[E, S]): IO[E, S] =
+    in.foldLeft(IO.succeed(zero): IO[E, S]) { (acc, el) =>
+      acc.flatMap(f(_, el))
+    }
+
+  /**
    * Returns information about the current fiber, such as its fiber identity.
    */
   final def descriptor: IO[Nothing, Fiber.Descriptor] = Descriptor
