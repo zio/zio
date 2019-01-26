@@ -180,8 +180,8 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val zero                         = List.empty[Char]
     def merger[A](as: List[A], a: A) = a :: as
     unsafeRun(for {
-      merged1 <- ios.mergeAll(zero, merger)
-      merged2 <- IO.mergeAll(ios)(zero, merger)
+      merged1 <- ios.mergeAll(zero)(merger)
+      merged2 <- IO.mergeAll(ios)(zero)(merger)
     } yield merged1 must ===(merged2))
   }
 

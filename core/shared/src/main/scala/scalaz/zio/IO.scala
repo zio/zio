@@ -1499,7 +1499,7 @@ object IO extends Serializable {
   /**
    * Merges an `Iterable[IO]` to a single IO, works in parallel.
    */
-  final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
+  final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B)(f: (B, A) => B): IO[E, B] =
     in.foldLeft[IO[E, B]](IO.succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
 
   /**
