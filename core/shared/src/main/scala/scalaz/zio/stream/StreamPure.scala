@@ -138,13 +138,13 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
   }
 }
 
-private[stream] object StreamPure {
+private[stream] object StreamPure extends Serializable {
 
   /**
    * Constructs a pure stream from the specified `Iterable`.
    */
-  final def fromIterable[R, A](it: Iterable[A]): StreamPure[R, A] = new StreamPure[R, A] {
-    override def fold[R1 <: R, E >: Nothing, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
+  final def fromIterable[A](it: Iterable[A]): StreamPure[Any, A] = new StreamPure[Any, A] {
+    override def fold[R1 <: Any, E >: Nothing, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         val iterator = it.iterator
 
@@ -174,8 +174,8 @@ private[stream] object StreamPure {
   /**
    * Constructs a singleton stream.
    */
-  final def succeedLazy[R, A](a: => A): StreamPure[R, A] = new StreamPure[R, A] {
-    override def fold[R1 <: R, E >: Nothing, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
+  final def succeedLazy[A](a: => A): StreamPure[Any, A] = new StreamPure[Any, A] {
+    override def fold[R1 <: Any, E >: Nothing, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) f(s, a)
         else IO.succeed(s)

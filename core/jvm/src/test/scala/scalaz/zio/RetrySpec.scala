@@ -19,19 +19,18 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     for up to 10 times $recurs10Retry
   """
 
-  def retryCollect[E, A, E1 >: E, S](
+  def retryCollect[R, E, A, E1 >: E, S](
     io: IO[E, A],
-    retry: Schedule[E1, S],
-    clock: Clock = Clock.Live
-  ): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
+    retry: Schedule[R, E1, S]
+  ): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] = {
 
     type State = retry.State
 
-    def loop(state: State, ss: List[(Duration, S)]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] =
+    def loop(state: State, ss: List[(Duration, S)]): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] =
       io.redeem(
         err =>
           retry
-            .update(err, state, clock)
+            .update(err, state)
             .flatMap(
               step =>
                 if (!step.cont) IO.succeed((Left(err), (step.delay, step.finish()) :: ss))
@@ -40,7 +39,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         suc => IO.succeed((Right(suc), ss))
       )
 
-    retry.initial(clock).flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
+    retry.initial.flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
   }
 
   /*
@@ -140,9 +139,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def retryNUnitIntervalJittered = {
     val jitter: IO[Nothing, Double]  = IO.sync(0.5)
-    val schedule: Schedule[Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(jitter)
+    val schedule: Schedule[Any, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(jitter)
     val scheduled: List[(Duration, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5), Clock.Live)
+      schedule.run(List(1, 2, 3, 4, 5))
     )
 
     val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
@@ -151,9 +150,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def retryNCustomIntervalJittered = {
     val jitter: IO[Nothing, Double]  = IO.sync(0.5)
-    val schedule: Schedule[Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4, jitter)
+    val schedule: Schedule[Any, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4, jitter)
     val scheduled: List[(Duration, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5), Clock.Live)
+      schedule.run(List(1, 2, 3, 4, 5))
     )
 
     val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
@@ -173,7 +172,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def recurs10Retry = {
     var i                            = 0
-    val strategy: Schedule[Any, Int] = Schedule.recurs(10)
+    val strategy: Schedule[Any, Any, Int] = Schedule.recurs(10)
     val io = IO.sync[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
     }

@@ -1,5 +1,7 @@
 package scalaz.zio
 
+import scalaz.zio.clock.Clock
+import scalaz.zio.console.Console
 import scalaz.zio.internal.Env
 
 trait RTS {
@@ -9,8 +11,8 @@ trait RTS {
       case cause                      => IO.sync(println(cause.toString))
     }
 
-  final def unsafeRun[E, A](io: IO[E, A]): A =
-    env.unsafeRun(io)
+  final def unsafeRun[E, A](io: ZIO[Clock with Console, E, A]): A =
+    env.unsafeRun(io.provide(new Clock.Live with Console.Live))
 
   final def unsafeRunSync[E, A](io: IO[E, A]): Exit[E, A] =
     env.unsafeRunSync(io)

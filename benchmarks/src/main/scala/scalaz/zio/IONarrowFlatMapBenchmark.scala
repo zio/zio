@@ -52,7 +52,7 @@ class IONarrowFlatMapBenchmark {
       if (i < size) IO.succeedLazy[Int](i + 1).flatMap(loop)
       else IO.succeedLazy(i)
 
-    unsafeRun(IO.succeedLazy[Int](0).flatMap(loop))
+    unsafeRun(IO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
   }
 
   @Benchmark
