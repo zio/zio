@@ -153,24 +153,6 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 }
 
-class IOSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
-  def is = "IOSyntaxSpec".title ^ s2"""
-   Generate a String:
-      `.raceAll` extension method returns the same IO[E, A] as `IO.raceAll` does. $t1
-    """
-
-  val TestData = "supercalifragilisticexpialadocious"
-
-  def t1 = {
-    val io  = IO.sync(TestData)
-    val ios = List.empty[IO[Nothing, String]]
-    unsafeRun(for {
-      race1 <- io.raceAll(ios)
-      race2 <- IO.raceAll(io, ios)
-    } yield race1 must ===(race2))
-  }
-}
-
 class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
 
