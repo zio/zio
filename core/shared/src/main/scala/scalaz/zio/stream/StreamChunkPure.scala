@@ -23,8 +23,8 @@ private[stream] trait StreamChunkPure[-R, @specialized +A] extends StreamChunk[R
     StreamChunkPure(chunks.map(_.flatMap(f)))
 }
 
-object StreamChunkPure {
-  def apply[R, A](chunkStream: StreamPure[R, Chunk[A]]): StreamChunkPure[R, A] =
+object StreamChunkPure extends Serializable {
+  final def apply[R, A](chunkStream: StreamPure[R, Chunk[A]]): StreamChunkPure[R, A] =
     new StreamChunkPure[R, A] {
       val chunks = chunkStream
     }

@@ -39,7 +39,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * Atomically modifies the `Ref` with the specified function. This is not
    * implemented in terms of `modify` purely for performance reasons.
    */
-  final def update(f: A => A): IO[Nothing, A] = IO.sync {
+  final def update(f: A => A): UIO[A] = IO.sync {
     var loop    = true
     var next: A = null.asInstanceOf[A]
 

@@ -128,16 +128,16 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
 }
 
 object StreamChunk {
-  def apply[R, E, A](chunkStream: Stream[R, E, Chunk[A]]): StreamChunk[R, E, A] =
+  final def apply[R, E, A](chunkStream: Stream[R, E, Chunk[A]]): StreamChunk[R, E, A] =
     new StreamChunk[R, E, A] {
       val chunks = chunkStream
     }
 
-  def fromChunks[A](as: Chunk[A]*): StreamChunk[Any, Nothing, A] =
+  final def fromChunks[A](as: Chunk[A]*): StreamChunk[Any, Nothing, A] =
     StreamChunkPure(StreamPure.fromIterable(as))
 
-  def succeedLazy[A](as: => Chunk[A]): StreamChunk[Any, Nothing, A] =
+  final def succeedLazy[A](as: => Chunk[A]): StreamChunk[Any, Nothing, A] =
     StreamChunkPure(StreamPure.succeedLazy(as))
 
-  val empty: StreamChunk[Any, Nothing, Nothing] = StreamChunkPure(StreamPure.empty)
+  final val empty: StreamChunk[Any, Nothing, Nothing] = StreamChunkPure(StreamPure.empty)
 }

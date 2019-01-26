@@ -580,7 +580,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Repeats are done in addition to the first execution so that
    * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
    */
-  final def repeat[R1 <: R, B](schedule: Schedule[A, B])(implicit ev: R1 <:< Clock): ZIO[R1, E, B] =
+  final def repeat[R1 <: R, B](schedule: Schedule[R1, A, B]): ZIO[R1 with Clock, E, B] =
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
@@ -589,9 +589,9 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * to date, together with the error, will be passed to the specified handler.
    */
   final def repeatOrElse[R1 <: R, E2, B](
-    schedule: Schedule[A, B],
+    schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  )(implicit ev: R1 <:< Clock): ZIO[R1, E2, B] =
+  ): ZIO[R1 with Clock, E2, B] =
     repeatOrElse0[R1, B, E2, B](schedule, orElse).map(_.merge)
 
   /**
@@ -600,20 +600,20 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * to date, together with the error, will be passed to the specified handler.
    */
   final def repeatOrElse0[R1 <: R, B, E2, C](
-    schedule: Schedule[A, B],
-    orElse: (E, Option[B]) => ZIO[R1, E2, C]
-  )(implicit ev: R1 <:< Clock): ZIO[R1, E2, Either[C, B]] = {
-    def loop(last: Option[() => B], state: schedule.State): ZIO[R1, E2, Either[C, B]] =
+    schedule: Schedule[R1, A, B],
+    orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
+  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
+    def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
       self.redeem(
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
-          schedule.update(a, state).contramap[R1](ev).flatMap { step =>
+          schedule.update(a, state).flatMap { step =>
             if (!step.cont) ZIO.succeedRight(step.finish())
             else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
           }
       )
 
-    schedule.initial.contramap(ev).flatMap(loop(None, _))
+    schedule.initial.flatMap(loop(None, _))
   }
 
   /**
@@ -622,7 +622,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, E1 >: E, S](policy: Schedule[E1, S])(implicit ev: R1 <:< Clock): ZIO[R1, E1, A] =
+  final def retry[R1 <: R, E1 >: E, S](policy: Schedule[R1, E1, S]): ZIO[R1 with Clock, E1, A] =
     retryOrElse[R1, A, E1, S, E1](policy, (e: E1, _: S) => ZIO.fail(e))
 
   /**
@@ -631,9 +631,9 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * the recovery function.
    */
   final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
-    policy: Schedule[E1, S],
+    policy: Schedule[R1, E1, S],
     orElse: (E1, S) => ZIO[R1, E2, A2]
-  )(implicit ev: R1 <:< Clock): ZIO[R1, E2, A2] =
+  ): ZIO[R1 with Clock, E2, A2] =
     retryOrElse0(policy, orElse).map(_.merge)
 
   /**
@@ -642,15 +642,14 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * the recovery function.
    */
   final def retryOrElse0[R1 <: R, E1 >: E, S, E2, B](
-    policy: Schedule[E1, S],
+    policy: Schedule[R1, E1, S],
     orElse: (E1, S) => ZIO[R1, E2, B]
-  )(implicit ev: R1 <:< Clock): ZIO[R1, E2, Either[B, A]] = {
-    def loop(state: policy.State): ZIO[R1, E2, Either[B, A]] =
+  ): ZIO[R1 with Clock, E2, Either[B, A]] = {
+    def loop(state: policy.State): ZIO[R1 with Clock, E2, Either[B, A]] =
       self.redeem(
         err =>
           policy
             .update(err, state)
-          .contramap(ev)
             .flatMap(
               decision =>
                 if (decision.cont) ZIO.sleep(decision.delay) *> loop(decision.state)
@@ -659,7 +658,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
         succ => ZIO.succeedRight(succ)
       )
 
-    policy.initial.contramap(ev).flatMap(loop)
+    policy.initial.flatMap(loop)
   }
 
   /**

@@ -2,6 +2,8 @@ package scalaz.zio
 
 import java.util.concurrent.TimeUnit
 
+import scalaz.zio.clock.Clock
+
 case class TestClock(ref: Ref[TestClock.Data]) extends Clock {
   final def currentTime(unit: TimeUnit): IO[Nothing, Long] =
     ref.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
@@ -38,7 +40,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       Current time millis is monotonically increasing   $e3
      """
 
-  val Live = Clock.Live
+  val Live = Clock.Live.clock
 
   def e1 =
     unsafeRun(
