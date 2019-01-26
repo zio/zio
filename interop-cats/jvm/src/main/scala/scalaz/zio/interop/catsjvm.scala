@@ -3,6 +3,7 @@ package interop
 
 import cats.effect.{Concurrent, ContextShift, Effect, ExitCase}
 import cats.{effect, _}
+import scalaz.zio.{clock => zioClock}
 import scalaz.zio.clock.Clock
 
 import scala.concurrent.ExecutionContext
@@ -21,16 +22,16 @@ abstract class CatsInstances extends CatsInstances1 {
       fa.on(ec)
   }
 
-  implicit def ioTimer[E](implicit zioClock: Clock): effect.Timer[IO[E, ?]] = new effect.Timer[IO[E, ?]] {
-    override def clock: cats.effect.Clock[IO[E, ?]] = new effect.Clock[IO[E, ?]] {
-      override def monotonic(unit: TimeUnit): IO[E, Long] =
+  implicit def ioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
+    override def clock: cats.effect.Clock[ZIO[R, E, ?]] = new effect.Clock[ZIO[R, E, ?]] {
+      override def monotonic(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.nanoTime.map(unit.convert(_, NANOSECONDS))
 
-      override def realTime(unit: TimeUnit): IO[E, Long] =
+      override def realTime(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.currentTime(unit)
     }
 
-    override def sleep(duration: FiniteDuration): IO[E, Unit] =
+    override def sleep(duration: FiniteDuration): ZIO[R, E, Unit] =
       zioClock.sleep(duration.length, duration.unit)
   }
 

@@ -35,7 +35,7 @@ trait Stream[-R, +E, +A] { self =>
    */
   final def ++[R1 <: R, E1 >: E, A1 >: A](that: => Stream[R1, E1, A1]): Stream[R1, E1, A1] =
     new Stream[R1, E1, A1] {
-      override def fold[R2 >: R1, E2 >: E1, A2 >: A1, S]: Fold[R2, E2, A2, S] =
+      override def fold[R2 <: R1, E2 >: E1, A2 >: A1, S]: Fold[R2, E2, A2, S] =
         IO.succeedLazy { (s, cont, f) =>
           self.fold[R2, E2, A, S].flatMap { f0 =>
             f0(s, cont, f).flatMap { s =>
@@ -69,10 +69,10 @@ trait Stream[-R, +E, +A] { self =>
    * Consumes elements of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
-  final def foreach0[E1 >: E](f: A => IO[E1, Boolean]): ZIO[R, E1, Unit] =
+  final def foreach0[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
     self
-      .fold[R, E1, A, Boolean]
-      .flatMap[R, E1, Boolean] { f0 =>
+      .fold[R1, E1, A, Boolean]
+      .flatMap[R1, E1, Boolean] { f0 =>
         f0(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
       }
       .void
@@ -270,7 +270,7 @@ trait Stream[-R, +E, +A] { self =>
           }
       }
 
-    def acquire(lstate: sink.State): IO[Nothing, (Fiber[E1, State], Promise[E1, Result])] =
+    def acquire(lstate: sink.State): ZIO[R, Nothing, (Fiber[E1, State], Promise[E1, Result])] =
       for {
         resume <- Promise.make[Nothing, Fold]
         done   <- Promise.make[E1, Any]
@@ -305,7 +305,7 @@ trait Stream[-R, +E, +A] { self =>
                       }
                     )
                   }
-                  .onError(c => result.done(IO.halt(c)).void)
+                  .onError[R](c => result.done(IO.halt(c)).void)
                   .fork
         _ <- fiber.await.flatMap {
               case Exit.Success(Left(_)) =>
@@ -330,39 +330,39 @@ trait Stream[-R, +E, +A] { self =>
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  def repeat(schedule: Schedule[Unit, _], clock: Clock = Clock.Live): Stream[Clock with R, E, A] =
-    new Stream[Clock with R, E, A] {
-      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[Clock with R1, E1, A1, S] =
+  def repeat[R1 <: R](schedule: Schedule[Unit, _])(implicit ev: R1 <:< Clock): Stream[R1, E, A] =
+    new Stream[R1, E, A] {
+      override def fold[R2 <: R1, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
-          def loop(s: S, sched: schedule.State): ZIO[Clock with R1, E1, S] =
-            self.fold[Clock with R1, E1, A1, S].flatMap { f0 =>
-              f0(s, cont, f).zip(schedule.update((), sched)).flatMap {
+          def loop(s: S, sched: schedule.State): ZIO[R2, E1, S] =
+            self.fold[R2, E1, A1, S].flatMap { f0 =>
+              f0(s, cont, f).zip(schedule.update((), sched).contramap(ev)).flatMap {
                 case (s, decision) =>
                   if (decision.cont) IO.unit.delay(decision.delay) *> loop(s, decision.state)
                   else IO.succeed(s)
               }
             }
 
-          schedule.initial.flatMap(loop(s, _)) 
+          schedule.initial.contramap(ev).flatMap(loop(s, _))
         }
     }
 
   /**
    * Repeats elements of the stream using the provided schedule.
    */
-  def repeatElems[B](schedule: Schedule[A, B], clock: Clock = Clock.Live): Stream[Clock with R, E, A] =
-    new Stream[Clock with R, E, A] {
-      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[Clock with R1, E1, A1, S] =
+  def repeatElems[R1 <: R, B](schedule: Schedule[A, B])(implicit ev: R1 <:< Clock): Stream[R1, E, A] =
+    new Stream[R1, E, A] {
+      override def fold[R2 <: R1, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
-          def loop(s: S, sched: schedule.State, a: A): ZIO[Clock with R1, E1, S] =
-            schedule.update(a, sched).flatMap { decision =>
+          def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
+            schedule.update(a, sched).contramap(ev).flatMap { decision =>
               if (decision.cont)
                 IO.unit.delay(decision.delay) *> f(s, a).flatMap(loop(_, decision.state, a))
               else IO.succeed(s)
             }
 
-          schedule.initial.flatMap { sched =>
-            self.fold[Clock with R1, E1, A, S].flatMap { f =>
+          schedule.initial.contramap(ev).flatMap { sched =>
+            self.fold[R2, E1, A, S].flatMap { f =>
               f(s, cont, (s, a) => loop(s, sched, a))
             }
           }
@@ -567,14 +567,14 @@ trait Stream[-R, +E, +A] { self =>
 }
 
 object Stream {
-  type Fold[R, E, A, S] = ZIO[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZIO[R, E, S]]
+  type Fold[R, E, +A, S] = ZIO[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZIO[R, E, S]]
 
-  final def apply[R, A](as: A*): Stream[R, Nothing, A] = fromIterable(as)
+  final def apply[A](as: A*): Stream[Any, Nothing, A] = fromIterable(as)
 
   /**
    * Constructs a pure stream from the specified `Iterable`.
    */
-  final def fromIterable[R, A](it: Iterable[A]): Stream[R, Nothing, A] = StreamPure.fromIterable(it)
+  final def fromIterable[A](it: Iterable[A]): Stream[Any, Nothing, A] = StreamPure.fromIterable(it)
 
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Any, Nothing, A] =
     new StreamPure[Any, A] {
@@ -620,7 +620,7 @@ object Stream {
     new Stream[R, E, A] {
       override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
-          stream.flatMap(_.fold[R, E1, A1, S].flatMap(f0 => f0(s, cont, f)))
+          stream.flatMap(_.fold[R1, E1, A1, S].flatMap(f0 => f0(s, cont, f)))
         }
     }
 
