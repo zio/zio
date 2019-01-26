@@ -28,6 +28,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
       `IO.collectAllParN` returns the list of Ints in the same order. $t8
    Create a list of Ints and pass an f: Int => IO[Nothing, Int]:
       `IO.foreachParN` returns the list of created Strings in the appropriate order. $t9
+   Create a list of Ints:
+      `IO.foldLeft` with a successful step function sums the list properly. $t10
+   Create a non-empty list of Ints:
+      `IO.foldLeft` with a failing step function returns a failed IO. $t11
    Check done lifts exit result into IO. $testDone
     """
 
@@ -89,6 +93,15 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
     val list = List(1, 2, 3)
     val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.succeedLazy(x.toString)))
     res must be_===(List("1", "2", "3"))
+  }
+
+  def t10 = forAll { (l: List[Int]) =>
+    unsafeRun(IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))) must_=== unsafeRun(IO.succeed(l.sum))
+  }
+
+  def t11 = forAll { (l: List[Int]) =>
+    l.size > 0 ==>
+      (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
   }
 
   def testDone = {
