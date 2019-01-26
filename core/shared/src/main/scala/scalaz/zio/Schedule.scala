@@ -45,7 +45,7 @@ trait Schedule[-A, +B] extends Serializable { self =>
    * schedules. Only as many inputs will be used as necessary to run the
    * schedule to completion, and additional inputs will be discarded.
    */
-  def run(as: Iterable[A], clock: Clock): IO[Nothing, List[(Duration, B)]] = {
+  final def run(as: Iterable[A], clock: Clock): IO[Nothing, List[(Duration, B)]] = {
     def run0(as: List[A], s: State, acc: List[(Duration, B)]): IO[Nothing, List[(Duration, B)]] =
       as match {
         case Nil => IO.succeed(acc)
@@ -506,8 +506,8 @@ object Schedule extends Serializable {
       )
   }
   object Decision {
-    def cont[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(true, d, a, () => b)
-    def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, d, a, () => b)
+    final def cont[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(true, d, a, () => b)
+    final def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, d, a, () => b)
   }
 
   final def apply[S, A, B](
@@ -673,7 +673,7 @@ object Schedule extends Serializable {
     case Duration.Finite(nanos) if nanos == 0 => forever
     case Duration.Finite(nanos) =>
       Schedule[(Long, Int, Int), Any, Int](
-        _.nanoTime.map(nt => (nt, 0, 0)),
+        _.nanoTime.map(nt => (nt, 1, 0)),
         (_, t, clock) =>
           t match {
             case (start, n0, i) =>

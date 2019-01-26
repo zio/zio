@@ -31,7 +31,7 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
 
       protected def release: R1 => IO[Nothing, Unit] = _ => IO.unit
 
-      def use[E1 >: E, A](f: R1 => IO[E1, A]): IO[E1, A] =
+      final def use[E1 >: E, A](f: R1 => IO[E1, A]): IO[E1, A] =
         self.use(r => f(f0(r)))
     }
 
@@ -43,7 +43,7 @@ sealed abstract class Managed[+E, +R] extends Serializable { self =>
 
       protected def release: R1 => IO[Nothing, Unit] = _ => IO.unit
 
-      def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
+      final def use[E2 >: E1, A](f: R1 => IO[E2, A]): IO[E2, A] =
         self.use { r =>
           f0(r).use { r1 =>
             f(r1)
@@ -100,7 +100,7 @@ object Managed {
 
       protected def release: R => IO[Nothing, _] = r
 
-      def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+      final def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         acquire.bracket[E1, A](release)(f)
     }
 
@@ -131,7 +131,7 @@ object Managed {
 
       protected def release: R => IO[Nothing, Unit] = _ => IO.unit
 
-      def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
+      final def use[E1 >: E, A](f: R => IO[E1, A]): IO[E1, A] =
         fa.flatMap(_.use(f))
     }
 
@@ -146,7 +146,7 @@ object Managed {
 
       protected def release: R => IO[Nothing, _] = _ => IO.unit
 
-      def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
+      final def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
     }
 
   /**
@@ -160,7 +160,7 @@ object Managed {
 
       protected def release: R => IO[Nothing, _] = _ => IO.unit
 
-      def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
+      final def use[Nothing, A](f: R => IO[Nothing, A]): IO[Nothing, A] = f(r)
     }
 
   final def traverse[E, R, A](as: Iterable[A])(f: A => Managed[E, R]): Managed[E, List[R]] =

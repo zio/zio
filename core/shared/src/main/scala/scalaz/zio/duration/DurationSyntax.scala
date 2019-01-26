@@ -7,31 +7,31 @@ class DurationSyntax(n: Long) {
 
   protected def asDuration(unit: TimeUnit): Duration = Duration(n, unit)
 
-  def nanoseconds = asDuration(NANOSECONDS)
-  def nanos       = nanoseconds
-  def nanosecond  = nanoseconds
-  def nano        = nanoseconds
+  final def nanoseconds = asDuration(NANOSECONDS)
+  final def nanos       = nanoseconds
+  final def nanosecond  = nanoseconds
+  final def nano        = nanoseconds
 
-  def microseconds = asDuration(MICROSECONDS)
-  def micros       = microseconds
-  def microsecond  = microseconds
-  def micro        = microseconds
+  final def microseconds = asDuration(MICROSECONDS)
+  final def micros       = microseconds
+  final def microsecond  = microseconds
+  final def micro        = microseconds
 
-  def milliseconds = asDuration(MILLISECONDS)
-  def millis       = milliseconds
-  def millisecond  = milliseconds
-  def milli        = milliseconds
+  final def milliseconds = asDuration(MILLISECONDS)
+  final def millis       = milliseconds
+  final def millisecond  = milliseconds
+  final def milli        = milliseconds
 
-  def seconds = asDuration(SECONDS)
-  def second  = seconds
+  final def seconds = asDuration(SECONDS)
+  final def second  = seconds
 
-  def minutes = asDuration(MINUTES)
-  def minute  = minutes
+  final def minutes = asDuration(MINUTES)
+  final def minute  = minutes
 
-  def hours = asDuration(HOURS)
-  def hour  = hours
+  final def hours = asDuration(HOURS)
+  final def hour  = hours
 
-  def days = asDuration(DAYS)
-  def day  = days
+  final def days = asDuration(DAYS)
+  final def day  = days
 
 }
