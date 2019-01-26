@@ -23,11 +23,6 @@ object IOSyntax {
     def collectAll: IO[E, List[A]]                     = IO.collectAll(ios)
   }
 
-  final class IOSyntax[E, A](val io: IO[E, A]) extends AnyVal {
-    def raceAll(ios: Iterable[IO[E, A]]): IO[E, A] = IO.raceAll(io, ios)
-    def supervise: IO[E, A]                        = IO.supervise(io)
-  }
-
   final class IOTuple2[E, A, B](val ios2: (IO[E, A], IO[E, B])) extends AnyVal {
     def map2[C](f: (A, B) => C): IO[E, C] = ios2._1.flatMap(a => ios2._2.map(f(a, _)))
   }
