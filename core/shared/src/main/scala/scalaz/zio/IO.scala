@@ -1065,7 +1065,7 @@ object IO extends Serializable {
    * will be interrupted via `Thread.interrupt`.
    */
   final def blocking[A](effect: => A): IO[Nothing, A] =
-    IO.flatten(IO.sync {
+    IO.sync {
       import java.util.concurrent.locks.ReentrantLock
       import java.util.concurrent.atomic.AtomicReference
 
@@ -1093,9 +1093,9 @@ object IO extends Serializable {
                         .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
               either <- fiber.join
               a      <- either.fold[IO[Nothing, A]](IO.die, IO.succeed)
-            } yield a).ensuring(IO.flatten(finalizer.get))
+            } yield a).ensuring(finalizer.get.flatten)
       } yield a
-    })
+    }.flatten
 
   /**
    * Imports a synchronous effect into a pure `IO` value.
