@@ -18,7 +18,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
     s2"""
   fs2 parJoin must
     work if `F` is `cats.effect.IO`          ${simpleJoin(fIsCats)}
-    DOES NOT work currently on fs2-1.0.2 if `F` is `scalaz.zio.interop.Task` - ${expectTimeoutFailure(
+    DOES NOT work currently on fs2-1.0.3 if `F` is `scalaz.zio.interop.Task` - ${expectTimeoutFailure(
       simpleJoin(fIsZio)
     )}
 

@@ -170,7 +170,7 @@ object Promise {
     acquire: (Promise[E, B], A) => (IO[Nothing, C], A)
   )(release: (C, Promise[E, B]) => IO[Nothing, _]): IO[E, B] =
     for {
-      pRef <- Ref[Option[(C, Promise[E, B])]](None)
+      pRef <- Ref.make[Option[(C, Promise[E, B])]](None)
       b <- (for {
             p <- ref.modify { a: A =>
                   val p = Promise.unsafeMake[E, B]

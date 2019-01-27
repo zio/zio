@@ -160,13 +160,13 @@ trait Sink[+E, +A0, -A, +B] { self =>
     new Sink[E1, A0, A, B] {
       type State = self.State
 
-      val initial = self.initial.leftMap(f)
+      val initial = self.initial.mapError(f)
 
       def step(state: State, a: A): IO[E1, Step[State, A0]] =
-        self.step(state, a).leftMap(f)
+        self.step(state, a).mapError(f)
 
       def extract(state: State): IO[E1, B] =
-        self.extract(state).leftMap(f)
+        self.extract(state).mapError(f)
     }
 
   def mapRemainder[A1](f: A0 => A1): Sink[E, A1, A, B] =
@@ -621,7 +621,7 @@ object Sink {
                       else
                         self
                           .extract(Step.state(s))
-                          .redeemPure(
+                          .fold(
                             e => Step.done(Side.Error(e), Step.leftover(s)),
                             b => Step.done(Side.Value(b), Step.leftover(s))
                           )
@@ -640,7 +640,7 @@ object Sink {
                       else {
                         that
                           .extract(Step.state(s))
-                          .redeemPure(
+                          .fold(
                             e => Step.done(Side.Error(e), Step.leftover(s)),
                             c => Step.done(Side.Value((Step.leftover(s), c)), Step.leftover(s))
                           )
@@ -666,7 +666,7 @@ object Sink {
                   case Side.State(s) =>
                     self
                       .extract(s)
-                      .redeemPure(
+                      .fold(
                         e => Step.done((Side.Error(e), Step.state(s2)), Step.leftover(s2)),
                         b => Step.done((Side.Value(b), Step.state(s2)), Step.leftover(s1))
                       )
@@ -678,7 +678,7 @@ object Sink {
                   case Side.Error(_) => IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
                   case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
                   case Side.State(s) =>
-                    self.extract(s).redeemPure(Side.Error(_), Side.Value(_)).map(s1 => Step.more((s1, Step.state(s2))))
+                    self.extract(s).fold(Side.Error(_), Side.Value(_)).map(s1 => Step.more((s1, Step.state(s2))))
                 }
 
               }
@@ -781,7 +781,7 @@ object Sink {
                     self.initial.flatMap { init =>
                       self
                         .stepChunk(Step.state(init), as)
-                        .redeemPure(
+                        .fold(
                           e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
                           s => Step.leftMap(s)((state._1, f(state._2, b), _))
                         )

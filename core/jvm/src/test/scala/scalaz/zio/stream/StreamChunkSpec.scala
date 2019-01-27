@@ -2,11 +2,9 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
-
 import scala.{ Stream => _ }
 import scala.concurrent.duration._
-import scalaz.zio.{ AbstractRTSSpec, Exit, GenIO, IO }
-
+import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO }
 import scala.annotation.tailrec
 
 class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)

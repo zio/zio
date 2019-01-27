@@ -322,7 +322,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
     Managed
       .liftIO(sink.initial)
       .flatMap { step =>
-        Managed(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap { t =>
+        Managed.make(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap { t =>
           Managed.liftIO(t._2.await)
         }
       }
@@ -448,11 +448,11 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
    */
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[R, Nothing, Queue[Take[E1, A1]]] =
     for {
-      queue    <- Managed(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
+      queue    <- Managed.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
       offerVal = (a: A) => queue.offer(Take.Value(a)).void
       offerErr = (e: E) => queue.offer(Take.Fail(e))
       enqueuer = (self.foreach[R, E](offerVal).catchAll(offerErr) *> queue.offer(Take.End)).fork
-      _        <- Managed(enqueuer)(_.interrupt)
+      _        <- Managed.make(enqueuer)(_.interrupt)
     } yield queue
 
   /**
@@ -593,9 +593,25 @@ object Stream extends Serializable {
   final val empty: Stream[Any, Nothing, Nothing] = StreamPure.empty
 
   /**
-   * Constructs a singleton stream.
+   * Constructs a singleton stream from a strict value.
+   */
+  final def succeed[A](a: A): Stream[Any, Nothing, A] = StreamPure.succeed(a)
+
+  /**
+   * Constructs a singleton stream from a lazy value.
    */
   final def succeedLazy[A](a: => A): Stream[Any, Nothing, A] = StreamPure.succeedLazy(a)
+
+  /**
+   * Constructs a stream that fails without emitting any values.
+   */
+  final def fail[E](error: E): Stream[Any, E, Nothing] =
+    new Stream[Any, E, Nothing] {
+      override def fold[R <: Any, E1 >: E, A >: Nothing, S]: Fold[R, E1, A, S] =
+        IO.succeed { (_, _, _) =>
+          IO.fail(error)
+        }
+    }
 
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
@@ -632,7 +648,7 @@ object Stream extends Serializable {
   final def bracket[R, E, A, B](
     acquire: ZIO[R, E, A]
   )(release: A => IO[Nothing, Unit])(read: A => ZIO[R, E, Option[B]]): Stream[R, E, B] =
-    managed(Managed(acquire)(release))(read)
+    managed(Managed.make(acquire)(release))(read)
 
   final def managed[R, E, A, B](m: Managed[R, E, A])(read: A => ZIO[R, E, Option[B]]) =
     new Stream[R, E, B] {

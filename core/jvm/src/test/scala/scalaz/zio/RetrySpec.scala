@@ -54,7 +54,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   // no retry on success
   def notRetryOnSuccess = {
     val retried = unsafeRun(for {
-      ref <- Ref(0)
+      ref <- Ref.make(0)
       _   <- ref.update(_ + 1).retry(Schedule.once)
       i   <- ref.get
     } yield i)
@@ -75,7 +75,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
       } yield x
     val retried = unsafeRun(for {
-      ref <- Ref(0)
+      ref <- Ref.make(0)
       _   <- failOn0(ref).retry(Schedule.once)
       r   <- ref.get
     } yield r)
@@ -96,7 +96,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       } yield x
     val retried = unsafeRun(
       (for {
-        ref <- Ref(0)
+        ref <- Ref.make(0)
         _   <- alwaysFail(ref).retry(Schedule.once)
       } yield ()).redeem(
         err => IO.succeed(err),
@@ -119,7 +119,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       } yield x
     val retried = unsafeRun(
       (for {
-        ref <- Ref(0)
+        ref <- Ref.make(0)
         i   <- incr(ref).retry(Schedule.recurs(0))
       } yield i).redeem(
         err => IO.succeed(err),

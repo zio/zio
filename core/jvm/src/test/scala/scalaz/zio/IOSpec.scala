@@ -2,9 +2,11 @@ package scalaz.zio
 
 import org.scalacheck._
 import org.specs2.ScalaCheck
+import scalaz.zio.Exit.Cause
+
 import scala.collection.mutable
 import scala.util.Try
-import scalaz.zio.Exit.Cause.{ Checked, Interruption, Unchecked }
+import scalaz.zio.Exit.Cause.{ Die, Fail, Interrupt }
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
@@ -28,7 +30,18 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
       `IO.collectAllParN` returns the list of Ints in the same order. $t8
    Create a list of Ints and pass an f: Int => IO[Nothing, Int]:
       `IO.foreachParN` returns the list of created Strings in the appropriate order. $t9
+   Create a list of Ints:
+      `IO.foldLeft` with a successful step function sums the list properly. $t10
+   Create a non-empty list of Ints:
+      `IO.foldLeft` with a failing step function returns a failed IO. $t11
    Check done lifts exit result into IO. $testDone
+   Check `when` executes correct branch only. $testWhen
+   Check `whenM` executes condition effect and correct branch. $testWhenM
+   Check `unsandbox` unwraps exception. $testUnsandbox
+   Check `supervise` returns same value as IO.supervise. $testSupervise
+   Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
+   Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
+   Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
     """
 
   def functionIOGen: Gen[String => IO[Throwable, Int]] =
@@ -91,16 +104,107 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
     res must be_===(List("1", "2", "3"))
   }
 
+  def t10 = forAll { (l: List[Int]) =>
+    unsafeRun(IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))) must_=== unsafeRun(IO.succeed(l.sum))
+  }
+
+  def t11 = forAll { (l: List[Int]) =>
+    l.size > 0 ==>
+      (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
+  }
+
   def testDone = {
     val error                         = new Error("something went wrong")
     val completed                     = Exit.succeed(1)
-    val interrupted: Exit[Error, Int] = Exit.interrupted
-    val terminated: Exit[Error, Int]  = Exit.unchecked(error)
-    val failed: Exit[Error, Int]      = Exit.checked(error)
+    val interrupted: Exit[Error, Int] = Exit.interrupt
+    val terminated: Exit[Error, Int]  = Exit.die(error)
+    val failed: Exit[Error, Int]      = Exit.fail(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interruption))
-    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Unchecked(error)))
-    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Checked(error)))
+    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interrupt))
+    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Die(error)))
+    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Fail(error)))
+  }
+
+  def testWhen =
+    unsafeRun(
+      for {
+        effectRef <- Ref.make(0)
+        _         <- effectRef.set(1).when(false)
+        val1      <- effectRef.get
+        _         <- effectRef.set(2).when(true)
+        val2      <- effectRef.get
+        failure   = new Exception("expected")
+        _         <- IO.fail(failure).when(false)
+        failed    <- IO.fail(failure).when(true).attempt
+      } yield
+        (val1 must_=== 0) and
+          (val2 must_=== 2) and
+          (failed must beLeft(failure))
+    )
+
+  def testWhenM =
+    unsafeRun(
+      for {
+        effectRef      <- Ref.make(0)
+        conditionRef   <- Ref.make(0)
+        conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
+        conditionFalse = conditionRef.update(_ + 1).map(_ => false)
+        _              <- effectRef.set(1).whenM(conditionFalse)
+        val1           <- effectRef.get
+        conditionVal1  <- conditionRef.get
+        _              <- effectRef.set(2).whenM(conditionTrue)
+        val2           <- effectRef.get
+        conditionVal2  <- conditionRef.get
+        failure        = new Exception("expected")
+        _              <- IO.fail(failure).whenM(conditionFalse)
+        failed         <- IO.fail(failure).whenM(conditionTrue).attempt
+      } yield
+        (val1 must_=== 0) and
+          (conditionVal1 must_=== 1) and
+          (val2 must_=== 2) and
+          (conditionVal2 must_=== 2) and
+          (failed must beLeft(failure))
+    )
+
+  def testUnsandbox = {
+    val failure: IO[Exit.Cause[Exception], String] = IO.fail(Cause.fail(new Exception("fail")))
+    val success: IO[Exit.Cause[Any], Int]          = IO.succeed(100)
+    unsafeRun(for {
+      message <- failure.unsandbox.redeem(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
+      result  <- success.unsandbox
+    } yield (message must_=== "fail") and (result must_=== 100))
+  }
+
+  def testSupervise = {
+    val io = IO.sync("supercalifragilisticexpialadocious")
+    unsafeRun(for {
+      supervise1 <- io.supervise
+      supervise2 <- IO.supervise(io)
+    } yield supervise1 must ===(supervise2))
+  }
+
+  def testFlatten = forAll(Gen.alphaStr) { str =>
+    unsafeRun(for {
+      flatten1 <- IO.succeedLazy(IO.succeedLazy(str)).flatten
+      flatten2 <- IO.flatten(IO.succeedLazy(IO.succeedLazy(str)))
+    } yield flatten1 must ===(flatten2))
+  }
+
+  def testAbsolve = forAll(Gen.alphaStr) { str =>
+    val ioEither: IO[Nothing, Either[Nothing, String]] = IO.succeed(Right(str))
+    unsafeRun(for {
+      abs1 <- ioEither.absolve
+      abs2 <- IO.absolve(ioEither)
+    } yield abs1 must ===(abs2))
+  }
+
+  def testRaceAll = {
+    val io  = IO.sync("supercalifragilisticexpialadocious")
+    val ios = List.empty[IO[Nothing, String]]
+    unsafeRun(for {
+      race1 <- io.raceAll(ios)
+      race2 <- IO.raceAll(io, ios)
+    } yield race1 must ===(race2))
   }
 }
