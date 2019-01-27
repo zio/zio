@@ -20,7 +20,12 @@ class MapDispatchBenchmark {
   val v                   = new MapVisitor
   val a: Int              = 42
 
-  @Benchmark
+  val fmCl: TestIOClass          = new ClassFlatMap
+  val pointCl: TestIOClass       = new ClassPoint
+  val strictCl: TestIOClass      = new ClassStrict
+  val syncEfCl: TestIOClass      = new ClassSyncEffect
+  val asyncEffectCl: TestIOClass = new ClassAsyncEffect
+  /*@Benchmark
   def fmMapWithSwitch: Int =
     fm.mapWithSwitch()
 
@@ -42,7 +47,7 @@ class MapDispatchBenchmark {
 
   @Benchmark
   def asyncEffectVisitor(): Int =
-    asyncEffect.acceptMapVisitor(v)
+    asyncEffect.acceptMapVisitor(v)*/
 
   @Benchmark
   def allMapWithSwitch: Int =
@@ -52,7 +57,7 @@ class MapDispatchBenchmark {
       strict.mapWithSwitch() +
       point.mapWithSwitch()
 
-  @Benchmark
+  /*@Benchmark
   def allSubclass(): Int =
     asyncEffect.mapSubclassing() +
       fm.mapSubclassing() +
@@ -66,7 +71,15 @@ class MapDispatchBenchmark {
       fm.acceptMapVisitor(v) +
       syncEf.acceptMapVisitor(v) +
       strict.acceptMapVisitor(v) +
-      point.acceptMapVisitor(v)
+      point.acceptMapVisitor(v)*/
+
+  @Benchmark
+  def allMapWithSwitchClass: Int =
+    asyncEffectCl.mapWithSwitch() +
+      fmCl.mapWithSwitch() +
+      syncEfCl.mapWithSwitch() +
+      strictCl.mapWithSwitch() +
+      pointCl.mapWithSwitch()
 
 }
 
@@ -188,4 +201,53 @@ object MapDispatchBenchmark {
     def visitAsyncEffect() = 4
     def visitOther()       = 4
   }
+
+  abstract class TestIOClass(storedTag0: Int) {
+    final val storedTag = storedTag0
+
+    final def mapWithSwitch(): Int = (storedTag: @switch) match {
+      case IO.Tags.Point =>
+        this.asInstanceOf[ClassPoint]
+        1
+
+      case IO.Tags.Strict =>
+        this.asInstanceOf[ClassStrict]
+        2
+
+      case IO.Tags.Fail =>
+        this.asInstanceOf[TestIOClass]
+        3
+
+      case _ => 4
+    }
+  }
+
+  final class ClassFlatMap extends TestIOClass(Tags.FlatMap) {}
+
+  final class ClassPoint extends TestIOClass(Tags.Point){}
+
+  final class ClassStrict extends TestIOClass(Tags.Strict){}
+
+  final class ClassSyncEffect extends TestIOClass(Tags.SyncEffect){}
+
+  final class ClassAsyncEffect extends TestIOClass(Tags.AsyncEffect){}
+
+  final class ClassRedeem extends TestIOClass(Tags.Redeem){}
+
+  final class ClassFork extends TestIOClass(Tags.Fork){}
+
+  final class ClassUninterruptible extends TestIOClass(Tags.Uninterruptible){}
+
+  final class ClassSupervise extends TestIOClass(Tags.Supervise){}
+
+  final class ClassFail extends TestIOClass(Tags.Fail){}
+
+  final class ClassEnsuring extends TestIOClass(Tags.Ensuring){}
+
+  final class Descriptor extends TestIOClass(Tags.Descriptor){}
+
+  final class ClassLock extends TestIOClass(Tags.Lock){}
+
+  final class Yield extends TestIOClass(Tags.Yield){}
+  
 }
