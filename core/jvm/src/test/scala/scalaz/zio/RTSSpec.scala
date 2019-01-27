@@ -1043,8 +1043,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testMergeAll =
     unsafeRun(
-      IO.mergeAll[Any, Nothing, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(0) { (b, a) =>
-        b + a.length
+      IO.mergeAll[Any, Nothing, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(0) {
+        (b, a) =>
+          b + a.length
       }
     ) must_=== 10
 

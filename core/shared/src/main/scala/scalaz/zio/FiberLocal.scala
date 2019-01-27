@@ -51,7 +51,8 @@ object FiberLocal {
    * Creates a new `FiberLocal`.
    */
   final def make[A]: UIO[FiberLocal[A]] =
-    Ref.make[internal.State[A]](Map())
+    Ref
+      .make[internal.State[A]](Map())
       .map(state => new FiberLocal(state))
 
   private[zio] object internal {
