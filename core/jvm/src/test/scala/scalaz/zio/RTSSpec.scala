@@ -35,9 +35,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     attempt . fail                          $testEvalOfAttemptOfFail
     deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
     deep attempt fail error                 $testAttemptOfDeepFailError
-    attempt . sandboxed . terminate         $testSandboxAttemptOfTerminate
-    fold . sandboxed . terminate            $testSandboxFoldOfTerminate
-    catch sandboxed terminate               $testSandboxTerminate
+    attempt . sandbox . terminate           $testSandboxAttemptOfTerminate
+    fold . sandbox . terminate              $testSandboxFoldOfTerminate
+    catch sandbox terminate                 $testSandboxTerminate
     uncaught fail                           $testEvalOfUncaughtFail
     uncaught fail supervised                $testEvalOfUncaughtFailSupervised
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
