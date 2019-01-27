@@ -6,7 +6,11 @@ import scalaz.zio.{ AbstractRTSSpec, Exit, GenIO, IO, Queue }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
-class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends AbstractRTSSpec
+    with StreamTestUtils
+    with GenIO
+    with ScalaCheck {
 
   override val DefaultTimeout = 20.seconds
 
@@ -59,18 +63,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   import ArbitraryStream._
   import Exit._
-
-  private def slurp[E, A](s: Stream[E, A]): Exit[E, List[A]] =
-    slurp0(s)(_ => true)
-
-  private def slurp0[E, A](s: Stream[E, A])(cont: List[A] => Boolean): Exit[E, List[A]] = s match {
-    case s: StreamPure[A] =>
-      succeed(s.foldPureLazy(List[A]())(cont)((acc, el) => el :: acc).reverse)
-    case s =>
-      unsafeRunSync {
-        s.fold[E, A, List[A]].flatMap(f0 => f0(List[A](), cont, (acc, el) => IO.succeed(el :: acc)).map(_.reverse))
-      }
-  }
 
   private def filter =
     prop { (s: Stream[String, String], p: String => Boolean) =>
