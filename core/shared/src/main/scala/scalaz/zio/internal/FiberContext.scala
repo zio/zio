@@ -230,7 +230,7 @@ private[zio] final class FiberContext[E, A](
                       // No finalizer, so immediately produce the error.
                       curIo = null
 
-                      done(Exit.fail(io.cause))
+                      done(Exit.halt(io.cause))
                     } else {
                       // We have finalizers to run. We'll resume executing with the
                       // uncaught failure after we have executed all the finalizers:

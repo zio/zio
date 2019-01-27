@@ -3,7 +3,7 @@ package scalaz.zio.stream
 import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, Exit, GenIO, IO }
+import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO }
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends AbstractRTSSpec
@@ -59,7 +59,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     run(empty) must_=== ((Exit.succeed(0), Nil))
     run(single) must_=== ((Exit.succeed(30), List(1)))
     run(double) must_=== ((Exit.succeed(30), List(1)))
-    run(failed) must_=== ((Exit.checked("Ouch"), Nil))
+    run(failed) must_=== ((Exit.fail("Ouch"), Nil))
   }
 
   private def foldM = {
@@ -99,7 +99,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     run(empty) must_=== ((Exit.succeed(0), Nil))
     run(single) must_=== ((Exit.succeed(30), List(1)))
     run(double) must_=== ((Exit.succeed(30), List(1)))
-    run(failed) must_=== ((Exit.checked("Ouch"), Nil))
+    run(failed) must_=== ((Exit.fail("Ouch"), Nil))
   }
 
   private def readWhile =
@@ -175,7 +175,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val partialParse = unsafeRunSync(src1.run(start.chunked))
     val fullParse    = unsafeRunSync((src1 ++ src2).run(start.chunked))
 
-    (partialParse must_=== (Exit.checked("Expected closing brace; instead: None"))) and
+    (partialParse must_=== (Exit.fail("Expected closing brace; instead: None"))) and
       (fullParse must_=== (Exit.Success(List(123, 4))))
   }
 }

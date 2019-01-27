@@ -2,6 +2,7 @@ package scalaz.zio.stream
 
 import org.scalacheck.{ Arbitrary, Gen }
 import scala.reflect.ClassTag
+import scalaz.zio.Chunk
 
 object ArbitraryStep {
   import ArbitraryChunk._
