@@ -52,6 +52,7 @@ trait Executor {
       override def reportFailure(cause: Throwable): Unit =
         cause.printStackTrace
     }
+
 }
 
 object Executor extends Serializable {
@@ -75,7 +76,7 @@ object Executor extends Serializable {
   final def newDefaultExecutor(role: Role): Executor = role match {
     case Unyielding =>
       fromThreadPoolExecutor(role, _ => Int.MaxValue) {
-        val corePoolSize  = Int.MaxValue
+        val corePoolSize  = 0
         val maxPoolSize   = Int.MaxValue
         val keepAliveTime = 1000L
         val timeUnit      = TimeUnit.MILLISECONDS
@@ -90,7 +91,6 @@ object Executor extends Serializable {
           workQueue,
           threadFactory
         )
-        threadPool.allowCoreThreadTimeOut(true)
 
         threadPool
       }
@@ -143,13 +143,17 @@ object Executor extends Serializable {
       def shutdown(): Unit = ()
     }
 
+  private[zio] trait MeteredExecutor extends Executor {
+    def metrics: ExecutionMetrics
+  }
+
   /**
    * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
    */
   final def fromThreadPoolExecutor(role0: Role, yieldOpCount0: ExecutionMetrics => Int)(
     es: ThreadPoolExecutor
   ): Executor =
-    new Executor {
+    new MeteredExecutor {
       def role = role0
 
       val metrics = new ExecutionMetrics {
@@ -165,6 +169,8 @@ object Executor extends Serializable {
         }
 
         def size: Int = es.getQueue().size
+
+        def workersCount: Int = es.getPoolSize()
 
         def enqueuedCount: Long = es.getTaskCount()
 
