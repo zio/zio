@@ -406,7 +406,8 @@ object Queue {
     IO.sync(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
 
   private final def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): IO[Nothing, Queue[A]] =
-    Ref[Option[IO[Nothing, Unit]]](Some(IO.unit))
+    Ref
+      .make[Option[IO[Nothing, Unit]]](Some(IO.unit))
       .map(ref => new Queue[A](queue, MutableConcurrentQueue.unbounded[Promise[Nothing, A]], ref, strategy))
 
 }

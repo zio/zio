@@ -124,5 +124,5 @@ object Ref extends Serializable {
   /**
    * Creates a new `Ref` with the specified value.
    */
-  final def apply[A](a: A): IO[Nothing, Ref[A]] = IO.sync(new Ref[A](new AtomicReference(a)))
+  final def make[A](a: A): IO[Nothing, Ref[A]] = IO.sync(new Ref[A](new AtomicReference(a)))
 }

@@ -32,7 +32,7 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     val n = 20L
     unsafeRun(
       for {
-        semaphore   <- Semaphore(n)
+        semaphore   <- Semaphore.make(n)
         count       <- semaphore.count
         returnSem   <- serializeAndBack(semaphore)
         returnCount <- returnSem.count
@@ -66,7 +66,7 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     val current = "This is some value"
     unsafeRun(
       for {
-        ref       <- Ref(current)
+        ref       <- Ref.make(current)
         returnRef <- serializeAndBack(ref)
         value     <- returnRef.get
       } yield value must_=== current

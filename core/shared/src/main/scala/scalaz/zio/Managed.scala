@@ -92,7 +92,7 @@ object Managed {
   /**
    * Lifts an `IO[E, A]`` into `Managed[E, A]`` with a release action.
    */
-  final def apply[R, E, A](a: ZIO[R, E, A])(r: A => UIO[_]): Managed[R, E, A] =
+  final def make[R, E, A](a: ZIO[R, E, A])(r: A => UIO[_]): Managed[R, E, A] =
     new Managed[R, E, A] {
       type A0 = A
 

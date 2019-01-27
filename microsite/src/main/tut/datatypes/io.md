@@ -103,10 +103,10 @@ import scalaz.zio._
 val z: IO[Nothing, Int] = IO.succeedLazy(21).map(_ * 2)
 ```
 
-You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `leftMap` method with a function `E => E2`:
+You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`:
 
 ```tut:silent
-val z: IO[Exception, String] = IO.fail("No no!").leftMap(msg => new Exception(msg))
+val z: IO[Exception, String] = IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
 
 # Chaining

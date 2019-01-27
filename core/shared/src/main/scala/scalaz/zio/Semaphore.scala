@@ -88,7 +88,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 }
 
 object Semaphore extends Serializable {
-  final def apply(permits: Long): IO[Nothing, Semaphore] = Ref[State](Right(permits)).map(new Semaphore(_))
+  final def make(permits: Long): IO[Nothing, Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
 }
 
 private object internals {

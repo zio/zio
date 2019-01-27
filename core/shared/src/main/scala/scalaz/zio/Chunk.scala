@@ -1,6 +1,4 @@
-package scalaz.zio.stream
-
-import scalaz.zio._
+package scalaz.zio
 
 import scala.reflect._
 

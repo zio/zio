@@ -1,11 +1,11 @@
 package scalaz.zio.stream
 
 import org.scalacheck.Arbitrary
-
 import scala.reflect.ClassTag
 import ArbitraryChunk._
 import ArbitraryStream._
 import org.scalacheck.Gen
+import scalaz.zio.Chunk
 
 object ArbitraryStreamChunk {
 
