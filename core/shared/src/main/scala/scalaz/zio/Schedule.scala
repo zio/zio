@@ -529,6 +529,11 @@ object Schedule extends Serializable {
   /**
    * A schedule that recurs forever, returning the constant for every output.
    */
+  final def succeed[A](a: A): Schedule[Any, A] = forever.const(a)
+
+  /**
+   * A schedule that recurs forever, returning the constant for every output (by-name version).
+   */
   final def succeedLazy[A](a: => A): Schedule[Any, A] = forever.const(a)
 
   /**
