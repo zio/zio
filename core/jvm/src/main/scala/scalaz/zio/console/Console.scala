@@ -1,22 +1,22 @@
 // Copyright (C) 2017-2019 John A. De Goes. All rights reserved.
 package scalaz.zio.console
 
-import scalaz.zio.IO
+import scalaz.zio.{ IO, ZIO }
 import java.io.IOException
 
 trait Console extends Serializable {
-  val console: Console.Interface
+  val console: Console.Interface[Any]
 }
 object Console extends Serializable {
-  trait Interface {
-    def putStr(line: String): IO[Nothing, Unit]
+  trait Interface[R] {
+    def putStr(line: String): ZIO[R, Nothing, Unit]
 
-    def putStrLn(line: String): IO[Nothing, Unit]
+    def putStrLn(line: String): ZIO[R, Nothing, Unit]
 
-    val getStrLn: IO[IOException, String]
+    val getStrLn: ZIO[R, IOException, String]
   }
   trait Live extends Console {
-    object console extends Interface {
+    object console extends Interface[Any] {
 
       /**
        * Prints text to the console.

@@ -3,7 +3,7 @@ package scalaz.zio
 
 import java.io.IOException
 
-package object console {
+package object console extends Console.Interface[Console] {
 
   /**
    * Prints text to the console.
