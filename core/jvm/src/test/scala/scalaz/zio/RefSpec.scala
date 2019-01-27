@@ -24,7 +24,7 @@ class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractR
   def e1 =
     unsafeRun(
       for {
-        ref   <- Ref(current)
+        ref   <- Ref.make(current)
         value <- ref.get
       } yield value must beTheSameAs(current)
     )
@@ -32,7 +32,7 @@ class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractR
   def e2 =
     unsafeRun(
       for {
-        ref   <- Ref(current)
+        ref   <- Ref.make(current)
         _     <- ref.set(update)
         value <- ref.get
       } yield value must beTheSameAs(update)
@@ -41,7 +41,7 @@ class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractR
   def e3 =
     unsafeRun(
       for {
-        ref   <- Ref(current)
+        ref   <- Ref.make(current)
         value <- ref.update(_ => update)
       } yield value must beTheSameAs(update)
     )
@@ -49,7 +49,7 @@ class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractR
   def e4 =
     unsafeRun(
       for {
-        ref    <- Ref[State](Active)
+        ref    <- Ref.make[State](Active)
         value1 <- ref.updateSome { case Active => Changed }
         value2 <- ref.updateSome {
                    case Active  => Changed
@@ -61,7 +61,7 @@ class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractR
   def e5 =
     unsafeRun(
       for {
-        ref   <- Ref[State](Active)
+        ref   <- Ref.make[State](Active)
         value <- ref.updateSome { case Closed => Changed }
       } yield value must beTheSameAs(Active)
     )
@@ -69,7 +69,7 @@ class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractR
   def e6 =
     unsafeRun(
       for {
-        ref   <- Ref(current)
+        ref   <- Ref.make(current)
         r     <- ref.modify[String](_ => ("hello", update))
         value <- ref.get
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
@@ -78,7 +78,7 @@ class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractR
   def e7 =
     unsafeRun(
       for {
-        ref    <- Ref[State](Active)
+        ref    <- Ref.make[State](Active)
         value1 <- ref.modifySome[String]("doesn't change the state") { case Active => ("changed", Changed) }
         value2 <- ref.modifySome[String]("doesn't change the state") {
                    case Active  => ("changed", Changed)
@@ -90,7 +90,7 @@ class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractR
   def e8 =
     unsafeRun(
       for {
-        ref   <- Ref[State](Active)
+        ref   <- Ref.make[State](Active)
         value <- ref.modifySome[String]("State doesn't change") { case Closed => ("active", Active) }
       } yield value must beTheSameAs("State doesn't change")
     )

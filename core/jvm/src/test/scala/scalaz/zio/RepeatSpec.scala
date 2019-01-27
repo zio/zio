@@ -16,7 +16,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   val repeat: Int => IO[Nothing, Int] = (n: Int) =>
     for {
-      ref <- Ref(0)
+      ref <- Ref.make(0)
       s   <- ref.update(_ + 1).repeat(Schedule.recurs(n))
     } yield s
 
@@ -39,7 +39,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   def never = {
     val repeated = unsafeRun(for {
-      ref <- Ref(0)
+      ref <- Ref.make(0)
       _   <- ref.update(_ + 1).repeat(Schedule.never)
       res <- ref.get
     } yield res)
@@ -55,7 +55,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   def once = {
     val repeated = unsafeRun(for {
-      ref <- Ref(0)
+      ref <- Ref.make(0)
       _   <- ref.update(_ + 1).repeat(Schedule.once)
       res <- ref.get
     } yield res)
@@ -72,7 +72,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
   def repeatRepeat = {
     val n = 42
     val repeated = unsafeRun(for {
-      ref <- Ref(0)
+      ref <- Ref.make(0)
       io  = ref.update(_ + 1).repeat(Schedule.recurs(n))
       _   <- io.repeat(Schedule.recurs(1))
       res <- ref.get
@@ -90,7 +90,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
     val repeated = unsafeRun(
       (for {
-        ref <- Ref(0)
+        ref <- Ref.make(0)
         _   <- incr(ref).repeat(Schedule.recurs(42))
       } yield ()).redeem(
         err => IO.succeed(err),

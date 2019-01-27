@@ -17,7 +17,7 @@ object IOSyntax {
   }
 
   final class IOIterableSyntax[E, A](val ios: Iterable[IO[E, A]]) extends AnyVal {
-    def mergeAll[B](zero: B, f: (B, A) => B): IO[E, B] = IO.mergeAll(ios)(zero, f)
+    def mergeAll[B](zero: B)(f: (B, A) => B): IO[E, B] = IO.mergeAll(ios)(zero)(f)
     def collectAllPar: IO[E, List[A]]                  = IO.collectAllPar(ios)
     def forkAll: IO[Nothing, Fiber[E, List[A]]]        = IO.forkAll(ios)
     def collectAll: IO[E, List[A]]                     = IO.collectAll(ios)

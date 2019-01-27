@@ -115,7 +115,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
 
 private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
   @inline final protected[this] def exitToEither[A](e: Exit[Throwable, A]): Either[Throwable, A] =
-    e.fold(_.checked[Throwable] match {
+    e.fold(_.failures[Throwable] match {
       case t :: Nil => Left(t)
       case _        => e.toEither
     }, Right(_))
@@ -129,7 +129,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     case Exit.Success(_)                          => ExitCase.Completed
     case Exit.Failure(cause) if cause.interrupted => ExitCase.Canceled
     case Exit.Failure(cause) =>
-      cause.checkedOrRefail match {
+      cause.failureOrCause match {
         case Left(t) => ExitCase.Error(t)
         case _       => ExitCase.Error(FiberFailure(cause))
       }
@@ -154,7 +154,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    IO.asyncIO { (kk: IO[Throwable, A] => Unit) =>
+    IO.asyncM { (kk: IO[Throwable, A] => Unit) =>
       k(eitherToIO andThen kk).orDie
     }
 
