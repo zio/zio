@@ -2,6 +2,8 @@ package scalaz.zio
 
 import org.scalacheck._
 import org.specs2.ScalaCheck
+import scalaz.zio.Exit.Cause
+
 import scala.collection.mutable
 import scala.util.Try
 import scalaz.zio.Exit.Cause.{ Die, Fail, Interrupt }
@@ -33,7 +35,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
    Create a non-empty list of Ints:
       `IO.foldLeft` with a failing step function returns a failed IO. $t11
    Check done lifts exit result into IO. $testDone
-    Check `when` executes correct branch only. $testWhen
+   Check `when` executes correct branch only. $testWhen
    Check `whenM` executes condition effect and correct branch. $testWhenM
    Check `unsandbox` unwraps exception. $testUnsandbox
    Check `supervise` returns same value as IO.supervise. $testSupervise
@@ -124,49 +126,54 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
     unsafeRun(IO.done(failed)) must throwA(FiberFailure(Fail(error)))
   }
 
-  def testWhen = unsafeRun(for {
-      effectRef <- Ref(0)
-      _ <- effectRef.set(1).when(false)
-      val1 <- effectRef.get
-      _ <- effectRef.set(2).when(true)
-      val2 <- effectRef.get
-      failure = new Exception("expected")
-      _ <- IO.fail(failure).when(false)
-      failed <- IO.fail(failure).when(true).attempt
-    } yield (val1 must_=== 0) and
-      (val2 must_=== 2) and
-      (failed must beLeft(failure))
+  def testWhen =
+    unsafeRun(
+      for {
+        effectRef <- Ref.make(0)
+        _         <- effectRef.set(1).when(false)
+        val1      <- effectRef.get
+        _         <- effectRef.set(2).when(true)
+        val2      <- effectRef.get
+        failure   = new Exception("expected")
+        _         <- IO.fail(failure).when(false)
+        failed    <- IO.fail(failure).when(true).attempt
+      } yield
+        (val1 must_=== 0) and
+          (val2 must_=== 2) and
+          (failed must beLeft(failure))
     )
 
-  def testWhenM = unsafeRun(for {
-        effectRef <- Ref(0)
-        conditionRef <- Ref(0)
-        conditionTrue = conditionRef.update(_ + 1).map(_ => true)
+  def testWhenM =
+    unsafeRun(
+      for {
+        effectRef      <- Ref.make(0)
+        conditionRef   <- Ref.make(0)
+        conditionTrue  = conditionRef.update(_ + 1).map(_ => true)
         conditionFalse = conditionRef.update(_ + 1).map(_ => false)
-        _ <- effectRef.set(1).whenM(conditionFalse)
-        val1 <- effectRef.get
-        conditionVal1 <- conditionRef.get
-        _ <- effectRef.set(2).whenM(conditionTrue)
-        val2 <- effectRef.get
-        conditionVal2 <- conditionRef.get
-        failure = new Exception("expected")
-        _ <- IO.fail(failure).whenM(conditionFalse)
-        failed <- IO.fail(failure).whenM(conditionTrue).attempt
-      } yield (val1 must_=== 0) and
-        (conditionVal1 must_=== 1) and
-        (val2 must_=== 2) and
-        (conditionVal2 must_=== 2) and
-        (failed must beLeft(failure))
+        _              <- effectRef.set(1).whenM(conditionFalse)
+        val1           <- effectRef.get
+        conditionVal1  <- conditionRef.get
+        _              <- effectRef.set(2).whenM(conditionTrue)
+        val2           <- effectRef.get
+        conditionVal2  <- conditionRef.get
+        failure        = new Exception("expected")
+        _              <- IO.fail(failure).whenM(conditionFalse)
+        failed         <- IO.fail(failure).whenM(conditionTrue).attempt
+      } yield
+        (val1 must_=== 0) and
+          (conditionVal1 must_=== 1) and
+          (val2 must_=== 2) and
+          (conditionVal2 must_=== 2) and
+          (failed must beLeft(failure))
     )
 
   def testUnsandbox = {
-    val failure: IO[Exit.Cause[Exception], String] = IO.fail(Checked(new Exception("fail")))
-    val success: IO[Exit.Cause[Any], Int] = IO.succeed(100)
-    unsafeRun( for {
-      message <- failure.unsandbox.bimap(_.getMessage, _ => "unexpected")
-      result <- success.unsandbox
-    } yield (message must_=== "fail") and (result must_=== 100)
-    )
+    val failure: IO[Exit.Cause[Exception], String] = IO.fail(Cause.fail(new Exception("fail")))
+    val success: IO[Exit.Cause[Any], Int]          = IO.succeed(100)
+    unsafeRun(for {
+      message <- failure.unsandbox.redeem(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
+      result  <- success.unsandbox
+    } yield (message must_=== "fail") and (result must_=== 100))
   }
 
   def testSupervise = {
