@@ -171,7 +171,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.suspend(IO.succeedLazy[Int](42))) must_=== 42
 
   def testSyncEvalLoop = {
-    def fibIo(n: Int): IO[Throwable, BigInt] =
+    def fibIo(n: Int): Task[BigInt] =
       if (n <= 1) IO.succeedLazy(n)
       else
         for {
@@ -199,7 +199,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testEvalOfSyncEffect = {
-    def sumIo(n: Int): IO[Throwable, Int] =
+    def sumIo(n: Int): Task[Int] =
       if (n <= 0) IO.sync(0)
       else IO.sync(n).flatMap(b => sumIo(n - 1).map(a => a + b))
 
@@ -299,7 +299,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testEvalOfFailOnError = {
     @volatile var finalized = false
-    val cleanup: Cause[Throwable] => IO[Nothing, Unit] =
+    val cleanup: Cause[Throwable] => UIO[Unit] =
       _ => IO.sync[Unit] { finalized = true; () }
 
     unsafeRun(
@@ -317,7 +317,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val e2 = new Error("e2")
     val e3 = new Error("e3")
 
-    val nested: IO[Throwable, Int] =
+    val nested: Task[Int] =
       IO.fail[Throwable](ExampleError)
         .ensuring(IO.die(e2))
         .ensuring(IO.die(e3))
@@ -392,7 +392,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testBracketRegression1 = {
-    def makeLogger: Ref[List[String]] => String => IO[Nothing, Unit] =
+    def makeLogger: Ref[List[String]] => String => UIO[Unit] =
       (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).void
 
     unsafeRun(for {
@@ -442,11 +442,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     } yield res) must_=== 42
 
   def testEvalOfDeepSyncEffect = {
-    def incLeft(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
+    def incLeft(n: Int, ref: Ref[Int]): Task[Int] =
       if (n <= 0) ref.get
       else incLeft(n - 1, ref) <* ref.update(_ + 1)
 
-    def incRight(n: Int, ref: Ref[Int]): IO[Throwable, Int] =
+    def incRight(n: Int, ref: Ref[Int]): Task[Int] =
       if (n <= 0) ref.get
       else ref.update(_ + 1) *> incRight(n - 1, ref)
 
@@ -508,11 +508,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.asyncM[Throwable, Int](k => IO.sync(k(IO.succeed(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
-    def stackIOs(count: Int): IO[Nothing, Int] =
+    def stackIOs(count: Int): UIO[Int] =
       if (count <= 0) IO.succeed(42)
       else asyncIO(stackIOs(count - 1))
 
-    def asyncIO(cont: IO[Nothing, Int]): IO[Nothing, Int] =
+    def asyncIO(cont: UIO[Int]): UIO[Int] =
       IO.asyncM[Nothing, Int] { k =>
         IO.sleep(5.millis) *> cont *> IO.sync(k(IO.succeed(42)))
       }
@@ -540,7 +540,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.sleep(1.nanos)) must_=== ((): Unit)
 
   def testShallowBindOfAsyncChainIsCorrect = {
-    val result = (0 until 10).foldLeft[IO[Throwable, Int]](IO.succeedLazy[Int](0)) { (acc, _) =>
+    val result = (0 until 10).foldLeft[Task[Int]](IO.succeedLazy[Int](0)) { (acc, _) =>
       acc.flatMap(n => IO.async[Throwable, Int](_(IO.succeed(n + 1))))
     }
 
@@ -875,7 +875,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     } yield b) must_=== 42
 
   def testRepeatedPar = {
-    def countdown(n: Int): IO[Nothing, Int] =
+    def countdown(n: Int): UIO[Int] =
       if (n == 0) IO.succeed(0)
       else IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => countdown(n - 1).map(y => t._1 + t._2 + y))
 
@@ -915,7 +915,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testTimeoutTerminate =
     unsafeRunSync(
-      IO.die(ExampleError).timeout(1.hour): IO[Nothing, Option[Int]]
+      IO.die(ExampleError).timeout(1.hour): UIO[Option[Int]]
     ) must_=== Exit.die(ExampleError)
 
   def testDeadlockRegression = {
@@ -983,45 +983,45 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val InterruptCause2 = new Exception("Oh noes 2!")
   val InterruptCause3 = new Exception("Oh noes 3!")
 
-  def asyncExampleError[A]: IO[Throwable, A] =
+  def asyncExampleError[A]: Task[A] =
     IO.async[Throwable, A](_(IO.fail(ExampleError)))
 
   def sum(n: Int): Int =
     if (n <= 0) 0
     else n + sum(n - 1)
 
-  def deepMapPoint(n: Int): IO[Nothing, Int] = {
+  def deepMapPoint(n: Int): UIO[Int] = {
     @tailrec
-    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
       if (n <= 0) acc
       else loop(n - 1, acc.map(_ + 1))
 
     loop(n, IO.succeedLazy(0))
   }
 
-  def deepMapNow(n: Int): IO[Nothing, Int] = {
+  def deepMapNow(n: Int): UIO[Int] = {
     @tailrec
-    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
       if (n <= 0) acc
       else loop(n - 1, acc.map(_ + 1))
 
     loop(n, IO.succeed(0))
   }
 
-  def deepMapEffect(n: Int): IO[Nothing, Int] = {
+  def deepMapEffect(n: Int): UIO[Int] = {
     @tailrec
-    def loop(n: Int, acc: IO[Nothing, Int]): IO[Nothing, Int] =
+    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
       if (n <= 0) acc
       else loop(n - 1, acc.map(_ + 1))
 
     loop(n, IO.sync(0))
   }
 
-  def deepErrorEffect(n: Int): IO[Throwable, Unit] =
+  def deepErrorEffect(n: Int): Task[Unit] =
     if (n == 0) IO.syncThrowable(throw ExampleError)
     else IO.unit *> deepErrorEffect(n - 1)
 
-  def deepErrorFail(n: Int): IO[Throwable, Unit] =
+  def deepErrorFail(n: Int): Task[Unit] =
     if (n == 0) IO.fail(ExampleError)
     else IO.unit *> deepErrorFail(n - 1)
 
@@ -1029,7 +1029,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     if (n <= 1) n
     else fib(n - 1) + fib(n - 2)
 
-  def concurrentFib(n: Int): IO[Throwable, BigInt] =
+  def concurrentFib(n: Int): Task[BigInt] =
     if (n <= 1) IO.succeedLazy[BigInt](n)
     else
       for {

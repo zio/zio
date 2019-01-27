@@ -49,7 +49,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
   def fIsCats = testCaseJoin[cats.effect.IO].unsafeRunSync()
 
   def fIsZio: List[Int] =
-    unsafeRun(testCaseJoin[scalaz.zio.interop.Task])
+    unsafeRun(testCaseJoin[scalaz.zio.Task])
 
   def bracketFail =
     unsafeRun {

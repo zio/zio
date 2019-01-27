@@ -8,7 +8,7 @@ title:  "Fiber"
 
 To perform an action without blocking the current process, you can use fibers, which are a lightweight mechanism for concurrency.
 
-You can `fork` any `IO[E, A]` to immediately yield an `IO[Nothing, Fiber[E, A]]`. The provided `Fiber` can be used to `join` the fiber, which will resume on production of the fiber's value, or to `interrupt` the fiber, which immediately terminates the fiber and safely releases all resources acquired by the fiber.
+You can `fork` any `IO[E, A]` to immediately yield an `UIO[Fiber[E, A]]`. The provided `Fiber` can be used to `join` the fiber, which will resume on production of the fiber's value, or to `interrupt` the fiber, which immediately terminates the fiber and safely releases all resources acquired by the fiber.
 
 ```tut:silent
 import scalaz.zio._
@@ -20,8 +20,8 @@ case object Analyzed extends Analysis
 
 val data: String = "tut"
 
-def analyzeData[A](data: A): IO[Nothing, Analysis] = IO.succeed(Analyzed)
-def validateData[A](data: A): IO[Nothing, Boolean] = IO.succeed(true)
+def analyzeData[A](data: A): UIO[Analysis] = IO.succeed(Analyzed)
+def validateData[A](data: A): UIO[Boolean] = IO.succeed(true)
 ```
 
 ```tut:silent
@@ -40,7 +40,7 @@ val analyzed =
 On the JVM, fibers will use threads, but will not consume *unlimited* threads. Instead, fibers yield cooperatively during periods of high-contention.
 
 ```tut:silent
-def fib(n: Int): IO[Nothing, Int] =
+def fib(n: Int): UIO[Int] =
   if (n <= 1) {
     IO.succeedLazy(1)
   } else {
@@ -66,7 +66,7 @@ An `IO[E, A]` value may only raise errors of type `E`. These errors are recovera
 Separately from errors of type `E`, a fiber may be terminated for the following reasons:
 
  * The fiber self-terminated or was interrupted by another fiber. The "main" fiber cannot be interrupted because it was not forked from any other fiber.
- * The fiber failed to handle some error of type `E`. This can happen only when an `IO.fail` is not handled. For values of type `IO[Nothing, A]`, this type of failure is impossible.
+ * The fiber failed to handle some error of type `E`. This can happen only when an `IO.fail` is not handled. For values of type `UIO[A]`, this type of failure is impossible.
  * The fiber has a defect that leads to a non-recoverable error. There are only two ways this can happen:
      1. A partial function is passed to a higher-order function such as `map` or `flatMap`. For example, `io.map(_ => throw e)`, or `io.flatMap(a => throw e)`. The solution to this problem is to not to pass impure functions to purely functional libraries like ZIO, because doing so leads to violations of laws and destruction of equational reasoning.
      2. Error-throwing code was embedded into some value via `IO.succeedLazy`, `IO.sync`, etc. For importing partial effects into `IO`, the proper solution is to use a method such as `syncException`, which safely translates exceptions into values.
@@ -83,12 +83,12 @@ To execute actions in parallel, the `zipPar` method can be used:
 
 ```tut:invisible
 case class Matrix()
-def computeInverse(m: Matrix): IO[Nothing, Matrix] = IO.succeed(m)
-def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): IO[Nothing, Matrix] = IO.succeed(m1)
+def computeInverse(m: Matrix): UIO[Matrix] = IO.succeed(m)
+def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = IO.succeed(m1)
 ```
 
 ```tut:silent
-def bigCompute(m1: Matrix, m2: Matrix, v: Matrix): IO[Nothing, Matrix] =
+def bigCompute(m1: Matrix, m2: Matrix, v: Matrix): UIO[Matrix] =
   for {
     t <- computeInverse(m1).zipPar(computeInverse(m2))
     (i1, i2) = t

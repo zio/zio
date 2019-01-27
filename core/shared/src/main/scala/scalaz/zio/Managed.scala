@@ -29,7 +29,7 @@ sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
 
       protected def acquire: IO[E, A1] = IO.never
 
-      protected def release: A1 => IO[Nothing, Unit] = _ => IO.unit
+      protected def release: A1 => UIO[Unit] = _ => IO.unit
 
       final def use[R1 <: R, E1 >: E, A](f: A1 => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
         self.use(r => f(f0(r)))

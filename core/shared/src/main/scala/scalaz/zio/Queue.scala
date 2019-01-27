@@ -13,12 +13,12 @@ import scalaz.zio.internal.MutableConcurrentQueue
 class Queue[A] private (
   queue: MutableConcurrentQueue[A],
   takers: MutableConcurrentQueue[Promise[Nothing, A]],
-  shutdownHook: Ref[Option[IO[Nothing, Unit]]],
+  shutdownHook: Ref[Option[UIO[Unit]]],
   strategy: Strategy[A]
 ) extends Serializable {
 
-  private final val checkShutdownState: IO[Nothing, Unit] =
-    shutdownHook.get.flatMap(_.fold[IO[Nothing, Unit]](IO.interrupt)(_ => IO.unit))
+  private final val checkShutdownState: UIO[Unit] =
+    shutdownHook.get.flatMap(_.fold[UIO[Unit]](IO.interrupt)(_ => IO.unit))
 
   @tailrec
   private final def pollTakersThenQueue(): Option[(Promise[Nothing, A], A)] =
@@ -48,14 +48,14 @@ class Queue[A] private (
         unsafeCompleteTakers(context)
     }
 
-  private final def removeTaker(taker: Promise[Nothing, A]): IO[Nothing, Unit] = IO.sync(unsafeRemove(takers, taker))
+  private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.sync(unsafeRemove(takers, taker))
 
   final val capacity: Int = queue.capacity
 
   /**
    * Places one value in the queue.
    */
-  final def offer(a: A): IO[Nothing, Boolean] = offerAll(List(a))
+  final def offer(a: A): UIO[Boolean] = offerAll(List(a))
 
   /**
    * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and returns always true
@@ -74,7 +74,7 @@ class Queue[A] private (
    * It places the values in the queue but if there is no room it will not enqueue them and returns false
    *
    */
-  final def offerAll(as: Iterable[A]): IO[Nothing, Boolean] =
+  final def offerAll(as: Iterable[A]): UIO[Boolean] =
     for {
       _ <- checkShutdownState
 
@@ -109,7 +109,7 @@ class Queue[A] private (
    * The `IO` returned by this method will not resume until the queue has been shutdown.
    * If the queue is already shutdown, the `IO` will resume right away.
    */
-  final val awaitShutdown: IO[Nothing, Unit] =
+  final val awaitShutdown: UIO[Unit] =
     for {
       p  <- Promise.make[Nothing, Unit]
       io = p.succeed(()).void
@@ -125,13 +125,13 @@ class Queue[A] private (
    * in the queue. This may be negative if fibers are suspended waiting for
    * elements to be added to the queue.
    */
-  final val size: IO[Nothing, Int] = checkShutdownState.map(_ => queue.size - takers.size + strategy.surplusSize)
+  final val size: UIO[Int] = checkShutdownState.map(_ => queue.size - takers.size + strategy.surplusSize)
 
   /**
    * Interrupts any fibers that are suspended on `offer` or `take`.
    * Future calls to `offer*` and `take*` will be interrupted immediately.
    */
-  final val shutdown: IO[Nothing, Unit] = (for {
+  final val shutdown: UIO[Unit] = (for {
     hook <- shutdownHook.modify {
              case None       => (IO.unit, None)
              case Some(hook) => (hook, None)
@@ -145,7 +145,7 @@ class Queue[A] private (
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
    */
-  final val take: IO[Nothing, A] =
+  final val take: UIO[A] =
     for {
       _ <- checkShutdownState
 
@@ -174,7 +174,7 @@ class Queue[A] private (
    * Removes all the values in the queue and returns the list of the values. If the queue
    * is empty returns empty list.
    */
-  final val takeAll: IO[Nothing, List[A]] =
+  final val takeAll: UIO[List[A]] =
     for {
       _ <- checkShutdownState
 
@@ -188,7 +188,7 @@ class Queue[A] private (
   /**
    * Takes up to max number of values in the queue.
    */
-  final def takeUpTo(max: Int): IO[Nothing, List[A]] =
+  final def takeUpTo(max: Int): UIO[List[A]] =
     for {
       _ <- checkShutdownState
 
@@ -258,17 +258,17 @@ object Queue {
       p.unsafeDone(IO.succeed(a), context.defaultExecutor)
 
     sealed trait Strategy[A] {
-      def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean]
+      def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean]
 
       def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Env): Unit
 
       def surplusSize: Int
 
-      def shutdown: IO[Nothing, Unit]
+      def shutdown: UIO[Unit]
     }
 
     case class Sliding[A]() extends Strategy[A] {
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean] = {
+      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = {
         @tailrec
         def unsafeSlidingOffer(as: List[A]): Unit =
           as match {
@@ -287,18 +287,18 @@ object Queue {
 
       final def surplusSize: Int = 0
 
-      final def shutdown: IO[Nothing, Unit] = IO.unit
+      final def shutdown: UIO[Unit] = IO.unit
     }
 
     case class Dropping[A]() extends Strategy[A] {
       // do nothing, drop the surplus
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean] = IO.succeed(false)
+      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = IO.succeed(false)
 
       final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Env): Unit = ()
 
       final def surplusSize: Int = 0
 
-      final def shutdown: IO[Nothing, Unit] = IO.unit
+      final def shutdown: UIO[Unit] = IO.unit
     }
 
     case class BackPressure[A]() extends Strategy[A] {
@@ -312,7 +312,7 @@ object Queue {
         ()
       }
 
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): IO[Nothing, Boolean] = {
+      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = {
         @tailrec
         def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
           as match {
@@ -356,7 +356,7 @@ object Queue {
 
       final def surplusSize: Int = putters.size()
 
-      final def shutdown: IO[Nothing, Unit] =
+      final def shutdown: UIO[Unit] =
         for {
           putters <- IO.sync(unsafePollAll(putters))
           _       <- IO.foreachPar(putters) { case (_, p, lastItem) => if (lastItem) p.interrupt else IO.unit }
@@ -373,7 +373,7 @@ object Queue {
    * provide better performance by utilising an optimised version of
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
-  final def bounded[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+  final def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
 
   /**
@@ -385,7 +385,7 @@ object Queue {
    * provide better performance by utilising an optimised version of
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
-  final def sliding[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+  final def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
 
   /**
@@ -396,18 +396,18 @@ object Queue {
    * provide better performance by utilising an optimised version of
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
-  final def dropping[A](requestedCapacity: Int): IO[Nothing, Queue[A]] =
+  final def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
 
   /**
    * Makes a new unbounded queue.
    */
-  final def unbounded[A]: IO[Nothing, Queue[A]] =
+  final def unbounded[A]: UIO[Queue[A]] =
     IO.sync(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
 
-  private final def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): IO[Nothing, Queue[A]] =
+  private final def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): UIO[Queue[A]] =
     Ref
-      .make[Option[IO[Nothing, Unit]]](Some(IO.unit))
+      .make[Option[UIO[Unit]]](Some(IO.unit))
       .map(ref => new Queue[A](queue, MutableConcurrentQueue.unbounded[Promise[Nothing, A]], ref, strategy))
 
 }

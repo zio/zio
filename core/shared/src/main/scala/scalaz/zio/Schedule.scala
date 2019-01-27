@@ -114,7 +114,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Peeks at the state produced by this schedule, executes some action, and
    * then continues the schedule or not based on the specified state predicate.
    */
-  final def check[A1 <: A](test: (A1, B) => IO[Nothing, Boolean]): Schedule[R, A1, B] =
+  final def check[A1 <: A](test: (A1, B) => UIO[Boolean]): Schedule[R, A1, B] =
     updated(
       update =>
         (a, s) =>
@@ -254,7 +254,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * this schedule.
    */
   final def reconsiderM[A1 <: A, C](
-    f: (A1, Schedule.Decision[State, B]) => IO[Nothing, Schedule.Decision[State, C]]
+    f: (A1, Schedule.Decision[State, B]) => UIO[Schedule.Decision[State, C]]
   ): Schedule[R, A1, C] =
     updated(
       update =>
@@ -278,14 +278,14 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * for every decision of this schedule. This can be used to create schedules
    * that log failures, decisions, or computed values.
    */
-  final def onDecision[A1 <: A](f: (A1, Schedule.Decision[State, B]) => IO[Nothing, Unit]): Schedule[R, A1, B] =
+  final def onDecision[A1 <: A](f: (A1, Schedule.Decision[State, B]) => UIO[Unit]): Schedule[R, A1, B] =
     updated(update => (a, s) => update(a, s).peek(step => f(a, step)))
 
   /**
    * Returns a new schedule with the specified effectful modification
    * applied to each delay produced by this schedule.
    */
-  final def modifyDelay(f: (B, Duration) => IO[Nothing, Duration]): Schedule[R, A, B] =
+  final def modifyDelay(f: (B, Duration) => UIO[Duration]): Schedule[R, A, B] =
     updated(
       update =>
         (a, s) =>
@@ -335,13 +335,13 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0, with a given random generator.
    */
-  final def jittered(random: IO[Nothing, Double]): Schedule[R, A, B] =
+  final def jittered(random: UIO[Double]): Schedule[R, A, B] =
     jittered(0.0, 1.0, random)
 
   /**
    * Applies random jitter to the schedule bounded by the specified factors, with a given random generator.
    */
-  final def jittered(min: Double, max: Double, random: IO[Nothing, Double]): Schedule[R, A, B] =
+  final def jittered(min: Double, max: Double, random: UIO[Double]): Schedule[R, A, B] =
     modifyDelay((_, d) => random.map(random => d * min * (1 - random) + d * max * random))
 
   /**
@@ -353,7 +353,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Sends every output value to the specified sink.
    */
-  final def logOutput[R1 <: R](f: B => IO[Nothing, Unit]): Schedule[R1, A, B] =
+  final def logOutput[R1 <: R](f: B => UIO[Unit]): Schedule[R1, A, B] =
     updated[R1, A, B](update => (a, s) => update(a, s).flatMap(step => f(step.finish()) *> IO.succeed(step)))
 
   /**
@@ -371,7 +371,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Returns a new schedule that effectfully folds over the outputs of this one.
    */
-  final def foldM[Z](z: IO[Nothing, Z])(f: (Z, B) => IO[Nothing, Z]): Schedule[R, A, Z] =
+  final def foldM[Z](z: UIO[Z])(f: (Z, B) => UIO[Z]): Schedule[R, A, Z] =
     new Schedule[R, A, Z] {
       type State = (self.State, Z)
 

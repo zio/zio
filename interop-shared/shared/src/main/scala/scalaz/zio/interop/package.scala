@@ -2,7 +2,6 @@ package scalaz.zio
 
 package object interop {
 
-  type Task[+A]      = IO[Throwable, A]
   type ParIO[+E, +A] = Par.T[E, A]
 
   implicit final class AutoCloseableOps(private val a: AutoCloseable) extends AnyVal {
@@ -10,7 +9,7 @@ package object interop {
     /**
      * Returns an `IO` action which closes this `AutoCloseable` resource.
      */
-    def closeIO(): IO[Nothing, Unit] = IO.sync(a.close())
+    def closeIO(): UIO[Unit] = IO.sync(a.close())
   }
 
   implicit final class IOAutocloseableOps[E, A <: AutoCloseable](private val io: IO[E, A]) extends AnyVal {

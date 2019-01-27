@@ -36,7 +36,7 @@ readData("data.json").attempt.map {
 You can submerge failures with `IO.absolve`, which is the opposite of `attempt` and turns an `IO[E, Either[E, A]]` into an `IO[E, A]`:
 
 ```tut:silent
-def sqrt(io: IO[Nothing, Double]): IO[String, Double] =
+def sqrt(io: UIO[Double]): IO[String, Double] =
   IO.absolve(
     io.map(value =>
       if (value < 0.0) Left("Value must be >= 0.0")
@@ -75,11 +75,11 @@ If you want more control on the next action and better performance you can use t
 sealed abstract class Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
-def readUrls(file: String): IO[Throwable, List[String]] = IO.succeed("Hello" :: Nil)
-def fetchContent(urls: List[String]): IO[Nothing, Content] = IO.succeed(OkContent("Roger"))
+def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
 ```
 ```tut:silent
-val z: IO[Nothing, Content] =
+val z: UIO[Content] =
   readUrls("urls.json").redeem(e => IO.succeedLazy(NoContent(e)), fetchContent)
 ```
 

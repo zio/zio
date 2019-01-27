@@ -216,7 +216,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
       val initial = self.initial.map(Step.leftMap(_)(Some(_))) orElse
         IO.succeed(Step.done(None, Chunk.empty))
 
-      def step(state: State, a: A): IO[Nothing, Step[State, A0]] =
+      def step(state: State, a: A): UIO[Step[State, A0]] =
         state match {
           case None => IO.succeed(Step.done(state, Chunk.empty))
           case Some(state) =>
@@ -228,7 +228,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
               )
         }
 
-      def extract(state: State): IO[Nothing, Option[B]] =
+      def extract(state: State): UIO[Option[B]] =
         state match {
           case None        => IO.succeed(None)
           case Some(state) => self.extract(state).map(Some(_)) orElse IO.succeed(None)
@@ -600,8 +600,8 @@ object Sink {
 
         type State = (Side[E, self.State, B], Side[E1, that.State, (Chunk[A], C)])
 
-        val l: IO[Nothing, Step[Either[E, self.State], Nothing]]  = self.initial.attempt.map(sequence)
-        val r: IO[Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.attempt.map(sequence)
+        val l: UIO[Step[Either[E, self.State], Nothing]]  = self.initial.attempt.map(sequence)
+        val r: UIO[Step[Either[E1, that.State], Nothing]] = that.initial.attempt.map(sequence)
 
         val initial: IO[E1, Step[State, Nothing]] =
           l.zipWithPar(r) { (l, r) =>
@@ -609,7 +609,7 @@ object Sink {
           }
 
         def step(state: State, a: A): IO[E1, Step[State, A]] = {
-          val leftStep: IO[Nothing, Step[Side[E, self.State, B], A]] =
+          val leftStep: UIO[Step[Side[E, self.State, B], A]] =
             state._1 match {
               case Side.State(s) =>
                 self
@@ -628,7 +628,7 @@ object Sink {
                   )
               case s => IO.succeed(Step.done(s, Chunk.empty))
             }
-          val rightStep: IO[Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]] =
+          val rightStep: UIO[Step[Side[E1, that.State, (Chunk[A], C)], A]] =
             state._2 match {
               case Side.State(s) =>
                 that

@@ -13,7 +13,7 @@ A `Queue[A]` contains values of type `A` and has two basic operations: `offer`, 
 ```tut:silent
 import scalaz.zio._
 
-val res: IO[Nothing, Int] = for {
+val res: UIO[Int] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(1)
   v1 <- queue.take
@@ -32,22 +32,22 @@ There are several strategies to process new values when the queue is full:
 
 To create a back-pressured bounded queue:
 ```tut:silent
-val queue: IO[Nothing, Queue[Int]] = Queue.bounded[Int](100)
+val queue: UIO[Queue[Int]] = Queue.bounded[Int](100)
 ```
 
 To create a dropping queue:
 ```tut:silent
-val queue: IO[Nothing, Queue[Int]] = Queue.dropping[Int](100)
+val queue: UIO[Queue[Int]] = Queue.dropping[Int](100)
 ```
 
 To create a sliding queue:
 ```tut:silent
-val queue: IO[Nothing, Queue[Int]] = Queue.sliding[Int](100)
+val queue: UIO[Queue[Int]] = Queue.sliding[Int](100)
 ```
 
 To create an unbounded queue:
 ```tut:silent
-val queue: IO[Nothing, Queue[Int]] = Queue.unbounded[Int]
+val queue: UIO[Queue[Int]] = Queue.unbounded[Int]
 ```
 
 ## Adding items to a queue
@@ -55,7 +55,7 @@ val queue: IO[Nothing, Queue[Int]] = Queue.unbounded[Int]
 The simplest way to add a value to the queue is `offer`:
 
 ```tut:silent
-val res: IO[Nothing, Unit] = for {
+val res: UIO[Unit] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(1)
 } yield ()
@@ -64,7 +64,7 @@ val res: IO[Nothing, Unit] = for {
 When using a back-pressured queue, offer might suspend if the queue is full: you can use `fork` to wait in a different fiber.
 
 ```tut:silent
-val res: IO[Nothing, Unit] = for {
+val res: UIO[Unit] = for {
   queue <- Queue.bounded[Int](1)
   _ <- queue.offer(1)
   f <- queue.offer(1).fork // will be suspended because the queue is full
@@ -76,7 +76,7 @@ val res: IO[Nothing, Unit] = for {
 It is also possible to add multiple values at once with `offerAll`:
 
 ```tut:silent
-val res: IO[Nothing, Unit] = for {
+val res: UIO[Unit] = for {
   queue <- Queue.bounded[Int](100)
   items = Range.inclusive(1, 10).toList
   _ <- queue.offerAll(items)
@@ -88,7 +88,7 @@ val res: IO[Nothing, Unit] = for {
 The `take` operation removes the oldest item from the queue and returns it. If the queue is empty, this will suspend, and resume only when an item has been added to the queue. As with `offer`, you can use `fork` to wait for the value in a different fiber.
 
 ```tut:silent
-val res: IO[Nothing, String] = for {
+val res: UIO[String] = for {
   queue <- Queue.bounded[String](100)
   f <- queue.take.fork // will be suspended because the queue is empty
   _ <- queue.offer("something")
@@ -99,7 +99,7 @@ val res: IO[Nothing, String] = for {
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
 
 ```tut:silent
-val res: IO[Nothing, List[Int]] = for {
+val res: UIO[List[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
@@ -110,7 +110,7 @@ val res: IO[Nothing, List[Int]] = for {
 Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty list if the queue is empty).
 
 ```tut:silent
-val res: IO[Nothing, List[Int]] = for {
+val res: UIO[List[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
@@ -123,7 +123,7 @@ val res: IO[Nothing, List[Int]] = for {
 It is possible with `shutdown` to interrupt all the fibers that are suspended on `offer*` or `take*`. It will also empty the queue and make all future calls to `offer*` and `take*` terminate immediately.
 
 ```tut:silent
-val res: IO[Nothing, Unit] = for {
+val res: UIO[Unit] = for {
   queue <- Queue.bounded[Int](3)
   f <- queue.take.fork
   _ <- queue.shutdown // will interrupt f
@@ -134,7 +134,7 @@ val res: IO[Nothing, Unit] = for {
 You can use `awaitShutdown` to execute an action when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.
 
 ```tut:silent
-val res: IO[Nothing, Unit] = for {
+val res: UIO[Unit] = for {
   queue <- Queue.bounded[Int](3)
   p <- Promise.make[Nothing, Boolean]
   f <- queue.awaitShutdown.fork

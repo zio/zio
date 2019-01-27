@@ -10,7 +10,7 @@ private[stream] trait StreamChunkPure[-R, @specialized +A] extends StreamChunk[R
       as.foldLeftLazy(s)(cont)(f)
     }
 
-  override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): IO[Nothing, S] =
+  override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): UIO[S] =
     IO.succeed(foldPureLazy(s)(_ => true)(f))
 
   override def map[@specialized B](f: A => B): StreamChunkPure[R, B] =

@@ -6,8 +6,9 @@ import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.{ Env, Executor }
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.annotation.switch
+import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -336,7 +337,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Less powerful version of `redeem` which always returns a successful
-   * `IO[Nothing, B]` after applying one of the given mapping functions depending
+   * `UIO[B]` after applying one of the given mapping functions depending
    * on the result of this `ZIO`
    */
   final def fold[B](err: E => B, succ: A => B): ZIO[R, Nothing, B] =
@@ -541,6 +542,9 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def orDie[E1 >: E](implicit ev: E1 =:= Throwable): ZIO[R, Nothing, A] =
     self.mapError(ev).catchAll(ZIO.die)
+
+  def toFuture(implicit ev: E <:< Throwable): ZIO[R, Nothing, Future[A]] =
+    self.mapError(ev).fold(Future.failed, Future.successful)
 
   /**
    * Maps this action to the specified constant while preserving the
@@ -789,7 +793,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * val veryBadIO: IO[DomainError, Unit] =
    *   IO.sync(5 / 0) *> IO.fail(DomainError())
    *
-   * val caught: IO[Nothing, Unit] =
+   * val caught: UIO[Unit] =
    *   veryBadIO.sandbox.catchAll {
    *     case Left((_: ArithmeticException) :: Nil) =>
    *       // Caught defect: divided by zero!
@@ -934,7 +938,7 @@ trait ZIOFunctions extends Serializable {
    * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
    * will be interrupted via `Thread.interrupt`.
    */
-  final def blocking[A](effect: => A): IO[Nothing, A] =
+  final def blocking[A](effect: => A): UIO[A] =
     IO.flatten(IO.sync {
       import java.util.concurrent.locks.ReentrantLock
       import java.util.concurrent.atomic.AtomicReference
@@ -948,7 +952,7 @@ trait ZIOFunctions extends Serializable {
         } finally lock.unlock()
 
       for {
-        finalizer <- Ref.make[IO[Nothing, Unit]](IO.unit)
+        finalizer <- Ref.make[UIO[Unit]](IO.unit)
         a <- (for {
               fiber <- (IO.unyielding(IO.sync[Either[Throwable, A]] {
                         withLock(thread.set(Some(Thread.currentThread())))
@@ -962,7 +966,7 @@ trait ZIOFunctions extends Serializable {
                       }) <* finalizer
                         .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
               either <- fiber.join
-              a      <- either.fold[IO[Nothing, A]](IO.die, IO.succeed)
+              a      <- either.fold[UIO[A]](IO.die, IO.succeed)
             } yield a).ensuring(IO.flatten(finalizer.get))
       } yield a
     })
@@ -971,7 +975,7 @@ trait ZIOFunctions extends Serializable {
    * Imports a synchronous effect into a pure `ZIO` value.
    *
    * {{{
-   * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
+   * val nanoTime: UIO[Long] = IO.sync(System.nanoTime())
    * }}}
    */
   final def sync[A](effect: => A): UIO[A] = sync0(_ => effect)
@@ -981,7 +985,7 @@ trait ZIOFunctions extends Serializable {
    * lets you use the execution environment of the fiber.
    *
    * {{{
-   * val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime())
+   * val nanoTime: UIO[Long] = IO.sync(System.nanoTime())
    * }}}
    */
   final def sync0[A](effect: Env => A): UIO[A] = new ZIO.SyncEffect[A](effect)
@@ -1048,7 +1052,7 @@ trait ZIOFunctions extends Serializable {
    */
   final def superviseWith[R >: LowerR, E <: UpperE, A](
     io: ZIO[R, E, A]
-  )(supervisor: Iterable[Fiber[_, _]] => IO[Nothing, _]): ZIO[R, E, A] =
+  )(supervisor: Iterable[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
     new ZIO.Supervise(io, supervisor)
 
   /**
@@ -1121,7 +1125,7 @@ trait ZIOFunctions extends Serializable {
   final def asyncM[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
     for {
       p   <- Promise.make[E, A]
-      ref <- Ref.make[IO[Nothing, Any]](ZIO.unit)
+      ref <- Ref.make[UIO[Any]](ZIO.unit)
       a <- (for {
             _ <- flatten(sync0(env => register(io => env.unsafeRunAsync_(io.to(p))))).fork
                   .peek(f => ref.set(f.interrupt))
@@ -1144,7 +1148,7 @@ trait ZIOFunctions extends Serializable {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
-    sync((new AtomicBoolean(false), OneShot.make[IO[Nothing, Any]])).flatMap {
+    sync((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
       case (started, cancel) =>
         flatten {
           async0((k: UIO[ZIO[R, E, A]] => Unit) => {
@@ -1211,7 +1215,7 @@ trait ZIOFunctions extends Serializable {
   final def bracket[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]
   )(release: A => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
-    Ref.make[IO[Nothing, Any]](ZIO.unit).flatMap { m =>
+    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
       (for {
         a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptible
         b <- use(a)
@@ -1226,7 +1230,7 @@ trait ZIOFunctions extends Serializable {
   final def bracket0[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]
   )(release: (A, Exit[E, B]) => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
-    Ref.make[IO[Nothing, Any]](ZIO.unit).flatMap { m =>
+    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
       (for {
         f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptible
         b <- f.join
@@ -1356,7 +1360,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Returns information about the current fiber, such as its fiber identity.
    */
-  final def descriptor: IO[Nothing, Fiber.Descriptor] = ZIO.Descriptor
+  final def descriptor: UIO[Fiber.Descriptor] = ZIO.Descriptor
 }
 
 trait ZIO_E_Any extends ZIO_E_Throwable {
@@ -1379,10 +1383,10 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    * throwables into a `Throwable` failure in the returned value.
    *
    * {{{
-   * def putStrLn(line: String): IO[Throwable, Unit] = IO.syncThrowable(println(line))
+   * def putStrLn(line: String): Task[Unit] = IO.syncThrowable(println(line))
    * }}}
    */
-  final def syncThrowable[A](effect: => A): IO[Throwable, A] =
+  final def syncThrowable[A](effect: => A): Task[A] =
     syncCatch(effect) {
       case t: Throwable => t
     }
@@ -1390,11 +1394,27 @@ trait ZIO_E_Throwable extends ZIOFunctions {
   /**
    * Imports a `Try` into a `ZIO`.
    */
-  final def fromTry[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
+  final def fromTry[A](effect: => scala.util.Try[A]): Task[A] =
     syncThrowable(effect).flatMap {
       case scala.util.Success(v) => ZIO.succeed(v)
       case scala.util.Failure(t) => ZIO.fail(t)
     }
+
+  final def fromFuture[E, A](make: ExecutionContext => Future[A]): Task[A] =
+    syncExec { exec =>
+      val ec = exec.asEC
+      val f  = make(ec)
+      f.value
+        .fold(
+          Task.async { (cb: Task[A] => Unit) =>
+            f.onComplete {
+              case Success(a) => cb(Task.succeed(a))
+              case Failure(t) => cb(Task.fail(t))
+            }(ec)
+          }
+        )(Task.fromTry(_))
+
+    }.flatten
 
   /**
    *
@@ -1435,7 +1455,7 @@ object ZIO extends ZIO_E_Any {
 
   @inline
   private final def succeedRight[E, A]: A => UIO[Either[E, A]] =
-    _succeedRight.asInstanceOf[A => IO[Nothing, Either[E, A]]]
+    _succeedRight.asInstanceOf[A => UIO[Either[E, A]]]
 
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
     a => succeed[Either[Any, Any]](Right(a))
@@ -1500,7 +1520,7 @@ object ZIO extends ZIO_E_Any {
 
   final class Supervise[R, E, A](
     val value: ZIO[R, E, A],
-    val supervisor: Iterable[Fiber[_, _]] => IO[Nothing, _]
+    val supervisor: Iterable[Fiber[_, _]] => UIO[_]
   ) extends ZIO[R, E, A] {
     override def tag = Tags.Supervise
   }
@@ -1513,7 +1533,7 @@ object ZIO extends ZIO_E_Any {
     override def tag = Tags.Ensuring
   }
 
-  final object Descriptor extends IO[Nothing, Fiber.Descriptor] {
+  final object Descriptor extends UIO[Fiber.Descriptor] {
     override def tag = Tags.Descriptor
   }
 

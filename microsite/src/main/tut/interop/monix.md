@@ -12,20 +12,20 @@ Checkout `interop-monix` module for inter-operation support.
 
 Interop layer provides the following conversions:
 
-- from `IO[Throwable, A]` to `IO[Nothing, Task[A]]`
-- from `Task[A]` to `IO[Throwable, A]`
+- from `Task[A]` to `UIO[Task[A]]`
+- from `Task[A]` to `Task[A]`
 
 To convert an `IO` value to `Task`, use the following method:
 
 ```scala
-def toTask: IO[Nothing, eval.Task[A]]
+def toTask: UIO[eval.Task[A]]
 ```
 
 To perform conversion in other direction, use the following extension method
 available on `IO` companion object:
 
 ```scala
-def fromTask[A](task: eval.Task[A])(implicit scheduler: Scheduler): IO[Throwable, A]
+def fromTask[A](task: eval.Task[A])(implicit scheduler: Scheduler): Task[A]
 ```
 
 Note that in order to convert the `Task` to an `IO`, an appropriate `Scheduler`
@@ -59,14 +59,14 @@ object UnsafeExample extends RTS {
 To convert an `IO` value to `Coeval`, use the following method:
 
 ```scala
-def toCoeval: IO[Nothing, eval.Coeval[A]]
+def toCoeval: UIO[eval.Coeval[A]]
 ```
 
 To perform conversion in other direction, use the following extension method
 available on `IO` companion object:
 
 ```scala
-def fromCoeval[A](coeval: eval.Coeval[A]): IO[Throwable, A]
+def fromCoeval[A](coeval: eval.Coeval[A]): Task[A]
 ```
 
 ### Example

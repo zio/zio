@@ -14,12 +14,12 @@ need to coordinate passing values to each other.
 
 ## Creation
 
-Promises can be created using `Promise.make[E, A]`, which returns `IO[Nothing, Promise[E, A]]`. This is a description of creating a promise, but not the actual promise. Promises cannot be created outside of IO, because creating them involves allocating mutable memory, which is an effect and must be safely captured in IO.
+Promises can be created using `Promise.make[E, A]`, which returns `UIO[Promise[E, A]]`. This is a description of creating a promise, but not the actual promise. Promises cannot be created outside of IO, because creating them involves allocating mutable memory, which is an effect and must be safely captured in IO.
 
 ## Operations
 
 You can complete a `Promise[Exception, String]` named `p` successfully with a value using `p.succeed(...)`.
-For example, `p.succeed("I'm done!")`. The act of completing a Promise results in an `IO[Nothing, Boolean]`, where
+For example, `p.succeed("I'm done!")`. The act of completing a Promise results in an `UIO[Boolean]`, where
 the `Boolean` represents whether the promise value has been set (`true`) or whether it was already set (`false`).
 This is demonstrated below:
 
@@ -29,15 +29,15 @@ import scalaz.zio.syntax._
 ```
 
 ```tut:silent
-val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
-val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.succeed("I'm done"))
+val ioPromise: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
+val ioBoolean: UIO[Boolean] = ioPromise.flatMap(promise => promise.succeed("I'm done"))
 ```
 
 You can also signal failure using `fail(...)`. For example,
 
 ```tut:silent
-val ioPromise: IO[Nothing, Promise[Exception, Nothing]] = Promise.make[Exception, Nothing]
-val ioBoolean: IO[Nothing, Boolean] = ioPromise.flatMap(promise => promise.fail(new Exception("boom")))
+val ioPromise: UIO[Promise[Exception, Nothing]] = Promise.make[Exception, Nothing]
+val ioBoolean: UIO[Boolean] = ioPromise.flatMap(promise => promise.fail(new Exception("boom")))
 ```
 
 To re-iterate, the `Boolean` tells us whether or not the operation took place successfully (`true`) i.e. the Promise
@@ -49,7 +49,7 @@ As an alternative to using `succeed(...)` or `fail(...)` you can also use `succe
 You can get a value from a Promise using `await`
 
 ```tut:silent
-val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
+val ioPromise: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
 val ioGet: IO[Exception, String] = ioPromise.flatMap(promise => promise.await)
 ```
 
@@ -58,8 +58,8 @@ If you don't want to suspend and you only want to query the state of whether or 
 you can use `poll`:
 
 ```tut:silent
-val ioPromise: IO[Nothing, Promise[Exception, String]] = Promise.make[Exception, String]
-val ioIsItDone: IO[Nothing, Option[IO[Exception, String]]] = ioPromise.flatMap(p => p.poll)
+val ioPromise: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
+val ioIsItDone: UIO[Option[IO[Exception, String]]] = ioPromise.flatMap(p => p.poll)
 val ioIsItDone2: IO[Unit, IO[Exception, String]] = ioPromise.flatMap(p => p.poll.get)
 ```
 

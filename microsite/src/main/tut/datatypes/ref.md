@@ -54,7 +54,7 @@ As functional programmers, we know better and have captured state mutation in th
 
 ```tut:silent
 Ref.make(0).flatMap { idCounter =>
-  def freshVar: IO[Nothing, String] =
+  def freshVar: UIO[String] =
     idCounter.modify(cpt => (s"var${cpt + 1}", cpt + 1))
 
   for {
@@ -75,12 +75,12 @@ Well, with `Ref`s, that's easy to do! The only difficulty is in `P`, where we mu
 
 ```tut:silent
 sealed trait S {
-  def P: IO[Nothing, Unit]
-  def V: IO[Nothing, Unit]
+  def P: UIO[Unit]
+  def V: UIO[Unit]
 }
 
 object S {
-  def apply(v: Long): IO[Nothing, S] =
+  def apply(v: Long): UIO[S] =
     Ref.make(v).map { vref =>
       new S {
         def V = vref.update(_ + 1).void
@@ -104,7 +104,7 @@ Let's rock these crocodile boots we found the other day at the market and test o
 ```tut:silent
 import scalaz.zio.duration.Duration
 import scala.util.Random
-val party: IO[Nothing, Unit] = for {
+val party: UIO[Unit] = for {
   dancefloor <- S(10)
   dancers <- IO.foreachPar(1 to 100) { i =>
     dancefloor.P *> (IO.sync(Duration.fromNanos((Random.nextDouble * 1000000).round)).flatMap { d =>

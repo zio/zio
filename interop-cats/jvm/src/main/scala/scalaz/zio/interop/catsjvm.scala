@@ -38,7 +38,7 @@ abstract class CatsInstances extends CatsInstances1 {
   implicit val taskEffectInstances: effect.ConcurrentEffect[Task] with SemigroupK[Task] =
     new CatsConcurrentEffect
 
-  implicit val taskParallelInstance: Parallel[Task, Task.Par] =
+  implicit val taskParallelInstance: Parallel[Task, Util.Par] =
     parallelInstance(taskEffectInstances)
 }
 
@@ -86,7 +86,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     Concurrent.liftIO(ioa)(this)
 
   override final def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
-    IO.asyncInterrupt { (kk: IO[Throwable, A] => Unit) =>
+    IO.asyncInterrupt { (kk: Task[A] => Unit) =>
       val token: effect.CancelToken[Task] = {
         k(e => kk(eitherToIO(e)))
       }
@@ -122,7 +122,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
       case _        => e.toEither
     }, Right(_))
 
-  @inline final protected[this] def eitherToIO[A]: Either[Throwable, A] => IO[Throwable, A] = {
+  @inline final protected[this] def eitherToIO[A]: Either[Throwable, A] => Task[A] = {
     case Left(t)  => IO.fail(t)
     case Right(r) => IO.succeed(r)
   }
@@ -151,12 +151,12 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     }
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
-    IO.async { (kk: IO[Throwable, A] => Unit) =>
+    IO.async { (kk: Task[A] => Unit) =>
       k(eitherToIO andThen kk)
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    IO.asyncM { (kk: IO[Throwable, A] => Unit) =>
+    IO.asyncM { (kk: Task[A] => Unit) =>
       k(eitherToIO andThen kk).orDie
     }
 
