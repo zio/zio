@@ -59,7 +59,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     run(empty) must_=== ((Exit.succeed(0), Nil))
     run(single) must_=== ((Exit.succeed(30), List(1)))
     run(double) must_=== ((Exit.succeed(30), List(1)))
-    run(failed) must_=== ((Exit.checked("Ouch"), Nil))
+    run(failed) must_=== ((Exit.fail("Ouch"), Nil))
   }
 
   private def foldM = {
@@ -99,7 +99,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     run(empty) must_=== ((Exit.succeed(0), Nil))
     run(single) must_=== ((Exit.succeed(30), List(1)))
     run(double) must_=== ((Exit.succeed(30), List(1)))
-    run(failed) must_=== ((Exit.checked("Ouch"), Nil))
+    run(failed) must_=== ((Exit.fail("Ouch"), Nil))
   }
 
   private def readWhile =
