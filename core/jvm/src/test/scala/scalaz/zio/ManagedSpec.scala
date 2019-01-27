@@ -12,7 +12,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
   def invokesCleanupsInReverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      Managed(IO.sync { effects += x; () })(_ => IO.sync { effects += x; () })
+      Managed.make(IO.sync { effects += x; () })(_ => IO.sync { effects += x; () })
 
     val (first, second, third) = (res(1), res(2), res(3))
 
@@ -33,7 +33,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     val cleanups = new mutable.ListBuffer[String]
 
     def managed(v: String): Managed[Nothing, String] =
-      Managed(IO.succeed(v))(_ => IO.sync { cleanups += v; () })
+      Managed.make(IO.succeed(v))(_ => IO.sync { cleanups += v; () })
 
     val program = managed("A").zipWithPar(managed("B"))(_ + _).use(IO.succeed)
 

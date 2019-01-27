@@ -59,7 +59,7 @@ class IOShallowAttemptBenchmark {
   @Benchmark
   def scalazShallowAttempt(): BigInt = {
     def throwup(n: Int): IO[ScalazError, BigInt] =
-      if (n == 0) throwup(n + 1).redeemPure[BigInt](_ => 50, identity)
+      if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) IO.succeedLazy(1)
       else throwup(n + 1).redeem[ScalazError, BigInt](_ => IO.succeed(0), _ => IO.fail(ScalazError("Oh noes!")))
 
@@ -69,7 +69,7 @@ class IOShallowAttemptBenchmark {
   @Benchmark
   def scalazShallowAttemptBaseline(): BigInt = {
     def throwup(n: Int): IO[Error, BigInt] =
-      if (n == 0) throwup(n + 1).redeemPure[BigInt](_ => 50, identity)
+      if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) IO.succeedLazy(1)
       else throwup(n + 1).redeem[Error, BigInt](_ => IO.succeed(0), _ => IO.fail(new Error("Oh noes!")))
 

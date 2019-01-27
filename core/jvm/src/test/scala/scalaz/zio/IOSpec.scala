@@ -4,7 +4,7 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 import scala.collection.mutable
 import scala.util.Try
-import scalaz.zio.Exit.Cause.{ Checked, Interruption, Unchecked }
+import scalaz.zio.Exit.Cause.{ Die, Fail, Interrupt }
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
@@ -94,13 +94,13 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
   def testDone = {
     val error                         = new Error("something went wrong")
     val completed                     = Exit.succeed(1)
-    val interrupted: Exit[Error, Int] = Exit.interrupted
-    val terminated: Exit[Error, Int]  = Exit.unchecked(error)
-    val failed: Exit[Error, Int]      = Exit.checked(error)
+    val interrupted: Exit[Error, Int] = Exit.interrupt
+    val terminated: Exit[Error, Int]  = Exit.die(error)
+    val failed: Exit[Error, Int]      = Exit.fail(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interruption))
-    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Unchecked(error)))
-    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Checked(error)))
+    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interrupt))
+    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Die(error)))
+    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Fail(error)))
   }
 }

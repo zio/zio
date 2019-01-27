@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, Exit, GenIO, IO }
+import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO }
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "SinkSpec".title ^ s2"""
@@ -75,7 +75,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
     val partialParse = unsafeRunSync(src1.run(start.chunked))
     val fullParse    = unsafeRunSync((src1 ++ src2).run(start.chunked))
 
-    (partialParse must_=== (Exit.checked("Expected closing brace; instead: None"))) and
+    (partialParse must_=== (Exit.fail("Expected closing brace; instead: None"))) and
       (fullParse must_=== (Exit.Success(List(123, 4))))
   }
 }
