@@ -12,7 +12,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
   import Prop.forAll
 
   def is = "IOSpec".title ^ s2"""
-   Generate a list of String and a f: String => IO[Throwable, Int]:
+   Generate a list of String and a f: String => Task[Int]:
       `IO.foreach` returns the list of results. $t1
    Create a list of Strings and pass an f: String => IO[String, Int]:
       `IO.foreach` both evaluates effects and returns the list of Ints in the same order. $t2
@@ -26,9 +26,9 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
       `IO.collectAllPar` returns the list of Ints in the same order. $t6
    Create a list of Ints and map with IO.point:
       `IO.forkAll` returns the list of Ints in the same order. $t7
-   Create a list of Strings and pass an f: String => IO[Nothing, Int]:
+   Create a list of Strings and pass an f: String => UIO[Int]:
       `IO.collectAllParN` returns the list of Ints in the same order. $t8
-   Create a list of Ints and pass an f: Int => IO[Nothing, Int]:
+   Create a list of Ints and pass an f: Int => UIO[Int]:
       `IO.foreachParN` returns the list of created Strings in the appropriate order. $t9
    Create a list of Ints:
       `IO.foldLeft` with a successful step function sums the list properly. $t10
@@ -44,8 +44,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
     """
 
-  def functionIOGen: Gen[String => IO[Throwable, Int]] =
-    Gen.function1[String, IO[Throwable, Int]](genSuccess[Throwable, Int])
+  def functionIOGen: Gen[String => Task[Int]] =
+    Gen.function1[String, Task[Int]](genSuccess[Throwable, Int])
 
   def listGen: Gen[List[String]] =
     Gen.listOfN(100, Gen.alphaNumStr)
@@ -192,7 +192,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
   }
 
   def testAbsolve = forAll(Gen.alphaStr) { str =>
-    val ioEither: IO[Nothing, Either[Nothing, String]] = IO.succeed(Right(str))
+    val ioEither: UIO[Either[Nothing, String]] = IO.succeed(Right(str))
     unsafeRun(for {
       abs1 <- ioEither.absolve
       abs2 <- IO.absolve(ioEither)
@@ -201,7 +201,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
 
   def testRaceAll = {
     val io  = IO.sync("supercalifragilisticexpialadocious")
-    val ios = List.empty[IO[Nothing, String]]
+    val ios = List.empty[UIO[String]]
     unsafeRun(for {
       race1 <- io.raceAll(ios)
       race2 <- IO.raceAll(io, ios)

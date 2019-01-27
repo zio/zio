@@ -48,7 +48,7 @@ class IONarrowFlatMapBenchmark {
 
   @Benchmark
   def scalazNarrowFlatMap(): Int = {
-    def loop(i: Int): IO[Nothing, Int] =
+    def loop(i: Int): UIO[Int] =
       if (i < size) IO.succeedLazy[Int](i + 1).flatMap(loop)
       else IO.succeedLazy(i)
 

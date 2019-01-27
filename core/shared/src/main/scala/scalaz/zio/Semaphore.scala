@@ -10,16 +10,16 @@ import scala.collection.immutable.{ Queue => IQueue }
 
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
-  final def count: IO[Nothing, Long] = state.get.map(count_)
+  final def count: UIO[Long] = state.get.map(count_)
 
-  final def available: IO[Nothing, Long] = state.get.map {
+  final def available: UIO[Long] = state.get.map {
     case Left(_)  => 0
     case Right(n) => n
   }
 
-  final def acquire: IO[Nothing, Unit] = acquireN(1)
+  final def acquire: UIO[Unit] = acquireN(1)
 
-  final def release: IO[Nothing, Unit] = releaseN(1)
+  final def release: UIO[Unit] = releaseN(1)
 
   final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
     prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
@@ -27,14 +27,14 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
    */
-  final def acquireN(n: Long): IO[Nothing, Unit] =
+  final def acquireN(n: Long): UIO[Unit] =
     assertNonNegative(n) *> IO.bracket0[Any, Nothing, Acquisition, Unit](prepare(n))(cleanup)(_.awaitAcquire)
 
   /**
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
    */
-  final private def prepare(n: Long): IO[Nothing, Acquisition] = {
-    def restore(p: Promise[Nothing, Unit], n: Long): IO[Nothing, Unit] =
+  final private def prepare(n: Long): UIO[Acquisition] = {
+    def restore(p: Promise[Nothing, Unit], n: Long): UIO[Unit] =
       IO.flatten(state.modify {
         case Left(q) =>
           q.find(_._1 == p).fold(releaseN(n) -> Left(q))(x => releaseN(n - x._2) -> Left(q.filter(_._1 != p)))
@@ -53,15 +53,15 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
       }
   }
 
-  final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): IO[Nothing, Unit] =
+  final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): UIO[Unit] =
     res match {
       case Exit.Failure(c) if c.interrupted => ops.release
       case _                                => IO.unit
     }
 
-  final def releaseN(toRelease: Long): IO[Nothing, Unit] = {
+  final def releaseN(toRelease: Long): UIO[Unit] = {
 
-    @tailrec def loop(n: Long, state: State, acc: IO[Nothing, Unit]): (IO[Nothing, Unit], State) = state match {
+    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
       case Right(m) => acc -> Right(n + m)
       case Left(q) =>
         q.dequeueOption match {
@@ -88,18 +88,18 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 }
 
 object Semaphore extends Serializable {
-  final def make(permits: Long): IO[Nothing, Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
+  final def make(permits: Long): UIO[Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
 }
 
 private object internals {
 
-  final case class Acquisition(awaitAcquire: IO[Nothing, Unit], release: IO[Nothing, Unit])
+  final case class Acquisition(awaitAcquire: UIO[Unit], release: UIO[Unit])
 
   type Entry = (Promise[Nothing, Unit], Long)
 
   type State = Either[IQueue[Entry], Long]
 
-  def assertNonNegative(n: Long): IO[Nothing, Unit] =
+  def assertNonNegative(n: Long): UIO[Unit] =
     if (n < 0)
       IO.die(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
     else IO.unit

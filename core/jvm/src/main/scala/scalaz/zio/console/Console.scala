@@ -1,7 +1,8 @@
 // Copyright (C) 2017-2019 John A. De Goes. All rights reserved.
 package scalaz.zio.console
 
-import scalaz.zio.{ IO, ZIO }
+import scalaz.zio.{ IO, UIO, ZIO }
+
 import java.io.IOException
 
 trait Console extends Serializable {
@@ -21,13 +22,13 @@ object Console extends Serializable {
       /**
        * Prints text to the console.
        */
-      final def putStr(line: String): IO[Nothing, Unit] =
+      final def putStr(line: String): UIO[Unit] =
         IO.sync(scala.Console.print(line))
 
       /**
        * Prints a line of text to the console, including a newline character.
        */
-      final def putStrLn(line: String): IO[Nothing, Unit] =
+      final def putStrLn(line: String): UIO[Unit] =
         IO.sync(scala.Console.println(line))
 
       /**

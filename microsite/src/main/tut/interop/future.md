@@ -15,7 +15,7 @@ Checkout `interop-future` module for inter-operation support.
 This is the extension method added to `IO` companion object:
 
 ```scala
-def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): IO[Throwable, A] =
+def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): Task[A] =
 ```
 
 There are a few things to clarify here:
@@ -32,15 +32,15 @@ val myEC: ExecutionContext = ...
 
 // future defined in thunk using def
 def myFuture: Future[ALotOfData] = myLegacyHeavyJobReturningFuture(...)
-val myIO: IO[Throwable, ALotOfData] = IO.fromFuture(myFuture _)(myEC)
+val myIO: Task[ALotOfData] = IO.fromFuture(myFuture _)(myEC)
 ```
 
 ### To `Future`
 
-This extension method is added to values of type `IO[Throwable, A]`:
+This extension method is added to values of type `Task[A]`:
 
 ```scala
-def toFuture: IO[Nothing, Future[A]]
+def toFuture: UIO[Future[A]]
 ```
 
 Notice that we don't actually return a `Future` but an infallible `IO` producing the `Future` when it's performed, that's again because as soon as we have a `Future` in our hands, whatever it does is already happening.
@@ -48,12 +48,12 @@ Notice that we don't actually return a `Future` but an infallible `IO` producing
 As an alternative, a more flexible extension method is added to any `IO[E, A]` to convert to `Future` as long as you can provide a function to convert from `E` to `Throwable`.
 
 ```scala
-def toFutureE(f: E => Throwable): IO[Nothing, Future[A]]
+def toFutureE(f: E => Throwable): UIO[Future[A]]
 ```
 
 #### Example
 
 ```scala
-val safeFuture: IO[Nothing, Future[MoarData]] = myShinyNewApiBasedOnZio(...).toFuture(MyError.toThrowable)
+val safeFuture: UIO[Future[MoarData]] = myShinyNewApiBasedOnZio(...).toFuture(MyError.toThrowable)
 val itsHappening: Future[MoarData] = unsafeRun(safeFuture)
 ```

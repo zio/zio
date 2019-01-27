@@ -40,21 +40,21 @@ package scalaz.zio
  *
  * {{{
  * // Program 1
- * val program1: IO[Nothing, Unit] =
+ * val program1: UIO[Unit] =
  *   for {
  *     name <- getStrLn
  *     _    <- putStrLn("Hello, " + name)
  *   } yield ())
  *
  * // Program 2
- * val program2: IO[Nothing, Unit] = (readLine >>> FunctionIO.lift("Hello, " + _) >>> printLine)(())
+ * val program2: UIO[Unit] = (readLine >>> FunctionIO.lift("Hello, " + _) >>> printLine)(())
  * }}}
  *
  * Similarly, the following two programs are equivalent:
  *
  * {{{
  * // Program 1
- * val program1: IO[Nothing, Unit] =
+ * val program1: UIO[Unit] =
  *   for {
  *     line1 <- getStrLn
  *     line2 <- getStrLn
@@ -62,7 +62,7 @@ package scalaz.zio
  *   } yield ())
  *
  * // Program 2
- * val program2: IO[Nothing, Unit] =
+ * val program2: UIO[Unit] =
  *   (readLine.zipWith(readLine)("You wrote: " + _ + ", " + _) >>> printLine)(())
  * }}}
  *

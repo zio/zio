@@ -37,7 +37,7 @@ class QueueBackPressureBenchmark {
   @Benchmark
   def zioQueue(): Int = {
 
-    def repeat(task: IO[Nothing, Unit], max: Int): IO[Nothing, Unit] =
+    def repeat(task: UIO[Unit], max: Int): UIO[Unit] =
       if (max < 1) IO.unit
       else task.flatMap(_ => repeat(task, max - 1))
 

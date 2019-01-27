@@ -82,8 +82,8 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   }
 
   def offsettingReleasesAcquires(
-    acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],
-    releases: (Semaphore, Vector[Long]) => IO[Nothing, Unit]
+    acquires: (Semaphore, Vector[Long]) => UIO[Unit],
+    releases: (Semaphore, Vector[Long]) => UIO[Unit]
   ) = {
     val permits = Vector(1L, 0L, 20L, 4L, 0L, 5L, 2L, 1L, 1L, 3L)
 

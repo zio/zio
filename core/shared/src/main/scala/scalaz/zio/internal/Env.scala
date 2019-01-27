@@ -34,7 +34,7 @@ trait Env {
   /**
    * Reports the specified failure.
    */
-  def reportFailure(cause: Cause[_]): IO[Nothing, _]
+  def reportFailure(cause: Cause[_]): UIO[_]
 
   /**
    * Awaits for the result of the fiber to be computed.
@@ -88,7 +88,7 @@ trait Env {
   /**
    * Helper function to create a new fiber context.
    */
-  private[internal] final def newFiberContext[E, A](unhandled: Cause[Any] => IO[Nothing, _]): FiberContext[E, A] =
+  private[internal] final def newFiberContext[E, A](unhandled: Cause[Any] => UIO[_]): FiberContext[E, A] =
     new FiberContext[E, A](this, Env.fiberCounter.getAndIncrement(), unhandled)
 }
 
@@ -102,7 +102,7 @@ object Env {
   /**
    * Creates a new default environment.
    */
-  final def newDefaultEnv(reportFailure0: Cause[_] => IO[Nothing, _]): Env =
+  final def newDefaultEnv(reportFailure0: Cause[_] => UIO[_]): Env =
     new Env {
       val sync  = Executor.newDefaultExecutor(Executor.Unyielding)
       val async = Executor.newDefaultExecutor(Executor.Yielding)
@@ -117,7 +117,7 @@ object Env {
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]
 
-      def reportFailure(cause: Cause[_]): IO[Nothing, _] =
+      def reportFailure(cause: Cause[_]): UIO[_] =
         reportFailure0(cause)
     }
 }

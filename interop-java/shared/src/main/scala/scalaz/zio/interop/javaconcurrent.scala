@@ -2,7 +2,7 @@ package scalaz.zio.interop
 
 import java.util.concurrent.{ CompletableFuture, CompletionException, CompletionStage, Future }
 
-import scalaz.zio.{ Exit, Fiber, IO }
+import scalaz.zio._
 
 import scala.concurrent.ExecutionException
 
@@ -10,7 +10,7 @@ object javaconcurrent {
 
   implicit class IOObjJavaconcurrentOps(private val ioObj: IO.type) extends AnyVal {
 
-    private def unsafeCompletionStageToIO[A](cs: CompletionStage[A]): IO[Throwable, A] =
+    private def unsafeCompletionStageToIO[A](cs: CompletionStage[A]): Task[A] =
       IO.async { cb =>
         val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
           if (v != null) {
@@ -30,13 +30,13 @@ object javaconcurrent {
     def fromCompletionStage[A, E >: Throwable](csIo: IO[E, CompletionStage[A]]): IO[E, A] =
       csIo.flatMap(unsafeCompletionStageToIO)
 
-    def fromCompletionStage[A](cs: () => CompletionStage[A]): IO[Throwable, A] =
+    def fromCompletionStage[A](cs: () => CompletionStage[A]): Task[A] =
       IO.suspend {
         unsafeCompletionStageToIO(cs())
       }
 
-    private def unsafeFutureJavaToIO[A](future: Future[A]): IO[Throwable, A] = {
-      def unwrap[B](f: Future[B]): IO[Throwable, B] =
+    private def unsafeFutureJavaToIO[A](future: Future[A]): Task[A] = {
+      def unwrap[B](f: Future[B]): Task[B] =
         IO.flatten {
           IO.sync {
             try {
@@ -63,7 +63,7 @@ object javaconcurrent {
     def fromFutureJava[A, E >: Throwable](futureIo: IO[E, Future[A]]): IO[E, A] =
       futureIo.flatMap(unsafeFutureJavaToIO)
 
-    def fromFutureJava[A](future: () => Future[A]): IO[Throwable, A] =
+    def fromFutureJava[A](future: () => Future[A]): Task[A] =
       IO.suspend {
         unsafeFutureJavaToIO(future())
       }
@@ -77,10 +77,10 @@ object javaconcurrent {
 
       new Fiber[Throwable, A] {
 
-        def await: IO[Nothing, Exit[Throwable, A]] =
+        def await: UIO[Exit[Throwable, A]] =
           IO.fromFutureJava(() => ftr).fold(Exit.fail, Exit.succeed)
 
-        def poll: IO[Nothing, Option[Exit[Throwable, A]]] =
+        def poll: UIO[Option[Exit[Throwable, A]]] =
           IO.suspend {
             if (ftr.isDone) {
               IO.syncException(ftr.get())
@@ -91,7 +91,7 @@ object javaconcurrent {
             }
           }
 
-        def interrupt: IO[Nothing, Exit[Throwable, A]] =
+        def interrupt: UIO[Exit[Throwable, A]] =
           join.fold(Exit.fail, Exit.succeed)
       }
     }
@@ -108,13 +108,13 @@ object javaconcurrent {
     }
   }
 
-  implicit class IOThrowableOps[A](private val io: IO[Throwable, A]) extends AnyVal {
-    def toCompletableFuture: IO[Nothing, CompletableFuture[A]] =
+  implicit class IOThrowableOps[A](private val io: Task[A]) extends AnyVal {
+    def toCompletableFuture: UIO[CompletableFuture[A]] =
       io.fold(CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
   }
 
   implicit class IOOps[E, A](private val io: IO[E, A]) extends AnyVal {
-    def toCompletableFutureE(f: E => Throwable): IO[Nothing, CompletableFuture[A]] =
+    def toCompletableFutureE(f: E => Throwable): UIO[CompletableFuture[A]] =
       io.mapError(f).toCompletableFuture
   }
 

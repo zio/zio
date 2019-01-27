@@ -647,7 +647,7 @@ object Stream extends Serializable {
    */
   final def bracket[R, E, A, B](
     acquire: ZIO[R, E, A]
-  )(release: A => IO[Nothing, Unit])(read: A => ZIO[R, E, Option[B]]): Stream[R, E, B] =
+  )(release: A => UIO[Unit])(read: A => ZIO[R, E, Option[B]]): Stream[R, E, B] =
     managed(Managed.make(acquire)(release))(read)
 
   final def managed[R, E, A, B](m: Managed[R, E, A])(read: A => ZIO[R, E, Option[B]]) =

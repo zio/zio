@@ -107,9 +107,9 @@ class catzSpec
     "Alternative[IO[Option[Unit], ?]]",
     (_) => AlternativeTests[IO[Option[Unit], ?]].alternative[Int, Int, Int]
   )
-  checkAllAsync("SemigroupK[IO[Nothing, ?]]", (_) => SemigroupKTests[IO[Nothing, ?]].semigroupK[Int])
+  checkAllAsync("SemigroupK[UIO[?]]", (_) => SemigroupKTests[UIO[?]].semigroupK[Int])
   checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
-  checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Task.Par].parallel[Int, Int])
+  checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Util.Par].parallel[Int, Int])
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
     new Eq[IO[E, A]] {

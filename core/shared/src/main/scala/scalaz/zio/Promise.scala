@@ -56,7 +56,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   /**
    * Completes immediately this promise and returns optionally it's result.
    */
-  final def poll: IO[Nothing, Option[IO[E, A]]] =
+  final def poll: UIO[Option[IO[E, A]]] =
     IO.sync(state.get).flatMap {
       case Pending(_) => IO.succeed(None)
       case Done(io)   => IO.succeed(Some(io))
@@ -65,28 +65,28 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   /**
    * Completes the promise with the specified value.
    */
-  final def succeed(a: A): IO[Nothing, Boolean] = done(IO.succeed(a))
+  final def succeed(a: A): UIO[Boolean] = done(IO.succeed(a))
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def fail(e: E): IO[Nothing, Boolean] = done(IO.fail(e))
+  final def fail(e: E): UIO[Boolean] = done(IO.fail(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise.
    */
-  final def interrupt: IO[Nothing, Boolean] = done(IO.interrupt)
+  final def interrupt: UIO[Boolean] = done(IO.interrupt)
 
   /**
    * Completes the promise with the specified result. If the specified promise
    * has already been completed, the method will produce false.
    */
-  final def done(io: IO[E, A]): IO[Nothing, Boolean] =
+  final def done(io: IO[E, A]): UIO[Boolean] =
     IO.flatten(IO.sync {
-      var action: IO[Nothing, Boolean] = null.asInstanceOf[IO[Nothing, Boolean]]
-      var retry                        = true
+      var action: UIO[Boolean] = null.asInstanceOf[UIO[Boolean]]
+      var retry                = true
 
       while (retry) {
         val oldState = state.get
@@ -154,7 +154,7 @@ object Promise {
   /**
    * Makes a new promise.
    */
-  final def make[E, A]: IO[Nothing, Promise[E, A]] = IO.sync[Promise[E, A]](unsafeMake[E, A])
+  final def make[E, A]: UIO[Promise[E, A]] = IO.sync[Promise[E, A]](unsafeMake[E, A])
 
   private final def unsafeMake[E, A]: Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
@@ -167,8 +167,8 @@ object Promise {
   final def bracket[E, A, B, C](
     ref: Ref[A]
   )(
-    acquire: (Promise[E, B], A) => (IO[Nothing, C], A)
-  )(release: (C, Promise[E, B]) => IO[Nothing, _]): IO[E, B] =
+    acquire: (Promise[E, B], A) => (UIO[C], A)
+  )(release: (C, Promise[E, B]) => UIO[_]): IO[E, B] =
     for {
       pRef <- Ref.make[Option[(C, Promise[E, B])]](None)
       b <- (for {

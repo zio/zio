@@ -338,7 +338,7 @@ private[zio] final class FiberContext[E, A](
     observe0(x => k(IO.done(x)))
   }
 
-  final def poll: IO[Nothing, Option[Exit[E, A]]] = IO.sync(poll0)
+  final def poll: UIO[Option[Exit[E, A]]] = IO.sync(poll0)
 
   private[this] final def enterSupervision: IO[E, Unit] = IO.sync {
     supervising += 1
@@ -440,7 +440,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[this] final def terminate(io: IO[Nothing, Nothing]): IO[Nothing, Nothing] = {
+  private[this] final def terminate(io: UIO[Nothing]): UIO[Nothing] = {
 
     val oldState = state.get
     oldState match {

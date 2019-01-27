@@ -1,18 +1,18 @@
 package scalaz.zio.syntax
 
-import scalaz.zio.{ Fiber, IO, Task }
+import scalaz.zio.{ Fiber, IO, Task, UIO }
 
 object IOSyntax {
   final class IOCreationLazySyntax[A](val a: () => A) extends AnyVal {
-    def succeedLazy: IO[Nothing, A]                             = IO.succeedLazy(a())
-    def sync: IO[Nothing, A]                                    = IO.sync(a())
+    def succeedLazy: UIO[A]                                     = IO.succeedLazy(a())
+    def sync: UIO[A]                                            = IO.sync(a())
     def syncException: IO[Exception, A]                         = IO.syncException(a())
     def syncThrowable: Task[A]                                  = Task.syncThrowable(a())
     def syncCatch[E]: PartialFunction[Throwable, E] => IO[E, A] = IO.syncCatch(a())
   }
 
   final class IOCreationEagerSyntax[A](val a: A) extends AnyVal {
-    def succeed: IO[Nothing, A]                     = IO.succeed(a)
+    def succeed: UIO[A]                             = IO.succeed(a)
     def fail: IO[A, Nothing]                        = IO.fail(a)
     def require[AA]: IO[A, Option[AA]] => IO[A, AA] = IO.require(a)
   }
@@ -20,7 +20,7 @@ object IOSyntax {
   final class IOIterableSyntax[E, A](val ios: Iterable[IO[E, A]]) extends AnyVal {
     def mergeAll[B](zero: B)(f: (B, A) => B): IO[E, B] = IO.mergeAll(ios)(zero)(f)
     def collectAllPar: IO[E, List[A]]                  = IO.collectAllPar(ios)
-    def forkAll: IO[Nothing, Fiber[E, List[A]]]        = IO.forkAll(ios)
+    def forkAll: UIO[Fiber[E, List[A]]]                = IO.forkAll(ios)
     def collectAll: IO[E, List[A]]                     = IO.collectAll(ios)
   }
 
