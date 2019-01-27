@@ -150,7 +150,9 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     )
 
   private def monadLaw2 =
-    prop((m: StreamChunk[Any, String, Int]) => slurp(m.flatMap(i => StreamChunk.succeedLazy(Chunk(i)))) must_=== slurp(m))
+    prop(
+      (m: StreamChunk[Any, String, Int]) => slurp(m.flatMap(i => StreamChunk.succeedLazy(Chunk(i)))) must_=== slurp(m)
+    )
 
   private def monadLaw3 =
     prop { (m: StreamChunk[Any, String, Int], f: Int => StreamChunk[Any, String, Int], g: Int => StreamChunk[Any, String, Int]) =>

@@ -8,5 +8,5 @@ package object clock {
   final val nanoTime: ZIO[Clock, Nothing, Long] =
     ZIO.readM(_.clock.nanoTime)
   final def sleep(length: Long, unit: TimeUnit): ZIO[Clock, Nothing, Unit] =
-    ZIO.readM(_.clock sleep(length, unit))
+    ZIO.readM(_.clock sleep (length, unit))
 }

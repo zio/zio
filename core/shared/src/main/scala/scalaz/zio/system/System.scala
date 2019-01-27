@@ -1,5 +1,3 @@
 package scalaz.zio.system
 
-trait System {
-
-}
+trait System {}

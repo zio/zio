@@ -198,7 +198,10 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
    * Merges this stream and the specified stream together to a common element
    * type with the specified mapping functions.
    */
-  final def mergeWith[R1 <: R, E1 >: E, B, C](that: Stream[R1, E1, B], capacity: Int = 1)(l: A => C, r: B => C): Stream[R1, E1, C] =
+  final def mergeWith[R1 <: R, E1 >: E, B, C](
+    that: Stream[R1, E1, B],
+    capacity: Int = 1
+  )(l: A => C, r: B => C): Stream[R1, E1, C] =
     new Stream[R1, E1, C] {
       override def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] =
         IO.succeedLazy { (s, cont, f) =>
@@ -279,11 +282,10 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
                   .fold[R, E1, A1, State]
                   .flatMap { f0 =>
                     f0(
-                      Left(lstate),
-                       {
-                         case Left(_)             => true
-                          case Right((s, cont, _)) => cont(s)
-                        }, {
+                      Left(lstate), {
+                        case Left(_)             => true
+                        case Right((s, cont, _)) => cont(s)
+                      }, {
                         case (Left(lstate), a) =>
                           sink.step(lstate, a).flatMap { step =>
                             if (Sink.Step.cont(step)) IO.succeed(Left(Sink.Step.state(step)))

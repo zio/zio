@@ -46,7 +46,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * schedules. Only as many inputs will be used as necessary to run the
    * schedule to completion, and additional inputs will be discarded.
    */
-  final def run(as: Iterable[A]): ZIO[R, Nothing, List[(Duration, B)]] = { 
+  final def run(as: Iterable[A]): ZIO[R, Nothing, List[(Duration, B)]] = {
     def run0(as: List[A], s: State, acc: List[(Duration, B)]): ZIO[R, Nothing, List[(Duration, B)]] =
       as match {
         case Nil => IO.succeed(acc)
@@ -76,7 +76,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     new Schedule[R, A1, C] {
       type State = self.State
       val initial = self.initial
-      val update  = (a: A1, s: State)=> self.update(a, s).map(_.rightMap(f))
+      val update  = (a: A1, s: State) => self.update(a, s).map(_.rightMap(f))
     }
 
   /**
@@ -117,11 +117,11 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   final def check[A1 <: A](test: (A1, B) => IO[Nothing, Boolean]): Schedule[R, A1, B] =
     updated(
       update =>
-          (a, s) =>
-            update(a, s).flatMap { d =>
-              if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
-              else IO.succeed(d)
-            }
+        (a, s) =>
+          update(a, s).flatMap { d =>
+            if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
+            else IO.succeed(d)
+          }
     )
 
   /**
@@ -156,8 +156,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     new Schedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val update = (a: A1, s: State) =>
-        self.update(a, s._1).zipWith(that.update(a, s._2))(_.combineWith(_)(g, f))
+      val update  = (a: A1, s: State) => self.update(a, s._1).zipWith(that.update(a, s._2))(_.combineWith(_)(g, f))
     }
 
   /**
@@ -259,11 +258,11 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   ): Schedule[R, A1, C] =
     updated(
       update =>
-          (a: A1, s: State) =>
-            for {
-              step  <- update(a, s)
-              step2 <- f(a, step)
-            } yield step2
+        (a: A1, s: State) =>
+          for {
+            step  <- update(a, s)
+            step2 <- f(a, step)
+          } yield step2
     )
 
   /**
@@ -289,10 +288,10 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   final def modifyDelay(f: (B, Duration) => IO[Nothing, Duration]): Schedule[R, A, B] =
     updated(
       update =>
-          (a, s) =>
-            update(a, s).flatMap { step =>
-              f(step.finish(), step.delay).map(d => step.delayed(_ => d))
-            }
+        (a, s) =>
+          update(a, s).flatMap { step =>
+            f(step.finish(), step.delay).map(d => step.delayed(_ => d))
+          }
     )
 
   /**

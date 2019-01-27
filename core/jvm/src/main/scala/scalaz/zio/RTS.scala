@@ -6,7 +6,7 @@ import scalaz.zio.internal.Env
 
 trait RTS {
   type BuiltIn = Clock with Console
-  val BuiltIn  = new Clock.Live with Console.Live 
+  val BuiltIn = new Clock.Live with Console.Live
 
   lazy val env =
     Env.newDefaultEnv {

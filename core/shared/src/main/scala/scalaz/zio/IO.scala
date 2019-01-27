@@ -4,7 +4,7 @@ package scalaz.zio
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
-import scalaz.zio.internal.{Env, Executor}
+import scalaz.zio.internal.{ Env, Executor }
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
@@ -904,11 +904,11 @@ trait ZIOFunctions extends Serializable {
   final def die(t: Throwable): UIO[Nothing] = halt(Cause.unchecked(t))
 
   /**
-    * Imports a synchronous effect that does blocking IO into a pure value.
-    *
-    * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
-    * will be interrupted via `Thread.interrupt`.
-    */
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
+   * will be interrupted via `Thread.interrupt`.
+   */
   final def blocking[A](effect: => A): IO[Nothing, A] =
     IO.flatten(IO.sync {
       import java.util.concurrent.locks.ReentrantLock
@@ -925,20 +925,20 @@ trait ZIOFunctions extends Serializable {
       for {
         finalizer <- Ref[IO[Nothing, Unit]](IO.unit)
         a <- (for {
-          fiber <- (IO.unyielding(IO.sync[Either[Throwable, A]] {
-            withLock(thread.set(Some(Thread.currentThread())))
+              fiber <- (IO.unyielding(IO.sync[Either[Throwable, A]] {
+                        withLock(thread.set(Some(Thread.currentThread())))
 
-            try Right(effect)
-            catch {
-              case e: InterruptedException =>
-                Thread.interrupted
-                Left(e)
-            } finally withLock(thread.set(None)) // TODO: Signal finalizer to continue
-          }) <* finalizer
-            .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
-          either <- fiber.join
-          a      <- either.fold[IO[Nothing, A]](IO.die, IO.succeed)
-        } yield a).ensuring(IO.flatten(finalizer.get))
+                        try Right(effect)
+                        catch {
+                          case e: InterruptedException =>
+                            Thread.interrupted
+                            Left(e)
+                        } finally withLock(thread.set(None)) // TODO: Signal finalizer to continue
+                      }) <* finalizer
+                        .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
+              either <- fiber.join
+              a      <- either.fold[IO[Nothing, A]](IO.die, IO.succeed)
+            } yield a).ensuring(IO.flatten(finalizer.get))
       } yield a
     })
 
