@@ -1396,8 +1396,16 @@ object IO extends Serializable {
   /**
    * Merges an `Iterable[IO]` to a single IO, works in parallel.
    */
-  final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B, f: (B, A) => B): IO[E, B] =
+  final def mergeAll[E, A, B](in: Iterable[IO[E, A]])(zero: B)(f: (B, A) => B): IO[E, B] =
     in.foldLeft[IO[E, B]](IO.succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
+
+  /**
+   * Folds an `Iterable[A]` using an effectful function `f`. Works in sequence.
+   */
+  final def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => IO[E, S]): IO[E, S] =
+    in.foldLeft(IO.succeed(zero): IO[E, S]) { (acc, el) =>
+      acc.flatMap(f(_, el))
+    }
 
   /**
    * Returns information about the current fiber, such as its fiber identity.
