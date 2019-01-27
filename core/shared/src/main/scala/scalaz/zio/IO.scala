@@ -240,6 +240,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
+  @deprecated("Use orElseEither", "scalaz-zio 0.7.0")
   final def <||>[E2, B](that: => IO[E2, B]): IO[E2, Either[A, B]] =
     orElseEither(that)
 
@@ -297,7 +298,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * it will depend on the `IO`s returned by the given continuations.
    */
   final def redeem[E2, B](err: E => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
-    redeem0((cause: Cause[E]) => cause.failEither.fold(err, IO.halt), succ)
+    redeem0((cause: Cause[E]) => cause.failureOrCause.fold(err, IO.halt), succ)
 
   /**
    * Alias for redeem
@@ -321,7 +322,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   /**
    * Alias for fold
    */
-  @deprecated("Use fold", "scalaz-zio 0.6.0")
+  @deprecated("Use fold", "scalaz-zio 0.7.0")
   final def redeemPure[B](err: E => B, succ: A => B): IO[Nothing, B] =
     fold(err, succ)
 
@@ -470,7 +471,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     IO.bracket0(IO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
-          case Exit.Failure(cause) => cause.failEither.fold(_ => IO.unit, cleanup)
+          case Exit.Failure(cause) => cause.failureOrCause.fold(_ => IO.unit, cleanup)
           case _                   => IO.unit
         }
     )(_ => self)
@@ -1213,10 +1214,17 @@ object IO extends Serializable {
     new AsyncEffect(register)
 
   /**
+   * Alias for asyncM
+   */
+  @deprecated("Use asyncM", "scalaz-zio 0.7.0")
+  final def asyncIO[E, A](register: (IO[E, A] => Unit) => IO[Nothing, _]): IO[E, A] =
+    asyncM(register)
+
+  /**
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `IO`.
    */
-  final def asyncIO[E, A](register: (IO[E, A] => Unit) => IO[Nothing, _]): IO[E, A] =
+  final def asyncM[E, A](register: (IO[E, A] => Unit) => IO[Nothing, _]): IO[E, A] =
     for {
       p   <- Promise.make[E, A]
       ref <- Ref.make[IO[Nothing, Any]](IO.unit)
@@ -1229,13 +1237,6 @@ object IO extends Serializable {
             a <- p.await
           } yield a).onInterrupt(IO.flatten(ref.get))
     } yield a
-
-  /**
-   * Alias for asyncIO
-   */
-  @deprecated("Use asyncIO", "scalaz-zio 0.6.0")
-  final def asyncM[E, A](register: (IO[E, A] => Unit) => IO[Nothing, _]): IO[E, A] =
-    asyncIO(register)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. The effect has the
