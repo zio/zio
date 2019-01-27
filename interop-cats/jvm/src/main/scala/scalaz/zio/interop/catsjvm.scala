@@ -129,7 +129,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     case Exit.Success(_)                          => ExitCase.Completed
     case Exit.Failure(cause) if cause.interrupted => ExitCase.Canceled
     case Exit.Failure(cause) =>
-      cause.failEither match {
+      cause.failureOrCause match {
         case Left(t) => ExitCase.Error(t)
         case _       => ExitCase.Error(FiberFailure(cause))
       }
@@ -154,7 +154,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    IO.asyncIO { (kk: IO[Throwable, A] => Unit) =>
+    IO.asyncM { (kk: IO[Throwable, A] => Unit) =>
       k(eitherToIO andThen kk).orDie
     }
 

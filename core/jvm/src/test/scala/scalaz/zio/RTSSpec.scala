@@ -505,7 +505,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.async[Throwable, Int](k => k(IO.succeed(42)))) must_=== 42
 
   def testAsyncIOEffectReturns =
-    unsafeRun(IO.asyncIO[Throwable, Int](k => IO.sync(k(IO.succeed(42))))) must_=== 42
+    unsafeRun(IO.asyncM[Throwable, Int](k => IO.sync(k(IO.succeed(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
     def stackIOs(count: Int): IO[Nothing, Int] =
@@ -513,7 +513,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       else asyncIO(stackIOs(count - 1))
 
     def asyncIO(cont: IO[Nothing, Int]): IO[Nothing, Int] =
-      IO.asyncIO[Nothing, Int] { k =>
+      IO.asyncM[Nothing, Int] { k =>
         IO.sleep(5.millis) *> cont *> IO.sync(k(IO.succeed(42)))
       }
 
@@ -527,7 +527,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       release <- Promise.make[Nothing, Unit]
       acquire <- Promise.make[Nothing, Unit]
       fiber <- IO
-                .asyncIO[Nothing, Unit] { _ =>
+                .asyncM[Nothing, Unit] { _ =>
                   IO.bracket(acquire.succeed(()))(_ => release.succeed(()))(_ => IO.never)
                 }
                 .fork
@@ -703,7 +703,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testAsyncPureIsInterruptible = {
     val io =
       for {
-        fiber <- IO.asyncIO[Nothing, Nothing](_ => IO.never).fork
+        fiber <- IO.asyncM[Nothing, Nothing](_ => IO.never).fork
         _     <- fiber.interrupt
       } yield 42
 
@@ -724,7 +724,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io = for {
       release <- Promise.make[Nothing, Int]
       acquire <- Promise.make[Nothing, Unit]
-      task = IO.asyncIO[Nothing, Unit] { _ =>
+      task = IO.asyncM[Nothing, Unit] { _ =>
         IO.bracket(acquire.succeed(()))(_ => release.succeed(42).void)(_ => IO.never)
       }
       fiber <- task.fork

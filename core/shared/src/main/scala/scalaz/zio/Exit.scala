@@ -198,7 +198,7 @@ object Exit extends Serializable {
         case (z, _) => z
       }
 
-    final def failEither: Either[E, Cause[Nothing]] = self.failures.headOption match {
+    final def failureOrCause: Either[E, Cause[Nothing]] = self.failures.headOption match {
       case Some(error) => Left(error)
       case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
     }
