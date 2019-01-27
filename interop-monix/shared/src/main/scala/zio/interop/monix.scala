@@ -15,9 +15,9 @@ object monixio {
 
   implicit class IOThrowableOps[A](private val io: Task[A]) extends AnyVal {
     def toTask: IO[Nothing, eval.Task[A]] =
-      io.redeemPure(eval.Task.raiseError, eval.Task.now)
+      io.fold(eval.Task.raiseError, eval.Task.now)
 
     def toCoeval: IO[Nothing, eval.Coeval[A]] =
-      io.redeemPure(eval.Coeval.raiseError, eval.Coeval.now)
+      io.fold(eval.Coeval.raiseError, eval.Coeval.now)
   }
 }

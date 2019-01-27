@@ -15,7 +15,7 @@ protected[interop] object FuturePlatformSpecific {
         case Exit.Success(v) =>
           p.complete(Success(v))
           ()
-        case Exit.Failure(Exit.Cause.Checked(e)) =>
+        case Exit.Failure(Exit.Cause.Fail(e)) =>
           p.complete(Failure(e))
           ()
         case Exit.Failure(c) =>
