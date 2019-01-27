@@ -4,7 +4,7 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 import scala.collection.mutable
 import scala.util.Try
-import scalaz.zio.Exit.Cause.{ Checked, Interruption, Unchecked }
+import scalaz.zio.Exit.Cause.{ Die, Fail, Interrupt }
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   import Prop.forAll
@@ -28,6 +28,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
       `IO.collectAllParN` returns the list of Ints in the same order. $t8
    Create a list of Ints and pass an f: Int => IO[Nothing, Int]:
       `IO.foreachParN` returns the list of created Strings in the appropriate order. $t9
+   Create a list of Ints:
+      `IO.foldLeft` with a successful step function sums the list properly. $t10
+   Create a non-empty list of Ints:
+      `IO.foldLeft` with a failing step function returns a failed IO. $t11
    Check done lifts exit result into IO. $testDone
     Check `when` executes correct branch only. $testWhen
    Check `whenM` executes condition effect and correct branch. $testWhenM
@@ -98,17 +102,26 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
     res must be_===(List("1", "2", "3"))
   }
 
+  def t10 = forAll { (l: List[Int]) =>
+    unsafeRun(IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))) must_=== unsafeRun(IO.succeed(l.sum))
+  }
+
+  def t11 = forAll { (l: List[Int]) =>
+    l.size > 0 ==>
+      (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
+  }
+
   def testDone = {
     val error                         = new Error("something went wrong")
     val completed                     = Exit.succeed(1)
-    val interrupted: Exit[Error, Int] = Exit.interrupted
-    val terminated: Exit[Error, Int]  = Exit.unchecked(error)
-    val failed: Exit[Error, Int]      = Exit.checked(error)
+    val interrupted: Exit[Error, Int] = Exit.interrupt
+    val terminated: Exit[Error, Int]  = Exit.die(error)
+    val failed: Exit[Error, Int]      = Exit.fail(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interruption))
-    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Unchecked(error)))
-    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Checked(error)))
+    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interrupt))
+    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Die(error)))
+    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Fail(error)))
   }
 
   def testWhen = unsafeRun(for {

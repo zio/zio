@@ -23,7 +23,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e1 = {
     val n = 20L
     unsafeRun(for {
-      semaphore <- Semaphore(n)
+      semaphore <- Semaphore.make(n)
       available <- IO.foreach((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
     } yield available must_=== 0)
   }
@@ -31,7 +31,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e2 = {
     val n = 20L
     unsafeRun(for {
-      semaphore <- Semaphore(n)
+      semaphore <- Semaphore.make(n)
       available <- IO.foreachPar((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
     } yield available must_=== 0)
   }
@@ -51,7 +51,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e5 = {
     val n = 1L
     unsafeRun(for {
-      s <- Semaphore(n).peek(_.acquire)
+      s <- Semaphore.make(n).peek(_.acquire)
       _ <- s.release.fork
       _ <- s.acquire
     } yield () must_=== (()))
@@ -63,7 +63,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e6 = {
     val n = 1L
     unsafeRun(for {
-      s       <- Semaphore(n)
+      s       <- Semaphore.make(n)
       _       <- s.acquireN(2).timeout(1.milli).attempt
       permits <- s.release *> IO.sleep(10.millis) *> s.count
     } yield permits) must_=== 2
@@ -75,7 +75,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e7 = {
     val n = 0L
     unsafeRun(for {
-      s       <- Semaphore(n)
+      s       <- Semaphore.make(n)
       _       <- s.withPermit(s.release).timeout(1.milli).attempt
       permits <- s.release *> IO.sleep(10.millis) *> s.count
     } yield permits must_=== 1L)
@@ -88,7 +88,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
     val permits = Vector(1L, 0L, 20L, 4L, 0L, 5L, 2L, 1L, 1L, 3L)
 
     unsafeRun(for {
-      semaphore     <- Semaphore(0L)
+      semaphore     <- Semaphore.make(0L)
       acquiresFiber <- acquires(semaphore, permits).fork
       releasesFiber <- releases(semaphore, permits).fork
       _             <- acquiresFiber.join

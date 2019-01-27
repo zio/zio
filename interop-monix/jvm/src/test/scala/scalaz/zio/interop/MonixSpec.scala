@@ -3,7 +3,7 @@ package scalaz.zio.interop
 import monix.eval
 import monix.execution.Scheduler
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.Exit.Cause.Checked
+import scalaz.zio.Exit.Cause.Fail
 import scalaz.zio.{ AbstractRTSSpec, FiberFailure, IO }
 import scalaz.zio.interop.monixio._
 
@@ -37,7 +37,7 @@ class MonixSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val task  = eval.Task.raiseError[Int](error)
     val io    = IO.fromTask(task)
 
-    unsafeRun(io) must throwAn(FiberFailure(Checked(error)))
+    unsafeRun(io) must throwAn(FiberFailure(Fail(error)))
   }
 
   def propagateTaskResult = {
@@ -72,7 +72,7 @@ class MonixSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val coeval = eval.Coeval.raiseError[Int](error)
     val io     = IO.fromCoeval(coeval)
 
-    unsafeRun(io) must throwAn(FiberFailure(Checked(error)))
+    unsafeRun(io) must throwAn(FiberFailure(Fail(error)))
   }
 
   def propagateCoevalResult = {
