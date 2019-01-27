@@ -591,9 +591,25 @@ object Stream {
   final val empty: Stream[Nothing, Nothing] = StreamPure.empty
 
   /**
-   * Constructs a singleton stream.
+   * Constructs a singleton stream from a strict value.
+   */
+  final def succeed[A](a: A): Stream[Nothing, A] = StreamPure.succeed(a)
+
+  /**
+   * Constructs a singleton stream from a lazy value.
    */
   final def succeedLazy[A](a: => A): Stream[Nothing, A] = StreamPure.succeedLazy(a)
+
+  /**
+   * Constructs a stream that fails without emitting any values.
+   */
+  final def fail[E](error: E): Stream[E, Nothing] =
+    new Stream[E, Nothing] {
+      override def fold[E1 >: E, A >: Nothing, S]: Fold[E1, A, S] =
+        IO.succeed { (_, _, _) =>
+          IO.fail(error)
+        }
+    }
 
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
