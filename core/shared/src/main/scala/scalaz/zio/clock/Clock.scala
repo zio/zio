@@ -4,7 +4,7 @@ package scalaz.zio.clock
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.duration.Duration
-import scalaz.zio.{IO, system}
+import scalaz.zio.{ system, IO }
 
 trait Clock extends Serializable {
   val clock: Clock.Interface

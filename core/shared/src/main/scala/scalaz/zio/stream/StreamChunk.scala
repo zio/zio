@@ -16,7 +16,9 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
   /**
    * Executes an effectful fold over the stream of chunks.
    */
-  def foldLazyChunks[R1 <: R, E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
+  def foldLazyChunks[R1 <: R, E1 >: E, A1 >: A, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
     chunks.fold[R1, E1, Chunk[A1], S].flatMap(f0 => f0(s, cont, f))
 
   def flattenChunks: Stream[R, E, A] =
@@ -115,7 +117,9 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
     StreamChunk(chunks.mapM(_.traverse(f0)))
 
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => StreamChunk[R1, E1, B]): StreamChunk[R1, E1, B] =
-    StreamChunk(chunks.flatMap(_.map(f0).foldLeft[Stream[R1, E1, Chunk[B]]](Stream.empty)((acc, el) => acc ++ el.chunks)))
+    StreamChunk(
+      chunks.flatMap(_.map(f0).foldLeft[Stream[R1, E1, Chunk[B]]](Stream.empty)((acc, el) => acc ++ el.chunks))
+    )
 
   final def ++[R1 <: R, E1 >: E, A1 >: A](that: StreamChunk[R1, E1, A1]): StreamChunk[R1, E1, A1] =
     StreamChunk(chunks ++ that.chunks)
@@ -123,7 +127,10 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
     chunks.toQueue(capacity)
 
-  final def toQueueWith[R1 <: R, E1 >: E, A1 >: A, Z](f: Queue[Take[E1, Chunk[A1]]] => ZIO[R1, E1, Z], capacity: Int = 1): ZIO[R1, E1, Z] =
+  final def toQueueWith[R1 <: R, E1 >: E, A1 >: A, Z](
+    f: Queue[Take[E1, Chunk[A1]]] => ZIO[R1, E1, Z],
+    capacity: Int = 1
+  ): ZIO[R1, E1, Z] =
     toQueue[E1, A1](capacity).use(f)
 }
 
