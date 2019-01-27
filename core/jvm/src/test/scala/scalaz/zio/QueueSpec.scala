@@ -148,7 +148,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     unsafeRun((for {
       queue        <- Queue.bounded[Int](10)
       _            <- queue.offer(1).repeat(Schedule.recurs(9))
-      refSuspended <- Ref[Boolean](true)
+      refSuspended <- Ref.make[Boolean](true)
       _            <- (queue.offer(2).repeat(Schedule.recurs(9)) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
     } yield isSuspended must beTrue).supervise)
@@ -495,7 +495,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupted
+    ) must_=== Exit.interrupt
 
   def e37 =
     unsafeRunSync(
@@ -506,7 +506,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupted
+    ) must_=== Exit.interrupt
 
   def e38 =
     unsafeRunSync(
@@ -519,7 +519,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupted
+    ) must_=== Exit.interrupt
 
   def e39 =
     unsafeRunSync(
@@ -528,7 +528,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.offer(1)
       } yield ()
-    ) must_=== Exit.interrupted
+    ) must_=== Exit.interrupt
 
   def e40 =
     unsafeRunSync(
@@ -537,7 +537,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.take
       } yield ()
-    ) must_=== Exit.interrupted
+    ) must_=== Exit.interrupt
 
   def e41 =
     unsafeRunSync(
@@ -546,7 +546,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.takeAll
       } yield ()
-    ) must_=== Exit.interrupted
+    ) must_=== Exit.interrupt
 
   def e42 =
     unsafeRunSync(
@@ -555,7 +555,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.takeUpTo(1)
       } yield ()
-    ) must_=== Exit.interrupted
+    ) must_=== Exit.interrupt
 
   def e43 =
     unsafeRunSync(
@@ -564,7 +564,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _     <- queue.shutdown
         _     <- queue.size
       } yield ()
-    ) must_=== Exit.interrupted
+    ) must_=== Exit.interrupt
 
   def e44 = unsafeRun(
     for {

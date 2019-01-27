@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, Exit, GenIO, IO, Queue }
+import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO, Queue }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 

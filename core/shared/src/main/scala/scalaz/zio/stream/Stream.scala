@@ -320,7 +320,7 @@ trait Stream[+E, +A] { self =>
     Managed
       .liftIO(sink.initial)
       .flatMap { step =>
-        Managed(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap { t =>
+        Managed.make(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap { t =>
           Managed.liftIO(t._2.await)
         }
       }
@@ -446,11 +446,11 @@ trait Stream[+E, +A] { self =>
    */
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[Nothing, Queue[Take[E1, A1]]] =
     for {
-      queue    <- Managed(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
+      queue    <- Managed.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
       offerVal = (a: A) => queue.offer(Take.Value(a)).void
       offerErr = (e: E) => queue.offer(Take.Fail(e))
       enqueuer = (self.foreach[E](offerVal).catchAll(offerErr) *> queue.offer(Take.End)).fork
-      _        <- Managed(enqueuer)(_.interrupt)
+      _        <- Managed.make(enqueuer)(_.interrupt)
     } yield queue
 
   /**
@@ -646,7 +646,7 @@ object Stream {
   final def bracket[E, A, B](
     acquire: IO[E, A]
   )(release: A => IO[Nothing, Unit])(read: A => IO[E, Option[B]]): Stream[E, B] =
-    managed(Managed(acquire)(release))(read)
+    managed(Managed.make(acquire)(release))(read)
 
   final def managed[E, A, B](m: Managed[E, A])(read: A => IO[E, Option[B]]) =
     new Stream[E, B] {
