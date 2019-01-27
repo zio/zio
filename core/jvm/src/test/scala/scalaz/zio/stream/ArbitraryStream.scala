@@ -7,27 +7,27 @@ import scala.reflect.ClassTag
 
 object ArbitraryStream {
 
-  implicit def arbStream[T: ClassTag: Arbitrary]: Arbitrary[Stream[String, T]] =
+  implicit def arbStream[T: ClassTag: Arbitrary]: Arbitrary[Stream[Any, String, T]] =
     Arbitrary {
-      val failingStream: Gen[Stream[String, T]] = genFailingStream
+      val failingStream: Gen[Stream[Any, String, T]] = genFailingStream
 
-      val succeedingStream: Gen[Stream[String, T]] = genPureStream
+      val succeedingStream: Gen[Stream[Any, String, T]] = genPureStream
 
       Gen.oneOf(failingStream, succeedingStream)
     }
 
-  def genPureStream[T: ClassTag: Arbitrary]: Gen[StreamPure[T]] =
+  def genPureStream[T: ClassTag: Arbitrary]: Gen[StreamPure[Any, T]] =
     Arbitrary.arbitrary[Iterable[T]].map(StreamPure.fromIterable)
 
-  def genSucceededStream[T: ClassTag: Arbitrary]: Gen[Stream[Nothing, T]] =
+  def genSucceededStream[T: ClassTag: Arbitrary]: Gen[Stream[Any, Nothing, T]] =
     Arbitrary.arbitrary[List[T]].map { xs =>
-      Stream.unfoldM[List[T], Nothing, T](xs) {
+      Stream.unfoldM[Any, List[T], Nothing, T](xs) {
         case head :: tail => IO.succeed(Some(head -> tail))
         case _            => IO.succeed(None)
       }
     }
 
-  def genFailingStream[T: ClassTag: Arbitrary]: Gen[Stream[String, T]] =
+  def genFailingStream[T: ClassTag: Arbitrary]: Gen[Stream[Any, String, T]] =
     for {
       it <- Arbitrary.arbitrary[List[T]]
       n  <- Gen.choose(0, it.size)
