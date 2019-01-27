@@ -582,7 +582,9 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  final def whenM[R1 <: R, E1 >: E](b: ZIO[R1, Nothing, Boolean])(implicit ev1: ZIO[R, E, A] <:< ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
+  final def whenM[R1 <: R, E1 >: E](
+    b: ZIO[R1, Nothing, Boolean]
+  )(implicit ev1: ZIO[R, E, A] <:< ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
     ZIO.whenM(b)(self)
 
   /**
