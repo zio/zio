@@ -240,7 +240,6 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
    */
-  @deprecated("Use orElseEither", "scalaz-zio 0.7.0")
   final def <||>[E2, B](that: => IO[E2, B]): IO[E2, Either[A, B]] =
     orElseEither(that)
 
@@ -301,13 +300,6 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     redeem0((cause: Cause[E]) => cause.failureOrCause.fold(err, IO.halt), succ)
 
   /**
-   * Alias for redeem
-   */
-  @deprecated("Use redeem", "scalaz-zio 0.6.0")
-  final def foldM[E2, B](err: E => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
-    redeem(err, succ)
-
-  /**
    * A more powerful version of redeem that allows recovering from any kind of failure except interruptions.
    */
   final def redeem0[E2, B](err: Cause[E] => IO[E2, B], succ: A => IO[E2, B]): IO[E2, B] =
@@ -318,13 +310,6 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
 
       case _ => new IO.Redeem(self, err, succ)
     }
-
-  /**
-   * Alias for fold
-   */
-  @deprecated("Use fold", "scalaz-zio 0.7.0")
-  final def redeemPure[B](err: E => B, succ: A => B): IO[Nothing, B] =
-    fold(err, succ)
 
   /**
    * Less powerful version of `redeem` which always returns a successful
@@ -937,22 +922,10 @@ object IO extends Serializable {
   final def succeedLazy[A](a: => A): IO[Nothing, A] = new Point(() => a)
 
   /**
-   * Alias for succeedLazy
-   */
-  @deprecated("Use succeedLazy", "scalaz-zio 0.6.0")
-  final def point[A](a: => A): IO[Nothing, A] = succeedLazy(a)
-
-  /**
    * Creates an `IO` value that represents failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
   final def fail[E](error: E): IO[E, Nothing] = halt(Cause.fail(error))
-
-  /**
-   * Alias for fail
-   */
-  @deprecated("Use fail", "scalaz-zio 0.6.0")
-  final def raiseChecked[E](error: E): IO[E, Nothing] = fail(error)
 
   /**
    * Strictly-evaluated unit lifted into the `IO` monad.
@@ -1019,12 +992,6 @@ object IO extends Serializable {
    * Returns an `IO` that terminates with the specified `Throwable`.
    */
   final def die(t: Throwable): IO[Nothing, Nothing] = halt(Cause.die(t))
-
-  /**
-   * Alias for die
-   */
-  @deprecated("Use die", "scalaz-zio 0.6.0")
-  final def raiseUnchecked(t: Throwable): IO[Nothing, Nothing] = die(t)
 
   /**
    * Returns an `IO` that fails with the specified `Cause`.
@@ -1155,28 +1122,6 @@ object IO extends Serializable {
     b.flatMap(b => if (b) io else IO.unit)
 
   /**
-   * Shifts execution to a thread in the default `ExecutionContext`.
-   */
-  @deprecated("use yieldNow", "0.6.0")
-  final def shift: IO[Nothing, Unit] =
-    yieldNow
-
-  /**
-   * Shifts the operation to another execution context.
-   *
-   * {{{
-   *   IO.shift(myPool) *> myTask
-   * }}}
-   */
-  @deprecated("use lock or on", "0.6.0")
-  final def shift(ec: ExecutionContext): IO[Nothing, Unit] =
-    IO.async { (k: IO[Nothing, Unit] => Unit) =>
-      ec.execute(new Runnable {
-        override def run(): Unit = k(IO.unit)
-      })
-    }
-
-  /**
    * Locks the `io` to the specified executor.
    */
   final def lock[E, A](executor: Executor)(io: IO[E, A]): IO[E, A] =
@@ -1212,13 +1157,6 @@ object IO extends Serializable {
    */
   final def async0[E, A](register: (IO[E, A] => Unit) => Async[E, A]): IO[E, A] =
     new AsyncEffect(register)
-
-  /**
-   * Alias for asyncM
-   */
-  @deprecated("Use asyncM", "scalaz-zio 0.7.0")
-  final def asyncIO[E, A](register: (IO[E, A] => Unit) => IO[Nothing, _]): IO[E, A] =
-    asyncM(register)
 
   /**
    * Imports an asynchronous effect into a pure `IO` value. This formulation is
@@ -1397,13 +1335,6 @@ object IO extends Serializable {
     }
 
   /**
-   * Alias for foreach
-   */
-  @deprecated("Use foreach", "scalaz-zio 0.6.0")
-  final def traverse[E, A, B](in: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
-    foreach(in)(fn)
-
-  /**
    * Evaluate the elements of an `Iterable[A]` in parallel
    * and collect the results. This is the parallel version of `foreach`.
    */
@@ -1411,13 +1342,6 @@ object IO extends Serializable {
     as.foldRight[IO[E, List[B]]](IO.sync(Nil)) { (a, io) =>
       fn(a).zipWithPar(io)((b, bs) => b :: bs)
     }
-
-  /**
-   * Alias for foreachPar
-   */
-  @deprecated("Use foreachPar", "scalaz-zio 0.6.0")
-  final def traversePar[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
-    foreachPar(as)(fn)
 
   /**
    * Evaluate the elements of a traversable data structure in parallel
@@ -1433,25 +1357,11 @@ object IO extends Serializable {
     } yield bs
 
   /**
-   * Alias for foreachParN
-   */
-  @deprecated("Use foreachParN", "scalaz-zio 0.3.3")
-  final def traverseParN[E, A, B](n: Long)(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
-    foreachParN(n)(as)(fn)
-
-  /**
    * Evaluate each effect in the structure from left to right, and collect
    * the results. For parallelism use `collectAllPar`.
    */
   final def collectAll[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
     foreach(in)(identity)
-
-  /**
-   * Alias for collectAll
-   */
-  @deprecated("Use collectAll", "scalaz-zio 0.6.0")
-  final def sequence[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
-    collectAll(in)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
@@ -1461,26 +1371,12 @@ object IO extends Serializable {
     foreachPar(as)(identity)
 
   /**
-   * Alias for collectAllPar
-   */
-  @deprecated("Use collectAllPar", "scalaz-zio 0.6.0")
-  final def sequencePar[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
-    collectAllPar(as)
-
-  /**
    * Evaluate each effect in the structure in parallel, and collect
    * the results. Only up to `n` tasks run in parallel.
    * This is a version of `collectAllPar`, with a throttle.
    */
   final def collectAllParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
     foreachParN(n)(as)(identity)
-
-  /**
-   * Alias for `collectAllParN`
-   */
-  @deprecated("Use collectAllParN", "scalaz-zio 0.3.3")
-  final def sequenceParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
-    collectAllParN(n)(as)
 
   /**
    * Races an `IO[E, A]` against elements of a `Iterable[IO[E, A]]`. Yields
