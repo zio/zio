@@ -9,7 +9,7 @@ import org.scalacheck.Gen
 
 object ArbitraryStreamChunk {
 
-  implicit def arbStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[String, T]] =
+  implicit def arbStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[Any, String, T]] =
     Arbitrary {
       Gen.oneOf(
         genFailingStream[Chunk[T]].map(StreamChunk(_)),
@@ -18,7 +18,7 @@ object ArbitraryStreamChunk {
       )
     }
 
-  implicit def arbSucceededStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[Nothing, T]] =
+  implicit def arbSucceededStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[Any, Nothing, T]] =
     Arbitrary {
       Gen.oneOf(
         genPureStream[Chunk[T]].map(StreamChunkPure(_)),

@@ -75,7 +75,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRT
 
   def t7 = {
     val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
-    val res  = unsafeRun(IO.forkAll(list).flatMap(_.join))
+    val res  = unsafeRun(IO.forkAll(list).flatMap[Any, Nothing, List[Int]](_.join))
     res must be_===(List(1, 2, 3))
   }
 

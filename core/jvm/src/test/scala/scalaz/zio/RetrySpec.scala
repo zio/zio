@@ -1,7 +1,6 @@
 package scalaz.zio
 
 import org.specs2.ScalaCheck
-import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 
 class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
