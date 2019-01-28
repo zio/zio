@@ -20,9 +20,9 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
         poll retrieves the final status immediately
           it `fails' with Unit ` if the promise is not done yet.  $e8
           Otherwise, it returns the `Exit`, whether
-            `Completed`                                           $e9
-            `Failed`                                              $e10
-            `Terminated`.                                         $e11
+            `succeeded`                                           $e9
+            `failed`                                              $e10
+            `interrupted`.                                         $e11
      """
 
   def e1 =
@@ -109,7 +109,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
         p      <- Promise.make[String, Int]
         _      <- p.fail("failure")
         result <- p.poll.get.flatMap(_.run)
-      } yield result must_=== Exit.checked("failure")
+      } yield result must_=== Exit.fail("failure")
     }
 
   def e11 =
@@ -118,7 +118,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
         p             <- Promise.make[String, Int]
         _             <- p.interrupt
         attemptResult <- p.poll.get.flatMap(_.run)
-      } yield attemptResult must_=== Exit.interrupted
+      } yield attemptResult must_=== Exit.interrupt
     }
 
 }

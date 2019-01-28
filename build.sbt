@@ -55,9 +55,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.3.6" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.3.6" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.3.6" % Test
+      "org.specs2" %%% "specs2-core"          % "4.4.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.4.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.4.0" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
@@ -117,7 +117,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional,
-      "co.fs2"        %%% "fs2-core"    % "1.0.2" % Test
+      "co.fs2"        %%% "fs2-core"    % "1.0.3" % Test
     ),
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
@@ -213,7 +213,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"    % "scala-compiler" % scalaVersion.value % Provided,
         "io.monix"          %% "monix"         % "3.0.0-RC2",
         "org.typelevel"     %% "cats-effect"   % "1.2.0",
-        "co.fs2"            %% "fs2-core"      % "1.0.2",
+        "co.fs2"            %% "fs2-core"      % "1.0.3",
         "com.typesafe.akka" %% "akka-stream"   % "2.5.19"
       ),
     scalacOptions in Compile in console := Seq(

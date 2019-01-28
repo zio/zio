@@ -78,13 +78,13 @@ object javaconcurrent {
       new Fiber[Throwable, A] {
 
         def await: IO[Nothing, Exit[Throwable, A]] =
-          IO.fromFutureJava(() => ftr).redeemPure(Exit.checked, Exit.succeed)
+          IO.fromFutureJava(() => ftr).fold(Exit.fail, Exit.succeed)
 
         def poll: IO[Nothing, Option[Exit[Throwable, A]]] =
           IO.suspend {
             if (ftr.isDone) {
               IO.syncException(ftr.get())
-                .redeemPure(Exit.checked, Exit.succeed)
+                .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))
             } else {
               IO.succeed(None)
@@ -92,7 +92,7 @@ object javaconcurrent {
           }
 
         def interrupt: IO[Nothing, Exit[Throwable, A]] =
-          join.redeemPure(Exit.checked, Exit.succeed)
+          join.fold(Exit.fail, Exit.succeed)
       }
     }
   }
@@ -110,12 +110,12 @@ object javaconcurrent {
 
   implicit class IOThrowableOps[A](private val io: IO[Throwable, A]) extends AnyVal {
     def toCompletableFuture: IO[Nothing, CompletableFuture[A]] =
-      io.redeemPure(CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
+      io.fold(CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
   }
 
   implicit class IOOps[E, A](private val io: IO[E, A]) extends AnyVal {
     def toCompletableFutureE(f: E => Throwable): IO[Nothing, CompletableFuture[A]] =
-      io.leftMap(f).toCompletableFuture
+      io.mapError(f).toCompletableFuture
   }
 
 }
