@@ -29,7 +29,7 @@ trait SinkPure[+E, +A0, -A, +B] extends Sink[E, A0, A, B] { self =>
       type State = self.State
       val initialPure              = self.initialPure
       def stepPure(s: State, a: A) = self.stepPure(s, a)
-      def extractPure(s: State)    = self.extractPure(s).right.map(f)
+      def extractPure(s: State)    = self.extractPure(s).map(f)
     }
 
   override def filter[A1 <: A](f: A1 => Boolean): SinkPure[E, A0, A1, B] =
@@ -59,7 +59,7 @@ trait SinkPure[+E, +A0, -A, +B] extends Sink[E, A0, A, B] { self =>
       val initialPure = self.initialPure
       def stepPure(s: State, c: C) =
         self.stepPure(s, f(c))
-      def extractPure(s: State) = self.extractPure(s).right.map(g)
+      def extractPure(s: State) = self.extractPure(s).map(g)
     }
 
   override def mapRemainder[A1](f: A0 => A1): SinkPure[E, A1, A, B] =

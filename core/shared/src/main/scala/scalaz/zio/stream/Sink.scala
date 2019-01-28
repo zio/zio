@@ -279,7 +279,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
             lr.zipWithPar(rr) {
               case (Right(s), _) if !Step.cont(s) => Step.done((Right(Step.state(s)), r), Step.leftover(s))
               case (_, Right(s)) if !Step.cont(s) => Step.done((l, Right(Step.state(s))), Step.leftover(s))
-              case (lr, rr)                       => Step.more((lr.right.map(Step.state), rr.right.map(Step.state)))
+              case (lr, rr)                       => Step.more((lr.map(Step.state), rr.map(Step.state)))
             }
         }
 
