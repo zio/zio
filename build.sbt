@@ -125,16 +125,12 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
 
 lazy val interopCatsJVM = interopCats.jvm
   .dependsOn(interopSharedJVM)
-  // Below is for the cats law spec
-  // Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
-  // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"          % "1.2.0" % Test,
       "org.typelevel"              %% "cats-testkit"              % "1.6.0" % Test,
       "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8" % Test
-    ),
-    dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test
+    )
   )
 
 lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
