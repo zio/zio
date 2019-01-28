@@ -46,8 +46,7 @@ lazy val root = project
     interopJavaJVM,
     benchmarks,
     microsite,
-    scalazZioTestingJVM,
-    scalazZioTestingJS
+    scalazZioTestingJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -192,17 +191,16 @@ lazy val interopJava = crossProject(JVMPlatform)
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
-lazy val scalazZioTesting = crossProject(JSPlatform, JVMPlatform)
-  .in(file("scalaz-zio-testing"))
-  .settings(stdSettings("zio-testing"))
+lazy val scalazZioTestkit = crossProject(JVMPlatform)
+  .in(file("scalaz-zio-testkit"))
+  .settings(stdSettings("zio-testkit"))
   .dependsOn(core % "test->test;compile->compile")
   .settings(
     scalacOptions in Test ++= Seq("-Yrangepos"),
     publishArtifact in (Test, packageBin) := true
   )
 
-lazy val scalazZioTestingJVM = scalazZioTesting.jvm
-lazy val scalazZioTestingJS  = scalazZioTesting.js
+lazy val scalazZioTestingJVM = scalazZioTestkit.jvm
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
