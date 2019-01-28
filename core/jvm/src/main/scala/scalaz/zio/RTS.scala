@@ -2,11 +2,12 @@ package scalaz.zio
 
 import scalaz.zio.clock.Clock
 import scalaz.zio.console.Console
+import scalaz.zio.system.System
 import scalaz.zio.internal.Env
 
 trait RTS {
-  type BuiltIn = Clock with Console
-  val BuiltIn = new Clock.Live with Console.Live
+  type BuiltIn = Clock with Console with System
+  val BuiltIn = new Clock.Live with Console.Live with System.Live
 
   lazy val env =
     Env.newDefaultEnv {

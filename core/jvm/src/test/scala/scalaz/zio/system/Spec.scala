@@ -5,13 +5,6 @@ import org.specs2.Specification
 
 class SystemSpec extends Specification with RTS {
   def is = s2"""
-    Fetch the current time from the system clock and check that:
-      It returns a reasonable instant                                 $currentTime1
-      It returns a reasonable timestamp                               $currentTimeMillis1
-
-    Fetch the JVMs nanoTime and check that:
-      It returns something compatible with System.nanoTime            $nanoTime1
-
     Fetch an environment variable and check that:
       If it exists, return a reasonable value                         $env1
       If it does not exist, return None                               $env2
@@ -23,30 +16,6 @@ class SystemSpec extends Specification with RTS {
     Fetch the system's line separator and check that:
       It is identical to System.lineSeparator                         $lineSep1
   """
-
-  def currentTime1 = {
-    val start = System.currentTimeMillis
-    val io    = unsafeRun(currentTime).toEpochMilli
-    val end   = System.currentTimeMillis
-
-    io must beBetween(start, end)
-  }
-
-  def currentTimeMillis1 = {
-    val start = System.currentTimeMillis
-    val io    = unsafeRun(currentTimeMillis)
-    val end   = System.currentTimeMillis
-
-    io must beBetween(start, end)
-  }
-
-  def nanoTime1 = {
-    val start = System.nanoTime
-    val io    = unsafeRun(nanoTime)
-    val end   = System.nanoTime
-
-    io must beBetween(start, end)
-  }
 
   def env1 = {
     val io = unsafeRun(system.env("PATH"))
@@ -70,5 +39,5 @@ class SystemSpec extends Specification with RTS {
     io must beNone
   }
 
-  def lineSep1 = unsafeRun(lineSeparator) must_=== (System.lineSeparator)
+  def lineSep1 = unsafeRun(lineSeparator) must_=== (java.lang.System.lineSeparator)
 }

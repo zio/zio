@@ -730,12 +730,12 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a new action that executes this one and times the execution.
    */
-  final def timed: ZIO[R, E, (Duration, A)] = timed0(system.nanoTime)
+  final def timed: ZIO[R with Clock, E, (Duration, A)] = timed0(clock.nanoTime)
 
   /**
    * A more powerful variation of `timed` that allows specifying the clock.
    */
-  final def timed0[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1, E1, (Duration, A)] =
+  final def timed0[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1 with Clock, E1, (Duration, A)] =
     summarized[R1, E1, Long, Duration]((start, end) => Duration.fromNanos(end - start))(nanoTime)
 
   /**

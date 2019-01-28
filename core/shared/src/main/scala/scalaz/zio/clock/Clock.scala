@@ -4,7 +4,7 @@ package scalaz.zio.clock
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.duration.Duration
-import scalaz.zio.{ system, IO, UIO, ZIO }
+import scalaz.zio.{ IO, UIO, ZIO }
 
 trait Clock extends Serializable {
   val clock: Clock.Interface[Any]
@@ -20,9 +20,9 @@ object Clock extends Serializable {
   trait Live extends Clock {
     object clock extends Interface[Any] {
       final def currentTime(unit: TimeUnit): UIO[Long] =
-        system.currentTimeMillis.map(l => unit.convert(l, TimeUnit.MILLISECONDS))
+        IO.sync(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
-      final val nanoTime: UIO[Long] = system.nanoTime
+      final val nanoTime: UIO[Long] = IO.sync(System.nanoTime)
 
       final def sleep(length: Long, unit: TimeUnit): UIO[Unit] =
         IO.sleep(Duration(length, unit))
