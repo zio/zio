@@ -2,19 +2,59 @@ package scalaz.zio
 package interop
 
 import cats.Eq
+import cats.effect.concurrent.Deferred
+import cats.effect.{ ConcurrentEffect, ContextShift }
+import cats.effect.laws.ConcurrentEffectLaws
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.laws.discipline.{ ConcurrentTests, EffectTests, Parameters }
+import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests, EffectTests, Parameters }
 import cats.effect.laws.util.{ TestContext, TestInstances }
-import cats.implicits._
 import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
-import cats.syntax.all._
+import cats.implicits._
 import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
 import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
 import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
+import cats.laws._
 import scalaz.zio.internal.Env
+
+trait ConcurrentEffectLawsOverrides[F[_]] extends ConcurrentEffectLaws[F] {
+
+  import cats.effect.IO
+  import scala.concurrent.Promise
+
+  override final def runCancelableIsSynchronous[A](fa: F[A]) = {
+    val lh = Deferred.uncancelable[F, Unit].flatMap { release =>
+      val latch = Promise[Unit]()
+      // Never ending task
+      val ff = F.cancelable[A] { _ =>
+//          F.runAsync(started.complete(()))(_ => IO.unit).unsafeRunSync()
+        latch.success(()); release.complete(())
+      }
+      // Execute, then cancel after the task has started
+      val token = for {
+        canceler <- F.delay(F.runCancelable(ff)(_ => IO.unit).unsafeRunSync())
+        _        <- F.liftIO(IO.fromFuture(IO.pure(latch.future)))
+        _        <- canceler
+      } yield ()
+
+      F.liftIO(F.runAsync(token)(_ => IO.unit).toIO) *> release.get
+    }
+    lh <-> F.unit
+  }
+}
+
+object IOConcurrentEffectTests {
+  def apply()(implicit ce: ConcurrentEffect[Task], cs: ContextShift[Task]): ConcurrentEffectTests[Task] =
+    new ConcurrentEffectTests[Task] {
+      def laws =
+        new ConcurrentEffectLaws[Task] with ConcurrentEffectLawsOverrides[Task] {
+          override val F: ConcurrentEffect[Task]        = ce
+          override val contextShift: ContextShift[Task] = cs
+        }
+    }
+}
 
 class catzSpec
     extends FunSuite
@@ -58,8 +98,9 @@ class catzSpec
     }
 
   // TODO: reintroduce repeated ConcurrentTests as they're removed due to the hanging CI builds (see https://github.com/scalaz/scalaz-zio/pull/482)
+  checkAllAsync(s"ConcurrentEffect[Task]", implicit tctx => IOConcurrentEffectTests().concurrentEffect[Int, Int, Int])
   checkAllAsync("Concurrent[Task]", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
-  checkAllAsync("Effect[Task]", implicit e => EffectTests[Task].effect[Int, Int, Int])
+  checkAllAsync("Effect[Task]", implicit tctx => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
   checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
   checkAllAsync(
@@ -85,7 +126,7 @@ class catzSpec
       }
     }
 
-  implicit def catsParEQ[E, A: Eq]: Eq[ParIO[E, A]] =
+  implicit def catsParEQ[E: Eq, A: Eq]: Eq[ParIO[E, A]] =
     new Eq[ParIO[E, A]] {
       def eqv(io1: ParIO[E, A], io2: ParIO[E, A]): Boolean =
         unsafeRun(Par.unwrap(io1).attempt) === unsafeRun(Par.unwrap(io2).attempt)

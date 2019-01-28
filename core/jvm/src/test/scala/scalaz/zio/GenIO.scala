@@ -44,7 +44,7 @@ trait GenIO {
 
   /**
    * Given a generator for `IO[E, A]`, produces a sized generator for `IO[E, A]` which represents a transformation,
-   * by using some random combination of the methods `map`, `flatMap`, `leftMap`, and any other method that does not change
+   * by using some random combination of the methods `map`, `flatMap`, `mapError`, and any other method that does not change
    * the success/failure of the value, but may change the value itself.
    */
   def genLikeTrans[E: Arbitrary: Cogen, A: Arbitrary: Cogen](gen: Gen[IO[E, A]]): Gen[IO[E, A]] = {
@@ -54,7 +54,7 @@ trait GenIO {
         genOfMaps[E, A](io),
         genOfRace[E, A](io),
         genOfParallel[E, A](io)(genSuccess[E, A]),
-        genOfLeftMaps[E, A](io)
+        genOfMapErrors[E, A](io)
       )
     gen.flatMap(io => genTransformations(functions)(io))
   }
@@ -68,7 +68,7 @@ trait GenIO {
       Gen.oneOf(
         genOfIdentityFlatMaps[E, A](io),
         genOfIdentityMaps[E, A](io),
-        genOfIdentityLeftMaps[E, A](io),
+        genOfIdentityMapErrors[E, A](io),
         genOfRace[E, A](io),
         genOfParallel[E, A](io)(genSuccess[E, A])
       )
@@ -93,11 +93,11 @@ trait GenIO {
 
   private def genOfIdentityMaps[E, A](io: IO[E, A]): Gen[IO[E, A]] = Gen.const(io.map(identity))
 
-  private def genOfLeftMaps[E: Arbitrary: Cogen, A](io: IO[E, A]): Gen[IO[E, A]] =
-    Arbitrary.arbitrary[E => E].map(f => io.leftMap(f))
+  private def genOfMapErrors[E: Arbitrary: Cogen, A](io: IO[E, A]): Gen[IO[E, A]] =
+    Arbitrary.arbitrary[E => E].map(f => io.mapError(f))
 
-  private def genOfIdentityLeftMaps[E, A](io: IO[E, A]): Gen[IO[E, A]] =
-    Gen.const(io.leftMap(identity))
+  private def genOfIdentityMapErrors[E, A](io: IO[E, A]): Gen[IO[E, A]] =
+    Gen.const(io.mapError(identity))
 
   private def genOfFlatMaps[E, A: Cogen](io: IO[E, A])(
     gen: Gen[IO[E, A]]

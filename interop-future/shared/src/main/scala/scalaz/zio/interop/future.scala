@@ -48,7 +48,7 @@ object future extends FuturePlatformSpecific {
               IO.async { (cb: IO[Nothing, Exit[Throwable, A]] => Unit) =>
                 ftr.onComplete {
                   case Success(a) => cb(IO.succeed(Exit.succeed(a)))
-                  case Failure(t) => cb(IO.succeed(Exit.checked(t)))
+                  case Failure(t) => cb(IO.succeed(Exit.fail(t)))
                 }(ec)
               }
             )(t => IO.succeedLazy(Exit.fromTry(t)))
@@ -58,18 +58,18 @@ object future extends FuturePlatformSpecific {
           IO.sync(ftr.value.map(Exit.fromTry))
 
         def interrupt: IO[Nothing, Exit[Throwable, A]] =
-          join.redeemPure(Exit.checked, Exit.succeed)
+          join.fold(Exit.fail, Exit.succeed)
       }
     }
   }
 
   implicit class IOThrowableOps[A](private val io: IO[Throwable, A]) extends AnyVal {
     def toFuture: IO[Nothing, Future[A]] =
-      io.redeemPure(Future.failed, Future.successful)
+      io.fold(Future.failed, Future.successful)
   }
 
   implicit class IOOps[E, A](private val io: IO[E, A]) extends AnyVal {
-    def toFutureE(f: E => Throwable): IO[Nothing, Future[A]] = io.leftMap(f).toFuture
+    def toFutureE(f: E => Throwable): IO[Nothing, Future[A]] = io.mapError(f).toFuture
   }
 
 }
