@@ -159,7 +159,7 @@ object Executor extends Serializable {
     new Executor {
       def role = role0
 
-      def metrics = Some(new ExecutionMetrics {
+      private[this] def metrics0 = new ExecutionMetrics {
         def concurrency: Int = es.getMaximumPoolSize()
 
         def capacity: Int = {
@@ -178,9 +178,11 @@ object Executor extends Serializable {
         def enqueuedCount: Long = es.getTaskCount()
 
         def dequeuedCount: Long = enqueuedCount - size.toLong
-      })
+      }
 
-      def yieldOpCount = yieldOpCount0(metrics.value)
+      def metrics = Some(metrics0)
+
+      def yieldOpCount = yieldOpCount0(metrics0)
 
       def submit(runnable: Runnable): Boolean =
         try {
