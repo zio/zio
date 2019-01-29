@@ -21,6 +21,11 @@ trait Executor {
   def yieldOpCount: Int
 
   /**
+   * Current sampled execution metrics, if available.
+   */
+  def metrics: Option[ExecutionMetrics]
+
+  /**
    * Submits a task for execution.
    */
   def submit(runnable: Runnable): Boolean
@@ -52,6 +57,7 @@ trait Executor {
       override def reportFailure(cause: Throwable): Unit =
         cause.printStackTrace
     }
+
 }
 
 object Executor extends Serializable {
@@ -75,7 +81,7 @@ object Executor extends Serializable {
   final def newDefaultExecutor(role: Role): Executor = role match {
     case Unyielding =>
       fromThreadPoolExecutor(role, _ => Int.MaxValue) {
-        val corePoolSize  = Int.MaxValue
+        val corePoolSize  = 0
         val maxPoolSize   = Int.MaxValue
         val keepAliveTime = 1000L
         val timeUnit      = TimeUnit.MILLISECONDS
@@ -90,7 +96,6 @@ object Executor extends Serializable {
           workQueue,
           threadFactory
         )
-        threadPool.allowCoreThreadTimeOut(true)
 
         threadPool
       }
@@ -140,6 +145,8 @@ object Executor extends Serializable {
 
       def here = false
 
+      def metrics = None
+
       def shutdown(): Unit = ()
     }
 
@@ -152,7 +159,7 @@ object Executor extends Serializable {
     new Executor {
       def role = role0
 
-      val metrics = new ExecutionMetrics {
+      private[this] def metrics0 = new ExecutionMetrics {
         def concurrency: Int = es.getMaximumPoolSize()
 
         def capacity: Int = {
@@ -166,12 +173,16 @@ object Executor extends Serializable {
 
         def size: Int = es.getQueue().size
 
+        def workersCount: Int = es.getPoolSize()
+
         def enqueuedCount: Long = es.getTaskCount()
 
         def dequeuedCount: Long = enqueuedCount - size.toLong
       }
 
-      def yieldOpCount = yieldOpCount0(metrics)
+      def metrics = Some(metrics0)
+
+      def yieldOpCount = yieldOpCount0(metrics0)
 
       def submit(runnable: Runnable): Boolean =
         try {
