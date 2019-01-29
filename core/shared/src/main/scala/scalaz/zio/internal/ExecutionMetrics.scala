@@ -27,4 +27,9 @@ trait ExecutionMetrics {
    * The number of tasks that have been dequeued, over all time.
    */
   def dequeuedCount: Long
+
+  /**
+   * The number of current live worker threads.
+   */
+  def workersCount: Int
 }
