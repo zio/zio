@@ -21,6 +21,11 @@ trait Executor {
   def yieldOpCount: Int
 
   /**
+   * Current sampled execution metrics, if available.
+   */
+  def metrics: Option[ExecutionMetrics]
+
+  /**
    * Submits a task for execution.
    */
   def submit(runnable: Runnable): Boolean
@@ -140,12 +145,10 @@ object Executor extends Serializable {
 
       def here = false
 
+      def metrics = None
+
       def shutdown(): Unit = ()
     }
-
-  private[zio] trait MeteredExecutor extends Executor {
-    def metrics: ExecutionMetrics
-  }
 
   /**
    * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
@@ -153,10 +156,10 @@ object Executor extends Serializable {
   final def fromThreadPoolExecutor(role0: Role, yieldOpCount0: ExecutionMetrics => Int)(
     es: ThreadPoolExecutor
   ): Executor =
-    new MeteredExecutor {
+    new Executor {
       def role = role0
 
-      val metrics = new ExecutionMetrics {
+      def metrics = Some(new ExecutionMetrics {
         def concurrency: Int = es.getMaximumPoolSize()
 
         def capacity: Int = {
@@ -175,9 +178,9 @@ object Executor extends Serializable {
         def enqueuedCount: Long = es.getTaskCount()
 
         def dequeuedCount: Long = enqueuedCount - size.toLong
-      }
+      })
 
-      def yieldOpCount = yieldOpCount0(metrics)
+      def yieldOpCount = yieldOpCount0(metrics.value)
 
       def submit(runnable: Runnable): Boolean =
         try {
