@@ -10,7 +10,6 @@ import scalaz.zio.Exit.Cause
 import scalaz.zio.Exit.Cause.{ Die, Fail, Then }
 import scalaz.zio.duration._
 import scalaz.zio.internal.Executor
-import scalaz.zio.internal.Executor.MeteredExecutor
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
@@ -965,7 +964,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testUnyieldingThreadCaching = {
     val currentNumLiveWorkers =
-      IO.sync0(_.executor(Executor.Unyielding).asInstanceOf[MeteredExecutor].metrics.workersCount)
+      IO.sync0(_.executor(Executor.Unyielding).metrics.get.workersCount)
 
     unsafeRunSync(for {
       thread1  <- IO.sync(Thread.currentThread()).unyielding
