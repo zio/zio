@@ -3,13 +3,15 @@ package scalaz.zio
 
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
-import scala.annotation.tailrec
+
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause
 import scalaz.zio.Exit.Cause.{ Die, Fail, Then }
 import scalaz.zio.duration._
+import scalaz.zio.internal.Executor
 
+import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
 class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
@@ -35,9 +37,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     attempt . fail                          $testEvalOfAttemptOfFail
     deep attempt sync effect error          $testAttemptOfDeepSyncEffectError
     deep attempt fail error                 $testAttemptOfDeepFailError
-    attempt . sandboxed . terminate         $testSandboxAttemptOfTerminate
-    fold . sandboxed . terminate            $testSandboxFoldOfTerminate
-    catch sandboxed terminate               $testSandboxTerminate
+    attempt . sandbox . terminate           $testSandboxAttemptOfTerminate
+    fold . sandbox . terminate              $testSandboxFoldOfTerminate
+    catch sandbox terminate                 $testSandboxTerminate
     uncaught fail                           $testEvalOfUncaughtFail
     uncaught fail supervised                $testEvalOfUncaughtFailSupervised
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
@@ -81,6 +83,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     interrupt of asyncPure register         $testAsyncPureInterruptRegister
     sleep 0 must return                     $testSleepZeroReturns
     shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
+    unyielding reuses cached thread         $testUnyieldingThreadCaching
 
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
@@ -957,6 +960,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       } yield c must be_>=(1)
     )
 
+  }
+
+  def testUnyieldingThreadCaching = {
+    val currentNumLiveWorkers =
+      IO.sync0(_.executor(Executor.Unyielding).metrics.get.workersCount)
+
+    unsafeRunSync(for {
+      thread1  <- IO.sync(Thread.currentThread()).unyielding
+      workers1 <- currentNumLiveWorkers
+      thread2  <- IO.sync(Thread.currentThread()).unyielding
+      workers2 <- currentNumLiveWorkers
+    } yield workers1 == workers2 && thread1 == thread2) must_=== Exit.Success(true)
   }
 
   def testBlockingIOIsInterruptible = unsafeRun(
