@@ -12,66 +12,53 @@ import scala.annotation.switch
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 class MapDispatchBenchmark {
 
-  val fm: TestIO          = new FlatMap
-  val point: TestIO       = new Point
-  val strict: TestIO      = new Strict
-  val syncEf: TestIO      = new SyncEffect
-  val asyncEffect: TestIO = new AsyncEffect
-  val v                   = new MapVisitor
-  val a: Int              = 42
+  val fmDefSwitch: TestIODefSwitch          = new FlatMapDefSwitch
+  val pointDefSwitch: TestIODefSwitch       = new PointDefSwitch
+  val strictDefSwitch: TestIODefSwitch      = new StrictDefSwitch
+  val syncEfDefSwitch: TestIODefSwitch      = new SyncEffectDefSwitch
+  val asyncEffectDefSwitch: TestIODefSwitch = new AsyncEffectDefSwitch
 
-  val fmCl: TestIOClass          = new ClassFlatMap
-  val pointCl: TestIOClass       = new ClassPoint
-  val strictCl: TestIOClass      = new ClassStrict
-  val syncEfCl: TestIOClass      = new ClassSyncEffect
-  val asyncEffectCl: TestIOClass = new ClassAsyncEffect
-  /*@Benchmark
-  def fmMapWithSwitch: Int =
-    fm.mapWithSwitch()
+  val fmValSwitch: TestIOValSwitch          = new FlatMapValSwitch
+  val pointValSwitch: TestIOValSwitch       = new PointValSwitch
+  val strictValSwitch: TestIOValSwitch      = new StrictValSwitch
+  val syncEfValSwitch: TestIOValSwitch      = new SyncEffectValSwitch
+  val asyncEffectValSwitch: TestIOValSwitch = new AsyncEffectValSwitch
 
-  @Benchmark
-  def fmSubclass(): Int =
-    fm.mapSubclassing()
+  val fmCl: TestIOAbstractClass          = new AbstractClassFlatMap
+  val pointCl: TestIOAbstractClass       = new AbstractClassPoint
+  val strictCl: TestIOAbstractClass      = new AbstractClassStrict
+  val syncEfCl: TestIOAbstractClass      = new AbstractClassSyncEffect
+  val asyncEffectCl: TestIOAbstractClass = new AbstractClassAsyncEffect
 
-  @Benchmark
-  def fmVisitor(): Int =
-    fm.acceptMapVisitor(v)
-
-  @Benchmark
-  def asyncEffectMapWithSwitch: Int =
-    asyncEffect.mapWithSwitch()
+  val fmSub: TestIOSubclassing          = new FlatMapSubclassing
+  val pointSub: TestIOSubclassing       = new PointSubclassing
+  val strictSub: TestIOSubclassing      = new StrictSubclassing
+  val syncEfSub: TestIOSubclassing      = new SyncEffectSubclassing
+  val asyncEffectSub: TestIOSubclassing = new AsyncEffectSubclassing
 
   @Benchmark
-  def asyncEffectSubclass(): Int =
-    asyncEffect.mapSubclassing()
+  def allMapWithDefSwitch: Int =
+    asyncEffectDefSwitch.mapWithSwitch() +
+      fmDefSwitch.mapWithSwitch() +
+      syncEfDefSwitch.mapWithSwitch() +
+      strictDefSwitch.mapWithSwitch() +
+      pointDefSwitch.mapWithSwitch()
 
   @Benchmark
-  def asyncEffectVisitor(): Int =
-    asyncEffect.acceptMapVisitor(v)*/
+  def allMapWithValSwitch: Int =
+    asyncEffectDefSwitch.mapWithSwitch() +
+      fmDefSwitch.mapWithSwitch() +
+      syncEfDefSwitch.mapWithSwitch() +
+      strictDefSwitch.mapWithSwitch() +
+      pointDefSwitch.mapWithSwitch()
 
   @Benchmark
-  def allMapWithSwitch: Int =
-    asyncEffect.mapWithSwitch() +
-      fm.mapWithSwitch() +
-      syncEf.mapWithSwitch() +
-      strict.mapWithSwitch() +
-      point.mapWithSwitch()
-
-  /*@Benchmark
   def allSubclass(): Int =
-    asyncEffect.mapSubclassing() +
-      fm.mapSubclassing() +
-      syncEf.mapSubclassing() +
-      strict.mapSubclassing() +
-      point.mapSubclassing()
-
-  @Benchmark
-  def allVisitor(): Int =
-    asyncEffect.acceptMapVisitor(v) +
-      fm.acceptMapVisitor(v) +
-      syncEf.acceptMapVisitor(v) +
-      strict.acceptMapVisitor(v) +
-      point.acceptMapVisitor(v)*/
+    asyncEffectSub.mapSubclassing() +
+      fmSub.mapSubclassing() +
+      syncEfSub.mapSubclassing() +
+      strictSub.mapSubclassing() +
+      pointSub.mapSubclassing()
 
   @Benchmark
   def allMapWithSwitchClass: Int =
@@ -85,169 +72,284 @@ class MapDispatchBenchmark {
 
 object MapDispatchBenchmark {
 
-  sealed trait TestIO { self =>
+  sealed trait TestIODefSwitch { self =>
     def tag: Int
-
-    def mapSubclassing(): Int
 
     final def mapWithSwitch(): Int = (self.tag: @switch) match {
       case IO.Tags.Point =>
-        self.asInstanceOf[Point]
+        self.asInstanceOf[PointDefSwitch]
         1
 
       case IO.Tags.Strict =>
-        self.asInstanceOf[Strict]
+        self.asInstanceOf[StrictDefSwitch]
         2
 
       case IO.Tags.Fail =>
-        self.asInstanceOf[TestIO]
+        self.asInstanceOf[TestIODefSwitch]
         3
 
       case _ => 4
     }
-
-    def acceptMapVisitor(v: MapVisitor): Int
   }
 
-  final class FlatMap extends TestIO {
-    override def tag: Int                             = Tags.FlatMap
-    override def mapSubclassing(): Int          = 1
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitFlatMap
+  final class FlatMapDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.FlatMap
   }
 
-  final class Point extends TestIO {
-    override def tag: Int                             = Tags.Point
-    override def mapSubclassing(): Int          = 2
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitPoint
+  final class PointDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Point
   }
 
-  final class Strict extends TestIO {
-    override def tag: Int                             = Tags.Strict
-    override def mapSubclassing(): Int          = 3
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitStrict
+  final class StrictDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Strict
   }
 
-  final class SyncEffect extends TestIO {
-    override def tag: Int                             = Tags.SyncEffect
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitSyncEffect
+  final class SyncEffectDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.SyncEffect
   }
 
-  final class AsyncEffect extends TestIO {
-    override def tag: Int                             = Tags.AsyncEffect
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitAsyncEffect
+  final class AsyncEffectDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.AsyncEffect
   }
 
-  final class Redeem extends TestIO {
-    override def tag: Int                             = Tags.Redeem
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final class RedeemDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Redeem
   }
 
-  final class Fork extends TestIO {
-    override def tag: Int                             = Tags.Fork
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final class ForkDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Fork
   }
 
-  final class Uninterruptible extends TestIO {
-    override def tag: Int                             = Tags.Uninterruptible
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final class UninterruptibleDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Uninterruptible
   }
 
-  final class Supervise extends TestIO {
-    override def tag: Int                             = Tags.Supervise
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final class SuperviseDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Supervise
   }
 
-  final class Fail extends TestIO {
-    override def tag: Int                             = Tags.Fail
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final class FailDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Fail
   }
 
-  final class Ensuring extends TestIO {
-    override def tag: Int                             = Tags.Ensuring
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final class EnsuringDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Ensuring
   }
 
-  final object Descriptor extends TestIO {
-    override def tag: Int                             = Tags.Descriptor
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final object DescriptorDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Descriptor
   }
 
-  final class Lock extends TestIO {
-    override def tag: Int                             = Tags.Lock
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final class LockDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Lock
   }
 
-  final object Yield extends TestIO {
-    override def tag: Int                             = Tags.Yield
-    override def mapSubclassing(): Int          = 4
-    override def acceptMapVisitor(v: MapVisitor): Int = v.visitOther()
+  final object YieldDefSwitch extends TestIODefSwitch {
+    override def tag: Int = Tags.Yield
   }
 
-  class MapVisitor {
-    def visitFlatMap()     = 1
-    def visitPoint()       = 2
-    def visitStrict()      = 3
-    def visitSyncEffect()  = 4
-    def visitAsyncEffect() = 4
-    def visitOther()       = 4
+  sealed trait TestIOValSwitch { self =>
+    val tag: Int
+
+    final def mapWithSwitch(): Int = (self.tag: @switch) match {
+      case IO.Tags.Point =>
+        self.asInstanceOf[PointDefSwitch]
+        1
+
+      case IO.Tags.Strict =>
+        self.asInstanceOf[StrictDefSwitch]
+        2
+
+      case IO.Tags.Fail =>
+        self.asInstanceOf[TestIODefSwitch]
+        3
+
+      case _ => 4
+    }
   }
 
-  abstract class TestIOClass(storedTag0: Int) {
+  final class FlatMapValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.FlatMap
+  }
+
+  final class PointValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Point
+  }
+
+  final class StrictValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Strict
+  }
+
+  final class SyncEffectValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.SyncEffect
+  }
+
+  final class AsyncEffectValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.AsyncEffect
+  }
+
+  final class RedeemValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Redeem
+  }
+
+  final class ForkValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Fork
+  }
+
+  final class UninterruptibleValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Uninterruptible
+  }
+
+  final class SuperviseValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Supervise
+  }
+
+  final class FailValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Fail
+  }
+
+  final class EnsuringValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Ensuring
+  }
+
+  final object DescriptorValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Descriptor
+  }
+
+  final class LockValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Lock
+  }
+
+  final object YieldValSwitch extends TestIOValSwitch {
+    override final val tag: Int = Tags.Yield
+  }
+
+  sealed trait TestIOSubclassing {
+    def mapSubclassing(): Int
+  }
+
+  final class FlatMapSubclassing extends TestIOSubclassing {
+    override def mapSubclassing(): Int = 1
+  }
+
+  final class PointSubclassing extends TestIOSubclassing {
+    override def mapSubclassing(): Int = 2
+  }
+
+  final class StrictSubclassing extends TestIOSubclassing {
+    override def mapSubclassing(): Int = 3
+  }
+
+  final class SyncEffectSubclassing extends TestIOSubclassing {
+    override def mapSubclassing(): Int = 4
+  }
+
+  final class AsyncEffectSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final class RedeemSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final class ForkSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final class UninterruptibleSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final class SuperviseSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final class FailSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final class EnsuringSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final object DescriptorSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final class LockSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  final object YieldSubclassing extends TestIOSubclassing {
+
+    override def mapSubclassing(): Int = 4
+
+  }
+
+  abstract class TestIOAbstractClass(storedTag0: Int) {
     final val storedTag = storedTag0
 
     final def mapWithSwitch(): Int = (storedTag: @switch) match {
       case IO.Tags.Point =>
-        this.asInstanceOf[ClassPoint]
+        this.asInstanceOf[AbstractClassPoint]
         1
 
       case IO.Tags.Strict =>
-        this.asInstanceOf[ClassStrict]
+        this.asInstanceOf[AbstractClassStrict]
         2
 
       case IO.Tags.Fail =>
-        this.asInstanceOf[TestIOClass]
+        this.asInstanceOf[TestIOAbstractClass]
         3
 
       case _ => 4
     }
   }
 
-  final class ClassFlatMap extends TestIOClass(Tags.FlatMap) {}
+  final class AbstractClassFlatMap extends TestIOAbstractClass(Tags.FlatMap)
 
-  final class ClassPoint extends TestIOClass(Tags.Point){}
+  final class AbstractClassPoint extends TestIOAbstractClass(Tags.Point)
 
-  final class ClassStrict extends TestIOClass(Tags.Strict){}
+  final class AbstractClassStrict extends TestIOAbstractClass(Tags.Strict)
 
-  final class ClassSyncEffect extends TestIOClass(Tags.SyncEffect){}
+  final class AbstractClassSyncEffect extends TestIOAbstractClass(Tags.SyncEffect)
 
-  final class ClassAsyncEffect extends TestIOClass(Tags.AsyncEffect){}
+  final class AbstractClassAsyncEffect extends TestIOAbstractClass(Tags.AsyncEffect)
 
-  final class ClassRedeem extends TestIOClass(Tags.Redeem){}
+  final class AbstractClassRedeem extends TestIOAbstractClass(Tags.Redeem)
 
-  final class ClassFork extends TestIOClass(Tags.Fork){}
+  final class AbstractClassFork extends TestIOAbstractClass(Tags.Fork)
 
-  final class ClassUninterruptible extends TestIOClass(Tags.Uninterruptible){}
+  final class AbstractClassUninterruptible extends TestIOAbstractClass(Tags.Uninterruptible)
 
-  final class ClassSupervise extends TestIOClass(Tags.Supervise){}
+  final class AbstractClassSupervise extends TestIOAbstractClass(Tags.Supervise)
 
-  final class ClassFail extends TestIOClass(Tags.Fail){}
+  final class AbstractClassFail extends TestIOAbstractClass(Tags.Fail)
 
-  final class ClassEnsuring extends TestIOClass(Tags.Ensuring){}
+  final class AbstractClassEnsuring extends TestIOAbstractClass(Tags.Ensuring)
 
-  final class Descriptor extends TestIOClass(Tags.Descriptor){}
+  final class Descriptor extends TestIOAbstractClass(Tags.Descriptor)
 
-  final class ClassLock extends TestIOClass(Tags.Lock){}
+  final class AbstractClassLock extends TestIOAbstractClass(Tags.Lock)
 
-  final class Yield extends TestIOClass(Tags.Yield){}
-  
+  final class Yield extends TestIOAbstractClass(Tags.Yield)
+
 }
