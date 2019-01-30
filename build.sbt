@@ -206,7 +206,7 @@ lazy val benchmarks = project.module
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.6",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
-        "com.google.code.findbugs" % "jsr305"           % "3.0.0"
+        "com.google.code.findbugs" % "jsr305"           % "3.0.2"
       ),
     scalacOptions in Compile in console := Seq(
       "-Ypartial-unification",
