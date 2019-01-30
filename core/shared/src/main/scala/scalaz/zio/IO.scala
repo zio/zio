@@ -211,6 +211,8 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     } yield c
   }
 
+  def raceAll[E1 >: E, A1 >: A](ios: Iterable[IO[E1, A1]]): IO[E1, A1] = IO.raceAll(self, ios)
+
   /**
    * Executes this action and returns its value, if it succeeds, but
    * otherwise executes the specified action.
@@ -255,6 +257,9 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
       case _ => new IO.Redeem(self, err, succ)
     }
   }
+
+  final def flatten[E1 >: E, B](implicit ev1: A <:< IO[E1, B]): IO[E1, B] =
+    self.flatMap(a => a)
 
   /**
    * Maps over the error type. This can be used to lift a "smaller" error into
@@ -329,6 +334,13 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    */
   final def attempt: IO[Nothing, Either[E, A]] =
     self.redeem[Nothing, Either[E, A]](IO.succeedLeft, IO.succeedRight)
+
+  /**
+   * Submerges the error case of an `Either` into the `IO`. The inverse
+   * operation of `IO.attempt`.
+   */
+  final def absolve[E1, B](implicit ev1: IO[E, A] <:< IO[E1, Either[E1, B]]): IO[E1, B] =
+    IO.absolve[E1, B](self)
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
@@ -544,6 +556,18 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
     self.zipWith(that)((a, b) => (a, b))
 
   /**
+   * The moral equivalent of `if (p) exp`
+   */
+  final def when[E1 >: E](b: Boolean)(implicit ev1: IO[E, A] <:< IO[E1, Unit]): IO[E1, Unit] =
+    IO.when(b)(self)
+
+  /**
+   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   */
+  final def whenM[E1 >: E](b: IO[Nothing, Boolean])(implicit ev1: IO[E, A] <:< IO[E1, Unit]): IO[E1, Unit] =
+    IO.whenM(b)(self)
+
+  /**
    * Repeats this action forever (until the first error). For more sophisticated
    * schedules, see the `repeat` method.
    */
@@ -745,7 +769,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    *   IO.sync(5 / 0) *> IO.fail(DomainError())
    *
    * val caught: IO[Nothing, Unit] =
-   *   veryBadIO.sandboxed.catchAll {
+   *   veryBadIO.sandbox.catchAll {
    *     case Left((_: ArithmeticException) :: Nil) =>
    *       // Caught defect: divided by zero!
    *       IO.succeed(0)
@@ -761,7 +785,16 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def sandbox: IO[Cause[E], A] = redeem0(IO.fail, IO.succeed)
 
   /**
-   * Companion helper to `sandboxed`.
+   * The inverse operation to `sandbox`
+   *
+   * Terminates with exceptions on the `Left` side of the `Either` error, if it
+   * exists. Otherwise extracts the contained `IO[E, A]`
+   */
+  final def unsandbox[E1, A1 >: A](implicit ev1: IO[E, A] <:< IO[Cause[E1], A1]): IO[E1, A1] =
+    IO.unsandbox(self)
+
+  /**
+   * Companion helper to `sandbox`.
    *
    * Has a performance penalty due to forking a new fiber.
    *
@@ -782,7 +815,7 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * }}}
    *
    * Using `sandboxWith` with `catchSome` is better than using
-   * `io.sandboxed.catchAll` with a partial match, because in
+   * `io.sandbox.catchAll` with a partial match, because in
    * the latter, if the match fails, the original defects will
    * be lost and replaced by a `MatchError`
    */
