@@ -5,6 +5,7 @@ import scalaz.zio._
 import scalaz.zio.Exit.Cause
 import java.util.concurrent.atomic.AtomicLong
 
+crash compilation
 /**
  * An environment provides the capability to execute different types
  * of tasks.
