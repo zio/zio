@@ -33,7 +33,7 @@ jobs:
     - &lint
       stage: test
       name: "Lint"
-      script: sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck
+      script: sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck unusedCompileDependenciesTest
     - &test
       stage: test
       name: "Test for 2.12"

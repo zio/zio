@@ -28,7 +28,8 @@ lazy val root = project
   .in(file("."))
   .settings(
     skip in publish := true,
-    console := (console in Compile in coreJVM).value
+    console := (console in Compile in coreJVM).value,
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
     coreJVM,
@@ -217,6 +218,9 @@ lazy val benchmarks = project.module
         "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2"
       ),
+    unusedCompileDependenciesFilter -= libraryDependencies.value
+      .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
+      .reduce(_ | _),
     scalacOptions in Compile in console := Seq(
       "-Ypartial-unification",
       "-language:higherKinds",
@@ -236,8 +240,8 @@ lazy val microsite = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % "1.3.1",
-      "commons-io"      % "commons-io"    % "2.6"
+      "com.github.ghik" %% "silencer-lib" % "1.3.1" % Tut,
+      "commons-io"      % "commons-io"    % "2.6"   % Tut
     ),
     micrositeFooterText := Some(
       """
