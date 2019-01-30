@@ -197,12 +197,16 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "org.scala-lang"    % "scala-reflect"  % scalaVersion.value,
-        "org.scala-lang"    % "scala-compiler" % scalaVersion.value % Provided,
-        "io.monix"          %% "monix"         % "3.0.0-RC2",
-        "org.typelevel"     %% "cats-effect"   % "1.2.0",
-        "co.fs2"            %% "fs2-core"      % "1.0.3",
-        "com.typesafe.akka" %% "akka-stream"   % "2.5.20"
+        "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
+        "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
+        "io.monix"                 %% "monix"           % "3.0.0-RC2",
+        "org.typelevel"            %% "cats-effect"     % "1.2.0",
+        "co.fs2"                   %% "fs2-core"        % "1.0.3",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.20",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.6",
+        "com.twitter"              %% "util-collection" % "19.1.0",
+        "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
+        "com.google.code.findbugs" % "jsr305"           % "3.0.0"
       ),
     scalacOptions in Compile in console := Seq(
       "-Ypartial-unification",
