@@ -124,13 +124,32 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
 
+val CatsScalaCheckVersion = Def.setting{
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.13"
+    case _ =>
+      "1.14"
+  }
+}
+
+val CatsScalaCheckShapelessVersion = Def.setting{
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.1.8"
+    case _ =>
+      "1.2.0-1+7-a4ed6f38-SNAPSHOT" // TODO: Stable version
+  }
+}
+
 lazy val interopCatsJVM = interopCats.jvm
   .dependsOn(interopSharedJVM)
   .settings(
+    resolvers += Resolver.sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"          % "1.2.0" % Test,
       "org.typelevel"              %% "cats-testkit"              % "1.6.0" % Test,
-      "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8" % Test
+      "com.github.alexarchambault" %% s"scalacheck-shapeless_${CatsScalaCheckVersion.value}" % CatsScalaCheckShapelessVersion.value % Test
     )
   )
 
