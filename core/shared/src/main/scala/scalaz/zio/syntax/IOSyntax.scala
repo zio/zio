@@ -1,5 +1,4 @@
 package scalaz.zio.syntax
-import scalaz.zio.Exit.Cause
 import scalaz.zio.{ Fiber, IO }
 
 object IOSyntax {
@@ -17,33 +16,11 @@ object IOSyntax {
     def require[AA]: IO[A, Option[AA]] => IO[A, AA] = IO.require(a)
   }
 
-  final class IOFlattenSyntax[E, A](val io: IO[E, IO[E, A]]) extends AnyVal {
-    def flatten: IO[E, A] = IO.flatten(io)
-  }
-
-  final class IOAbsolveSyntax[E, A](val io: IO[E, Either[E, A]]) extends AnyVal {
-    def absolve: IO[E, A] = IO.absolve(io)
-  }
-
-  final class IOUnsandboxSyntax[E, A](val io: IO[Cause[E], A]) extends AnyVal {
-    def unsandbox: IO[E, A] = IO.unsandbox(io)
-  }
-
-  final class IOUnitSyntax[E](val io: IO[E, Unit]) extends AnyVal {
-    def when(pred: Boolean): IO[E, Unit]               = IO.when(pred)(io)
-    def whenM(pred: IO[Nothing, Boolean]): IO[E, Unit] = IO.whenM(pred)(io)
-  }
-
   final class IOIterableSyntax[E, A](val ios: Iterable[IO[E, A]]) extends AnyVal {
-    def mergeAll[B](zero: B, f: (B, A) => B): IO[E, B] = IO.mergeAll(ios)(zero, f)
+    def mergeAll[B](zero: B)(f: (B, A) => B): IO[E, B] = IO.mergeAll(ios)(zero)(f)
     def collectAllPar: IO[E, List[A]]                  = IO.collectAllPar(ios)
     def forkAll: IO[Nothing, Fiber[E, List[A]]]        = IO.forkAll(ios)
     def collectAll: IO[E, List[A]]                     = IO.collectAll(ios)
-  }
-
-  final class IOSyntax[E, A](val io: IO[E, A]) extends AnyVal {
-    def raceAll(ios: Iterable[IO[E, A]]): IO[E, A] = IO.raceAll(io, ios)
-    def supervise: IO[E, A]                        = IO.supervise(io)
   }
 
   final class IOTuple2[E, A, B](val ios2: (IO[E, A], IO[E, B])) extends AnyVal {

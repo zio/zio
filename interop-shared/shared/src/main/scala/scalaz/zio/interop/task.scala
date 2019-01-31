@@ -20,16 +20,19 @@ object Task {
   final def unit: Task[Unit]                      = IO.unit
   final def sleep(duration: Duration): Task[Unit] = IO.sleep(duration)
 
-  final def fromFuture[E, A](io: Task[Future[A]])(ec: ExecutionContext): Task[A] =
-    io.attempt.flatMap { f =>
-      IO.async { (cb: IO[Throwable, A] => Unit) =>
-        f.fold(
-          t => cb(IO.fail(t)),
-          _.onComplete {
-            case Success(a) => cb(IO.succeed(a))
-            case Failure(t) => cb(IO.fail(t))
-          }(ec)
-        )
-      }
+  final def fromFuture[E, A](ec: ExecutionContext)(io: Task[Future[A]]): Task[A] =
+    io.attempt.flatMap { tf =>
+      tf.fold(
+        t => IO.fail(t),
+        f =>
+          f.value.fold(
+            IO.async { (cb: IO[Throwable, A] => Unit) =>
+              f.onComplete {
+                case Success(a) => cb(IO.succeed(a))
+                case Failure(t) => cb(IO.fail(t))
+              }(ec)
+            }
+          )(IO.fromTry(_))
+      )
     }
 }
