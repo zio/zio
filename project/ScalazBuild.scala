@@ -4,6 +4,9 @@ import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport.CrossType
 
+import sbtbuildinfo._
+import BuildInfoKeys._
+
 object Scalaz {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
   val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.3.1"  % "provided")
@@ -24,6 +27,38 @@ object Scalaz {
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
     "-Xfatal-warnings"
+  )
+
+  val buildInfoSettings = Seq(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
+    buildInfoPackage := "scalaz.zio",
+    buildInfoObject := "BuildInfo"
+  )
+
+  val replSettings = Seq(
+    // In the repl most warnings are useless or worse.
+    // This is intentionally := as it's more direct to enumerate the few
+    // options we do want than to try to subtract off the ones we don't.
+    // One of -Ydelambdafy:inline or -Yrepl-class-based must be given to
+    // avoid deadlocking on parallel operations, see
+    //   https://issues.scala-lang.org/browse/SI-9076
+    scalacOptions in Compile in console := Seq(
+      "-Ypartial-unification",
+      "-language:higherKinds",
+      "-language:existentials",
+      "-Yno-adapted-args",
+      "-Xsource:2.13",
+      "-Yrepl-class-based"
+    ),
+    initialCommands in Compile in console := """
+                                               |import scalaz._
+                                               |import scalaz.zio._
+                                               |import scalaz.zio.console._
+                                               |import scalaz.zio.stream._
+                                               |object replRTS extends RTS {}
+                                               |import replRTS._
+                                               |implicit class RunSyntax[E, A](io: IO[E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+    """.stripMargin
   )
 
   def extraOptions(scalaVersion: String) =
