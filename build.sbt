@@ -40,8 +40,8 @@ lazy val root = project
     interopCatsJS,
     interopFutureJVM,
     interopFutureJS,
-    interopMonixJVM,
-    interopMonixJS,
+//    interopMonixJVM,
+//    interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
     interopJavaJVM,
@@ -124,7 +124,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
 
-val CatsScalaCheckVersion = Def.setting{
+val CatsScalaCheckVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
       "1.13"
@@ -133,7 +133,7 @@ val CatsScalaCheckVersion = Def.setting{
   }
 }
 
-val CatsScalaCheckShapelessVersion = Def.setting{
+val CatsScalaCheckShapelessVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
       "1.1.8"
@@ -145,10 +145,11 @@ val CatsScalaCheckShapelessVersion = Def.setting{
 lazy val interopCatsJVM = interopCats.jvm
   .dependsOn(interopSharedJVM)
   .settings(
-    resolvers += Resolver.sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
+    resolvers += Resolver
+      .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"          % "1.2.0" % Test,
-      "org.typelevel"              %% "cats-testkit"              % "1.6.0" % Test,
+      "org.typelevel"              %% "cats-effect-laws"                                     % "1.2.0"                              % Test,
+      "org.typelevel"              %% "cats-testkit"                                         % "1.6.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${CatsScalaCheckVersion.value}" % CatsScalaCheckShapelessVersion.value % Test
     )
   )
