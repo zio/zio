@@ -46,7 +46,7 @@ lazy val root = project
     interopJavaJVM,
     benchmarks,
     microsite,
-    scalazZioTestingJVM
+    testkitJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
