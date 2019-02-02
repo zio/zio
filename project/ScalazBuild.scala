@@ -2,6 +2,7 @@ import sbt._
 import Keys._
 
 import explicitdeps.ExplicitDepsPlugin.autoImport._
+import sbtcrossproject.CrossPlugin.autoImport.CrossType
 
 object Scalaz {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
@@ -44,13 +45,24 @@ object Scalaz {
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit"
         )
+      case Some((2, 11)) =>
+        Seq(
+          "-Ypartial-unification",
+          "-Yno-adapted-args",
+          "-Ywarn-inaccessible",
+          "-Ywarn-infer-any",
+          "-Ywarn-nullary-override",
+          "-Ywarn-nullary-unit",
+          "-Xexperimental",
+          "-Ywarn-unused-import"
+        )
       case _ => Seq.empty
     }
 
   def stdSettings(prjName: String) = Seq(
     name := s"scalaz-$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.8", "2.13.0-M5"),
+    crossScalaVersions := Seq("2.12.8", "2.11.12", "2.13.0-M5"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
@@ -60,7 +72,16 @@ object Scalaz {
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    Compile / unmanagedSourceDirectories ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 11 =>
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11"))
+        case Some((2, x)) if x >= 12 =>
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+        case _ => Nil
+      }
+    }
   )
 
   implicit class ModuleHelper(p: Project) {
