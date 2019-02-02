@@ -133,6 +133,17 @@ val CatsScalaCheckVersion = Def.setting {
   }
 }
 
+val ScalaCheckVersion = Def.setting {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.13.5"
+    case _ =>
+      "1.14.0"
+  }
+}
+
+def majorMinor(version: String) = version.split('.').take(2).mkString(".")
+
 val CatsScalaCheckShapelessVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
@@ -148,10 +159,11 @@ lazy val interopCatsJVM = interopCats.jvm
     resolvers += Resolver
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"                                     % "1.2.0"                              % Test,
-      "org.typelevel"              %% "cats-testkit"                                         % "1.6.0"                              % Test,
-      "com.github.alexarchambault" %% s"scalacheck-shapeless_${CatsScalaCheckVersion.value}" % CatsScalaCheckShapelessVersion.value % Test
-    )
+      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.2.0"                              % Test,
+      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
+      "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
+    ),
+    dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test
   )
 
 lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
