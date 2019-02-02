@@ -45,7 +45,7 @@ lazy val root = project
     interopScalaz7xJVM,
     interopScalaz7xJS,
     interopJavaJVM,
-    benchmarks,
+//    benchmarks,
     microsite,
     testkitJVM
   )
