@@ -43,7 +43,8 @@ lazy val root = project
     interopScalaz7xJS,
     interopJavaJVM,
     benchmarks,
-    microsite
+    microsite,
+    testkitJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -62,7 +63,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
     buildInfoPackage := "scalaz.zio",
-    buildInfoObject := "BuildInfo"
+    buildInfoObject := "BuildInfo",
+    coverageExcludedPackages := "<empty>;scalaz.zio.BuildInfo"
   )
 
 lazy val coreJVM = core.jvm
@@ -127,7 +129,7 @@ lazy val interopCatsJVM = interopCats.jvm
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"          % "1.2.0" % Test,
-      "org.typelevel"              %% "cats-testkit"              % "1.5.0" % Test,
+      "org.typelevel"              %% "cats-testkit"              % "1.6.0" % Test,
       "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8" % Test
     ),
     dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test
@@ -176,6 +178,17 @@ lazy val interopJava = crossProject(JVMPlatform)
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
+lazy val testkit = crossProject(JVMPlatform)
+  .in(file("testkit"))
+  .settings(stdSettings("testkit"))
+  .dependsOn(core % "test->test;compile->compile")
+  .settings(
+    scalacOptions in Test ++= Seq("-Yrangepos"),
+    publishArtifact in (Test, packageBin) := true
+  )
+
+lazy val testkitJVM = testkit.jvm
+
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
   .enablePlugins(JmhPlugin)
@@ -183,12 +196,16 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "org.scala-lang"    % "scala-reflect"  % scalaVersion.value,
-        "org.scala-lang"    % "scala-compiler" % scalaVersion.value % Provided,
-        "io.monix"          %% "monix"         % "3.0.0-RC2",
-        "org.typelevel"     %% "cats-effect"   % "1.2.0",
-        "co.fs2"            %% "fs2-core"      % "1.0.3",
-        "com.typesafe.akka" %% "akka-stream"   % "2.5.19"
+        "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
+        "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
+        "io.monix"                 %% "monix"           % "3.0.0-RC2",
+        "org.typelevel"            %% "cats-effect"     % "1.2.0",
+        "co.fs2"                   %% "fs2-core"        % "1.0.3",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.20",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.6",
+        "com.twitter"              %% "util-collection" % "19.1.0",
+        "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
+        "com.google.code.findbugs" % "jsr305"           % "3.0.2"
       ),
     scalacOptions in Compile in console := Seq(
       "-Ypartial-unification",
