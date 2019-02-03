@@ -2,10 +2,11 @@
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
-import org.openjdk.jmh.annotations._
-import scala.concurrent.Await
 
-import IOBenchmarks._
+import org.openjdk.jmh.annotations._
+import scalaz.zio.IOBenchmarks._
+
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -38,6 +39,66 @@ class IOLeftBindBenchmark {
       else Future(i)
 
     Await.result(Future(0).flatMap(loop), Inf)
+  }
+
+  @Benchmark
+  def completableFutureLeftBindBenchmark(): Int = {
+    import java.util.concurrent.CompletableFuture
+
+    def loop(i: Int): CompletableFuture[Int] =
+      if (i % depth == 0) CompletableFuture.completedFuture(i + 1).thenCompose(loop)
+      else if (i < size) loop(i + 1).thenCompose(i => CompletableFuture.completedFuture(i))
+      else CompletableFuture.completedFuture(i)
+
+    CompletableFuture
+      .completedFuture(0)
+      .thenCompose(loop)
+      .get()
+  }
+
+  @Benchmark
+  def monoLeftBindBenchmark(): Int = {
+    import reactor.core.publisher.Mono
+
+    def loop(i: Int): Mono[Int] =
+      if (i % depth == 0) Mono.fromSupplier(() => i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => Mono.fromSupplier(() => i))
+      else Mono.fromSupplier(() => i)
+
+    Mono
+      .fromSupplier(() => 0)
+      .flatMap(loop)
+      .block()
+  }
+
+  @Benchmark
+  def rxSingleLeftBindBenchmark(): Int = {
+    import io.reactivex.Single
+
+    def loop(i: Int): Single[Int] =
+      if (i % depth == 0) Single.fromCallable(() => i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => Single.fromCallable(() => i))
+      else Single.fromCallable(() => i)
+
+    Single
+      .fromCallable(() => 0)
+      .flatMap(loop)
+      .blockingGet()
+  }
+
+  @Benchmark
+  def twitterLeftBindBenchmark(): Int = {
+    import com.twitter.util.{ Await, Future }
+
+    def loop(i: Int): Future[Int] =
+      if (i % depth == 0) Future(i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => Future(i))
+      else Future(i)
+
+    Await.result(
+      Future(0)
+        .flatMap(loop)
+    )
   }
 
   @Benchmark

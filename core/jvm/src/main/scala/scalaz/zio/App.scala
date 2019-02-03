@@ -42,6 +42,7 @@ trait App extends RTS {
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
    */
+  // $COVERAGE-OFF$ Bootstrap to `Unit`
   final def main(args0: Array[String]): Unit =
     unsafeRun(
       for {
@@ -61,5 +62,5 @@ trait App extends RTS {
         sys.exit(code)
       case ExitStatus.DoNotExit =>
     }
-
+  // $COVERAGE-ON$
 }

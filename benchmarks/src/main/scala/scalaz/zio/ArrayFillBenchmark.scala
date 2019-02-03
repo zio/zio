@@ -36,6 +36,25 @@ class ArrayFillBenchmarks {
       } yield ()
     )
   }
+
+  @Benchmark
+  def monoArrayFill() = {
+    import reactor.core.publisher.Mono
+
+    def arrayFill(array: Array[Int])(i: Int): Mono[Unit] =
+      if (i >= array.length) Mono.fromSupplier(() => ())
+      else
+        Mono
+          .fromSupplier(() => array.update(i, i))
+          .flatMap(_ => arrayFill(array)(i + 1))
+
+    (for {
+      array <- Mono.fromSupplier(() => createTestArray)
+      _     <- arrayFill(array)(0)
+    } yield ())
+      .block()
+  }
+
   @Benchmark
   def catsArrayFill() = {
     import cats.effect.IO
@@ -49,10 +68,11 @@ class ArrayFillBenchmarks {
       _     <- arrayFill(array)(0)
     } yield ()).unsafeRunSync()
   }
+
   @Benchmark
   def monixArrayFill() = {
-    import monix.eval.Task
     import IOBenchmarks.monixScheduler
+    import monix.eval.Task
 
     def arrayFill(array: Array[Int])(i: Int): Task[Unit] =
       if (i >= array.length) Task.unit
