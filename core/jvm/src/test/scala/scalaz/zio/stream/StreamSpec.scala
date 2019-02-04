@@ -224,8 +224,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeEither(s2)
+    val list: List[Either[Int, Int]] = slurp(merge).toEither.fold(
+      _ => List.empty,
+      identity
+    )
 
-    slurp(merge).toEither.toOption.get must containTheSameElementsAs(List(Left(1), Left(2), Right(1), Right(2)))
+    list must containTheSameElementsAs(List(Left(1), Left(2), Right(1), Right(2)))
   }
 
   private def mergeWith = {
@@ -233,8 +237,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
+    val list: List[String] = slurp(merge).toEither.fold(
+      _ => List.empty,
+      identity
+    )
 
-    slurp(merge).toEither.toOption.get must containTheSameElementsAs(List("1", "2", "1", "2"))
+    list must containTheSameElementsAs(List("1", "2", "1", "2"))
   }
 
   private def mergeWithShortCircuit = {
@@ -242,8 +250,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
+    val list: List[String] = slurp0(merge)(_ => false).toEither.fold(
+      _ => List("9"),
+      identity
+    )
 
-    slurp0(merge)(_ => false).toEither.toOption.get must_=== List()
+    list must_=== List()
   }
 
   private def transduce = {
