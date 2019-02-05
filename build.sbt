@@ -28,7 +28,8 @@ lazy val root = project
   .in(file("."))
   .settings(
     skip in publish := true,
-    console := (console in Compile in coreJVM).value
+    console := (console in Compile in coreJVM).value,
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
   .aggregate(
     coreJVM,
@@ -39,12 +40,12 @@ lazy val root = project
     interopCatsJS,
     interopFutureJVM,
     interopFutureJS,
-    interopMonixJVM,
-    interopMonixJS,
+//    interopMonixJVM,
+//    interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
     interopJavaJVM,
-    benchmarks,
+//    benchmarks,
     microsite,
     testkitJVM
   )
@@ -123,18 +124,46 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
     scalacOptions in Test ++= Seq("-Yrangepos")
   )
 
+val CatsScalaCheckVersion = Def.setting {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.13"
+    case _ =>
+      "1.14"
+  }
+}
+
+val ScalaCheckVersion = Def.setting {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.13.5"
+    case _ =>
+      "1.14.0"
+  }
+}
+
+def majorMinor(version: String) = version.split('.').take(2).mkString(".")
+
+val CatsScalaCheckShapelessVersion = Def.setting {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.1.8"
+    case _ =>
+      "1.2.0-1+7-a4ed6f38-SNAPSHOT" // TODO: Stable version
+  }
+}
+
 lazy val interopCatsJVM = interopCats.jvm
   .dependsOn(interopSharedJVM)
-  // Below is for the cats law spec
-  // Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
-  // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
   .settings(
+    resolvers += Resolver
+      .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"          % "1.2.0" % Test,
-      "org.typelevel"              %% "cats-testkit"              % "1.6.0" % Test,
-      "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8" % Test
+      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.2.0"                              % Test,
+      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
+      "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
     ),
-    dependencyOverrides += "org.scalacheck" %% "scalacheck" % "1.13.5" % Test
+    dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test
   )
 
 lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
@@ -221,6 +250,9 @@ lazy val benchmarks = project.module
         "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2"
       ),
+    unusedCompileDependenciesFilter -= libraryDependencies.value
+      .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
+      .reduce(_ | _),
     scalacOptions in Compile in console := Seq(
       "-Ypartial-unification",
       "-language:higherKinds",
@@ -240,8 +272,8 @@ lazy val microsite = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % "1.3.1",
-      "commons-io"      % "commons-io"    % "2.6"
+      "com.github.ghik" %% "silencer-lib" % "1.3.1" % Tut,
+      "commons-io"      % "commons-io"    % "2.6"   % Tut
     ),
     micrositeFooterText := Some(
       """

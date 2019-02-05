@@ -2,7 +2,7 @@
 
 package scalaz
 
-package object zio {
+package object zio extends EitherCompat {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
   type Canceler = IO[Nothing, _]
