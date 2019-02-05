@@ -1108,14 +1108,14 @@ trait ZIOFunctions extends Serializable {
     async0((callback: ZIO[Any, E, A] => Unit) => {
       register(callback)
 
-      Async.later
+      None
     })
 
   /**
    * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
    * the value synchronously.
    */
-  final def async0[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Async[E, A]): ZIO[Any, E, A] =
+  final def async0[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Option[IO[E, A]]): ZIO[Any, E, A] =
     new ZIO.AsyncEffect(register)
 
   /**
@@ -1157,8 +1157,8 @@ trait ZIOFunctions extends Serializable {
             try register(io => k(ZIO.succeed(io))) match {
               case Left(canceler) =>
                 cancel.set(canceler)
-                Async.later
-              case Right(io) => Async.now(ZIO.succeed(io))
+                None
+              case Right(io) => Some(ZIO.succeed(io))
             } finally if (!cancel.isSet) cancel.set(ZIO.unit)
           })
         }.onInterrupt(flatten(sync(if (started.get) cancel.get() else ZIO.unit)))
@@ -1494,7 +1494,7 @@ object ZIO extends ZIO_E_Any {
     override def tag = Tags.SyncEffect
   }
 
-  final class AsyncEffect[E, A](val register: (ZIO[Any, E, A] => Unit) => Async[E, A]) extends IO[E, A] {
+  final class AsyncEffect[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
     override def tag = Tags.AsyncEffect
   }
 

@@ -3,6 +3,7 @@ package scalaz.zio
 
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration.Duration
+import scalaz.zio.random.{ nextDouble, Random }
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -285,7 +286,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the specified effectful modification
    * applied to each delay produced by this schedule.
    */
-  final def modifyDelay(f: (B, Duration) => UIO[Duration]): Schedule[R, A, B] =
+  final def modifyDelay[R1 <: R](f: (B, Duration) => ZIO[R1, Nothing, Duration]): Schedule[R1, A, B] =
     updated(
       update =>
         (a, s) =>
@@ -330,19 +331,13 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0.
    */
-  final def jittered: Schedule[R, A, B] = jittered(IO.sync(util.Random.nextDouble()))
-
-  /**
-   * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0, with a given random generator.
-   */
-  final def jittered(random: UIO[Double]): Schedule[R, A, B] =
-    jittered(0.0, 1.0, random)
+  final def jittered: Schedule[R with Random, A, B] = jittered(0.0, 1.0)
 
   /**
    * Applies random jitter to the schedule bounded by the specified factors, with a given random generator.
    */
-  final def jittered(min: Double, max: Double, random: UIO[Double]): Schedule[R, A, B] =
-    modifyDelay((_, d) => random.map(random => d * min * (1 - random) + d * max * random))
+  final def jittered(min: Double, max: Double): Schedule[R with Random, A, B] =
+    modifyDelay((_, d) => nextDouble.map(random => d * min * (1 - random) + d * max * random))
 
   /**
    * Sends every input value to the specified sink.
