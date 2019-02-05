@@ -50,6 +50,7 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
           It converts into the infinite s.c.d.Duration                         $inf10
           It converts into a Long.MaxValue second-long JDK Duration            $inf11
           Folding picks up the correct value                                   $inf12
+          Infinity * -10 = Zero                                                $inf13
 
         Make a Scala stdlib s.c.d.Duration and check that:
           A negative s.c.d.Duration converts to Zero                           $dur1
@@ -161,6 +162,9 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abst
 
   def inf12 =
     Duration.Infinity.fold("Infinity", _ => "Finite") must_=== "Infinity"
+
+  def inf13 =
+    Duration.Infinity * -10 must_=== Duration.Zero
 
   def dur1 =
     Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)) must_=== Duration.Zero
