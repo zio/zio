@@ -2,6 +2,7 @@ package scalaz.zio
 
 import org.specs2.ScalaCheck
 import scalaz.zio.duration._
+import scalaz.zio.random._
 
 class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "RetrySpec".title ^ s2"""
@@ -137,10 +138,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   }
 
   def retryNUnitIntervalJittered = {
-    val jitter: UIO[Double]               = IO.sync(0.5)
-    val schedule: Schedule[Any, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(jitter)
+    val schedule: Schedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
     val scheduled: List[(Duration, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5))
+      schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
 
     val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
@@ -148,10 +148,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   }
 
   def retryNCustomIntervalJittered = {
-    val jitter: UIO[Double]               = IO.sync(0.5)
-    val schedule: Schedule[Any, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4, jitter)
+    val schedule: Schedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
     val scheduled: List[(Duration, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5))
+      schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
 
     val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
@@ -178,5 +177,29 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     val result   = unsafeRun(io.retry(strategy))
     val expected = 5
     result must_=== expected
+  }
+
+  object TestRandom extends Random {
+    object random extends Random.Interface[Any] {
+      val nextBoolean: ZIO[Any, Nothing, Boolean] = UIO.succeed(false)
+      def nextBytes(length: Int): ZIO[Any, Nothing, Chunk[Byte]] =
+        UIO.succeed(Chunk.empty)
+      val nextDouble: ZIO[Any, Nothing, Double] =
+        UIO.succeed(0.5)
+      val nextFloat: ZIO[Any, Nothing, Float] =
+        UIO.succeed(0.5f)
+      val nextGaussian: ZIO[Any, Nothing, Double] =
+        UIO.succeed(0.5)
+      def nextInt(n: Int): ZIO[Any, Nothing, Int] =
+        UIO.succeed(n - 1)
+      val nextInt: ZIO[Any, Nothing, Int] =
+        UIO.succeed(0)
+      val nextLong: ZIO[Any, Nothing, Long] =
+        UIO.succeed(0L)
+      val nextPrintableChar: ZIO[Any, Nothing, Char] =
+        UIO.succeed('A')
+      def nextString(length: Int): ZIO[Any, Nothing, String] =
+        UIO.succeed("")
+    }
   }
 }

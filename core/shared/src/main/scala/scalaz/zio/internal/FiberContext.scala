@@ -184,8 +184,8 @@ private[zio] final class FiberContext[E, A](
                   // Enter suspended state:
                   curIo = if (enterAsync()) {
                     io.register(resumeAsync) match {
-                      case Async.Now(io) => if (exitAsync()) io else null
-                      case Async.Later   => null
+                      case Some(io) => if (exitAsync()) io else null
+                      case None     => null
                     }
                   } else IO.interrupt
 
@@ -483,7 +483,7 @@ private[zio] final class FiberContext[E, A](
   @tailrec
   private[this] final def kill0(
     k: Callback[Nothing, Exit[E, A]]
-  ): Async[Nothing, Exit[E, A]] = {
+  ): Option[IO[Nothing, Exit[E, A]]] = {
 
     val oldState = state.get
 
@@ -498,25 +498,25 @@ private[zio] final class FiberContext[E, A](
 
           evaluateLater(IO.interrupt)
 
-          Async.later
+          None
         }
 
       case Executing(_, _, status, observers0) =>
         val observers = k :: observers0
 
         if (!state.compareAndSet(oldState, Executing(true, true, status, observers))) kill0(k)
-        else Async.later
+        else None
 
-      case Done(e) => Async.now(IO.succeed(e))
+      case Done(e) => Some(IO.succeed(e))
     }
   }
 
   private[this] final def observe0(
     k: Callback[Nothing, Exit[E, A]]
-  ): Async[Nothing, Exit[E, A]] =
+  ): Option[IO[Nothing, Exit[E, A]]] =
     register0(k) match {
-      case null => Async.later
-      case x    => Async.now(IO.succeed(x))
+      case null => None
+      case x    => Some(IO.succeed(x))
     }
 
   @tailrec
