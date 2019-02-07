@@ -81,7 +81,7 @@ class catzSpec
       import scala.concurrent.duration._
 
       def eqv(x: cats.effect.IO[A], y: cats.effect.IO[A]): Boolean = {
-        val duration = 10.seconds
+        val duration = 20.seconds
         val leftM    = x.attempt.unsafeRunTimed(duration)
         val rightM   = y.attempt.unsafeRunTimed(duration)
 
@@ -93,7 +93,10 @@ class catzSpec
           }
         }
 
-        res.getOrElse(false)
+        res.getOrElse {
+          println(s"One of actions timed out, results are: leftM = $leftM, rightM = $rightM")
+          false
+        }
       }
     }
 
