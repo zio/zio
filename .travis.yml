@@ -25,9 +25,6 @@ stages:
 - name: microsite
 - name: release
   if: (branch = master AND type = push) OR (tag IS present)
-# Remove once there is a Monix release for 2.13
-- name: releaseMonix
-  if: (branch = master AND type = push) OR (tag IS present)
 - name: publishMicrosite
   if: tag IS present
 
@@ -55,10 +52,10 @@ jobs:
       before_script: export PGP_SECRET="$(<./project/zecret)"
       script: sbt ci-release || sbt sonatypeReleaseAll
     - &releaseMonix
-      stage: releaseMonix
+      stage: release
       name: "Release interop-monix"
       before_script: export PGP_SECRET="$(<./project/zecret)"
-      script: sbt publishSigned sonatypeRelease
+      script: sbt interopMonixJVM/publishSigned interopMonixJVM/sonatypeRelease interopMonixJS/publishSigned interopMonixJS/sonatypeRelease
     - &publishSite
       stage: publishMicrosite
       name: "Publish microsite"
