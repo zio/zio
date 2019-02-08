@@ -51,11 +51,11 @@ jobs:
       name: "Release artifacts"
       before_script: export PGP_SECRET="$(<./project/zecret)"
       script: sbt ci-release || sbt sonatypeReleaseAll
-    - &releaseMonix
-      stage: release
-      name: "Release interop-monix"
-      before_script: export PGP_SECRET="$(<./project/zecret)"
-      script: sbt interopMonixJVM/publishSigned interopMonixJVM/sonatypeRelease interopMonixJS/publishSigned interopMonixJS/sonatypeRelease
+#    - &releaseMonix
+#      stage: release
+#      name: "Release interop-monix"
+#      before_script: export PGP_SECRET="$(<./project/zecret)"
+#      script: sbt interopMonixJVM/publishSigned interopMonixJVM/sonatypeRelease interopMonixJS/publishSigned interopMonixJS/sonatypeRelease
     - &publishSite
       stage: publishMicrosite
       name: "Publish microsite"
