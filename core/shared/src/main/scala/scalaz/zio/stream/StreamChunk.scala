@@ -27,7 +27,7 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  final def run[E1 >: E, A0, A1 >: A, B](sink: Sink[E1, A0, Chunk[A1], B]): ZIO[R, E1, B] =
+  final def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: Sink[R1, E1, A0, Chunk[A1], B]): ZIO[R1, E1, B] =
     chunks.run(sink)
 
   /**

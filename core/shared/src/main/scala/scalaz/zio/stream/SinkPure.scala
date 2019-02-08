@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import scalaz.zio._
 
-trait SinkPure[+E, +A0, -A, +B] extends Sink[E, A0, A, B] { self =>
+trait SinkPure[+E, +A0, -A, +B] extends Sink[Any, E, A0, A, B] { self =>
   import Sink.Step
 
   override def initial              = IO.succeed(initialPure)

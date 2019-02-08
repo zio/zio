@@ -154,16 +154,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def jsonNumArrayParsingSinkWithCombinators = {
-    val comma = Sink.readWhile[Char](_ == ',')
-    val brace = Sink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
-    val number: Sink[String, Char, Char, Int] =
+    val comma: Sink[Any, Nothing, Char, Char, List[Char]] = Sink.readWhile[Char](_ == ',')
+    val brace: Sink[Any, String, Char, Char, Char] =
+      Sink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
+    val number: Sink[Any, String, Char, Char, Int] =
       Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt)
     val numbers = (number ~ (comma *> number).repeatWhile(_ != ']'))
       .map(tp => tp._1 :: tp._2)
 
     val elements = numbers <* brace
 
-    lazy val start: Sink[String, Char, Char, List[Int]] =
+    lazy val start: Sink[Any, String, Char, Char, List[Int]] =
       Sink.more(IO.fail("Input was empty")) {
         case a if a.isWhitespace => start
         case '['                 => elements

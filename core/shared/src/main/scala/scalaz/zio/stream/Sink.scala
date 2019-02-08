@@ -10,21 +10,21 @@ import scala.language.postfixOps
  *
  * Sinks form monads and combine in the usual ways.
  */
-trait Sink[+E, +A0, -A, +B] { self =>
+trait Sink[-R, +E, +A0, -A, +B] { self =>
   import Sink.Step
 
   type State
 
-  def initial: IO[E, Step[State, Nothing]]
+  def initial: ZIO[R, E, Step[State, Nothing]]
 
-  def step(state: State, a: A): IO[E, Step[State, A0]]
+  def step(state: State, a: A): ZIO[R, E, Step[State, A0]]
 
-  def extract(state: State): IO[E, B]
+  def extract(state: State): ZIO[R, E, B]
 
-  def stepChunk[A1 <: A](state: State, as: Chunk[A1]): IO[E, Step[State, A0]] = {
+  def stepChunk[A1 <: A](state: State, as: Chunk[A1]): ZIO[R, E, Step[State, A0]] = {
     val len = as.length
 
-    def loop(s: Step[State, A0], i: Int): IO[E, Step[State, A0]] =
+    def loop(s: Step[State, A0], i: Int): ZIO[R, E, Step[State, A0]] =
       if (i >= len) IO.succeed(s)
       else if (Step.cont(s)) self.step(Step.state(s), as(i)).flatMap(loop(_, i + 1))
       else IO.succeed(s)
@@ -32,12 +32,12 @@ trait Sink[+E, +A0, -A, +B] { self =>
     loop(Step.more(state), 0)
   }
 
-  final def update(state: Step[State, Nothing]): Sink[E, A0, A, B] =
-    new Sink[E, A0, A, B] {
+  final def update(state: Step[State, Nothing]): Sink[R, E, A0, A, B] =
+    new Sink[R, E, A0, A, B] {
       type State = self.State
-      val initial: IO[E, Step[State, Nothing]]             = IO.succeed(state)
-      def step(state: State, a: A): IO[E, Step[State, A0]] = self.step(state, a)
-      def extract(state: State): IO[E, B]                  = self.extract(state)
+      val initial: ZIO[R, E, Step[State, Nothing]]             = IO.succeed(state)
+      def step(state: State, a: A): ZIO[R, E, Step[State, A0]] = self.step(state, a)
+      def extract(state: State): ZIO[R, E, B]                  = self.extract(state)
     }
 
   /**
@@ -45,48 +45,48 @@ trait Sink[+E, +A0, -A, +B] { self =>
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
    */
-  final def chunked[A1 >: A0, A2 <: A]: Sink[E, A1, Chunk[A2], B] =
-    new Sink[E, A1, Chunk[A2], B] {
+  final def chunked[A1 >: A0, A2 <: A]: Sink[R, E, A1, Chunk[A2], B] =
+    new Sink[R, E, A1, Chunk[A2], B] {
       type State = self.State
       val initial = self.initial
-      def step(state: State, a: Chunk[A2]): IO[E, Step[State, A1]] =
+      def step(state: State, a: Chunk[A2]): ZIO[R, E, Step[State, A1]] =
         self.stepChunk(state, a)
-      def extract(state: State): IO[E, B] = self.extract(state)
+      def extract(state: State): ZIO[R, E, B] = self.extract(state)
     }
 
   /**
    * Effectfully maps the value produced by this sink.
    */
-  final def mapM[E1 >: E, C](f: B => IO[E1, C]): Sink[E1, A0, A, C] =
-    new Sink[E1, A0, A, C] {
+  final def mapM[R1 <: R, E1 >: E, C](f: B => ZIO[R1, E1, C]): Sink[R1, E1, A0, A, C] =
+    new Sink[R1, E1, A0, A, C] {
       type State = self.State
 
-      val initial: IO[E, Step[State, Nothing]] = self.initial
+      val initial: ZIO[R1, E, Step[State, Nothing]] = self.initial
 
-      def step(state: State, a: A): IO[E, Step[State, A0]] = self.step(state, a)
+      def step(state: State, a: A): ZIO[R1, E, Step[State, A0]] = self.step(state, a)
 
-      def extract(state: State): IO[E1, C] = self.extract(state).flatMap(f)
+      def extract(state: State): ZIO[R1, E1, C] = self.extract(state).flatMap(f)
     }
 
   /**
    * Maps the value produced by this sink.
    */
-  def map[C](f: B => C): Sink[E, A0, A, C] =
-    new Sink[E, A0, A, C] {
+  def map[C](f: B => C): Sink[R, E, A0, A, C] =
+    new Sink[R, E, A0, A, C] {
       type State = self.State
 
-      val initial: IO[E, Step[State, Nothing]] = self.initial
+      val initial: ZIO[R, E, Step[State, Nothing]] = self.initial
 
-      def step(state: State, a: A): IO[E, Step[State, A0]] = self.step(state, a)
+      def step(state: State, a: A): ZIO[R, E, Step[State, A0]] = self.step(state, a)
 
-      def extract(state: State): IO[E, C] = self.extract(state).map(f)
+      def extract(state: State): ZIO[R, E, C] = self.extract(state).map(f)
     }
 
   /**
    * Effectfully filters the inputs fed to this sink.
    */
-  final def filterM[E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): Sink[E1, A0, A1, B] =
-    new Sink[E1, A0, A1, B] {
+  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): Sink[R1, E1, A0, A1, B] =
+    new Sink[R1, E1, A0, A1, B] {
       type State = self.State
 
       val initial = self.initial
@@ -104,8 +104,8 @@ trait Sink[+E, +A0, -A, +B] { self =>
   /**
    * Filters the inputs fed to this sink.
    */
-  def filter[A1 <: A](f: A1 => Boolean): Sink[E, A0, A1, B] =
-    new Sink[E, A0, A1, B] {
+  def filter[A1 <: A](f: A1 => Boolean): Sink[R, E, A0, A1, B] =
+    new Sink[R, E, A0, A1, B] {
       type State = self.State
 
       val initial = self.initial
@@ -117,81 +117,81 @@ trait Sink[+E, +A0, -A, +B] { self =>
       def extract(state: State) = self.extract(state)
     }
 
-  final def filterNot[A1 <: A](f: A1 => Boolean): Sink[E, A0, A1, B] =
+  final def filterNot[A1 <: A](f: A1 => Boolean): Sink[R, E, A0, A1, B] =
     filter(a => !f(a))
 
-  final def filterNotM[E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): Sink[E1, A0, A1, B] =
+  final def filterNotM[E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): Sink[R, E1, A0, A1, B] =
     filterM(a => f(a).map(!_))
 
-  final def contramapM[E1 >: E, C](f: C => IO[E1, A]): Sink[E1, A0, C, B] =
-    new Sink[E1, A0, C, B] {
+  final def contramapM[E1 >: E, C](f: C => IO[E1, A]): Sink[R, E1, A0, C, B] =
+    new Sink[R, E1, A0, C, B] {
       type State = self.State
 
       val initial = self.initial
 
       def step(state: State, c: C) = f(c).flatMap(self.step(state, _))
 
-      def extract(state: State): IO[E1, B] = self.extract(state)
+      def extract(state: State): ZIO[R, E1, B] = self.extract(state)
     }
 
-  def contramap[C](f: C => A): Sink[E, A0, C, B] =
-    new Sink[E, A0, C, B] {
+  def contramap[C](f: C => A): Sink[R, E, A0, C, B] =
+    new Sink[R, E, A0, C, B] {
       type State = self.State
 
       val initial = self.initial
 
       def step(state: State, c: C) = self.step(state, f(c))
 
-      def extract(state: State): IO[E, B] = self.extract(state)
+      def extract(state: State): ZIO[R, E, B] = self.extract(state)
     }
 
-  def dimap[C, D](f: C => A)(g: B => D): Sink[E, A0, C, D] =
-    new Sink[E, A0, C, D] {
+  def dimap[C, D](f: C => A)(g: B => D): Sink[R, E, A0, C, D] =
+    new Sink[R, E, A0, C, D] {
       type State = self.State
 
       val initial = self.initial
 
-      def step(state: State, c: C): IO[E, Step[State, A0]] = self.step(state, f(c))
+      def step(state: State, c: C): ZIO[R, E, Step[State, A0]] = self.step(state, f(c))
 
-      def extract(state: State): IO[E, D] = self.extract(state).map(g)
+      def extract(state: State): ZIO[R, E, D] = self.extract(state).map(g)
     }
 
-  def mapError[E1](f: E => E1): Sink[E1, A0, A, B] =
-    new Sink[E1, A0, A, B] {
+  def mapError[E1](f: E => E1): Sink[R, E1, A0, A, B] =
+    new Sink[R, E1, A0, A, B] {
       type State = self.State
 
       val initial = self.initial.mapError(f)
 
-      def step(state: State, a: A): IO[E1, Step[State, A0]] =
+      def step(state: State, a: A): ZIO[R, E1, Step[State, A0]] =
         self.step(state, a).mapError(f)
 
-      def extract(state: State): IO[E1, B] =
+      def extract(state: State): ZIO[R, E1, B] =
         self.extract(state).mapError(f)
     }
 
-  def mapRemainder[A1](f: A0 => A1): Sink[E, A1, A, B] =
-    new Sink[E, A1, A, B] {
+  def mapRemainder[A1](f: A0 => A1): Sink[R, E, A1, A, B] =
+    new Sink[R, E, A1, A, B] {
       type State = self.State
 
       val initial = self.initial
 
-      def step(state: State, a: A): IO[E, Step[State, A1]] =
+      def step(state: State, a: A): ZIO[R, E, Step[State, A1]] =
         self.step(state, a).map(Step.map(_)(f))
 
-      def extract(state: State): IO[E, B] = self.extract(state)
+      def extract(state: State): ZIO[R, E, B] = self.extract(state)
     }
 
-  final def const[C](c: => C): Sink[E, A0, A, C] = self.map(_ => c)
+  final def const[C](c: => C): Sink[R, E, A0, A, C] = self.map(_ => c)
 
-  final def void: Sink[E, A0, A, Unit] = const(())
+  final def void: Sink[R, E, A0, A, Unit] = const(())
 
-  final def untilOutput(f: B => Boolean): Sink[E, A0, A, B] =
-    new Sink[E, A0, A, B] {
+  final def untilOutput(f: B => Boolean): Sink[R, E, A0, A, B] =
+    new Sink[R, E, A0, A, B] {
       type State = self.State
 
       val initial = self.initial
 
-      def step(state: State, a: A): IO[E, Step[State, A0]] =
+      def step(state: State, a: A): ZIO[R, E, Step[State, A0]] =
         self.step(state, a).flatMap { s =>
           if (Step.cont(s))
             extract(Step.state(s))
@@ -202,21 +202,21 @@ trait Sink[+E, +A0, -A, +B] { self =>
           else IO.succeed(s)
         }
 
-      def extract(state: State): IO[E, B] = self.extract(state)
+      def extract(state: State): ZIO[R, E, B] = self.extract(state)
     }
 
   /**
    * Returns a new sink that tries to produce the `B`, but if there is an
    * error in stepping or extraction, produces `None`.
    */
-  final def ? : Sink[Nothing, A0, A, Option[B]] =
-    new Sink[Nothing, A0, A, Option[B]] {
+  final def ? : Sink[R, Nothing, A0, A, Option[B]] =
+    new Sink[R, Nothing, A0, A, Option[B]] {
       type State = Option[self.State]
 
       val initial = self.initial.map(Step.leftMap(_)(Some(_))) orElse
         IO.succeed(Step.done(None, Chunk.empty))
 
-      def step(state: State, a: A): UIO[Step[State, A0]] =
+      def step(state: State, a: A): ZIO[R, Nothing, Step[State, A0]] =
         state match {
           case None => IO.succeed(Step.done(state, Chunk.empty))
           case Some(state) =>
@@ -228,7 +228,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
               )
         }
 
-      def extract(state: State): UIO[Option[B]] =
+      def extract(state: State): ZIO[R, Nothing, Option[B]] =
         state match {
           case None        => IO.succeed(None)
           case Some(state) => self.extract(state).map(Some(_)) orElse IO.succeed(None)
@@ -238,27 +238,31 @@ trait Sink[+E, +A0, -A, +B] { self =>
   /**
    * A named alias for `?`.
    */
-  final def optional: Sink[Nothing, A0, A, Option[B]] = self ?
+  final def optional: Sink[R, Nothing, A0, A, Option[B]] = self ?
 
   /**
    * Runs both sinks in parallel on the input, returning the result from the
    * one that finishes successfully first.
    */
-  final def race[E1 >: E, A2 >: A0, A1 <: A, B1 >: B](that: Sink[E1, A2, A1, B1]): Sink[E1, A2, A1, B1] =
+  final def race[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, B1 >: B](
+    that: Sink[R1, E1, A2, A1, B1]
+  ): Sink[R1, E1, A2, A1, B1] =
     self.raceBoth(that).map(_.merge)
 
   /**
    * A named alias for `race`.
    */
-  final def |[E1 >: E, A2 >: A0, A1 <: A, B1 >: B](that: Sink[E1, A2, A1, B1]): Sink[E1, A2, A1, B1] =
+  final def |[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, B1 >: B](that: Sink[R1, E1, A2, A1, B1]): Sink[R1, E1, A2, A1, B1] =
     self.race(that)
 
   /**
    * Runs both sinks in parallel on the input, returning the result from the
    * one that finishes successfully first.
    */
-  final def raceBoth[E1 >: E, A2 >: A0, A1 <: A, C](that: Sink[E1, A2, A1, C]): Sink[E1, A2, A1, Either[B, C]] =
-    new Sink[E1, A2, A1, Either[B, C]] {
+  final def raceBoth[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, C](
+    that: Sink[R1, E1, A2, A1, C]
+  ): Sink[R1, E1, A2, A1, Either[B, C]] =
+    new Sink[R1, E1, A2, A1, Either[B, C]] {
       type State = (Either[E1, self.State], Either[E1, that.State])
 
       def sequence[E, S, A0](e: Either[E, Step[S, A0]]): Step[Either[E, S], A0] =
@@ -270,7 +274,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
 
       val initial = self.initial.attempt.map(sequence).zipWithPar(that.initial.attempt.map(sequence))(Step.both)
 
-      def step(state: State, a: A1): IO[E1, Step[State, A2]] =
+      def step(state: State, a: A1): ZIO[R1, E1, Step[State, A2]] =
         state match {
           case (l, r) =>
             val lr = l.fold(e => IO.succeed(Left(e)), self.step(_, a).attempt)
@@ -283,7 +287,7 @@ trait Sink[+E, +A0, -A, +B] { self =>
             }
         }
 
-      def extract(state: State): IO[E1, Either[B, C]] =
+      def extract(state: State): ZIO[R1, E1, Either[B, C]] =
         state match {
           case (Right(s), _) => self.extract(s).map(Left(_))
           case (_, Right(s)) => that.extract(s).map(Right(_))
@@ -292,26 +296,26 @@ trait Sink[+E, +A0, -A, +B] { self =>
         }
     }
 
-  final def takeWhile[A1 <: A](pred: A1 => Boolean): Sink[E, A0, A1, B] =
-    new Sink[E, A0, A1, B] {
+  final def takeWhile[A1 <: A](pred: A1 => Boolean): Sink[R, E, A0, A1, B] =
+    new Sink[R, E, A0, A1, B] {
       type State = self.State
 
       val initial = self.initial
 
-      def step(state: State, a: A1): IO[E, Step[State, A0]] =
+      def step(state: State, a: A1): ZIO[R, E, Step[State, A0]] =
         if (pred(a)) self.step(state, a)
         else IO.succeed(Step.done(state, Chunk.empty))
 
       def extract(state: State) = self.extract(state)
     }
 
-  final def dropWhile[A1 <: A](pred: A1 => Boolean): Sink[E, A0, A1, B] =
-    new Sink[E, A0, A1, B] {
+  final def dropWhile[A1 <: A](pred: A1 => Boolean): Sink[R, E, A0, A1, B] =
+    new Sink[R, E, A0, A1, B] {
       type State = (self.State, Boolean)
 
       val initial = self.initial.map(step => Step.leftMap(step)((_, true)))
 
-      def step(state: State, a: A1): IO[E, Step[State, A0]] =
+      def step(state: State, a: A1): ZIO[R, E, Step[State, A0]] =
         if (!state._2) self.step(state._1, a).map(Step.leftMap(_)((_, false)))
         else {
           if (pred(a)) IO.succeed(Sink.Step.more((state)))
@@ -408,13 +412,13 @@ object Sink {
 
   type Step[+S, +A0] = Step.Step[S, A0]
 
-  final def more[E, A0, A, B](end: IO[E, B])(input: A => Sink[E, A0, A, B]): Sink[E, A0, A, B] =
-    new Sink[E, A0, A, B] {
-      type State = Option[(Sink[E, A0, A, B], Any)]
+  final def more[R, E, A0, A, B](end: IO[E, B])(input: A => Sink[R, E, A0, A, B]): Sink[R, E, A0, A, B] =
+    new Sink[R, E, A0, A, B] {
+      type State = Option[(Sink[R, E, A0, A, B], Any)]
 
       val initial = IO.succeed(Step.more(None))
 
-      def step(state: State, a: A): IO[E, Step[State, A0]] = state match {
+      def step(state: State, a: A): ZIO[R, E, Step[State, A0]] = state match {
         case None =>
           val sink = input(a)
 
@@ -424,13 +428,13 @@ object Sink {
           sink.step(state.asInstanceOf[sink.State], a).map(Step.leftMap(_)(state => Some(sink -> state)))
       }
 
-      def extract(state: State): IO[E, B] = state match {
+      def extract(state: State): ZIO[R, E, B] = state match {
         case None                => end
         case Some((sink, state)) => sink.extract(state.asInstanceOf[sink.State])
       }
     }
 
-  final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
+  final def succeedLazy[B](b: => B): Sink[Any, Nothing, Nothing, Any, B] =
     new SinkPure[Nothing, Nothing, Any, B] {
       type State = Unit
       val initialPure                                          = Step.done((), Chunk.empty)
@@ -438,21 +442,21 @@ object Sink {
       def extractPure(state: State): Either[Nothing, B]        = Right(b)
     }
 
-  final def drain: Sink[Nothing, Nothing, Any, Unit] =
+  final def drain: Sink[Any, Nothing, Nothing, Any, Unit] =
     fold(())((s, _) => Step.more(s))
 
-  final def collect[A]: Sink[Nothing, Nothing, A, List[A]] =
+  final def collect[A]: Sink[Any, Nothing, Nothing, A, List[A]] =
     fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
 
-  final def liftIO[E, B](b: => IO[E, B]): Sink[E, Nothing, Any, B] =
-    new Sink[E, Nothing, Any, B] {
+  final def liftIO[R, E, B](b: => ZIO[R, E, B]): Sink[R, E, Nothing, Any, B] =
+    new Sink[R, E, Nothing, Any, B] {
       type State = Unit
-      val initial                                                 = IO.succeed(Step.done((), Chunk.empty))
-      def step(state: State, a: Any): IO[E, Step[State, Nothing]] = IO.succeed(Step.done(state, Chunk.empty))
-      def extract(state: State): IO[E, B]                         = b
+      val initial                                                     = IO.succeed(Step.done((), Chunk.empty))
+      def step(state: State, a: Any): ZIO[R, E, Step[State, Nothing]] = IO.succeed(Step.done(state, Chunk.empty))
+      def extract(state: State): ZIO[R, E, B]                         = b
     }
 
-  final def lift[A, B](f: A => B): Sink[Unit, Nothing, A, B] =
+  final def lift[A, B](f: A => B): Sink[Any, Unit, Nothing, A, B] =
     new SinkPure[Unit, Nothing, A, B] {
       type State = Option[A]
       val initialPure                                        = Step.more(None)
@@ -460,7 +464,7 @@ object Sink {
       def extractPure(state: State): Either[Unit, B]         = state.fold[Either[Unit, B]](Left(()))(a => Right(f(a)))
     }
 
-  final def identity[A]: Sink[Unit, A, A, A] =
+  final def identity[A]: Sink[Any, Unit, A, A, A] =
     new SinkPure[Unit, A, A, A] {
       type State = Option[A]
       val initialPure                                  = Step.more(None)
@@ -468,7 +472,7 @@ object Sink {
       def extractPure(state: State): Either[Unit, A]   = state.fold[Either[Unit, A]](Left(()))(a => Right(a))
     }
 
-  final def fail[E](e: E): Sink[E, Nothing, Any, Nothing] =
+  final def fail[E](e: E): Sink[Any, E, Nothing, Any, Nothing] =
     new SinkPure[E, Nothing, Any, Nothing] {
       type State = Unit
       val initialPure                                          = Step.done((), Chunk.empty)
@@ -476,7 +480,7 @@ object Sink {
       def extractPure(state: State): Either[E, Nothing]        = Left(e)
     }
 
-  def fold[A0, A, S](z: S)(f: (S, A) => Step[S, A0]): Sink[Nothing, A0, A, S] =
+  def fold[A0, A, S](z: S)(f: (S, A) => Step[S, A0]): Sink[Any, Nothing, A0, A, S] =
     new SinkPure[Nothing, A0, A, S] {
       type State = S
       val initialPure                           = Step.more(z)
@@ -484,7 +488,7 @@ object Sink {
       def extractPure(s: S): Either[Nothing, S] = Right(s)
     }
 
-  def foldLeft[A0, A, S](z: S)(f: (S, A) => S): Sink[Nothing, A0, A, S] =
+  def foldLeft[A0, A, S](z: S)(f: (S, A) => S): Sink[Any, Nothing, A0, A, S] =
     new SinkPure[Nothing, A0, A, S] {
       type State = S
       val initialPure                           = Step.more(z)
@@ -492,40 +496,40 @@ object Sink {
       def extractPure(s: S): Either[Nothing, S] = Right(s)
     }
 
-  def foldM[E, A0, A, S](z: IO[E, S])(f: (S, A) => IO[E, Step[S, A0]]): Sink[E, A0, A, S] =
-    new Sink[E, A0, A, S] {
+  def foldM[R, E, A0, A, S](z: ZIO[R, E, S])(f: (S, A) => ZIO[R, E, Step[S, A0]]): Sink[R, E, A0, A, S] =
+    new Sink[R, E, A0, A, S] {
       type State = S
-      val initial                              = z.map(Step.more)
-      def step(s: S, a: A): IO[E, Step[S, A0]] = f(s, a)
-      def extract(s: S): IO[E, S]              = IO.succeed(s)
+      val initial                                  = z.map(Step.more)
+      def step(s: S, a: A): ZIO[R, E, Step[S, A0]] = f(s, a)
+      def extract(s: S): ZIO[R, E, S]              = ZIO.succeed(s)
     }
 
-  def readWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, List[A]] =
+  def readWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): Sink[R, E, A, A, List[A]] =
     Sink
-      .foldM(IO.succeed(List.empty[A])) { (s, a: A) =>
+      .foldM[R, E, A, A, List[A]](ZIO.succeed(List.empty[A])) { (s, a: A) =>
         p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
       }
       .map(_.reverse)
 
-  def readWhile[A](p: A => Boolean): Sink[Nothing, A, A, List[A]] =
+  def readWhile[A](p: A => Boolean): Sink[Any, Nothing, A, A, List[A]] =
     readWhileM(a => IO.succeed(p(a)))
 
-  def ignoreWhileM[E, A](p: A => IO[E, Boolean]): Sink[E, A, A, Unit] =
-    new Sink[E, A, A, Unit] {
+  def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): Sink[R, E, A, A, Unit] =
+    new Sink[R, E, A, A, Unit] {
       type State = Unit
 
       val initial = IO.succeed(Step.more(()))
 
-      def step(state: State, a: A): IO[E, Step[State, A]] =
+      def step(state: State, a: A): ZIO[R, E, Step[State, A]] =
         p(a).map(if (_) Step.more(()) else Step.done((), Chunk(a)))
 
       def extract(state: State) = IO.succeed(())
     }
 
-  def ignoreWhile[A](p: A => Boolean): Sink[Nothing, A, A, Unit] =
+  def ignoreWhile[A](p: A => Boolean): Sink[Any, Nothing, A, A, Unit] =
     ignoreWhileM(a => IO.succeed(p(a)))
 
-  def await[A]: Sink[Unit, Nothing, A, A] =
+  def await[A]: Sink[Any, Unit, Nothing, A, A] =
     new SinkPure[Unit, Nothing, A, A] {
       type State = Either[Unit, A]
 
@@ -538,7 +542,7 @@ object Sink {
         state
     }
 
-  def read1[E, A](e: Option[A] => E)(p: A => Boolean): Sink[E, A, A, A] =
+  def read1[E, A](e: Option[A] => E)(p: A => Boolean): Sink[Any, E, A, A, A] =
     new SinkPure[E, A, A, A] {
       type State = Either[E, Option[A]]
 
@@ -561,10 +565,10 @@ object Sink {
         }
     }
 
-  implicit class InvariantOps[E, A0, A, B](self: Sink[E, A, A, B]) {
+  implicit class InvariantOps[R, E, A0, A, B](self: Sink[R, E, A, A, B]) {
     final def <|[E1, B1 >: B](
-      that: Sink[E1, A, A, B1]
-    ): Sink[E1, A, A, B1] =
+      that: Sink[R, E1, A, A, B1]
+    ): Sink[R, E1, A, A, B1] =
       (self orElse that).map(_.merge)
 
     /**
@@ -580,9 +584,9 @@ object Sink {
      *             xxxxxxxxx <- Should NOT be consumed
      */
     final def orElse[E1, C](
-      that: Sink[E1, A, A, C]
-    ): Sink[E1, A, A, Either[B, C]] =
-      new Sink[E1, A, A, Either[B, C]] {
+      that: Sink[R, E1, A, A, C]
+    ): Sink[R, E1, A, A, Either[B, C]] =
+      new Sink[R, E1, A, A, Either[B, C]] {
         import Sink.internal._
 
         def sequence[E, S, A0](e: Either[E, Step[S, A0]]): Step[Either[E, S], A0] =
@@ -600,16 +604,16 @@ object Sink {
 
         type State = (Side[E, self.State, B], Side[E1, that.State, (Chunk[A], C)])
 
-        val l: UIO[Step[Either[E, self.State], Nothing]]  = self.initial.attempt.map(sequence)
-        val r: UIO[Step[Either[E1, that.State], Nothing]] = that.initial.attempt.map(sequence)
+        val l: ZIO[R, Nothing, Step[Either[E, self.State], Nothing]]  = self.initial.attempt.map(sequence)
+        val r: ZIO[R, Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.attempt.map(sequence)
 
-        val initial: IO[E1, Step[State, Nothing]] =
+        val initial: ZIO[R, E1, Step[State, Nothing]] =
           l.zipWithPar(r) { (l, r) =>
             Step.both(Step.leftMap(l)(eitherToSide), Step.leftMap(r)(eitherToSide))
           }
 
-        def step(state: State, a: A): IO[E1, Step[State, A]] = {
-          val leftStep: UIO[Step[Side[E, self.State, B], A]] =
+        def step(state: State, a: A): ZIO[R, E1, Step[State, A]] = {
+          val leftStep: ZIO[R, Nothing, Step[Side[E, self.State, B], A]] =
             state._1 match {
               case Side.State(s) =>
                 self
@@ -628,7 +632,7 @@ object Sink {
                   )
               case s => IO.succeed(Step.done(s, Chunk.empty))
             }
-          val rightStep: UIO[Step[Side[E1, that.State, (Chunk[A], C)], A]] =
+          val rightStep: ZIO[R, Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]] =
             state._2 match {
               case Side.State(s) =>
                 that
@@ -685,8 +689,8 @@ object Sink {
           }
         }
 
-        def extract(state: State): IO[E1, Either[B, C]] = {
-          def fromRight: IO[E1, Either[B, C]] = state._2 match {
+        def extract(state: State): ZIO[R, E1, Either[B, C]] = {
+          def fromRight: ZIO[R, E1, Either[B, C]] = state._2 match {
             case Side.Value((_, c)) => IO.succeed(Right(c))
             case Side.State(s)      => that.extract(s).map(Right(_))
             case Side.Error(e)      => IO.fail(e)
@@ -701,14 +705,14 @@ object Sink {
       }
 
     final def flatMap[E1 >: E, C](
-      f: B => Sink[E1, A, A, C]
-    ): Sink[E1, A, A, C] =
-      new Sink[E1, A, A, C] {
-        type State = Either[self.State, (Sink[E1, A, A, C], Any)]
+      f: B => Sink[R, E1, A, A, C]
+    ): Sink[R, E1, A, A, C] =
+      new Sink[R, E1, A, A, C] {
+        type State = Either[self.State, (Sink[R, E1, A, A, C], Any)]
 
-        val initial: IO[E1, Step[State, Nothing]] = self.initial.map(Step.leftMap(_)(Left(_)))
+        val initial: ZIO[R, E1, Step[State, Nothing]] = self.initial.map(Step.leftMap(_)(Left(_)))
 
-        def step(state: State, a: A): IO[E1, Step[State, A]] = state match {
+        def step(state: State, a: A): ZIO[R, E1, Step[State, A]] = state match {
           case Left(s1) =>
             self.step(s1, a) flatMap { s1 =>
               if (Step.cont(s1)) IO.succeed(Step.more(Left(Step.state(s1))))
@@ -721,7 +725,7 @@ object Sink {
                   that.initial.flatMap(
                     s2 =>
                       that
-                        .stepChunk(Step.state(s2).asInstanceOf[that.State], as)
+                        .stepChunk(Step.state(s2), as)
                         .map(Step.leftMap(_)(s2 => Right((that, s2))))
                   )
                 }
@@ -732,7 +736,7 @@ object Sink {
             that.step(s2.asInstanceOf[that.State], a).map(Step.leftMap(_)(s2 => Right((that, s2))))
         }
 
-        def extract(state: State): IO[E1, C] =
+        def extract(state: State): ZIO[R, E1, C] =
           state match {
             case Left(s1) =>
               self.extract(s1).flatMap { b =>
@@ -745,28 +749,28 @@ object Sink {
           }
       }
 
-    final def seq[E1 >: E, C](that: Sink[E1, A, A, C]): Sink[E1, A, A, (B, C)] =
+    final def seq[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, (B, C)] =
       flatMap(b => that.map(c => (b, c)))
 
-    final def seqWith[E1 >: E, C, D](that: Sink[E1, A, A, C])(f: (B, C) => D): Sink[E1, A, A, D] =
+    final def seqWith[E1 >: E, C, D](that: Sink[R, E1, A, A, C])(f: (B, C) => D): Sink[R, E1, A, A, D] =
       seq(that).map(f.tupled)
 
-    final def ~[E1 >: E, C](that: Sink[E1, A, A, C]): Sink[E1, A, A, (B, C)] =
+    final def ~[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, (B, C)] =
       seq(that)
 
-    final def *>[E1 >: E, C](that: Sink[E1, A, A, C]): Sink[E1, A, A, C] =
+    final def *>[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, C] =
       seq(that).map(_._2)
 
-    final def <*[E1 >: E, C](that: Sink[E1, A, A, C]): Sink[E1, A, A, B] =
+    final def <*[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, B] =
       seq(that).map(_._1)
 
-    final def repeat0[S](z: S)(f: (S, B) => S): Sink[E, A, A, S] =
-      new Sink[E, A, A, S] {
+    final def repeat0[S](z: S)(f: (S, B) => S): Sink[R, E, A, A, S] =
+      new Sink[R, E, A, A, S] {
         type State = (Option[E], S, self.State)
 
         val initial = self.initial.map(step => Step.leftMap(step)((None, z, _)))
 
-        def step(state: State, a: A): IO[E, Step[State, A]] =
+        def step(state: State, a: A): ZIO[R, E, Step[State, A]] =
           self
             .step(state._3, a)
             .redeem(
@@ -794,19 +798,19 @@ object Sink {
           IO.succeed(state._2)
       }
 
-    final def repeat: Sink[E, A, A, List[B]] =
+    final def repeat: Sink[R, E, A, A, List[B]] =
       repeat0(List.empty[B])((bs, b) => b :: bs).map(_.reverse)
 
-    final def repeatN(i: Int): Sink[E, A, A, List[B]] =
+    final def repeatN(i: Int): Sink[R, E, A, A, List[B]] =
       repeat0[(Int, List[B])]((0, Nil))((s, b) => (s._1 + 1, b :: s._2)).untilOutput(_._1 >= i).map(_._2.reverse)
 
-    final def repeatWhile0[S](p: A => Boolean)(z: S)(f: (S, B) => S): Sink[E, A, A, S] =
-      new Sink[E, A, A, S] {
+    final def repeatWhile0[S](p: A => Boolean)(z: S)(f: (S, B) => S): Sink[R, E, A, A, S] =
+      new Sink[R, E, A, A, S] {
         type State = (S, self.State)
 
         val initial = self.initial.map(Step.leftMap(_)((z, _)))
 
-        def step(state: State, a: A): IO[E, Step[State, A]] =
+        def step(state: State, a: A): ZIO[R, E, Step[State, A]] =
           if (!p(a)) self.extract(state._2).map(b => Step.done((f(state._1, b), state._2), Chunk(a)))
           else
             self.step(state._2, a).flatMap { step =>
@@ -827,7 +831,7 @@ object Sink {
           IO.succeed(state._1)
       }
 
-    final def repeatWhile(p: A => Boolean): Sink[E, A, A, List[B]] =
+    final def repeatWhile(p: A => Boolean): Sink[R, E, A, A, List[B]] =
       repeatWhile0(p)(List.empty[B])((bs, b) => b :: bs)
         .map(_.reverse)
   }
