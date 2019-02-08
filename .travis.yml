@@ -57,6 +57,7 @@ jobs:
     - &releaseMonix
       stage: releaseMonix
       name: "Release interop-monix"
+      before_script: export PGP_SECRET="$(<./project/zecret)"
       script: sbt publishSigned sonatypeRelease
     - &publishSite
       stage: publishMicrosite
