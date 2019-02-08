@@ -5,7 +5,7 @@ import org.specs2.Specification
 import org.specs2.specification.{ AroundEach, AroundTimeout }
 import org.specs2.execute.{ AsResult, Failure, Result, Skipped }
 
-import scalaz.zio.internal.Env
+import scalaz.zio.internal.impls.Env
 
 abstract class AbstractRTSSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends Specification

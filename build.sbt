@@ -62,6 +62,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.specs2" %%% "specs2-matcher-extra" % "4.4.0" % Test
     )
   )
+  .jsSettings(
+    libraryDependencies += "org.scala-js" %%% "scalajs-java-time" % "0.2.5"
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
