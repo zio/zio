@@ -134,6 +134,8 @@ object Fiber {
       def interrupt: IO[Nothing, Exit[E, A]]    = IO.succeedLazy(exit)
     }
 
+  final def fail[E](e: E): Fiber[E, Nothing] = done(Exit.checked(e))
+
   final def succeedLazy[E, A](a: => A): Fiber[E, A] =
     done(Exit.succeed(a))
 
