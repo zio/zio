@@ -5,7 +5,7 @@
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio._</span>
 
 <span class="k">for</span> <span class="o">{</span>
-  <span class="n">ref</span> <span class="k">&lt;-</span> <span class="nc">Ref</span><span class="o">(</span><span class="mi">100</span><span class="o">)</span>
+  <span class="n">ref</span> <span class="k">&lt;-</span> <span class="nc">Ref</span><span class="o">.</span><span class="n">make</span><span class="o">(</span><span class="mi">100</span><span class="o">)</span>
   <span class="n">v1</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">get</span>
   <span class="n">v2</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">set</span><span class="o">(</span><span class="n">v1</span> <span class="o">-</span> <span class="mi">50</span><span class="o">)</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="n">v2</span>
@@ -16,7 +16,7 @@
 <p>The simplest way to use a <code class="highlighter-rouge">Ref</code> is by means of <code class="highlighter-rouge">update</code> or its more powerful sibling <code class="highlighter-rouge">modify</code>. Let’s write a combinator <code class="highlighter-rouge">repeat</code> just because we can:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">repeat</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">A</span><span class="o">](</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">io</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
-  <span class="nc">Ref</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">iRef</span> <span class="k">=&gt;</span>
+  <span class="nc">Ref</span><span class="o">.</span><span class="n">make</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">iRef</span> <span class="k">=&gt;</span>
     <span class="k">def</span> <span class="n">loop</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">iRef</span><span class="o">.</span><span class="n">get</span><span class="o">.</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">i</span> <span class="k">=&gt;</span>
       <span class="k">if</span> <span class="o">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="o">)</span>
         <span class="n">io</span> <span class="o">*&gt;</span> <span class="n">iRef</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="n">loop</span>
@@ -43,7 +43,7 @@
 
 <p>As functional programmers, we know better and have captured state mutation in the form of functions of type <code class="highlighter-rouge">S =&gt; (A, S)</code>. <code class="highlighter-rouge">Ref</code> provides such an encoding, with <code class="highlighter-rouge">S</code> being the type of the value, and <code class="highlighter-rouge">modify</code> embodying the state mutation function.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Ref</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">idCounter</span> <span class="k">=&gt;</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Ref</span><span class="o">.</span><span class="n">make</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">idCounter</span> <span class="k">=&gt;</span>
   <span class="k">def</span> <span class="n">freshVar</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
     <span class="n">idCounter</span><span class="o">.</span><span class="n">modify</span><span class="o">(</span><span class="n">cpt</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">s</span><span class="s">"var${cpt + 1}"</span><span class="o">,</span> <span class="n">cpt</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
 
@@ -70,7 +70,7 @@
 
 <span class="k">object</span> <span class="nc">S</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">v</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">S</span><span class="o">]</span> <span class="k">=</span>
-    <span class="nc">Ref</span><span class="o">(</span><span class="n">v</span><span class="o">).</span><span class="n">map</span> <span class="o">{</span> <span class="n">vref</span> <span class="k">=&gt;</span>
+    <span class="nc">Ref</span><span class="o">.</span><span class="n">make</span><span class="o">(</span><span class="n">v</span><span class="o">).</span><span class="n">map</span> <span class="o">{</span> <span class="n">vref</span> <span class="k">=&gt;</span>
       <span class="k">new</span> <span class="n">S</span> <span class="o">{</span>
         <span class="k">def</span> <span class="n">V</span> <span class="k">=</span> <span class="n">vref</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">).</span><span class="n">void</span>
 
