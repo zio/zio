@@ -6,6 +6,10 @@ import scala.util.{ Try, Success, Failure }
 import scala.reflect.ClassTag
 
 package object future {
+  /**
+   * A [[scala.concurrent.Future]] is a running computation, and corresponds 
+   * most closely to ZIO `Fiber`.
+   */
   type Future[+A] = Fiber[Throwable, A]
 
   private val Global = ExecutionContext.Implicits.global
@@ -13,6 +17,12 @@ package object future {
   private final def unsafeRun[E, A](ec: ExecutionContext, io: IO[E, A]): A = 
       Env.fromExecutionContext(ec).unsafeRun(io)
 
+  /**
+   * An API-compatible implementation of [[scala.concurrent.Future]], which 
+   * is backed by ZIO. While this structure is not performant, due to emulation
+   * of the `Future` API, it can be useful to help migrate legacy code away 
+   * from `Future` and to ZIO.
+   * */
   object Future {
     final val never: Future[Nothing] = Fiber.never
 
