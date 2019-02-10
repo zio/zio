@@ -1,6 +1,4 @@
-package scalaz.zio.stream
-
-import scalaz.zio._
+package scalaz.zio
 
 import scala.reflect._
 
@@ -829,8 +827,7 @@ object Chunk {
 
     override def foreach(f: A => Unit): Unit = vector.foreach(f)
 
-    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
-      vector.copyToArray(dest, n, length)
+    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
   }
 
   private object Tags {

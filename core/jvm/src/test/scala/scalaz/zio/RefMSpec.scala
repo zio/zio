@@ -24,7 +24,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
   def e1 =
     unsafeRun(
       for {
-        refM  <- RefM(current)
+        refM  <- RefM.make(current)
         value <- refM.get
       } yield value must beTheSameAs(current)
     )
@@ -32,7 +32,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
   def e2 =
     unsafeRun(
       for {
-        refM  <- RefM(current)
+        refM  <- RefM.make(current)
         _     <- refM.set(update)
         value <- refM.get
       } yield value must beTheSameAs(update)
@@ -41,7 +41,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
   def e3 =
     unsafeRun(
       for {
-        refM  <- RefM(current)
+        refM  <- RefM.make(current)
         value <- refM.update(_ => IO.sync(update))
       } yield value must beTheSameAs(update)
     )
@@ -49,7 +49,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
   def e4 =
     unsafeRun(
       for {
-        refM   <- RefM[State](Active)
+        refM   <- RefM.make[State](Active)
         value1 <- refM.updateSome { case Active => IO.succeed(Changed) }
         value2 <- refM.updateSome {
                    case Active  => IO.succeed(Changed)
@@ -61,7 +61,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
   def e5 =
     unsafeRun(
       for {
-        refM  <- RefM[State](Active)
+        refM  <- RefM.make[State](Active)
         value <- refM.updateSome { case Closed => IO.succeed(Active) }
       } yield value must beTheSameAs(Active)
     )
@@ -69,7 +69,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
   def e6 =
     unsafeRun(
       for {
-        refM  <- RefM(current)
+        refM  <- RefM.make(current)
         r     <- refM.modify[String](_ => IO.sync(("hello", update)))
         value <- refM.get
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
@@ -78,7 +78,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
   def e7 =
     unsafeRun(
       for {
-        refM   <- RefM[State](Active)
+        refM   <- RefM.make[State](Active)
         r1     <- refM.modifySome[String]("doesn't change the state") { case Active => IO.succeed("changed" -> Changed) }
         value1 <- refM.get
         r2 <- refM.modifySome[String]("doesn't change the state") {
@@ -95,7 +95,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
   def e8 =
     unsafeRun(
       for {
-        refM  <- RefM[State](Active)
+        refM  <- RefM.make[State](Active)
         r     <- refM.modifySome[String]("State doesn't change") { case Closed => IO.succeed("active" -> Active) }
         value <- refM.get
       } yield (r must beTheSameAs("State doesn't change")) and (value must beTheSameAs(Active))

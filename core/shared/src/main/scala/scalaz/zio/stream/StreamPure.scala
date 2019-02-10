@@ -172,7 +172,22 @@ private[stream] object StreamPure {
   }
 
   /**
-   * Constructs a singleton stream.
+   * Constructs a singleton stream from a strict value.
+   */
+  final def succeed[A](a: A): StreamPure[A] = new StreamPure[A] {
+    override def fold[E >: Nothing, A1 >: A, S]: Stream.Fold[E, A1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        if (cont(s)) f(s, a)
+        else IO.succeed(s)
+      }
+
+    override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
+      if (cont(s)) f(s, a)
+      else s
+  }
+
+  /**
+   * Constructs a singleton stream from a lazy value.
    */
   final def succeedLazy[A](a: => A): StreamPure[A] = new StreamPure[A] {
     override def fold[E >: Nothing, A1 >: A, S]: Stream.Fold[E, A1, S] =

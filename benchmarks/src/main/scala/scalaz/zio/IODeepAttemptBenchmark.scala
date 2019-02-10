@@ -2,6 +2,7 @@
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
+
 import org.openjdk.jmh.annotations._
 import scala.concurrent.Await
 
@@ -41,6 +42,68 @@ class IODeepAttemptBenchmark {
   }
 
   @Benchmark
+  def completableFutureDeepAttempt(): BigInt = {
+    import java.util.concurrent.CompletableFuture
+
+    def descent(n: Int): CompletableFuture[BigInt] =
+      if (n == depth) {
+        val f = new CompletableFuture[BigInt]()
+        f.completeExceptionally(new Exception("Oh noes!"))
+        f
+      } else if (n == halfway) {
+        descent(n + 1).exceptionally(_ => 50)
+      } else {
+        descent(n + 1).thenApply(_ + n)
+      }
+
+    descent(0).get()
+  }
+
+  @Benchmark
+  def monoDeepAttempt(): BigInt = {
+    import reactor.core.publisher.Mono
+
+    def descent(n: Int): Mono[BigInt] =
+      if (n == depth)
+        Mono.error(new Exception("Oh noes!"))
+      else if (n == halfway)
+        descent(n + 1).onErrorReturn(BigInt.apply(50))
+      else
+        descent(n + 1).map(_ + n)
+
+    descent(0).block()
+  }
+
+  @Benchmark
+  def rxSingleDeepAttempt(): BigInt = {
+    import io.reactivex.Single
+
+    def descent(n: Int): Single[BigInt] =
+      if (n == depth)
+        Single.error(new Exception("Oh noes!"))
+      else if (n == halfway)
+        descent(n + 1)
+          .onErrorReturn(_ => 50)
+      else
+        descent(n + 1).map(_ + n)
+
+    descent(0).blockingGet()
+  }
+
+  @Benchmark
+  def twitterDeepAttempt(): BigInt = {
+    import com.twitter.util.{ Await, Future }
+
+    def descent(n: Int): Future[BigInt] =
+      if (n == depth)
+        Future.exception(new Error("Oh noes!"))
+      else if (n == halfway)
+        descent(n + 1).handle { case _ => 50 } else descent(n + 1).map(_ + n)
+
+    Await.result(descent(0))
+  }
+
+  @Benchmark
   def monixDeepAttempt(): BigInt = {
     import monix.eval.Task
 
@@ -56,7 +119,7 @@ class IODeepAttemptBenchmark {
   def scalazDeepAttempt(): BigInt = {
     def descend(n: Int): IO[ScalazError, BigInt] =
       if (n == depth) IO.fail(ScalazError("Oh noes!"))
-      else if (n == halfway) descend(n + 1).redeemPure[BigInt](_ => 50, identity)
+      else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 
     unsafeRun(descend(0))
@@ -66,7 +129,7 @@ class IODeepAttemptBenchmark {
   def scalazDeepAttemptBaseline(): BigInt = {
     def descend(n: Int): IO[Error, BigInt] =
       if (n == depth) IO.fail(new Error("Oh noes!"))
-      else if (n == halfway) descend(n + 1).redeemPure[BigInt](_ => 50, identity)
+      else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 
     unsafeRun(descend(0))

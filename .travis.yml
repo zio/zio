@@ -33,12 +33,11 @@ jobs:
     - &lint
       stage: test
       name: "Lint"
-      script: sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck
+      script: sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck unusedCompileDependenciesTest
     - &test
       stage: test
       name: "Test for 2.12"
-      script: sbt ++$TRAVIS_SCALA_VERSION coverage test coverageReport package packageSrc publishLocal
-      after_success: bash <(curl -s https://codecov.io/bash)
+      script: sbt ++$TRAVIS_SCALA_VERSION test package packageSrc publishLocal
     - &scaladoc
       stage: microsite
       name: "Generate Scaladoc"
@@ -52,6 +51,11 @@ jobs:
       name: "Release artifacts"
       before_script: export PGP_SECRET="$(<./project/zecret)"
       script: sbt ci-release || sbt sonatypeReleaseAll
+#    - &releaseMonix
+#      stage: release
+#      name: "Release interop-monix"
+#      before_script: export PGP_SECRET="$(<./project/zecret)"
+#      script: sbt interopMonixJVM/publishSigned interopMonixJVM/sonatypeRelease interopMonixJS/publishSigned interopMonixJS/sonatypeRelease
     - &publishSite
       stage: publishMicrosite
       name: "Publish microsite"
@@ -68,6 +72,9 @@ jobs:
     - <<: *test
       scala: 2.11.12
       name: "Test for 2.11"
+    - <<: *test
+      scala: 2.13.0-M5
+      name: "Test for 2.13"
 
 cache:
   directories:

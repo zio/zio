@@ -21,6 +21,11 @@ trait Executor {
   def yieldOpCount: Int
 
   /**
+   * Current sampled execution metrics, if available.
+   */
+  def metrics: Option[ExecutionMetrics]
+
+  /**
    * Submits a task for execution.
    */
   def submit(runnable: Runnable): Boolean
@@ -52,6 +57,7 @@ trait Executor {
       override def reportFailure(cause: Throwable): Unit =
         cause.printStackTrace
     }
+
 }
 
 object Executor extends Serializable {
@@ -68,55 +74,6 @@ object Executor extends Serializable {
    * frequently to the runtime.
    */
   final case object Yielding extends Role
-
-  /**
-   * Creates a new default executor of the specified type.
-   */
-  final def newDefaultExecutor(role: Role): Executor = role match {
-    case Unyielding =>
-      fromThreadPoolExecutor(role, _ => Int.MaxValue) {
-        val corePoolSize  = Int.MaxValue
-        val maxPoolSize   = Int.MaxValue
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new SynchronousQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
-
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-        threadPool.allowCoreThreadTimeOut(true)
-
-        threadPool
-      }
-
-    case Yielding =>
-      fromThreadPoolExecutor(role, _ => 1024) {
-        val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-        val maxPoolSize   = corePoolSize
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new LinkedBlockingQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-yielding", true)
-
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-        threadPool.allowCoreThreadTimeOut(true)
-
-        threadPool
-      }
-  }
 
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
@@ -140,50 +97,8 @@ object Executor extends Serializable {
 
       def here = false
 
+      def metrics = None
+
       def shutdown(): Unit = ()
-    }
-
-  /**
-   * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
-   */
-  final def fromThreadPoolExecutor(role0: Role, yieldOpCount0: ExecutionMetrics => Int)(
-    es: ThreadPoolExecutor
-  ): Executor =
-    new Executor {
-      def role = role0
-
-      val metrics = new ExecutionMetrics {
-        def concurrency: Int = es.getMaximumPoolSize()
-
-        def capacity: Int = {
-          val queue = es.getQueue()
-
-          val remaining = queue.remainingCapacity()
-
-          if (remaining == Int.MaxValue) remaining
-          else remaining + queue.size
-        }
-
-        def size: Int = es.getQueue().size
-
-        def enqueuedCount: Long = es.getTaskCount()
-
-        def dequeuedCount: Long = enqueuedCount - size.toLong
-      }
-
-      def yieldOpCount = yieldOpCount0(metrics)
-
-      def submit(runnable: Runnable): Boolean =
-        try {
-          es.execute(runnable)
-
-          true
-        } catch {
-          case _: RejectedExecutionException => false
-        }
-
-      def here = false
-
-      def shutdown(): Unit = { val _ = es.shutdown() }
     }
 }

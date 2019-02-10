@@ -51,6 +51,25 @@ trait Fiber[+E, +A] { self =>
   def interrupt: IO[Nothing, Exit[E, A]]
 
   /**
+   * Returns a fiber that prefers the left hand side, but falls back to the
+   * right hand side when the left fails.
+   * */
+  def orElse[E1 >: E, A1 >: A](that: Fiber[E1, A1]): Fiber[E1, A1] =
+    new Fiber[E1, A1] {
+      def await: IO[Nothing, Exit[E1, A1]] =
+        self.await.zipWith(that.await) {
+          case (Exit.Failure(_), e2) => e2
+          case (e1, _)               => e1
+        }
+
+      def poll: IO[Nothing, Option[Exit[E1, A1]]] =
+        self.poll.zipWith(that.poll)(_ orElse _)
+
+      def interrupt: IO[Nothing, Exit[E1, A1]] =
+        self.interrupt *> that.interrupt
+    }
+
+  /**
    * Zips this fiber with the specified fiber, combining their results using
    * the specified combiner function. Both joins and interruptions are performed
    * in sequential order from left to right.
@@ -134,10 +153,16 @@ object Fiber {
       def interrupt: IO[Nothing, Exit[E, A]]    = IO.succeedLazy(exit)
     }
 
-  final def fail[E](e: E): Fiber[E, Nothing] = done(Exit.checked(e))
+  final def fail[E](e: E): Fiber[E, Nothing] = done(Exit.fail(e))
 
-  final def succeedLazy[E, A](a: => A): Fiber[E, A] =
-    done(Exit.succeed(a))
+  final def lift[E, A](io: IO[E, A]): IO[Nothing, Fiber[E, A]] =
+    io.run.map(done(_))
+
+  final def interrupt: Fiber[Nothing, Nothing] = done(Exit.interrupt)
+
+  final def succeed[E, A](a: A): Fiber[E, A] = done(Exit.succeed(a))
+
+  final def succeedLazy[E, A](a: => A): Fiber[E, A] = done(Exit.succeed(a))
 
   final def interruptAll(fs: Iterable[Fiber[_, _]]): IO[Nothing, Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)

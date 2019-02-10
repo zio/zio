@@ -2,11 +2,15 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, Exit, GenIO, IO, Queue }
+import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO, Queue }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
-class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends AbstractRTSSpec
+    with StreamTestUtils
+    with GenIO
+    with ScalaCheck {
 
   override val DefaultTimeout = 20.seconds
 
@@ -59,18 +63,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
   import ArbitraryStream._
   import Exit._
-
-  private def slurp[E, A](s: Stream[E, A]): Exit[E, List[A]] =
-    slurp0(s)(_ => true)
-
-  private def slurp0[E, A](s: Stream[E, A])(cont: List[A] => Boolean): Exit[E, List[A]] = s match {
-    case s: StreamPure[A] =>
-      succeed(s.foldPureLazy(List[A]())(cont)((acc, el) => el :: acc).reverse)
-    case s =>
-      unsafeRunSync {
-        s.fold[E, A, List[A]].flatMap(f0 => f0(List[A](), cont, (acc, el) => IO.succeed(el :: acc)).map(_.reverse))
-      }
-  }
 
   private def filter =
     prop { (s: Stream[String, String], p: String => Boolean) =>
@@ -232,8 +224,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeEither(s2)
+    val list: List[Either[Int, Int]] = slurp(merge).toEither.fold(
+      _ => List.empty,
+      identity
+    )
 
-    slurp(merge).toEither.right.get must containTheSameElementsAs(List(Left(1), Left(2), Right(1), Right(2)))
+    list must containTheSameElementsAs(List(Left(1), Left(2), Right(1), Right(2)))
   }
 
   private def mergeWith = {
@@ -241,8 +237,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
+    val list: List[String] = slurp(merge).toEither.fold(
+      _ => List.empty,
+      identity
+    )
 
-    slurp(merge).toEither.right.get must containTheSameElementsAs(List("1", "2", "1", "2"))
+    list must containTheSameElementsAs(List("1", "2", "1", "2"))
   }
 
   private def mergeWithShortCircuit = {
@@ -250,8 +250,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
+    val list: List[String] = slurp0(merge)(_ => false).toEither.fold(
+      _ => List("9"),
+      identity
+    )
 
-    slurp0(merge)(_ => false).toEither.right.get must_=== List()
+    list must_=== List()
   }
 
   private def transduce = {

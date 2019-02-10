@@ -59,7 +59,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
   final def modify[B](f: A => IO[Nothing, (B, A)]): IO[Nothing, B] =
     for {
       promise <- Promise.make[Nothing, B]
-      ref     <- Ref[Option[Cause[Nothing]]](None)
+      ref     <- Ref.make[Option[Cause[Nothing]]](None)
       bundle  = RefM.Bundle(ref, f, promise)
       b <- (for {
             _ <- queue.offer(bundle)
@@ -76,7 +76,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
   final def modifySome[B](default: B)(pf: PartialFunction[A, IO[Nothing, (B, A)]]): IO[Nothing, B] =
     for {
       promise <- Promise.make[Nothing, B]
-      ref     <- Ref[Option[Cause[Nothing]]](None)
+      ref     <- Ref.make[Option[Cause[Nothing]]](None)
       bundle  = RefM.Bundle(ref, pf.orElse[A, IO[Nothing, (B, A)]] { case a => IO.succeed(default -> a) }, promise)
       b <- (for {
             _ <- queue.offer(bundle)
@@ -104,13 +104,13 @@ object RefM extends Serializable {
   /**
    * Creates a new `RefM` with the specified value.
    */
-  final def apply[A](
+  final def make[A](
     a: A,
     n: Int = 1000,
     onDefect: Cause[Nothing] => IO[Nothing, Unit] = _ => IO.unit
   ): IO[Nothing, RefM[A]] =
     for {
-      ref   <- Ref(a)
+      ref   <- Ref.make(a)
       queue <- Queue.bounded[Bundle[A, _]](n)
       _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref, onDefect))).forever.fork
     } yield new RefM[A](ref, queue)
