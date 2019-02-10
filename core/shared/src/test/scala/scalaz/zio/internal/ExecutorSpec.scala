@@ -12,6 +12,7 @@ final class TestExecutor(val role: Executor.Role, val submitResult: Boolean) ext
   def shutdown(): Unit                    = ()
   def submit(runnable: Runnable): Boolean = submitResult
   def yieldOpCount: Int                   = 1
+  def metrics: None.type                  = None
 }
 
 final class CheckPrintThrowable extends Throwable {

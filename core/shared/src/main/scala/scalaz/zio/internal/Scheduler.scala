@@ -1,9 +1,10 @@
 // Copyright (C) 2018 - 2019 John A. De Goes. All rights reserved.
 package scalaz.zio.internal
 
-import scalaz.zio.duration._
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
+
+import scalaz.zio.duration._
 
 trait Scheduler {
   import Scheduler.CancelToken
@@ -23,12 +24,6 @@ trait Scheduler {
 
 object Scheduler {
   type CancelToken = () => Boolean
-
-  /**
-   * Creates a new default scheduler.
-   */
-  final def newDefaultScheduler(): Scheduler =
-    fromScheduledExecutorService(Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true)))
 
   /**
    * Creates a new `Scheduler` from a Java `ScheduledExecutorService`.

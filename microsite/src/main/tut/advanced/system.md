@@ -22,6 +22,9 @@ With `currentTime`, you can retrieve the current time as a `java.time.Instant`:
 system.currentTime
 ```
 
+Note: In order to use `currentTime` in a Scala.js project you will need to add the
+[scala-js-java-time](https://github.com/scala-js/scala-js-java-time) dependency to avoid linking errors.
+
 If you need the current time in milliseconds since January 1, 1970, then you can use the `currentTimeMillis` method:
 
 ```tut

@@ -12,7 +12,7 @@ title:  "Ref"
 import scalaz.zio._
 
 for {
-  ref <- Ref(100)
+  ref <- Ref.make(100)
   v1 <- ref.get
   v2 <- ref.set(v1 - 50)
 } yield v2
@@ -24,7 +24,7 @@ The simplest way to use a `Ref` is by means of `update` or its more powerful sib
 
 ```tut:silent
 def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
-  Ref(0).flatMap { iRef =>
+  Ref.make(0).flatMap { iRef =>
     def loop: IO[E, Unit] = iRef.get.flatMap { i =>
       if (i < n)
         io *> iRef.update(_ + 1) *> loop
@@ -53,7 +53,7 @@ val v3 = freshVar
 As functional programmers, we know better and have captured state mutation in the form of functions of type `S => (A, S)`. `Ref` provides such an encoding, with `S` being the type of the value, and `modify` embodying the state mutation function.
 
 ```tut:silent
-Ref(0).flatMap { idCounter =>
+Ref.make(0).flatMap { idCounter =>
   def freshVar: IO[Nothing, String] =
     idCounter.modify(cpt => (s"var${cpt + 1}", cpt + 1))
 
@@ -81,7 +81,7 @@ sealed trait S {
 
 object S {
   def apply(v: Long): IO[Nothing, S] =
-    Ref(v).map { vref =>
+    Ref.make(v).map { vref =>
       new S {
         def V = vref.update(_ + 1).void
 

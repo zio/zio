@@ -1,7 +1,7 @@
 ---
 layout: docs
 section: interop
-title:  "Cats Effects"
+title:  "Cats Effect"
 ---
 
 # {{page.title}}

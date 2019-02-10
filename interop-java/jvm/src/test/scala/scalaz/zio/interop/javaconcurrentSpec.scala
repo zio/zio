@@ -4,7 +4,7 @@ package interop
 import java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
 
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.Exit.Cause.{ Checked, Unchecked }
+import scalaz.zio.Exit.Cause.{ Die, Fail }
 import scalaz.zio.interop.javaconcurrent._
 
 class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
@@ -53,13 +53,13 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val catchBlockException = {
     val ex                     = new Exception("no future for you!")
     def noFuture: Future[Unit] = throw ex
-    unsafeRun(IO.fromFutureJava(noFuture _)) must (throwA(FiberFailure(Unchecked(ex))))
+    unsafeRun(IO.fromFutureJava(noFuture _)) must (throwA(FiberFailure(Die(ex))))
   }
 
   val propagateExceptionFromFuture = {
     val ex                    = new Exception("no value for you!")
     def noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-    unsafeRun(IO.fromFutureJava(noValue _)) must throwA(FiberFailure(Checked(ex)))
+    unsafeRun(IO.fromFutureJava(noValue _)) must throwA(FiberFailure(Fail(ex)))
   }
 
   val produceValueFromFuture = {
@@ -83,13 +83,13 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val catchBlockExceptionCs = {
     val ex                              = new Exception("no future for you!")
     def noFuture: CompletionStage[Unit] = throw ex
-    unsafeRun(IO.fromCompletionStage(noFuture _)) must (throwA(FiberFailure(Unchecked(ex))))
+    unsafeRun(IO.fromCompletionStage(noFuture _)) must (throwA(FiberFailure(Die(ex))))
   }
 
   val propagateExceptionFromCs = {
     val ex                             = new Exception("no value for you!")
     def noValue: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-    unsafeRun(IO.fromCompletionStage(noValue _)) must throwA(FiberFailure(Checked(ex)))
+    unsafeRun(IO.fromCompletionStage(noValue _)) must throwA(FiberFailure(Fail(ex)))
   }
 
   val produceValueFromCs = {
@@ -142,13 +142,13 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   val catchBlockExceptionFiber = {
     val ex                     = new Exception("no future for you!")
     def noFuture: Future[Unit] = throw ex
-    unsafeRun(Fiber.fromFutureJava(noFuture _).join) must (throwA(FiberFailure(Unchecked(ex))))
+    unsafeRun(Fiber.fromFutureJava(noFuture _).join) must (throwA(FiberFailure(Die(ex))))
   }
 
   val propagateExceptionFromFutureFiber = {
     val ex                    = new Exception("no value for you!")
     def noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-    unsafeRun(Fiber.fromFutureJava(noValue _).join) must (throwA(FiberFailure(Checked(ex))))
+    unsafeRun(Fiber.fromFutureJava(noValue _).join) must (throwA(FiberFailure(Fail(ex))))
   }
 
   val produceValueFromFutureFiber = {

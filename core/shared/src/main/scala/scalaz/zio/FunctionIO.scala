@@ -203,6 +203,11 @@ object FunctionIO extends Serializable {
   /**
    * Lifts a value into the monad formed by `FunctionIO`.
    */
+  final def succeed[B](b: B): FunctionIO[Nothing, Any, B] = lift((_: Any) => b)
+
+  /**
+   * Lifts a non-strictly evaluated value into the monad formed by `FunctionIO`.
+   */
   final def succeedLazy[B](b: => B): FunctionIO[Nothing, Any, B] = lift((_: Any) => b)
 
   /**
