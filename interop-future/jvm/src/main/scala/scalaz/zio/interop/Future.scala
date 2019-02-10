@@ -49,9 +49,6 @@ package object future {
     final def sequence[A](in: Vector[Future[A]])(implicit ec: ExecutionContext): Future[Vector[A]] =
       unsafeRun(ec, IO.collectAll(in.map(_.join)).map(_.toVector).fork)
 
-    final def sequence[A](in: Stream[Future[A]])(implicit ec: ExecutionContext): Future[Stream[A]] =
-      unsafeRun(ec, IO.collectAll(in.map(_.join)).map(_.toStream).fork)
-
     final def sequence[A](in: Seq[Future[A]])(implicit ec: ExecutionContext): Future[Seq[A]] =
       unsafeRun(ec, IO.collectAll(in.map(_.join)).map(_.toSeq).fork)
 
@@ -90,9 +87,6 @@ package object future {
 
     final def traverse[A, B](in: Vector[A])(fn: A => Future[B])(implicit ec: ExecutionContext): Future[Vector[B]] =
       unsafeRun(ec, IO.foreach(in)(a => fn(a).join).map(_.toVector).fork)
-
-    final def traverse[A, B](in: Stream[A])(fn: A => Future[B])(implicit ec: ExecutionContext): Future[Stream[B]] =
-      unsafeRun(ec, IO.foreach(in)(a => fn(a).join).map(_.toStream).fork)
 
     final def traverse[A, B](in: Seq[A])(fn: A => Future[B])(implicit ec: ExecutionContext): Future[Seq[B]] =
       unsafeRun(ec, IO.foreach(in)(a => fn(a).join).map(_.toSeq).fork)
