@@ -11,7 +11,7 @@ trait Clock extends Serializable {
 }
 
 object Clock extends Serializable {
-  trait Interface[R] {
+  trait Interface[R] extends Serializable {
     def currentTime(unit: TimeUnit): ZIO[R, Nothing, Long]
     val nanoTime: ZIO[R, Nothing, Long]
     def sleep(length: Long, unit: TimeUnit): ZIO[R, Nothing, Unit]
