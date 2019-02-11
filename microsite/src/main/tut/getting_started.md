@@ -7,7 +7,7 @@ title:  "Getting Started"
 
 # Getting Started
 
-Include ZIO in your project by adding the following to your `build.sbt`:
+Include ZIO in your project by adding the following to your `build.sbt` file:
 
 ```tut:evaluated
 if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
@@ -38,7 +38,7 @@ object MyApp extends App {
 }
 ```
 
-If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can use a runtime system in order to run your programs:
+If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can use a runtime system in order to execute your ZIO programs:
 
 ```tut:silent
 import scalaz.zio._
@@ -53,7 +53,7 @@ object IntegrationExample {
 
 # Console
 
-ZIO provides a few primitives for interacting with the console. These can be imported using the following:
+ZIO provides a module for interacting with the console. You can import the functions in this module with the following code snippet:
 
 ```tut:silent
 import scalaz.zio.console._
@@ -61,9 +61,7 @@ import scalaz.zio.console._
 
 ## Printing Output
 
-Printing to the screen is one of the most basic I/O operations.
-
-In order to do so in a purely functional way, we can use `putStr` and `putStrLn`:
+If you need to print text to the console, you can use `putStr` and `putStrLn`:
 
 ```tut
 // Print without trailing line break
@@ -80,6 +78,7 @@ If you need to read input from the console, you can use `getStrLn`:
 ```tut
 val echo = getStrLn.flatMap(putStrLn)
 ```
+
 # Learning More
 
 To learn more about ZIO, see the [Overview](overview/index.html).
