@@ -2,11 +2,11 @@ package scalaz.zio.system
 
 import scalaz.zio.ZIO
 
-trait System {
+trait System extends Serializable {
   val system: System.Interface[Any]
 }
-object System {
-  trait Interface[R] {
+object System extends Serializable {
+  trait Interface[R] extends Serializable {
     def env(variable: String): ZIO[R, Nothing, Option[String]]
 
     def property(prop: String): ZIO[R, Throwable, Option[String]]

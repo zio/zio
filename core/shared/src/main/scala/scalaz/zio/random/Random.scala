@@ -2,11 +2,11 @@ package scalaz.zio.random
 
 import scalaz.zio.{ Chunk, ZIO }
 
-trait Random {
+trait Random extends Serializable {
   val random: Random.Interface[Any]
 }
-object Random {
-  trait Interface[R] {
+object Random extends Serializable {
+  trait Interface[R] extends Serializable {
     val nextBoolean: ZIO[R, Nothing, Boolean]
     def nextBytes(length: Int): ZIO[R, Nothing, Chunk[Byte]]
     val nextDouble: ZIO[R, Nothing, Double]
