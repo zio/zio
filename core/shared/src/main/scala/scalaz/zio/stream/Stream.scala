@@ -252,19 +252,21 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
    * `Stream` in a managed resource. Like all `Managed` resources, the provided
    * remainder is valid only within the scope of `Managed`.
    */
-  final def peel[E1 >: E, A1 >: A, B](sink: Sink[E1, A1, A1, B]): Managed[R, E1, (B, Stream[R, E1, A1])] = {
+  final def peel[R1 <: R, E1 >: E, A1 >: A, B](
+    sink: Sink[R1, E1, A1, A1, B]
+  ): Managed[R1, E1, (B, Stream[R1, E1, A1])] = {
     type Folder = (Any, A1) => IO[E1, Any]
     type Cont   = Any => Boolean
     type Fold   = (Any, Cont, Folder)
     type State  = Either[sink.State, Fold]
     type Result = (B, Stream[R, E1, A1])
 
-    def feed[S](chunk: Chunk[A1])(s: S, cont: S => Boolean, f: (S, A1) => IO[E1, S]): IO[E1, S] =
+    def feed[R2 <: R1, S](chunk: Chunk[A1])(s: S, cont: S => Boolean, f: (S, A1) => ZIO[R2, E1, S]): ZIO[R2, E1, S] =
       chunk.foldMLazy(s)(cont)(f)
 
     def tail(resume: Promise[Nothing, Fold], done: Promise[E1, Any]): Stream[R, E1, A1] =
       new Stream[R, E1, A1] {
-        override def fold[R1 <: R, E2 >: E1, A2 >: A1, S]: Stream.Fold[R1, E2, A2, S] =
+        override def fold[R2 <: R, E2 >: E1, A2 >: A1, S]: Stream.Fold[R2, E2, A2, S] =
           IO.succeedLazy { (s, cont, f) =>
             if (!cont(s)) IO.succeed(s)
             else
@@ -273,13 +275,13 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
           }
       }
 
-    def acquire(lstate: sink.State): ZIO[R, Nothing, (Fiber[E1, State], Promise[E1, Result])] =
+    def acquire(lstate: sink.State): ZIO[R1, Nothing, (Fiber[E1, State], Promise[E1, Result])] =
       for {
         resume <- Promise.make[Nothing, Fold]
         done   <- Promise.make[E1, Any]
         result <- Promise.make[E1, Result]
         fiber <- self
-                  .fold[R, E1, A1, State]
+                  .fold[R1, E1, A1, State]
                   .flatMap { f0 =>
                     f0(
                       Left(lstate), {
@@ -302,12 +304,12 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
                           }
                         case (Right((rstate, cont, f)), a) =>
                           f(rstate, a).flatMap { rstate =>
-                            IO.succeed(Right((rstate, cont, f)))
+                            ZIO.succeed(Right((rstate, cont, f)))
                           }
                       }
                     )
                   }
-                  .onError[R](c => result.done(IO.halt(c)).void)
+                  .onError(c => result.done(IO.halt(c)).void)
                   .fork
         _ <- fiber.await.flatMap {
               case Exit.Success(Left(_)) =>
@@ -374,9 +376,9 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[E1 >: E, A0, A1 >: A, B](sink: Sink[E1, A0, A1, B]): ZIO[R, E1, B] =
+  def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: Sink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
     sink.initial.flatMap { state =>
-      self.fold[R, E1, A1, Sink.Step[sink.State, A0]].flatMap { f =>
+      self.fold[R1, E1, A1, Sink.Step[sink.State, A0]].flatMap { f =>
         f(state, Sink.Step.cont, (s, a) => sink.step(Sink.Step.state(s), a)).flatMap { step =>
           sink.extract(Sink.Step.state(step))
         }
@@ -459,11 +461,11 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
    * Applies a transducer to the stream, which converts one or more elements
    * of type `A` into elements of type `C`.
    */
-  final def transduce[E1 >: E, A1 >: A, C](sink: Sink[E1, A1, A1, C]): Stream[R, E1, C] =
-    new Stream[R, E1, C] {
-      override def fold[R1 <: R, E2 >: E1, C1 >: C, S2]: Fold[R1, E2, C1, S2] =
+  final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: Sink[R1, E1, A1, A1, C]): Stream[R1, E1, C] =
+    new Stream[R1, E1, C] {
+      override def fold[R2 <: R1, E2 >: E1, C1 >: C, S2]: Fold[R2, E2, C1, S2] =
         IO.succeedLazy { (s2, cont, f) =>
-          def feed(s1: sink.State, s2: S2, a: Chunk[A1]): ZIO[R1, E2, Sink.Step[(sink.State, S2), A1]] =
+          def feed(s1: sink.State, s2: S2, a: Chunk[A1]): ZIO[R2, E2, Sink.Step[(sink.State, S2), A1]] =
             sink.stepChunk(s1, a).flatMap { step =>
               if (Sink.Step.cont(step)) IO.succeed(Sink.Step.leftMap(step)((_, s2)))
               else {
@@ -480,7 +482,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
           sink.initial.flatMap { initStep =>
             val s1 = Sink.Step.leftMap(initStep)((_, s2))
 
-            self.fold[R1, E2, A, Sink.Step[(sink.State, S2), A1]].flatMap { f0 =>
+            self.fold[R2, E2, A, Sink.Step[(sink.State, S2), A1]].flatMap { f0 =>
               f0(s1, step => cont(Sink.Step.state(step)._2), { (s, a) =>
                 val (s1, s2) = Sink.Step.state(s)
                 feed(s1, s2, Chunk(a))

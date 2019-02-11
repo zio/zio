@@ -462,8 +462,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Runs the specified action if this action fails, providing the error to the
    * action if it exists. The provided action will not be interrupted.
    */
-  final def onError[R1 <: R](cleanup: Cause[E] => UIO[_]): ZIO[R1, E, A] =
-    ZIO.bracket0[R1, E, Unit, A](ZIO.unit)(
+  final def onError(cleanup: Cause[E] => UIO[_]): ZIO[R, E, A] =
+    ZIO.bracket0[R, E, Unit, A](ZIO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
           case Exit.Success(_)     => ZIO.unit
