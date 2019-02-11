@@ -8,7 +8,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
   override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): UIO[S] =
     IO.succeed(foldPureLazy(s)(_ => true)(f))
 
-  override def run[E, A0, A1 >: A, B](sink: Sink[E, A0, A1, B]): ZIO[R, E, B] =
+  override def run[R1 <: R, E, A0, A1 >: A, B](sink: Sink[R1, E, A0, A1, B]): ZIO[R1, E, B] =
     sink match {
       case sink: SinkPure[E, A0, A1, B] =>
         ZIO.fromEither(
@@ -21,7 +21,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
           )
         )
 
-      case sink: Sink[E, A0, A1, B] => super.run(sink)
+      case sink: Sink[R1, E, A0, A1, B] => super.run(sink)
     }
 
   /**

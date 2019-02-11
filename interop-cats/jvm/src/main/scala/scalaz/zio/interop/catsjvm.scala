@@ -144,7 +144,6 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     fa: Task[A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
     effect.SyncIO {
-      toIO(fa).runAsync(cb)
       this.unsafeRunAsync(fa) { exit =>
         cb(exitToEither(exit)).unsafeRunAsync(_ => ())
       }
