@@ -522,7 +522,10 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
    * Translates the checked error (if present) into termination.
    */
   final def orDie[E1 >: E](implicit ev: E1 =:= Throwable): IO[Nothing, A] =
-    self.mapError(ev).catchAll(IO.die)
+    orDieWith(ev)
+
+  final def orDieWith(f: E => Throwable): IO[Nothing, A] =
+    self.mapError(f).catchAll(IO.die)
 
   /**
    * Maps this action to the specified constant while preserving the

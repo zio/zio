@@ -3,12 +3,41 @@ package scalaz.zio.internal.impls
 import java.util
 import java.util.concurrent._
 
+import scala.concurrent.ExecutionContext
 import scalaz.zio.Exit.Cause
-import scalaz.zio.IO
+import scalaz.zio.{ FiberFailure, IO }
 import scalaz.zio.internal.Executor.{ Role, Unyielding, Yielding }
 import scalaz.zio.internal.{ Env, ExecutionMetrics, Executor, NamedThreadFactory, Scheduler }
 
 object Env {
+
+  /**
+   * Creates a new environment from an `ExecutionContext`.
+   */
+  final def fromExecutionContext(ec: ExecutionContext): Env =
+    new Env {
+      val sync  = Executor.fromExecutionContext(Executor.Unyielding, 1000)(ec)
+      val async = Executor.fromExecutionContext(Executor.Yielding, 1000)(ec)
+
+      def executor(tpe: Executor.Role): Executor = tpe match {
+        case Executor.Unyielding => sync
+        case Executor.Yielding   => async
+      }
+
+      lazy val scheduler: Scheduler =
+        Scheduler.fromScheduledExecutorService(
+          Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
+        )
+
+      def nonFatal(t: Throwable): Boolean =
+        !t.isInstanceOf[VirtualMachineError]
+
+      def reportFailure(cause: Cause[_]): IO[Nothing, _] =
+        IO.sync(ec.reportFailure(FiberFailure(cause)))
+
+      def newWeakHashMap[A, B](): util.Map[A, B] =
+        new util.WeakHashMap[A, B]()
+    }
 
   /**
    * Creates a new default environment.
