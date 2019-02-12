@@ -1040,36 +1040,49 @@ object IO extends Serializable {
    * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
    * will be interrupted via `Thread.interrupt`.
    */
-  final def blocking[A](effect: => A): IO[Nothing, A] =
+  final def blocking[A](effect: => A): IO[Throwable, A] =
     IO.flatten(IO.sync {
       import java.util.concurrent.locks.ReentrantLock
       import java.util.concurrent.atomic.AtomicReference
+      import internal.OneShot
 
-      val lock   = new ReentrantLock()
-      val thread = new AtomicReference[Option[Thread]](None)
+      val lock    = new ReentrantLock()
+      val thread  = new AtomicReference[Option[Thread]](None)
+      val barrier = OneShot.make[Unit]
 
-      def withLock[B](b: => B): B =
+      def withMutex[B](b: => B): B =
         try {
           lock.lock(); b
         } finally lock.unlock()
 
-      for {
-        finalizer <- Ref.make[IO[Nothing, Unit]](IO.unit)
-        a <- (for {
-              fiber <- (IO.unyielding(IO.sync[Either[Throwable, A]] {
-                        withLock(thread.set(Some(Thread.currentThread())))
+      val interruptThread: IO[Nothing, Unit] =
+        IO.sync(withMutex(thread.get match {
+            case None         => IO.unit
+            case Some(thread) => IO.sync(thread.interrupt())
+          }))
+          .flatten
 
-                        try Right(effect)
-                        catch {
-                          case e: InterruptedException =>
-                            Thread.interrupted
-                            Left(e)
-                        } finally withLock(thread.set(None)) // TODO: Signal finalizer to continue
-                      }) <* finalizer
-                        .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
-              either <- fiber.join
-              a      <- either.fold[IO[Nothing, A]](IO.die, IO.succeed)
-            } yield a).ensuring(IO.flatten(finalizer.get))
+      val awaitInterruption: IO[Nothing, Unit] = IO.sync(barrier.get())
+
+      for {
+        a <- (for {
+              fiber <- IO
+                        .unyielding(IO.sync[Either[Throwable, A]] {
+                          val current = Some(Thread.currentThread)
+
+                          withMutex(thread.set(current))
+
+                          try Right(effect)
+                          catch {
+                            case e: InterruptedException =>
+                              Thread.interrupted
+                              Left(e)
+                            case t: Throwable => Left(t)
+                          } finally withMutex { thread.set(None); barrier.set(()) }
+                        })
+                        .fork
+              a <- fiber.join.absolve
+            } yield a).ensuring(interruptThread *> awaitInterruption)
       } yield a
     })
 
