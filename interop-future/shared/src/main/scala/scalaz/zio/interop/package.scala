@@ -5,7 +5,7 @@ import scalaz.zio.{ Exit, Fiber, IO }
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 
-object future extends FuturePlatformSpecific {
+package object future extends FuturePlatformSpecific {
 
   implicit class IOObjOps(private val ioObj: IO.type) extends AnyVal {
     private def unsafeFromFuture[A](ec: ExecutionContext, f: Future[A]): IO[Throwable, A] =
