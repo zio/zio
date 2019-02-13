@@ -1057,10 +1057,9 @@ object IO extends Serializable {
 
       val interruptThread: IO[Nothing, Unit] =
         IO.sync(withMutex(thread.get match {
-            case None         => IO.unit
-            case Some(thread) => IO.sync(thread.interrupt())
-          }))
-          .flatten
+          case None         => ()
+          case Some(thread) => thread.interrupt()
+        }))
 
       val awaitInterruption: IO[Nothing, Unit] = IO.sync(barrier.get())
 
@@ -1074,11 +1073,12 @@ object IO extends Serializable {
 
                           try Right(effect)
                           catch {
-                            case e: InterruptedException =>
-                              Thread.interrupted
-                              Left(e)
-                            case t: Throwable => Left(t)
-                          } finally withMutex { thread.set(None); barrier.set(()) }
+                            case t: Throwable =>
+                              Thread.interrupted // Clear interrupt status
+                              Left(t)
+                          } finally {
+                            withMutex { thread.set(None); barrier.set(()) }
+                          }
                         })
                         .fork
               a <- fiber.join.absolve
