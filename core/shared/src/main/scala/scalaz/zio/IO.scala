@@ -6,7 +6,7 @@ import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.{ Env, Executor }
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 import scala.annotation.switch
 import scala.util.{ Failure, Success }
 
@@ -317,8 +317,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * value is allocated and does not require subsequent calls to `flatMap` to
    * define the next action.
    *
-   * The error parameter of the returned `ZIO` may be chosen arbitrarily, since
-   * it will depend on the `ZIO`s returned by the given continuations.
+   * The error parameter of the returned `IO` may be chosen arbitrarily, since
+   * it will depend on the `IO`s returned by the given continuations.
    */
   final def redeem[R1 <: R, E2, B](err: E => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
     redeem0((cause: Cause[E]) => cause.failureOrCause.fold(err, ZIO.halt), succ)
@@ -541,10 +541,10 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Translates the checked error (if present) into termination.
    */
   final def orDie[E1 >: E](implicit ev: E1 =:= Throwable): ZIO[R, Nothing, A] =
-    self.mapError(ev).catchAll(ZIO.die)
+    orDieWith(ev)
 
-  def toFuture(implicit ev: E <:< Throwable): ZIO[R, Nothing, Future[A]] =
-    self.mapError(ev).fold(Future.failed, Future.successful)
+  def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
+    self.mapError(f).catchAll(IO.die)
 
   /**
    * Maps this action to the specified constant while preserving the
@@ -938,36 +938,49 @@ trait ZIOFunctions extends Serializable {
    * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
    * will be interrupted via `Thread.interrupt`.
    */
-  final def blocking[A](effect: => A): UIO[A] =
+  final def blocking[A](effect: => A): IO[Throwable, A] =
     IO.flatten(IO.sync {
       import java.util.concurrent.locks.ReentrantLock
       import java.util.concurrent.atomic.AtomicReference
+      import internal.OneShot
 
-      val lock   = new ReentrantLock()
-      val thread = new AtomicReference[Option[Thread]](None)
+      val lock    = new ReentrantLock()
+      val thread  = new AtomicReference[Option[Thread]](None)
+      val barrier = OneShot.make[Unit]
 
-      def withLock[B](b: => B): B =
+      def withMutex[B](b: => B): B =
         try {
           lock.lock(); b
         } finally lock.unlock()
 
-      for {
-        finalizer <- Ref.make[UIO[Unit]](IO.unit)
-        a <- (for {
-              fiber <- (IO.unyielding(IO.sync[Either[Throwable, A]] {
-                        withLock(thread.set(Some(Thread.currentThread())))
+      val interruptThread: IO[Nothing, Unit] =
+        IO.sync(withMutex(thread.get match {
+            case None         => IO.unit
+            case Some(thread) => IO.sync(thread.interrupt())
+          }))
+          .flatten
 
-                        try Right(effect)
-                        catch {
-                          case e: InterruptedException =>
-                            Thread.interrupted
-                            Left(e)
-                        } finally withLock(thread.set(None)) // TODO: Signal finalizer to continue
-                      }) <* finalizer
-                        .set(IO.sync(withLock(thread.get.foreach(_.interrupt()))))).uninterruptible.fork
-              either <- fiber.join
-              a      <- either.fold[UIO[A]](IO.die, IO.succeed)
-            } yield a).ensuring(IO.flatten(finalizer.get))
+      val awaitInterruption: IO[Nothing, Unit] = IO.sync(barrier.get())
+
+      for {
+        a <- (for {
+              fiber <- IO
+                        .unyielding(IO.sync[Either[Throwable, A]] {
+                          val current = Some(Thread.currentThread)
+
+                          withMutex(thread.set(current))
+
+                          try Right(effect)
+                          catch {
+                            case e: InterruptedException =>
+                              Thread.interrupted
+                              Left(e)
+                            case t: Throwable => Left(t)
+                          } finally withMutex { thread.set(None); barrier.set(()) }
+                        })
+                        .fork
+              a <- fiber.join.absolve
+            } yield a).ensuring(interruptThread *> awaitInterruption)
       } yield a
     })
 
@@ -1374,7 +1387,6 @@ trait ZIO_E_Any extends ZIO_E_Throwable {
 }
 
 trait ZIO_E_Throwable extends ZIOFunctions {
-//   implicit val ThrowableSubtypeOfE: Throwable <:< UpperE
   type UpperE >: Throwable
 
   /**
@@ -1400,7 +1412,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
       case scala.util.Failure(t) => ZIO.fail(t)
     }
 
-  final def fromFuture[E, A](make: ExecutionContext => Future[A]): Task[A] =
+  final def fromFuture[E, A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     syncExec { exec =>
       val ec = exec.asEC
       val f  = make(ec)

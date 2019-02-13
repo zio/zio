@@ -1,7 +1,7 @@
 package scalaz.zio
 
 /**
- * A `Managed[E, A]` is a managed resource of type `A`, which may be used by
+ * A `Managed[E, R]` is a managed resource of type `R`, which may be used by
  * invoking the `use` method of the resource. The resource will be automatically
  * acquired before the resource is used, and automatically released after the
  * resource is used.
@@ -11,44 +11,37 @@ package scalaz.zio
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
-  type A0 <: A
+final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E, A]]) { self =>
+  import Managed.Reservation
 
-  protected def acquire: ZIO[R, E, A0]
+  def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    reserve.bracket[R1, E1, B](_.release)(_.acquire.flatMap(f))
 
-  protected def release: A0 => UIO[_]
-
-  def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1]
-
-  final def use_[R1 <: R, E1 >: E, A](f: ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+  final def use_[R1 <: R, E1 >: E, B](f: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     use(_ => f)
 
-  final def map[A1](f0: A => A1): Managed[R, E, A1] =
-    new Managed[R, E, A1] {
-      type A0 = A1
-
-      protected def acquire: IO[E, A1] = IO.never
-
-      protected def release: A1 => UIO[Unit] = _ => IO.unit
-
-      final def use[R1 <: R, E1 >: E, A](f: A1 => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
-        self.use(r => f(f0(r)))
+  final def map[B](f0: A => B): Managed[R, E, B] =
+    Managed[R, E, B] {
+      self.reserve.map(token => token.copy(acquire = token.acquire.map(f0)))
     }
 
-  final def flatMap[R1 <: R, E1 >: E, A1](f0: A => Managed[R1, E1, A1]): Managed[R1, E1, A1] =
-    new Managed[R1, E1, A1] {
-      type A0 = A1
-
-      protected def acquire: ZIO[R1, E1, A1] = IO.never
-
-      protected def release: A1 => UIO[Unit] = _ => IO.unit
-
-      final def use[R2 <: R1, E2 >: E1, A](f: A1 => ZIO[R2, E2, A]): ZIO[R2, E2, A] =
-        self.use { r =>
-          f0(r).use { r1 =>
-            f(r1)
-          }
-        }
+  final def flatMap[R1 <: R, E1 >: E, B](f0: A => Managed[R1, E1, B]): Managed[R1, E1, B] =
+    Managed[R1, E1, B] {
+      Ref.make[UIO[Any]](IO.unit).map { finalizers =>
+        Reservation(
+          acquire = for {
+            resR <- self.reserve
+                     .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                     .uninterruptible
+            r <- resR.acquire
+            resR1 <- f0(r).reserve
+                      .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                      .uninterruptible
+            r1 <- resR1.acquire
+          } yield r1,
+          release = UIO.flatten(finalizers.get)
+        )
+      }
     }
 
   final def *>[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A1] =
@@ -64,22 +57,19 @@ sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
     zipWith(that)((_, _))
 
   final def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: Managed[R1, E1, A1])(f0: (A, A1) => A2): Managed[R1, E1, A2] =
-    new Managed[R1, E1, A2] {
-      type A0 = A2
+    Managed[R1, E1, A2] {
+      Ref.make[IO[Nothing, Any]](IO.unit).map { finalizers =>
+        Reservation(
+          acquire = {
+            val left =
+              self.reserve.flatMap(res => finalizers.update(fs => res.release *> fs).const(res)).uninterruptible
+            val right =
+              that.reserve.flatMap(res => finalizers.update(fs => res.release *> fs).const(res)).uninterruptible
 
-      protected def acquire: ZIO[R1, E1, A2] = IO.never
-
-      protected def release: A2 => UIO[Unit] = _ => IO.unit
-
-      def use[R2 <: R1, E2 >: E1, A](f: A2 => ZIO[R2, E2, A]): ZIO[R2, E2, A] = {
-        val acquireBoth = self.acquire.zipPar(that.acquire)
-
-        def releaseBoth(pair: (self.A0, that.A0)): UIO[Unit] =
-          self.release(pair._1).zipPar(that.release(pair._2)) *> IO.unit
-
-        acquireBoth.bracket[R2, E2, A](releaseBoth) {
-          case (r, r1) => f(f0(r, r1))
-        }
+            left.flatMap(_.acquire).zipWithPar(right.flatMap(_.acquire))(f0)
+          },
+          release = IO.flatten(finalizers.get)
+        )
       }
     }
 
@@ -88,86 +78,44 @@ sealed abstract class Managed[-R, +E, +A] extends Serializable { self =>
 }
 
 object Managed {
+  final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: UIO[_])
 
   /**
-   * Lifts an `IO[E, A]`` into `Managed[E, A]`` with a release action.
+   * Lifts an `IO[E, R]`` into `Managed[E, R]`` with a release action.
    */
-  final def make[R, E, A](a: ZIO[R, E, A])(r: A => UIO[_]): Managed[R, E, A] =
-    new Managed[R, E, A] {
-      type A0 = A
-
-      protected def acquire: ZIO[R, E, A] = a
-
-      protected def release: A => UIO[_] = r
-
-      final def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-        acquire.bracket[R1, E1, A1](release)(f)
-    }
+  final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => UIO[_]): Managed[R, E, A] =
+    Managed(acquire.map(r => Reservation(IO.succeed(r), release(r))))
 
   /**
-   * Lifts an IO[E, A] into Managed[E, A] with no release action. Use
+   * Lifts an IO[E, R] into Managed[E, R] with no release action. Use
    * with care.
    */
   final def liftIO[R, E, A](fa: ZIO[R, E, A]): Managed[R, E, A] =
-    new Managed[R, E, A] {
-      type A0 = A
-
-      protected def acquire: ZIO[R, E, A] = fa
-
-      protected def release: A => UIO[_] = _ => IO.unit
-
-      final def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-        fa flatMap f
-    }
+    Managed(IO.succeed(Reservation(fa, IO.unit)))
 
   /**
    * Unwraps a `Managed` that is inside an `IO`.
    */
   final def unwrap[R, E, A](fa: ZIO[R, E, Managed[R, E, A]]): Managed[R, E, A] =
-    new Managed[R, E, A] {
-      type A0 = A
-
-      protected def acquire: ZIO[R, E, A] = IO.never
-
-      protected def release: A => UIO[Unit] = _ => IO.unit
-
-      final def use[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
-        fa flatMap (_ use f)
-    }
+    Managed(fa.flatMap(_.reserve))
 
   /**
    * Lifts a strict, pure value into a Managed.
    */
-  final def succeed[A](r: A): Managed[Any, Nothing, A] =
-    new Managed[Any, Nothing, A] {
-      type A0 = A
-
-      protected def acquire: UIO[A] = IO.succeed(r)
-
-      protected def release: A => UIO[_] = _ => IO.unit
-
-      final def use[R <: Any, E >: Nothing, A1](f: A => ZIO[R, E, A1]): ZIO[R, E, A1] = f(r)
-    }
+  final def succeed[R, A](r: A): Managed[R, Nothing, A] =
+    Managed(IO.succeed(Reservation(IO.succeed(r), IO.unit)))
 
   /**
    * Lifts a by-name, pure value into a Managed.
    */
-  final def succeedLazy[A](r: => A): Managed[Any, Nothing, A] =
-    new Managed[Any, Nothing, A] {
-      type A0 = A
+  final def succeedLazy[R, A](r: => A): Managed[R, Nothing, A] =
+    Managed(IO.succeed(Reservation(IO.succeedLazy(r), IO.unit)))
 
-      protected def acquire: UIO[A] = IO.succeedLazy(r)
-
-      protected def release: A => UIO[_] = _ => IO.unit
-
-      final def use[R <: Any, E >: Nothing, A1](f: A => ZIO[R, E, A1]): ZIO[R, E, A1] = f(r)
-    }
-
-  final def traverse[R, E, A, A1](as: Iterable[A])(f: A => Managed[R, E, A1]): Managed[R, E, List[A1]] =
-    as.foldRight[Managed[R, E, List[A1]]](succeed(Nil)) { (a, m) =>
+  final def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => Managed[R, E, A2]): Managed[R, E, List[A2]] =
+    as.foldRight[Managed[R, E, List[A2]]](succeed(Nil)) { (a, m) =>
       f(a).zipWith(m)(_ :: _)
     }
 
-  final def sequence[R, E, A](ms: Iterable[Managed[R, E, A]]): Managed[R, E, List[A]] =
-    traverse(ms)(identity)
+  final def collectAll[R, E, A1, A2](ms: Iterable[Managed[R, E, A2]]): Managed[R, E, List[A2]] =
+    foreach(ms)(identity)
 }

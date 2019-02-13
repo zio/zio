@@ -52,75 +52,39 @@ lazy val root = project
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
   .settings(stdSettings("zio"))
+  .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
       "org.specs2" %%% "specs2-core"          % "4.4.0" % Test,
       "org.specs2" %%% "specs2-scalacheck"    % "4.4.0" % Test,
       "org.specs2" %%% "specs2-matcher-extra" % "4.4.0" % Test
-    ),
-    scalacOptions in Test ++= Seq("-Yrangepos")
+    )
   )
   .enablePlugins(BuildInfoPlugin)
-  .settings(
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-    buildInfoPackage := "scalaz.zio",
-    buildInfoObject := "BuildInfo",
-    coverageExcludedPackages := "<empty>;scalaz.zio.BuildInfo"
-  )
 
 lazy val coreJVM = core.jvm
   .configure(_.enablePlugins(JCStressPlugin))
-  .settings(
-    // In the repl most warnings are useless or worse.
-    // This is intentionally := as it's more direct to enumerate the few
-    // options we do want than to try to subtract off the ones we don't.
-    // One of -Ydelambdafy:inline or -Yrepl-class-based must be given to
-    // avoid deadlocking on parallel operations, see
-    //   https://issues.scala-lang.org/browse/SI-9076
-    scalacOptions in Compile in console := Seq(
-      "-Ypartial-unification",
-      "-language:higherKinds",
-      "-language:existentials",
-      "-Yno-adapted-args",
-      "-Xsource:2.13",
-      "-Yrepl-class-based"
-    ),
-    initialCommands in Compile in console := """
-                                               |import scalaz._
-                                               |import scalaz.zio._
-                                               |import scalaz.zio.console._
-                                               |import scalaz.zio.stream._
-                                               |object replRTS extends RTS {}
-                                               |import replRTS._
-                                               |implicit class RunSyntax[E, A](io: IO[E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
-    """.stripMargin
-  )
-
+  .settings(replSettings)
 lazy val coreJS = core.js
 
 lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-shared"))
   .settings(stdSettings("zio-interop-shared"))
   .dependsOn(core % "test->test;compile->compile")
-  .settings(
-    scalacOptions in Test ++= Seq("-Yrangepos")
-  )
 
 lazy val interopSharedJVM = interopShared.jvm
-
-lazy val interopSharedJS = interopShared.js
+lazy val interopSharedJS  = interopShared.js
 
 lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-cats"))
   .settings(stdSettings("zio-interop-cats"))
-  .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional,
       "co.fs2"        %%% "fs2-core"    % "1.0.3" % Test
-    ),
-    scalacOptions in Test ++= Seq("-Yrangepos")
+    )
   )
+  .dependsOn(core % "test->test;compile->compile")
 
 val CatsScalaCheckVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
@@ -153,6 +117,9 @@ val CatsScalaCheckShapelessVersion = Def.setting {
 
 lazy val interopCatsJVM = interopCats.jvm
   .dependsOn(interopSharedJVM)
+// Below is for the cats law spec
+// Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
+// TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
   .settings(
     resolvers += Resolver
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
@@ -163,64 +130,55 @@ lazy val interopCatsJVM = interopCats.jvm
     ),
     dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test
   )
+  .dependsOn(interopSharedJVM)
 
 lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
 
 lazy val interopMonix = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-monix"))
   .settings(stdSettings("zio-interop-monix"))
-  .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
       "io.monix" %%% "monix" % "3.0.0-RC2" % Optional
-    ),
-    scalacOptions in Test ++= Seq("-Yrangepos")
+    )
   )
+  .dependsOn(core % "test->test;compile->compile")
 
 lazy val interopMonixJVM = interopMonix.jvm.dependsOn(interopSharedJVM)
-
-lazy val interopMonixJS = interopMonix.js.dependsOn(interopSharedJS)
+lazy val interopMonixJS  = interopMonix.js.dependsOn(interopSharedJS)
 
 lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-scalaz7x"))
   .settings(stdSettings("zio-interop-scalaz7x"))
-  .dependsOn(core % "test->test;compile->compile")
   .settings(
     libraryDependencies ++= Seq(
       "org.scalaz" %%% "scalaz-core"               % "7.2.+" % Optional,
       "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.+" % Test
-    ),
-    scalacOptions in Test ++= Seq("-Yrangepos")
+    )
   )
+  .dependsOn(core % "test->test;compile->compile")
 
 lazy val interopScalaz7xJVM = interopScalaz7x.jvm.dependsOn(interopSharedJVM)
-
-lazy val interopScalaz7xJS = interopScalaz7x.js.dependsOn(interopSharedJS)
+lazy val interopScalaz7xJS  = interopScalaz7x.js.dependsOn(interopSharedJS)
 
 lazy val interopJava = crossProject(JVMPlatform)
   .in(file("interop-java"))
   .settings(stdSettings("zio-interop-java"))
   .dependsOn(core % "test->test;compile->compile")
-  .settings(
-    scalacOptions in Test ++= Seq("-Yrangepos")
-  )
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
 lazy val testkit = crossProject(JVMPlatform)
   .in(file("testkit"))
-  .settings(stdSettings("testkit"))
+  .settings(stdSettings("zio-testkit"))
   .dependsOn(core % "test->test;compile->compile")
-  .settings(
-    scalacOptions in Test ++= Seq("-Yrangepos"),
-    publishArtifact in (Test, packageBin) := true
-  )
 
 lazy val testkitJVM = testkit.jvm
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM)
   .enablePlugins(JmhPlugin)
+  .settings(replSettings)
   .settings(
     skip in publish := true,
     libraryDependencies ++=
