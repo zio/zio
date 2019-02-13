@@ -2,14 +2,19 @@ package scalaz.zio
 
 import org.specs2.ScalaCheck
 import scala.collection.mutable
+import duration._
 
 class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "ManagedSpec".title ^ s2"""
-  Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse
-  Properly performs parallel acquire and release. $parallelAcquireAndRelease
+  Managed.make
+    Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse
+    Properly performs parallel acquire and release. $parallelAcquireAndRelease
+    Constructs an uninterruptible Managed value. $uninterruptible
+  Managed.traverse
+    Invokes cleanups in reverse order of acquisition. $traverse
   """
 
-  def invokesCleanupsInReverse = {
+  private def invokesCleanupsInReverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
       Managed.make(IO.sync { effects += x; () })(_ => IO.sync { effects += x; () })
@@ -29,7 +34,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
 
-  def parallelAcquireAndRelease = {
+  private def parallelAcquireAndRelease = {
     val cleanups = new mutable.ListBuffer[String]
 
     def managed(v: String): Managed[Any, Nothing, String] =
@@ -41,5 +46,29 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
 
     result must haveSize(2)
     result.size === cleanups.size
+  }
+
+  private def traverse = {
+    val effects = new mutable.ListBuffer[Int]
+    def res(x: Int) =
+      Managed.make(IO.sync { effects += x; () })(_ => IO.sync { effects += x; () })
+
+    val resources = Managed.foreach(List(1, 2, 3))(res)
+
+    unsafeRun(resources.use(_ => IO.unit))
+
+    effects must be_===(List(1, 2, 3, 3, 2, 1))
+  }
+
+  private def uninterruptible = {
+    val program = for {
+      never              <- Promise.make[Nothing, Unit]
+      reachedAcquisition <- Promise.make[Nothing, Unit]
+      managedFiber       <- Managed.make(reachedAcquisition.succeed(()) *> never.await)(_ => IO.unit).use_(IO.unit).fork
+      _                  <- reachedAcquisition.await
+      interruption       <- managedFiber.interrupt.timeout(5.seconds).attempt
+    } yield interruption
+
+    unsafeRun(program) must be_===(Right(None))
   }
 }

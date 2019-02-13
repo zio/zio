@@ -2,10 +2,11 @@
 package scalaz.zio.internal
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.{ switch, tailrec }
-import scalaz.zio.Exit.Cause
 
+import scalaz.zio.Exit.Cause
 import scalaz.zio._
+
+import scala.annotation.{ switch, tailrec }
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -15,7 +16,8 @@ private[zio] final class FiberContext[E, A](
   val fiberId: FiberId,
   val unhandled: Cause[Any] => UIO[_]
 ) extends Fiber[E, A] {
-  import java.util.{ Collections, Set, WeakHashMap }
+  import java.util.{ Collections, Set }
+
   import FiberContext._
   import FiberState._
 
@@ -343,7 +345,7 @@ private[zio] final class FiberContext[E, A](
   private[this] final def enterSupervision: IO[E, Unit] = IO.sync {
     supervising += 1
 
-    def newWeakSet[A]: Set[A] = Collections.newSetFromMap[A](new WeakHashMap[A, java.lang.Boolean]())
+    def newWeakSet[A]: Set[A] = Collections.newSetFromMap[A](env.newWeakHashMap[A, java.lang.Boolean]())
 
     val set = newWeakSet[FiberContext[_, _]]
 

@@ -1,6 +1,8 @@
 // Copyright (C) 2018 - 2019 John A. De Goes. All rights reserved.
 package scalaz.zio.internal
 
+import java.util
+
 import scalaz.zio._
 import scalaz.zio.Exit.Cause
 import java.util.concurrent.atomic.AtomicLong
@@ -35,6 +37,11 @@ trait Env {
    * Reports the specified failure.
    */
   def reportFailure(cause: Cause[_]): UIO[_]
+
+  /**
+   * Create a new java.util.WeakHashMap if supported by the env, otherwise any implementation of Map.
+   */
+  def newWeakHashMap[A, B](): util.Map[A, B]
 
   /**
    * Awaits for the result of the fiber to be computed.
@@ -89,35 +96,13 @@ trait Env {
    * Helper function to create a new fiber context.
    */
   private[internal] final def newFiberContext[E, A](unhandled: Cause[Any] => UIO[_]): FiberContext[E, A] =
-    new FiberContext[E, A](this, Env.fiberCounter.getAndIncrement(), unhandled)
+    new FiberContext[E, A](this, FiberCounter.fiberCounter.getAndIncrement(), unhandled)
 }
 
-object Env {
+private[zio] object FiberCounter {
 
   /**
    * The global counter for assigning fiber identities on creation.
    */
-  private val fiberCounter = new AtomicLong(0)
-
-  /**
-   * Creates a new default environment.
-   */
-  final def newDefaultEnv(reportFailure0: Cause[_] => UIO[_]): Env =
-    new Env {
-      val sync  = Executor.newDefaultExecutor(Executor.Unyielding)
-      val async = Executor.newDefaultExecutor(Executor.Yielding)
-
-      def executor(tpe: Executor.Role): Executor = tpe match {
-        case Executor.Unyielding => sync
-        case Executor.Yielding   => async
-      }
-
-      val scheduler = Scheduler.newDefaultScheduler()
-
-      def nonFatal(t: Throwable): Boolean =
-        !t.isInstanceOf[VirtualMachineError]
-
-      def reportFailure(cause: Cause[_]): UIO[_] =
-        reportFailure0(cause)
-    }
+  val fiberCounter = new AtomicLong(0)
 }
