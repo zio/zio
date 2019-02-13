@@ -1073,11 +1073,12 @@ object IO extends Serializable {
 
                           try Right(effect)
                           catch {
-                            case e: InterruptedException =>
-                              Thread.interrupted
-                              Left(e)
-                            case t: Throwable => Left(t)
-                          } finally withMutex { thread.set(None); barrier.set(()) }
+                            case t: Throwable =>
+                              Thread.interrupted // Clear interrupt status
+                              Left(t)
+                          } finally {
+                            withMutex { thread.set(None); barrier.set(()) }
+                          }
                         })
                         .fork
               a <- fiber.join.absolve
