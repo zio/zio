@@ -1057,10 +1057,9 @@ object IO extends Serializable {
 
       val interruptThread: IO[Nothing, Unit] =
         IO.sync(withMutex(thread.get match {
-            case None         => IO.unit
-            case Some(thread) => IO.sync(thread.interrupt())
-          }))
-          .flatten
+          case None         => ()
+          case Some(thread) => thread.interrupt()
+        }))
 
       val awaitInterruption: IO[Nothing, Unit] = IO.sync(barrier.get())
 
