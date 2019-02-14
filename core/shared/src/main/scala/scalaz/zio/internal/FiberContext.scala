@@ -271,7 +271,7 @@ private[zio] final class FiberContext[E, A](
 
                   curIo = null
 
-                case ZIO.Tags.Read =>
+                case ZIO.Tags.Access =>
                   val io = curIo.asInstanceOf[ZIO.Read[Any, E, Any]]
 
                   curIo = io.k(environment)
