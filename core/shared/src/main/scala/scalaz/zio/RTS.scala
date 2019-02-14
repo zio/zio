@@ -5,7 +5,6 @@ import scalaz.zio.internal.impls.Env
 import scalaz.zio.clock.Clock
 import scalaz.zio.console.Console
 import scalaz.zio.system.System
-import scalaz.zio.scheduler.{ Scheduler, SchedulerLive }
 
 trait CommonRTS {
   type Context
@@ -45,7 +44,5 @@ trait CommonRTS {
 
 trait RTS extends CommonRTS {
   type Context = Clock with Console with System
-  val Context = new Clock.Live with Console.Live with System.Live with Scheduler {
-    val scheduler = SchedulerLive
-  }
+  val Context = new Clock.Live with Console.Live with System.Live
 }

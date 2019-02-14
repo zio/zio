@@ -5,10 +5,9 @@ import java.util.concurrent.TimeUnit
 import scalaz.zio._
 import scalaz.zio.duration.Duration
 import scalaz.zio.clock.Clock
-import scalaz.zio.scheduler.Scheduler
 import scalaz.zio.testkit.TestClock.Data
 
-case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Interface[Scheduler] {
+case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Interface[Any] {
 
   final def currentTime(unit: TimeUnit): UIO[Long] =
     ref.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))

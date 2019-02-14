@@ -51,8 +51,8 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
                    sleeps <- testClock.sleeps
                  } yield
                    (sleeps must_=== List((1.millis))) and
-                     ((time2 - time1) must_=== 1)).provide(new Clock with scheduler.Scheduler {
-                   val clock = testClock; val scheduler = scalaz.zio.scheduler.SchedulerLive
+                     ((time2 - time1) must_=== 1)).provide(new Clock with scheduler.SchedulerLive {
+                   val clock = testClock
                  })
 
       } yield result

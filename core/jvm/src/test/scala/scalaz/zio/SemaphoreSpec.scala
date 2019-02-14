@@ -65,7 +65,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
     unsafeRun(for {
       s       <- Semaphore.make(n)
       _       <- s.acquireN(2).timeout(1.milli).attempt
-      permits <- s.release *> IO.sleep(10.millis) *> s.count
+      permits <- s.release *> clock.sleep(10.millis) *> s.count
     } yield permits) must_=== 2
   }
 
@@ -77,7 +77,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
     unsafeRun(for {
       s       <- Semaphore.make(n)
       _       <- s.withPermit(s.release).timeout(1.milli).attempt
-      permits <- s.release *> IO.sleep(10.millis) *> s.count
+      permits <- s.release *> clock.sleep(10.millis) *> s.count
     } yield permits must_=== 1L)
   }
 

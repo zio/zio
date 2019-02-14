@@ -1,6 +1,9 @@
 package scalaz.zio
 
 package object random extends Random.Interface[Random] {
+  final val randomService: ZIO[Random, Nothing, Random.Interface[Any]] =
+    ZIO.read(_.random)
+
   val nextBoolean: ZIO[Random, Nothing, Boolean]                = ZIO.readM(_.random.nextBoolean)
   def nextBytes(length: Int): ZIO[Random, Nothing, Chunk[Byte]] = ZIO.readM(_.random.nextBytes(length))
   val nextDouble: ZIO[Random, Nothing, Double]                  = ZIO.readM(_.random.nextDouble)

@@ -4,11 +4,11 @@ package scalaz.zio.clock
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.duration.Duration
-import scalaz.zio.scheduler.Scheduler
+import scalaz.zio.scheduler.{ Scheduler, SchedulerLive }
 import scalaz.zio.{ IO, ZIO }
 
 trait Clock extends Scheduler with Serializable {
-  val clock: Clock.Interface[Scheduler]
+  val clock: Clock.Interface[Any]
 }
 
 object Clock extends Serializable {
@@ -18,14 +18,14 @@ object Clock extends Serializable {
     def sleep(duration: Duration): ZIO[R, Nothing, Unit]
   }
 
-  trait Live extends Clock {
-    object clock extends Interface[Scheduler] {
-      def currentTime(unit: TimeUnit): ZIO[Scheduler, Nothing, Long] =
+  trait Live extends SchedulerLive with Clock {
+    object clock extends Interface[Any] {
+      def currentTime(unit: TimeUnit): ZIO[Any, Nothing, Long] =
         IO.sync(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
-      val nanoTime: ZIO[Scheduler, Nothing, Long] = IO.sync(System.nanoTime)
+      val nanoTime: ZIO[Any, Nothing, Long] = IO.sync(System.nanoTime)
 
-      def sleep(duration: Duration): ZIO[Scheduler, Nothing, Unit] =
+      def sleep(duration: Duration): ZIO[Any, Nothing, Unit] =
         scheduler.scheduler.flatMap(
           scheduler =>
             ZIO.asyncInterrupt[Any, Nothing, Unit] { k =>
@@ -37,4 +37,5 @@ object Clock extends Serializable {
         )
     }
   }
+  object Live extends Live
 }

@@ -5,6 +5,8 @@ import scalaz.zio.duration.Duration
 import java.util.concurrent.TimeUnit
 
 package object clock extends Clock.Interface[Clock] {
+  final val clockService: ZIO[Clock, Nothing, Clock.Interface[Any]] =
+    ZIO.read(_.clock)
 
   /**
    * Returns the current time, relative to the Unix epoch.
