@@ -7,7 +7,7 @@ import scala.concurrent.ExecutionContext
 import scalaz.zio.Exit.Cause
 import scalaz.zio.{ FiberFailure, IO }
 import scalaz.zio.internal.Executor.{ Role, Unyielding, Yielding }
-import scalaz.zio.internal.{ Env, ExecutionMetrics, Executor, NamedThreadFactory, Scheduler }
+import scalaz.zio.internal.{ Env, ExecutionMetrics, Executor, NamedThreadFactory }
 
 object Env {
 
@@ -23,11 +23,6 @@ object Env {
         case Executor.Unyielding => sync
         case Executor.Yielding   => async
       }
-
-      lazy val scheduler: Scheduler =
-        Scheduler.fromScheduledExecutorService(
-          Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
-        )
 
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]
@@ -51,11 +46,6 @@ object Env {
         case Executor.Unyielding => sync
         case Executor.Yielding   => async
       }
-
-      val scheduler: Scheduler =
-        Scheduler.fromScheduledExecutorService(
-          Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
-        )
 
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]

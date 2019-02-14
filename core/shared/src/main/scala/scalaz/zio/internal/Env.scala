@@ -24,11 +24,6 @@ trait Env {
   def executor(tpe: Executor.Role): Executor
 
   /**
-   * Retrieves the scheduler.
-   */
-  def scheduler: Scheduler
-
-  /**
    * Determines if a throwable is non-fatal or not.
    */
   def nonFatal(t: Throwable): Boolean
@@ -89,7 +84,6 @@ trait Env {
   final def shutdown(): Unit = {
     executor(Executor.Yielding).shutdown()
     executor(Executor.Unyielding).shutdown()
-    scheduler.shutdown()
   }
 
   /**
