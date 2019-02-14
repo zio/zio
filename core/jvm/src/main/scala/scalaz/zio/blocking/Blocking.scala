@@ -1,8 +1,9 @@
 package scalaz.zio.blocking
 
-import scalaz.zio.ZIO
+import java.util.concurrent._
 
-import scalaz.zio.internal.Executor
+import scalaz.zio.ZIO
+import scalaz.zio.internal.{ Executor, NamedThreadFactory }
 
 /**
  * The `Blocking` module provides access to a thread pool that can be used for performing
@@ -76,5 +77,32 @@ object Blocking extends Serializable {
               } yield a).ensuring(interruptThread *> awaitInterruption)
         } yield a
       })
+  }
+
+  trait Live extends Blocking {
+    object blocking extends Interface[Any] {
+      private[this] val blockingExecutor0 =
+        scalaz.zio.internal.impls.Env.fromThreadPoolExecutor(null, _ => Int.MaxValue) {
+          val corePoolSize  = 0
+          val maxPoolSize   = Int.MaxValue
+          val keepAliveTime = 1000L
+          val timeUnit      = TimeUnit.MILLISECONDS
+          val workQueue     = new SynchronousQueue[Runnable]()
+          val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
+
+          val threadPool = new ThreadPoolExecutor(
+            corePoolSize,
+            maxPoolSize,
+            keepAliveTime,
+            timeUnit,
+            workQueue,
+            threadFactory
+          )
+
+          threadPool
+        }
+
+      val blockingExecutor: ZIO[Any, Nothing, Executor] = ZIO.succeed(blockingExecutor0)
+    }
   }
 }
