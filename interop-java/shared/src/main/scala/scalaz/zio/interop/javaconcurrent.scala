@@ -3,6 +3,7 @@ package scalaz.zio.interop
 import java.util.concurrent.{ CompletableFuture, CompletionException, CompletionStage, Future }
 
 import scalaz.zio._
+import scalaz.zio.blocking.{ blocking, Blocking }
 
 import scala.concurrent.ExecutionException
 
@@ -56,7 +57,7 @@ object javaconcurrent {
       if (future.isDone) {
         unwrap(future)
       } else {
-        IO.unyielding(unwrap(future))
+        blocking(unwrap(future)).provide(Blocking.Live)
       }
     }
 

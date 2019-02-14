@@ -763,13 +763,6 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.lock(executor)(self)
 
   /**
-   * Marks this action as unyielding to the runtime system for better
-   * scheduling.
-   */
-  final def unyielding: ZIO[R, E, A] =
-    ZIO.unyielding(self)
-
-  /**
    * Runs this action in a new fiber, resuming when the fiber terminates.
    */
   final def run: ZIO[R, Nothing, Exit[E, A]] =
@@ -1058,13 +1051,6 @@ trait ZIOFunctions extends Serializable {
    */
   final def lock[R >: LowerR, E <: UpperE, A](executor: Executor)(io: ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.Lock(executor, io)
-
-  /**
-   * A combinator that allows you to identify long-running `ZIO` values to the
-   * runtime system for improved scheduling.
-   */
-  final def unyielding[R >: LowerR, E <: UpperE, A](io: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.flatten(sync0(env => lock[R, E, A](env.executor(Executor.Unyielding))(io)))
 
   /**
    * Imports an asynchronous effect into a pure `ZIO` value. See `async0` for
