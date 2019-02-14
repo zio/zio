@@ -896,6 +896,12 @@ trait ZIOFunctions extends Serializable {
   final def succeedLazy[A](a: => A): UIO[A] = new ZIO.Point(() => a)
 
   /**
+   * Accesses the whole context of the task.
+   */
+  final def accessAll[R >: LowerR]: ZIO[R, Nothing, R] =
+    read(identity)
+
+  /**
    * Accesses the environment of the program.
    */
   final def read[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
@@ -1430,18 +1436,26 @@ trait ZIO_E_Throwable extends ZIOFunctions {
 
 object IO extends ZIO_E_Any {
   type LowerR = Any
+
+  def apply[A](a: => A): IO[Throwable, A] = syncThrowable(a)
 }
 object Task extends ZIO_E_Throwable {
   type UpperE = Throwable
   type LowerR = Any
+
+  def apply[A](a: => A): Task[A] = syncThrowable(a)
 }
 object UIO extends ZIOFunctions {
   type UpperE = Nothing
   type LowerR = Any
+
+  def apply[A](a: => A): UIO[A] = sync(a)
 }
 
 object ZIO extends ZIO_E_Any {
   type LowerR = Nothing
+
+  def apply[A](a: => A): ZIO[Any, Throwable, A] = syncThrowable(a)
 
   @inline
   private final def succeedLeft[E, A]: E => UIO[Either[E, A]] =
