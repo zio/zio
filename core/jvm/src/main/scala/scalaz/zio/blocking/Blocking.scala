@@ -105,4 +105,5 @@ object Blocking extends Serializable {
       val blockingExecutor: ZIO[Any, Nothing, Executor] = ZIO.succeed(blockingExecutor0)
     }
   }
+  object Live extends Live
 }

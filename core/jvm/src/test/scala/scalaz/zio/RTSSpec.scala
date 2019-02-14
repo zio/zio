@@ -9,7 +9,6 @@ import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause
 import scalaz.zio.Exit.Cause.{ Die, Fail, Then }
 import scalaz.zio.duration._
-import scalaz.zio.internal.Executor
 import scalaz.zio.clock.Clock
 
 import scala.annotation.tailrec
@@ -84,7 +83,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     interrupt of asyncPure register         $testAsyncPureInterruptRegister
     sleep 0 must return                     $testSleepZeroReturns
     shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
-    unyielding reuses cached thread         $testUnyieldingThreadCaching
+    unyielding reuses cached thread         $testBlockingThreadCaching
 
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
@@ -965,14 +964,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   }
 
-  def testUnyieldingThreadCaching = {
+  def testBlockingThreadCaching = {
     val currentNumLiveWorkers =
-      IO.sync0(_.executor(Executor.Unyielding).metrics.get.workersCount)
+      blocking.blockingExecutor.map(_.metrics.get.workersCount)
 
     unsafeRunSync(for {
-      thread1  <- IO.sync(Thread.currentThread()).unyielding
+      thread1  <- blocking.blocking(IO.sync(Thread.currentThread()))
       workers1 <- currentNumLiveWorkers
-      thread2  <- IO.sync(Thread.currentThread()).unyielding
+      thread2  <- blocking.blocking(IO.sync(Thread.currentThread()))
       workers2 <- currentNumLiveWorkers
     } yield workers1 == workers2 && thread1 == thread2) must_=== Exit.Success(true)
   }
