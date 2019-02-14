@@ -1,7 +1,6 @@
 package scalaz.zio
 
 import java.io._
-import scalaz.zio.clock.Clock
 
 class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
 
@@ -40,16 +39,13 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     )
   }
 
-  def e2 = {
-    val live = Clock.Live.clock
+  def e2 =
     unsafeRun(
       for {
-        time1       <- live.nanoTime
-        returnClock <- serializeAndBack(live)
-        time2       <- returnClock.nanoTime
-      } yield (time1 < time2) must beTrue
+        time1 <- clock.nanoTime
+        time2 <- serializeAndBack(clock.nanoTime).flatten
+      } yield (time1 <= time2) must beTrue
     )
-  }
 
   def e3 = unsafeRun(
     for {

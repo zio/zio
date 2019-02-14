@@ -4,30 +4,37 @@ package scalaz.zio.clock
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.duration.Duration
-import scalaz.zio.{ IO, UIO, ZIO }
+import scalaz.zio.scheduler.Scheduler
+import scalaz.zio.{ IO, ZIO }
 
-trait Clock extends Serializable {
-  val clock: Clock.Interface[Any]
+trait Clock extends Scheduler with Serializable {
+  val clock: Clock.Interface[Scheduler]
 }
 
 object Clock extends Serializable {
   trait Interface[R] extends Serializable {
     def currentTime(unit: TimeUnit): ZIO[R, Nothing, Long]
     val nanoTime: ZIO[R, Nothing, Long]
-    def sleep(length: Long, unit: TimeUnit): ZIO[R, Nothing, Unit]
+    def sleep(duration: Duration): ZIO[R, Nothing, Unit]
   }
 
   trait Live extends Clock {
-    object clock extends Interface[Any] {
-      final def currentTime(unit: TimeUnit): UIO[Long] =
+    object clock extends Interface[Scheduler] {
+      def currentTime(unit: TimeUnit): ZIO[Scheduler, Nothing, Long] =
         IO.sync(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
-      final val nanoTime: UIO[Long] = IO.sync(System.nanoTime)
+      val nanoTime: ZIO[Scheduler, Nothing, Long] = IO.sync(System.nanoTime)
 
-      final def sleep(length: Long, unit: TimeUnit): UIO[Unit] =
-        IO.sleep(Duration(length, unit))
+      def sleep(duration: Duration): ZIO[Scheduler, Nothing, Unit] =
+        scheduler.scheduler.flatMap(
+          scheduler =>
+            ZIO.asyncInterrupt[Any, Nothing, Unit] { k =>
+              val canceler = scheduler
+                .schedule(() => k(ZIO.unit), duration)
+
+              Left(ZIO.sync(canceler()))
+            }
+        )
     }
   }
-  object Live extends Live
-
 }
