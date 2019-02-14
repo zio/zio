@@ -2,10 +2,6 @@ package scalaz.zio
 
 import scalaz.zio.internal.impls.Env
 
-import scalaz.zio.clock.Clock
-import scalaz.zio.console.Console
-import scalaz.zio.system.System
-
 trait CommonRTS {
   type Context
 
@@ -40,9 +36,4 @@ trait CommonRTS {
     env.unsafeRunAsync(io.provide(Context), k)
 
   final def shutdown(): Unit = env.shutdown()
-}
-
-trait RTS extends CommonRTS {
-  type Context = Clock with Console with System
-  val Context = new Clock.Live with Console.Live with System.Live
 }

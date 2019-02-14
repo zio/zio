@@ -939,58 +939,6 @@ trait ZIOFunctions extends Serializable {
   final def die(t: Throwable): UIO[Nothing] = halt(Cause.die(t))
 
   /**
-   * Imports a synchronous effect that does blocking IO into a pure value.
-   *
-   * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
-   * will be interrupted via `Thread.interrupt`.
-   */
-  final def blocking[A](effect: => A): IO[Throwable, A] =
-    IO.flatten(IO.sync {
-      import java.util.concurrent.locks.ReentrantLock
-      import java.util.concurrent.atomic.AtomicReference
-      import internal.OneShot
-
-      val lock    = new ReentrantLock()
-      val thread  = new AtomicReference[Option[Thread]](None)
-      val barrier = OneShot.make[Unit]
-
-      def withMutex[B](b: => B): B =
-        try {
-          lock.lock(); b
-        } finally lock.unlock()
-
-      val interruptThread: IO[Nothing, Unit] =
-        IO.sync(withMutex(thread.get match {
-            case None         => IO.unit
-            case Some(thread) => IO.sync(thread.interrupt())
-          }))
-          .flatten
-
-      val awaitInterruption: IO[Nothing, Unit] = IO.sync(barrier.get())
-
-      for {
-        a <- (for {
-              fiber <- IO
-                        .unyielding(IO.sync[Either[Throwable, A]] {
-                          val current = Some(Thread.currentThread)
-
-                          withMutex(thread.set(current))
-
-                          try Right(effect)
-                          catch {
-                            case e: InterruptedException =>
-                              Thread.interrupted
-                              Left(e)
-                            case t: Throwable => Left(t)
-                          } finally withMutex { thread.set(None); barrier.set(()) }
-                        })
-                        .fork
-              a <- fiber.join.absolve
-            } yield a).ensuring(interruptThread *> awaitInterruption)
-      } yield a
-    })
-
-  /**
    * Imports a synchronous effect into a pure `ZIO` value.
    *
    * {{{
