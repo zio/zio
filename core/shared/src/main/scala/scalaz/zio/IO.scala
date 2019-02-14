@@ -56,7 +56,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Embeds this program into one that requires a "bigger" environment.
    */
   final def contramap[R0](f: R0 => R): ZIO[R0, E, A] =
-    ZIO.readM(r0 => self.provide(f(r0)))
+    ZIO.accessM(r0 => self.provide(f(r0)))
 
   /**
    * Maps an `IO[E, A]` into an `IO[E, B]` by applying the specified `A => B` function
@@ -119,7 +119,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def fork: ZIO[R, Nothing, Fiber[E, A]] =
     for {
-      r     <- ZIO.read[R, R](identity)
+      r     <- ZIO.access[R, R](identity)
       fiber <- new ZIO.Fork(self.provide(r), None)
     } yield fiber
 
@@ -129,7 +129,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def forkWith(handler: Cause[Any] => UIO[_]): ZIO[R, Nothing, Fiber[E, A]] =
     for {
-      r     <- ZIO.read[R, R](identity)
+      r     <- ZIO.access[R, R](identity)
       fiber <- new ZIO.Fork(self.provide(r), Some(handler))
     } yield fiber
 
@@ -896,15 +896,20 @@ trait ZIOFunctions extends Serializable {
   final def succeedLazy[A](a: => A): UIO[A] = new ZIO.Point(() => a)
 
   /**
+   * Returns the environment of the program.
+   */
+  final def context[R >: LowerR]: ZIO[R, Nothing, R] = access(identity)
+
+  /**
    * Accesses the environment of the program.
    */
-  final def read[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
-    readM(f.andThen(succeed(_)))
+  final def access[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
+    accessM(f.andThen(succeed))
 
   /**
    * Effectfully accesses the environment of the program.
    */
-  final def readM[R >: LowerR, E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
+  final def accessM[R >: LowerR, E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.Read(f)
 
   /**
@@ -1472,7 +1477,7 @@ object ZIO extends ZIO_E_Any {
     final val Descriptor      = 11
     final val Lock            = 12
     final val Yield           = 13
-    final val Read            = 14
+    final val Access          = 14
     final val Provide         = 15
   }
   final class FlatMap[R, E, A0, A](val io: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
@@ -1543,7 +1548,7 @@ object ZIO extends ZIO_E_Any {
   }
 
   final class Read[R, E, A](val k: R => ZIO[R, E, A]) extends ZIO[R, E, A] {
-    override def tag = Tags.Read
+    override def tag = Tags.Access
   }
 
   final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
