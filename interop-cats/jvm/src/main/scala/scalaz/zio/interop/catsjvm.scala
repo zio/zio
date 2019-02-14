@@ -32,7 +32,7 @@ abstract class CatsInstances extends CatsInstances1 {
     }
 
     override def sleep(duration: FiniteDuration): ZIO[R, E, Unit] =
-      zioClock.sleep(duration.length, duration.unit)
+      zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
   }
 
   implicit val taskEffectInstances: effect.ConcurrentEffect[Task] with SemigroupK[Task] =

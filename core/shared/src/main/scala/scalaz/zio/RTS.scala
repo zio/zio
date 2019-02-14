@@ -1,14 +1,16 @@
 package scalaz.zio
 
-import scalaz.zio.clock.Clock
-import scalaz.zio.system.System
-import scalaz.zio.console.Console
 import scalaz.zio.internal.impls.Env
 
-trait RTS {
+import scalaz.zio.clock.Clock
+import scalaz.zio.console.Console
+import scalaz.zio.system.System
+import scalaz.zio.scheduler.{ Scheduler, SchedulerLive }
 
-  type BuiltIn = Clock with Console with System
-  val BuiltIn = new Clock.Live with Console.Live with System.Live
+trait CommonRTS {
+  type Context
+
+  val Context: Context
 
   lazy val env =
     Env.newDefaultEnv {
@@ -21,22 +23,29 @@ trait RTS {
    * In Javascript, this operation will not, in general, succeed because it is not possible to block for the result.
    * However, it may succeed in some cases if the IO is purely synchronous.
    */
-  final def unsafeRun[E, A](io: ZIO[BuiltIn, E, A]): A =
-    env.unsafeRun(io.provide(BuiltIn))
+  final def unsafeRun[E, A](io: ZIO[Context, E, A]): A =
+    env.unsafeRun(io.provide(Context))
 
   /**
    * Awaits for the result of the fiber to be computed.
    * In Javascript, this operation will not, in general, succeed because it is not possible to block for the result.
    * However, it may succeed in some cases if the IO is purely synchronous.
    */
-  final def unsafeRunSync[E, A](io: ZIO[BuiltIn, E, A]): Exit[E, A] =
-    env.unsafeRunSync(io.provide(BuiltIn))
+  final def unsafeRunSync[E, A](io: ZIO[Context, E, A]): Exit[E, A] =
+    env.unsafeRunSync(io.provide(Context))
 
   /**
    * Runs the `io` asynchronously.
    */
-  final def unsafeRunAsync[E, A](io: ZIO[BuiltIn, E, A])(k: Exit[E, A] => Unit): Unit =
-    env.unsafeRunAsync(io.provide(BuiltIn), k)
+  final def unsafeRunAsync[E, A](io: ZIO[Context, E, A])(k: Exit[E, A] => Unit): Unit =
+    env.unsafeRunAsync(io.provide(Context), k)
 
   final def shutdown(): Unit = env.shutdown()
+}
+
+trait RTS extends CommonRTS {
+  type Context = Clock with Console with System
+  val Context = new Clock.Live with Console.Live with System.Live with Scheduler {
+    val scheduler = SchedulerLive
+  }
 }
