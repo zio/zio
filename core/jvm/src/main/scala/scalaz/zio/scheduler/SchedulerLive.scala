@@ -7,12 +7,12 @@ import scalaz.zio.internal.{ NamedThreadFactory, Scheduler => IScheduler }
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
-trait SchedulerLive extends Scheduler.Service[Any] {
-  import IScheduler.CancelToken
+trait SchedulerLive extends Scheduler {
+  private[this] val scheduler0 = new IScheduler {
+    import IScheduler.CancelToken
 
-  val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
+    val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
 
-  val scheduler0 = new IScheduler {
     val ConstFalse = () => false
 
     val _size = new AtomicInteger()
@@ -48,6 +48,8 @@ trait SchedulerLive extends Scheduler.Service[Any] {
     override def shutdown(): Unit = service.shutdown()
   }
 
-  val scheduler = ZIO.succeed(scheduler0)
+  object scheduler extends Scheduler.Service[Any] {
+    val scheduler = ZIO.succeed(scheduler0)
+  }
 }
 object SchedulerLive extends SchedulerLive

@@ -8,10 +8,9 @@ import scalaz.zio.internal.{ Scheduler => IScheduler }
 
 import scala.scalajs.js
 
-trait SchedulerLive extends Scheduler.Service[Any] {
-  import IScheduler.CancelToken
-
-  val scheduler0 = new IScheduler {
+trait SchedulerLive extends Scheduler {
+  private[this] val scheduler0 = new IScheduler {
+    import IScheduler.CancelToken
 
     val ConstFalse = () => false
 
@@ -51,6 +50,8 @@ trait SchedulerLive extends Scheduler.Service[Any] {
     override def shutdown(): Unit = ()
   }
 
-  val scheduler = ZIO.succeed(scheduler0)
+  object scheduler extends Scheduler.Service[Any] {
+    val scheduler = ZIO.succeed(scheduler0)
+  }
 }
 object SchedulerLive extends SchedulerLive

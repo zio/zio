@@ -10,6 +10,7 @@ import scalaz.zio.Exit.Cause
 import scalaz.zio.Exit.Cause.{ Die, Fail, Then }
 import scalaz.zio.duration._
 import scalaz.zio.internal.Executor
+import scalaz.zio.clock.Clock
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
@@ -399,29 +400,31 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).void
 
     unsafeRun(for {
-      ref <- Ref.make[List[String]](Nil)
-      log = makeLogger(ref)
+      ref   <- Ref.make[List[String]](Nil)
+      clock <- clock.clockService
+      log   = makeLogger(ref)
       f <- IO
             .bracket(
-              IO.bracket(IO.unit)(_ => log("start 1") *> IO.sleep(10.millis) *> log("release 1"))(
+              IO.bracket(IO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(
                 _ => IO.unit
               )
-            )(_ => log("start 2") *> IO.sleep(10.millis) *> log("release 2"))(_ => IO.unit)
+            )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => IO.unit)
             .fork
-      _ <- (ref.get <* IO.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
+      _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
       _ <- f.interrupt
-      _ <- (ref.get <* IO.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
+      _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
       l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
 
   def testInterruptWaitsForFinalizer =
     unsafeRun(for {
-      r  <- Ref.make(false)
-      p1 <- Promise.make[Nothing, Unit]
-      p2 <- Promise.make[Nothing, Int]
+      r     <- Ref.make(false)
+      clock <- clock.clockService
+      p1    <- Promise.make[Nothing, Unit]
+      p2    <- Promise.make[Nothing, Int]
       s <- (p1.succeed(()) *> p2.await)
-            .ensuring(r.set(true).void.delay(10.millis))
+            .ensuring(r.set(true) *> clock.sleep(10.millis))
             .fork
       _    <- p1.await
       _    <- s.interrupt
@@ -511,18 +514,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.asyncM[Throwable, Int](k => IO.sync(k(IO.succeed(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
-    def stackIOs(count: Int): UIO[Int] =
+    def stackIOs(clock: Clock.Interface[Any], count: Int): UIO[Int] =
       if (count <= 0) IO.succeed(42)
-      else asyncIO(stackIOs(count - 1))
+      else asyncIO(clock, stackIOs(clock, count - 1))
 
-    def asyncIO(cont: UIO[Int]): UIO[Int] =
+    def asyncIO(clock: Clock.Interface[Any], cont: UIO[Int]): UIO[Int] =
       IO.asyncM[Nothing, Int] { k =>
-        IO.sleep(5.millis) *> cont *> IO.sync(k(IO.succeed(42)))
+        clock.sleep(5.millis) *> cont *> IO.sync(k(IO.succeed(42)))
       }
 
     val procNum = Runtime.getRuntime.availableProcessors()
 
-    unsafeRun(stackIOs(procNum + 1)) must_=== 42
+    unsafeRun(clock.clockService.flatMap(stackIOs(_, procNum + 1))) must_=== 42
   }
 
   def testAsyncPureInterruptRegister =
@@ -540,7 +543,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     } yield a) must_=== (())
 
   def testSleepZeroReturns =
-    unsafeRun(IO.sleep(1.nanos)) must_=== ((): Unit)
+    unsafeRun(clock.sleep(1.nanos)) must_=== ((): Unit)
 
   def testShallowBindOfAsyncChainIsCorrect = {
     val result = (0 until 10).foldLeft[Task[Int]](IO.succeedLazy[Int](0)) { (acc, _) =>
@@ -781,8 +784,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testSupervise = {
     var counter = 0
     unsafeRun((for {
-      _ <- (IO.sleep(200.millis) *> IO.unit).fork
-      _ <- (IO.sleep(400.millis) *> IO.unit).fork
+      _ <- (clock.sleep(200.millis) *> IO.unit).fork
+      _ <- (clock.sleep(400.millis) *> IO.unit).fork
     } yield ()).superviseWith { fs =>
       fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt *> IO.sync(counter += 1))
     })
@@ -857,12 +860,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.raceAll[Any, Int, Int](IO.fail(42), List(IO.succeed(24))).attempt) must_=== Right(24)
 
   def testRaceAllOfFailures =
-    unsafeRun(IO.raceAll[Any, Int, Nothing](IO.fail(24).delay(10.millis), List(IO.fail(24))).attempt) must_=== Left(
+    unsafeRun(ZIO.raceAll[Clock, Int, Nothing](IO.fail(24).delay(10.millis), List(IO.fail(24))).attempt) must_=== Left(
       24
     )
 
   def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(IO.raceAll[Any, Int, Int](IO.fail(42), List(IO.succeed(24).delay(1.millis))).attempt) must_=== Right(
+    unsafeRun(ZIO.raceAll[Clock, Int, Int](IO.fail(42), List(IO.succeed(24).delay(1.millis))).attempt) must_=== Right(
       24
     )
 
@@ -918,7 +921,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testTimeoutTerminate =
     unsafeRunSync(
-      IO.die(ExampleError).timeout(1.hour): UIO[Option[Int]]
+      IO.die(ExampleError).timeout(1.hour): ZIO[Clock, Nothing, Option[Int]]
     ) must_=== Exit.die(ExampleError)
 
   def testDeadlockRegression = {
@@ -956,7 +959,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(
       for {
         f <- test.fork
-        c <- (IO.sync[Int](c.get) <* IO.sleep(1.millis)).repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
+        c <- (IO.sync[Int](c.get) <* clock.sleep(1.millis)).repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
       } yield c must be_>=(1)
     )
 

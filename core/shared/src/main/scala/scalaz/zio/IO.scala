@@ -119,7 +119,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def fork: ZIO[R, Nothing, Fiber[E, A]] =
     for {
-      r     <- ZIO.read[R]
+      r     <- ZIO.read[R, R](identity)
       fiber <- new ZIO.Fork(self.provide(r), None)
     } yield fiber
 
@@ -129,7 +129,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def forkWith(handler: Cause[Any] => UIO[_]): ZIO[R, Nothing, Fiber[E, A]] =
     for {
-      r     <- ZIO.read[R]
+      r     <- ZIO.read[R, R](identity)
       fiber <- new ZIO.Fork(self.provide(r), Some(handler))
     } yield fiber
 
@@ -675,7 +675,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
             .update(err, state)
             .flatMap(
               decision =>
-                if (decision.cont) ZIO.sleep(decision.delay) *> loop(decision.state)
+                if (decision.cont) clock.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
             ),
         succ => ZIO.succeedRight(succ)
@@ -709,7 +709,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Times out an action by the specified duration.
    */
-  final def timeout(d: Duration): ZIO[R, E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
+  final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
 
   /**
    * Times out this action by the specified duration.
@@ -718,13 +718,13 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * IO.succeed(1).timeout0(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
-  final def timeout0[B](z: B)(f: A => B)(duration: Duration): ZIO[R, E, B] =
-    self.map(f).sandboxWith[R, E, B](io => ZIO.absolve(io.attempt race ZIO.succeedRight(z).delay(duration)))
+  final def timeout0[B](z: B)(f: A => B)(duration: Duration): ZIO[R with Clock, E, B] =
+    self.map(f).sandboxWith[R with Clock, E, B](io => ZIO.absolve(io.attempt race ZIO.succeedRight(z).delay(duration)))
 
   /**
    * Flattens a nested action with a specified duration.
    */
-  final def timeoutFail[E1 >: E](e: E1)(d: Duration): ZIO[R, E1, A] =
+  final def timeoutFail[E1 >: E](e: E1)(d: Duration): ZIO[R with Clock, E1, A] =
     ZIO.flatten(timeout0[ZIO[R, E1, A]](ZIO.fail(e))(ZIO.succeed)(d))
 
   /**
@@ -753,8 +753,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Delays this action by the specified amount of time.
    */
-  final def delay(duration: Duration): ZIO[R, E, A] =
-    ZIO.sleep(duration) *> self
+  final def delay(duration: Duration): ZIO[R with Clock, E, A] =
+    clock.sleep(duration) *> self
 
   /**
    * Locks the execution of this action to the specified executor.
@@ -898,8 +898,8 @@ trait ZIOFunctions extends Serializable {
   /**
    * Accesses the environment of the program.
    */
-  final def read[R >: LowerR]: ZIO[R, Nothing, R] =
-    readM(succeed)
+  final def read[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
+    readM(f.andThen(succeed(_)))
 
   /**
    * Effectfully accesses the environment of the program.
@@ -1346,21 +1346,6 @@ trait ZIOFunctions extends Serializable {
    */
   final def whenM[R >: LowerR, E <: UpperE](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, Unit]): ZIO[R, E, Unit] =
     b.flatMap(b => if (b) zio else unit)
-
-  /**
-   * Sleeps for the specified duration. This is always asynchronous.
-   */
-  final def sleep(duration: Duration): UIO[Unit] =
-    sync0(identity)
-      .flatMap(
-        env =>
-          asyncInterrupt[Any, Nothing, Unit] { k =>
-            val canceler = env.scheduler
-              .schedule(() => k(unit), duration)
-
-            Left(sync(canceler()))
-          }
-      )
 
   /**
    * Folds an `Iterable[A]` using an effectful function `f`. Works in sequence.

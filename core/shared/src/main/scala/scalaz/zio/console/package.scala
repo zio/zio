@@ -4,6 +4,8 @@ package scalaz.zio
 import java.io.{ IOException, PrintStream, Reader }
 
 package object console extends Console.Interface[Console] {
+  final val consoleService: ZIO[Console, Nothing, Console.Interface[Any]] =
+    ZIO.read(_.console)
 
   /**
    * Prints text to the console.
