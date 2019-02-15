@@ -11,11 +11,6 @@ import scala.concurrent.ExecutionContext
 trait Executor {
 
   /**
-   * The role the executor is optimized for.
-   */
-  def role: Executor.Role
-
-  /**
    * The number of operations a fiber should run before yielding.
    */
   def yieldOpCount: Int
@@ -61,29 +56,14 @@ trait Executor {
 }
 
 object Executor extends Serializable {
-  sealed abstract class Role extends Product with Serializable
-
-  /**
-   * An executor optimized for synchronous tasks, which yield
-   * to the runtime infrequently or never.
-   */
-  final case object Unyielding extends Role
-
-  /**
-   * An executor optimized for asynchronous tasks, which yield
-   * frequently to the runtime.
-   */
-  final case object Yielding extends Role
 
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
    */
-  final def fromExecutionContext(role0: Role, yieldOpCount0: Int)(
+  final def fromExecutionContext(yieldOpCount0: Int)(
     ec: ExecutionContext
   ): Executor =
     new Executor {
-      def role = role0
-
       def yieldOpCount = yieldOpCount0
 
       def submit(runnable: Runnable): Boolean =

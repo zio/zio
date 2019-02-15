@@ -6,7 +6,6 @@ import java.util.concurrent._
 import scala.concurrent.ExecutionContext
 import scalaz.zio.Exit.Cause
 import scalaz.zio.{ FiberFailure, IO }
-import scalaz.zio.internal.Executor.{ Role, Unyielding, Yielding }
 import scalaz.zio.internal.{ Env, ExecutionMetrics, Executor, NamedThreadFactory }
 
 object Env {
@@ -16,13 +15,7 @@ object Env {
    */
   final def fromExecutionContext(ec: ExecutionContext): Env =
     new Env {
-      val sync  = Executor.fromExecutionContext(Executor.Unyielding, 1000)(ec)
-      val async = Executor.fromExecutionContext(Executor.Yielding, 1000)(ec)
-
-      def executor(tpe: Executor.Role): Executor = tpe match {
-        case Executor.Unyielding => sync
-        case Executor.Yielding   => async
-      }
+      val defaultExecutor = Executor.fromExecutionContext(1000)(ec)
 
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]
@@ -39,13 +32,7 @@ object Env {
    */
   final def newDefaultEnv(reportFailure0: Cause[_] => IO[Nothing, _]): Env =
     new Env {
-      val sync  = newDefaultExecutor(Executor.Unyielding)
-      val async = newDefaultExecutor(Executor.Yielding)
-
-      def executor(tpe: Executor.Role): Executor = tpe match {
-        case Executor.Unyielding => sync
-        case Executor.Yielding   => async
-      }
+      val defaultExecutor = newDefaultExecutor()
 
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]
@@ -60,60 +47,35 @@ object Env {
   /**
    * Creates a new default executor of the specified type.
    */
-  final def newDefaultExecutor(role: Role): Executor = role match {
-    case Unyielding =>
-      fromThreadPoolExecutor(role, _ => Int.MaxValue) {
-        val corePoolSize  = 0
-        val maxPoolSize   = Int.MaxValue
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new SynchronousQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
+  final def newDefaultExecutor(): Executor =
+    fromThreadPoolExecutor(_ => 1024) {
+      val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
+      val maxPoolSize   = corePoolSize
+      val keepAliveTime = 1000L
+      val timeUnit      = TimeUnit.MILLISECONDS
+      val workQueue     = new LinkedBlockingQueue[Runnable]()
+      val threadFactory = new NamedThreadFactory("zio-default-async", true)
 
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
+      val threadPool = new ThreadPoolExecutor(
+        corePoolSize,
+        maxPoolSize,
+        keepAliveTime,
+        timeUnit,
+        workQueue,
+        threadFactory
+      )
+      threadPool.allowCoreThreadTimeOut(true)
 
-        threadPool
-      }
-
-    case Yielding =>
-      fromThreadPoolExecutor(role, _ => 1024) {
-        val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-        val maxPoolSize   = corePoolSize
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new LinkedBlockingQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-yielding", true)
-
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-        threadPool.allowCoreThreadTimeOut(true)
-
-        threadPool
-      }
-  }
+      threadPool
+    }
 
   /**
    * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
    */
-  final def fromThreadPoolExecutor(role0: Role, yieldOpCount0: ExecutionMetrics => Int)(
+  final def fromThreadPoolExecutor(yieldOpCount0: ExecutionMetrics => Int)(
     es: ThreadPoolExecutor
   ): Executor =
     new Executor {
-      def role = role0
-
       private[this] def metrics0 = new ExecutionMetrics {
         def concurrency: Int = es.getMaximumPoolSize()
 

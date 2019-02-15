@@ -82,13 +82,13 @@ object Blocking extends Serializable {
   trait Live extends Blocking {
     object blocking extends Interface[Any] {
       private[this] val blockingExecutor0 =
-        scalaz.zio.internal.impls.Env.fromThreadPoolExecutor(null, _ => Int.MaxValue) {
+        scalaz.zio.internal.impls.Env.fromThreadPoolExecutor(_ => Int.MaxValue) {
           val corePoolSize  = 0
           val maxPoolSize   = Int.MaxValue
           val keepAliveTime = 1000L
           val timeUnit      = TimeUnit.MILLISECONDS
           val workQueue     = new SynchronousQueue[Runnable]()
-          val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
+          val threadFactory = new NamedThreadFactory("zio-default-blocking", true)
 
           val threadPool = new ThreadPoolExecutor(
             corePoolSize,
