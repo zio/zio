@@ -6,16 +6,16 @@ import java.util.concurrent._
 import scala.concurrent.ExecutionContext
 import scalaz.zio.Exit.Cause
 import scalaz.zio.{ FiberFailure, IO }
-import scalaz.zio.internal.{ Env, ExecutionMetrics, Executor, NamedThreadFactory }
+import scalaz.zio.internal.{ Env => IEnv, ExecutionMetrics, Executor, NamedThreadFactory }
 
 object Env {
 
   /**
    * Creates a new environment from an `ExecutionContext`.
    */
-  final def fromExecutionContext(ec: ExecutionContext): Env =
-    new Env {
-      val defaultExecutor = Executor.fromExecutionContext(1000)(ec)
+  final def fromExecutionContext(ec: ExecutionContext): IEnv =
+    new IEnv {
+      val executor = Executor.fromExecutionContext(1000)(ec)
 
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]
@@ -30,9 +30,9 @@ object Env {
   /**
    * Creates a new default environment.
    */
-  final def newDefaultEnv(reportFailure0: Cause[_] => IO[Nothing, _]): Env =
-    new Env {
-      val defaultExecutor = newDefaultExecutor()
+  final def newDefaultEnv(reportFailure0: Cause[_] => IO[Nothing, _]): IEnv =
+    new IEnv {
+      val executor = newexecutor()
 
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]
@@ -47,7 +47,7 @@ object Env {
   /**
    * Creates a new default executor of the specified type.
    */
-  final def newDefaultExecutor(): Executor =
+  final def newexecutor(): Executor =
     fromThreadPoolExecutor(_ => 1024) {
       val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
       val maxPoolSize   = corePoolSize

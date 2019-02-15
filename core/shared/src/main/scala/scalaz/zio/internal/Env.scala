@@ -16,7 +16,7 @@ trait Env {
   /**
    * Retrieves the default executor.
    */
-  def defaultExecutor: Executor
+  def executor: Executor
 
   /**
    * Determines if a throwable is non-fatal or not.
@@ -77,7 +77,7 @@ trait Env {
    * one, but I predict you're going to be disappointed.
    */
   final def shutdown(): Unit =
-    defaultExecutor.shutdown()
+    executor.shutdown()
 
   /**
    * Helper function to create a new fiber context.
