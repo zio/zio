@@ -1,4 +1,3 @@
-// Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
 package scalaz.zio
 
 import java.util.concurrent.Callable
