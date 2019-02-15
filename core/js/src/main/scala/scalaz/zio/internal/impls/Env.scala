@@ -15,7 +15,7 @@ object Env {
    */
   final def newDefaultEnv(reportFailure0: Cause[_] => IO[Nothing, _]): IEnv =
     new IEnv {
-      val defaultExecutor = Executor.fromExecutionContext(1024)(Implicits.global)
+      val executor = Executor.fromExecutionContext(1024)(Implicits.global)
 
       def nonFatal(t: Throwable): Boolean =
         !t.isInstanceOf[VirtualMachineError]

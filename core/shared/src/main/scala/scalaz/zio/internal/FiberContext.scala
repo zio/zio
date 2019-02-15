@@ -86,7 +86,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] final def executor: Executor =
-    locked.headOption.getOrElse(env.defaultExecutor)
+    locked.headOption.getOrElse(env.executor)
 
   /**
    * The main interpreter loop for `IO` actions. For purely synchronous actions,
@@ -316,7 +316,7 @@ private[zio] final class FiberContext[E, A](
   final def fork[E, A](io: IO[E, A], unhandled: Cause[Any] => UIO[_]): FiberContext[E, A] = {
     val context = env.newFiberContext[E, A](unhandled)
 
-    env.defaultExecutor.submitOrThrow(() => context.evaluateNow(io))
+    env.executor.submitOrThrow(() => context.evaluateNow(io))
 
     context
   }
@@ -552,7 +552,7 @@ private[zio] final class FiberContext[E, A](
     // pool in order of their submission.
     observers.reverse.foreach(
       k =>
-        env.defaultExecutor
+        env.executor
           .submitOrThrow(() => k(result))
     )
   }
