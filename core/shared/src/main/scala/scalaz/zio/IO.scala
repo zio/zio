@@ -435,7 +435,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * to the default one.
    */
   final def on(ec: ExecutionContext): ZIO[R, E, A] =
-    self.lock(Executor.fromExecutionContext(Executor.Yielding, Int.MaxValue)(ec))
+    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Forks an action that will be executed on the specified `ExecutionContext`.

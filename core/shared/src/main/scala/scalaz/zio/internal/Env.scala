@@ -16,12 +16,7 @@ trait Env {
   /**
    * Retrieves the default executor.
    */
-  def defaultExecutor: Executor = executor(Executor.Yielding)
-
-  /**
-   * Retrieves the executor for the specified type of tasks.
-   */
-  def executor(tpe: Executor.Role): Executor
+  def defaultExecutor: Executor
 
   /**
    * Determines if a throwable is non-fatal or not.
@@ -81,10 +76,8 @@ trait Env {
    * Shuts down executors. You can try calling others method after this
    * one, but I predict you're going to be disappointed.
    */
-  final def shutdown(): Unit = {
-    executor(Executor.Yielding).shutdown()
-    executor(Executor.Unyielding).shutdown()
-  }
+  final def shutdown(): Unit =
+    defaultExecutor.shutdown()
 
   /**
    * Helper function to create a new fiber context.
