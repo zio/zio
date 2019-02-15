@@ -8,6 +8,8 @@ name := "scalaz-zio"
 inThisBuild(
   List(
     organization := "org.scalaz",
+    organizationName := "John A. De Goes and the ZIO Contributors",
+    startYear := Some(2017),
     homepage := Some(url("https://scalaz.github.io/scalaz-zio/")),
     licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
