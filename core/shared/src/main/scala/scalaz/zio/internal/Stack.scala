@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// Copyright (C) 2018 - 2019 John A. De Goes. All rights reserved.
 package scalaz.zio.internal
 
 /**

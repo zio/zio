@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// Copyright (C) 2017-2019 John A. De Goes. All rights reserved.
 package scalaz.zio.console
 
 import java.io.{ IOException, PrintStream, Reader }
