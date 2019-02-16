@@ -16,7 +16,7 @@
 
 package scalaz.zio
 
-package object system extends System.Interface[System] {
+package object system extends System.Service[System] {
 
   /** Retrieve the value of an environment variable **/
   def env(variable: String): ZIO[System, Nothing, Option[String]] =

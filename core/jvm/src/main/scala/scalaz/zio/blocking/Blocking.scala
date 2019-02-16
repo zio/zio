@@ -28,10 +28,10 @@ import scalaz.zio.internal.{ Executor, NamedThreadFactory }
  * memory, and continuously create new threads as necessary.
  */
 trait Blocking extends Serializable {
-  def blocking: Blocking.Interface[Any]
+  def blocking: Blocking.Service[Any]
 }
 object Blocking extends Serializable {
-  trait Interface[R] extends Serializable {
+  trait Service[R] extends Serializable {
 
     /**
      * Retrieves the executor for all blocking tasks.
@@ -96,7 +96,7 @@ object Blocking extends Serializable {
   }
 
   trait Live extends Blocking {
-    object blocking extends Interface[Any] {
+    object blocking extends Service[Any] {
       private[this] val blockingExecutor0 =
         scalaz.zio.internal.impls.Env.fromThreadPoolExecutor(_ => Int.MaxValue) {
           val corePoolSize  = 0

@@ -20,8 +20,8 @@ import scalaz.zio.duration.Duration
 
 import java.util.concurrent.TimeUnit
 
-package object clock extends Clock.Interface[Clock] {
-  final val clockService: ZIO[Clock, Nothing, Clock.Interface[Any]] =
+package object clock extends Clock.Service[Clock] {
+  final val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
     ZIO.access(_.clock)
 
   /**
