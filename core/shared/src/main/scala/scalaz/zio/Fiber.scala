@@ -150,7 +150,6 @@ object Fiber {
   final case class Descriptor(
     id: FiberId,
     interrupted: Boolean,
-    supervisor: Exit.Cause[Nothing] => UIO[_],
     executor: Executor
   )
 

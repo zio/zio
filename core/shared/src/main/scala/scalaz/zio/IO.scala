@@ -135,17 +135,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def fork: ZIO[R, Nothing, Fiber[E, A]] =
     for {
       r     <- ZIO.access[R, R](identity)
-      fiber <- new ZIO.Fork(self.provide(r), None)
-    } yield fiber
-
-  /**
-   * A more powerful version of `fork` that allows specifying a handler to be
-   * invoked on any exceptions that are not handled by the forked fiber.
-   */
-  final def forkWith(handler: Cause[Any] => UIO[_]): ZIO[R, Nothing, Fiber[E, A]] =
-    for {
-      r     <- ZIO.access[R, R](identity)
-      fiber <- new ZIO.Fork(self.provide(r), Some(handler))
+      fiber <- new ZIO.Fork(self.provide(r))
     } yield fiber
 
   /**
@@ -981,13 +971,6 @@ trait ZIOFunctions extends Serializable {
   final val yieldNow: UIO[Unit] = ZIO.Yield
 
   /**
-   * Retrieves the supervisor associated with the fiber running the action
-   * returned by this method.
-   */
-  final val supervisor: UIO[Cause[Nothing] => UIO[_]] =
-    ZIO.descriptor.map(_.supervisor)
-
-  /**
    * Forks all of the specified values, and returns a composite fiber that
    * produces a list of their results, in order.
    */
@@ -1470,7 +1453,7 @@ object ZIO extends ZIO_E_Any {
     final def apply(v: A): ZIO[R, E2, B] = succ(v)
   }
 
-  final class Fork[E, A](val value: IO[E, A], val handler: Option[Cause[Any] => UIO[_]]) extends UIO[Fiber[E, A]] {
+  final class Fork[E, A](val value: IO[E, A]) extends UIO[Fiber[E, A]] {
     override def tag = Tags.Fork
   }
 
