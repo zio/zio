@@ -328,18 +328,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def testErrorInFinalizerIsReported = {
-    var reported: Cause[Any] = null
+    @volatile var reported: Exit[Nothing, Int] = null
 
     unsafeRun {
       IO.succeedLazy[Int](42)
         .ensuring(IO.die(ExampleError))
-        .forkWith(es => IO.sync[Unit] { reported = es; () })
+        .fork.flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.sync { reported = e }))
     }
 
-    // FIXME: Is this an issue with thread synchronization?
-    while (reported eq null) Thread.`yield`()
-
-    reported must_=== Die(ExampleError)
+    reported must_=== Exit.Failure(Die(ExampleError))
   }
 
   def testExitIsUsageResult =

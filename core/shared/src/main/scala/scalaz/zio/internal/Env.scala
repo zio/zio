@@ -72,7 +72,7 @@ trait Env {
     io: IO[E, A],
     k: Exit[E, A] => Unit
   ): Unit = {
-    val context = newFiberContext[E, A](reportFailure(_))
+    val context = newFiberContext[E, A]()
 
     context.evaluateNow(io)
     context.runAsync(k)
@@ -82,7 +82,7 @@ trait Env {
    * Runs the `io` asynchronously, ignoring the results.
    */
   final def unsafeRunAsync_[E, A](io: IO[E, A]): Unit = {
-    val context = newFiberContext[E, A](reportFailure(_))
+    val context = newFiberContext[E, A]()
 
     val _ = context.evaluateNow(io)
   }
@@ -97,8 +97,8 @@ trait Env {
   /**
    * Helper function to create a new fiber context.
    */
-  private[internal] final def newFiberContext[E, A](unhandled: Cause[Any] => UIO[_]): FiberContext[E, A] =
-    new FiberContext[E, A](this, FiberCounter.fiberCounter.getAndIncrement(), unhandled)
+  private[internal] final def newFiberContext[E, A](): FiberContext[E, A] =
+    new FiberContext[E, A](this, FiberCounter.fiberCounter.getAndIncrement())
 }
 
 private[zio] object FiberCounter {

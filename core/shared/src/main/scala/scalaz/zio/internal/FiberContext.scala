@@ -28,8 +28,7 @@ import scala.annotation.{ switch, tailrec }
  */
 private[zio] final class FiberContext[E, A](
   env: Env,
-  val fiberId: FiberId,
-  val unhandled: Cause[Any] => UIO[_]
+  val fiberId: FiberId
 ) extends Fiber[E, A] {
   import java.util.{ Collections, Set }
 
@@ -216,11 +215,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Fork =>
                   val io = curIo.asInstanceOf[ZIO.Fork[_, Any]]
 
-                  val optHandler = io.handler
-
-                  val handler = if (optHandler eq None) unhandled else optHandler.get
-
-                  val value: FiberContext[_, Any] = fork(io.value, handler)
+                  val value: FiberContext[_, Any] = fork(io.value)
 
                   supervise(value)
 
@@ -323,13 +318,13 @@ private[zio] final class FiberContext[E, A](
     IO.sync { locked = locked.drop(1) } *> IO.yieldNow
 
   private[this] final def getDescriptor: Fiber.Descriptor =
-    Fiber.Descriptor(fiberId, state.get.interrupted, unhandled, executor)
+    Fiber.Descriptor(fiberId, state.get.interrupted, executor)
 
   /**
    * Forks an `IO` with the specified failure handler.
    */
-  final def fork[E, A](io: IO[E, A], unhandled: Cause[Any] => UIO[_]): FiberContext[E, A] = {
-    val context = env.newFiberContext[E, A](unhandled)
+  final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
+    val context = env.newFiberContext[E, A]()
 
     env.executor.submitOrThrow(() => context.evaluateNow(io))
 
@@ -492,7 +487,7 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def reportUnhandled(v: Exit[E, A]): Unit = v match {
     case Exit.Failure(cause) =>
-      env.unsafeRunAsync(unhandled(cause), (_: Exit[Nothing, _]) => ())
+      env.unsafeRunAsync(env.reportFailure(cause), (_: Exit[Nothing, _]) => ())
 
     case _ =>
   }
