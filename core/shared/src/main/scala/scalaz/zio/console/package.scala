@@ -19,8 +19,8 @@ package scalaz.zio
 
 import java.io.{ IOException, PrintStream, Reader }
 
-package object console extends Console.Interface[Console] {
-  final val consoleService: ZIO[Console, Nothing, Console.Interface[Any]] =
+package object console extends Console.Service[Console] {
+  final val consoleService: ZIO[Console, Nothing, Console.Service[Any]] =
     ZIO.access(_.console)
 
   /**

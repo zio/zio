@@ -180,7 +180,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   }
 
   object TestRandom extends Random {
-    object random extends Random.Interface[Any] {
+    object random extends Random.Service[Any] {
       val nextBoolean: ZIO[Any, Nothing, Boolean] = UIO.succeed(false)
       def nextBytes(length: Int): ZIO[Any, Nothing, Chunk[Byte]] =
         UIO.succeed(Chunk.empty)

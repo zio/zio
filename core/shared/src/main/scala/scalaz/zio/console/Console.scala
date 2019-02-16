@@ -24,10 +24,10 @@ import scala.io.StdIn
 import scala.{ Console => SConsole }
 
 trait Console extends Serializable {
-  val console: Console.Interface[Any]
+  val console: Console.Service[Any]
 }
 object Console extends Serializable {
-  trait Interface[R] {
+  trait Service[R] {
     def putStr(line: String): ZIO[R, Nothing, Unit]
 
     def putStr(stream: PrintStream)(line: String): ZIO[R, Nothing, Unit]
@@ -41,7 +41,7 @@ object Console extends Serializable {
     def getStrLn(reader: Reader): ZIO[R, IOException, String]
   }
   trait Live extends Console {
-    object console extends Interface[Any] {
+    object console extends Service[Any] {
 
       /**
        * Prints text to the console.

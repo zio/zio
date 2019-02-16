@@ -512,11 +512,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.asyncM[Throwable, Int](k => IO.sync(k(IO.succeed(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
-    def stackIOs(clock: Clock.Interface[Any], count: Int): UIO[Int] =
+    def stackIOs(clock: Clock.Service[Any], count: Int): UIO[Int] =
       if (count <= 0) IO.succeed(42)
       else asyncIO(clock, stackIOs(clock, count - 1))
 
-    def asyncIO(clock: Clock.Interface[Any], cont: UIO[Int]): UIO[Int] =
+    def asyncIO(clock: Clock.Service[Any], cont: UIO[Int]): UIO[Int] =
       IO.asyncM[Nothing, Int] { k =>
         clock.sleep(5.millis) *> cont *> IO.sync(k(IO.succeed(42)))
       }

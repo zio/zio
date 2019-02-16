@@ -19,10 +19,10 @@ package scalaz.zio.system
 import scalaz.zio.ZIO
 
 trait System extends Serializable {
-  val system: System.Interface[Any]
+  val system: System.Service[Any]
 }
 object System extends Serializable {
-  trait Interface[R] extends Serializable {
+  trait Service[R] extends Serializable {
     def env(variable: String): ZIO[R, Nothing, Option[String]]
 
     def property(prop: String): ZIO[R, Throwable, Option[String]]
@@ -30,7 +30,7 @@ object System extends Serializable {
     val lineSeparator: ZIO[R, Nothing, String]
   }
   trait Live extends System {
-    object system extends Interface[Any] {
+    object system extends Service[Any] {
       import java.lang.{ System => JSystem }
 
       def env(variable: String): ZIO[Any, Nothing, Option[String]] = ZIO.sync(Option(JSystem.getenv(variable)))

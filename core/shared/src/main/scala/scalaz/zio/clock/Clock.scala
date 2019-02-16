@@ -24,18 +24,18 @@ import scalaz.zio.scheduler.{ Scheduler, SchedulerLive }
 import scalaz.zio.{ IO, ZIO }
 
 trait Clock extends Scheduler with Serializable {
-  val clock: Clock.Interface[Any]
+  val clock: Clock.Service[Any]
 }
 
 object Clock extends Serializable {
-  trait Interface[R] extends Serializable {
+  trait Service[R] extends Serializable {
     def currentTime(unit: TimeUnit): ZIO[R, Nothing, Long]
     val nanoTime: ZIO[R, Nothing, Long]
     def sleep(duration: Duration): ZIO[R, Nothing, Unit]
   }
 
   trait Live extends SchedulerLive with Clock {
-    object clock extends Interface[Any] {
+    object clock extends Service[Any] {
       def currentTime(unit: TimeUnit): ZIO[Any, Nothing, Long] =
         IO.sync(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 

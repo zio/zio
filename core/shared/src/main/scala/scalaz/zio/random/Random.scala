@@ -19,10 +19,10 @@ package scalaz.zio.random
 import scalaz.zio.{ Chunk, ZIO }
 
 trait Random extends Serializable {
-  val random: Random.Interface[Any]
+  val random: Random.Service[Any]
 }
 object Random extends Serializable {
-  trait Interface[R] extends Serializable {
+  trait Service[R] extends Serializable {
     val nextBoolean: ZIO[R, Nothing, Boolean]
     def nextBytes(length: Int): ZIO[R, Nothing, Chunk[Byte]]
     val nextDouble: ZIO[R, Nothing, Double]
@@ -35,7 +35,7 @@ object Random extends Serializable {
     def nextString(length: Int): ZIO[R, Nothing, String]
   }
   trait Live extends Random {
-    object random extends Interface[Any] {
+    object random extends Service[Any] {
       import scala.util.{ Random => SRandom }
 
       val nextBoolean: ZIO[Any, Nothing, Boolean] = ZIO.sync(SRandom.nextBoolean())

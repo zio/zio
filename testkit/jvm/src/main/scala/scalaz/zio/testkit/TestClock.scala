@@ -23,7 +23,7 @@ import scalaz.zio.duration.Duration
 import scalaz.zio.clock.Clock
 import scalaz.zio.testkit.TestClock.Data
 
-case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Interface[Any] {
+case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
 
   final def currentTime(unit: TimeUnit): UIO[Long] =
     ref.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
