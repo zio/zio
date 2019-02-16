@@ -1,5 +1,9 @@
 /*
  * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2018 Łukasz Biały, Paul Chiusano, Michael Pilquist,
+ * Oleg Pyzhcov, Fabio Labella, Alexandru Nedelcu, Pavel Chlupacek.
+ *
+ * All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +18,6 @@
  * limitations under the License.
  */
 
-// Copyright (C) 2017-2018 Łukasz Biały, Paul Chiusano, Michael Pilquist,
-// Oleg Pyzhcov, Fabio Labella, Alexandru Nedelcu, Pavel Chlupacek. All rights reserved.
-
 package scalaz.zio
 
 import internals._
@@ -24,23 +25,51 @@ import internals._
 import scala.annotation.tailrec
 import scala.collection.immutable.{ Queue => IQueue }
 
+/**
+ * An asynchronous semaphore, which is a generalization of a mutex. Seamphores
+ * have a certain number of permits, which can be held and released
+ * concurrently by different parties. Attempts to acquire more permits than
+ * available result in the acquiring fiber being suspended until the specified
+ * number of permits become available.
+ **/
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
+  /**
+   * The total number of permits allocated to the semaphore.
+   */
   final def count: UIO[Long] = state.get.map(count_)
 
+  /**
+   * The number of permits currently available.
+   */
   final def available: UIO[Long] = state.get.map {
     case Left(_)  => 0
     case Right(n) => n
   }
 
+  /**
+   * Acquires a single permit. This must be paired with `release` in a safe
+   * fashion in order to avoid leaking permits.
+   *
+   * If a permit is not available, the fiber invoking this method will be
+   * suspended until a permit is available.
+   */
   final def acquire: UIO[Unit] = acquireN(1)
 
+  /**
+   * Releases a single permit.
+   */
   final def release: UIO[Unit] = releaseN(1)
 
   final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
     prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
 
   /**
+   * Acquires a specified number of permits.
+   *
+   * If the specified number of permits are not available, the fiber invoking
+   * this method will be suspended until the permits are available.
+   *
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
    */
   final def acquireN(n: Long): UIO[Unit] =
@@ -104,6 +133,10 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 }
 
 object Semaphore extends Serializable {
+
+  /**
+   * Creates a new `Sempahore` with the specified number of permits.
+   */
   final def make(permits: Long): UIO[Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
 }
 
