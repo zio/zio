@@ -17,10 +17,18 @@
 package scalaz.zio
 import scalaz.zio.Exit.Cause
 
+/**
+ * Represents a failure in a fiber. This could be caused by some non-
+ * recoverable error, such as a defect or system error, by some typed error,
+ * or by interruption (or combinations of all of the above).
+ *
+ * This class is used to wrap ZIO failures into something that can be thrown,
+ * to better integrate with Scala exception handling.
+ */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable {
-  override def getMessage: String = message(cause)
+  override final def getMessage: String = message(cause)
 
-  private def message(cause: Cause[Any]): String = {
+  private final def message(cause: Cause[Any]): String = {
     def gen(t: Throwable): String =
       "The fiber was terminated by a defect: " + t.getMessage + "\n" + t.getStackTrace.mkString("\n")
 
