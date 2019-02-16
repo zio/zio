@@ -333,7 +333,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun {
       IO.succeedLazy[Int](42)
         .ensuring(IO.die(ExampleError))
-        .fork.flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.sync { reported = e }))
+        .fork
+        .flatMap(_.await.flatMap[Any, Nothing, Any](e => UIO.sync { reported = e }))
     }
 
     reported must_=== Exit.Failure(Die(ExampleError))
@@ -395,15 +396,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
       (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).void
 
     unsafeRun(for {
-      ref   <- Ref.make[List[String]](Nil)
-      clock <- clock.clockService
-      log   = makeLogger(ref)
-      f <- IO
+      ref <- Ref.make[List[String]](Nil)
+      log = makeLogger(ref)
+      f <- ZIO
             .bracket(
-              IO.bracket(IO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(
-                _ => IO.unit
+              ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(
+                _ => ZIO.unit
               )
-            )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => IO.unit)
+            )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
             .fork
       _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
       _ <- f.interrupt
@@ -414,12 +414,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testInterruptWaitsForFinalizer =
     unsafeRun(for {
-      r     <- Ref.make(false)
-      clock <- clock.clockService
-      p1    <- Promise.make[Nothing, Unit]
-      p2    <- Promise.make[Nothing, Int]
+      r  <- Ref.make(false)
+      p1 <- Promise.make[Nothing, Unit]
+      p2 <- Promise.make[Nothing, Int]
       s <- (p1.succeed(()) *> p2.await)
-            .ensuring(r.set(true) *> clock.sleep(10.millis))
+            .ensuringR(r.set(true) *> clock.sleep(10.millis))
             .fork
       _    <- p1.await
       _    <- s.interrupt
@@ -571,7 +570,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket[Any, Nothing, Unit, Unit](promise.succeed(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        fiber   <- IO.bracket(promise.succeed(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
         res     <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
@@ -761,7 +760,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   def testBracketUseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracket[Any, Nothing, Unit, Unit](IO.unit)(_ => IO.unit)(_ => IO.never).fork
+        fiber <- IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt
       } yield res
     unsafeRun(io) must_=== Exit.interrupt

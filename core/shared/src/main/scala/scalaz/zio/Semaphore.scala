@@ -62,7 +62,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   final def release: UIO[Unit] = releaseN(1)
 
   final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
-    prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
+    prepare(1L).bracket[R, E, A](_.release)(_.awaitAcquire *> task)
 
   /**
    * Acquires a specified number of permits.
