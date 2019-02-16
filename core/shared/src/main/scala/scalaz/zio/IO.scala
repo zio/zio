@@ -407,15 +407,15 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * }
    * }}}
    */
-  final def bracket[R1 <: R, E1 >: E, B](release: A => UIO[_])(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracket[R1, E1, A, B](this)(release)(use)
+  final def bracket[R1 <: R, E1 >: E, B](release: A => ZIO[R1, Nothing, _])(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    ZIO.bracket[R, R1, E1, A, B](this)(release)(use)
 
   /**
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release action.
    */
   final def bracket0[R1 <: R, E1 >: E, B](
-    release: (A, Exit[E1, B]) => UIO[_]
+    release: (A, Exit[E1, B]) => ZIO[R1, Nothing, _]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     ZIO.bracket0[R1, E1, A, B](this)(release)(use)
 
@@ -423,8 +423,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * A less powerful variant of `bracket` where the value produced by this
    * action is not needed.
    */
-  final def bracket_[R1 <: R, E1 >: E, B](release: UIO[_])(use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracket[R1, E1, A, B](self)(_ => release)(_ => use)
+  final def bracket_[R1 <: R, E1 >: E, B](release: ZIO[R1, Nothing, _])(use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    ZIO.bracket[R, R1, E1, A, B](self)(_ => release)(_ => use)
 
   /**
    * Executes the specified finalizer, whether this action succeeds, fails, or
@@ -434,6 +434,15 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def ensuring(finalizer: UIO[_]): ZIO[R, E, A] =
     new ZIO.Ensuring(self, finalizer)
+
+  /**
+   * Executes the specified finalizer, providing the environment of this `ZIO`
+   * directly and immediately to the finalizer. This method should not be used
+   * for cleaning up resources, because it's possible the fiber will be
+   * interrupted after acquisition but before the finalizer is added.
+   */
+  final def ensuringR[R1 <: R](finalizer: ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
+    ZIO.environment[R1].flatMap(r => self.ensuring(finalizer.provide(r)))
 
   /**
    * Executes the action on the specified `ExecutionContext` and then shifts back
@@ -451,7 +460,9 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Executes the release action only if there was an error.
    */
-  final def bracketOnError[R1 <: R, E1 >: E, B](release: A => UIO[_])(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+  final def bracketOnError[R1 <: R, E1 >: E, B](
+    release: A => ZIO[R1, Nothing, _]
+  )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     ZIO.bracket0[R1, E1, A, B](this)(
       (a: A, eb: Exit[E1, B]) =>
         eb match {
@@ -1163,12 +1174,13 @@ trait ZIOFunctions extends Serializable {
    * will release the resource no matter the outcome of the computation, and will
    * re-throw any exception that occurred in between.
    */
-  final def bracket[R >: LowerR, E <: UpperE, A, B](
+  final def bracket[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]
-  )(release: A => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+  )(release: A => ZIO[R1, Nothing, _])(use: A => ZIO[R1, E, B]): ZIO[R1, E, B] =
     Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
       (for {
-        a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptible
+        r <- environment[R1]
+        a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
         b <- use(a)
       } yield b).ensuring(flatten(m.get))
     }
@@ -1180,10 +1192,13 @@ trait ZIOFunctions extends Serializable {
    */
   final def bracket0[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]
-  )(release: (A, Exit[E, B]) => UIO[_])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+  )(release: (A, Exit[E, B]) => ZIO[R, Nothing, _])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
       (for {
-        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptible
+        r <- environment[R]
+        f <- acquire
+              .flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _).provide(r)))))
+              .uninterruptible
         b <- f.join
       } yield b).ensuring(flatten(m.get))
     }
