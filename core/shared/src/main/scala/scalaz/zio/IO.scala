@@ -1268,17 +1268,17 @@ trait ZIOFunctions extends Serializable {
   /**
    * Reduces an `Iterable[IO]` to a single IO, works in parallel.
    */
-  final def reduceAll[R >: LowerR, E <: UpperE, A](a: ZIO[R, E, A], as: Iterable[ZIO[R, E, A]])(
+  final def reduceAll[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
-  ): ZIO[R, E, A] =
-    as.foldLeft(a) { (l, r) =>
+  ): ZIO[R1, E, A] =
+    as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
       l.zipPar(r).map(f.tupled)
     }
 
   /**
    * Merges an `Iterable[IO]` to a single IO, works in parallel.
    */
-  final def mergeAll[R >: LowerR, E <: UpperE, A, B](
+  final def mergeAll[R >: LowerR, E <: UpperE, A,B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: => B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))

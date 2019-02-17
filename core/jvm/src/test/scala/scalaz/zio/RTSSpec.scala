@@ -900,12 +900,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testReduceAll =
     unsafeRun(
-      IO.reduceAll[Any, Nothing, Int](IO.succeedLazy(1), List(2, 3, 4).map(IO.succeedLazy[Int](_)))(_ + _)
+      IO.reduceAll(IO.succeedLazy(1), List(2, 3, 4).map(IO.succeedLazy[Int](_)))(_ + _)
     ) must_=== 10
 
   def testReduceAllEmpty =
     unsafeRun(
-      IO.reduceAll[Any, Nothing, Int](IO.succeedLazy(1), Seq.empty)(_ + _)
+      IO.reduceAll(IO.succeedLazy(1), Seq.empty)(_ + _)
     ) must_=== 1
 
   def testTimeoutFailure =
@@ -1055,7 +1055,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testMergeAll =
     unsafeRun(
-      IO.mergeAll[Any, Nothing, String, Int](List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(0) {
+      IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(0) {
         (b, a) =>
           b + a.length
       }
@@ -1063,6 +1063,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testMergeAllEmpty =
     unsafeRun(
-      IO.mergeAll[Any, Nothing, Int, Int](List.empty)(0)(_ + _)
+      IO.mergeAll(List.empty[UIO[Int]])(0)(_ + _)
     ) must_=== 0
 }
