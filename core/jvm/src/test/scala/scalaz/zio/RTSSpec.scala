@@ -851,15 +851,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
 
   def testRaceAllOfValues =
-    unsafeRun(IO.raceAll[Any, Int, Int](IO.fail(42), List(IO.succeed(24))).attempt) must_=== Right(24)
+    unsafeRun(IO.raceAll(IO.fail(42), List(IO.succeed(24))).attempt) must_=== Right(24)
 
   def testRaceAllOfFailures =
-    unsafeRun(ZIO.raceAll[Clock, Int, Nothing](IO.fail(24).delay(10.millis), List(IO.fail(24))).attempt) must_=== Left(
+    unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).attempt) must_=== Left(
       24
     )
 
   def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(ZIO.raceAll[Clock, Int, Int](IO.fail(42), List(IO.succeed(24).delay(1.millis))).attempt) must_=== Right(
+    unsafeRun(ZIO.raceAll(IO.fail(42), List(IO.succeed(24).delay(1.millis))).attempt) must_=== Right(
       24
     )
 
@@ -1055,9 +1055,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
   def testMergeAll =
     unsafeRun(
-      IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(0) {
-        (b, a) =>
-          b + a.length
+      IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeedLazy[String](_)))(0) { (b, a) =>
+        b + a.length
       }
     ) must_=== 10
 

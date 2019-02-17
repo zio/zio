@@ -1262,8 +1262,11 @@ trait ZIOFunctions extends Serializable {
    * Races an `IO[E, A]` against elements of a `Iterable[IO[E, A]]`. Yields
    * either the first success or the last failure.
    */
-  final def raceAll[R >: LowerR, E <: UpperE, A](io: ZIO[R, E, A], ios: Iterable[ZIO[R, E, A]]): ZIO[R, E, A] =
-    ios.foldLeft[ZIO[R, E, A]](io)(_ race _)
+  final def raceAll[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](
+    io: ZIO[R, E, A],
+    ios: Iterable[ZIO[R1, E, A]]
+  ): ZIO[R1, E, A] =
+    ios.foldLeft[ZIO[R1, E, A]](io)(_ race _)
 
   /**
    * Reduces an `Iterable[IO]` to a single IO, works in parallel.
@@ -1278,7 +1281,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Merges an `Iterable[IO]` to a single IO, works in parallel.
    */
-  final def mergeAll[R >: LowerR, E <: UpperE, A,B](
+  final def mergeAll[R >: LowerR, E <: UpperE, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: => B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
