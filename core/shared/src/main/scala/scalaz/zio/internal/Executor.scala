@@ -52,11 +52,6 @@ trait Executor {
   def here: Boolean
 
   /**
-   * Initiates shutdown of the executor.
-   */
-  def shutdown(): Unit
-
-  /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
   lazy val asEC: ExecutionContext =
@@ -93,7 +88,5 @@ object Executor extends Serializable {
       def here = false
 
       def metrics = None
-
-      def shutdown(): Unit = ()
     }
 }

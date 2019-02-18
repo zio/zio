@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package scalaz.zio.platform 
+package scalaz.zio.platform
 
 import java.util.{ Map => JMap, WeakHashMap }
 import java.util.concurrent._
 
-import scalaz.zio.internal.{ Executor, ExecutionMetrics, NamedThreadFactory }
-import scalaz.zio.Exit.Cause 
+import scalaz.zio.internal.{ ExecutionMetrics, Executor, NamedThreadFactory }
+import scalaz.zio.Exit.Cause
 
 trait PlatformLive extends Platform {
   val platform: Platform.Service = new Platform.Service {
@@ -36,7 +36,7 @@ trait PlatformLive extends Platform {
       new WeakHashMap[A, B]()
   }
 
-      /**
+  /**
    * Creates a new default executor of the specified type.
    */
   final def newExecutor(): Executor =
@@ -103,8 +103,6 @@ trait PlatformLive extends Platform {
         }
 
       def here = false
-
-      def shutdown(): Unit = { val _ = es.shutdown() }
     }
 }
 object PlatformLive extends PlatformLive
