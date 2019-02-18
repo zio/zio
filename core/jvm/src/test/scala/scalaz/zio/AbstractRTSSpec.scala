@@ -5,7 +5,7 @@ import org.specs2.Specification
 import org.specs2.specification.{ AroundEach, AroundTimeout }
 import org.specs2.execute.{ AsResult, Failure, Result, Skipped }
 
-import scalaz.zio.platform.{ Platform, PlatformLive }
+import scalaz.zio.internal.{ Platform, PlatformLive }
 
 abstract class AbstractRTSSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends Specification
@@ -13,18 +13,14 @@ abstract class AbstractRTSSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     with AroundEach
     with AroundTimeout {
 
-  override val Environment = new Environment { self =>
-    val platform0 = PlatformLive.platform
+  override val Platform = new Platform {
+    def executor = PlatformLive.executor
 
-    override val platform: Platform.Service = new Platform.Service {
-      def executor = platform0.executor
+    def nonFatal(t: Throwable): Boolean = PlatformLive.nonFatal(t)
 
-      def nonFatal(t: Throwable): Boolean = platform0.nonFatal(t)
+    def reportFailure(cause: Exit.Cause[_]): Unit = ()
 
-      def reportFailure(cause: Exit.Cause[_]): Unit = ()
-
-      def newWeakHashMap[A, B]() = platform0.newWeakHashMap()
-    }
+    def newWeakHashMap[A, B]() = PlatformLive.newWeakHashMap()
   }
 
   val DefaultTimeout = 60.seconds

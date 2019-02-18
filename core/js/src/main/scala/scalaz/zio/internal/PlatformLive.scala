@@ -14,26 +14,23 @@
  * limitations under the License.
  */
 
-package scalaz.zio.platform
+package scalaz.zio.internal
 
 import scalaz.zio.Exit.Cause
 import java.util.{ HashMap, Map => JMap }
-import scalaz.zio.internal.Executor
 
 import scala.concurrent.ExecutionContext.Implicits
 
 trait PlatformLive extends Platform {
-  val platform: Platform.Service = new Platform.Service {
-    val executor = Executor.fromExecutionContext(1024)(Implicits.global)
+  val executor = Executor.fromExecutionContext(1024)(Implicits.global)
 
-    def nonFatal(t: Throwable): Boolean =
-      !t.isInstanceOf[VirtualMachineError]
+  def nonFatal(t: Throwable): Boolean =
+    !t.isInstanceOf[VirtualMachineError]
 
-    def reportFailure(cause: Cause[_]): Unit =
-      if (!cause.interrupted) println(cause.toString)
+  def reportFailure(cause: Cause[_]): Unit =
+    if (!cause.interrupted) println(cause.toString)
 
-    def newWeakHashMap[A, B](): JMap[A, B] =
-      new HashMap[A, B]()
-  }
+  def newWeakHashMap[A, B](): JMap[A, B] =
+    new HashMap[A, B]()
 }
 object PlatformLive extends PlatformLive

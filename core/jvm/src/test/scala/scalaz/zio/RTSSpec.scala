@@ -517,7 +517,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         clock.sleep(5.millis) *> cont *> IO.sync(k(IO.succeed(42)))
       }
 
-    val procNum = Runtime.getRuntime.availableProcessors()
+    val procNum = java.lang.Runtime.getRuntime.availableProcessors()
 
     unsafeRun(clock.clockService.flatMap(stackIOs(_, procNum + 1))) must_=== 42
   }

@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio._
-import scalaz.zio.platform.Platform
 
 import scala.annotation.{ switch, tailrec }
 
@@ -28,7 +27,7 @@ import scala.annotation.{ switch, tailrec }
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-  platform: Platform.Service
+  platform: Platform
 ) extends Fiber[E, A] {
   import java.util.{ Collections, Set }
 

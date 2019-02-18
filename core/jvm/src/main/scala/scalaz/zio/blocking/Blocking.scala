@@ -20,7 +20,7 @@ import java.util.concurrent._
 
 import scalaz.zio.ZIO
 import scalaz.zio.internal.{ Executor, NamedThreadFactory }
-import scalaz.zio.platform.PlatformLive
+import scalaz.zio.internal.PlatformLive
 
 /**
  * The `Blocking` module provides access to a thread pool that can be used for performing
