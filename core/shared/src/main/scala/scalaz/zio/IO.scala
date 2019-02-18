@@ -892,6 +892,13 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   def tag: Int
 
+  /**
+   * Provided the environment for this task, including a
+   * [[scalaz.zio.platform.Platform]], executes the task asynchronously,
+   * eventually passing the exit value to the specified callback.
+   *
+   * This method is effectful and should only be done at the edges of your program.
+   */
   final def unsafeRunAsync[R1 <: R with Platform](r1: R1, k: Exit[E, A] => Unit): Unit = {
     val platform: Platform.Service = r1.platform
 
@@ -901,14 +908,33 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     context.runAsync(k)
   }
 
+  /**
+   * Provided the environment for this task, including a
+   * [[scalaz.zio.platform.Platform]], executes the task asynchronously,
+   * discarding the result of execution.
+   *
+   * This method is effectful and should only be done at the edges of your program.
+   */
   final def unsafeRunAsync_[R1 <: R with Platform](r1: R1): Unit =
     self.unsafeRunAsync(r1, _ => ())
 
+  /**
+   * Provided the environment for this task, including a
+   * [[scalaz.zio.platform.Platform]], executes the task synchronously, failing
+   * with [[scalaz.zio.FiberFailure]] if there are any errors. May fail on
+   * Scala.js if the task cannot be entirely run synchronously.
+   *
+   * This method is effectful and should only be done at the edges of your program.
+   */
   final def unsafeRun[R1 <: R with Platform](r1: R1): A =
     self.unsafeRunSync(r1).getOrElse(c => throw new FiberFailure(c))
 
   /**
-   * Awaits for the result of the fiber to be computed.
+   * Provided the environment for this task, including a
+   * [[scalaz.zio.platform.Platform]], executes the task synchronously. May
+   * fail on Scala.js if the task cannot be entirely run synchronously.
+   *
+   * This method is effectful and should only be done at the edges of your program.
    */
   final def unsafeRunSync[R1 <: R with Platform](r1: R1): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
