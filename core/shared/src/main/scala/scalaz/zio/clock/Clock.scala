@@ -35,7 +35,7 @@ object Clock extends Serializable {
   }
 
   trait Live extends SchedulerLive with Clock {
-    object clock extends Service[Any] {
+    val clock: Service[Any] = new Service[Any] {
       def currentTime(unit: TimeUnit): ZIO[Any, Nothing, Long] =
         IO.sync(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 

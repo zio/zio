@@ -64,7 +64,7 @@ trait SchedulerLive extends Scheduler {
     override def shutdown(): Unit = service.shutdown()
   }
 
-  object scheduler extends Scheduler.Service[Any] {
+  val scheduler: Scheduler.Service[Any] = new Scheduler.Service[Any] {
     val scheduler = ZIO.succeed(scheduler0)
   }
 }

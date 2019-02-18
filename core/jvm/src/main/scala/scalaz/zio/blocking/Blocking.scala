@@ -20,6 +20,7 @@ import java.util.concurrent._
 
 import scalaz.zio.ZIO
 import scalaz.zio.internal.{ Executor, NamedThreadFactory }
+import scalaz.zio.platform.PlatformLive
 
 /**
  * The `Blocking` module provides access to a thread pool that can be used for performing
@@ -28,7 +29,7 @@ import scalaz.zio.internal.{ Executor, NamedThreadFactory }
  * memory, and continuously create new threads as necessary.
  */
 trait Blocking extends Serializable {
-  def blocking: Blocking.Service[Any]
+  val blocking: Blocking.Service[Any]
 }
 object Blocking extends Serializable {
   trait Service[R] extends Serializable {
@@ -96,9 +97,9 @@ object Blocking extends Serializable {
   }
 
   trait Live extends Blocking {
-    object blocking extends Service[Any] {
+    val blocking: Service[Any] = new Service[Any] {
       private[this] val blockingExecutor0 =
-        scalaz.zio.internal.impls.Env.fromThreadPoolExecutor(_ => Int.MaxValue) {
+        PlatformLive.fromThreadPoolExecutor(_ => Int.MaxValue) {
           val corePoolSize  = 0
           val maxPoolSize   = Int.MaxValue
           val keepAliveTime = 1000L

@@ -16,40 +16,40 @@
 
 package scalaz.zio
 
-import scalaz.zio.internal.impls.Env
+import scalaz.zio.platform.Platform
 
-trait CommonRTS {
-  type Environment
-
-  val Environment: Environment
-
-  lazy val env =
-    Env.newDefaultEnv {
-      case cause if cause.interrupted => IO.unit // do not log interruptions
-      case cause                      => IO.sync(println(cause.toString))
-    }
+/**
+ * A `Runtime[R]` is capable of executing tasks within an environment `R`.
+ * Runtimes are not functional, but they are necessary for final translation of 
+ * a `ZIO` value into the effects that it models. For best results, push 
+ * execution of tasks to the edge of the application, such as the application 
+ * main function. See [[scalaz.zio.App]] for an example of this approach.
+ */
+trait Runtime[R <: Platform] {
+  /**
+   * The environment of the runtime.
+   */
+  val Environment: R
 
   /**
    * Awaits for the result of the fiber to be computed.
    * In Javascript, this operation will not, in general, succeed because it is not possible to block for the result.
    * However, it may succeed in some cases if the IO is purely synchronous.
    */
-  final def unsafeRun[E, A](io: ZIO[Environment, E, A]): A =
-    env.unsafeRun(io.provide(Environment))
+  final def unsafeRun[E, A](io: ZIO[R, E, A]): A =
+    io.unsafeRun(Environment)
 
   /**
    * Awaits for the result of the fiber to be computed.
    * In Javascript, this operation will not, in general, succeed because it is not possible to block for the result.
    * However, it may succeed in some cases if the IO is purely synchronous.
    */
-  final def unsafeRunSync[E, A](io: ZIO[Environment, E, A]): Exit[E, A] =
-    env.unsafeRunSync(io.provide(Environment))
+  final def unsafeRunSync[E, A](io: ZIO[R, E, A]): Exit[E, A] =
+    io.unsafeRunSync(Environment)
 
   /**
    * Runs the `io` asynchronously.
    */
-  final def unsafeRunAsync[E, A](io: ZIO[Environment, E, A])(k: Exit[E, A] => Unit): Unit =
-    env.unsafeRunAsync(io.provide(Environment), k)
-
-  final def shutdown(): Unit = env.shutdown()
+  final def unsafeRunAsync[E, A](io: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit =
+    io.unsafeRunAsync(Environment, k)
 }

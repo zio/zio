@@ -35,7 +35,7 @@ object Random extends Serializable {
     def nextString(length: Int): ZIO[R, Nothing, String]
   }
   trait Live extends Random {
-    object random extends Service[Any] {
+    val random: Service[Any] = new Service[Any] {
       import scala.util.{ Random => SRandom }
 
       val nextBoolean: ZIO[Any, Nothing, Boolean] = ZIO.sync(SRandom.nextBoolean())
