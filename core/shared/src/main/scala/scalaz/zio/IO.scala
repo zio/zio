@@ -19,8 +19,7 @@ package scalaz.zio
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
-import scalaz.zio.platform.Platform
-import scalaz.zio.internal.{ Executor, FiberContext }
+import scalaz.zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
@@ -891,58 +890,6 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * instance belongs (e.g. `IO.Tags.Point`).
    */
   def tag: Int
-
-  /**
-   * Provided the environment for this task, including a
-   * [[scalaz.zio.platform.Platform]], executes the task asynchronously,
-   * eventually passing the exit value to the specified callback.
-   *
-   * This method is effectful and should only be done at the edges of your program.
-   */
-  final def unsafeRunAsync[R1 <: R with Platform](r1: R1, k: Exit[E, A] => Unit): Unit = {
-    val platform: Platform.Service = r1.platform
-
-    val context = new FiberContext[E, A](platform)
-
-    context.evaluateNow(self.provide(r1))
-    context.runAsync(k)
-  }
-
-  /**
-   * Provided the environment for this task, including a
-   * [[scalaz.zio.platform.Platform]], executes the task asynchronously,
-   * discarding the result of execution.
-   *
-   * This method is effectful and should only be done at the edges of your program.
-   */
-  final def unsafeRunAsync_[R1 <: R with Platform](r1: R1): Unit =
-    self.unsafeRunAsync(r1, _ => ())
-
-  /**
-   * Provided the environment for this task, including a
-   * [[scalaz.zio.platform.Platform]], executes the task synchronously, failing
-   * with [[scalaz.zio.FiberFailure]] if there are any errors. May fail on
-   * Scala.js if the task cannot be entirely run synchronously.
-   *
-   * This method is effectful and should only be done at the edges of your program.
-   */
-  final def unsafeRun[R1 <: R with Platform](r1: R1): A =
-    self.unsafeRunSync(r1).getOrElse(c => throw new FiberFailure(c))
-
-  /**
-   * Provided the environment for this task, including a
-   * [[scalaz.zio.platform.Platform]], executes the task synchronously. May
-   * fail on Scala.js if the task cannot be entirely run synchronously.
-   *
-   * This method is effectful and should only be done at the edges of your program.
-   */
-  final def unsafeRunSync[R1 <: R with Platform](r1: R1): Exit[E, A] = {
-    val result = internal.OneShot.make[Exit[E, A]]
-
-    self.unsafeRunAsync(r1, (x: Exit[E, A]) => result.set(x))
-
-    result.get()
-  }
 }
 
 trait ZIOFunctions extends Serializable {
@@ -1001,6 +948,17 @@ trait ZIOFunctions extends Serializable {
     (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
 
   /**
+   * Accesses the runtime for the task, which can be used to (unsafely) execute
+   * tasks. This is useful for integration with non-functional code that must
+   * call back into functional code.
+   */
+  final def runtime[R >: LowerR]: ZIO[R, Nothing, Runtime[R]] =
+    for {
+      environment <- environment[R]
+      platform    <- sync0(identity)
+    } yield Runtime(environment, platform)
+
+  /**
    * Returns a `ZIO` that is interrupted.
    */
   final val interrupt: UIO[Nothing] = halt(Cause.interrupt)
@@ -1034,7 +992,7 @@ trait ZIOFunctions extends Serializable {
    * val nanoTime: UIO[Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def sync0[A](effect: Platform.Service => A): UIO[A] = new ZIO.SyncEffect[A](effect)
+  final def sync0[A](effect: Platform => A): UIO[A] = new ZIO.SyncEffect[A](effect)
 
   /**
    * Imports a synchronous effect into a pure `ZIO` value. This variant of `sync`
@@ -1159,7 +1117,8 @@ trait ZIOFunctions extends Serializable {
       p   <- Promise.make[E, A]
       ref <- Ref.make[UIO[Any]](ZIO.unit)
       a <- (for {
-            _ <- flatten(sync0(platform => register(_.to(p).unsafeRunAsync_(Platform(platform))))).fork
+            r <- ZIO.runtime[Any]
+            _ <- register(k => r.unsafeRunAsync_(k.to(p))).fork
                   .peek(f => ref.set(f.interrupt))
                   .uninterruptible
             a <- p.await
@@ -1521,7 +1480,7 @@ object ZIO extends ZIO_E_Any {
     override def tag = Tags.Strict
   }
 
-  final class SyncEffect[A](val effect: Platform.Service => A) extends UIO[A] {
+  final class SyncEffect[A](val effect: Platform => A) extends UIO[A] {
     override def tag = Tags.SyncEffect
   }
 

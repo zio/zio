@@ -20,10 +20,11 @@ import scalaz.zio.clock.Clock
 import scalaz.zio.console.Console
 import scalaz.zio.system.System
 import scalaz.zio.blocking.Blocking
-import scalaz.zio.platform.{ Platform, PlatformLive }
+import scalaz.zio.internal.{ Platform, PlatformLive }
 
-trait RTS extends Runtime[Clock with Console with System with Blocking with Platform] {
-  trait Environment extends Clock.Live with Console.Live with System.Live with Blocking.Live with PlatformLive
+trait RTS extends Runtime[Clock with Console with System with Blocking] {
+  trait Environment extends Clock.Live with Console.Live with System.Live with Blocking.Live
 
-  val Environment = new Environment {}
+  val Platform: Platform = PlatformLive
+  val Environment        = new Environment {}
 }

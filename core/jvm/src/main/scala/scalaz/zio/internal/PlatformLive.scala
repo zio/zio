@@ -14,30 +14,27 @@
  * limitations under the License.
  */
 
-package scalaz.zio.platform
+package scalaz.zio.internal
 
 import java.util.{ Map => JMap, WeakHashMap }
 import java.util.concurrent._
 
-import scalaz.zio.internal.{ ExecutionMetrics, Executor, NamedThreadFactory }
 import scalaz.zio.Exit.Cause
 
 trait PlatformLive extends Platform {
-  val platform: Platform.Service = new Platform.Service {
-    val executor = newExecutor()
+  val executor = PlatformLive.newExecutor()
 
-    def nonFatal(t: Throwable): Boolean =
-      !t.isInstanceOf[VirtualMachineError]
+  def nonFatal(t: Throwable): Boolean =
+    !t.isInstanceOf[VirtualMachineError]
 
-    def reportFailure(cause: Cause[_]): Unit =
-      if (!cause.interrupted) println(cause.toString)
+  def reportFailure(cause: Cause[_]): Unit =
+    if (!cause.interrupted) println(cause.toString)
 
-    def newWeakHashMap[A, B](): JMap[A, B] =
-      new WeakHashMap[A, B]()
-  }
+  def newWeakHashMap[A, B](): JMap[A, B] =
+    new WeakHashMap[A, B]()
 
   /**
-   * Creates a new default executor of the specified type.
+   * Creates a new default executor.
    */
   final def newExecutor(): Executor =
     fromThreadPoolExecutor(_ => 1024) {
