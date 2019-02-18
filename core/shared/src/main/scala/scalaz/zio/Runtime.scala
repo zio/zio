@@ -20,10 +20,6 @@ import scalaz.zio.platform.Platform
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
- * Runtimes are not functional, but they are necessary for final translation of
- * a `ZIO` value into the effects that it models. For best results, push
- * execution of tasks to the edge of the application, such as the application
- * main function. See [[scalaz.zio.App]] for an example of this approach.
  */
 trait Runtime[R <: Platform] {
 
@@ -33,23 +29,19 @@ trait Runtime[R <: Platform] {
   val Environment: R
 
   /**
-   * Awaits for the result of the fiber to be computed.
-   * In Javascript, this operation will not, in general, succeed because it is not possible to block for the result.
-   * However, it may succeed in some cases if the IO is purely synchronous.
+   * Synchronously executes the task. This may fail on Scala.js.
    */
   final def unsafeRun[E, A](io: ZIO[R, E, A]): A =
     io.unsafeRun(Environment)
 
   /**
-   * Awaits for the result of the fiber to be computed.
-   * In Javascript, this operation will not, in general, succeed because it is not possible to block for the result.
-   * However, it may succeed in some cases if the IO is purely synchronous.
+   * Synchronously executes the task. This may fail on Scala.js.
    */
   final def unsafeRunSync[E, A](io: ZIO[R, E, A]): Exit[E, A] =
     io.unsafeRunSync(Environment)
 
   /**
-   * Runs the `io` asynchronously.
+   * Asynchronously executes the task.
    */
   final def unsafeRunAsync[E, A](io: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit =
     io.unsafeRunAsync(Environment, k)
