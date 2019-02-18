@@ -19,7 +19,8 @@ package scalaz.zio
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
-import scalaz.zio.internal.{ Env, Executor }
+import scalaz.zio.platform.Platform
+import scalaz.zio.internal.{ FiberContext, Executor }
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
@@ -554,11 +555,28 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Keeps some of the errors, and terminates the fiber with the rest.
+   */
+  final def keepSome[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] = 
+    keepSomeWith(pf)(ev)
+
+  /**
+   * Keeps some of the errors, and terminates the fiber with the rest, using
+   * the specified function to convert the `E` into a `Throwable`.
+   */
+  final def keepSomeWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable): ZIO[R, E1, A] = 
+    self.catchAll(err => pf.lift(err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
+
+  /**
    * Translates the checked error (if present) into termination.
    */
-  final def orDie[E1 >: E](implicit ev: E1 =:= Throwable): ZIO[R, Nothing, A] =
+  final def orDie[E1 >: E](implicit ev: E1 <:< Throwable): ZIO[R, Nothing, A] =
     orDieWith(ev)
 
+  /**
+   * Translates the checked error (if present) into termination by using the 
+   * specified conversion function on the `E`.
+   */
   def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
     self.mapError(f).catchAll(IO.die)
 
@@ -873,6 +891,33 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * instance belongs (e.g. `IO.Tags.Point`).
    */
   def tag: Int
+
+  final def unsafeRunAsync[R1 <: R with Platform](r1: R1, k: Exit[E, A] => Unit): Unit = {
+    val platform: Platform.Service = r1.platform 
+
+    val context = new FiberContext[E, A](platform)
+
+    context.evaluateNow(self.provide(r1))
+    context.runAsync(k)
+  }
+
+  final def unsafeRunAsync_[R1 <: R with Platform](r1: R1): Unit = 
+    self.unsafeRunAsync(r1, _ => ())
+
+
+  final def unsafeRun[R1 <: R with Platform](r1: R1): A =
+    self.unsafeRunSync(r1).getOrElse(c => throw new FiberFailure(c))
+
+  /**
+   * Awaits for the result of the fiber to be computed.
+   */
+  final def unsafeRunSync[R1 <: R with Platform](r1: R1): Exit[E, A] = {
+    val result = internal.OneShot.make[Exit[E, A]]
+
+    self.unsafeRunAsync(r1, (x: Exit[E, A]) => result.set(x))
+
+    result.get()
+  }
 }
 
 trait ZIOFunctions extends Serializable {
@@ -964,7 +1009,7 @@ trait ZIOFunctions extends Serializable {
    * val nanoTime: UIO[Long] = IO.sync(System.nanoTime())
    * }}}
    */
-  final def sync0[A](effect: Env => A): UIO[A] = new ZIO.SyncEffect[A](effect)
+  final def sync0[A](effect: Platform.Service => A): UIO[A] = new ZIO.SyncEffect[A](effect)
 
   /**
    * Imports a synchronous effect into a pure `ZIO` value. This variant of `sync`
@@ -1089,7 +1134,7 @@ trait ZIOFunctions extends Serializable {
       p   <- Promise.make[E, A]
       ref <- Ref.make[UIO[Any]](ZIO.unit)
       a <- (for {
-            _ <- flatten(sync0(env => register(io => env.unsafeRunAsync_(io.to(p))))).fork
+            _ <- flatten(sync0(platform => register(_.to(p).unsafeRunAsync_(Platform(platform))))).fork
                   .peek(f => ref.set(f.interrupt))
                   .uninterruptible
             a <- p.await
@@ -1451,7 +1496,7 @@ object ZIO extends ZIO_E_Any {
     override def tag = Tags.Strict
   }
 
-  final class SyncEffect[A](val effect: Env => A) extends UIO[A] {
+  final class SyncEffect[A](val effect: Platform.Service => A) extends UIO[A] {
     override def tag = Tags.SyncEffect
   }
 

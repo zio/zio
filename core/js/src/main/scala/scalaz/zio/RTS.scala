@@ -19,8 +19,10 @@ package scalaz.zio
 import scalaz.zio.clock.Clock
 import scalaz.zio.console.Console
 import scalaz.zio.system.System
+import scalaz.zio.platform.{ Platform, PlatformLive }
 
-trait RTS extends CommonRTS {
-  type Environment = Clock with Console with System
-  val Environment = new Clock.Live with Console.Live with System.Live
+trait RTS extends Runtime[Clock with Console with System with Platform] {
+  trait Environment extends Clock.Live with Console.Live with System.Live with PlatformLive
+  
+  val Environment = new Environment {}
 }

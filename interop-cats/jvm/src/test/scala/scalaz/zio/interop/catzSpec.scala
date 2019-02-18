@@ -17,7 +17,7 @@ import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
 import cats.laws._
-import scalaz.zio.internal.impls.Env
+import scalaz.zio.platform.{ Platform, PlatformLive }
 
 trait ConcurrentEffectLawsOverrides[F[_]] extends ConcurrentEffectLaws[F] {
 
@@ -66,7 +66,19 @@ class catzSpec
     with GenIO
     with RTS {
 
-  override lazy val env = Env.newDefaultEnv(_ => IO.unit)
+    override val Environment = new Environment { self =>
+      val platform0 = PlatformLive.platform
+  
+      override val platform: Platform.Service = new Platform.Service {
+        def executor = platform0.executor 
+  
+        def nonFatal(t: Throwable): Boolean = platform0.nonFatal(t)
+    
+        def reportFailure(cause: Exit.Cause[_]): Unit = ()
+    
+        def newWeakHashMap[A, B]() = platform0.newWeakHashMap()
+      }
+    }  
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()

@@ -41,7 +41,7 @@ object Console extends Serializable {
     def getStrLn(reader: Reader): ZIO[R, IOException, String]
   }
   trait Live extends Console {
-    object console extends Service[Any] {
+    val console: Service[Any] = new Service[Any] {
 
       /**
        * Prints text to the console.

@@ -14,32 +14,26 @@
  * limitations under the License.
  */
 
-package scalaz.zio.internal.impls
-
-import java.util
+package scalaz.zio.platform 
 
 import scalaz.zio.Exit.Cause
-import scalaz.zio.IO
-import scalaz.zio.internal.{ Env => IEnv, Executor }
+import java.util.{ HashMap, Map => JMap }
+import scalaz.zio.internal.Executor
 
 import scala.concurrent.ExecutionContext.Implicits
 
-object Env {
+trait PlatformLive extends Platform {
+  val platform: Platform.Service = new Platform.Service {
+    val executor = Executor.fromExecutionContext(1024)(Implicits.global)
 
-  /**
-   * Creates a new default environment.
-   */
-  final def newDefaultEnv(reportFailure0: Cause[_] => IO[Nothing, _]): IEnv =
-    new IEnv {
-      val executor = Executor.fromExecutionContext(1024)(Implicits.global)
+    def nonFatal(t: Throwable): Boolean =
+      !t.isInstanceOf[VirtualMachineError]
 
-      def nonFatal(t: Throwable): Boolean =
-        !t.isInstanceOf[VirtualMachineError]
+    def reportFailure(cause: Cause[_]): Unit =
+      if (!cause.interrupted) println(cause.toString)
 
-      def reportFailure(cause: Cause[_]): IO[Nothing, _] =
-        reportFailure0(cause)
-
-      def newWeakHashMap[A, B](): util.Map[A, B] =
-        new util.HashMap[A, B]()
-    }
+    def newWeakHashMap[A, B](): JMap[A, B] =
+      new HashMap[A, B]()
+  }
 }
+object PlatformLive extends PlatformLive

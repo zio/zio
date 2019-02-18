@@ -14,56 +14,32 @@
  * limitations under the License.
  */
 
-package scalaz.zio.internal.impls
+package scalaz.zio.platform 
 
-import java.util
+import java.util.{ Map => JMap, WeakHashMap }
 import java.util.concurrent._
 
-import scala.concurrent.ExecutionContext
-import scalaz.zio.Exit.Cause
-import scalaz.zio.{ FiberFailure, IO }
-import scalaz.zio.internal.{ Env => IEnv, ExecutionMetrics, Executor, NamedThreadFactory }
+import scalaz.zio.internal.{ Executor, ExecutionMetrics, NamedThreadFactory }
+import scalaz.zio.Exit.Cause 
 
-object Env {
+trait PlatformLive extends Platform {
+  val platform: Platform.Service = new Platform.Service {
+    val executor = newExecutor()
 
-  /**
-   * Creates a new environment from an `ExecutionContext`.
-   */
-  final def fromExecutionContext(ec: ExecutionContext): IEnv =
-    new IEnv {
-      val executor = Executor.fromExecutionContext(1000)(ec)
+    def nonFatal(t: Throwable): Boolean =
+      !t.isInstanceOf[VirtualMachineError]
 
-      def nonFatal(t: Throwable): Boolean =
-        !t.isInstanceOf[VirtualMachineError]
+    def reportFailure(cause: Cause[_]): Unit =
+      if (!cause.interrupted) println(cause.toString)
 
-      def reportFailure(cause: Cause[_]): IO[Nothing, _] =
-        IO.sync(ec.reportFailure(FiberFailure(cause)))
+    def newWeakHashMap[A, B](): JMap[A, B] =
+      new WeakHashMap[A, B]()
+  }
 
-      def newWeakHashMap[A, B](): util.Map[A, B] =
-        new util.WeakHashMap[A, B]()
-    }
-
-  /**
-   * Creates a new default environment.
-   */
-  final def newDefaultEnv(reportFailure0: Cause[_] => IO[Nothing, _]): IEnv =
-    new IEnv {
-      val executor = newexecutor()
-
-      def nonFatal(t: Throwable): Boolean =
-        !t.isInstanceOf[VirtualMachineError]
-
-      def reportFailure(cause: Cause[_]): IO[Nothing, _] =
-        reportFailure0(cause)
-
-      def newWeakHashMap[A, B](): util.Map[A, B] =
-        new util.WeakHashMap[A, B]()
-    }
-
-  /**
+      /**
    * Creates a new default executor of the specified type.
    */
-  final def newexecutor(): Executor =
+  final def newExecutor(): Executor =
     fromThreadPoolExecutor(_ => 1024) {
       val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
       val maxPoolSize   = corePoolSize
@@ -131,3 +107,4 @@ object Env {
       def shutdown(): Unit = { val _ = es.shutdown() }
     }
 }
+object PlatformLive extends PlatformLive

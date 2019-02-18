@@ -30,7 +30,7 @@ object System extends Serializable {
     val lineSeparator: ZIO[R, Nothing, String]
   }
   trait Live extends System {
-    object system extends Service[Any] {
+    val system: Service[Any] = new Service[Any] {
       import java.lang.{ System => JSystem }
 
       def env(variable: String): ZIO[Any, Nothing, Option[String]] = ZIO.sync(Option(JSystem.getenv(variable)))
