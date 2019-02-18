@@ -1353,7 +1353,7 @@ trait ZIOFunctions extends Serializable {
    */
   final def mergeAll[R >: LowerR, E <: UpperE, A, B](
     in: Iterable[ZIO[R, E, A]]
-  )(zero: => B)(f: (B, A) => B): ZIO[R, E, B] =
+  )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
 
   /**
