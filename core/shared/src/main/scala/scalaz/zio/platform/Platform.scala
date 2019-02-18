@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package scalaz.zio.platform 
+package scalaz.zio.platform
 
 import java.util.{ Map => JMap }
 
@@ -22,7 +22,7 @@ import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.Executor
 
 /**
- * A `Platform` provides the minimum capabilities necessary to bootstrap 
+ * A `Platform` provides the minimum capabilities necessary to bootstrap
  * execution of `ZIO` tasks.
  */
 trait Platform {
@@ -30,6 +30,7 @@ trait Platform {
 }
 object Platform {
   trait Service {
+
     /**
      * Retrieves the default executor.
      */
@@ -46,7 +47,7 @@ object Platform {
     def reportFailure(cause: Cause[_]): Unit
 
     /**
-     * Create a new java.util.WeakHashMap if supported by the platform, 
+     * Create a new java.util.WeakHashMap if supported by the platform,
      * otherwise any implementation of Map.
      */
     def newWeakHashMap[A, B](): JMap[A, B]

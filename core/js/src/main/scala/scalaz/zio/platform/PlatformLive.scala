@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package scalaz.zio.platform 
+package scalaz.zio.platform
 
 import scalaz.zio.Exit.Cause
 import java.util.{ HashMap, Map => JMap }

@@ -16,7 +16,7 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.atomic.{ AtomicReference, AtomicLong }
+import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio._
@@ -36,7 +36,7 @@ private[zio] final class FiberContext[E, A](
   import FiberState._
 
   // Accessed from multiple threads:
-  private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])  
+  private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
 
   // Accessed from within a single thread (not necessarily the same):
   @volatile private[this] var noInterrupt = 0
@@ -44,7 +44,7 @@ private[zio] final class FiberContext[E, A](
   @volatile private[this] var supervising = 0
   @volatile private[this] var locked      = List.empty[Executor]
   @volatile private[this] var environment = ().asInstanceOf[Any]
-  
+
   private[this] val fiberId = FiberContext.fiberCounter.getAndIncrement()
   private[this] val stack   = new Stack[Any => IO[Any, Any]]()
 
@@ -569,7 +569,7 @@ private[zio] final class FiberContext[E, A](
 }
 private[zio] object FiberContext {
   val fiberCounter = new AtomicLong(0)
-  
+
   sealed abstract class FiberStatus extends Serializable with Product
   object FiberStatus {
     final case object Running   extends FiberStatus

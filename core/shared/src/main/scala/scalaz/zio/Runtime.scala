@@ -20,12 +20,13 @@ import scalaz.zio.platform.Platform
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
- * Runtimes are not functional, but they are necessary for final translation of 
- * a `ZIO` value into the effects that it models. For best results, push 
- * execution of tasks to the edge of the application, such as the application 
+ * Runtimes are not functional, but they are necessary for final translation of
+ * a `ZIO` value into the effects that it models. For best results, push
+ * execution of tasks to the edge of the application, such as the application
  * main function. See [[scalaz.zio.App]] for an example of this approach.
  */
 trait Runtime[R <: Platform] {
+
   /**
    * The environment of the runtime.
    */

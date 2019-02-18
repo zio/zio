@@ -20,7 +20,7 @@ import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.platform.Platform
-import scalaz.zio.internal.{ FiberContext, Executor }
+import scalaz.zio.internal.{ Executor, FiberContext }
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
@@ -557,14 +557,14 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  final def keepSome[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] = 
+  final def keepSome[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] =
     keepSomeWith(pf)(ev)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  final def keepSomeWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable): ZIO[R, E1, A] = 
+  final def keepSomeWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable): ZIO[R, E1, A] =
     self.catchAll(err => pf.lift(err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
 
   /**
@@ -574,7 +574,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     orDieWith(ev)
 
   /**
-   * Translates the checked error (if present) into termination by using the 
+   * Translates the checked error (if present) into termination by using the
    * specified conversion function on the `E`.
    */
   def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
@@ -893,7 +893,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   def tag: Int
 
   final def unsafeRunAsync[R1 <: R with Platform](r1: R1, k: Exit[E, A] => Unit): Unit = {
-    val platform: Platform.Service = r1.platform 
+    val platform: Platform.Service = r1.platform
 
     val context = new FiberContext[E, A](platform)
 
@@ -901,9 +901,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     context.runAsync(k)
   }
 
-  final def unsafeRunAsync_[R1 <: R with Platform](r1: R1): Unit = 
+  final def unsafeRunAsync_[R1 <: R with Platform](r1: R1): Unit =
     self.unsafeRunAsync(r1, _ => ())
-
 
   final def unsafeRun[R1 <: R with Platform](r1: R1): A =
     self.unsafeRunSync(r1).getOrElse(c => throw new FiberFailure(c))
