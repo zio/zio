@@ -55,8 +55,6 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
    Generate a String:
       `.sync` extension method returns the same UIO[String] as `IO.sync` does. $t2
    Generate a String:
-      `.syncException` extension method returns the same IO[Exception, String] as `IO.syncException` does. $t3
-   Generate a String:
       `.sync` extension method returns the same Task[String] as `IO.sync` does. $t4
    Generate a String:
       `.syncCatch` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.sync` does. $t5
@@ -73,13 +71,6 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(for {
       a <- lazyStr.sync
       b <- IO.defer(lazyStr)
-    } yield a must ===(b))
-  }
-
-  def t3 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
-    unsafeRun(for {
-      a <- lazyStr.syncException
-      b <- IO.sync(lazyStr).keepSome(JustExceptions)
     } yield a must ===(b))
   }
 
