@@ -1374,10 +1374,10 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    * throwables into a `Throwable` failure in the returned value.
    *
    * {{{
-   * def putStrLn(line: String): Task[Unit] = IO.syncThrowable(println(line))
+   * def putStrLn(line: String): Task[Unit] = IO.sync(println(line))
    * }}}
    */
-  final def syncThrowable[A](effect: => A): Task[A] =
+  final def sync[A](effect: => A): Task[A] =
     syncCatch(effect) {
       case t: Throwable => t
     }
@@ -1386,7 +1386,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    * Imports a `Try` into a `ZIO`.
    */
   final def fromTry[A](effect: => scala.util.Try[A]): Task[A] =
-    syncThrowable(effect).flatMap {
+    sync(effect).flatMap {
       case scala.util.Success(v) => ZIO.succeed(v)
       case scala.util.Failure(t) => ZIO.fail(t)
     }
@@ -1411,13 +1411,13 @@ trait ZIO_E_Throwable extends ZIOFunctions {
 object IO extends ZIO_E_Any {
   type LowerR = Any
 
-  def apply[A](a: => A): IO[Throwable, A] = syncThrowable(a)
+  def apply[A](a: => A): IO[Throwable, A] = sync(a)
 }
 object Task extends ZIO_E_Throwable {
   type UpperE = Throwable
   type LowerR = Any
 
-  def apply[A](a: => A): Task[A] = syncThrowable(a)
+  def apply[A](a: => A): Task[A] = sync(a)
 }
 object UIO extends ZIOFunctions {
   type UpperE = Nothing
@@ -1429,7 +1429,7 @@ object UIO extends ZIOFunctions {
 object ZIO extends ZIO_E_Any {
   type LowerR = Nothing
 
-  def apply[A](a: => A): ZIO[Any, Throwable, A] = syncThrowable(a)
+  def apply[A](a: => A): ZIO[Any, Throwable, A] = sync(a)
 
   @inline
   private final def succeedLeft[E, A]: E => UIO[Either[E, A]] =

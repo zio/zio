@@ -57,9 +57,9 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
    Generate a String:
       `.syncException` extension method returns the same IO[Exception, String] as `IO.syncException` does. $t3
    Generate a String:
-      `.syncThrowable` extension method returns the same Task[String] as `IO.syncThrowable` does. $t4
+      `.sync` extension method returns the same Task[String] as `IO.sync` does. $t4
    Generate a String:
-      `.syncCatch` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.syncThrowable` does. $t5
+      `.syncCatch` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.sync` does. $t5
     """
 
   def t1 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
@@ -79,14 +79,14 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t3 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
       a <- lazyStr.syncException
-      b <- IO.syncThrowable(lazyStr).keepSome(JustExceptions)
+      b <- IO.sync(lazyStr).keepSome(JustExceptions)
     } yield a must ===(b))
   }
 
   def t4 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
-      a <- lazyStr.syncThrowable
-      b <- IO.syncThrowable(lazyStr)
+      a <- lazyStr.sync
+      b <- IO.sync(lazyStr)
     } yield a must ===(b))
   }
 

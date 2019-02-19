@@ -62,7 +62,7 @@ def readFile(name: String): IO[Exception, Array[Byte]] =
   IO.syncException(FileUtils.readFileToByteArray(new File(name)))
 ```
 
-Alternately, `syncThrowable` will catch all `Throwable`, not just exceptions. Finally, the `syncCatch` method is more general, allowing you to catch and optionally translate any type of `Throwable` into a custom error type:
+Alternately, `sync` will catch all `Throwable`, not just exceptions. Finally, the `syncCatch` method is more general, allowing you to catch and optionally translate any type of `Throwable` into a custom error type:
 
 ```tut:silent
 import java.io.IOException

@@ -211,7 +211,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   @silent
   def testEvalOfRedeemOfSyncEffectError =
     unsafeRun(
-      IO.syncThrowable[Unit](throw ExampleError).fold[Option[Throwable]](Some(_), _ => None)
+      IO.sync[Unit](throw ExampleError).fold[Option[Throwable]](Some(_), _ => None)
     ) must_=== Some(ExampleError)
 
   def testEvalOfAttemptOfFail = Seq(
@@ -473,7 +473,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(deepMapEffect(10000)) must_=== 10000
 
   def testDeepAttemptIsStackSafe =
-    unsafeRun((0 until 10000).foldLeft(IO.syncThrowable[Unit](())) { (acc, _) =>
+    unsafeRun((0 until 10000).foldLeft(IO.sync[Unit](())) { (acc, _) =>
       acc.attempt.void
     }) must_=== (())
 
@@ -943,7 +943,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val c = new AtomicInteger(0)
 
     def test =
-      IO.syncThrowable {
+      IO.sync {
         if (c.incrementAndGet() <= 1) throw new RuntimeException("x")
       }.forever
         .ensuring(IO.unit)
@@ -1030,7 +1030,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   def deepErrorEffect(n: Int): Task[Unit] =
-    if (n == 0) IO.syncThrowable(throw ExampleError)
+    if (n == 0) IO.sync(throw ExampleError)
     else IO.unit *> deepErrorEffect(n - 1)
 
   def deepErrorFail(n: Int): Task[Unit] =

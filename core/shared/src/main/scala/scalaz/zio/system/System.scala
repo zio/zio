@@ -36,7 +36,7 @@ object System extends Serializable {
       def env(variable: String): ZIO[Any, Nothing, Option[String]] = ZIO.defer(Option(JSystem.getenv(variable)))
 
       def property(prop: String): ZIO[Any, Throwable, Option[String]] =
-        ZIO.syncThrowable(Option(JSystem.getProperty(prop)))
+        ZIO.sync(Option(JSystem.getProperty(prop)))
 
       val lineSeparator: ZIO[Any, Nothing, String] = ZIO.defer(JSystem.lineSeparator)
     }
