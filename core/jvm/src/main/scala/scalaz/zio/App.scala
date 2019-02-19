@@ -44,7 +44,7 @@ trait App extends RTS {
    * The main function of the application, which will be passed the command-line
    * arguments to the program and has to return an `IO` with the errors fully handled.
    */
-  def run(args: List[String]): UIO[Int]
+  def run(args: List[String]): ZIO[Environment, Nothing, Int]
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
