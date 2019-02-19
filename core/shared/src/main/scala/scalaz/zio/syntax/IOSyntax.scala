@@ -16,13 +16,12 @@
 
 package scalaz.zio.syntax
 
-import scalaz.zio.{ Fiber, IO, JustExceptions, Task, UIO }
+import scalaz.zio.{ Fiber, IO, Task, UIO }
 
 object IOSyntax {
   final class IOCreationLazySyntax[A](val a: () => A) extends AnyVal {
     def succeedLazy: UIO[A]                                     = IO.succeedLazy(a())
     def defer: UIO[A]                                           = IO.defer(a())
-    def syncException: IO[Exception, A]                         = IO.sync(a()).keepSome(JustExceptions)
     def sync: Task[A]                                           = Task.sync(a())
     def syncCatch[E]: PartialFunction[Throwable, E] => IO[E, A] = IO.syncCatch(a())
   }
