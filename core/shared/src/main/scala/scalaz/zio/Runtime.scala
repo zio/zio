@@ -28,6 +28,10 @@ trait Runtime[+R] {
    */
   val Environment: R
 
+  /**
+   * The platform of the runtime, which provides the essential capabilities
+   * necessary to bootstrap execution of tasks.
+   */
   val Platform: Platform
 
   /**
@@ -46,7 +50,7 @@ trait Runtime[+R] {
    * [[scalaz.zio.platform.Platform]], executes the task synchronously. May
    * fail on Scala.js if the task cannot be entirely run synchronously.
    *
-   * This method is effectful and should only be done at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunSync[E, A](zio: ZIO[R, E, A]): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
@@ -61,7 +65,7 @@ trait Runtime[+R] {
    * [[scalaz.zio.platform.Platform]], executes the task asynchronously,
    * eventually passing the exit value to the specified callback.
    *
-   * This method is effectful and should only be done at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
     val context = new FiberContext[E, A](Platform)
@@ -75,7 +79,7 @@ trait Runtime[+R] {
    * [[scalaz.zio.platform.Platform]], executes the task asynchronously,
    * discarding the result of execution.
    *
-   * This method is effectful and should only be done at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsync_[E, A](zio: ZIO[R, E, A]): Unit =
     unsafeRunAsync(zio)(_ => ())

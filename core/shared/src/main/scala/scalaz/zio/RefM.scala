@@ -15,6 +15,7 @@
  */
 
 package scalaz.zio
+
 import scalaz.zio.Exit.Cause
 
 /**

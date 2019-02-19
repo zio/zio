@@ -22,7 +22,7 @@ trait App extends RTS {
    * The main function of the application, which will be passed the command-line
    * arguments to the program.
    */
-  def run(args: List[String]): UIO[Unit]
+  def run(args: List[String]): ZIO[Environment, Nothing, Unit]
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
