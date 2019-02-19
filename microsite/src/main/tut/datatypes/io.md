@@ -49,26 +49,22 @@ because the `Nothing` type is _uninhabitable_, i.e. there can be no actual value
 You can use the `sync` method of `IO` to import effectful synchronous code into your purely functional program:
 
 ```tut:silent
-val z: UIO[Long] = IO.defer(System.nanoTime())
+val z: Task[Long] = IO.defer(System.nanoTime())
 ```
 
-If you are importing effectful code that may throw exceptions, you can use the `syncException` method of `IO`:
-
-```tut:silent
+```tut:invisible
 import java.io.File
 import org.apache.commons.io.FileUtils
-
-def readFile(name: String): IO[Exception, Array[Byte]] =
-  IO.syncException(FileUtils.readFileToByteArray(new File(name)))
+import java.io.IOException
 ```
 
-Alternately, `sync` will catch all `Throwable`, not just exceptions. Finally, the `syncCatch` method is more general, allowing you to catch and optionally translate any type of `Throwable` into a custom error type:
+The resulting effect may fail for any `Throwable`.
+
+If this is too broad, the `keepSome` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
 
 ```tut:silent
-import java.io.IOException
-
 def readFile(name: String): IO[String, Array[Byte]] =
-  IO.syncCatch(FileUtils.readFileToByteArray(new File(name))) {
+  IO.sync(FileUtils.readFileToByteArray(new File(name))).keepSome {
     case e : IOException => "Could not read file"
   }
 ```
@@ -166,7 +162,7 @@ A helper method called `ensuring` provides a simpler analogue of `finally`:
 
 ```tut:silent
 var i: Int = 0
-val action: Task[String] = IO.defer(i += 1) *> IO.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = IO.defer(i -= 1)
+val action: Task[String] = Task.defer(i += 1) *> Task.fail(new Throwable("Boom!"))
+val cleanupAction: UIO[Unit] = UIO.defer(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
