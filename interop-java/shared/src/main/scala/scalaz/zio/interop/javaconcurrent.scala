@@ -100,7 +100,7 @@ object javaconcurrent {
         def poll: UIO[Option[Exit[Throwable, A]]] =
           IO.suspend {
             if (ftr.isDone) {
-              IO.syncThrowable(ftr.get())
+              IO.sync(ftr.get())
                 .keepSome(JustExceptions)
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))
