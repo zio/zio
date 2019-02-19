@@ -19,11 +19,12 @@ package scalaz.zio
 import scalaz.zio.clock.Clock
 import scalaz.zio.console.Console
 import scalaz.zio.system.System
+import scalaz.zio.random.Random
 import scalaz.zio.internal.{ Platform, PlatformLive }
 
-trait RTS extends Runtime[Clock with Console with System] {
-  type Environment = Clock with Console with System
+trait RTS extends Runtime[Clock with Console with System with Random] {
+  type Environment = Clock with Console with System with Random
 
   val Platform: Platform       = PlatformLive
-  val Environment: Environment = new Clock.Live with Console.Live with System.Live
+  val Environment: Environment = new Clock.Live with Console.Live with System.Live with Random.Live
 }
