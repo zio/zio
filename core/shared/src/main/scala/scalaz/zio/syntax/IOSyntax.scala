@@ -20,10 +20,9 @@ import scalaz.zio.{ Fiber, IO, Task, UIO }
 
 object IOSyntax {
   final class IOCreationLazySyntax[A](val a: () => A) extends AnyVal {
-    def succeedLazy: UIO[A]                                     = IO.succeedLazy(a())
-    def defer: UIO[A]                                           = IO.defer(a())
-    def sync: Task[A]                                           = Task.sync(a())
-    def syncCatch[E]: PartialFunction[Throwable, E] => IO[E, A] = IO.syncCatch(a())
+    def succeedLazy: UIO[A] = IO.succeedLazy(a())
+    def defer: UIO[A]       = IO.defer(a())
+    def sync: Task[A]       = Task.sync(a())
   }
 
   final class IOCreationEagerSyntax[A](val a: A) extends AnyVal {

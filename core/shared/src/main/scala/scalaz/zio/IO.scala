@@ -1078,21 +1078,6 @@ trait ZIOFunctions extends Serializable {
     flatten(defer(io))
 
   /**
-   * Safely imports an exception-throwing synchronous effect into a pure `ZIO`
-   * value, translating the specified throwables into `E` with the provided
-   * user-defined function.
-   */
-  final def syncCatch[E <: UpperE, A](effect: => A)(f: PartialFunction[Throwable, E]): IO[E, A] =
-    absolve[Any, E, A](
-      defer(
-        try {
-          val result = effect
-          Right(result)
-        } catch f andThen Left[E, A]
-      )
-    )
-
-  /**
    * Locks the `io` to the specified executor.
    */
   final def lock[R >: LowerR, E <: UpperE, A](executor: Executor)(io: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -1378,9 +1363,10 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    * }}}
    */
   final def sync[A](effect: => A): Task[A] =
-    syncCatch(effect) {
-      case t: Throwable => t
-    }
+    defer(effect).redeem0({
+      case Cause.Die(t) => fail(t)
+      case cause        => halt(cause)
+    }, IO.succeed(_))
 
   /**
    * Imports a `Try` into a `ZIO`.

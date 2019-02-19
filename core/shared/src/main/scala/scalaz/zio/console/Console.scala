@@ -72,11 +72,12 @@ object Console extends Serializable {
         getStrLn(SConsole.in)
 
       final def getStrLn(reader: Reader): IO[IOException, String] =
-        IO.syncCatch(SConsole.withIn(reader) {
-          StdIn.readLine()
-        }) {
-          case e: IOException => e
-        }
+        IO.sync(SConsole.withIn(reader) {
+            StdIn.readLine()
+          })
+          .keepSome {
+            case e: IOException => e
+          }
 
     }
   }

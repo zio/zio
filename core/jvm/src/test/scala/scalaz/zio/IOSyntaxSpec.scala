@@ -84,8 +84,8 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t5 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
     unsafeRun(for {
-      a <- lazyStr.syncCatch[Int](partial)
-      b <- IO.syncCatch(lazyStr)(partial)
+      a <- lazyStr.sync.keepSome(partial)
+      b <- IO.sync(lazyStr).keepSome(partial)
     } yield a must ===(b))
   }
 
