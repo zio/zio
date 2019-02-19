@@ -80,19 +80,14 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * of at least 10,000.
    */
   final def map[B](f: A => B): ZIO[R, E, B] = (self.tag: @switch) match {
-    case ZIO.Tags.Point =>
-      val io = self.asInstanceOf[ZIO.Point[A]]
+    case ZIO.Tags.Succeed =>
+      val io = self.asInstanceOf[ZIO.Succeed[A]]
 
-      new ZIO.Point(() => f(io.value()))
-
-    case ZIO.Tags.Strict =>
-      val io = self.asInstanceOf[ZIO.Strict[A]]
-
-      new ZIO.Strict(f(io.value))
+      new ZIO.Succeed(f(io.value))
 
     case ZIO.Tags.Fail => self.asInstanceOf[ZIO[R, E, B]]
 
-    case _ => new ZIO.FlatMap(self, (a: A) => new ZIO.Strict(f(a)))
+    case _ => new ZIO.FlatMap(self, (a: A) => new ZIO.Succeed(f(a)))
   }
 
   /**
@@ -900,7 +895,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
 
   /**
    * An integer that identifies the term in the `ZIO` sum type to which this
-   * instance belongs (e.g. `IO.Tags.Point`).
+   * instance belongs (e.g. `IO.Tags.Succeed`).
    */
   def tag: Int
 }
@@ -925,20 +920,19 @@ trait ZIOFunctions extends Serializable {
   /**
    * Lifts a strictly evaluated value into the `ZIO` monad.
    */
-  final def succeed[A](a: A): UIO[A] = new ZIO.Strict(a)
+  final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
 
   /**
    * Lifts a non-strictly evaluated value into the `ZIO` monad. Do not use this
    * function to capture effectful code. The result is undefined but may
    * include duplicated effects.
    */
-  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.Point(() => a)
+  final def succeedLazy[A](a: => A): UIO[A] = defer(a)
 
   /**
    * Accesses the whole environment of the task.
    */
-  final def environment[R >: LowerR]: ZIO[R, Nothing, R] =
-    access(identity)
+  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(identity)
 
   /**
    * Accesses the environment of the task.
@@ -968,7 +962,7 @@ trait ZIOFunctions extends Serializable {
   final def runtime[R >: LowerR]: ZIO[R, Nothing, Runtime[R]] =
     for {
       environment <- environment[R]
-      platform    <- sync0(identity)
+      platform    <- deferWith(identity)
     } yield Runtime(environment, platform)
 
   /**
@@ -980,8 +974,7 @@ trait ZIOFunctions extends Serializable {
    * Returns a action that will never produce anything. The moral
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
-  final val never: UIO[Nothing] =
-    async[Nothing, Nothing](_ => ())
+  final val never: UIO[Nothing] = async[Nothing, Nothing](_ => ())
 
   /**
    * Returns a `ZIO` that dies with the specified `Throwable`.
@@ -1001,7 +994,7 @@ trait ZIOFunctions extends Serializable {
    * val nanoTime: UIO[Long] = IO.defer(System.nanoTime())
    * }}}
    */
-  final def defer[A](effect: => A): UIO[A] = sync0(_ => effect)
+  final def defer[A](effect: => A): UIO[A] = deferWith(_ => effect)
 
   /**
    * Imports a synchronous effect into a pure `ZIO` value. This variant of `sync`
@@ -1011,7 +1004,7 @@ trait ZIOFunctions extends Serializable {
    * val nanoTime: UIO[Long] = IO.defer(System.nanoTime())
    * }}}
    */
-  final def sync0[A](effect: Platform => A): UIO[A] = new ZIO.SyncEffect[A](effect)
+  final def deferWith[A](effect: Platform => A): UIO[A] = new ZIO.Defer[A](effect)
 
   /**
    * Yields to the runtime system, starting on a fresh stack.
@@ -1039,7 +1032,7 @@ trait ZIOFunctions extends Serializable {
     as.foldRight[ZIO[R, Nothing, Unit]](ZIO.unit)(_.fork *> _)
 
   /**
-   * Creates a `ZIO` value from `ExitResult`
+   * Creates a `ZIO` value from [[scalaz.zio.Exit]].
    */
   final def done[E <: UpperE, A](r: Exit[E, A]): IO[E, A] = r match {
     case Exit.Success(b)     => succeed(b)
@@ -1084,12 +1077,12 @@ trait ZIOFunctions extends Serializable {
     new ZIO.Lock(executor, io)
 
   /**
-   * Imports an asynchronous effect into a pure `ZIO` value. See `async0` for
+   * Imports an asynchronous effect into a pure `ZIO` value. See `asyncMaybe` for
    * the more expressive variant of this function that can return a value
    * synchronously.
    */
   final def async[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Unit): ZIO[Any, E, A] =
-    async0((callback: ZIO[Any, E, A] => Unit) => {
+    asyncMaybe((callback: ZIO[Any, E, A] => Unit) => {
       register(callback)
 
       None
@@ -1099,8 +1092,8 @@ trait ZIOFunctions extends Serializable {
    * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
    * the value synchronously.
    */
-  final def async0[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Option[IO[E, A]]): ZIO[Any, E, A] =
-    new ZIO.AsyncEffect(register)
+  final def asyncMaybe[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Option[IO[E, A]]): ZIO[Any, E, A] =
+    new ZIO.Async(register)
 
   /**
    * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
@@ -1136,7 +1129,7 @@ trait ZIOFunctions extends Serializable {
     defer((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
       case (started, cancel) =>
         flatten {
-          async0((k: UIO[ZIO[R, E, A]] => Unit) => {
+          asyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
             started.set(true)
 
             try register(io => k(ZIO.succeed(io))) match {
@@ -1433,40 +1426,35 @@ object ZIO extends ZIO_E_Any {
 
   final object Tags {
     final val FlatMap         = 0
-    final val Point           = 1
-    final val Strict          = 2
-    final val SyncEffect      = 3
-    final val Fail            = 4
-    final val AsyncEffect     = 5
-    final val Redeem          = 6
-    final val Fork            = 7
-    final val Uninterruptible = 8
-    final val Supervise       = 9
-    final val Ensuring        = 10
-    final val Descriptor      = 11
-    final val Lock            = 12
-    final val Yield           = 13
-    final val Access          = 14
-    final val Provide         = 15
+    final val Succeed         = 1
+    final val Defer           = 2
+    final val Fail            = 3
+    final val Async           = 4
+    final val Redeem          = 5
+    final val Fork            = 6
+    final val Uninterruptible = 7
+    final val Supervise       = 8
+    final val Ensuring        = 9
+    final val Descriptor      = 10
+    final val Lock            = 11
+    final val Yield           = 12
+    final val Access          = 13
+    final val Provide         = 14
   }
   final class FlatMap[R, E, A0, A](val io: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.FlatMap
   }
 
-  final class Point[A](val value: () => A) extends UIO[A] {
-    override def tag = Tags.Point
+  final class Succeed[A](val value: A) extends UIO[A] {
+    override def tag = Tags.Succeed
   }
 
-  final class Strict[A](val value: A) extends UIO[A] {
-    override def tag = Tags.Strict
+  final class Defer[A](val effect: Platform => A) extends UIO[A] {
+    override def tag = Tags.Defer
   }
 
-  final class SyncEffect[A](val effect: Platform => A) extends UIO[A] {
-    override def tag = Tags.SyncEffect
-  }
-
-  final class AsyncEffect[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
-    override def tag = Tags.AsyncEffect
+  final class Async[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
+    override def tag = Tags.Async
   }
 
   final class Redeem[R, E, E2, A, B](

@@ -53,13 +53,13 @@ class Queue[A] private (
     } else None
 
   @tailrec
-  private final def unsafeCompleteTakers(context: Platform): Unit =
+  private final def unsafeCompleteTakers(platform: Platform): Unit =
     pollTakersThenQueue() match {
       case None =>
       case Some((p, a)) =>
-        unsafeCompletePromise(p, a, context)
-        strategy.unsafeOnQueueEmptySpace(queue, context)
-        unsafeCompleteTakers(context)
+        unsafeCompletePromise(p, a, platform)
+        strategy.unsafeOnQueueEmptySpace(queue, platform)
+        unsafeCompleteTakers(platform)
     }
 
   private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.defer(unsafeRemove(takers, taker))
@@ -92,11 +92,11 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      remaining <- IO.sync0 { context =>
+      remaining <- IO.deferWith { platform =>
                     val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
                     val (forTakers, remaining) = as.splitAt(pTakers.size)
                     (pTakers zip forTakers).foreach {
-                      case (taker, item) => unsafeCompletePromise(taker, item, context)
+                      case (taker, item) => unsafeCompletePromise(taker, item, platform)
                     }
                     remaining
                   }
@@ -104,15 +104,15 @@ class Queue[A] private (
       added <- if (remaining.nonEmpty) {
                 // not enough takers, offer to the queue
                 for {
-                  surplus <- IO.sync0 { context =>
+                  surplus <- IO.deferWith { platform =>
                               val as = unsafeOfferAll(queue, remaining.toList)
-                              unsafeCompleteTakers(context)
+                              unsafeCompleteTakers(platform)
                               as
                             }
                   res <- if (surplus.isEmpty) IO.succeed(true)
                         else
-                          strategy.handleSurplus(surplus, queue) <* IO.sync0(
-                            context => unsafeCompleteTakers(context)
+                          strategy.handleSurplus(surplus, queue) <* IO.deferWith(
+                            platform => unsafeCompleteTakers(platform)
                           )
                 } yield res
               } else IO.succeed(true)
@@ -163,9 +163,9 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      item <- IO.sync0 { context =>
+      item <- IO.deferWith { platform =>
                val item = queue.poll(null.asInstanceOf[A])
-               if (item != null) strategy.unsafeOnQueueEmptySpace(queue, context)
+               if (item != null) strategy.unsafeOnQueueEmptySpace(queue, platform)
                item
              }
 
@@ -177,9 +177,9 @@ class Queue[A] private (
               // - try take again in case a value was added since
               // - wait for the promise to be completed
               // - clean up resources in case of interruption
-              a <- (IO.sync0 { context =>
+              a <- (IO.deferWith { platform =>
                     takers.offer(p)
-                    unsafeCompleteTakers(context)
+                    unsafeCompleteTakers(platform)
                   } *> p.await).onInterrupt(removeTaker(p))
             } yield a
     } yield a
@@ -192,9 +192,9 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      as <- IO.sync0 { context =>
+      as <- IO.deferWith { platform =>
              val as = unsafePollAll(queue)
-             strategy.unsafeOnQueueEmptySpace(queue, context)
+             strategy.unsafeOnQueueEmptySpace(queue, platform)
              as
            }
     } yield as
@@ -206,9 +206,9 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      as <- IO.sync0 { context =>
+      as <- IO.deferWith { platform =>
              val as = unsafePollN(queue, max)
-             strategy.unsafeOnQueueEmptySpace(queue, context)
+             strategy.unsafeOnQueueEmptySpace(queue, platform)
              as
            }
     } yield as
@@ -268,13 +268,13 @@ object Queue {
       ()
     }
 
-    final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, context: Platform): Unit =
-      p.unsafeDone(IO.succeed(a), context.executor)
+    final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, platform: Platform): Unit =
+      p.unsafeDone(IO.succeed(a), platform.executor)
 
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean]
 
-      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Platform): Unit
+      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit
 
       def surplusSize: Int
 
@@ -297,7 +297,7 @@ object Queue {
         IO.defer(unsafeSlidingOffer(as)).map(_ => !loss)
       }
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Platform): Unit = ()
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit = ()
 
       final def surplusSize: Int = 0
 
@@ -308,7 +308,7 @@ object Queue {
       // do nothing, drop the surplus
       final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = IO.succeed(false)
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Platform): Unit = ()
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit = ()
 
       final def surplusSize: Int = 0
 
@@ -341,14 +341,14 @@ object Queue {
 
         for {
           p <- Promise.make[Nothing, Boolean]
-          _ <- (IO.sync0 { context =>
+          _ <- (IO.deferWith { platform =>
                 unsafeOffer(as, p)
-                unsafeOnQueueEmptySpace(queue, context)
+                unsafeOnQueueEmptySpace(queue, platform)
               } *> p.await).onInterrupt(IO.defer(unsafeRemove(p)))
         } yield true
       }
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Platform): Unit = {
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit = {
         @tailrec
         def unsafeMovePutters(): Unit =
           if (!queue.isFull()) {
@@ -356,7 +356,7 @@ object Queue {
               case null =>
               case putter @ (a, p, lastItem) =>
                 if (queue.offer(a)) {
-                  if (lastItem) unsafeCompletePromise(p, true, context)
+                  if (lastItem) unsafeCompletePromise(p, true, platform)
                   unsafeMovePutters()
                 } else {
                   unsafeOfferAll(putters, putter :: unsafePollAll(putters))

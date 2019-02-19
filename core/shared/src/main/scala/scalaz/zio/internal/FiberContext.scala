@@ -145,18 +145,13 @@ private[zio] final class FiberContext[E, A](
                   // anything that is 1-hop away. This eliminates heap usage for the
                   // happy path.
                   (nested.tag: @switch) match {
-                    case ZIO.Tags.Point =>
-                      val io2 = nested.asInstanceOf[ZIO.Point[E]]
-
-                      curIo = io.k(io2.value())
-
-                    case ZIO.Tags.Strict =>
-                      val io2 = nested.asInstanceOf[ZIO.Strict[Any]]
+                    case ZIO.Tags.Succeed =>
+                      val io2 = nested.asInstanceOf[ZIO.Succeed[Any]]
 
                       curIo = io.k(io2.value)
 
-                    case ZIO.Tags.SyncEffect =>
-                      val io2 = nested.asInstanceOf[ZIO.SyncEffect[Any]]
+                    case ZIO.Tags.Defer =>
+                      val io2 = nested.asInstanceOf[ZIO.Defer[Any]]
 
                       curIo = io.k(io2.effect(platform))
 
@@ -173,29 +168,22 @@ private[zio] final class FiberContext[E, A](
                       stack.push(io.k)
                   }
 
-                case ZIO.Tags.Point =>
-                  val io = curIo.asInstanceOf[ZIO.Point[Any]]
-
-                  val value = io.value()
-
-                  curIo = nextInstr(value)
-
-                case ZIO.Tags.Strict =>
-                  val io = curIo.asInstanceOf[ZIO.Strict[Any]]
+                case ZIO.Tags.Succeed =>
+                  val io = curIo.asInstanceOf[ZIO.Succeed[Any]]
 
                   val value = io.value
 
                   curIo = nextInstr(value)
 
-                case ZIO.Tags.SyncEffect =>
-                  val io = curIo.asInstanceOf[ZIO.SyncEffect[Any]]
+                case ZIO.Tags.Defer =>
+                  val io = curIo.asInstanceOf[ZIO.Defer[Any]]
 
                   val value = io.effect(platform)
 
                   curIo = nextInstr(value)
 
-                case ZIO.Tags.AsyncEffect =>
-                  val io = curIo.asInstanceOf[ZIO.AsyncEffect[E, Any]]
+                case ZIO.Tags.Async =>
+                  val io = curIo.asInstanceOf[ZIO.Async[E, Any]]
 
                   // Enter suspended state:
                   curIo = if (enterAsync()) {
@@ -342,11 +330,11 @@ private[zio] final class FiberContext[E, A](
   private[this] final val resumeAsync: IO[E, Any] => Unit =
     io => if (exitAsync()) evaluateLater(io)
 
-  final def interrupt: UIO[Exit[E, A]] = IO.async0[Nothing, Exit[E, A]] { k =>
+  final def interrupt: UIO[Exit[E, A]] = IO.asyncMaybe[Nothing, Exit[E, A]] { k =>
     kill0(x => k(IO.done(x)))
   }
 
-  final def await: UIO[Exit[E, A]] = IO.async0[Nothing, Exit[E, A]] { k =>
+  final def await: UIO[Exit[E, A]] = IO.asyncMaybe[Nothing, Exit[E, A]] { k =>
     observe0(x => k(IO.done(x)))
   }
 
