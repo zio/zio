@@ -103,13 +103,16 @@ Let's rock these crocodile boots we found the other day at the market and test o
 
 ```tut:silent
 import scalaz.zio.duration.Duration
-import scala.util.Random
-val party: UIO[Unit] = for {
+import scalaz.zio.clock._
+import scalaz.zio.console._
+import scalaz.zio.random._
+
+val party = for {
   dancefloor <- S(10)
-  dancers <- IO.foreachPar(1 to 100) { i =>
-    dancefloor.P *> (IO.sync(Duration.fromNanos((Random.nextDouble * 1000000).round)).flatMap { d =>
-      IO.sync(println(s"${i} checking my boots")) *> IO.sleep(d) *> IO.sync(println(s"${i} dancing like it's 99"))
-    }) *> dancefloor.V
+  dancers <- ZIO.foreachPar(1 to 100) { i =>
+    dancefloor.P *> nextDouble.map(d => Duration.fromNanos((d * 1000000).round)).flatMap { d =>
+      putStrLn(s"${i} checking my boots") *> sleep(d) *> putStrLn(s"${i} dancing like it's 99")
+    } *> dancefloor.V
   }
 } yield ()
 ```
