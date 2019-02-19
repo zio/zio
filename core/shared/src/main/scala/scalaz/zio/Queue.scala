@@ -62,7 +62,7 @@ class Queue[A] private (
         unsafeCompleteTakers(context)
     }
 
-  private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.sync(unsafeRemove(takers, taker))
+  private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.defer(unsafeRemove(takers, taker))
 
   final val capacity: Int = queue.capacity
 
@@ -150,7 +150,7 @@ class Queue[A] private (
              case None       => (IO.unit, None)
              case Some(hook) => (hook, None)
            }
-    takers <- IO.sync(unsafePollAll(takers))
+    takers <- IO.defer(unsafePollAll(takers))
     _      <- IO.foreachPar(takers)(_.interrupt) *> hook
     _      <- strategy.shutdown
   } yield ()).uninterruptible
@@ -294,7 +294,7 @@ object Queue {
               if (queue.offer(head)) unsafeSlidingOffer(tail) else unsafeSlidingOffer(as)
           }
         val loss = queue.capacity - queue.size() < as.size
-        IO.sync(unsafeSlidingOffer(as)).map(_ => !loss)
+        IO.defer(unsafeSlidingOffer(as)).map(_ => !loss)
       }
 
       final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], context: Platform): Unit = ()
@@ -344,7 +344,7 @@ object Queue {
           _ <- (IO.sync0 { context =>
                 unsafeOffer(as, p)
                 unsafeOnQueueEmptySpace(queue, context)
-              } *> p.await).onInterrupt(IO.sync(unsafeRemove(p)))
+              } *> p.await).onInterrupt(IO.defer(unsafeRemove(p)))
         } yield true
       }
 
@@ -372,7 +372,7 @@ object Queue {
 
       final def shutdown: UIO[Unit] =
         for {
-          putters <- IO.sync(unsafePollAll(putters))
+          putters <- IO.defer(unsafePollAll(putters))
           _       <- IO.foreachPar(putters) { case (_, p, lastItem) => if (lastItem) p.interrupt else IO.unit }
         } yield ()
     }
@@ -388,7 +388,7 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
+    IO.defer(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
 
   /**
    * Makes a new bounded queue with sliding strategy.
@@ -400,7 +400,7 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
+    IO.defer(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
 
   /**
    * Makes a new bounded queue with the dropping strategy.
@@ -411,13 +411,13 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.sync(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
+    IO.defer(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
 
   /**
    * Makes a new unbounded queue.
    */
   final def unbounded[A]: UIO[Queue[A]] =
-    IO.sync(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
+    IO.defer(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
 
   private final def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): UIO[Queue[A]] =
     Ref

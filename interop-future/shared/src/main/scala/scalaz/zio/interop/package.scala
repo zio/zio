@@ -55,7 +55,7 @@ package object future extends FuturePlatformSpecific {
           }
 
         def poll: IO[Nothing, Option[Exit[Throwable, A]]] =
-          IO.sync(ftr.value.map(Exit.fromTry))
+          IO.defer(ftr.value.map(Exit.fromTry))
 
         def interrupt: IO[Nothing, Exit[Throwable, A]] =
           join.fold(Exit.fail, Exit.succeed)

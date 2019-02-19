@@ -166,7 +166,7 @@ private[stream] object StreamPure extends Serializable {
 
         def loop(s: S): ZIO[R1, E, S] =
           ZIO.flatten[R1, E, S] {
-            ZIO.sync {
+            ZIO.defer {
               if (iterator.hasNext && cont(s))
                 f(s, iterator.next).flatMap(loop)
               else ZIO.succeed(s)

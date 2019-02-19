@@ -50,7 +50,7 @@ object Console extends Serializable {
         putStr(SConsole.out)(line)
 
       final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.sync(SConsole.withOut(stream) {
+        IO.defer(SConsole.withOut(stream) {
           SConsole.print(line)
         })
 
@@ -61,7 +61,7 @@ object Console extends Serializable {
         putStrLn(SConsole.out)(line)
 
       final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.sync(SConsole.withOut(stream) {
+        IO.defer(SConsole.withOut(stream) {
           SConsole.println(line)
         })
 

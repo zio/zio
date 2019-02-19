@@ -49,7 +49,7 @@ because the `Nothing` type is _uninhabitable_, i.e. there can be no actual value
 You can use the `sync` method of `IO` to import effectful synchronous code into your purely functional program:
 
 ```tut:silent
-val z: UIO[Long] = IO.sync(System.nanoTime())
+val z: UIO[Long] = IO.defer(System.nanoTime())
 ```
 
 If you are importing effectful code that may throw exceptions, you can use the `syncException` method of `IO`:
@@ -166,7 +166,7 @@ A helper method called `ensuring` provides a simpler analogue of `finally`:
 
 ```tut:silent
 var i: Int = 0
-val action: Task[String] = IO.sync(i += 1) *> IO.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = IO.sync(i -= 1)
+val action: Task[String] = IO.defer(i += 1) *> IO.fail(new Throwable("Boom!"))
+val cleanupAction: UIO[Unit] = IO.defer(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```

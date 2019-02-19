@@ -57,7 +57,7 @@ private[zio] final class FiberContext[E, A](
     final def apply(v: Any): IO[E, Any] = {
       noInterrupt += 1
 
-      finalizer.flatMap(_ => IO.sync { noInterrupt -= 1; v })
+      finalizer.flatMap(_ => IO.defer { noInterrupt -= 1; v })
     }
   }
 
@@ -312,10 +312,10 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] final def lock(executor: Executor): UIO[Unit] =
-    IO.sync { locked = executor :: locked } *> IO.yieldNow
+    IO.defer { locked = executor :: locked } *> IO.yieldNow
 
   private[this] final def unlock: UIO[Unit] =
-    IO.sync { locked = locked.drop(1) } *> IO.yieldNow
+    IO.defer { locked = locked.drop(1) } *> IO.yieldNow
 
   private[this] final def getDescriptor: Fiber.Descriptor =
     Fiber.Descriptor(fiberId, state.get.interrupted, executor)
@@ -350,9 +350,9 @@ private[zio] final class FiberContext[E, A](
     observe0(x => k(IO.done(x)))
   }
 
-  final def poll: UIO[Option[Exit[E, A]]] = IO.sync(poll0)
+  final def poll: UIO[Option[Exit[E, A]]] = IO.defer(poll0)
 
-  private[this] final def enterSupervision: IO[E, Unit] = IO.sync {
+  private[this] final def enterSupervision: IO[E, Unit] = IO.defer {
     supervising += 1
 
     def newWeakSet[A]: Set[A] = Collections.newSetFromMap[A](platform.newWeakHashMap[A, java.lang.Boolean]())
@@ -410,7 +410,7 @@ private[zio] final class FiberContext[E, A](
     supervisor: Iterable[Fiber[_, _]] => UIO[_]
   ): UIO[_] = {
     import collection.JavaConverters._
-    IO.flatten(IO.sync {
+    IO.flatten(IO.defer {
       supervising -= 1
 
       var action: UIO[_] = IO.unit
@@ -444,7 +444,7 @@ private[zio] final class FiberContext[E, A](
       null
     }
 
-  private[this] final val exitUninterruptible: UIO[Unit] = IO.sync { noInterrupt -= 1 }
+  private[this] final val exitUninterruptible: UIO[Unit] = IO.defer { noInterrupt -= 1 }
 
   private[this] final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
     this.noInterrupt += 1

@@ -8,8 +8,8 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     import SerializableSpec._
 
     for {
-      obj       <- IO.sync(serializeToBytes(a))
-      returnObj <- IO.sync(getObjFromBytes[T](obj))
+      obj       <- IO.defer(serializeToBytes(a))
+      returnObj <- IO.defer(getObjFromBytes[T](obj))
     } yield returnObj
   }
 

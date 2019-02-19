@@ -26,7 +26,7 @@ package object zio extends EitherCompat {
   type Task[+A]   = ZIO[Any, Throwable, A]
   type UIO[+A]    = ZIO[Any, Nothing, A]
 
-  val JustException: PartialFunction[Throwable, Exception] = {
+  val JustExceptions: PartialFunction[Throwable, Exception] = {
     case e: Exception => e
   }
 }
