@@ -36,12 +36,12 @@ trait Executor {
   def metrics: Option[ExecutionMetrics]
 
   /**
-   * Submits a task for execution.
+   * Submits an effect for execution.
    */
   def submit(runnable: Runnable): Boolean
 
   /**
-   * Submits a task for execution or throws.
+   * Submits an effect for execution or throws.
    */
   final def submitOrThrow(runnable: Runnable): Unit =
     if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")

@@ -32,7 +32,7 @@ trait ConcurrentEffectLawsOverrides[F[_]] extends ConcurrentEffectLaws[F] {
 //          F.runAsync(started.complete(()))(_ => IO.unit).unsafeRunSync()
         latch.success(()); release.complete(())
       }
-      // Execute, then cancel after the task has started
+      // Execute, then cancel after the effect has started
       val token = for {
         canceler <- F.delay(F.runCancelable(ff)(_ => IO.unit).unsafeRunSync())
         _        <- F.liftIO(IO.fromFuture(IO.pure(latch.future)))

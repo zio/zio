@@ -40,7 +40,7 @@ object Blocking extends Serializable {
     def blockingExecutor: ZIO[R, Nothing, Executor]
 
     /**
-     * Locks the specified task to the blocking thread pool.
+     * Locks the specified effect to the blocking thread pool.
      */
     def blocking[R1 <: R, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
       blockingExecutor.flatMap(exec => zio.lock(exec))

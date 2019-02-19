@@ -35,10 +35,10 @@ trait Runtime[+R] {
   val Platform: Platform
 
   /**
-   * Provided the environment for the specified task, including a
-   * [[scalaz.zio.platform.Platform]], executes the task synchronously, failing
+   * Provided the environment for the specified effect, including a
+   * [[scalaz.zio.platform.Platform]], executes the effect synchronously, failing
    * with [[scalaz.zio.FiberFailure]] if there are any errors. May fail on
-   * Scala.js if the task cannot be entirely run synchronously.
+   * Scala.js if the effect cannot be entirely run synchronously.
    *
    * This method is effectful and should only be done at the edges of your program.
    */
@@ -46,9 +46,9 @@ trait Runtime[+R] {
     unsafeRunSync(zio).getOrElse(c => throw new FiberFailure(c))
 
   /**
-   * Provided the environment for the specified task, including a
-   * [[scalaz.zio.platform.Platform]], executes the task synchronously. May
-   * fail on Scala.js if the task cannot be entirely run synchronously.
+   * Provided the environment for the specified effect, including a
+   * [[scalaz.zio.platform.Platform]], executes the effect synchronously. May
+   * fail on Scala.js if the effect cannot be entirely run synchronously.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
@@ -61,8 +61,8 @@ trait Runtime[+R] {
   }
 
   /**
-   * Provided the environment for the specified task, including a
-   * [[scalaz.zio.platform.Platform]], executes the task asynchronously,
+   * Provided the environment for the specified effect, including a
+   * [[scalaz.zio.platform.Platform]], executes the effect asynchronously,
    * eventually passing the exit value to the specified callback.
    *
    * This method is effectful and should only be invoked at the edges of your program.
@@ -75,8 +75,8 @@ trait Runtime[+R] {
   }
 
   /**
-   * Provided the environment for the specified task, including a
-   * [[scalaz.zio.platform.Platform]], executes the task asynchronously,
+   * Provided the environment for the specified effect, including a
+   * [[scalaz.zio.platform.Platform]], executes the effect asynchronously,
    * discarding the result of execution.
    *
    * This method is effectful and should only be invoked at the edges of your program.

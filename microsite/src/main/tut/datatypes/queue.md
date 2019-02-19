@@ -131,7 +131,7 @@ val res: UIO[Unit] = for {
 } yield ()
 ```
 
-You can use `awaitShutdown` to execute an action when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.
+You can use `awaitShutdown` to execute an effect when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.
 
 ```tut:silent
 val res: UIO[Unit] = for {
