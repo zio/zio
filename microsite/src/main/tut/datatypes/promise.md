@@ -74,15 +74,17 @@ Here is a scenario where we use a `Promise` to hand-off a value between two `Fib
 import java.io.IOException
 import scalaz.zio.console._
 import scalaz.zio.duration._
+import scalaz.zio.clock._
 
-val program: ZIO[Console, IOException, Unit] = for {
-promise         <-  Promise.make[Nothing, String]
-sendHelloWorld  =   (IO.succeed("hello world") <* IO.sleep(1.second)).flatMap(promise.succeed)
-getAndPrint     =   promise.await.flatMap(putStrLn)
-fiberA          <-  sendHelloWorld.fork
-fiberB          <-  getAndPrint.fork
-_               <-  (fiberA zip fiberB).join
-} yield ()
+val program: ZIO[Console with Clock, IOException, Unit] = 
+  for {
+    promise         <-  Promise.make[Nothing, String]
+    sendHelloWorld  =   (IO.succeed("hello world") <* sleep(1.second)).flatMap(promise.succeed)
+    getAndPrint     =   promise.await.flatMap(putStrLn)
+    fiberA          <-  sendHelloWorld.fork
+    fiberB          <-  getAndPrint.fork
+    _               <-  (fiberA zip fiberB).join
+    } yield ()
 ```
 
 In the example above, we create a Promise and have a Fiber (`fiberA`) complete that promise after 1 second and a second
