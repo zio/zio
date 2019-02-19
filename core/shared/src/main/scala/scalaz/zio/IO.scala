@@ -49,7 +49,7 @@ import scala.util.{ Failure, Success }
  *  - '''Asynchronous Effects''' &mdash; `IO.async`
  *  - '''Concurrent Effects''' &mdash; `IO#fork`
  *  - '''Resource Effects''' &mdash; `IO#bracket`
- *  - ```Contextual Effects``` &mdash; `ZIO.read`
+ *  - ```Contextual Effects``` &mdash; `ZIO.access`
  *
  * The concurrency model is based on ''fibers'', a user-land lightweight thread,
  * which permit cooperative multitasking, fine-grained interruption, and very
