@@ -139,7 +139,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.FlatMap =>
                   val io = curIo.asInstanceOf[ZIO.FlatMap[Any, E, Any, Any]]
 
-                  val nested = io.io
+                  val nested = io.zio
 
                   // A mini interpreter for the left side of FlatMap that evaluates
                   // anything that is 1-hop away. This eliminates heap usage for the
@@ -212,7 +212,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Uninterruptible =>
                   val io = curIo.asInstanceOf[ZIO.Uninterruptible[Any, E, Any]]
 
-                  curIo = doNotInterrupt(io.io)
+                  curIo = doNotInterrupt(io.zio)
 
                 case ZIO.Tags.Supervise =>
                   val io = curIo.asInstanceOf[ZIO.Supervise[Any, E, Any]]
@@ -252,7 +252,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Ensuring =>
                   val io = curIo.asInstanceOf[ZIO.Ensuring[Any, E, Any]]
                   stack.push(new Finalizer(io.finalizer))
-                  curIo = io.io
+                  curIo = io.zio
 
                 case ZIO.Tags.Descriptor =>
                   val value = getDescriptor
@@ -262,7 +262,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Lock =>
                   val io = curIo.asInstanceOf[ZIO.Lock[Any, E, Any]]
 
-                  curIo = (lock(io.executor) *> io.io).ensuring(unlock)
+                  curIo = (lock(io.executor) *> io.zio).ensuring(unlock)
 
                 case ZIO.Tags.Yield =>
                   evaluateLater(IO.unit)

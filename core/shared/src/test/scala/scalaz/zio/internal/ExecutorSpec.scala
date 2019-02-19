@@ -46,12 +46,12 @@ class ExecutorSpec extends Specification {
       Create an executor that cannot have tasks submitted to and check that:
         It throws an exception upon submission                                     $fail1
         When converted to an ExecutionContext, it throws an exception              $fail2
-        When created from an EC, throw when fed a task                             $fail3
+        When created from an EC, throw when fed an effect                             $fail3
 
       Create a yielding executor and check that:
         Runnables can be submitted                                                 $yield1
         When converted to an ExecutionContext, it accepts Runnables                $yield2
-        When created from an EC, must not throw when fed a task                    $yield3
+        When created from an EC, must not throw when fed an effect                    $yield3
 
       Create an unyielding executor and check that:
         Runnables can be submitted                                                 $unyield1
