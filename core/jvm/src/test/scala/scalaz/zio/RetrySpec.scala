@@ -159,7 +159,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def fixedWithErrorPredicate = {
     var i = 0
-    val io = IO.sync[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
+    val io = IO.defer[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
@@ -171,7 +171,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   def recurs10Retry = {
     var i                                 = 0
     val strategy: Schedule[Any, Any, Int] = Schedule.recurs(10)
-    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+    val io = IO.defer[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
     }
     val result   = unsafeRun(io.retry(strategy))

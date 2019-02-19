@@ -55,7 +55,7 @@ trait App extends RTS {
       unsafeRun(
         for {
           fiber <- run(args0.toList).fork
-          _ <- IO.sync(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
+          _ <- IO.defer(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
                 override def run() = {
                   val _ = unsafeRunSync(fiber.interrupt)
                 }

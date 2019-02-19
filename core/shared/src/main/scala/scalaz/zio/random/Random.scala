@@ -38,23 +38,23 @@ object Random extends Serializable {
     val random: Service[Any] = new Service[Any] {
       import scala.util.{ Random => SRandom }
 
-      val nextBoolean: ZIO[Any, Nothing, Boolean] = ZIO.sync(SRandom.nextBoolean())
+      val nextBoolean: ZIO[Any, Nothing, Boolean] = ZIO.defer(SRandom.nextBoolean())
       def nextBytes(length: Int): ZIO[Any, Nothing, Chunk[Byte]] =
-        ZIO.sync {
+        ZIO.defer {
           val array = Array.ofDim[Byte](length)
 
           SRandom.nextBytes(array)
 
           Chunk.fromArray(array)
         }
-      val nextDouble: ZIO[Any, Nothing, Double]              = ZIO.sync(SRandom.nextDouble())
-      val nextFloat: ZIO[Any, Nothing, Float]                = ZIO.sync(SRandom.nextFloat())
-      val nextGaussian: ZIO[Any, Nothing, Double]            = ZIO.sync(SRandom.nextGaussian())
-      def nextInt(n: Int): ZIO[Any, Nothing, Int]            = ZIO.sync(SRandom.nextInt(n))
-      val nextInt: ZIO[Any, Nothing, Int]                    = ZIO.sync(SRandom.nextInt())
-      val nextLong: ZIO[Any, Nothing, Long]                  = ZIO.sync(SRandom.nextLong())
-      val nextPrintableChar: ZIO[Any, Nothing, Char]         = ZIO.sync(SRandom.nextPrintableChar())
-      def nextString(length: Int): ZIO[Any, Nothing, String] = ZIO.sync(SRandom.nextString(length))
+      val nextDouble: ZIO[Any, Nothing, Double]              = ZIO.defer(SRandom.nextDouble())
+      val nextFloat: ZIO[Any, Nothing, Float]                = ZIO.defer(SRandom.nextFloat())
+      val nextGaussian: ZIO[Any, Nothing, Double]            = ZIO.defer(SRandom.nextGaussian())
+      def nextInt(n: Int): ZIO[Any, Nothing, Int]            = ZIO.defer(SRandom.nextInt(n))
+      val nextInt: ZIO[Any, Nothing, Int]                    = ZIO.defer(SRandom.nextInt())
+      val nextLong: ZIO[Any, Nothing, Long]                  = ZIO.defer(SRandom.nextLong())
+      val nextPrintableChar: ZIO[Any, Nothing, Char]         = ZIO.defer(SRandom.nextPrintableChar())
+      def nextString(length: Int): ZIO[Any, Nothing, String] = ZIO.defer(SRandom.nextString(length))
     }
   }
   object Live extends Live

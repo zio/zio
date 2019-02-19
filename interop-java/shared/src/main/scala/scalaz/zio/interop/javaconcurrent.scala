@@ -55,7 +55,7 @@ object javaconcurrent {
     private def unsafeFutureJavaToIO[A](future: Future[A]): Task[A] = {
       def unwrap[B](f: Future[B]): Task[B] =
         IO.flatten {
-          IO.sync {
+          IO.defer {
             try {
               val result = f.get()
               IO.succeed(result)
@@ -100,7 +100,8 @@ object javaconcurrent {
         def poll: UIO[Option[Exit[Throwable, A]]] =
           IO.suspend {
             if (ftr.isDone) {
-              IO.syncException(ftr.get())
+              IO.syncThrowable(ftr.get())
+                .keepSome(JustExceptions)
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))
             } else {

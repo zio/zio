@@ -160,7 +160,7 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Ab
     unsafeRun(
       for {
         v <- whileDo[Nothing, Int](pure[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10)))(
-              pure[Nothing, Int, Int](a => IO.sync[Int](a + 1))
+              pure[Nothing, Int, Int](a => IO.defer[Int](a + 1))
             ).run(1)
       } yield v must_=== 10
     )

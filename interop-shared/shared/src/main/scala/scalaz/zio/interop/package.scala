@@ -25,7 +25,7 @@ package object interop {
     /**
      * Returns an `IO` action which closes this `AutoCloseable` resource.
      */
-    def closeIO(): UIO[Unit] = IO.sync(a.close())
+    def closeIO(): UIO[Unit] = IO.defer(a.close())
   }
 
   implicit final class IOAutocloseableOps[E, A <: AutoCloseable](private val io: IO[E, A]) extends AnyVal {

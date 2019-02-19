@@ -33,12 +33,12 @@ object System extends Serializable {
     val system: Service[Any] = new Service[Any] {
       import java.lang.{ System => JSystem }
 
-      def env(variable: String): ZIO[Any, Nothing, Option[String]] = ZIO.sync(Option(JSystem.getenv(variable)))
+      def env(variable: String): ZIO[Any, Nothing, Option[String]] = ZIO.defer(Option(JSystem.getenv(variable)))
 
       def property(prop: String): ZIO[Any, Throwable, Option[String]] =
         ZIO.syncThrowable(Option(JSystem.getProperty(prop)))
 
-      val lineSeparator: ZIO[Any, Nothing, String] = ZIO.sync(JSystem.lineSeparator)
+      val lineSeparator: ZIO[Any, Nothing, String] = ZIO.defer(JSystem.lineSeparator)
     }
   }
   object Live extends Live

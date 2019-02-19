@@ -28,10 +28,10 @@ object MyApp extends App {
 
   def run(args: List[String]): IO[Nothing, Unit] =
     for {
-      p <- IO.sync(document.createElement("p"))
-      t <- IO.sync(document.createTextNode("Hello World"))
-      _ <- IO.sync(p.appendChild(t))
-      _ <- IO.sync(document.body.appendChild(p))
+      p <- IO.defer(document.createElement("p"))
+      t <- IO.defer(document.createTextNode("Hello World"))
+      _ <- IO.defer(p.appendChild(t))
+      _ <- IO.defer(document.body.appendChild(p))
     } yield ()
 }
 

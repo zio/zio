@@ -567,17 +567,29 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     self.catchAll(err => pf.lift(err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
 
   /**
-   * Translates the checked error (if present) into termination.
+   * Keeps none of the errors, and terminates the fiber with any.
    */
-  final def orDie[E1 >: E](implicit ev: E1 <:< Throwable): ZIO[R, Nothing, A] =
-    orDieWith(ev)
+  final def keepNone[E1 >: E](implicit ev: E1 <:< Throwable): ZIO[R, Nothing, A] =
+    keepNoneWith(ev)
 
   /**
-   * Translates the checked error (if present) into termination by using the
-   * specified conversion function on the `E`.
+   * Keeps none of the errors, and terminates the fiber with then, using
+   * the specified function to convert the `E` into a `Throwable`.
    */
-  def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
+  final def keepNoneWith(f: E => Throwable): ZIO[R, Nothing, A] =
     self.mapError(f).catchAll(IO.die)
+
+  /**
+   * Returns a task that, if evaluated, will return the lazily computed result
+   * of this task.
+   */
+  final def memoize: ZIO[R, Nothing, IO[E, A]] =
+    for {
+      r <- ZIO.environment[R]
+      p <- Promise.make[E, A]
+      l <- Promise.make[Nothing, Unit]
+      _ <- (l.await *> self.provide(r).to(p)).fork
+    } yield l.succeed(()) *> p.await
 
   /**
    * Maps this action to the specified constant while preserving the
@@ -817,7 +829,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
-   *   IO.sync(5 / 0) *> IO.fail(DomainError())
+   *   IO.defer(5 / 0) *> IO.fail(DomainError())
    *
    * val caught: UIO[Unit] =
    *   veryBadIO.sandbox.catchAll {
@@ -856,7 +868,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
-   *   IO.sync(5 / 0) *> IO.fail(DomainError())
+   *   IO.defer(5 / 0) *> IO.fail(DomainError())
    *
    * val caught: IO[DomainError, Unit] =
    *   veryBadIO.sandboxWith(_.catchSome {
@@ -972,38 +984,34 @@ trait ZIOFunctions extends Serializable {
     async[Nothing, Nothing](_ => ())
 
   /**
-   * Returns a `ZIO` that terminates with the specified `Throwable`.
+   * Returns a `ZIO` that dies with the specified `Throwable`.
    */
   final def die(t: Throwable): UIO[Nothing] = halt(Cause.die(t))
+
+  /**
+   * Returns a `ZIO` that dies with a [[java.lang.RuntimeException]] having the
+   * specified text message.
+   */
+  final def dieMessage(message: String): UIO[Nothing] = die(new RuntimeException(message))
 
   /**
    * Imports a synchronous effect into a pure `ZIO` value.
    *
    * {{{
-   * val nanoTime: UIO[Long] = IO.sync(System.nanoTime())
+   * val nanoTime: UIO[Long] = IO.defer(System.nanoTime())
    * }}}
    */
-  final def sync[A](effect: => A): UIO[A] = sync0(_ => effect)
+  final def defer[A](effect: => A): UIO[A] = sync0(_ => effect)
 
   /**
    * Imports a synchronous effect into a pure `ZIO` value. This variant of `sync`
    * lets you use the execution environment of the fiber.
    *
    * {{{
-   * val nanoTime: UIO[Long] = IO.sync(System.nanoTime())
+   * val nanoTime: UIO[Long] = IO.defer(System.nanoTime())
    * }}}
    */
   final def sync0[A](effect: Platform => A): UIO[A] = new ZIO.SyncEffect[A](effect)
-
-  /**
-   * Imports a synchronous effect into a pure `ZIO` value. This variant of `sync`
-   * lets you use the current executor of the fiber.
-   */
-  final def syncExec[A](effect: Executor => A): UIO[A] =
-    for {
-      exec <- ZIO.descriptor.map(_.executor)
-      a    <- sync(effect(exec))
-    } yield a
 
   /**
    * Yields to the runtime system, starting on a fresh stack.
@@ -1067,7 +1075,7 @@ trait ZIOFunctions extends Serializable {
    * computer in a heap of rubble.
    */
   final def suspend[R >: LowerR, E <: UpperE, A](io: => ZIO[R, E, A]): ZIO[R, E, A] =
-    flatten(sync(io))
+    flatten(defer(io))
 
   /**
    * Safely imports an exception-throwing synchronous effect into a pure `ZIO`
@@ -1076,7 +1084,7 @@ trait ZIOFunctions extends Serializable {
    */
   final def syncCatch[E <: UpperE, A](effect: => A)(f: PartialFunction[Throwable, E]): IO[E, A] =
     absolve[Any, E, A](
-      sync(
+      defer(
         try {
           val result = effect
           Right(result)
@@ -1140,7 +1148,7 @@ trait ZIOFunctions extends Serializable {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
-    sync((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
+    defer((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
       case (started, cancel) =>
         flatten {
           async0((k: UIO[ZIO[R, E, A]] => Unit) => {
@@ -1153,7 +1161,7 @@ trait ZIOFunctions extends Serializable {
               case Right(io) => Some(ZIO.succeed(io))
             } finally if (!cancel.isSet) cancel.set(ZIO.unit)
           })
-        }.onInterrupt(flatten(sync(if (started.get) cancel.get() else ZIO.unit)))
+        }.onInterrupt(flatten(defer(if (started.get) cancel.get() else ZIO.unit)))
     }
   }
 
@@ -1238,7 +1246,7 @@ trait ZIOFunctions extends Serializable {
    * return the results in a new `List[B]`. For parallelism use `foreachPar`.
    */
   final def foreach[R >: LowerR, E <: UpperE, A, B](in: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    in.foldRight[ZIO[R, E, List[B]]](sync(Nil)) { (a, io) =>
+    in.foldRight[ZIO[R, E, List[B]]](defer(Nil)) { (a, io) =>
       fn(a).zipWith(io)((b, bs) => b :: bs)
     }
 
@@ -1247,7 +1255,7 @@ trait ZIOFunctions extends Serializable {
    * and collect the results. This is the parallel version of `foreach`.
    */
   final def foreachPar[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    as.foldRight[ZIO[R, E, List[B]]](sync(Nil)) { (a, io) =>
+    as.foldRight[ZIO[R, E, List[B]]](defer(Nil)) { (a, io) =>
       fn(a).zipWithPar(io)((b, bs) => b :: bs)
     }
 
@@ -1384,8 +1392,8 @@ trait ZIO_E_Throwable extends ZIOFunctions {
     }
 
   final def fromFuture[E, A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
-    syncExec { exec =>
-      val ec = exec.asEC
+    Task.descriptor.flatMap { d =>
+      val ec = d.executor.asEC
       val f  = make(ec)
       f.value
         .fold(
@@ -1397,20 +1405,6 @@ trait ZIO_E_Throwable extends ZIOFunctions {
           }
         )(Task.fromTry(_))
 
-    }.flatten
-
-  /**
-   *
-   * Imports a synchronous effect into a pure `ZIO` value, translating any
-   * exceptions into an `Exception` failure in the returned value.
-   *
-   * {{{
-   * def putStrLn(line: String): IO[Exception, Unit] = IO.syncException(println(line))
-   * }}}
-   */
-  final def syncException[A](effect: => A): IO[Exception, A] =
-    syncCatch(effect) {
-      case e: Exception => e
     }
 }
 
@@ -1429,7 +1423,7 @@ object UIO extends ZIOFunctions {
   type UpperE = Nothing
   type LowerR = Any
 
-  def apply[A](a: => A): UIO[A] = sync(a)
+  def apply[A](a: => A): UIO[A] = defer(a)
 }
 
 object ZIO extends ZIO_E_Any {

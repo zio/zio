@@ -72,14 +72,14 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t2 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
       a <- lazyStr.sync
-      b <- IO.sync(lazyStr)
+      b <- IO.defer(lazyStr)
     } yield a must ===(b))
   }
 
   def t3 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
       a <- lazyStr.syncException
-      b <- IO.syncException(lazyStr)
+      b <- IO.syncThrowable(lazyStr).keepSome(JustExceptions)
     } yield a must ===(b))
   }
 
@@ -127,7 +127,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def t2 = {
-    val ios = TestData.map(IO.sync(_))
+    val ios = TestData.map(IO.defer(_))
     unsafeRun(for {
       parAll1 <- ios.collectAllPar
       parAll2 <- IO.collectAllPar(ios)
@@ -135,7 +135,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def t3 = {
-    val ios: Iterable[IO[String, Char]] = TestData.map(IO.sync(_))
+    val ios: Iterable[IO[String, Char]] = TestData.map(IO.defer(_))
     unsafeRun(for {
       f1       <- ios.forkAll
       forkAll1 <- f1.join
@@ -145,7 +145,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def t4 = {
-    val ios = TestData.map(IO.sync(_))
+    val ios = TestData.map(IO.defer(_))
     unsafeRun(for {
       sequence1 <- ios.collectAll
       sequence2 <- IO.collectAll(ios)
