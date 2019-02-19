@@ -821,15 +821,16 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    *
    * val caught: UIO[Unit] =
    *   veryBadIO.sandbox.catchAll {
-   *     case Left((_: ArithmeticException) :: Nil) =>
+   *     case Cause.Die(_: ArithmeticException) =>
    *       // Caught defect: divided by zero!
    *       IO.succeed(0)
-   *     case Left(ts) =>
-   *       // Caught unknown defects, shouldn't recover!
-   *       IO.terminate0(ts)
-   *     case Right(e) =>
+   *     case Cause.Fail(e) =>
    *       // Caught error: DomainError!
    *      IO.succeed(0)
+   *      case cause =>
+   *      // Caught unknown defects, shouldn't recover!
+   *      IO.halt(cause)
+   *    *
    *   }
    * }}}
    */
@@ -859,7 +860,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    *
    * val caught: IO[DomainError, Unit] =
    *   veryBadIO.sandboxWith(_.catchSome {
-   *     case Left((_: ArithmeticException) :: Nil) =>
+   *     case Cause.Die(_: ArithmeticException)=>
    *       // Caught defect: divided by zero!
    *       IO.succeed(0)
    *   })
