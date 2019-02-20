@@ -7,7 +7,7 @@ import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause.{ Die, Fail }
 import scalaz.zio.interop.javaconcurrent._
 
-class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
+class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def is = s2"""
   `IO.fromFutureJava` must

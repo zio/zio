@@ -3,7 +3,7 @@ package system
 
 import org.specs2.Specification
 
-class SystemSpec extends Specification with RTS {
+class SystemSpec extends Specification with DefaultRuntime {
   def is = s2"""
     Fetch an environment variable and check that:
       If it exists, return a reasonable value                         $env1

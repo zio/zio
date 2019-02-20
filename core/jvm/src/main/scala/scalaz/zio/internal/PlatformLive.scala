@@ -23,8 +23,8 @@ import scala.concurrent.ExecutionContext
 import scalaz.zio.Exit.Cause
 
 object PlatformLive {
-  val Default = makeDefault()
-  val Global  = fromExecutionContext(ExecutionContext.global)
+  lazy val Default = makeDefault()
+  lazy val Global  = fromExecutionContext(ExecutionContext.global)
 
   final def makeDefault(): Platform = fromExecutor(ExecutorUtil.makeDefault())
 

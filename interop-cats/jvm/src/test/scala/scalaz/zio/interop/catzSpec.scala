@@ -64,7 +64,7 @@ class catzSpec
     with Discipline
     with TestInstances
     with GenIO
-    with RTS {
+    with DefaultRuntime {
 
   override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
 

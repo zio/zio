@@ -4,7 +4,7 @@ import org.specs2.ScalaCheck
 import scala.collection.mutable
 import duration._
 
-class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "ManagedSpec".title ^ s2"""
   Managed.make
     Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse

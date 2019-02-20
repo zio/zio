@@ -55,7 +55,7 @@ object Scalaz {
                                                |import scalaz.zio._
                                                |import scalaz.zio.console._
                                                |import scalaz.zio.stream._
-                                               |object replRTS extends RTS {}
+                                               |object replRTS extends DefaultRuntime {}
                                                |import replRTS._
                                                |implicit class RunSyntax[E, A](io: IO[E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin

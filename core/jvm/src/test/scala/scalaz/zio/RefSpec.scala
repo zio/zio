@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is = "RefSpec".title ^ s2"""
    Create a new Ref with a specified value and check if:

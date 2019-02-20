@@ -62,7 +62,7 @@ import scala.util.{ Failure, Success }
  * In order to integrate with Scala, `ZIO` values must be interpreted into the
  * Scala runtime. This process of interpretation executes the effects described
  * by a given immutable `ZIO` value. For more information on interpreting `ZIO`
- * values, see the default interpreter in `RTS` or the safe main function in
+ * values, see the default interpreter in `DefaultRuntime` or the safe main function in
  * `App`.
  */
 sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
