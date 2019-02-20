@@ -894,6 +894,18 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     self.run.flatMap(x => p.done(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
+   * Converts the effect to a [[scala.concurrent.Future]].
+   */
+  final def toFuture[R1 <: R](implicit ev1: Any =:= R1, ev2: E <:< Throwable): UIO[scala.concurrent.Future[A]] =
+    self.contramap(ev1).toFutureWith((), ev2)
+
+  /**
+   * Converts the effect into a [[scala.concurrent.Future]].
+   */
+  final def toFutureWith(r: R, f: E => Throwable): UIO[scala.concurrent.Future[A]] =
+    self.provide(r).fork.flatMap(_.toFutureWith(f))
+
+  /**
    * An integer that identifies the term in the `ZIO` sum type to which this
    * instance belongs (e.g. `IO.Tags.Succeed`).
    */
