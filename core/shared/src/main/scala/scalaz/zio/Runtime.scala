@@ -36,7 +36,7 @@ trait Runtime[+R] {
 
   /**
    * Provided the environment for the specified effect, including a
-   * [[scalaz.zio.platform.Platform]], executes the effect synchronously, failing
+   * [[scalaz.zio.internal.Platform]], executes the effect synchronously, failing
    * with [[scalaz.zio.FiberFailure]] if there are any errors. May fail on
    * Scala.js if the effect cannot be entirely run synchronously.
    *
@@ -47,7 +47,7 @@ trait Runtime[+R] {
 
   /**
    * Provided the environment for the specified effect, including a
-   * [[scalaz.zio.platform.Platform]], executes the effect synchronously. May
+   * [[scalaz.zio.internal.Platform]], executes the effect synchronously. May
    * fail on Scala.js if the effect cannot be entirely run synchronously.
    *
    * This method is effectful and should only be invoked at the edges of your program.
@@ -62,7 +62,7 @@ trait Runtime[+R] {
 
   /**
    * Provided the environment for the specified effect, including a
-   * [[scalaz.zio.platform.Platform]], executes the effect asynchronously,
+   * [[scalaz.zio.internal.Platform]], executes the effect asynchronously,
    * eventually passing the exit value to the specified callback.
    *
    * This method is effectful and should only be invoked at the edges of your program.
@@ -76,7 +76,7 @@ trait Runtime[+R] {
 
   /**
    * Provided the environment for the specified effect, including a
-   * [[scalaz.zio.platform.Platform]], executes the effect asynchronously,
+   * [[scalaz.zio.internal.Platform]], executes the effect asynchronously,
    * discarding the result of execution.
    *
    * This method is effectful and should only be invoked at the edges of your program.
@@ -87,7 +87,7 @@ trait Runtime[+R] {
 object Runtime {
 
   /**
-   * Builds a new runtime given an environment `R` and a [[scalaz.zio.Platform]].
+   * Builds a new runtime given an environment `R` and a [[scalaz.zio.internal.Platform]].
    */
   final def apply[R](r: R, platform: Platform): Runtime[R] = new Runtime[R] {
     val Environment = r
