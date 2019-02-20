@@ -144,6 +144,34 @@ trait Fiber[+E, +A] { self =>
    * Maps the output of this fiber to `()`.
    */
   final def void: Fiber[E, Unit] = const(())
+
+  /**
+   * Converts this fiber into a [[scala.concurrent.Future]].
+   */
+  final def toFuture(implicit ev: E <:< Throwable): UIO[Future[A]] =
+    toFutureWith(ev)
+
+  /**
+   * Converts this fiber into a [[scala.concurrent.Future]], translating
+   * any errors to [[java.lang.Throwable]] with the specified conversion function.
+   */
+  final def toFutureWith(f: E => Throwable): UIO[Future[A]] =
+    UIO.defer {
+      val p = scala.concurrent.Promise[A]()
+
+      self.await.flatMap {
+        case Exit.Failure(cause) =>
+          val ts = cause.failures.map(f) ++ cause.defects
+
+          val t = ts.headOption.getOrElse(new InterruptedException)
+
+          UIO.defer(p.failure(t))
+
+        case Exit.Success(v) =>
+          UIO.defer(p.success(v))
+      }.fork *> UIO.defer(p.future)
+    }.flatten
+
 }
 
 object Fiber {
@@ -153,8 +181,14 @@ object Fiber {
     executor: Executor
   )
 
-  final val unit: Fiber[Nothing, Unit] = Fiber.succeedLazy(())
+  /**
+   * A fiber that has already succeeded with unit.
+   */
+  final val unit: Fiber[Nothing, Unit] = Fiber.succeed(())
 
+  /**
+   * A fiber that never fails or succeeds.
+   */
   final val never: Fiber[Nothing, Nothing] =
     new Fiber[Nothing, Nothing] {
       def await: UIO[Exit[Nothing, Nothing]]        = IO.never
@@ -162,6 +196,9 @@ object Fiber {
       def interrupt: UIO[Exit[Nothing, Nothing]]    = IO.never
     }
 
+  /**
+   * A fiber that is done with the specified [[scalaz.zio.Exit]] value.
+   */
   final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
       def await: UIO[Exit[E, A]]        = IO.succeedLazy(exit)
@@ -169,24 +206,49 @@ object Fiber {
       def interrupt: UIO[Exit[E, A]]    = IO.succeedLazy(exit)
     }
 
+  /**
+   * A fiber that has already failed with the specified value.
+   */
   final def fail[E](e: E): Fiber[E, Nothing] = done(Exit.fail(e))
 
+  /**
+   * Lifts an [[scalaz.zio.IO]] into a `Fiber`.
+   */
   final def lift[E, A](io: IO[E, A]): IO[Nothing, Fiber[E, A]] =
     io.run.map(done(_))
 
+  /**
+   * A fiber that is already interrupted.
+   */
   final def interrupt: Fiber[Nothing, Nothing] = done(Exit.interrupt)
 
+  /**
+   * Returns a fiber that is already succeeded with the specified value.
+   */
   final def succeed[E, A](a: A): Fiber[E, A] = done(Exit.succeed(a))
 
+  /**
+   * Returns a fiber that is already succeeded with the specified lazily
+   * evaluated value.
+   */
   final def succeedLazy[E, A](a: => A): Fiber[E, A] = done(Exit.succeed(a))
 
+  /**
+   * Interupts all fibers, awaiting their interruption.
+   */
   final def interruptAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
 
+  /**
+   * Joins all fibers, awaiting their completion.j
+   */
   final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io *> f.await.void)
 
-  def fromFuture[A](ftr: Future[A]): Fiber[Throwable, A] =
+  /**
+   * Returns a `Fiber` that is backed by the specified `Future`.
+   */
+  final def fromFuture[A](ftr: Future[A]): Fiber[Throwable, A] =
     new Fiber[Throwable, A] {
 
       def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
