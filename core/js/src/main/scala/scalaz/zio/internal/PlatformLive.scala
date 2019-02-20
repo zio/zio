@@ -16,21 +16,32 @@
 
 package scalaz.zio.internal
 
+import java.util.{ Map => JMap, HashMap }
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.global
+
 import scalaz.zio.Exit.Cause
-import java.util.{ HashMap, Map => JMap }
 
-import scala.concurrent.ExecutionContext.Implicits
+object PlatformLive {
+  val Default = makeDefault()
+  val Global  = fromExecutionContext(ExecutionContext.global)
 
-trait PlatformLive extends Platform {
-  val executor = Executor.fromExecutionContext(1024)(Implicits.global)
+  final def makeDefault(): Platform = fromExecutionContext(global)
 
-  def nonFatal(t: Throwable): Boolean =
-    !t.isInstanceOf[VirtualMachineError]
+  final def fromExecutor(executor0: Executor): Platform =
+    new Platform {
+      val executor = executor0
 
-  def reportFailure(cause: Cause[_]): Unit =
-    if (!cause.interrupted) println(cause.toString)
+      def nonFatal(t: Throwable): Boolean =
+        !t.isInstanceOf[VirtualMachineError]
 
-  def newWeakHashMap[A, B](): JMap[A, B] =
-    new HashMap[A, B]()
+      def reportFailure(cause: Cause[_]): Unit =
+        if (!cause.interrupted) println(cause.toString)
+
+      def newWeakHashMap[A, B](): JMap[A, B] =
+        new HashMap[A, B]()
+    }
+
+  final def fromExecutionContext(ec: ExecutionContext): Platform =
+    fromExecutor(Executor.fromExecutionContext(1024)(ec))
 }
-object PlatformLive extends PlatformLive

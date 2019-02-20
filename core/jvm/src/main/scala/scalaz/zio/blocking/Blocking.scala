@@ -99,7 +99,7 @@ object Blocking extends Serializable {
   trait Live extends Blocking {
     val blocking: Service[Any] = new Service[Any] {
       private[this] val blockingExecutor0 =
-        PlatformLive.fromThreadPoolExecutor(_ => Int.MaxValue) {
+        PlatformLive.ExecutorUtil.fromThreadPoolExecutor(_ => Int.MaxValue) {
           val corePoolSize  = 0
           val maxPoolSize   = Int.MaxValue
           val keepAliveTime = 1000L

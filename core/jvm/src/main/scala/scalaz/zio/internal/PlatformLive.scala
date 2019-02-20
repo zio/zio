@@ -18,88 +18,95 @@ package scalaz.zio.internal
 
 import java.util.{ Map => JMap, WeakHashMap }
 import java.util.concurrent._
+import scala.concurrent.ExecutionContext
 
 import scalaz.zio.Exit.Cause
 
-trait PlatformLive extends Platform {
-  val executor = PlatformLive.newExecutor()
+object PlatformLive {
+  val Default = makeDefault()
+  val Global  = fromExecutionContext(ExecutionContext.global)
 
-  def nonFatal(t: Throwable): Boolean =
-    !t.isInstanceOf[VirtualMachineError]
+  final def makeDefault(): Platform = fromExecutor(ExecutorUtil.makeDefault())
 
-  def reportFailure(cause: Cause[_]): Unit =
-    if (!cause.interrupted) println(cause.toString)
+  final def fromExecutor(executor0: Executor) =
+    new Platform {
+      val executor = executor0
 
-  def newWeakHashMap[A, B](): JMap[A, B] =
-    new WeakHashMap[A, B]()
+      def nonFatal(t: Throwable): Boolean =
+        !t.isInstanceOf[VirtualMachineError]
 
-  /**
-   * Creates a new default executor.
-   */
-  final def newExecutor(): Executor =
-    fromThreadPoolExecutor(_ => 1024) {
-      val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-      val maxPoolSize   = corePoolSize
-      val keepAliveTime = 1000L
-      val timeUnit      = TimeUnit.MILLISECONDS
-      val workQueue     = new LinkedBlockingQueue[Runnable]()
-      val threadFactory = new NamedThreadFactory("zio-default-async", true)
+      def reportFailure(cause: Cause[_]): Unit =
+        if (!cause.interrupted) println(cause.toString)
 
-      val threadPool = new ThreadPoolExecutor(
-        corePoolSize,
-        maxPoolSize,
-        keepAliveTime,
-        timeUnit,
-        workQueue,
-        threadFactory
-      )
-      threadPool.allowCoreThreadTimeOut(true)
-
-      threadPool
+      def newWeakHashMap[A, B](): JMap[A, B] =
+        new WeakHashMap[A, B]()
     }
 
-  /**
-   * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
-   */
-  final def fromThreadPoolExecutor(yieldOpCount0: ExecutionMetrics => Int)(
-    es: ThreadPoolExecutor
-  ): Executor =
-    new Executor {
-      private[this] def metrics0 = new ExecutionMetrics {
-        def concurrency: Int = es.getMaximumPoolSize()
+  final def fromExecutionContext(ec: ExecutionContext): Platform =
+    fromExecutor(Executor.fromExecutionContext(1024)(ec))
 
-        def capacity: Int = {
-          val queue = es.getQueue()
+  object ExecutorUtil {
+    final def makeDefault(): Executor =
+      fromThreadPoolExecutor(_ => 1024) {
+        val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
+        val maxPoolSize   = corePoolSize
+        val keepAliveTime = 1000L
+        val timeUnit      = TimeUnit.MILLISECONDS
+        val workQueue     = new LinkedBlockingQueue[Runnable]()
+        val threadFactory = new NamedThreadFactory("zio-default-async", true)
 
-          val remaining = queue.remainingCapacity()
+        val threadPool = new ThreadPoolExecutor(
+          corePoolSize,
+          maxPoolSize,
+          keepAliveTime,
+          timeUnit,
+          workQueue,
+          threadFactory
+        )
+        threadPool.allowCoreThreadTimeOut(true)
 
-          if (remaining == Int.MaxValue) remaining
-          else remaining + queue.size
-        }
-
-        def size: Int = es.getQueue().size
-
-        def workersCount: Int = es.getPoolSize()
-
-        def enqueuedCount: Long = es.getTaskCount()
-
-        def dequeuedCount: Long = enqueuedCount - size.toLong
+        threadPool
       }
 
-      def metrics = Some(metrics0)
+    final def fromThreadPoolExecutor(yieldOpCount0: ExecutionMetrics => Int)(
+      es: ThreadPoolExecutor
+    ): Executor =
+      new Executor {
+        private[this] def metrics0 = new ExecutionMetrics {
+          def concurrency: Int = es.getMaximumPoolSize()
 
-      def yieldOpCount = yieldOpCount0(metrics0)
+          def capacity: Int = {
+            val queue = es.getQueue()
 
-      def submit(runnable: Runnable): Boolean =
-        try {
-          es.execute(runnable)
+            val remaining = queue.remainingCapacity()
 
-          true
-        } catch {
-          case _: RejectedExecutionException => false
+            if (remaining == Int.MaxValue) remaining
+            else remaining + queue.size
+          }
+
+          def size: Int = es.getQueue().size
+
+          def workersCount: Int = es.getPoolSize()
+
+          def enqueuedCount: Long = es.getTaskCount()
+
+          def dequeuedCount: Long = enqueuedCount - size.toLong
         }
 
-      def here = false
-    }
+        def metrics = Some(metrics0)
+
+        def yieldOpCount = yieldOpCount0(metrics0)
+
+        def submit(runnable: Runnable): Boolean =
+          try {
+            es.execute(runnable)
+
+            true
+          } catch {
+            case _: RejectedExecutionException => false
+          }
+
+        def here = false
+      }
+  }
 }
-object PlatformLive extends PlatformLive
