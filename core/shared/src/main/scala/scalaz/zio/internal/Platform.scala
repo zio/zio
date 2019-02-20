@@ -24,26 +24,49 @@ import scalaz.zio.Exit.Cause
  * A `Platform` provides the minimum capabilities necessary to bootstrap
  * execution of `ZIO` tasks.
  */
-trait Platform {
+trait Platform { self =>
 
   /**
    * Retrieves the default executor.
    */
   def executor: Executor
 
+  def withExecutor(e: Executor): Platform =
+    new Platform.Proxy(self) {
+      override def executor = e
+    }
+
   /**
    * Determines if a throwable is non-fatal or not.
    */
   def nonFatal(t: Throwable): Boolean
+
+  def withNonFatal(f: Throwable => Boolean): Platform =
+    new Platform.Proxy(self) {
+      override def nonFatal(t: Throwable): Boolean = f(t)
+    }
 
   /**
    * Reports the specified failure.
    */
   def reportFailure(cause: Cause[_]): Unit
 
+  def withReportFailure(f: Cause[_] => Unit): Platform =
+    new Platform.Proxy(self) {
+      override def reportFailure(cause: Cause[_]): Unit = f(cause)
+    }
+
   /**
    * Create a new java.util.WeakHashMap if supported by the platform,
    * otherwise any implementation of Map.
    */
   def newWeakHashMap[A, B](): JMap[A, B]
+}
+object Platform {
+  class Proxy(self: Platform) extends Platform {
+    def executor: Executor                   = self.executor
+    def nonFatal(t: Throwable): Boolean      = self.nonFatal(t)
+    def reportFailure(cause: Cause[_]): Unit = self.reportFailure(cause)
+    def newWeakHashMap[A, B](): JMap[A, B]   = self.newWeakHashMap[A, B]()
+  }
 }

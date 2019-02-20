@@ -26,6 +26,6 @@ import scalaz.zio.internal.{ Platform, PlatformLive }
 trait RTS extends Runtime[Clock with Console with System with Random with Blocking] {
   type Environment = Clock with Console with System with Random with Blocking
 
-  val Platform: Platform       = PlatformLive
+  val Platform: Platform       = PlatformLive.Default
   val Environment: Environment = new Clock.Live with Console.Live with System.Live with Random.Live with Blocking.Live
 }
