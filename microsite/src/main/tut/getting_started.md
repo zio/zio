@@ -45,9 +45,9 @@ import scalaz.zio._
 import scalaz.zio.console._
 
 object IntegrationExample {
-  val rts = new RTS{}
+  val runtime = new DefaultRuntime {}
 
-  rts.unsafeRun(putStrLn("Hello World!"))
+  runtime.unsafeRun(putStrLn("Hello World!"))
 }
 ```
 

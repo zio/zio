@@ -7,9 +7,9 @@ import org.specs2.execute.{ AsResult, Failure, Result, Skipped }
 
 import scalaz.zio.internal.PlatformLive
 
-abstract class AbstractRTSSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+abstract class TestRuntime(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends Specification
-    with RTS
+    with DefaultRuntime
     with AroundEach
     with AroundTimeout {
 

@@ -55,7 +55,7 @@ def fib(n: Int): UIO[Int] =
 
 The interrupt operation does not resume until the fiber has completed or has been interrupted and all its finalizers have been run. These precise semantics allow construction of programs that do not leak resources.
 
-A more powerful variant of `fork`, called `fork0`, allows specification of supervisor that will be passed any non-recoverable errors from the forked fiber, including all such errors that occur in finalizers. If this supervisor is not specified, then the supervisor of the parent fiber will be used, recursively, up to the root handler, which can be specified in `RTS` (the default supervisor merely prints the stack trace).
+A more powerful variant of `fork`, called `fork0`, allows specification of supervisor that will be passed any non-recoverable errors from the forked fiber, including all such errors that occur in finalizers. If this supervisor is not specified, then the supervisor of the parent fiber will be used, recursively, up to the root handler, which can be specified in `DefaultRuntime` (the default supervisor merely prints the stack trace).
 
 # Error Model
 
@@ -118,4 +118,4 @@ Fibers only ever shift onto the thread pool of the runtime system, which means t
 
 For performance reasons, fibers will attempt to execute on the same thread for a (configurable) minimum period, before yielding to other fibers. Fibers that resume from asynchronous callbacks will resume on the initiating thread, and continue for some time before yielding and resuming on the runtime thread pool.
 
-These defaults help guarantee stack safety and cooperative multitasking. They can be changed in `RTS` if automatic thread shifting is not desired.
+These defaults help guarantee stack safety and cooperative multitasking. They can be changed in `DefaultRuntime` if automatic thread shifting is not desired.

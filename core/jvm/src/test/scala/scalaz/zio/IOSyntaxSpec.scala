@@ -5,7 +5,7 @@ import org.specs2.ScalaCheck
 import scalaz.zio.syntax._
 
 class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with GenIO
     with ScalaCheck {
   import Prop.forAll
@@ -44,7 +44,7 @@ class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 }
 
 class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with GenIO
     with ScalaCheck {
   import Prop.forAll
@@ -92,7 +92,7 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 }
 
 class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with GenIO
     with ScalaCheck {
   def is       = "IOIterableSyntaxSpec".title ^ s2"""
@@ -144,7 +144,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 }
 
-class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOTupleSpec".title ^ s2"""

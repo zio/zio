@@ -131,7 +131,11 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     )
 }
 
-private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
+private class CatsEffect
+    extends CatsMonadError[Throwable]
+    with Effect[Task]
+    with CatsSemigroupK[Throwable]
+    with DefaultRuntime {
   @inline final protected[this] def exitToEither[A](e: Exit[Throwable, A]): Either[Throwable, A] =
     e.fold(_.failures[Throwable] match {
       case t :: Nil => Left(t)

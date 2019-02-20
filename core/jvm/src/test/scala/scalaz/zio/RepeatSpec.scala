@@ -3,7 +3,7 @@ package scalaz.zio
 import org.specs2.ScalaCheck
 import scalaz.zio.clock.Clock
 
-class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "RepeatSpec".title ^ s2"""
    Repeat on success according to a provided strategy
       for 'recurs(a negative number)' repeats 0 additional time $repeatNeg

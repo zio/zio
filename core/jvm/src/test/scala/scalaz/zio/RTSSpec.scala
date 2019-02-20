@@ -13,7 +13,7 @@ import scalaz.zio.clock.Clock
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
-class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
+class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def is = {
     s2"""
@@ -922,7 +922,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
 
     import java.util.concurrent.Executors
 
-    val rts = new RTS {}
+    val rts = new DefaultRuntime {}
 
     val e = Executors.newSingleThreadExecutor()
 

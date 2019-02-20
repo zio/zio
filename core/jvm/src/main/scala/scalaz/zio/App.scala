@@ -38,7 +38,7 @@ package scalaz.zio
  * }
  * }}}
  */
-trait App extends RTS {
+trait App extends DefaultRuntime {
 
   /**
    * The main function of the application, which will be passed the command-line

@@ -1,8 +1,8 @@
 package scalaz.zio.stream
 
-import scalaz.zio.{ AbstractRTSSpec, Exit, IO }
+import scalaz.zio.{ Exit, IO, TestRuntime }
 
-trait StreamTestUtils { self: AbstractRTSSpec =>
+trait StreamTestUtils { self: TestRuntime =>
   def slurp[E, A](s: Stream[Any, E, A]): Exit[E, List[A]] =
     slurp0(s)(_ => true)
 

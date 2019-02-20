@@ -4,10 +4,10 @@ import monix.eval
 import monix.execution.Scheduler
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause.Fail
-import scalaz.zio.{ AbstractRTSSpec, FiberFailure, IO }
+import scalaz.zio.{ TestRuntime, FiberFailure, IO }
 import scalaz.zio.interop.monixio._
 
-class MonixSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
+class MonixSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is = s2"""
   Monix interoperability spec
 

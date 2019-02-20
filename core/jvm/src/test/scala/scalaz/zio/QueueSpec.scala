@@ -6,7 +6,7 @@ import scalaz.zio.QueueSpec.waitForSize
 import scalaz.zio.duration._
 import scalaz.zio.clock.Clock
 
-class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
+class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with AroundTimeout {
 
   def is =
     "QueueSpec".title ^ s2"""

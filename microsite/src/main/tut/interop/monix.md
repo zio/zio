@@ -36,10 +36,10 @@ needs to be available.
 ```scala
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import scalaz.zio.{ IO, RTS }
+import scalaz.zio.{ IO, DefaultRuntime }
 import scalaz.zio.interop.monixio._
 
-object UnsafeExample extends RTS {
+object UnsafeExample extends DefaultRuntime {
   def main(args: Array[String]): Unit = {
     val io1 = IO.succeed(10)
     val t1  = unsafeRun(io1.toTask)
@@ -73,10 +73,10 @@ def fromCoeval[A](coeval: eval.Coeval[A]): Task[A]
 
 ```scala
 import monix.eval.Coeval
-import scalaz.zio.{ IO, RTS }
+import scalaz.zio.{ IO, DefaultRuntime }
 import scalaz.zio.interop.monixio._
 
-object UnsafeExample extends RTS {
+object UnsafeExample extends DefaultRuntime {
   def main(args: Array[String]): Unit = {
     val io1 = IO.succeed(10)
     val c1  = unsafeRun(io1.toCoeval) 

@@ -4,13 +4,10 @@ import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
 import scala.{ Stream => _ }
 import scala.concurrent.duration._
-import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
 import scala.annotation.tailrec
 
-class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
-    with GenIO
-    with ScalaCheck {
+class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
   override val DefaultTimeout = 20.seconds
 

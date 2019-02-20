@@ -3,10 +3,10 @@ package scalaz.zio.stream
 import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with StreamTestUtils
     with GenIO
     with ScalaCheck {

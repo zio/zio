@@ -5,7 +5,7 @@ package scalaz.zio
 
 import scalaz.zio.duration._
 
-class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is =
     "SemaphoreSpec".title ^ s2"""
