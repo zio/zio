@@ -1,7 +1,7 @@
 // Copyright (C) 2017 John A. De Goes. All rights reserved.
 package scalaz.zio
 
-object IOBenchmarks extends RTS {
+object IOBenchmarks extends DefaultRuntime {
   import monix.execution.Scheduler
 
   implicit val monixScheduler: Scheduler = {

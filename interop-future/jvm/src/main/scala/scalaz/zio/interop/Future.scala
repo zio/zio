@@ -1,9 +1,10 @@
 package scalaz.zio
 
-import scalaz.zio.internal.impls.Env
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success, Try }
 import scala.reflect.ClassTag
+
+import scalaz.zio.internal.PlatformLive
 
 package object future {
 
@@ -16,7 +17,7 @@ package object future {
   private val Global = ExecutionContext.Implicits.global
 
   private final def unsafeRun[E, A](ec: ExecutionContext, io: IO[E, A]): A =
-    Env.fromExecutionContext(ec).unsafeRun(io)
+    Runtime[Any]((), PlatformLive.fromExecutionContext(ec)).unsafeRun(io)
 
   private final def toTry[A](e: Either[Throwable, A]): Try[A] =
     e.fold(Failure(_), Success(_))
