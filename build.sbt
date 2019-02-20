@@ -8,8 +8,6 @@ name := "scalaz-zio"
 inThisBuild(
   List(
     organization := "org.scalaz",
-    organizationName := "John A. De Goes and the ZIO Contributors",
-    startYear := Some(2017),
     homepage := Some(url("https://scalaz.github.io/scalaz-zio/")),
     licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
@@ -40,12 +38,13 @@ lazy val root = project
     interopSharedJS,
     interopCatsJVM,
     interopCatsJS,
-//    interopMonixJVM,
-//    interopMonixJS,
+    interopFutureJVM,
+//  interopMonixJVM,
+//  interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
     interopJavaJVM,
-//    benchmarks,
+//  benchmarks,
     microsite,
     testkitJVM
   )
@@ -119,9 +118,9 @@ val CatsScalaCheckShapelessVersion = Def.setting {
 
 lazy val interopCatsJVM = interopCats.jvm
   .dependsOn(interopSharedJVM)
-// Below is for the cats law spec
-// Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
-// TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
+  // Below is for the cats law spec
+  // Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
+  // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
   .settings(
     resolvers += Resolver
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
@@ -135,6 +134,13 @@ lazy val interopCatsJVM = interopCats.jvm
   .dependsOn(interopSharedJVM)
 
 lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
+
+lazy val interopFuture = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-future"))
+  .settings(stdSettings("zio-interop-future"))
+  .dependsOn(core % "test->test;compile->compile")
+
+lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
 
 lazy val interopMonix = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-monix"))
@@ -210,7 +216,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val microsite = project.module
-  .dependsOn(coreJVM, interopCatsJVM, interopScalaz7xJVM, interopJavaJVM)
+  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM)
   .enablePlugins(MicrositesPlugin)
   .settings(
     scalacOptions -= "-Yno-imports",
