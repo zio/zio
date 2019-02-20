@@ -25,8 +25,7 @@ object Scalaz {
     "-Xlint:_,-type-parameter-shadow",
     "-Xsource:2.13",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard",
-    "-Xfatal-warnings"
+    "-Ywarn-value-discard"
   )
 
   val buildInfoSettings = Seq(
