@@ -26,6 +26,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     suspend must be evaluatable             $testSuspendIsEvaluatable
     point, bind, map                        $testSyncEvalLoop
     sync effect                             $testEvalOfSyncEffect
+    sync on defer                           $testManualSyncOnDefer
     deep effects                            $testEvalOfDeepSyncEffect
     flip must make error into value         $testFlipError
     flip must make value into error         $testFlipValue
@@ -123,6 +124,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   RTS regression tests
     deadlock regression 1                   $testDeadlockRegression
     check interruption regression 1         $testInterruptionRegression1
+    manual sync interruption                $testManualSyncInterruption
 
   RTS interruption
     blocking IO is interruptible            $testBlockingIOIsInterruptible
@@ -206,6 +208,20 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       else IO.defer(n).flatMap(b => sumIo(n - 1).map(a => a + b))
 
     unsafeRun(sumIo(1000)) must_=== sum(1000)
+  }
+
+  def testManualSyncOnDefer = {
+    def sync[A](effect: => A): IO[Throwable, A] =
+      IO.defer(effect)
+        .redeem0({
+          case Cause.Die(t) => IO.fail(t)
+          case cause        => IO.halt(cause)
+        }, IO.succeed(_))
+
+    def putStrLn(text: String): IO[Throwable, Unit] =
+      sync(println(text))
+
+    unsafeRun(putStrLn("Hello")) must_=== (())
   }
 
   @silent
@@ -957,6 +973,25 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       } yield c must be_>=(1)
     )
 
+  }
+
+  def testManualSyncInterruption = {
+    def sync[A](effect: => A): IO[Throwable, A] =
+      IO.defer(effect)
+        .redeem0({
+          case Cause.Die(t) => IO.fail(t)
+          case cause        => IO.halt(cause)
+        }, IO.succeed(_))
+
+    def putStr(text: String): IO[Throwable, Unit] =
+      sync(scala.io.StdIn.print(text))
+
+    unsafeRun(
+      for {
+        fiber <- putStr(".").forever.fork
+        _     <- fiber.interrupt
+      } yield true
+    )
   }
 
   def testBlockingThreadCaching = {
