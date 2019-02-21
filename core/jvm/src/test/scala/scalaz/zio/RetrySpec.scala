@@ -18,11 +18,15 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   Retry according to a provided strategy
     for up to 10 times $recurs10Retry
   Return the result of the fallback after failing and no more retries left
-    if succeed $retryOrElseFallbackSucceed
-    if failed $retryOrElseFallbackFailed
-
+    if fallback succeed - retryOrElse $retryOrElseFallbackSucceed
+    if fallback failed - retryOrElse $retryOrElseFallbackFailed
+    if fallback succeed - retryOrElseEither $retryOrElseEitherFallbackSucceed
+    if fallback failed - retryOrElseEither $retryOrElseEitherFallbackFailed
+  Return the result after successful retry
+     retry exactly one time for `once` when second time succeeds - retryOrElse $retryOrElseSucceed
+     retry exactly one time for `once` when second time succeeds - retryOrElse0 $retryOrElseEitherSucceed
   Retry a failed action 2 times and call `ensuring` should
-    run the specified finalizer as soon as the schedule is complete $ensuring
+     run the specified finalizer as soon as the schedule is complete $ensuring
   """
 
   def retryCollect[R, E, A, E1 >: E, S](
@@ -71,16 +75,6 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   // one retry on failure
   def retryOnceSuccess = {
-    /*
-     * A function that increments ref each time it is called.
-     * It returns either a failure if ref value is 0 or less
-     * before increment, and the value in other cases.
-     */
-    def failOn0(ref: Ref[Int]): IO[String, Int] =
-      for {
-        i <- ref.update(_ + 1)
-        x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
-      } yield x
     val retried = unsafeRun(for {
       ref <- Ref.make(0)
       _   <- failOn0(ref).retry(Schedule.once)
@@ -168,10 +162,23 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     result must_=== expected
   }
 
+  val ioSucceed = (_: String, _: Unit) => IO.succeed("OrElse")
+
+  val ioFail = (_: String, _: Unit) => IO.fail("OrElseFailed")
+
+  def retryOrElseSucceed = {
+    val retried = unsafeRun(for {
+      ref <- Ref.make(0)
+      o   <- failOn0(ref).retryOrElse(Schedule.once, ioFail)
+    } yield o)
+
+    retried must_=== 2
+  }
+
   def retryOrElseFallbackSucceed = {
     val retried = unsafeRun(for {
       ref <- Ref.make(0)
-      o   <- alwaysFail(ref).retryOrElse(Schedule.once, (_: String, _: Unit) => IO.succeed("OrElse"))
+      o   <- alwaysFail(ref).retryOrElse(Schedule.once, ioSucceed)
     } yield o)
 
     retried must_=== "OrElse"
@@ -181,7 +188,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     val retried = unsafeRun(
       (for {
         ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retryOrElse(Schedule.once, (_: String, _: Unit) => IO.fail("OrElseFailed"))
+        i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
       } yield i).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
@@ -190,6 +197,49 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
     retried must_=== "OrElseFailed"
   }
+
+  def retryOrElseEitherSucceed = {
+    val retried = unsafeRun(for {
+      ref <- Ref.make(0)
+      o   <- failOn0(ref).retryOrElseEither(Schedule.once, ioFail)
+    } yield o)
+
+    retried must beRight(2)
+  }
+
+  def retryOrElseEitherFallbackSucceed = {
+    val retried = unsafeRun(for {
+      ref <- Ref.make(0)
+      o   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioSucceed)
+    } yield o)
+
+    retried must beLeft("OrElse")
+  }
+
+  def retryOrElseEitherFallbackFailed = {
+    val retried = unsafeRun(
+      (for {
+        ref <- Ref.make(0)
+        i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
+      } yield i).foldM(
+        err => IO.succeed(err),
+        _ => IO.succeed("it should not be a success")
+      )
+    )
+
+    retried must_=== "OrElseFailed"
+  }
+
+  /*
+   * A function that increments ref each time it is called.
+   * It returns either a failure if ref value is 0 or less
+   * before increment, and the value in other cases.
+   */
+  def failOn0(ref: Ref[Int]): IO[String, Int] =
+    for {
+      i <- ref.update(_ + 1)
+      x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
+    } yield x
 
   /*
    * A function that increments ref each time it is called.
