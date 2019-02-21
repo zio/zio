@@ -60,11 +60,11 @@ import java.io.IOException
 
 The resulting effect may fail for any `Throwable`.
 
-If this is too broad, the `keepSome` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
+If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
 
 ```tut:silent
 def readFile(name: String): IO[String, Array[Byte]] =
-  IO.sync(FileUtils.readFileToByteArray(new File(name))).keepSome {
+  IO.sync(FileUtils.readFileToByteArray(new File(name))).refineOrDie {
     case e : IOException => "Could not read file"
   }
 ```
