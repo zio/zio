@@ -1000,7 +1000,7 @@ trait ZIOFunctions extends Serializable {
   final def dieMessage(message: String): UIO[Nothing] = die(new RuntimeException(message))
 
   /**
-   * Returns an effect that defers evaluation of a total synchronous effect.
+   * Imports a total synchronous effect into a pure `ZIO` value.
    * The effect must not throw any exceptions.
    *
    * {{{
@@ -1010,8 +1010,9 @@ trait ZIOFunctions extends Serializable {
   final def defer[A](effect: => A): UIO[A] = deferWith(_ => effect)
 
   /**
-   * Imports a synchronous effect into a pure `ZIO` value. This variant of `sync`
-   * lets you use the execution environment of the fiber.
+   * Imports a total synchronous effect into a pure `ZIO` value. This variant of
+   * `defer` lets you use the platform.
+   * The effect must not throw any exceptions.
    *
    * {{{
    * val nanoTime: UIO[Long] = IO.defer(System.nanoTime())
@@ -1369,10 +1370,13 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    * }}}
    */
   final def sync[A](effect: => A): Task[A] =
-    defer(effect).redeem0({
-      case Cause.Die(t) => fail(t)
-      case cause        => halt(cause)
-    }, IO.succeed(_))
+    deferWith(
+      platform =>
+        try Right(effect)
+        catch {
+          case t: Throwable if platform.nonFatal(t) => Left(t)
+        }
+    ).absolve
 
   /**
    * Imports a `Try` into a `ZIO`.
