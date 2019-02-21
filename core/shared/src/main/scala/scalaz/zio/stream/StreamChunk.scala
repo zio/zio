@@ -129,7 +129,7 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
   def mapConcat[B](f: A => Chunk[B]): StreamChunk[R, E, B] =
     StreamChunk(chunks.map(_.flatMap(f)))
 
-  final def mapM[E1 >: E, B](f0: A => IO[E1, B]): StreamChunk[R, E1, B] =
+  final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): StreamChunk[R1, E1, B] =
     StreamChunk(chunks.mapM(_.traverse(f0)))
 
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => StreamChunk[R1, E1, B]): StreamChunk[R1, E1, B] =
