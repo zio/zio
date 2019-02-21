@@ -101,7 +101,7 @@ object javaconcurrent {
           IO.suspend {
             if (ftr.isDone) {
               IO.sync(ftr.get())
-                .keepSome(JustExceptions)
+                .refineOrDie(JustExceptions)
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))
             } else {

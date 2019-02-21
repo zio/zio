@@ -75,7 +75,7 @@ object Console extends Serializable {
         IO.sync(SConsole.withIn(reader) {
             StdIn.readLine()
           })
-          .keepSome {
+          .refineOrDie {
             case e: IOException => e
           }
 

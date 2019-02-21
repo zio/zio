@@ -551,27 +551,27 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  final def keepSome[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] =
-    keepSomeWith(pf)(ev)
+  final def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] =
+    refineOrDieWith(pf)(ev)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  final def keepSomeWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable): ZIO[R, E1, A] =
+  final def refineOrDieWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable): ZIO[R, E1, A] =
     self.catchAll(err => pf.lift(err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
 
   /**
    * Keeps none of the errors, and terminates the fiber with any.
    */
-  final def keepNone[E1 >: E](implicit ev: E1 <:< Throwable): ZIO[R, Nothing, A] =
-    keepNoneWith(ev)
+  final def succeedOrDie[E1 >: E](implicit ev: E1 <:< Throwable): ZIO[R, Nothing, A] =
+    succeedOrDieWith(ev)
 
   /**
    * Keeps none of the errors, and terminates the fiber with then, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  final def keepNoneWith(f: E => Throwable): ZIO[R, Nothing, A] =
+  final def succeedOrDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
     self.mapError(f).catchAll(IO.die)
 
   /**
