@@ -240,7 +240,7 @@ object Fiber {
     fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
 
   /**
-   * Joins all fibers, awaiting their completion.j
+   * Joins all fibers, awaiting their completion.
    */
   final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io *> f.await.void)

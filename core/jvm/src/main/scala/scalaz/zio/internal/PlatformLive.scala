@@ -16,8 +16,8 @@
 
 package scalaz.zio.internal
 
-import java.util.{ Map => JMap, WeakHashMap }
-import java.util.concurrent._
+import java.util.concurrent.{ Executor => _, _ }
+import java.util.{ WeakHashMap, Map => JMap }
 import scala.concurrent.ExecutionContext
 
 import scalaz.zio.Exit.Cause

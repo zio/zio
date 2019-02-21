@@ -33,7 +33,8 @@ object System extends Serializable {
     val system: Service[Any] = new Service[Any] {
       import java.lang.{ System => JSystem }
 
-      def env(variable: String): ZIO[Any, Nothing, Option[String]] = ZIO.defer(Option(JSystem.getenv(variable)))
+      def env(variable: String): ZIO[Any, Nothing, Option[String]] =
+        ZIO.defer(Option(JSystem.getenv(variable))).refineOrDie { case e: SecurityException => e }
 
       def property(prop: String): ZIO[Any, Throwable, Option[String]] =
         ZIO.sync(Option(JSystem.getProperty(prop)))
