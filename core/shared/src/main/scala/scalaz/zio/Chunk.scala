@@ -402,9 +402,9 @@ sealed trait Chunk[@specialized +A] { self =>
    * Effectfully traverses the elements of this chunk.
    */
   final def traverse[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
-    val len                    = self.length
+    val len                        = self.length
     var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
-    var i                      = 0
+    var i                          = 0
 
     while (i < len) {
       val j = i

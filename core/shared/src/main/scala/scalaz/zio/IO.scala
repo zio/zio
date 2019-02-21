@@ -1384,7 +1384,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
     }
 
   /**
-   * Imports a function that creates a [[scala.concurrent.Future]] from an 
+   * Imports a function that creates a [[scala.concurrent.Future]] from an
    * [[scala.concurrent.ExecutionContext]] into a `ZIO`.
    */
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
