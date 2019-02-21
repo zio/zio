@@ -1383,7 +1383,11 @@ trait ZIO_E_Throwable extends ZIOFunctions {
       case scala.util.Failure(t) => ZIO.fail(t)
     }
 
-  final def fromFuture[E, A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+  /**
+   * Imports a function that creates a [[scala.concurrent.Future]] from an 
+   * [[scala.concurrent.ExecutionContext]] into a `ZIO`.
+   */
+  final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     Task.descriptor.flatMap { d =>
       val ec = d.executor.asEC
       val f  = make(ec)
@@ -1403,7 +1407,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
 object IO extends ZIO_E_Any {
   type LowerR = Any
 
-  def apply[A](a: => A): IO[Throwable, A] = sync(a)
+  def apply[A](a: => A): Task[A] = sync(a)
 }
 object Task extends ZIO_E_Throwable {
   type UpperE = Throwable
@@ -1421,7 +1425,7 @@ object UIO extends ZIOFunctions {
 object ZIO extends ZIO_E_Any {
   type LowerR = Nothing
 
-  def apply[A](a: => A): ZIO[Any, Throwable, A] = sync(a)
+  def apply[A](a: => A): Task[A] = sync(a)
 
   @inline
   private final def succeedLeft[E, A]: E => UIO[Either[E, A]] =
