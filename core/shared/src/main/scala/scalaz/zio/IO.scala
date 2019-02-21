@@ -749,33 +749,33 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Times out an effect by the specified duration.
    */
-  final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeout0[Option[A]](None)(Some(_))(d)
+  final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeoutTo[Option[A]](None)(Some(_))(d)
 
   /**
    * Times out this effect by the specified duration.
    *
    * {{{
-   * IO.succeed(1).timeout0(Option.empty[Int])(Some(_))(1.second)
+   * IO.succeed(1).timeoutTo(Option.empty[Int])(Some(_))(1.second)
    * }}}
    */
-  final def timeout0[B](z: B)(f: A => B)(duration: Duration): ZIO[R with Clock, E, B] =
+  final def timeoutTo[B](z: B)(f: A => B)(duration: Duration): ZIO[R with Clock, E, B] =
     self.map(f).sandboxWith[R with Clock, E, B](io => ZIO.absolve(io.attempt race ZIO.succeedRight(z).delay(duration)))
 
   /**
    * Flattens a nested action with a specified duration.
    */
   final def timeoutFail[E1 >: E](e: E1)(d: Duration): ZIO[R with Clock, E1, A] =
-    ZIO.flatten(timeout0[ZIO[R, E1, A]](ZIO.fail(e))(ZIO.succeed)(d))
+    ZIO.flatten(timeoutTo[ZIO[R, E1, A]](ZIO.fail(e))(ZIO.succeed)(d))
 
   /**
    * Returns a new action that executes this one and times the execution.
    */
-  final def timed: ZIO[R with Clock, E, (Duration, A)] = timed0(clock.nanoTime)
+  final def timed: ZIO[R with Clock, E, (Duration, A)] = timedWith(clock.nanoTime)
 
   /**
    * A more powerful variation of `timed` that allows specifying the clock.
    */
-  final def timed0[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1 with Clock, E1, (Duration, A)] =
+  final def timedWith[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1 with Clock, E1, (Duration, A)] =
     summarized[R1, E1, Long, Duration]((start, end) => Duration.fromNanos(end - start))(nanoTime)
 
   /**
@@ -1403,6 +1403,12 @@ trait ZIO_E_Throwable extends ZIOFunctions {
 
     }
 }
+trait ZIO_R_Any extends ZIO_E_Any {
+  type LowerR = Nothing
+
+  final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
+    clock.sleep(duration)
+}
 
 object IO extends ZIO_E_Any {
   type LowerR = Any
@@ -1422,9 +1428,7 @@ object UIO extends ZIOFunctions {
   def apply[A](a: => A): UIO[A] = defer(a)
 }
 
-object ZIO extends ZIO_E_Any {
-  type LowerR = Nothing
-
+object ZIO extends ZIO_R_Any {
   def apply[A](a: => A): Task[A] = sync(a)
 
   @inline

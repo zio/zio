@@ -571,7 +571,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       for {
         promise <- Promise.make[Nothing, Unit]
         fiber   <- IO.bracket(promise.succeed(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
-        res     <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+        res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
@@ -583,7 +583,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         fiber <- IO
                   .bracket0[Any, Nothing, Unit, Unit](promise.succeed(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
                   .fork
-        res <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+        res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
@@ -599,7 +599,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         _     <- p2.await
       } yield ()
 
-    unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
+    unsafeRun(io.timeoutTo(42)(_ => 0)(1.second)) must_=== 0
   }
 
   def testBracket0ReleaseOnInterrupt = {
@@ -617,7 +617,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         _ <- p2.await
       } yield ()
 
-    unsafeRun(io.timeout0(42)(_ => 0)(1.second)) must_=== 0
+    unsafeRun(io.timeoutTo(42)(_ => 0)(1.second)) must_=== 0
   }
 
   def testRedeemEnsuringInterrupt = {
@@ -770,7 +770,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val io =
       for {
         fiber <- IO.bracket0[Any, Nothing, Unit, Unit](IO.unit)((_, _) => IO.unit)(_ => IO.never).fork
-        res   <- fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+        res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 0
   }
