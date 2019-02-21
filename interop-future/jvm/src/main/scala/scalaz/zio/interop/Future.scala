@@ -65,7 +65,7 @@ package object future {
         ec,
         (futures.foldLeft[IO[Throwable, Option[T]]](IO.interrupt) {
           case (acc, future) =>
-            acc orElse (future.join.flatMap(t => if (p(t)) IO.succeed(t) else IO.interrupt).map(Some(_)))
+            acc orElse future.join.flatMap(t => if (p(t)) IO.succeed(t) else IO.interrupt).map(Some(_))
         } orElse IO.succeed(None)).fork
       )
 

@@ -190,10 +190,10 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
   /**
    * Maps over elements of the stream with the specified effectful function.
    */
-  final def mapM[E1 >: E, B](f: A => IO[E1, B]): Stream[R, E1, B] = new Stream[R, E1, B] {
-    override def fold[R1 <: R, E2 >: E1, B1 >: B, S]: Fold[R1, E2, B1, S] =
+  final def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): Stream[R1, E1, B] = new Stream[R1, E1, B] {
+    override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
       IO.succeedLazy { (s, cont, g) =>
-        self.fold[R1, E2, A, S].flatMap(f0 => f0(s, cont, (s, a) => f(a).flatMap(g(s, _))))
+        self.fold[R2, E2, A, S].flatMap(f0 => f0(s, cont, (s, a) => f(a).flatMap(g(s, _))))
       }
   }
 
@@ -646,7 +646,7 @@ object Stream extends Serializable {
    * Flattens a stream of streams into a stream, by concatenating all the
    * substreams.
    */
-  final def flatten[R1 <: R, R, E, A](fa: Stream[R1, E, Stream[R1, E, A]]): Stream[R1, E, A] =
+  final def flatten[R, E, A](fa: Stream[R, E, Stream[R, E, A]]): Stream[R, E, A] =
     fa.flatMap(identity)
 
   /**
