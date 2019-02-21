@@ -17,6 +17,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       fixed delay with error predicate $fixedWithErrorPredicate
   Retry according to a provided strategy
     for up to 10 times $recurs10Retry
+  Return the result of the fallback after failing and no more retries left
+    if succeed $retryOrElseFallbackSucceed
+    if failed $retryOrElseFallbackFailed
   """
 
   def retryCollect[R, E, A, E1 >: E, S](
@@ -86,15 +89,6 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   // no more than one retry on retry `once`
   def retryOnceFail = {
-    /*
-     * A function that increments ref each time it is called.
-     * It always fails, with the incremented value in error
-     */
-    def alwaysFail(ref: Ref[Int]): IO[String, Int] =
-      for {
-        i <- ref.update(_ + 1)
-        x <- IO.fail(s"Error: $i")
-      } yield x
     val retried = unsafeRun(
       (for {
         ref <- Ref.make(0)
@@ -110,18 +104,10 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   // 0 retry means "one execution in all, no retry, whatever the output"
   def retryRecurs0 = {
-    /*
-     * A function that increments ref each time it is called.
-     */
-    def incr(ref: Ref[Int]): IO[String, Int] =
-      for {
-        i <- ref.update(_ + 1)
-        x <- IO.fail(s"Error: $i")
-      } yield x
     val retried = unsafeRun(
       (for {
         ref <- Ref.make(0)
-        i   <- incr(ref).retry(Schedule.recurs(0))
+        i   <- alwaysFail(ref).retry(Schedule.recurs(0))
       } yield i).redeem(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
@@ -178,6 +164,39 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     val expected = 5
     result must_=== expected
   }
+
+  def retryOrElseFallbackSucceed = {
+    val retried = unsafeRun(for {
+      ref <- Ref.make(0)
+      o   <- alwaysFail(ref).retryOrElse(Schedule.once, (_: String, _: Unit) => IO.succeed("OrElse"))
+    } yield o)
+
+    retried must_=== "OrElse"
+  }
+
+  def retryOrElseFallbackFailed = {
+    val retried = unsafeRun(
+      (for {
+        ref <- Ref.make(0)
+        i   <- alwaysFail(ref).retryOrElse(Schedule.once, (_: String, _: Unit) => IO.fail("OrElseFailed"))
+      } yield i).redeem(
+        err => IO.succeed(err),
+        _ => IO.succeed("it should not be a success")
+      )
+    )
+
+    retried must_=== "OrElseFailed"
+  }
+
+  /*
+   * A function that increments ref each time it is called.
+   * It always fails, with the incremented value in error
+   */
+  def alwaysFail(ref: Ref[Int]): IO[String, Int] =
+    for {
+      i <- ref.update(_ + 1)
+      x <- IO.fail(s"Error: $i")
+    } yield x
 
   object TestRandom extends Random {
     object random extends Random.Service[Any] {
