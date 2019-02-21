@@ -546,9 +546,9 @@ object Chunk {
     }
 
   /**
-   * Returns a singleton chunk.
+   * Returns a singleton chunk, eagerly evaluated.
    */
-  final def succeedLazy[@specialized A](a: A): Chunk[A] = Singleton(a)
+  final def succeed[@specialized A](a: A): Chunk[A] = Singleton(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
