@@ -23,7 +23,7 @@ trait System extends Serializable {
 }
 object System extends Serializable {
   trait Service[R] extends Serializable {
-    def env(variable: String): ZIO[R, Nothing, Option[String]]
+    def env(variable: String): ZIO[R, SecurityException, Option[String]]
 
     def property(prop: String): ZIO[R, Throwable, Option[String]]
 
@@ -33,8 +33,8 @@ object System extends Serializable {
     val system: Service[Any] = new Service[Any] {
       import java.lang.{ System => JSystem }
 
-      def env(variable: String): ZIO[Any, Nothing, Option[String]] =
-        ZIO.defer(Option(JSystem.getenv(variable))).refineOrDie { case e: SecurityException => e }
+      def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
+        ZIO.sync(Option(JSystem.getenv(variable))).refineOrDie { case e: SecurityException => e }
 
       def property(prop: String): ZIO[Any, Throwable, Option[String]] =
         ZIO.sync(Option(JSystem.getProperty(prop)))
