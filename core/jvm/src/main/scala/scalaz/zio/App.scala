@@ -20,16 +20,15 @@ package scalaz.zio
  * The entry point for a purely-functional application on the JVM.
  *
  * {{{
- * import java.io.IOException
- * import scalaz.zio.{ App, UIO, ZIO }
+ * import scalaz.zio.App
  * import scalaz.zio.console._
  *
  * object MyApp extends App {
  *
- *   final def run(args: List[String]): UIO[Int] =
- *     myAppLogic.provide(Console.Live).attempt.map(_.fold(_ => 1, _ => 0))
+ *   final def run(args: List[String]) =
+ *     myAppLogic.attempt.map(_.fold(_ => 1, _ => 0))
  *
- *   def myAppLogic: ZIO[Console, IOException, Unit] =
+ *   def myAppLogic =
  *     for {
  *       _ <- putStrLn("Hello! What is your name?")
  *       n <- getStrLn
