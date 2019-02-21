@@ -107,7 +107,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    */
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = (self.tag: @switch) match {
-    case ZIO.Tags.Fail => self.asInstanceOf[IO[E1, B]]
+    case ZIO.Tags.Fail => self.asInstanceOf[ZIO[R1, E1, B]]
     case _             => new ZIO.FlatMap(self, f0)
   }
 
@@ -1318,7 +1318,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Strictly-evaluated unit lifted into the `ZIO` monad.
    */
-  final val unit: UIO[Unit] = succeed(())
+  final def unit[R >: LowerR]: ZIO[R, Nothing, Unit] = succeed(())
 
   /**
    * The moral equivalent of `if (p) exp`

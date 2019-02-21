@@ -55,7 +55,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
     val resources = Managed.foreach(List(1, 2, 3))(res)
 
-    unsafeRun(resources.use[Any, Nothing, Unit](_ => IO.unit))
+    unsafeRun(resources.use(_ => IO.unit))
 
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
