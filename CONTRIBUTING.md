@@ -152,7 +152,15 @@ If all the tests are passing, then you can format your code:
 fmt
 ```
 
-Finally, if you are up-to-date with master, all your tests are passing, and you have properly formatted your code, then it's time to submit your work for review!
+If your changes altered an API, then you may need to rebuild the microsite to make sure none of the (compiled) documentation breaks:
+
+```bash
+makeMicrosite
+```
+
+(If you get an error about _Jekyll_, that means all the code examples work and you can ignore the rest.)
+
+Finally, if you are up-to-date with master, all your tests are passing, you have properly formatted your code, and the microsite builds properly, then it's time to submit your work for review!
 
 ### Create a Pull Request
 
