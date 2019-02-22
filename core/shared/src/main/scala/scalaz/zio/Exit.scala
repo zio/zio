@@ -175,13 +175,15 @@ object Exit extends Serializable {
       case Both(left, right) => Both(left.map(f), right.map(f))
     }
 
-    final def isFailure: Boolean =
+    final def failed: Boolean =
       self match {
         case Fail(_)           => true
-        case Then(left, right) => left.isFailure || right.isFailure
-        case Both(left, right) => left.isFailure || right.isFailure
+        case Then(left, right) => left.failed || right.failed
+        case Both(left, right) => left.failed || right.failed
         case _                 => false
       }
+
+    final def succeeded: Boolean = !failed
 
     final def interrupted: Boolean =
       self match {
