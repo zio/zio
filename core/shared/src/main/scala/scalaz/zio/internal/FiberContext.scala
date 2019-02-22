@@ -113,7 +113,7 @@ private[zio] final class FiberContext[E, A](
   final def evaluateNow(io0: IO[E, _]): Unit = {
     // Do NOT accidentally capture any of local variables in a closure,
     // or Scala will wrap them in ObjectRef and performance will plummet.
-    var curIo: IO[E, Any] = io0.as[Any]
+    var curIo: IO[E, Any] = io0
 
     while (curIo ne null) {
       try {

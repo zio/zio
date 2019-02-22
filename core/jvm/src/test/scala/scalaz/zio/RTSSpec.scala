@@ -259,10 +259,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(deepErrorFail(100).attempt) must_=== Left(ExampleError)
 
   def testEvalOfUncaughtFail =
-    unsafeRun(IO.fail[Throwable](ExampleError).as[Any]) must (throwA(FiberFailure(Fail(ExampleError))))
+    unsafeRun(Task.fail(ExampleError): Task[Any]) must (throwA(FiberFailure(Fail(ExampleError))))
 
   def testEvalOfUncaughtFailSupervised =
-    unsafeRun(IO.fail[Throwable](ExampleError).supervise.as[Any]) must (throwA(
+    unsafeRun(Task.fail(ExampleError).supervise: Task[Unit]) must (throwA(
       FiberFailure(Fail(ExampleError))
     ))
 
@@ -309,7 +309,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testEvalOfFailEnsuring = {
     var finalized = false
 
-    unsafeRun(IO.fail[Throwable](ExampleError).as[Any].ensuring(IO.defer[Unit] { finalized = true; () })) must (throwA(
+    unsafeRun((Task.fail(ExampleError): Task[Unit]).ensuring(IO.defer[Unit] { finalized = true; () })) must (throwA(
       FiberFailure(Fail(ExampleError))
     ))
     finalized must_=== true
@@ -321,7 +321,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _ => IO.defer[Unit] { finalized = true; () }
 
     unsafeRun(
-      IO.fail[Throwable](ExampleError).onError(cleanup).as[Any]
+      Task.fail(ExampleError).onError(cleanup): Task[Unit]
     ) must (throwA(FiberFailure(Fail(ExampleError))))
 
     // FIXME: Is this an issue with thread synchronization?
@@ -368,7 +368,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       (throwA(FiberFailure(Die(ExampleError))))
 
   def testBracketErrorInUsage =
-    unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError).as[Any])) must
+    unsafeRun(Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])) must
       (throwA(FiberFailure(Fail(ExampleError))))
 
   def testBracketRethrownCaughtErrorInAcquisition = {
@@ -390,7 +390,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafeRun(
       IO.absolve(
-        IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.fail[Throwable](ExampleError).as[Any]).attempt
+        IO.bracket(IO.unit)(_ => IO.unit)(_ => Task.fail(ExampleError): Task[Unit]).attempt
       )
     )
 
