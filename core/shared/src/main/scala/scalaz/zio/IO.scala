@@ -559,14 +559,14 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Keeps none of the errors, and terminates the fiber with any.
    */
-  final def succeedOrDie[E1 >: E](implicit ev: E1 <:< Throwable): ZIO[R, Nothing, A] =
-    succeedOrDieWith(ev)
+  final def orDie[E1 >: E](implicit ev: E1 <:< Throwable): ZIO[R, Nothing, A] =
+    orDieWith(ev)
 
   /**
    * Keeps none of the errors, and terminates the fiber with then, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  final def succeedOrDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
+  final def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
     self.mapError(f).catchAll(IO.die)
 
   /**
