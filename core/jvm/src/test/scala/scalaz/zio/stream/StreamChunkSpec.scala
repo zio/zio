@@ -114,7 +114,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       var acc = List[Int]()
 
       val result = unsafeRunSync {
-        s.foreach0 { a =>
+        s.foreachWhile { a =>
           IO.defer {
             if (cont(a)) {
               acc ::= a
