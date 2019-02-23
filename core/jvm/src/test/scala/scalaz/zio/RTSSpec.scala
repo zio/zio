@@ -82,8 +82,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     deep asyncIO doesn't block threads      $testDeepAsyncIOThreadStarvation
     interrupt of asyncPure register         $testAsyncPureInterruptRegister
     sleep 0 must return                     $testSleepZeroReturns
-    shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
-    unyielding reuses cached thread         $testBlockingThreadCaching
+    shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect    
 
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
@@ -996,6 +995,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     )
   }
 
+  // FIXME: This is a flaky test!
   def testBlockingThreadCaching = {
     val currentNumLiveWorkers =
       blocking.blockingExecutor.map(_.metrics.get.workersCount)
