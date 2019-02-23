@@ -1277,19 +1277,19 @@ object IO extends Serializable {
   final def unsandbox[E, A](v: IO[Cause[E], A]): IO[E, A] = v.catchAll[E, A](IO.halt)
 
   /**
-   * Lifts an `Either` into an `IO`.
+   * Lifts an `Either` value into an `IO`.
    */
   final def fromEither[E, A](v: Either[E, A]): IO[E, A] =
     v.fold(IO.fail, IO.succeed)
 
   /**
-   * Lifts an `Option` into an `IO`.
+   * Lifts an `Option` value into an `IO`.
    */
   final def fromOption[A](v: Option[A]): IO[Unit, A] =
     v.fold[IO[Unit, A]](IO.fail(()))(IO.succeed)
 
   /**
-   * Lifts a `Try` into an `IO`.
+   * Lifts a `Try` value into an `IO`.
    */
   final def fromTry[A](v: scala.util.Try[A]): IO[Throwable, A] =
     v match {
@@ -1298,13 +1298,13 @@ object IO extends Serializable {
     }
 
   /**
-   * Imports an effect producing `Either` into an `IO`.
+   * Imports a synchronous effect producing `Either` into an `IO`.
    */
   final def fromEitherSync[E, A](effect: => Either[E, A]): IO[E, A] =
     sync(effect).flatMap(fromEither)
 
   /**
-   * Imports an effect producing `Try` into an `IO`.
+   * Imports a synchronous effect producing `Try` into an `IO`.
    */
   final def fromTrySync[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
     syncThrowable(effect).flatMap(fromTry)
