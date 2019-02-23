@@ -483,7 +483,7 @@ sealed trait Chunk[@specialized +A] { self =>
    * Zips this chunk with the index of every element, starting from the initial
    * index value.
    */
-  final def zipWithIndex0(indexOffset: Int): Chunk[(A, Int)] = {
+  final def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)] = {
     val len  = self.length
     val dest = Array.ofDim[(A, Int)](len)
 
@@ -501,7 +501,7 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Zips this chunk with the index of every element.
    */
-  final def zipWithIndex: Chunk[(A, Int)] = zipWithIndex0(0)
+  final def zipWithIndex: Chunk[(A, Int)] = zipWithIndexFrom(0)
 
   protected[zio] def apply(n: Int): A
   protected[zio] def foreach(f: A => Unit): Unit

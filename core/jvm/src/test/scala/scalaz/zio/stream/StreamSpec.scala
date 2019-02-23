@@ -140,7 +140,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s   = Stream(1, 1, 1, 1, 1, 1)
 
     unsafeRun(
-      s.foreach0[Any, Nothing](
+      s.foreachWhile[Any, Nothing](
         a =>
           IO.defer(
             if (sum >= 3) false
@@ -201,7 +201,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def forever = {
     var sum = 0
-    val s = Stream(1).forever.foreach0[Any, Nothing](
+    val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
         IO.defer {
           sum += a; if (sum >= 9) false else true

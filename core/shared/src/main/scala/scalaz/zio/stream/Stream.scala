@@ -85,7 +85,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
    * Consumes elements of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
-  final def foreach0[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+  final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
     self
       .fold[R1, E1, A, Boolean]
       .flatMap[R1, E1, Boolean] { f0 =>
@@ -148,7 +148,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
    * Consumes all elements of the stream, passing them to the specified callback.
    */
   final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
-    foreach0(f.andThen(_.const(true)))
+    foreachWhile(f.andThen(_.const(true)))
 
   /**
    * Repeats this stream forever.
