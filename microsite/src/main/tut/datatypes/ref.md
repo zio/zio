@@ -93,7 +93,7 @@ object S {
               case false => IO.fail(())
               case true  => IO.unit
             }
-        } <> P).attempt.void
+        } <> P).either.void
       }
     }
 }

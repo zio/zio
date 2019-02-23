@@ -25,7 +25,7 @@ import scalaz.zio.console._
 object MyApp extends App {
 
   def run(args: List[String]) =
-    myAppLogic.attempt.map(_.fold(_ => 1, _ => 0))
+    myAppLogic.either.map(_.fold(_ => 1, _ => 0))
 
   val myAppLogic =
     for {
