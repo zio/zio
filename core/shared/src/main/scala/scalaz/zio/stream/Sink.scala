@@ -780,7 +780,7 @@ object Sink {
     final def <*[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, B] =
       seq(that).map(_._1)
 
-    final def repeat0[S](z: S)(f: (S, B) => S): Sink[R, E, A, A, S] =
+    final def repeatWith[S](z: S)(f: (S, B) => S): Sink[R, E, A, A, S] =
       new Sink[R, E, A, A, S] {
         type State = (Option[E], S, self.State)
 
@@ -815,12 +815,12 @@ object Sink {
       }
 
     final def repeat: Sink[R, E, A, A, List[B]] =
-      repeat0(List.empty[B])((bs, b) => b :: bs).map(_.reverse)
+      repeatWith(List.empty[B])((bs, b) => b :: bs).map(_.reverse)
 
     final def repeatN(i: Int): Sink[R, E, A, A, List[B]] =
-      repeat0[(Int, List[B])]((0, Nil))((s, b) => (s._1 + 1, b :: s._2)).untilOutput(_._1 >= i).map(_._2.reverse)
+      repeatWith[(Int, List[B])]((0, Nil))((s, b) => (s._1 + 1, b :: s._2)).untilOutput(_._1 >= i).map(_._2.reverse)
 
-    final def repeatWhile0[S](p: A => Boolean)(z: S)(f: (S, B) => S): Sink[R, E, A, A, S] =
+    final def repeatWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): Sink[R, E, A, A, S] =
       new Sink[R, E, A, A, S] {
         type State = (S, self.State)
 
@@ -848,7 +848,7 @@ object Sink {
       }
 
     final def repeatWhile(p: A => Boolean): Sink[R, E, A, A, List[B]] =
-      repeatWhile0(p)(List.empty[B])((bs, b) => b :: bs)
+      repeatWhileWith(p)(List.empty[B])((bs, b) => b :: bs)
         .map(_.reverse)
   }
 }

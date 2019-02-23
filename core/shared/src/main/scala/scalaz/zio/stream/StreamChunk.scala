@@ -55,8 +55,8 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
 
   def filterNot(pred: A => Boolean): StreamChunk[R, E, A] = filter(!pred(_))
 
-  final def foreach0[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
-    chunks.foreach0[R1, E1] { as =>
+  final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+    chunks.foreachWhile[R1, E1] { as =>
       as.foldM(true) { (p, a) =>
         if (p) f(a)
         else IO.succeedLazy(p)
@@ -64,7 +64,7 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
     }
 
   final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
-    foreach0[R1, E1](f(_).const(true))
+    foreachWhile[R1, E1](f(_).const(true))
 
   final def withEffect[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, Unit]): StreamChunk[R1, E1, A] =
     StreamChunk(chunks.withEffect[R1, E1] { as =>
@@ -111,7 +111,7 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
             chunks.fold[R1, E1, Chunk[A], (S, Int)].flatMap { f0 =>
               f0((s, 0), tp => cont(tp._1), {
                 case ((s, index), as) =>
-                  val zipped = as.zipWithIndex0(index)
+                  val zipped = as.zipWithIndexFrom(index)
 
                   f(s, zipped).map((_, index + as.length))
               }).map(_._1.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11

@@ -400,10 +400,10 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release effect.
    */
-  final def bracket0[R1 <: R, E1 >: E, B](
+  final def bracketExit[R1 <: R, E1 >: E, B](
     release: (A, Exit[E1, B]) => ZIO[R1, Nothing, _]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracket0[R1, E1, A, B](this)(release)(use)
+    ZIO.bracketExit[R1, E1, A, B](this)(release)(use)
 
   /**
    * A less powerful variant of `bracket` where the resource produced by this
@@ -452,7 +452,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def bracketOnError[R1 <: R, E1 >: E, B](
     release: A => ZIO[R1, Nothing, _]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracket0[R1, E1, A, B](this)(
+    ZIO.bracketExit[R1, E1, A, B](this)(
       (a: A, eb: Exit[E1, B]) =>
         eb match {
           case Exit.Failure(_) => release(a)
@@ -468,7 +468,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * effect if it exists. The provided effect will not be interrupted.
    */
   final def onError(cleanup: Cause[E] => UIO[_]): ZIO[R, E, A] =
-    ZIO.bracket0[R, E, Unit, A](ZIO.unit)(
+    ZIO.bracketExit[R, E, Unit, A](ZIO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
           case Exit.Success(_)     => ZIO.unit
@@ -489,7 +489,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * a defect or because of interruption.
    */
   final def onTermination(cleanup: Cause[Nothing] => UIO[_]): ZIO[R, E, A] =
-    ZIO.bracket0[R, E, Unit, A](ZIO.unit)(
+    ZIO.bracketExit[R, E, Unit, A](ZIO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
           case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
@@ -650,14 +650,14 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
   ): ZIO[R1 with Clock, E2, B] =
-    repeatOrElse0[R1, B, E2, B](schedule, orElse).map(_.merge)
+    repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
 
   /**
    * Repeats this effect with the specified schedule until the schedule
    * completes, or until the first failure. In the event of failure the progress
    * to date, together with the error, will be passed to the specified handler.
    */
-  final def repeatOrElse0[R1 <: R, B, E2, C](
+  final def repeatOrElseEither[R1 <: R, B, E2, C](
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
   ): ZIO[R1 with Clock, E2, Either[C, B]] = {
@@ -692,14 +692,14 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     policy: Schedule[R1, E1, S],
     orElse: (E1, S) => ZIO[R1, E2, A2]
   ): ZIO[R1 with Clock, E2, A2] =
-    retryOrElse0(policy, orElse).map(_.merge)
+    retryOrElseEither(policy, orElse).map(_.merge)
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElse0[R1 <: R, E1 >: E, S, E2, B](
+  final def retryOrElseEither[R1 <: R, E1 >: E, S, E2, B](
     policy: Schedule[R1, E1, S],
     orElse: (E1, S) => ZIO[R1, E2, B]
   ): ZIO[R1 with Clock, E2, Either[B, A]] = {
@@ -1257,7 +1257,7 @@ trait ZIOFunctions extends Serializable {
    * succeeds. If `use` fails, then after release, the returned effect will fail
    * with the same error.
    */
-  final def bracket0[R >: LowerR, E <: UpperE, A, B](
+  final def bracketExit[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]
   )(release: (A, Exit[E, B]) => ZIO[R, Nothing, _])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
