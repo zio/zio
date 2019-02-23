@@ -966,7 +966,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     val currentNumLiveWorkers =
       IO.sync0(_.executor(Executor.Unyielding).metrics.get.workersCount)
 
-    unsafeRunSync(for {
+    new RTS{}.unsafeRunSync(for {
       thread1  <- IO.sync(Thread.currentThread()).unyielding
       workers1 <- currentNumLiveWorkers
       thread2  <- IO.sync(Thread.currentThread()).unyielding
