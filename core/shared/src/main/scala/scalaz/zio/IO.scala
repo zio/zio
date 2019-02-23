@@ -1233,9 +1233,11 @@ trait ZIOFunctions extends Serializable {
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
 
   /**
-   * Acquires a resource, do some work with it, and then release that resource.
-   * `bracket` releases the resource no matter the outcome of the computation, and
-   * re-throws any exception that occurred in between.
+   * Acquires a resource, uses the resource, and then releases the resource.
+   * Neither the acquisition nor the release will be interrupted, and the
+   * resource is guaranteed to be released, so long as the `acquire` effect
+   * succeeds. If `use` fails, then after release, the returned effect will fail
+   * with the same error.
    */
   final def bracket[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]
@@ -1249,9 +1251,11 @@ trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Acquires a resource, do some work with it, and then release that resource. With `bracket0`
-   * not only is the acquired resource be cleaned up, the outcome of the computation is also
-   * reified for processing.
+   * Acquires a resource, uses the resource, and then releases the resource.
+   * Neither the acquisition nor the release will be interrupted, and the
+   * resource is guaranteed to be released, so long as the `acquire` effect
+   * succeeds. If `use` fails, then after release, the returned effect will fail
+   * with the same error.
    */
   final def bracket0[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]
@@ -1267,17 +1271,21 @@ trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Apply the function fn to each element of the `Iterable[A]` and
-   * return the results in a new `List[B]`. For parallelism use `foreachPar`.
+   * Applies the function `f` to each element of the `Iterable[A]` and
+   * returns the results in a new `List[B]`.
+   *
+   * For a parallel version of this method, see `foreachPar`.
    */
-  final def foreach[R >: LowerR, E <: UpperE, A, B](in: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+  final def foreach[R >: LowerR, E <: UpperE, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     in.foldRight[ZIO[R, E, List[B]]](defer(Nil)) { (a, io) =>
-      fn(a).zipWith(io)((b, bs) => b :: bs)
+      f(a).zipWith(io)((b, bs) => b :: bs)
     }
 
   /**
-   * Evaluate the elements of an `Iterable[A]` in parallel
-   * and collect the results. This is the parallel version of `foreach`.
+   * Applies the function `f` to each element of the `Iterable[A]` in parallel,
+   * and returns the results in a new `List[B]`.
+   *
+   * For a sequential version of this method, see `foreach`.
    */
   final def foreachPar[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     as.foldRight[ZIO[R, E, List[B]]](defer(Nil)) { (a, io) =>
@@ -1285,9 +1293,10 @@ trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Evaluate the elements of a traversable data structure in parallel
-   * and collect the results. Only up to `n` tasks run in parallel.
-   * This is a version of `foreachPar`, with a throttle.
+   * Applies the function `f` to each element of the `Iterable[A]` in parallel,
+   * and returns the results in a new `List[B]`.
+   *
+   * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    */
   final def foreachParN[R >: LowerR, E <: UpperE, A, B](
     n: Long
@@ -1301,29 +1310,30 @@ trait ZIOFunctions extends Serializable {
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
-   * the results. For parallelism use `collectAllPar`.
+   * the results. For a parallel version, see `collectAllPar`.
    */
   final def collectAll[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreach[R, E, ZIO[R, E, A], A](in)(identity(_))
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
-   * the results. This is the parallel version of `collectAll`.
+   * the results. For a sequential version, see `collectAll`.
    */
   final def collectAllPar[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreachPar[R, E, ZIO[R, E, A], A](as)(identity(_))
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
-   * the results. Only up to `n` tasks run in parallel.
-   * This is a version of `collectAllPar`, with a throttle.
+   * the results. For a sequential version, see `collectAll`.
+   *
+   * Unlike `foreachAllPar`, this method will use at most `n` fibers.
    */
   final def collectAllParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreachParN[R, E, ZIO[R, E, A], A](n)(as)(identity(_))
 
   /**
-   * Races an `IO[E, A]` against elements of a `Iterable[IO[E, A]]`. Yields
-   * either the first success or the last failure.
+   * Races an `IO[E, A]` against zero or more other effects. Yields either the
+   * first success or the last failure.
    */
   final def raceAll[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](
     zio: ZIO[R, E, A],
@@ -1332,7 +1342,7 @@ trait ZIOFunctions extends Serializable {
     ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _)
 
   /**
-   * Reduces an `Iterable[IO]` to a single IO, works in parallel.
+   * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
    */
   final def reduceAll[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
@@ -1342,7 +1352,7 @@ trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Merges an `Iterable[IO]` to a single IO, works in parallel.
+   * Merges an `Iterable[IO]` to a single IO, working in parallel.
    */
   final def mergeAll[R >: LowerR, E <: UpperE, A, B](
     in: Iterable[ZIO[R, E, A]]
@@ -1367,7 +1377,7 @@ trait ZIOFunctions extends Serializable {
     b.flatMap(b => if (b) zio else unit)
 
   /**
-   * Folds an `Iterable[A]` using an effectful function `f`. Works in sequence.
+   * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
    */
   final def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => IO[E, S]): IO[E, S] =
     in.foldLeft(IO.succeed(zero): IO[E, S]) { (acc, el) =>
@@ -1412,7 +1422,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
     ).absolve
 
   /**
-   * Imports a `Try` into a `ZIO`.
+   * Lifts a `Try` into a `ZIO`.
    */
   final def fromTry[A](effect: => scala.util.Try[A]): Task[A] =
     sync(effect).flatMap {
@@ -1443,6 +1453,10 @@ trait ZIO_E_Throwable extends ZIOFunctions {
 trait ZIO_R_Any extends ZIO_E_Any {
   type LowerR = Nothing
 
+  /**
+   * Sleeps for the specified duration. This method is asynchronous, and does
+   * not actually block the fiber.
+   */
   final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
     clock.sleep(duration)
 }
