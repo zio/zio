@@ -2,9 +2,9 @@
 
 Thank you for your interest in contributing to ZIO, which is a small, zero-dependency library for doing type-safe, composable concurrent and asynchronous programming!
 
-We welcome contributions from all people, you will learn about functional programming, and you will add your magical touch to the ZIO project
-We are happy to help you to get started and to hear your suggestions and to answer your questions.
-Yes, You can do it!
+We welcome contributions from all people! You will learn about functional programming, and you will add your own unique touch to the ZIO project. We are happy to help you to get started and to hear your suggestions and answer your questions.
+
+_You too can contribute to ZIO, we believe in you!_
 
 Please read the [Contributor License Agreement][#ZIO-Contributor-License-Agreement] before continuing below.
 
