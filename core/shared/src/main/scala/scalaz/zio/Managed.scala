@@ -30,11 +30,11 @@ final case class Managed[+E, +R](reserve: IO[E, Managed.Reservation[E, R]]) { se
       Ref.make[IO[Nothing, Any]](IO.unit).map { finalizers =>
         Reservation(
           acquire = for {
-            resR <- self.reserve
+            resR <- self.reserve.interruptible
                      .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
                      .uninterruptible
             r <- resR.acquire
-            resR1 <- f0(r).reserve
+            resR1 <- f0(r).reserve.interruptible
                       .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
                       .uninterruptible
             r1 <- resR1.acquire
@@ -62,9 +62,13 @@ final case class Managed[+E, +R](reserve: IO[E, Managed.Reservation[E, R]]) { se
         Reservation(
           acquire = {
             val left =
-              self.reserve.flatMap(res => finalizers.update(fs => res.release *> fs).const(res)).uninterruptible
+              self.reserve.interruptible
+                .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                .uninterruptible
             val right =
-              that.reserve.flatMap(res => finalizers.update(fs => res.release *> fs).const(res)).uninterruptible
+              that.reserve.interruptible
+                .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                .uninterruptible
 
             left.flatMap(_.acquire).zipWithPar(right.flatMap(_.acquire))(f0)
           },

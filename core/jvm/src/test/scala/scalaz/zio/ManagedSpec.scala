@@ -2,14 +2,13 @@ package scalaz.zio
 
 import org.specs2.ScalaCheck
 import scala.collection.mutable
-import duration._
 
 class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
   def is = "ManagedSpec".title ^ s2"""
   Managed.make
     Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse
     Properly performs parallel acquire and release. $parallelAcquireAndRelease
-    Constructs an uninterruptible Managed value. $uninterruptible
+    Constructs an interruptible Managed value. $interruptibleAcquire
   Managed.traverse
     Invokes cleanups in reverse order of acquisition. $traverse
   """
@@ -60,15 +59,15 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
 
-  private def uninterruptible = {
+  private def interruptibleAcquire = {
     val program = for {
       never              <- Promise.make[Nothing, Unit]
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- Managed.make(reachedAcquisition.succeed(()) *> never.await)(_ => IO.unit).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interrupt.timeout(5.seconds).attempt
+      interruption       <- managedFiber.interrupt
     } yield interruption
 
-    unsafeRun(program) must be_===(Right(None))
+    unsafeRun(program) must be_===(Exit.interrupt)
   }
 }

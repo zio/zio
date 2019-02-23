@@ -40,9 +40,9 @@ private[zio] final class FiberContext[E, A](
 
   private class Finalizer(val finalizer: IO[Nothing, _]) extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
-      noInterrupt += 1
+      noInterrupt += 0x10000
 
-      finalizer.flatMap(_ => IO.sync { noInterrupt -= 1; v })
+      finalizer.flatMap(_ => IO.sync { noInterrupt -= 0x10000; v })
     }
   }
 
@@ -185,8 +185,15 @@ private[zio] final class FiberContext[E, A](
                   // Enter suspended state:
                   curIo = if (enterAsync()) {
                     io.register(resumeAsync) match {
-                      case Async.Now(io) => if (exitAsync()) io else null
-                      case Async.Later   => null
+                      case Async.Now(io) if exitAsync() =>
+                        if (io.tag == IO.Tags.Point) {
+                          val point = io.asInstanceOf[IO.Point[Any]]
+                          nextInstr(point.value)
+                        } else {
+                          io
+                        }
+                      case Async.Later =>
+                        null
                     }
                   } else IO.interrupt
 
@@ -236,7 +243,7 @@ private[zio] final class FiberContext[E, A](
                     } else {
                       // We have finalizers to run. We'll resume executing with the
                       // uncaught failure after we have executed all the finalizers:
-                      curIo = doNotInterrupt(finalizer).flatMap(
+                      curIo = doNotInterruptFinalizer(finalizer).flatMap(
                         cause => IO.halt(cause.foldLeft(io.cause)(_ ++ _))
                       )
                     }
@@ -246,7 +253,7 @@ private[zio] final class FiberContext[E, A](
                     if (finalizer eq null) {
                       curIo = nextInstr(io.cause)
                     } else {
-                      curIo = doNotInterrupt(finalizer).map(_.foldLeft(io.cause)(_ ++ _))
+                      curIo = doNotInterruptFinalizer(finalizer).map(_.foldLeft(io.cause)(_ ++ _))
                     }
                   }
 
@@ -269,6 +276,11 @@ private[zio] final class FiberContext[E, A](
                   evaluateLater(IO.unit)
 
                   curIo = null
+
+                case IO.Tags.Interruptible =>
+                  val io = curIo.asInstanceOf[IO.Interruptible[E, Any]]
+
+                  curIo = enterInterruptible(io.io)
               }
             }
           } else {
@@ -317,7 +329,15 @@ private[zio] final class FiberContext[E, A](
    * @param value The value produced by the asynchronous computation.
    */
   private[this] final val resumeAsync: IO[E, Any] => Unit =
-    io => if (exitAsync()) evaluateLater(io)
+    io =>
+      if (exitAsync()) {
+        if (io.tag == IO.Tags.Point) {
+          val point = io.asInstanceOf[IO.Point[Any]]
+          evaluateLater(nextInstr(point.value))
+        } else {
+          evaluateLater(io)
+        }
+      }
 
   final def interrupt: IO[Nothing, Exit[E, A]] = IO.async0[Nothing, Exit[E, A]] { k =>
     kill0(x => k(IO.done(x)))
@@ -428,6 +448,23 @@ private[zio] final class FiberContext[E, A](
     io.ensuring(exitUninterruptible)
   }
 
+  private[this] final val exitInterruptible: IO[Nothing, Unit] = IO.sync { noInterrupt += 1 }
+
+  private[this] final def enterInterruptible[E, A](io: IO[E, A]): IO[E, A] =
+    if ((this.noInterrupt & 0xFFFF) == 1) {
+      this.noInterrupt -= 1
+      io.ensuring(exitInterruptible)
+    } else {
+      io
+    }
+
+  private[this] final val exitFinalizer: IO[Nothing, Unit] = IO.sync { noInterrupt -= 0x10000 }
+
+  private[this] final def doNotInterruptFinalizer[E, A](io: IO[E, A]): IO[E, A] = {
+    this.noInterrupt += 0x10000
+    io.ensuring(exitFinalizer)
+  }
+
   @tailrec
   private[this] final def terminate(io: IO[Nothing, Nothing]): IO[Nothing, Nothing] = {
 
@@ -438,7 +475,7 @@ private[zio] final class FiberContext[E, A](
           terminate(io)
         else {
           // Interruption cannot be interrupted:
-          noInterrupt += 1
+          noInterrupt += 0x10000
           io
         }
 
@@ -483,7 +520,7 @@ private[zio] final class FiberContext[E, A](
         if (!state.compareAndSet(oldState, Executing(true, true, FiberStatus.Running, observers))) kill0(k)
         else {
           // Interruption may not be interrupted:
-          noInterrupt += 1
+          noInterrupt += 0x10000
 
           evaluateLater(IO.interrupt)
 

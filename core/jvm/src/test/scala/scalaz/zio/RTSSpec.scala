@@ -91,8 +91,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     interrupt of never                      $testNeverIsInterruptible
     asyncPure is interruptible              $testAsyncPureIsInterruptible
     async is interruptible                  $testAsyncIsInterruptible
-    bracket acquire is uninterruptible      $testBracketAcquireIsUninterruptible
-    bracket0 acquire is uninterruptible     $testBracket0AcquireIsUninterruptible
+    bracket acquire is interruptible        $testBracketAcquireIsInterruptible
+    bracket0 acquire is interruptible       $testBracket0AcquireIsInterruptible
     bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
@@ -131,8 +131,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     interrupt of never                      $testNeverIsInterruptible
     asyncPure is interruptible              $testAsyncPureIsInterruptible
     async is interruptible                  $testAsyncIsInterruptible
-    bracket is uninterruptible              $testBracketAcquireIsUninterruptible
-    bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
+    interruptible inside uninterruptible is interruptible        $testInterruptibleInsideUninterruptibleIsInterruptible
+    interruptible inside two uninterruptibles is uninterruptible $testInterruptibleInsideUninterruptible2IsUninterruptible
+    uninterruptible inside interruptible is uninterruptible      $testUninterruptibleInsideInterruptibleIsUninterruptible
+    uninterruptible inside two interruptibles is uninterruptible $testUninterruptibleInsideInterruptible2IsUninterruptible
+    bracket acquire is interruptible        $testBracketAcquireIsInterruptible
+    bracket0 acquire is interruptible       $testBracket0AcquireIsInterruptible
     bracket use is interruptible            $testBracketUseIsInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
@@ -569,26 +573,66 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
     unsafeRun(io) must_=== 42
   }
 
-  def testBracketAcquireIsUninterruptible = {
+  def testInterruptibleInsideUninterruptibleIsInterruptible = {
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket[Nothing, Unit, Unit](promise.succeed(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        fiber   <- (promise.succeed(()) *> IO.never).interruptible.uninterruptible.fork
+        res     <- promise.await *> fiber.interrupt
+      } yield res
+    unsafeRun(io) must_=== Exit.interrupt
+  }
+
+  def testInterruptibleInsideUninterruptible2IsUninterruptible = {
+    val io =
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        fiber   <- (promise.succeed(()) *> IO.never).interruptible.uninterruptible.uninterruptible.fork
         res     <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
   }
 
-  def testBracket0AcquireIsUninterruptible = {
+  def testUninterruptibleInsideInterruptibleIsUninterruptible = {
+    val io =
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        fiber   <- (promise.succeed(()) *> IO.never).uninterruptible.interruptible.uninterruptible.fork
+        res     <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+      } yield res
+    unsafeRun(io) must_=== 42
+  }
+
+  def testUninterruptibleInsideInterruptible2IsUninterruptible = {
+    val io =
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        fiber   <- (promise.succeed(()) *> IO.never).uninterruptible.interruptible.interruptible.uninterruptible.fork
+        res     <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+      } yield res
+    unsafeRun(io) must_=== 42
+  }
+
+  def testBracketAcquireIsInterruptible = {
+    val io =
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        fiber   <- IO.bracket[Nothing, Unit, Unit](promise.succeed(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        res     <- promise.await *> fiber.interrupt
+      } yield res
+    unsafeRun(io) must_=== Exit.interrupt
+  }
+
+  def testBracket0AcquireIsInterruptible = {
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
         fiber <- IO
                   .bracket0[Nothing, Unit, Unit](promise.succeed(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
                   .fork
-        res <- promise.await *> fiber.interrupt.timeout0(42)(_ => 0)(1.second)
+        res <- promise.await *> fiber.interrupt
       } yield res
-    unsafeRun(io) must_=== 42
+    unsafeRun(io) must_=== Exit.interrupt
   }
 
   def testBracketReleaseOnInterrupt = {

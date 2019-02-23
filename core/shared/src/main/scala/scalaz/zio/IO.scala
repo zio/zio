@@ -494,6 +494,12 @@ sealed abstract class IO[+E, +A] extends Serializable { self =>
   final def uninterruptible: IO[E, A] = new IO.Uninterruptible(self)
 
   /**
+   * Performs this action interruptibly. Used for embedding interruptible sections
+   * inside `uninterruptible`.
+   */
+  final def interruptible: IO[E, A] = new IO.Interruptible(self)
+
+  /**
    * Recovers from all errors.
    *
    * {{{
@@ -875,6 +881,7 @@ object IO extends Serializable {
     final val Descriptor      = 11
     final val Lock            = 12
     final val Yield           = 13
+    final val Interruptible   = 14
   }
 
   final class FlatMap[E, A0, A] private[IO] (val io: IO[E, A0], val flatMapper: A0 => IO[E, A]) extends IO[E, A] {
@@ -943,6 +950,10 @@ object IO extends Serializable {
 
   final object Yield extends IO[Nothing, Unit] {
     override def tag = Tags.Yield
+  }
+
+  final class Interruptible[E, A] private[IO] (val io: IO[E, A]) extends IO[E, A] {
+    override def tag = Tags.Interruptible
   }
 
   /**
@@ -1249,8 +1260,8 @@ object IO extends Serializable {
                 Async.later
               case Right(io) => Async.now(IO.succeed(io))
             } finally if (!cancel.isSet) cancel.set(IO.unit)
-          })
-        }.onInterrupt(IO.flatten(IO.sync(if (started.get) cancel.get() else IO.unit)))
+          }).interruptible
+        }.onInterrupt(IO.flatten(IO.sync(if (started.get) cancel.get() else IO.unit))).uninterruptible
     }
   }
 
@@ -1354,7 +1365,9 @@ object IO extends Serializable {
   )(release: (A, Exit[E, B]) => IO[Nothing, _])(use: A => IO[E, B]): IO[E, B] =
     Ref.make[IO[Nothing, Any]](IO.unit).flatMap { m =>
       (for {
-        f <- acquire.flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _))))).uninterruptible
+        f <- acquire.interruptible
+              .flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _)))))
+              .uninterruptible
         b <- f.join
       } yield b).ensuring(IO.flatten(m.get))
     }
@@ -1369,7 +1382,7 @@ object IO extends Serializable {
   )(release: A => IO[Nothing, _])(use: A => IO[E, B]): IO[E, B] =
     Ref.make[IO[Nothing, Any]](IO.unit).flatMap { m =>
       (for {
-        a <- acquire.flatMap(a => m.set(release(a)).const(a)).uninterruptible
+        a <- acquire.interruptible.flatMap(a => m.set(release(a)).const(a)).uninterruptible
         b <- use(a)
       } yield b).ensuring(IO.flatten(m.get))
     }
