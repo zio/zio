@@ -175,6 +175,20 @@ object Exit extends Serializable {
       case Both(left, right) => Both(left.map(f), right.map(f))
     }
 
+    /**
+     * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+     * "most important" `Throwable`.
+     */
+    final def squash(implicit ev: E <:< Throwable): Throwable =
+      squashWith(ev)
+
+    /**
+     * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+     * "most important" `Throwable`.
+     */
+    final def squashWith(f: E => Throwable): Throwable =
+      (failures.map(f) ++ defects).headOption.getOrElse(new InterruptedException)
+
     final def failed: Boolean =
       self match {
         case Fail(_)           => true
