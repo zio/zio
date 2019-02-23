@@ -4,6 +4,7 @@ package scalaz.zio.internal
 import java.util.concurrent.atomic.AtomicReference
 
 import scalaz.zio.Exit.Cause
+import scalaz.zio.Exit.Cause.FinalizerErrors
 import scalaz.zio._
 
 import scala.annotation.{ switch, tailrec }
@@ -51,12 +52,12 @@ private[zio] final class FiberContext[E, A](
    * `IO` that produces an option of a cause of finalizer failures. If needed,
    * catch exceptions and apply redeem error handling.
    */
-  final def unwindStack: IO[Nothing, Option[Cause[Nothing]]] = {
-    def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
-      c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
+  final def unwindStack: IO[Nothing, Option[FinalizerErrors]] = {
+    def zipCauses(c1: Option[FinalizerErrors], c2: Option[FinalizerErrors]): Option[FinalizerErrors] =
+      c1.flatMap(c1 => c2.map(FinalizerErrors apply c1.nested ++ _.nested)).orElse(c1).orElse(c2)
 
-    var errorHandler: Any => IO[Any, Any]              = null
-    var finalizer: IO[Nothing, Option[Cause[Nothing]]] = null
+    var errorHandler: Any => IO[Any, Any]               = null
+    var finalizer: IO[Nothing, Option[FinalizerErrors]] = null
 
     // Unwind the stack, looking for exception handlers and coalescing
     // finalizers.
@@ -65,8 +66,8 @@ private[zio] final class FiberContext[E, A](
         case a: IO.Redeem[_, _, _, _] if allowRecovery =>
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
         case f0: Finalizer =>
-          val f: IO[Nothing, Option[Cause[Nothing]]] =
-            f0.finalizer.redeem0(c => IO.succeed(Some(c)), _ => IO.succeed(None))
+          val f: IO[Nothing, Option[FinalizerErrors]] =
+            f0.finalizer.redeem0(c => IO.succeed(Some(FinalizerErrors(c))), _ => IO.succeed(None))
           if (finalizer eq null) finalizer = f
           else finalizer = finalizer.zipWith(f)(zipCauses)
         case _ =>

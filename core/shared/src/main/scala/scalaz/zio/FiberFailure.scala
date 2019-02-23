@@ -16,6 +16,8 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
       case Cause.Interrupt          => "The fiber was terminated by an interruption"
       case Cause.Then(left, right)  => "Both fibers terminated in sequence: \n" + message(left) + "\n" + message(right)
       case Cause.Both(left, right)  => "Both fibers terminated in parallel: \n" + message(left) + "\n" + message(right)
+      case Cause.FinalizerErrors(c) =>
+        "Further errors occurred during finalization after fiber failure: \n" + message(c)
     }
   }
 }

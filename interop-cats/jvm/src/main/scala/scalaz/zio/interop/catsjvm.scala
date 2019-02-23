@@ -131,7 +131,13 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     case Exit.Failure(cause) =>
       cause.failureOrCause match {
         case Left(t) => ExitCase.Error(t)
-        case _       => ExitCase.Error(FiberFailure(cause))
+        case Right(defect) =>
+          defect.defects match {
+            case firstCausingDefect :: _ =>
+              ExitCase.Error(firstCausingDefect)
+            case Nil =>
+              ExitCase.Error(FiberFailure(cause))
+          }
       }
   }
 

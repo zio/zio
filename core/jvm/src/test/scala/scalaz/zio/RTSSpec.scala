@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause
-import scalaz.zio.Exit.Cause.{ Die, Fail, Then }
+import scalaz.zio.Exit.Cause.{ Die, Fail, FinalizerErrors, Then }
 import scalaz.zio.duration._
 import scalaz.zio.internal.Executor
 
@@ -272,9 +272,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         .run
     ) must_=== Exit.halt(
       Cause.fail(ExampleError) ++
-        Cause.die(InterruptCause1) ++
-        Cause.die(InterruptCause2) ++
-        Cause.die(InterruptCause3)
+        FinalizerErrors(
+          Die(InterruptCause1) ++
+            Die(InterruptCause2) ++
+            Die(InterruptCause3)
+        )
     )
 
   def testTerminateOfMultipleFailingFinalizers =
@@ -286,9 +288,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         .run
     ) must_=== Exit.halt(
       Cause.die(ExampleError) ++
-        Cause.die(InterruptCause1) ++
-        Cause.die(InterruptCause2) ++
-        Cause.die(InterruptCause3)
+        FinalizerErrors(
+          Die(InterruptCause1) ++
+            Die(InterruptCause2) ++
+            Die(InterruptCause3)
+        )
     )
 
   def testEvalOfFailEnsuring = {
@@ -325,7 +329,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
         .ensuring(IO.die(e2))
         .ensuring(IO.die(e3))
 
-    unsafeRun(nested) must (throwA(FiberFailure(Then(Fail(ExampleError), Then(Die(e2), Die(e3))))))
+    unsafeRun(nested) must (throwA(FiberFailure(Then(Fail(ExampleError), FinalizerErrors(Then(Die(e2), Die(e3)))))))
   }
 
   def testErrorInFinalizerIsReported = {
