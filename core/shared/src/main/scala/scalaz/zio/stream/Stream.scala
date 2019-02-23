@@ -507,7 +507,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
 
                 sink
                   .extract(s1)
-                  .redeem(_ => IO.succeed(s2), c => f(s2, c))
+                  .foldM(_ => IO.succeed(s2), c => f(s2, c))
               }
             }
           }

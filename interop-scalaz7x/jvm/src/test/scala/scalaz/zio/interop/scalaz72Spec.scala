@@ -24,7 +24,7 @@ class scalaz72Spec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   implicit def ioEqual[E: Equal, A: Equal]: Equal[IO[E, A]] =
     new Equal[IO[E, A]] {
       override def equal(io1: IO[E, A], io2: IO[E, A]): Boolean =
-        unsafeRun(io1.attempt) === unsafeRun(io2.attempt)
+        unsafeRun(io1.either) === unsafeRun(io2.either)
     }
 
   implicit def ioArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =

@@ -66,7 +66,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       reachedAcquisition <- Promise.make[Nothing, Unit]
       managedFiber       <- Managed.make(reachedAcquisition.succeed(()) *> never.await)(_ => IO.unit).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
-      interruption       <- managedFiber.interrupt.timeout(5.seconds).attempt
+      interruption       <- managedFiber.interrupt.timeout(5.seconds).either
     } yield interruption
 
     unsafeRun(program) must be_===(Right(None))

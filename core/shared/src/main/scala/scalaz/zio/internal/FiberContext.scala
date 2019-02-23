@@ -77,11 +77,11 @@ private[zio] final class FiberContext[E, A](
     // finalizers.
     while ((errorHandler eq null) && !stack.isEmpty) {
       stack.pop() match {
-        case a: ZIO.Redeem[_, _, _, _, _] if allowRecovery =>
+        case a: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
         case f0: Finalizer =>
           val f: UIO[Option[Cause[Nothing]]] =
-            f0.finalizer.redeem0(c => IO.succeed(Some(c)), _ => IO.succeed(None))
+            f0.finalizer.foldCauseM(c => IO.succeed(Some(c)), _ => IO.succeed(None))
           if (finalizer eq null) finalizer = f
           else finalizer = finalizer.zipWith(f)(zipCauses)
         case _ =>
@@ -193,8 +193,8 @@ private[zio] final class FiberContext[E, A](
                     }
                   } else IO.interrupt
 
-                case ZIO.Tags.Redeem =>
-                  val io = curIo.asInstanceOf[ZIO.Redeem[Any, E, Any, Any, Any]]
+                case ZIO.Tags.Fold =>
+                  val io = curIo.asInstanceOf[ZIO.Fold[Any, E, Any, Any, Any]]
 
                   curIo = io.value
 

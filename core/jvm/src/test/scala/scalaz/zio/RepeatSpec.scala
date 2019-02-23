@@ -93,7 +93,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       (for {
         ref <- Ref.make(0)
         _   <- incr(ref).repeat(Schedule.recurs(42))
-      } yield ()).redeem(
+      } yield ()).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )

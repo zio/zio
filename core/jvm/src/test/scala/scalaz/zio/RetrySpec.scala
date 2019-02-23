@@ -30,7 +30,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     type State = retry.State
 
     def loop(state: State, ss: List[(Duration, S)]): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] =
-      io.redeem(
+      io.foldM(
         err =>
           retry
             .update(err, state)
@@ -93,7 +93,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       (for {
         ref <- Ref.make(0)
         _   <- alwaysFail(ref).retry(Schedule.once)
-      } yield ()).redeem(
+      } yield ()).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("A failure was expected")
       )
@@ -108,7 +108,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       (for {
         ref <- Ref.make(0)
         i   <- alwaysFail(ref).retry(Schedule.recurs(0))
-      } yield i).redeem(
+      } yield i).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
       )
@@ -179,7 +179,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       (for {
         ref <- Ref.make(0)
         i   <- alwaysFail(ref).retryOrElse(Schedule.once, (_: String, _: Unit) => IO.fail("OrElseFailed"))
-      } yield i).redeem(
+      } yield i).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
       )

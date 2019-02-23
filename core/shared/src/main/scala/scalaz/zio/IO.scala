@@ -169,12 +169,12 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
     raceWith(that)(
       (exit, right) =>
-        exit.redeem[E1, Either[A, B]](
+        exit.foldM[E1, Either[A, B]](
           _ => right.join.map(Right(_)),
           a => ZIO.succeedLeft(a) <* right.interrupt
         ),
       (exit, left) =>
-        exit.redeem[E1, Either[A, B]](
+        exit.foldM[E1, Either[A, B]](
           _ => left.join.map(Left(_)),
           b => ZIO.succeedRight(b) <* left.interrupt
         )
@@ -236,7 +236,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * otherwise executes the specified effect.
    */
   final def orElse[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
-    redeemOrElse(that, ZIO.succeed)
+    tryOrElse(that, ZIO.succeed)
 
   /**
    * Operator alias for `orElse`.
@@ -249,13 +249,13 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * fails, in which case, it will produce the value of the specified effect.
    */
   final def orElseEither[R1 <: R, E2, B](that: => ZIO[R1, E2, B]): ZIO[R1, E2, Either[A, B]] =
-    redeemOrElse(that.map(Right(_)), ZIO.succeedLeft)
+    tryOrElse(that.map(Right(_)), ZIO.succeedLeft)
 
-  private final def redeemOrElse[R1 <: R, E2, B](that: => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+  private final def tryOrElse[R1 <: R, E2, B](that: => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
     (self.tag: @switch) match {
       case ZIO.Tags.Fail => that
 
-      case _ => new ZIO.Redeem[R1, E, E2, A, B](self, _ => that, succ)
+      case _ => new ZIO.Fold[R1, E, E2, A, B](self, _ => that, succ)
     }
 
   /**
@@ -273,7 +273,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * error.
    */
   final def mapError[E2](f: E => E2): ZIO[R, E2, A] =
-    self.redeem(f.andThen(ZIO.fail), ZIO.succeed)
+    self.foldM(f.andThen(ZIO.fail), ZIO.succeed)
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -296,7 +296,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * use all methods on the error channel, possibly before flipping back.
    */
   final def flip: ZIO[R, A, E] =
-    self.redeem(ZIO.succeed, ZIO.fail)
+    self.foldM(ZIO.succeed, ZIO.fail)
 
   /**
    * Recovers from errors by accepting one effect to execute for the case of an
@@ -309,19 +309,19 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it will depend on the `IO`s returned by the given continuations.
    */
-  final def redeem[R1 <: R, E2, B](err: E => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    redeem0((cause: Cause[E]) => cause.failureOrCause.fold(err, ZIO.halt), succ)
+  final def foldM[R1 <: R, E2, B](err: E => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+    foldCauseM((cause: Cause[E]) => cause.failureOrCause.fold(err, ZIO.halt), succ)
 
   /**
-   * A more powerful version of redeem that allows recovering from any kind of failure except interruptions.
+   * A more powerful version of `foldM` that allows recovering from any kind of failure except interruptions.
    */
-  final def redeem0[R1 <: R, E2, B](err: Cause[E] => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+  final def foldCauseM[R1 <: R, E2, B](err: Cause[E] => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
     (self.tag: @switch) match {
       case ZIO.Tags.Fail =>
         val io = self.asInstanceOf[ZIO.Fail[E]]
         err(io.cause)
 
-      case _ => new ZIO.Redeem(self, err, succ)
+      case _ => new ZIO.Fold(self, err, succ)
     }
 
   /**
@@ -330,7 +330,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * function passed to `fold`.
    */
   final def fold[B](err: E => B, succ: A => B): ZIO[R, Nothing, B] =
-    redeem(err.andThen(ZIO.succeed), succ.andThen(ZIO.succeed))
+    foldM(err.andThen(ZIO.succeed), succ.andThen(ZIO.succeed))
 
   /**
    * Returns an effect whose failure and success have been lifted into an
@@ -342,8 +342,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * The error parameter of the returned `ZIO` is `Nothing`, since it is
    * guaranteed the `ZIO` effect does not model failure.
    */
-  final def attempt: ZIO[R, Nothing, Either[E, A]] =
-    self.redeem(ZIO.succeedLeft, ZIO.succeedRight)
+  final def either: ZIO[R, Nothing, Either[E, A]] =
+    self.foldM(ZIO.succeedLeft, ZIO.succeedRight)
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
@@ -362,7 +362,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Executes this effect, skipping the error but returning optionally the success.
    */
   final def option: ZIO[R, Nothing, Option[A]] =
-    self.redeem0(_ => IO.succeed(None), a => IO.succeed(Some(a)))
+    self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
   /**
    * When this effect represents acquisition of a resource (for example,
@@ -525,7 +525,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    */
   final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
-    self.redeem[R1, E2, A1](h, ZIO.succeed)
+    self.foldM[R1, E2, A1](h, ZIO.succeed)
 
   /**
    * Recovers from some or all of the error cases.
@@ -539,7 +539,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = {
     def tryRescue(t: E): ZIO[R1, E1, A1] = pf.applyOrElse(t, (_: E) => ZIO.fail[E1](t))
 
-    self.redeem[R1, E1, A1](tryRescue, ZIO.succeed)
+    self.foldM[R1, E1, A1](tryRescue, ZIO.succeed)
   }
 
   /**
@@ -662,7 +662,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
   ): ZIO[R1 with Clock, E2, Either[C, B]] = {
     def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
-      self.redeem(
+      self.foldM(
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule.update(a, state).flatMap { step =>
@@ -704,7 +704,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     orElse: (E1, S) => ZIO[R1, E2, B]
   ): ZIO[R1 with Clock, E2, Either[B, A]] = {
     def loop(state: policy.State): ZIO[R1 with Clock, E2, Either[B, A]] =
-      self.redeem(
+      self.foldM(
         err =>
           policy
             .update(err, state)
@@ -765,7 +765,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    */
   final def timeoutTo[B](z: B)(f: A => B)(duration: Duration): ZIO[R with Clock, E, B] =
-    self.map(f).sandboxWith[R with Clock, E, B](io => ZIO.absolve(io.attempt race ZIO.succeedRight(z).delay(duration)))
+    self.map(f).sandboxWith[R with Clock, E, B](io => ZIO.absolve(io.either race ZIO.succeedRight(z).delay(duration)))
 
   /**
    * The same as [[timeout]], but instead of producing a `None` in the event
@@ -822,7 +822,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * producing an [[scalaz.zio.Exit]] for the completion value of the fiber.
    */
   final def run: ZIO[R, Nothing, Exit[E, A]] =
-    new ZIO.Redeem[R, E, Nothing, A, Exit[E, A]](
+    new ZIO.Fold[R, E, Nothing, A, Exit[E, A]](
       self,
       cause => ZIO.succeed(Exit.halt(cause)),
       succ => ZIO.succeed(Exit.succeed(succ))
@@ -857,7 +857,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    *   }
    * }}}
    */
-  final def sandbox: ZIO[R, Cause[E], A] = redeem0(ZIO.fail, ZIO.succeed)
+  final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail, ZIO.succeed)
 
   /**
    * The inverse operation to `sandbox`
@@ -1502,7 +1502,7 @@ object ZIO extends ZIO_R_Any {
     final val Defer           = 2
     final val Fail            = 3
     final val Async           = 4
-    final val Redeem          = 5
+    final val Fold            = 5
     final val Fork            = 6
     final val Uninterruptible = 7
     final val Supervise       = 8
@@ -1529,14 +1529,14 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Async
   }
 
-  final class Redeem[R, E, E2, A, B](
+  final class Fold[R, E, E2, A, B](
     val value: ZIO[R, E, A],
     val err: Cause[E] => ZIO[R, E2, B],
     val succ: A => ZIO[R, E2, B]
   ) extends ZIO[R, E2, B]
       with Function[A, ZIO[R, E2, B]] {
 
-    override def tag = Tags.Redeem
+    override def tag = Tags.Fold
 
     final def apply(v: A): ZIO[R, E2, B] = succ(v)
   }
