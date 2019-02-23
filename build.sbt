@@ -2,6 +2,7 @@
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
 import xerial.sbt.Sonatype._
+import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 
 name := "scalaz-zio"
 
