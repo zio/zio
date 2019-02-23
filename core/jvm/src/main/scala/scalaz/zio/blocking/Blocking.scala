@@ -25,8 +25,8 @@ import scalaz.zio.internal.PlatformLive
 /**
  * The `Blocking` module provides access to a thread pool that can be used for performing
  * blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
- * The contract is that the thread pool will accept unlimited tasks (up to the available)
- * memory, and continuously create new threads as necessary.
+ * The contract is that the thread pool will accept unlimited tasks (up to the available memory)
+ * and continuously create new threads as necessary.
  */
 trait Blocking extends Serializable {
   val blocking: Blocking.Service[Any]

@@ -37,7 +37,7 @@ import scala.util.{ Failure, Success }
  * overhead.
  *
  * `ZIO` values are ordinary immutable values, and may be used like any other
- * values in purely functional code. Because `ZIO` values just *model* effects
+ * value in purely functional code. Because `ZIO` values just *model* effects
  * (like input / output), which must be interpreted by a separate runtime system,
  * `ZIO` values are entirely pure and do not violate referential transparency.
  *
@@ -132,8 +132,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, combining their results with the specified `f` function. If
-   * either side fails, then the other side will be interrupted, interrupted
-   * the result.
+   * either side fails, then the other side will be interrupted.
    */
   final def zipWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] = {
     def coordinate[A, B](f: (A, B) => C)(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
@@ -147,7 +146,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
-   * in paralllel, combining their results into a tuple. If either side fails,
+   * in parallel, combining their results into a tuple. If either side fails,
    * then the other side will be interrupted, interrupted the result.
    */
   final def zipPar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
@@ -228,7 +227,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect that races this effect with all the specified effects,
    * yielding the value of the first effect to succeed with a value.
-   * Losers of the race will be interminated immediately.
+   * Losers of the race will be interrupted immediately
    */
   def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = ZIO.raceAll(self, ios)
 
@@ -557,7 +556,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     self.catchAll(err => pf.lift(err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
 
   /**
-   * Keeps none of the errors, and terminates the fiber with any.
+   * Translates effect failure into death of the fiber, making all failures unchecked and
+   * not a part of the type of the effect.
    */
   final def orDie[E1 >: E](implicit ev: E1 <:< Throwable): ZIO[R, Nothing, A] =
     orDieWith(ev)
@@ -948,9 +948,9 @@ trait ZIOFunctions extends Serializable {
   final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
 
   /**
-   * Returns an effect tha tmodels success with the specified lazily evaluated
+   * Returns an effect that models success with the specified lazily-evaluated
    * value. This method should not be used to capture effects. See
-   * [[IO.defer]] for capturing total effects, and `[[IO.sync]] for capturing
+   * `[[IO.defer]]` for capturing total effects, and `[[IO.sync]]` for capturing
    * partial effects.
    */
   final def succeedLazy[A](a: => A): UIO[A] = defer(a)
@@ -1233,9 +1233,9 @@ trait ZIOFunctions extends Serializable {
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
 
   /**
-   * Acquires a resource, do some work with it, and then release that resource. `bracket`
-   * will release the resource no matter the outcome of the computation, and will
-   * re-throw any exception that occurred in between.
+   * Acquires a resource, do some work with it, and then release that resource.
+   * `bracket` releases the resource no matter the outcome of the computation, and
+   * re-throws any exception that occurred in between.
    */
   final def bracket[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A, B](
     acquire: ZIO[R, E, A]

@@ -1,8 +1,10 @@
-# ZIO Contributor Guidelinews
+# ZIO Contributor Guidelines
 
 Thank you for your interest in contributing to ZIO, which is a small, zero-dependency library for doing type-safe, composable concurrent and asynchronous programming!
 
-We welcome contributions from all people, regardless of religious or political backgrounds, sex, sexual-orientation, gender, gender-orientation, gender expression, race, skin color, ethnic origin, physical or intellectual ability, age, body size, experience, or any other personal attributes.
+We welcome contributions from all people, you will learn about functional programming, and you will add your magical touch to the ZIO project
+We are happy to help you to get started and to hear your suggestions and to answer your questions.
+Yes, You can do it!
 
 Please read the [Contributor License Agreement][#ZIO-Contributor-License-Agreement] before continuing below.
 
@@ -26,7 +28,7 @@ If you don't already have one, sign up for a free [Github Account](https://githu
 
 After you [log into](https://github.com/login) Github using your account, go to the [ZIO Project Page](https://github.com/scalaz/scalaz-zio), and click on [Fork](https://github.com/scalaz/scalaz-zio/fork) to fork the ZIO repository into your own account.
 
-You will make _all_ contributions from your own account. No one contributes _directly_ to the main repository. Contributes only ever merge code from other people's forks into the main repository.
+You will make _all_ contributions from your own account. No one contributes _directly_ to the main repository. Contributors only ever merge code from other people's forks into the main repository.
 
 Once you have forked the repository, you can now clone your forked repository to your own machine, so you have a complete copy of the project and can begin safely making your modifications (even without an Internet connection).
 
@@ -65,7 +67,7 @@ compile
 You can compile the test source code with the following SBT command:
 
 ```bash
-test
+compile:test
 ```
 
 [Learn more](https://www.scala-sbt.org) about SBT to understand how you can list projects, switch projects, and otherwise manage an SBT project.
@@ -122,7 +124,7 @@ At this point, you have saved your work locally, to your machine, but you still 
 git push
 ```
 
-Now while you were working on this great improvements, it's quite likely that other ZIO contributors were making their own improvements. You need to pull all those improvements into your own code base to resolve any conflicts and make sure the changes all work well together.
+Now while you were working on this great improvement, it's quite likely that other ZIO contributors were making their own improvements. You need to pull all those improvements into your own code base to resolve any conflicts and make sure the changes all work well together.
 
 To do that, use the `git pull` command:
 

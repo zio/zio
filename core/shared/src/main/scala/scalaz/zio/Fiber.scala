@@ -223,7 +223,7 @@ object Fiber {
   final def interrupt: Fiber[Nothing, Nothing] = done(Exit.interrupt)
 
   /**
-   * Returns a fiber that is already succeeded with the specified value.
+   * Returns a fiber that has already succeeded with the specified value.
    */
   final def succeed[E, A](a: A): Fiber[E, A] = done(Exit.succeed(a))
 
@@ -234,7 +234,7 @@ object Fiber {
   final def succeedLazy[E, A](a: => A): Fiber[E, A] = done(Exit.succeed(a))
 
   /**
-   * Interupts all fibers, awaiting their interruption.
+   * Interrupts all fibers, awaiting their interruption.
    */
   final def interruptAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
