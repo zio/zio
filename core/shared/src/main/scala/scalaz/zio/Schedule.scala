@@ -363,7 +363,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Sends every output value to the specified sink.
    */
-  final def logOutput[R1 <: R](f: B => UIO[Unit]): Schedule[R1, A, B] =
+  final def logOutput[R1 <: R](f: B => ZIO[R1, Nothing, Unit]): Schedule[R1, A, B] =
     updated[R1, A, B](update => (a, s) => update(a, s).flatMap(step => f(step.finish()) *> IO.succeed(step)))
 
   /**
