@@ -1,4 +1,3 @@
-// Copyright (C) 2017 John A. De Goes. All rights reserved.
 package scalaz.zio
 
 object IOBenchmarks extends DefaultRuntime {
