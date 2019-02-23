@@ -32,7 +32,7 @@ object Task {
                 case Failure(t) => cb(IO.fail(t))
               }(ec)
             }
-          )(IO.fromTry(_))
+          )(IO.fromTry)
       )
     }
 }

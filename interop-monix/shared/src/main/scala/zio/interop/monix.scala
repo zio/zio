@@ -10,7 +10,7 @@ object monixio {
       Task.fromFuture(scheduler)(Task(task.runToFuture))
 
     def fromCoeval[A](coeval: eval.Coeval[A]): Task[A] =
-      IO.fromTry(coeval.runTry())
+      IO.fromTrySync(coeval.runTry())
   }
 
   implicit class IOThrowableOps[A](private val io: Task[A]) extends AnyVal {

@@ -1289,13 +1289,25 @@ object IO extends Serializable {
     v.fold[IO[Unit, A]](IO.fail(()))(IO.succeed)
 
   /**
-   * Imports a `Try` into an `IO`.
+   * Lifts a `Try` into an `IO`.
    */
-  final def fromTry[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
-    syncThrowable(effect).flatMap {
-      case scala.util.Success(v) => IO.succeed(v)
+  final def fromTry[A](v: scala.util.Try[A]): IO[Throwable, A] =
+    v match {
+      case scala.util.Success(a) => IO.succeed(a)
       case scala.util.Failure(t) => IO.fail(t)
     }
+
+  /**
+   * Imports an effect producing `Either` into an `IO`.
+   */
+  final def fromEitherSync[E, A](effect: => Either[E, A]): IO[E, A] =
+    sync(effect).flatMap(fromEither)
+
+  /**
+   * Imports an effect producing `Try` into an `IO`.
+   */
+  final def fromTrySync[A](effect: => scala.util.Try[A]): IO[Throwable, A] =
+    syncThrowable(effect).flatMap(fromTry)
 
   /**
    * Creates an `IO` value that represents the exit value of the specified
