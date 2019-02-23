@@ -898,6 +898,24 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.unsandbox(f(self.sandbox))
 
   /**
+   * Attempts to convert defects into a failure, throwing away all information
+   * about the cause of the failure.
+   */
+  final def absorb(implicit ev: E <:< Throwable): ZIO[R, Throwable, A] =
+    absorbWith(ev)
+
+  /**
+   * Attempts to convert defects into a failure, throwing away all information
+   * about the cause of the failure.
+   */
+  final def absorbWith(f: E => Throwable): ZIO[R, Throwable, A] =
+    self.sandbox
+      .foldM(
+        cause => ZIO.fail((cause.failures.map(f) ++ cause.defects).headOption.getOrElse(new InterruptedException)),
+        ZIO.succeed(_)
+      )
+
+  /**
    * Returns an effect that keeps or breaks a promise based on the result of
    * this effect. Synchronizes interruption, so if this effect is interrupted,
    * the specified promise will be interrupted, too.
@@ -1195,7 +1213,7 @@ trait ZIOFunctions extends Serializable {
    * operation of `IO.attempt`.
    */
   final def absolve[R >: LowerR, E <: UpperE, A](v: ZIO[R, E, Either[E, A]]): ZIO[R, E, A] =
-    v.flatMap(fromEither)
+    v.flatMap(fromEither(_))
 
   /**
    * The inverse operation `IO.sandboxed`
@@ -1208,15 +1226,15 @@ trait ZIOFunctions extends Serializable {
   /**
    * Lifts an `Either` into a `ZIO` value.
    */
-  final def fromEither[E <: UpperE, A](v: Either[E, A]): IO[E, A] =
-    v.fold(fail, succeed)
+  final def fromEither[E <: UpperE, A](v: => Either[E, A]): IO[E, A] =
+    defer(v).flatMap(_.fold(fail, succeed))
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
-  final def fromFiber[E <: UpperE, A](fiber: Fiber[E, A]): IO[E, A] =
-    fiber.join
+  final def fromFiber[E <: UpperE, A](fiber: => Fiber[E, A]): IO[E, A] =
+    defer(fiber).flatMap(_.join)
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
@@ -1396,8 +1414,8 @@ trait ZIO_E_Any extends ZIO_E_Throwable {
   /**
    * Lifts an `Option` into a `ZIO`.
    */
-  final def fromOption[A](v: Option[A]): IO[Unit, A] =
-    v.fold[IO[Unit, A]](fail(()))(succeed(_))
+  final def fromOption[A](v: => Option[A]): IO[Unit, A] =
+    defer(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed(_)))
 }
 
 trait ZIO_E_Throwable extends ZIOFunctions {
