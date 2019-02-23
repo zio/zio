@@ -597,7 +597,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       for {
         promise <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracket0[Any, Nothing, Unit, Unit](promise.succeed(()) *> IO.never)((_, _) => IO.unit)(_ => IO.unit)
+                  .bracketExit[Any, Nothing, Unit, Unit](promise.succeed(()) *> IO.never)((_, _) => IO.unit)(
+                    _ => IO.unit
+                  )
                   .fork
         res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
@@ -624,7 +626,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         p1 <- Promise.make[Nothing, Unit]
         p2 <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracket0[Any, Nothing, Unit, Unit](IO.unit)((_, _) => p2.succeed(()) *> IO.unit)(
+                  .bracketExit[Any, Nothing, Unit, Unit](IO.unit)((_, _) => p2.succeed(()) *> IO.unit)(
                     _ => p1.succeed(()) *> IO.never
                   )
                   .fork
@@ -701,7 +703,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       exitLatch  <- Promise.make[Nothing, Int]
       bracketed = IO
         .succeed(21)
-        .bracket0[Any, Nothing, Unit] {
+        .bracketExit[Any, Nothing, Unit] {
           case (r, e) if e.interrupted => exitLatch.succeed(r)
           case (_, _)                  => IO.die(new Error("Unexpected case"))
         }(a => startLatch.succeed(a) *> IO.never)
@@ -785,7 +787,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testBracket0UseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracket0[Any, Nothing, Unit, Unit](IO.unit)((_, _) => IO.unit)(_ => IO.never).fork
+        fiber <- IO.bracketExit[Any, Nothing, Unit, Unit](IO.unit)((_, _) => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 0
