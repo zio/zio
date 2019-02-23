@@ -76,7 +76,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def t5 = forAll { (i: Int) =>
-    val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).attempt)
+    val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).either)
     res must_=== Left(i.toString)
   }
 
@@ -136,7 +136,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         val2      <- effectRef.get
         failure   = new Exception("expected")
         _         <- IO.fail(failure).when(false)
-        failed    <- IO.fail(failure).when(true).attempt
+        failed    <- IO.fail(failure).when(true).either
       } yield
         (val1 must_=== 0) and
           (val2 must_=== 2) and
@@ -158,7 +158,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         conditionVal2  <- conditionRef.get
         failure        = new Exception("expected")
         _              <- IO.fail(failure).whenM(conditionFalse)
-        failed         <- IO.fail(failure).whenM(conditionTrue).attempt
+        failed         <- IO.fail(failure).whenM(conditionTrue).either
       } yield
         (val1 must_=== 0) and
           (conditionVal1 must_=== 1) and
@@ -171,7 +171,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     val failure: IO[Exit.Cause[Exception], String] = IO.fail(Cause.fail(new Exception("fail")))
     val success: IO[Exit.Cause[Any], Int]          = IO.succeed(100)
     unsafeRun(for {
-      message <- failure.unsandbox.redeem(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
+      message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
       result  <- success.unsandbox
     } yield (message must_=== "fail") and (result must_=== 100))
   }

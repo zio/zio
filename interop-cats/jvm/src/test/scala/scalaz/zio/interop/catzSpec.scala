@@ -132,7 +132,7 @@ class catzSpec
   implicit def catsParEQ[E: Eq, A: Eq]: Eq[ParIO[E, A]] =
     new Eq[ParIO[E, A]] {
       def eqv(io1: ParIO[E, A], io2: ParIO[E, A]): Boolean =
-        unsafeRun(Par.unwrap(io1).attempt) === unsafeRun(Par.unwrap(io2).attempt)
+        unsafeRun(Par.unwrap(io1).either) === unsafeRun(Par.unwrap(io2).either)
     }
 
   implicit def params: Parameters =

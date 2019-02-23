@@ -64,7 +64,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     val n = 1L
     unsafeRun(for {
       s       <- Semaphore.make(n)
-      _       <- s.acquireN(2).timeout(1.milli).attempt
+      _       <- s.acquireN(2).timeout(1.milli).either
       permits <- s.release *> clock.sleep(10.millis) *> s.count
     } yield permits) must_=== 2
   }
@@ -76,7 +76,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     val n = 0L
     unsafeRun(for {
       s       <- Semaphore.make(n)
-      _       <- s.withPermit(s.release).timeout(1.milli).attempt
+      _       <- s.withPermit(s.release).timeout(1.milli).either
       permits <- s.release *> clock.sleep(10.millis) *> s.count
     } yield permits must_=== 1L)
   }

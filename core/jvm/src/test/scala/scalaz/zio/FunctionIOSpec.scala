@@ -182,14 +182,14 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
   def e18a =
     unsafeRun(
       for {
-        a <- fail[String]("error").run(1).attempt
+        a <- fail[String]("error").run(1).either
       } yield a must_=== Left("error")
     )
 
   def e18b =
     unsafeRun(
       for {
-        a <- impure[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).attempt
+        a <- impure[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).either
       } yield a must_=== Left("error")
     )
 }

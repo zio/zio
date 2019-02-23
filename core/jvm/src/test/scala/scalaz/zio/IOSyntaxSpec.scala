@@ -28,8 +28,8 @@ class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def t2 = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
-      a <- str.fail.attempt
-      b <- IO.fail(str).attempt
+      a <- str.fail.either
+      b <- IO.fail(str).either
     } yield a must ===(b))
   }
 

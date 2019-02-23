@@ -194,7 +194,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testFlipValue = {
     val io = IO.succeed(100).flip
-    unsafeRun(io.attempt) must_=== Left(100)
+    unsafeRun(io.either) must_=== Left(100)
   }
 
   def testFlipDouble = {
@@ -213,7 +213,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testManualSyncOnDefer = {
     def sync[A](effect: => A): IO[Throwable, A] =
       IO.defer(effect)
-        .redeem0({
+        .foldCauseM({
           case Cause.Die(t) => IO.fail(t)
           case cause        => IO.halt(cause)
         }, IO.succeed(_))
@@ -231,14 +231,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     ) must_=== Some(ExampleError)
 
   def testEvalOfAttemptOfFail = Seq(
-    unsafeRun(IO.fail[Throwable](ExampleError).attempt) must_=== Left(ExampleError),
-    unsafeRun(IO.suspend(IO.suspend(IO.fail[Throwable](ExampleError)).attempt)) must_=== Left(
+    unsafeRun(IO.fail[Throwable](ExampleError).either) must_=== Left(ExampleError),
+    unsafeRun(IO.suspend(IO.suspend(IO.fail[Throwable](ExampleError)).either)) must_=== Left(
       ExampleError
     )
   )
 
   def testSandboxAttemptOfTerminate =
-    unsafeRun(IO.defer[Int](throw ExampleError).sandbox.attempt) must_=== Left(Die(ExampleError))
+    unsafeRun(IO.defer[Int](throw ExampleError).sandbox.either) must_=== Left(Die(ExampleError))
 
   def testSandboxFoldOfTerminate =
     unsafeRun(
@@ -253,10 +253,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     ) must_=== Die(ExampleError)
 
   def testAttemptOfDeepSyncEffectError =
-    unsafeRun(deepErrorEffect(100).attempt) must_=== Left(ExampleError)
+    unsafeRun(deepErrorEffect(100).either) must_=== Left(ExampleError)
 
   def testAttemptOfDeepFailError =
-    unsafeRun(deepErrorFail(100).attempt) must_=== Left(ExampleError)
+    unsafeRun(deepErrorFail(100).either) must_=== Left(ExampleError)
 
   def testEvalOfUncaughtFail =
     unsafeRun(Task.fail(ExampleError): Task[Any]) must (throwA(FiberFailure(Fail(ExampleError))))
@@ -373,7 +373,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testBracketRethrownCaughtErrorInAcquisition = {
     lazy val actual = unsafeRun(
-      IO.absolve(IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit).attempt)
+      IO.absolve(IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit).either)
     )
 
     actual must (throwA(FiberFailure(Fail(ExampleError))))
@@ -390,7 +390,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafeRun(
       IO.absolve(
-        IO.bracket(IO.unit)(_ => IO.unit)(_ => Task.fail(ExampleError): Task[Unit]).attempt
+        IO.bracket(IO.unit)(_ => IO.unit)(_ => Task.fail(ExampleError): Task[Unit]).either
       )
     )
 
@@ -403,8 +403,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
     unsafeRun(io1) must (throwA(FiberFailure(Fail(ExampleError))))
     unsafeRun(io2) must (throwA(FiberFailure(Fail(ExampleError))))
-    unsafeRun(IO.absolve(io1.attempt)) must (throwA(FiberFailure(Fail(ExampleError))))
-    unsafeRun(IO.absolve(io2.attempt)) must (throwA(FiberFailure(Fail(ExampleError))))
+    unsafeRun(IO.absolve(io1.either)) must (throwA(FiberFailure(Fail(ExampleError))))
+    unsafeRun(IO.absolve(io2.either)) must (throwA(FiberFailure(Fail(ExampleError))))
   }
 
   def testBracketRegression1 = {
@@ -490,7 +490,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testDeepAttemptIsStackSafe =
     unsafeRun((0 until 10000).foldLeft(IO.sync[Unit](())) { (acc, _) =>
-      acc.attempt.void
+      acc.either.void
     }) must_=== (())
 
   def testDeepFlatMapIsStackSafe = {
@@ -509,12 +509,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testDeepAbsolveAttemptIsIdentity =
-    unsafeRun((0 until 1000).foldLeft(IO.succeedLazy[Int](42))((acc, _) => IO.absolve(acc.attempt))) must_=== 42
+    unsafeRun((0 until 1000).foldLeft(IO.succeedLazy[Int](42))((acc, _) => IO.absolve(acc.either))) must_=== 42
 
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafeRun(
       (0 until 1000)
-        .foldLeft(IO.async[Int, Int](k => k(IO.succeed(42))))((acc, _) => IO.absolve(acc.attempt))
+        .foldLeft(IO.async[Int, Int](k => k(IO.succeed(42))))((acc, _) => IO.absolve(acc.either))
     ) must_=== 42
 
   def testAsyncEffectReturns =
@@ -797,7 +797,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _ <- (clock.sleep(200.millis) *> IO.unit).fork
       _ <- (clock.sleep(400.millis) *> IO.unit).fork
     } yield ()).superviseWith { fs =>
-      fs.foldLeft(IO.unit)((io, f) => io *> f.join.attempt *> IO.defer(counter += 1))
+      fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> IO.defer(counter += 1))
     })
     counter must_=== 2
   }
@@ -852,13 +852,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield r) must_=== (1 -> 2)
 
   def testRaceChoosesWinner =
-    unsafeRun(IO.fail(42).race(IO.succeed(24)).attempt) must_=== Right(24)
+    unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
 
   def testRaceChoosesWinnerInTerminate =
-    unsafeRun(IO.die(new Throwable {}).race(IO.succeed(24)).attempt) must_=== Right(24)
+    unsafeRun(IO.die(new Throwable {}).race(IO.succeed(24)).either) must_=== Right(24)
 
   def testRaceChoosesFailure =
-    unsafeRun(IO.fail(42).race(IO.fail(42)).attempt) must_=== Left(42)
+    unsafeRun(IO.fail(42).race(IO.fail(42)).either) must_=== Left(42)
 
   def testRaceOfValueNever =
     unsafeRun(IO.succeedLazy(42).race(IO.never)) must_=== 42
@@ -867,15 +867,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(IO.fail(24).race(IO.never).timeout(10.milliseconds)) must beNone
 
   def testRaceAllOfValues =
-    unsafeRun(IO.raceAll(IO.fail(42), List(IO.succeed(24))).attempt) must_=== Right(24)
+    unsafeRun(IO.raceAll(IO.fail(42), List(IO.succeed(24))).either) must_=== Right(24)
 
   def testRaceAllOfFailures =
-    unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).attempt) must_=== Left(
+    unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).either) must_=== Left(
       24
     )
 
   def testRaceAllOfFailuresOneSuccess =
-    unsafeRun(ZIO.raceAll(IO.fail(42), List(IO.succeed(24).delay(1.millis))).attempt) must_=== Right(
+    unsafeRun(ZIO.raceAll(IO.fail(42), List(IO.succeed(24).delay(1.millis))).either) must_=== Right(
       24
     )
 
@@ -886,7 +886,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       winner = s.acquire *> IO.async[Throwable, Unit](_(IO.unit))
       loser  = IO.bracket(s.release)(_ => effect.succeed(42).void)(_ => IO.never)
       race   = winner raceEither loser
-      _      <- race.attempt
+      _      <- race.either
       b      <- effect.await
     } yield b) must_=== 42
 
@@ -905,7 +905,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       winner = s.await *> IO.fromEither(Left(new Exception))
       loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
       race   = winner raceAttempt loser
-      _      <- race.attempt
+      _      <- race.either
       b      <- effect.await
     } yield b) must_=== 42
 
@@ -963,7 +963,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         if (c.incrementAndGet() <= 1) throw new RuntimeException("x")
       }.forever
         .ensuring(IO.unit)
-        .attempt
+        .either
         .forever
 
     unsafeRun(
@@ -978,7 +978,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testManualSyncInterruption = {
     def sync[A](effect: => A): IO[Throwable, A] =
       IO.defer(effect)
-        .redeem0({
+        .foldCauseM({
           case Cause.Die(t) => IO.fail(t)
           case cause        => IO.halt(cause)
         }, IO.succeed(_))

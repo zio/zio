@@ -211,7 +211,7 @@ trait Sink[-R, +E, +A0, -A, +B] { self =>
         self.step(state, a).flatMap { s =>
           if (Step.cont(s))
             extract(Step.state(s))
-              .redeem(
+              .foldM(
                 _ => IO.succeed(s),
                 b => if (f(b)) IO.succeed(Step.done(Step.state(s), Chunk.empty)) else IO.succeed(s)
               )
@@ -238,7 +238,7 @@ trait Sink[-R, +E, +A0, -A, +B] { self =>
           case Some(state) =>
             self
               .step(state, a)
-              .redeem(
+              .foldM(
                 _ => IO.succeed(Step.done[State, A0](Some(state), Chunk.empty)),
                 s => IO.succeed(Step.leftMap(s)(Some(_)))
               )
@@ -288,13 +288,13 @@ trait Sink[-R, +E, +A0, -A, +B] { self =>
           case Right(s) if !Step.cont(s) => Step.done(Right(Step.state(s)), Step.leftover(s))
         }
 
-      val initial = self.initial.attempt.map(sequence).zipWithPar(that.initial.attempt.map(sequence))(Step.both)
+      val initial = self.initial.either.map(sequence).zipWithPar(that.initial.either.map(sequence))(Step.both)
 
       def step(state: State, a: A1): ZIO[R1, E1, Step[State, A2]] =
         state match {
           case (l, r) =>
-            val lr = l.fold(e => IO.succeed(Left(e)), self.step(_, a).attempt)
-            val rr = r.fold(e => IO.succeed(Left(e)), that.step(_, a).attempt)
+            val lr = l.fold(e => IO.succeed(Left(e)), self.step(_, a).either)
+            val rr = r.fold(e => IO.succeed(Left(e)), that.step(_, a).either)
 
             lr.zipWithPar(rr) {
               case (Right(s), _) if !Step.cont(s) => Step.done((Right(Step.state(s)), r), Step.leftover(s))
@@ -620,8 +620,8 @@ object Sink {
 
         type State = (Side[E, self.State, B], Side[E1, that.State, (Chunk[A], C)])
 
-        val l: ZIO[R, Nothing, Step[Either[E, self.State], Nothing]]  = self.initial.attempt.map(sequence)
-        val r: ZIO[R, Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.attempt.map(sequence)
+        val l: ZIO[R, Nothing, Step[Either[E, self.State], Nothing]]  = self.initial.either.map(sequence)
+        val r: ZIO[R, Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.either.map(sequence)
 
         val initial: ZIO[R, E1, Step[State, Nothing]] =
           l.zipWithPar(r) { (l, r) =>
@@ -634,7 +634,7 @@ object Sink {
               case Side.State(s) =>
                 self
                   .step(s, a)
-                  .redeem(
+                  .foldM(
                     e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
                     s =>
                       if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
@@ -653,7 +653,7 @@ object Sink {
               case Side.State(s) =>
                 that
                   .step(s, a)
-                  .redeem(
+                  .foldM(
                     e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
                     s =>
                       if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
@@ -714,7 +714,7 @@ object Sink {
 
           state match {
             case (Side.Value(b), _) => IO.succeed(Left(b))
-            case (Side.State(s), _) => self.extract(s).redeem(_ => fromRight, b => IO.succeed(Left(b)))
+            case (Side.State(s), _) => self.extract(s).foldM(_ => fromRight, b => IO.succeed(Left(b)))
             case _                  => fromRight
           }
         }
@@ -789,7 +789,7 @@ object Sink {
         def step(state: State, a: A): ZIO[R, E, Step[State, A]] =
           self
             .step(state._3, a)
-            .redeem(
+            .foldM(
               e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
               step =>
                 if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))

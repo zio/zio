@@ -25,7 +25,7 @@ object Util {
   type Par[A] = Par.T[Throwable, A]
 
   final def fromFuture[E, A](ec: ExecutionContext)(io: Task[Future[A]]): Task[A] =
-    io.attempt.flatMap { tf =>
+    io.either.flatMap { tf =>
       tf.fold(
         t => Task.fail(t),
         f =>

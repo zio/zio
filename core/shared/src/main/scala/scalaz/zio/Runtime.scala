@@ -35,19 +35,17 @@ trait Runtime[+R] {
   val Platform: Platform
 
   /**
-   * Provided the environment for the specified effect, including a
-   * [[scalaz.zio.internal.Platform]], executes the effect synchronously, failing
+   * Executes the effect synchronously, failing
    * with [[scalaz.zio.FiberFailure]] if there are any errors. May fail on
    * Scala.js if the effect cannot be entirely run synchronously.
    *
    * This method is effectful and should only be done at the edges of your program.
    */
   final def unsafeRun[E, A](zio: ZIO[R, E, A]): A =
-    unsafeRunSync(zio).getOrElse(c => throw new FiberFailure(c))
+    unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
-   * Provided the environment for the specified effect, including a
-   * [[scalaz.zio.internal.Platform]], executes the effect synchronously. May
+   * Executes the effect synchronously. May
    * fail on Scala.js if the effect cannot be entirely run synchronously.
    *
    * This method is effectful and should only be invoked at the edges of your program.
@@ -61,8 +59,7 @@ trait Runtime[+R] {
   }
 
   /**
-   * Provided the environment for the specified effect, including a
-   * [[scalaz.zio.internal.Platform]], executes the effect asynchronously,
+   * Executes the effect asynchronously,
    * eventually passing the exit value to the specified callback.
    *
    * This method is effectful and should only be invoked at the edges of your program.
@@ -75,15 +72,23 @@ trait Runtime[+R] {
   }
 
   /**
-   * Provided the environment for the specified effect, including a
-   * [[scalaz.zio.internal.Platform]], executes the effect asynchronously,
+   * Executes the effect asynchronously,
    * discarding the result of execution.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsync_[E, A](zio: ZIO[R, E, A]): Unit =
     unsafeRunAsync(zio)(_ => ())
+
+  /**
+   * Runs the IO, returning a Future that will be completed when the effect has been executed.
+   *
+   * This method is effectful and should only be used at the edges of your program.
+   */
+  final def unsafeRunToFuture[E <: Throwable, A](io: IO[E, A]): scala.concurrent.Future[A] =
+    unsafeRun(io.toFuture)
 }
+
 object Runtime {
 
   /**

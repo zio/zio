@@ -111,7 +111,7 @@ object RefM extends Serializable {
       interrupted.get.flatMap {
         case Some(cause) => onDefect(cause)
         case None =>
-          update(a).sandbox.redeem(onDefect, {
+          update(a).sandbox.foldM(onDefect, {
             case (b, a) => ref.set(a) <* promise.succeed(b)
           })
       }
