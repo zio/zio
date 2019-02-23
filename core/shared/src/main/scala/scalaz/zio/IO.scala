@@ -911,7 +911,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def absorbWith(f: E => Throwable): ZIO[R, Throwable, A] =
     self.sandbox
       .foldM(
-        cause => ZIO.fail((cause.failures.map(f) ++ cause.defects).headOption.getOrElse(new InterruptedException)),
+        cause => ZIO.fail(cause.squashWith(f)),
         ZIO.succeed(_)
       )
 
