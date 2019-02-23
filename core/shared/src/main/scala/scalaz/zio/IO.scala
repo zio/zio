@@ -302,7 +302,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Recovers from errors by accepting one effect to execute for the case of an
    * error, and one effect to execute for the case of success.
    *
-   * This method has better performance than `attempt` since no intermediate
+   * This method has better performance than `either` since no intermediate
    * value is allocated and does not require subsequent calls to `flatMap` to
    * define the next effect.
    *
@@ -347,7 +347,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
-   * `ZIO`. The inverse operation of `ZIO.attempt`.
+   * `ZIO`. The inverse operation of `ZIO.either`.
    */
   final def absolve[R1 <: R, E1, B](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, E1, Either[E1, B]]): ZIO[R1, E1, B] =
     ZIO.absolve[R1, E1, B](self)
@@ -1210,7 +1210,7 @@ trait ZIOFunctions extends Serializable {
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
-   * operation of `IO.attempt`.
+   * operation of `IO.either`.
    */
   final def absolve[R >: LowerR, E <: UpperE, A](v: ZIO[R, E, Either[E, A]]): ZIO[R, E, A] =
     v.flatMap(fromEither(_))
