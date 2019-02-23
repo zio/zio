@@ -15,6 +15,10 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       for a given number of times with random jitter in (0, 1) $retryNUnitIntervalJittered
       for a given number of times with random jitter in custom interval $retryNCustomIntervalJittered
       fixed delay with error predicate $fixedWithErrorPredicate
+      fibonacci delay $fibonacci
+      linear delay $linear
+      exponential delay with default factor $exponential
+      exponential delay with other factor $exponentialWithFactor
   Retry according to a provided strategy
     for up to 10 times $recurs10Retry
   Return the result of the fallback after failing and no more retries left
@@ -160,6 +164,29 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     val result   = unsafeRun(io.retry(strategy))
     val expected = 5
     result must_=== expected
+  }
+
+  def fibonacci =
+    checkErrorWithPredicate(Schedule.fibonacci(100.millis), List(1, 1, 2, 3, 5))
+
+  def linear =
+    checkErrorWithPredicate(Schedule.linear(100.millis), List(1, 2, 3, 4, 5))
+
+  def exponential =
+    checkErrorWithPredicate(Schedule.exponential(100.millis), List(2, 4, 8, 16, 32))
+
+  def exponentialWithFactor =
+    checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
+
+  def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
+    var i = 0
+    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+      if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
+    }
+    val strategy = schedule.whileInput[String](_ == "KeepTryingError")
+    val retried  = unsafeRun(retryCollect(io, strategy))
+    val expected = (Left("GiveUpError"), expectedSteps.map(i => ((i * 100).millis, (i * 100).millis)))
+    retried must_=== expected
   }
 
   val ioSucceed = (_: String, _: Unit) => IO.succeed("OrElse")
