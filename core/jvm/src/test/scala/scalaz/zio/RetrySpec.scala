@@ -200,24 +200,24 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   object TestRandom extends Random {
     object random extends Random.Service[Any] {
-      val nextBoolean: ZIO[Any, Nothing, Boolean] = UIO.succeed(false)
-      def nextBytes(length: Int): ZIO[Any, Nothing, Chunk[Byte]] =
+      val nextBoolean: UIO[Boolean] = UIO.succeed(false)
+      def nextBytes(length: Int): UIO[Chunk[Byte]] =
         UIO.succeed(Chunk.empty)
-      val nextDouble: ZIO[Any, Nothing, Double] =
+      val nextDouble: UIO[Double] =
         UIO.succeed(0.5)
-      val nextFloat: ZIO[Any, Nothing, Float] =
+      val nextFloat: UIO[Float] =
         UIO.succeed(0.5f)
-      val nextGaussian: ZIO[Any, Nothing, Double] =
+      val nextGaussian: UIO[Double] =
         UIO.succeed(0.5)
-      def nextInt(n: Int): ZIO[Any, Nothing, Int] =
+      def nextInt(n: Int): UIO[Int] =
         UIO.succeed(n - 1)
-      val nextInt: ZIO[Any, Nothing, Int] =
+      val nextInt: UIO[Int] =
         UIO.succeed(0)
-      val nextLong: ZIO[Any, Nothing, Long] =
+      val nextLong: UIO[Long] =
         UIO.succeed(0L)
-      val nextPrintableChar: ZIO[Any, Nothing, Char] =
+      val nextPrintableChar: UIO[Char] =
         UIO.succeed('A')
-      def nextString(length: Int): ZIO[Any, Nothing, String] =
+      def nextString(length: Int): UIO[String] =
         UIO.succeed("")
     }
   }

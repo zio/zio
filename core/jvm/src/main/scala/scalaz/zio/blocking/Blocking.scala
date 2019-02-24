@@ -18,7 +18,7 @@ package scalaz.zio.blocking
 
 import java.util.concurrent._
 
-import scalaz.zio.ZIO
+import scalaz.zio.{ UIO, ZIO }
 import scalaz.zio.internal.{ Executor, NamedThreadFactory }
 import scalaz.zio.internal.PlatformLive
 
@@ -66,13 +66,13 @@ object Blocking extends Serializable {
             lock.lock(); b
           } finally lock.unlock()
 
-        val interruptThread: ZIO[Any, Nothing, Unit] =
+        val interruptThread: UIO[Unit] =
           ZIO.defer(withMutex(thread.get match {
             case None         => ()
             case Some(thread) => thread.interrupt()
           }))
 
-        val awaitInterruption: ZIO[Any, Nothing, Unit] = ZIO.defer(barrier.get())
+        val awaitInterruption: UIO[Unit] = ZIO.defer(barrier.get())
 
         for {
           a <- (for {
@@ -119,7 +119,7 @@ object Blocking extends Serializable {
           threadPool
         }
 
-      val blockingExecutor: ZIO[Any, Nothing, Executor] = ZIO.succeed(blockingExecutor0)
+      val blockingExecutor: UIO[Executor] = ZIO.succeed(blockingExecutor0)
     }
   }
   object Live extends Live

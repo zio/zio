@@ -57,7 +57,7 @@ object Console extends Serializable {
       /**
        * Prints a line of text to the console, including a newline character.
        */
-      final def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
+      final def putStrLn(line: String): UIO[Unit] =
         putStrLn(SConsole.out)(line)
 
       final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =

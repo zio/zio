@@ -187,9 +187,9 @@ object Exit extends Serializable {
      * "most important" `Throwable`.
      */
     final def squashWith(f: E => Throwable): Throwable =
-      (failures.map(f) ++
-        (if (interrupted) List(new InterruptedException) else Nil) ++
-        defects).headOption.getOrElse(new InterruptedException)
+      failures.headOption.map(f) orElse
+        (if (interrupted) Some(new InterruptedException) else None) orElse
+        defects.headOption getOrElse (new InterruptedException)
 
     final def failed: Boolean =
       self match {
