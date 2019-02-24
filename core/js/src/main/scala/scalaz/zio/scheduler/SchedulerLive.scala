@@ -16,8 +16,6 @@
 
 package scalaz.zio.scheduler
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import scalaz.zio.ZIO
 import scalaz.zio.duration.Duration
 import scalaz.zio.internal.{ Scheduler => IScheduler }
@@ -28,9 +26,9 @@ trait SchedulerLive extends Scheduler {
   private[this] val scheduler0 = new IScheduler {
     import IScheduler.CancelToken
 
-    val ConstFalse = () => false
+    private[this] val ConstFalse = () => false
 
-    val _size = new AtomicInteger()
+    private[this] var _size = 0
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
       case Duration.Infinity => ConstFalse
@@ -39,26 +37,28 @@ trait SchedulerLive extends Scheduler {
 
         ConstFalse
       case duration: Duration.Finite =>
-        _size.incrementAndGet
+        _size += 1
+        var completed = false
 
         val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
-          try {
-            task.run()
-          } finally {
-            val _ = _size.decrementAndGet
+          completed = true
+
+          try task.run()
+          finally {
+            _size -= 1
           }
         }
         () => {
           js.timers.clearTimeout(handle)
-          _size.decrementAndGet
-          true
+          if (!completed) _size -= 1
+          !completed
         }
     }
 
     /**
      * The number of tasks scheduled.
      */
-    override def size: Int = _size.get()
+    override def size: Int = _size
 
     /**
      * Initiates shutdown of the scheduler.

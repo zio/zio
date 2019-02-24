@@ -16,7 +16,7 @@
 
 package scalaz.zio.system
 
-import scalaz.zio.ZIO
+import scalaz.zio.{ UIO, ZIO }
 
 trait System extends Serializable {
   val system: System.Service[Any]
@@ -39,7 +39,7 @@ object System extends Serializable {
       def property(prop: String): ZIO[Any, Throwable, Option[String]] =
         ZIO.sync(Option(JSystem.getProperty(prop)))
 
-      val lineSeparator: ZIO[Any, Nothing, String] = ZIO.defer(JSystem.lineSeparator)
+      val lineSeparator: UIO[String] = ZIO.defer(JSystem.lineSeparator)
     }
   }
   object Live extends Live

@@ -19,7 +19,7 @@ package scalaz
 package object zio extends EitherCompat {
   private[zio] type Callback[E, A] = Exit[E, A] => Unit
 
-  type Canceler = ZIO[Any, Nothing, _]
+  type Canceler = UIO[_]
   type FiberId  = Long
 
   type IO[+E, +A] = ZIO[Any, E, A]

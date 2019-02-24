@@ -16,7 +16,7 @@
 
 package scalaz.zio.random
 
-import scalaz.zio.{ Chunk, ZIO }
+import scalaz.zio.{ Chunk, UIO, ZIO }
 
 trait Random extends Serializable {
   val random: Random.Service[Any]
@@ -38,8 +38,8 @@ object Random extends Serializable {
     val random: Service[Any] = new Service[Any] {
       import scala.util.{ Random => SRandom }
 
-      val nextBoolean: ZIO[Any, Nothing, Boolean] = ZIO.defer(SRandom.nextBoolean())
-      def nextBytes(length: Int): ZIO[Any, Nothing, Chunk[Byte]] =
+      val nextBoolean: UIO[Boolean] = ZIO.defer(SRandom.nextBoolean())
+      def nextBytes(length: Int): UIO[Chunk[Byte]] =
         ZIO.defer {
           val array = Array.ofDim[Byte](length)
 
@@ -47,14 +47,14 @@ object Random extends Serializable {
 
           Chunk.fromArray(array)
         }
-      val nextDouble: ZIO[Any, Nothing, Double]              = ZIO.defer(SRandom.nextDouble())
-      val nextFloat: ZIO[Any, Nothing, Float]                = ZIO.defer(SRandom.nextFloat())
-      val nextGaussian: ZIO[Any, Nothing, Double]            = ZIO.defer(SRandom.nextGaussian())
-      def nextInt(n: Int): ZIO[Any, Nothing, Int]            = ZIO.defer(SRandom.nextInt(n))
-      val nextInt: ZIO[Any, Nothing, Int]                    = ZIO.defer(SRandom.nextInt())
-      val nextLong: ZIO[Any, Nothing, Long]                  = ZIO.defer(SRandom.nextLong())
-      val nextPrintableChar: ZIO[Any, Nothing, Char]         = ZIO.defer(SRandom.nextPrintableChar())
-      def nextString(length: Int): ZIO[Any, Nothing, String] = ZIO.defer(SRandom.nextString(length))
+      val nextDouble: UIO[Double]              = ZIO.defer(SRandom.nextDouble())
+      val nextFloat: UIO[Float]                = ZIO.defer(SRandom.nextFloat())
+      val nextGaussian: UIO[Double]            = ZIO.defer(SRandom.nextGaussian())
+      def nextInt(n: Int): UIO[Int]            = ZIO.defer(SRandom.nextInt(n))
+      val nextInt: UIO[Int]                    = ZIO.defer(SRandom.nextInt())
+      val nextLong: UIO[Long]                  = ZIO.defer(SRandom.nextLong())
+      val nextPrintableChar: UIO[Char]         = ZIO.defer(SRandom.nextPrintableChar())
+      def nextString(length: Int): UIO[String] = ZIO.defer(SRandom.nextString(length))
     }
   }
   object Live extends Live

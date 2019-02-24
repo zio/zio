@@ -125,7 +125,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def fork: ZIO[R, Nothing, Fiber[E, A]] =
     for {
-      r     <- ZIO.access[R, R](identity)
+      r     <- ZIO.environment[R]
       fiber <- new ZIO.Fork(self.provide(r))
     } yield fiber
 
@@ -452,7 +452,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def bracketOnError[R1 <: R, E1 >: E, B](
     release: A => ZIO[R1, Nothing, _]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracketExit[R1, E1, A, B](this)(
+    ZIO.bracketExit[R1, E1, A, B](self)(
       (a: A, eb: Exit[E1, B]) =>
         eb match {
           case Exit.Failure(_) => release(a)

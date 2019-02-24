@@ -159,17 +159,12 @@ trait Fiber[+E, +A] { self =>
     UIO.defer {
       val p = scala.concurrent.Promise[A]()
 
-      self.await.flatMap {
-        case Exit.Failure(cause) =>
-          val ts = cause.failures.map(f) ++ cause.defects
-
-          val t = ts.headOption.getOrElse(new InterruptedException)
-
-          UIO.defer(p.failure(t))
-
-        case Exit.Success(v) =>
-          UIO.defer(p.success(v))
-      }.fork *> UIO.defer(p.future)
+      UIO.defer(p.future) <*
+        self.await
+          .flatMap[Any, Nothing, Unit](
+            _.foldM(cause => UIO(p.failure(cause.squashWith(f))), value => UIO(p.success(value)))
+          )
+          .fork
     }.flatten
 
 }
@@ -248,8 +243,9 @@ object Fiber {
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
    */
-  final def fromFuture[A](ftr: Future[A]): Fiber[Throwable, A] =
+  final def fromFuture[A](thunk: => Future[A]): Fiber[Throwable, A] =
     new Fiber[Throwable, A] {
+      lazy val ftr = thunk
 
       def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
