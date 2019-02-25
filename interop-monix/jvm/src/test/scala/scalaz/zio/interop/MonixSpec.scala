@@ -4,7 +4,7 @@ import monix.eval
 import monix.execution.Scheduler
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause.Fail
-import scalaz.zio.{ TestRuntime, FiberFailure, IO }
+import scalaz.zio.{ FiberFailure, IO, TestRuntime }
 import scalaz.zio.interop.monixio._
 
 class MonixSpec(implicit ee: ExecutionEnv) extends TestRuntime {

@@ -77,7 +77,7 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t4 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
       a <- lazyStr.sync
-      b <- IO.effect(lazyStr)
+      b <- IO.sync(lazyStr)
     } yield a must ===(b))
   }
 
@@ -85,7 +85,7 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
     unsafeRun(for {
       a <- lazyStr.sync.refineOrDie(partial)
-      b <- IO.effect(lazyStr).refineOrDie(partial)
+      b <- IO.sync(lazyStr).refineOrDie(partial)
     } yield a must ===(b))
   }
 

@@ -150,8 +150,8 @@ private[zio] final class FiberContext[E, A](
 
                       curIo = io.k(io2.value)
 
-                    case ZIO.Tags.Effect =>
-                      val io2 = nested.asInstanceOf[ZIO.Effect[Any]]
+                    case ZIO.Tags.Defer =>
+                      val io2 = nested.asInstanceOf[ZIO.Defer[Any]]
 
                       curIo = io.k(io2.effect(platform))
 
@@ -175,8 +175,8 @@ private[zio] final class FiberContext[E, A](
 
                   curIo = nextInstr(value)
 
-                case ZIO.Tags.Effect =>
-                  val io = curIo.asInstanceOf[ZIO.Effect[Any]]
+                case ZIO.Tags.Defer =>
+                  val io = curIo.asInstanceOf[ZIO.Defer[Any]]
 
                   val value = io.effect(platform)
 
