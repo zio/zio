@@ -46,10 +46,10 @@ because the `Nothing` type is _uninhabitable_, i.e. there can be no actual value
 
 # Impure Code
 
-You can use the `sync` method of `IO` to import effectful synchronous code into your purely functional program:
+You can use the `effectTotal` method of `IO` to import effectful synchronous code into your purely functional program:
 
 ```tut:silent
-val z: Task[Long] = IO.defer(System.nanoTime())
+val z: Task[Long] = IO.effectTotal(System.nanoTime())
 ```
 
 ```tut:invisible
@@ -64,12 +64,12 @@ If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain on
 
 ```tut:silent
 def readFile(name: String): IO[String, Array[Byte]] =
-  IO.sync(FileUtils.readFileToByteArray(new File(name))).refineOrDie {
+  IO.effect(FileUtils.readFileToByteArray(new File(name))).refineOrDie {
     case e : IOException => "Could not read file"
   }
 ```
 
-You can use the `async` method of `IO` to import effectful asynchronous code into your purely functional program:
+You can use the `effectAsync` method of `IO` to import effectful asynchronous code into your purely functional program:
 
 ```tut:invisible
 case class HttpException()
@@ -84,7 +84,7 @@ object Http {
 
 ```tut:silent
 def makeRequest(req: Request): IO[HttpException, Response] =
-  IO.async[HttpException, Response](k => Http.req(req, k))
+  IO.effectAsync[HttpException, Response](k => Http.req(req, k))
 ```
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.
@@ -162,7 +162,7 @@ A helper method called `ensuring` provides a simpler analogue of `finally`:
 
 ```tut:silent
 var i: Int = 0
-val action: Task[String] = Task.defer(i += 1) *> Task.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = UIO.defer(i -= 1)
+val action: Task[String] = Task.effectTotal(i += 1) *> Task.fail(new Throwable("Boom!"))
+val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
