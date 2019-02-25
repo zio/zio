@@ -85,31 +85,32 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def done(io: IO[E, A]): IO[Nothing, Boolean] =
     IO.flatten(IO.sync {
-      var action: IO[Nothing, Boolean] = null.asInstanceOf[IO[Nothing, Boolean]]
-      var retry                        = true
+        var action: IO[Nothing, Boolean] = null.asInstanceOf[IO[Nothing, Boolean]]
+        var retry                        = true
 
-      while (retry) {
-        val oldState = state.get
+        while (retry) {
+          val oldState = state.get
 
-        val newState = oldState match {
-          case Pending(joiners) =>
-            action =
-              IO.forkAll_(joiners.map(k => IO.sync[Unit](k(io)))) *>
-                IO.succeed[Boolean](true)
+          val newState = oldState match {
+            case Pending(joiners) =>
+              action =
+                IO.forkAll_(joiners.map(k => IO.sync[Unit](k(io)))) *>
+                  IO.succeed[Boolean](true)
 
-            Done(io)
+              Done(io)
 
-          case Done(_) =>
-            action = IO.succeed[Boolean](false)
+            case Done(_) =>
+              action = IO.succeed[Boolean](false)
 
-            oldState
+              oldState
+          }
+
+          retry = !state.compareAndSet(oldState, newState)
         }
 
-        retry = !state.compareAndSet(oldState, newState)
-      }
-
-      action
-    })
+        action
+      })
+      .uninterruptible
 
   private[zio] final def unsafeDone(io: IO[E, A], exec: Executor): Unit = {
     var retry: Boolean                  = true
