@@ -332,8 +332,10 @@ private[zio] final class FiberContext[E, A](
     io =>
       if (exitAsync()) {
         if (io.tag == IO.Tags.Point) {
-          val point = io.asInstanceOf[IO.Point[Any]]
-          evaluateLater(nextInstr(point.value))
+          executor.submitOrThrow { () =>
+            val point = io.asInstanceOf[IO.Point[Any]]
+            evaluateNow(nextInstr(point.value))
+          }
         } else {
           evaluateLater(io)
         }
@@ -453,7 +455,8 @@ private[zio] final class FiberContext[E, A](
   private[this] final def enterInterruptible[E, A](io: IO[E, A]): IO[E, A] =
     if ((this.noInterrupt & 0xFFFF) == 1) {
       this.noInterrupt -= 1
-      io.ensuring(exitInterruptible)
+      stack.push(new Finalizer(exitInterruptible))
+      io
     } else {
       io
     }
