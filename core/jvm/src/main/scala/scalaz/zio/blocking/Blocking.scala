@@ -52,7 +52,7 @@ object Blocking extends Serializable {
      * will be interrupted via `Thread.interrupt`.
      */
     def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
-      ZIO.flatten(ZIO.defer {
+      ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
         import java.util.concurrent.atomic.AtomicReference
         import scalaz.zio.internal.OneShot
@@ -67,16 +67,16 @@ object Blocking extends Serializable {
           } finally lock.unlock()
 
         val interruptThread: UIO[Unit] =
-          ZIO.defer(withMutex(thread.get match {
+          ZIO.effectTotal(withMutex(thread.get match {
             case None         => ()
             case Some(thread) => thread.interrupt()
           }))
 
-        val awaitInterruption: UIO[Unit] = ZIO.defer(barrier.get())
+        val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 
         for {
           a <- (for {
-                fiber <- blocking(ZIO.defer[Either[Throwable, A]] {
+                fiber <- blocking(ZIO.effectTotal[Either[Throwable, A]] {
                           val current = Some(Thread.currentThread)
 
                           withMutex(thread.set(current))

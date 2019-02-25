@@ -36,25 +36,25 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
   /**
    * Reads the value from the `Ref`.
    */
-  final def get: UIO[A] = IO.defer(value.get)
+  final def get: UIO[A] = IO.effectTotal(value.get)
 
   /**
    * Writes a new value to the `Ref`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
-  final def set(a: A): UIO[Unit] = IO.defer(value.set(a))
+  final def set(a: A): UIO[Unit] = IO.effectTotal(value.set(a))
 
   /**
    * Writes a new value to the `Ref` without providing a guarantee of
    * immediate consistency.
    */
-  final def setAsync(a: A): UIO[Unit] = IO.defer(value.lazySet(a))
+  final def setAsync(a: A): UIO[Unit] = IO.effectTotal(value.lazySet(a))
 
   /**
    * Atomically modifies the `Ref` with the specified function. This is not
    * implemented in terms of `modify` purely for performance reasons.
    */
-  final def update(f: A => A): UIO[A] = IO.defer {
+  final def update(f: A => A): UIO[A] = IO.effectTotal {
     var loop    = true
     var next: A = null.asInstanceOf[A]
 
@@ -73,7 +73,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * Atomically modifies the `Ref` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
    */
-  final def updateSome(pf: PartialFunction[A, A]): UIO[A] = IO.defer {
+  final def updateSome(pf: PartialFunction[A, A]): UIO[A] = IO.effectTotal {
     var loop    = true
     var next: A = null.asInstanceOf[A]
 
@@ -93,7 +93,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * a return value for the modification. This is a more powerful version of
    * `update`.
    */
-  final def modify[B](f: A => (B, A)): UIO[B] = IO.defer {
+  final def modify[B](f: A => (B, A)): UIO[B] = IO.effectTotal {
     var loop = true
     var b: B = null.asInstanceOf[B]
 
@@ -116,7 +116,7 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
    */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = IO.defer {
+  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = IO.effectTotal {
     var loop = true
     var b: B = null.asInstanceOf[B]
 
@@ -139,5 +139,5 @@ object Ref extends Serializable {
   /**
    * Creates a new `Ref` with the specified value.
    */
-  final def make[A](a: A): UIO[Ref[A]] = IO.defer(new Ref[A](new AtomicReference(a)))
+  final def make[A](a: A): UIO[Ref[A]] = IO.effectTotal(new Ref[A](new AtomicReference(a)))
 }

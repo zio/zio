@@ -43,7 +43,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * until the result is available.
    */
   final def await: IO[E, A] =
-    IO.asyncInterrupt[Any, E, A](k => {
+    IO.effectAsyncInterrupt[Any, E, A](k => {
       var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
       var retry  = true
 
@@ -71,7 +71,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Completes immediately this promise and returns optionally it's result.
    */
   final def poll: UIO[Option[IO[E, A]]] =
-    IO.defer(state.get).flatMap {
+    IO.effectTotal(state.get).flatMap {
       case Pending(_) => IO.succeed(None)
       case Done(io)   => IO.succeed(Some(io))
     }
@@ -98,7 +98,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * has already been completed, the method will produce false.
    */
   final def done(io: IO[E, A]): UIO[Boolean] =
-    IO.flatten(IO.defer {
+    IO.flatten(IO.effectTotal {
       var action: UIO[Boolean] = null.asInstanceOf[UIO[Boolean]]
       var retry                = true
 
@@ -108,7 +108,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
         val newState = oldState match {
           case Pending(joiners) =>
             action =
-              IO.forkAll_(joiners.map(k => IO.defer[Unit](k(io)))) *>
+              IO.forkAll_(joiners.map(k => IO.effectTotal[Unit](k(io)))) *>
                 IO.succeed[Boolean](true)
 
             Done(io)
@@ -145,7 +145,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     if (joiners ne null) joiners.reverse.foreach(k => exec.submit(() => k(io)))
   }
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.defer {
+  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
     var retry = true
 
     while (retry) {
@@ -168,7 +168,7 @@ object Promise {
   /**
    * Makes a new promise.
    */
-  final def make[E, A]: UIO[Promise[E, A]] = IO.defer[Promise[E, A]](unsafeMake[E, A])
+  final def make[E, A]: UIO[Promise[E, A]] = IO.effectTotal[Promise[E, A]](unsafeMake[E, A])
 
   private final def unsafeMake[E, A]: Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))

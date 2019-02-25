@@ -142,7 +142,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(
       s.foreachWhile[Any, Nothing](
         a =>
-          IO.defer(
+          IO.effectTotal(
             if (sum >= 3) false
             else {
               sum += a;
@@ -158,7 +158,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     var sum = 0
     val s   = Stream(1, 1, 1, 1, 1)
 
-    unsafeRun(s.foreach[Any, Nothing](a => IO.defer(sum += a)))
+    unsafeRun(s.foreach[Any, Nothing](a => IO.effectTotal(sum += a)))
     sum must_=== 5
   }
 
@@ -203,7 +203,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     var sum = 0
     val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
-        IO.defer {
+        IO.effectTotal {
           sum += a; if (sum >= 9) false else true
         }
     )
@@ -279,7 +279,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def withEffect = {
     var sum     = 0
-    val s       = Stream(1, 1).withEffect[Any, Nothing](a => IO.defer(sum += a))
+    val s       = Stream(1, 1).withEffect[Any, Nothing](a => IO.effectTotal(sum += a))
     val slurped = slurp(s)
 
     (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)

@@ -34,12 +34,12 @@ object System extends Serializable {
       import java.lang.{ System => JSystem }
 
       def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
-        ZIO.sync(Option(JSystem.getenv(variable))).refineOrDie { case e: SecurityException => e }
+        ZIO.effect(Option(JSystem.getenv(variable))).refineOrDie { case e: SecurityException => e }
 
       def property(prop: String): ZIO[Any, Throwable, Option[String]] =
-        ZIO.sync(Option(JSystem.getProperty(prop)))
+        ZIO.effect(Option(JSystem.getProperty(prop)))
 
-      val lineSeparator: UIO[String] = ZIO.defer(JSystem.lineSeparator)
+      val lineSeparator: UIO[String] = ZIO.effectTotal(JSystem.lineSeparator)
     }
   }
   object Live extends Live

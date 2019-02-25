@@ -42,7 +42,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM  <- RefM.make(current)
-        value <- refM.update(_ => IO.defer(update))
+        value <- refM.update(_ => IO.effectTotal(update))
       } yield value must beTheSameAs(update)
     )
 
@@ -70,7 +70,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM  <- RefM.make(current)
-        r     <- refM.modify[String](_ => IO.defer(("hello", update)))
+        r     <- refM.modify[String](_ => IO.effectTotal(("hello", update)))
         value <- refM.get
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
     )

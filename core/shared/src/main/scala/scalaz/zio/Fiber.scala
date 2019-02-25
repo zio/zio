@@ -156,10 +156,10 @@ trait Fiber[+E, +A] { self =>
    * any errors to [[java.lang.Throwable]] with the specified conversion function.
    */
   final def toFutureWith(f: E => Throwable): UIO[Future[A]] =
-    UIO.defer {
+    UIO.effectTotal {
       val p = scala.concurrent.Promise[A]()
 
-      UIO.defer(p.future) <*
+      UIO.effectTotal(p.future) <*
         self.await
           .flatMap[Any, Nothing, Unit](
             _.foldM(cause => UIO(p.failure(cause.squashWith(f))), value => UIO(p.success(value)))
@@ -249,7 +249,7 @@ object Fiber {
 
       def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
-      def poll: UIO[Option[Exit[Throwable, A]]] = IO.defer(ftr.value.map(Exit.fromTry))
+      def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
 
       def interrupt: UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
     }

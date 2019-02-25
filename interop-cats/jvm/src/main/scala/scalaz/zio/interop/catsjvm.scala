@@ -79,7 +79,7 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
       this.unsafeRun {
         fa.fork.flatMap { f =>
           f.await
-            .flatMap(exit => IO.sync(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
+            .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
             .const(f.interrupt.void)
         }
@@ -102,7 +102,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     Concurrent.liftIO(ioa)(this)
 
   override final def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
-    IO.asyncInterrupt { (kk: Task[A] => Unit) =>
+    IO.effectAsyncInterrupt { (kk: Task[A] => Unit) =>
       val token: effect.CancelToken[Task] = {
         k(e => kk(eitherToIO(e)))
       }
@@ -170,20 +170,20 @@ private class CatsEffect
     }
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
-    IO.async { (kk: Task[A] => Unit) =>
+    IO.effectAsync { (kk: Task[A] => Unit) =>
       k(eitherToIO andThen kk)
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    IO.asyncM { (kk: Task[A] => Unit) =>
+    IO.effectAsyncM { (kk: Task[A] => Unit) =>
       k(eitherToIO andThen kk).orDie
     }
 
   override final def suspend[A](thunk: => Task[A]): Task[A] =
-    IO.flatten(IO.sync(thunk))
+    IO.flatten(IO.effect(thunk))
 
   override final def delay[A](thunk: => A): Task[A] =
-    IO.sync(thunk)
+    IO.effect(thunk)
 
   override final def bracket[A, B](acquire: Task[A])(use: A => Task[B])(
     release: A => Task[Unit]

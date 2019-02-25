@@ -115,7 +115,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
       val result = unsafeRunSync {
         s.foreachWhile { a =>
-          IO.defer {
+          IO.effectTotal {
             if (cont(a)) {
               acc ::= a
               true
@@ -132,7 +132,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       var acc = List[Int]()
 
       val result = unsafeRunSync {
-        s.foreach(a => IO.defer(acc ::= a))
+        s.foreach(a => IO.effectTotal(acc ::= a))
       }
 
       result.map(_ => acc.reverse) must_=== slurp(s).map(_.toList)
@@ -160,7 +160,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     prop { (s: StreamChunk[Any, String, String]) =>
       val withoutEffect = slurp(s)
       var acc           = List[String]()
-      val withEffect    = slurp(s.withEffect(a => IO.defer(acc ::= a)))
+      val withEffect    = slurp(s.withEffect(a => IO.effectTotal(acc ::= a)))
 
       (withEffect must_=== withoutEffect) and
         ((Success(acc.reverse) must_== withoutEffect) when withoutEffect.succeeded)

@@ -45,8 +45,8 @@ import scala.util.{ Failure, Success }
  *
  *  - '''Pure Values''' &mdash; `ZIO.succeed`
  *  - ```Error Effects``` &mdash; `ZIO.fail`
- *  - '''Synchronous Effects''' &mdash; `IO.sync`
- *  - '''Asynchronous Effects''' &mdash; `IO.async`
+ *  - '''Synchronous Effects''' &mdash; `IO.effect`
+ *  - '''Asynchronous Effects''' &mdash; `IO.effectAsync`
  *  - '''Concurrent Effects''' &mdash; `IO#fork`
  *  - '''Resource Effects''' &mdash; `IO#bracket`
  *  - ```Contextual Effects``` &mdash; `ZIO.access`
@@ -840,7 +840,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
-   *   IO.defer(5 / 0) *> IO.fail(DomainError())
+   *   IO.effectTotal(5 / 0) *> IO.fail(DomainError())
    *
    * val caught: UIO[Unit] =
    *   veryBadIO.sandbox.catchAll {
@@ -879,7 +879,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
-   *   IO.defer(5 / 0) *> IO.fail(DomainError())
+   *   IO.effectTotal(5 / 0) *> IO.fail(DomainError())
    *
    * val caught: IO[DomainError, Unit] =
    *   veryBadIO.sandboxWith(_.catchSome {
@@ -968,10 +968,10 @@ trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that models success with the specified lazily-evaluated
    * value. This method should not be used to capture effects. See
-   * `[[IO.defer]]` for capturing total effects, and `[[IO.sync]]` for capturing
+   * `[[IO.effectTotal]]` for capturing total effects, and `[[IO.effect]]` for capturing
    * partial effects.
    */
-  final def succeedLazy[A](a: => A): UIO[A] = defer(a)
+  final def succeedLazy[A](a: => A): UIO[A] = effectTotal(a)
 
   /**
    * Accesses the whole environment of the effect.
@@ -1012,7 +1012,7 @@ trait ZIOFunctions extends Serializable {
   final def runtime[R >: LowerR]: ZIO[R, Nothing, Runtime[R]] =
     for {
       environment <- environment[R]
-      platform    <- deferWith(identity)
+      platform    <- effectTotalWith(identity)
     } yield Runtime(environment, platform)
 
   /**
@@ -1024,7 +1024,7 @@ trait ZIOFunctions extends Serializable {
    * Returns a effect that will never produce anything. The moral
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
-  final val never: UIO[Nothing] = async[Nothing, Nothing](_ => ())
+  final val never: UIO[Nothing] = effectAsync[Nothing, Nothing](_ => ())
 
   /**
    * Returns an effect that dies with the specified `Throwable`.
@@ -1043,28 +1043,28 @@ trait ZIOFunctions extends Serializable {
   /**
    * Imports a total synchronous effect into a pure `ZIO` value.
    * The effect must not throw any exceptions. If you wonder if the effect
-   * throws exceptions, then do not use this method, use [[Task.sync]],
-   * [[IO.sync]], or [[ZIO.sync]].
+   * throws exceptions, then do not use this method, use [[Task.effect]],
+   * [[IO.effect]], or [[ZIO.effect]].
    *
    * {{{
    * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
    * }}}
    */
-  final def defer[A](effect: => A): UIO[A] = deferWith(_ => effect)
+  final def effectTotal[A](effect: => A): UIO[A] = effectTotalWith(_ => effect)
 
   /**
    * Imports a total synchronous effect into a pure `ZIO` value. This variant
    * of `effectTotal` lets the impure code use the platform capabilities.
    *
    * The effect must not throw any exceptions. If you wonder if the effect
-   * throws exceptions, then do not use this method, use [[Task.sync]],
-   * [[IO.sync]], or [[ZIO.sync]].
+   * throws exceptions, then do not use this method, use [[Task.effect]],
+   * [[IO.effect]], or [[ZIO.effect]].
    *
    * {{{
    * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
    * }}}
    */
-  final def deferWith[A](effect: Platform => A): UIO[A] = new ZIO.Defer[A](effect)
+  final def effectTotalWith[A](effect: Platform => A): UIO[A] = new ZIO.Effect[A](effect)
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh
@@ -1132,7 +1132,7 @@ trait ZIOFunctions extends Serializable {
    * effects. This is a shortcut for `flatten(effectTotal(io)).
    */
   final def suspend[R >: LowerR, E <: UpperE, A](io: => ZIO[R, E, A]): ZIO[R, E, A] =
-    flatten(defer(io))
+    flatten(effectTotal(io))
 
   /**
    * Returns an effect that will execute the specified effect fully on the
@@ -1142,12 +1142,12 @@ trait ZIOFunctions extends Serializable {
     new ZIO.Lock(executor, zio)
 
   /**
-   * Imports an asynchronous effect into a pure `ZIO` value. See `asyncMaybe` for
+   * Imports an asynchronous effect into a pure `ZIO` value. See `effectAsyncMaybe` for
    * the more expressive variant of this function that can return a value
    * synchronously.
    */
-  final def async[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Unit): ZIO[Any, E, A] =
-    asyncMaybe((callback: ZIO[Any, E, A] => Unit) => {
+  final def effectAsync[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Unit): ZIO[Any, E, A] =
+    effectAsyncMaybe((callback: ZIO[Any, E, A] => Unit) => {
       register(callback)
 
       None
@@ -1157,14 +1157,14 @@ trait ZIOFunctions extends Serializable {
    * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
    * the value synchronously.
    */
-  final def asyncMaybe[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Option[IO[E, A]]): ZIO[Any, E, A] =
-    new ZIO.Async(register)
+  final def effectAsyncMaybe[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Option[IO[E, A]]): ZIO[Any, E, A] =
+    new ZIO.EffectAsync(register)
 
   /**
    * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `ZIO`.
    */
-  final def asyncM[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
+  final def effectAsyncM[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
     for {
       p   <- Promise.make[E, A]
       ref <- Ref.make[UIO[Any]](ZIO.unit)
@@ -1185,16 +1185,16 @@ trait ZIOFunctions extends Serializable {
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
    */
-  final def asyncInterrupt[R >: LowerR, E <: UpperE, A](
+  final def effectAsyncInterrupt[R >: LowerR, E <: UpperE, A](
     register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
     import internal.OneShot
 
-    defer((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
+    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
       case (started, cancel) =>
         flatten {
-          asyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
+          effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
             started.set(true)
 
             try register(io => k(ZIO.succeed(io))) match {
@@ -1204,7 +1204,7 @@ trait ZIOFunctions extends Serializable {
               case Right(io) => Some(ZIO.succeed(io))
             } finally if (!cancel.isSet) cancel.set(ZIO.unit)
           })
-        }.onInterrupt(flatten(defer(if (started.get) cancel.get() else ZIO.unit)))
+        }.onInterrupt(flatten(effectTotal(if (started.get) cancel.get() else ZIO.unit)))
     }
   }
 
@@ -1227,14 +1227,14 @@ trait ZIOFunctions extends Serializable {
    * Lifts an `Either` into a `ZIO` value.
    */
   final def fromEither[E <: UpperE, A](v: => Either[E, A]): IO[E, A] =
-    defer(v).flatMap(_.fold(fail, succeed))
+    effectTotal(v).flatMap(_.fold(fail, succeed))
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
   final def fromFiber[E <: UpperE, A](fiber: => Fiber[E, A]): IO[E, A] =
-    defer(fiber).flatMap(_.join)
+    effectTotal(fiber).flatMap(_.join)
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
@@ -1295,7 +1295,7 @@ trait ZIOFunctions extends Serializable {
    * For a parallel version of this method, see `foreachPar`.
    */
   final def foreach[R >: LowerR, E <: UpperE, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    in.foldRight[ZIO[R, E, List[B]]](defer(Nil)) { (a, io) =>
+    in.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil)) { (a, io) =>
       f(a).zipWith(io)((b, bs) => b :: bs)
     }
 
@@ -1306,7 +1306,7 @@ trait ZIOFunctions extends Serializable {
    * For a sequential version of this method, see `foreach`.
    */
   final def foreachPar[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    as.foldRight[ZIO[R, E, List[B]]](defer(Nil)) { (a, io) =>
+    as.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil)) { (a, io) =>
       fn(a).zipWithPar(io)((b, bs) => b :: bs)
     }
 
@@ -1415,7 +1415,7 @@ trait ZIO_E_Any extends ZIO_E_Throwable {
    * Lifts an `Option` into a `ZIO`.
    */
   final def fromOption[A](v: => Option[A]): IO[Unit, A] =
-    defer(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed(_)))
+    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed(_)))
 }
 
 trait ZIO_E_Throwable extends ZIOFunctions {
@@ -1427,11 +1427,11 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    * throwables into a `Throwable` failure in the returned value.
    *
    * {{{
-   * def putStrLn(line: String): Task[Unit] = Task.sync(println(line))
+   * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
    * }}}
    */
-  final def sync[A](effect: => A): Task[A] =
-    deferWith(
+  final def effect[A](effect: => A): Task[A] =
+    effectTotalWith(
       platform =>
         try Right(effect)
         catch {
@@ -1443,7 +1443,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    * Lifts a `Try` into a `ZIO`.
    */
   final def fromTry[A](value: => scala.util.Try[A]): Task[A] =
-    sync(value).flatMap {
+    effect(value).flatMap {
       case scala.util.Success(v) => ZIO.succeed(v)
       case scala.util.Failure(t) => ZIO.fail(t)
     }
@@ -1458,7 +1458,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
       val f  = make(ec)
       f.value
         .fold(
-          Task.async { (cb: Task[A] => Unit) =>
+          Task.effectAsync { (cb: Task[A] => Unit) =>
             f.onComplete {
               case Success(a) => cb(Task.succeed(a))
               case Failure(t) => cb(Task.fail(t))
@@ -1482,23 +1482,23 @@ trait ZIO_R_Any extends ZIO_E_Any {
 object IO extends ZIO_E_Any {
   type LowerR = Any
 
-  def apply[A](a: => A): Task[A] = sync(a)
+  def apply[A](a: => A): Task[A] = effect(a)
 }
 object Task extends ZIO_E_Throwable {
   type UpperE = Throwable
   type LowerR = Any
 
-  def apply[A](a: => A): Task[A] = sync(a)
+  def apply[A](a: => A): Task[A] = effect(a)
 }
 object UIO extends ZIOFunctions {
   type UpperE = Nothing
   type LowerR = Any
 
-  def apply[A](a: => A): UIO[A] = defer(a)
+  def apply[A](a: => A): UIO[A] = effectTotal(a)
 }
 
 object ZIO extends ZIO_R_Any {
-  def apply[A](a: => A): Task[A] = sync(a)
+  def apply[A](a: => A): Task[A] = effect(a)
 
   @inline
   private final def succeedLeft[E, A]: E => UIO[Either[E, A]] =
@@ -1517,9 +1517,9 @@ object ZIO extends ZIO_R_Any {
   final object Tags {
     final val FlatMap         = 0
     final val Succeed         = 1
-    final val Defer           = 2
+    final val Effect          = 2
     final val Fail            = 3
-    final val Async           = 4
+    final val EffectAsync     = 4
     final val Fold            = 5
     final val Fork            = 6
     final val Uninterruptible = 7
@@ -1539,12 +1539,12 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Succeed
   }
 
-  final class Defer[A](val effect: Platform => A) extends UIO[A] {
-    override def tag = Tags.Defer
+  final class Effect[A](val effect: Platform => A) extends UIO[A] {
+    override def tag = Tags.Effect
   }
 
-  final class Async[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
-    override def tag = Tags.Async
+  final class EffectAsync[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
+    override def tag = Tags.EffectAsync
   }
 
   final class Fold[R, E, E2, A, B](

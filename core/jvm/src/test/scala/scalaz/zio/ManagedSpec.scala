@@ -17,7 +17,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def invokesCleanupsInReverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      Managed.make(IO.defer { effects += x; () })(_ => IO.defer { effects += x; () })
+      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
     val (first, second, third) = (res(1), res(2), res(3))
 
@@ -38,7 +38,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     val cleanups = new mutable.ListBuffer[String]
 
     def managed(v: String): Managed[Any, Nothing, String] =
-      Managed.make(IO.succeed(v))(_ => IO.defer { cleanups += v; () })
+      Managed.make(IO.succeed(v))(_ => IO.effectTotal { cleanups += v; () })
 
     val program = managed("A").zipWithPar(managed("B"))(_ + _).use[Any, Nothing, String](IO.succeed)
 
@@ -51,7 +51,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def traverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      Managed.make(IO.defer { effects += x; () })(_ => IO.defer { effects += x; () })
+      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
     val resources = Managed.foreach(List(1, 2, 3))(res)
 

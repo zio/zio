@@ -59,7 +59,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def t2 = {
     val list    = List("1", "2", "3")
     val effects = new mutable.ListBuffer[String]
-    val res     = unsafeRun(IO.foreach(list)(x => IO.defer(effects += x) *> IO.succeedLazy[Int](x.toInt)))
+    val res     = unsafeRun(IO.foreach(list)(x => IO.effectTotal(effects += x) *> IO.succeedLazy[Int](x.toInt)))
     (effects.toList, res) must be_===((list, List(1, 2, 3)))
   }
 
@@ -177,7 +177,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testSupervise = {
-    val io = IO.defer("supercalifragilisticexpialadocious")
+    val io = IO.effectTotal("supercalifragilisticexpialadocious")
     unsafeRun(for {
       supervise1 <- io.supervise
       supervise2 <- IO.supervise(io)
@@ -200,7 +200,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testRaceAll = {
-    val io  = IO.defer("supercalifragilisticexpialadocious")
+    val io  = IO.effectTotal("supercalifragilisticexpialadocious")
     val ios = List.empty[UIO[String]]
     unsafeRun(for {
       race1 <- io.raceAll(ios)

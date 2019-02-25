@@ -54,7 +54,7 @@ trait App extends DefaultRuntime {
       unsafeRun(
         for {
           fiber <- run(args0.toList).fork
-          _ <- IO.defer(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
+          _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
                 override def run() = {
                   val _ = unsafeRunSync(fiber.interrupt)
                 }
