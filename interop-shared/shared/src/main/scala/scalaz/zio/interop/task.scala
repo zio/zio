@@ -30,7 +30,7 @@ object Util {
         t => Task.fail(t),
         f =>
           f.value.fold(
-            Task.async { (cb: Task[A] => Unit) =>
+            Task.effectAsync { (cb: Task[A] => Unit) =>
               f.onComplete {
                 case Success(a) => cb(Task.succeed(a))
                 case Failure(t) => cb(Task.fail(t))

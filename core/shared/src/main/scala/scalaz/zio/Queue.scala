@@ -62,7 +62,7 @@ class Queue[A] private (
         unsafeCompleteTakers(platform)
     }
 
-  private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.defer(unsafeRemove(takers, taker))
+  private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.effectTotal(unsafeRemove(takers, taker))
 
   final val capacity: Int = queue.capacity
 
@@ -92,7 +92,7 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      remaining <- IO.deferWith { platform =>
+      remaining <- IO.effectTotalWith { platform =>
                     val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
                     val (forTakers, remaining) = as.splitAt(pTakers.size)
                     (pTakers zip forTakers).foreach {
@@ -104,14 +104,14 @@ class Queue[A] private (
       added <- if (remaining.nonEmpty) {
                 // not enough takers, offer to the queue
                 for {
-                  surplus <- IO.deferWith { platform =>
+                  surplus <- IO.effectTotalWith { platform =>
                               val as = unsafeOfferAll(queue, remaining.toList)
                               unsafeCompleteTakers(platform)
                               as
                             }
                   res <- if (surplus.isEmpty) IO.succeed(true)
                         else
-                          strategy.handleSurplus(surplus, queue) <* IO.deferWith(
+                          strategy.handleSurplus(surplus, queue) <* IO.effectTotalWith(
                             platform => unsafeCompleteTakers(platform)
                           )
                 } yield res
@@ -150,7 +150,7 @@ class Queue[A] private (
              case None       => (IO.unit, None)
              case Some(hook) => (hook, None)
            }
-    takers <- IO.defer(unsafePollAll(takers))
+    takers <- IO.effectTotal(unsafePollAll(takers))
     _      <- IO.foreachPar(takers)(_.interrupt) *> hook
     _      <- strategy.shutdown
   } yield ()).uninterruptible
@@ -163,7 +163,7 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      item <- IO.deferWith { platform =>
+      item <- IO.effectTotalWith { platform =>
                val item = queue.poll(null.asInstanceOf[A])
                if (item != null) strategy.unsafeOnQueueEmptySpace(queue, platform)
                item
@@ -177,7 +177,7 @@ class Queue[A] private (
               // - try take again in case a value was added since
               // - wait for the promise to be completed
               // - clean up resources in case of interruption
-              a <- (IO.deferWith { platform =>
+              a <- (IO.effectTotalWith { platform =>
                     takers.offer(p)
                     unsafeCompleteTakers(platform)
                   } *> p.await).onInterrupt(removeTaker(p))
@@ -192,7 +192,7 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      as <- IO.deferWith { platform =>
+      as <- IO.effectTotalWith { platform =>
              val as = unsafePollAll(queue)
              strategy.unsafeOnQueueEmptySpace(queue, platform)
              as
@@ -206,7 +206,7 @@ class Queue[A] private (
     for {
       _ <- checkShutdownState
 
-      as <- IO.deferWith { platform =>
+      as <- IO.effectTotalWith { platform =>
              val as = unsafePollN(queue, max)
              strategy.unsafeOnQueueEmptySpace(queue, platform)
              as
@@ -294,7 +294,7 @@ object Queue {
               if (queue.offer(head)) unsafeSlidingOffer(tail) else unsafeSlidingOffer(as)
           }
         val loss = queue.capacity - queue.size() < as.size
-        IO.defer(unsafeSlidingOffer(as)).map(_ => !loss)
+        IO.effectTotal(unsafeSlidingOffer(as)).map(_ => !loss)
       }
 
       final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit = ()
@@ -341,10 +341,10 @@ object Queue {
 
         for {
           p <- Promise.make[Nothing, Boolean]
-          _ <- (IO.deferWith { platform =>
+          _ <- (IO.effectTotalWith { platform =>
                 unsafeOffer(as, p)
                 unsafeOnQueueEmptySpace(queue, platform)
-              } *> p.await).onInterrupt(IO.defer(unsafeRemove(p)))
+              } *> p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
         } yield true
       }
 
@@ -372,7 +372,7 @@ object Queue {
 
       final def shutdown: UIO[Unit] =
         for {
-          putters <- IO.defer(unsafePollAll(putters))
+          putters <- IO.effectTotal(unsafePollAll(putters))
           _       <- IO.foreachPar(putters) { case (_, p, lastItem) => if (lastItem) p.interrupt else IO.unit }
         } yield ()
     }
@@ -388,7 +388,7 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.defer(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
+    IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
 
   /**
    * Makes a new bounded queue with sliding strategy.
@@ -400,7 +400,7 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.defer(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
+    IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
 
   /**
    * Makes a new bounded queue with the dropping strategy.
@@ -411,13 +411,13 @@ object Queue {
    * the underlying [[scalaz.zio.internal.impls.RingBuffer]].
    */
   final def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.defer(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
+    IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
 
   /**
    * Makes a new unbounded queue.
    */
   final def unbounded[A]: UIO[Queue[A]] =
-    IO.defer(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
+    IO.effectTotal(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
 
   private final def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): UIO[Queue[A]] =
     Ref

@@ -36,18 +36,18 @@ object Clock extends Serializable {
   trait Live extends SchedulerLive with Clock {
     val clock: Service[Any] = new Service[Any] {
       def currentTime(unit: TimeUnit): UIO[Long] =
-        IO.defer(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
+        IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
-      val nanoTime: UIO[Long] = IO.defer(System.nanoTime)
+      val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
 
       def sleep(duration: Duration): UIO[Unit] =
         scheduler.scheduler.flatMap(
           scheduler =>
-            ZIO.asyncInterrupt[Any, Nothing, Unit] { k =>
+            ZIO.effectAsyncInterrupt[Any, Nothing, Unit] { k =>
               val canceler = scheduler
                 .schedule(() => k(ZIO.unit), duration)
 
-              Left(ZIO.defer(canceler()))
+              Left(ZIO.effectTotal(canceler()))
             }
         )
     }

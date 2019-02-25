@@ -28,7 +28,7 @@ object javaconcurrent {
   implicit class IOObjJavaconcurrentOps(private val ioObj: IO.type) extends AnyVal {
 
     private def unsafeCompletionStageToIO[A](cs: CompletionStage[A]): Task[A] =
-      IO.async { cb =>
+      IO.effectAsync { cb =>
         val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
           if (v != null) {
             cb(IO.succeed(v))
@@ -55,7 +55,7 @@ object javaconcurrent {
     private def unsafeFutureJavaToIO[A](future: Future[A]): Task[A] = {
       def unwrap[B](f: Future[B]): Task[B] =
         IO.flatten {
-          IO.defer {
+          IO.effectTotal {
             try {
               val result = f.get()
               IO.succeed(result)
@@ -100,7 +100,7 @@ object javaconcurrent {
         def poll: UIO[Option[Exit[Throwable, A]]] =
           IO.suspend {
             if (ftr.isDone) {
-              IO.sync(ftr.get())
+              IO.effect(ftr.get())
                 .refineOrDie(JustExceptions)
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))

@@ -50,7 +50,7 @@ object Console extends Serializable {
         putStr(SConsole.out)(line)
 
       final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.defer(SConsole.withOut(stream) {
+        IO.effectTotal(SConsole.withOut(stream) {
           SConsole.print(line)
         })
 
@@ -61,7 +61,7 @@ object Console extends Serializable {
         putStrLn(SConsole.out)(line)
 
       final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.defer(SConsole.withOut(stream) {
+        IO.effectTotal(SConsole.withOut(stream) {
           SConsole.println(line)
         })
 
@@ -72,7 +72,7 @@ object Console extends Serializable {
         getStrLn(SConsole.in)
 
       final def getStrLn(reader: Reader): IO[IOException, String] =
-        IO.sync(SConsole.withIn(reader) {
+        IO.effect(SConsole.withIn(reader) {
             StdIn.readLine()
           })
           .refineOrDie {

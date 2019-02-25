@@ -38,23 +38,23 @@ object Random extends Serializable {
     val random: Service[Any] = new Service[Any] {
       import scala.util.{ Random => SRandom }
 
-      val nextBoolean: UIO[Boolean] = ZIO.defer(SRandom.nextBoolean())
+      val nextBoolean: UIO[Boolean] = ZIO.effectTotal(SRandom.nextBoolean())
       def nextBytes(length: Int): UIO[Chunk[Byte]] =
-        ZIO.defer {
+        ZIO.effectTotal {
           val array = Array.ofDim[Byte](length)
 
           SRandom.nextBytes(array)
 
           Chunk.fromArray(array)
         }
-      val nextDouble: UIO[Double]              = ZIO.defer(SRandom.nextDouble())
-      val nextFloat: UIO[Float]                = ZIO.defer(SRandom.nextFloat())
-      val nextGaussian: UIO[Double]            = ZIO.defer(SRandom.nextGaussian())
-      def nextInt(n: Int): UIO[Int]            = ZIO.defer(SRandom.nextInt(n))
-      val nextInt: UIO[Int]                    = ZIO.defer(SRandom.nextInt())
-      val nextLong: UIO[Long]                  = ZIO.defer(SRandom.nextLong())
-      val nextPrintableChar: UIO[Char]         = ZIO.defer(SRandom.nextPrintableChar())
-      def nextString(length: Int): UIO[String] = ZIO.defer(SRandom.nextString(length))
+      val nextDouble: UIO[Double]              = ZIO.effectTotal(SRandom.nextDouble())
+      val nextFloat: UIO[Float]                = ZIO.effectTotal(SRandom.nextFloat())
+      val nextGaussian: UIO[Double]            = ZIO.effectTotal(SRandom.nextGaussian())
+      def nextInt(n: Int): UIO[Int]            = ZIO.effectTotal(SRandom.nextInt(n))
+      val nextInt: UIO[Int]                    = ZIO.effectTotal(SRandom.nextInt())
+      val nextLong: UIO[Long]                  = ZIO.effectTotal(SRandom.nextLong())
+      val nextPrintableChar: UIO[Char]         = ZIO.effectTotal(SRandom.nextPrintableChar())
+      def nextString(length: Int): UIO[String] = ZIO.effectTotal(SRandom.nextString(length))
     }
   }
   object Live extends Live
