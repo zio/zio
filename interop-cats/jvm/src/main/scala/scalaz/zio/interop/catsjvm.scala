@@ -79,7 +79,7 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
       this.unsafeRun {
         fa.fork.flatMap { f =>
           f.await
-            .flatMap(exit => IO.sync(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
+            .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
             .const(f.interrupt.void)
         }
@@ -180,10 +180,10 @@ private class CatsEffect
     }
 
   override final def suspend[A](thunk: => Task[A]): Task[A] =
-    IO.flatten(IO.sync(thunk))
+    IO.flatten(IO.effect(thunk))
 
   override final def delay[A](thunk: => A): Task[A] =
-    IO.sync(thunk)
+    IO.effect(thunk)
 
   override final def bracket[A, B](acquire: Task[A])(use: A => Task[B])(
     release: A => Task[Unit]
