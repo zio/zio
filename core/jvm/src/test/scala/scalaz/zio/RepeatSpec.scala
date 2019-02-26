@@ -1,8 +1,9 @@
 package scalaz.zio
 
 import org.specs2.ScalaCheck
+import scalaz.zio.clock.Clock
 
-class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "RepeatSpec".title ^ s2"""
    Repeat on success according to a provided strategy
       for 'recurs(a negative number)' repeats 0 additional time $repeatNeg
@@ -14,7 +15,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
    Repeat a scheduled repeat repeats the whole number $repeatRepeat
     """
 
-  val repeat: Int => IO[Nothing, Int] = (n: Int) =>
+  val repeat: Int => ZIO[Clock, Nothing, Int] = (n: Int) =>
     for {
       ref <- Ref.make(0)
       s   <- ref.update(_ + 1).repeat(Schedule.recurs(n))
@@ -92,7 +93,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       (for {
         ref <- Ref.make(0)
         _   <- incr(ref).repeat(Schedule.recurs(42))
-      } yield ()).redeem(
+      } yield ()).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )

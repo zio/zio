@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is = "PromiseSpec".title ^ s2"""
         Make a promise and retrieve its value correctly after complete it with:
@@ -48,7 +48,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       for {
         p <- Promise.make[String, Int]
         s <- p.fail("error in e3")
-        v <- p.await.attempt
+        v <- p.await.either
       } yield s must beTrue and (v must_=== Left("error in e3"))
     )
 
@@ -57,7 +57,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       for {
         p <- Promise.make[String, Int]
         s <- p.done(IO.fail("error in e4"))
-        v <- p.await.attempt
+        v <- p.await.either
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
 
@@ -90,7 +90,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
     unsafeRun(
       for {
         p       <- Promise.make[String, Int]
-        attempt <- p.poll.get.attempt
+        attempt <- p.poll.get.either
       } yield attempt must beLeft(())
     )
 

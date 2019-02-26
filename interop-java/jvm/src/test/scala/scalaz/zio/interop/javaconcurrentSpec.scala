@@ -7,7 +7,7 @@ import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause.{ Die, Fail }
 import scalaz.zio.interop.javaconcurrent._
 
-class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
+class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def is = s2"""
   `IO.fromFutureJava` must
@@ -103,14 +103,14 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
   }
 
   val toCompletableFuturePoly = {
-    val unitIO: IO[Throwable, Unit]                 = IO.unit
+    val unitIO: Task[Unit]                          = IO.unit
     val polyIO: IO[String, CompletableFuture[Unit]] = unitIO.toCompletableFuture
     val _                                           = polyIO // avoid warning
     ok
   }
 
   val toCompletableFutureFailed = {
-    val failedIO: IO[Throwable, Unit] = IO.fail[Throwable](new Exception("IOs also can fail"))
+    val failedIO: Task[Unit] = IO.fail[Throwable](new Exception("IOs also can fail"))
     unsafeRun(failedIO.toCompletableFuture).get() must throwA[Exception](message = "IOs also can fail")
   }
 
