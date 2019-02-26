@@ -3,7 +3,7 @@
 <p>Include ZIO in your Scala.js project by adding the following to your <code class="highlighter-rouge">build.sbt</code>:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>scalaJSUseMainModuleInitializer := true
-libraryDependencies += "org.scalaz" %%% "scalaz-zio" % "0.6.3"
+libraryDependencies += "org.scalaz" %%% "scalaz-zio" % "1.0-RC1"
 </code></pre></div></div>
 
 <h3 id="example">Example</h3>
@@ -19,10 +19,10 @@ will need to add that library as a dependency to your <code class="highlighter-r
 
   <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
     <span class="k">for</span> <span class="o">{</span>
-      <span class="n">p</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="n">document</span><span class="o">.</span><span class="n">createElement</span><span class="o">(</span><span class="s">"p"</span><span class="o">))</span>
-      <span class="n">t</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="n">document</span><span class="o">.</span><span class="n">createTextNode</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">))</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="n">p</span><span class="o">.</span><span class="n">appendChild</span><span class="o">(</span><span class="n">t</span><span class="o">))</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="n">document</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">appendChild</span><span class="o">(</span><span class="n">p</span><span class="o">))</span>
+      <span class="n">p</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">defer</span><span class="o">(</span><span class="n">document</span><span class="o">.</span><span class="n">createElement</span><span class="o">(</span><span class="s">"p"</span><span class="o">))</span>
+      <span class="n">t</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">defer</span><span class="o">(</span><span class="n">document</span><span class="o">.</span><span class="n">createTextNode</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">))</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">defer</span><span class="o">(</span><span class="n">p</span><span class="o">.</span><span class="n">appendChild</span><span class="o">(</span><span class="n">t</span><span class="o">))</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">defer</span><span class="o">(</span><span class="n">document</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">appendChild</span><span class="o">(</span><span class="n">p</span><span class="o">))</span>
     <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 <span class="o">}</span>
 

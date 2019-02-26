@@ -8,7 +8,7 @@
 
 <p>This is the extension method added to <code class="highlighter-rouge">IO</code> companion object:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fromFuture</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ftr</span><span class="k">:</span> <span class="o">()</span> <span class="o">=&gt;</span> <span class="nc">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">])(</span><span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fromFuture</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ftr</span><span class="k">:</span> <span class="o">()</span> <span class="o">=&gt;</span> <span class="nc">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">])(</span><span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span>
 </code></pre></div></div>
 
 <p>There are a few things to clarify here:</p>
@@ -26,26 +26,26 @@
 
 <span class="c1">// future defined in thunk using def
 </span><span class="k">def</span> <span class="n">myFuture</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ALotOfData</span><span class="o">]</span> <span class="k">=</span> <span class="n">myLegacyHeavyJobReturningFuture</span><span class="o">(...)</span>
-<span class="k">val</span> <span class="n">myIO</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">ALotOfData</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">fromFuture</span><span class="o">(</span><span class="n">myFuture</span> <span class="k">_</span><span class="o">)(</span><span class="n">myEC</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">myIO</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">ALotOfData</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">fromFuture</span><span class="o">(</span><span class="n">myFuture</span> <span class="k">_</span><span class="o">)(</span><span class="n">myEC</span><span class="o">)</span>
 </code></pre></div></div>
 
 <h3 id="to-future">To <code class="highlighter-rouge">Future</code></h3>
 
-<p>This extension method is added to values of type <code class="highlighter-rouge">IO[Throwable, A]</code>:</p>
+<p>This extension method is added to values of type <code class="highlighter-rouge">Task[A]</code>:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toFuture</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toFuture</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
 </code></pre></div></div>
 
 <p>Notice that we don’t actually return a <code class="highlighter-rouge">Future</code> but an infallible <code class="highlighter-rouge">IO</code> producing the <code class="highlighter-rouge">Future</code> when it’s performed, that’s again because as soon as we have a <code class="highlighter-rouge">Future</code> in our hands, whatever it does is already happening.</p>
 
 <p>As an alternative, a more flexible extension method is added to any <code class="highlighter-rouge">IO[E, A]</code> to convert to <code class="highlighter-rouge">Future</code> as long as you can provide a function to convert from <code class="highlighter-rouge">E</code> to <code class="highlighter-rouge">Throwable</code>.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toFutureE</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">E</span> <span class="o">=&gt;</span> <span class="nc">Throwable</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toFutureE</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">E</span> <span class="o">=&gt;</span> <span class="nc">Throwable</span><span class="o">)</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
 </code></pre></div></div>
 
 <h4 id="example-1">Example</h4>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">safeFuture</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Future</span><span class="o">[</span><span class="kt">MoarData</span><span class="o">]]</span> <span class="k">=</span> <span class="n">myShinyNewApiBasedOnZio</span><span class="o">(...).</span><span class="n">toFuture</span><span class="o">(</span><span class="nc">MyError</span><span class="o">.</span><span class="n">toThrowable</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">safeFuture</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Future</span><span class="o">[</span><span class="kt">MoarData</span><span class="o">]]</span> <span class="k">=</span> <span class="n">myShinyNewApiBasedOnZio</span><span class="o">(...).</span><span class="n">toFuture</span><span class="o">(</span><span class="nc">MyError</span><span class="o">.</span><span class="n">toThrowable</span><span class="o">)</span>
 <span class="k">val</span> <span class="n">itsHappening</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">MoarData</span><span class="o">]</span> <span class="k">=</span> <span class="n">unsafeRun</span><span class="o">(</span><span class="n">safeFuture</span><span class="o">)</span>
 </code></pre></div></div>
 </section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});

@@ -7,19 +7,19 @@
 <p>Interop layer provides the following conversions:</p>
 
 <ul>
-  <li>from <code class="highlighter-rouge">IO[Throwable, A]</code> to <code class="highlighter-rouge">IO[Nothing, Task[A]]</code></li>
-  <li>from <code class="highlighter-rouge">Task[A]</code> to <code class="highlighter-rouge">IO[Throwable, A]</code></li>
+  <li>from <code class="highlighter-rouge">Task[A]</code> to <code class="highlighter-rouge">UIO[Task[A]]</code></li>
+  <li>from <code class="highlighter-rouge">Task[A]</code> to <code class="highlighter-rouge">Task[A]</code></li>
 </ul>
 
 <p>To convert an <code class="highlighter-rouge">IO</code> value to <code class="highlighter-rouge">Task</code>, use the following method:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toTask</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">eval.Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toTask</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">eval.Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
 </code></pre></div></div>
 
 <p>To perform conversion in other direction, use the following extension method
 available on <code class="highlighter-rouge">IO</code> companion object:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fromTask</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">task</span><span class="k">:</span> <span class="kt">eval.Task</span><span class="o">[</span><span class="kt">A</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">scheduler</span><span class="k">:</span> <span class="kt">Scheduler</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fromTask</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">task</span><span class="k">:</span> <span class="kt">eval.Task</span><span class="o">[</span><span class="kt">A</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">scheduler</span><span class="k">:</span> <span class="kt">Scheduler</span><span class="o">)</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 </code></pre></div></div>
 
 <p>Note that in order to convert the <code class="highlighter-rouge">Task</code> to an <code class="highlighter-rouge">IO</code>, an appropriate <code class="highlighter-rouge">Scheduler</code>
@@ -29,10 +29,10 @@ needs to be available.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">monix.eval.Task</span>
 <span class="k">import</span> <span class="nn">monix.execution.Scheduler.Implicits.global</span>
-<span class="k">import</span> <span class="nn">scalaz.zio.</span><span class="o">{</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">RTS</span> <span class="o">}</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.</span><span class="o">{</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">DefaultRuntime</span> <span class="o">}</span>
 <span class="k">import</span> <span class="nn">scalaz.zio.interop.monixio._</span>
 
-<span class="k">object</span> <span class="nc">UnsafeExample</span> <span class="k">extends</span> <span class="nc">RTS</span> <span class="o">{</span>
+<span class="k">object</span> <span class="nc">UnsafeExample</span> <span class="k">extends</span> <span class="nc">DefaultRuntime</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">main</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
     <span class="k">val</span> <span class="n">io1</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
     <span class="k">val</span> <span class="n">t1</span>  <span class="k">=</span> <span class="n">unsafeRun</span><span class="o">(</span><span class="n">io1</span><span class="o">.</span><span class="n">toTask</span><span class="o">)</span>
@@ -51,22 +51,22 @@ needs to be available.</p>
 
 <p>To convert an <code class="highlighter-rouge">IO</code> value to <code class="highlighter-rouge">Coeval</code>, use the following method:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toCoeval</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">eval.Coeval</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">toCoeval</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">eval.Coeval</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
 </code></pre></div></div>
 
 <p>To perform conversion in other direction, use the following extension method
 available on <code class="highlighter-rouge">IO</code> companion object:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fromCoeval</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">coeval</span><span class="k">:</span> <span class="kt">eval.Coeval</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fromCoeval</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">coeval</span><span class="k">:</span> <span class="kt">eval.Coeval</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 </code></pre></div></div>
 
 <h3 id="example-1">Example</h3>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">monix.eval.Coeval</span>
-<span class="k">import</span> <span class="nn">scalaz.zio.</span><span class="o">{</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">RTS</span> <span class="o">}</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.</span><span class="o">{</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">DefaultRuntime</span> <span class="o">}</span>
 <span class="k">import</span> <span class="nn">scalaz.zio.interop.monixio._</span>
 
-<span class="k">object</span> <span class="nc">UnsafeExample</span> <span class="k">extends</span> <span class="nc">RTS</span> <span class="o">{</span>
+<span class="k">object</span> <span class="nc">UnsafeExample</span> <span class="k">extends</span> <span class="nc">DefaultRuntime</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">main</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
     <span class="k">val</span> <span class="n">io1</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
     <span class="k">val</span> <span class="n">c1</span>  <span class="k">=</span> <span class="n">unsafeRun</span><span class="o">(</span><span class="n">io1</span><span class="o">.</span><span class="n">toCoeval</span><span class="o">)</span> 

@@ -44,7 +44,7 @@
 <p>As functional programmers, we know better and have captured state mutation in the form of functions of type <code class="highlighter-rouge">S =&gt; (A, S)</code>. <code class="highlighter-rouge">Ref</code> provides such an encoding, with <code class="highlighter-rouge">S</code> being the type of the value, and <code class="highlighter-rouge">modify</code> embodying the state mutation function.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Ref</span><span class="o">.</span><span class="n">make</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">idCounter</span> <span class="k">=&gt;</span>
-  <span class="k">def</span> <span class="n">freshVar</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">def</span> <span class="n">freshVar</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
     <span class="n">idCounter</span><span class="o">.</span><span class="n">modify</span><span class="o">(</span><span class="n">cpt</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">s</span><span class="s">"var${cpt + 1}"</span><span class="o">,</span> <span class="n">cpt</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
 
   <span class="k">for</span> <span class="o">{</span>
@@ -64,12 +64,12 @@
 <p>Well, with <code class="highlighter-rouge">Ref</code>s, that’s easy to do! The only difficulty is in <code class="highlighter-rouge">P</code>, where we must fail and retry when either <code class="highlighter-rouge">v</code> is negative or its value has changed between the moment we read it and the moment we try to update it. A naive implementation could look like:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">sealed</span> <span class="k">trait</span> <span class="nc">S</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">P</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span>
-  <span class="k">def</span> <span class="n">V</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">P</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">V</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
 
 <span class="k">object</span> <span class="nc">S</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">v</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">S</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">def</span> <span class="n">apply</span><span class="o">(</span><span class="n">v</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">S</span><span class="o">]</span> <span class="k">=</span>
     <span class="nc">Ref</span><span class="o">.</span><span class="n">make</span><span class="o">(</span><span class="n">v</span><span class="o">).</span><span class="n">map</span> <span class="o">{</span> <span class="n">vref</span> <span class="k">=&gt;</span>
       <span class="k">new</span> <span class="n">S</span> <span class="o">{</span>
         <span class="k">def</span> <span class="n">V</span> <span class="k">=</span> <span class="n">vref</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">).</span><span class="n">void</span>
@@ -82,7 +82,7 @@
               <span class="k">case</span> <span class="kc">false</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(())</span>
               <span class="k">case</span> <span class="kc">true</span>  <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span>
             <span class="o">}</span>
-        <span class="o">}</span> <span class="o">&lt;&gt;</span> <span class="n">P</span><span class="o">).</span><span class="n">attempt</span><span class="o">.</span><span class="n">void</span>
+        <span class="o">}</span> <span class="o">&lt;&gt;</span> <span class="n">P</span><span class="o">).</span><span class="n">either</span><span class="o">.</span><span class="n">void</span>
       <span class="o">}</span>
     <span class="o">}</span>
 <span class="o">}</span>
@@ -91,13 +91,16 @@
 <p>Let’s rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio.duration.Duration</span>
-<span class="k">import</span> <span class="nn">scala.util.Random</span>
-<span class="k">val</span> <span class="n">party</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.clock._</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.console._</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.random._</span>
+
+<span class="k">val</span> <span class="n">party</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">dancefloor</span> <span class="k">&lt;-</span> <span class="n">S</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
-  <span class="n">dancers</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">foreachPar</span><span class="o">(</span><span class="mi">1</span> <span class="n">to</span> <span class="mi">100</span><span class="o">)</span> <span class="o">{</span> <span class="n">i</span> <span class="k">=&gt;</span>
-    <span class="n">dancefloor</span><span class="o">.</span><span class="n">P</span> <span class="o">*&gt;</span> <span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="nc">Duration</span><span class="o">.</span><span class="n">fromNanos</span><span class="o">((</span><span class="nc">Random</span><span class="o">.</span><span class="n">nextDouble</span> <span class="o">*</span> <span class="mi">1000000</span><span class="o">).</span><span class="n">round</span><span class="o">)).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">d</span> <span class="k">=&gt;</span>
-      <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"${i} checking my boots"</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="n">d</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"${i} dancing like it's 99"</span><span class="o">))</span>
-    <span class="o">})</span> <span class="o">*&gt;</span> <span class="n">dancefloor</span><span class="o">.</span><span class="n">V</span>
+  <span class="n">dancers</span> <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">foreachPar</span><span class="o">(</span><span class="mi">1</span> <span class="n">to</span> <span class="mi">100</span><span class="o">)</span> <span class="o">{</span> <span class="n">i</span> <span class="k">=&gt;</span>
+    <span class="n">dancefloor</span><span class="o">.</span><span class="n">P</span> <span class="o">*&gt;</span> <span class="n">nextDouble</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">d</span> <span class="k">=&gt;</span> <span class="nc">Duration</span><span class="o">.</span><span class="n">fromNanos</span><span class="o">((</span><span class="n">d</span> <span class="o">*</span> <span class="mi">1000000</span><span class="o">).</span><span class="n">round</span><span class="o">)).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">d</span> <span class="k">=&gt;</span>
+      <span class="n">putStrLn</span><span class="o">(</span><span class="n">s</span><span class="s">"${i} checking my boots"</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="n">sleep</span><span class="o">(</span><span class="n">d</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="n">putStrLn</span><span class="o">(</span><span class="n">s</span><span class="s">"${i} dancing like it's 99"</span><span class="o">)</span>
+    <span class="o">}</span> <span class="o">*&gt;</span> <span class="n">dancefloor</span><span class="o">.</span><span class="n">V</span>
   <span class="o">}</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 </code></pre></div></div>

@@ -14,21 +14,21 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio._</span>
 
-<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>The constructor uses non-strict evaluation, so the parameter will not be evaluated until when and if the <code class="highlighter-rouge">IO</code> action is executed at runtime, which is useful if the construction is costly and the value may never be needed.</p>
 
 <p>Alternately, you can use the <code class="highlighter-rouge">IO.succeed</code> constructor to perform strict evaluation of the value:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hello World"</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>You should never use either constructor for importing impure code into <code class="highlighter-rouge">IO</code>. The result of doing so is undefined.</p>
 
 <h1 id="infallible-io">Infallible IO</h1>
 
-<p><code class="highlighter-rouge">IO</code> values of type <code class="highlighter-rouge">IO[Nothing, A]</code> (where the error type is <code class="highlighter-rouge">Nothing</code>) are considered <em>infallible</em>,
+<p><code class="highlighter-rouge">IO</code> values of type <code class="highlighter-rouge">UIO[A]</code> (where the error type is <code class="highlighter-rouge">Nothing</code>) are considered <em>infallible</em>,
 because the <code class="highlighter-rouge">Nothing</code> type is <em>uninhabitable</em>, i.e. there can be no actual values of type <code class="highlighter-rouge">Nothing</code>. Values of this type may produce an <code class="highlighter-rouge">A</code>, but will never fail with an <code class="highlighter-rouge">E</code>.</p>
 
 <h1 id="unproductive-io">Unproductive IO</h1>
@@ -38,34 +38,25 @@ because the <code class="highlighter-rouge">Nothing</code> type is <em>uninhabit
 
 <h1 id="impure-code">Impure Code</h1>
 
-<p>You can use the <code class="highlighter-rouge">sync</code> method of <code class="highlighter-rouge">IO</code> to import effectful synchronous code into your purely functional program:</p>
+<p>You can use the <code class="highlighter-rouge">effectTotal</code> method of <code class="highlighter-rouge">IO</code> to import effectful synchronous code into your purely functional program:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="nc">System</span><span class="o">.</span><span class="n">nanoTime</span><span class="o">())</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">effectTotal</span><span class="o">(</span><span class="nc">System</span><span class="o">.</span><span class="n">nanoTime</span><span class="o">())</span>
 </code></pre></div></div>
 
-<p>If you are importing effectful code that may throw exceptions, you can use the <code class="highlighter-rouge">syncException</code> method of <code class="highlighter-rouge">IO</code>:</p>
+<p>The resulting effect may fail for any <code class="highlighter-rouge">Throwable</code>.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io.File</span>
-<span class="k">import</span> <span class="nn">org.apache.commons.io.FileUtils</span>
+<p>If this is too broad, the <code class="highlighter-rouge">refineOrDie</code> method of <code class="highlighter-rouge">ZIO</code> may be used to retain only certain types of exceptions, and to die on any other types of exceptions:</p>
 
-<span class="k">def</span> <span class="n">readFile</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Exception</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span>
-  <span class="nc">IO</span><span class="o">.</span><span class="n">syncException</span><span class="o">(</span><span class="nc">FileUtils</span><span class="o">.</span><span class="n">readFileToByteArray</span><span class="o">(</span><span class="k">new</span> <span class="nc">File</span><span class="o">(</span><span class="n">name</span><span class="o">)))</span>
-</code></pre></div></div>
-
-<p>Alternately, <code class="highlighter-rouge">syncThrowable</code> will catch all <code class="highlighter-rouge">Throwable</code>, not just exceptions. Finally, the <code class="highlighter-rouge">syncCatch</code> method is more general, allowing you to catch and optionally translate any type of <code class="highlighter-rouge">Throwable</code> into a custom error type:</p>
-
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io.IOException</span>
-
-<span class="k">def</span> <span class="n">readFile</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span>
-  <span class="nc">IO</span><span class="o">.</span><span class="n">syncCatch</span><span class="o">(</span><span class="nc">FileUtils</span><span class="o">.</span><span class="n">readFileToByteArray</span><span class="o">(</span><span class="k">new</span> <span class="nc">File</span><span class="o">(</span><span class="n">name</span><span class="o">)))</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">readFile</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span>
+  <span class="nc">IO</span><span class="o">.</span><span class="n">effect</span><span class="o">(</span><span class="nc">FileUtils</span><span class="o">.</span><span class="n">readFileToByteArray</span><span class="o">(</span><span class="k">new</span> <span class="nc">File</span><span class="o">(</span><span class="n">name</span><span class="o">))).</span><span class="n">refineOrDie</span> <span class="o">{</span>
     <span class="k">case</span> <span class="n">e</span> <span class="k">:</span> <span class="kt">IOException</span> <span class="o">=&gt;</span> <span class="s">"Could not read file"</span>
   <span class="o">}</span>
 </code></pre></div></div>
 
-<p>You can use the <code class="highlighter-rouge">async</code> method of <code class="highlighter-rouge">IO</code> to import effectful asynchronous code into your purely functional program:</p>
+<p>You can use the <code class="highlighter-rouge">effectAsync</code> method of <code class="highlighter-rouge">IO</code> to import effectful asynchronous code into your purely functional program:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">makeRequest</span><span class="o">(</span><span class="n">req</span><span class="k">:</span> <span class="kt">Request</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">HttpException</span>, <span class="kt">Response</span><span class="o">]</span> <span class="k">=</span>
-  <span class="nc">IO</span><span class="o">.</span><span class="n">async</span><span class="o">[</span><span class="kt">HttpException</span>, <span class="kt">Response</span><span class="o">](</span><span class="n">k</span> <span class="k">=&gt;</span> <span class="nc">Http</span><span class="o">.</span><span class="n">req</span><span class="o">(</span><span class="n">req</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
+  <span class="nc">IO</span><span class="o">.</span><span class="n">effectAsync</span><span class="o">[</span><span class="kt">HttpException</span>, <span class="kt">Response</span><span class="o">](</span><span class="n">k</span> <span class="k">=&gt;</span> <span class="nc">Http</span><span class="o">.</span><span class="n">req</span><span class="o">(</span><span class="n">req</span><span class="o">,</span> <span class="n">k</span><span class="o">))</span>
 </code></pre></div></div>
 
 <p>In this example, it’s assumed the <code class="highlighter-rouge">Http.req</code> method will invoke the specified callback when the result has been asynchronously computed.</p>
@@ -76,7 +67,7 @@ because the <code class="highlighter-rouge">Nothing</code> type is <em>uninhabit
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio._</span>
 
-<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="mi">21</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">*</span> <span class="mi">2</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="mi">21</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">*</span> <span class="mi">2</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>You can transform an <code class="highlighter-rouge">IO[E, A]</code> into an <code class="highlighter-rouge">IO[E2, A]</code> by calling the <code class="highlighter-rouge">mapError</code> method with a function <code class="highlighter-rouge">E =&gt; E2</code>:</p>
@@ -88,14 +79,14 @@ because the <code class="highlighter-rouge">Nothing</code> type is <em>uninhabit
 
 <p>You can execute two actions in sequence with the <code class="highlighter-rouge">flatMap</code> method. The second action may depend on the value produced by the first action.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">list</span> <span class="k">=&gt;</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">)).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">list</span> <span class="k">=&gt;</span>
   <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="n">list</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
 <p>You can use Scala’s <code class="highlighter-rouge">for</code> comprehension syntax to make this type of code more compact:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">list</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">))</span>
   <span class="n">added</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="n">list</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="n">added</span>
@@ -127,8 +118,8 @@ because the <code class="highlighter-rouge">Nothing</code> type is <em>uninhabit
 <p>A helper method called <code class="highlighter-rouge">ensuring</code> provides a simpler analogue of <code class="highlighter-rouge">finally</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">var</span> <span class="n">i</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">val</span> <span class="n">action</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="k">new</span> <span class="nc">Throwable</span><span class="o">(</span><span class="s">"Boom!"</span><span class="o">))</span>
-<span class="k">val</span> <span class="n">cleanupAction</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sync</span><span class="o">(</span><span class="n">i</span> <span class="o">-=</span> <span class="mi">1</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">action</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Task</span><span class="o">.</span><span class="n">effectTotal</span><span class="o">(</span><span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">Task</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="k">new</span> <span class="nc">Throwable</span><span class="o">(</span><span class="s">"Boom!"</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">cleanupAction</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">UIO</span><span class="o">.</span><span class="n">effectTotal</span><span class="o">(</span><span class="n">i</span> <span class="o">-=</span> <span class="mi">1</span><span class="o">)</span>
 <span class="k">val</span> <span class="n">composite</span> <span class="k">=</span> <span class="n">action</span><span class="o">.</span><span class="n">ensuring</span><span class="o">(</span><span class="n">cleanupAction</span><span class="o">)</span>
 </code></pre></div></div>
 </section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});

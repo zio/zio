@@ -8,7 +8,7 @@
 
 <p>For convenience we have defined an alias as follow:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="k">type</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="k">type</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 </code></pre></div></div>
 
 <p>Therefore, we provide an instance of <code class="highlighter-rouge">Effect[Task]</code>.</p>

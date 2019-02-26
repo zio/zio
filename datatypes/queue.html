@@ -6,7 +6,7 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio._</span>
 
-<span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
   <span class="n">v1</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">take</span>
@@ -26,26 +26,26 @@
 </ul>
 
 <p>To create a back-pressured bounded queue:</p>
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>To create a dropping queue:</p>
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">dropping</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">dropping</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>To create a sliding queue:</p>
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">sliding</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">sliding</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>To create an unbounded queue:</p>
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">unbounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">queue</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Queue</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">unbounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span>
 </code></pre></div></div>
 
 <h2 id="adding-items-to-a-queue">Adding items to a queue</h2>
 
 <p>The simplest way to add a value to the queue is <code class="highlighter-rouge">offer</code>:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
@@ -53,7 +53,7 @@
 
 <p>When using a back-pressured queue, offer might suspend if the queue is full: you can use <code class="highlighter-rouge">fork</code> to wait in a different fiber.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">1</span><span class="o">)</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
   <span class="n">f</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">1</span><span class="o">).</span><span class="n">fork</span> <span class="c1">// will be suspended because the queue is full
@@ -64,7 +64,7 @@
 
 <p>It is also possible to add multiple values at once with <code class="highlighter-rouge">offerAll</code>:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
   <span class="n">items</span> <span class="k">=</span> <span class="nc">Range</span><span class="o">.</span><span class="n">inclusive</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">10</span><span class="o">).</span><span class="n">toList</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offerAll</span><span class="o">(</span><span class="n">items</span><span class="o">)</span>
@@ -75,7 +75,7 @@
 
 <p>The <code class="highlighter-rouge">take</code> operation removes the oldest item from the queue and returns it. If the queue is empty, this will suspend, and resume only when an item has been added to the queue. As with <code class="highlighter-rouge">offer</code>, you can use <code class="highlighter-rouge">fork</code> to wait for the value in a different fiber.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">String</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
   <span class="n">f</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">take</span><span class="o">.</span><span class="n">fork</span> <span class="c1">// will be suspended because the queue is empty
 </span>  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="s">"something"</span><span class="o">)</span>
@@ -85,7 +85,7 @@
 
 <p>You can consume multiple items at once with <code class="highlighter-rouge">takeUpTo</code>. If the queue doesn’t have enough items to return, it will return all the items without waiting for more offers.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">20</span><span class="o">)</span>
@@ -95,7 +95,7 @@
 
 <p>Similarly, you can get all items at once with <code class="highlighter-rouge">takeAll</code>. It also returns without waiting (an empty list if the queue is empty).</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">20</span><span class="o">)</span>
@@ -107,7 +107,7 @@
 
 <p>It is possible with <code class="highlighter-rouge">shutdown</code> to interrupt all the fibers that are suspended on <code class="highlighter-rouge">offer*</code> or <code class="highlighter-rouge">take*</code>. It will also empty the queue and make all future calls to <code class="highlighter-rouge">offer*</code> and <code class="highlighter-rouge">take*</code> terminate immediately.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">3</span><span class="o">)</span>
   <span class="n">f</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">take</span><span class="o">.</span><span class="n">fork</span>
   <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">shutdown</span> <span class="c1">// will interrupt f
@@ -115,9 +115,9 @@
 </span><span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
-<p>You can use <code class="highlighter-rouge">awaitShutdown</code> to execute an action when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.</p>
+<p>You can use <code class="highlighter-rouge">awaitShutdown</code> to execute an effect when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
   <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">3</span><span class="o">)</span>
   <span class="n">p</span> <span class="k">&lt;-</span> <span class="nc">Promise</span><span class="o">.</span><span class="n">make</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Boolean</span><span class="o">]</span>
   <span class="n">f</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">awaitShutdown</span><span class="o">.</span><span class="n">fork</span>
