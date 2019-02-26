@@ -5,14 +5,15 @@ import org.specs2.Specification
 import org.specs2.specification.{ AroundEach, AroundTimeout }
 import org.specs2.execute.{ AsResult, Failure, Result, Skipped }
 
-import scalaz.zio.internal.impls.Env
+import scalaz.zio.internal.PlatformLive
 
-abstract class AbstractRTSSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+abstract class TestRuntime(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends Specification
-    with RTS
+    with DefaultRuntime
     with AroundEach
     with AroundTimeout {
-  override lazy val env = Env.newDefaultEnv(_ => IO.unit)
+
+  override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
 
   val DefaultTimeout = 60.seconds
 

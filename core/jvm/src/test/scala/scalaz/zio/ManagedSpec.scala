@@ -3,7 +3,7 @@ package scalaz.zio
 import org.specs2.ScalaCheck
 import scala.collection.mutable
 
-class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "ManagedSpec".title ^ s2"""
   Managed.make
     Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse
@@ -16,7 +16,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
   private def invokesCleanupsInReverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      Managed.make(IO.sync { effects += x; () })(_ => IO.sync { effects += x; () })
+      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
     val (first, second, third) = (res(1), res(2), res(3))
 
@@ -26,7 +26,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
       _ <- third
     } yield ()
 
-    val program = composed.use(_ => IO.unit)
+    val program = composed.use[Any, Nothing, Unit](_ => IO.unit)
 
     unsafeRun(program)
 
@@ -36,10 +36,10 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
   private def parallelAcquireAndRelease = {
     val cleanups = new mutable.ListBuffer[String]
 
-    def managed(v: String): Managed[Nothing, String] =
-      Managed.make(IO.succeed(v))(_ => IO.sync { cleanups += v; () })
+    def managed(v: String): Managed[Any, Nothing, String] =
+      Managed.make(IO.succeed(v))(_ => IO.effectTotal { cleanups += v; () })
 
-    val program = managed("A").zipWithPar(managed("B"))(_ + _).use(IO.succeed)
+    val program = managed("A").zipWithPar(managed("B"))(_ + _).use[Any, Nothing, String](IO.succeed)
 
     val result = unsafeRun(program)
 
@@ -50,7 +50,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstr
   private def traverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      Managed.make(IO.sync { effects += x; () })(_ => IO.sync { effects += x; () })
+      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
     val resources = Managed.foreach(List(1, 2, 3))(res)
 

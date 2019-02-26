@@ -4,7 +4,7 @@ import scala.{ Array, Boolean, Int, Unit }
 
 object ScalazIOArray {
 
-  def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): IO[Nothing, Unit] = {
+  def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): UIO[Unit] = {
 
     type IndexValue   = (Int, A)
     type IJIndex      = (Int, Int)

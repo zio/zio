@@ -1,8 +1,8 @@
 package scalaz.zio.duration
 
-import scalaz.zio.AbstractRTSSpec
+import scalaz.zio.TestRuntime
 
-class DurationSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class DurationSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is = "DurationSyntaxSpec".title ^ s2"""
     Long:

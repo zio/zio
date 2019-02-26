@@ -5,7 +5,7 @@ import java.io.{ ByteArrayOutputStream, PrintStream, StringReader }
 
 import org.specs2.concurrent.ExecutionEnv
 
-class PackageSpec(implicit ee: ExecutionEnv) extends AbstractRTSSpec {
+class PackageSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is = "PackageSpec".title ^ s2"""
     Check that the following is possible:
       Print a string to the stream                 $putStr1

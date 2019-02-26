@@ -4,8 +4,9 @@ import scala.collection.immutable.Range
 import org.specs2.specification.AroundTimeout
 import scalaz.zio.QueueSpec.waitForSize
 import scalaz.zio.duration._
+import scalaz.zio.clock.Clock
 
-class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
+class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with AroundTimeout {
 
   def is =
     "QueueSpec".title ^ s2"""
@@ -130,7 +131,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       queue  <- Queue.bounded[Int](10)
       f      <- IO.forkAll(List.fill(10)(queue.take))
       values = Range.inclusive(1, 10).toList
-      _      <- values.map(queue.offer).foldLeft[IO[Nothing, Boolean]](IO.succeed(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
       v      <- f.join
     } yield v must containTheSameElementsAs(values))
 
@@ -799,7 +800,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
 object QueueSpec {
 
-  def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
-    (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != size))
+  def waitForSize[A](queue: Queue[A], size: Int): ZIO[Clock, Nothing, Int] =
+    (queue.size <* clock.sleep(10.millis)).repeat(Schedule.doWhile(_ != size))
 
 }
