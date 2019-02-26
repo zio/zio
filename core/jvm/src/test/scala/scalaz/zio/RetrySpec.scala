@@ -2,8 +2,9 @@ package scalaz.zio
 
 import org.specs2.ScalaCheck
 import scalaz.zio.duration._
+import scalaz.zio.random._
 
-class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "RetrySpec".title ^ s2"""
    Retry on failure according to a provided strategy
       retry 0 time for `once` when first time succeeds $notRetryOnSuccess
@@ -21,19 +22,18 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     if failed $retryOrElseFallbackFailed
   """
 
-  def retryCollect[E, A, E1 >: E, S](
+  def retryCollect[R, E, A, E1 >: E, S](
     io: IO[E, A],
-    retry: Schedule[E1, S],
-    clock: Clock = Clock.Live
-  ): IO[Nothing, (Either[E1, A], List[(Duration, S)])] = {
+    retry: Schedule[R, E1, S]
+  ): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] = {
 
     type State = retry.State
 
-    def loop(state: State, ss: List[(Duration, S)]): IO[Nothing, (Either[E1, A], List[(Duration, S)])] =
-      io.redeem(
+    def loop(state: State, ss: List[(Duration, S)]): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] =
+      io.foldM(
         err =>
           retry
-            .update(err, state, clock)
+            .update(err, state)
             .flatMap(
               step =>
                 if (!step.cont) IO.succeed((Left(err), (step.delay, step.finish()) :: ss))
@@ -42,7 +42,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         suc => IO.succeed((Right(suc), ss))
       )
 
-    retry.initial(clock).flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
+    retry.initial.flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
   }
 
   /*
@@ -93,7 +93,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       (for {
         ref <- Ref.make(0)
         _   <- alwaysFail(ref).retry(Schedule.once)
-      } yield ()).redeem(
+      } yield ()).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("A failure was expected")
       )
@@ -108,7 +108,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       (for {
         ref <- Ref.make(0)
         i   <- alwaysFail(ref).retry(Schedule.recurs(0))
-      } yield i).redeem(
+      } yield i).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
       )
@@ -124,10 +124,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   }
 
   def retryNUnitIntervalJittered = {
-    val jitter: IO[Nothing, Double]  = IO.sync(0.5)
-    val schedule: Schedule[Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(jitter)
+    val schedule: Schedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
     val scheduled: List[(Duration, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5), Clock.Live)
+      schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
 
     val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
@@ -135,10 +134,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   }
 
   def retryNCustomIntervalJittered = {
-    val jitter: IO[Nothing, Double]  = IO.sync(0.5)
-    val schedule: Schedule[Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4, jitter)
+    val schedule: Schedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
     val scheduled: List[(Duration, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5), Clock.Live)
+      schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
 
     val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
@@ -147,7 +145,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
 
   def fixedWithErrorPredicate = {
     var i = 0
-    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+    val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
@@ -157,9 +155,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
   }
 
   def recurs10Retry = {
-    var i                            = 0
-    val strategy: Schedule[Any, Int] = Schedule.recurs(10)
-    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+    var i                                 = 0
+    val strategy: Schedule[Any, Any, Int] = Schedule.recurs(10)
+    val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
     }
     val result   = unsafeRun(io.retry(strategy))
@@ -181,7 +179,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       (for {
         ref <- Ref.make(0)
         i   <- alwaysFail(ref).retryOrElse(Schedule.once, (_: String, _: Unit) => IO.fail("OrElseFailed"))
-      } yield i).redeem(
+      } yield i).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
       )
@@ -199,4 +197,28 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       i <- ref.update(_ + 1)
       x <- IO.fail(s"Error: $i")
     } yield x
+
+  object TestRandom extends Random {
+    object random extends Random.Service[Any] {
+      val nextBoolean: UIO[Boolean] = UIO.succeed(false)
+      def nextBytes(length: Int): UIO[Chunk[Byte]] =
+        UIO.succeed(Chunk.empty)
+      val nextDouble: UIO[Double] =
+        UIO.succeed(0.5)
+      val nextFloat: UIO[Float] =
+        UIO.succeed(0.5f)
+      val nextGaussian: UIO[Double] =
+        UIO.succeed(0.5)
+      def nextInt(n: Int): UIO[Int] =
+        UIO.succeed(n - 1)
+      val nextInt: UIO[Int] =
+        UIO.succeed(0)
+      val nextLong: UIO[Long] =
+        UIO.succeed(0L)
+      val nextPrintableChar: UIO[Char] =
+        UIO.succeed('A')
+      def nextString(length: Int): UIO[String] =
+        UIO.succeed("")
+    }
+  }
 }

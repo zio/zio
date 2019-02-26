@@ -6,35 +6,10 @@ title: "System"
 
 # {{page.title}}
 
-Sometimes, environment variables or the current system time are relevant information to an application.
-ZIO provides a `system` package to interface with this functionality.
+Sometimes, environment variables are relevant information to an application. ZIO provides a `system` package to interface with this functionality.
 
 ```tut:silent
 import scalaz.zio.system
-```
-
-## Time
-
-With `currentTime`, you can retrieve the current time as a `java.time.Instant`:
-
-```tut
-//
-system.currentTime
-```
-
-Note: In order to use `currentTime` in a Scala.js project you will need to add the
-[scala-js-java-time](https://github.com/scala-js/scala-js-java-time) dependency to avoid linking errors.
-
-If you need the current time in milliseconds since January 1, 1970, then you can use the `currentTimeMillis` method:
-
-```tut
-system.currentTimeMillis
-```
-
-Finally, if you need a high-resolution time source, not connected to system or wall-clock time, then you can use `nanoTime`:
-
-```tut
-system.nanoTime
 ```
 
 ## Environment Variables

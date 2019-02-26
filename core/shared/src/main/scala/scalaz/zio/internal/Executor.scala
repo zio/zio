@@ -1,4 +1,19 @@
-// Copyright (C) 2018 - 2019 John A. De Goes. All rights reserved.
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio.internal
 
 import java.util.concurrent._
@@ -11,11 +26,6 @@ import scala.concurrent.ExecutionContext
 trait Executor {
 
   /**
-   * The role the executor is optimized for.
-   */
-  def role: Executor.Role
-
-  /**
    * The number of operations a fiber should run before yielding.
    */
   def yieldOpCount: Int
@@ -26,12 +36,12 @@ trait Executor {
   def metrics: Option[ExecutionMetrics]
 
   /**
-   * Submits a task for execution.
+   * Submits an effect for execution.
    */
   def submit(runnable: Runnable): Boolean
 
   /**
-   * Submits a task for execution or throws.
+   * Submits an effect for execution or throws.
    */
   final def submitOrThrow(runnable: Runnable): Unit =
     if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
@@ -40,11 +50,6 @@ trait Executor {
    * Whether or not the caller is being run on this executor.
    */
   def here: Boolean
-
-  /**
-   * Initiates shutdown of the executor.
-   */
-  def shutdown(): Unit
 
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
@@ -61,29 +66,14 @@ trait Executor {
 }
 
 object Executor extends Serializable {
-  sealed abstract class Role extends Product with Serializable
-
-  /**
-   * An executor optimized for synchronous tasks, which yield
-   * to the runtime infrequently or never.
-   */
-  final case object Unyielding extends Role
-
-  /**
-   * An executor optimized for asynchronous tasks, which yield
-   * frequently to the runtime.
-   */
-  final case object Yielding extends Role
 
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
    */
-  final def fromExecutionContext(role0: Role, yieldOpCount0: Int)(
+  final def fromExecutionContext(yieldOpCount0: Int)(
     ec: ExecutionContext
   ): Executor =
     new Executor {
-      def role = role0
-
       def yieldOpCount = yieldOpCount0
 
       def submit(runnable: Runnable): Boolean =
@@ -98,7 +88,5 @@ object Executor extends Serializable {
       def here = false
 
       def metrics = None
-
-      def shutdown(): Unit = ()
     }
 }
