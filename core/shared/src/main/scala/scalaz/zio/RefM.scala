@@ -1,5 +1,21 @@
-// Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio
+
 import scalaz.zio.Exit.Cause
 
 /**
@@ -23,32 +39,32 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
   /**
    * Reads the value from the `Ref`.
    */
-  final def get: IO[Nothing, A] = value.get
+  final def get: UIO[A] = value.get
 
   /**
    * Writes a new value to the `Ref`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
-  final def set(a: A): IO[Nothing, Unit] = value.set(a)
+  final def set(a: A): UIO[Unit] = value.set(a)
 
   /**
    * Writes a new value to the `Ref` without providing a guarantee of
    * immediate consistency.
    */
-  final def setAsync(a: A): IO[Nothing, Unit] = value.setAsync(a)
+  final def setAsync(a: A): UIO[Unit] = value.setAsync(a)
 
   /**
    * Atomically modifies the `RefM` with the specified function, returning the
    * value immediately after modification.
    */
-  final def update(f: A => IO[Nothing, A]): IO[Nothing, A] =
+  final def update(f: A => UIO[A]): UIO[A] =
     modify(a => f(a).map(a => (a, a)))
 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
    */
-  final def updateSome(pf: PartialFunction[A, IO[Nothing, A]]): IO[Nothing, A] =
+  final def updateSome(pf: PartialFunction[A, UIO[A]]): UIO[A] =
     modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
 
   /**
@@ -56,7 +72,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
    * a return value for the modification. This is a more powerful version of
    * `update`.
    */
-  final def modify[B](f: A => IO[Nothing, (B, A)]): IO[Nothing, B] =
+  final def modify[B](f: A => UIO[(B, A)]): UIO[B] =
     for {
       promise <- Promise.make[Nothing, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
@@ -73,11 +89,11 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
    */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, IO[Nothing, (B, A)]]): IO[Nothing, B] =
+  final def modifySome[B](default: B)(pf: PartialFunction[A, UIO[(B, A)]]): UIO[B] =
     for {
       promise <- Promise.make[Nothing, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
-      bundle  = RefM.Bundle(ref, pf.orElse[A, IO[Nothing, (B, A)]] { case a => IO.succeed(default -> a) }, promise)
+      bundle  = RefM.Bundle(ref, pf.orElse[A, UIO[(B, A)]] { case a => IO.succeed(default -> a) }, promise)
       b <- (for {
             _ <- queue.offer(bundle)
             b <- promise.await
@@ -88,14 +104,14 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
 object RefM extends Serializable {
   private[RefM] final case class Bundle[A, B](
     interrupted: Ref[Option[Cause[Nothing]]],
-    update: A => IO[Nothing, (B, A)],
+    update: A => UIO[(B, A)],
     promise: Promise[Nothing, B]
   ) {
-    final def run(a: A, ref: Ref[A], onDefect: Cause[Nothing] => IO[Nothing, Unit]): IO[Nothing, Unit] =
+    final def run(a: A, ref: Ref[A], onDefect: Cause[Nothing] => UIO[Unit]): UIO[Unit] =
       interrupted.get.flatMap {
         case Some(cause) => onDefect(cause)
         case None =>
-          update(a).sandbox.redeem(onDefect, {
+          update(a).sandbox.foldM(onDefect, {
             case (b, a) => ref.set(a) <* promise.succeed(b)
           })
       }
@@ -107,8 +123,8 @@ object RefM extends Serializable {
   final def make[A](
     a: A,
     n: Int = 1000,
-    onDefect: Cause[Nothing] => IO[Nothing, Unit] = _ => IO.unit
-  ): IO[Nothing, RefM[A]] =
+    onDefect: Cause[Nothing] => UIO[Unit] = _ => IO.unit
+  ): UIO[RefM[A]] =
     for {
       ref   <- Ref.make(a)
       queue <- Queue.bounded[Bundle[A, _]](n)

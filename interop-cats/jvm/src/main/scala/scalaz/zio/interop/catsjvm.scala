@@ -1,8 +1,26 @@
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio
 package interop
 
 import cats.effect.{ Concurrent, ContextShift, Effect, ExitCase }
 import cats.{ effect, _ }
+import scalaz.zio.{ clock => zioClock }
+import scalaz.zio.clock.Clock
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS, TimeUnit }
@@ -20,23 +38,23 @@ abstract class CatsInstances extends CatsInstances1 {
       fa.on(ec)
   }
 
-  implicit def ioTimer[E](implicit zioClock: Clock): effect.Timer[IO[E, ?]] = new effect.Timer[IO[E, ?]] {
-    override def clock: cats.effect.Clock[IO[E, ?]] = new effect.Clock[IO[E, ?]] {
-      override def monotonic(unit: TimeUnit): IO[E, Long] =
+  implicit def ioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
+    override def clock: cats.effect.Clock[ZIO[R, E, ?]] = new effect.Clock[ZIO[R, E, ?]] {
+      override def monotonic(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.nanoTime.map(unit.convert(_, NANOSECONDS))
 
-      override def realTime(unit: TimeUnit): IO[E, Long] =
+      override def realTime(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.currentTime(unit)
     }
 
-    override def sleep(duration: FiniteDuration): IO[E, Unit] =
-      zioClock.sleep(duration.length, duration.unit)
+    override def sleep(duration: FiniteDuration): ZIO[R, E, Unit] =
+      zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
   }
 
   implicit val taskEffectInstances: effect.ConcurrentEffect[Task] with SemigroupK[Task] =
     new CatsConcurrentEffect
 
-  implicit val taskParallelInstance: Parallel[Task, Task.Par] =
+  implicit val taskParallelInstance: Parallel[Task, Util.Par] =
     parallelInstance(taskEffectInstances)
 }
 
@@ -61,7 +79,7 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
       this.unsafeRun {
         fa.fork.flatMap { f =>
           f.await
-            .flatMap(exit => IO.syncThrowable(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
+            .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
             .const(f.interrupt.void)
         }
@@ -84,7 +102,7 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     Concurrent.liftIO(ioa)(this)
 
   override final def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
-    IO.asyncInterrupt { (kk: IO[Throwable, A] => Unit) =>
+    IO.effectAsyncInterrupt { (kk: Task[A] => Unit) =>
       val token: effect.CancelToken[Task] = {
         k(e => kk(eitherToIO(e)))
       }
@@ -113,14 +131,18 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
     )
 }
 
-private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] with CatsSemigroupK[Throwable] with RTS {
+private class CatsEffect
+    extends CatsMonadError[Throwable]
+    with Effect[Task]
+    with CatsSemigroupK[Throwable]
+    with DefaultRuntime {
   @inline final protected[this] def exitToEither[A](e: Exit[Throwable, A]): Either[Throwable, A] =
     e.fold(_.failures[Throwable] match {
       case t :: Nil => Left(t)
       case _        => e.toEither
     }, Right(_))
 
-  @inline final protected[this] def eitherToIO[A]: Either[Throwable, A] => IO[Throwable, A] = {
+  @inline final protected[this] def eitherToIO[A]: Either[Throwable, A] => Task[A] = {
     case Left(t)  => IO.fail(t)
     case Right(r) => IO.succeed(r)
   }
@@ -148,20 +170,20 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
     }
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
-    IO.async { (kk: IO[Throwable, A] => Unit) =>
+    IO.effectAsync { (kk: Task[A] => Unit) =>
       k(eitherToIO andThen kk)
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    IO.asyncM { (kk: IO[Throwable, A] => Unit) =>
+    IO.effectAsyncM { (kk: Task[A] => Unit) =>
       k(eitherToIO andThen kk).orDie
     }
 
   override final def suspend[A](thunk: => Task[A]): Task[A] =
-    IO.flatten(IO.syncThrowable(thunk))
+    IO.flatten(IO.effect(thunk))
 
   override final def delay[A](thunk: => A): Task[A] =
-    IO.syncThrowable(thunk)
+    IO.effect(thunk)
 
   override final def bracket[A, B](acquire: Task[A])(use: A => Task[B])(
     release: A => Task[Unit]
@@ -171,7 +193,7 @@ private class CatsEffect extends CatsMonadError[Throwable] with Effect[Task] wit
   override final def bracketCase[A, B](
     acquire: Task[A]
   )(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
-    IO.bracket0[Throwable, A, B](acquire) { (a, exit) =>
+    IO.bracketExit[Any, Throwable, A, B](acquire) { (a, exit) =>
       val exitCase = exitToExitCase(exit)
       release(a, exitCase).orDie
     }(use)

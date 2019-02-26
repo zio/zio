@@ -39,13 +39,12 @@ lazy val root = project
     interopCatsJVM,
     interopCatsJS,
     interopFutureJVM,
-    interopFutureJS,
-//    interopMonixJVM,
-//    interopMonixJS,
+//  interopMonixJVM,
+//  interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
     interopJavaJVM,
-//    benchmarks,
+//  benchmarks,
     microsite,
     testkitJVM
   )
@@ -119,9 +118,9 @@ val CatsScalaCheckShapelessVersion = Def.setting {
 
 lazy val interopCatsJVM = interopCats.jvm
   .dependsOn(interopSharedJVM)
-// Below is for the cats law spec
-// Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
-// TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
+  // Below is for the cats law spec
+  // Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
+  // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
   .settings(
     resolvers += Resolver
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
@@ -142,7 +141,6 @@ lazy val interopFuture = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
-lazy val interopFutureJS  = interopFuture.js.dependsOn(interopSharedJS)
 
 lazy val interopMonix = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-monix"))

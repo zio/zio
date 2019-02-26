@@ -54,7 +54,7 @@ As functional programmers, we know better and have captured state mutation in th
 
 ```tut:silent
 Ref.make(0).flatMap { idCounter =>
-  def freshVar: IO[Nothing, String] =
+  def freshVar: UIO[String] =
     idCounter.modify(cpt => (s"var${cpt + 1}", cpt + 1))
 
   for {
@@ -75,12 +75,12 @@ Well, with `Ref`s, that's easy to do! The only difficulty is in `P`, where we mu
 
 ```tut:silent
 sealed trait S {
-  def P: IO[Nothing, Unit]
-  def V: IO[Nothing, Unit]
+  def P: UIO[Unit]
+  def V: UIO[Unit]
 }
 
 object S {
-  def apply(v: Long): IO[Nothing, S] =
+  def apply(v: Long): UIO[S] =
     Ref.make(v).map { vref =>
       new S {
         def V = vref.update(_ + 1).void
@@ -93,7 +93,7 @@ object S {
               case false => IO.fail(())
               case true  => IO.unit
             }
-        } <> P).attempt.void
+        } <> P).either.void
       }
     }
 }
@@ -103,13 +103,16 @@ Let's rock these crocodile boots we found the other day at the market and test o
 
 ```tut:silent
 import scalaz.zio.duration.Duration
-import scala.util.Random
-val party: IO[Nothing, Unit] = for {
+import scalaz.zio.clock._
+import scalaz.zio.console._
+import scalaz.zio.random._
+
+val party = for {
   dancefloor <- S(10)
-  dancers <- IO.foreachPar(1 to 100) { i =>
-    dancefloor.P *> (IO.sync(Duration.fromNanos((Random.nextDouble * 1000000).round)).flatMap { d =>
-      IO.sync(println(s"${i} checking my boots")) *> IO.sleep(d) *> IO.sync(println(s"${i} dancing like it's 99"))
-    }) *> dancefloor.V
+  dancers <- ZIO.foreachPar(1 to 100) { i =>
+    dancefloor.P *> nextDouble.map(d => Duration.fromNanos((d * 1000000).round)).flatMap { d =>
+      putStrLn(s"${i} checking my boots") *> sleep(d) *> putStrLn(s"${i} dancing like it's 99")
+    } *> dancefloor.V
   }
 } yield ()
 ```

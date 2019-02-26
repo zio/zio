@@ -7,7 +7,7 @@ import scala.concurrent.ExecutionContext
 
 import org.specs2.Specification
 
-final class TestExecutor(val role: Executor.Role, val submitResult: Boolean) extends Executor {
+final class TestExecutor(val submitResult: Boolean) extends Executor {
   val here: Boolean                       = true
   def shutdown(): Unit                    = ()
   def submit(runnable: Runnable): Boolean = submitResult
@@ -22,9 +22,9 @@ final class CheckPrintThrowable extends Throwable {
 }
 
 object TestExecutor {
-  val failing = new TestExecutor(Executor.Unyielding, false)
-  val y       = new TestExecutor(Executor.Yielding, true)
-  val u       = new TestExecutor(Executor.Unyielding, true)
+  val failing = new TestExecutor(false)
+  val y       = new TestExecutor(true)
+  val u       = new TestExecutor(true)
 
   val badEC = new ExecutionContext {
     override def execute(r: Runnable): Unit            = throw new RejectedExecutionException("Rejected: " + r.toString)
@@ -46,12 +46,12 @@ class ExecutorSpec extends Specification {
       Create an executor that cannot have tasks submitted to and check that:
         It throws an exception upon submission                                     $fail1
         When converted to an ExecutionContext, it throws an exception              $fail2
-        When created from an EC, throw when fed a task                             $fail3
+        When created from an EC, throw when fed an effect                             $fail3
 
       Create a yielding executor and check that:
         Runnables can be submitted                                                 $yield1
         When converted to an ExecutionContext, it accepts Runnables                $yield2
-        When created from an EC, must not throw when fed a task                    $yield3
+        When created from an EC, must not throw when fed an effect                    $yield3
 
       Create an unyielding executor and check that:
         Runnables can be submitted                                                 $unyield1
@@ -68,12 +68,12 @@ class ExecutorSpec extends Specification {
   def fail2 = TestExecutor.failing.asEC.execute(() => ()) must throwA[RejectedExecutionException]
   def fail3 =
     Executor
-      .fromExecutionContext(Executor.Yielding, 1)(TestExecutor.badEC)
+      .fromExecutionContext(1)(TestExecutor.badEC)
       .submitOrThrow(() => ()) must throwA[RejectedExecutionException]
 
   def yield1 = TestExecutor.y.submitOrThrow(() => ()) must not(throwA[RejectedExecutionException])
   def yield2 = TestExecutor.y.asEC.execute(() => ()) must not(throwA[RejectedExecutionException])
-  def yield3 = Executor.fromExecutionContext(Executor.Yielding, 1)(TestExecutor.ec).submit(() => ()) must beTrue
+  def yield3 = Executor.fromExecutionContext(1)(TestExecutor.ec).submit(() => ()) must beTrue
 
   def unyield1 = TestExecutor.u.submitOrThrow(() => ()) must not(throwA[RejectedExecutionException])
   def unyield2 = TestExecutor.u.asEC.execute(() => ()) must not(throwA[RejectedExecutionException])

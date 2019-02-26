@@ -1,4 +1,19 @@
-// Copyright (C) 2017-2018 John A. De Goes. All rights reserved.
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio
 
 /**
@@ -109,7 +124,7 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Effectfully folds over the value or cause.
    */
-  final def redeem[E1, B](failed: Cause[E] => IO[E1, B], completed: A => IO[E1, B]): IO[E1, B] =
+  final def foldM[E1, B](failed: Cause[E] => IO[E1, B], completed: A => IO[E1, B]): IO[E1, B] =
     self match {
       case Failure(cause) => failed(cause)
       case Success(v)     => completed(v)
@@ -160,13 +175,31 @@ object Exit extends Serializable {
       case Both(left, right) => Both(left.map(f), right.map(f))
     }
 
-    final def isFailure: Boolean =
+    /**
+     * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+     * "most important" `Throwable`.
+     */
+    final def squash(implicit ev: E <:< Throwable): Throwable =
+      squashWith(ev)
+
+    /**
+     * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+     * "most important" `Throwable`.
+     */
+    final def squashWith(f: E => Throwable): Throwable =
+      failures.headOption.map(f) orElse
+        (if (interrupted) Some(new InterruptedException) else None) orElse
+        defects.headOption getOrElse (new InterruptedException)
+
+    final def failed: Boolean =
       self match {
         case Fail(_)           => true
-        case Then(left, right) => left.isFailure || right.isFailure
-        case Both(left, right) => left.isFailure || right.isFailure
+        case Then(left, right) => left.failed || right.failed
+        case Both(left, right) => left.failed || right.failed
         case _                 => false
       }
+
+    final def succeeded: Boolean = !failed
 
     final def interrupted: Boolean =
       self match {

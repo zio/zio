@@ -13,13 +13,13 @@ import scalaz.zio._
 Schedules allow you to define and compose flexible recurrence schedules, which can be used to repeat actions, or retry actions in the event of errors. Schedules are used in the following functions:
 
  * **Repetition**
-   * `IO#repeat` — Repeats an action until the schedule is done.
-   * `IO#repeatOrElse` — Repeats an action until the schedule is done, with a fallback for errors.
-   * `IO#repeatOrElse0` — Repeats an action until the schedule is done, with a more powerful fallback for errors.
+   * `IO#repeat` — Repeats an effect until the schedule is done.
+   * `IO#repeatOrElse` — Repeats an effect until the schedule is done, with a fallback for errors.
+   * `IO#repeatOrElse0` — Repeats an effect until the schedule is done, with a more powerful fallback for errors.
  * **Retries**
-   * `IO#retry` – Retries an action until it succeeds.
-   * `IO#retryOrElse` — Retries an action until it succeeds, with a fallback for errors.
-   * `IO#retryOrElse0` — Retries an action until it succeeds, with a more powerful fallback for errors.
+   * `IO#retry` – Retries an effect until it succeeds.
+   * `IO#retryOrElse` — Retries an effect until it succeeds, with a fallback for errors.
+   * `IO#retryOrElse0` — Retries an effect until it succeeds, with a more powerful fallback for errors.
 
 Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways.
 

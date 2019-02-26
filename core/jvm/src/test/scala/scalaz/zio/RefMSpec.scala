@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is = "RefMSpec".title ^ s2"""
    Create a new RefM with a specified value and check if:
@@ -42,7 +42,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
     unsafeRun(
       for {
         refM  <- RefM.make(current)
-        value <- refM.update(_ => IO.sync(update))
+        value <- refM.update(_ => IO.effectTotal(update))
       } yield value must beTheSameAs(update)
     )
 
@@ -70,7 +70,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstract
     unsafeRun(
       for {
         refM  <- RefM.make(current)
-        r     <- refM.modify[String](_ => IO.sync(("hello", update)))
+        r     <- refM.modify[String](_ => IO.effectTotal(("hello", update)))
         value <- refM.get
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
     )

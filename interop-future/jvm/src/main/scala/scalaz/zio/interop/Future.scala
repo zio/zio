@@ -1,9 +1,10 @@
 package scalaz.zio
 
-import scalaz.zio.internal.impls.Env
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success, Try }
 import scala.reflect.ClassTag
+
+import scalaz.zio.internal.PlatformLive
 
 package object future {
 
@@ -16,7 +17,7 @@ package object future {
   private val Global = ExecutionContext.Implicits.global
 
   private final def unsafeRun[E, A](ec: ExecutionContext, io: IO[E, A]): A =
-    Env.fromExecutionContext(ec).unsafeRun(io)
+    Runtime[Any]((), PlatformLive.fromExecutionContext(ec)).unsafeRun(io)
 
   private final def toTry[A](e: Either[Throwable, A]): Try[A] =
     e.fold(Failure(_), Success(_))
@@ -45,7 +46,7 @@ package object future {
       }
 
     final def apply[T](body: => T)(implicit ec: ExecutionContext): Future[T] =
-      unsafeRun(ec, IO.syncThrowable(body).fork)
+      unsafeRun(ec, IO.effect(body).fork)
 
     final def sequence[A](in: List[Future[A]])(implicit ec: ExecutionContext): Future[List[A]] =
       unsafeRun(ec, IO.collectAll(in.map(_.join)).fork)
@@ -57,14 +58,14 @@ package object future {
       unsafeRun(ec, IO.collectAll(in.map(_.join)).map(_.toSeq).fork)
 
     final def firstCompletedOf[T](futures: Iterable[Future[T]])(implicit ec: ExecutionContext): Future[T] =
-      unsafeRun(ec, IO.absolve(IO.raceAll(IO.interrupt, futures.map(_.join.attempt))).fork)
+      unsafeRun(ec, IO.absolve(IO.raceAll(IO.interrupt, futures.map(_.join.either))).fork)
 
     final def find[T](futures: Iterable[Future[T]])(p: T => Boolean)(implicit ec: ExecutionContext): Future[Option[T]] =
       unsafeRun(
         ec,
         (futures.foldLeft[IO[Throwable, Option[T]]](IO.interrupt) {
           case (acc, future) =>
-            acc orElse (future.join.flatMap(t => if (p(t)) IO.succeed(t) else IO.interrupt).map(Some(_)))
+            acc orElse future.join.flatMap(t => if (p(t)) IO.succeed(t) else IO.interrupt).map(Some(_))
         } orElse IO.succeed(None)).fork
       )
 
@@ -114,22 +115,22 @@ package object future {
 
   implicit class FutureSyntax[T](val value: Future[T]) extends AnyVal {
     final def onSuccess[U](pf: PartialFunction[T, U])(implicit ec: ExecutionContext): Unit =
-      unsafeRun(ec, value.join.flatMap(t => IO.syncThrowable(pf.lift(t))).fork.void)
+      unsafeRun(ec, value.join.flatMap[Any, Throwable, Option[U]](t => IO.effect(pf.lift(t))).fork.void)
 
     final def onFailure[U](pf: PartialFunction[Throwable, U])(implicit ec: ExecutionContext): Unit =
-      unsafeRun(ec, value.join.attempt.flatMap {
-        case Left(t)  => IO.syncThrowable(pf.lift(t))
+      unsafeRun(ec, value.join.either.flatMap {
+        case Left(t)  => IO.effect(pf.lift(t))
         case Right(_) => IO.unit
       }.fork.void)
 
     final def onComplete[U](f: Try[T] => U)(implicit ec: ExecutionContext): Unit =
-      unsafeRun(ec, value.join.attempt.map(toTry(_)).flatMap(t => IO.syncThrowable(f(t))).fork.void)
+      unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, U](t => IO.effect(f(t))).fork.void)
 
     final def isCompleted: Boolean =
       unsafeRun(Global, value.poll.map(_.fold(false)(_ => true)))
 
     final def failed: Future[Throwable] =
-      unsafeRun(Global, value.join.flip.catchAll(_ => IO.interrupt).fork)
+      unsafeRun(Global, value.join.flip.catchAll[Any, Nothing, Throwable](_ => IO.interrupt).fork)
 
     final def foreach[U](f: T => U)(implicit ec: ExecutionContext): Unit =
       onSuccess { case t => f(t) }
@@ -140,20 +141,20 @@ package object future {
     final def transform[S](f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] = {
       val g: Try[T] => IO[Throwable, S] =
         (t: Try[T]) =>
-          IO.syncThrowable(f(t) match {
+          IO.effect(f(t) match {
               case Failure(t) => IO.fail(t)
               case Success(s) => IO.succeed(s)
             })
             .flatten
 
-      unsafeRun(ec, value.join.attempt.map(toTry(_)).flatMap(g).fork)
+      unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, S](g).fork)
     }
 
     final def transformWith[S](f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] = {
       val g: Try[T] => IO[Throwable, S] =
-        (t: Try[T]) => IO.syncThrowable(f(t).join).flatten
+        (t: Try[T]) => IO.effect(f(t).join).flatten
 
-      unsafeRun(ec, value.join.attempt.map(toTry(_)).flatMap(g).fork)
+      unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, S](g).fork)
     }
 
     final def map[S](f: T => S)(implicit ec: ExecutionContext): Future[S] =
@@ -176,15 +177,15 @@ package object future {
       filter(p)
 
     final def collect[S](pf: PartialFunction[T, S])(implicit ec: ExecutionContext): Future[S] =
-      unsafeRun(ec, value.join.flatMap(t => IO.syncThrowable(pf(t))).fork)
+      unsafeRun(ec, value.join.flatMap[Any, Throwable, S](t => IO.effect(pf(t))).fork)
 
     final def recover[U >: T](pf: PartialFunction[Throwable, U])(implicit ec: ExecutionContext): Future[U] =
-      unsafeRun(ec, value.join.catchSome(pf.andThen(IO.succeed(_))).fork)
+      unsafeRun(ec, value.join.catchSome[Any, Throwable, U](pf.andThen(IO.succeed(_))).fork)
 
     final def recoverWith[U >: T](pf: PartialFunction[Throwable, Future[U]])(
       implicit ec: ExecutionContext
     ): Future[U] =
-      unsafeRun(ec, value.join.catchSome(pf.andThen(_.join)).fork)
+      unsafeRun(ec, value.join.catchSome[Any, Throwable, U](pf.andThen(_.join)).fork)
 
     final def zip[U](that: Future[U]): Future[(T, U)] =
       value.zip(that)
@@ -202,8 +203,8 @@ package object future {
     }
 
     final def andThen[U](pf: PartialFunction[Try[T], U])(implicit ec: ExecutionContext): Future[T] =
-      unsafeRun(ec, value.join.attempt.flatMap { either =>
-        IO.syncThrowable(pf.lift(toTry(either))).attempt *> IO.succeed(either)
+      unsafeRun(ec, value.join.either.flatMap { either =>
+        IO.effect(pf.lift(toTry(either))).either *> IO.succeed(either)
       }.absolve.fork)
   }
 }
