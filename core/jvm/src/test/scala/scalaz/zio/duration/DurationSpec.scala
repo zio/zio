@@ -5,9 +5,9 @@ import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 
-import scalaz.zio.AbstractRTSSpec
+import scalaz.zio.TestRuntime
 
-class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is = "DurationSpec".title ^ s2"""
         Make a Duration from positive nanos and check that:

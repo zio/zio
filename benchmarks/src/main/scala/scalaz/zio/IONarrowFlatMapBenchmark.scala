@@ -1,4 +1,3 @@
-// Copyright (C) 2017 John A. De Goes. All rights reserved.
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
@@ -107,11 +106,11 @@ class IONarrowFlatMapBenchmark {
 
   @Benchmark
   def scalazNarrowFlatMap(): Int = {
-    def loop(i: Int): IO[Nothing, Int] =
+    def loop(i: Int): UIO[Int] =
       if (i < size) IO.succeedLazy[Int](i + 1).flatMap(loop)
       else IO.succeedLazy(i)
 
-    unsafeRun(IO.succeedLazy[Int](0).flatMap(loop))
+    unsafeRun(IO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
   }
 
   @Benchmark

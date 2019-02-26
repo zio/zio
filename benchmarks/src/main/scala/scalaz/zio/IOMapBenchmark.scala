@@ -1,4 +1,3 @@
-// Copyright (C) 2017 John A. De Goes. All rights reserved.
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
@@ -105,7 +104,7 @@ class IOMapBenchmark {
   @Benchmark
   def scalazMap(): BigInt = {
     @tailrec
-    def sumTo(t: IO[Nothing, BigInt], n: Int): IO[Nothing, BigInt] =
+    def sumTo(t: UIO[BigInt], n: Int): UIO[BigInt] =
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 

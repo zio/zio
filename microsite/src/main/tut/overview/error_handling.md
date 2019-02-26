@@ -16,7 +16,7 @@ val z: IO[String, Unit] = IO.fail("Oh noes!")
 
 Like all `IO` values, these are immutable values and do not actually throw any exceptions; they merely describe failure as a first-class value.
 
-You can surface failures with `attempt`, which takes an `IO[E, A]` and produces an `IO[E2, Either[E, A]]`. The choice of `E2` is unconstrained, because the resulting computation cannot fail with any error.
+You can surface failures with `either`, which takes an `IO[E, A]` and produces an `IO[E2, Either[E, A]]`. The choice of `E2` is unconstrained, because the resulting computation cannot fail with any error.
 
 You can use `Nothing` to describe computations that cannot fail:
 
@@ -27,16 +27,16 @@ def readData(file: String): IO[IOException, String] = IO.succeedLazy(???)
 ```
 
 ```tut:silent
-readData("data.json").attempt.map {
+readData("data.json").either.map {
   case Left(_)     => "42"
   case Right(data) => data
 }
 ```
 
-You can submerge failures with `IO.absolve`, which is the opposite of `attempt` and turns an `IO[E, Either[E, A]]` into an `IO[E, A]`:
+You can submerge failures with `IO.absolve`, which is the opposite of `either` and turns an `IO[E, Either[E, A]]` into an `IO[E, A]`:
 
 ```tut:silent
-def sqrt(io: IO[Nothing, Double]): IO[String, Double] =
+def sqrt(io: UIO[Double]): IO[String, Double] =
   IO.absolve(
     io.map(value =>
       if (value < 0.0) Left("Value must be >= 0.0")
@@ -48,25 +48,29 @@ def sqrt(io: IO[Nothing, Double]): IO[String, Double] =
 If you want to catch and recover from all types of errors and effectfully attempt recovery, you can use the `catchAll` method:
 
 ```tut:invisible
-def openFile(s: String): IO[IOException, Array[Byte]] = IO.succeedLazy(???)
+def openFile(s: String): IO[IOException, Array[Byte]] =   
+  IO.succeedLazy(???)
 ```
 
 ```tut:silent
-val z: IO[IOException, Array[Byte]] = openFile("primary.json").catchAll(_ => openFile("backup.json"))
+val z: IO[IOException, Array[Byte]] = 
+  openFile("primary.json").catchAll(_ => openFile("backup.json"))
 ```
 
 If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the `catchSome` method:
 
 ```tut:silent
-val z: IO[IOException, Array[Byte]] = openFile("primary.json").catchSome {
-  case x: java.io.FileNotFoundException => openFile("backup.json")
-}
+val z: IO[IOException, Array[Byte]] = 
+  openFile("primary.json").catchSome {
+    case x: java.io.FileNotFoundException => openFile("backup.json")
+  }
 ```
 
 You can execute one action, or, if it fails, execute another action, with the `orElse` combinator:
 
 ```tut:silent
-val z: IO[IOException, Array[Byte]] = openFile("primary.json").orElse(openFile("backup.json"))
+val z: IO[IOException, Array[Byte]] = 
+  openFile("primary.json").orElse(openFile("backup.json"))
 ```
 
 If you want more control on the next action and better performance you can use the primitive which all the previous operations are based on, it's called `redeem` and it can be seen as the combination of `flatMap` and `catchAll`. It is useful if you find yourself using combinations of `attempt` or `catchAll` with `flatMap`, using `redeem` you can achieve the same and avoid the intermediate `Either` allocation and the subsequent call to `flatMap`.
@@ -75,12 +79,12 @@ If you want more control on the next action and better performance you can use t
 sealed abstract class Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
-def readUrls(file: String): IO[Throwable, List[String]] = IO.succeed("Hello" :: Nil)
-def fetchContent(urls: List[String]): IO[Nothing, Content] = IO.succeed(OkContent("Roger"))
+def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
 ```
 ```tut:silent
-val z: IO[Nothing, Content] =
-  readUrls("urls.json").redeem(e => IO.succeedLazy(NoContent(e)), fetchContent)
+val z: UIO[Content] =
+  readUrls("urls.json").foldM(e => IO.succeedLazy(NoContent(e)), fetchContent)
 ```
 
 # Retry

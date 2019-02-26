@@ -1,26 +1,32 @@
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio
 
-import java.time.Instant
-
-package object system {
-
-  /** Determine the current system time **/
-  val currentTime: IO[Nothing, Instant] = IO.sync(Instant.now)
-
-  /** Determine the current system time in milliseconds **/
-  val currentTimeMillis: IO[Nothing, Long] = IO.sync(System.currentTimeMillis)
-
-  /** Returns the current value of the running Java Virtual Machine's high-resolution time source, in nanoseconds.
-   * This method can only be used to measure elapsed time and is not related to any other notion of system or wall-clock time
-   */
-  val nanoTime: IO[Nothing, Long] = IO.sync(System.nanoTime)
+package object system extends System.Service[System] {
 
   /** Retrieve the value of an environment variable **/
-  def env(variable: String): IO[Nothing, Option[String]] = IO.sync(Option(System.getenv(variable)))
+  def env(variable: String): ZIO[System, SecurityException, Option[String]] =
+    ZIO.accessM(_.system env variable)
 
   /** Retrieve the value of a system property **/
-  def property(prop: String): IO[Throwable, Option[String]] = IO.syncThrowable(Option(System.getProperty(prop)))
+  def property(prop: String): ZIO[System, Throwable, Option[String]] =
+    ZIO.accessM(_.system property prop)
 
   /** System-specific line separator **/
-  val lineSeparator: IO[Nothing, String] = IO.sync(System.lineSeparator)
+  val lineSeparator: ZIO[System, Nothing, String] =
+    ZIO.accessM(_.system.lineSeparator)
 }
