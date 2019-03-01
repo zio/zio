@@ -38,17 +38,17 @@ abstract class CatsInstances extends CatsInstances1 {
       fa.on(ec)
   }
 
-  implicit def ioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
-    override def clock: cats.effect.Clock[ZIO[R, E, ?]] = new effect.Clock[ZIO[R, E, ?]] {
-      override def monotonic(unit: TimeUnit): ZIO[R, E, Long] =
-        zioClock.nanoTime.map(unit.convert(_, NANOSECONDS))
+  implicit def ioTimer[E](implicit c: Clock): effect.Timer[IO[E, ?]] = new effect.Timer[IO[E, ?]] {
+    override def clock: cats.effect.Clock[IO[E, ?]] = new effect.Clock[IO[E, ?]] {
+      override def monotonic(unit: TimeUnit): IO[E, Long] =
+        zioClock.nanoTime.map(unit.convert(_, NANOSECONDS)).provide(c)
 
-      override def realTime(unit: TimeUnit): ZIO[R, E, Long] =
-        zioClock.currentTime(unit)
+      override def realTime(unit: TimeUnit): IO[E, Long] =
+        zioClock.currentTime(unit).provide(c)
     }
 
-    override def sleep(duration: FiniteDuration): ZIO[R, E, Unit] =
-      zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
+    override def sleep(duration: FiniteDuration): IO[E, Unit] =
+      zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos)).provide(c)
   }
 
   implicit val taskEffectInstances: effect.ConcurrentEffect[Task] with SemigroupK[Task] =
