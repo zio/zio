@@ -76,6 +76,19 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Filters this stream by the specified effectful predicate, retaining all elements for
+   * which the predicate evaluates to true.
+   */
+  final def filterM[R1 <: R, E1 >: E](pred: A => ZIO[R1, E1, Boolean]): Stream[R1, E1, A] = new Stream[R1, E1, A] {
+    override def fold[R2 <: R1, E2 >: E1, A1 >: A, S]: Fold[R2, E2, A1, S] =
+      IO.succeedLazy { (s, cont, g) =>
+        self.fold[R2, E2, A, S].flatMap { f0 =>
+          f0(s, cont, (s, a) => pred(a).flatMap(if (_) g(s, a) else IO.succeed(s)))
+        }
+      }
+  }
+
+  /**
    * Filters this stream by the specified predicate, removing all elements for
    * which the predicate evaluates to true.
    */
