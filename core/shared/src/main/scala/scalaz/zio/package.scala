@@ -26,9 +26,12 @@ package object zio extends EitherCompat {
   type Task[+A]   = ZIO[Any, Throwable, A]
   type UIO[+A]    = ZIO[Any, Nothing, A]
 
-  implicit class ZIOInvarant[R, E, A](self: ZIO[R, E, A]) {
+  implicit class ZIOInvarant[R, E, A](val self: ZIO[R, E, A]) extends AnyVal {
     final def bracket: ZIO.BracketAcquire[R, E, A] =
       new ZIO.BracketAcquire(self)
+
+    final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
+      new ZIO.BracketExitAcquire(self)
   }
 
   val JustExceptions: PartialFunction[Throwable, Exception] = {
