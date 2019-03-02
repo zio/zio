@@ -365,38 +365,6 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
   /**
-   * When this effect represents acquisition of a resource (for example,
-   * opening a file, launching a thread, etc.), `bracket` can be used to ensure
-   * the acquisition is not interrupted and the resource is released.
-   *
-   * The function does two things:
-   *
-   * 1. Ensures this effect, which acquires the resource, will not be
-   * interrupted. Of course, acquisition may fail for internal reasons (an
-   * uncaught exception).
-   * 2. Ensures the `release` effect will not be interrupted, and will be
-   * executed so long as this effect successfully acquires the resource.
-   *
-   * In between acquisition and release of the resource, the `use` effect is
-   * executed.
-   *
-   * If the `release` effect fails, then the entire effect will fail even
-   * if the `use` effect succeeds. If this fail-fast behavior is not desired,
-   * errors produced by the `release` effect can be caught and ignored.
-   *
-   * {{{
-   * openFile("data.json").bracket(closeFile) { file =>
-   *   for {
-   *     header <- readHeader(file)
-   *     ...
-   *   } yield result
-   * }
-   * }}}
-   */
-  final def bracket[R1 <: R, E1 >: E, B](release: A => ZIO[R1, Nothing, _])(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracket[R, R1, E1, A, B](this)(release)(use)
-
-  /**
    * A more powerful version of `bracket` that provides information on whether
    * or not `use` succeeded to the release effect.
    */
@@ -406,11 +374,11 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.bracketExit[R1, E1, A, B](this)(release)(use)
 
   /**
-   * A less powerful variant of `bracket` where the resource produced by this
+   * A less powerful variant of `bracket` where the resource acquired by this
    * effect is not needed.
    */
-  final def bracket_[R1 <: R, E1 >: E, B](release: ZIO[R1, Nothing, _])(use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracket[R, R1, E1, A, B](self)(_ => release)(_ => use)
+  final def bracket_[R1 <: R, E1 >: E]: ZIO.BracketAcquire_[R1, E1] =
+    new ZIO.BracketAcquire_(self)
 
   /**
    * Returns an effect that, if this effect _starts_ execution, then the
@@ -1263,22 +1231,36 @@ trait ZIOFunctions extends Serializable {
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
 
   /**
-   * Acquires a resource, uses the resource, and then releases the resource.
-   * Neither the acquisition nor the release will be interrupted, and the
-   * resource is guaranteed to be released, so long as the `acquire` effect
-   * succeeds. If `use` fails, then after release, the returned effect will fail
-   * with the same error.
+   * When this effect represents acquisition of a resource (for example,
+   * opening a file, launching a thread, etc.), `bracket` can be used to ensure
+   * the acquisition is not interrupted and the resource is always released.
+   *
+   * The function does two things:
+   *
+   * 1. Ensures this effect, which acquires the resource, will not be
+   * interrupted. Of course, acquisition may fail for internal reasons (an
+   * uncaught exception).
+   * 2. Ensures the `release` effect will not be interrupted, and will be
+   * executed so long as this effect successfully acquires the resource.
+   *
+   * In between acquisition and release of the resource, the `use` effect is
+   * executed.
+   *
+   * If the `release` effect fails, then the entire effect will fail even
+   * if the `use` effect succeeds. If this fail-fast behavior is not desired,
+   * errors produced by the `release` effect can be caught and ignored.
+   *
+   * {{{
+   * openFile("data.json").bracket(closeFile) { file =>
+   *   for {
+   *     header <- readHeader(file)
+   *     ...
+   *   } yield result
+   * }
+   * }}}
    */
-  final def bracket[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A, B](
-    acquire: ZIO[R, E, A]
-  )(release: A => ZIO[R1, Nothing, _])(use: A => ZIO[R1, E, B]): ZIO[R1, E, B] =
-    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-      (for {
-        r <- environment[R1]
-        a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
-        b <- use(a)
-      } yield b).ensuring(flatten(m.get))
-    }
+  final def bracket[R >: LowerR, E <: UpperE, A](acquire: ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A] =
+    new ZIO.BracketAcquire[R, E, A](acquire)
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
@@ -1517,6 +1499,30 @@ object ZIO extends ZIO_R_Any {
       self
         .map(f)
         .sandboxWith[R with Clock, E, B1](io => ZIO.absolve(io.either race ZIO.succeedRight(b).delay(duration)))
+  }
+
+  class BracketAcquire_[R, E](acquire: ZIO[R, E, _]) {
+    def apply[R1 <: R](release: ZIO[R1, Nothing, _]): BracketRelease_[R1, E] =
+      new BracketRelease_(acquire, release)
+  }
+  class BracketRelease_[R, E](acquire: ZIO[R, E, _], release: ZIO[R, Nothing, _]) {
+    def apply[R1 <: R, E1 >: E, B](use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+      ZIO.bracket(acquire)(_ => release)(_ => use)
+  }
+
+  class BracketAcquire[R, E, A](acquire: ZIO[R, E, A]) {
+    def apply[R1 <: R](release: A => ZIO[R1, Nothing, _]): BracketRelease[R1, E, A] =
+      new BracketRelease[R1, E, A](acquire, release)
+  }
+  class BracketRelease[R, E, A](acquire: ZIO[R, E, A], release: A => ZIO[R, Nothing, _]) {
+    def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+      Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
+        (for {
+          r <- environment[R1]
+          a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
+          b <- use(a)
+        } yield b).ensuring(flatten(m.get))
+      }
   }
 
   @inline
