@@ -34,7 +34,7 @@ import scalaz.zio.Exit.Cause
  * } yield ()
  * }}}
  */
-final class RefM[R, A] private (value: Ref[A], queue: Queue[RefM.Bundle[R, A, _]]) extends Serializable {
+final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) extends Serializable {
 
   /**
    * Reads the value from the `Ref`.
@@ -57,14 +57,14 @@ final class RefM[R, A] private (value: Ref[A], queue: Queue[RefM.Bundle[R, A, _]
    * Atomically modifies the `RefM` with the specified function, returning the
    * value immediately after modification.
    */
-  final def update(f: A => ZIO[R, Nothing, A]): UIO[A] =
+  final def update[R](f: A => ZIO[R, Nothing, A]): ZIO[R, Nothing, A] =
     modify(a => f(a).map(a => (a, a)))
 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
    */
-  final def updateSome(pf: PartialFunction[A, ZIO[R, Nothing, A]]): UIO[A] =
+  final def updateSome[R](pf: PartialFunction[A, ZIO[R, Nothing, A]]): ZIO[R, Nothing, A] =
     modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
 
   /**
@@ -72,11 +72,12 @@ final class RefM[R, A] private (value: Ref[A], queue: Queue[RefM.Bundle[R, A, _]
    * a return value for the modification. This is a more powerful version of
    * `update`.
    */
-  final def modify[B](f: A => ZIO[R, Nothing, (B, A)]): UIO[B] =
+  final def modify[R, B](f: A => ZIO[R, Nothing, (B, A)]): ZIO[R, Nothing, B] =
     for {
       promise <- Promise.make[Nothing, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
-      bundle  = RefM.Bundle(ref, f, promise)
+      env     <- ZIO.environment[R]
+      bundle  = RefM.Bundle(ref, f.andThen(_.provide(env)), promise)
       b <- (for {
             _ <- queue.offer(bundle)
             b <- promise.await
@@ -89,11 +90,16 @@ final class RefM[R, A] private (value: Ref[A], queue: Queue[RefM.Bundle[R, A, _]
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
    */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, ZIO[R, Nothing, (B, A)]]): UIO[B] =
+  final def modifySome[R, B](default: B)(pf: PartialFunction[A, ZIO[R, Nothing, (B, A)]]): ZIO[R, Nothing, B] =
     for {
       promise <- Promise.make[Nothing, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
-      bundle  = RefM.Bundle(ref, pf.orElse[A, ZIO[R, Nothing, (B, A)]] { case a => IO.succeed(default -> a) }, promise)
+      env     <- ZIO.environment[R]
+      bundle = RefM.Bundle(
+        ref,
+        pf.andThen(_.provide(env)).orElse[A, UIO[(B, A)]] { case a => IO.succeed(default -> a) },
+        promise
+      )
       b <- (for {
             _ <- queue.offer(bundle)
             b <- promise.await
@@ -102,12 +108,12 @@ final class RefM[R, A] private (value: Ref[A], queue: Queue[RefM.Bundle[R, A, _]
 }
 
 object RefM extends Serializable {
-  private[RefM] final case class Bundle[R, A, B](
+  private[RefM] final case class Bundle[A, B](
     interrupted: Ref[Option[Cause[Nothing]]],
-    update: A => ZIO[R, Nothing, (B, A)],
+    update: A => UIO[(B, A)],
     promise: Promise[Nothing, B]
   ) {
-    final def run(a: A, ref: Ref[A], onDefect: Cause[Nothing] => UIO[Unit]): ZIO[R, Nothing, Unit] =
+    final def run(a: A, ref: Ref[A], onDefect: Cause[Nothing] => UIO[Unit]): UIO[Unit] =
       interrupted.get.flatMap {
         case Some(cause) => onDefect(cause)
         case None =>
@@ -118,22 +124,17 @@ object RefM extends Serializable {
   }
 
   /**
-   * Creates a new `RefM` with the specified value and a given environment.
+   * Creates a new `RefM` with the specified value.
    */
-  final def makeR[R, A](
+  final def make[A](
     a: A,
     n: Int = 1000,
     onDefect: Cause[Nothing] => UIO[Unit] = _ => IO.unit
-  ): ZIO[R, Nothing, RefM[R, A]] =
+  ): UIO[RefM[A]] =
     for {
       ref   <- Ref.make(a)
-      queue <- Queue.bounded[Bundle[R, A, _]](n)
+      queue <- Queue.bounded[Bundle[A, _]](n)
       _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref, onDefect))).forever.fork
-    } yield new RefM[R, A](ref, queue)
+    } yield new RefM[A](ref, queue)
 
-  /**
-   * Creates a new `RefM` with the specified value.
-   */
-  final def make[A](a: A, n: Int = 1000, onDefect: Cause[Nothing] => UIO[Unit] = _ => IO.unit): UIO[RefM[Any, A]] =
-    makeR[Any, A](a, n, onDefect)
 }
