@@ -214,8 +214,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
       race  <- Ref.make[Int](0)
       child <- Ref.make[UIO[Any]](ZIO.unit)
       c <- ((for {
-            left  <- self.fork.peek(f => child update (_ *> f.interrupt))
-            right <- that.fork.peek(f => child update (_ *> f.interrupt))
+            left  <- self.fork.tap(f => child update (_ *> f.interrupt))
+            right <- that.fork.tap(f => child update (_ *> f.interrupt))
             _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
             _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
           } yield ()).uninterruptible *> done.await).onInterrupt(
@@ -725,14 +725,26 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def void: ZIO[R, E, Unit] = const(())
 
   /**
-   * Returns an effect that calls the provided function with the result of this
-   * effect, ignoring any value produced by the function.
+   * Returns an effect that effectfully "peeks" at the success of this effect.
    *
    * {{{
-   * readFile("data.json").peek(putStrLn)
+   * readFile("data.json").tap(putStrLn)
    * }}}
    */
-  final def peek[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, A] = self.flatMap(a => f(a).const(a))
+  final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] = self.flatMap(a => f(a).const(a))
+
+  /**
+   * Returns an effect that effectfully "peeks" at the failure or success or
+   * this effect.
+   * {{{
+   * readFile("data.json").tapBoth(logError(_), logData(_))
+   * }}}
+   */
+  final def tapBoth[R1 <: R, E1 >: E, A1 >: A](f: E => ZIO[R1, E1, _], g: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
+    self.foldM(
+      e => f(e) *> ZIO.fail(e),
+      a => g(a) *> ZIO.succeed(a)
+    )
 
   /**
    * Provides the `ZIO` program with its required environment, which eliminates
@@ -1171,7 +1183,7 @@ trait ZIOFunctions extends Serializable {
       a <- (for {
             r <- ZIO.runtime[Any]
             _ <- register(k => r.unsafeRunAsync_(k.to(p))).fork
-                  .peek(f => ref.set(f.interrupt))
+                  .tap(f => ref.set(f.interrupt))
                   .uninterruptible
             a <- p.await
           } yield a).onInterrupt(flatten(ref.get))
@@ -1282,7 +1294,7 @@ trait ZIOFunctions extends Serializable {
       (for {
         r <- environment[R]
         f <- acquire
-              .flatMap(a => use(a).fork.peek(f => m.set(f.interrupt.flatMap(release(a, _).provide(r)))))
+              .flatMap(a => use(a).fork.tap(f => m.set(f.interrupt.flatMap(release(a, _).provide(r)))))
               .uninterruptible
         b <- f.join
       } yield b).ensuring(flatten(m.get))

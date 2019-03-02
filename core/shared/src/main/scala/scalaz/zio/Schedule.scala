@@ -295,7 +295,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * that log failures, decisions, or computed values.
    */
   final def onDecision[A1 <: A](f: (A1, Schedule.Decision[State, B]) => UIO[Unit]): Schedule[R, A1, B] =
-    updated(update => (a, s) => update(a, s).peek(step => f(a, step)))
+    updated(update => (a, s) => update(a, s).tap(step => f(a, step)))
 
   /**
    * Returns a new schedule with the specified effectful modification
