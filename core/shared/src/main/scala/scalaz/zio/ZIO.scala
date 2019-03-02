@@ -749,7 +749,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * will be safely interrupted
    *
    */
-  final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeoutTo[Option[A]](None)(Some(_))(d)
+  final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeoutTo(None)(Some(_))(d)
 
   /**
    * Returns an effect that will timeout this effect, returning either the
@@ -761,18 +761,18 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * will be safely interrupted
    *
    * {{{
-   * IO.succeed(1).timeoutTo(Option.empty[Int])(Some(_))(1.second)
+   * IO.succeed(1).timeoutTo(None)(Some(_))(1.second)
    * }}}
    */
-  final def timeoutTo[B](z: B)(f: A => B)(duration: Duration): ZIO[R with Clock, E, B] =
-    self.map(f).sandboxWith[R with Clock, E, B](io => ZIO.absolve(io.either race ZIO.succeedRight(z).delay(duration)))
+  final def timeoutTo[R1 <: R, E1 >: E, A1 >: A, B](b: B): ZIO.TimeoutTo[R1, E1, A1, B] =
+    new ZIO.TimeoutTo(self, b)
 
   /**
    * The same as [[timeout]], but instead of producing a `None` in the event
    * of timeout, it will produce the specified error.
    */
   final def timeoutFail[E1 >: E](e: E1)(d: Duration): ZIO[R with Clock, E1, A] =
-    ZIO.flatten(timeoutTo[ZIO[R, E1, A]](ZIO.fail(e))(ZIO.succeed)(d))
+    ZIO.flatten(timeoutTo(ZIO.fail(e))(ZIO.succeed)(d))
 
   /**
    * Returns a new effect that executes this one and times the execution.
@@ -1499,6 +1499,13 @@ object UIO extends ZIOFunctions {
 
 object ZIO extends ZIO_R_Any {
   def apply[A](a: => A): Task[A] = effect(a)
+
+  class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
+    def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
+      self
+        .map(f)
+        .sandboxWith[R with Clock, E, B1](io => ZIO.absolve(io.either race ZIO.succeedRight(b).delay(duration)))
+  }
 
   @inline
   private final def succeedLeft[E, A]: E => UIO[Either[E, A]] =
