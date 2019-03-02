@@ -599,8 +599,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       for {
         promise <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracketExit[Any, Nothing, Unit, Unit](promise.succeed(()) *> IO.never)((_, _) => IO.unit)(
-                    _ => IO.unit
+                  .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[_, _]) => IO.unit)(
+                    _ => IO.unit: IO[Nothing, Unit]
                   )
                   .fork
         res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
@@ -628,7 +628,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         p1 <- Promise.make[Nothing, Unit]
         p2 <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracketExit[Any, Nothing, Unit, Unit](IO.unit)((_, _) => p2.succeed(()) *> IO.unit)(
+                  .bracketExit(IO.unit)((_, _: Exit[_, _]) => p2.succeed(()) *> IO.unit)(
                     _ => p1.succeed(()) *> IO.never
                   )
                   .fork
@@ -705,10 +705,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       exitLatch  <- Promise.make[Nothing, Int]
       bracketed = IO
         .succeed(21)
-        .bracketExit[Any, Nothing, Unit] {
-          case (r, e) if e.interrupted => exitLatch.succeed(r)
-          case (_, _)                  => IO.die(new Error("Unexpected case"))
-        }(a => startLatch.succeed(a) *> IO.never)
+        .bracketExit((r: Int, exit: Exit[_, _]) =>
+          if (exit.interrupted) exitLatch.succeed(r)
+          else IO.die(new Error("Unexpected case"))
+        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
       fiber      <- bracketed.fork
       startValue <- startLatch.await
       _          <- fiber.interrupt.fork
@@ -799,7 +799,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testBracket0UseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracketExit[Any, Nothing, Unit, Unit](IO.unit)((_, _) => IO.unit)(_ => IO.never).fork
+        fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 0

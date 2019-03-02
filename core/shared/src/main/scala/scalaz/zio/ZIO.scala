@@ -365,15 +365,6 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
     self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
   /**
-   * A more powerful version of `bracket` that provides information on whether
-   * or not `use` succeeded to the release effect.
-   */
-  final def bracketExit[R1 <: R, E1 >: E, B](
-    release: (A, Exit[E1, B]) => ZIO[R1, Nothing, _]
-  )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracketExit[R1, E1, A, B](this)(release)(use)
-
-  /**
    * A less powerful variant of `bracket` where the resource acquired by this
    * effect is not needed.
    */
@@ -420,7 +411,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
   final def bracketOnError[R1 <: R, E1 >: E, B](
     release: A => ZIO[R1, Nothing, _]
   )(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracketExit[R1, E1, A, B](self)(
+    ZIO.bracketExit(self)(
       (a: A, eb: Exit[E1, B]) =>
         eb match {
           case Exit.Failure(_) => release(a)
@@ -436,7 +427,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * effect if it exists. The provided effect will not be interrupted.
    */
   final def onError(cleanup: Cause[E] => UIO[_]): ZIO[R, E, A] =
-    ZIO.bracketExit[R, E, Unit, A](ZIO.unit)(
+    ZIO.bracketExit(ZIO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
           case Exit.Success(_)     => ZIO.unit
@@ -457,7 +448,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * a defect or because of interruption.
    */
   final def onTermination(cleanup: Cause[Nothing] => UIO[_]): ZIO[R, E, A] =
-    ZIO.bracketExit[R, E, Unit, A](ZIO.unit)(
+    ZIO.bracketExit(ZIO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
           case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
@@ -1088,7 +1079,7 @@ trait ZIOFunctions extends Serializable {
    * completes.
    */
   final def supervise[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    superviseWith[R, E, A](zio)(Fiber.interruptAll)
+    superviseWith(zio)(Fiber.interruptAll)
 
   /**
    * Returns an effect that supervises the specified effect, ensuring that all
@@ -1269,18 +1260,8 @@ trait ZIOFunctions extends Serializable {
    * succeeds. If `use` fails, then after release, the returned effect will fail
    * with the same error.
    */
-  final def bracketExit[R >: LowerR, E <: UpperE, A, B](
-    acquire: ZIO[R, E, A]
-  )(release: (A, Exit[E, B]) => ZIO[R, Nothing, _])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
-    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-      (for {
-        r <- environment[R]
-        f <- acquire
-              .flatMap(a => use(a).fork.tap(f => m.set(f.interrupt.flatMap(release(a, _).provide(r)))))
-              .uninterruptible
-        b <- f.join
-      } yield b).ensuring(flatten(m.get))
-    }
+  final def bracketExit[R >: LowerR, E <: UpperE, A](acquire: ZIO[R, E, A]): ZIO.BracketExitAcquire[R, E, A] =
+    new ZIO.BracketExitAcquire(acquire)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1521,6 +1502,32 @@ object ZIO extends ZIO_R_Any {
           r <- environment[R1]
           a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
           b <- use(a)
+        } yield b).ensuring(flatten(m.get))
+      }
+  }
+
+  class BracketExitAcquire[R, E, A](acquire: ZIO[R, E, A]) {
+    def apply[R1 <: R, E1 >: E, B](
+      release: (A, Exit[E1, B]) => ZIO[R1, Nothing, _]
+    ): BracketExitRelease[R1, E, E1, A, B] =
+      new BracketExitRelease(acquire, release)
+  }
+  class BracketExitRelease[R, E, E1 >: E, A, B](
+    acquire: ZIO[R, E, A],
+    release: (A, Exit[E1, B]) => ZIO[R, Nothing, _]
+  ) {
+    def apply[R1 <: R, E2 >: E, B1 <: B](use: A => ZIO[R1, E2, B1])(implicit ev: E2 <:< E1): ZIO[R1, E2, B1] =
+      Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
+        (for {
+          r <- environment[R]
+          f <- acquire
+                .flatMap(
+                  a =>
+                    use(a).fork
+                      .tap(f => m.set(f.interrupt.flatMap((e: Exit[E2, B1]) => release(a, e.mapError(ev)).provide(r))))
+                )
+                .uninterruptible
+          b <- f.join
         } yield b).ensuring(flatten(m.get))
       }
   }
