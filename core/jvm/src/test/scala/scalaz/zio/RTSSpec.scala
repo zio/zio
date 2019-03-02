@@ -142,6 +142,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interruption of raced                   $testInterruptedOfRaceInterruptsContestents
     cancelation is guaranteed               $testCancelationIsGuaranteed
     interruption of unending bracket        $testInterruptionOfUnendingBracket
+
+  RTS environment
+    provide is modular                      $testProvideIsModular
   """
   }
 
@@ -715,6 +718,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     (0 to 100).map { _ =>
       unsafeRun(io) must_=== 42
     }.reduce(_ and _)
+  }
+
+  def testProvideIsModular = {
+    val zio =
+      (for {
+        v1 <- ZIO.environment[Int]
+        v2 <- ZIO.environment[Int].provide(2)
+        v3 <- ZIO.environment[Int]
+      } yield (v1, v2, v3)).provide(4)
+    unsafeRun(zio) must_=== ((4, 2, 4))
   }
 
   def testAsyncPureIsInterruptible = {
