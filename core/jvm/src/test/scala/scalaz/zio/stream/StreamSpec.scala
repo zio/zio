@@ -22,6 +22,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   PureStream.takeWhile      $takeWhile
   PureStream.mapProp        $map
   PureStream.mapConcat      $mapConcat
+  Stream.filterM            $filterM
   Stream.scan               $mapAccum
   Stream.++                 $concat
   Stream.unfold             $unfold
@@ -67,6 +68,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def filter =
     prop { (s: Stream[Any, String, String], p: String => Boolean) =>
       slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))
+    }
+
+  private def filterM =
+    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
+      slurp(s.filterM(s => IO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
     }
 
   private def dropWhile =
