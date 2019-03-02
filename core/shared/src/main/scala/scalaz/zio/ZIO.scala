@@ -1129,7 +1129,7 @@ trait ZIOFunctions extends Serializable {
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
-   * effects. This is a shortcut for `flatten(effectTotal(io)).
+   * effects. This is a shortcut for `flatten(effectTotal(io))`.
    */
   final def suspend[R >: LowerR, E <: UpperE, A](io: => ZIO[R, E, A]): ZIO[R, E, A] =
     flatten(effectTotal(io))
