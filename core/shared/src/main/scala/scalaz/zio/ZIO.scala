@@ -1397,8 +1397,8 @@ trait ZIOFunctions extends Serializable {
   /**
    * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
    */
-  final def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => IO[E, S]): IO[E, S] =
-    in.foldLeft(IO.succeed(zero): IO[E, S]) { (acc, el) =>
+  final def foldLeft[R >: LowerR, E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
+    in.foldLeft(IO.succeed(zero): ZIO[R, E, S]) { (acc, el) =>
       acc.flatMap(f(_, el))
     }
 
