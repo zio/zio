@@ -27,7 +27,7 @@ import scalaz.zio.Exit.Cause
  * to better integrate with Scala exception handling.
  */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable {
-  override final def getMessage: String = message(cause)
+  override final def getMessage: String = prettyPrint(cause)
 
   private final def message(cause: Cause[Any]): String = {
     def gen(t: Throwable): String =
@@ -41,5 +41,62 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
       case Cause.Then(left, right)  => "Both fibers terminated in sequence: \n" + message(left) + "\n" + message(right)
       case Cause.Both(left, right)  => "Both fibers terminated in parallel: \n" + message(left) + "\n" + message(right)
     }
+  }
+
+  private final def prettyPrint(cause: Cause[Any]): String = {
+
+    sealed trait Segment
+    sealed trait Step extends Segment
+
+    final case class Sequential(all: List[Step])              extends Segment
+    final case class Parallel(all: List[Sequential])          extends Step
+    final case class Failure(lines: List[String])             extends Step
+
+    def prefixBlock[A](values: List[String], p1: String, p2: String): List[String] =
+      values match {
+        case Nil => Nil
+        case head :: tail =>
+          (p1 + head) :: tail.map(p2 + _)
+      }
+
+    def parallelSegments(cause: Cause[Any]): List[Sequential] =
+      cause match {
+        case Cause.Both(left, right)  => parallelSegments(left) ++ parallelSegments(right)
+        case _                        => List(causeToSequential(cause))
+      }
+
+    def linearSegments(cause: Cause[Any]): List[Step] =
+      cause match {
+        case Cause.Then(first, second) => linearSegments(first) ++ linearSegments(second)
+        case _                         => causeToSequential(cause).all
+      }
+
+    def causeToSequential(cause: Cause[Any]): Sequential =
+      cause match {
+        case Cause.Fail(t: Throwable)   => Sequential(List(Failure(List("A checked error was not handled: ") ++ t.getStackTrace.map(_.toString))))
+        case Cause.Fail(error)          => Sequential(List(Failure(List("A checked error was not handled: ") ++ error.toString.lines)))
+        case Cause.Die(t)               => Sequential(List(Failure(List("An unchecked error was produced: ") ++ t.getStackTrace.map(_.toString))))
+        case Cause.Interrupt            => Sequential(List(Failure(List("The fiber was interrupted"))))
+        case t: Cause.Then[Any]         => Sequential(linearSegments(t))
+        case b: Cause.Both[Any]         => Sequential(List(Parallel(parallelSegments(b))))
+      }
+
+    def format(segment: Segment): List[String] =
+      segment match {
+        case Failure(lines)             =>  prefixBlock(lines, "─", "  ")
+        case Parallel(all)              =>  List(("══╦" * (all.size -1)) + "══╗") ++
+                                            all.foldRight[List[String]](Nil) { case (current, acc) =>
+                                              prefixBlock(acc, "  ║", "  ║") ++
+                                              prefixBlock(format(current), "  ", "  ")
+                                            }
+        case Sequential(all)            =>  all.flatMap { segment =>
+                                              List("║") ++
+                                              prefixBlock(format(segment), "╠", "║")
+                                            } ++ List("▼")
+      }
+
+    val sequence = causeToSequential(cause)
+    val result = ("Fiber failed." :: "╥" :: format(sequence)).mkString("\n")
+    result
   }
 }
