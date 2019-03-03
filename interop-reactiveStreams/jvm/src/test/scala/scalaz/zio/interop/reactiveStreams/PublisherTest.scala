@@ -19,7 +19,7 @@ class PublisherTest(env: TestEnvironment, publisherShutdownTimeout: Long)
     unsafeRun(
       Stream
         .unfold(elements)(n => if (n > 0) Some((1, n - 1)) else None)
-        .toPublisher()
+        .toPublisher
     )
 
   override def createFailedPublisher(): Publisher[Int] =
@@ -27,7 +27,7 @@ class PublisherTest(env: TestEnvironment, publisherShutdownTimeout: Long)
       Stream
         .fail(new RuntimeException("boom!"))
         .map(_.asInstanceOf[Int])
-        .toPublisher()
+        .toPublisher
     )
 
 }
