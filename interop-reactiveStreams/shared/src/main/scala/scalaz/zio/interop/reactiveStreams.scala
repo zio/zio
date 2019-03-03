@@ -14,7 +14,7 @@ package object reactiveStreams {
         runtime =>
           (s: Subscriber[_ >: A]) => {
             if (s == null) throw new NullPointerException("Subscriber must not be null.")
-            runtime.unsafeRunAsync(
+            val wiring =
               for {
                 q <- Queue.unbounded[Long]
                 control = Stream
@@ -42,7 +42,7 @@ package object reactiveStreams {
                 }
                 _ <- Task(s.onSubscribe(subscription))
               } yield ()
-            ) {
+            runtime.unsafeRunAsync(wiring) {
               case Failure(Die(e))    => s.onError(e)
               case Failure(TFail(e))  => s.onError(e)
               case Failure(Interrupt) => s.onComplete()
