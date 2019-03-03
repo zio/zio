@@ -31,7 +31,7 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
   import Managed.Reservation
 
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    reserve.bracket[R1, E1, B](_.release)(_.acquire.flatMap(f))
+    reserve.bracket(_.release, _.acquire.flatMap(f))
 
   final def use_[R1 <: R, E1 >: E, B](f: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     use(_ => f)

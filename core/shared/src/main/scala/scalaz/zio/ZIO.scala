@@ -393,8 +393,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * }
    * }}}
    */
-  final def bracket[R1 <: R, E1 >: E, B](release: A => ZIO[R1, Nothing, _])(use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracket[R, R1, E1, A, B](this)(release)(use)
+  final def bracket[R1 <: R, E1 >: E, B](release: A => ZIO[R1, Nothing, _], use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    ZIO.bracket[R1, E1, A, B](this, release, use)
 
   /**
    * A more powerful version of `bracket` that provides information on whether
@@ -409,8 +409,8 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * A less powerful variant of `bracket` where the resource produced by this
    * effect is not needed.
    */
-  final def bracket_[R1 <: R, E1 >: E, B](release: ZIO[R1, Nothing, _])(use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZIO.bracket[R, R1, E1, A, B](self)(_ => release)(_ => use)
+  final def bracket_[R1 <: R, E1 >: E, B](release: ZIO[R1, Nothing, _], use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    ZIO.bracket[R1, E1, A, B](self, _ => release, _ => use)
 
   /**
    * Returns an effect that, if this effect _starts_ execution, then the
@@ -1257,16 +1257,62 @@ trait ZIOFunctions extends Serializable {
    * succeeds. If `use` fails, then after release, the returned effect will fail
    * with the same error.
    */
-  final def bracket[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A, B](
-    acquire: ZIO[R, E, A]
-  )(release: A => ZIO[R1, Nothing, _])(use: A => ZIO[R1, E, B]): ZIO[R1, E, B] =
+  final def bracket[R >: LowerR, E <: UpperE, A, B](
+    acquire: ZIO[R, E, A],
+    release: A => ZIO[R, Nothing, _],
+    use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
       (for {
-        r <- environment[R1]
+        r <- environment[R]
         a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
         b <- use(a)
       } yield b).ensuring(flatten(m.get))
     }
+
+  def acquireTypeInferenceOnE = {
+    type Resource = Unit
+    val acquire: ZIO[Any, RuntimeException, Resource] = ???
+    val release: Resource => ZIO[Any, Nothing, String] = ???
+    val use: Resource => ZIO[Any, Exception, Int] = ???
+    acquire.bracket(release, use): ZIO[Any, Throwable, Int]
+    ZIO.bracket(acquire,release, use): ZIO[Any, Throwable, Int]
+  }
+
+  def acquireTypeInferenceOnE2 = {
+    type Resource = Unit
+    val acquire: ZIO[Any, Exception, Resource] = ???
+    val release: Resource => ZIO[Any, Nothing, String] = ???
+    val use: Resource => ZIO[Any, RuntimeException, Int] = ???
+    acquire.bracket(release,use): ZIO[Any, Throwable, Int]
+    ZIO.bracket(acquire,release,use): ZIO[Any, Throwable, Int]
+  }
+
+  def zioAcquireTypeInferenceOnR = {
+    type Resource = Unit
+    val acquire: ZIO[Unit, Nothing, Resource] = ???
+    val release: Resource => ZIO[Any, Nothing, String] = ???
+    val use: Resource => ZIO[Any, Nothing, Int] = ???
+    acquire.bracket(release,use): ZIO[Unit, Nothing, Int]
+    ZIO.bracket(acquire,release,use): ZIO[Unit, Nothing, Int]
+  }
+
+  def zioAcquireTypeInferenceOnR2 = {
+    type Resource = Unit
+    val acquire: ZIO[Any, Nothing, Resource] = ???
+    val release: Resource => ZIO[Unit, Nothing, String] = ???
+    val use: Resource => ZIO[Any, Nothing, Int] = ???
+    acquire.bracket(release,use): ZIO[Unit, Nothing, Int]
+    ZIO.bracket(acquire,release,use): ZIO[Unit, Nothing, Int]
+  }
+
+  def zioAcquireTypeInferenceOnR3 = {
+    type Resource = Unit
+    val acquire: ZIO[Any, Nothing, Resource] = ???
+    val release: Resource => ZIO[Any, Nothing, String] = ???
+    val use: Resource => ZIO[Unit, Nothing, Int] = ???
+    acquire.bracket(release,use): ZIO[Unit, Nothing, Int]
+    ZIO.bracket(acquire,release,use): ZIO[Unit, Nothing, Int]
+  }
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
