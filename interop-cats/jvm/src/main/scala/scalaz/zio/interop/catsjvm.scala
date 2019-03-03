@@ -19,7 +19,7 @@ package interop
 
 import cats.effect.{ Concurrent, ContextShift, Effect, ExitCase }
 import cats.{ effect, _ }
-import scalaz.zio.{ clock => zioClock }
+import scalaz.zio.{ clock => zioClock, ZIO }
 import scalaz.zio.clock.Clock
 
 import scala.concurrent.ExecutionContext
@@ -30,54 +30,56 @@ abstract class CatsPlatform extends CatsInstances {
 }
 
 abstract class CatsInstances extends CatsInstances1 {
-  implicit def ioContextShift[E]: ContextShift[IO[E, ?]] = new ContextShift[IO[E, ?]] {
-    override def shift: IO[E, Unit] =
-      IO.yieldNow
+  implicit def ioContextShift[R]: ContextShift[TaskR[R, ?]] = new ContextShift[TaskR[R, ?]] {
+    override def shift: TaskR[R, Unit] =
+      ZIO.yieldNow
 
-    override def evalOn[A](ec: ExecutionContext)(fa: IO[E, A]): IO[E, A] =
+    override def evalOn[A](ec: ExecutionContext)(fa: TaskR[R, A]): TaskR[R, A] =
       fa.on(ec)
   }
 
-  implicit def ioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
-    override def clock: cats.effect.Clock[ZIO[R, E, ?]] = new effect.Clock[ZIO[R, E, ?]] {
-      override def monotonic(unit: TimeUnit): ZIO[R, E, Long] =
+  implicit def ioTimer[R <: Clock]: effect.Timer[TaskR[R, ?]] = new effect.Timer[TaskR[R, ?]] {
+    override def clock: cats.effect.Clock[TaskR[R, ?]] = new effect.Clock[TaskR[R, ?]] {
+      override def monotonic(unit: TimeUnit): TaskR[R, Long] =
         zioClock.nanoTime.map(unit.convert(_, NANOSECONDS))
 
-      override def realTime(unit: TimeUnit): ZIO[R, E, Long] =
+      override def realTime(unit: TimeUnit): TaskR[R, Long] =
         zioClock.currentTime(unit)
     }
 
-    override def sleep(duration: FiniteDuration): ZIO[R, E, Unit] =
+    override def sleep(duration: FiniteDuration): TaskR[R, Unit] =
       zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
   }
 
-  implicit val taskEffectInstances: effect.ConcurrentEffect[Task] with SemigroupK[Task] =
-    new CatsConcurrentEffect
+  implicit def taskEffectInstances[R]: effect.ConcurrentEffect[TaskR[R, ?]] with SemigroupK[TaskR[R, ?]] =
+    new CatsConcurrentEffect[R]
 
   implicit val taskParallelInstance: Parallel[Task, Util.Par] =
     parallelInstance(taskEffectInstances)
 }
 
 sealed abstract class CatsInstances1 extends CatsInstances2 {
-  implicit def ioMonoidInstances[E: Monoid]: MonadError[IO[E, ?], E] with Bifunctor[IO] with Alternative[IO[E, ?]] =
-    new CatsAlternative[E] with CatsBifunctor
+  implicit def ioMonoidInstances[R, E: Monoid]
+    : MonadError[ZIO[R, E, ?], E] with Bifunctor[ZIO[R, ?, ?]] with Alternative[ZIO[R, E, ?]] =
+    new CatsAlternative[R, E] with CatsBifunctor[R]
 
-  implicit def parallelInstance[E](implicit M: Monad[IO[E, ?]]): Parallel[IO[E, ?], ParIO[E, ?]] =
-    new CatsParallel[E](M)
+  implicit def parallelInstance[R, E](implicit M: Monad[ZIO[R, E, ?]]): Parallel[ZIO[R, E, ?], ParIO[E, ?]] =
+    new CatsParallel[R, E](M)
 }
 
 sealed abstract class CatsInstances2 {
-  implicit def ioInstances[E]: MonadError[IO[E, ?], E] with Bifunctor[IO] with SemigroupK[IO[E, ?]] =
-    new CatsMonadError[E] with CatsSemigroupK[E] with CatsBifunctor
+  implicit def ioInstances[R]
+    : MonadError[TaskR[R, ?], Throwable] with Bifunctor[ZIO[R, ?, ?]] with SemigroupK[TaskR[R, ?]] =
+    new CatsMonadError[R, Throwable] with CatsSemigroupK[R, Throwable] with CatsBifunctor[R]
 }
 
-private class CatsConcurrentEffect extends CatsConcurrent with effect.ConcurrentEffect[Task] {
+private class CatsConcurrentEffect[R] extends CatsConcurrent[R] with effect.ConcurrentEffect[TaskR[R, ?]] {
   override final def runCancelable[A](
-    fa: Task[A]
+    fa: TaskR[R, A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[Task]] =
     effect.SyncIO {
       this.unsafeRun {
-        fa.fork.flatMap { f =>
+        fa.asInstanceOf[Task[A]].fork.flatMap { f =>
           f.await
             .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
@@ -86,31 +88,34 @@ private class CatsConcurrentEffect extends CatsConcurrent with effect.Concurrent
       }
     }
 
-  override final def toIO[A](fa: Task[A]): effect.IO[A] =
+  override final def toIO[A](fa: TaskR[R, A]): effect.IO[A] =
     effect.ConcurrentEffect.toIOFromRunCancelable(fa)(this)
 }
 
-private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
+private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[TaskR[R, ?]] {
 
-  private[this] final def toFiber[A](f: Fiber[Throwable, A]): effect.Fiber[Task, A] = new effect.Fiber[Task, A] {
-    override final val cancel: Task[Unit] = f.interrupt.void
+  private[this] final def toFiber[A](f: Fiber[Throwable, A]): effect.Fiber[TaskR[R, ?], A] =
+    new effect.Fiber[TaskR[R, ?], A] {
+      override final val cancel: TaskR[R, Unit] = f.interrupt.void
 
-    override final val join: Task[A] = f.join
-  }
-
-  override final def liftIO[A](ioa: cats.effect.IO[A]): Task[A] =
-    Concurrent.liftIO(ioa)(this)
-
-  override final def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[Task]): Task[A] =
-    IO.effectAsyncInterrupt { (kk: Task[A] => Unit) =>
-      val token: effect.CancelToken[Task] = {
-        k(e => kk(eitherToIO(e)))
-      }
-
-      Left(token.orDie)
+      override final val join: TaskR[R, A] = f.join
     }
 
-  override final def race[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
+  override final def liftIO[A](ioa: cats.effect.IO[A]): TaskR[R, A] =
+    Concurrent.liftIO(ioa)(this)
+
+  override final def cancelable[A](k: (Either[Throwable, A] => Unit) => effect.CancelToken[TaskR[R, ?]]): TaskR[R, A] =
+    ZIO.accessM { r =>
+      ZIO.effectAsyncInterrupt { (kk: TaskR[R, A] => Unit) =>
+        val token: effect.CancelToken[Task] = {
+          k(e => kk(eitherToIO(e))).provide(r)
+        }
+
+        Left(token.provide(r).orDie)
+      }
+    }
+
+  override final def race[A, B](fa: TaskR[R, A], fb: TaskR[R, B]): TaskR[R, Either[A, B]] =
     racePair(fa, fb).flatMap {
       case Left((a, fiberB)) =>
         fiberB.cancel.const(Left(a))
@@ -118,23 +123,23 @@ private class CatsConcurrent extends CatsEffect with Concurrent[Task] {
         fiberA.cancel.const(Right(b))
     }
 
-  override final def start[A](fa: Task[A]): Task[effect.Fiber[Task, A]] =
+  override final def start[A](fa: TaskR[R, A]): TaskR[R, effect.Fiber[TaskR[R, ?], A]] =
     fa.fork.map(toFiber)
 
   override final def racePair[A, B](
-    fa: Task[A],
-    fb: Task[B]
-  ): Task[Either[(A, effect.Fiber[Task, B]), (effect.Fiber[Task, A], B)]] =
+    fa: TaskR[R, A],
+    fb: TaskR[R, B]
+  ): TaskR[R, Either[(A, effect.Fiber[TaskR[R, ?], B]), (effect.Fiber[TaskR[R, ?], A], B)]] =
     (fa raceWith fb)(
       { case (l, f) => l.fold(f.interrupt *> IO.halt(_), IO.succeed).map(lv => Left((lv, toFiber(f)))) },
       { case (r, f) => r.fold(f.interrupt *> IO.halt(_), IO.succeed).map(rv => Right((toFiber(f), rv))) }
     )
 }
 
-private class CatsEffect
-    extends CatsMonadError[Throwable]
-    with Effect[Task]
-    with CatsSemigroupK[Throwable]
+private class CatsEffect[R]
+    extends CatsMonadError[R, Throwable]
+    with Effect[TaskR[R, ?]]
+    with CatsSemigroupK[R, Throwable]
     with DefaultRuntime {
   @inline final protected[this] def exitToEither[A](e: Exit[Throwable, A]): Either[Throwable, A] =
     e.fold(_.failures[Throwable] match {
@@ -142,9 +147,9 @@ private class CatsEffect
       case _        => e.toEither
     }, Right(_))
 
-  @inline final protected[this] def eitherToIO[A]: Either[Throwable, A] => Task[A] = {
-    case Left(t)  => IO.fail(t)
-    case Right(r) => IO.succeed(r)
+  @inline final protected[this] def eitherToIO[A]: Either[Throwable, A] => TaskR[R, A] = {
+    case Left(t)  => ZIO.fail(t)
+    case Right(r) => ZIO.succeed(r)
   }
 
   @inline final private[this] def exitToExitCase[A]: Exit[Throwable, A] => ExitCase[Throwable] = {
@@ -157,100 +162,110 @@ private class CatsEffect
       }
   }
 
-  override final def never[A]: Task[A] =
-    IO.never
+  override final def never[A]: TaskR[R, A] =
+    ZIO.never
 
   override final def runAsync[A](
-    fa: Task[A]
+    fa: TaskR[R, A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
     effect.SyncIO {
-      this.unsafeRunAsync(fa) { exit =>
+      this.unsafeRunAsync(fa.asInstanceOf[Task[A]]) { exit =>
         cb(exitToEither(exit)).unsafeRunAsync(_ => ())
       }
     }
 
-  override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
-    IO.effectAsync { (kk: Task[A] => Unit) =>
-      k(eitherToIO andThen kk)
+  override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): TaskR[R, A] =
+    ZIO.accessM { r =>
+      ZIO.effectAsync { (kk: Task[A] => Unit) =>
+        k(e => kk(eitherToIO(e).provide(r)))
+      }
     }
 
-  override final def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    IO.effectAsyncM { (kk: Task[A] => Unit) =>
-      k(eitherToIO andThen kk).orDie
+  override final def asyncF[A](k: (Either[Throwable, A] => Unit) => TaskR[R, Unit]): TaskR[R, A] =
+    ZIO.accessM { r =>
+      ZIO.effectAsyncM { (kk: Task[A] => Unit) =>
+        k(e => kk(eitherToIO(e).provide(r))).provide(r).orDie
+      }
     }
 
-  override final def suspend[A](thunk: => Task[A]): Task[A] =
-    IO.flatten(IO.effect(thunk))
+  override final def suspend[A](thunk: => TaskR[R, A]): TaskR[R, A] =
+    ZIO.flatten(ZIO.effect(thunk))
 
-  override final def delay[A](thunk: => A): Task[A] =
-    IO.effect(thunk)
+  override final def delay[A](thunk: => A): TaskR[R, A] =
+    ZIO.effect(thunk)
 
-  override final def bracket[A, B](acquire: Task[A])(use: A => Task[B])(
-    release: A => Task[Unit]
-  ): Task[B] =
-    IO.bracket(acquire)(release(_).orDie)(use)
+  override final def bracket[A, B](acquire: TaskR[R, A])(use: A => TaskR[R, B])(
+    release: A => TaskR[R, Unit]
+  ): TaskR[R, B] =
+    ZIO.bracket(acquire)(release(_).orDie)(use)
 
   override final def bracketCase[A, B](
-    acquire: Task[A]
-  )(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
-    IO.bracketExit[Any, Throwable, A, B](acquire) { (a, exit) =>
+    acquire: TaskR[R, A]
+  )(use: A => TaskR[R, B])(release: (A, ExitCase[Throwable]) => TaskR[R, Unit]): TaskR[R, B] =
+    ZIO.bracketExit[R, Throwable, A, B](acquire) { (a, exit) =>
       val exitCase = exitToExitCase(exit)
       release(a, exitCase).orDie
     }(use)
 
-  override def uncancelable[A](fa: Task[A]): Task[A] =
+  override def uncancelable[A](fa: TaskR[R, A]): TaskR[R, A] =
     fa.uninterruptible
 
-  override final def guarantee[A](fa: Task[A])(finalizer: Task[Unit]): Task[A] =
-    fa.ensuring(finalizer.orDie)
-}
-
-private class CatsMonad[E] extends Monad[IO[E, ?]] {
-  override final def pure[A](a: A): IO[E, A]                                 = IO.succeed(a)
-  override final def map[A, B](fa: IO[E, A])(f: A => B): IO[E, B]            = fa.map(f)
-  override final def flatMap[A, B](fa: IO[E, A])(f: A => IO[E, B]): IO[E, B] = fa.flatMap(f)
-  override final def tailRecM[A, B](a: A)(f: A => IO[E, Either[A, B]]): IO[E, B] =
-    f(a).flatMap {
-      case Left(l)  => tailRecM(l)(f)
-      case Right(r) => IO.succeed(r)
+  override final def guarantee[A](fa: TaskR[R, A])(finalizer: TaskR[R, Unit]): TaskR[R, A] =
+    ZIO.accessM { r =>
+      fa.provide(r).ensuring(finalizer.provide(r).orDie)
     }
 }
 
-private class CatsMonadError[E] extends CatsMonad[E] with MonadError[IO[E, ?], E] {
-  override final def handleErrorWith[A](fa: IO[E, A])(f: E => IO[E, A]): IO[E, A] = fa.catchAll(f)
-  override final def raiseError[A](e: E): IO[E, A]                                = IO.fail(e)
+private class CatsMonad[R, E] extends Monad[ZIO[R, E, ?]] {
+  override final def pure[A](a: A): ZIO[R, E, A]                                         = ZIO.succeed(a)
+  override final def map[A, B](fa: ZIO[R, E, A])(f: A => B): ZIO[R, E, B]                = fa.map(f)
+  override final def flatMap[A, B](fa: ZIO[R, E, A])(f: A => ZIO[R, E, B]): ZIO[R, E, B] = fa.flatMap(f)
+  override final def tailRecM[A, B](a: A)(f: A => ZIO[R, E, Either[A, B]]): ZIO[R, E, B] =
+    f(a).flatMap {
+      case Left(l)  => tailRecM(l)(f)
+      case Right(r) => ZIO.succeed(r)
+    }
+}
+
+private class CatsMonadError[R, E] extends CatsMonad[R, E] with MonadError[ZIO[R, E, ?], E] {
+  override final def handleErrorWith[A](fa: ZIO[R, E, A])(f: E => ZIO[R, E, A]): ZIO[R, E, A] = fa.catchAll(f)
+  override final def raiseError[A](e: E): ZIO[R, E, A]                                        = ZIO.fail(e)
 }
 
 /** lossy, throws away errors using the "first success" interpretation of SemigroupK */
-private trait CatsSemigroupK[E] extends SemigroupK[IO[E, ?]] {
-  override final def combineK[A](a: IO[E, A], b: IO[E, A]): IO[E, A] = a.orElse(b)
+private trait CatsSemigroupK[R, E] extends SemigroupK[ZIO[R, E, ?]] {
+  override final def combineK[A](a: ZIO[R, E, A], b: ZIO[R, E, A]): ZIO[R, E, A] = a.orElse(b)
 }
 
-private class CatsAlternative[E: Monoid] extends CatsMonadError[E] with Alternative[IO[E, ?]] {
-  override final def combineK[A](a: IO[E, A], b: IO[E, A]): IO[E, A] =
+private class CatsAlternative[R, E: Monoid] extends CatsMonadError[R, E] with Alternative[ZIO[R, E, ?]] {
+  override final def combineK[A](a: ZIO[R, E, A], b: ZIO[R, E, A]): ZIO[R, E, A] =
     a.catchAll { e1 =>
       b.catchAll { e2 =>
-        IO.fail(Monoid[E].combine(e1, e2))
+        ZIO.fail(Monoid[E].combine(e1, e2))
       }
     }
-  override final def empty[A]: IO[E, A] = raiseError(Monoid[E].empty)
+  override final def empty[A]: ZIO[R, E, A] = raiseError(Monoid[E].empty)
 }
 
-trait CatsBifunctor extends Bifunctor[IO] {
-  override final def bimap[A, B, C, D](fab: IO[A, B])(f: A => C, g: B => D): IO[C, D] =
+trait CatsBifunctor[R] extends Bifunctor[ZIO[R, ?, ?]] {
+  override final def bimap[A, B, C, D](fab: ZIO[R, A, B])(f: A => C, g: B => D): ZIO[R, C, D] =
     fab.bimap(f, g)
 }
 
-private class CatsParallel[E](final override val monad: Monad[IO[E, ?]]) extends Parallel[IO[E, ?], ParIO[E, ?]] {
+private class CatsParallel[R, E](final override val monad: Monad[ZIO[R, E, ?]])
+    extends Parallel[ZIO[R, E, ?], ParIO[E, ?]] {
 
   final override val applicative: Applicative[ParIO[E, ?]] =
     new CatsParApplicative[E]
 
-  final override val sequential: ParIO[E, ?] ~> IO[E, ?] =
-    new (ParIO[E, ?] ~> IO[E, ?]) { def apply[A](fa: ParIO[E, A]): IO[E, A] = Par.unwrap(fa) }
+  final override val sequential: ParIO[E, ?] ~> ZIO[R, E, ?] =
+    new (ParIO[E, ?] ~> ZIO[R, E, ?]) { def apply[A](fa: ParIO[E, A]): ZIO[R, E, A] = Par.unwrap(fa) }
 
-  final override val parallel: IO[E, ?] ~> ParIO[E, ?] =
-    new (IO[E, ?] ~> ParIO[E, ?]) { def apply[A](fa: IO[E, A]): ParIO[E, A] = Par(fa) }
+  // FIXME: asInstanceOf should not be needed
+  final override val parallel: ZIO[R, E, ?] ~> ParIO[E, ?] =
+    new (ZIO[R, E, ?] ~> ParIO[E, ?]) {
+      def apply[A](fa: ZIO[R, E, A]): ParIO[E, A] = Par(fa.provide(().asInstanceOf[R]))
+    }
 }
 
 private class CatsParApplicative[E] extends Applicative[ParIO[E, ?]] {
