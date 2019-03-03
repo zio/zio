@@ -1475,6 +1475,14 @@ object UIO extends ZIOFunctions {
 object ZIO extends ZIO_R_Any {
   def apply[A](a: => A): Task[A] = effect(a)
 
+  implicit class ZIOInvariant[R, E, A](val self: ZIO[R, E, A]) extends AnyVal {
+    final def bracket: ZIO.BracketAcquire[R, E, A] =
+      new ZIO.BracketAcquire(self)
+
+    final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
+      new ZIO.BracketExitAcquire(self)
+  }
+
   class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
       self
