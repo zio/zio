@@ -5,13 +5,51 @@ import scalaz.zio.Exit.Cause.{ Die, Interrupt, Fail => TFail }
 import scalaz.zio.Exit.Failure
 import scalaz.zio._
 import scalaz.zio.stream.{ Sink, Stream, Take }
-import scalaz.zio.stream.Take.{ End, Fail, Value }
 
 package object reactiveStreams {
 
   final implicit class streamToPublisher[E <: Throwable, A](val src: Stream[Any, E, A]) extends AnyVal {
-    def toPublisher(qSize: Int = 10): UIO[Publisher[A]] =
-      ZIO.runtime.map(runtime => new StreamPublisher(src, runtime, qSize))
+    def toPublisher(): UIO[Publisher[A]] =
+      ZIO.runtime.map(
+        runtime =>
+          (s: Subscriber[_ >: A]) => {
+            if (s == null) throw new NullPointerException("Subscriber must not be null.")
+            runtime.unsafeRunAsync(
+              for {
+                q <- Queue.unbounded[Long]
+                control = Stream
+                  .fromQueue(q)
+                  .flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
+                _ <- src
+                      .toQueue(1)
+                      .use { q =>
+                        Stream
+                          .fromQueue(q)
+                          .zip(control)
+                          .foreach {
+                            case (Take.Value(a), _) => Task(s.onNext(a))
+                            case (Take.Fail(e), _)  => Task(s.onError(e))
+                            case (Take.End, _)      => Task(s.onComplete())
+                          }
+                      }
+                      .fork
+                subscription = new Subscription {
+                  override def request(n: Long): Unit = {
+                    if (n <= 0) s.onError(new IllegalArgumentException("n must be > 0"))
+                    runtime.unsafeRunAsync_(q.offer(n).void)
+                  }
+                  override def cancel(): Unit = runtime.unsafeRun(q.shutdown)
+                }
+                _ <- Task(s.onSubscribe(subscription))
+              } yield ()
+            ) {
+              case Failure(Die(e))    => s.onError(e)
+              case Failure(TFail(e))  => s.onError(e)
+              case Failure(Interrupt) => s.onComplete()
+              case _                  =>
+            }
+        }
+      )
   }
 
   final implicit class sinkToSubscriber[T, A](val sink: Sink[Any, _ <: Throwable, Unit, T, A]) extends AnyVal {
@@ -35,61 +73,5 @@ package object reactiveStreams {
           }
         (subscriber, p.await)
       }
-  }
-}
-
-private class StreamPublisher[E <: Throwable, A](
-  src: Stream[Any, E, A],
-  runtime: Runtime[_],
-  qSize: Int
-) extends Publisher[A] {
-  override def subscribe(s: Subscriber[_ >: A]): Unit = {
-    if (s == null) throw new NullPointerException("Subscriber must not be null.")
-    runtime.unsafeRunSync(
-      src.toQueue(qSize).use[Any, Throwable, Unit] { q =>
-        val subscription = new StreamSubscription[E, A](s, q, runtime)
-        Task(s.onSubscribe(subscription))
-      }
-    ) match {
-      case Failure(Die(e))    => s.onError(e)
-      case Failure(TFail(e))  => s.onError(e)
-      case Failure(Interrupt) => s.onComplete()
-      case _                  =>
-    }
-  }
-}
-
-private class StreamSubscription[E <: Throwable, A](s: Subscriber[_ >: A], q: Queue[Take[E, A]], runtime: Runtime[_])
-    extends Subscription {
-  var completed: Boolean = false
-  override def request(n: Long): Unit = {
-    if (n <= 0) s.onError(new IllegalArgumentException("n must be >= 0."))
-    println(s"request $n")
-    runtime.unsafeRunAsync(
-      Stream
-        .unfold(n)(n => if (n > 0) Some((n, n - 1)) else None)
-        .mapM(_ => q.take)
-        .foreach {
-          case Value(t) =>
-            Task {
-              println("onNext")
-              s.onNext(t)
-            }
-          case Fail(e) =>
-            completed = true
-            Task(s.onError(e))
-          case End =>
-            completed = true
-            Task(s.onComplete())
-        }
-    ) {
-      case Failure(Die(e)) if !completed    => s.onError(e)
-      case Failure(Interrupt) if !completed => s.onComplete()
-      case _                                =>
-    }
-  }
-  override def cancel(): Unit = {
-    completed = true
-    runtime.unsafeRunAsync_(q.shutdown)
   }
 }
