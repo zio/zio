@@ -4,7 +4,10 @@ import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 import scalaz.zio.{ Queue, Runtime, Task, UIO, ZIO }
 import scalaz.zio.stream.{ Sink, Stream, Take }
 
-class SourcePublisher[E <: Throwable, A](src: Stream[Any, E, A], runtime: Runtime[Any]) extends Publisher[A] {
+class SourcePublisher[E <: Throwable, A](
+  src: Stream[Any, E, A],
+  runtime: Runtime[Any]
+) extends Publisher[A] {
   override def subscribe(s: Subscriber[_ >: A]): Unit =
     if (s == null) {
       throw new NullPointerException("Subscriber must not be null.")
@@ -41,7 +44,7 @@ class SourcePublisher[E <: Throwable, A](src: Stream[Any, E, A], runtime: Runtim
         }
       runtime.unsafeRunAsync_(wiring)
     }
-  }
+}
 
 object SourcePublisher {
   def sinkToPublisher[E <: Throwable, A](src: Stream[Any, E, A]): UIO[SourcePublisher[E, A]] =

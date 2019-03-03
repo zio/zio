@@ -4,10 +4,15 @@ import org.reactivestreams.{ Subscriber, Subscription }
 import scalaz.zio.stream.{ Sink, Stream }
 import scalaz.zio.{ Promise, Queue, Ref, Runtime, Task, UIO, ZIO }
 
-class SinkSubscriber[T, A](runtime: Runtime[_], q: Queue[T], p: Promise[Throwable, A], expected: Ref[Long])
-    extends Subscriber[T] {
+class SinkSubscriber[T, A](
+  runtime: Runtime[_],
+  q: Queue[T],
+  p: Promise[Throwable, A],
+  expected: Ref[Long]
+) extends Subscriber[T] {
+
   var subscription: Option[Subscription] = None
-  // todo: more intelligent requesting without blocking and infinite.
+
   override def onSubscribe(s: Subscription): Unit =
     if (s == null) {
       throw new NullPointerException("s was null in onSubscribe")
