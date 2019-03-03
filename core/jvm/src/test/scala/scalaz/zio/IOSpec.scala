@@ -210,17 +210,17 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def acquireTypeInferenceOnE = {
     type Resource = Unit
-    val acquire: ZIO[Any, RuntimeException, Resource] = ???
+    val acquire: ZIO[Any, RuntimeException, Resource]  = ???
     val release: Resource => ZIO[Any, Nothing, String] = ???
-    val use: Resource => ZIO[Any, Exception, Int] = ???
+    val use: Resource => ZIO[Any, Exception, Int]      = ???
     acquire.bracket(release, use): ZIO[Any, Throwable, Int]
     ZIO.bracket(acquire, release, use): ZIO[Any, Throwable, Int]
   }
 
   def acquireTypeInferenceOnE2 = {
     type Resource = Unit
-    val acquire: ZIO[Any, Exception, Resource] = ???
-    val release: Resource => ZIO[Any, Nothing, String] = ???
+    val acquire: ZIO[Any, Exception, Resource]           = ???
+    val release: Resource => ZIO[Any, Nothing, String]   = ???
     val use: Resource => ZIO[Any, RuntimeException, Int] = ???
     acquire.bracket(release, use): ZIO[Any, Throwable, Int]
     ZIO.bracket(acquire, release, use): ZIO[Any, Throwable, Int]
@@ -228,27 +228,27 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def zioAcquireTypeInferenceOnR = {
     type Resource = Unit
-    val acquire: ZIO[Unit, Nothing, Resource] = ???
+    val acquire: ZIO[Unit, Nothing, Resource]          = ???
     val release: Resource => ZIO[Any, Nothing, String] = ???
-    val use: Resource => ZIO[Any, Nothing, Int] = ???
+    val use: Resource => ZIO[Any, Nothing, Int]        = ???
     acquire.bracket(release, use): ZIO[Unit, Nothing, Int]
     ZIO.bracket(acquire, release, use): ZIO[Unit, Nothing, Int]
   }
 
   def zioAcquireTypeInferenceOnR2 = {
     type Resource = Unit
-    val acquire: ZIO[Any, Nothing, Resource] = ???
+    val acquire: ZIO[Any, Nothing, Resource]            = ???
     val release: Resource => ZIO[Unit, Nothing, String] = ???
-    val use: Resource => ZIO[Any, Nothing, Int] = ???
+    val use: Resource => ZIO[Any, Nothing, Int]         = ???
     acquire.bracket(release, use): ZIO[Unit, Nothing, Int]
     ZIO.bracket(acquire, release, use): ZIO[Unit, Nothing, Int]
   }
 
   def zioAcquireTypeInferenceOnR3 = {
     type Resource = Unit
-    val acquire: ZIO[Any, Nothing, Resource] = ???
+    val acquire: ZIO[Any, Nothing, Resource]           = ???
     val release: Resource => ZIO[Any, Nothing, String] = ???
-    val use: Resource => ZIO[Unit, Nothing, Int] = ???
+    val use: Resource => ZIO[Unit, Nothing, Int]       = ???
     acquire.bracket(release, use): ZIO[Unit, Nothing, Int]
     ZIO.bracket(acquire, release, use): ZIO[Unit, Nothing, Int]
   }

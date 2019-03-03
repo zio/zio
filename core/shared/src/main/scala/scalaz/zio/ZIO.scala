@@ -1260,7 +1260,8 @@ trait ZIOFunctions extends Serializable {
   final def bracket[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A],
     release: A => ZIO[R, Nothing, _],
-    use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+    use: A => ZIO[R, E, B]
+  ): ZIO[R, E, B] =
     Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
       (for {
         r <- environment[R]
@@ -1268,51 +1269,6 @@ trait ZIOFunctions extends Serializable {
         b <- use(a)
       } yield b).ensuring(flatten(m.get))
     }
-
-  def acquireTypeInferenceOnE = {
-    type Resource = Unit
-    val acquire: ZIO[Any, RuntimeException, Resource] = ???
-    val release: Resource => ZIO[Any, Nothing, String] = ???
-    val use: Resource => ZIO[Any, Exception, Int] = ???
-    acquire.bracket(release, use): ZIO[Any, Throwable, Int]
-    ZIO.bracket(acquire,release, use): ZIO[Any, Throwable, Int]
-  }
-
-  def acquireTypeInferenceOnE2 = {
-    type Resource = Unit
-    val acquire: ZIO[Any, Exception, Resource] = ???
-    val release: Resource => ZIO[Any, Nothing, String] = ???
-    val use: Resource => ZIO[Any, RuntimeException, Int] = ???
-    acquire.bracket(release,use): ZIO[Any, Throwable, Int]
-    ZIO.bracket(acquire,release,use): ZIO[Any, Throwable, Int]
-  }
-
-  def zioAcquireTypeInferenceOnR = {
-    type Resource = Unit
-    val acquire: ZIO[Unit, Nothing, Resource] = ???
-    val release: Resource => ZIO[Any, Nothing, String] = ???
-    val use: Resource => ZIO[Any, Nothing, Int] = ???
-    acquire.bracket(release,use): ZIO[Unit, Nothing, Int]
-    ZIO.bracket(acquire,release,use): ZIO[Unit, Nothing, Int]
-  }
-
-  def zioAcquireTypeInferenceOnR2 = {
-    type Resource = Unit
-    val acquire: ZIO[Any, Nothing, Resource] = ???
-    val release: Resource => ZIO[Unit, Nothing, String] = ???
-    val use: Resource => ZIO[Any, Nothing, Int] = ???
-    acquire.bracket(release,use): ZIO[Unit, Nothing, Int]
-    ZIO.bracket(acquire,release,use): ZIO[Unit, Nothing, Int]
-  }
-
-  def zioAcquireTypeInferenceOnR3 = {
-    type Resource = Unit
-    val acquire: ZIO[Any, Nothing, Resource] = ???
-    val release: Resource => ZIO[Any, Nothing, String] = ???
-    val use: Resource => ZIO[Unit, Nothing, Int] = ???
-    acquire.bracket(release,use): ZIO[Unit, Nothing, Int]
-    ZIO.bracket(acquire,release,use): ZIO[Unit, Nothing, Int]
-  }
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.

@@ -413,13 +413,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(for {
       ref <- Ref.make[List[String]](Nil)
       log = makeLogger(ref)
-      f <- ZIO.unit.bracket(
-            _ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"),
-            _ => ZIO.unit)
-          .bracket(
-            _ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"),
-            _ => ZIO.unit
-          ).fork
+      f <- ZIO.unit
+            .bracket(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"), _ => ZIO.unit)
+            .bracket(
+              _ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"),
+              _ => ZIO.unit
+            )
+            .fork
       _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
       _ <- f.interrupt
       _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
