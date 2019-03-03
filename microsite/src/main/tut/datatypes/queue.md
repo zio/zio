@@ -154,6 +154,71 @@ val res: UIO[Unit] = for {
 } yield ()
 ```
 
+## Transforming queues
+
+A `Queue[A]` is in fact a type alias for `Queue2[Any, Nothing, A, A]`.
+The signature for the expanded version is:
+```scala
+trait Queue2[R, E, A, B]
+```
+
+That is, a `Queue2` can be offered values of type `A`, and values of
+type `B` can be taken from it. Enqueueing/dequeueing operations on the
+queue require an environment of type `R` and may fail with errors of
+type `E`. Note how the basic `Queue[A]` cannot fail or require any environment.
+
+With separate type parameters for input and output, there are rich
+composition opportunities for queues. 
+
+### Queue2#map
+
+The output of the queue may be mapped:
+
+```tut:silent
+val res: UIO[String] = 
+  for {
+    queue  <- Queue.bounded[Int](3)
+    mapped = queue.map(_.toString)
+    _      <- mapped.offer(1)
+    s      <- mapped.take
+  } yield s
+```
+
+### Queue2#mapM
+
+We may also use an effectful function to map the output:
+
+```tut:silent
+val res: UIO[Queue2[Any, String, Int, String]] = 
+  for {
+    queue  <- Queue.bounded[Int](3)
+    mapped = queue.mapM { i =>
+      if (i % 2 == 0) IO.succeed(i.toString)
+      else IO.fail("Only even values!")
+    }
+  } yield mapped
+```
+
+Note how the `E` type parameter on the resulting queue is now a `String`.
+
+### Queue2#bothWith
+
+We may also compose two queues together into a single queue that
+broadcasts offers and takes from both of the queues:
+
+```tut:silent
+val res: UIO[(Int, String)] = 
+  for {
+    q1       <- Queue.bounded[Int](3)
+    q2       <- Queue.bounded[Int](3)
+    q2Mapped =  q2.map(_.toString)
+    both     =  q1.bothWith(q2Mapped)((_, _))
+    _        <- both.offer(1)
+    iAndS    <- both.take
+    (i, s)   =  iAndS
+  } yield (i, s)
+```
+
 ## Additional Resources
 
 - [ZIO Queue Talk by John De Goes @ ScalaWave 2018](https://www.slideshare.net/jdegoes/zio-queue)
