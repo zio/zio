@@ -2,7 +2,7 @@ package scalaz.zio.interop
 
 import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 import scalaz.zio.Exit.Cause.{ Die, Interrupt, Fail => TFail }
-import scalaz.zio.Exit.Failure
+import scalaz.zio.Exit.{ Failure, Success }
 import scalaz.zio._
 import scalaz.zio.stream.{ Sink, Stream, Take }
 
@@ -22,15 +22,32 @@ package object reactiveStreams {
                   .flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
                 _ <- src
                       .toQueue(1)
-                      .use { q =>
-                        Stream
-                          .fromQueue(q)
-                          .zip(control)
-                          .foreach {
-                            case (Take.Value(a), _) => Task(s.onNext(a))
-                            case (Take.Fail(e), _)  => Task(s.onError(e))
-                            case (Take.End, _)      => Task(s.onComplete())
-                          }
+                      .use {
+                        q =>
+                          Stream
+                            .fromQueue(q)
+                            .peel(Sink.readWhile[Take[E, A]](_.isInstanceOf[Take.Fail[E]]))
+                            .use {
+                              case (errors, stream) =>
+                                errors.headOption match {
+                                  case Some(Take.Fail(e)) => Task(s.onError(e))
+                                  case _ =>
+                                    stream
+                                      .zipWith(control) {
+                                        case (Some(Take.Value(a)), Some(_)) =>
+                                          s.onNext(a)
+                                          Some(())
+                                        case (Some(Take.Fail(e)), _) =>
+                                          s.onError(e)
+                                          None
+                                        case (Some(Take.End), _) =>
+                                          s.onComplete()
+                                          None
+                                        case _ => None
+                                      }
+                                      .run(Sink.drain)
+                                }
+                            }
                       }
                       .fork
                 subscription = new Subscription {
@@ -40,13 +57,13 @@ package object reactiveStreams {
                   }
                   override def cancel(): Unit = runtime.unsafeRun(q.shutdown)
                 }
-                _ <- Task(s.onSubscribe(subscription))
-              } yield ()
+              } yield subscription
             runtime.unsafeRunAsync(wiring) {
-              case Failure(Die(e))    => s.onError(e)
-              case Failure(TFail(e))  => s.onError(e)
-              case Failure(Interrupt) => s.onComplete()
-              case _                  =>
+              case Success(subscription) => s.onSubscribe(subscription)
+              case Failure(Die(e))       => s.onError(e)
+              case Failure(TFail(e))     => s.onError(e)
+              case Failure(Interrupt)    => s.onComplete()
+              case _                     =>
             }
         }
       )
