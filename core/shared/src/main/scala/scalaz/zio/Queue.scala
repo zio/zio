@@ -213,6 +213,12 @@ class Queue[A] private (
            }
     } yield as
 
+  /**
+   * Take the head option of values in the queue.
+   */
+  final def poll: UIO[Option[A]] =
+    takeUpTo(1).map(_.headOption)
+
 }
 
 object Queue {

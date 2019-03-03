@@ -103,6 +103,9 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     make a sliding queue of size 2, fork a take and then offer 4 values. Must return last item upon join $e63
     make a sliding queue of size 5 and offer 3 values. offerAll must return true $e64
     make a bounded queue of size 5 and offer 3 values. offerAll must return true $e65
+    make a bounded queue, `poll` on empty queue must return None $e66
+    make a bounded queue, offer 4 values, `takeAll`, `poll` must return None $e67
+    make a bounded queue, offer 2 values, first two `poll` return values wrapped in Some, further `poll` return None $e68
     """
 
   def e1 = unsafeRun(
@@ -796,6 +799,34 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     } yield oa must beTrue
   )
 
+  def e66 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      t     <- queue.poll
+    } yield t must_=== None
+  )
+
+  def e67 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      iter  = Range.inclusive(1, 4)
+      _     <- queue.offerAll(iter.toList)
+      _     <- queue.takeAll
+      t     <- queue.poll
+    } yield t must_=== None
+  )
+
+  def e68 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      iter  = Range.inclusive(1, 2)
+      _     <- queue.offerAll(iter.toList)
+      t1    <- queue.poll
+      t2    <- queue.poll
+      t3    <- queue.poll
+      t4    <- queue.poll
+    } yield (t1 must_=== Some(1)).and(t2 must_=== Some(2)).and(t3 must_=== None).and(t4 must_=== None)
+  )
 }
 
 object QueueSpec {
