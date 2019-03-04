@@ -6,8 +6,8 @@ import scalaz.zio.stream.{ Sink, Stream }
 
 package object reactiveStreams {
 
-  final implicit class streamToPublisher[E <: Throwable, A](val src: Stream[Any, E, A]) extends AnyVal {
-    def toPublisher: UIO[Publisher[A]] =
+  final implicit class streamToPublisher[R, E <: Throwable, A](val src: Stream[R, E, A]) extends AnyVal {
+    def toPublisher: ZIO[R, Nothing, Publisher[A]] =
       StreamPublisher.sinkToPublisher(src)
   }
 
