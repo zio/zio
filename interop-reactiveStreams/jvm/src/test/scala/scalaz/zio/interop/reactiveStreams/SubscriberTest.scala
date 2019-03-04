@@ -2,7 +2,7 @@ package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.Subscriber
 import org.reactivestreams.tck.{ SubscriberBlackboxVerification, TestEnvironment }
-import org.scalatest.testng.TestNGSuiteLike
+import org.scalatestplus.testng.TestNGSuiteLike
 import scalaz.zio.DefaultRuntime
 import scalaz.zio.stream.Sink
 
