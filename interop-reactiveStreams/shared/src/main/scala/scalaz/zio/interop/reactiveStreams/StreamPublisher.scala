@@ -1,8 +1,8 @@
 package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Publisher, Subscriber, Subscription }
-import scalaz.zio.stream.Stream
-import scalaz.zio.{ Queue, Runtime, Task, ZIO }
+import scalaz.zio.stream.{ Sink, Stream }
+import scalaz.zio.{ Queue, Runtime, UIO, ZIO }
 
 class StreamPublisher[R, E <: Throwable, A](
   stream: Stream[R, E, A],
@@ -16,13 +16,21 @@ class StreamPublisher[R, E <: Throwable, A](
       runtime.unsafeRunAsync_(
         for {
           demand  <- Queue.unbounded[Long]
-          _       <- Task(subscriber.onSubscribe(createSubscription(subscriber, demand)))
+          _       <- UIO(subscriber.onSubscribe(createSubscription(subscriber, demand)))
           control = Stream.fromQueue(demand).flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
           fiber <- stream
-                    .zip(control)
-                    .foreach { case (a, _) => Task(subscriber.onNext(a)) }
-                    .map(_ => subscriber.onComplete())
-                    .catchAll(e => Task(subscriber.onError(e)))
+                    .zipWith(control) {
+                      case (Some(a), Some(_)) =>
+                        subscriber.onNext(a)
+                        Some(())
+                      case (None, Some(_)) =>
+                        subscriber.onComplete()
+                        None
+                      case _ =>
+                        None
+                    }
+                    .run(Sink.drain)
+                    .catchAll(e => UIO(subscriber.onError(e)))
                     .flatMap(_ => demand.shutdown)
                     .fork
           // reactive streams rule 3.13
