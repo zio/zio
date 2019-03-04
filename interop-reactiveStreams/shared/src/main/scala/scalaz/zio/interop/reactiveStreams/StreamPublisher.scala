@@ -34,7 +34,7 @@ class StreamPublisher[R, E <: Throwable, A](
     Stream
       .fromQueue(sourceQ)
       // handle initially failed source before receiving demand
-      .peel(Sink.readWhile[Take[E, A]](_.isInstanceOf[Take.Fail[E]]))
+      .peel(Sink.readWhile[Take[E, A]](_.isFailure))
       .use {
         case (Take.Fail(e) :: _, _) => Task(subscriber.onError(e))
         case (_, takes) =>
