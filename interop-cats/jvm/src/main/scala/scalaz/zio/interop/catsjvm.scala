@@ -17,7 +17,7 @@
 package scalaz.zio
 package interop
 
-import cats.effect.{ Concurrent, ContextShift, Effect, ExitCase }
+import cats.effect.{ Concurrent, ContextShift, ExitCase }
 import cats.{ effect, _ }
 import scalaz.zio.{ clock => zioClock, ZIO }
 import scalaz.zio.clock.Clock
@@ -51,10 +51,13 @@ abstract class CatsInstances extends CatsInstances1 {
       zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
   }
 
-  implicit def taskEffectInstances[R]: effect.ConcurrentEffect[TaskR[R, ?]] with SemigroupK[TaskR[R, ?]] =
-    new CatsConcurrentEffect[R]
+  implicit def taskEffectInstances(implicit runtime: Runtime[Any]): effect.ConcurrentEffect[Task] =
+    new CatsConcurrentEffect { override val rts = runtime }
 
-  implicit val taskParallelInstance: Parallel[Task, Util.Par] =
+  implicit def taskConcurrentInstances[R]: effect.Concurrent[TaskR[R, ?]] =
+    new CatsConcurrent[R]
+
+  implicit def taskParallelInstance(implicit rts: Runtime[Any]): Parallel[Task, Util.Par] =
     parallelInstance(taskEffectInstances)
 }
 
@@ -73,13 +76,27 @@ sealed abstract class CatsInstances2 {
     new CatsMonadError[R, Throwable] with CatsSemigroupK[R, Throwable] with CatsBifunctor[R]
 }
 
-private class CatsConcurrentEffect[R] extends CatsConcurrent[R] with effect.ConcurrentEffect[TaskR[R, ?]] {
+private abstract class CatsConcurrentEffect
+    extends CatsConcurrent[Any]
+    with effect.ConcurrentEffect[Task]
+    with effect.Effect[Task] {
+  def rts: Runtime[Any]
+
+  override final def runAsync[A](
+    fa: Task[A]
+  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
+    effect.SyncIO {
+      rts.unsafeRunAsync(fa) { exit =>
+        cb(exitToEither(exit)).unsafeRunAsync(_ => ())
+      }
+    }
+
   override final def runCancelable[A](
-    fa: TaskR[R, A]
+    fa: Task[A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[Task]] =
     effect.SyncIO {
-      this.unsafeRun {
-        fa.asInstanceOf[Task[A]].fork.flatMap { f =>
+      rts.unsafeRun {
+        fa.fork.flatMap { f =>
           f.await
             .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
@@ -88,7 +105,7 @@ private class CatsConcurrentEffect[R] extends CatsConcurrent[R] with effect.Conc
       }
     }
 
-  override final def toIO[A](fa: TaskR[R, A]): effect.IO[A] =
+  override final def toIO[A](fa: Task[A]): effect.IO[A] =
     effect.ConcurrentEffect.toIOFromRunCancelable(fa)(this)
 }
 
@@ -138,9 +155,8 @@ private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[TaskR[R, ?
 
 private class CatsEffect[R]
     extends CatsMonadError[R, Throwable]
-    with Effect[TaskR[R, ?]]
-    with CatsSemigroupK[R, Throwable]
-    with DefaultRuntime {
+    with effect.Async[TaskR[R, ?]]
+    with CatsSemigroupK[R, Throwable] {
   @inline final protected[this] def exitToEither[A](e: Exit[Throwable, A]): Either[Throwable, A] =
     e.fold(_.failures[Throwable] match {
       case t :: Nil => Left(t)
@@ -164,15 +180,6 @@ private class CatsEffect[R]
 
   override final def never[A]: TaskR[R, A] =
     ZIO.never
-
-  override final def runAsync[A](
-    fa: TaskR[R, A]
-  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
-    effect.SyncIO {
-      this.unsafeRunAsync(fa.asInstanceOf[Task[A]]) { exit =>
-        cb(exitToEither(exit)).unsafeRunAsync(_ => ())
-      }
-    }
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): TaskR[R, A] =
     ZIO.accessM { r =>
