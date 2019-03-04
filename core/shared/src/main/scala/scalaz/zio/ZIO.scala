@@ -1100,7 +1100,7 @@ trait ZIOFunctions extends Serializable {
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
-   * effects. This is a shortcut for `flatten(effectTotal(io)).
+   * effects. This is a shortcut for `flatten(effectTotal(io))`.
    */
   final def suspend[R >: LowerR, E <: UpperE, A](io: => ZIO[R, E, A]): ZIO[R, E, A] =
     flatten(effectTotal(io))
@@ -1254,6 +1254,25 @@ trait ZIOFunctions extends Serializable {
     new ZIO.BracketAcquire[R, E, A](acquire)
 
   /**
+   * Uncurried version of [[bracket]]. Doesn't offer curried syntax and
+   * can have different type-inference characteristics. It doesn't allocate
+   * intermediate [[scalaz.zio.ZIO.BracketAcquire]] and
+   * [[scalaz.zio.ZIO.BracketRelease]] objects.
+   */
+  final def bracket[R >: LowerR, E <: UpperE, A, B](
+    acquire: ZIO[R, E, A],
+    release: A => ZIO[R, Nothing, _],
+    use: A => ZIO[R, E, B]
+  ): ZIO[R, E, B] =
+    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
+      (for {
+        r <- environment[R]
+        a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
+        b <- use(a)
+      } yield b).ensuring(flatten(m.get))
+    }
+
+  /**
    * Acquires a resource, uses the resource, and then releases the resource.
    * Neither the acquisition nor the release will be interrupted, and the
    * resource is guaranteed to be released, so long as the `acquire` effect
@@ -1262,6 +1281,27 @@ trait ZIOFunctions extends Serializable {
    */
   final def bracketExit[R >: LowerR, E <: UpperE, A](acquire: ZIO[R, E, A]): ZIO.BracketExitAcquire[R, E, A] =
     new ZIO.BracketExitAcquire(acquire)
+
+  /**
+   * Uncurried version of [[bracketExit]]. Doesn't offer curried syntax and
+   * can have different type-inference characteristics. It doesn't allocate
+   * intermediate [[scalaz.zio.ZIO.BracketAcquire]] and
+   * [[scalaz.zio.ZIO.BracketRelease]] objects.
+   */
+  final def bracketExit[R >: LowerR, E <: UpperE, E1 >: E, E2 >: E <: E1, A, B](
+    acquire: ZIO[R, E, A],
+    release: (A, Exit[E1, B]) => ZIO[R, Nothing, _],
+    use: A => ZIO[R, E2, B]
+  ): ZIO[R, E2, B] =
+    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
+      (for {
+        r <- environment[R]
+        f <- acquire
+              .flatMap(a => use(a).fork.tap(f => m.set(f.interrupt.flatMap(release(a, _).provide(r)))))
+              .uninterruptible
+        b <- f.join
+      } yield b).ensuring(flatten(m.get))
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1496,7 +1536,7 @@ object ZIO extends ZIO_R_Any {
   }
   class BracketRelease_[R, E](acquire: ZIO[R, E, _], release: ZIO[R, Nothing, _]) {
     def apply[R1 <: R, E1 >: E, B](use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      ZIO.bracket(acquire)(_ => release)(_ => use)
+      ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
   }
 
   class BracketAcquire[R, E, A](acquire: ZIO[R, E, A]) {
@@ -1505,13 +1545,7 @@ object ZIO extends ZIO_R_Any {
   }
   class BracketRelease[R, E, A](acquire: ZIO[R, E, A], release: A => ZIO[R, Nothing, _]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-        (for {
-          r <- environment[R1]
-          a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
-          b <- use(a)
-        } yield b).ensuring(flatten(m.get))
-      }
+      ZIO.bracket(acquire, release, use)
   }
 
   class BracketExitAcquire[R, E, A](acquire: ZIO[R, E, A]) {
@@ -1524,20 +1558,8 @@ object ZIO extends ZIO_R_Any {
     acquire: ZIO[R, E, A],
     release: (A, Exit[E1, B]) => ZIO[R, Nothing, _]
   ) {
-    def apply[R1 <: R, E2 >: E, B1 <: B](use: A => ZIO[R1, E2, B1])(implicit ev: E2 <:< E1): ZIO[R1, E2, B1] =
-      Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-        (for {
-          r <- environment[R]
-          f <- acquire
-                .flatMap(
-                  a =>
-                    use(a).fork
-                      .tap(f => m.set(f.interrupt.flatMap((e: Exit[E2, B1]) => release(a, e.mapError(ev)).provide(r))))
-                )
-                .uninterruptible
-          b <- f.join
-        } yield b).ensuring(flatten(m.get))
-      }
+    def apply[R1 <: R, E2 >: E <: E1, B1 <: B](use: A => ZIO[R1, E2, B1]): ZIO[R1, E2, B1] =
+      ZIO.bracketExit[R1, E, E1, E2, A, B1](acquire, release, use)
   }
 
   @inline
