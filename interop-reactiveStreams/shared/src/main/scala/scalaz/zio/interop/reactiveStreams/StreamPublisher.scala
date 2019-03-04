@@ -1,7 +1,7 @@
 package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Publisher, Subscriber, Subscription }
-import scalaz.zio.stream.{ Sink, Stream, Take }
+import scalaz.zio.stream.Stream
 import scalaz.zio.{ Queue, Runtime, Task, ZIO }
 
 class StreamPublisher[R, E <: Throwable, A](
@@ -18,34 +18,18 @@ class StreamPublisher[R, E <: Throwable, A](
           demand  <- Queue.unbounded[Long]
           _       <- Task(subscriber.onSubscribe(createSubscription(subscriber, demand)))
           control = Stream.fromQueue(demand).flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
-          fiber   <- stream.toQueue().use(takesToCallbacks(subscriber, _, control, demand)).fork
+          fiber <- stream
+                    .zip(control)
+                    .foreach { case (a, _) => Task(subscriber.onNext(a)) }
+                    .map(_ => subscriber.onComplete())
+                    .catchAll(e => Task(subscriber.onError(e)))
+                    .flatMap(_ => demand.shutdown)
+                    .fork
           // reactive streams rule 3.13
           _ <- (demand.awaitShutdown *> fiber.interrupt).fork
         } yield ()
       )
     }
-
-  private def takesToCallbacks(
-    subscriber: Subscriber[_ >: A],
-    sourceQ: Queue[Take[E, A]],
-    control: Stream[Any, Nothing, Unit],
-    demandQ: Queue[Long]
-  ): Task[Unit] =
-    Stream
-      .fromQueue(sourceQ)
-      // handle initially failed source before receiving demand
-      .peel(Sink.readWhile[Take[E, A]](_.isFailure))
-      .use {
-        case (Take.Fail(e) :: _, _) => Task(subscriber.onError(e))
-        case (_, takes) =>
-          takes
-            .zip(control)
-            .foreach {
-              case (Take.Value(a), _) => Task(subscriber.onNext(a))
-              case (Take.Fail(e), _)  => Task(subscriber.onError(e)) *> demandQ.shutdown // rule 106
-              case (Take.End, _)      => Task(subscriber.onComplete()) *> demandQ.shutdown // rule 106
-            }
-      }
 
   private def createSubscription(subscriber: Subscriber[_ >: A], demandQ: Queue[Long]): Subscription =
     new Subscription {
