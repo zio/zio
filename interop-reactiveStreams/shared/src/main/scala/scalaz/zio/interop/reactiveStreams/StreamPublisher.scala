@@ -17,16 +17,17 @@ class StreamPublisher[E <: Throwable, A](
         for {
           demand  <- Queue.unbounded[Long]
           control = Stream.fromQueue(demand).flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
-          fiber   <- stream.toQueue().use(takesToCallbacks(subscriber, _, control)).fork
+          fiber   <- stream.toQueue().use(takesToCallbacks(subscriber, _, control, demand)).fork
           // reactive streams rule 3.13
-          _       <- (demand.awaitShutdown *> fiber.interrupt).fork
+          _ <- (demand.awaitShutdown *> fiber.interrupt).fork
         } yield subscriber.onSubscribe(new QSubscription(subscriber, demand))
       )
     }
 
   private def takesToCallbacks(subscriber: Subscriber[_ >: A],
                                sourceQ: Queue[Take[E, A]],
-                               control: Stream[Any, Nothing, Unit]): Task[Unit] =
+                               control: Stream[Any, Nothing, Unit],
+                               demandQ: Queue[Long]): Task[Unit] =
     Stream
       .fromQueue(sourceQ)
       // handle initially failed source before receiving demand
@@ -38,8 +39,8 @@ class StreamPublisher[E <: Throwable, A](
             .zip(control)
             .foreach {
               case (Take.Value(a), _) => Task(subscriber.onNext(a))
-              case (Take.Fail(e), _)  => Task(subscriber.onError(e))
-              case (Take.End, _)      => Task(subscriber.onComplete())
+              case (Take.Fail(e), _)  => Task(subscriber.onError(e)) *> demandQ.shutdown // rule 106
+              case (Take.End, _)      => Task(subscriber.onComplete()) *> demandQ.shutdown // rule 106
             }
       }
 
