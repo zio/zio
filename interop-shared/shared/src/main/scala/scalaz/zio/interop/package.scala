@@ -35,6 +35,6 @@ package object interop {
      * This resource will get automatically closed, because it implements `AutoCloseable`.
      */
     def bracketAuto[E1 >: E, B](use: A => IO[E1, B]): IO[E1, B] =
-      io.bracket[Any, E1, B](_.closeIO())(use)
+      io.bracket(_.closeIO())(use)
   }
 }
