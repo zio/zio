@@ -12,7 +12,6 @@ class SinkSubscriber[T, A](
 
   // all signals in reactive streams are serialized, so we don't need any synchronization
   private var subscriptionOpt: Option[Subscription] = None
-  private var expected: Long                        = Long.MaxValue
 
   override def onSubscribe(subscription: Subscription): Unit =
     if (subscription == null) {
@@ -22,6 +21,7 @@ class SinkSubscriber[T, A](
     } else {
       subscriptionOpt = Some(subscription)
       runtime.unsafeRunAsync(q.awaitShutdown *> Task(subscription.cancel()))(_ => ())
+      // see reactive streams rule 3.17. We do not track demand beyond Long.MaxValue
       subscription.request(Long.MaxValue)
     }
 
@@ -29,9 +29,7 @@ class SinkSubscriber[T, A](
     if (t == null) {
       throw new NullPointerException("t was null in onNext")
     } else {
-      expected -= 1
       runtime.unsafeRun(q.offer(t).void)
-      if (expected <= 0) subscriptionOpt.foreach(_.request(Long.MaxValue))
     }
 
   override def onError(e: Throwable): Unit =

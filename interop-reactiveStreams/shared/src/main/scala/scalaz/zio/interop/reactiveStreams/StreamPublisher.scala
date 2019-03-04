@@ -17,7 +17,9 @@ class StreamPublisher[E <: Throwable, A](
         for {
           demand  <- Queue.unbounded[Long]
           control = Stream.fromQueue(demand).flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
-          _       <- stream.toQueue().use(takesToCallbacks(subscriber, _, control)).fork
+          fiber   <- stream.toQueue().use(takesToCallbacks(subscriber, _, control)).fork
+          // reactive streams rule 3.13
+          _       <- (demand.awaitShutdown *> fiber.interrupt).fork
         } yield subscriber.onSubscribe(new QSubscription(subscriber, demand))
       )
     }
