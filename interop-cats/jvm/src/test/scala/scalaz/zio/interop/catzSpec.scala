@@ -108,9 +108,15 @@ class catzSpec
   checkAllAsync("Concurrent[TaskR[Int, ?]]", (_) => ConcurrentTests[TaskR[Int, ?]].concurrent[Int, Int, Int])
   checkAllAsync("Concurrent[TaskR[String, ?]]", (_) => ConcurrentTests[TaskR[String, ?]].concurrent[Int, Int, Int])
   checkAllAsync("Concurrent[Task]", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
-  checkAllAsync("MonadError[ZIO[String, Int, ?]]", (_) => MonadErrorTests[ZIO[String, Int, ?], Int].monadError[Int, Int, Int])
+  checkAllAsync(
+    "MonadError[ZIO[String, Int, ?]]",
+    (_) => MonadErrorTests[ZIO[String, Int, ?], Int].monadError[Int, Int, Int]
+  )
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
-  checkAllAsync("Alternative[ZIO[String, Int, ?]]", (_) => AlternativeTests[ZIO[String, Int, ?]].alternative[Int, Int, Int])
+  checkAllAsync(
+    "Alternative[ZIO[String, Int, ?]]",
+    (_) => AlternativeTests[ZIO[String, Int, ?]].alternative[Int, Int, Int]
+  )
   checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
   checkAllAsync(
     "Alternative[IO[Option[Unit], ?]]",
@@ -118,10 +124,16 @@ class catzSpec
   )
   checkAllAsync("SemigroupK[TaskR[String, ?]]", (_) => SemigroupKTests[TaskR[String, ?]].semigroupK[Int])
   checkAllAsync("SemigroupK[Task]", (_) => SemigroupKTests[Task].semigroupK[Int])
-  checkAllAsync("Bifunctor[ZIO[String, ?, ?]]", (_) => BifunctorTests[ZIO[String, ?, ?]].bifunctor[Int, Int, Int, Int, Int, Int])
+  checkAllAsync(
+    "Bifunctor[ZIO[String, ?, ?]]",
+    (_) => BifunctorTests[ZIO[String, ?, ?]].bifunctor[Int, Int, Int, Int, Int, Int]
+  )
   checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
   checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Util.Par].parallel[Int, Int])
-  checkAllAsync("Parallel[TaskR[Int, ?], Task.ParIO[IO, Throwable, ?]]", (_) => ParallelTests[TaskR[Int, ?], ParIO[Int, Throwable, ?]].parallel[Int, Int])
+  checkAllAsync(
+    "Parallel[TaskR[Int, ?], Task.ParIO[IO, Throwable, ?]]",
+    (_) => ParallelTests[TaskR[Int, ?], ParIO[Int, Throwable, ?]].parallel[Int, Int]
+  )
 
   implicit def catsEQ[R, E, A: Eq]: Eq[ZIO[R, E, A]] =
     new Eq[ZIO[R, E, A]] {
@@ -141,7 +153,9 @@ class catzSpec
   implicit def catsParEQ[R, E: Eq, A: Eq]: Eq[ParIO[R, E, A]] =
     new Eq[ParIO[R, E, A]] {
       def eqv(io1: ParIO[R, E, A], io2: ParIO[R, E, A]): Boolean =
-        unsafeRun(Par.unwrap(io1.asInstanceOf[ParIO[Any, E, A]]).either) === unsafeRun(Par.unwrap(io2.asInstanceOf[ParIO[Any, E, A]]).either)
+        unsafeRun(Par.unwrap(io1.asInstanceOf[ParIO[Any, E, A]]).either) === unsafeRun(
+          Par.unwrap(io2.asInstanceOf[ParIO[Any, E, A]]).either
+        )
     }
 
   implicit def params: Parameters =
