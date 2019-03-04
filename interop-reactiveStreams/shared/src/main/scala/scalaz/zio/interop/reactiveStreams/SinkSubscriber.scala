@@ -7,11 +7,13 @@ import scalaz.zio.{ Promise, Queue, Runtime, Task, ZIO }
 class SinkSubscriber[A, B](
   runtime: Runtime[_],
   q: Queue[A],
-  p: Promise[Throwable, B]
+  p: Promise[Throwable, B],
+  qSize: Int
 ) extends Subscriber[A] {
 
   // all signals in reactive streams are serialized, so we don't need any synchronization
   private var subscriptionOpt: Option[Subscription] = None
+  private var signalledDemand                       = qSize
 
   override def onSubscribe(subscription: Subscription): Unit =
     if (subscription == null) {
@@ -22,14 +24,20 @@ class SinkSubscriber[A, B](
       subscriptionOpt = Some(subscription)
       runtime.unsafeRunAsync(q.awaitShutdown *> Task(subscription.cancel()))(_ => ())
       // see reactive streams rule 3.17. We do not track demand beyond Long.MaxValue
-      subscription.request(Long.MaxValue)
+      subscription.request(qSize.toLong)
     }
 
   override def onNext(t: A): Unit =
     if (t == null) {
       throw new NullPointerException("t was null in onNext")
     } else {
-      runtime.unsafeRun(q.offer(t).void)
+      runtime.unsafeRun(q.offer(t))
+      if (signalledDemand > 1) {
+        signalledDemand -= 1
+      } else {
+        subscriptionOpt.foreach(_.request(qSize.toLong))
+        signalledDemand = qSize
+      }
     }
 
   override def onError(e: Throwable): Unit =
@@ -53,5 +61,5 @@ object SinkSubscriber {
       q       <- Queue.bounded[A](qSize)
       p       <- Promise.make[Throwable, B]
       _       <- p.done(Stream.fromQueue(q).run(sink).provide(runtime.Environment)).fork
-    } yield (new SinkSubscriber[A, B](runtime, q, p), p.await)
+    } yield (new SinkSubscriber[A, B](runtime, q, p, qSize), p.await)
 }
