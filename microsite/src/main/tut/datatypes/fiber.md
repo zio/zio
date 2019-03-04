@@ -15,7 +15,7 @@ import scalaz.zio._
 ```
 
 ```tut:invisible
-sealed abstract class Analysis
+sealed trait Analysis
 case object Analyzed extends Analysis
 
 val data: String = "tut"

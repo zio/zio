@@ -58,7 +58,7 @@ abstract class CatsInstances extends CatsInstances1 {
     parallelInstance(taskEffectInstances)
 }
 
-sealed abstract class CatsInstances1 extends CatsInstances2 {
+sealed trait CatsInstances1 extends CatsInstances2 {
   implicit def ioMonoidInstances[E: Monoid]: MonadError[IO[E, ?], E] with Bifunctor[IO] with Alternative[IO[E, ?]] =
     new CatsAlternative[E] with CatsBifunctor
 
@@ -66,7 +66,7 @@ sealed abstract class CatsInstances1 extends CatsInstances2 {
     new CatsParallel[E](M)
 }
 
-sealed abstract class CatsInstances2 {
+sealed trait CatsInstances2 {
   implicit def ioInstances[E]: MonadError[IO[E, ?], E] with Bifunctor[IO] with SemigroupK[IO[E, ?]] =
     new CatsMonadError[E] with CatsSemigroupK[E] with CatsBifunctor
 }

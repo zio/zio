@@ -557,13 +557,13 @@ private[zio] final class FiberContext[E, A](
 private[zio] object FiberContext {
   val fiberCounter = new AtomicLong(0)
 
-  sealed abstract class FiberStatus extends Serializable with Product
+  sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
     final case object Running   extends FiberStatus
     final case object Suspended extends FiberStatus
   }
 
-  sealed abstract class FiberState[+E, +A] extends Serializable with Product {
+  sealed trait FiberState[+E, +A] extends Serializable with Product {
 
     /** indicates if the fiber was interrupted */
     def interrupted: Boolean
