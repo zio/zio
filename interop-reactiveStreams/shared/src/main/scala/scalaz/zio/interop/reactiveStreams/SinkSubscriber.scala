@@ -2,18 +2,25 @@ package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Subscriber, Subscription }
 import scalaz.zio.stream.{ Sink, Stream }
-import scalaz.zio.{ Promise, Queue, Runtime, Task, ZIO }
+import scalaz.zio.{ Promise, Queue, Runtime, Task, UIO, ZIO }
 
 class SinkSubscriber[A, B](
   runtime: Runtime[_],
   q: Queue[A],
-  p: Promise[Throwable, B],
-  qSize: Int
+  p: Promise[Throwable, B]
 ) extends Subscriber[A] {
 
   // all signals in reactive streams are serialized, so we don't need any synchronization
   private var subscriptionOpt: Option[Subscription] = None
-  private var signalledDemand                       = qSize
+  private var signalledDemand                       = q.capacity
+
+  def signalDemand: UIO[Unit] =
+    q.size.map { size =>
+      if (size == 0) {
+        val signalDemand = q.capacity - signalledDemand
+        if (signalDemand > 0) subscriptionOpt.foreach(_.request(signalDemand.toLong))
+      }
+    }
 
   override def onSubscribe(subscription: Subscription): Unit =
     if (subscription == null) {
@@ -22,9 +29,8 @@ class SinkSubscriber[A, B](
       subscription.cancel()
     } else {
       subscriptionOpt = Some(subscription)
-      runtime.unsafeRunAsync(q.awaitShutdown *> Task(subscription.cancel()))(_ => ())
-      // see reactive streams rule 3.17. We do not track demand beyond Long.MaxValue
-      subscription.request(qSize.toLong)
+      runtime.unsafeRunAsync(q.awaitShutdown *> UIO(subscription.cancel()))(_ => ())
+      subscription.request(q.capacity.toLong)
     }
 
   override def onNext(t: A): Unit =
@@ -32,12 +38,7 @@ class SinkSubscriber[A, B](
       throw new NullPointerException("t was null in onNext")
     } else {
       runtime.unsafeRun(q.offer(t))
-      if (signalledDemand > 1) {
-        signalledDemand -= 1
-      } else {
-        subscriptionOpt.foreach(_.request(qSize.toLong))
-        signalledDemand = qSize
-      }
+      signalledDemand -= 1
     }
 
   override def onError(e: Throwable): Unit =
@@ -55,11 +56,18 @@ object SinkSubscriber {
   private[reactiveStreams] def sinkToSubscriber[R, E <: Throwable, A0, A, B](
     sink: Sink[R, E, A0, A, B],
     qSize: Int = 10
-  ): ZIO[R, E, (Subscriber[A], Task[B])] =
+  ): ZIO[R, Nothing, (Subscriber[A], Task[B])] =
     for {
-      runtime <- ZIO.runtime[R]
-      q       <- Queue.bounded[A](qSize)
-      p       <- Promise.make[Throwable, B]
-      _       <- p.done(Stream.fromQueue(q).run(sink).provide(runtime.Environment)).fork
-    } yield (new SinkSubscriber[A, B](runtime, q, p, qSize), p.await)
+      runtime    <- ZIO.runtime[R]
+      q          <- Queue.bounded[A](qSize)
+      p          <- Promise.make[Throwable, B]
+      subscriber = new SinkSubscriber[A, B](runtime, q, p)
+      fiber <- Stream
+                .fromQueue(q)
+                .withEffect(_ => subscriber.signalDemand)
+                .run(sink)
+                .provide(runtime.Environment)
+                .fork
+      _ <- p.done(fiber.join).fork
+    } yield (subscriber, p.await)
 }
