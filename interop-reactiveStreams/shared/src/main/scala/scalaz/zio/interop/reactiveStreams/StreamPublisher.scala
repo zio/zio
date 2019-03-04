@@ -16,7 +16,7 @@ class StreamPublisher[R, E <: Throwable, A](
       runtime.unsafeRunAsync_(
         for {
           demand  <- Queue.unbounded[Long]
-          _       <- Task(subscriber.onSubscribe(new QSubscription(subscriber, demand)))
+          _       <- Task(subscriber.onSubscribe(createSubscription(subscriber, demand)))
           control = Stream.fromQueue(demand).flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
           fiber   <- stream.toQueue().use(takesToCallbacks(subscriber, _, control, demand)).fork
           // reactive streams rule 3.13
@@ -47,13 +47,14 @@ class StreamPublisher[R, E <: Throwable, A](
             }
       }
 
-  private class QSubscription(subscriber: Subscriber[_ >: A], demandQ: Queue[Long]) extends Subscription {
-    override def request(n: Long): Unit = {
-      if (n <= 0) subscriber.onError(new IllegalArgumentException("n must be > 0"))
-      runtime.unsafeRunAsync_(demandQ.offer(n).void)
+  private def createSubscription(subscriber: Subscriber[_ >: A], demandQ: Queue[Long]): Subscription =
+    new Subscription {
+      override def request(n: Long): Unit = {
+        if (n <= 0) subscriber.onError(new IllegalArgumentException("n must be > 0"))
+        runtime.unsafeRunAsync_(demandQ.offer(n).void)
+      }
+      override def cancel(): Unit = runtime.unsafeRun(demandQ.shutdown)
     }
-    override def cancel(): Unit = runtime.unsafeRun(demandQ.shutdown)
-  }
 }
 
 object StreamPublisher {
