@@ -21,14 +21,14 @@ class StreamPublisher[R, E <: Throwable, A](
           fiber <- stream
                     .zipWith(control) {
                       case (Some(a), Some(_)) =>
-                        subscriber.onNext(a)
-                        Some(())
+                        Some(UIO(subscriber.onNext(a)))
                       case (None, Some(_)) =>
                         subscriber.onComplete()
                         None
                       case _ =>
                         None
                     }
+                    .mapM(identity)
                     .run(Sink.drain)
                     .catchAll(e => UIO(subscriber.onError(e)))
                     .flatMap(_ => demand.shutdown)
