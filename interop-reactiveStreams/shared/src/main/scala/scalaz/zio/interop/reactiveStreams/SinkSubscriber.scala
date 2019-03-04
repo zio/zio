@@ -2,13 +2,13 @@ package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Subscriber, Subscription }
 import scalaz.zio.stream.{ Sink, Stream }
-import scalaz.zio.{ Promise, Queue, Runtime, Task, UIO, ZIO }
+import scalaz.zio.{ Promise, Queue, Runtime, Task, ZIO }
 
-class SinkSubscriber[T, A](
+class SinkSubscriber[A, B](
   runtime: Runtime[_],
-  q: Queue[T],
-  p: Promise[Throwable, A]
-) extends Subscriber[T] {
+  q: Queue[A],
+  p: Promise[Throwable, B]
+) extends Subscriber[A] {
 
   // all signals in reactive streams are serialized, so we don't need any synchronization
   private var subscriptionOpt: Option[Subscription] = None
@@ -25,7 +25,7 @@ class SinkSubscriber[T, A](
       subscription.request(Long.MaxValue)
     }
 
-  override def onNext(t: T): Unit =
+  override def onNext(t: A): Unit =
     if (t == null) {
       throw new NullPointerException("t was null in onNext")
     } else {
@@ -44,14 +44,14 @@ class SinkSubscriber[T, A](
 }
 
 object SinkSubscriber {
-  private[reactiveStreams] def sinkToSubscriber[T, A](
-    sink: Sink[Any, _ <: Throwable, Unit, T, A],
+  private[reactiveStreams] def sinkToSubscriber[R, E <: Throwable, A0, A, B](
+    sink: Sink[R, E, A0, A, B],
     qSize: Int = 10
-  ): UIO[(Subscriber[T], Task[A])] =
+  ): ZIO[R, E, (Subscriber[A], Task[B])] =
     for {
-      runtime <- ZIO.runtime[Any]
-      q       <- Queue.bounded[T](qSize)
-      p       <- Promise.make[Throwable, A]
-      _       <- p.done(Stream.fromQueue(q).run(sink)).fork
-    } yield (new SinkSubscriber[T, A](runtime, q, p), p.await)
+      runtime <- ZIO.runtime[R]
+      q       <- Queue.bounded[A](qSize)
+      p       <- Promise.make[Throwable, B]
+      _       <- p.done(Stream.fromQueue(q).run(sink).provide(runtime.Environment)).fork
+    } yield (new SinkSubscriber[A, B](runtime, q, p), p.await)
 }

@@ -11,8 +11,8 @@ package object reactiveStreams {
       StreamPublisher.sinkToPublisher(src)
   }
 
-  final implicit class sinkToSubscriber[T, A](val sink: Sink[Any, _ <: Throwable, Unit, T, A]) extends AnyVal {
-    def toSubscriber(qSize: Int = 10): UIO[(Subscriber[T], Task[A])] =
+  final implicit class sinkToSubscriber[R, E <: Throwable, A0, A, B](val sink: Sink[R, E, A0, A, B]) extends AnyVal {
+    def toSubscriber(qSize: Int = 10): ZIO[R, E, (Subscriber[A], Task[B])] =
       SinkSubscriber.sinkToSubscriber(sink, qSize)
   }
 }
