@@ -24,10 +24,12 @@ class StreamPublisher[E <: Throwable, A](
       )
     }
 
-  private def takesToCallbacks(subscriber: Subscriber[_ >: A],
-                               sourceQ: Queue[Take[E, A]],
-                               control: Stream[Any, Nothing, Unit],
-                               demandQ: Queue[Long]): Task[Unit] =
+  private def takesToCallbacks(
+    subscriber: Subscriber[_ >: A],
+    sourceQ: Queue[Take[E, A]],
+    control: Stream[Any, Nothing, Unit],
+    demandQ: Queue[Long]
+  ): Task[Unit] =
     Stream
       .fromQueue(sourceQ)
       // handle initially failed source before receiving demand

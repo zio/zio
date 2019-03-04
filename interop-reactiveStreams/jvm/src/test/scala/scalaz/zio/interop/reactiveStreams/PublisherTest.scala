@@ -1,7 +1,7 @@
 package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.Publisher
-import org.reactivestreams.tck.{PublisherVerification, TestEnvironment}
+import org.reactivestreams.tck.{ PublisherVerification, TestEnvironment }
 import org.scalatest.testng.TestNGSuiteLike
 import scalaz.zio.DefaultRuntime
 import scalaz.zio.stream.Stream
