@@ -193,7 +193,7 @@ private class CatsEffect
   override final def bracketCase[A, B](
     acquire: Task[A]
   )(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
-    IO.bracketExit[Any, Throwable, A, B](acquire) { (a, exit) =>
+    IO.bracketExit(acquire) { (a, exit: Exit[Throwable, _]) =>
       val exitCase = exitToExitCase(exit)
       release(a, exitCase).orDie
     }(use)
