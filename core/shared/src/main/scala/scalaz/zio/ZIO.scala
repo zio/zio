@@ -65,13 +65,34 @@ import scala.util.{ Failure, Success }
  * values, see the default interpreter in `DefaultRuntime` or the safe main function in
  * `App`.
  */
-sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
+sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   /**
-   * Embeds this program into one that requires a "bigger" environment.
+   * Provides some of the environment required to run this effect,
+   * leaving the remainder `R0`.
+   *
+   * {{{
+   * val effect: ZIO[Console with Logging, Nothing, Unit] = ???
+   *
+   * effect.provideSome[Console](console =>
+   *   new Console with Logging {
+   *     val console = console
+   *     val logging = new Logging
+   *       def log(line: String) = console.putStrLn(line)
+   *     }
+   *   }
+   * )
+   * }}}
    */
-  final def contramap[R0](f: R0 => R): ZIO[R0, E, A] =
+  final def provideSome[R0](f: R0 => R): ZIO[R0, E, A] =
     ZIO.accessM(r0 => self.provide(f(r0)))
+
+  /**
+   * An effectful version of `provideSome`, useful when the act of partial
+   * provision requires an effect.
+   */
+  final def provideSomeM[R0, R1 >: R0, E1 >: E](f: R1 => ZIO[R0, E1, R]): ZIO[R0, E1, A] =
+    ZIO.accessM(r0 => f(r0).flatMap(self.provide))
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -898,7 +919,7 @@ sealed abstract class ZIO[-R, +E, +A] extends Serializable { self =>
    * Converts the effect to a [[scala.concurrent.Future]].
    */
   final def toFuture[R1 <: R](implicit ev1: Any =:= R1, ev2: E <:< Throwable): UIO[scala.concurrent.Future[A]] =
-    self.contramap(ev1).toFutureWith((), ev2)
+    self.provideSome(ev1).toFutureWith((), ev2)
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
