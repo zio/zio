@@ -184,7 +184,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams"     % "1.0.2",
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+      "org.scalatest"       %% "scalatest"           % "3.0.5" % "test"
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -231,7 +231,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val microsite = project.module
-  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM)
+  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM, interopReactiveStreamsJVM)
   .enablePlugins(MicrositesPlugin)
   .settings(
     scalacOptions -= "-Yno-imports",
