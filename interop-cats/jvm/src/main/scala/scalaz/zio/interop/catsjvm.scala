@@ -66,7 +66,7 @@ sealed abstract class CatsInstances1 extends CatsInstances2 {
     : MonadError[ZIO[R, E, ?], E] with Bifunctor[ZIO[R, ?, ?]] with Alternative[ZIO[R, E, ?]] =
     new CatsAlternative[R, E] with CatsBifunctor[R]
 
-  implicit def parallelInstance[R, E](implicit M: Monad[ZIO[R, E, ?]]): Parallel[ZIO[R, E, ?], ParIO[E, ?]] =
+  implicit def parallelInstance[R, E](implicit M: Monad[ZIO[R, E, ?]]): Parallel[ZIO[R, E, ?], ParIO[R, E, ?]] =
     new CatsParallel[R, E](M)
 }
 
@@ -260,38 +260,37 @@ trait CatsBifunctor[R] extends Bifunctor[ZIO[R, ?, ?]] {
 }
 
 private class CatsParallel[R, E](final override val monad: Monad[ZIO[R, E, ?]])
-    extends Parallel[ZIO[R, E, ?], ParIO[E, ?]] {
+    extends Parallel[ZIO[R, E, ?], ParIO[R, E, ?]] {
 
-  final override val applicative: Applicative[ParIO[E, ?]] =
-    new CatsParApplicative[E]
+  final override val applicative: Applicative[ParIO[R, E, ?]] =
+    new CatsParApplicative[R, E]
 
-  final override val sequential: ParIO[E, ?] ~> ZIO[R, E, ?] =
-    new (ParIO[E, ?] ~> ZIO[R, E, ?]) { def apply[A](fa: ParIO[E, A]): ZIO[R, E, A] = Par.unwrap(fa) }
+  final override val sequential: ParIO[R, E, ?] ~> ZIO[R, E, ?] =
+    new (ParIO[R, E, ?] ~> ZIO[R, E, ?]) { def apply[A](fa: ParIO[R, E, A]): ZIO[R, E, A] = Par.unwrap(fa) }
 
-  // FIXME: asInstanceOf should not be needed
-  final override val parallel: ZIO[R, E, ?] ~> ParIO[E, ?] =
-    new (ZIO[R, E, ?] ~> ParIO[E, ?]) {
-      def apply[A](fa: ZIO[R, E, A]): ParIO[E, A] = Par(fa.provide(().asInstanceOf[R]))
+  final override val parallel: ZIO[R, E, ?] ~> ParIO[R, E, ?] =
+    new (ZIO[R, E, ?] ~> ParIO[R, E, ?]) {
+      def apply[A](fa: ZIO[R, E, A]): ParIO[R, E, A] = Par(fa)
     }
 }
 
-private class CatsParApplicative[E] extends Applicative[ParIO[E, ?]] {
+private class CatsParApplicative[R, E] extends Applicative[ParIO[R, E, ?]] {
 
-  final override def pure[A](x: A): ParIO[E, A] =
-    Par(IO.succeed(x))
+  final override def pure[A](x: A): ParIO[R, E, A] =
+    Par(ZIO.succeed(x))
 
-  final override def map2[A, B, Z](fa: ParIO[E, A], fb: ParIO[E, B])(f: (A, B) => Z): ParIO[E, Z] =
+  final override def map2[A, B, Z](fa: ParIO[R, E, A], fb: ParIO[R, E, B])(f: (A, B) => Z): ParIO[R, E, Z] =
     Par(Par.unwrap(fa).zipPar(Par.unwrap(fb)).map(f.tupled))
 
-  final override def ap[A, B](ff: ParIO[E, A => B])(fa: ParIO[E, A]): ParIO[E, B] =
+  final override def ap[A, B](ff: ParIO[R, E, A => B])(fa: ParIO[R, E, A]): ParIO[R, E, B] =
     Par(Par.unwrap(ff).flatMap(Par.unwrap(fa).map))
 
-  final override def product[A, B](fa: ParIO[E, A], fb: ParIO[E, B]): ParIO[E, (A, B)] =
+  final override def product[A, B](fa: ParIO[R, E, A], fb: ParIO[R, E, B]): ParIO[R, E, (A, B)] =
     map2(fa, fb)(_ -> _)
 
-  final override def map[A, B](fa: ParIO[E, A])(f: A => B): ParIO[E, B] =
+  final override def map[A, B](fa: ParIO[R, E, A])(f: A => B): ParIO[R, E, B] =
     Par(Par.unwrap(fa).map(f))
 
-  final override def unit: ParIO[E, Unit] =
-    Par(IO.unit)
+  final override def unit: ParIO[R, E, Unit] =
+    Par(ZIO.unit)
 }
