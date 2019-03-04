@@ -15,10 +15,12 @@ class SinkSubscriber[A, B](
   private var signalledDemand                       = q.capacity
 
   def signalDemand: UIO[Unit] =
-    q.size.map { size =>
+    q.size.flatMap { size =>
       if (size == 0) {
         val signalDemand = q.capacity - signalledDemand
-        if (signalDemand > 0) subscriptionOpt.foreach(_.request(signalDemand.toLong))
+        UIO(subscriptionOpt.foreach(_.request(signalDemand.toLong)))
+      } else {
+        UIO.unit
       }
     }
 
