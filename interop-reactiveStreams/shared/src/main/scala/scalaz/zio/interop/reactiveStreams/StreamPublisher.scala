@@ -16,11 +16,12 @@ class StreamPublisher[E <: Throwable, A](
       runtime.unsafeRunAsync_(
         for {
           demand  <- Queue.unbounded[Long]
+          _       <- Task(subscriber.onSubscribe(new QSubscription(subscriber, demand)))
           control = Stream.fromQueue(demand).flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
           fiber   <- stream.toQueue().use(takesToCallbacks(subscriber, _, control, demand)).fork
           // reactive streams rule 3.13
           _ <- (demand.awaitShutdown *> fiber.interrupt).fork
-        } yield subscriber.onSubscribe(new QSubscription(subscriber, demand))
+        } yield ()
       )
     }
 
