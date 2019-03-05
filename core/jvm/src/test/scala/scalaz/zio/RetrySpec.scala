@@ -178,9 +178,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def exponentialWithFactor =
     checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
 
-  def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
+  def checkErrorWithPredicate(schedule: Schedule[Any, Any, Duration], expectedSteps: List[Int]) = {
     var i = 0
-    val io = IO.sync[Unit](i += 1).flatMap { _ =>
+    val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = schedule.whileInput[String](_ == "KeepTryingError")
