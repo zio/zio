@@ -49,9 +49,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     mergeWith short circuit $mergeWithShortCircuit
 
   Stream zipping
-    zipWith                 $zipWith
-    zipWithIndex            $zipWithIndex
-    zipWith ignore RHS      $zipWithIgnoreRhs
+    zipWith                     $zipWith
+    zipWithIndex                $zipWithIndex
+    zipWith ignore RHS          $zipWithIgnoreRhs
+    zipWith prioritizes failure $zipWithPrioritizesFailure
 
   Stream monad laws
     left identity           $monadLaw1
@@ -308,6 +309,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val zipped = s1.zipWith(s2)((a, _) => a)
 
     slurp(zipped) must_=== Success(List(1, 2, 3))
+  }
+
+  private def zipWithPrioritizesFailure = {
+    val s1 = Stream.never
+    val s2 = Stream.fail("Ouch")
+
+    slurp(s1.zipWith(s2)((_, _) => None)) must_=== Exit.fail("Ouch")
   }
 
   private def fromIterable = prop { l: List[Int] =>
