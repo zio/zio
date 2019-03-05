@@ -66,8 +66,8 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
   final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
     foreachWhile[R1, E1](f(_).const(true))
 
-  final def withEffect[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, Unit]): StreamChunk[R1, E1, A] =
-    StreamChunk(chunks.withEffect[R1, E1] { as =>
+  final def tap[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, Unit]): StreamChunk[R1, E1, A] =
+    StreamChunk(chunks.tap[R1, E1] { as =>
       as.traverse_(f0)
     })
 
