@@ -570,13 +570,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
    */
-  final def *>[R1 <: R, E1 >: E, B](io: => ZIO[R1, E1, B]): ZIO[R1, E1, B] = self.flatMap(_ => io)
+  final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] = self.flatMap(_ => that)
+
+  /**
+   * A named alias for `*>`.
+   */
+  final def zipRight[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] = self *> that
 
   /**
    * Sequences the specified effect after this effect, but ignores the
    * value produced by the effect.
    */
-  final def <*[R1 <: R, E1 >: E, B](io: => ZIO[R1, E1, B]): ZIO[R1, E1, A] = self.flatMap(io.const(_))
+  final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, A] = self flatMap (that.const(_))
+
+  /**
+   * A named alias for `<*`.
+   */
+  final def zipLeft[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, A] =
+    self <* that
 
   /**
    * Sequentially zips this effect with the specified effect using the
@@ -595,7 +606,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when[R1 <: R, E1 >: E](b: Boolean)(implicit ev1: ZIO[R, E, A] <:< ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
+  final def when[R1 <: R, E1 >: E](b: Boolean): ZIO[R1, E1, Unit] =
     ZIO.when(b)(self)
 
   /**
@@ -603,7 +614,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def whenM[R1 <: R, E1 >: E](
     b: ZIO[R1, Nothing, Boolean]
-  )(implicit ev1: ZIO[R, E, A] <:< ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
+  ): ZIO[R1, E1, Unit] =
     ZIO.whenM(b)(self)
 
   /**
@@ -1381,14 +1392,14 @@ trait ZIOFunctions extends Serializable {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when[R >: LowerR, E <: UpperE](b: Boolean)(zio: ZIO[R, E, Unit]): ZIO[R, E, Unit] =
-    if (b) zio else unit
+  final def when[R >: LowerR, E <: UpperE](b: Boolean)(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
+    if (b) zio.void else unit
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  final def whenM[R >: LowerR, E <: UpperE](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, Unit]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) zio else unit)
+  final def whenM[R >: LowerR, E <: UpperE](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
+    b.flatMap(b => if (b) zio.void else unit)
 
   /**
    * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
