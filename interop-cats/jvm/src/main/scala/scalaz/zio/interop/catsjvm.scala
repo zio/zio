@@ -51,20 +51,18 @@ abstract class CatsInstances extends CatsInstances1 {
       zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
   }
 
-  implicit def taskEffectInstances(implicit runtime: Runtime[Any]): effect.ConcurrentEffect[Task] =
-    new CatsConcurrentEffect { override val rts = runtime }
+  implicit def taskEffectInstances[R](implicit runtime: Runtime[R]): effect.ConcurrentEffect[TaskR[R, ?]] =
+    new CatsConcurrentEffect[R](runtime)
 
-  implicit def taskConcurrentInstances[R]: effect.Concurrent[TaskR[R, ?]] =
-    new CatsConcurrent[R]
-
-  implicit def taskParallelInstance(implicit rts: Runtime[Any]): Parallel[Task, Util.Par] =
-    parallelInstance(taskEffectInstances)
 }
 
 sealed abstract class CatsInstances1 extends CatsInstances2 {
   implicit def ioMonoidInstances[R, E: Monoid]
     : MonadError[ZIO[R, E, ?], E] with Bifunctor[ZIO[R, ?, ?]] with Alternative[ZIO[R, E, ?]] =
     new CatsAlternative[R, E] with CatsBifunctor[R]
+
+  implicit def taskConcurrentInstances[R]: effect.Concurrent[TaskR[R, ?]] =
+    new CatsConcurrent[R]
 
   implicit def parallelInstance[R, E](implicit M: Monad[ZIO[R, E, ?]]): Parallel[ZIO[R, E, ?], ParIO[R, E, ?]] =
     new CatsParallel[R, E](M)
@@ -76,14 +74,13 @@ sealed abstract class CatsInstances2 {
     new CatsMonadError[R, Throwable] with CatsSemigroupK[R, Throwable] with CatsBifunctor[R]
 }
 
-private abstract class CatsConcurrentEffect
-    extends CatsConcurrent[Any]
-    with effect.ConcurrentEffect[Task]
-    with effect.Effect[Task] {
-  def rts: Runtime[Any]
+private class CatsConcurrentEffect[R](rts: Runtime[R])
+    extends CatsConcurrent[R]
+    with effect.ConcurrentEffect[TaskR[R, ?]]
+    with effect.Effect[TaskR[R, ?]] {
 
   override final def runAsync[A](
-    fa: Task[A]
+    fa: TaskR[R, A]
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[Unit] =
     effect.SyncIO {
       rts.unsafeRunAsync(fa) { exit =>
@@ -92,8 +89,8 @@ private abstract class CatsConcurrentEffect
     }
 
   override final def runCancelable[A](
-    fa: Task[A]
-  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[Task]] =
+    fa: TaskR[R, A]
+  )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[TaskR[R, ?]]] =
     effect.SyncIO {
       rts.unsafeRun {
         fa.fork.flatMap { f =>
@@ -105,7 +102,7 @@ private abstract class CatsConcurrentEffect
       }
     }
 
-  override final def toIO[A](fa: Task[A]): effect.IO[A] =
+  override final def toIO[A](fa: TaskR[R, A]): effect.IO[A] =
     effect.ConcurrentEffect.toIOFromRunCancelable(fa)(this)
 }
 
