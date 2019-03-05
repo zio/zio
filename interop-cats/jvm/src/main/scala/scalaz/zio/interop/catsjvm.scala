@@ -38,20 +38,22 @@ abstract class CatsInstances extends CatsInstances1 {
       fa.on(ec)
   }
 
-  implicit def ioTimer[R <: Clock]: effect.Timer[TaskR[R, ?]] = new effect.Timer[TaskR[R, ?]] {
-    override def clock: cats.effect.Clock[TaskR[R, ?]] = new effect.Clock[TaskR[R, ?]] {
-      override def monotonic(unit: TimeUnit): TaskR[R, Long] =
+  implicit def ioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
+    override def clock: cats.effect.Clock[ZIO[R, E, ?]] = new effect.Clock[ZIO[R, E, ?]] {
+      override def monotonic(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.nanoTime.map(unit.convert(_, NANOSECONDS))
 
-      override def realTime(unit: TimeUnit): TaskR[R, Long] =
+      override def realTime(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.currentTime(unit)
     }
 
-    override def sleep(duration: FiniteDuration): TaskR[R, Unit] =
+    override def sleep(duration: FiniteDuration): ZIO[R, E, Unit] =
       zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
   }
 
-  implicit def taskEffectInstances[R](implicit runtime: Runtime[R]): effect.ConcurrentEffect[TaskR[R, ?]] =
+  implicit def taskEffectInstances[R](
+    implicit runtime: Runtime[R]
+  ): effect.ConcurrentEffect[TaskR[R, ?]] with SemigroupK[TaskR[R, ?]] =
     new CatsConcurrentEffect[R](runtime)
 
 }
@@ -61,7 +63,7 @@ sealed abstract class CatsInstances1 extends CatsInstances2 {
     : MonadError[ZIO[R, E, ?], E] with Bifunctor[ZIO[R, ?, ?]] with Alternative[ZIO[R, E, ?]] =
     new CatsAlternative[R, E] with CatsBifunctor[R]
 
-  implicit def taskConcurrentInstances[R]: effect.Concurrent[TaskR[R, ?]] =
+  implicit def taskConcurrentInstances[R]: effect.Concurrent[TaskR[R, ?]] with SemigroupK[TaskR[R, ?]] =
     new CatsConcurrent[R]
 
   implicit def parallelInstance[R, E](implicit M: Monad[ZIO[R, E, ?]]): Parallel[ZIO[R, E, ?], ParIO[R, E, ?]] =
