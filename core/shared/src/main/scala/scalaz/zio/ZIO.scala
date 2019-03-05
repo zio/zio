@@ -533,7 +533,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified function to convert the `E` into a `Throwable`.
    */
   final def refineOrDieWith[E1](pf: PartialFunction[E, E1])(f: E => Throwable): ZIO[R, E1, A] =
-    self.catchAll(err => pf.lift(err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
+    self catchAll (err => (pf lift err).fold[ZIO[R, E1, A]](ZIO.die(f(err)))(ZIO.fail(_)))
 
   /**
    * Translates effect failure into death of the fiber, making all failures unchecked and
@@ -547,7 +547,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified function to convert the `E` into a `Throwable`.
    */
   final def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
-    self.mapError(f).catchAll(IO.die)
+    (self mapError f) catchAll (IO.die)
 
   /**
    * Returns an effect that, if evaluated, will return the lazily computed result
@@ -558,19 +558,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       r <- ZIO.environment[R]
       p <- Promise.make[E, A]
       l <- Promise.make[Nothing, Unit]
-      _ <- (l.await *> self.provide(r).to(p)).fork
+      _ <- (l.await *> ((self provide r) to p)).fork
     } yield l.succeed(()) *> p.await
 
   /**
    * Maps this effect to the specified constant while preserving the
    * effects of this effect.
    */
-  final def const[B](b: => B): ZIO[R, E, B] = self.map(_ => b)
+  final def const[B](b: => B): ZIO[R, E, B] = self map (_ => b)
 
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
    */
-  final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] = self.flatMap(_ => that)
+  final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] = self flatMap (_ => that)
 
   /**
    * A named alias for `*>`.
@@ -581,7 +581,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Sequences the specified effect after this effect, but ignores the
    * value produced by the effect.
    */
-  final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, A] = self flatMap (that.const(_))
+  final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, A] = self flatMap (that const (_))
 
   /**
    * A named alias for `<*`.
