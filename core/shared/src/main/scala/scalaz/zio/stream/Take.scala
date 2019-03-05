@@ -46,6 +46,12 @@ sealed trait Take[+E, +A] { self =>
 
   final def zip[E1 >: E, B](that: Take[E1, B]): Take[E1, (A, B)] =
     self.zipWith(that)(_ -> _)
+
+  final def isFailure: Boolean = self match {
+    case Take.Fail(_) => true
+    case _            => false
+  }
+
 }
 object Take {
   final case class Fail[E](value: E)  extends Take[E, Nothing]

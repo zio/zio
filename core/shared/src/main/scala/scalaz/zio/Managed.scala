@@ -43,7 +43,7 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
 
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => Managed[R1, E1, B]): Managed[R1, E1, B] =
     Managed[R1, E1, B] {
-      Ref.make[UIO[Any]](IO.unit).map { finalizers =>
+      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
         Reservation(
           acquire = for {
             resR <- self.reserve
@@ -55,7 +55,7 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
                       .uninterruptible
             r1 <- resR1.acquire
           } yield r1,
-          release = UIO.flatten(finalizers.get)
+          release = ZIO.flatten(finalizers.get)
         )
       }
     }
@@ -74,7 +74,7 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
 
   final def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: Managed[R1, E1, A1])(f0: (A, A1) => A2): Managed[R1, E1, A2] =
     Managed[R1, E1, A2] {
-      Ref.make[IO[Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
         Reservation(
           acquire = {
             val left =
@@ -84,7 +84,7 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
 
             left.flatMap(_.acquire).zipWithPar(right.flatMap(_.acquire))(f0)
           },
-          release = IO.flatten(finalizers.get)
+          release = ZIO.flatten(finalizers.get)
         )
       }
     }
@@ -94,12 +94,12 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
 }
 
 object Managed {
-  final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: UIO[_])
+  final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: ZIO[R, Nothing, _])
 
   /**
    * Lifts an `IO[E, R]`` into `Managed[E, R]`` with a release action.
    */
-  final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => UIO[_]): Managed[R, E, A] =
+  final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): Managed[R, E, A] =
     Managed(acquire.map(r => Reservation(IO.succeed(r), release(r))))
 
   /**

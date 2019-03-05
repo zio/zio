@@ -158,8 +158,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def zipWithPar[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] = {
     def coordinate[A, B](f: (A, B) => C)(winner: Exit[E1, A], loser: Fiber[E1, B]): ZIO[R1, E1, C] =
       winner match {
-        case Exit.Success(a)     => loser.join.map(f(a, _))
-        case Exit.Failure(cause) => loser.interrupt *> ZIO.halt(cause)
+        case Exit.Success(a) => loser.join.map(f(a, _))
+        case Exit.Failure(cause) =>
+          loser.interrupt.flatMap {
+            case Exit.Success(_)          => ZIO.halt(cause)
+            case Exit.Failure(loserCause) => ZIO.halt(cause && loserCause)
+          }
       }
     val g = (b: B, a: A) => f(a, b)
     (self raceWith that)(coordinate(f), coordinate(g))
@@ -1132,7 +1136,7 @@ trait ZIOFunctions extends Serializable {
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
-   * effects. This is a shortcut for `flatten(effectTotal(io)).
+   * effects. This is a shortcut for `flatten(effectTotal(io))`.
    */
   final def suspend[R >: LowerR, E <: UpperE, A](io: => ZIO[R, E, A]): ZIO[R, E, A] =
     flatten(effectTotal(io))
@@ -1404,8 +1408,8 @@ trait ZIOFunctions extends Serializable {
   /**
    * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
    */
-  final def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => IO[E, S]): IO[E, S] =
-    in.foldLeft(IO.succeed(zero): IO[E, S]) { (acc, el) =>
+  final def foldLeft[R >: LowerR, E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
+    in.foldLeft(IO.succeed(zero): ZIO[R, E, S]) { (acc, el) =>
       acc.flatMap(f(_, el))
     }
 
