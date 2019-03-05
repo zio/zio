@@ -14,6 +14,7 @@ ZIO provides the ability to interoperate with other parts of the broader ecosyst
  — **Java** — ZIO has an in-development Java facade that allows Java developers to write ZIO-powered applications in a way that's more idiomatic for Java development.
  - **Javascript** — ZIO has full compatibility with Scala.js.
  - **Monix** — In a separate module that is not part of core, ZIO has conversion between ZIO data types and Monix data types.
+ - **Reactive Streams** - In a separate module that is not part of core, ZIO has conversion from ZIO Streams and Sinks to Reactive Streams Procucers and Consumers.
  - **Scalaz 7.x** — In a separate module that is not part of core, ZIO has instances of `Monad` and other type classes for the ZIO data types.
  - **Scalaz 8** — Scalaz 8 depends on ZIO, and contains instances for all ZIO data types inside the library. No additional modules are needed.
 
