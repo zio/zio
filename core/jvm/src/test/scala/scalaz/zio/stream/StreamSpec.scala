@@ -43,10 +43,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.peel               $peel
 
   Stream merging
-    merge                   $merge
-    mergeEither             $mergeEither
-    mergeWith               $mergeWith
-    mergeWith short circuit $mergeWithShortCircuit
+    merge                         $merge
+    mergeEither                   $mergeEither
+    mergeWith                     $mergeWith
+    mergeWith short circuit       $mergeWithShortCircuit
+    mergeWith prioritizes failure $mergeWithPrioritizesFailure
 
   Stream zipping
     zipWith                     $zipWith
@@ -263,6 +264,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     )
 
     list must_=== List()
+  }
+
+  private def mergeWithPrioritizesFailure = {
+    val s1 = Stream.never
+    val s2 = Stream.fail("Ouch")
+
+    slurp(s1.mergeWith(s2)(_ => (), _ => ())) must_=== Exit.fail("Ouch")
   }
 
   private def transduce = {
