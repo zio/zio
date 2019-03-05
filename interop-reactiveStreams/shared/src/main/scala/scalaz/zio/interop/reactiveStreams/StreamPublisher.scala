@@ -1,6 +1,7 @@
 package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Publisher, Subscriber, Subscription }
+import scalaz.zio.stream.Sink.Step
 import scalaz.zio.stream.{ Sink, Stream }
 import scalaz.zio.{ Queue, Runtime, UIO, ZIO }
 
@@ -15,21 +16,11 @@ class StreamPublisher[R, E <: Throwable, A](
     } else {
       runtime.unsafeRunAsync_(
         for {
-          demand  <- Queue.unbounded[Long]
-          _       <- UIO(subscriber.onSubscribe(createSubscription(subscriber, demand)))
-          control = Stream.fromQueue(demand).flatMap(n => Stream.unfold(n)(n => if (n > 0) Some(((), n - 1)) else None))
+          demand <- Queue.unbounded[Long]
+          _      <- UIO(subscriber.onSubscribe(createSubscription(subscriber, demand)))
           fiber <- stream
-                    .zipWith(control) {
-                      case (Some(a), Some(_)) =>
-                        Some(UIO(subscriber.onNext(a)))
-                      case (None, Some(_)) =>
-                        subscriber.onComplete()
-                        None
-                      case _ =>
-                        None
-                    }
-                    .mapM(identity)
-                    .run(Sink.drain)
+                    .run(demandUnfoldSink(subscriber, demand))
+                    .flatMap(_ => UIO(subscriber.onComplete()))
                     .catchAll(e => UIO(subscriber.onError(e)))
                     .flatMap(_ => demand.shutdown)
                     .fork
@@ -37,6 +28,26 @@ class StreamPublisher[R, E <: Throwable, A](
           _ <- (demand.awaitShutdown *> fiber.interrupt).fork
         } yield ()
       )
+    }
+
+  private def demandUnfoldSink(subscriber: Subscriber[_ >: A], demand: Queue[Long]): Sink[Any, Nothing, A, A, Unit] =
+    new Sink[Any, Nothing, A, A, Unit] {
+      override type State = Long
+
+      override def initial: UIO[Step[Long, Nothing]] = UIO(Step.more(0L))
+
+      override def step(state: Long, a: A): UIO[Step[Long, A]] =
+        if (state > 0) {
+          UIO(subscriber.onNext(a)).map(_ => Step.more(state - 1))
+        } else {
+          for {
+            n <- demand.take
+            _ <- UIO(subscriber.onNext(a))
+          } yield Step.more(n - 1)
+        }
+
+      override def extract(state: Long): UIO[Unit] = UIO.unit
+
     }
 
   private def createSubscription(subscriber: Subscriber[_ >: A], demandQ: Queue[Long]): Subscription =
