@@ -66,7 +66,7 @@ object SinkSubscriber {
       subscriber = new SinkSubscriber[A, B](runtime, q, p)
       fiber <- Stream
                 .fromQueue(q)
-                .withEffect(_ => subscriber.signalDemand)
+                .tap(_ => subscriber.signalDemand)
                 .run(sink)
                 .provide(runtime.Environment)
                 .fork
