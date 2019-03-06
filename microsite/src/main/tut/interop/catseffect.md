@@ -1,7 +1,7 @@
 ---
 layout: docs
 section: interop
-title:  "Cats Effects"
+title:  "Cats Effect"
 ---
 
 # {{page.title}}
@@ -15,7 +15,7 @@ Checkout `interop-cats` module for inter-operation support.
 For convenience we have defined an alias as follow:
 
 ```scala
-  type Task[A] = IO[Throwable, A]
+  type Task[A] = Task[A]
 ```
 
 Therefore, we provide an instance of `Effect[Task]`.

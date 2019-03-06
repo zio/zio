@@ -1,8 +1,24 @@
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio.stream
 
 import scalaz.zio._
 
-trait SinkPure[+E, +A0, -A, +B] extends Sink[E, A0, A, B] { self =>
+trait SinkPure[+E, +A0, -A, +B] extends Sink[Any, E, A0, A, B] { self =>
   import Sink.Step
 
   override def initial              = IO.succeed(initialPure)
@@ -29,7 +45,7 @@ trait SinkPure[+E, +A0, -A, +B] extends Sink[E, A0, A, B] { self =>
       type State = self.State
       val initialPure              = self.initialPure
       def stepPure(s: State, a: A) = self.stepPure(s, a)
-      def extractPure(s: State)    = self.extractPure(s).right.map(f)
+      def extractPure(s: State)    = self.extractPure(s).map(f)
     }
 
   override def filter[A1 <: A](f: A1 => Boolean): SinkPure[E, A0, A1, B] =
@@ -59,7 +75,7 @@ trait SinkPure[+E, +A0, -A, +B] extends Sink[E, A0, A, B] { self =>
       val initialPure = self.initialPure
       def stepPure(s: State, c: C) =
         self.stepPure(s, f(c))
-      def extractPure(s: State) = self.extractPure(s).right.map(g)
+      def extractPure(s: State) = self.extractPure(s).map(g)
     }
 
   override def mapRemainder[A1](f: A0 => A1): SinkPure[E, A1, A, B] =

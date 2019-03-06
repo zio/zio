@@ -4,8 +4,9 @@ import scala.collection.immutable.Range
 import org.specs2.specification.AroundTimeout
 import scalaz.zio.QueueSpec.waitForSize
 import scalaz.zio.duration._
+import scalaz.zio.clock.Clock
 
-class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
+class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with AroundTimeout {
 
   def is =
     "QueueSpec".title ^ s2"""
@@ -102,6 +103,9 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     make a sliding queue of size 2, fork a take and then offer 4 values. Must return last item upon join $e63
     make a sliding queue of size 5 and offer 3 values. offerAll must return true $e64
     make a bounded queue of size 5 and offer 3 values. offerAll must return true $e65
+    make a bounded queue, `poll` on empty queue must return None $e66
+    make a bounded queue, offer 4 values, `takeAll`, `poll` must return None $e67
+    make a bounded queue, offer 2 values, first two `poll` return values wrapped in Some, further `poll` return None $e68
     """
 
   def e1 = unsafeRun(
@@ -130,7 +134,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       queue  <- Queue.bounded[Int](10)
       f      <- IO.forkAll(List.fill(10)(queue.take))
       values = Range.inclusive(1, 10).toList
-      _      <- values.map(queue.offer).foldLeft[IO[Nothing, Boolean]](IO.succeed(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
       v      <- f.join
     } yield v must containTheSameElementsAs(values))
 
@@ -795,11 +799,39 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     } yield oa must beTrue
   )
 
+  def e66 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      t     <- queue.poll
+    } yield t must_=== None
+  )
+
+  def e67 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      iter  = Range.inclusive(1, 4)
+      _     <- queue.offerAll(iter.toList)
+      _     <- queue.takeAll
+      t     <- queue.poll
+    } yield t must_=== None
+  )
+
+  def e68 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      iter  = Range.inclusive(1, 2)
+      _     <- queue.offerAll(iter.toList)
+      t1    <- queue.poll
+      t2    <- queue.poll
+      t3    <- queue.poll
+      t4    <- queue.poll
+    } yield (t1 must_=== Some(1)).and(t2 must_=== Some(2)).and(t3 must_=== None).and(t4 must_=== None)
+  )
 }
 
 object QueueSpec {
 
-  def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
-    (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != size))
+  def waitForSize[A](queue: Queue[A], size: Int): ZIO[Clock, Nothing, Int] =
+    (queue.size <* clock.sleep(10.millis)).repeat(Schedule.doWhile(_ != size))
 
 }

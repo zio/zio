@@ -2,12 +2,12 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO, Queue }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, TestRuntime }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with StreamTestUtils
     with GenIO
     with ScalaCheck {
@@ -22,6 +22,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   PureStream.takeWhile      $takeWhile
   PureStream.mapProp        $map
   PureStream.mapConcat      $mapConcat
+  Stream.filterM            $filterM
   Stream.scan               $mapAccum
   Stream.++                 $concat
   Stream.unfold             $unfold
@@ -65,29 +66,34 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import Exit._
 
   private def filter =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
       slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))
     }
 
+  private def filterM =
+    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
+      slurp(s.filterM(s => IO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
+    }
+
   private def dropWhile =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
       slurp(s.dropWhile(p)) must_=== slurp(s).map(_.dropWhile(p))
     }
 
   private def takeWhile =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
       val streamTakeWhile = slurp(s.takeWhile(p))
       val listTakeWhile   = slurp(s).map(_.takeWhile(p))
       listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
     }
 
   private def map =
-    prop { (s: Stream[String, String], f: String => Int) =>
+    prop { (s: Stream[Any, String, String], f: String => Int) =>
       slurp(s.map(f)) must_=== slurp(s).map(_.map(f))
     }
 
   private def concat =
-    prop { (s1: Stream[String, String], s2: Stream[String, String]) =>
+    prop { (s1: Stream[Any, String, String], s2: Stream[Any, String, String]) =>
       val listConcat = (slurp(s1) zip slurp(s2)).map {
         case (left, right) => left ++ right
       }
@@ -97,7 +103,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mapConcat = {
     import ArbitraryChunk._
-    prop { (s: Stream[String, String], f: String => Chunk[Int]) =>
+    prop { (s: Stream[Any, String, String], f: String => Chunk[Int]) =>
       slurp(s.mapConcat(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
     }
   }
@@ -128,7 +134,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def take =
-    prop { (s: Stream[String, String], n: Int) =>
+    prop { (s: Stream[Any, String, String], n: Int) =>
       val takeStreamResult = slurp(s.take(n))
       val takeListResult   = slurp(s).map(_.take(n))
       (takeListResult.succeeded ==> (takeStreamResult must_=== takeListResult)) //&&
@@ -140,9 +146,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s   = Stream(1, 1, 1, 1, 1, 1)
 
     unsafeRun(
-      s.foreach0(
+      s.foreachWhile[Any, Nothing](
         a =>
-          IO.sync(
+          IO.effectTotal(
             if (sum >= 3) false
             else {
               sum += a;
@@ -158,7 +164,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     var sum = 0
     val s   = Stream(1, 1, 1, 1, 1)
 
-    unsafeRun(s.foreach(a => IO.sync(sum += a)))
+    unsafeRun(s.foreach[Any, Nothing](a => IO.effectTotal(sum += a)))
     sum must_=== 5
   }
 
@@ -171,20 +177,20 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def monadLaw1 =
-    prop((x: Int, f: Int => Stream[String, Int]) => slurp(Stream(x).flatMap(f)) must_=== slurp(f(x)))
+    prop((x: Int, f: Int => Stream[Any, String, Int]) => slurp(Stream(x).flatMap(f)) must_=== slurp(f(x)))
 
   private def monadLaw2 =
-    prop((m: Stream[String, Int]) => slurp(m.flatMap(i => Stream(i))) must_=== slurp(m))
+    prop((m: Stream[Any, String, Int]) => slurp(m.flatMap(i => Stream(i))) must_=== slurp(m))
 
   private def monadLaw3 =
-    prop { (m: Stream[String, Int], f: Int => Stream[String, Int], g: Int => Stream[String, Int]) =>
+    prop { (m: Stream[Any, String, Int], f: Int => Stream[Any, String, Int], g: Int => Stream[Any, String, Int]) =>
       val leftStream  = m.flatMap(f).flatMap(g)
       val rightStream = m.flatMap(x => f(x).flatMap(g))
       slurp(leftStream) must_=== slurp(rightStream)
     }
 
   private def deepFlatMap = {
-    def fib(n: Int): Stream[Nothing, Int] =
+    def fib(n: Int): Stream[Any, Nothing, Int] =
       if (n <= 1) Stream.succeedLazy(n)
       else
         fib(n - 1).flatMap { a =>
@@ -201,9 +207,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def forever = {
     var sum = 0
-    val s = Stream(1).forever.foreach0(
+    val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
-        IO.sync {
+        IO.effectTotal {
           sum += a; if (sum >= 9) false else true
         }
     )
@@ -213,7 +219,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def merge =
-    prop { (s1: Stream[String, Int], s2: Stream[String, Int]) =>
+    prop { (s1: Stream[Any, String, Int], s2: Stream[Any, String, Int]) =>
       val mergedStream = slurp(s1 merge s2).map(_.toSet)
       val mergedLists  = (slurp(s1) zip slurp(s2)).map { case (left, right) => left ++ right }.map(_.toSet)
       (!mergedStream.succeeded && !mergedLists.succeeded) || (mergedStream must_=== mergedLists)
@@ -224,8 +230,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeEither(s2)
+    val list: List[Either[Int, Int]] = slurp(merge).toEither.fold(
+      _ => List.empty,
+      identity
+    )
 
-    slurp(merge).toEither.right.get must containTheSameElementsAs(List(Left(1), Left(2), Right(1), Right(2)))
+    list must containTheSameElementsAs(List(Left(1), Left(2), Right(1), Right(2)))
   }
 
   private def mergeWith = {
@@ -233,8 +243,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
+    val list: List[String] = slurp(merge).toEither.fold(
+      _ => List.empty,
+      identity
+    )
 
-    slurp(merge).toEither.right.get must containTheSameElementsAs(List("1", "2", "1", "2"))
+    list must containTheSameElementsAs(List("1", "2", "1", "2"))
   }
 
   private def mergeWithShortCircuit = {
@@ -242,8 +256,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
+    val list: List[String] = slurp0(merge)(_ => false).toEither.fold(
+      _ => List("9"),
+      identity
+    )
 
-    slurp0(merge)(_ => false).toEither.right.get must_=== List()
+    list must_=== List()
   }
 
   private def transduce = {
@@ -257,7 +275,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def peel = {
     val s      = Stream('1', '2', ',', '3', '4')
     val parser = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
-    val peeled = s.peel(parser).use {
+    val peeled = s.peel(parser).use[Any, Int, (Int, Exit[Nothing, List[Char]])] {
       case (n, rest) =>
         IO.succeed((n, slurp(rest)))
     }
@@ -267,7 +285,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def withEffect = {
     var sum     = 0
-    val s       = Stream(1, 1).withEffect(a => IO.sync(sum += a))
+    val s       = Stream(1, 1).withEffect[Any, Nothing](a => IO.effectTotal(sum += a))
     val slurped = slurp(s)
 
     (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)
@@ -282,7 +300,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def zipWithIndex =
-    prop((s: Stream[String, String]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
+    prop((s: Stream[Any, String, String]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
 
   private def zipWithIgnoreRhs = {
     val s1     = Stream(1, 2, 3)
@@ -308,7 +326,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         queue <- Queue.unbounded[Int]
         _     <- queue.offerAll(c.toSeq)
         s     = Stream.fromQueue(queue)
-        fiber <- s.fold[Nothing, Int, List[Int]].flatMap { f0 =>
+        fiber <- s.fold[Any, Nothing, Int, List[Int]].flatMap { f0 =>
                   f0(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
                     .map(_.reverse)
                     .fork

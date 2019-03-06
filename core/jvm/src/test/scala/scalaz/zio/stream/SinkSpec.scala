@@ -3,10 +3,10 @@ package scalaz.zio.stream
 import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with StreamTestUtils
     with GenIO
     with ScalaCheck {
@@ -27,24 +27,24 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   """
 
   private def foldLeft =
-    prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
+    prop { (s: Stream[Any, String, Int], f: (String, Int) => String, z: String) =>
       unsafeRunSync(s.run(Sink.foldLeft(z)(f))) must_=== slurp(s).map(_.foldLeft(z)(f))
     }
 
   private def fold =
-    prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
+    prop { (s: Stream[Any, String, Int], f: (String, Int) => String, z: String) =>
       val ff = (acc: String, el: Int) => Step.more(f(acc, el))
 
       unsafeRunSync(s.run(Sink.fold(z)(ff))) must_=== slurp(s).map(_.foldLeft(z)(f))
     }
 
   private def foldShortCircuits = {
-    val empty: Stream[Nothing, Int]     = Stream.empty
-    val single: Stream[Nothing, Int]    = Stream.succeed(1)
-    val double: Stream[Nothing, Int]    = Stream(1, 2)
-    val failed: Stream[String, Nothing] = Stream.fail("Ouch")
+    val empty: Stream[Any, Nothing, Int]     = Stream.empty
+    val single: Stream[Any, Nothing, Int]    = Stream.succeed(1)
+    val double: Stream[Any, Nothing, Int]    = Stream(1, 2)
+    val failed: Stream[Any, String, Nothing] = Stream.fail("Ouch")
 
-    def run[E](stream: Stream[E, Int]) = {
+    def run[E](stream: Stream[Any, E, Int]) = {
       var effects: List[Int] = Nil
       val sink = Sink.fold(0) { (_, (a: Int)) =>
         effects ::= a
@@ -65,7 +65,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def foldM = {
     implicit val ioArb = Arbitrary(genSuccess[String, String])
 
-    prop { (s: Stream[String, Int], f: (String, Int) => IO[String, String], z: IO[String, String]) =>
+    prop { (s: Stream[Any, String, Int], f: (String, Int) => IO[String, String], z: IO[String, String]) =>
       val ff         = (acc: String, el: Int) => f(acc, el).map(Step.more)
       val sinkResult = unsafeRunSync(s.run(Sink.foldM(z)(ff)))
       val foldResult = unsafeRunSync {
@@ -79,12 +79,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def foldMShortCircuits = {
-    val empty: Stream[Nothing, Int]     = Stream.empty
-    val single: Stream[Nothing, Int]    = Stream.succeed(1)
-    val double: Stream[Nothing, Int]    = Stream(1, 2)
-    val failed: Stream[String, Nothing] = Stream.fail("Ouch")
+    val empty: Stream[Any, Nothing, Int]     = Stream.empty
+    val single: Stream[Any, Nothing, Int]    = Stream.succeed(1)
+    val double: Stream[Any, Nothing, Int]    = Stream(1, 2)
+    val failed: Stream[Any, String, Nothing] = Stream.fail("Ouch")
 
-    def run[E](stream: Stream[E, Int]) = {
+    def run[E](stream: Stream[Any, E, Int]) = {
       var effects: List[Int] = Nil
       val sink = Sink.foldM(IO.succeed(0)) { (_, (a: Int)) =>
         effects ::= a
@@ -103,7 +103,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def readWhile =
-    prop { (s: Stream[String, String], f: String => Boolean) =>
+    prop { (s: Stream[Any, String, String], f: String => Boolean) =>
       val sinkResult = unsafeRunSync(s.run(Sink.readWhile(f)))
       val listResult = slurp(s).map(_.takeWhile(f))
 
@@ -154,16 +154,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def jsonNumArrayParsingSinkWithCombinators = {
-    val comma = Sink.readWhile[Char](_ == ',')
-    val brace = Sink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
-    val number: Sink[String, Char, Char, Int] =
+    val comma: Sink[Any, Nothing, Char, Char, List[Char]] = Sink.readWhile[Char](_ == ',')
+    val brace: Sink[Any, String, Char, Char, Char] =
+      Sink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
+    val number: Sink[Any, String, Char, Char, Int] =
       Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt)
     val numbers = (number ~ (comma *> number).repeatWhile(_ != ']'))
       .map(tp => tp._1 :: tp._2)
 
     val elements = numbers <* brace
 
-    lazy val start: Sink[String, Char, Char, List[Int]] =
+    lazy val start: Sink[Any, String, Char, Char, List[Int]] =
       Sink.more(IO.fail("Input was empty")) {
         case a if a.isWhitespace => start
         case '['                 => elements

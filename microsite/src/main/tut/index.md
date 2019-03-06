@@ -16,6 +16,7 @@ Powered by highly-scalable, non-blocking fibers that never waste or leak resourc
  - **Concurrent**. Easily build concurrent apps without deadlocks or race conditions.
  - **Asynchronous**. Escape callback hell with a unified model of computation.
  - **Resource-safe**. Build apps that never leak resources, even when they fail.
+ - **Testable**. Inject mock services into your app for fast, deterministic testing.
  - **Functional**. Rapidly compose solutions to complex problems from simple building blocks.
 
 To learn more about how ZIO can help you accomplish the impossible, see [Getting Started](getting_started.html) and [Overview](overview/index.html).

@@ -2,7 +2,7 @@ package scalaz.zio
 
 import FunctionIO._
 
-class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "FunctionIOSpec".title ^ s2"""
    Check if the functions in `FunctionIO` work correctly
      `lift` lifts from A => B into effectful function $e1
@@ -160,7 +160,7 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Ab
     unsafeRun(
       for {
         v <- whileDo[Nothing, Int](pure[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10)))(
-              pure[Nothing, Int, Int](a => IO.sync[Int](a + 1))
+              pure[Nothing, Int, Int](a => IO.effectTotal[Int](a + 1))
             ).run(1)
       } yield v must_=== 10
     )
@@ -182,14 +182,14 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Ab
   def e18a =
     unsafeRun(
       for {
-        a <- fail[String]("error").run(1).attempt
+        a <- fail[String]("error").run(1).either
       } yield a must_=== Left("error")
     )
 
   def e18b =
     unsafeRun(
       for {
-        a <- impure[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).attempt
+        a <- impure[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).either
       } yield a must_=== Left("error")
     )
 }

@@ -17,7 +17,7 @@ import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 import scalaz.zio.interop.catz._
 import cats.laws._
-import scalaz.zio.internal.Env
+import scalaz.zio.internal.PlatformLive
 
 trait ConcurrentEffectLawsOverrides[F[_]] extends ConcurrentEffectLaws[F] {
 
@@ -32,7 +32,7 @@ trait ConcurrentEffectLawsOverrides[F[_]] extends ConcurrentEffectLaws[F] {
 //          F.runAsync(started.complete(()))(_ => IO.unit).unsafeRunSync()
         latch.success(()); release.complete(())
       }
-      // Execute, then cancel after the task has started
+      // Execute, then cancel after the effect has started
       val token = for {
         canceler <- F.delay(F.runCancelable(ff)(_ => IO.unit).unsafeRunSync())
         _        <- F.liftIO(IO.fromFuture(IO.pure(latch.future)))
@@ -64,9 +64,9 @@ class catzSpec
     with Discipline
     with TestInstances
     with GenIO
-    with RTS {
+    with DefaultRuntime {
 
-  override lazy val env = Env.newDefaultEnv(_ => IO.unit)
+  override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()
@@ -81,7 +81,7 @@ class catzSpec
       import scala.concurrent.duration._
 
       def eqv(x: cats.effect.IO[A], y: cats.effect.IO[A]): Boolean = {
-        val duration = 10.seconds
+        val duration = 20.seconds
         val leftM    = x.attempt.unsafeRunTimed(duration)
         val rightM   = y.attempt.unsafeRunTimed(duration)
 
@@ -93,7 +93,10 @@ class catzSpec
           }
         }
 
-        res.getOrElse(false)
+        res.getOrElse {
+          println(s"One of actions timed out, results are: leftM = $leftM, rightM = $rightM")
+          false
+        }
       }
     }
 
@@ -107,9 +110,9 @@ class catzSpec
     "Alternative[IO[Option[Unit], ?]]",
     (_) => AlternativeTests[IO[Option[Unit], ?]].alternative[Int, Int, Int]
   )
-  checkAllAsync("SemigroupK[IO[Nothing, ?]]", (_) => SemigroupKTests[IO[Nothing, ?]].semigroupK[Int])
+  checkAllAsync("SemigroupK[UIO[?]]", (_) => SemigroupKTests[UIO[?]].semigroupK[Int])
   checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
-  checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Task.Par].parallel[Int, Int])
+  checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Util.Par].parallel[Int, Int])
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
     new Eq[IO[E, A]] {
@@ -129,7 +132,7 @@ class catzSpec
   implicit def catsParEQ[E: Eq, A: Eq]: Eq[ParIO[E, A]] =
     new Eq[ParIO[E, A]] {
       def eqv(io1: ParIO[E, A], io2: ParIO[E, A]): Boolean =
-        unsafeRun(Par.unwrap(io1).attempt) === unsafeRun(Par.unwrap(io2).attempt)
+        unsafeRun(Par.unwrap(io1).either) === unsafeRun(Par.unwrap(io2).either)
     }
 
   implicit def params: Parameters =

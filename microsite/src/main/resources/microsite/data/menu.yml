@@ -5,8 +5,8 @@ options:
     menu_type: overview
 
     nested_options:
-    - title: IO
-      url: overview/io.html
+    - title: ZIO
+      url: overview/zio.html
     - title: Success & Failure
       url: overview/success_failure.html
     - title: Composition
