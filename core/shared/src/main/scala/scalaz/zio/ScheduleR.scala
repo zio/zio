@@ -23,7 +23,7 @@ import scalaz.zio.random.{ nextDouble, Random }
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
  *
- * A `Schedule[R, A, B]` consumes `A` values, and based on the inputs and the
+ * A `ScheduleR[R, A, B]` consumes `A` values, and based on the inputs and the
  * internal state, decides whether to continue or halt. Every decision is
  * accompanied by a (possibly zero) delay, and an output value of type `B`.
  *
