@@ -17,7 +17,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def invokesCleanupsInReverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ManagedR.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
     val (first, second, third) = (res(1), res(2), res(3))
 
@@ -37,8 +37,8 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def parallelAcquireAndRelease = {
     val cleanups = new mutable.ListBuffer[String]
 
-    def managed(v: String): Managed[Any, Nothing, String] =
-      Managed.make(IO.succeed(v))(_ => IO.effectTotal { cleanups += v; () })
+    def managed(v: String): ManagedR[Any, Nothing, String] =
+      ManagedR.make(IO.succeed(v))(_ => IO.effectTotal { cleanups += v; () })
 
     val program = managed("A").zipWithPar(managed("B"))(_ + _).use[Any, Nothing, String](IO.succeed)
 
@@ -51,9 +51,9 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   private def traverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ManagedR.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
-    val resources = Managed.foreach(List(1, 2, 3))(res)
+    val resources = ManagedR.foreach(List(1, 2, 3))(res)
 
     unsafeRun(resources.use(_ => IO.unit))
 
@@ -64,7 +64,7 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     val program = for {
       never              <- Promise.make[Nothing, Unit]
       reachedAcquisition <- Promise.make[Nothing, Unit]
-      managedFiber       <- Managed.make(reachedAcquisition.succeed(()) *> never.await)(_ => IO.unit).use_(IO.unit).fork
+      managedFiber       <- ManagedR.make(reachedAcquisition.succeed(()) *> never.await)(_ => IO.unit).use_(IO.unit).fork
       _                  <- reachedAcquisition.await
       interruption       <- managedFiber.interrupt.timeout(5.seconds).either
     } yield interruption

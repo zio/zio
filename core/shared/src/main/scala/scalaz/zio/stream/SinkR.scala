@@ -281,7 +281,9 @@ trait SinkR[-R, +E, +A0, -A, +B] { self =>
   /**
    * A named alias for `race`.
    */
-  final def |[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, B1 >: B](that: SinkR[R1, E1, A2, A1, B1]): SinkR[R1, E1, A2, A1, B1] =
+  final def |[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, B1 >: B](
+    that: SinkR[R1, E1, A2, A1, B1]
+  ): SinkR[R1, E1, A2, A1, B1] =
     self.race(that)
 
   /**
@@ -441,7 +443,9 @@ object SinkR {
 
   type Step[+S, +A0] = Step.Step[S, A0]
 
-  final def more[R, R1 <: R, E, A0, A, B](end: ZIO[R1, E, B])(input: A => SinkR[R, E, A0, A, B]): SinkR[R1, E, A0, A, B] =
+  final def more[R, R1 <: R, E, A0, A, B](
+    end: ZIO[R1, E, B]
+  )(input: A => SinkR[R, E, A0, A, B]): SinkR[R1, E, A0, A, B] =
     new SinkR[R1, E, A0, A, B] {
       type State = Option[(SinkR[R1, E, A0, A, B], Any)]
 

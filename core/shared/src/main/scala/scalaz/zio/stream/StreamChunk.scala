@@ -140,7 +140,7 @@ trait StreamChunk[-R, +E, @specialized +A] { self =>
   final def ++[R1 <: R, E1 >: E, A1 >: A](that: StreamChunk[R1, E1, A1]): StreamChunk[R1, E1, A1] =
     StreamChunk(chunks ++ that.chunks)
 
-  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
+  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): ManagedR[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
     chunks.toQueue(capacity)
 
   final def toQueueWith[R1 <: R, E1 >: E, A1 >: A, Z](

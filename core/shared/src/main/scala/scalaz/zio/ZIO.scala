@@ -444,8 +444,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         }
     )(use)
 
-  final def managed(release: A => UIO[_]): Managed[R, E, A] =
-    Managed.make(this)(release)
+  final def managed(release: A => UIO[_]): ManagedR[R, E, A] =
+    ManagedR.make(this)(release)
 
   /**
    * Runs the specified effect if this effect fails, providing the error to the

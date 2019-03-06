@@ -286,7 +286,7 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
    */
   final def peel[R1 <: R, E1 >: E, A1 >: A, B](
     sink: SinkR[R1, E1, A1, A1, B]
-  ): Managed[R1, E1, (B, StreamR[R1, E1, A1])] = {
+  ): ManagedR[R1, E1, (B, StreamR[R1, E1, A1])] = {
     type Folder = (Any, A1) => IO[E1, Any]
     type Cont   = Any => Boolean
     type Fold   = (Any, Cont, Folder)
@@ -353,11 +353,11 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
             }.fork.void
       } yield (fiber, result)
 
-    Managed
+    ManagedR
       .liftIO(sink.initial)
       .flatMap { step =>
-        Managed.make(acquire(SinkR.Step.state(step)))(_._1.interrupt).flatMap { t =>
-          Managed.liftIO(t._2.await)
+        ManagedR.make(acquire(SinkR.Step.state(step)))(_._1.interrupt).flatMap { t =>
+          ManagedR.liftIO(t._2.await)
         }
       }
   }
@@ -481,13 +481,13 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
    * Converts the stream to a managed queue. After managed queue is used, the
    * queue will never again produce values and should be discarded.
    */
-  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): Managed[R, Nothing, Queue[Take[E1, A1]]] =
+  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): ManagedR[R, Nothing, Queue[Take[E1, A1]]] =
     for {
-      queue    <- Managed.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
+      queue    <- ManagedR.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
       offerVal = (a: A) => queue.offer(Take.Value(a)).void
       offerErr = (e: E) => queue.offer(Take.Fail(e))
       enqueuer = (self.foreach[R, E](offerVal).catchAll(offerErr) *> queue.offer(Take.End)).fork
-      _        <- Managed.make(enqueuer)(_.interrupt)
+      _        <- ManagedR.make(enqueuer)(_.interrupt)
     } yield queue
 
   /**
@@ -703,9 +703,9 @@ object StreamR extends Serializable {
   final def bracket[R, E, A, B](
     acquire: ZIO[R, E, A]
   )(release: A => UIO[Unit])(read: A => ZIO[R, E, Option[B]]): StreamR[R, E, B] =
-    managed(Managed.make(acquire)(release))(read)
+    managed(ManagedR.make(acquire)(release))(read)
 
-  final def managed[R, E, A, B](m: Managed[R, E, A])(read: A => ZIO[R, E, Option[B]]) =
+  final def managed[R, E, A, B](m: ManagedR[R, E, A])(read: A => ZIO[R, E, Option[B]]) =
     new StreamR[R, E, B] {
       override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
         IO.succeedLazy { (s, cont, f) =>
