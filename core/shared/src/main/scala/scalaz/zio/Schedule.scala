@@ -200,10 +200,22 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     (self && that).map(_._2)
 
   /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, C] =
+    self *> that
+
+  /**
    * The same as `&&`, but ignores the right output.
    */
   final def <*[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, B] =
     (self && that).map(_._1)
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, B] =
+    self <* that
 
   /**
    * Returns a new schedule that continues as long as either schedule continues,
