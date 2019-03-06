@@ -129,6 +129,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Alias for `flatMap`.
+   *
+   * {{{
+   * val parsed = readFile("foo.txt") >>= parseFile
+   * }}}
+   */
+  final def >>=[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = flatMap(k)
+
+  /**
    * Returns an effect that forks this effect into its own separate fiber,
    * returning the fiber immediately, without waiting for it to compute its
    * value.
