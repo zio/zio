@@ -11,7 +11,7 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="c1">// Read an environment variable
 </span>     <span class="o">|</span> <span class="n">system</span><span class="o">.</span><span class="n">env</span><span class="o">(</span><span class="s">"JAVA_HOME"</span><span class="o">)</span>
-<span class="n">res1</span><span class="k">:</span> <span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.system.System</span>,<span class="kt">SecurityException</span>,<span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$Read</span><span class="k">@</span><span class="mf">7f35d</span><span class="mi">39</span><span class="n">e</span>
+<span class="n">res1</span><span class="k">:</span> <span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.system.System</span>,<span class="kt">SecurityException</span>,<span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$Read</span><span class="k">@</span><span class="mf">7d</span><span class="mi">0</span><span class="n">bcc60</span>
 </code></pre></div></div>
 
 <h2 id="properties">Properties</h2>
@@ -20,7 +20,7 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="c1">// Read a system property
 </span>     <span class="o">|</span> <span class="n">system</span><span class="o">.</span><span class="n">property</span><span class="o">(</span><span class="s">"java.version"</span><span class="o">)</span>
-<span class="n">res3</span><span class="k">:</span> <span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.system.System</span>,<span class="kt">Throwable</span>,<span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$Read</span><span class="k">@</span><span class="mi">7855</span><span class="n">c8c4</span>
+<span class="n">res3</span><span class="k">:</span> <span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.system.System</span>,<span class="kt">Throwable</span>,<span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$Read</span><span class="k">@</span><span class="mi">455559</span><span class="n">aa</span>
 </code></pre></div></div>
 
 <h2 id="miscellaneous">Miscellaneous</h2>
@@ -28,7 +28,7 @@
 <p>With the <code class="highlighter-rouge">lineSeparator</code> method, you can determine the line separator for the underlying platform:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">system</span><span class="o">.</span><span class="n">lineSeparator</span>
-<span class="n">res4</span><span class="k">:</span> <span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.system.System</span>,<span class="kt">Nothing</span>,<span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$Read</span><span class="k">@</span><span class="mi">7</span><span class="n">cf541fb</span>
+<span class="n">res4</span><span class="k">:</span> <span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.system.System</span>,<span class="kt">Nothing</span>,<span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$Read</span><span class="k">@</span><span class="mi">7518074</span><span class="n">b</span>
 </code></pre></div></div>
 </section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
 hljs.initHighlighting();

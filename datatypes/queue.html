@@ -83,6 +83,16 @@
 <span class="o">}</span> <span class="k">yield</span> <span class="n">v</span>
 </code></pre></div></div>
 
+<p>You can consume the first item with <code class="highlighter-rouge">poll</code>. If the queue is empty you will get <code class="highlighter-rouge">None</code>, otherwise the top item will be returned wrapped in <code class="highlighter-rouge">Some</code>.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Option</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">Int</span><span class="o">](</span><span class="mi">100</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">offer</span><span class="o">(</span><span class="mi">20</span><span class="o">)</span>
+  <span class="n">head</span> <span class="k">&lt;-</span> <span class="n">queue</span><span class="o">.</span><span class="n">poll</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">head</span>
+</code></pre></div></div>
+
 <p>You can consume multiple items at once with <code class="highlighter-rouge">takeUpTo</code>. If the queue doesn’t have enough items to return, it will return all the items without waiting for more offers.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
