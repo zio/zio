@@ -765,20 +765,26 @@ object Sink {
           }
       }
 
-    final def seq[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, (B, C)] =
+    final def zip[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, (B, C)] =
       flatMap(b => that.map(c => (b, c)))
 
-    final def seqWith[E1 >: E, C, D](that: Sink[R, E1, A, A, C])(f: (B, C) => D): Sink[R, E1, A, A, D] =
-      seq(that).map(f.tupled)
+    final def zipWith[E1 >: E, C, D](that: Sink[R, E1, A, A, C])(f: (B, C) => D): Sink[R, E1, A, A, D] =
+      zip(that).map(f.tupled)
 
     final def ~[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, (B, C)] =
-      seq(that)
+      zip(that)
 
     final def *>[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, C] =
-      seq(that).map(_._2)
+      zip(that).map(_._2)
+
+    final def zipRight[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, C] =
+      self *> that
 
     final def <*[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, B] =
-      seq(that).map(_._1)
+      zip(that).map(_._1)
+
+    final def zipLeft[E1 >: E, C](that: Sink[R, E1, A, A, C]): Sink[R, E1, A, A, B] =
+      self <* that
 
     final def repeatWith[S](z: S)(f: (S, B) => S): Sink[R, E, A, A, S] =
       new Sink[R, E, A, A, S] {

@@ -63,8 +63,20 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
   final def *>[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A1] =
     flatMap(_ => that)
 
+  /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A1] =
+    self *> that
+
   final def <*[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A] =
     flatMap(r => that.map(_ => r))
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A] =
+    self <* that
 
   final def zipWith[R1 <: R, E1 >: E, A1, A2](that: Managed[R1, E1, A1])(f: (A, A1) => A2): Managed[R1, E1, A2] =
     flatMap(r => that.map(r1 => f(r, r1)))
