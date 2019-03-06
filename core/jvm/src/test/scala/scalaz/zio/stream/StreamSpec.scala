@@ -43,15 +43,17 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.peel               $peel
 
   Stream merging
-    merge                   $merge
-    mergeEither             $mergeEither
-    mergeWith               $mergeWith
-    mergeWith short circuit $mergeWithShortCircuit
+    merge                         $merge
+    mergeEither                   $mergeEither
+    mergeWith                     $mergeWith
+    mergeWith short circuit       $mergeWithShortCircuit
+    mergeWith prioritizes failure $mergeWithPrioritizesFailure
 
   Stream zipping
-    zipWith                 $zipWith
-    zipWithIndex            $zipWithIndex
-    zipWith ignore RHS      $zipWithIgnoreRhs
+    zipWith                     $zipWith
+    zipWithIndex                $zipWithIndex
+    zipWith ignore RHS          $zipWithIgnoreRhs
+    zipWith prioritizes failure $zipWithPrioritizesFailure
 
   Stream monad laws
     left identity           $monadLaw1
@@ -264,6 +266,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     list must_=== List()
   }
 
+  private def mergeWithPrioritizesFailure = {
+    val s1 = Stream.never
+    val s2 = Stream.fail("Ouch")
+
+    slurp(s1.mergeWith(s2)(_ => (), _ => ())) must_=== Exit.fail("Ouch")
+  }
+
   private def transduce = {
     val s          = Stream('1', '2', ',', '3', '4')
     val parser     = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
@@ -308,6 +317,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val zipped = s1.zipWith(s2)((a, _) => a)
 
     slurp(zipped) must_=== Success(List(1, 2, 3))
+  }
+
+  private def zipWithPrioritizesFailure = {
+    val s1 = Stream.never
+    val s2 = Stream.fail("Ouch")
+
+    slurp(s1.zipWith(s2)((_, _) => None)) must_=== Exit.fail("Ouch")
   }
 
   private def fromIterable = prop { l: List[Int] =>
