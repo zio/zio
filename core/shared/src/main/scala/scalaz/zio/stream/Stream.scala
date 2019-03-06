@@ -363,7 +363,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  def repeat[R1 <: R](schedule: Schedule[R1, Unit, _]): Stream[R1 with Clock, E, A] =
+  def repeat[R1 <: R](schedule: ScheduleR[R1, Unit, _]): Stream[R1 with Clock, E, A] =
     new Stream[R1 with Clock, E, A] {
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
@@ -383,7 +383,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
   /**
    * Repeats elements of the stream using the provided schedule.
    */
-  def repeatElems[R1 <: R, B](schedule: Schedule[R1, A, B]): Stream[R1 with Clock, E, A] =
+  def repeatElems[R1 <: R, B](schedule: ScheduleR[R1, A, B]): Stream[R1 with Clock, E, A] =
     new Stream[R1 with Clock, E, A] {
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>

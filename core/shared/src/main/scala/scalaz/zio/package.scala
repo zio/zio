@@ -26,6 +26,9 @@ package object zio extends EitherCompat {
   type Task[+A]   = ZIO[Any, Throwable, A]
   type UIO[+A]    = ZIO[Any, Nothing, A]
 
+  type Schedule[-A, +B] = ScheduleR[Any, A, B]
+  val Schedule = ScheduleR
+
   val JustExceptions: PartialFunction[Throwable, Exception] = {
     case e: Exception => e
   }

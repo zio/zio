@@ -18,7 +18,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   val repeat: Int => ZIO[Clock, Nothing, Int] = (n: Int) =>
     for {
       ref <- Ref.make(0)
-      s   <- ref.update(_ + 1).repeat(Schedule.recurs(n))
+      s   <- ref.update(_ + 1).repeat(ScheduleR.recurs(n))
     } yield s
 
   /*
@@ -41,7 +41,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def never = {
     val repeated = unsafeRun(for {
       ref <- Ref.make(0)
-      _   <- ref.update(_ + 1).repeat(Schedule.never)
+      _   <- ref.update(_ + 1).repeat(ScheduleR.never)
       res <- ref.get
     } yield res)
 
@@ -57,7 +57,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def once = {
     val repeated = unsafeRun(for {
       ref <- Ref.make(0)
-      _   <- ref.update(_ + 1).repeat(Schedule.once)
+      _   <- ref.update(_ + 1).repeat(ScheduleR.once)
       res <- ref.get
     } yield res)
 
@@ -74,8 +74,8 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val n = 42
     val repeated = unsafeRun(for {
       ref <- Ref.make(0)
-      io  = ref.update(_ + 1).repeat(Schedule.recurs(n))
-      _   <- io.repeat(Schedule.recurs(1))
+      io  = ref.update(_ + 1).repeat(ScheduleR.recurs(n))
+      _   <- io.repeat(ScheduleR.recurs(1))
       res <- ref.get
     } yield res)
     repeated must_=== (n + 1) * 2
@@ -92,7 +92,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val repeated = unsafeRun(
       (for {
         ref <- Ref.make(0)
-        _   <- incr(ref).repeat(Schedule.recurs(42))
+        _   <- incr(ref).repeat(ScheduleR.recurs(42))
       } yield ()).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")

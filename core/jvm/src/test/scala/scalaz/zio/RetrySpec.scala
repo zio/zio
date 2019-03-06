@@ -24,7 +24,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def retryCollect[R, E, A, E1 >: E, S](
     io: IO[E, A],
-    retry: Schedule[R, E1, S]
+    retry: ScheduleR[R, E1, S]
   ): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] = {
 
     type State = retry.State
@@ -59,7 +59,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def notRetryOnSuccess = {
     val retried = unsafeRun(for {
       ref <- Ref.make(0)
-      _   <- ref.update(_ + 1).retry(Schedule.once)
+      _   <- ref.update(_ + 1).retry(ScheduleR.once)
       i   <- ref.get
     } yield i)
 
@@ -80,7 +80,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       } yield x
     val retried = unsafeRun(for {
       ref <- Ref.make(0)
-      _   <- failOn0(ref).retry(Schedule.once)
+      _   <- failOn0(ref).retry(ScheduleR.once)
       r   <- ref.get
     } yield r)
 
@@ -92,7 +92,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     val retried = unsafeRun(
       (for {
         ref <- Ref.make(0)
-        _   <- alwaysFail(ref).retry(Schedule.once)
+        _   <- alwaysFail(ref).retry(ScheduleR.once)
       } yield ()).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("A failure was expected")
@@ -107,7 +107,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     val retried = unsafeRun(
       (for {
         ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retry(Schedule.recurs(0))
+        i   <- alwaysFail(ref).retry(ScheduleR.recurs(0))
       } yield i).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
@@ -118,13 +118,13 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def retryN = {
-    val retried  = unsafeRun(retryCollect(IO.fail("Error"), Schedule.recurs(5)))
+    val retried  = unsafeRun(retryCollect(IO.fail("Error"), ScheduleR.recurs(5)))
     val expected = (Left("Error"), List(1, 2, 3, 4, 5, 6).map((Duration.Zero, _)))
     retried must_=== expected
   }
 
   def retryNUnitIntervalJittered = {
-    val schedule: Schedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
+    val schedule: ScheduleR[Random, Int, Int] = ScheduleR.recurs(5).delayed(_ => 500.millis).jittered
     val scheduled: List[(Duration, Int)] = unsafeRun(
       schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
@@ -134,7 +134,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def retryNCustomIntervalJittered = {
-    val schedule: Schedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
+    val schedule: ScheduleR[Random, Int, Int] = ScheduleR.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
     val scheduled: List[(Duration, Int)] = unsafeRun(
       schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
@@ -148,15 +148,15 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
-    val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
+    val strategy = ScheduleR.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
     val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
     retried must_=== expected
   }
 
   def recurs10Retry = {
-    var i                                 = 0
-    val strategy: Schedule[Any, Any, Int] = Schedule.recurs(10)
+    var i                            = 0
+    val strategy: Schedule[Any, Int] = ScheduleR.recurs(10)
     val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
     }
@@ -168,7 +168,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def retryOrElseFallbackSucceed = {
     val retried = unsafeRun(for {
       ref <- Ref.make(0)
-      o   <- alwaysFail(ref).retryOrElse(Schedule.once, (_: String, _: Unit) => IO.succeed("OrElse"))
+      o   <- alwaysFail(ref).retryOrElse(ScheduleR.once, (_: String, _: Unit) => IO.succeed("OrElse"))
     } yield o)
 
     retried must_=== "OrElse"
@@ -178,7 +178,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     val retried = unsafeRun(
       (for {
         ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retryOrElse(Schedule.once, (_: String, _: Unit) => IO.fail("OrElseFailed"))
+        i   <- alwaysFail(ref).retryOrElse(ScheduleR.once, (_: String, _: Unit) => IO.fail("OrElseFailed"))
       } yield i).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
