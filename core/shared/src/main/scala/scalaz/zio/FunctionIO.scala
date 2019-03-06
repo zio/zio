@@ -85,7 +85,7 @@ package scalaz.zio
  * In both of these examples, the `FunctionIO` program is faster because it is
  * able to perform fusion of effectful functions.
  */
-sealed abstract class FunctionIO[+E, -A, +B] extends Serializable { self =>
+sealed trait FunctionIO[+E, -A, +B] extends Serializable { self =>
 
   /**
    * Applies the effectful function with the specified value, returning the

@@ -51,7 +51,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e5 = {
     val n = 1L
     unsafeRun(for {
-      s <- Semaphore.make(n).peek(_.acquire)
+      s <- Semaphore.make(n).tap(_.acquire)
       _ <- s.release.fork
       _ <- s.acquire
     } yield () must_=== (()))

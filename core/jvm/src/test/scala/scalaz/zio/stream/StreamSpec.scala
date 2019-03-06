@@ -35,7 +35,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.forever            $forever
   Stream.scanM              $mapAccumM
   Stream.transduce          $transduce
-  Stream.withEffect         $withEffect
+  Stream.tap         $tap
   Stream.fromIterable       $fromIterable
   Stream.fromChunk          $fromChunk
   Stream.fromQueue          $fromQueue
@@ -292,9 +292,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(peeled) must_=== ((12, Success(List('3', '4'))))
   }
 
-  private def withEffect = {
+  private def tap = {
     var sum     = 0
-    val s       = Stream(1, 1).withEffect[Any, Nothing](a => IO.effectTotal(sum += a))
+    val s       = Stream(1, 1).tap[Any, Nothing](a => IO.effectTotal(sum += a))
     val slurped = slurp(s)
 
     (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)

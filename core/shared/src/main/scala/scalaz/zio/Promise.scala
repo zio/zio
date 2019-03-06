@@ -201,7 +201,7 @@ object Promise {
     } yield b
 
   private[zio] object internal {
-    sealed abstract class State[E, A]                               extends Serializable with Product
+    sealed trait State[E, A]                                        extends Serializable with Product
     final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
     final case class Done[E, A](value: IO[E, A])                    extends State[E, A]
   }
