@@ -622,10 +622,10 @@ object StreamR extends Serializable {
   /**
    * Constructs a pure stream from the specified `Iterable`.
    */
-  final def fromIterable[A](it: Iterable[A]): Stream[Nothing, A] = StreamRPure.fromIterable(it)
+  final def fromIterable[A](it: Iterable[A]): Stream[Nothing, A] = StreamPureR.fromIterable(it)
 
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
-    new StreamRPure[Any, A] {
+    new StreamPure[A] {
       override def fold[R <: Any, E >: Nothing, A1 >: A, S]: Fold[R, E, A1, S] =
         IO.succeedLazy((s, cont, f) => c.foldMLazy(s)(cont)(f))
 
@@ -636,7 +636,7 @@ object StreamR extends Serializable {
   /**
    * Returns the empty stream.
    */
-  final val empty: Stream[Nothing, Nothing] = StreamRPure.empty
+  final val empty: Stream[Nothing, Nothing] = StreamPureR.empty
 
   /**
    * Returns a stream that emits nothing and never ends.
@@ -650,12 +650,12 @@ object StreamR extends Serializable {
   /**
    * Constructs a singleton stream from a strict value.
    */
-  final def succeed[A](a: A): Stream[Nothing, A] = StreamRPure.succeed(a)
+  final def succeed[A](a: A): Stream[Nothing, A] = StreamPureR.succeed(a)
 
   /**
    * Constructs a singleton stream from a lazy value.
    */
-  final def succeedLazy[A](a: => A): Stream[Nothing, A] = StreamRPure.succeedLazy(a)
+  final def succeedLazy[A](a: => A): Stream[Nothing, A] = StreamPureR.succeedLazy(a)
 
   /**
    * Constructs a stream that fails without emitting any values.
@@ -750,7 +750,7 @@ object StreamR extends Serializable {
    * Constructs a stream from state.
    */
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): Stream[Nothing, A] =
-    new StreamRPure[Any, A] {
+    new StreamPure[A] {
       override def fold[R1 <: Any, E1 >: Nothing, A1 >: A, S2]: Fold[R1, E1, A1, S2] =
         IO.succeedLazy { (s2, cont, f) =>
           def loop(s: S, s2: S2): ZIO[R1, E1, (S, S2)] =

@@ -157,10 +157,10 @@ object StreamChunk {
     }
 
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Any, Nothing, A] =
-    StreamChunkPure(StreamRPure.fromIterable(as))
+    StreamChunkPure(StreamPureR.fromIterable(as))
 
   final def succeedLazy[A](as: => Chunk[A]): StreamChunk[Any, Nothing, A] =
-    StreamChunkPure(StreamRPure.succeedLazy(as))
+    StreamChunkPure(StreamPureR.succeedLazy(as))
 
-  final val empty: StreamChunk[Any, Nothing, Nothing] = StreamChunkPure(StreamRPure.empty)
+  final val empty: StreamChunk[Any, Nothing, Nothing] = StreamChunkPure(StreamPureR.empty)
 }

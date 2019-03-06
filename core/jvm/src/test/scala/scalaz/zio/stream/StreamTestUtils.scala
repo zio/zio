@@ -7,7 +7,7 @@ trait StreamTestUtils { self: TestRuntime =>
     slurp0(s)(_ => true)
 
   def slurp0[E, A](s: Stream[E, A])(cont: List[A] => Boolean): Exit[E, List[A]] = s match {
-    case s: StreamRPure[Any, A] =>
+    case s: StreamPure[A] =>
       Exit.succeed(s.foldPureLazy(List[A]())(cont)((acc, el) => el :: acc).reverse)
     case s =>
       unsafeRunSync {

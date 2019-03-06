@@ -16,8 +16,8 @@ object ArbitraryStream {
       Gen.oneOf(failingStream, succeedingStream)
     }
 
-  def genPureStream[T: ClassTag: Arbitrary]: Gen[StreamRPure[Any, T]] =
-    Arbitrary.arbitrary[Iterable[T]].map(StreamRPure.fromIterable)
+  def genPureStream[T: ClassTag: Arbitrary]: Gen[StreamPure[T]] =
+    Arbitrary.arbitrary[Iterable[T]].map(StreamPureR.fromIterable)
 
   def genSucceededStream[T: ClassTag: Arbitrary]: Gen[Stream[Nothing, T]] =
     Arbitrary.arbitrary[List[T]].map { xs =>
