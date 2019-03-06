@@ -2,7 +2,7 @@ package scalaz.zio.interop
 
 import org.reactivestreams.{ Publisher, Subscriber }
 import scalaz.zio._
-import scalaz.zio.stream.{ Sink, StreamR }
+import scalaz.zio.stream.{ SinkR, StreamR }
 
 package object reactiveStreams {
 
@@ -11,7 +11,7 @@ package object reactiveStreams {
       StreamPublisher.sinkToPublisher(src)
   }
 
-  final implicit class sinkToSubscriber[R, E <: Throwable, A0, A, B](val sink: Sink[R, E, A0, A, B]) extends AnyVal {
+  final implicit class sinkToSubscriber[R, E <: Throwable, A0, A, B](val sink: SinkR[R, E, A0, A, B]) extends AnyVal {
     def toSubscriber(qSize: Int = 10): ZIO[R, E, (Subscriber[A], Task[B])] =
       SinkSubscriber.sinkToSubscriber(sink, qSize)
   }

@@ -285,7 +285,7 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
    * remainder is valid only within the scope of `Managed`.
    */
   final def peel[R1 <: R, E1 >: E, A1 >: A, B](
-    sink: Sink[R1, E1, A1, A1, B]
+    sink: SinkR[R1, E1, A1, A1, B]
   ): Managed[R1, E1, (B, StreamR[R1, E1, A1])] = {
     type Folder = (Any, A1) => IO[E1, Any]
     type Cont   = Any => Boolean
@@ -322,10 +322,10 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
                       }, {
                         case (Left(lstate), a) =>
                           sink.step(lstate, a).flatMap { step =>
-                            if (Sink.Step.cont(step)) IO.succeed(Left(Sink.Step.state(step)))
+                            if (SinkR.Step.cont(step)) IO.succeed(Left(SinkR.Step.state(step)))
                             else {
-                              val lstate = Sink.Step.state(step)
-                              val as     = Sink.Step.leftover(step)
+                              val lstate = SinkR.Step.state(step)
+                              val as     = SinkR.Step.leftover(step)
 
                               sink.extract(lstate).flatMap { r =>
                                 result.succeed(r -> tail(resume, done)) *>
@@ -356,7 +356,7 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
     Managed
       .liftIO(sink.initial)
       .flatMap { step =>
-        Managed.make(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap { t =>
+        Managed.make(acquire(SinkR.Step.state(step)))(_._1.interrupt).flatMap { t =>
           Managed.liftIO(t._2.await)
         }
       }
@@ -408,11 +408,11 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: Sink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
+  def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: SinkR[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
     sink.initial.flatMap { state =>
-      self.fold[R1, E1, A1, Sink.Step[sink.State, A0]].flatMap { f =>
-        f(state, Sink.Step.cont, (s, a) => sink.step(Sink.Step.state(s), a)).flatMap { step =>
-          sink.extract(Sink.Step.state(step))
+      self.fold[R1, E1, A1, SinkR.Step[sink.State, A0]].flatMap { f =>
+        f(state, SinkR.Step.cont, (s, a) => sink.step(SinkR.Step.state(s), a)).flatMap { step =>
+          sink.extract(SinkR.Step.state(step))
         }
       }
     }
@@ -494,33 +494,33 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
    * Applies a transducer to the stream, which converts one or more elements
    * of type `A` into elements of type `C`.
    */
-  final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: Sink[R1, E1, A1, A1, C]): StreamR[R1, E1, C] =
+  final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: SinkR[R1, E1, A1, A1, C]): StreamR[R1, E1, C] =
     new StreamR[R1, E1, C] {
       override def fold[R2 <: R1, E2 >: E1, C1 >: C, S2]: Fold[R2, E2, C1, S2] =
         IO.succeedLazy { (s2, cont, f) =>
-          def feed(s1: sink.State, s2: S2, a: Chunk[A1]): ZIO[R2, E2, Sink.Step[(sink.State, S2), A1]] =
+          def feed(s1: sink.State, s2: S2, a: Chunk[A1]): ZIO[R2, E2, SinkR.Step[(sink.State, S2), A1]] =
             sink.stepChunk(s1, a).flatMap { step =>
-              if (Sink.Step.cont(step)) IO.succeed(Sink.Step.leftMap(step)((_, s2)))
+              if (SinkR.Step.cont(step)) IO.succeed(SinkR.Step.leftMap(step)((_, s2)))
               else {
-                sink.extract(Sink.Step.state(step)).flatMap { c =>
+                sink.extract(SinkR.Step.state(step)).flatMap { c =>
                   f(s2, c).flatMap { s2 =>
                     if (cont(s2))
-                      sink.initial.flatMap(initStep => feed(Sink.Step.state(initStep), s2, Sink.Step.leftover(step)))
-                    else IO.succeed(Sink.Step.more((s1, s2)))
+                      sink.initial.flatMap(initStep => feed(SinkR.Step.state(initStep), s2, SinkR.Step.leftover(step)))
+                    else IO.succeed(SinkR.Step.more((s1, s2)))
                   }
                 }
               }
             }
 
           sink.initial.flatMap { initStep =>
-            val s1 = Sink.Step.leftMap(initStep)((_, s2))
+            val s1 = SinkR.Step.leftMap(initStep)((_, s2))
 
-            self.fold[R2, E2, A, Sink.Step[(sink.State, S2), A1]].flatMap { f0 =>
-              f0(s1, step => cont(Sink.Step.state(step)._2), { (s, a) =>
-                val (s1, s2) = Sink.Step.state(s)
+            self.fold[R2, E2, A, SinkR.Step[(sink.State, S2), A1]].flatMap { f0 =>
+              f0(s1, step => cont(SinkR.Step.state(step)._2), { (s, a) =>
+                val (s1, s2) = SinkR.Step.state(s)
                 feed(s1, s2, Chunk(a))
               }).flatMap { step =>
-                val (s1, s2) = Sink.Step.state(step)
+                val (s1, s2) = SinkR.Step.state(step)
 
                 sink
                   .extract(s1)

@@ -275,7 +275,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def transduce = {
     val s          = StreamR('1', '2', ',', '3', '4')
-    val parser     = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
+    val parser     = SinkR.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* SinkR.readWhile(_ == ',')
     val transduced = s.transduce(parser)
 
     slurp(transduced) must_=== Success(List(12, 34))
@@ -283,7 +283,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def peel = {
     val s      = StreamR('1', '2', ',', '3', '4')
-    val parser = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
+    val parser = SinkR.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* SinkR.readWhile(_ == ',')
     val peeled = s.peel(parser).use[Any, Int, (Int, Exit[Nothing, List[Char]])] {
       case (n, rest) =>
         IO.succeed((n, slurp(rest)))

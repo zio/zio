@@ -67,7 +67,7 @@ class StreamBenchmarks {
       .filter(_ % 2 == 0)
       .map(_.toLong)
 
-    val sink   = Sink.foldLeft(0L)((s, as: Chunk[Long]) => as.foldLeft(s)(_ + _))
+    val sink   = SinkR.foldLeft(0L)((s, as: Chunk[Long]) => as.foldLeft(s)(_ + _))
     val result = stream.run(sink)
 
     unsafeRun(result)
@@ -192,7 +192,7 @@ class CSVStreamBenchmarks {
       }
       .mapConcat(identity(_))
 
-    unsafeRun(stream.run(Sink.drain))
+    unsafeRun(stream.run(SinkR.drain))
   }
 }
 

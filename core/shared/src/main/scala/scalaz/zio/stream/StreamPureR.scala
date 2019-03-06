@@ -24,20 +24,20 @@ private[stream] trait StreamPureR[-R, +A] extends StreamR[R, Nothing, A] { self 
   override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): UIO[S] =
     IO.succeed(foldPureLazy(s)(_ => true)(f))
 
-  override def run[R1 <: R, E, A0, A1 >: A, B](sink: Sink[R1, E, A0, A1, B]): ZIO[R1, E, B] =
+  override def run[R1 <: R, E, A0, A1 >: A, B](sink: SinkR[R1, E, A0, A1, B]): ZIO[R1, E, B] =
     sink match {
       case sink: SinkPure[E, A0, A1, B] =>
         ZIO.fromEither(
           sink.extractPure(
-            Sink.Step.state(
-              foldPureLazy[A1, Sink.Step[sink.State, A0]](sink.initialPure)(Sink.Step.cont) { (s, a) =>
-                sink.stepPure(Sink.Step.state(s), a)
+            SinkR.Step.state(
+              foldPureLazy[A1, SinkR.Step[sink.State, A0]](sink.initialPure)(SinkR.Step.cont) { (s, a) =>
+                sink.stepPure(SinkR.Step.state(s), a)
               }
             )
           )
         )
 
-      case sink: Sink[R1, E, A0, A1, B] => super.run(sink)
+      case sink: SinkR[R1, E, A0, A1, B] => super.run(sink)
     }
 
   /**

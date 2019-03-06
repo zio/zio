@@ -10,7 +10,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     with StreamTestUtils
     with GenIO
     with ScalaCheck {
-  import ArbitraryStream._, Sink.Step
+  import ArbitraryStream._, SinkR.Step
 
   def is = "SinkSpec".title ^ s2"""
   Constructors
@@ -28,14 +28,14 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def foldLeft =
     prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
-      unsafeRunSync(s.run(Sink.foldLeft(z)(f))) must_=== slurp(s).map(_.foldLeft(z)(f))
+      unsafeRunSync(s.run(SinkR.foldLeft(z)(f))) must_=== slurp(s).map(_.foldLeft(z)(f))
     }
 
   private def fold =
     prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
       val ff = (acc: String, el: Int) => Step.more(f(acc, el))
 
-      unsafeRunSync(s.run(Sink.fold(z)(ff))) must_=== slurp(s).map(_.foldLeft(z)(f))
+      unsafeRunSync(s.run(SinkR.fold(z)(ff))) must_=== slurp(s).map(_.foldLeft(z)(f))
     }
 
   private def foldShortCircuits = {
@@ -46,7 +46,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = Sink.fold(0) { (_, (a: Int)) =>
+      val sink = SinkR.fold(0) { (_, (a: Int)) =>
         effects ::= a
         Step.done(30, Chunk.empty)
       }
@@ -67,7 +67,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     prop { (s: Stream[String, Int], f: (String, Int) => IO[String, String], z: IO[String, String]) =>
       val ff         = (acc: String, el: Int) => f(acc, el).map(Step.more)
-      val sinkResult = unsafeRunSync(s.run(Sink.foldM(z)(ff)))
+      val sinkResult = unsafeRunSync(s.run(SinkR.foldM(z)(ff)))
       val foldResult = unsafeRunSync {
         s.foldLeft(List[Int]())((acc, el) => el :: acc)
           .map(_.reverse)
@@ -86,7 +86,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = Sink.foldM(IO.succeed(0)) { (_, (a: Int)) =>
+      val sink = SinkR.foldM(IO.succeed(0)) { (_, (a: Int)) =>
         effects ::= a
         IO.succeed(Step.done(30, Chunk.empty))
       }
@@ -104,7 +104,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def readWhile =
     prop { (s: Stream[String, String], f: String => Boolean) =>
-      val sinkResult = unsafeRunSync(s.run(Sink.readWhile(f)))
+      val sinkResult = unsafeRunSync(s.run(SinkR.readWhile(f)))
       val listResult = slurp(s).map(_.takeWhile(f))
 
       listResult.succeeded ==> (sinkResult must_=== listResult)
@@ -119,26 +119,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
 
     val numArrayParser =
-      Sink
+      SinkR
         .foldM(IO.succeed((ParserState.Start: ParserState, List.empty[Int]))) { (s, a: Char) =>
           s match {
             case (ParserState.Start, acc) =>
               a match {
-                case a if a.isWhitespace => IO.succeed(Sink.Step.more((ParserState.Start, acc)))
-                case '['                 => IO.succeed(Sink.Step.more((ParserState.Element(""), acc)))
+                case a if a.isWhitespace => IO.succeed(SinkR.Step.more((ParserState.Start, acc)))
+                case '['                 => IO.succeed(SinkR.Step.more((ParserState.Element(""), acc)))
                 case _                   => IO.fail("Expected '['")
               }
 
             case (ParserState.Element(el), acc) =>
               a match {
-                case a if a.isDigit => IO.succeed(Sink.Step.more((ParserState.Element(el + a), acc)))
-                case ','            => IO.succeed(Sink.Step.more((ParserState.Element(""), acc :+ el.toInt)))
-                case ']'            => IO.succeed(Sink.Step.done((ParserState.Done, acc :+ el.toInt), Chunk.empty))
+                case a if a.isDigit => IO.succeed(SinkR.Step.more((ParserState.Element(el + a), acc)))
+                case ','            => IO.succeed(SinkR.Step.more((ParserState.Element(""), acc :+ el.toInt)))
+                case ']'            => IO.succeed(SinkR.Step.done((ParserState.Done, acc :+ el.toInt), Chunk.empty))
                 case _              => IO.fail("Expected a digit or ,")
               }
 
             case (ParserState.Done, acc) =>
-              IO.succeed(Sink.Step.done((ParserState.Done, acc), Chunk.empty))
+              IO.succeed(SinkR.Step.done((ParserState.Done, acc), Chunk.empty))
           }
         }
         .map(_._2)
@@ -154,21 +154,21 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def jsonNumArrayParsingSinkWithCombinators = {
-    val comma: Sink[Any, Nothing, Char, Char, List[Char]] = Sink.readWhile[Char](_ == ',')
-    val brace: Sink[Any, String, Char, Char, Char] =
-      Sink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
-    val number: Sink[Any, String, Char, Char, Int] =
-      Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt)
+    val comma: SinkR[Any, Nothing, Char, Char, List[Char]] = SinkR.readWhile[Char](_ == ',')
+    val brace: SinkR[Any, String, Char, Char, Char] =
+      SinkR.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
+    val number: SinkR[Any, String, Char, Char, Int] =
+      SinkR.readWhile[Char](_.isDigit).map(_.mkString.toInt)
     val numbers = (number ~ (comma *> number).repeatWhile(_ != ']'))
       .map(tp => tp._1 :: tp._2)
 
     val elements = numbers <* brace
 
-    lazy val start: Sink[Any, String, Char, Char, List[Int]] =
-      Sink.more(IO.fail("Input was empty")) {
+    lazy val start: SinkR[Any, String, Char, Char, List[Int]] =
+      SinkR.more(IO.fail("Input was empty")) {
         case a if a.isWhitespace => start
         case '['                 => elements
-        case _                   => Sink.fail("Expected '['")
+        case _                   => SinkR.fail("Expected '['")
       }
 
     val src1         = StreamChunk.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))

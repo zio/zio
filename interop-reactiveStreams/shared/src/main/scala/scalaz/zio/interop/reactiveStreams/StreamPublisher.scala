@@ -30,8 +30,8 @@ class StreamPublisher[R, E <: Throwable, A](
       )
     }
 
-  private def demandUnfoldSink(subscriber: Subscriber[_ >: A], demand: Queue[Long]): Sink[Any, Nothing, A, A, Unit] =
-    new Sink[Any, Nothing, A, A, Unit] {
+  private def demandUnfoldSink(subscriber: Subscriber[_ >: A], demand: Queue[Long]): Sink[Nothing, A, A, Unit] =
+    new Sink[Nothing, A, A, Unit] {
       override type State = Long
 
       override def initial: UIO[Step[Long, Nothing]] = UIO(Step.more(0L))
