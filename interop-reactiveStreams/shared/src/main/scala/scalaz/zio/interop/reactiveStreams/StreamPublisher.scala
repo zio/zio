@@ -2,11 +2,11 @@ package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 import scalaz.zio.stream.Sink.Step
-import scalaz.zio.stream.{ Sink, Stream }
+import scalaz.zio.stream.{ Sink, StreamR }
 import scalaz.zio.{ Queue, Runtime, UIO, ZIO }
 
 class StreamPublisher[R, E <: Throwable, A](
-  stream: Stream[R, E, A],
+  stream: StreamR[R, E, A],
   runtime: Runtime[R]
 ) extends Publisher[A] {
 
@@ -61,6 +61,6 @@ class StreamPublisher[R, E <: Throwable, A](
 }
 
 object StreamPublisher {
-  def sinkToPublisher[R, E <: Throwable, A](stream: Stream[R, E, A]): ZIO[R, Nothing, StreamPublisher[R, E, A]] =
+  def sinkToPublisher[R, E <: Throwable, A](stream: StreamR[R, E, A]): ZIO[R, Nothing, StreamPublisher[R, E, A]] =
     ZIO.runtime.map(new StreamPublisher(stream, _))
 }

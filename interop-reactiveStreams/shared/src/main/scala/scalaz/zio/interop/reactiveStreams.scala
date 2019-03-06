@@ -2,11 +2,11 @@ package scalaz.zio.interop
 
 import org.reactivestreams.{ Publisher, Subscriber }
 import scalaz.zio._
-import scalaz.zio.stream.{ Sink, Stream }
+import scalaz.zio.stream.{ Sink, StreamR }
 
 package object reactiveStreams {
 
-  final implicit class streamToPublisher[R, E <: Throwable, A](val src: Stream[R, E, A]) extends AnyVal {
+  final implicit class streamToPublisher[R, E <: Throwable, A](val src: StreamR[R, E, A]) extends AnyVal {
     def toPublisher: ZIO[R, Nothing, Publisher[A]] =
       StreamPublisher.sinkToPublisher(src)
   }
