@@ -530,7 +530,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
   /**
    * Adds an effect to consumption of every element of the stream.
    */
-  final def withEffect[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): Stream[R1, E1, A] =
+  final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): Stream[R1, E1, A] =
     new Stream[R1, E1, A] {
       override def fold[R2 <: R1, E2 >: E1, A1 >: A, S]: Fold[R2, E2, A1, S] =
         IO.succeedLazy { (s, cont, g) =>

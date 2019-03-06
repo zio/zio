@@ -33,7 +33,7 @@ abstract class IOInstances extends IOInstances1 {
   implicit val taskParAp: Applicative[scalaz72.ParIO[Throwable, ?]] = new IOParApplicative[Throwable]
 }
 
-sealed abstract class IOInstances1 extends IOInstances2 {
+sealed trait IOInstances1 extends IOInstances2 {
   implicit def ioMonoidInstances[E: Monoid]
     : MonadError[IO[E, ?], E] with BindRec[IO[E, ?]] with Bifunctor[IO] with MonadPlus[IO[E, ?]] =
     new IOMonadPlus[E] with IOBifunctor
@@ -41,7 +41,7 @@ sealed abstract class IOInstances1 extends IOInstances2 {
   implicit def ioParAp[E]: Applicative[scalaz72.ParIO[E, ?]] = new IOParApplicative[E]
 }
 
-sealed abstract class IOInstances2 {
+sealed trait IOInstances2 {
   implicit def ioInstances[E]: MonadError[IO[E, ?], E] with BindRec[IO[E, ?]] with Bifunctor[IO] with Plus[IO[E, ?]] =
     new IOMonadError[E] with IOPlus[E] with IOBifunctor
 }
