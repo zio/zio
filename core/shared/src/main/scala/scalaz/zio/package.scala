@@ -31,6 +31,6 @@ package object zio extends EitherCompat {
     case e: Exception => e
   }
 
-  type Queue[A] = Queue2[Any, Nothing, A, A]
+  type Queue[A] = Queue2[Any, Nothing, Any, Nothing, A, A]
   val Queue = Queue2
 }
