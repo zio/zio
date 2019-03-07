@@ -27,7 +27,7 @@ The following example shows how to use ZIO with Doobie (a library for JDBC acces
 ```scala
 import doobie.imports._
 import fs2.Stream
-import scalaz.zio.interop.Task
+import scalaz.zio.Task
 import scalaz.zio.interop.catz._
 
 val xa: Transactor[Task] = Transactor.fromDriverManager[Task](...)
