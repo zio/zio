@@ -6,7 +6,7 @@ import org.scalatestplus.testng.TestNGSuiteLike
 import scalaz.zio.DefaultRuntime
 import scalaz.zio.stream.Stream
 
-class PublisherTest(env: TestEnvironment, publisherShutdownTimeout: Long)
+class StreamToPublisherTest(env: TestEnvironment, publisherShutdownTimeout: Long)
     extends PublisherVerification[Int](env, publisherShutdownTimeout)
     with TestNGSuiteLike
     with DefaultRuntime {
