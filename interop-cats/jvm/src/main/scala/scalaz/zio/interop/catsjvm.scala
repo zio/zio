@@ -30,11 +30,11 @@ abstract class CatsPlatform extends CatsInstances {
 }
 
 abstract class CatsInstances extends CatsInstances1 {
-  implicit def ioContextShift[R]: ContextShift[TaskR[R, ?]] = new ContextShift[TaskR[R, ?]] {
-    override def shift: TaskR[R, Unit] =
+  implicit def ioContextShift[R, E]: ContextShift[ZIO[R, E, ?]] = new ContextShift[ZIO[R, E, ?]] {
+    override def shift: ZIO[R, E, Unit] =
       ZIO.yieldNow
 
-    override def evalOn[A](ec: ExecutionContext)(fa: TaskR[R, A]): TaskR[R, A] =
+    override def evalOn[A](ec: ExecutionContext)(fa: ZIO[R, E, A]): ZIO[R, E, A] =
       fa.on(ec)
   }
 
