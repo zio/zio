@@ -115,11 +115,11 @@ package object future {
 
   implicit class FutureSyntax[T](val value: Future[T]) extends AnyVal {
     final def onSuccess[U](pf: PartialFunction[T, U])(implicit ec: ExecutionContext): Unit =
-      unsafeRun(ec, value.join.flatMap[Any, Throwable, Option[U]](t => IO.effect(pf.lift(t))).fork.void)
+      unsafeRun(ec, value.join.flatMap[Any, Throwable, Option[U]](t => IO.effect(pf lift t)).fork.void)
 
     final def onFailure[U](pf: PartialFunction[Throwable, U])(implicit ec: ExecutionContext): Unit =
       unsafeRun(ec, value.join.either.flatMap {
-        case Left(t)  => IO.effect(pf.lift(t))
+        case Left(t)  => IO.effect(pf lift t)
         case Right(_) => IO.unit
       }.fork.void)
 
@@ -204,7 +204,7 @@ package object future {
 
     final def andThen[U](pf: PartialFunction[Try[T], U])(implicit ec: ExecutionContext): Future[T] =
       unsafeRun(ec, value.join.either.flatMap { either =>
-        IO.effect(pf.lift(toTry(either))).either *> IO.succeed(either)
+        IO.effect(pf lift (toTry(either))).either *> IO.succeed(either)
       }.absolve.fork)
   }
 }
