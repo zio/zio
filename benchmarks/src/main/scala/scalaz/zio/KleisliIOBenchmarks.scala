@@ -11,31 +11,31 @@ object ScalazIOArray {
     type IJIndexValue = (IndexValue, IndexValue)
 
     val lessThanEqual =
-      FunctionIO.lift[IJIndexValue, Boolean] {
+      FunctionIO.fromFunction[IJIndexValue, Boolean] {
         case ((_, ia), (_, ja)) => lessThanEqual0(ia, ja)
       }
 
-    val extractIJAndIncrementJ = FunctionIO.lift[IJIndexValue, IJIndex] {
+    val extractIJAndIncrementJ = FunctionIO.fromFunction[IJIndexValue, IJIndex] {
       case ((i, _), (j, _)) => (i, j + 1)
     }
 
-    val extractIAndIncrementI = FunctionIO.lift[IJIndex, Int](_._1 + 1)
+    val extractIAndIncrementI = FunctionIO.fromFunction[IJIndex, Int](_._1 + 1)
 
-    val innerLoopStart = FunctionIO.lift[Int, IJIndex]((i: Int) => (i, i + 1))
+    val innerLoopStart = FunctionIO.fromFunction[Int, IJIndex]((i: Int) => (i, i + 1))
 
     val outerLoopCheck: FunctionIO[Nothing, Int, Boolean] =
-      FunctionIO.lift((i: Int) => i < array.length - 1)
+      FunctionIO.fromFunction((i: Int) => i < array.length - 1)
 
     val innerLoopCheck: FunctionIO[Nothing, IJIndex, Boolean] =
-      FunctionIO.lift { case (_, j) => j < array.length }
+      FunctionIO.fromFunction { case (_, j) => j < array.length }
 
     val extractIJIndexValue: FunctionIO[Nothing, IJIndex, IJIndexValue] =
-      FunctionIO.impureVoid {
+      FunctionIO.effectTotal {
         case (i, j) => ((i, array(i)), (j, array(j)))
       }
 
     val swapIJ: FunctionIO[Nothing, IJIndexValue, IJIndexValue] =
-      FunctionIO.impureVoid {
+      FunctionIO.effectTotal {
         case v @ ((i, ia), (j, ja)) =>
           array.update(i, ja)
           array.update(j, ia)

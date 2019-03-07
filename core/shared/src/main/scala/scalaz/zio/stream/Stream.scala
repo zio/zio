@@ -667,7 +667,7 @@ object Stream extends Serializable {
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
    */
-  final def lift[R, E, A](fa: ZIO[R, E, A]): Stream[R, E, A] = new Stream[R, E, A] {
+  final def fromEffect[R, E, A](fa: ZIO[R, E, A]): Stream[R, E, A] = new Stream[R, E, A] {
     override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) fa.flatMap(f(s, _))

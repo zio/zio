@@ -221,7 +221,7 @@ object Fiber {
   /**
    * Lifts an [[scalaz.zio.IO]] into a `Fiber`.
    */
-  final def lift[E, A](io: IO[E, A]): IO[Nothing, Fiber[E, A]] =
+  final def fromEffect[E, A](io: IO[E, A]): IO[Nothing, Fiber[E, A]] =
     io.run.map(done(_))
 
   /**
