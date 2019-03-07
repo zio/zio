@@ -551,7 +551,7 @@ object ScheduleR extends Serializable {
    * produce a schedule that executes.
    */
   final val never: Schedule[Any, Nothing] =
-    Schedule[Any, Nothing, Any, Nothing](UIO.never, (_, _) => UIO.never)
+    ScheduleR[Any, Nothing, Any, Nothing](UIO.never, (_, _) => UIO.never)
 
   /**
    * A schedule that recurs forever, producing a count of inputs.
