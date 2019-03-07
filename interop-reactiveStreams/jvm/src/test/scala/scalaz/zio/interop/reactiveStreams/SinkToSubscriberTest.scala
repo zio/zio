@@ -6,7 +6,7 @@ import org.scalatestplus.testng.TestNGSuiteLike
 import scalaz.zio.DefaultRuntime
 import scalaz.zio.stream.Sink
 
-class SubscriberTest(env: TestEnvironment)
+class SinkToSubscriberTest(env: TestEnvironment)
     extends SubscriberBlackboxVerification[Int](env)
     with TestNGSuiteLike
     with DefaultRuntime {
