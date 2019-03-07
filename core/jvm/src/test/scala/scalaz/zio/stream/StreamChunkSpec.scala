@@ -29,7 +29,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   StreamChunk.monadLaw1     $monadLaw1
   StreamChunk.monadLaw2     $monadLaw2
   StreamChunk.monadLaw3     $monadLaw3
-  StreamChunk.withEffect    $withEffect
+  StreamChunk.tap    $tap
   StreamChunk.foldLeft      $foldLeft
   StreamChunk.foldLazy      $foldLazy
   StreamChunk.flattenChunks $flattenChunks
@@ -156,13 +156,13 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       slurp(leftStream) must_=== slurp(rightStream)
     }
 
-  private def withEffect =
+  private def tap =
     prop { (s: StreamChunk[Any, String, String]) =>
       val withoutEffect = slurp(s)
       var acc           = List[String]()
-      val withEffect    = slurp(s.withEffect(a => IO.effectTotal(acc ::= a)))
+      val tap           = slurp(s.tap(a => IO.effectTotal(acc ::= a)))
 
-      (withEffect must_=== withoutEffect) and
+      (tap must_=== withoutEffect) and
         ((Success(acc.reverse) must_== withoutEffect) when withoutEffect.succeeded)
     }
 

@@ -58,7 +58,7 @@ abstract class CatsInstances extends CatsInstances1 {
 
 }
 
-sealed abstract class CatsInstances1 extends CatsInstances2 {
+sealed trait CatsInstances1 extends CatsInstances2 {
   implicit def ioMonoidInstances[R, E: Monoid]
     : MonadError[ZIO[R, E, ?], E] with Bifunctor[ZIO[R, ?, ?]] with Alternative[ZIO[R, E, ?]] =
     new CatsAlternative[R, E] with CatsBifunctor[R]
@@ -70,7 +70,7 @@ sealed abstract class CatsInstances1 extends CatsInstances2 {
     new CatsParallel[R, E](M)
 }
 
-sealed abstract class CatsInstances2 {
+sealed trait CatsInstances2 {
   implicit def ioInstances[R]
     : MonadError[TaskR[R, ?], Throwable] with Bifunctor[ZIO[R, ?, ?]] with SemigroupK[TaskR[R, ?]] =
     new CatsMonadError[R, Throwable] with CatsSemigroupK[R, Throwable] with CatsBifunctor[R]
@@ -208,7 +208,7 @@ private class CatsEffect[R]
   override final def bracketCase[A, B](
     acquire: TaskR[R, A]
   )(use: A => TaskR[R, B])(release: (A, ExitCase[Throwable]) => TaskR[R, Unit]): TaskR[R, B] =
-    ZIO.bracketExit[R, Throwable, A, B](acquire) { (a, exit) =>
+    ZIO.bracketExit(acquire) { (a, exit: Exit[Throwable, _]) =>
       val exitCase = exitToExitCase(exit)
       release(a, exitCase).orDie
     }(use)
