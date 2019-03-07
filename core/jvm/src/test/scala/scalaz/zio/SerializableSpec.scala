@@ -82,7 +82,7 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
 
   def e6 = {
     import FunctionIO._
-    val v = lift[Int, Int](_ + 1)
+    val v = fromFunction[Int, Int](_ + 1)
     unsafeRun(
       for {
         returnKleisli <- serializeAndBack(v)
