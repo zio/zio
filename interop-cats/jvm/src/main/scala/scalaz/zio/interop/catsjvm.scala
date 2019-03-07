@@ -147,8 +147,8 @@ private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[TaskR[R, ?
     fb: TaskR[R, B]
   ): TaskR[R, Either[(A, effect.Fiber[TaskR[R, ?], B]), (effect.Fiber[TaskR[R, ?], A], B)]] =
     (fa raceWith fb)(
-      { case (l, f) => l.fold(f.interrupt *> IO.halt(_), IO.succeed).map(lv => Left((lv, toFiber(f)))) },
-      { case (r, f) => r.fold(f.interrupt *> IO.halt(_), IO.succeed).map(rv => Right((toFiber(f), rv))) }
+      { case (l, f) => l.fold(f.interrupt *> TaskR.halt(_), TaskR.succeed).map(lv => Left((lv, toFiber(f)))) },
+      { case (r, f) => r.fold(f.interrupt *> TaskR.halt(_), TaskR.succeed).map(rv => Right((toFiber(f), rv))) }
     )
 }
 
@@ -163,8 +163,8 @@ private class CatsEffect[R]
     }, Right(_))
 
   @inline final protected[this] def eitherToIO[A]: Either[Throwable, A] => TaskR[R, A] = {
-    case Left(t)  => ZIO.fail(t)
-    case Right(r) => ZIO.succeed(r)
+    case Left(t)  => TaskR.fail(t)
+    case Right(r) => TaskR.succeed(r)
   }
 
   @inline final private[this] def exitToExitCase[A]: Exit[Throwable, A] => ExitCase[Throwable] = {
@@ -178,27 +178,27 @@ private class CatsEffect[R]
   }
 
   override final def never[A]: TaskR[R, A] =
-    ZIO.never
+    TaskR.never
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): TaskR[R, A] =
     ZIO.accessM { r =>
-      ZIO.effectAsync { (kk: Task[A] => Unit) =>
+      TaskR.effectAsync { (kk: Task[A] => Unit) =>
         k(e => kk(eitherToIO(e).provide(r)))
       }
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => TaskR[R, Unit]): TaskR[R, A] =
     ZIO.accessM { r =>
-      ZIO.effectAsyncM { (kk: Task[A] => Unit) =>
+      TaskR.effectAsyncM { (kk: Task[A] => Unit) =>
         k(e => kk(eitherToIO(e).provide(r))).provide(r).orDie
       }
     }
 
   override final def suspend[A](thunk: => TaskR[R, A]): TaskR[R, A] =
-    ZIO.flatten(ZIO.effect(thunk))
+    ZIO.flatten(TaskR.effect(thunk))
 
   override final def delay[A](thunk: => A): TaskR[R, A] =
-    ZIO.effect(thunk)
+    TaskR.effect(thunk)
 
   override final def bracket[A, B](acquire: TaskR[R, A])(use: A => TaskR[R, B])(
     release: A => TaskR[R, Unit]
