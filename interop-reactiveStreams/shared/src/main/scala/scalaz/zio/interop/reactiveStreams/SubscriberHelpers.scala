@@ -26,7 +26,8 @@ private[reactiveStreams] object SubscriberHelpers {
         done.race(more)
       }
 
-      override def extract(state: Long): UIO[Unit] = UIO(subscriber.onComplete())
+      override def extract(state: Long): UIO[Unit] =
+        demand.awaitShutdown.race(UIO(subscriber.onComplete()) *> demand.shutdown)
 
     }
 
