@@ -20,6 +20,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   Return the result of the fallback after failing and no more retries left
     if succeed $retryOrElseFallbackSucceed
     if failed $retryOrElseFallbackFailed
+
+  Retry a failed action 2 times and call `ensuring` should
+    run the specified finalizer as soon as the schedule is complete $ensuring
   """
 
   def retryCollect[R, E, A, E1 >: E, S](
@@ -197,6 +200,13 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       i <- ref.update(_ + 1)
       x <- IO.fail(s"Error: $i")
     } yield x
+
+  def ensuring =
+    unsafeRun(for {
+      p          <- Promise.make[Nothing, Unit]
+      v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
+      finalizerV <- p.poll
+    } yield (v must beNone) and (finalizerV.isDefined must beTrue))
 
   object TestRandom extends Random {
     object random extends Random.Service[Any] {
