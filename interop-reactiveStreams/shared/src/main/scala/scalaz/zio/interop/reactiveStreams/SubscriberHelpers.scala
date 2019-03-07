@@ -1,8 +1,8 @@
 package scalaz.zio.interop.reactiveStreams
 import org.reactivestreams.{ Subscriber, Subscription }
-import scalaz.zio.{ Chunk, Queue, Runtime, UIO }
 import scalaz.zio.stream.Sink
 import scalaz.zio.stream.Sink.Step
+import scalaz.zio.{ Chunk, Queue, Runtime, UIO }
 
 private[reactiveStreams] object SubscriberHelpers {
 
@@ -26,7 +26,13 @@ private[reactiveStreams] object SubscriberHelpers {
         done.race(more)
       }
 
-      override def extract(state: Long): UIO[Unit] = UIO(subscriber.onComplete())
+      override def extract(state: Long): UIO[Unit] =
+        for {
+          f <- demand.awaitShutdown.fork
+          o <- f.poll
+          _ <- o.fold(UIO(subscriber.onComplete()))(_ => UIO.unit)
+          _ <- demand.shutdown
+        } yield ()
 
     }
 
