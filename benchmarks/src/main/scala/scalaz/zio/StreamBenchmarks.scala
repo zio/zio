@@ -62,7 +62,7 @@ class StreamBenchmarks {
   @Benchmark
   def scalazChunkFilterMapSum = {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
-    val stream = StreamChunk
+    val stream = StreamChunkR
       .fromChunks(chunks: _*)
       .filter(_ % 2 == 0)
       .map(_.toLong)
@@ -172,7 +172,7 @@ class CSVStreamBenchmarks {
   @Benchmark
   def scalazCsvTokenize() = {
     val chunks = genCsvChunks.map(Chunk.fromArray(_))
-    val stream = StreamChunk
+    val stream = StreamChunkR
       .fromChunks(chunks: _*)
       .mapAccum[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) {
         case (acc, char) =>

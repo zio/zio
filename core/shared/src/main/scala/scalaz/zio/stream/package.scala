@@ -11,4 +11,10 @@ package object stream {
   type Sink[+E, +A0, -A, +B] = SinkR[Any, E, A0, A, B]
   val Sink = SinkR
 
+  type StreamChunk[+E, +A] = StreamChunkR[Any, E, A]
+  val StreamChunk = StreamChunkR
+
+  type StreamChunkPure[+A] = StreamChunkPureR[Any, A]
+  val streamChunkPure = StreamChunkPureR
+
 }

@@ -9,20 +9,20 @@ import scalaz.zio.Chunk
 
 object ArbitraryStreamChunk {
 
-  implicit def arbStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[Any, String, T]] =
+  implicit def arbStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[String, T]] =
     Arbitrary {
       Gen.oneOf(
-        genFailingStream[Chunk[T]].map(StreamChunk(_)),
-        genPureStream[Chunk[T]].map(StreamChunkPure(_)),
-        genSucceededStream[Chunk[T]].map(StreamChunk(_))
+        genFailingStream[Chunk[T]].map(StreamChunkR(_)),
+        genPureStream[Chunk[T]].map(StreamChunkPureR(_)),
+        genSucceededStream[Chunk[T]].map(StreamChunkR(_))
       )
     }
 
-  implicit def arbSucceededStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[Any, Nothing, T]] =
+  implicit def arbSucceededStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[Nothing, T]] =
     Arbitrary {
       Gen.oneOf(
-        genPureStream[Chunk[T]].map(StreamChunkPure(_)),
-        genSucceededStream[Chunk[T]].map(StreamChunk(_))
+        genPureStream[Chunk[T]].map(StreamChunkPureR(_)),
+        genSucceededStream[Chunk[T]].map(StreamChunkR(_))
       )
     }
 }

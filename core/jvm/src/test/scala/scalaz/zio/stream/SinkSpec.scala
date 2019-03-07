@@ -144,8 +144,8 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .map(_._2)
         .chunked
 
-    val src1         = StreamChunk.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
-    val src2         = StreamChunk.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
+    val src1         = StreamChunkR.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
+    val src2         = StreamChunkR.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
     val partialParse = unsafeRunSync(src1.run(numArrayParser))
     val fullParse    = unsafeRunSync((src1 ++ src2).run(numArrayParser))
 
@@ -171,8 +171,8 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         case _                   => SinkR.fail("Expected '['")
       }
 
-    val src1         = StreamChunk.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
-    val src2         = StreamChunk.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
+    val src1         = StreamChunkR.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
+    val src2         = StreamChunkR.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
     val partialParse = unsafeRunSync(src1.run(start.chunked))
     val fullParse    = unsafeRunSync((src1 ++ src2).run(start.chunked))
 
