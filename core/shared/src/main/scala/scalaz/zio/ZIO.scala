@@ -1231,6 +1231,19 @@ trait ZIOFunctions extends Serializable {
   final def unsandbox[R >: LowerR, E <: UpperE, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
 
   /**
+   * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
+   */
+  final def fromFunction[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
+    environment[R].map(f)
+
+  /**
+   * Lifts an effectful function whose effect requires no environment into
+   * an effect that requires the input to the function.
+   */
+  final def fromFunctionM[R >: LowerR, E, A](f: R => IO[E, A]): ZIO[R, E, A] =
+    environment[R].flatMap(f)
+
+  /**
    * Lifts an `Either` into a `ZIO` value.
    */
   final def fromEither[E <: UpperE, A](v: => Either[E, A]): IO[E, A] =
