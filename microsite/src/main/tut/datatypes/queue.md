@@ -156,19 +156,19 @@ val res: UIO[Unit] = for {
 
 ## Transforming queues
 
-A `Queue[A]` is in fact a type alias for `Queue2[Any, Nothing, A, A]`.
+A `Queue[A]` is in fact a type alias for `Queue2[Any, Nothing, Any, Nothing, A, A]`.
 The signature for the expanded version is:
 ```scala
-trait Queue2[R, E, A, B]
+trait Queue2[RA, EA, RB, EB, A, B]
 ```
 
-That is, a `Queue2` can be offered values of type `A`, and values of
-type `B` can be taken from it. Enqueueing/dequeueing operations on the
-queue require an environment of type `R` and may fail with errors of
-type `E`. Note how the basic `Queue[A]` cannot fail or require any environment.
+Which is to say:
+- The queue may be offered values of type `A`. The enqueueing operations require an environment of type `RA` and may fail with errors of type `EB`;
+- The queue will yield values of type `B`. The dequeueing operations require an environment of type `RB` and may fail with errors of type `EB`.
 
-With separate type parameters for input and output, there are rich
-composition opportunities for queues. 
+Note how the basic `Queue[A]` cannot fail or require any environment for any of its operations.
+
+With separate type parameters for input and output, there are rich composition opportunities for queues:
 
 ### Queue2#map
 
@@ -189,7 +189,7 @@ val res: UIO[String] =
 We may also use an effectful function to map the output:
 
 ```tut:silent
-val res: UIO[Queue2[Any, String, Int, String]] = 
+val res: UIO[Queue2[Any, Nothing, Any, String, Int, String]] = 
   for {
     queue  <- Queue.bounded[Int](3)
     mapped = queue.mapM { i =>
@@ -199,7 +199,7 @@ val res: UIO[Queue2[Any, String, Int, String]] =
   } yield mapped
 ```
 
-Note how the `E` type parameter on the resulting queue is now a `String`.
+Note how the `EB` type parameter on the resulting queue is now a `String`.
 
 ### Queue2#bothWith
 

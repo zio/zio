@@ -738,8 +738,8 @@ object Stream extends Serializable {
   /**
    * Constructs an infinite stream from a `Queue2`.
    */
-  final def fromQueue[R, E, A, B](queue: Queue2[R, E, A, B]): Stream[R, E, B] =
-    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.succeed(None))
+  final def fromQueue[RB, EB, B](queue: Queue2[_, _, RB, EB, _, B]): Stream[RB, EB, B] =
+    unfoldM(())(_ => queue.take.map(b => Some((b, ()))) <> IO.succeed(None))
 
   /**
    * Constructs a stream from effectful state. This method should not be used
