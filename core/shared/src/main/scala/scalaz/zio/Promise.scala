@@ -99,31 +99,32 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def done(io: IO[E, A]): UIO[Boolean] =
     IO.flatten(IO.effectTotal {
-      var action: UIO[Boolean] = null.asInstanceOf[UIO[Boolean]]
-      var retry                = true
+        var action: UIO[Boolean] = null.asInstanceOf[UIO[Boolean]]
+        var retry                = true
 
-      while (retry) {
-        val oldState = state.get
+        while (retry) {
+          val oldState = state.get
 
-        val newState = oldState match {
-          case Pending(joiners) =>
-            action =
-              IO.forkAll_(joiners.map(k => IO.effectTotal[Unit](k(io)))) *>
-                IO.succeed[Boolean](true)
+          val newState = oldState match {
+            case Pending(joiners) =>
+              action =
+                IO.forkAll_(joiners.map(k => IO.effectTotal[Unit](k(io)))) *>
+                  IO.succeed[Boolean](true)
 
-            Done(io)
+              Done(io)
 
-          case Done(_) =>
-            action = IO.succeed[Boolean](false)
+            case Done(_) =>
+              action = IO.succeed[Boolean](false)
 
-            oldState
+              oldState
+          }
+
+          retry = !state.compareAndSet(oldState, newState)
         }
 
-        retry = !state.compareAndSet(oldState, newState)
-      }
-
-      action
-    })
+        action
+      })
+      .uninterruptible
 
   private[zio] final def unsafeDone(io: IO[E, A], exec: Executor): Unit = {
     var retry: Boolean                  = true
@@ -200,7 +201,7 @@ object Promise {
     } yield b
 
   private[zio] object internal {
-    sealed abstract class State[E, A]                               extends Serializable with Product
+    sealed trait State[E, A]                                        extends Serializable with Product
     final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
     final case class Done[E, A](value: IO[E, A])                    extends State[E, A]
   }

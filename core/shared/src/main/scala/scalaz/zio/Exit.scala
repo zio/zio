@@ -20,7 +20,7 @@ package scalaz.zio
  * An `Exit[E, A]` describes the result of executing an `IO` value. The
  * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
  */
-sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
+sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   import Exit._
 
   /**
@@ -158,7 +158,7 @@ object Exit extends Serializable {
   final def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
     exit.flatMap(identity)
 
-  sealed abstract class Cause[+E] extends Product with Serializable { self =>
+  sealed trait Cause[+E] extends Product with Serializable { self =>
     import Cause._
     final def ++[E1 >: E](that: Cause[E1]): Cause[E1] =
       Then(self, that)

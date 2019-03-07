@@ -6,7 +6,7 @@ import scalaz.zio.Exit.Cause
 
 import scala.collection.mutable
 import scala.util.Try
-import scalaz.zio.Exit.Cause.{ Die, Fail, Interrupt }
+import scalaz.zio.Exit.Cause.{ Both, Die, Fail, Interrupt }
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -42,6 +42,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
+   Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
+   Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -206,5 +208,15 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       race1 <- io.raceAll(ios)
       race2 <- IO.raceAll(io, ios)
     } yield race1 must ===(race2))
+  }
+
+  def testZipParInterupt = {
+    val io = ZIO.interrupt.zipPar(IO.interrupt)
+    unsafeRun(io) must throwA(FiberFailure(Both(Interrupt, Interrupt)))
+  }
+
+  def testZipParSucceed = {
+    val io = ZIO.interrupt.zipPar(IO.succeed(1))
+    unsafeRun(io) must throwA(FiberFailure(Interrupt))
   }
 }

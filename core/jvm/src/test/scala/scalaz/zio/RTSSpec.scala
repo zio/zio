@@ -142,6 +142,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interruption of raced                   $testInterruptedOfRaceInterruptsContestents
     cancelation is guaranteed               $testCancelationIsGuaranteed
     interruption of unending bracket        $testInterruptionOfUnendingBracket
+
+  RTS environment
+    provide is modular                      $testProvideIsModular
   """
   }
 
@@ -230,8 +233,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     ) must_=== Some(ExampleError)
 
   def testEvalOfAttemptOfFail = Seq(
-    unsafeRun(IO.fail[Throwable](ExampleError).either) must_=== Left(ExampleError),
-    unsafeRun(IO.suspend(IO.suspend(IO.fail[Throwable](ExampleError)).either)) must_=== Left(
+    unsafeRun(TaskExampleError.either) must_=== Left(ExampleError),
+    unsafeRun(IO.suspend(IO.suspend(TaskExampleError).either)) must_=== Left(
       ExampleError
     )
   )
@@ -279,7 +282,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testFailOfMultipleFailingFinalizers =
     unsafeRun(
-      IO.fail[Throwable](ExampleError)
+      TaskExampleError
         .ensuring(IO.effectTotal(throw InterruptCause1))
         .ensuring(IO.effectTotal(throw InterruptCause2))
         .ensuring(IO.effectTotal(throw InterruptCause3))
@@ -335,7 +338,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val e3 = new Error("e3")
 
     val nested: Task[Int] =
-      IO.fail[Throwable](ExampleError)
+      TaskExampleError
         .ensuring(IO.die(e2))
         .ensuring(IO.die(e3))
 
@@ -359,7 +362,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.succeedLazy[Int](42))) must_=== 42
 
   def testBracketErrorInAcquisition =
-    unsafeRun(IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit)) must
+    unsafeRun(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit)) must
       (throwA(FiberFailure(Fail(ExampleError))))
 
   def testBracketErrorInRelease =
@@ -372,7 +375,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testBracketRethrownCaughtErrorInAcquisition = {
     lazy val actual = unsafeRun(
-      IO.absolve(IO.bracket(IO.fail[Throwable](ExampleError))(_ => IO.unit)(_ => IO.unit).either)
+      IO.absolve(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit).either)
     )
 
     actual must (throwA(FiberFailure(Fail(ExampleError))))
@@ -389,7 +392,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual = unsafeRun(
       IO.absolve(
-        IO.bracket(IO.unit)(_ => IO.unit)(_ => Task.fail(ExampleError): Task[Unit]).either
+        IO.unit.bracket_(IO.unit)(TaskExampleError).either
       )
     )
 
@@ -397,8 +400,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.bracket(IO.unit)(_ => AsyncUnit[Nothing])(_ => asyncExampleError[Unit])
-    val io2 = IO.bracket(AsyncUnit[Throwable])(_ => IO.unit)(_ => asyncExampleError[Unit])
+    val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
+    val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
 
     unsafeRun(io1) must (throwA(FiberFailure(Fail(ExampleError))))
     unsafeRun(io2) must (throwA(FiberFailure(Fail(ExampleError))))
@@ -585,7 +588,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val io =
       for {
         promise <- Promise.make[Nothing, Unit]
-        fiber   <- IO.bracket(promise.succeed(()) *> IO.never)(_ => IO.unit)(_ => IO.unit).fork
+        fiber   <- IO.bracket(promise.succeed(()) <* IO.never)(_ => IO.unit)(_ => IO.unit).fork
         res     <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 42
@@ -596,8 +599,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       for {
         promise <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracketExit[Any, Nothing, Unit, Unit](promise.succeed(()) *> IO.never)((_, _) => IO.unit)(
-                    _ => IO.unit
+                  .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[_, _]) => IO.unit)(
+                    _ => IO.unit: IO[Nothing, Unit]
                   )
                   .fork
         res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
@@ -625,7 +628,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         p1 <- Promise.make[Nothing, Unit]
         p2 <- Promise.make[Nothing, Unit]
         fiber <- IO
-                  .bracketExit[Any, Nothing, Unit, Unit](IO.unit)((_, _) => p2.succeed(()) *> IO.unit)(
+                  .bracketExit(IO.unit)((_, _: Exit[_, _]) => p2.succeed(()) *> IO.unit)(
                     _ => p1.succeed(()) *> IO.never
                   )
                   .fork
@@ -702,10 +705,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       exitLatch  <- Promise.make[Nothing, Int]
       bracketed = IO
         .succeed(21)
-        .bracketExit[Any, Nothing, Unit] {
-          case (r, e) if e.interrupted => exitLatch.succeed(r)
-          case (_, _)                  => IO.die(new Error("Unexpected case"))
-        }(a => startLatch.succeed(a) *> IO.never)
+        .bracketExit(
+          (r: Int, exit: Exit[_, _]) =>
+            if (exit.interrupted) exitLatch.succeed(r)
+            else IO.die(new Error("Unexpected case"))
+        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
       fiber      <- bracketed.fork
       startValue <- startLatch.await
       _          <- fiber.interrupt.fork
@@ -715,6 +719,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     (0 to 100).map { _ =>
       unsafeRun(io) must_=== 42
     }.reduce(_ and _)
+  }
+
+  def testProvideIsModular = {
+    val zio =
+      (for {
+        v1 <- ZIO.environment[Int]
+        v2 <- ZIO.environment[Int].provide(2)
+        v3 <- ZIO.environment[Int]
+      } yield (v1, v2, v3)).provide(4)
+    unsafeRun(zio) must_=== ((4, 2, 4))
   }
 
   def testAsyncPureIsInterruptible = {
@@ -786,7 +800,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testBracket0UseIsInterruptible = {
     val io =
       for {
-        fiber <- IO.bracketExit[Any, Nothing, Unit, Unit](IO.unit)((_, _) => IO.unit)(_ => IO.never).fork
+        fiber <- IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => IO.unit)(_ => IO.never).fork
         res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
       } yield res
     unsafeRun(io) must_=== 0
@@ -1031,6 +1045,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   val InterruptCause1 = new Exception("Oh noes 1!")
   val InterruptCause2 = new Exception("Oh noes 2!")
   val InterruptCause3 = new Exception("Oh noes 3!")
+
+  val TaskExampleError: Task[Int] = IO.fail[Throwable](ExampleError)
 
   def asyncExampleError[A]: Task[A] =
     IO.effectAsync[Throwable, A](_(IO.fail(ExampleError)))
