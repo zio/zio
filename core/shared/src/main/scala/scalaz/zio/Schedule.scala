@@ -141,16 +141,18 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     )
 
   /**
-   * Runs the specified finalizer as soon as the schedule is complete. Note 
+   * Runs the specified finalizer as soon as the schedule is complete. Note
    * that unlike `ZIO#ensuring`, this method does not guarantee the finalizer
-   * will be run. The `Schedule` may not initialize or the driver of the 
-   * schedule may not run to completion. However, if the `Schedule` ever 
+   * will be run. The `Schedule` may not initialize or the driver of the
+   * schedule may not run to completion. However, if the `Schedule` ever
    * decides not to continue, then the finalizer will be run.
    */
-  final def ensuring(finalizer: UIO[_]): Schedule[R, A, B] = 
-    reconsiderM((_, decision) =>
-      (if (decision.cont) UIO.unit else finalizer) *> 
-      UIO.succeed(decision))
+  final def ensuring(finalizer: UIO[_]): Schedule[R, A, B] =
+    reconsiderM(
+      (_, decision) =>
+        (if (decision.cont) UIO.unit else finalizer) *>
+          UIO.succeed(decision)
+    )
 
   /**
    * Returns a new schedule that continues this schedule so long as the predicate
