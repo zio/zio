@@ -1,12 +1,13 @@
 package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Subscriber, Subscription }
-import scalaz.zio.{ Promise, Queue, Runtime, UIO }
+import scalaz.zio.stream.Take
+import scalaz.zio.stream.Take.{ End, Fail, Value }
+import scalaz.zio.{ Queue, Runtime, UIO }
 
-private[reactiveStreams] class QueueSubscriber[A, B](
+private[reactiveStreams] class QueueSubscriber[A](
   runtime: Runtime[_],
-  q: Queue[A],
-  p: Promise[Throwable, B]
+  q: Queue[Take[Throwable, A]]
 ) extends Subscriber[A] {
 
   // all signals in reactive streams are serialized, so we don't need any synchronization
@@ -14,12 +15,14 @@ private[reactiveStreams] class QueueSubscriber[A, B](
   private var signalledDemand                       = 0
 
   def signalDemand: UIO[Unit] =
-    q.size.flatMap { size =>
-      if (size == 0) {
-        val signalDemand = q.capacity - signalledDemand
-        UIO(subscriptionOpt.foreach(_.request(signalDemand.toLong)))
-      } else {
-        UIO.unit
+    subscriptionOpt.fold(UIO.unit) { subscription =>
+      q.size.flatMap { size =>
+        if (size == 0) {
+          val signalDemand = q.capacity - signalledDemand
+          UIO(subscription.request(signalDemand.toLong))
+        } else {
+          UIO.unit
+        }
       }
     }
 
@@ -38,7 +41,7 @@ private[reactiveStreams] class QueueSubscriber[A, B](
     if (t == null) {
       throw new NullPointerException("t was null in onNext")
     } else {
-      runtime.unsafeRun(q.offer(t))
+      runtime.unsafeRun(q.offer(Value(t)))
       signalledDemand -= 1
     }
 
@@ -46,9 +49,14 @@ private[reactiveStreams] class QueueSubscriber[A, B](
     if (e == null) {
       throw new NullPointerException("t was null in onError")
     } else {
-      runtime.unsafeRun(p.fail(e) *> q.shutdown)
+      signalledDemand = 0
+      subscriptionOpt = None
+      runtime.unsafeRun(q.offer(Fail(e)).void)
     }
 
-  override def onComplete(): Unit =
-    runtime.unsafeRun(q.shutdown)
+  override def onComplete(): Unit = {
+    signalledDemand = 0
+    subscriptionOpt = None
+    runtime.unsafeRun(q.offer(End).void)
+  }
 }

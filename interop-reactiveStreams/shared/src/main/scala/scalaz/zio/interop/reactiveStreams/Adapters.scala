@@ -1,8 +1,9 @@
 package scalaz.zio.interop.reactiveStreams
+
 import org.reactivestreams.{ Publisher, Subscriber }
 import scalaz.zio._
 import scalaz.zio.interop.reactiveStreams.SubscriberHelpers._
-import scalaz.zio.stream.{ Sink, Stream }
+import scalaz.zio.stream.{ Sink, Stream, Take }
 
 object Adapters {
 
@@ -16,16 +17,14 @@ object Adapters {
   ): ZIO[R, Nothing, (Subscriber[A], Task[B])] =
     for {
       runtime    <- ZIO.runtime[Any]
-      q          <- Queue.bounded[A](bufferSize)
-      p          <- Promise.make[Throwable, B]
-      subscriber = new QueueSubscriber[A, B](runtime, q, p)
+      q          <- Queue.bounded[Take[Throwable, A]](bufferSize + 1)
+      subscriber = new QueueSubscriber[A](runtime, q)
       fiber <- Stream
-                .fromQueue(q)
+                .fromTakeQueue(q)
                 .tap(_ => subscriber.signalDemand)
                 .run(sink)
                 .fork
-      _ <- p.done(fiber.join).fork
-    } yield (subscriber, p.await)
+    } yield (subscriber, fiber.join)
 
   /**
    * Create a [[Publisher]] from a [[Stream]].
@@ -42,7 +41,6 @@ object Adapters {
             fiber <- stream
                       .run(demandUnfoldSink(subscriber, demand))
                       .catchAll(e => UIO(subscriber.onError(e)))
-                      .flatMap(_ => demand.shutdown)
                       .fork
             // reactive streams rule 3.13
             _ <- (demand.awaitShutdown *> fiber.interrupt).fork
@@ -62,10 +60,10 @@ object Adapters {
   def subscriberToSink[A](subscriber: Subscriber[A]): UIO[Sink[Any, Nothing, Unit, A, Unit]] =
     for {
       runtime      <- ZIO.runtime[Any]
-      demandQ      <- Queue.unbounded[Long]
-      subscription = createSubscription(subscriber, demandQ, runtime)
+      demand       <- Queue.unbounded[Long]
+      subscription = createSubscription(subscriber, demand, runtime)
       _            <- UIO(subscriber.onSubscribe(subscription))
-    } yield demandUnfoldSink(subscriber, demandQ)
+    } yield demandUnfoldSink(subscriber, demand)
 
   /**
    * Create a [[Stream]] from a [[Publisher]].
@@ -73,15 +71,9 @@ object Adapters {
   def publisherToStream[A](publisher: Publisher[A], bufferSize: Int): UIO[Stream[Any, Throwable, A]] =
     for {
       runtime    <- ZIO.runtime[Any]
-      q          <- Queue.bounded[A](bufferSize)
-      p          <- Promise.make[Throwable, Unit]
-      subscriber = new QueueSubscriber[A, Unit](runtime, q, p)
+      q          <- Queue.bounded[Take[Throwable, A]](bufferSize + 1)
+      subscriber = new QueueSubscriber[A](runtime, q)
       _          <- UIO(publisher.subscribe(subscriber))
-    } yield
-      Stream
-        .fromQueue(q)
-        .tap(_ => subscriber.signalDemand)
-        .++(Stream.fromEffect(p.succeed(())).drain)
-        .merge(Stream.fromEffect(p.await).drain)
+    } yield Stream.fromTakeQueue(q).tap(_ => subscriber.signalDemand)
 
 }
