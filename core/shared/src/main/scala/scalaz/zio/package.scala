@@ -30,7 +30,6 @@ package object zio extends EitherCompat {
   val Managed = ManagedR
 
   type Schedule[-A, +B] = ScheduleR[Any, A, B]
-  val Schedule = ScheduleR
 
   val JustExceptions: PartialFunction[Throwable, Exception] = {
     case e: Exception => e

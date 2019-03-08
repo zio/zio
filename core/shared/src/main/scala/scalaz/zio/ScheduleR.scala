@@ -16,9 +16,12 @@
 
 package scalaz.zio
 
+import scalaz.zio.ScheduleR.Decision
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration.Duration
 import scalaz.zio.random.{ nextDouble, Random }
+
+import scala.annotation.implicitNotFound
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -503,7 +506,179 @@ trait ScheduleR[-R, -A, +B] extends Serializable { self =>
     }
 }
 
-object ScheduleR extends Serializable {
+trait Schedule_Functions extends Serializable {
+
+  type ConformsR[A]
+  implicit val ConformsAnyProof: ConformsR[Any]
+
+  /**
+   * A schedule that recurs forever, returning each input as the output.
+   */
+  final def identity[A]: Schedule[A, A] =
+    ScheduleR[Any, Unit, A, A](ZIO.unit, (a, s) => IO.succeed(Decision.cont(Duration.Zero, s, a)))
+
+  /**
+   * A schedule that recurs forever, returning the constant for every output.
+   */
+  final def succeed[A](a: A): Schedule[Any, A] = forever.const(a)
+
+  /**
+   * A schedule that recurs forever, returning the constant for every output (by-name version).
+   */
+  final def succeedLazy[A](a: => A): Schedule[Any, A] = forever.const(a)
+
+  /**
+   * A schedule that recurs forever, mapping input values through the
+   * specified function.
+   */
+  final def fromFunction[A, B](f: A => B): Schedule[A, B] = identity[A].map(f)
+
+  /**
+   * A schedule that never executes. Note that negating this schedule does not
+   * produce a schedule that executes.
+   */
+  final val never: Schedule[Any, Nothing] =
+    ScheduleR[Any, Nothing, Any, Nothing](UIO.never, (_, _) => UIO.never)
+
+  /**
+   * A schedule that recurs forever, producing a count of inputs.
+   */
+  final val forever: Schedule[Any, Int] = Schedule.unfold(0)(_ + 1)
+
+  /**
+   * A schedule that executes once.
+   */
+  final val once: Schedule[Any, Unit] = recurs(1).void
+
+  /**
+   * A new schedule derived from the specified schedule which adds the delay
+   * specified as output to the existing duration.
+   */
+  final def delayed[R: ConformsR, A](s: ScheduleR[R, A, Duration]): ScheduleR[R, A, Duration] =
+    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
+
+  /**
+   * A schedule that recurs forever, collecting all inputs into a list.
+   */
+  final def collect[A]: Schedule[A, List[A]] = identity[A].collect
+
+  /**
+   * A schedule that recurs for as long as the predicate evaluates to true.
+   */
+  final def doWhile[A](f: A => Boolean): Schedule[A, A] =
+    identity[A].whileInput(f)
+
+  /**
+   * A schedule that recurs for until the predicate evaluates to true.
+   */
+  final def doUntil[A](f: A => Boolean): Schedule[A, A] =
+    identity[A].untilInput(f)
+
+  /**
+   * A schedule that recurs forever, dumping input values to the specified
+   * sink, and returning those same values unmodified.
+   */
+  final def logInput[R: ConformsR, A](f: A => ZIO[R, Nothing, Unit]): ScheduleR[R, A, A] =
+    identity[A].logInput(f)
+
+  /**
+   * A schedule that recurs the specified number of times. Returns the number
+   * of repetitions so far.
+   *
+   * If 0 or negative numbers are given, the operation is not done at all so
+   * that in `(op: IO[E, A]).repeat(Schedule.recurs(0)) `, op is not done at all.
+   */
+  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ <= n)
+
+  /**
+   * A schedule that will recur forever with no delay, returning the duration
+   * between steps. You can chain this onto the end of schedules to find out
+   * what their delay is, e.g. `Schedule.spaced(1.second) >>> Schedule.delay`.
+   */
+  final val delay: Schedule[Any, Duration] =
+    forever.reconsider[Any, Duration]((_, d) => d.copy(finish = () => d.delay))
+
+  /**
+   * A schedule that will recur forever with no delay, returning the decision
+   * from the steps. You can chain this onto the end of schedules to find out
+   * what their decision is, e.g. `Schedule.recurs(5) >>> Schedule.decision`.
+   */
+  final val decision: Schedule[Any, Boolean] =
+    forever.reconsider[Any, Boolean]((_, d) => d.copy(finish = () => d.cont))
+
+  /**
+   * A schedule that always recurs without delay, and computes the output
+   * through recured application of a function to a base value.
+   */
+  final def unfold[A](a: => A)(f: A => A): Schedule[Any, A] =
+    unfoldM(IO.succeedLazy(a))(f.andThen(IO.succeedLazy[A](_)))
+
+  /**
+   * A schedule that always recurs without delay, and computes the output
+   * through recured application of a function to a base value.
+   */
+  final def unfoldM[R: ConformsR, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ScheduleR[R, Any, A] =
+    ScheduleR[R, A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(Duration.Zero, a, a)))
+
+  /**
+   * A schedule that waits for the specified amount of time between each
+   * input. Returns the number of inputs so far.
+   *
+   * <pre>
+   * |action|-----interval-----|action|-----interval-----|action|
+   * </pre>
+   */
+  final def spaced(interval: Duration): Schedule[Any, Int] =
+    forever.delayed(_ + interval)
+
+  /**
+   * A schedule that always recurs, increasing delays by summing the
+   * preceding two delays (similar to the fibonacci sequence). Returns the
+   * current duration between recurrences.
+   */
+  final def fibonacci(one: Duration): Schedule[Any, Duration] =
+    delayed(unfold[(Duration, Duration)]((Duration.Zero, one)) {
+      case (a1, a2) => (a2, a1 + a2)
+    }.map(_._1))
+
+  /**
+   * A schedule that always recurs, but will repeat on a linear time
+   * interval, given by `base * n` where `n` is the number of
+   * repetitions so far. Returns the current duration between recurrences.
+   */
+  final def linear(base: Duration): Schedule[Any, Duration] =
+    delayed(forever.map(i => base * i.doubleValue()))
+
+  /**
+   * A schedule that always recurs, but will wait a certain amount between
+   * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
+   * repetitions so far. Returns the current duration between recurrences.
+   */
+  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
+    delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
+}
+
+object Schedule extends Schedule_Functions {
+  @implicitNotFound(
+    "The environment type of all Schedule methods must be Any. If you want to use an environment, please use ScheduleR."
+  )
+  sealed trait ConformsR1[A]
+
+  type ConformsR[A] = ConformsR1[A]
+  implicit val ConformsAnyProof: ConformsR1[Any] = new ConformsR1[Any] {}
+
+}
+
+object ScheduleR extends Schedule_Functions {
+  sealed trait ConformsR1[A]
+
+  private val _ConformsR1: ConformsR1[Any] = new ConformsR1[Any] {}
+
+  type ConformsR[A] = ConformsR1[A]
+  implicit def ConformsRProof[A]: ConformsR[A] = _ConformsR1.asInstanceOf[ConformsR1[A]]
+
+  implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
+
   sealed case class Decision[+A, +B](cont: Boolean, delay: Duration, state: A, finish: () => B) { self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
     final def leftMap[C](f: A => C): Decision[C, B]             = copy(state = f(state))
@@ -539,85 +714,6 @@ object ScheduleR extends Serializable {
     }
 
   /**
-   * A schedule that recurs forever, returning each input as the output.
-   */
-  final def identity[A]: Schedule[A, A] =
-    ScheduleR[Any, Unit, A, A](ZIO.unit, (a, s) => IO.succeed(Decision.cont(Duration.Zero, s, a)))
-
-  /**
-   * A schedule that recurs forever, returning the constant for every output.
-   */
-  final def succeed[A](a: A): Schedule[Any, A] = forever.const(a)
-
-  /**
-   * A schedule that recurs forever, returning the constant for every output (by-name version).
-   */
-  final def succeedLazy[A](a: => A): Schedule[Any, A] = forever.const(a)
-
-  /**
-   * A schedule that recurs forever, mapping input values through the
-   * specified function.
-   */
-  final def fromFunction[A, B](f: A => B): ScheduleR[Any, A, B] = identity[A].map(f)
-
-  /**
-   * A schedule that never executes. Note that negating this schedule does not
-   * produce a schedule that executes.
-   */
-  final val never: Schedule[Any, Nothing] =
-    ScheduleR[Any, Nothing, Any, Nothing](UIO.never, (_, _) => UIO.never)
-
-  /**
-   * A schedule that recurs forever, producing a count of inputs.
-   */
-  final val forever: Schedule[Any, Int] = ScheduleR.unfold(0)(_ + 1)
-
-  /**
-   * A schedule that executes once.
-   */
-  final val once: Schedule[Any, Unit] = recurs(1).void
-
-  /**
-   * A new schedule derived from the specified schedule which adds the delay
-   * specified as output to the existing duration.
-   */
-  final def delayed[R, A](s: ScheduleR[R, A, Duration]): ScheduleR[R, A, Duration] =
-    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
-
-  /**
-   * A schedule that recurs forever, collecting all inputs into a list.
-   */
-  final def collect[A]: Schedule[A, List[A]] = identity[A].collect
-
-  /**
-   * A schedule that recurs for as long as the predicate evaluates to true.
-   */
-  final def doWhile[A](f: A => Boolean): Schedule[A, A] =
-    identity[A].whileInput(f)
-
-  /**
-   * A schedule that recurs for until the predicate evaluates to true.
-   */
-  final def doUntil[A](f: A => Boolean): Schedule[A, A] =
-    identity[A].untilInput(f)
-
-  /**
-   * A schedule that recurs forever, dumping input values to the specified
-   * sink, and returning those same values unmodified.
-   */
-  final def logInput[R, A](f: A => ZIO[R, Nothing, Unit]): ScheduleR[R, A, A] =
-    identity[A].logInput(f)
-
-  /**
-   * A schedule that recurs the specified number of times. Returns the number
-   * of repetitions so far.
-   *
-   * If 0 or negative numbers are given, the operation is not done at all so
-   * that in `(op: IO[E, A]).repeat(Schedule.recurs(0)) `, op is not done at all.
-   */
-  final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ <= n)
-
-  /**
    * A schedule that recurs forever without delay. Returns the elapsed time
    * since the schedule began.
    */
@@ -632,52 +728,11 @@ object ScheduleR extends Serializable {
   }
 
   /**
-   * A schedule that will recur forever with no delay, returning the duration
-   * between steps. You can chain this onto the end of schedules to find out
-   * what their delay is, e.g. `Schedule.spaced(1.second) >>> Schedule.delay`.
-   */
-  final val delay: Schedule[Any, Duration] =
-    forever.reconsider[Any, Duration]((_, d) => d.copy(finish = () => d.delay))
-
-  /**
-   * A schedule that will recur forever with no delay, returning the decision
-   * from the steps. You can chain this onto the end of schedules to find out
-   * what their decision is, e.g. `Schedule.recurs(5) >>> Schedule.decision`.
-   */
-  final val decision: Schedule[Any, Boolean] =
-    forever.reconsider[Any, Boolean]((_, d) => d.copy(finish = () => d.cont))
-
-  /**
    * A schedule that will recur until the specified duration elapses. Returns
    * the total elapsed time.
    */
   final def duration(duration: Duration): ScheduleR[Clock, Any, Duration] =
     elapsed.untilOutput(_ >= duration)
-
-  /**
-   * A schedule that always recurs without delay, and computes the output
-   * through recured application of a function to a base value.
-   */
-  final def unfold[A](a: => A)(f: A => A): Schedule[Any, A] =
-    unfoldM(IO.succeedLazy(a))(f.andThen(IO.succeedLazy[A](_)))
-
-  /**
-   * A schedule that always recurs without delay, and computes the output
-   * through recured application of a function to a base value.
-   */
-  final def unfoldM[R, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ScheduleR[R, Any, A] =
-    ScheduleR[R, A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(Duration.Zero, a, a)))
-
-  /**
-   * A schedule that waits for the specified amount of time between each
-   * input. Returns the number of inputs so far.
-   *
-   * <pre>
-   * |action|-----interval-----|action|-----interval-----|action|
-   * </pre>
-   */
-  final def spaced(interval: Duration): Schedule[Any, Int] =
-    forever.delayed(_ + interval)
 
   /**
    * A schedule that recurs on a fixed interval. Returns the number of
@@ -710,30 +765,4 @@ object ScheduleR extends Serializable {
           }
       )
   }
-
-  /**
-   * A schedule that always recurs, increasing delays by summing the
-   * preceding two delays (similar to the fibonacci sequence). Returns the
-   * current duration between recurrences.
-   */
-  final def fibonacci(one: Duration): Schedule[Any, Duration] =
-    delayed(unfold[(Duration, Duration)]((Duration.Zero, one)) {
-      case (a1, a2) => (a2, a1 + a2)
-    }.map(_._1))
-
-  /**
-   * A schedule that always recurs, but will repeat on a linear time
-   * interval, given by `base * n` where `n` is the number of
-   * repetitions so far. Returns the current duration between recurrences.
-   */
-  final def linear(base: Duration): Schedule[Any, Duration] =
-    delayed(forever.map(i => base * i.doubleValue()))
-
-  /**
-   * A schedule that always recurs, but will wait a certain amount between
-   * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
-   * repetitions so far. Returns the current duration between recurrences.
-   */
-  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
-    delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
 }
