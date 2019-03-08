@@ -8,7 +8,7 @@ import scalaz.zio.stream.{ Sink, Stream, Take }
 object Adapters {
 
   /**
-   * Create a [[Subscriber]] from a [[Sink]]. Returns a subscriber producing to the Sink and a [[Task]] of the value
+   * Create a `Subscriber` from a `Sink`. Returns a subscriber producing to the Sink and a `Task` of the value
    * produced by the Sink or any error either produced by the Sink or signaled to the subscriber.
    */
   def sinkToSubscriber[R, E <: Throwable, A1, A, B](
@@ -27,7 +27,7 @@ object Adapters {
     } yield (subscriber, fiber.join)
 
   /**
-   * Create a [[Publisher]] from a [[Stream]].
+   * Create a `Publisher` from a `Stream`.
    */
   def streamToPublisher[R, E <: Throwable, A](stream: Stream[R, E, A]): ZIO[R, Nothing, Publisher[A]] =
     ZIO.runtime.map { runtime => (subscriber: Subscriber[_ >: A]) =>
@@ -50,12 +50,12 @@ object Adapters {
     }
 
   /**
-   * Create a [[Sink]] from a [[Subscriber]]. The Sink will never fail.
+   * Create a `Sink` from a `Subscriber`. The Sink will never fail.
    *
-   * A [[Sink]] cannot signal [[Stream]] failure to the subscriber, as this requires a side channel from the [[Stream]].
-   * For this reason, using this adapter with a [[Stream]] that may fail will most likely leak resources and lead to
-   * unexpected behavior. If you need to cover such a case, convert the [[Stream]] to a [[Publisher]] instead and
-   * connect the [[Subscriber]] to the resulting [[Publisher]].
+   * A `Sink` cannot signal `Stream` failure to the subscriber, as this requires a side channel from the `Stream`.
+   * For this reason, using this adapter with a `Stream` that may fail will most likely leak resources and lead to
+   * unexpected behavior. If you need to cover such a case, convert the `Stream` to a `Publisher` instead and
+   * connect the `Subscriber` to the resulting `Publisher`.
    */
   def subscriberToSink[A](subscriber: Subscriber[A]): UIO[Sink[Any, Nothing, Unit, A, Unit]] =
     for {
@@ -66,7 +66,7 @@ object Adapters {
     } yield demandUnfoldSink(subscriber, demand)
 
   /**
-   * Create a [[Stream]] from a [[Publisher]].
+   * Create a `Stream` from a `Publisher`.
    */
   def publisherToStream[A](publisher: Publisher[A], bufferSize: Int): UIO[Stream[Any, Throwable, A]] =
     for {

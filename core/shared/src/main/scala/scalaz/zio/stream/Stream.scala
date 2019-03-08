@@ -746,7 +746,7 @@ object Stream extends Serializable {
    * This is the inverse operation of `toQueue`.
    */
   def fromTakeQueue[E, A](q: Queue[Take[E, A]]): Stream[Any, E, A] =
-    Stream.unfoldM(())(
+    unfoldM(())(
       _ =>
         q.take.flatMap {
           case Take.Value(a) => UIO(Some((a, ())))
