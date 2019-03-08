@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, TestRuntime }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
@@ -41,6 +41,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.fromQueue          $fromQueue
   Stream.toQueue            $toQueue
   Stream.peel               $peel
+  Stream.drain              $drain
 
   Stream merging
     merge                         $merge
@@ -364,4 +365,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
     result must_=== Success(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
   }
+
+  private def drain =
+    unsafeRun(
+      for {
+        ref <- Ref.make(List[Int]())
+        _   <- Stream.range(0, 10).mapM(i => ref.update(i :: _)).drain.run(Sink.drain)
+        l   <- ref.get
+      } yield l.reverse must_=== (0 to 10).toList
+    )
 }
