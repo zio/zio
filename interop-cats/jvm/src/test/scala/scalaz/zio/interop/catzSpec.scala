@@ -122,7 +122,6 @@ class catzSpec
   checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
   checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Util.Par].parallel[Int, Int])
 
-  // Test of summoning instances for R
   object summoningInstancesTest {
     import cats._, cats.effect._
     Concurrent[TaskR[String, ?]]
@@ -135,6 +134,9 @@ class catzSpec
     Functor[TaskR[String, ?]]
     Parallel[TaskR[String, ?], ParIO[String, Throwable, ?]]
     SemigroupK[TaskR[String, ?]]
+
+    def concurrentEffect[R: Runtime] = ConcurrentEffect[TaskR[R, ?]]
+    def effect[R: Runtime]           = Effect[TaskR[R, ?]]
   }
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
