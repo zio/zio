@@ -200,10 +200,22 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     (self && that).map(_._2)
 
   /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, C] =
+    self *> that
+
+  /**
    * The same as `&&`, but ignores the right output.
    */
   final def <*[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, B] =
     (self && that).map(_._1)
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, B] =
+    self <* that
 
   /**
    * Returns a new schedule that continues as long as either schedule continues,
@@ -295,7 +307,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * that log failures, decisions, or computed values.
    */
   final def onDecision[A1 <: A](f: (A1, Schedule.Decision[State, B]) => UIO[Unit]): Schedule[R, A1, B] =
-    updated(update => (a, s) => update(a, s).peek(step => f(a, step)))
+    updated(update => (a, s) => update(a, s).tap(step => f(a, step)))
 
   /**
    * Returns a new schedule with the specified effectful modification

@@ -57,14 +57,14 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
    * Atomically modifies the `RefM` with the specified function, returning the
    * value immediately after modification.
    */
-  final def update(f: A => UIO[A]): UIO[A] =
+  final def update[R](f: A => ZIO[R, Nothing, A]): ZIO[R, Nothing, A] =
     modify(a => f(a).map(a => (a, a)))
 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
    */
-  final def updateSome(pf: PartialFunction[A, UIO[A]]): UIO[A] =
+  final def updateSome[R](pf: PartialFunction[A, ZIO[R, Nothing, A]]): ZIO[R, Nothing, A] =
     modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
 
   /**
@@ -72,11 +72,12 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
    * a return value for the modification. This is a more powerful version of
    * `update`.
    */
-  final def modify[B](f: A => UIO[(B, A)]): UIO[B] =
+  final def modify[R, B](f: A => ZIO[R, Nothing, (B, A)]): ZIO[R, Nothing, B] =
     for {
       promise <- Promise.make[Nothing, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
-      bundle  = RefM.Bundle(ref, f, promise)
+      env     <- ZIO.environment[R]
+      bundle  = RefM.Bundle(ref, f.andThen(_.provide(env)), promise)
       b <- (for {
             _ <- queue.offer(bundle)
             b <- promise.await
@@ -89,11 +90,16 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[A, _]]) ext
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
    */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, UIO[(B, A)]]): UIO[B] =
+  final def modifySome[R, B](default: B)(pf: PartialFunction[A, ZIO[R, Nothing, (B, A)]]): ZIO[R, Nothing, B] =
     for {
       promise <- Promise.make[Nothing, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
-      bundle  = RefM.Bundle(ref, pf.orElse[A, UIO[(B, A)]] { case a => IO.succeed(default -> a) }, promise)
+      env     <- ZIO.environment[R]
+      bundle = RefM.Bundle(
+        ref,
+        pf.andThen(_.provide(env)).orElse[A, UIO[(B, A)]] { case a => IO.succeed(default -> a) },
+        promise
+      )
       b <- (for {
             _ <- queue.offer(bundle)
             b <- promise.await
@@ -130,4 +136,5 @@ object RefM extends Serializable {
       queue <- Queue.bounded[Bundle[A, _]](n)
       _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref, onDefect))).forever.fork
     } yield new RefM[A](ref, queue)
+
 }

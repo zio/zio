@@ -76,7 +76,7 @@ val z: IO[IOException, Array[Byte]] =
 If you want more control on the next action and better performance you can use the primitive which all the previous operations are based on, it's called `redeem` and it can be seen as the combination of `flatMap` and `catchAll`. It is useful if you find yourself using combinations of `attempt` or `catchAll` with `flatMap`, using `redeem` you can achieve the same and avoid the intermediate `Either` allocation and the subsequent call to `flatMap`.
 
 ```tut:invisible
-sealed abstract class Content
+sealed trait Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
 def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)

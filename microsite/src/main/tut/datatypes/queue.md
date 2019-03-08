@@ -96,6 +96,17 @@ val res: UIO[String] = for {
 } yield v
 ```
 
+You can consume the first item with `poll`. If the queue is empty you will get `None`, otherwise the top item will be returned wrapped in `Some`.
+
+```tut:silent
+val res: UIO[Option[Int]] = for {
+  queue <- Queue.bounded[Int](100)
+  _ <- queue.offer(10)
+  _ <- queue.offer(20)
+  head <- queue.poll
+} yield head
+```
+
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
 
 ```tut:silent
