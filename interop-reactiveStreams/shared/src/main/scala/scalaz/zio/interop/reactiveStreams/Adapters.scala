@@ -74,19 +74,15 @@ object Adapters {
     for {
       runtime    <- ZIO.runtime[Any]
       q          <- Queue.bounded[A](bufferSize)
-      p          <- Promise.make[Throwable, Remove.type]
-      subscriber = new QueueSubscriber[A, Remove.type](runtime, q, p)
+      p          <- Promise.make[Throwable, Unit]
+      subscriber = new QueueSubscriber[A, Unit](runtime, q, p)
       _          <- UIO(publisher.subscribe(subscriber))
     } yield
       Stream
         .fromQueue(q)
         .tap(_ => subscriber.signalDemand)
-        .++(toZeroElementSideEffectingStream(p.succeed(Remove)))
-        .merge(toZeroElementSideEffectingStream(p.await))
+        .++(Stream.lift(p.succeed(())).drain)
+        .merge(Stream.lift(p.await).drain)
 
-  private case object Remove
-
-  private def toZeroElementSideEffectingStream[E, A](io: IO[E, _]): Stream[Any, E, A] =
-    Stream.lift(io.map(_ => Remove)).filterNot(_ == Remove).map(_.asInstanceOf[A])
 
 }
