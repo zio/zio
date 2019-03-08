@@ -137,9 +137,10 @@ class Queue[A] private (
    * Future calls to `offer*` and `take*` will be interrupted immediately.
    */
   final val shutdown: UIO[Unit] =
-    (shutdownHook.succeed(()) >>= (
-      IO.when(_)(IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interrupt) *> strategy.shutdown))
-    )).uninterruptible
+    IO.whenM(shutdownHook.succeed(()))(
+        IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interrupt) *> strategy.shutdown)
+      )
+      .uninterruptible
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
