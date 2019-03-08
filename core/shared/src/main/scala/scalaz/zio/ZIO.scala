@@ -129,6 +129,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Alias for `flatMap`.
+   *
+   * {{{
+   * val parsed = readFile("foo.txt") >>= parseFile
+   * }}}
+   */
+  final def >>=[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = flatMap(k)
+
+  /**
    * Returns an effect that forks this effect into its own separate fiber,
    * returning the fiber immediately, without waiting for it to compute its
    * value.
@@ -1229,6 +1238,19 @@ trait ZIOFunctions extends Serializable {
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
   final def unsandbox[R >: LowerR, E <: UpperE, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
+
+  /**
+   * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
+   */
+  final def fromFunction[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
+    environment[R].map(f)
+
+  /**
+   * Lifts an effectful function whose effect requires no environment into
+   * an effect that requires the input to the function.
+   */
+  final def fromFunctionM[R >: LowerR, E, A](f: R => IO[E, A]): ZIO[R, E, A] =
+    environment[R].flatMap(f)
 
   /**
    * Lifts an `Either` into a `ZIO` value.
