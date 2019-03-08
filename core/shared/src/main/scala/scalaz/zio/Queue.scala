@@ -136,12 +136,10 @@ class Queue[A] private (
    * Interrupts any fibers that are suspended on `offer` or `take`.
    * Future calls to `offer*` and `take*` will be interrupted immediately.
    */
-  final val shutdown: UIO[Unit] = (for {
-    _      <- shutdownHook.succeed(())
-    takers <- IO.effectTotal(unsafePollAll(takers))
-    _      <- IO.foreachPar(takers)(_.interrupt)
-    _      <- strategy.shutdown
-  } yield ()).uninterruptible
+  final val shutdown: UIO[Unit] =
+    (shutdownHook.succeed(()) >>= (
+      IO.when(_)(IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interrupt) *> strategy.shutdown))
+    )).uninterruptible
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
