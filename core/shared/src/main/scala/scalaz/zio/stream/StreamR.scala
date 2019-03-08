@@ -63,6 +63,26 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Converts this stream to a stream that executes its effects but emits no
+   * elements. Useful for sequencing effects using streams:
+   *
+   * {{{
+   * (Stream(1, 2, 3).tap(i => ZIO(println(i))) ++
+   *   Stream.lift(ZIO(println("Done!"))).drain ++
+   *   Stream(4, 5, 6).tap(i => ZIO(println(i)))).run(Sink.drain)
+   * }}}
+   */
+  final def drain: StreamR[R, E, Nothing] =
+    new StreamR[R, E, Nothing] {
+      override def fold[R1 <: R, E1 >: E, A1 >: Nothing, S]: Fold[R1, E1, A1, S] =
+        IO.succeedLazy { (s, cont, _) =>
+          self.fold[R1, E1, A, S].flatMap { f0 =>
+            f0(s, cont, (s, _) => IO.succeed(s))
+          }
+        }
+    }
+
+  /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
@@ -671,7 +691,7 @@ object StreamR extends Serializable {
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
    */
-  final def lift[R, E, A](fa: ZIO[R, E, A]): StreamR[R, E, A] = new StreamR[R, E, A] {
+  final def fromEffect[R, E, A](fa: ZIO[R, E, A]): StreamR[R, E, A] = new StreamR[R, E, A] {
     override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) fa.flatMap(f(s, _))

@@ -13,6 +13,9 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       for 'recurs(a positive given number)' repeats that additional number of time $repeatN
    Repeat on failure does not actually repeat $repeatFail
    Repeat a scheduled repeat repeats the whole number $repeatRepeat
+
+   Repeat an action 2 times and call `ensuring` should
+      run the specified finalizer as soon as the schedule is complete $ensuring
     """
 
   val repeat: Int => ZIO[Clock, Nothing, Int] = (n: Int) =>
@@ -101,4 +104,13 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
     repeated must_=== "Error: 1"
   }
+
+  def ensuring =
+    unsafeRun(for {
+      p          <- Promise.make[Nothing, Unit]
+      r          <- Ref.make(0)
+      _          <- r.update(_ + 2).repeat(Schedule.recurs(2)).ensuring(p.succeed(()))
+      v          <- r.get
+      finalizerV <- p.poll
+    } yield (v must_=== 6) and (finalizerV.isDefined must beTrue))
 }

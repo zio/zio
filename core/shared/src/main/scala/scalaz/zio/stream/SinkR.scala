@@ -489,7 +489,7 @@ object SinkR {
       def extract(state: State): ZIO[R, E, B]                         = b
     }
 
-  final def lift[A, B](f: A => B): SinkR[Any, Unit, Nothing, A, B] =
+  final def fromFunction[A, B](f: A => B): SinkR[Any, Unit, Nothing, A, B] =
     new SinkPure[Unit, Nothing, A, B] {
       type State = Option[A]
       val initialPure                                        = Step.more(None)
