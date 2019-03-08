@@ -11,7 +11,7 @@ Checkout `interop-reactiveStreams` module for inter-operation support.
 ### Reactive Streams `Producer` and `Subscriber`
 
 **ZIO** integrates with [Reactive Streams](http://reactivestreams.org) by providing conversions from `zio.stream.Stream` to `org.reactivestreams.Publisher`
-and from `zio.stream.Sink` to `org.reactivestreams.Subscriber`.
+and from `zio.stream.Sink` to `org.reactivestreams.Subscriber` and vice versa.
 
 #### Example
 
