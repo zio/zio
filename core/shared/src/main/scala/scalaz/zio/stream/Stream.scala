@@ -742,9 +742,9 @@ object Stream extends Serializable {
     unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.succeed(None))
 
   /**
-    * Constructs a potentially finite or failing stream from a `Queue` of `Take`.
-    * This is the inverse operation of `toQueue`.
-    */
+   * Constructs a potentially finite or failing stream from a `Queue` of `Take`.
+   * This is the inverse operation of `toQueue`.
+   */
   def fromTakeQueue[E, A](q: Queue[Take[E, A]]): Stream[Any, E, A] =
     Stream.unfoldM(())(
       _ =>
