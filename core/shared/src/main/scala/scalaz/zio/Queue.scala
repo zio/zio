@@ -27,12 +27,12 @@ import scalaz.zio.internal.MutableConcurrentQueue
 class Queue[A] private (
   queue: MutableConcurrentQueue[A],
   takers: MutableConcurrentQueue[Promise[Nothing, A]],
-  shutdownHook: Ref[Option[UIO[Unit]]],
+  shutdownHook: Promise[Nothing, Unit],
   strategy: Strategy[A]
 ) extends Serializable {
 
   private final val checkShutdownState: UIO[Unit] =
-    shutdownHook.get.flatMap(_.fold[UIO[Unit]](IO.interrupt)(_ => IO.unit))
+    shutdownHook.poll.flatMap(_.fold[UIO[Unit]](IO.unit)(_ => IO.interrupt))
 
   @tailrec
   private final def pollTakersThenQueue(): Option[(Promise[Nothing, A], A)] =
@@ -123,16 +123,7 @@ class Queue[A] private (
    * The `IO` returned by this method will not resume until the queue has been shutdown.
    * If the queue is already shutdown, the `IO` will resume right away.
    */
-  final val awaitShutdown: UIO[Unit] =
-    for {
-      p  <- Promise.make[Nothing, Unit]
-      io = p.succeed(()).void
-      _ <- IO.flatten(shutdownHook.modify {
-            case None       => (io, None)
-            case Some(hook) => (IO.unit, Some(hook *> io))
-          })
-      _ <- p.await
-    } yield ()
+  final val awaitShutdown: UIO[Unit] = shutdownHook.await
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
@@ -146,12 +137,9 @@ class Queue[A] private (
    * Future calls to `offer*` and `take*` will be interrupted immediately.
    */
   final val shutdown: UIO[Unit] = (for {
-    hook <- shutdownHook.modify {
-             case None       => (IO.unit, None)
-             case Some(hook) => (hook, None)
-           }
+    _      <- shutdownHook.succeed(())
     takers <- IO.effectTotal(unsafePollAll(takers))
-    _      <- IO.foreachPar(takers)(_.interrupt) *> hook
+    _      <- IO.foreachPar(takers)(_.interrupt)
     _      <- strategy.shutdown
   } yield ()).uninterruptible
 
@@ -426,8 +414,8 @@ object Queue {
     IO.effectTotal(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
 
   private final def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): UIO[Queue[A]] =
-    Ref
-      .make[Option[UIO[Unit]]](Some(IO.unit))
-      .map(ref => new Queue[A](queue, MutableConcurrentQueue.unbounded[Promise[Nothing, A]], ref, strategy))
+    Promise
+      .make[Nothing, Unit]
+      .map(p => new Queue[A](queue, MutableConcurrentQueue.unbounded[Promise[Nothing, A]], p, strategy))
 
 }
