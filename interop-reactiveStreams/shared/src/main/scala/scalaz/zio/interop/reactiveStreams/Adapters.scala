@@ -81,8 +81,7 @@ object Adapters {
       Stream
         .fromQueue(q)
         .tap(_ => subscriber.signalDemand)
-        .++(Stream.lift(p.succeed(())).drain)
-        .merge(Stream.lift(p.await).drain)
-
+        .++(Stream.fromEffect(p.succeed(())).drain)
+        .merge(Stream.fromEffect(p.await).drain)
 
 }
