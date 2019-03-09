@@ -1,6 +1,7 @@
 package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.mutable.{ Map => MutableMap }
@@ -174,7 +175,7 @@ object STM {
 
     abstract class Entry {
       type A
-      val tVar: TVar[A]
+      val tvar: TVar[A]
       var newValue: A
       val expected: Versioned[A]
 
@@ -189,13 +190,13 @@ object STM {
        * `TVar` is equal to the expected version.
        */
       final def isValid: Boolean =
-        tVar.versioned eq expected
+        tvar.versioned eq expected
 
       /**
        * Commits the new value to the `TVar`.
        */
       final def commit(): Unit =
-        tVar.versioned = new Versioned(newValue)
+        tvar.versioned = new Versioned(newValue)
     }
 
     object Entry {
@@ -204,10 +205,10 @@ object STM {
        * Creates an entry for the journal, given the `TVar` being updated, the
        * new value of the `TVar`, and the expected version of the `TVar`.
        */
-      def apply[A0](tVar0: TVar[A0], newValue0: A0, expected0: Versioned[A0]): Entry =
+      def apply[A0](tvar0: TVar[A0], newValue0: A0, expected0: Versioned[A0]): Entry =
         new Entry {
           type A = A0
-          val tVar     = tVar0
+          val tvar     = tvar0
           var newValue = newValue0
           val expected = expected0
         }
@@ -233,7 +234,7 @@ object STM {
       })
 
     /**
-     * Sets the value of the `TVar`.
+     * Sets the value of the `tvar`.
      */
     final def set(newValue: A): STM[Nothing, Unit] =
       new STM(journal => {
@@ -282,11 +283,11 @@ object STM {
 
         val todo = new AtomicReference[UIO[_]](null)
 
-        val tVar = new TVar(id, versioned, todo)
+        val tvar = new TVar(id, versioned, todo)
 
-        journal.update(id, Entry(tVar, value, versioned))
+        journal.update(id, Entry(tvar, value, versioned))
 
-        TRez.Succeed(tVar)
+        TRez.Succeed(tvar)
       })
   }
 
@@ -312,36 +313,72 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-    IO.absolve(IO.effectTotal {
+    IO.effectAsyncMaybe[E, A] { k =>
       import internal.semaphore
 
-      var loop  = true
-      var value = null.asInstanceOf[TRez[E, A]]
+      val done = new AtomicBoolean(false)
 
-      while (loop) {
-        val journal = MutableMap.empty[Long, Entry]
+      def tryTransaction: Option[IO[E, A]] = done.synchronized {
+        if (done.get) None
+        else {
+          var journal = null.asInstanceOf[MutableMap[Long, Entry]]
+          var value   = null.asInstanceOf[TRez[E, A]]
 
-        value = stm run journal
+          var loop = true
 
-        if (value != TRez.Retry) {
-          try {
-            semaphore.acquire()
+          while (loop) {
+            journal = MutableMap.empty[Long, Entry]
+            value = stm run journal
 
-            if (journal.values forall (_.isValid)) {
-              journal.values foreach (_.commit())
+            if (value != TRez.Retry) {
+              done set true
 
-              loop = false
-            }
-          } finally semaphore.release()
-        } else loop = false
+              try {
+                semaphore.acquire()
+
+                if (journal.values forall (_.isValid)) {
+                  journal.values foreach (_.commit())
+
+                  loop = false
+                }
+              } finally semaphore.release()
+            } else loop = false
+          }
+
+          value match {
+            case TRez.Succeed(a) => Some(IO.succeed(a))
+            case TRez.Fail(e)    => Some(IO.fail(e))
+            case TRez.Retry =>
+              val tryLater: UIO[Unit] =
+                UIO.effectTotal {
+                  tryTransaction match {
+                    case None     =>
+                    case Some(io) => k(io)
+                  }
+                }
+
+              journal.values.foreach { entry =>
+                val tvar = entry.tvar
+
+                var loop = true
+                while (loop) {
+                  val oldTodo = tvar.todo.get
+
+                  val newTodo =
+                    if (oldTodo eq null) tryLater
+                    else oldTodo *> tryLater
+
+                  loop = tvar.todo.compareAndSet(oldTodo, newTodo)
+                }
+              }
+
+              None
+          }
+        }
       }
 
-      value match {
-        case TRez.Succeed(a) => Right(a)
-        case TRez.Fail(e)    => Left(e)
-        case TRez.Retry      => ???
-      }
-    })
+      tryTransaction
+    }
 
   /**
    * Abort and retry the whole transaction when any of the underlying
