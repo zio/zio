@@ -127,6 +127,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   RTS interruption
     blocking IO is interruptible            $testBlockingIOIsInterruptible
+    blocking IO interruption is pure        $testInterruptedBlockingIO
     sync forever is interruptible           $testInterruptSyncForever
     interrupt of never                      $testNeverIsInterruptible
     asyncPure is interruptible              $testAsyncPureIsInterruptible
@@ -1031,6 +1032,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _     <- fiber.interrupt
       value <- done.get
     } yield value must_=== true
+  )
+
+  def testInterruptedBlockingIO = unsafeRun(
+    for {
+      flag  <- Ref.make(false)
+      fiber <- blocking.interruptible { Thread.sleep(Long.MaxValue) }.ensuring(flag.set(true)).fork
+      res   <- fiber.interrupt
+      value <- flag.get
+    } yield (res, value) must_=== ((Exit.interrupt, true))
   )
 
   def testInterruptSyncForever = unsafeRun(
