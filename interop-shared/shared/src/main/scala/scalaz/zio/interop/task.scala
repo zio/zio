@@ -22,7 +22,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 
 object Util {
-  type Par[A] = Par.T[Throwable, A]
+  type Par[A] = Par.T[Any, Throwable, A]
 
   final def fromFuture[E, A](ec: ExecutionContext)(io: Task[Future[A]]): Task[A] =
     io.either.flatMap { tf =>
