@@ -312,7 +312,7 @@ object STM {
    * Abort and retry the whole transaction when any of the underlying
    * variables have changed.
    */
-  final val retry: STM[Nothing, Nothing] = ???
+  final def retry: STM[Nothing, Nothing] = ???
 
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
