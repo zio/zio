@@ -8,16 +8,21 @@ import cats.effect.laws.ConcurrentEffectLaws
 import cats.effect.laws.discipline.arbitrary._
 import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests, EffectTests, Parameters }
 import cats.effect.laws.util.{ TestContext, TestInstances }
-import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
 import cats.implicits._
+import cats.laws._
+import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
 import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
 import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
 import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
-import scalaz.zio.interop.catz._
-import cats.laws._
+import scalaz.zio.blocking.Blocking
+import scalaz.zio.clock.Clock
+import scalaz.zio.console.Console
 import scalaz.zio.internal.PlatformLive
+import scalaz.zio.interop.catz._
+import scalaz.zio.random.Random
+import scalaz.zio.system.System
 
 trait ConcurrentEffectLawsOverrides[F[_]] extends ConcurrentEffectLaws[F] {
 
@@ -63,10 +68,13 @@ class catzSpec
     with Checkers
     with Discipline
     with TestInstances
-    with GenIO
-    with DefaultRuntime {
+    with GenIO {
 
-  override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
+  type Env = Clock with Console with System with Random with Blocking
+
+  implicit val rts: Runtime[Env] = new DefaultRuntime {
+    override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
+  }
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()
@@ -102,25 +110,42 @@ class catzSpec
 
   // TODO: reintroduce repeated ConcurrentTests as they're removed due to the hanging CI builds (see https://github.com/scalaz/scalaz-zio/pull/482)
   checkAllAsync(s"ConcurrentEffect[Task]", implicit tctx => IOConcurrentEffectTests().concurrentEffect[Int, Int, Int])
-  checkAllAsync("Concurrent[Task]", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
   checkAllAsync("Effect[Task]", implicit tctx => EffectTests[Task].effect[Int, Int, Int])
+  checkAllAsync("Concurrent[Task]", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
   checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
   checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
   checkAllAsync(
     "Alternative[IO[Option[Unit], ?]]",
     (_) => AlternativeTests[IO[Option[Unit], ?]].alternative[Int, Int, Int]
   )
-  checkAllAsync("SemigroupK[UIO[?]]", (_) => SemigroupKTests[UIO[?]].semigroupK[Int])
+  checkAllAsync("SemigroupK[Task]", (_) => SemigroupKTests[Task].semigroupK[Int])
   checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
   checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Util.Par].parallel[Int, Int])
+
+  object summoningInstancesTest {
+    import cats._, cats.effect._
+    Concurrent[TaskR[String, ?]]
+    Async[TaskR[String, ?]]
+    LiftIO[TaskR[String, ?]]
+    Sync[TaskR[String, ?]]
+    MonadError[TaskR[String, ?], Throwable]
+    Monad[TaskR[String, ?]]
+    Applicative[TaskR[String, ?]]
+    Functor[TaskR[String, ?]]
+    Parallel[TaskR[String, ?], ParIO[String, Throwable, ?]]
+    SemigroupK[TaskR[String, ?]]
+
+    def concurrentEffect[R: Runtime] = ConcurrentEffect[TaskR[R, ?]]
+    def effect[R: Runtime]           = Effect[TaskR[R, ?]]
+  }
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
     new Eq[IO[E, A]] {
       import scalaz.zio.duration._
 
       def eqv(io1: IO[E, A], io2: IO[E, A]): Boolean = {
-        val v1  = unsafeRunSync(io1.timeout(20.seconds)).map(_.get)
-        val v2  = unsafeRunSync(io2.timeout(20.seconds)).map(_.get)
+        val v1  = rts.unsafeRunSync(io1.timeout(20.seconds)).map(_.get)
+        val v2  = rts.unsafeRunSync(io2.timeout(20.seconds)).map(_.get)
         val res = v1 === v2
         if (!res) {
           println(s"Mismatch: $v1 != $v2")
@@ -129,18 +154,21 @@ class catzSpec
       }
     }
 
-  implicit def catsParEQ[E: Eq, A: Eq]: Eq[ParIO[E, A]] =
-    new Eq[ParIO[E, A]] {
-      def eqv(io1: ParIO[E, A], io2: ParIO[E, A]): Boolean =
-        unsafeRun(Par.unwrap(io1).either) === unsafeRun(Par.unwrap(io2).either)
+  implicit def catsParEQ[E: Eq, A: Eq]: Eq[ParIO[Any, E, A]] =
+    new Eq[ParIO[Any, E, A]] {
+      def eqv(io1: ParIO[Any, E, A], io2: ParIO[Any, E, A]): Boolean =
+        rts.unsafeRun(Par.unwrap(io1).either) === rts.unsafeRun(Par.unwrap(io2).either)
     }
 
   implicit def params: Parameters =
     Parameters.default.copy(allowNonTerminationLaws = false)
 
+  implicit def zioArbitrary[E, A: Arbitrary: Cogen, R: Arbitrary: Cogen]: Arbitrary[ZIO[R, E, A]] =
+    Arbitrary(genSuccess[E, A])
+
   implicit def ioArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
     Arbitrary(genSuccess[E, A])
 
-  implicit def ioParArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[ParIO[E, A]] =
+  implicit def ioParArbitrary[E, A: Arbitrary: Cogen, R <: Any]: Arbitrary[ParIO[R, E, A]] =
     Arbitrary(genSuccess[E, A].map(Par.apply))
 }
