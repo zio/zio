@@ -1,6 +1,7 @@
 package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.mutable.{ Map => MutableMap }
 
@@ -218,7 +219,7 @@ object STM {
   /**
    * A variable that can be modified as part of a transactional computation.
    */
-  class TVar[A] private (val id: Long, @volatile var versioned: Versioned[A]) {
+  class TVar[A] private (val id: Long, @volatile var versioned: Versioned[A], val todo: AtomicReference[UIO[_]]) {
     self =>
 
     /**
@@ -279,7 +280,9 @@ object STM {
         val value     = a
         val versioned = new Versioned(value)
 
-        val tVar = new TVar(id, versioned)
+        val todo = new AtomicReference[UIO[_]](null)
+
+        val tVar = new TVar(id, versioned, todo)
 
         journal.update(id, Entry(tVar, value, versioned))
 
@@ -312,39 +315,40 @@ object STM {
     IO.absolve(IO.effectTotal {
       import internal.semaphore
 
-      var retry = true
-      var value = null.asInstanceOf[Either[E, A]]
+      var loop  = true
+      var value = null.asInstanceOf[TRez[E, A]]
 
-      while (retry) {
+      while (loop) {
         val journal = MutableMap.empty[Long, Entry]
 
-        val rez = stm run journal
+        value = stm run journal
 
-        rez match {
-          case TRez.Succeed(a) => value = Right(a)
-          case TRez.Fail(e)    => value = Left(e)
-          case TRez.Retry      => ???
-        }
+        if (value != TRez.Retry) {
+          try {
+            semaphore.acquire()
 
-        try {
-          semaphore.acquire()
+            if (journal.values forall (_.isValid)) {
+              journal.values foreach (_.commit())
 
-          if (journal.values forall (_.isValid)) {
-            journal.values foreach (_.commit())
-
-            retry = false
-          }
-        } finally semaphore.release()
+              loop = false
+            }
+          } finally semaphore.release()
+        } else loop = false
       }
 
-      value
+      value match {
+        case TRez.Succeed(a) => Right(a)
+        case TRez.Fail(e)    => Left(e)
+        case TRez.Retry      => ???
+      }
     })
 
   /**
    * Abort and retry the whole transaction when any of the underlying
    * variables have changed.
    */
-  final def retry: STM[Nothing, Nothing] = ???
+  final val retry: STM[Nothing, Nothing] =
+    new STM(_ => TRez.Retry)
 
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
