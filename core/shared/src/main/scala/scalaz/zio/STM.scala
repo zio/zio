@@ -34,73 +34,112 @@ final class STM[+E, +A] private (
 ) extends AnyVal { self =>
 
   /**
-   * Maps from one error type to another.
+   * Converts the failure channel into an `Either`.
    */
-  final def mapError[E1](f: E => E1): STM[E1, A] =
-    new STM(journal => self.run(journal) match {
-      case Left(e) => Left(f(e))
-      case r => r.asInstanceOf[Either[E1, A]]
-    })
-
-  /**
-   * Maps the value produced by the computation.
-   */
-  final def map[B](f: A => B): STM[E, B] =
-    new STM(journal => self.run(journal) match {
-      case Right(a) => Right(f(a))
-      case l => l.asInstanceOf[Either[E, B]]
-    })
+  final def either: STM[Nothing, Either[E, A]] =
+    new STM(
+      journal =>
+        self.run(journal) match {
+          case value => Right(value)
+        }
+    )
 
   /**
    * Feeds the value produced by this computation to the specified computation,
    * and then runs that computation as well to produce its failure or value.
    */
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
-    new STM(journal =>
+    new STM(
+      journal =>
         self.run(journal) match {
           case Right(a) => f(a).run(journal)
           case l        => l.asInstanceOf[Either[E1, B]]
-      }
+        }
     )
+
+  /**
+   * Folds over the `STM` effect, handling both failure and success.
+   */
+  final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
+    new STM(
+      journal =>
+        self.run(journal) match {
+          case Left(e)  => Right(f(e))
+          case Right(a) => Right(g(a))
+        }
+    )
+
+  /**
+   * Effectfully folds over the `STM` effect, handling both failure and success.
+   */
+  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
+    new STM(
+      journal =>
+        self.run(journal) match {
+          case Left(e)  => f(e) run journal
+          case Right(a) => g(a) run journal
+        }
+    )
+
+  /**
+   * Maps the value produced by the computation.
+   */
+  final def map[B](f: A => B): STM[E, B] =
+    new STM(
+      journal =>
+        self.run(journal) match {
+          case Right(a) => Right(f(a))
+          case l        => l.asInstanceOf[Either[E, B]]
+        }
+    )
+
+  /**
+   * Maps from one error type to another.
+   */
+  final def mapError[E1](f: E => E1): STM[E1, A] =
+    new STM(
+      journal =>
+        self.run(journal) match {
+          case Left(e) => Left(f(e))
+          case r       => r.asInstanceOf[Either[E1, A]]
+        }
+    )
+
+  /**
+   * Converts the failure channel into an `Option`.
+   */
+  final def option: STM[Nothing, Option[A]] =
+    fold[Option[A]](_ => None, Some(_))
 
   /**
    * Tries this computation first, and if it fails, tries the other computation.
    */
-  final def orElse[E2, A1 >: A](that: => STM[E2, A1]): STM[E2, A1] =
-    self.either.flatMap(_.fold(_ => that, STM.succeed(_)))
-
-  /**
-   * Surfaces any errors at the value level, where they can be recovered from.
-   */
-  def either: STM[Nothing, Either[E, A]] =
-    new STM(
-      journal =>
-        self.run(journal) match {
-          case value => Right(value)
-      }
-    )
+  final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
+    self.foldM(_ => that, STM.succeed(_))
 
   /**
    * Sequentially zips this value with the specified one.
    */
-  def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
+  final def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
     self.zipWith(that)((a, b) => a -> b)
 
-  def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
+  /**
+   * Sequentially zips this value with the specified one, combining the values
+   * using the specified combiner function.
+   */
+  final def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 }
-
-
 
 object STM {
 
   private[STM] object internal {
-    type Journal = 
+    type Journal =
       MutableMap[Long, STM.internal.Entry]
 
-    final def rightUnit[A]: Either[A, Unit] = 
+    final def rightUnit[A]: Either[A, Unit] =
       _RightUnit.asInstanceOf[Either[A, Unit]]
-     
+
     private[this] val _RightUnit: Either[Any, Unit] = Right(())
 
     final def freshIdentity(): Long = counter.incrementAndGet()
@@ -115,14 +154,14 @@ object STM {
       var newValue: A
       val expectedVersion: Long
 
-      final def unsafeSet(value: Any): Unit = 
+      final def unsafeSet(value: Any): Unit =
         newValue = value.asInstanceOf[A]
 
-      final def unsafeGet[B]: B = 
+      final def unsafeGet[B]: B =
         newValue.asInstanceOf[B]
 
       /**
-       * Determines if the entry is valid. That is, if the version of the 
+       * Determines if the entry is valid. That is, if the version of the
        * `TVar` is equal to the expected version.
        */
       final def isValid: Boolean = tVar.version == expectedVersion
@@ -131,17 +170,18 @@ object STM {
        * Commits the new value to the `TVar`.
        */
       final def commit(): Unit = {
-        tVar.value   = newValue
+        tVar.value = newValue
         tVar.version = expectedVersion + 1
       }
     }
 
     object Entry {
+
       /**
-       * Creates an entry for the journal, given the `TVar` being updated, the 
+       * Creates an entry for the journal, given the `TVar` being updated, the
        * new value of the `TVar`, and the expected version of the `TVar`.
        */
-      def apply[A0](tVar0: TVar[A0], newValue0: A0, expectedVersion0: Long): Entry = 
+      def apply[A0](tVar0: TVar[A0], newValue0: A0, expectedVersion0: Long): Entry =
         new Entry {
           type A = A0
           val tVar            = tVar0
@@ -177,7 +217,7 @@ object STM {
         val entry = getOrMakeEntry(journal)
 
         entry.unsafeSet(newValue)
-        
+
         rightUnit
       })
 
@@ -191,11 +231,11 @@ object STM {
         val newValue = f(entry.unsafeGet[A])
 
         entry.unsafeSet(newValue)
-        
+
         Right(newValue)
       })
 
-    private def getOrMakeEntry(journal: Journal): Entry = 
+    private def getOrMakeEntry(journal: Journal): Entry =
       if (journal.contains(id)) journal(id)
       else {
         val entry = Entry(self, value, version)
@@ -205,6 +245,7 @@ object STM {
   }
 
   object TVar {
+
     /**
      * Makes a new `TVar`.
      */
@@ -215,7 +256,7 @@ object STM {
         val tVar = new TVar(id, 0, initialValue)
 
         journal.update(id, Entry(tVar, initialValue, 0))
-        
+
         Right(tVar)
       })
   }
@@ -227,7 +268,7 @@ object STM {
     new STM(_ => Right(a))
 
   /**
-   * Returns an `STM` effect that succeeds with the specified (lazily 
+   * Returns an `STM` effect that succeeds with the specified (lazily
    * evaluated) value.
    */
   final def succeedLazy[A](a: => A): STM[Nothing, A] =
@@ -250,7 +291,7 @@ object STM {
 
       while (retry) {
         val journal = MutableMap.empty[Long, Entry]
-        
+
         value = stm.run(journal)
 
         try {
@@ -276,7 +317,7 @@ object STM {
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
-  final def check(p: Boolean): STM[Nothing, Unit] = 
+  final def check(p: Boolean): STM[Nothing, Unit] =
     if (p) STM.unit else retry
 
   /**
