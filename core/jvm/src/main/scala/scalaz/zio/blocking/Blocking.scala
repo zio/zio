@@ -52,7 +52,7 @@ object Blocking extends Serializable {
      * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
-    def interruptible[A](effect: => A): ZIO[R, Cause[Nothing], A] =
+    def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
       ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
         import java.util.concurrent.atomic.AtomicReference
@@ -77,7 +77,7 @@ object Blocking extends Serializable {
 
         for {
           a <- (for {
-                fiber <- blocking(ZIO.effectTotal[Either[Cause[Nothing], A]] {
+                fiber <- blocking(ZIO.effectTotal[Either[Cause[Throwable], A]] {
                           val current = Some(Thread.currentThread)
 
                           withMutex(thread.set(current))
@@ -88,12 +88,12 @@ object Blocking extends Serializable {
                               Thread.interrupted // Clear interrupt status
                               Left(Cause.interrupt)
                             case t: Throwable =>
-                              Left(Cause.die(t))
+                              Left(Cause.fail(t))
                           } finally {
                             withMutex { thread.set(None); barrier.set(()) }
                           }
                         }).fork
-                a <- fiber.join.absolve
+                a <- fiber.join.absolve.unsandbox
               } yield a).ensuring(interruptThread *> awaitInterruption)
         } yield a
       })
