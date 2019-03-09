@@ -19,7 +19,7 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">doobie.imports._</span>
 <span class="k">import</span> <span class="nn">fs2.Stream</span>
-<span class="k">import</span> <span class="nn">scalaz.zio.interop.Task</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.Task</span>
 <span class="k">import</span> <span class="nn">scalaz.zio.interop.catz._</span>
 
 <span class="k">val</span> <span class="n">xa</span><span class="k">:</span> <span class="kt">Transactor</span><span class="o">[</span><span class="kt">Task</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Transactor</span><span class="o">.</span><span class="n">fromDriverManager</span><span class="o">[</span><span class="kt">Task</span><span class="o">](...)</span>
