@@ -749,7 +749,7 @@ object Stream extends Serializable {
     unfoldM(())(
       _ =>
         q.take.flatMap {
-          case Take.Value(a) => UIO(Some((a, ())))
+          case Take.Value(a) => IO.succeed(Some((a, ())))
           case Take.Fail(e)  => IO.fail(e)
           case Take.End      => q.shutdown.map(_ => None)
         }

@@ -38,12 +38,10 @@ object Adapters {
           for {
             demand <- Queue.unbounded[Long]
             _      <- UIO(subscriber.onSubscribe(createSubscription(subscriber, demand, runtime)))
-            fiber <- stream
-                      .run(demandUnfoldSink(subscriber, demand))
-                      .catchAll(e => UIO(subscriber.onError(e)))
-                      .fork
-            // reactive streams rule 3.13
-            _ <- (demand.awaitShutdown *> fiber.interrupt).fork
+            _ <- stream
+                  .run(demandUnfoldSink(subscriber, demand))
+                  .catchAll(e => UIO(subscriber.onError(e)))
+                  .fork
           } yield ()
         )
       }
