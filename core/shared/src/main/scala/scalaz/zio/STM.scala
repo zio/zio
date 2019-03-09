@@ -160,9 +160,13 @@ object STM {
 
     private[this] val _SucceedUnit: TRez[Any, Unit] = TRez.Succeed(())
 
-    final def freshIdentity(): Long = counter.incrementAndGet()
+    final def makeTVarId(): Long = tvarCounter.incrementAndGet()
 
-    private[this] val counter: AtomicLong = new AtomicLong()
+    final def makeTxnId(): Long = txnCounter.incrementAndGet()
+
+    private[this] val tvarCounter: AtomicLong = new AtomicLong()
+
+    private[this] val txnCounter: AtomicLong = new AtomicLong()
 
     val semaphore = new java.util.concurrent.Semaphore(1)
 
@@ -220,7 +224,11 @@ object STM {
   /**
    * A variable that can be modified as part of a transactional computation.
    */
-  class TVar[A] private (val id: Long, @volatile var versioned: Versioned[A], val todo: AtomicReference[UIO[_]]) {
+  class TVar[A] private (
+    val id: Long,
+    @volatile var versioned: Versioned[A],
+    val todo: AtomicReference[Map[Long, UIO[_]]]
+  ) {
     self =>
 
     /**
@@ -276,12 +284,12 @@ object STM {
      */
     final def make[A](a: => A): STM[Nothing, TVar[A]] =
       new STM(journal => {
-        val id = freshIdentity()
+        val id = makeTVarId()
 
         val value     = a
         val versioned = new Versioned(value)
 
-        val todo = new AtomicReference[UIO[_]](null)
+        val todo = new AtomicReference[Map[Long, UIO[_]]](Map())
 
         val tvar = new TVar(id, versioned, todo)
 
@@ -316,6 +324,8 @@ object STM {
     IO.effectAsyncMaybe[E, A] { k =>
       import internal.semaphore
 
+      val txnId = makeTxnId()
+
       val done = new AtomicBoolean(false)
 
       def tryTransaction: Option[IO[E, A]] = done.synchronized {
@@ -345,17 +355,18 @@ object STM {
             } else loop = false
           }
 
+          def tryLaterImpure(): Unit =
+            tryTransaction match {
+              case None     =>
+              case Some(io) => k(io)
+            }
+
           value match {
             case TRez.Succeed(a) => Some(IO.succeed(a))
             case TRez.Fail(e)    => Some(IO.fail(e))
             case TRez.Retry =>
               val tryLater: UIO[Unit] =
-                UIO.effectTotal {
-                  tryTransaction match {
-                    case None     =>
-                    case Some(io) => k(io)
-                  }
-                }
+                UIO.effectTotal(tryLaterImpure())
 
               journal.values.foreach { entry =>
                 val tvar = entry.tvar
@@ -364,13 +375,13 @@ object STM {
                 while (loop) {
                   val oldTodo = tvar.todo.get
 
-                  val newTodo =
-                    if (oldTodo eq null) tryLater
-                    else oldTodo *> tryLater
+                  val newTodo = oldTodo + (txnId -> tryLater)
 
                   loop = tvar.todo.compareAndSet(oldTodo, newTodo)
                 }
               }
+
+              tryLaterImpure
 
               None
           }
