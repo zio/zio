@@ -30,4 +30,9 @@ package object zio extends EitherCompat {
   val JustExceptions: PartialFunction[Throwable, Exception] = {
     case e: Exception => e
   }
+
+  object ~ {
+    def unapply[A, B](ab: (A, B)): Some[(A, B)] =
+      Some((ab._1, ab._2))
+  }
 }

@@ -77,7 +77,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       STM.atomically(
         for {
           s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
-          f <- STM.fail("No!").foldM(_ => STM.succeed("No!"), _ => STM.succeed("Yes!"))
+          f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
         } yield (s must_=== "Yes!") and (f must_== "No!")
       )
     )
@@ -95,8 +95,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
     unsafeRun(
       STM.atomically(
         for {
-          s <- STM.succeed(1).orElse(STM.succeed(2))
-          f <- STM.fail("failed").orElse(STM.succeed("try this"))
+          s <- STM.succeed(1) orElse STM.succeed(2)
+          f <- STM.fail("failed") orElse STM.succeed("try this")
         } yield (s must_=== 1) and (f must_=== "try this")
       )
     )
@@ -118,7 +118,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e11 =
     unsafeRun(
       STM.atomically(
-        STM.succeed(1).zip(STM.succeed('A'))
+        STM.succeed(1) ~ STM.succeed('A')
       )
     ) must_=== ((1, 'A'))
 
@@ -196,11 +196,11 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
           for {
             tVars <- STM
                       .atomically(
-                        TVar.make(10000).zip(TVar.make(0)).zip(TVar.make(0))
+                        TVar.make(10000) ~ TVar.make(0) ~ TVar.make(0)
                       )
-            ((tvar1, tvar2), tvar3) = tVars
-            fiber                   <- ZIO.forkAll(List.fill(100)(compute3VarN(99, tvar1, tvar2, tvar3)))
-            _                       <- fiber.join
+            tvar1 ~ tvar2 ~ tvar3 = tVars
+            fiber                 <- ZIO.forkAll(List.fill(100)(compute3VarN(99, tvar1, tvar2, tvar3)))
+            _                     <- fiber.join
           } yield tvar3.get
         )
       )

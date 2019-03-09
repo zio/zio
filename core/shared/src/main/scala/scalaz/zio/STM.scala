@@ -120,8 +120,14 @@ final class STM[+E, +A] private (
   /**
    * Sequentially zips this value with the specified one.
    */
+  final def ~[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
+    self zip that
+
+  /**
+   * Sequentially zips this value with the specified one.
+   */
   final def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
-    self.zipWith(that)((a, b) => a -> b)
+    (self zipWith that)((a, b) => a -> b)
 
   /**
    * Sequentially zips this value with the specified one, combining the values
@@ -134,6 +140,8 @@ final class STM[+E, +A] private (
 object STM {
 
   private[STM] object internal {
+    class Versioned[A](val value: A)
+
     type Journal =
       MutableMap[Long, STM.internal.Entry]
 
@@ -152,7 +160,7 @@ object STM {
       type A
       val tVar: TVar[A]
       var newValue: A
-      val expectedVersion: Long
+      val expected: Versioned[A]
 
       final def unsafeSet(value: Any): Unit =
         newValue = value.asInstanceOf[A]
@@ -164,15 +172,14 @@ object STM {
        * Determines if the entry is valid. That is, if the version of the
        * `TVar` is equal to the expected version.
        */
-      final def isValid: Boolean = tVar.version == expectedVersion
+      final def isValid: Boolean =
+        tVar.versioned eq expected
 
       /**
        * Commits the new value to the `TVar`.
        */
-      final def commit(): Unit = {
-        tVar.value = newValue
-        tVar.version = expectedVersion + 1
-      }
+      final def commit(): Unit =
+        tVar.versioned = new Versioned(newValue)
     }
 
     object Entry {
@@ -181,12 +188,12 @@ object STM {
        * Creates an entry for the journal, given the `TVar` being updated, the
        * new value of the `TVar`, and the expected version of the `TVar`.
        */
-      def apply[A0](tVar0: TVar[A0], newValue0: A0, expectedVersion0: Long): Entry =
+      def apply[A0](tVar0: TVar[A0], newValue0: A0, expected0: Versioned[A0]): Entry =
         new Entry {
           type A = A0
-          val tVar            = tVar0
-          var newValue        = newValue0
-          val expectedVersion = expectedVersion0
+          val tVar     = tVar0
+          var newValue = newValue0
+          val expected = expected0
         }
     }
   }
@@ -196,7 +203,7 @@ object STM {
   /**
    * A variable that can be modified as part of a transactional computation.
    */
-  class TVar[A] private (id: Long, @volatile var version: Long, @volatile var value: A) {
+  class TVar[A] private (val id: Long, @volatile var versioned: Versioned[A]) {
     self =>
 
     /**
@@ -216,7 +223,7 @@ object STM {
       new STM(journal => {
         val entry = getOrMakeEntry(journal)
 
-        entry.unsafeSet(newValue)
+        entry unsafeSet newValue
 
         rightUnit
       })
@@ -230,15 +237,16 @@ object STM {
 
         val newValue = f(entry.unsafeGet[A])
 
-        entry.unsafeSet(newValue)
+        entry unsafeSet newValue
 
         Right(newValue)
       })
 
     private def getOrMakeEntry(journal: Journal): Entry =
-      if (journal.contains(id)) journal(id)
+      if (journal contains id) journal(id)
       else {
-        val entry = Entry(self, value, version)
+        val expected = versioned
+        val entry    = Entry(self, expected.value, expected)
         journal.update(id, entry)
         entry
       }
@@ -249,13 +257,16 @@ object STM {
     /**
      * Makes a new `TVar`.
      */
-    final def make[A](initialValue: => A): STM[Nothing, TVar[A]] =
+    final def make[A](a: => A): STM[Nothing, TVar[A]] =
       new STM(journal => {
         val id = freshIdentity()
 
-        val tVar = new TVar(id, 0, initialValue)
+        val value     = a
+        val versioned = new Versioned(value)
 
-        journal.update(id, Entry(tVar, initialValue, 0))
+        val tVar = new TVar(id, versioned)
+
+        journal.update(id, Entry(tVar, value, versioned))
 
         Right(tVar)
       })
@@ -292,13 +303,13 @@ object STM {
       while (retry) {
         val journal = MutableMap.empty[Long, Entry]
 
-        value = stm.run(journal)
+        value = stm run journal
 
         try {
           semaphore.acquire()
 
-          if (journal.values.forall(_.isValid)) {
-            journal.values.foreach(_.commit())
+          if (journal.values forall (_.isValid)) {
+            journal.values foreach (_.commit())
 
             retry = false
           }
