@@ -30,8 +30,9 @@ import scala.collection.mutable.{ Map => MutableMap }
  * }}}
  */
 final class STM[+E, +A] private (
-  val run: STM.internal.Journal => Either[E, A]
+  val run: STM.internal.Journal => STM.internal.TRez[E, A]
 ) extends AnyVal { self =>
+  import STM.internal.TRez
 
   /**
    * Converts the failure channel into an `Either`.
@@ -39,8 +40,10 @@ final class STM[+E, +A] private (
   final def either: STM[Nothing, Either[E, A]] =
     new STM(
       journal =>
-        self.run(journal) match {
-          case value => Right(value)
+        (self run journal) match {
+          case TRez.Fail(e)    => TRez.Succeed(Left(e))
+          case TRez.Succeed(a) => TRez.Succeed(Right(a))
+          case TRez.Retry      => TRez.Retry
         }
     )
 
@@ -51,9 +54,10 @@ final class STM[+E, +A] private (
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     new STM(
       journal =>
-        self.run(journal) match {
-          case Right(a) => f(a).run(journal)
-          case l        => l.asInstanceOf[Either[E1, B]]
+        (self run journal) match {
+          case TRez.Succeed(a)  => f(a) run journal
+          case t @ TRez.Fail(_) => t
+          case TRez.Retry       => TRez.Retry
         }
     )
 
@@ -63,9 +67,10 @@ final class STM[+E, +A] private (
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
     new STM(
       journal =>
-        self.run(journal) match {
-          case Left(e)  => Right(f(e))
-          case Right(a) => Right(g(a))
+        (self run journal) match {
+          case TRez.Fail(e)    => TRez.Succeed(f(e))
+          case TRez.Succeed(a) => TRez.Succeed(g(a))
+          case TRez.Retry      => TRez.Retry
         }
     )
 
@@ -75,9 +80,10 @@ final class STM[+E, +A] private (
   final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
     new STM(
       journal =>
-        self.run(journal) match {
-          case Left(e)  => f(e) run journal
-          case Right(a) => g(a) run journal
+        (self run journal) match {
+          case TRez.Fail(e)    => f(e) run journal
+          case TRez.Succeed(a) => g(a) run journal
+          case TRez.Retry      => TRez.Retry
         }
     )
 
@@ -88,8 +94,9 @@ final class STM[+E, +A] private (
     new STM(
       journal =>
         self.run(journal) match {
-          case Right(a) => Right(f(a))
-          case l        => l.asInstanceOf[Either[E, B]]
+          case TRez.Succeed(a)  => TRez.Succeed(f(a))
+          case t @ TRez.Fail(_) => t
+          case TRez.Retry       => TRez.Retry
         }
     )
 
@@ -100,8 +107,9 @@ final class STM[+E, +A] private (
     new STM(
       journal =>
         self.run(journal) match {
-          case Left(e) => Left(f(e))
-          case r       => r.asInstanceOf[Either[E1, A]]
+          case t @ TRez.Succeed(_) => t
+          case TRez.Fail(e)        => TRez.Fail(f(e))
+          case TRez.Retry          => TRez.Retry
         }
     )
 
@@ -145,16 +153,23 @@ object STM {
     type Journal =
       MutableMap[Long, STM.internal.Entry]
 
-    final def rightUnit[A]: Either[A, Unit] =
-      _RightUnit.asInstanceOf[Either[A, Unit]]
+    final def succeedUnit[A]: TRez[A, Unit] =
+      _SucceedUnit.asInstanceOf[TRez[A, Unit]]
 
-    private[this] val _RightUnit: Either[Any, Unit] = Right(())
+    private[this] val _SucceedUnit: TRez[Any, Unit] = TRez.Succeed(())
 
     final def freshIdentity(): Long = counter.incrementAndGet()
 
     private[this] val counter: AtomicLong = new AtomicLong()
 
     val semaphore = new java.util.concurrent.Semaphore(1)
+
+    sealed trait TRez[+A, +B] extends Serializable with Product
+    object TRez {
+      final case class Fail[A](value: A)    extends TRez[A, Nothing]
+      final case class Succeed[B](value: B) extends TRez[Nothing, B]
+      final case object Retry               extends TRez[Nothing, Nothing]
+    }
 
     abstract class Entry {
       type A
@@ -213,7 +228,7 @@ object STM {
       new STM(journal => {
         val entry = getOrMakeEntry(journal)
 
-        Right(entry.unsafeGet[A])
+        TRez.Succeed(entry.unsafeGet[A])
       })
 
     /**
@@ -225,7 +240,7 @@ object STM {
 
         entry unsafeSet newValue
 
-        rightUnit
+        succeedUnit
       })
 
     /**
@@ -239,7 +254,7 @@ object STM {
 
         entry unsafeSet newValue
 
-        Right(newValue)
+        TRez.Succeed(newValue)
       })
 
     private def getOrMakeEntry(journal: Journal): Entry =
@@ -268,7 +283,7 @@ object STM {
 
         journal.update(id, Entry(tVar, value, versioned))
 
-        Right(tVar)
+        TRez.Succeed(tVar)
       })
   }
 
@@ -276,14 +291,14 @@ object STM {
    * Returns an `STM` effect that succeeds with the specified value.
    */
   final def succeed[A](a: A): STM[Nothing, A] =
-    new STM(_ => Right(a))
+    new STM(_ => TRez.Succeed(a))
 
   /**
    * Returns an `STM` effect that succeeds with the specified (lazily
    * evaluated) value.
    */
   final def succeedLazy[A](a: => A): STM[Nothing, A] =
-    new STM(_ => Right(a))
+    new STM(_ => TRez.Succeed(a))
 
   /**
    * Returns an `STM` effect that succeeds with `Unit`.
@@ -303,7 +318,13 @@ object STM {
       while (retry) {
         val journal = MutableMap.empty[Long, Entry]
 
-        value = stm run journal
+        val rez = stm run journal
+
+        rez match {
+          case TRez.Succeed(a) => value = Right(a)
+          case TRez.Fail(e)    => value = Left(e)
+          case TRez.Retry      => ???
+        }
 
         try {
           semaphore.acquire()
@@ -334,5 +355,5 @@ object STM {
   /**
    * Returns a value that models failure in the transaction.
    */
-  final def fail[E](e: E): STM[E, Nothing] = new STM(_ => Left(e))
+  final def fail[E](e: E): STM[E, Nothing] = new STM(_ => TRez.Fail(e))
 }
