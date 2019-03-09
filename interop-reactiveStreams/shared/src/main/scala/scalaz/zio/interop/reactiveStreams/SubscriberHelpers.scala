@@ -16,25 +16,24 @@ private[reactiveStreams] object SubscriberHelpers {
       override def initial: UIO[Step[Long, Nothing]] = UIO(Step.more(0L))
 
       override def step(state: Long, a: A): UIO[Step[Long, Nothing]] =
-        foldShutdown(
-          if (state > 0) {
-            UIO(subscriber.onNext(a)).map(_ => Step.more(state - 1))
-          } else {
-            for {
-              n <- demand.take
-              _ <- UIO(subscriber.onNext(a))
-            } yield Step.more(n - 1)
-          }
-        )(UIO(Step.done(state, Chunk.empty)))
+        demand.isShutdown.flatMap {
+          case true => UIO(Step.done(state, Chunk.empty))
+          case false =>
+            if (state > 0) {
+              UIO(subscriber.onNext(a)).map(_ => Step.more(state - 1))
+            } else {
+              for {
+                n <- demand.take
+                _ <- UIO(subscriber.onNext(a))
+              } yield Step.more(n - 1)
+            }
+        }
 
-      override def extract(state: Long): UIO[Unit] = foldShutdown(UIO(subscriber.onComplete()))(UIO.unit)
-
-      private def foldShutdown[A](notSet: UIO[A])(set: UIO[A]): UIO[A] =
-        for {
-          f <- demand.awaitShutdown.fork
-          o <- f.poll
-          r <- o.fold(notSet)(_ => set)
-        } yield r
+      override def extract(state: Long): UIO[Unit] =
+        demand.isShutdown.flatMap {
+          case true  => UIO.unit
+          case false => UIO(subscriber.onComplete())
+        }
     }
 
   def createSubscription[A](
