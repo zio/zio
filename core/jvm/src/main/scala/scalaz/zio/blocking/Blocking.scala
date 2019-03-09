@@ -90,7 +90,8 @@ object Blocking extends Serializable {
                             case t: Throwable =>
                               Left(Cause.fail(t))
                           } finally {
-                            withMutex { thread.set(None); barrier.set(()) }
+                            withMutex(thread.set(None))
+                            barrier.set(())
                           }
                         }).fork
                 a <- fiber.join.absolve.unsandbox
