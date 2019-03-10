@@ -327,10 +327,10 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         sender    <- TVar.makeM(100)
         receiver  <- TVar.makeM(0)
         _         <- transfer(receiver, sender, 150).fork
-        _         <- STM.atomically(sender.update(_ + 100))
-        _         <- STM.atomically(sender.get.filter(_ == 50))
-        senderV   <- STM.atomically(sender.get)
-        receiverV <- STM.atomically(receiver.get)
+        _         <- sender.update(_ + 100).run
+        _         <- sender.get.filter(_ == 50).run
+        senderV   <- sender.get.run
+        receiverV <- receiver.get.run
       } yield (senderV must_=== 50) and (receiverV must_=== 150)
     }
   def e25 = todo
