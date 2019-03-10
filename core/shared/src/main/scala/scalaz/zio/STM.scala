@@ -160,10 +160,10 @@ object STM {
      * participated in the transaction. This is not a pure function, despite
      * the return type (it effectfully clears todos from `TVar` values).
      */
-    final def collectTodos(journal: Journal): UIO[Any] =
-      journal.values.foldLeft[UIO[Any]](UIO.unit) {
-        case (acc0, entry) =>
-          val todo          = entry.tvar.todo
+    final def collectTodos(tvars: Iterable[TVar[_]]): UIO[Any] =
+      tvars.foldLeft[UIO[Any]](UIO.unit) {
+        case (acc0, tvar) =>
+          val todo          = tvar.todo
           var acc: UIO[Any] = acc0
 
           var loop = true
@@ -180,6 +180,22 @@ object STM {
           }
 
           acc
+      }
+
+    /**
+     * For the given transaction id, adds the specified todo effect to all
+     * `TVar` values.
+     */
+    final def addTodo(txnId: Long, tvars: Iterable[TVar[_]], todoEffect: UIO[_]): Unit =
+      tvars.foreach { tvar =>
+        var loop = true
+        while (loop) {
+          val oldTodo = tvar.todo.get
+
+          val newTodo = oldTodo + (txnId -> todoEffect)
+
+          loop = !tvar.todo.compareAndSet(oldTodo, newTodo)
+        }
       }
 
     final def succeedUnit[A]: TRez[A, Unit] =
@@ -355,7 +371,7 @@ object STM {
 
       val done = new AtomicBoolean(false)
 
-      def tryTransaction(onTodo: Boolean): Option[IO[E, A]] =
+      def tryTxn(onTodo: Boolean): Option[IO[E, A]] =
         done.synchronized {
           if (done.get) None
           else {
@@ -381,47 +397,35 @@ object STM {
                   }
                 } finally globalLock.release()
               } else {
-                val tryLater: UIO[Unit] =
-                  UIO.effectTotal(tryLaterImpure())
+                val todoEffect = UIO(tryTxnAsync())
 
-                journal.values.foreach { entry =>
-                  val tvar = entry.tvar
-
-                  var loop = true
-                  while (loop) {
-                    val oldTodo = tvar.todo.get
-
-                    val newTodo = oldTodo + (txnId -> tryLater)
-
-                    loop = !tvar.todo.compareAndSet(oldTodo, newTodo)
-                  }
-                }
+                addTodo(txnId, journal.values.map(_.tvar), todoEffect)
 
                 loop = false
               }
             }
 
+            def completed(io: IO[E, A]): Option[IO[E, A]] = {
+              val tvars = journal.values.map(_.tvar)
+
+              Some(collectTodos(tvars).fork *> io)
+            }
+
             value match {
-              case TRez.Succeed(a) =>
-                Some(collectTodos(journal).fork *> IO.succeed(a))
-
-              case TRez.Fail(e) =>
-                Some(collectTodos(journal).fork *> IO.fail(e))
-
-              case TRez.Retry =>
-                if (!onTodo) tryTransaction(true)
-                else None
+              case TRez.Succeed(a) => completed(IO.succeed(a))
+              case TRez.Fail(e)    => completed(IO.fail(e))
+              case TRez.Retry      => if (!onTodo) tryTxn(true) else None
             }
           }
         }
 
-      def tryLaterImpure(): Unit =
-        tryTransaction(false) match {
+      def tryTxnAsync(): Unit =
+        tryTxn(false) match {
           case None     =>
           case Some(io) => k(io)
         }
 
-      tryTransaction(false)
+      tryTxn(false)
     }
 
   /**
