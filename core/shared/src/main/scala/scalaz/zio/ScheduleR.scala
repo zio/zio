@@ -511,6 +511,16 @@ trait Schedule_Functions extends Serializable {
   type ConformsR[A]
   implicit val ConformsAnyProof: ConformsR[Any]
 
+  final def apply[R: ConformsR, S, A, B](
+    initial0: ZIO[R, Nothing, S],
+    update0: (A, S) => ZIO[R, Nothing, ScheduleR.Decision[S, B]]
+  ): ScheduleR[R, A, B] =
+    new ScheduleR[R, A, B] {
+      type State = S
+      val initial = initial0
+      val update  = update0
+    }
+
   /**
    * A schedule that recurs forever, returning each input as the output.
    */
@@ -702,16 +712,6 @@ object ScheduleR extends Schedule_Functions {
     final def cont[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(true, d, a, () => b)
     final def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, d, a, () => b)
   }
-
-  final def apply[R, S, A, B](
-    initial0: ZIO[R, Nothing, S],
-    update0: (A, S) => ZIO[R, Nothing, ScheduleR.Decision[S, B]]
-  ): ScheduleR[R, A, B] =
-    new ScheduleR[R, A, B] {
-      type State = S
-      val initial = initial0
-      val update  = update0
-    }
 
   /**
    * A schedule that recurs forever without delay. Returns the elapsed time

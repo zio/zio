@@ -19,6 +19,8 @@ package scalaz.zio.stream
 import scalaz.zio._
 import scalaz.zio.clock.Clock
 
+import scala.annotation.implicitNotFound
+
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of
  * type `A`, or potentially fail with a value of type `E`.
@@ -634,8 +636,12 @@ trait StreamR[-R, +E, +A] extends Serializable { self =>
   }
 }
 
-object StreamR extends Serializable {
-  type Fold[R, E, +A, S] = ZIO[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZIO[R, E, S]]
+trait Stream_Functions extends Serializable {
+
+  import StreamR.Fold
+
+  type ConformsR[A]
+  implicit val ConformsAnyProof: ConformsR[Any]
 
   final def apply[A](as: A*): Stream[Nothing, A] = fromIterable(as)
 
@@ -646,7 +652,7 @@ object StreamR extends Serializable {
 
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
     new StreamPure[A] {
-      override def fold[R <: Any, E >: Nothing, A1 >: A, S]: Fold[R, E, A1, S] =
+      override def fold[R <: Any, E >: Nothing, A1 >: A, S]: StreamR.Fold[R, E, A1, S] =
         IO.succeedLazy((s, cont, f) => c.foldMLazy(s)(cont)(f))
 
       override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
@@ -691,7 +697,7 @@ object StreamR extends Serializable {
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
    */
-  final def fromEffect[R, E, A](fa: ZIO[R, E, A]): StreamR[R, E, A] = new StreamR[R, E, A] {
+  final def fromEffect[R: ConformsR, E, A](fa: ZIO[R, E, A]): StreamR[R, E, A] = new StreamR[R, E, A] {
     override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) fa.flatMap(f(s, _))
@@ -703,13 +709,13 @@ object StreamR extends Serializable {
    * Flattens a stream of streams into a stream, by concatenating all the
    * substreams.
    */
-  final def flatten[R, E, A](fa: StreamR[R, E, StreamR[R, E, A]]): StreamR[R, E, A] =
+  final def flatten[R: ConformsR, E, A](fa: StreamR[R, E, StreamR[R, E, A]]): StreamR[R, E, A] =
     fa.flatMap(identity)
 
   /**
    * Unwraps a stream wrapped inside of an `IO` value.
    */
-  final def unwrap[R, E, A](stream: ZIO[R, E, StreamR[R, E, A]]): StreamR[R, E, A] =
+  final def unwrap[R: ConformsR, E, A](stream: ZIO[R, E, StreamR[R, E, A]]): StreamR[R, E, A] =
     new StreamR[R, E, A] {
       override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
@@ -720,12 +726,12 @@ object StreamR extends Serializable {
   /**
    * Constructs a stream from a resource that must be acquired and released.
    */
-  final def bracket[R, E, A, B](
+  final def bracket[R: ConformsR, E, A, B](
     acquire: ZIO[R, E, A]
   )(release: A => UIO[Unit])(read: A => ZIO[R, E, Option[B]]): StreamR[R, E, B] =
     managed(ManagedR.make(acquire)(release))(read)
 
-  final def managed[R, E, A, B](m: ManagedR[R, E, A])(read: A => ZIO[R, E, Option[B]]) =
+  final def managed[R: ConformsR, E, A, B](m: ManagedR[R, E, A])(read: A => ZIO[R, E, Option[B]]) =
     new StreamR[R, E, B] {
       override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
         IO.succeedLazy { (s, cont, f) =>
@@ -749,7 +755,7 @@ object StreamR extends Serializable {
    * Constructs a stream from effectful state. This method should not be used
    * for resources that require safe release. See `Stream.fromResource`.
    */
-  final def unfoldM[R, S, E, A](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): StreamR[R, E, A] =
+  final def unfoldM[R: ConformsR, S, E, A](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): StreamR[R, E, A] =
     new StreamR[R, E, A] {
       override def fold[R1 <: R, E1 >: E, A1 >: A, S2]: Fold[R1, E1, A1, S2] =
         IO.succeedLazy { (s2, cont, f) =>
@@ -804,4 +810,28 @@ object StreamR extends Serializable {
    */
   final def range(min: Int, max: Int): Stream[Nothing, Int] =
     unfold(min)(cur => if (cur > max) None else Some((cur, cur + 1)))
+}
+
+object Stream extends Stream_Functions {
+  @implicitNotFound(
+    "The environment type of all Stream methods must be Any. If you want to use an environment, please use StreamR."
+  )
+  sealed trait ConformsR1[A]
+
+  type ConformsR[A] = ConformsR1[Any]
+  implicit val ConformsAnyProof: ConformsR1[Any] = new ConformsR1[Any] {}
+}
+
+object StreamR extends Stream_Functions {
+
+  sealed trait ConformsR1[A]
+
+  private val _ConformsR1: ConformsR1[Any] = new ConformsR1[Any] {}
+
+  type ConformsR[A] = ConformsR1[A]
+  implicit def ConformsRProof[A]: ConformsR[A] = _ConformsR1.asInstanceOf[ConformsR1[A]]
+
+  implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
+
+  type Fold[R, E, +A, S] = ZIO[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZIO[R, E, S]]
 }
