@@ -139,7 +139,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def take =
     prop { (s: Stream[String, String], n: Int) =>
       val takeStreamesult = slurp(s.take(n))
-      val takeListResult   = slurp(s).map(_.take(n))
+      val takeListResult  = slurp(s).map(_.take(n))
       (takeListResult.succeeded ==> (takeStreamesult must_=== takeListResult)) //&&
     // ((!takeStreamesult.succeeded) ==> (!takeListResult.succeeded))
     }
