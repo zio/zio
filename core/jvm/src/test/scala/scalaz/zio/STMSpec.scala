@@ -2,6 +2,8 @@ package scalaz.zio
 
 import scalaz.zio.STM.TVar
 
+import java.util.concurrent.CountDownLatch
+
 class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "STMSpec".title ^ s2"""
        Using `STM.atomically` to perform different computations and call:
@@ -261,8 +263,6 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       } yield v3 must_!== 10000
     )
 
-  import scalaz.zio.duration._
-
   def e19 =
     unsafeRun {
       for {
@@ -298,6 +298,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
   def e21 =
     unsafeRun {
+      val latch = new CountDownLatch(1)
 
       for {
         done  <- Promise.make[Nothing, Unit]
@@ -306,12 +307,13 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         fiber <- (STM.atomically {
                   for {
                     v1 <- tvar1.get
+                    _  <- STM.succeedLazy(latch.countDown())
                     _  <- STM.check(v1 > 42)
                     _  <- tvar2.set("Succeeded!")
                     v2 <- tvar2.get
                   } yield v2
                 } <* done.succeed(())).fork
-        _    <- clock.sleep(10.millis)
+        _    <- UIO(latch.await())
         old  <- STM.atomically(tvar2.get)
         _    <- STM.atomically(tvar1.set(43))
         _    <- done.await
