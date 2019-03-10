@@ -28,9 +28,23 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
             increment `TVar` 100 times in 100 fibers. $e15
             compute a `TVar` from 2 variables, increment the first `TVar` and decrement the second `TVar` in different fibers. $e16
 
-      Using `Ref` perform the same concurrent test should return a wrong result
+       Using `Ref` perform the same concurrent test should return a wrong result
              increment `TVar` 100 times in 100 fibers. $e17
              compute a `TVar` from 2 variables, increment the first `TVar` and decrement the second `TVar` in different fibers. $e18
+       Using `STM.atomically` perform concurrent computations that
+          have a simple condition lock should suspend the whole transaction and:
+              resume directly when the condition is already satisfied $e19
+              resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
+                  the transaction shouldn't be suspended. $e20
+              resume after satisfying the condition $e21
+              be suspended while the condition couldn't be satisfied
+          have a complex condition lock should suspend the whole transaction and:
+              resume directly when the condition is already satisfied $e22
+              resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
+                  the transaction shouldn't be suspended. $e23
+              resume after satisfying the condition $e24
+              be suspended while the condition couldn't be satisfied $e25
+
     """
 
   def e1 =
@@ -246,4 +260,67 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         v3    <- ref3.get
       } yield v3 must_!== 10000
     )
+
+  import scalaz.zio.duration._
+
+  def e19 =
+    unsafeRun {
+      for {
+        tvar1 <- STM.atomically(TVar.make(10))
+        tvar2 <- STM.atomically(TVar.make("Failed!"))
+        fiber <- STM.atomically {
+                  for {
+                    v1 <- tvar1.get
+                    _  <- STM.check(v1 > 0)
+                    _  <- tvar2.set("Succeeded!")
+                    v2 <- tvar2.get
+                  } yield v2
+                }.fork
+        join <- fiber.join
+      } yield join must_=== "Succeeded!"
+    }
+
+  def e20 =
+    unsafeRun {
+      for {
+        tvar <- STM.atomically(TVar.make(42))
+        fiber <- STM.atomically {
+                  for {
+                    v <- tvar.get
+                    _ <- STM.check(v == 42)
+                  } yield v
+                }.fork
+        _    <- clock.sleep(10.millis)
+        _    <- STM.atomically(tvar.set(9))
+        v    <- STM.atomically(tvar.get)
+        join <- fiber.join
+      } yield (v must_=== 9) and (join must_=== 42)
+    }
+
+  def e21 =
+    unsafeRun {
+      for {
+        tvar1 <- STM.atomically(TVar.make(0))
+        tvar2 <- STM.atomically(TVar.make("Failed!"))
+        fiber <- STM.atomically {
+                  for {
+                    v1 <- tvar1.get
+                    _  <- STM.check(v1 > 42)
+                    _  <- tvar2.set("Succeeded!")
+                    v2 <- tvar2.get
+                  } yield v2
+                }.fork
+        _    <- clock.sleep(10.millis)
+        old  <- STM.atomically(tvar2.get)
+        _    <- STM.atomically(tvar1.set(43))
+        newV <- STM.atomically(tvar2.get).repeat(Schedule.doUntil(_ == "Succeeded!"))
+        join <- fiber.join
+      } yield (old must_=== "Failed!") and (newV must_=== join)
+    }
+
+  def e22 = todo
+  def e23 = todo
+  def e24 = todo
+  def e25 = todo
+
 }
