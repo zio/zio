@@ -197,7 +197,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       STM.atomically(
         unsafeRun(
           for {
-            tVar  <- STM.atomically(TVar.make(0))
+            tVar  <- TVar.makeM(0)
             fiber <- ZIO.forkAll(List.fill(100)(incrementVarN(99, tVar)))
             _     <- fiber.join
           } yield tVar.get
@@ -266,8 +266,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e19 =
     unsafeRun {
       for {
-        tvar1 <- STM.atomically(TVar.make(10))
-        tvar2 <- STM.atomically(TVar.make("Failed!"))
+        tvar1 <- TVar.makeM(10)
+        tvar2 <- TVar.makeM("Failed!")
         fiber <- STM.atomically {
                   for {
                     v1 <- tvar1.get
@@ -283,12 +283,9 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e20 =
     unsafeRun {
       for {
-        tvar <- STM.atomically(TVar.make(42))
+        tvar <- TVar.makeM(42)
         fiber <- STM.atomically {
-                  for {
-                    v <- tvar.get
-                    _ <- STM.check(v == 42)
-                  } yield v
+                  tvar.get.filter(_ == 42)
                 }.fork
         join <- fiber.join
         _    <- STM.atomically(tvar.set(9))
@@ -302,8 +299,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
       for {
         done  <- Promise.make[Nothing, Unit]
-        tvar1 <- STM.atomically(TVar.make(0))
-        tvar2 <- STM.atomically(TVar.make("Failed!"))
+        tvar1 <- TVar.makeM(0)
+        tvar2 <- TVar.makeM("Failed!")
         fiber <- (STM.atomically {
                   for {
                     v1 <- tvar1.get

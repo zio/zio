@@ -43,6 +43,18 @@ final class STM[+E, +A] private (
     self zip that
 
   /**
+   * An operator for [[zipRight]].
+   */
+  final def <*[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
+    self zipLeft that
+
+  /**
+   * An operator for [[zipLeft]].
+   */
+  final def *>[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
+    self zipRight that
+
+  /**
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
@@ -164,10 +176,29 @@ final class STM[+E, +A] private (
     self.foldM(_ => that, STM.succeed(_), that)
 
   /**
+   * Same as [[filter]]
+   */
+  def withFilter(f: A => Boolean): STM[E, A] = filter(f)
+
+  /**
    * Sequentially zips this value with the specified one.
    */
   final def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
     (self zipWith that)((a, b) => a -> b)
+
+  /**
+   * Sequentially zips this value with the specified one, discarding the
+   * second element of the tuple.
+   */
+  final def zipLeft[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
+    (self zip that).map(_._1)
+
+  /**
+   * Sequentially zips this value with the specified one, discarding the
+   * first element of the tuple.
+   */
+  final def zipRight[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
+    (self zip that).map(_._2)
 
   /**
    * Sequentially zips this value with the specified one, combining the values
@@ -368,7 +399,7 @@ object STM {
   object TVar {
 
     /**
-     * Makes a new `TVar`.
+     * Makes a new `TVar` that is initialized to the specified value.
      */
     final def make[A](a: => A): STM[Nothing, TVar[A]] =
       new STM(journal => {
@@ -385,6 +416,13 @@ object STM {
 
         TRez.Succeed(tvar)
       })
+
+    /**
+     * A convenience method that makes a `TVar` and immediately runs the
+     * transaction to extract the value out.
+     */
+    final def makeM[A](a: => A): UIO[TVar[A]] =
+      STM.atomically(make(a))
   }
 
   /**
