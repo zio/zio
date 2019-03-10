@@ -112,15 +112,16 @@ final class STM[+E, +A] private (
     )
 
   /**
-   * Effectfully folds over the `STM` effect, handling both failure and success.
+   * Effectfully folds over the `STM` effect, handling both failure,
+   * success, or potentially a retry.
    */
-  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
+  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B], h: => STM[E1, B] = STM.retry): STM[E1, B] =
     new STM(
       journal =>
         (self run journal) match {
           case TRez.Fail(e)    => f(e) run journal
           case TRez.Succeed(a) => g(a) run journal
-          case TRez.Retry      => TRez.Retry
+          case TRez.Retry      => h run journal
         }
     )
 
@@ -160,7 +161,7 @@ final class STM[+E, +A] private (
    * Tries this effect first, and if it fails, tries the other effect.
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
-    self.foldM(_ => that, STM.succeed(_))
+    self.foldM(_ => that, STM.succeed(_), that)
 
   /**
    * Sequentially zips this value with the specified one.
