@@ -1523,6 +1523,11 @@ object Task extends ZIO_E_Throwable {
 
   def apply[A](a: => A): Task[A] = effect(a)
 }
+object TaskR extends ZIO_E_Throwable {
+  type UpperE = Throwable
+
+  def apply[A](a: => A): Task[A] = effect(a)
+}
 object UIO extends ZIOFunctions {
   type UpperE = Nothing
   type LowerR = Any
