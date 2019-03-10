@@ -155,6 +155,33 @@ object STM {
     type Journal =
       MutableMap[Long, STM.internal.Entry]
 
+    /**
+     * Atomically collects and clears all the todos from any `TVar` that
+     * participated in the transaction. This is not a pure function, despite
+     * the return type (it effectfully clears todos from `TVar` values).
+     */
+    final def collectTodos(journal: Journal): UIO[Any] =
+      journal.values.foldLeft[UIO[Any]](UIO.unit) {
+        case (acc0, entry) =>
+          val todo          = entry.tvar.todo
+          var acc: UIO[Any] = acc0
+
+          var loop = true
+          while (loop) {
+            val oldTodo = todo.get
+
+            val newTodo = Map.empty[Long, UIO[_]]
+
+            loop = !todo.compareAndSet(oldTodo, newTodo)
+
+            if (!loop) {
+              acc = oldTodo.values.foldLeft(acc)(_ *> _)
+            }
+          }
+
+          acc
+      }
+
     final def succeedUnit[A]: TRez[A, Unit] =
       _SucceedUnit.asInstanceOf[TRez[A, Unit]]
 
@@ -168,7 +195,7 @@ object STM {
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()
 
-    val semaphore = new java.util.concurrent.Semaphore(1)
+    final val globalLock = new java.util.concurrent.Semaphore(1)
 
     sealed trait TRez[+A, +B] extends Serializable with Product
     object TRez {
@@ -322,73 +349,79 @@ object STM {
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
     IO.effectAsyncMaybe[E, A] { k =>
-      import internal.semaphore
+      import internal.globalLock
 
       val txnId = makeTxnId()
 
       val done = new AtomicBoolean(false)
 
-      def tryTransaction: Option[IO[E, A]] = done.synchronized {
-        if (done.get) None
-        else {
-          var journal = null.asInstanceOf[MutableMap[Long, Entry]]
-          var value   = null.asInstanceOf[TRez[E, A]]
+      def tryTransaction(onTodo: Boolean): Option[IO[E, A]] =
+        done.synchronized {
+          if (done.get) None
+          else {
+            var journal = null.asInstanceOf[MutableMap[Long, Entry]]
+            var value   = null.asInstanceOf[TRez[E, A]]
 
-          var loop = true
+            var loop = true
 
-          while (loop) {
-            journal = MutableMap.empty[Long, Entry]
-            value = stm run journal
+            while (loop) {
+              journal = MutableMap.empty[Long, Entry]
+              value = stm run journal
 
-            if (value != TRez.Retry) {
-              done set true
+              if (value != TRez.Retry) {
+                done set true
 
-              try {
-                semaphore.acquire()
+                try {
+                  globalLock.acquire()
 
-                if (journal.values forall (_.isValid)) {
-                  journal.values foreach (_.commit())
+                  if (journal.values forall (_.isValid)) {
+                    journal.values foreach (_.commit())
 
-                  loop = false
+                    loop = false
+                  }
+                } finally globalLock.release()
+              } else {
+                val tryLater: UIO[Unit] =
+                  UIO.effectTotal(tryLaterImpure())
+
+                journal.values.foreach { entry =>
+                  val tvar = entry.tvar
+
+                  var loop = true
+                  while (loop) {
+                    val oldTodo = tvar.todo.get
+
+                    val newTodo = oldTodo + (txnId -> tryLater)
+
+                    loop = !tvar.todo.compareAndSet(oldTodo, newTodo)
+                  }
                 }
-              } finally semaphore.release()
-            } else loop = false
-          }
 
-          def tryLaterImpure(): Unit =
-            tryTransaction match {
-              case None     =>
-              case Some(io) => k(io)
+                loop = false
+              }
             }
 
-          value match {
-            case TRez.Succeed(a) => Some(IO.succeed(a))
-            case TRez.Fail(e)    => Some(IO.fail(e))
-            case TRez.Retry =>
-              val tryLater: UIO[Unit] =
-                UIO.effectTotal(tryLaterImpure())
+            value match {
+              case TRez.Succeed(a) =>
+                Some(collectTodos(journal).fork *> IO.succeed(a))
 
-              journal.values.foreach { entry =>
-                val tvar = entry.tvar
+              case TRez.Fail(e) =>
+                Some(collectTodos(journal).fork *> IO.fail(e))
 
-                var loop = true
-                while (loop) {
-                  val oldTodo = tvar.todo.get
-
-                  val newTodo = oldTodo + (txnId -> tryLater)
-
-                  loop = tvar.todo.compareAndSet(oldTodo, newTodo)
-                }
-              }
-
-              tryLaterImpure
-
-              None
+              case TRez.Retry =>
+                if (!onTodo) tryTransaction(true)
+                else None
+            }
           }
         }
-      }
 
-      tryTransaction
+      def tryLaterImpure(): Unit =
+        tryTransaction(false) match {
+          case None     =>
+          case Some(io) => k(io)
+        }
+
+      tryTransaction(false)
     }
 
   /**
