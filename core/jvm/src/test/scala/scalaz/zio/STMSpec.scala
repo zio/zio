@@ -290,30 +290,32 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
                     _ <- STM.check(v == 42)
                   } yield v
                 }.fork
-        _    <- clock.sleep(10.millis)
+        join <- fiber.join
         _    <- STM.atomically(tvar.set(9))
         v    <- STM.atomically(tvar.get)
-        join <- fiber.join
       } yield (v must_=== 9) and (join must_=== 42)
     }
 
   def e21 =
     unsafeRun {
+
       for {
+        done  <- Promise.make[Nothing, Unit]
         tvar1 <- STM.atomically(TVar.make(0))
         tvar2 <- STM.atomically(TVar.make("Failed!"))
-        fiber <- STM.atomically {
+        fiber <- (STM.atomically {
                   for {
                     v1 <- tvar1.get
                     _  <- STM.check(v1 > 42)
                     _  <- tvar2.set("Succeeded!")
                     v2 <- tvar2.get
                   } yield v2
-                }.fork
+                } <* done.succeed(())).fork
         _    <- clock.sleep(10.millis)
         old  <- STM.atomically(tvar2.get)
         _    <- STM.atomically(tvar1.set(43))
-        newV <- STM.atomically(tvar2.get).repeat(Schedule.doUntil(_ == "Succeeded!"))
+        _    <- done.await
+        newV <- STM.atomically(tvar2.get)
         join <- fiber.join
       } yield (old must_=== "Failed!") and (newV must_=== join)
     }
