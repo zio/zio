@@ -321,7 +321,28 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
   def e22 = todo
   def e23 = todo
-  def e24 = todo
+  def e24 =
+    unsafeRun {
+      for {
+        sender    <- TVar.makeM(100)
+        receiver  <- TVar.makeM(0)
+        _         <- transfer(receiver, sender, 150).fork
+        _         <- STM.atomically(sender.update(_ + 100))
+        _         <- STM.atomically(sender.get.filter(_ == 50))
+        senderV   <- STM.atomically(sender.get)
+        receiverV <- STM.atomically(receiver.get)
+      } yield (senderV must_=== 50) and (receiverV must_=== 150)
+    }
   def e25 = todo
 
+  def transfer(receiver: TVar[Int], sender: TVar[Int], much: Int): UIO[Int] =
+    STM.atomically {
+      for {
+        balance <- sender.get
+        _       <- STM.check(balance >= much)
+        _       <- receiver.update(_ + much)
+        _       <- sender.update(_ - much)
+        newAmnt <- receiver.get
+      } yield newAmnt
+    }
 }

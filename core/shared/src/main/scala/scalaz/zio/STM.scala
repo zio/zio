@@ -16,7 +16,7 @@ import scala.collection.mutable.{ Map => MutableMap }
  *   STM.atomically {
  *     for {
  *       balance <- sender.get
- *       _       <- check(balance >= much)
+ *       _       <- STM.check(balance >= much)
  *       _       <- receiver.update(_ + much)
  *       _       <- sender.update(_ - much)
  *       newAmnt <- receiver.get
@@ -32,7 +32,7 @@ import scala.collection.mutable.{ Map => MutableMap }
  * }}}
  */
 final class STM[+E, +A] private (
-  val run: STM.internal.Journal => STM.internal.TRez[E, A]
+  val exec: STM.internal.Journal => STM.internal.TRez[E, A]
 ) extends AnyVal { self =>
   import STM.internal.TRez
 
@@ -67,7 +67,7 @@ final class STM[+E, +A] private (
   final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
     new STM(
       journal =>
-        (self run journal) match {
+        (self exec journal) match {
           case TRez.Fail(e)    => TRez.Fail(e)
           case TRez.Succeed(a) => if (pf.isDefinedAt(a)) TRez.Succeed(pf(a)) else TRez.Retry
           case TRez.Retry      => TRez.Retry
@@ -80,7 +80,7 @@ final class STM[+E, +A] private (
   final def either: STM[Nothing, Either[E, A]] =
     new STM(
       journal =>
-        (self run journal) match {
+        (self exec journal) match {
           case TRez.Fail(e)    => TRez.Succeed(Left(e))
           case TRez.Succeed(a) => TRez.Succeed(Right(a))
           case TRez.Retry      => TRez.Retry
@@ -103,8 +103,8 @@ final class STM[+E, +A] private (
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     new STM(
       journal =>
-        (self run journal) match {
-          case TRez.Succeed(a)  => f(a) run journal
+        (self exec journal) match {
+          case TRez.Succeed(a)  => f(a) exec journal
           case t @ TRez.Fail(_) => t
           case TRez.Retry       => TRez.Retry
         }
@@ -116,7 +116,7 @@ final class STM[+E, +A] private (
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
     new STM(
       journal =>
-        (self run journal) match {
+        (self exec journal) match {
           case TRez.Fail(e)    => TRez.Succeed(f(e))
           case TRez.Succeed(a) => TRez.Succeed(g(a))
           case TRez.Retry      => TRez.Retry
@@ -130,10 +130,10 @@ final class STM[+E, +A] private (
   final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B], h: => STM[E1, B] = STM.retry): STM[E1, B] =
     new STM(
       journal =>
-        (self run journal) match {
-          case TRez.Fail(e)    => f(e) run journal
-          case TRez.Succeed(a) => g(a) run journal
-          case TRez.Retry      => h run journal
+        (self exec journal) match {
+          case TRez.Fail(e)    => f(e) exec journal
+          case TRez.Succeed(a) => g(a) exec journal
+          case TRez.Retry      => h exec journal
         }
     )
 
@@ -143,7 +143,7 @@ final class STM[+E, +A] private (
   final def map[B](f: A => B): STM[E, B] =
     new STM(
       journal =>
-        self.run(journal) match {
+        (self exec journal) match {
           case TRez.Succeed(a)  => TRez.Succeed(f(a))
           case t @ TRez.Fail(_) => t
           case TRez.Retry       => TRez.Retry
@@ -156,7 +156,7 @@ final class STM[+E, +A] private (
   final def mapError[E1](f: E => E1): STM[E1, A] =
     new STM(
       journal =>
-        self.run(journal) match {
+        (self exec journal) match {
           case t @ TRez.Succeed(_) => t
           case TRez.Fail(e)        => TRez.Fail(f(e))
           case TRez.Retry          => TRez.Retry
@@ -174,6 +174,11 @@ final class STM[+E, +A] private (
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
     self.foldM(_ => that, STM.succeed(_), that)
+
+  /**
+   * Runs this transaction atomically.
+   */
+  final def run: IO[E, A] = STM.atomically(self)
 
   /**
    * Same as [[filter]]
@@ -465,7 +470,7 @@ object STM {
 
             while (loop) {
               journal = MutableMap.empty[Long, Entry]
-              value = stm run journal
+              value = stm exec journal
 
               if (value != TRez.Retry) {
                 done set true
