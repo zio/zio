@@ -37,6 +37,19 @@ final class STM[+E, +A] private (
   import STM.internal.TRez
 
   /**
+   * Sequentially zips this value with the specified one.
+   */
+  final def ~[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
+    self zip that
+
+  /**
+   * Feeds the value produced by this effect to the specified function,
+   * and then runs the returned effect as well to produce its results.
+   */
+  final def >>=[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
+    self flatMap f
+
+  /**
    * Converts the failure channel into an `Either`.
    */
   final def either: STM[Nothing, Either[E, A]] =
@@ -50,8 +63,8 @@ final class STM[+E, +A] private (
     )
 
   /**
-   * Feeds the value produced by this computation to the specified computation,
-   * and then runs that computation as well to produce its failure or value.
+   * Feeds the value produced by this effect to the specified function,
+   * and then runs the returned effect as well to produce its results.
    */
   final def flatMap[E1 >: E, B](f: A => STM[E1, B]): STM[E1, B] =
     new STM(
@@ -130,12 +143,6 @@ final class STM[+E, +A] private (
   /**
    * Sequentially zips this value with the specified one.
    */
-  final def ~[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
-    self zip that
-
-  /**
-   * Sequentially zips this value with the specified one.
-   */
   final def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
     (self zipWith that)((a, b) => a -> b)
 
@@ -192,7 +199,7 @@ object STM {
         while (loop) {
           val oldTodo = tvar.todo.get
 
-          val newTodo = oldTodo + (txnId -> todoEffect)
+          val newTodo = oldTodo.updated(txnId, todoEffect)
 
           loop = !tvar.todo.compareAndSet(oldTodo, newTodo)
         }
@@ -308,6 +315,21 @@ object STM {
         entry unsafeSet newValue
 
         TRez.Succeed(newValue)
+      })
+
+    /**
+     * Updates the value of the variable, returning a function of the specified
+     * value.
+     */
+    final def modify[B](f: A => (B, A)): STM[Nothing, B] =
+      new STM(journal => {
+        val entry = getOrMakeEntry(journal)
+
+        val (retValue, newValue) = f(entry.unsafeGet[A])
+
+        entry unsafeSet newValue
+
+        TRez.Succeed(retValue)
       })
 
     private def getOrMakeEntry(journal: Journal): Entry =
