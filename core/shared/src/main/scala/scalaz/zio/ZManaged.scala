@@ -27,8 +27,8 @@ package scalaz.zio
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-final case class ManagedR[-R, +E, +A](reserve: ZIO[R, E, ManagedR.Reservation[R, E, A]]) { self =>
-  import ManagedR.Reservation
+final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, ZManaged.Reservation[R, E, A]]) { self =>
+  import ZManaged.Reservation
 
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     reserve.bracket(_.release)(_.acquire.flatMap(f))
@@ -36,13 +36,13 @@ final case class ManagedR[-R, +E, +A](reserve: ZIO[R, E, ManagedR.Reservation[R,
   final def use_[R1 <: R, E1 >: E, B](f: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     use(_ => f)
 
-  final def map[B](f0: A => B): ManagedR[R, E, B] =
-    ManagedR[R, E, B] {
+  final def map[B](f0: A => B): ZManaged[R, E, B] =
+    ZManaged[R, E, B] {
       self.reserve.map(token => token.copy(acquire = token.acquire.map(f0)))
     }
 
-  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ManagedR[R1, E1, B]): ManagedR[R1, E1, B] =
-    ManagedR[R1, E1, B] {
+  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
+    ZManaged[R1, E1, B] {
       Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
         Reservation(
           acquire = for {
@@ -60,32 +60,32 @@ final case class ManagedR[-R, +E, +A](reserve: ZIO[R, E, ManagedR.Reservation[R,
       }
     }
 
-  final def *>[R1 <: R, E1 >: E, A1](that: ManagedR[R1, E1, A1]): ManagedR[R1, E1, A1] =
+  final def *>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
     flatMap(_ => that)
 
   /**
    * Named alias for `*>`.
    */
-  final def zipRight[R1 <: R, E1 >: E, A1](that: ManagedR[R1, E1, A1]): ManagedR[R1, E1, A1] =
+  final def zipRight[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
     self *> that
 
-  final def <*[R1 <: R, E1 >: E, A1](that: ManagedR[R1, E1, A1]): ManagedR[R1, E1, A] =
+  final def <*[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
     flatMap(r => that.map(_ => r))
 
   /**
    * Named alias for `<*`.
    */
-  final def zipLeft[R1 <: R, E1 >: E, A1](that: ManagedR[R1, E1, A1]): ManagedR[R1, E1, A] =
+  final def zipLeft[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
     self <* that
 
-  final def zipWith[R1 <: R, E1 >: E, A1, A2](that: ManagedR[R1, E1, A1])(f: (A, A1) => A2): ManagedR[R1, E1, A2] =
+  final def zipWith[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f: (A, A1) => A2): ZManaged[R1, E1, A2] =
     flatMap(r => that.map(r1 => f(r, r1)))
 
-  final def zip[R1 <: R, E1 >: E, A1](that: ManagedR[R1, E1, A1]): ManagedR[R1, E1, (A, A1)] =
+  final def zip[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
     zipWith(that)((_, _))
 
-  final def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ManagedR[R1, E1, A1])(f0: (A, A1) => A2): ManagedR[R1, E1, A2] =
-    ManagedR[R1, E1, A2] {
+  final def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] =
+    ZManaged[R1, E1, A2] {
       Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
         Reservation(
           acquire = {
@@ -101,49 +101,49 @@ final case class ManagedR[-R, +E, +A](reserve: ZIO[R, E, ManagedR.Reservation[R,
       }
     }
 
-  final def zipPar[R1 <: R, E1 >: E, A1](that: ManagedR[R1, E1, A1]): ManagedR[R1, E1, (A, A1)] =
+  final def zipPar[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
     zipWithPar(that)((_, _))
 }
 
-object ManagedR {
+object ZManaged {
   final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: ZIO[R, Nothing, _])
 
   /**
    * Lifts a `ZIO[R, E, R]` into `ManagedR[R, E, R]` with a release action.
    */
-  final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ManagedR[R, E, A] =
-    ManagedR(acquire.map(r => Reservation(IO.succeed(r), release(r))))
+  final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZManaged[R, E, A] =
+    ZManaged(acquire.map(r => Reservation(IO.succeed(r), release(r))))
 
   /**
    * Lifts a ZIO[R, E, R] into ManagedR[R, E, R] with no release action. Use
    * with care.
    */
-  final def liftIO[R, E, A](fa: ZIO[R, E, A]): ManagedR[R, E, A] =
-    ManagedR(IO.succeed(Reservation(fa, IO.unit)))
+  final def liftIO[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
+    ZManaged(IO.succeed(Reservation(fa, IO.unit)))
 
   /**
    * Unwraps a `ManagedR` that is inside a `ZIO`.
    */
-  final def unwrap[R, E, A](fa: ZIO[R, E, ManagedR[R, E, A]]): ManagedR[R, E, A] =
-    ManagedR(fa.flatMap(_.reserve))
+  final def unwrap[R, E, A](fa: ZIO[R, E, ZManaged[R, E, A]]): ZManaged[R, E, A] =
+    ZManaged(fa.flatMap(_.reserve))
 
   /**
    * Lifts a strict, pure value into a Managed.
    */
-  final def succeed[R, A](r: A): ManagedR[R, Nothing, A] =
-    ManagedR(IO.succeed(Reservation(IO.succeed(r), IO.unit)))
+  final def succeed[R, A](r: A): ZManaged[R, Nothing, A] =
+    ZManaged(IO.succeed(Reservation(IO.succeed(r), IO.unit)))
 
   /**
    * Lifts a by-name, pure value into a Managed.
    */
-  final def succeedLazy[R, A](r: => A): ManagedR[R, Nothing, A] =
-    ManagedR(IO.succeed(Reservation(IO.succeedLazy(r), IO.unit)))
+  final def succeedLazy[R, A](r: => A): ZManaged[R, Nothing, A] =
+    ZManaged(IO.succeed(Reservation(IO.succeedLazy(r), IO.unit)))
 
-  final def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => ManagedR[R, E, A2]): ManagedR[R, E, List[A2]] =
-    as.foldRight[ManagedR[R, E, List[A2]]](succeed(Nil)) { (a, m) =>
+  final def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
+    as.foldRight[ZManaged[R, E, List[A2]]](succeed(Nil)) { (a, m) =>
       f(a).zipWith(m)(_ :: _)
     }
 
-  final def collectAll[R, E, A1, A2](ms: Iterable[ManagedR[R, E, A2]]): ManagedR[R, E, List[A2]] =
+  final def collectAll[R, E, A1, A2](ms: Iterable[ZManaged[R, E, A2]]): ZManaged[R, E, List[A2]] =
     foreach(ms)(identity)
 }

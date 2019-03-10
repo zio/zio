@@ -10,7 +10,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     with StreamTestUtils
     with GenIO
     with ScalaCheck {
-  import ArbitraryStream._, SinkR.Step
+  import ArbitraryStream._, ZSink.Step
 
   def is = "SinkSpec".title ^ s2"""
   Constructors
@@ -28,25 +28,25 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def foldLeft =
     prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
-      unsafeRunSync(s.run(SinkR.foldLeft(z)(f))) must_=== slurp(s).map(_.foldLeft(z)(f))
+      unsafeRunSync(s.run(ZSink.foldLeft(z)(f))) must_=== slurp(s).map(_.foldLeft(z)(f))
     }
 
   private def fold =
     prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
       val ff = (acc: String, el: Int) => Step.more(f(acc, el))
 
-      unsafeRunSync(s.run(SinkR.fold(z)(ff))) must_=== slurp(s).map(_.foldLeft(z)(f))
+      unsafeRunSync(s.run(ZSink.fold(z)(ff))) must_=== slurp(s).map(_.foldLeft(z)(f))
     }
 
   private def foldShortCircuits = {
-    val empty: Stream[Nothing, Int]     = StreamR.empty
-    val single: Stream[Nothing, Int]    = StreamR.succeed(1)
-    val double: Stream[Nothing, Int]    = StreamR(1, 2)
-    val failed: Stream[String, Nothing] = StreamR.fail("Ouch")
+    val empty: Stream[Nothing, Int]     = ZStream.empty
+    val single: Stream[Nothing, Int]    = ZStream.succeed(1)
+    val double: Stream[Nothing, Int]    = ZStream(1, 2)
+    val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = SinkR.fold(0) { (_, (a: Int)) =>
+      val sink = ZSink.fold(0) { (_, (a: Int)) =>
         effects ::= a
         Step.done(30, Chunk.empty)
       }
@@ -67,7 +67,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     prop { (s: Stream[String, Int], f: (String, Int) => IO[String, String], z: IO[String, String]) =>
       val ff         = (acc: String, el: Int) => f(acc, el).map(Step.more)
-      val sinkResult = unsafeRunSync(s.run(SinkR.foldM(z)(ff)))
+      val sinkResult = unsafeRunSync(s.run(ZSink.foldM(z)(ff)))
       val foldResult = unsafeRunSync {
         s.foldLeft(List[Int]())((acc, el) => el :: acc)
           .map(_.reverse)
@@ -79,14 +79,14 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def foldMShortCircuits = {
-    val empty: Stream[Nothing, Int]     = StreamR.empty
-    val single: Stream[Nothing, Int]    = StreamR.succeed(1)
-    val double: Stream[Nothing, Int]    = StreamR(1, 2)
-    val failed: Stream[String, Nothing] = StreamR.fail("Ouch")
+    val empty: Stream[Nothing, Int]     = ZStream.empty
+    val single: Stream[Nothing, Int]    = ZStream.succeed(1)
+    val double: Stream[Nothing, Int]    = ZStream(1, 2)
+    val failed: Stream[String, Nothing] = ZStream.fail("Ouch")
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = SinkR.foldM(IO.succeed(0)) { (_, (a: Int)) =>
+      val sink = ZSink.foldM(IO.succeed(0)) { (_, (a: Int)) =>
         effects ::= a
         IO.succeed(Step.done(30, Chunk.empty))
       }
@@ -104,7 +104,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def readWhile =
     prop { (s: Stream[String, String], f: String => Boolean) =>
-      val sinkResult = unsafeRunSync(s.run(SinkR.readWhile(f)))
+      val sinkResult = unsafeRunSync(s.run(ZSink.readWhile(f)))
       val listResult = slurp(s).map(_.takeWhile(f))
 
       listResult.succeeded ==> (sinkResult must_=== listResult)
@@ -119,33 +119,33 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
 
     val numArrayParser =
-      SinkR
+      ZSink
         .foldM(IO.succeed((ParserState.Start: ParserState, List.empty[Int]))) { (s, a: Char) =>
           s match {
             case (ParserState.Start, acc) =>
               a match {
-                case a if a.isWhitespace => IO.succeed(SinkR.Step.more((ParserState.Start, acc)))
-                case '['                 => IO.succeed(SinkR.Step.more((ParserState.Element(""), acc)))
+                case a if a.isWhitespace => IO.succeed(ZSink.Step.more((ParserState.Start, acc)))
+                case '['                 => IO.succeed(ZSink.Step.more((ParserState.Element(""), acc)))
                 case _                   => IO.fail("Expected '['")
               }
 
             case (ParserState.Element(el), acc) =>
               a match {
-                case a if a.isDigit => IO.succeed(SinkR.Step.more((ParserState.Element(el + a), acc)))
-                case ','            => IO.succeed(SinkR.Step.more((ParserState.Element(""), acc :+ el.toInt)))
-                case ']'            => IO.succeed(SinkR.Step.done((ParserState.Done, acc :+ el.toInt), Chunk.empty))
+                case a if a.isDigit => IO.succeed(ZSink.Step.more((ParserState.Element(el + a), acc)))
+                case ','            => IO.succeed(ZSink.Step.more((ParserState.Element(""), acc :+ el.toInt)))
+                case ']'            => IO.succeed(ZSink.Step.done((ParserState.Done, acc :+ el.toInt), Chunk.empty))
                 case _              => IO.fail("Expected a digit or ,")
               }
 
             case (ParserState.Done, acc) =>
-              IO.succeed(SinkR.Step.done((ParserState.Done, acc), Chunk.empty))
+              IO.succeed(ZSink.Step.done((ParserState.Done, acc), Chunk.empty))
           }
         }
         .map(_._2)
         .chunked
 
-    val src1         = StreamChunkR.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
-    val src2         = StreamChunkR.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
+    val src1         = ZStreamChunk.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
+    val src2         = ZStreamChunk.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
     val partialParse = unsafeRunSync(src1.run(numArrayParser))
     val fullParse    = unsafeRunSync((src1 ++ src2).run(numArrayParser))
 
@@ -154,25 +154,25 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def jsonNumArrayParsingSinkWithCombinators = {
-    val comma: SinkR[Any, Nothing, Char, Char, List[Char]] = SinkR.readWhile[Char](_ == ',')
-    val brace: SinkR[Any, String, Char, Char, Char] =
-      SinkR.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
-    val number: SinkR[Any, String, Char, Char, Int] =
-      SinkR.readWhile[Char](_.isDigit).map(_.mkString.toInt)
+    val comma: ZSink[Any, Nothing, Char, Char, List[Char]] = ZSink.readWhile[Char](_ == ',')
+    val brace: ZSink[Any, String, Char, Char, Char] =
+      ZSink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
+    val number: ZSink[Any, String, Char, Char, Int] =
+      ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt)
     val numbers = (number ~ (comma *> number).repeatWhile(_ != ']'))
       .map(tp => tp._1 :: tp._2)
 
     val elements = numbers <* brace
 
-    lazy val start: SinkR[Any, String, Char, Char, List[Int]] =
-      SinkR.more(IO.fail("Input was empty")) {
+    lazy val start: ZSink[Any, String, Char, Char, List[Int]] =
+      ZSink.more(IO.fail("Input was empty")) {
         case a if a.isWhitespace => start
         case '['                 => elements
-        case _                   => SinkR.fail("Expected '['")
+        case _                   => ZSink.fail("Expected '['")
       }
 
-    val src1         = StreamChunkR.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
-    val src2         = StreamChunkR.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
+    val src1         = ZStreamChunk.succeedLazy(Chunk.fromArray(Array('[', '1', '2')))
+    val src2         = ZStreamChunk.succeedLazy(Chunk.fromArray(Array('3', ',', '4', ']')))
     val partialParse = unsafeRunSync(src1.run(start.chunked))
     val fullParse    = unsafeRunSync((src1 ++ src2).run(start.chunked))
 

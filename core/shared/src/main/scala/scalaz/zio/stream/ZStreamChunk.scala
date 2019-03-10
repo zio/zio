@@ -18,8 +18,8 @@ package scalaz.zio.stream
 
 import scalaz.zio._
 
-trait StreamChunkR[-R, +E, @specialized +A] { self =>
-  val chunks: StreamR[R, E, Chunk[A]]
+trait ZStreamChunk[-R, +E, @specialized +A] { self =>
+  val chunks: ZStream[R, E, Chunk[A]]
 
   def foldLazy[R1 <: R, E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
     chunks.fold[R1, E1, Chunk[A1], S].flatMap { f0 =>
@@ -37,23 +37,23 @@ trait StreamChunkR[-R, +E, @specialized +A] { self =>
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
     chunks.fold[R1, E1, Chunk[A1], S].flatMap(f0 => f0(s, cont, f))
 
-  def flattenChunks: StreamR[R, E, A] =
-    chunks.flatMap(StreamR.fromChunk)
+  def flattenChunks: ZStream[R, E, A] =
+    chunks.flatMap(ZStream.fromChunk)
 
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
-  final def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: SinkR[R1, E1, A0, Chunk[A1], B]): ZIO[R1, E1, B] =
+  final def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, Chunk[A1], B]): ZIO[R1, E1, B] =
     chunks.run(sink)
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
-  def filter(pred: A => Boolean): StreamChunkR[R, E, A] =
-    StreamChunkR[R, E, A](self.chunks.map(_.filter(pred)))
+  def filter(pred: A => Boolean): ZStreamChunk[R, E, A] =
+    ZStreamChunk[R, E, A](self.chunks.map(_.filter(pred)))
 
-  def filterNot(pred: A => Boolean): StreamChunkR[R, E, A] = filter(!pred(_))
+  def filterNot(pred: A => Boolean): ZStreamChunk[R, E, A] = filter(!pred(_))
 
   final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
     chunks.foreachWhile[R1, E1] { as =>
@@ -66,14 +66,14 @@ trait StreamChunkR[-R, +E, @specialized +A] { self =>
   final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
     foreachWhile[R1, E1](f(_).const(true))
 
-  final def tap[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, _]): StreamChunkR[R1, E1, A] =
-    StreamChunkR(chunks.tap[R1, E1] { as =>
+  final def tap[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, _]): ZStreamChunk[R1, E1, A] =
+    ZStreamChunk(chunks.tap[R1, E1] { as =>
       as.traverse_(f0)
     })
 
-  def dropWhile(pred: A => Boolean): StreamChunkR[R, E, A] =
-    StreamChunkR(new StreamR[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: StreamR.Fold[R1, E1, A1, S] =
+  def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+    ZStreamChunk(new ZStream[R, E, Chunk[A]] {
+      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: ZStream.Fold[R1, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
           self
             .foldLazyChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
@@ -88,9 +88,9 @@ trait StreamChunkR[-R, +E, @specialized +A] { self =>
         }
     })
 
-  def takeWhile(pred: A => Boolean): StreamChunkR[R, E, A] =
-    StreamChunkR(new StreamR[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: StreamR.Fold[R1, E1, A1, S] =
+  def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+    ZStreamChunk(new ZStream[R, E, Chunk[A]] {
+      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: ZStream.Fold[R1, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
           self
             .foldLazyChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) { (s, as) =>
@@ -103,10 +103,10 @@ trait StreamChunkR[-R, +E, @specialized +A] { self =>
         }
     })
 
-  def zipWithIndex: StreamChunkR[R, E, (A, Int)] =
-    StreamChunkR(
-      new StreamR[R, E, Chunk[(A, Int)]] {
-        override def fold[R1 <: R, E1 >: E, A1 >: Chunk[(A, Int)], S]: StreamR.Fold[R1, E1, A1, S] =
+  def zipWithIndex: ZStreamChunk[R, E, (A, Int)] =
+    ZStreamChunk(
+      new ZStream[R, E, Chunk[(A, Int)]] {
+        override def fold[R1 <: R, E1 >: E, A1 >: Chunk[(A, Int)], S]: ZStream.Fold[R1, E1, A1, S] =
           IO.succeedLazy { (s, cont, f) =>
             chunks.fold[R1, E1, Chunk[A], (S, Int)].flatMap { f0 =>
               f0((s, 0), tp => cont(tp._1), {
@@ -120,27 +120,27 @@ trait StreamChunkR[-R, +E, @specialized +A] { self =>
       }
     )
 
-  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): StreamChunkR[R, E, B] =
-    StreamChunkR(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
+  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): ZStreamChunk[R, E, B] =
+    ZStreamChunk(chunks.mapAccum(s1)((s1: S1, as: Chunk[A]) => as.mapAccum(s1)(f1)))
 
-  def map[@specialized B](f: A => B): StreamChunkR[R, E, B] =
-    StreamChunkR(chunks.map(_.map(f)))
+  def map[@specialized B](f: A => B): ZStreamChunk[R, E, B] =
+    ZStreamChunk(chunks.map(_.map(f)))
 
-  def mapConcat[B](f: A => Chunk[B]): StreamChunkR[R, E, B] =
-    StreamChunkR(chunks.map(_.flatMap(f)))
+  def mapConcat[B](f: A => Chunk[B]): ZStreamChunk[R, E, B] =
+    ZStreamChunk(chunks.map(_.flatMap(f)))
 
-  final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): StreamChunkR[R1, E1, B] =
-    StreamChunkR(chunks.mapM(_.traverse(f0)))
+  final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
+    ZStreamChunk(chunks.mapM(_.traverse(f0)))
 
-  final def flatMap[R1 <: R, E1 >: E, B](f0: A => StreamChunkR[R1, E1, B]): StreamChunkR[R1, E1, B] =
-    StreamChunkR(
-      chunks.flatMap(_.map(f0).foldLeft[StreamR[R1, E1, Chunk[B]]](StreamR.empty)((acc, el) => acc ++ el.chunks))
+  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStreamChunk[R1, E1, B]): ZStreamChunk[R1, E1, B] =
+    ZStreamChunk(
+      chunks.flatMap(_.map(f0).foldLeft[ZStream[R1, E1, Chunk[B]]](ZStream.empty)((acc, el) => acc ++ el.chunks))
     )
 
-  final def ++[R1 <: R, E1 >: E, A1 >: A](that: StreamChunkR[R1, E1, A1]): StreamChunkR[R1, E1, A1] =
-    StreamChunkR(chunks ++ that.chunks)
+  final def ++[R1 <: R, E1 >: E, A1 >: A](that: ZStreamChunk[R1, E1, A1]): ZStreamChunk[R1, E1, A1] =
+    ZStreamChunk(chunks ++ that.chunks)
 
-  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): ManagedR[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
+  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): ZManaged[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
     chunks.toQueue(capacity)
 
   final def toQueueWith[R1 <: R, E1 >: E, A1 >: A, Z](
@@ -150,17 +150,17 @@ trait StreamChunkR[-R, +E, @specialized +A] { self =>
     toQueue[E1, A1](capacity).use(f)
 }
 
-object StreamChunkR {
-  final def apply[R, E, A](chunkStream: StreamR[R, E, Chunk[A]]): StreamChunkR[R, E, A] =
-    new StreamChunkR[R, E, A] {
+object ZStreamChunk {
+  final def apply[R, E, A](chunkStream: ZStream[R, E, Chunk[A]]): ZStreamChunk[R, E, A] =
+    new ZStreamChunk[R, E, A] {
       val chunks = chunkStream
     }
 
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    StreamChunkPureR(StreamPureR.fromIterable(as))
+    ZStreamChunkPure(StreamPureR.fromIterable(as))
 
   final def succeedLazy[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
-    StreamChunkPureR(StreamPureR.succeedLazy(as))
+    ZStreamChunkPure(StreamPureR.succeedLazy(as))
 
-  final val empty: StreamChunk[Nothing, Nothing] = StreamChunkPureR(StreamPureR.empty)
+  final val empty: StreamChunk[Nothing, Nothing] = ZStreamChunkPure(StreamPureR.empty)
 }

@@ -141,12 +141,12 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   private def monadLaw1 =
     prop(
       (x: Int, f: Int => StreamChunk[String, Int]) =>
-        slurp(StreamChunkR.succeedLazy(Chunk(x)).flatMap(f)) must_=== slurp(f(x))
+        slurp(ZStreamChunk.succeedLazy(Chunk(x)).flatMap(f)) must_=== slurp(f(x))
     )
 
   private def monadLaw2 =
     prop(
-      (m: StreamChunk[String, Int]) => slurp(m.flatMap(i => StreamChunkR.succeedLazy(Chunk(i)))) must_=== slurp(m)
+      (m: StreamChunk[String, Int]) => slurp(m.flatMap(i => ZStreamChunk.succeedLazy(Chunk(i)))) must_=== slurp(m)
     )
 
   private def monadLaw3 =

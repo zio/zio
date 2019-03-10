@@ -1,7 +1,7 @@
 package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Subscriber, Subscription }
-import scalaz.zio.stream.{ SinkR, Stream }
+import scalaz.zio.stream.{ Stream, ZSink }
 import scalaz.zio.{ Promise, Queue, Runtime, Task, UIO, ZIO }
 
 class SinkSubscriber[A, B](
@@ -56,7 +56,7 @@ class SinkSubscriber[A, B](
 
 object SinkSubscriber {
   private[reactiveStreams] def sinkToSubscriber[R, E <: Throwable, A0, A, B](
-    sink: SinkR[R, E, A0, A, B],
+    sink: ZSink[R, E, A0, A, B],
     qSize: Int = 10
   ): ZIO[R, Nothing, (Subscriber[A], Task[B])] =
     for {

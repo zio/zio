@@ -62,12 +62,12 @@ class StreamBenchmarks {
   @Benchmark
   def scalazChunkFilterMapSum = {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
-    val stream = StreamChunkR
+    val stream = ZStreamChunk
       .fromChunks(chunks: _*)
       .filter(_ % 2 == 0)
       .map(_.toLong)
 
-    val sink   = SinkR.foldLeft(0L)((s, as: Chunk[Long]) => as.foldLeft(s)(_ + _))
+    val sink   = ZSink.foldLeft(0L)((s, as: Chunk[Long]) => as.foldLeft(s)(_ + _))
     val result = stream.run(sink)
 
     unsafeRun(result)
@@ -172,7 +172,7 @@ class CSVStreamBenchmarks {
   @Benchmark
   def scalazCsvTokenize() = {
     val chunks = genCsvChunks.map(Chunk.fromArray(_))
-    val stream = StreamChunkR
+    val stream = ZStreamChunk
       .fromChunks(chunks: _*)
       .mapAccum[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) {
         case (acc, char) =>
@@ -192,7 +192,7 @@ class CSVStreamBenchmarks {
       }
       .mapConcat(identity(_))
 
-    unsafeRun(stream.run(SinkR.drain))
+    unsafeRun(stream.run(ZSink.drain))
   }
 }
 

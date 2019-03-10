@@ -35,7 +35,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def retryCollect[R, E, A, E1 >: E, S](
     io: IO[E, A],
-    retry: ScheduleR[R, E1, S]
+    retry: ZSchedule[R, E1, S]
   ): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] = {
 
     type State = retry.State
@@ -125,7 +125,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def retryNUnitIntervalJittered = {
-    val schedule: ScheduleR[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
+    val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
     val scheduled: List[(Duration, Int)] = unsafeRun(
       schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
@@ -135,7 +135,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def retryNCustomIntervalJittered = {
-    val schedule: ScheduleR[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
+    val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
     val scheduled: List[(Duration, Int)] = unsafeRun(
       schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
