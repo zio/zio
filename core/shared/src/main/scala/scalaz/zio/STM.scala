@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable.{ Map => MutableMap }
 
 /**
- * `STM[E, A]` represents a computation that can be performed transactional
+ * `STM[E, A]` represents an effect that can be performed transactionally,
  * resulting in a failure `E` or a value `A`.
  *
  * {{{
@@ -50,6 +50,19 @@ final class STM[+E, +A] private (
     self flatMap f
 
   /**
+   * Simultaneously filters and maps the value produced by this effect.
+   */
+  final def collect[B](pf: PartialFunction[A, B]): STM[E, B] =
+    new STM(
+      journal =>
+        (self run journal) match {
+          case TRez.Fail(e)    => TRez.Fail(e)
+          case TRez.Succeed(a) => if (pf.isDefinedAt(a)) TRez.Succeed(pf(a)) else TRez.Retry
+          case TRez.Retry      => TRez.Retry
+        }
+    )
+
+  /**
    * Converts the failure channel into an `Either`.
    */
   final def either: STM[Nothing, Either[E, A]] =
@@ -61,6 +74,15 @@ final class STM[+E, +A] private (
           case TRez.Retry      => TRez.Retry
         }
     )
+
+  /**
+   * Filters the value produced by this effect, retrying the transaction until
+   * the predicate returns true for the value.
+   */
+  final def filter(f: A => Boolean): STM[E, A] =
+    collect {
+      case a if f(a) => a
+    }
 
   /**
    * Feeds the value produced by this effect to the specified function,
@@ -103,7 +125,7 @@ final class STM[+E, +A] private (
     )
 
   /**
-   * Maps the value produced by the computation.
+   * Maps the value produced by the effect.
    */
   final def map[B](f: A => B): STM[E, B] =
     new STM(
@@ -135,7 +157,7 @@ final class STM[+E, +A] private (
     fold[Option[A]](_ => None, Some(_))
 
   /**
-   * Tries this computation first, and if it fails, tries the other computation.
+   * Tries this effect first, and if it fails, tries the other effect.
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
     self.foldM(_ => that, STM.succeed(_))
@@ -272,7 +294,7 @@ object STM {
   import internal._
 
   /**
-   * A variable that can be modified as part of a transactional computation.
+   * A variable that can be modified as part of a transactional effect.
    */
   class TVar[A] private (
     val id: Long,
