@@ -461,7 +461,7 @@ object STM {
 
       val done = new AtomicBoolean(false)
 
-      def tryTxn(onTodo: Boolean): Option[IO[E, A]] =
+      def tryTxn(): Option[IO[E, A]] =
         if (done.get) None
         else
           done.synchronized {
@@ -509,18 +509,18 @@ object STM {
                 case TRez.Retry =>
                   val current = journal.values.forall(entry => entry.tvar.versioned eq entry.expected)
 
-                  if (!(current || onTodo)) tryTxn(true) else None
+                  if (!current) tryTxn() else None
               }
             }
           }
 
       def tryTxnAsync(): Unit =
-        tryTxn(false) match {
+        tryTxn() match {
           case None     =>
           case Some(io) => k(io)
         }
 
-      tryTxn(false)
+      tryTxn()
     }
 
   /**

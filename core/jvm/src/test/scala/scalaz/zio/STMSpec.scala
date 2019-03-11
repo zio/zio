@@ -198,12 +198,12 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         unsafeRun(
           for {
             tVar  <- TVar.makeM(0)
-            fiber <- ZIO.forkAll(List.fill(100)(incrementVarN(99, tVar)))
+            fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
             _     <- fiber.join
           } yield tVar.get
         )
       )
-    ) must_=== 10000
+    ) must_=== 1000
 
   def e16 =
     unsafeRun(
@@ -215,7 +215,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
                         TVar.make(10000) ~ TVar.make(0) ~ TVar.make(0)
                       )
             tvar1 ~ tvar2 ~ tvar3 = tVars
-            fiber                 <- ZIO.forkAll(List.fill(100)(compute3VarN(99, tvar1, tvar2, tvar3)))
+            fiber                 <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
             _                     <- fiber.join
           } yield tvar3.get
         )
@@ -245,7 +245,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
     unsafeRun(
       for {
         ref   <- Ref.make(0)
-        fiber <- ZIO.forkAll(List.fill(1)(incrementRefN(99, ref)))
+        fiber <- ZIO.forkAll(List.fill(10)(incrementRefN(99, ref)))
         _     <- fiber.join
         v     <- ref.get
       } yield v must_!== 10000
@@ -257,7 +257,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         ref1  <- Ref.make(10000)
         ref2  <- Ref.make(0)
         ref3  <- Ref.make(0)
-        fiber <- ZIO.forkAll(List.fill(100)(compute3RefN(99, ref1, ref2, ref3)))
+        fiber <- ZIO.forkAll(List.fill(10)(compute3RefN(99, ref1, ref2, ref3)))
         _     <- fiber.join
         v3    <- ref3.get
       } yield v3 must_!== 10000
