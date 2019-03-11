@@ -52,8 +52,7 @@ object Adapters {
    *
    * A `Sink` cannot signal `Stream` failure to the subscriber, as this requires a side channel from the `Stream`.
    * For this reason, using this adapter with a `Stream` that may fail will most likely leak resources and lead to
-   * unexpected behavior. If you need to cover such a case, convert the `Stream` to a `Publisher` instead and
-   * connect the `Subscriber` to the resulting `Publisher`.
+   * unexpected behavior. For Streams that can fail use `subscriberToSinkWithError`.
    */
   def subscriberToSink[A](subscriber: Subscriber[A]): UIO[Sink[Any, Nothing, Unit, A, Unit]] =
     for {
@@ -62,6 +61,31 @@ object Adapters {
       subscription = createSubscription(subscriber, demand, runtime)
       _            <- UIO(subscriber.onSubscribe(subscription))
     } yield demandUnfoldSink(subscriber, demand)
+
+  /**
+   * Create a `Sink` from a `Subscriber`. Errors need to be transported via the returned future:
+   *
+   * ```
+   * val subscriber: Subscriber[A] = ???
+   * val stream: Stream[R, Throwable, A] = ???
+   * for {
+   *   sinkError     <- subscriber.toSinkWithError[Throwable]
+   *   (error, sink) = sinkError
+   *   _             <- stream.catchAll(t => error.fail(t)).fork
+   * } yield sink
+   * ```
+   */
+  def subscriberToSinkWithError[E <: Throwable, A](
+    subscriber: Subscriber[A]
+  ): UIO[(Promise[E, Unit], Sink[Any, Nothing, Unit, A, Unit])] =
+    for {
+      runtime      <- ZIO.runtime[Any]
+      demand       <- Queue.unbounded[Long]
+      error        <- Promise.make[E, Unit]
+      subscription = createSubscription(subscriber, demand, runtime)
+      _            <- UIO(subscriber.onSubscribe(subscription))
+      _            <- error.await.catchAll(t => UIO(subscriber.onError(t)) *> demand.shutdown).fork
+    } yield (error, demandUnfoldSink(subscriber, demand))
 
   /**
    * Create a `Stream` from a `Publisher`.

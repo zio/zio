@@ -1,8 +1,8 @@
 package scalaz.zio.interop
 
-import org.reactivestreams.{ Publisher, Subscriber }
-import scalaz.zio.stream.{ Sink, Stream }
-import scalaz.zio.{ Task, UIO, ZIO }
+import org.reactivestreams.{Publisher, Subscriber}
+import scalaz.zio.stream.{Sink, Stream}
+import scalaz.zio.{Promise, Task, UIO, ZIO}
 
 package object reactiveStreams {
 
@@ -24,6 +24,8 @@ package object reactiveStreams {
   final implicit class subscriberToSink[A](val subscriber: Subscriber[A]) extends AnyVal {
     def toSink: UIO[Sink[Any, Nothing, Unit, A, Unit]] =
       Adapters.subscriberToSink(subscriber)
+    def toSinkWithError[E <: Throwable]: UIO[(Promise[E, Unit], Sink[Any, E, Unit, A, Unit])] =
+      Adapters.subscriberToSinkWithError(subscriber)
   }
 
 }
