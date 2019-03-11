@@ -341,6 +341,9 @@ object STM {
   ) {
     self =>
 
+    final val debug: UIO[Unit] =
+      UIO(println(s"id = ${id}, versioned.value = ${versioned.value}, todo = ${todo.get}"))
+
     /**
      * Retrieves the value of the `TVar`.
      */
