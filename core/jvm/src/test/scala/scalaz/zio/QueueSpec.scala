@@ -106,6 +106,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     make a bounded queue, `poll` on empty queue must return None $e66
     make a bounded queue, offer 4 values, `takeAll`, `poll` must return None $e67
     make a bounded queue, offer 2 values, first two `poll` return values wrapped in Some, further `poll` return None $e68
+    make a bounded queue, shut it down, offer a value, takeAllValues, shut it down, isShutdown should return false only after shutdown $e69
     """
 
   def e1 = unsafeRun(
@@ -826,6 +827,19 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       t3    <- queue.poll
       t4    <- queue.poll
     } yield (t1 must_=== Some(1)).and(t2 must_=== Some(2)).and(t3 must_=== None).and(t4 must_=== None)
+  )
+
+  def e69 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      r1    <- queue.isShutdown
+      _     <- queue.offer(1)
+      r2    <- queue.isShutdown
+      _     <- queue.takeAll
+      r3    <- queue.isShutdown
+      _     <- queue.shutdown
+      r4    <- queue.isShutdown
+    } yield (r1 must beFalse) and (r2 must beFalse) and (r3 must beFalse) and (r4 must beTrue)
   )
 }
 
