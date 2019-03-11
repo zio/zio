@@ -3,13 +3,13 @@ package scalaz.zio.interop.reactiveStreams
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Source, Sink => AkkaSink}
+import akka.stream.scaladsl.{ Source, Sink => AkkaSink }
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AfterAll
 import org.specs2.specification.core.SpecStructure
 import scalaz.zio.Exit.Cause
 import scalaz.zio.stream.Sink
-import scalaz.zio.{Exit, Task, TestRuntime, UIO}
+import scalaz.zio.{ Exit, Task, TestRuntime, UIO }
 
 class PublisherToStreamSpec(implicit ee: ExecutionEnv) extends TestRuntime with AfterAll {
 
