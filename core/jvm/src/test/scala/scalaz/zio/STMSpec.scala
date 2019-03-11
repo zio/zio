@@ -43,9 +43,10 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
           have a complex condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied $e22
               resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
-                  the transaction shouldn't be suspended. $e23
-              resume after satisfying the condition $e24
-              be suspended while the condition couldn't be satisfied $e25
+                  test1 $e23
+              test2 $e24
+              test3 $e25
+                                test4 $e26
 
     """
 
@@ -319,9 +320,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       } yield (old must_=== "Failed!") and (newV must_=== join)
     }
 
-  def e22 = todo
-  def e23 = todo
-  def e24 =
+  def e22 =
     unsafeRun {
       for {
         sender    <- TVar.makeM(100)
@@ -333,7 +332,6 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         receiverV <- receiver.get.run
       } yield (senderV must_=== 50) and (receiverV must_=== 150)
     }
-  def e25 = todo
 
   def transfer(receiver: TVar[Int], sender: TVar[Int], much: Int): UIO[Int] =
     STM.atomically {
@@ -345,4 +343,70 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         newAmnt <- receiver.get
       } yield newAmnt
     }
+
+  def e23 =
+    unsafeRun {
+      for {
+        sender     <- TVar.makeM(100)
+        receiver   <- TVar.makeM(0)
+        toReceiver = transfer(receiver, sender, 150)
+        toSender   = transfer(sender, receiver, 150)
+        f1         <- IO.forkAll(List.fill(10)(toReceiver *> toSender))
+        _          <- sender.update(_ + 50).run
+        _          <- f1.join
+        senderV    <- sender.get.run
+        receiverV  <- receiver.get.run
+      } yield (senderV must_=== 150) and (receiverV must_=== 0)
+    }
+
+  def e24 = todo
+//    unsafeRun {
+//      for {
+//        sender     <- TVar.makeM(50)
+//        receiver   <- TVar.makeM(0)
+//        toReceiver = transfer(receiver, sender, 100)
+//        toSender   = transfer(sender, receiver, 100)
+//        f1         <- IO.forkAll(List.fill(10)(toReceiver))
+//        f2         <- IO.forkAll(List.fill(10)(toSender))
+//        _          <- sender.update(_ + 50).run
+//        _          <- f1.join
+//        _          <- f2.join
+//        senderV    <- sender.get.run
+//        receiverV  <- receiver.get.run
+//      } yield (senderV must_=== 100) and (receiverV must_=== 0)
+//    }
+
+  def e25 =
+    unsafeRun {
+      for {
+        sender       <- TVar.makeM(50)
+        receiver     <- TVar.makeM(0)
+        toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
+        toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
+        f            <- toReceiver10.zipPar(toSender10).fork
+        _            <- sender.update(_ + 950).run
+        _            <- f.join
+        senderV      <- sender.get.run
+        receiverV    <- receiver.get.run
+      } yield (senderV must_=== 1000) and (receiverV must_=== 0)
+    }
+
+  def e26 =
+    unsafeRun(
+      for {
+        tvar <- TVar.makeM(0)
+        fiber <- IO.forkAll(
+                  (0 to 20).map(
+                    i =>
+                      (for {
+                        v <- tvar.get
+                        _ <- STM.check(v == i)
+                        _ <- tvar.update(_ + 1)
+                      } yield ()).run
+                  )
+                )
+        _ <- fiber.join
+        v <- tvar.get.run
+      } yield v must_=== 21
+    )
 }
