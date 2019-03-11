@@ -1,8 +1,8 @@
 package scalaz.zio.interop
 
-import org.reactivestreams.{Publisher, Subscriber}
-import scalaz.zio.stream.{Sink, Stream}
-import scalaz.zio.{Promise, Task, UIO, ZIO}
+import org.reactivestreams.{ Publisher, Subscriber }
+import scalaz.zio.stream.{ Sink, Stream }
+import scalaz.zio.{ Promise, Task, UIO, ZIO }
 
 package object reactiveStreams {
 
