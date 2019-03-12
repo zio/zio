@@ -10,11 +10,10 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
 
   def is = "ConsoleSpec".title ^ s2"""
       Outputs nothing        $emptyOutput
-      Writes to output       $putStr1
-      Writes to buffer       $putStr2
-      Writes line to output  $putStrLn1
-      Writes line to buffer  $putStrLn2
-      Reads from input       $getStr
+      Writes to output       $putStr
+      Writes line to output  $putStrLn
+      Reads from input       $getStr1
+      Fails on empty input   $getStr2
      """
 
   def stream(): PrintStream = new PrintStream(new ByteArrayOutputStream())
@@ -28,7 +27,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       } yield output must beEmpty
     )
 
-  def putStr1 =
+  def putStr =
     unsafeRun(
       for {
         ref         <- Ref.make(Data())
@@ -39,18 +38,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       } yield output must_=== Vector("First line", "Second line")
     )
 
-  def putStr2 =
-    unsafeRun(
-      for {
-        ref         <- Ref.make(Data())
-        testConsole <- IO.succeed(TestConsole(ref))
-        _           <- testConsole.putStr(stream())("First line")
-        _           <- testConsole.putStr(stream())("Second line")
-        output      <- testConsole.ref.get.map(_.output)
-      } yield output must_=== Vector.empty
-    )
-
-  def putStrLn1 =
+  def putStrLn =
     unsafeRun(
       for {
         ref         <- Ref.make(Data())
@@ -61,18 +49,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       } yield output must_=== Vector("First line\n", "Second line\n")
     )
 
-  def putStrLn2 =
-    unsafeRun(
-      for {
-        ref         <- Ref.make(Data())
-        testConsole <- IO.succeed(TestConsole(ref))
-        _           <- testConsole.putStrLn(stream())("First line")
-        _           <- testConsole.putStrLn(stream())("Second line")
-        output      <- testConsole.ref.get.map(_.output)
-      } yield output must_=== Vector.empty
-    )
-
-  def getStr =
+  def getStr1 =
     unsafeRun(
       for {
         ref         <- Ref.make(Data(List("Input 1", "Input 2"), Vector.empty))
@@ -80,5 +57,14 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         input1      <- testConsole.getStrLn
         input2      <- testConsole.getStrLn
       } yield (input1 must_=== "Input 1") and (input2 must_=== "Input 2")
+    )
+
+  def getStr2 =
+    unsafeRun(
+      for {
+        ref         <- Ref.make(Data())
+        testConsole <- IO.succeed(TestConsole(ref))
+        failed      <- testConsole.getStrLn.either
+      } yield failed must beLeft
     )
 }

@@ -16,7 +16,7 @@
 
 package scalaz.zio.testkit
 
-import java.io.{ IOException, PrintStream, Reader }
+import java.io.IOException
 
 import scalaz.zio.console._
 import scalaz.zio._
@@ -28,25 +28,23 @@ case class TestConsole(ref: Ref[TestConsole.Data]) extends Console.Service[Any] 
       Data(data.input, data.output :+ line)
     }.void
 
-  override def putStr(stream: PrintStream)(line: String): ZIO[Any, Nothing, Unit] = ZIO.unit
-
   override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
     ref.update { data =>
       Data(data.input, data.output :+ s"$line\n")
     }.void
 
-  override def putStrLn(stream: PrintStream)(line: String): ZIO[Any, Nothing, Unit] = ZIO.unit
-
   val getStrLn: ZIO[Any, IOException, String] = {
     for {
-      input <- ref.get.map(_.input.head)
+      input <- ref.get.flatMap(
+                d =>
+                  IO.fromOption(d.input.headOption)
+                    .mapError(_ => new IOException("There is no more input left to read"))
+              )
       _ <- ref.update { data =>
             Data(data.input.tail, data.output)
           }
     } yield input
   }
-
-  def getStrLn(reader: Reader): ZIO[Any, IOException, String] = ZIO.succeed("")
 }
 
 object TestConsole {
