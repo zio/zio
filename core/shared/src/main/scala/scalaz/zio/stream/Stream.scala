@@ -742,20 +742,6 @@ object Stream extends Serializable {
     unfoldM(())(_ => queue.take.map(b => Some((b, ()))) <> IO.succeed(None))
 
   /**
-   * Constructs a potentially finite or failing stream from a `Queue` of `Take`.
-   * This is the inverse operation of `toQueue`.
-   */
-  def fromTakeQueue[E, A](q: Queue[Take[E, A]]): Stream[Any, E, A] =
-    unfoldM(())(
-      _ =>
-        q.take.flatMap {
-          case Take.Value(a) => IO.succeed(Some((a, ())))
-          case Take.Fail(e)  => IO.fail(e)
-          case Take.End      => q.shutdown.map(_ => None)
-        }
-    )
-
-  /**
    * Constructs a stream from effectful state. This method should not be used
    * for resources that require safe release. See `Stream.fromResource`.
    */
@@ -814,4 +800,8 @@ object Stream extends Serializable {
    */
   final def range(min: Int, max: Int): Stream[Any, Nothing, Int] =
     unfold(min)(cur => if (cur > max) None else Some((cur, cur + 1)))
+
+  implicit class unTake[-R, +E, +A](val s: Stream[R, E, Take[E, A]]) extends AnyVal {
+    def unTake: Stream[R, E, A] = s.mapM(t => Take.option(UIO.succeed(t))).takeWhile(_.isDefined).map(_.get)
+  }
 }

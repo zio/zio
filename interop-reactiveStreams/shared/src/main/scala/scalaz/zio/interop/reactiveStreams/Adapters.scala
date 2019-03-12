@@ -19,8 +19,7 @@ object Adapters {
       runtime    <- ZIO.runtime[Any]
       q          <- Queue.bounded[Take[Throwable, A]](bufferSize + 1)
       subscriber = new QueueSubscriber[A](runtime, q)
-      fiber <- Stream
-                .fromTakeQueue(q)
+      fiber <- untakeQ(q)
                 .tap(_ => subscriber.signalDemand)
                 .run(sink)
                 .fork
@@ -96,6 +95,9 @@ object Adapters {
       q          <- Queue.bounded[Take[Throwable, A]](bufferSize + 1)
       subscriber = new QueueSubscriber[A](runtime, q)
       _          <- UIO(publisher.subscribe(subscriber))
-    } yield Stream.fromTakeQueue(q).tap(_ => subscriber.signalDemand)
+    } yield untakeQ(q).tap(_ => subscriber.signalDemand)
+
+  private def untakeQ[R, E, A](q: Queue[Take[E, A]]): Stream[R, E, A] =
+    Stream.fromQueue(q).unTake ++ Stream.fromEffect(q.shutdown).drain
 
 }

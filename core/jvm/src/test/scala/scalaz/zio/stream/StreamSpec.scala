@@ -63,6 +63,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   Stream stack safety
     deep flatMap            $deepFlatMap
+
+  Stream combinators
+    unTake happy path       $unTake
+    unTake with error       $unTakeError
   """
 
   import ArbitraryStream._
@@ -374,4 +378,28 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         l   <- ref.get
       } yield l.reverse must_=== (0 to 10).toList
     )
+
+  private def unTake =
+    unsafeRun(
+      Stream
+        .range(0, 10)
+        .toQueue[Nothing, Int](1)
+        .use { q =>
+          Stream.fromQueue(q).unTake.run(Sink.collect[Int])
+        }
+        .map(_ must_=== (0 to 10).toList)
+    )
+
+  private def unTakeError = {
+    val e = new RuntimeException("boom")
+    unsafeRunSync(
+      Stream
+        .range(0, 10)
+        .++(Stream.fail(e))
+        .toQueue[Throwable, Int](1)
+        .use { q =>
+          Stream.fromQueue(q).unTake.run(Sink.collect[Int])
+        }
+    ) must_== Failure(Cause.Fail(e))
+  }
 }
