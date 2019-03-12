@@ -5,7 +5,7 @@ import FunctionIO._
 class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "FunctionIOSpec".title ^ s2"""
    Check if the functions in `FunctionIO` work correctly
-     `lift` lifts from A => B into effectful function $e1
+     `fromFunction` lifts from A => B into effectful function $e1
      `identity` returns the identity of the input without modification $e2
      `>>>` is a symbolic operator of `andThen`which does a Backwards composition of effectul functions $e3
      `<<<` is a symbolic operator of `compose` which compses two effectful functions $e4
@@ -25,13 +25,13 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
      `_1` extracts out the first element of a tupe $e16
      `_2` extracts out the second element of a tupe $e17
      `fail` returns a failure  $e18a
-     `impure` can translate an Exception to an error  $e18b
+     `effect` can translate an Exception to an error  $e18b
     """
 
   def e1 =
     unsafeRun(
       for {
-        v <- lift[Int, Int](_ + 1).run(4)
+        v <- fromFunction[Int, Int](_ + 1).run(4)
       } yield v must_=== 5
     )
 
@@ -45,14 +45,14 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
   def e3 =
     unsafeRun(
       for {
-        v <- (lift[Int, Int](_ + 1) >>> lift[Int, Int](_ * 2)).run(6)
+        v <- (fromFunction[Int, Int](_ + 1) >>> fromFunction[Int, Int](_ * 2)).run(6)
       } yield v must_=== 14
     )
 
   def e4 =
     unsafeRun(
       for {
-        v <- (lift[Int, Int](_ + 1) <<< lift[Int, Int](_ * 2)).run(6)
+        v <- (fromFunction[Int, Int](_ + 1) <<< fromFunction[Int, Int](_ * 2)).run(6)
       } yield v must_=== 13
     )
 
@@ -68,15 +68,15 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
   def e6 =
     unsafeRun(
       for {
-        v <- (lift[Int, Int](_ + 1) &&& lift[Int, Int](_ * 2)).run(6)
+        v <- (fromFunction[Int, Int](_ + 1) &&& fromFunction[Int, Int](_ * 2)).run(6)
       } yield (v._1 must_=== 7) and (v._2 must_=== 12)
     )
 
   def e7 =
     unsafeRun(
       for {
-        l <- (lift[Int, Int](_ + 1) ||| lift[Int, Int](_ * 2)).run(Left(25))
-        r <- (lift[List[Int], Int](_.sum) ||| lift[List[Int], Int](_.size))
+        l <- (fromFunction[Int, Int](_ + 1) ||| fromFunction[Int, Int](_ * 2)).run(Left(25))
+        r <- (fromFunction[List[Int], Int](_.sum) ||| fromFunction[List[Int], Int](_.size))
               .run(Right(List(1, 3, 5, 2, 8)))
       } yield (l must_=== 26) and (r must_=== 5)
     )
@@ -84,20 +84,20 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
   def e8 =
     unsafeRun(
       for {
-        v <- lift[Int, Int](_ * 2).first.run(100)
+        v <- fromFunction[Int, Int](_ * 2).first.run(100)
       } yield (v._1 must_=== 200) and (v._2 must_=== 100)
     )
 
   def e9 =
     unsafeRun(
       for {
-        v <- lift[Int, Int](_ * 2).second.run(100)
+        v <- fromFunction[Int, Int](_ * 2).second.run(100)
       } yield (v._1 must_=== 100) and (v._2 must_=== 200)
     )
   def e10 =
     unsafeRun(
       for {
-        v1 <- lift[Int, Int](_ * 2).left[Int].run(Left(6))
+        v1 <- fromFunction[Int, Int](_ * 2).left[Int].run(Left(6))
         v2 <- succeedLazy(1).left[String].run(Right("hi"))
       } yield (v1 must beLeft(12)) and (v2 must beRight("hi"))
     )
@@ -105,33 +105,33 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
   def e11 =
     unsafeRun(
       for {
-        v1 <- lift[Int, Int](_ * 2).right[String].run(Left("no value"))
-        v2 <- lift[Int, Int](_ * 2).right[Int].run(Right(7))
+        v1 <- fromFunction[Int, Int](_ * 2).right[String].run(Left("no value"))
+        v2 <- fromFunction[Int, Int](_ * 2).right[Int].run(Right(7))
       } yield (v1 must beLeft("no value")) and (v2 must beRight(14))
     )
 
   def e12 =
     unsafeRun(
       for {
-        v <- lift[Int, Int](_ * 2).asEffect.run(56)
+        v <- fromFunction[Int, Int](_ * 2).asEffect.run(56)
       } yield v must_=== 56
     )
 
   def e13 =
     unsafeRun(
       for {
-        v1 <- FunctionIO.test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
-        v2 <- FunctionIO.test(lift[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
+        v1 <- FunctionIO.test(fromFunction[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5))
+        v2 <- FunctionIO.test(fromFunction[Array[Int], Boolean](_.sum > 10)).run(Array(1, 2, 5, 6))
       } yield (v1 must beRight(Array(1, 2, 5))) and (v2 must beLeft(Array(1, 2, 5, 6)))
     )
 
   def e14a =
     unsafeRun(
       for {
-        v1 <- ifThenElse(lift[Int, Boolean](_ > 0))(succeedLazy("is positive"))(
+        v1 <- ifThenElse(fromFunction[Int, Boolean](_ > 0))(succeedLazy("is positive"))(
                succeedLazy("is negative")
              ).run(-1)
-        v2 <- ifThenElse(lift[Int, Boolean](_ > 0))(succeedLazy("is positive"))(
+        v2 <- ifThenElse(fromFunction[Int, Boolean](_ > 0))(succeedLazy("is positive"))(
                succeedLazy("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
@@ -140,10 +140,10 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
   def e14b =
     unsafeRun(
       for {
-        v1 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
+        v1 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
                succeedLazy("is negative")
              ).run(-1)
-        v2 <- ifThenElse(pure[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
+        v2 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
                succeedLazy("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
@@ -152,15 +152,15 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
   def e15a =
     unsafeRun(
       for {
-        v <- whileDo[Nothing, Int](lift[Int, Boolean](_ < 10))(lift[Int, Int](_ + 1)).run(1)
+        v <- whileDo[Nothing, Int](fromFunction[Int, Boolean](_ < 10))(fromFunction[Int, Int](_ + 1)).run(1)
       } yield v must_=== 10
     )
 
   def e15b =
     unsafeRun(
       for {
-        v <- whileDo[Nothing, Int](pure[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10)))(
-              pure[Nothing, Int, Int](a => IO.effectTotal[Int](a + 1))
+        v <- whileDo[Nothing, Int](fromFunctionM[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10)))(
+              fromFunctionM[Nothing, Int, Int](a => IO.effectTotal[Int](a + 1))
             ).run(1)
       } yield v must_=== 10
     )
@@ -189,7 +189,7 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
   def e18b =
     unsafeRun(
       for {
-        a <- impure[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).either
+        a <- effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).either
       } yield a must_=== Left("error")
     )
 }

@@ -21,13 +21,13 @@ private[interop] trait IONewtype {
   type Base
   trait Tag extends Any
 
-  type T[+E, +A] <: Base with Tag
+  type T[-R, +E, +A] <: Base with Tag
 
-  def apply[E, A](io: IO[E, A]): T[E, A] =
-    io.asInstanceOf[T[E, A]]
+  def apply[R, E, A](io: ZIO[R, E, A]): T[R, E, A] =
+    io.asInstanceOf[T[R, E, A]]
 
-  def unwrap[E, A](t: T[E, A]): IO[E, A] =
-    t.asInstanceOf[IO[E, A]]
+  def unwrap[R, E, A](t: T[R, E, A]): ZIO[R, E, A] =
+    t.asInstanceOf[ZIO[R, E, A]]
 }
 
 private[interop] object Par extends IONewtype

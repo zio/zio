@@ -96,6 +96,17 @@ val res: UIO[String] = for {
 } yield v
 ```
 
+You can consume the first item with `poll`. If the queue is empty you will get `None`, otherwise the top item will be returned wrapped in `Some`.
+
+```tut:silent
+val res: UIO[Option[Int]] = for {
+  queue <- Queue.bounded[Int](100)
+  _ <- queue.offer(10)
+  _ <- queue.offer(20)
+  head <- queue.poll
+} yield head
+```
+
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
 
 ```tut:silent
@@ -141,6 +152,71 @@ val res: UIO[Unit] = for {
   _ <- queue.shutdown
   _ <- f.join
 } yield ()
+```
+
+## Transforming queues
+
+A `Queue[A]` is in fact a type alias for `Queue2[Any, Nothing, Any, Nothing, A, A]`.
+The signature for the expanded version is:
+```scala
+trait Queue2[RA, EA, RB, EB, A, B]
+```
+
+Which is to say:
+- The queue may be offered values of type `A`. The enqueueing operations require an environment of type `RA` and may fail with errors of type `EB`;
+- The queue will yield values of type `B`. The dequeueing operations require an environment of type `RB` and may fail with errors of type `EB`.
+
+Note how the basic `Queue[A]` cannot fail or require any environment for any of its operations.
+
+With separate type parameters for input and output, there are rich composition opportunities for queues:
+
+### Queue2#map
+
+The output of the queue may be mapped:
+
+```tut:silent
+val res: UIO[String] = 
+  for {
+    queue  <- Queue.bounded[Int](3)
+    mapped = queue.map(_.toString)
+    _      <- mapped.offer(1)
+    s      <- mapped.take
+  } yield s
+```
+
+### Queue2#mapM
+
+We may also use an effectful function to map the output:
+
+```tut:silent
+val res: UIO[Queue2[Any, Nothing, Any, String, Int, String]] = 
+  for {
+    queue  <- Queue.bounded[Int](3)
+    mapped = queue.mapM { i =>
+      if (i % 2 == 0) IO.succeed(i.toString)
+      else IO.fail("Only even values!")
+    }
+  } yield mapped
+```
+
+Note how the `EB` type parameter on the resulting queue is now a `String`.
+
+### Queue2#bothWith
+
+We may also compose two queues together into a single queue that
+broadcasts offers and takes from both of the queues:
+
+```tut:silent
+val res: UIO[(Int, String)] = 
+  for {
+    q1       <- Queue.bounded[Int](3)
+    q2       <- Queue.bounded[Int](3)
+    q2Mapped =  q2.map(_.toString)
+    both     =  q1.bothWith(q2Mapped)((_, _))
+    _        <- both.offer(1)
+    iAndS    <- both.take
+    (i, s)   =  iAndS
+  } yield (i, s)
 ```
 
 ## Additional Resources

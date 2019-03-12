@@ -141,6 +141,20 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     )
 
   /**
+   * Runs the specified finalizer as soon as the schedule is complete. Note
+   * that unlike `ZIO#ensuring`, this method does not guarantee the finalizer
+   * will be run. The `Schedule` may not initialize or the driver of the
+   * schedule may not run to completion. However, if the `Schedule` ever
+   * decides not to continue, then the finalizer will be run.
+   */
+  final def ensuring(finalizer: UIO[_]): Schedule[R, A, B] =
+    reconsiderM(
+      (_, decision) =>
+        (if (decision.cont) UIO.unit else finalizer) *>
+          UIO.succeed(decision)
+    )
+
+  /**
    * Returns a new schedule that continues this schedule so long as the predicate
    * is satisfied on the output value of the schedule.
    */
@@ -200,10 +214,22 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
     (self && that).map(_._2)
 
   /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, C] =
+    self *> that
+
+  /**
    * The same as `&&`, but ignores the right output.
    */
   final def <*[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, B] =
     (self && that).map(_._1)
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[R1 <: R, A1 <: A, C](that: Schedule[R1, A1, C]): Schedule[R1, A1, B] =
+    self <* that
 
   /**
    * Returns a new schedule that continues as long as either schedule continues,
@@ -295,7 +321,7 @@ trait Schedule[-R, -A, +B] extends Serializable { self =>
    * that log failures, decisions, or computed values.
    */
   final def onDecision[A1 <: A](f: (A1, Schedule.Decision[State, B]) => UIO[Unit]): Schedule[R, A1, B] =
-    updated(update => (a, s) => update(a, s).peek(step => f(a, step)))
+    updated(update => (a, s) => update(a, s).tap(step => f(a, step)))
 
   /**
    * Returns a new schedule with the specified effectful modification
@@ -532,7 +558,7 @@ object Schedule extends Serializable {
    * A schedule that recurs forever, mapping input values through the
    * specified function.
    */
-  final def lift[A, B](f: A => B): Schedule[Any, A, B] = identity[A].map(f)
+  final def fromFunction[A, B](f: A => B): Schedule[Any, A, B] = identity[A].map(f)
 
   /**
    * A schedule that never executes. Note that negating this schedule does not

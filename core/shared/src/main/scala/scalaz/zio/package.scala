@@ -22,11 +22,15 @@ package object zio extends EitherCompat {
   type Canceler = UIO[_]
   type FiberId  = Long
 
-  type IO[+E, +A] = ZIO[Any, E, A]
-  type Task[+A]   = ZIO[Any, Throwable, A]
-  type UIO[+A]    = ZIO[Any, Nothing, A]
+  type IO[+E, +A]    = ZIO[Any, E, A]
+  type Task[+A]      = ZIO[Any, Throwable, A]
+  type TaskR[-R, +A] = ZIO[R, Throwable, A]
+  type UIO[+A]       = ZIO[Any, Nothing, A]
 
   val JustExceptions: PartialFunction[Throwable, Exception] = {
     case e: Exception => e
   }
+
+  type Queue[A] = Queue2[Any, Nothing, Any, Nothing, A, A]
+  val Queue = Queue2
 }

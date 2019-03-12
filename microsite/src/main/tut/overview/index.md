@@ -112,7 +112,7 @@ At the core of ZIO is `ZIO`, a powerful data type inspired by Haskell's `IO` mon
 
 Effect types like `ZIO` are how purely functional programs interact with the real world. Functional programmers use them to build complex, real world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.
 
-There are many beenfits of building your programs using `ZIO`, including all of the following:
+There are many benefits of building your programs using `ZIO`, including all of the following:
 
  * **Asynchronicity**. Like Scala's own `Future`, `ZIO` lets you easily write asynchronous code without blocking or callbacks. Compared to `Future`, `ZIO` has significantly better performance and cleaner, more expressive, and more composable semantics.
  * **Composability**. Purely functional code can't be combined with impure code that has side-effects without sacrificing the straightforward reasoning properties of functional programming. `ZIO` lets you wrap up all effects into a purely functional package that lets you build composable real world programs.
