@@ -52,45 +52,42 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
   def e1 =
     unsafeRun(
-       STM.succeed("Hello World").run
+      STM.succeed("Hello World").run
     ) must_=== "Hello World"
 
   def e2 =
     unsafeRun(
-          STM.fail("Bye bye World").run
-        .either
+      STM.fail("Bye bye World").run.either
     ) must left("Bye bye World")
 
   def e3 =
     unsafeRun(
-     STM.succeed(42).either.run
+      STM.succeed(42).either.run
     ) must right(42)
 
   def e4 =
     unsafeRun(
-        STM.fail("oh no!").either.run
+      STM.fail("oh no!").either.run
     ) must left("oh no!")
 
   def e5 = unsafeRun(
     (for {
-        s <- STM.succeed("Yes!").fold(_ => -1, _ => 1)
-        f <- STM.fail("No!").fold(_ => -1, _ => 1)
-      } yield (s must_=== 1) and (f must_== -1)).run
-
+      s <- STM.succeed("Yes!").fold(_ => -1, _ => 1)
+      f <- STM.fail("No!").fold(_ => -1, _ => 1)
+    } yield (s must_=== 1) and (f must_== -1)).run
   )
 
   def e6 =
     unsafeRun(
       (for {
-          s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
-          f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
-        } yield (s must_=== "Yes!") and (f must_== "No!")
-      ).run
+        s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
+        f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
+      } yield (s must_=== "Yes!") and (f must_== "No!")).run
     )
 
   def e7 =
     unsafeRun(
-     STM.fail(-1).mapError(_ => "oh no!").run.either
+      STM.fail(-1).mapError(_ => "oh no!").run.either
     ) must left("oh no!")
 
   def e8 =
@@ -105,12 +102,12 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
   def e9 =
     unsafeRun(
-        STM.succeed(42).option.run
+      STM.succeed(42).option.run
     ) must some(42)
 
   def e10 =
     unsafeRun(
-        STM.fail("oh no!").option.run
+      STM.fail("oh no!").option.run
     ) must none
 
   def e11 =
@@ -122,7 +119,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
   def e12 =
     unsafeRun(
-        STM.succeed(578).zipWith(STM.succeed(2))(_ + _).run
+      STM.succeed(578).zipWith(STM.succeed(2))(_ + _).run
     ) must_=== 580
 
   def e13 =
@@ -174,27 +171,27 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
   def e15 =
     unsafeRun(
-        unsafeRun(
-          for {
-            tVar  <- TVar.makeM(0)
-            fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
-            _     <- fiber.join
-          } yield tVar.get
-        ).run
+      unsafeRun(
+        for {
+          tVar  <- TVar.makeM(0)
+          fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
+          _     <- fiber.join
+        } yield tVar.get
+      ).run
     ) must_=== 1000
 
   def e16 =
     unsafeRun(
-        unsafeRun(
-          for {
-            tVars <- STM
-                      .atomically(
-                        TVar.make(10000) ~ TVar.make(0) ~ TVar.make(0)
-                      )
-            tvar1 ~ tvar2 ~ tvar3 = tVars
-            fiber                 <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
-            _                     <- fiber.join
-          } yield tvar3.get
+      unsafeRun(
+        for {
+          tVars <- STM
+                    .atomically(
+                      TVar.make(10000) ~ TVar.make(0) ~ TVar.make(0)
+                    )
+          tvar1 ~ tvar2 ~ tvar3 = tVars
+          fiber                 <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
+          _                     <- fiber.join
+        } yield tvar3.get
       ).run
     ) must_=== 10000
 
@@ -251,7 +248,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
                     _  <- tvar2.set("Succeeded!")
                     v2 <- tvar2.get
                   } yield v2
-          ).run.fork
+                ).run.fork
         join <- fiber.join
       } yield join must_=== "Succeeded!"
     }
@@ -329,8 +326,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         toSender   = transfer(sender, receiver, 150)
         f1         <- IO.forkAll(List.fill(10)(toReceiver *> toSender))
         _          <- sender.update(_ + 50).run
-        _ <- sender.debug.delay(30.seconds).fork
-        _ <- receiver.debug.delay(30.seconds).fork
+        _          <- sender.debug.delay(30.seconds).fork
+        _          <- receiver.debug.delay(30.seconds).fork
         _          <- f1.join
         senderV    <- sender.get.run
         receiverV  <- receiver.get.run
