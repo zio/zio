@@ -394,7 +394,7 @@ object Queue2 {
         )
         .uninterruptible
 
-    final val isShutdown: UIO[Boolean] = checkShutdownState.map(_ => false) <> UIO.succeed(true)
+    final val isShutdown: UIO[Boolean] = shutdownHook.poll.map(_.isDefined)
 
     final val take: UIO[A] =
       for {
