@@ -43,10 +43,10 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
           have a complex condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied e22
               resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
-              test1      e23
-              test2      e24
-              test3      e25
-              test4      e26
+              test1      $e23
+              test2      $e24
+              test3      $e25
+              test4      $e26
 
     """
 
@@ -324,10 +324,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         receiver   <- TVar.makeRun(0)
         toReceiver = transfer(receiver, sender, 150)
         toSender   = transfer(sender, receiver, 150)
-        f1         <- IO.forkAll(List.fill(10)(toReceiver *> toSender))
+        f1         <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
         _          <- sender.update(_ + 50).run
-        _          <- sender.debug.delay(30.seconds).fork
-        _          <- receiver.debug.delay(30.seconds).fork
         _          <- f1.join
         senderV    <- sender.get.run
         receiverV  <- receiver.get.run

@@ -342,7 +342,7 @@ object STM {
     self =>
 
     final val debug: UIO[Unit] =
-      UIO(println(s"id = ${id}, versioned.value = ${versioned.value}, todo = ${todo.get}"))
+      UIO(println(toString))
 
     /**
      * Retrieves the value of the `TVar`.
@@ -365,6 +365,9 @@ object STM {
 
         succeedUnit
       })
+
+    override def toString =
+      s"TVar(id = ${id}, versioned.value = ${versioned.value}, todo = ${todo.get})"
 
     /**
      * Updates the value of the variable.
@@ -456,74 +459,80 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-    // TODO: When action is interrupted, abort transaction
-    IO.effectAsyncMaybe[E, A] { k =>
-      import internal.globalLock
+    UIO.effectTotal(new AtomicReference[UIO[Unit]](UIO.unit)).flatMap { ref =>
+      (IO
+        .effectAsyncMaybe[E, A] { k =>
+          import internal.globalLock
 
-      val txnId = makeTxnId()
+          val txnId = makeTxnId()
 
-      val done = new AtomicBoolean(false)
+          val done = new AtomicBoolean(false)
 
-      def tryTxn(): Option[IO[E, A]] =
-        if (done.get) None
-        else
-          done.synchronized {
+          ref.set(UIO(done.synchronized {
+            done.set(true)
+          }))
+
+          def tryTxn(): Option[IO[E, A]] =
             if (done.get) None
-            else {
-              var journal = null.asInstanceOf[MutableMap[Long, Entry]]
-              var value   = null.asInstanceOf[TRez[E, A]]
+            else
+              done.synchronized {
+                if (done.get) None
+                else {
+                  var journal = null.asInstanceOf[MutableMap[Long, Entry]]
+                  var value   = null.asInstanceOf[TRez[E, A]]
 
-              var loop = true
+                  var loop = true
 
-              while (loop) {
-                journal = MutableMap.empty[Long, Entry]
-                value = stm exec journal
+                  while (loop) {
+                    journal = MutableMap.empty[Long, Entry]
+                    value = stm exec journal
 
-                if (value != TRez.Retry) {
-                  done set true
+                    if (value != TRez.Retry) {
+                      try {
+                        globalLock.acquire()
 
-                  try {
-                    globalLock.acquire()
+                        if (journal.values forall (_.isValid)) {
+                          journal.values foreach (_.commit())
 
-                    if (journal.values forall (_.isValid)) {
-                      journal.values foreach (_.commit())
+                          loop = false
+                        }
+                      } finally globalLock.release()
+                    } else {
+                      addTodo(txnId, journal.values.map(_.tvar), tryTxnAsync)
 
                       loop = false
                     }
-                  } finally globalLock.release()
-                } else {
-                  val todoEffect = UIO(tryTxnAsync())
+                  }
 
-                  addTodo(txnId, journal.values.map(_.tvar), todoEffect)
+                  def completed(io: IO[E, A]): Option[IO[E, A]] = {
+                    done set true
 
-                  loop = false
+                    val tvars = journal.values.map(_.tvar)
+
+                    Some(collectTodos(tvars).fork *> io)
+                  }
+
+                  value match {
+                    case TRez.Succeed(a) => completed(IO.succeed(a))
+                    case TRez.Fail(e)    => completed(IO.fail(e))
+                    case TRez.Retry =>
+                      val current = journal.values.forall(entry => entry.tvar.versioned eq entry.expected)
+
+                      if (!current) tryTxn() else None
+                  }
                 }
               }
 
-              def completed(io: IO[E, A]): Option[IO[E, A]] = {
-                val tvars = journal.values.map(_.tvar)
-
-                Some(collectTodos(tvars).fork *> io)
-              }
-
-              value match {
-                case TRez.Succeed(a) => completed(IO.succeed(a))
-                case TRez.Fail(e)    => completed(IO.fail(e))
-                case TRez.Retry =>
-                  val current = journal.values.forall(entry => entry.tvar.versioned eq entry.expected)
-
-                  if (!current) tryTxn() else None
-              }
+          def tryTxnAsync: UIO[Unit] = UIO {
+            tryTxn() match {
+              case None     =>
+              case Some(io) => k(io)
             }
           }
 
-      def tryTxnAsync(): Unit =
-        tryTxn() match {
-          case None     =>
-          case Some(io) => k(io)
-        }
-
-      tryTxn()
+          tryTxn()
+        })
+        .ensuring(UIO(ref.get).flatten)
     }
 
   /**
