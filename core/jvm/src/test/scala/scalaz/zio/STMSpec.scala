@@ -41,130 +41,109 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
               resume after satisfying the condition $e21
               be suspended while the condition couldn't be satisfied
           have a complex condition lock should suspend the whole transaction and:
-              resume directly when the condition is already satisfied $e22
+              resume directly when the condition is already satisfied e22
               resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
-                  test1 $e23
-              test2 $e24
-              test3 $e25
-                                test4 $e26
+              test1      e23
+              test2      e24
+              test3      e25
+              test4      e26
 
     """
 
   def e1 =
     unsafeRun(
-      STM.atomically(
-        STM.succeed("Hello World")
-      )
+       STM.succeed("Hello World").run
     ) must_=== "Hello World"
 
   def e2 =
     unsafeRun(
-      STM
-        .atomically(
-          STM.fail("Bye bye World")
-        )
+          STM.fail("Bye bye World").run
         .either
     ) must left("Bye bye World")
 
   def e3 =
     unsafeRun(
-      STM.atomically(
-        STM.succeed(42).either
-      )
+     STM.succeed(42).either.run
     ) must right(42)
 
   def e4 =
     unsafeRun(
-      STM.atomically(
-        STM.fail("oh no!").either
-      )
+        STM.fail("oh no!").either.run
     ) must left("oh no!")
 
   def e5 = unsafeRun(
-    STM.atomically(
-      for {
+    (for {
         s <- STM.succeed("Yes!").fold(_ => -1, _ => 1)
         f <- STM.fail("No!").fold(_ => -1, _ => 1)
-      } yield (s must_=== 1) and (f must_== -1)
-    )
+      } yield (s must_=== 1) and (f must_== -1)).run
+
   )
 
   def e6 =
     unsafeRun(
-      STM.atomically(
-        for {
+      (for {
           s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
           f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
         } yield (s must_=== "Yes!") and (f must_== "No!")
-      )
+      ).run
     )
 
   def e7 =
     unsafeRun(
-      STM
-        .atomically(
-          STM.fail(-1).mapError(_ => "oh no!")
-        )
-        .either
+     STM.fail(-1).mapError(_ => "oh no!").run.either
     ) must left("oh no!")
 
   def e8 =
     unsafeRun(
-      STM.atomically(
+      (
         for {
           s <- STM.succeed(1) orElse STM.succeed(2)
           f <- STM.fail("failed") orElse STM.succeed("try this")
         } yield (s must_=== 1) and (f must_=== "try this")
-      )
+      ).run
     )
 
   def e9 =
     unsafeRun(
-      STM.atomically(
-        STM.succeed(42).option
-      )
+        STM.succeed(42).option.run
     ) must some(42)
 
   def e10 =
     unsafeRun(
-      STM.atomically(
-        STM.fail("oh no!").option
-      )
+        STM.fail("oh no!").option.run
     ) must none
 
   def e11 =
     unsafeRun(
-      STM.atomically(
+      (
         STM.succeed(1) ~ STM.succeed('A')
-      )
+      ).run
     ) must_=== ((1, 'A'))
 
   def e12 =
     unsafeRun(
-      STM.atomically(
-        STM.succeed(578).zipWith(STM.succeed(2))(_ + _)
-      )
+        STM.succeed(578).zipWith(STM.succeed(2))(_ + _).run
     ) must_=== 580
 
   def e13 =
     unsafeRun(
-      STM.atomically(
+      (
         for {
           intVar <- TVar.make(14)
           v      <- intVar.get
         } yield v must_== 14
-      )
+      ).run
     )
 
   def e14 =
     unsafeRun(
-      STM.atomically(
+      (
         for {
           intVar <- TVar.make(14)
           _      <- intVar.set(42)
           v      <- intVar.get
         } yield v must_== 42
-      )
+      ).run
     )
 
   private def incrementVarN(n: Int, tvar: STM.TVar[Int]): ZIO[clock.Clock, Nothing, Int] =
@@ -195,20 +174,17 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
   def e15 =
     unsafeRun(
-      STM.atomically(
         unsafeRun(
           for {
             tVar  <- TVar.makeM(0)
             fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
             _     <- fiber.join
           } yield tVar.get
-        )
-      )
+        ).run
     ) must_=== 1000
 
   def e16 =
     unsafeRun(
-      STM.atomically(
         unsafeRun(
           for {
             tVars <- STM
@@ -219,8 +195,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
             fiber                 <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
             _                     <- fiber.join
           } yield tvar3.get
-        )
-      )
+      ).run
     ) must_=== 10000
 
   private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
@@ -269,14 +244,14 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       for {
         tvar1 <- TVar.makeM(10)
         tvar2 <- TVar.makeM("Failed!")
-        fiber <- STM.atomically {
+        fiber <- (
                   for {
                     v1 <- tvar1.get
                     _  <- STM.check(v1 > 0)
                     _  <- tvar2.set("Succeeded!")
                     v2 <- tvar2.get
                   } yield v2
-                }.fork
+          ).run.fork
         join <- fiber.join
       } yield join must_=== "Succeeded!"
     }
@@ -289,8 +264,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
                   tvar.get.filter(_ == 42)
                 }.fork
         join <- fiber.join
-        _    <- STM.atomically(tvar.set(9))
-        v    <- STM.atomically(tvar.get)
+        _    <- tvar.set(9).run
+        v    <- tvar.get.run
       } yield (v must_=== 9) and (join must_=== 42)
     }
 
@@ -312,10 +287,10 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
                   } yield v2
                 } <* done.succeed(())).fork
         _    <- UIO(latch.await())
-        old  <- STM.atomically(tvar2.get)
-        _    <- STM.atomically(tvar1.set(43))
+        old  <- tvar2.get.run
+        _    <- tvar1.set(43).run
         _    <- done.await
-        newV <- STM.atomically(tvar2.get)
+        newV <- tvar2.get.run
         join <- fiber.join
       } yield (old must_=== "Failed!") and (newV must_=== join)
     }
@@ -344,6 +319,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       } yield newAmnt
     }
 
+  import scalaz.zio.duration._
   def e23 =
     unsafeRun {
       for {
@@ -353,28 +329,30 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         toSender   = transfer(sender, receiver, 150)
         f1         <- IO.forkAll(List.fill(10)(toReceiver *> toSender))
         _          <- sender.update(_ + 50).run
+        _ <- sender.debug.delay(30.seconds).fork
+        _ <- receiver.debug.delay(30.seconds).fork
         _          <- f1.join
         senderV    <- sender.get.run
         receiverV  <- receiver.get.run
       } yield (senderV must_=== 150) and (receiverV must_=== 0)
     }
 
-  def e24 = todo
-//    unsafeRun {
-//      for {
-//        sender     <- TVar.makeM(50)
-//        receiver   <- TVar.makeM(0)
-//        toReceiver = transfer(receiver, sender, 100)
-//        toSender   = transfer(sender, receiver, 100)
-//        f1         <- IO.forkAll(List.fill(10)(toReceiver))
-//        f2         <- IO.forkAll(List.fill(10)(toSender))
-//        _          <- sender.update(_ + 50).run
-//        _          <- f1.join
-//        _          <- f2.join
-//        senderV    <- sender.get.run
-//        receiverV  <- receiver.get.run
-//      } yield (senderV must_=== 100) and (receiverV must_=== 0)
-//    }
+  def e24 =
+    unsafeRun {
+      for {
+        sender     <- TVar.makeM(50)
+        receiver   <- TVar.makeM(0)
+        toReceiver = transfer(receiver, sender, 100)
+        toSender   = transfer(sender, receiver, 100)
+        f1         <- IO.forkAll(List.fill(10)(toReceiver))
+        f2         <- IO.forkAll(List.fill(10)(toSender))
+        _          <- sender.update(_ + 50).run
+        _          <- f1.join
+        _          <- f2.join
+        senderV    <- sender.get.run
+        receiverV  <- receiver.get.run
+      } yield (senderV must_=== 100) and (receiverV must_=== 0)
+    }
 
   def e25 =
     unsafeRun {
