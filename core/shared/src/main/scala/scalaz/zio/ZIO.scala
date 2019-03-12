@@ -1597,8 +1597,7 @@ object ZIO extends ZIO_R_Any {
       Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
         (for {
           r <- environment[R]
-          f <- acquire
-                .interruptible
+          f <- acquire.interruptible
                 .flatMap(
                   a =>
                     use(a).fork
