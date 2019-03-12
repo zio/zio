@@ -430,7 +430,7 @@ object STM {
      * A convenience method that makes a `TVar` and immediately runs the
      * transaction to extract the value out.
      */
-    final def makeM[A](a: => A): UIO[TVar[A]] =
+    final def makeRun[A](a: => A): UIO[TVar[A]] =
       STM.atomically(make(a))
   }
 

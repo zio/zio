@@ -173,7 +173,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
     unsafeRun(
       unsafeRun(
         for {
-          tVar  <- TVar.makeM(0)
+          tVar  <- TVar.makeRun(0)
           fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
           _     <- fiber.join
         } yield tVar.get
@@ -239,8 +239,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e19 =
     unsafeRun {
       for {
-        tvar1 <- TVar.makeM(10)
-        tvar2 <- TVar.makeM("Failed!")
+        tvar1 <- TVar.makeRun(10)
+        tvar2 <- TVar.makeRun("Failed!")
         fiber <- (
                   for {
                     v1 <- tvar1.get
@@ -256,7 +256,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e20 =
     unsafeRun {
       for {
-        tvar <- TVar.makeM(42)
+        tvar <- TVar.makeRun(42)
         fiber <- STM.atomically {
                   tvar.get.filter(_ == 42)
                 }.fork
@@ -272,8 +272,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
       for {
         done  <- Promise.make[Nothing, Unit]
-        tvar1 <- TVar.makeM(0)
-        tvar2 <- TVar.makeM("Failed!")
+        tvar1 <- TVar.makeRun(0)
+        tvar2 <- TVar.makeRun("Failed!")
         fiber <- (STM.atomically {
                   for {
                     v1 <- tvar1.get
@@ -295,8 +295,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e22 =
     unsafeRun {
       for {
-        sender    <- TVar.makeM(100)
-        receiver  <- TVar.makeM(0)
+        sender    <- TVar.makeRun(100)
+        receiver  <- TVar.makeRun(0)
         _         <- transfer(receiver, sender, 150).fork
         _         <- sender.update(_ + 100).run
         _         <- sender.get.filter(_ == 50).run
@@ -320,8 +320,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e23 =
     unsafeRun {
       for {
-        sender     <- TVar.makeM(100)
-        receiver   <- TVar.makeM(0)
+        sender     <- TVar.makeRun(100)
+        receiver   <- TVar.makeRun(0)
         toReceiver = transfer(receiver, sender, 150)
         toSender   = transfer(sender, receiver, 150)
         f1         <- IO.forkAll(List.fill(10)(toReceiver *> toSender))
@@ -337,8 +337,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e24 =
     unsafeRun {
       for {
-        sender     <- TVar.makeM(50)
-        receiver   <- TVar.makeM(0)
+        sender     <- TVar.makeRun(50)
+        receiver   <- TVar.makeRun(0)
         toReceiver = transfer(receiver, sender, 100)
         toSender   = transfer(sender, receiver, 100)
         f1         <- IO.forkAll(List.fill(10)(toReceiver))
@@ -354,8 +354,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e25 =
     unsafeRun {
       for {
-        sender       <- TVar.makeM(50)
-        receiver     <- TVar.makeM(0)
+        sender       <- TVar.makeRun(50)
+        receiver     <- TVar.makeRun(0)
         toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
         toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
         f            <- toReceiver10.zipPar(toSender10).fork
@@ -369,7 +369,7 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e26 =
     unsafeRun(
       for {
-        tvar <- TVar.makeM(0)
+        tvar <- TVar.makeRun(0)
         fiber <- IO.forkAll(
                   (0 to 20).map(
                     i =>
