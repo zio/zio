@@ -460,8 +460,7 @@ object STM {
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
     UIO.effectTotal(new AtomicReference[UIO[Unit]](UIO.unit)).flatMap { ref =>
-      (IO
-        .effectAsyncMaybe[E, A] { k =>
+      IO.effectAsyncMaybe[E, A] { k =>
           import internal.globalLock
 
           val txnId = makeTxnId()
@@ -531,7 +530,7 @@ object STM {
           }
 
           tryTxn()
-        })
+        }
         .ensuring(UIO(ref.get).flatten)
     }
 
