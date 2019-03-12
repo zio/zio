@@ -22,10 +22,8 @@ package object reactiveStreams {
   }
 
   final implicit class subscriberToSink[A](val subscriber: Subscriber[A]) extends AnyVal {
-    def toSink: UIO[Sink[Any, Nothing, Unit, A, Unit]] =
+    def toSink[E <: Throwable]: UIO[(Promise[E, Unit], Sink[Any, E, Unit, A, Unit])] =
       Adapters.subscriberToSink(subscriber)
-    def toSinkWithError[E <: Throwable]: UIO[(Promise[E, Unit], Sink[Any, E, Unit, A, Unit])] =
-      Adapters.subscriberToSinkWithError(subscriber)
   }
 
 }

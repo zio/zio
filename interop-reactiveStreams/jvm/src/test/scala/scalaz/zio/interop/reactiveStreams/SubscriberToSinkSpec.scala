@@ -15,8 +15,8 @@ class SubscriberToSinkSpec(implicit ee: ExecutionEnv) extends TestRuntime with A
   def is: SpecStructure =
     "SubscriberToSinkSpec".title ^ s2"""
    Check if a `Subscriber`converted to a `Sink` correctly
-     works for unfailable Streams $e1
-     works for failable Streams $e2
+     works on the happy path $e1
+     transports errors $e2
     """
   implicit private val system: ActorSystem             = ActorSystem()
   implicit private val materializer: ActorMaterializer = ActorMaterializer()
@@ -30,11 +30,12 @@ class SubscriberToSinkSpec(implicit ee: ExecutionEnv) extends TestRuntime with A
   private val e1 = {
     unsafeRun(
       for {
-        subSeqF     <- UIO(Source.asSubscriber[Int].toMat(Sink.seq)(Keep.both).run())
-        (sub, seqF) = subSeqF
-        sink        <- sub.toSink
-        _           <- Stream.fromIterable(seq).run(sink).fork
-        r           <- Task.fromFuture(_ => seqF)
+        subSeqF       <- UIO(Source.asSubscriber[Int].toMat(Sink.seq)(Keep.both).run())
+        (sub, seqF)   = subSeqF
+        errorSink     <- sub.toSink[Throwable]
+        (error, sink) = errorSink
+        _             <- Stream.fromIterable(seq).run(sink).catchAll(t => error.fail(t)).fork
+        r             <- Task.fromFuture(_ => seqF)
       } yield r must_== seq
     )
   }
@@ -43,8 +44,8 @@ class SubscriberToSinkSpec(implicit ee: ExecutionEnv) extends TestRuntime with A
     unsafeRun(
       for {
         probe         <- UIO(TestSubscriber.manualProbe[Int]())
-        sinkError     <- probe.toSinkWithError[Throwable]
-        (error, sink) = sinkError
+        errorSink     <- probe.toSink[Throwable]
+        (error, sink) = errorSink
         _             <- Stream.fromIterable(seq).++(Stream.fail(e)).run(sink).catchAll(t => error.fail(t)).fork
         subscription  <- Task(probe.expectSubscription())
         _             <- UIO(subscription.request(101))
