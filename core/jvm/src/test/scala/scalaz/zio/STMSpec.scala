@@ -316,7 +316,6 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       } yield newAmnt
     }
 
-  import scalaz.zio.duration._
   def e23 =
     unsafeRun {
       for {
