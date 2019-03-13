@@ -230,7 +230,7 @@ object STM {
     final def collectTodos(tvars: Iterable[TVar[_]]): UIO[Any] = {
       val allTodos = MutableMap.empty[Long, UIO[Any]]
 
-      tvars.foreach { tvar =>
+      tvars foreach { tvar =>
         val todo = tvar.todo
 
         var loop = true
@@ -255,7 +255,7 @@ object STM {
      * `TVar` values.
      */
     final def addTodo(txnId: Long, tvars: Iterable[TVar[_]], todoEffect: UIO[_]): Unit =
-      tvars.foreach { tvar =>
+      tvars foreach { tvar =>
         var loop = true
         while (loop) {
           val oldTodo = tvar.todo.get
@@ -464,7 +464,7 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-    UIO.effectTotal(new AtomicReference[UIO[Unit]](UIO.unit)).flatMap { ref =>
+    UIO.effectTotal(new AtomicReference[UIO[Unit]](UIO.unit)) flatMap { ref =>
       (IO
         .effectAsyncMaybe[E, A] { k =>
           import internal.globalLock
@@ -473,14 +473,14 @@ object STM {
 
           val done = new AtomicBoolean(false)
 
-          ref set UIO(done.synchronized {
+          ref set UIO(done synchronized {
             done set true
           })
 
           def tryTxn(): Option[IO[E, A]] =
             if (done.get) None
             else
-              done.synchronized {
+              done synchronized {
                 if (done.get) None
                 else {
                   var journal = null.asInstanceOf[MutableMap[Long, Entry]]
