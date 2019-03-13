@@ -398,3 +398,73 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
           (v must_=== 0)
     )
 }
+
+object Examples {
+  object mutex {
+    type Mutex = TVar[Boolean]
+    val makeMutex = TVar.make(false).run
+    def acquire(mutex: Mutex): UIO[Unit] =
+      (for {
+        value <- mutex.get
+        _     <- STM.check(value == false)
+        _     <- mutex.set(true)
+      } yield ()).run
+    def release(mutex: Mutex): UIO[Unit] =
+      mutex.set(false).run.void
+    def withMutex[R, E, A](mutex: Mutex)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      acquire(mutex).bracket_(release(mutex))(zio)
+  }
+  object semaphore {
+    type Semaphore = TVar[Int]
+    def makeSemaphore(n: Int): UIO[Semaphore] = TVar.makeRun(n)
+    def acquire(semaphore: Semaphore, n: Int): UIO[Unit] =
+      (for {
+        value <- semaphore.get
+        _     <- STM.check(value >= n)
+        _     <- semaphore.set(value - n)
+      } yield ()).run
+    def release(semaphore: Semaphore, n: Int): UIO[Unit] =
+      semaphore.update(_ + n).run.void
+  }
+  object promise {
+    type Promise[A] = TVar[Option[A]]
+    def makePromise[A]: UIO[Promise[A]] = TVar.makeRun(None)
+    def complete[A](promise: Promise[A], v: A): UIO[Boolean] =
+      (for {
+        value <- promise.get
+        change <- value match {
+                   case Some(_) => STM.succeed(false)
+                   case None =>
+                     promise.set(Some(v)) *>
+                       STM.succeed(true)
+                 }
+      } yield change).run
+    def await[A](promise: Promise[A]): UIO[A] =
+      promise.get.collect {
+        case Some(a) => a
+      }.run
+  }
+  object queue {
+    import scala.collection.immutable.{ Queue => ScalaQueue }
+
+    case class Queue[A](capacity: Int, tvar: TVar[ScalaQueue[A]])
+    def makeQueue[A](capacity: Int): UIO[Queue[A]] =
+      TVar.makeRun(ScalaQueue.empty[A]).map(Queue(capacity, _))
+    def offer[A](queue: Queue[A], a: A): UIO[Unit] =
+      (for {
+        q <- queue.tvar.get
+        _ <- STM.check(q.length < queue.capacity)
+        _ <- queue.tvar.update(_ enqueue a)
+      } yield ()).run
+    def take[A](queue: Queue[A]): UIO[A] =
+      (for {
+        q <- queue.tvar.get
+        a <- q.dequeueOption match {
+              case Some((a, as)) =>
+                queue.tvar.set(as) *> STM.succeed(a)
+              case _ => STM.retry
+            }
+      } yield a).run
+  }
+  object fun {}
+}
