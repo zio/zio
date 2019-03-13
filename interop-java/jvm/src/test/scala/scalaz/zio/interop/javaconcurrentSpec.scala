@@ -40,13 +40,13 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   val lazyOnParamRef = {
     var evaluated         = false
     def ftr: Future[Unit] = CompletableFuture.supplyAsync(evaluated = true)
-    IO.fromFutureJava(ftr _)
+    IO.fromFutureJava(ftr)
     evaluated must beFalse
   }
 
   val lazyOnParamInline = {
     var evaluated = false
-    IO.fromFutureJava(CompletableFuture.supplyAsync(() => evaluated = true))
+    IO.fromFutureJava(CompletableFuture.supplyAsync(evaluated = true))
     evaluated must beFalse
   }
 
@@ -58,7 +58,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   val propagateExceptionFromFuture = {
     val ex                    = new Exception("no value for you!")
-    def noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
+    def noValue: Future[Unit] = CompletableFuture.supplyAsync(throw ex)
     unsafeRun(IO.fromFutureJava(noValue)) must throwA(FiberFailure(Fail(ex)))
   }
 
@@ -69,7 +69,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   val lazyOnParamRefCs = {
     var evaluated                 = false
-    def cs: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
+    def cs: CompletionStage[Unit] = CompletableFuture.supplyAsync(evaluated = true)
     IO.fromCompletionStage(cs)
     evaluated must beFalse
   }
@@ -88,7 +88,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   val propagateExceptionFromCs = {
     val ex                             = new Exception("no value for you!")
-    def noValue: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => throw ex)
+    def noValue: CompletionStage[Unit] = CompletableFuture.supplyAsync(throw ex)
     unsafeRun(IO.fromCompletionStage(noValue)) must throwA(FiberFailure(Fail(ex)))
   }
 
@@ -128,7 +128,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   val lazyOnParamRefFiber = {
     var evaluated         = false
-    def ftr: Future[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
+    def ftr: Future[Unit] = CompletableFuture.supplyAsync(evaluated = true)
     Fiber.fromFutureJava(ftr)
     evaluated must beFalse
   }
