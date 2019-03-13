@@ -243,7 +243,7 @@ object Fiber {
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
    */
-  final def fromFuture[A](thunk: => Future[A]): Fiber[Throwable, A] =
+  final def fromFuture[A](thunk: Future[A]): Fiber[Throwable, A] =
     new Fiber[Throwable, A] {
       lazy val ftr = thunk
 
