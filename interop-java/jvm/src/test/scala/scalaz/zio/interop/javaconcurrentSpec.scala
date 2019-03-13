@@ -39,14 +39,14 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   val lazyOnParamRef = {
     var evaluated         = false
-    def ftr: Future[Unit] = CompletableFuture.supplyAsync(evaluated = true)
+    def ftr: Future[Unit] = CompletableFuture.supplyAsync(evaluated)
     IO.fromFutureJava(ftr)
     evaluated must beFalse
   }
 
   val lazyOnParamInline = {
     var evaluated = false
-    IO.fromFutureJava(CompletableFuture.supplyAsync(evaluated = true))
+    IO.fromFutureJava(CompletableFuture.supplyAsync(evaluated))
     evaluated must beFalse
   }
 
@@ -69,14 +69,14 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   val lazyOnParamRefCs = {
     var evaluated                 = false
-    def cs: CompletionStage[Unit] = CompletableFuture.supplyAsync(evaluated = true)
+    def cs: CompletionStage[Unit] = CompletableFuture.supplyAsync(evaluated)
     IO.fromCompletionStage(cs)
     evaluated must beFalse
   }
 
   val lazyOnParamInlineCs = {
     var evaluated = false
-    IO.fromCompletionStage(CompletableFuture.supplyAsync(evaluated = true))
+    IO.fromCompletionStage(CompletableFuture.supplyAsync(evaluated))
     evaluated must beFalse
   }
 
@@ -128,14 +128,14 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   val lazyOnParamRefFiber = {
     var evaluated         = false
-    def ftr: Future[Unit] = CompletableFuture.supplyAsync(evaluated = true)
+    def ftr: Future[Unit] = CompletableFuture.supplyAsync(evaluated)
     Fiber.fromFutureJava(ftr)
     evaluated must beFalse
   }
 
   val lazyOnParamInlineFiber = {
     var evaluated = false
-    Fiber.fromFutureJava(CompletableFuture.supplyAsync(evaluated = true))
+    Fiber.fromFutureJava(CompletableFuture.supplyAsync(evaluated))
     evaluated must beFalse
   }
 
