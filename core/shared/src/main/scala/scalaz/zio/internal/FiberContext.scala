@@ -70,7 +70,7 @@ private[zio] final class FiberContext[E, A](
     def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
       c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
 
-    var errorHandler: Any => IO[Any, Any]      = null
+    var errorHandler: Any => IO[Any, Any]                    = null
     var finalizer: ZIO[Any, Nothing, Option[Cause[Nothing]]] = null
 
     // Unwind the stack, looking for exception handlers and coalescing

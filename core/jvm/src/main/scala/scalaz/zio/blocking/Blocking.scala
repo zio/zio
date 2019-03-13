@@ -18,7 +18,7 @@ package scalaz.zio.blocking
 
 import java.util.concurrent._
 
-import scalaz.zio.{ Exit, UIO, ZIO, Schedule }
+import scalaz.zio.{ Exit, Schedule, UIO, ZIO }
 import scalaz.zio.duration._
 import scalaz.zio.clock.Clock
 import Exit.Cause
@@ -60,9 +60,9 @@ object Blocking extends Serializable {
         import java.util.concurrent.atomic.AtomicReference
         import scalaz.zio.internal.OneShot
 
-        val lock        = new ReentrantLock()
-        val thread      = new AtomicReference[Option[Thread]](None)
-        val barrier     = OneShot.make[Unit]
+        val lock    = new ReentrantLock()
+        val thread  = new AtomicReference[Option[Thread]](None)
+        val barrier = OneShot.make[Unit]
 
         def withMutex[B](b: => B): B =
           try {
