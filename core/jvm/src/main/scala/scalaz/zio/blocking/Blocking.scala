@@ -18,7 +18,9 @@ package scalaz.zio.blocking
 
 import java.util.concurrent._
 
-import scalaz.zio.{ Exit, UIO, ZIO }
+import scalaz.zio.{ Exit, UIO, ZIO, Schedule }
+import scalaz.zio.duration._
+import scalaz.zio.clock.Clock
 import Exit.Cause
 import scalaz.zio.internal.{ Executor, NamedThreadFactory }
 import scalaz.zio.internal.PlatformLive
@@ -52,14 +54,13 @@ object Blocking extends Serializable {
      * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
-    def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
+    def interruptible[A](effect: => A): ZIO[R with Clock, Throwable, A] =
       ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
-        import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
+        import java.util.concurrent.atomic.AtomicReference
         import scalaz.zio.internal.OneShot
 
         val lock        = new ReentrantLock()
-        val interrupted = new AtomicBoolean(false)
         val thread      = new AtomicReference[Option[Thread]](None)
         val barrier     = OneShot.make[Unit]
 
@@ -68,16 +69,21 @@ object Blocking extends Serializable {
             lock.lock(); b
           } finally lock.unlock()
 
-        val interruptThread: UIO[Unit] =
+        val checkInterrupted: Schedule[Clock, Unit, Unit] = {
+          val shouldRun = ZIO.effectTotal(withMutex(thread.get.isDefined))
+          Schedule.exponential(2.millis) && Schedule[Any, Boolean, Unit, Unit](shouldRun, {
+            case (_, true)  => shouldRun.map(Schedule.Decision.cont(0.millis, _, ()))
+            case (_, false) => ZIO.succeed(Schedule.Decision.done(0.millis, false, ()))
+          })
+        }.void
+
+        val interruptThread: ZIO[Clock, Nothing, Unit] =
           ZIO.effectTotal {
-            var isNone = false
-            while (!isNone && !withMutex(interrupted.get)) {
-              withMutex(thread.get match {
-                case None         => isNone = true; ()
-                case Some(thread) => thread.interrupt()
-              })
-            }
-          }
+            withMutex(thread.get match {
+              case None         => ()
+              case Some(thread) => thread.interrupt()
+            })
+          }.repeat(checkInterrupted)
 
         val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 
@@ -92,7 +98,6 @@ object Blocking extends Serializable {
                           catch {
                             case _: InterruptedException =>
                               Thread.interrupted // Clear interrupt status
-                              withMutex(interrupted.set(true))
                               Left(Cause.interrupt)
                             case t: Throwable =>
                               Left(Cause.fail(t))
