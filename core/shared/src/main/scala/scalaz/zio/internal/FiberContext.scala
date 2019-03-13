@@ -290,6 +290,10 @@ private[zio] final class FiberContext[E, A](
           opcount = opcount + 1
         }
       } catch {
+        case _: InterruptedException =>
+          Thread.interrupted
+          curIo = terminate(IO.interrupt)
+
         // Catastrophic error handler. Any error thrown inside the interpreter is
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
