@@ -41,6 +41,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, ZManaged.Reservation[R,
       self.reserve.map(token => token.copy(acquire = token.acquire.map(f0)))
     }
 
+  def mapError[E1](f: E => E1): ZManaged[R, E1, A] =
+    Managed(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
+
+  def provideSome[R0](f: R0 => R): ZManaged[R0, E, A] =
+    Managed(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), r.release.provideSome(f))))
+
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     ZManaged[R1, E1, B] {
       Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>

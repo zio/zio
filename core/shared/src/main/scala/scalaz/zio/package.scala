@@ -35,4 +35,7 @@ package object zio extends EitherCompat {
   val JustExceptions: PartialFunction[Throwable, Exception] = {
     case e: Exception => e
   }
+
+  type Queue[A] = Queue2[Any, Nothing, Any, Nothing, A, A]
+  val Queue = Queue2
 }

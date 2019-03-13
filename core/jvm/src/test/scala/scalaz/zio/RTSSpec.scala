@@ -1028,9 +1028,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       start <- IO.succeed(internal.OneShot.make[Unit])
       fiber <- blocking.interruptible { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
       _     <- IO.succeed(start.get())
-      _     <- fiber.interrupt
+      res   <- fiber.interrupt
       value <- done.get
-    } yield value must_=== true
+    } yield (res, value) must_=== ((Exit.interrupt, true))
   )
 
   def testInterruptSyncForever = unsafeRun(

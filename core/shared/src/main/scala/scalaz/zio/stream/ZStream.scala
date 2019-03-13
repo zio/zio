@@ -746,10 +746,12 @@ trait Stream_Functions extends Serializable {
     }
 
   /**
-   * Constructs an infinite stream from a `Queue`.
+   * Constructs an infinite stream from a `Queue2`.
    */
   final def fromQueue[A](queue: Queue[A]): Stream[Nothing, A] =
     unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.succeed(None))
+  final def fromQueue[RB: ConformsR, EB, B](queue: Queue2[_, _, RB, EB, _, B]): ZStream[RB, EB, B] =
+    unfoldM(())(_ => queue.take.map(b => Some((b, ()))) <> IO.succeed(None))
 
   /**
    * Constructs a stream from effectful state. This method should not be used
