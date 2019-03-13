@@ -31,6 +31,9 @@ package object zio extends EitherCompat {
     case e: Exception => e
   }
 
+  type Queue[A] = Queue2[Any, Nothing, Any, Nothing, A, A]
+  val Queue = Queue2
+
   object ~ {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))

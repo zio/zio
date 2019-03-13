@@ -1,12 +1,13 @@
 package scalaz.zio
 
 import scalaz.zio.STM.TVar
-
 import java.util.concurrent.CountDownLatch
 
-class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+import scalaz.zio.Exit.Cause
+
+final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "STMSpec".title ^ s2"""
-       Using `STM.atomically` to perform different computations and call:
+        Using `STM.atomically` to perform different computations and call:
           `STM.succeed` to make a successful computation and check the value $e1
           `STM.failed` to make a failed computation and check the value      $e2
           `either` to convert:
@@ -22,18 +23,18 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
            `zip` to return a tuple of two computations        $e11
            `zipWith` to perform an action to two computations $e12
 
-       Make a new `TVar` and
+        Make a new `TVar` and
            get its initial value $e13
            set a new value       $e14
 
-       Using `STM.atomically` perform concurrent computations:
+        Using `STM.atomically` perform concurrent computations:
             increment `TVar` 100 times in 100 fibers. $e15
             compute a `TVar` from 2 variables, increment the first `TVar` and decrement the second `TVar` in different fibers. $e16
 
-       Using `Ref` perform the same concurrent test should return a wrong result
+        Using `Ref` perform the same concurrent test should return a wrong result
              increment `TVar` 100 times in 100 fibers. $e17
              compute a `TVar` from 2 variables, increment the first `TVar` and decrement the second `TVar` in different fibers. $e18
-       Using `STM.atomically` perform concurrent computations that
+        Using `STM.atomically` perform concurrent computations that
           have a simple condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied $e19
               resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
@@ -43,13 +44,20 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
           have a complex condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied e22
               resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
-              test1      $e23
-              test2      $e24
-              test3      $e25
-              test4      $e26
+          transfer an amount to a sender and send it back the account should contains the amount to transfer!
+              run both transactions sequentially in 10 fibers. $e23
+              run 10 transactions `toReceiver` and 10 `toSender` concurrently. $e24
+              run transactions `toReceiver` 10 times and `toSender` 10 times each in 100 fibers concurrently. $e25
 
-       Failure must 
-          rollback full transaction     $e30
+          Perform atomically a single transaction that has a tvar for 20 fibers, each one checks the value and increment it. $e26
+          Perform atomically a transaction with a condition that couldn't be satisfied, it should be suspended
+            interrupt the fiber should terminate the transaction $e27
+            interrupt the fiber that has executed the transaction in 100 different fibers, should terminate all transactions. $e28
+            interrupt the fiber and observe it, it should be resumed with Interrupted Cause   $e29
+          Using `collect` filter and map simultaneously the value produced by the transaction $e30
+
+        Failure must 
+          rollback full transaction     $e31
     """
 
   def e1 =
@@ -197,25 +205,6 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       ).run
     ) must_=== 10000
 
-  private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
-    (for {
-      v <- ref.get
-      _ <- ref.set(v + 1)
-      v <- ref.get
-    } yield v)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
-
-  private def compute3RefN(n: Int, ref1: Ref[Int], ref2: Ref[Int], ref3: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
-    (for {
-      v1 <- ref1.get
-      v2 <- ref2.get
-      _  <- ref3.set(v1 + v2)
-      v3 <- ref3.get
-      _  <- ref1.set(v1 - 1)
-      _  <- ref2.set(v2 + 1)
-    } yield v3)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
-
   def e17 =
     unsafeRun(
       for {
@@ -307,17 +296,6 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
       } yield (senderV must_=== 50) and (receiverV must_=== 150)
     }
 
-  def transfer(receiver: TVar[Int], sender: TVar[Int], much: Int): UIO[Int] =
-    STM.atomically {
-      for {
-        balance <- sender.get
-        _       <- STM.check(balance >= much)
-        _       <- receiver.update(_ + much)
-        _       <- sender.update(_ - much)
-        newAmnt <- receiver.get
-      } yield newAmnt
-    }
-
   def e23 =
     unsafeRun {
       for {
@@ -325,9 +303,9 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         receiver   <- TVar.makeRun(0)
         toReceiver = transfer(receiver, sender, 150)
         toSender   = transfer(sender, receiver, 150)
-        f1         <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
+        f          <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
         _          <- sender.update(_ + 50).run
-        _          <- f1.join
+        _          <- f.join
         senderV    <- sender.get.run
         receiverV  <- receiver.get.run
       } yield (senderV must_=== 150) and (receiverV must_=== 0)
@@ -358,11 +336,11 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
         toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
         f            <- toReceiver10.zipPar(toSender10).fork
-        _            <- sender.update(_ + 950).run
+        _            <- sender.update(_ + 50).run
         _            <- f.join
         senderV      <- sender.get.run
         receiverV    <- receiver.get.run
-      } yield (senderV must_=== 1000) and (receiverV must_=== 0)
+      } yield (senderV must_=== 100) and (receiverV must_=== 0)
     }
 
   def e26 =
@@ -383,8 +361,59 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         v <- tvar.get.run
       } yield v must_=== 21
     )
+  import scalaz.zio.duration._
+
+  def e27 =
+    unsafeRun {
+      val latch = new CountDownLatch(1)
+      for {
+        tvar <- TVar.makeRun(0)
+        fiber <- (for {
+                  v <- tvar.get
+                  _ <- STM.succeedLazy(latch.countDown())
+                  _ <- STM.check(v == 60)
+                  _ <- tvar.update(10 / _)
+                } yield ()).run.fork
+        _ <- UIO(latch.await())
+        _ <- fiber.interrupt
+        _ <- clock.sleep(100.millis)
+        v <- tvar.get.run
+      } yield v must_=== 0
+    }
+
+  def e28 =
+    unsafeRun {
+      val latch = new CountDownLatch(1)
+      for {
+        tvar <- TVar.makeRun(0)
+        fiber <- IO.forkAll(List.fill(100)((for {
+                  v <- tvar.get
+                  _ <- STM.succeedLazy(latch.countDown())
+                  _ <- STM.check(v > 0)
+                } yield ()).run))
+        _ <- UIO(latch.await())
+        _ <- fiber.interrupt
+        _ <- clock.sleep(100.millis)
+        v <- tvar.get.run
+      } yield v must_=== 0
+    }
+
+  def e29 =
+    unsafeRun(
+      for {
+        v       <- TVar.makeRun(1)
+        f       <- v.get.flatMap(v => STM.check(v == 0)).run.fork
+        _       <- f.interrupt
+        observe <- f.poll
+      } yield observe must be some Exit.Failure(Cause.Interrupt)
+    )
 
   def e30 =
+    unsafeRun(
+      STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.run
+    ) must_=== "Positive"
+
+  def e31 =
     unsafeRun(
       for {
         tvar <- TVar.makeRun(0)
@@ -397,6 +426,36 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         (e must_=== Left("Error!")) and
           (v must_=== 0)
     )
+
+  private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
+    (for {
+      v <- ref.get
+      _ <- ref.set(v + 1)
+      v <- ref.get
+    } yield v)
+      .repeat(Schedule.recurs(n) *> Schedule.identity)
+
+  private def compute3RefN(n: Int, ref1: Ref[Int], ref2: Ref[Int], ref3: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
+    (for {
+      v1 <- ref1.get
+      v2 <- ref2.get
+      _  <- ref3.set(v1 + v2)
+      v3 <- ref3.get
+      _  <- ref1.set(v1 - 1)
+      _  <- ref2.set(v2 + 1)
+    } yield v3)
+      .repeat(Schedule.recurs(n) *> Schedule.identity)
+
+  private def transfer(receiver: TVar[Int], sender: TVar[Int], much: Int): UIO[Int] =
+    STM.atomically {
+      for {
+        balance <- sender.get
+        _       <- STM.check(balance >= much)
+        _       <- receiver.update(_ + much)
+        _       <- sender.update(_ - much)
+        newAmnt <- receiver.get
+      } yield newAmnt
+    }
 }
 
 object Examples {
