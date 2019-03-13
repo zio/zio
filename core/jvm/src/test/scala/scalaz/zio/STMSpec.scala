@@ -82,8 +82,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
   def e6 =
     unsafeRun(
       (for {
-        s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
-        f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
+        s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed, STM.retry)
+        f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"), STM.retry)
       } yield (s must_=== "Yes!") and (f must_== "No!")).run
     )
 

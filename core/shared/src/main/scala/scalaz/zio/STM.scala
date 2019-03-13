@@ -111,7 +111,8 @@ final class STM[+E, +A] private (
     )
 
   /**
-   * Folds over the `STM` effect, handling both failure and success.
+   * Folds over the `STM` effect, handling both failure and success, but not
+   * retry.
    */
   final def fold[B](f: E => B, g: A => B): STM[Nothing, B] =
     new STM(
@@ -127,7 +128,7 @@ final class STM[+E, +A] private (
    * Effectfully folds over the `STM` effect, handling both failure,
    * success, or potentially a retry.
    */
-  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B], h: => STM[E1, B] = STM.retry): STM[E1, B] =
+  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B], h: => STM[E1, B]): STM[E1, B] =
     new STM(
       journal =>
         (self exec journal) match {
