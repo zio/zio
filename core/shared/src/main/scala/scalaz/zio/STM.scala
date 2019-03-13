@@ -562,4 +562,15 @@ object STM {
    * Returns a value that models failure in the transaction.
    */
   final def fail[E](e: E): STM[E, Nothing] = new STM(_ => TRez.Fail(e))
+
+  /**
+   * Collects all the transactional effects in a list, returning a single
+   * transactional effect that produces a list of values.
+   */
+  final def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
+    i.foldLeft[STM[E, List[A]]](STM.succeed(Nil)) {
+        case (acc, stm) =>
+          acc.zipWith(stm)((xs, x) => x :: xs)
+      }
+      .map(_.reverse)
 }

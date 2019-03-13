@@ -466,5 +466,19 @@ object Examples {
             }
       } yield a).run
   }
-  object fun {}
+  object fun {
+    case class Phone(value: String)
+    case class Developer(name: String, phone: Phone)
+    def page(phone: Phone, message: String): UIO[Unit] = ???
+    def pager(sysErrors: TVar[Int], onDuty: TVar[Set[Developer]]): UIO[Unit] =
+      (for {
+        errors <- sysErrors.get
+        _      <- STM.check(errors > 100)
+        devs   <- onDuty.get
+        any <- devs.headOption match {
+                case Some(dev) => STM.succeed(dev)
+                case _         => STM.retry
+              }
+      } yield any).run.flatMap(dev => page(dev.phone, "Wake up, too many bugs!"))
+  }
 }
