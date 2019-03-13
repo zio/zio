@@ -179,6 +179,8 @@ trait Fiber[+E, +A] { self =>
           .fork
     }.flatten
 
+  final def managed: Managed[Any, E, A] =
+    Managed.make(self.join)(_ => self.interrupt)
 }
 
 object Fiber {
