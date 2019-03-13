@@ -1681,7 +1681,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Fail
   }
 
-  final class Ensuring[R, R0 <: R, E, A](val zio: ZIO[R, E, A], val finalizer: ZIO[R0, Nothing, _]) extends ZIO[R0, E, A] {
+  final class Ensuring[R, R0 <: R, E, A](val zio: ZIO[R, E, A], val finalizer: ZIO[R0, Nothing, _])
+      extends ZIO[R0, E, A] {
     override def tag = Tags.Ensuring
   }
 
