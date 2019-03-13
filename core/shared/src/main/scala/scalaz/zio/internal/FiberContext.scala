@@ -71,7 +71,7 @@ private[zio] final class FiberContext[E, A](
       c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
 
     var errorHandler: Any => IO[Any, Any]      = null
-    var finalizer: UIO[Option[Cause[Nothing]]] = null
+    var finalizer: ZIO[Any, Nothing, Option[Cause[Nothing]]] = null
 
     // Unwind the stack, looking for exception handlers and coalescing
     // finalizers.
@@ -250,7 +250,7 @@ private[zio] final class FiberContext[E, A](
                   }
 
                 case ZIO.Tags.Ensuring =>
-                  val io = curIo.asInstanceOf[ZIO.Ensuring[Any, E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Ensuring[Any, Any, E, Any]]
                   stack.push(new Finalizer(io.finalizer))
                   curIo = io.zio
 
