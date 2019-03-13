@@ -300,6 +300,12 @@ object STM {
         newValue.asInstanceOf[B]
 
       /**
+       * Determines if the entry is invalid. This is the negated version of
+       * `isValid`.
+       */
+      final def isInvalid: Boolean = !isValid
+
+      /**
        * Determines if the entry is valid. That is, if the version of the
        * `TVar` is equal to the expected version.
        */
@@ -487,20 +493,26 @@ object STM {
                     journal = MutableMap.empty[Long, Entry]
                     value = stm exec journal
 
-                    if (value != TRez.Retry) {
-                      try {
+                    value match {
+                      case _: TRez.Succeed[_] =>
                         globalLock.acquire()
 
-                        if (journal.values forall (_.isValid)) {
+                        try if (journal.values forall (_.isValid)) {
                           journal.values foreach (_.commit())
 
                           loop = false
-                        }
-                      } finally globalLock.release()
-                    } else {
-                      addTodo(txnId, journal.values.map(_.tvar), tryTxnAsync)
+                        } finally globalLock.release()
 
-                      loop = false
+                      case _: TRez.Fail[_] =>
+                        globalLock.acquire()
+
+                        try loop = journal.values exists (_.isInvalid)
+                        finally globalLock.release()
+
+                      case TRez.Retry =>
+                        addTodo(txnId, journal.values.map(_.tvar), tryTxnAsync)
+
+                        loop = false
                     }
                   }
 
@@ -516,9 +528,9 @@ object STM {
                     case TRez.Succeed(a) => completed(IO.succeed(a))
                     case TRez.Fail(e)    => completed(IO.fail(e))
                     case TRez.Retry =>
-                      val current = journal.values.forall(entry => entry.tvar.versioned eq entry.expected)
+                      val stale = journal.values exists (entry => entry.tvar.versioned ne entry.expected)
 
-                      if (!current) tryTxn() else None
+                      if (stale) tryTxn() else None
                   }
                 }
               }

@@ -48,6 +48,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
               test3      $e25
               test4      $e26
 
+       Failure must 
+          rollback full transaction     $e30
     """
 
   def e1 =
@@ -380,5 +382,19 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         _ <- fiber.join
         v <- tvar.get.run
       } yield v must_=== 21
+    )
+
+  def e30 =
+    unsafeRun(
+      for {
+        tvar <- TVar.makeRun(0)
+        e <- (for {
+              _ <- tvar.update(_ + 10)
+              _ <- STM.fail("Error!")
+            } yield ()).run.either
+        v <- tvar.get.run
+      } yield
+        (e must_=== Left("Error!")) and
+          (v must_=== 0)
     )
 }
