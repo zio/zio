@@ -55,12 +55,13 @@ object Blocking extends Serializable {
     def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
       ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
-        import java.util.concurrent.atomic.AtomicReference
+        import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
         import scalaz.zio.internal.OneShot
 
-        val lock    = new ReentrantLock()
-        val thread  = new AtomicReference[Option[Thread]](None)
-        val barrier = OneShot.make[Unit]
+        val lock        = new ReentrantLock()
+        val interrupted = new AtomicBoolean(false)
+        val thread      = new AtomicReference[Option[Thread]](None)
+        val barrier     = OneShot.make[Unit]
 
         def withMutex[B](b: => B): B =
           try {
@@ -68,10 +69,15 @@ object Blocking extends Serializable {
           } finally lock.unlock()
 
         val interruptThread: UIO[Unit] =
-          ZIO.effectTotal(withMutex(thread.get match {
-            case None         => ()
-            case Some(thread) => thread.interrupt()
-          }))
+          ZIO.effectTotal {
+            var isNone = false
+            while (!isNone && !withMutex(interrupted.get)) {
+              withMutex(thread.get match {
+                case None         => isNone = true; ()
+                case Some(thread) => thread.interrupt()
+              })
+            }
+          }
 
         val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 
@@ -86,6 +92,7 @@ object Blocking extends Serializable {
                           catch {
                             case _: InterruptedException =>
                               Thread.interrupted // Clear interrupt status
+                              withMutex(interrupted.set(true))
                               Left(Cause.interrupt)
                             case t: Throwable =>
                               Left(Cause.fail(t))
