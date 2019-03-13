@@ -31,7 +31,7 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
   import Managed.Reservation
 
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    reserve.bracket[R1, E1, B](_.release)(_.acquire.flatMap(f))
+    reserve.bracket(_.release)(_.acquire.flatMap(f))
 
   final def use_[R1 <: R, E1 >: E, B](f: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     use(_ => f)
@@ -40,6 +40,12 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
     Managed[R, E, B] {
       self.reserve.map(token => token.copy(acquire = token.acquire.map(f0)))
     }
+
+  def mapError[E1](f: E => E1): Managed[R, E1, A] =
+    Managed(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
+
+  def provideSome[R0](f: R0 => R): Managed[R0, E, A] =
+    Managed(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), r.release.provideSome(f))))
 
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => Managed[R1, E1, B]): Managed[R1, E1, B] =
     Managed[R1, E1, B] {
@@ -63,8 +69,20 @@ final case class Managed[-R, +E, +A](reserve: ZIO[R, E, Managed.Reservation[R, E
   final def *>[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A1] =
     flatMap(_ => that)
 
+  /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A1] =
+    self *> that
+
   final def <*[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A] =
     flatMap(r => that.map(_ => r))
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[R1 <: R, E1 >: E, A1](that: Managed[R1, E1, A1]): Managed[R1, E1, A] =
+    self <* that
 
   final def zipWith[R1 <: R, E1 >: E, A1, A2](that: Managed[R1, E1, A1])(f: (A, A1) => A2): Managed[R1, E1, A2] =
     flatMap(r => that.map(r1 => f(r, r1)))

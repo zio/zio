@@ -63,6 +63,26 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Converts this stream to a stream that executes its effects but emits no
+   * elements. Useful for sequencing effects using streams:
+   *
+   * {{{
+   * (Stream(1, 2, 3).tap(i => ZIO(println(i))) ++
+   *   Stream.lift(ZIO(println("Done!"))).drain ++
+   *   Stream(4, 5, 6).tap(i => ZIO(println(i)))).run(Sink.drain)
+   * }}}
+   */
+  final def drain: Stream[R, E, Nothing] =
+    new Stream[R, E, Nothing] {
+      override def fold[R1 <: R, E1 >: E, A1 >: Nothing, S]: Fold[R1, E1, A1, S] =
+        IO.succeedLazy { (s, cont, _) =>
+          self.fold[R1, E1, A, S].flatMap { f0 =>
+            f0(s, cont, (s, _) => IO.succeed(s))
+          }
+        }
+    }
+
+  /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
@@ -530,7 +550,7 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
   /**
    * Adds an effect to consumption of every element of the stream.
    */
-  final def withEffect[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): Stream[R1, E1, A] =
+  final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): Stream[R1, E1, A] =
     new Stream[R1, E1, A] {
       override def fold[R2 <: R1, E2 >: E1, A1 >: A, S]: Fold[R2, E2, A1, S] =
         IO.succeedLazy { (s, cont, g) =>
@@ -564,20 +584,31 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
             q2: Queue[Take[E2, B]],
             s: S
           ): ZIO[R2, E2, S] = {
-            val takeLeft  = if (leftDone) IO.succeed(None) else Take.option(q1.take)
-            val takeRight = if (rightDone) IO.succeed(None) else Take.option(q2.take)
+            val takeLeft: ZIO[R2, E2, Option[A]]  = if (leftDone) IO.succeed(None) else Take.option(q1.take)
+            val takeRight: ZIO[R2, E2, Option[B]] = if (rightDone) IO.succeed(None) else Take.option(q2.take)
 
-            takeLeft.zip(takeRight).flatMap {
-              case (left, right) =>
-                f(left, right) match {
-                  case None => IO.succeed(s)
-                  case Some(c) =>
-                    g(s, c).flatMap { s =>
-                      if (cont(s)) loop(left.isEmpty, right.isEmpty, q1, q2, s)
-                      else IO.succeed(s)
-                    }
-                }
-            }
+            def handleSuccess(left: Option[A], right: Option[B]): ZIO[R2, E2, S] =
+              f(left, right) match {
+                case None => IO.succeed(s)
+                case Some(c) =>
+                  g(s, c).flatMap { s =>
+                    if (cont(s)) loop(left.isEmpty, right.isEmpty, q1, q2, s)
+                    else IO.succeed(s)
+                  }
+              }
+
+            takeLeft.raceWith(takeRight)(
+              (leftResult, rightFiber) =>
+                leftResult.fold(
+                  e => rightFiber.interrupt *> ZIO.halt(e),
+                  l => rightFiber.join.flatMap(r => handleSuccess(l, r))
+                ),
+              (rightResult, leftFiber) =>
+                rightResult.fold(
+                  e => leftFiber.interrupt *> ZIO.halt(e),
+                  r => leftFiber.join.flatMap(l => handleSuccess(l, r))
+                )
+            )
           }
 
           self.toQueue[E2, A](lc).use(q1 => that.toQueue[E2, B](rc).use(q2 => loop(false, false, q1, q2, s)))
@@ -624,6 +655,15 @@ object Stream extends Serializable {
   final val empty: Stream[Any, Nothing, Nothing] = StreamPure.empty
 
   /**
+   * Returns a stream that emits nothing and never ends.
+   */
+  final val never: Stream[Any, Nothing, Nothing] =
+    new Stream[Any, Nothing, Nothing] {
+      override def fold[R <: Any, E >: Nothing, A >: Nothing, S]: Fold[R, E, A, S] =
+        ZIO.never
+    }
+
+  /**
    * Constructs a singleton stream from a strict value.
    */
   final def succeed[A](a: A): Stream[Any, Nothing, A] = StreamPure.succeed(a)
@@ -647,7 +687,7 @@ object Stream extends Serializable {
   /**
    * Lifts an effect producing an `A` into a stream producing that `A`.
    */
-  final def lift[R, E, A](fa: ZIO[R, E, A]): Stream[R, E, A] = new Stream[R, E, A] {
+  final def fromEffect[R, E, A](fa: ZIO[R, E, A]): Stream[R, E, A] = new Stream[R, E, A] {
     override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) fa.flatMap(f(s, _))
@@ -696,10 +736,10 @@ object Stream extends Serializable {
     }
 
   /**
-   * Constructs an infinite stream from a `Queue`.
+   * Constructs an infinite stream from a `Queue2`.
    */
-  final def fromQueue[A](queue: Queue[A]): Stream[Any, Nothing, A] =
-    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.succeed(None))
+  final def fromQueue[RB, EB, B](queue: Queue2[_, _, RB, EB, _, B]): Stream[RB, EB, B] =
+    unfoldM(())(_ => queue.take.map(b => Some((b, ()))) <> IO.succeed(None))
 
   /**
    * Constructs a stream from effectful state. This method should not be used

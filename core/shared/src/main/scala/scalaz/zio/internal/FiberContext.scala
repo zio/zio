@@ -42,7 +42,7 @@ private[zio] final class FiberContext[E, A](
   @volatile private[this] var supervised  = List.empty[Set[FiberContext[_, _]]]
   @volatile private[this] var supervising = 0
   @volatile private[this] var locked      = List.empty[Executor]
-  @volatile private[this] var environment = ().asInstanceOf[Any]
+  @volatile private[this] var environment = List[Any](())
 
   private[this] val fiberId = FiberContext.fiberCounter.getAndIncrement()
   private[this] val stack   = new Stack[Any => IO[Any, Any]]()
@@ -272,14 +272,14 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Access =>
                   val io = curIo.asInstanceOf[ZIO.Read[Any, E, Any]]
 
-                  curIo = io.k(environment)
+                  curIo = io.k(environment.head)
 
                 case ZIO.Tags.Provide =>
                   val io = curIo.asInstanceOf[ZIO.Provide[Any, E, Any]]
 
-                  environment = io.r
+                  environment = io.r :: environment
 
-                  curIo = io.next
+                  curIo = io.next.ensuring(ZIO.succeedLazy { environment = environment.drop(1) })
               }
             }
           } else {
@@ -290,6 +290,10 @@ private[zio] final class FiberContext[E, A](
           opcount = opcount + 1
         }
       } catch {
+        case _: InterruptedException =>
+          Thread.interrupted
+          curIo = terminate(IO.interrupt)
+
         // Catastrophic error handler. Any error thrown inside the interpreter is
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
@@ -557,13 +561,13 @@ private[zio] final class FiberContext[E, A](
 private[zio] object FiberContext {
   val fiberCounter = new AtomicLong(0)
 
-  sealed abstract class FiberStatus extends Serializable with Product
+  sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
     final case object Running   extends FiberStatus
     final case object Suspended extends FiberStatus
   }
 
-  sealed abstract class FiberState[+E, +A] extends Serializable with Product {
+  sealed trait FiberState[+E, +A] extends Serializable with Product {
 
     /** indicates if the fiber was interrupted */
     def interrupted: Boolean

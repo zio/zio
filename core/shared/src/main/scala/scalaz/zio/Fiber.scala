@@ -116,13 +116,25 @@ trait Fiber[+E, +A] { self =>
    * Same as `zip` but discards the output of the left hand side.
    */
   final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
-    zip(that).map(_._2)
+    (self zip that).map(_._2)
+
+  /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
+    self *> that
 
   /**
    * Same as `zip` but discards the output of the right hand side.
    */
   final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
     zip(that).map(_._1)
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
+    self <* that
 
   /**
    * Maps over the value the Fiber computes.
@@ -209,7 +221,7 @@ object Fiber {
   /**
    * Lifts an [[scalaz.zio.IO]] into a `Fiber`.
    */
-  final def lift[E, A](io: IO[E, A]): IO[Nothing, Fiber[E, A]] =
+  final def fromEffect[E, A](io: IO[E, A]): IO[Nothing, Fiber[E, A]] =
     io.run.map(done(_))
 
   /**

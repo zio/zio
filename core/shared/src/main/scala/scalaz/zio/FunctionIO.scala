@@ -63,7 +63,7 @@ package scalaz.zio
  *   } yield ())
  *
  * // Program 2
- * val program2: UIO[Unit] = (readLine >>> FunctionIO.lift("Hello, " + _) >>> printLine)(())
+ * val program2: UIO[Unit] = (readLine >>> FunctionIO.fromFunction("Hello, " + _) >>> printLine)(())
  * }}}
  *
  * Similarly, the following two programs are equivalent:
@@ -85,7 +85,7 @@ package scalaz.zio
  * In both of these examples, the `FunctionIO` program is faster because it is
  * able to perform fusion of effectful functions.
  */
-sealed abstract class FunctionIO[+E, -A, +B] extends Serializable { self =>
+sealed trait FunctionIO[+E, -A, +B] extends Serializable { self =>
 
   /**
    * Applies the effectful function with the specified value, returning the
@@ -96,7 +96,7 @@ sealed abstract class FunctionIO[+E, -A, +B] extends Serializable { self =>
   /**
    * Maps the output of this effectful function by the specified function.
    */
-  final def map[C](f: B => C): FunctionIO[E, A, C] = self >>> FunctionIO.lift(f)
+  final def map[C](f: B => C): FunctionIO[E, A, C] = self >>> FunctionIO.fromFunction(f)
 
   /**
    * Binds on the output of this effectful function.
@@ -186,7 +186,7 @@ sealed abstract class FunctionIO[+E, -A, +B] extends Serializable { self =>
    * Maps the output of this effectful function to the specified constant.
    */
   final def const[C](c: => C): FunctionIO[E, A, C] =
-    self >>> FunctionIO.lift[B, C](_ => c)
+    self >>> FunctionIO.fromFunction[B, C](_ => c)
 
   /**
    * Maps the output of this effectful function to `Unit`.
@@ -219,12 +219,12 @@ object FunctionIO extends Serializable {
   /**
    * Lifts a value into the monad formed by `FunctionIO`.
    */
-  final def succeed[B](b: B): FunctionIO[Nothing, Any, B] = lift((_: Any) => b)
+  final def succeed[B](b: B): FunctionIO[Nothing, Any, B] = fromFunction((_: Any) => b)
 
   /**
    * Lifts a non-strictly evaluated value into the monad formed by `FunctionIO`.
    */
-  final def succeedLazy[B](b: => B): FunctionIO[Nothing, Any, B] = lift((_: Any) => b)
+  final def succeedLazy[B](b: => B): FunctionIO[Nothing, Any, B] = fromFunction((_: Any) => b)
 
   /**
    * Returns a `FunctionIO` representing a failure with the specified `E`.
@@ -236,29 +236,29 @@ object FunctionIO extends Serializable {
    * Returns the identity effectful function, which performs no effects and
    * merely returns its input unmodified.
    */
-  final def identity[A]: FunctionIO[Nothing, A, A] = lift(a => a)
+  final def identity[A]: FunctionIO[Nothing, A, A] = fromFunction(a => a)
 
   /**
    * Lifts a pure `A => IO[E, B]` into `FunctionIO`.
    */
-  final def pure[E, A, B](f: A => IO[E, B]): FunctionIO[E, A, B] = new Pure(f)
+  final def fromFunctionM[E, A, B](f: A => IO[E, B]): FunctionIO[E, A, B] = new Pure(f)
 
   /**
    * Lifts a pure `A => B` into `FunctionIO`.
    */
-  final def lift[A, B](f: A => B): FunctionIO[Nothing, A, B] = new Impure(f)
+  final def fromFunction[A, B](f: A => B): FunctionIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
   final def swap[E, A, B]: FunctionIO[E, (A, B), (B, A)] =
-    FunctionIO.lift[(A, B), (B, A)](_.swap)
+    FunctionIO.fromFunction[(A, B), (B, A)](_.swap)
 
   /**
    * Lifts an impure function into `FunctionIO`, converting throwables into the
    * specified error type `E`.
    */
-  final def impure[E, A, B](catcher: PartialFunction[Throwable, E])(f: A => B): FunctionIO[E, A, B] =
+  final def effect[E, A, B](catcher: PartialFunction[Throwable, E])(f: A => B): FunctionIO[E, A, B] =
     new Impure(
       (a: A) =>
         try f(a)
@@ -272,7 +272,7 @@ object FunctionIO extends Serializable {
    * Lifts an impure function into `FunctionIO`, assuming any throwables are
    * non-recoverable and do not need to be converted into errors.
    */
-  final def impureVoid[A, B](f: A => B): FunctionIO[Nothing, A, B] = new Impure(f)
+  final def effectTotal[A, B](f: A => B): FunctionIO[Nothing, A, B] = new Impure(f)
 
   /**
    * Returns a new effectful function that passes an `A` to the condition, and
@@ -281,7 +281,7 @@ object FunctionIO extends Serializable {
    */
   final def test[E, A](k: FunctionIO[E, A, Boolean]): FunctionIO[E, A, Either[A, A]] =
     (k &&& FunctionIO.identity[A]) >>>
-      FunctionIO.lift((t: (Boolean, A)) => if (t._1) Left(t._2) else Right(t._2))
+      FunctionIO.fromFunction((t: (Boolean, A)) => if (t._1) Left(t._2) else Right(t._2))
 
   /**
    * Returns a new effectful function that passes an `A` to the condition, and
@@ -345,7 +345,7 @@ object FunctionIO extends Serializable {
 
       case _ =>
         lazy val loop: FunctionIO[E, A, A] =
-          FunctionIO.pure(
+          FunctionIO.fromFunctionM(
             (a: A) => check.run(a).flatMap((b: Boolean) => if (b) body.run(a).flatMap(loop.run) else IO.succeed(a))
           )
 
@@ -356,13 +356,13 @@ object FunctionIO extends Serializable {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
-  final def _1[E, A, B]: FunctionIO[E, (A, B), A] = lift[(A, B), A](_._1)
+  final def _1[E, A, B]: FunctionIO[E, (A, B), A] = fromFunction[(A, B), A](_._1)
 
   /**
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
-  final def _2[E, A, B]: FunctionIO[E, (A, B), B] = lift[(A, B), B](_._2)
+  final def _2[E, A, B]: FunctionIO[E, (A, B), B] = fromFunction[(A, B), B](_._2)
 
   /**
    * See @FunctionIO.flatMap
@@ -398,7 +398,7 @@ object FunctionIO extends Serializable {
         })
 
       case _ =>
-        FunctionIO.pure(
+        FunctionIO.fromFunctionM(
           (a: A) =>
             for {
               b <- l.run(a)
@@ -418,7 +418,7 @@ object FunctionIO extends Serializable {
           case Right(c) => Right(c)
         })
       case _ =>
-        FunctionIO.pure[E, Either[A, C], Either[B, C]] {
+        FunctionIO.fromFunctionM[E, Either[A, C], Either[B, C]] {
           case Left(a)  => k.run(a).map[Either[B, C]](Left[B, C])
           case Right(c) => IO.succeed[Either[B, C]](Right(c))
         }
@@ -435,7 +435,7 @@ object FunctionIO extends Serializable {
           case Right(a) => Right(k.apply0(a))
         })
       case _ =>
-        FunctionIO.pure[E, Either[C, A], Either[C, B]] {
+        FunctionIO.fromFunctionM[E, Either[C, A], Either[C, B]] {
           case Left(c)  => IO.succeed[Either[C, B]](Left(c))
           case Right(a) => k.run(a).map[Either[C, B]](Right[C, B])
         }
@@ -453,7 +453,7 @@ object FunctionIO extends Serializable {
         })
 
       case _ =>
-        FunctionIO.pure[E, Either[A, C], B]({
+        FunctionIO.fromFunctionM[E, Either[A, C], B]({
           case Left(a)  => l.run(a)
           case Right(c) => r.run(c)
         })
