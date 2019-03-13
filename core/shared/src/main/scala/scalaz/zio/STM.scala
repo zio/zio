@@ -184,7 +184,7 @@ final class STM[+E, +A] private (
   /**
    * Same as [[filter]]
    */
-  def withFilter(f: A => Boolean): STM[E, A] = filter(f)
+  final def withFilter(f: A => Boolean): STM[E, A] = filter(f)
 
   /**
    * Sequentially zips this value with the specified one.
@@ -324,7 +324,7 @@ object STM {
        * Creates an entry for the journal, given the `TVar` being updated, the
        * new value of the `TVar`, and the expected version of the `TVar`.
        */
-      def apply[A0](tvar0: TVar[A0], newValue0: A0, expected0: Versioned[A0]): Entry =
+      final def apply[A0](tvar0: TVar[A0], newValue0: A0, expected0: Versioned[A0]): Entry =
         new Entry {
           type A = A0
           val tvar     = tvar0
@@ -371,7 +371,7 @@ object STM {
         succeedUnit
       })
 
-    override def toString =
+    override final def toString =
       s"TVar(id = ${id}, versioned.value = ${versioned.value}, todo = ${todo.get})"
 
     /**
@@ -403,7 +403,7 @@ object STM {
         TRez.Succeed(retValue)
       })
 
-    private def getOrMakeEntry(journal: Journal): Entry =
+    private final def getOrMakeEntry(journal: Journal): Entry =
       if (journal contains id) journal(id)
       else {
         val expected = versioned
@@ -542,7 +542,7 @@ object STM {
           }
 
           tryTxn()
-        }) ensuring (UIO(ref.get).flatten)
+        }) ensuring UIO(ref.get).flatten
     }
 
   /**
