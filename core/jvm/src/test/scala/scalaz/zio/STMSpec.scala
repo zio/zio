@@ -1,10 +1,11 @@
 package scalaz.zio
 
 import scalaz.zio.STM.TVar
-
 import java.util.concurrent.CountDownLatch
 
-class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+import scalaz.zio.Exit.Cause
+
+final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "STMSpec".title ^ s2"""
        Using `STM.atomically` to perform different computations and call:
           `STM.succeed` to make a successful computation and check the value $e1
@@ -48,7 +49,8 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
           Perform atomically a transaction with a condition that couldn't be satisfied, it should be suspended
             interrupt the fiber should terminate the transaction $e27
             interrupt the fiber that has executed the transaction in 100 different fibers, should terminate all transactions. $e28
-          Using `collect` filter and map simultaneously the value produced by the transaction $e29
+            interrupt the fiber and observe it, it should be resumed with Interrupted Cause   $e29
+          Using `collect` filter and map simultaneously the value produced by the transaction $e30
     """
 
   def e1 =
@@ -392,6 +394,16 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
 
   def e29 =
     unsafeRun(
+      for {
+        v       <- TVar.makeRun(1)
+        f       <- v.get.flatMap(v => STM.check(v == 0)).run.fork
+        _       <- f.interrupt
+        observe <- f.poll
+      } yield observe must be some Exit.Failure(Cause.Interrupt)
+    )
+
+  def e30 =
+    unsafeRun(
       STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.run
     ) must_=== "Positive"
 
@@ -424,5 +436,4 @@ class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunti
         newAmnt <- receiver.get
       } yield newAmnt
     }
-
 }
