@@ -16,7 +16,7 @@
 
 package scalaz.zio
 
-import java.io.{ IOException, PrintStream, Reader }
+import java.io.IOException
 
 package object console extends Console.Service[Console] {
   final val consoleService: ZIO[Console, Nothing, Console.Service[Any]] =
@@ -28,25 +28,16 @@ package object console extends Console.Service[Console] {
   final def putStr(line: String): ZIO[Console, Nothing, Unit] =
     ZIO.accessM(_.console putStr line)
 
-  final def putStr(stream: PrintStream)(line: String): ZIO[Console, Nothing, Unit] =
-    ZIO.accessM(_.console.putStr(stream)(line))
-
   /**
    * Prints a line of text to the console, including a newline character.
    */
   final def putStrLn(line: String): ZIO[Console, Nothing, Unit] =
     ZIO.accessM(_.console putStrLn line)
 
-  final def putStrLn(stream: PrintStream)(line: String): ZIO[Console, Nothing, Unit] =
-    ZIO.accessM(_.console.putStrLn(stream)(line))
-
   /**
    * Retrieves a line of input from the console.
    */
   final val getStrLn: ZIO[Console, IOException, String] =
     ZIO.accessM(_.console.getStrLn)
-
-  final def getStrLn(reader: Reader): ZIO[Console, IOException, String] =
-    ZIO.accessM(_.console getStrLn reader)
 
 }
