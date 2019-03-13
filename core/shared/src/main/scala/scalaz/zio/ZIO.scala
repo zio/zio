@@ -414,7 +414,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * should generally not be used for releasing resources. For higher-level
    * logic built on `ensuring`, see [[ZIO#bracket]].
    */
-  final def ensuring(finalizer: UIO[_]): ZIO[R, E, A] =
+  final def ensuring[R0 <: R](finalizer: ZIO[R0, Nothing, _]): ZIO[R0, E, A] =
     new ZIO.Ensuring(self, finalizer)
 
   /**
@@ -1681,7 +1681,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Fail
   }
 
-  final class Ensuring[R, E, A](val zio: ZIO[R, E, A], val finalizer: UIO[_]) extends ZIO[R, E, A] {
+  final class Ensuring[R, R0 <: R, E, A](val zio: ZIO[R, E, A], val finalizer: ZIO[R0, Nothing, _]) extends ZIO[R0, E, A] {
     override def tag = Tags.Ensuring
   }
 
