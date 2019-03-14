@@ -18,9 +18,7 @@ package scalaz.zio.blocking
 
 import java.util.concurrent._
 
-import scalaz.zio.{ Exit, Schedule, UIO, ZIO }
-import scalaz.zio.duration._
-import scalaz.zio.clock.Clock
+import scalaz.zio.{ Exit, UIO, ZIO }
 import Exit.Cause
 import scalaz.zio.internal.{ Executor, NamedThreadFactory }
 import scalaz.zio.internal.PlatformLive
@@ -54,7 +52,7 @@ object Blocking extends Serializable {
      * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
-    def interruptible[A](effect: => A): ZIO[R with Clock, Throwable, A] =
+    def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
       ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
         import java.util.concurrent.atomic.AtomicReference
@@ -69,21 +67,23 @@ object Blocking extends Serializable {
             lock.lock(); b
           } finally lock.unlock()
 
-        val checkInterrupted: Schedule[Clock, Unit, Unit] = {
-          val shouldRun = ZIO.effectTotal(withMutex(thread.get.isDefined))
-          Schedule.exponential(2.millis) && Schedule[Any, Boolean, Unit, Unit](shouldRun, {
-            case (_, true)  => shouldRun.map(Schedule.Decision.cont(0.millis, _, ()))
-            case (_, false) => ZIO.succeed(Schedule.Decision.done(0.millis, false, ()))
-          })
-        }.void
-
-        val interruptThread: ZIO[Clock, Nothing, Unit] =
+        val interruptThread: UIO[Unit] =
           ZIO.effectTotal {
-            withMutex(thread.get match {
-              case None         => ()
-              case Some(thread) => thread.interrupt()
-            })
-          }.repeat(checkInterrupted)
+            var looping = true
+            var n       = 0L
+            val base    = 2L
+            while (looping) {
+              withMutex(thread.get match {
+                case None         => looping = false; ()
+                case Some(thread) => n + 1; thread.interrupt()
+              })
+
+              if (looping) {
+                n += 1
+                Thread.sleep(base * n)
+              }
+            }
+          }
 
         val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 

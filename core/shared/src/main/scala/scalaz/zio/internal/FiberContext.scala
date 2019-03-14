@@ -250,7 +250,7 @@ private[zio] final class FiberContext[E, A](
                   }
 
                 case ZIO.Tags.Ensuring =>
-                  val io = curIo.asInstanceOf[ZIO.Ensuring[Any, Any, E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Ensuring[Any, E, Any]]
                   stack.push(new Finalizer(io.finalizer))
                   curIo = io.zio
 
