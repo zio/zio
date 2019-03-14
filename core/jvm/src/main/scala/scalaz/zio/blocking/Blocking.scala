@@ -75,7 +75,7 @@ object Blocking extends Serializable {
             while (looping) {
               withMutex(thread.get match {
                 case None         => looping = false; ()
-                case Some(thread) => n + 1; thread.interrupt()
+                case Some(thread) => thread.interrupt()
               })
 
               if (looping) {
