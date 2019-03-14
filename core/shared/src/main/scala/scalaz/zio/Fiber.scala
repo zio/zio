@@ -179,7 +179,10 @@ trait Fiber[+E, +A] { self =>
           .fork
     }.flatten
 
-  final def managed: Managed[Any, Nothing, Fiber[E, A]] =
+  /**
+   * Converts this fiber into a [[scalaz.zio.Managed]]. Fiber is interrupted on release.
+   */
+  final def toManaged: Managed[Any, Nothing, Fiber[E, A]] =
     Managed.make(UIO.succeed(self))(_.interrupt)
 }
 
