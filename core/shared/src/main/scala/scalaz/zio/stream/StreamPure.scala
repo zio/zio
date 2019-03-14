@@ -18,26 +18,26 @@ package scalaz.zio.stream
 
 import scalaz.zio._
 
-private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
+private[stream] trait StreamPure[-R, +A] extends ZStream[R, Nothing, A] { self =>
   def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S
 
   override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): UIO[S] =
     IO.succeed(foldPureLazy(s)(_ => true)(f))
 
-  override def run[R1 <: R, E, A0, A1 >: A, B](sink: Sink[R1, E, A0, A1, B]): ZIO[R1, E, B] =
+  override def run[R1 <: R, E, A0, A1 >: A, B](sink: ZSink[R1, E, A0, A1, B]): ZIO[R1, E, B] =
     sink match {
       case sink: SinkPure[E, A0, A1, B] =>
         ZIO.fromEither(
           sink.extractPure(
-            Sink.Step.state(
-              foldPureLazy[A1, Sink.Step[sink.State, A0]](sink.initialPure)(Sink.Step.cont) { (s, a) =>
-                sink.stepPure(Sink.Step.state(s), a)
+            ZSink.Step.state(
+              foldPureLazy[A1, ZSink.Step[sink.State, A0]](sink.initialPure)(ZSink.Step.cont) { (s, a) =>
+                sink.stepPure(ZSink.Step.state(s), a)
               }
             )
           )
         )
 
-      case sink: Sink[R1, E, A0, A1, B] => super.run(sink)
+      case sink: ZSink[R1, E, A0, A1, B] => super.run(sink)
     }
 
   /**
@@ -51,7 +51,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
         else s
       }
 
-    override def fold[R1 <: R, E, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
+    override def fold[R1 <: R, E, A1 >: A, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.filter(pred).fold[R1, E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
@@ -70,7 +70,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
         }
         ._2
 
-    override def fold[R1 <: R, E, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
+    override def fold[R1 <: R, E, A1 >: A, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.dropWhile(pred).fold[R1, E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
@@ -90,7 +90,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
         }
         ._2
 
-    override def fold[R1 <: R, E, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
+    override def fold[R1 <: R, E, A1 >: A, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.takeWhile(pred).fold[R1, E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
@@ -100,7 +100,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
    * Maps over elements of the stream with the specified function.
    */
   override def map[B](f0: A => B): StreamPure[R, B] = new StreamPure[R, B] {
-    override def fold[R1 <: R, E, B1 >: B, S]: Stream.Fold[R1, E, B1, S] =
+    override def fold[R1 <: R, E, B1 >: B, S]: ZStream.Fold[R1, E, B1, S] =
       IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.map(f0).fold[R1, E, B1, S].flatMap(f1 => f1(s, cont, f))
       }
@@ -113,7 +113,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
     override def foldPureLazy[B1 >: B, S](s: S)(cont: S => Boolean)(f: (S, B1) => S): S =
       self.foldPureLazy(s)(cont)((s, a) => f0(a).foldLeftLazy(s)(cont)(f))
 
-    override def fold[R1 <: R, E, B1 >: B, S]: Stream.Fold[R1, E, B1, S] =
+    override def fold[R1 <: R, E, B1 >: B, S]: ZStream.Fold[R1, E, B1, S] =
       IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.mapConcat(f0).fold[R1, E, B1, S].flatMap(f1 => f1(s, cont, f))
       }
@@ -127,7 +127,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
         }
         ._1
 
-    override def fold[R2 <: R1, E, A1 >: (A, Int), S]: Stream.Fold[R2, E, A1, S] =
+    override def fold[R2 <: R1, E, A1 >: (A, Int), S]: ZStream.Fold[R2, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.zipWithIndex[R2].fold[R2, E, A1, S].flatMap(f0 => f0(s, cont, f))
       }
@@ -147,7 +147,7 @@ private[stream] trait StreamPure[-R, +A] extends Stream[R, Nothing, A] { self =>
         }
         ._1
 
-    override def fold[R1 <: R, E, B1 >: B, S]: Stream.Fold[R1, E, B1, S] =
+    override def fold[R1 <: R, E, B1 >: B, S]: ZStream.Fold[R1, E, B1, S] =
       IO.succeedLazy { (s, cont, f) =>
         StreamPure.super.mapAccum(s1)(f1).fold[R1, E, B1, S].flatMap(f0 => f0(s, cont, f))
       }
@@ -160,7 +160,7 @@ private[stream] object StreamPure extends Serializable {
    * Constructs a pure stream from the specified `Iterable`.
    */
   final def fromIterable[A](it: Iterable[A]): StreamPure[Any, A] = new StreamPure[Any, A] {
-    override def fold[R1 <: Any, E >: Nothing, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
+    override def fold[R1 <: Any, E >: Nothing, A1 >: A, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         val iterator = it.iterator
 
@@ -191,7 +191,7 @@ private[stream] object StreamPure extends Serializable {
    * Constructs a singleton stream from a strict value.
    */
   final def succeed[A](a: A): StreamPure[Any, A] = new StreamPure[Any, A] {
-    override def fold[R <: Any, E >: Nothing, A1 >: A, S]: Stream.Fold[R, E, A1, S] =
+    override def fold[R <: Any, E >: Nothing, A1 >: A, S]: ZStream.Fold[R, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) f(s, a)
         else IO.succeed(s)
@@ -206,7 +206,7 @@ private[stream] object StreamPure extends Serializable {
    * Constructs a singleton stream from a lazy value.
    */
   final def succeedLazy[A](a: => A): StreamPure[Any, A] = new StreamPure[Any, A] {
-    override def fold[R1 <: Any, E >: Nothing, A1 >: A, S]: Stream.Fold[R1, E, A1, S] =
+    override def fold[R1 <: Any, E >: Nothing, A1 >: A, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) f(s, a)
         else IO.succeed(s)
@@ -221,7 +221,7 @@ private[stream] object StreamPure extends Serializable {
    * Returns the empty stream.
    */
   final val empty: StreamPure[Any, Nothing] = new StreamPure[Any, Nothing] {
-    override def fold[R1 <: Any, E >: Nothing, A1 >: Nothing, S]: Stream.Fold[R1, E, A1, S] =
+    override def fold[R1 <: Any, E >: Nothing, A1 >: Nothing, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy((s, _, _) => IO.succeed(s))
 
     override def foldPureLazy[A1 >: Nothing, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S = s
