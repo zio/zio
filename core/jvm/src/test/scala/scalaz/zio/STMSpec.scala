@@ -7,7 +7,7 @@ import scalaz.zio.Exit.Cause
 
 final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "STMSpec".title ^ s2"""
-       Using `STM.atomically` to perform different computations and call:
+        Using `STM.atomically` to perform different computations and call:
           `STM.succeed` to make a successful computation and check the value $e1
           `STM.failed` to make a failed computation and check the value      $e2
           `either` to convert:
@@ -23,23 +23,27 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
            `zip` to return a tuple of two computations        $e11
            `zipWith` to perform an action to two computations $e12
 
-       Make a new `TVar` and
+        Make a new `TVar` and
            get its initial value $e13
            set a new value       $e14
 
-       Using `STM.atomically` perform concurrent computations:
+        Using `STM.atomically` perform concurrent computations:
             increment `TVar` 100 times in 100 fibers. $e15
             compute a `TVar` from 2 variables, increment the first `TVar` and decrement the second `TVar` in different fibers. $e16
 
-       Using `Ref` perform the same concurrent test should return a wrong result
+        Using `Ref` perform the same concurrent test should return a wrong result
              increment `TVar` 100 times in 100 fibers. $e17
              compute a `TVar` from 2 variables, increment the first `TVar` and decrement the second `TVar` in different fibers. $e18
-       Using `STM.atomically` perform concurrent computations that
+        Using `STM.atomically` perform concurrent computations that
           have a simple condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied $e19
               resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
                   the transaction shouldn't be suspended. $e20
               resume after satisfying the condition $e21
+              be suspended while the condition couldn't be satisfied
+          have a complex condition lock should suspend the whole transaction and:
+              resume directly when the condition is already satisfied e22
+              resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
           transfer an amount to a sender and send it back the account should contains the amount to transfer!
               run both transactions sequentially in 10 fibers. $e23
               run 10 transactions `toReceiver` and 10 `toSender` concurrently. $e24
@@ -51,6 +55,9 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
             interrupt the fiber that has executed the transaction in 100 different fibers, should terminate all transactions. $e28
             interrupt the fiber and observe it, it should be resumed with Interrupted Cause   $e29
           Using `collect` filter and map simultaneously the value produced by the transaction $e30
+
+        Failure must 
+          rollback full transaction     $e31
     """
 
   def e1 =
@@ -83,8 +90,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e6 =
     unsafeRun(
       (for {
-        s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
-        f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
+        s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed, STM.retry)
+        f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"), STM.retry)
       } yield (s must_=== "Yes!") and (f must_== "No!")).run
     )
 
@@ -354,7 +361,6 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         v <- tvar.get.run
       } yield v must_=== 21
     )
-
   import scalaz.zio.duration._
 
   def e27 =
@@ -407,6 +413,20 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.run
     ) must_=== "Positive"
 
+  def e31 =
+    unsafeRun(
+      for {
+        tvar <- TVar.makeRun(0)
+        e <- (for {
+              _ <- tvar.update(_ + 10)
+              _ <- STM.fail("Error!")
+            } yield ()).run.either
+        v <- tvar.get.run
+      } yield
+        (e must_=== Left("Error!")) and
+          (v must_=== 0)
+    )
+
   private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
     (for {
       v <- ref.get
@@ -436,4 +456,88 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         newAmnt <- receiver.get
       } yield newAmnt
     }
+}
+
+object Examples {
+  object mutex {
+    type Mutex = TVar[Boolean]
+    val makeMutex = TVar.make(false).run
+    def acquire(mutex: Mutex): UIO[Unit] =
+      (for {
+        value <- mutex.get
+        _     <- STM.check(value == false)
+        _     <- mutex.set(true)
+      } yield ()).run
+    def release(mutex: Mutex): UIO[Unit] =
+      mutex.set(false).run.void
+    def withMutex[R, E, A](mutex: Mutex)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      acquire(mutex).bracket_(release(mutex))(zio)
+  }
+  object semaphore {
+    type Semaphore = TVar[Int]
+    def makeSemaphore(n: Int): UIO[Semaphore] = TVar.makeRun(n)
+    def acquire(semaphore: Semaphore, n: Int): UIO[Unit] =
+      (for {
+        value <- semaphore.get
+        _     <- STM.check(value >= n)
+        _     <- semaphore.set(value - n)
+      } yield ()).run
+    def release(semaphore: Semaphore, n: Int): UIO[Unit] =
+      semaphore.update(_ + n).run.void
+  }
+  object promise {
+    type Promise[A] = TVar[Option[A]]
+    def makePromise[A]: UIO[Promise[A]] = TVar.makeRun(None)
+    def complete[A](promise: Promise[A], v: A): UIO[Boolean] =
+      (for {
+        value <- promise.get
+        change <- value match {
+                   case Some(_) => STM.succeed(false)
+                   case None =>
+                     promise.set(Some(v)) *>
+                       STM.succeed(true)
+                 }
+      } yield change).run
+    def await[A](promise: Promise[A]): UIO[A] =
+      promise.get.collect {
+        case Some(a) => a
+      }.run
+  }
+  object queue {
+    import scala.collection.immutable.{ Queue => ScalaQueue }
+
+    case class Queue[A](capacity: Int, tvar: TVar[ScalaQueue[A]])
+    def makeQueue[A](capacity: Int): UIO[Queue[A]] =
+      TVar.makeRun(ScalaQueue.empty[A]).map(Queue(capacity, _))
+    def offer[A](queue: Queue[A], a: A): UIO[Unit] =
+      (for {
+        q <- queue.tvar.get
+        _ <- STM.check(q.length < queue.capacity)
+        _ <- queue.tvar.update(_ enqueue a)
+      } yield ()).run
+    def take[A](queue: Queue[A]): UIO[A] =
+      (for {
+        q <- queue.tvar.get
+        a <- q.dequeueOption match {
+              case Some((a, as)) =>
+                queue.tvar.set(as) *> STM.succeed(a)
+              case _ => STM.retry
+            }
+      } yield a).run
+  }
+  object fun {
+    case class Phone(value: String)
+    case class Developer(name: String, phone: Phone)
+    def page(phone: Phone, message: String): UIO[Unit] = ???
+    def pager(sysErrors: TVar[Int], onDuty: TVar[Set[Developer]]): UIO[Unit] =
+      (for {
+        errors <- sysErrors.get
+        _      <- STM.check(errors > 100)
+        devs   <- onDuty.get
+        any <- devs.headOption match {
+                case Some(dev) => STM.succeed(dev)
+                case _         => STM.retry
+              }
+      } yield any).run.flatMap(dev => page(dev.phone, "Wake up, too many bugs!"))
+  }
 }
