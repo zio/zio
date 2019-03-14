@@ -159,7 +159,7 @@ private[stream] object StreamPure extends Serializable {
   /**
    * Constructs a pure stream from the specified `Iterable`.
    */
-  final def fromIterable[A](it: Iterable[A]): StreamPure[A] = new StreamPure[A] {
+  final def fromIterable[A](it: Iterable[A]): StreamPure[Any, A] = new StreamPure[Any, A] {
     override def fold[R1 <: Any, E >: Nothing, A1 >: A, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         val iterator = it.iterator
@@ -190,7 +190,7 @@ private[stream] object StreamPure extends Serializable {
   /**
    * Constructs a singleton stream from a strict value.
    */
-  final def succeed[A](a: A): StreamPure[A] = new StreamPure[A] {
+  final def succeed[A](a: A): StreamPure[Any, A] = new StreamPure[Any, A] {
     override def fold[R <: Any, E >: Nothing, A1 >: A, S]: ZStream.Fold[R, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) f(s, a)
@@ -205,7 +205,7 @@ private[stream] object StreamPure extends Serializable {
   /**
    * Constructs a singleton stream from a lazy value.
    */
-  final def succeedLazy[A](a: => A): StreamPure[A] = new StreamPure[A] {
+  final def succeedLazy[A](a: => A): StreamPure[Any, A] = new StreamPure[Any, A] {
     override def fold[R1 <: Any, E >: Nothing, A1 >: A, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
         if (cont(s)) f(s, a)
@@ -220,7 +220,7 @@ private[stream] object StreamPure extends Serializable {
   /**
    * Returns the empty stream.
    */
-  final val empty: StreamPure[Nothing] = new StreamPure[Nothing] {
+  final val empty: StreamPure[Any, Nothing] = new StreamPure[Any, Nothing] {
     override def fold[R1 <: Any, E >: Nothing, A1 >: Nothing, S]: ZStream.Fold[R1, E, A1, S] =
       IO.succeedLazy((s, _, _) => IO.succeed(s))
 
