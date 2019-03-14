@@ -17,7 +17,7 @@
 package scalaz.zio
 
 /**
- * A `ManagedR[R, E, A]` is a managed resource of type `A`, which may be used by
+ * A `ZManaged[R, E, A]` is a managed resource of type `A`, which may be used by
  * invoking the `use` method of the resource. The resource will be automatically
  * acquired before the resource is used, and automatically released after the
  * resource is used.
@@ -115,20 +115,20 @@ object ZManaged {
   final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: ZIO[R, Nothing, _])
 
   /**
-   * Lifts a `ZIO[R, E, R]` into `ManagedR[R, E, R]` with a release action.
+   * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action.
    */
   final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZManaged[R, E, A] =
     ZManaged(acquire.map(r => Reservation(IO.succeed(r), release(r))))
 
   /**
-   * Lifts a ZIO[R, E, R] into ManagedR[R, E, R] with no release action. Use
+   * Lifts a ZIO[R, E, R] into ZManaged[R, E, R] with no release action. Use
    * with care.
    */
   final def liftIO[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
     ZManaged(IO.succeed(Reservation(fa, IO.unit)))
 
   /**
-   * Unwraps a `ManagedR` that is inside a `ZIO`.
+   * Unwraps a `ZManaged` that is inside a `ZIO`.
    */
   final def unwrap[R, E, A](fa: ZIO[R, E, ZManaged[R, E, A]]): ZManaged[R, E, A] =
     ZManaged(fa.flatMap(_.reserve))

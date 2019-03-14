@@ -32,10 +32,10 @@ package object zio extends EitherCompat {
 
   type Schedule[-A, +B] = ZSchedule[Any, A, B]
 
+  type Queue[A] = Queue2[Any, Nothing, Any, Nothing, A, A]
+  val Queue = Queue2
+
   val JustExceptions: PartialFunction[Throwable, Exception] = {
     case e: Exception => e
   }
-
-  type Queue[A] = Queue2[Any, Nothing, Any, Nothing, A, A]
-  val Queue = Queue2
 }

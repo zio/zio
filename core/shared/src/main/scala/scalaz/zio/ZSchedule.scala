@@ -26,7 +26,7 @@ import scala.annotation.implicitNotFound
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
  *
- * A `ScheduleR[R, A, B]` consumes `A` values, and based on the inputs and the
+ * A `ZSchedule[R, A, B]` consumes `A` values, and based on the inputs and the
  * internal state, decides whether to continue or halt. Every decision is
  * accompanied by a (possibly zero) delay, and an output value of type `B`.
  *
@@ -670,7 +670,7 @@ trait Schedule_Functions extends Serializable {
 
 object Schedule extends Schedule_Functions {
   @implicitNotFound(
-    "The environment type of all Schedule methods must be Any. If you want to use an environment, please use ScheduleR."
+    "The environment type of all Schedule methods must be Any. If you want to use an environment, please use ZSchedule."
   )
   sealed trait ConformsR1[A]
 

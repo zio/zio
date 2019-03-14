@@ -648,7 +648,7 @@ trait Stream_Functions extends Serializable {
   /**
    * Constructs a pure stream from the specified `Iterable`.
    */
-  final def fromIterable[A](it: Iterable[A]): Stream[Nothing, A] = StreamPureR.fromIterable(it)
+  final def fromIterable[A](it: Iterable[A]): Stream[Nothing, A] = StreamPure.fromIterable(it)
 
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
     new StreamPure[A] {
@@ -662,7 +662,7 @@ trait Stream_Functions extends Serializable {
   /**
    * Returns the empty stream.
    */
-  final val empty: Stream[Nothing, Nothing] = StreamPureR.empty
+  final val empty: Stream[Nothing, Nothing] = StreamPure.empty
 
   /**
    * Returns a stream that emits nothing and never ends.
@@ -676,12 +676,12 @@ trait Stream_Functions extends Serializable {
   /**
    * Constructs a singleton stream from a strict value.
    */
-  final def succeed[A](a: A): Stream[Nothing, A] = StreamPureR.succeed(a)
+  final def succeed[A](a: A): Stream[Nothing, A] = StreamPure.succeed(a)
 
   /**
    * Constructs a singleton stream from a lazy value.
    */
-  final def succeedLazy[A](a: => A): Stream[Nothing, A] = StreamPureR.succeedLazy(a)
+  final def succeedLazy[A](a: => A): Stream[Nothing, A] = StreamPure.succeedLazy(a)
 
   /**
    * Constructs a stream that fails without emitting any values.

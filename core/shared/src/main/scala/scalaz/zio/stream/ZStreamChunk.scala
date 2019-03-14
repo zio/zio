@@ -157,10 +157,10 @@ object ZStreamChunk {
     }
 
   final def fromChunks[A](as: Chunk[A]*): StreamChunk[Nothing, A] =
-    ZStreamChunkPure(StreamPureR.fromIterable(as))
+    ZStreamChunkPure(StreamPure.fromIterable(as))
 
   final def succeedLazy[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
-    ZStreamChunkPure(StreamPureR.succeedLazy(as))
+    ZStreamChunkPure(StreamPure.succeedLazy(as))
 
-  final val empty: StreamChunk[Nothing, Nothing] = ZStreamChunkPure(StreamPureR.empty)
+  final val empty: StreamChunk[Nothing, Nothing] = ZStreamChunkPure(StreamPure.empty)
 }
