@@ -5,6 +5,7 @@ title:  "Effects"
 ---
 
 # {{page.title}}
+
 `IO` describes the following effects:
 
 ### Errors
@@ -111,5 +112,5 @@ val sayHello: ZIO[Console, Nothing, Unit] =
   console.putStrLn("Hello World")
 
   ```
-  And there is a new effect that you can describe using ZIO, which is Contextual effect.
-  Instead of using Final tagless you can define the environments that you’re going to use in an immutable data structure ZIO.
+  And there is a new effect that you can describe using zio, which is Contextual effect.
+  Instead of using Final tagless you can define the environments that you’re going to use in an immutable data structure ZIO
