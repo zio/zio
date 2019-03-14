@@ -80,7 +80,7 @@ object Blocking extends Serializable {
 
               if (looping) {
                 n += 1
-                Thread.sleep(base * n)
+                Thread.sleep(math.min(50, base * n))
               }
             }
           }
