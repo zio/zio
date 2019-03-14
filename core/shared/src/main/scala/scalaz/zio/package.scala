@@ -27,10 +27,15 @@ package object zio extends EitherCompat {
   type TaskR[-R, +A] = ZIO[R, Throwable, A]
   type UIO[+A]       = ZIO[Any, Nothing, A]
 
-  val JustExceptions: PartialFunction[Throwable, Exception] = {
-    case e: Exception => e
-  }
+  type Managed[+E, +A] = ZManaged[Any, E, A]
+  val Managed = ZManaged
+
+  type Schedule[-A, +B] = ZSchedule[Any, A, B]
 
   type Queue[A] = Queue2[Any, Nothing, Any, Nothing, A, A]
   val Queue = Queue2
+
+  val JustExceptions: PartialFunction[Throwable, Exception] = {
+    case e: Exception => e
+  }
 }
