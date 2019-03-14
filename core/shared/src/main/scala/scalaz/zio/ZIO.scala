@@ -453,7 +453,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         }
     )(use)
 
-  final def managed(release: A => UIO[_]): ZManaged[R, E, A] =
+  /**
+   * Converts this ZIO to [[scalaz.zio.Managed]].
+   */
+  final def toManaged(release: A => UIO[_]): ZManaged[R, E, A] =
     ZManaged.make(this)(release)
 
   /**
