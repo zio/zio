@@ -18,7 +18,7 @@ package scalaz.zio.stream
 
 import scalaz.zio._
 
-private[stream] trait StreamChunkPure[-R, @specialized +A] extends StreamChunk[R, Nothing, A] { self =>
+private[stream] trait StreamChunkPure[-R, @specialized +A] extends ZStreamChunk[R, Nothing, A] { self =>
   val chunks: StreamPure[R, Chunk[A]]
 
   def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
