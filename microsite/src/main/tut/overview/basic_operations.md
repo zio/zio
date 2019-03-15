@@ -54,3 +54,7 @@ val program =
     _ <- putStrLn(s"Hello, ${n}, welcome to ZIO!")
   } yield ()
 ```
+
+# Next Step
+
+If you are comfortable with the basic operations on ZIO effects, then the next step is to learn about [error handling](handling_errors.html).

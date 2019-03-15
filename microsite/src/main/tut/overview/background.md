@@ -117,4 +117,6 @@ All purely functional programs are constructed this way: instead of interacting 
 
 Functional programmers use funtional effects to build complex, real world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.
 
-For an introduction to the functional effect data type in ZIO, see the [Overview](index.html).
+# Next Steps
+
+If functional effects are starting to make more sense, then the next step is to learn more about the [core effect type](index.html) in ZIO.

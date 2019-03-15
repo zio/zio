@@ -139,3 +139,7 @@ The next most powerful function is `ZIO#retryOrElse`, which allows specification
 The final method, `ZIO#retryOrElseEither`, allows returning a different type for the fallback.
 
 For more information on how to build schedules, see the documentation on [Schedule](/datatypes/schedule.html).
+
+# Next Steps
+
+If you are comfortable with basic error handling, then the next step is to learn about [safe resource handling](handling_resources.html).

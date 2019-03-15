@@ -42,6 +42,6 @@ No matter what type alias you use in your application, `UIO` can be useful for d
 
 Finally, if you are an experienced functional programmer, then direct use of the `ZIO` data type is recommended, although you may find it useful to create your own family of type aliases in different parts of your application.
 
-# Creating ZIO Values
+# Next Steps
 
-The simplest ZIO effects you can create model success and failure. These are covered in the [next session](success_failure.html).
+If you are comfortable with the ZIO data type (and its family of type aliases), the next step is learning how to [create effects](creating_effects.html).
