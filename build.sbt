@@ -234,6 +234,7 @@ lazy val microsite = project.module
   .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM, interopReactiveStreamsJVM)
   .enablePlugins(MicrositesPlugin)
   .settings(
+    unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
@@ -244,7 +245,7 @@ lazy val microsite = project.module
     ),
     micrositeFooterText := Some(
       """
-        |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
+        |<p>&copy; 2018-2019 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
         |""".stripMargin
     ),
     micrositeName := "",

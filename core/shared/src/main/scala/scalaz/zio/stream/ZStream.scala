@@ -376,10 +376,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       } yield (fiber, result)
 
     ZManaged
-      .liftIO(sink.initial)
+      .fromEffect(sink.initial)
       .flatMap { step =>
         ZManaged.make(acquire(ZSink.Step.state(step)))(_._1.interrupt).flatMap { t =>
-          ZManaged.liftIO(t._2.await)
+          ZManaged.fromEffect(t._2.await)
         }
       }
   }
