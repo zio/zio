@@ -1,0 +1,46 @@
+<html><head><title>: Basic Concurrency</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="ZIO contributors" /><meta name="description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="og:image" content="/scalaz-zio/img/poster.png" /><meta name="image" property="og:image" content="/scalaz-zio/img/poster.png" /><meta name="og:title" content=": Basic Concurrency" /><meta name="title" property="og:title" content=": Basic Concurrency" /><meta name="og:site_name" content="" /><meta name="og:url" content="https://scalaz.github.io/scalaz-zio/" /><meta name="og:type" content="website" /><meta name="og:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><link rel="icon" type="image/png" href="/scalaz-zio/img/favicon.png" /><meta name="twitter:title" content=": Basic Concurrency" /><meta name="twitter:image" content="/scalaz-zio/img/poster.png" /><meta name="twitter:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="512x512" href="/scalaz-zio/img/favicon.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scalaz-zio/highlight/styles/default.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/codemirror.css" /><link rel="stylesheet" href="/scalaz-zio/css/override.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/scalaz-zio/" class="brand"><div class="brand-wrapper"><span></span></div></a></li> <li><a href="/scalaz-zio/overview/" class="">Overview</a> <ul class="sub_section"> <li><a href="/scalaz-zio/overview/background.html" class="">Background</a></li> <li><a href="/scalaz-zio/overview/index.html" class="">Overview</a></li> <li><a href="/scalaz-zio/overview/creating_effects.html" class="">Creating Effects</a></li> <li><a href="/scalaz-zio/overview/basic_operations.html" class="">Basic Operations</a></li> <li><a href="/scalaz-zio/overview/handling_errors.html" class="">Handling Errors</a></li> <li><a href="/scalaz-zio/overview/handling_resources.html" class="">Handling Resources</a></li> <li><a href="/scalaz-zio/overview/basic_concurrency.html" class=" active ">Basic Concurrency</a></li></ul></li>    </ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="scalaz" data-github-repo="scalaz-zio"><div class="content-wrapper"><section><h1 id="basic-concurrency">Basic Concurrency</h1>
+
+<p>ZIO’s concurrency is built on <em>fibers</em>, which are lightweight “green threads” implemented by the ZIO runtime.</p>
+
+<p>Unlike operating system threads, fibers consume almost no memory, have growable and shrinkable stacks, don’t waste resources blocking, and will be garbage collected automatically if they are inactive and unreachable.</p>
+
+<p>Fibers are scheduled by the ZIO runtime and will cooperatively yield to each other, which enables multitasking even when operating in a single-threaded environment (like Javascript, or even the JVM when configured with one thread).</p>
+
+<p>All effects in ZIO are executed by <em>some</em> fiber. If you did not create the fiber, then the fiber was created by some operation you are using (if the operation is concurrent or parallel), or by the runtime system.</p>
+
+<p>Even if you only write “single-threaded” code, with no parallel or concurrent operations, then there will be at least one fiber: the “main” fiber that executes your effect.</p>
+
+<h1 id="fiber-type">Fiber Type</h1>
+
+<p>The <code class="highlighter-rouge">Fiber[E, A]</code> data type in ZIO has two type parameters:</p>
+
+<ul>
+  <li><strong><code class="highlighter-rouge">E</code> Failure Type</strong>. This is the type of value the effect being executed by the fiber may fail with.</li>
+  <li><strong><code class="highlighter-rouge">A</code> Success Type</strong>. This is the type of value the effect being executed by the fiber may succeed with.</li>
+</ul>
+
+<p>Fibers do not have an <code class="highlighter-rouge">R</code> type parameter, because they model effects that are already being executed, and which therefore have already had their required environment provided to them.</p>
+
+<h1 id="forking-effects">Forking Effects</h1>
+
+<p>The most primitive way of creating a fiber is to take an effect and <em>fork</em> it. Conceptually, <em>forking</em> an effect immediately begins executing the effect on a new fiber, giving you the new fiber.</p>
+
+<p>The following code creates a single fiber, which executes <code class="highlighter-rouge">fib(100)</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">def</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> 
+  <span class="k">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="o">)</span> <span class="o">{</span>
+    <span class="nc">UIO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="n">n</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+    <span class="n">fib</span><span class="o">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="o">).</span><span class="n">zipWith</span><span class="o">(</span><span class="n">fib</span><span class="o">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">2</span><span class="o">))(</span><span class="k">_</span> <span class="o">+</span> <span class="k">_</span><span class="o">)</span>
+  <span class="o">}</span>
+
+<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">Nothing</span>, <span class="kt">Long</span><span class="o">]]</span> <span class="k">=</span> 
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="n">fib</span><span class="o">(</span><span class="mi">100</span><span class="o">).</span><span class="n">fork</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">fiber</span>
+</code></pre></div></div>
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
+hljs.initHighlighting();
+              </script><script>((window.gitter = {}).chat = {}).options = {
+room: 'scalaz/scalaz-zio'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/scalaz-zio/js/main.js"></script></body></html>

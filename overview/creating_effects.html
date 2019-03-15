@@ -1,0 +1,198 @@
+<html><head><title>: Creating Effects</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="ZIO contributors" /><meta name="description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="og:image" content="/scalaz-zio/img/poster.png" /><meta name="image" property="og:image" content="/scalaz-zio/img/poster.png" /><meta name="og:title" content=": Creating Effects" /><meta name="title" property="og:title" content=": Creating Effects" /><meta name="og:site_name" content="" /><meta name="og:url" content="https://scalaz.github.io/scalaz-zio/" /><meta name="og:type" content="website" /><meta name="og:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><link rel="icon" type="image/png" href="/scalaz-zio/img/favicon.png" /><meta name="twitter:title" content=": Creating Effects" /><meta name="twitter:image" content="/scalaz-zio/img/poster.png" /><meta name="twitter:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="512x512" href="/scalaz-zio/img/favicon.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scalaz-zio/highlight/styles/default.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/codemirror.css" /><link rel="stylesheet" href="/scalaz-zio/css/override.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/scalaz-zio/" class="brand"><div class="brand-wrapper"><span></span></div></a></li> <li><a href="/scalaz-zio/overview/" class="">Overview</a> <ul class="sub_section"> <li><a href="/scalaz-zio/overview/background.html" class="">Background</a></li> <li><a href="/scalaz-zio/overview/index.html" class="">Overview</a></li> <li><a href="/scalaz-zio/overview/creating_effects.html" class=" active ">Creating Effects</a></li> <li><a href="/scalaz-zio/overview/basic_operations.html" class="">Basic Operations</a></li> <li><a href="/scalaz-zio/overview/handling_errors.html" class="">Handling Errors</a></li> <li><a href="/scalaz-zio/overview/handling_resources.html" class="">Handling Resources</a></li> <li><a href="/scalaz-zio/overview/basic_concurrency.html" class="">Basic Concurrency</a></li></ul></li>    </ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="scalaz" data-github-repo="scalaz-zio"><div class="content-wrapper"><section><h1 id="creating-effects">Creating Effects</h1>
+
+<p>This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.</p>
+
+<h1 id="from-success-values">From Success Values</h1>
+
+<p>Using the <code class="highlighter-rouge">ZIO.succeed</code> method, you can create an effect that models success:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">s1</span> <span class="k">=</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="mi">42</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>You can also create effects using methods in the companion object of the <code class="highlighter-rouge">ZIO</code> type aliases:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">s2</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Task</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="mi">42</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>The <code class="highlighter-rouge">succeed</code> method is eager, which means the value will be constructed before the method is invoked.</p>
+
+<p>Although <code class="highlighter-rouge">succeed</code> is the most common way to construct a successful effect, you can achieve lazy construction using the <code class="highlighter-rouge">ZIO.succeedLazy</code> method:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">lazy</span> <span class="k">val</span> <span class="n">bigList</span> <span class="k">=</span> <span class="o">(</span><span class="mi">0</span> <span class="n">to</span> <span class="mi">1000000</span><span class="o">).</span><span class="n">toList</span>
+<span class="k">lazy</span> <span class="k">val</span> <span class="n">bigString</span> <span class="k">=</span> <span class="n">bigList</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toString</span><span class="o">).</span><span class="n">mkString</span><span class="o">(</span><span class="s">"\n"</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">s3</span> <span class="k">=</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="n">bigString</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>The successful effect constructed with <code class="highlighter-rouge">ZIO.succeedLazy</code> will only construct its value if the effect itself ends up being used.</p>
+
+<h1 id="from-failure-values">From Failure Values</h1>
+
+<p>Using the <code class="highlighter-rouge">ZIO.fail</code> method, you can create an effect that models failure:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">f1</span> <span class="k">=</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="s">"Uh oh!"</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>For the <code class="highlighter-rouge">ZIO</code> data type, there is no restriction on the error type. You may use strings, exceptions, or custom data types appropriate for your application.</p>
+
+<p>Many applications will choose to model failures with classes that extend <code class="highlighter-rouge">Throwable</code> or <code class="highlighter-rouge">Exception</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">f2</span> <span class="k">=</span> <span class="nc">Task</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"Uh oh!"</span><span class="o">))</span>
+</code></pre></div></div>
+
+<p>Note that the <code class="highlighter-rouge">UIO</code> companion object does not have <code class="highlighter-rouge">UIO.fail</code>, because <code class="highlighter-rouge">UIO</code> values cannot fail.</p>
+
+<h1 id="from-scala-values">From Scala Values</h1>
+
+<p>Scala’s standard library contains a number of data types that can be converted into ZIO effects.</p>
+
+<h2 id="option">Option</h2>
+
+<p>An <code class="highlighter-rouge">Option</code> can be converted into a ZIO effect using <code class="highlighter-rouge">ZIO.fromOption</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">zoption</span><span class="k">:</span> <span class="kt">ZIO</span><span class="o">[</span><span class="kt">Any</span>, <span class="kt">Unit</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">fromOption</span><span class="o">(</span><span class="nc">Some</span><span class="o">(</span><span class="mi">2</span><span class="o">))</span>
+</code></pre></div></div>
+
+<p>The error type of the resulting effect is <code class="highlighter-rouge">Unit</code>, because the <code class="highlighter-rouge">None</code> case of <code class="highlighter-rouge">Option</code> provides no information on why the value is not there. You can change that <code class="highlighter-rouge">Unit</code> into a more specific error type using <code class="highlighter-rouge">ZIO#mapError</code>.</p>
+
+<h2 id="either">Either</h2>
+
+<p>An <code class="highlighter-rouge">Either</code> can be converted in to a ZIO effect using <code class="highlighter-rouge">ZIO.fromEither</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">zeither</span> <span class="k">=</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">fromEither</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="s">"Success!"</span><span class="o">))</span>
+</code></pre></div></div>
+
+<p>Unlike <code class="highlighter-rouge">ZIO.fromOption</code>, the error type of the resulting effect will be whatever type the <code class="highlighter-rouge">Left</code> case has, while the success type will be whatever type the <code class="highlighter-rouge">Right</code> case has.</p>
+
+<h2 id="try">Try</h2>
+
+<p>A <code class="highlighter-rouge">Try</code> value can be converted can be converted into a ZIO effect using <code class="highlighter-rouge">ZIO.fromTry</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.util.Try</span>
+
+<span class="k">val</span> <span class="n">ztry</span> <span class="k">=</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">fromTry</span><span class="o">(</span><span class="nc">Try</span><span class="o">(</span><span class="mi">42</span> <span class="o">/</span> <span class="mi">0</span><span class="o">))</span>
+</code></pre></div></div>
+
+<p>The error type of the resulting effect will always be <code class="highlighter-rouge">Throwable</code>, because a <code class="highlighter-rouge">Try</code> can fail with any value of type <code class="highlighter-rouge">Throwable</code>.</p>
+
+<h2 id="function">Function</h2>
+
+<p>A function <code class="highlighter-rouge">A =&gt; B</code> can be converted into a ZIO effect with <code class="highlighter-rouge">ZIO.fromFunction</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">zfun</span><span class="k">:</span> <span class="kt">ZIO</span><span class="o">[</span><span class="kt">Int</span>, <span class="kt">Nothing</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> 
+  <span class="nc">ZIO</span><span class="o">.</span><span class="n">fromFunction</span><span class="o">((</span><span class="n">i</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">i</span> <span class="o">*</span> <span class="n">i</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>The environment type of the effect is <code class="highlighter-rouge">A</code> (the input type of the function), because in order to run the effect, it must first be supplied with such a value.</p>
+
+<h2 id="future">Future</h2>
+
+<p>A <code class="highlighter-rouge">Future</code> can be converted into a ZIO effect using <code class="highlighter-rouge">ZIO.fromFuture</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
+
+<span class="k">lazy</span> <span class="k">val</span> <span class="n">future</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="s">"Hello!"</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">zfuture</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> 
+  <span class="nc">ZIO</span><span class="o">.</span><span class="n">fromFuture</span> <span class="o">{</span> <span class="k">implicit</span> <span class="n">ec</span> <span class="k">=&gt;</span> 
+    <span class="n">future</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="s">"Goodbye!"</span><span class="o">)</span>
+  <span class="o">}</span>
+</code></pre></div></div>
+
+<p>The function passed to <code class="highlighter-rouge">fromFuture</code> is passed an <code class="highlighter-rouge">ExecutionContext</code>, which will confine the execution of the future to the appropriate context.</p>
+
+<p>The error type of the resulting effect will always be <code class="highlighter-rouge">Throwable</code>, because a <code class="highlighter-rouge">Future</code> can fail with any value of type <code class="highlighter-rouge">Throwable</code>.</p>
+
+<h1 id="from-side-effects">From Side-Effects</h1>
+
+<p>ZIO can convert both synchronous and asynchronous side-effects into ZIO effects (pure values).</p>
+
+<p>These functions can be used to wrap non-functional code, allowing you to seamlessly use all features of ZIO with legacy Scala and Java code, as well as third-party libraries.</p>
+
+<h2 id="synchronous-side-effects">Synchronous Side-Effects</h2>
+
+<p>A synchronous side-effect can be converted into a ZIO effect using <code class="highlighter-rouge">ZIO.effect</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.io.StdIn</span>
+
+<span class="k">val</span> <span class="n">getStrLn</span><span class="k">:</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">ZIO</span><span class="o">.</span><span class="n">effect</span><span class="o">(</span><span class="nc">StdIn</span><span class="o">.</span><span class="n">readLine</span><span class="o">())</span>
+</code></pre></div></div>
+
+<p>The error type of the resulting effect will always be <code class="highlighter-rouge">Throwable</code>, because side-effects may throw exceptions with any value of type <code class="highlighter-rouge">Throwable</code>.</p>
+
+<p>If a given side-effect is known not to throw any exceptions, then the side-effect can be converted into a ZIO effect using <code class="highlighter-rouge">ZIO.effectTotal</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">putStrLn</span><span class="o">(</span><span class="n">line</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">ZIO</span><span class="o">.</span><span class="n">effectTotal</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">line</span><span class="o">))</span>
+</code></pre></div></div>
+
+<p>If a side-effect is known to throw some specific subtype of <code class="highlighter-rouge">Throwable</code>, then the <code class="highlighter-rouge">ZIO#refineOrDie</code> method may be used:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io.IOException</span>
+
+<span class="k">val</span> <span class="n">getStrLn2</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">IOException</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">ZIO</span><span class="o">.</span><span class="n">effect</span><span class="o">(</span><span class="nc">StdIn</span><span class="o">.</span><span class="n">readLine</span><span class="o">()).</span><span class="n">refineOrDie</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="n">e</span> <span class="k">:</span> <span class="kt">IOException</span> <span class="o">=&gt;</span> <span class="n">e</span>
+  <span class="o">}</span>
+</code></pre></div></div>
+
+<h2 id="asynchronous-side-effects">Asynchronous Side-Effects</h2>
+
+<p>An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using <code class="highlighter-rouge">ZIO.effectAsync</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">object</span> <span class="nc">legacy</span> <span class="o">{</span>
+     <span class="o">|</span>   <span class="k">def</span> <span class="n">login</span><span class="o">(</span>
+     <span class="o">|</span>     <span class="n">onSuccess</span><span class="k">:</span> <span class="kt">User</span>      <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">,</span> <span class="n">onFailure</span><span class="k">:</span> <span class="kt">AuthError</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">???</span>
+     <span class="o">|</span> <span class="o">}</span>
+<span class="n">defined</span> <span class="k">object</span> <span class="nc">legacy</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">login</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">AuthError</span>, <span class="kt">User</span><span class="o">]</span> <span class="k">=</span> 
+     <span class="o">|</span>   <span class="nc">IO</span><span class="o">.</span><span class="n">effectAsync</span><span class="o">[</span><span class="kt">AuthError</span>, <span class="kt">User</span><span class="o">]</span> <span class="o">{</span> <span class="n">callback</span> <span class="k">=&gt;</span>
+     <span class="o">|</span>     <span class="n">legacy</span><span class="o">.</span><span class="n">login</span><span class="o">(</span>
+     <span class="o">|</span>       <span class="n">user</span> <span class="k">=&gt;</span> <span class="n">callback</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="n">user</span><span class="o">)),</span>
+     <span class="o">|</span>       <span class="n">err</span>  <span class="k">=&gt;</span> <span class="n">callback</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="n">err</span><span class="o">))</span>
+     <span class="o">|</span>     <span class="o">)</span>
+     <span class="o">|</span>   <span class="o">}</span>
+<span class="n">login</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">AuthError</span>,<span class="kt">User</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$EffectAsync</span><span class="k">@</span><span class="mf">3d</span><span class="mi">58162</span>
+</code></pre></div></div>
+
+<p>Asynchronous ZIO effects are much easier to use than callback-based APIs, and they benefit from ZIO features like interruption, resource-safety, and superior error handling.</p>
+
+<h1 id="blocking-synchronous-side-effects">Blocking Synchronous Side-Effects</h1>
+
+<p>Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from an application’s main thread pool.</p>
+
+<p>ZIO provides the <code class="highlighter-rouge">scalaz.zio.blocking</code> package, which can be used to safely convert such blocking side-effects into ZIO effects.</p>
+
+<p>A blocking side-effect can be converted directly into an interruptible ZIO effect with the <code class="highlighter-rouge">interruptible</code> method:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">import</span> <span class="nn">scalaz.zio.blocking._</span>
+<span class="k">import</span> <span class="nn">scalaz.zio.blocking._</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">sleeping</span> <span class="k">=</span> 
+     <span class="o">|</span>   <span class="n">interruptible</span><span class="o">(</span><span class="nc">Thread</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="nc">Long</span><span class="o">.</span><span class="nc">MaxValue</span><span class="o">))</span>
+<span class="n">sleeping</span><span class="k">:</span> <span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.blocking.Blocking</span>,<span class="kt">Throwable</span>,<span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$FlatMap</span><span class="k">@</span><span class="mi">74848</span><span class="n">b7e</span>
+</code></pre></div></div>
+
+<p>The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.</p>
+
+<p>If a side-effect has already been converted into a ZIO effect, then instead of <code class="highlighter-rouge">interruptible</code>, the <code class="highlighter-rouge">blocking</code> method can be used to shift the effect onto the blocking thread pool:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">import</span> <span class="nn">scala.io.</span><span class="o">{</span> <span class="nc">Codec</span><span class="o">,</span> <span class="nc">Source</span> <span class="o">}</span>
+<span class="k">import</span> <span class="nn">scala.io.</span><span class="o">{</span><span class="nc">Codec</span><span class="o">,</span> <span class="nc">Source</span><span class="o">}</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="k">def</span> <span class="n">download</span><span class="o">(</span><span class="n">url</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span>
+     <span class="o">|</span>   <span class="nc">Task</span><span class="o">.</span><span class="n">effect</span> <span class="o">{</span>
+     <span class="o">|</span>     <span class="nc">Source</span><span class="o">.</span><span class="n">fromURL</span><span class="o">(</span><span class="n">url</span><span class="o">)(</span><span class="nc">Codec</span><span class="o">.</span><span class="nc">UTF8</span><span class="o">).</span><span class="n">mkString</span>
+     <span class="o">|</span>   <span class="o">}</span>
+<span class="n">download</span><span class="k">:</span> <span class="o">(</span><span class="kt">url:</span> <span class="kt">String</span><span class="o">)</span><span class="kt">scalaz.zio.Task</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="k">def</span> <span class="n">safeDownload</span><span class="o">(</span><span class="n">url</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span> 
+     <span class="o">|</span>   <span class="n">blocking</span><span class="o">(</span><span class="n">download</span><span class="o">(</span><span class="n">url</span><span class="o">))</span>
+<span class="n">safeDownload</span><span class="k">:</span> <span class="o">(</span><span class="kt">url:</span> <span class="kt">String</span><span class="o">)</span><span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.blocking.Blocking</span>,<span class="kt">Throwable</span>,<span class="kt">String</span><span class="o">]</span>
+</code></pre></div></div>
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
+hljs.initHighlighting();
+              </script><script>((window.gitter = {}).chat = {}).options = {
+room: 'scalaz/scalaz-zio'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/scalaz-zio/js/main.js"></script></body></html>

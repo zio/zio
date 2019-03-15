@@ -1,0 +1,114 @@
+<html><head><title>: Handling Errors</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="ZIO contributors" /><meta name="description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="og:image" content="/scalaz-zio/img/poster.png" /><meta name="image" property="og:image" content="/scalaz-zio/img/poster.png" /><meta name="og:title" content=": Handling Errors" /><meta name="title" property="og:title" content=": Handling Errors" /><meta name="og:site_name" content="" /><meta name="og:url" content="https://scalaz.github.io/scalaz-zio/" /><meta name="og:type" content="website" /><meta name="og:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><link rel="icon" type="image/png" href="/scalaz-zio/img/favicon.png" /><meta name="twitter:title" content=": Handling Errors" /><meta name="twitter:image" content="/scalaz-zio/img/poster.png" /><meta name="twitter:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="512x512" href="/scalaz-zio/img/favicon.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scalaz-zio/highlight/styles/default.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/codemirror.css" /><link rel="stylesheet" href="/scalaz-zio/css/override.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/scalaz-zio/" class="brand"><div class="brand-wrapper"><span></span></div></a></li> <li><a href="/scalaz-zio/overview/" class="">Overview</a> <ul class="sub_section"> <li><a href="/scalaz-zio/overview/background.html" class="">Background</a></li> <li><a href="/scalaz-zio/overview/index.html" class="">Overview</a></li> <li><a href="/scalaz-zio/overview/creating_effects.html" class="">Creating Effects</a></li> <li><a href="/scalaz-zio/overview/basic_operations.html" class="">Basic Operations</a></li> <li><a href="/scalaz-zio/overview/handling_errors.html" class=" active ">Handling Errors</a></li> <li><a href="/scalaz-zio/overview/handling_resources.html" class="">Handling Resources</a></li> <li><a href="/scalaz-zio/overview/basic_concurrency.html" class="">Basic Concurrency</a></li></ul></li>    </ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="scalaz" data-github-repo="scalaz-zio"><div class="content-wrapper"><section><h1 id="handling-errors">Handling Errors</h1>
+
+<p>This section looks at some of the common ways to detect and respond to effects that fail.</p>
+
+<h1 id="either">Either</h1>
+
+<p>You can surface failures with <code class="highlighter-rouge">ZIO#either</code>, which takes an <code class="highlighter-rouge">ZIO[R, E, A]</code> and produces an <code class="highlighter-rouge">ZIO[R, Nothing, Either[E, A]]</code>.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">zeither</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Either</span><span class="o">[</span><span class="kt">String</span>, <span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> 
+  <span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="s">"Uh oh!"</span><span class="o">).</span><span class="n">either</span>
+</code></pre></div></div>
+
+<p>You can submerge failures with <code class="highlighter-rouge">ZIO.absolve</code>, which is the opposite of <code class="highlighter-rouge">either</code> and turns an <code class="highlighter-rouge">ZIO[R, Nothing, Either[E, A]]</code> into an <code class="highlighter-rouge">ZIO[R, E, A]</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">sqrt</span><span class="o">(</span><span class="n">io</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Double</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span>, <span class="kt">Double</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">ZIO</span><span class="o">.</span><span class="n">absolve</span><span class="o">(</span>
+    <span class="n">io</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">value</span> <span class="k">=&gt;</span>
+      <span class="k">if</span> <span class="o">(</span><span class="n">value</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="o">)</span> <span class="nc">Left</span><span class="o">(</span><span class="s">"Value must be &gt;= 0.0"</span><span class="o">)</span>
+      <span class="k">else</span> <span class="nc">Right</span><span class="o">(</span><span class="nc">Math</span><span class="o">.</span><span class="n">sqrt</span><span class="o">(</span><span class="n">value</span><span class="o">))</span>
+    <span class="o">)</span>
+  <span class="o">)</span>
+</code></pre></div></div>
+
+<h1 id="catching-all-errors">Catching All Errors</h1>
+
+<p>If you want to catch and recover from all types of errors and effectfully attempt recovery, you can use the <code class="highlighter-rouge">catchAll</code> method:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">IOException</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span> 
+  <span class="n">openFile</span><span class="o">(</span><span class="s">"primary.json"</span><span class="o">).</span><span class="n">catchAll</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> 
+    <span class="n">openFile</span><span class="o">(</span><span class="s">"backup.json"</span><span class="o">))</span>
+</code></pre></div></div>
+
+<h1 id="catching-some-errors">Catching Some Errors</h1>
+
+<p>If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the <code class="highlighter-rouge">catchSome</code> method:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">data</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">IOException</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span> 
+  <span class="n">openFile</span><span class="o">(</span><span class="s">"primary.data"</span><span class="o">).</span><span class="n">catchSome</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="k">_</span> <span class="k">:</span> <span class="kt">FileNotFoundException</span> <span class="o">=&gt;</span> 
+      <span class="n">openFile</span><span class="o">(</span><span class="s">"backup.data"</span><span class="o">)</span>
+  <span class="o">}</span>
+</code></pre></div></div>
+
+<h1 id="fallback">Fallback</h1>
+
+<p>You can try one effect, or, if it fails, try another effect, with the <code class="highlighter-rouge">orElse</code> combinator:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">IOException</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span> 
+  <span class="n">openFile</span><span class="o">(</span><span class="s">"primary.data"</span><span class="o">)</span> <span class="n">orElse</span> <span class="n">openFile</span><span class="o">(</span><span class="s">"backup.data"</span><span class="o">)</span>
+</code></pre></div></div>
+
+<h1 id="folding">Folding</h1>
+
+<p>Just like Scala’s <code class="highlighter-rouge">Option</code> and <code class="highlighter-rouge">Either</code> data types have <code class="highlighter-rouge">fold</code>, which let you deal with both failure and success at the same time, <code class="highlighter-rouge">ZIO</code> effects also have several methods to fold over them.</p>
+
+<p>The first fold method, <code class="highlighter-rouge">fold</code>, lets you non-effectfully handle both failure and success, by supplying a non-effectful function for each case:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">lazy</span> <span class="k">val</span> <span class="nc">DefaultData</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span> 
+  <span class="n">openFile</span><span class="o">(</span><span class="s">"primary.data"</span><span class="o">).</span><span class="n">fold</span><span class="o">(</span>
+    <span class="k">_</span>    <span class="k">=&gt;</span> <span class="nc">DefaultData</span><span class="o">,</span>
+    <span class="n">data</span> <span class="k">=&gt;</span> <span class="n">data</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>The second fold method, <code class="highlighter-rouge">foldM</code>, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) function for each case:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">IOException</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span> 
+  <span class="n">openFile</span><span class="o">(</span><span class="s">"primary.data"</span><span class="o">).</span><span class="n">foldM</span><span class="o">(</span>
+    <span class="k">_</span>    <span class="k">=&gt;</span> <span class="n">openFile</span><span class="o">(</span><span class="s">"secondary.data"</span><span class="o">),</span>
+    <span class="n">data</span> <span class="k">=&gt;</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="n">data</span><span class="o">))</span>
+</code></pre></div></div>
+
+<p>Nearly all error handling methods are defined in terms of <code class="highlighter-rouge">foldM</code>, because it is both powerful and fast.</p>
+
+<p>In the following example, <code class="highlighter-rouge">foldM</code> is used to handle both failure and success of the <code class="highlighter-rouge">readUrls</code> method:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Content</span><span class="o">]</span> <span class="k">=</span>
+  <span class="n">readUrls</span><span class="o">(</span><span class="s">"urls.json"</span><span class="o">).</span><span class="n">foldM</span><span class="o">(</span>
+    <span class="n">err</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeedLazy</span><span class="o">(</span><span class="nc">NoContent</span><span class="o">(</span><span class="n">err</span><span class="o">)),</span> 
+    <span class="n">fetchContent</span>
+  <span class="o">)</span>
+</code></pre></div></div>
+
+<h1 id="retrying">Retrying</h1>
+
+<p>There are a number of useful methods on the ZIO data type for retrying failed effects.</p>
+
+<p>The most basic of these is <code class="highlighter-rouge">ZIO#retry</code>, which takes a <code class="highlighter-rouge">Schedule</code> and returns a new effect that will retry the first one if it fails, according to the specified policy:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio.clock._</span>
+
+<span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">ZIO</span><span class="o">[</span><span class="kt">Clock</span>, <span class="kt">IOException</span>, <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">]]</span> <span class="k">=</span> 
+  <span class="n">openFile</span><span class="o">(</span><span class="s">"primary.data"</span><span class="o">).</span><span class="n">retry</span><span class="o">(</span><span class="nc">Schedule</span><span class="o">.</span><span class="n">recurs</span><span class="o">(</span><span class="mi">5</span><span class="o">))</span>
+</code></pre></div></div>
+
+<p>The next most powerful function is <code class="highlighter-rouge">ZIO#retryOrElse</code>, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">openFile</span><span class="o">(</span><span class="s">"primary.data"</span><span class="o">).</span><span class="n">retryOrElse</span><span class="o">(</span>
+    <span class="nc">Schedule</span><span class="o">.</span><span class="n">recurs</span><span class="o">(</span><span class="mi">5</span><span class="o">),</span> 
+    <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="nc">DefaultData</span><span class="o">))</span>
+</code></pre></div></div>
+
+<p>The final method, <code class="highlighter-rouge">ZIO#retryOrElseEither</code>, allows returning a different type for the fallback.</p>
+
+<p>For more information on how to build schedules, see the documentation on <a href="/datatypes/schedule.html">Schedule</a>.</p>
+
+<h1 id="next-steps">Next Steps</h1>
+
+<p>If you are comfortable with basic error handling, then the next step is to learn about <a href="handling_resources.html">safe resource handling</a>.</p>
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
+hljs.initHighlighting();
+              </script><script>((window.gitter = {}).chat = {}).options = {
+room: 'scalaz/scalaz-zio'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/scalaz-zio/js/main.js"></script></body></html>
