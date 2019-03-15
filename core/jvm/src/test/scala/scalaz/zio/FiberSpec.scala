@@ -7,17 +7,12 @@ class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       lift it into Managed $e1
     """
 
-  def e1 = {
-    val managed = Fiber.succeed(true).toManaged
-
-    val test =
-      for {
-        ref   <- Ref.make(false)
-        setIO <- managed.use(f => UIO.fromFiber(f.map(ref.set)))
-        _     <- setIO
-        value <- ref.get
-      } yield value must beTrue
-
-    unsafeRun(test)
-  }
+  def e1 = unsafeRun(
+    for {
+      ref   <- Ref.make(false)
+      fiber <- IO.never.ensuring(ref.set(true)).fork
+      _     <- fiber.toManaged.use(_ => IO.unit)
+      value <- ref.get
+    } yield value must beTrue
+  )
 }
