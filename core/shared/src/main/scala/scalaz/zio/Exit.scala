@@ -209,6 +209,15 @@ object Exit extends Serializable {
         case _                 => false
       }
 
+    final def died: Boolean =
+      self match {
+        case Die(_)            => true
+        case Interrupt         => false
+        case Fail(_)           => false
+        case Then(left, right) => left.died || right.died
+        case Both(left, right) => left.died || right.died
+      }
+
     final def failures[E1 >: E]: List[E1] =
       self
         .fold(List.empty[E1]) {
@@ -235,6 +244,30 @@ object Exit extends Serializable {
       case Some(error) => Left(error)
       case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
     }
+
+    final def stripFailures: Option[Cause[Nothing]] =
+      self match {
+        case Interrupt => None
+        case Fail(_)   => None
+
+        case d @ Die(_) => Some(d)
+
+        case Both(l, r) =>
+          (l.stripFailures, r.stripFailures) match {
+            case (Some(l), Some(r)) => Some(Both(l, r))
+            case (Some(l), None)    => Some(l)
+            case (None, Some(r))    => Some(r)
+            case (None, None)       => None
+          }
+
+        case Then(l, r) =>
+          (l.stripFailures, r.stripFailures) match {
+            case (Some(l), Some(r)) => Some(Then(l, r))
+            case (Some(l), None)    => Some(l)
+            case (None, Some(r))    => Some(r)
+            case (None, None)       => None
+          }
+      }
   }
 
   object Cause extends Serializable {
