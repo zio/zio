@@ -118,7 +118,7 @@ object Managed {
    * Lifts an IO[E, R] into Managed[E, R] with no release action. Use
    * with care.
    */
-  final def liftIO[R, E, A](fa: ZIO[R, E, A]): Managed[R, E, A] =
+  final def fromEffect[R, E, A](fa: ZIO[R, E, A]): Managed[R, E, A] =
     Managed(IO.succeed(Reservation(fa, IO.unit)))
 
   /**

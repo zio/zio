@@ -477,7 +477,7 @@ object Sink {
   final def collect[A]: Sink[Any, Nothing, Nothing, A, List[A]] =
     fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
 
-  final def liftIO[R, E, B](b: => ZIO[R, E, B]): Sink[R, E, Nothing, Any, B] =
+  final def fromEffect[R, E, B](b: => ZIO[R, E, B]): Sink[R, E, Nothing, Any, B] =
     new Sink[R, E, Nothing, Any, B] {
       type State = Unit
       val initial                                                     = IO.succeed(Step.done((), Chunk.empty))

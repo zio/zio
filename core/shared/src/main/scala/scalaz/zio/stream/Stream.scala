@@ -351,10 +351,10 @@ trait Stream[-R, +E, +A] extends Serializable { self =>
       } yield (fiber, result)
 
     Managed
-      .liftIO(sink.initial)
+      .fromEffect(sink.initial)
       .flatMap { step =>
         Managed.make(acquire(Sink.Step.state(step)))(_._1.interrupt).flatMap { t =>
-          Managed.liftIO(t._2.await)
+          Managed.fromEffect(t._2.await)
         }
       }
   }
