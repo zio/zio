@@ -423,9 +423,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
               )
             )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
             .fork
-      _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("start 1")))
+      _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("start 1")))
       _ <- f.interrupt
-      _ <- (ref.get <* clock.sleep(1.millis)).repeat(Schedule.doUntil[List[String]](_.contains("release 2")))
+      _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("release 2")))
       l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
@@ -984,7 +984,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(
       for {
         f <- test.fork
-        c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis)).repeat(Schedule.doUntil[Int](_ >= 1)) <* f.interrupt
+        c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[Int](_ >= 1)) <* f.interrupt
       } yield c must be_>=(1)
     )
 
@@ -1028,9 +1028,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       start <- IO.succeed(internal.OneShot.make[Unit])
       fiber <- blocking.interruptible { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
       _     <- IO.succeed(start.get())
-      _     <- fiber.interrupt
+      res   <- fiber.interrupt
       value <- done.get
-    } yield value must_=== true
+    } yield (res, value) must_=== ((Exit.interrupt, true))
   )
 
   def testInterruptSyncForever = unsafeRun(

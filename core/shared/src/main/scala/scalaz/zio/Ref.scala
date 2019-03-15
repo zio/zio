@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * {{{
  * for {
- *   ref <- Ref(2)
+ *   ref <- Ref.make(2)
  *   v   <- ref.update(_ + 3)
- *   _   <- putStrLn("Value = " + v) // Value = 5
+ *   _   <- console.putStrLn("Value = " + v) // Value = 5
  * } yield ()
  * }}}
  */
