@@ -371,14 +371,14 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         fiber <- (for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
-                  _ <- STM.check(v == 60)
+                  _ <- STM.check(v > 0)
                   _ <- tvar.update(10 / _)
                 } yield ()).run.fork
         _ <- UIO(latch.await())
         _ <- fiber.interrupt
-        _ <- clock.sleep(100.millis)
-        v <- tvar.get.run
-      } yield v must_=== 0
+        _ <- tvar.set(10).run
+        v <- clock.sleep(100.millis) *> tvar.get.run
+      } yield v must_=== 10
     }
 
   def e28 =
@@ -390,12 +390,14 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
                   _ <- STM.check(v > 0)
+                  _ <- tvar.set(10)
                 } yield ()).run))
         _ <- UIO(latch.await())
         _ <- fiber.interrupt
+        _ <- tvar.set(-1).run
         _ <- clock.sleep(100.millis)
         v <- tvar.get.run
-      } yield v must_=== 0
+      } yield v must_=== -1
     }
 
   def e29 =
@@ -423,7 +425,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
             } yield ()).run.either
         v <- tvar.get.run
       } yield
-        (e must_=== Left("Error!")) and
+        (e must be left "Error!") and
           (v must_=== 0)
     )
 
