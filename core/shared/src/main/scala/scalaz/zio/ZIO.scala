@@ -556,7 +556,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     orDieWith(ev)
 
   /**
-   * Keeps none of the errors, and terminates the fiber with then, using
+   * Keeps none of the errors, and terminates the fiber with them, using
    * the specified function to convert the `E` into a `Throwable`.
    */
   final def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
