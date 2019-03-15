@@ -377,7 +377,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         _ <- UIO(latch.await())
         _ <- fiber.interrupt
         _ <- tvar.set(10).run
-        v <- clock.sleep(100.millis) *> tvar.get.run
+        v <- clock.sleep(10.millis) *> tvar.get.run
       } yield v must_=== 10
     }
 
@@ -389,14 +389,13 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         fiber <- IO.forkAll(List.fill(100)((for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
-                  _ <- STM.check(v > 0)
+                  _ <- STM.check(v < 0)
                   _ <- tvar.set(10)
                 } yield ()).run))
         _ <- UIO(latch.await())
         _ <- fiber.interrupt
         _ <- tvar.set(-1).run
-        _ <- clock.sleep(100.millis)
-        v <- tvar.get.run
+        v <- tvar.get.run.delay(10.millis)
       } yield v must_=== -1
     }
 
@@ -467,7 +466,7 @@ object Examples {
     def acquire(mutex: Mutex): UIO[Unit] =
       (for {
         value <- mutex.get
-        _     <- STM.check(value == false)
+        _     <- STM.check(!value)
         _     <- mutex.set(true)
       } yield ()).run
     def release(mutex: Mutex): UIO[Unit] =
