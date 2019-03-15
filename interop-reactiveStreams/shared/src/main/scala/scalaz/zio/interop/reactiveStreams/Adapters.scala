@@ -3,7 +3,7 @@ package scalaz.zio.interop.reactiveStreams
 import org.reactivestreams.{ Publisher, Subscriber }
 import scalaz.zio._
 import scalaz.zio.interop.reactiveStreams.SubscriberHelpers._
-import scalaz.zio.stream.{ Sink, Stream, Take }
+import scalaz.zio.stream.{ Stream, Take, ZSink, ZStream }
 
 object Adapters {
 
@@ -12,7 +12,7 @@ object Adapters {
    * produced by the Sink or any error either produced by the Sink or signaled to the subscriber.
    */
   def sinkToSubscriber[R, E <: Throwable, A1, A, B](
-    sink: Sink[R, E, A1, A, B],
+    sink: ZSink[R, E, A1, A, B],
     bufferSize: Int = 10
   ): ZIO[R, Nothing, (Subscriber[A], Task[B])] =
     for {
@@ -28,7 +28,7 @@ object Adapters {
   /**
    * Create a `Publisher` from a `Stream`.
    */
-  def streamToPublisher[R, E <: Throwable, A](stream: Stream[R, E, A]): ZIO[R, Nothing, Publisher[A]] =
+  def streamToPublisher[R, E <: Throwable, A](stream: ZStream[R, E, A]): ZIO[R, Nothing, Publisher[A]] =
     ZIO.runtime.map { runtime => (subscriber: Subscriber[_ >: A]) =>
       if (subscriber == null) {
         throw new NullPointerException("Subscriber must not be null.")
@@ -61,7 +61,7 @@ object Adapters {
    */
   def subscriberToSink[E <: Throwable, A](
     subscriber: Subscriber[A]
-  ): UIO[(Promise[E, Unit], Sink[Any, Nothing, Unit, A, Unit])] =
+  ): UIO[(Promise[E, Unit], ZSink[Any, Nothing, Unit, A, Unit])] =
     for {
       runtime      <- ZIO.runtime[Any]
       demand       <- Queue.unbounded[Long]
@@ -74,7 +74,7 @@ object Adapters {
   /**
    * Create a `Stream` from a `Publisher`.
    */
-  def publisherToStream[A](publisher: Publisher[A], bufferSize: Int): UIO[Stream[Any, Throwable, A]] =
+  def publisherToStream[A](publisher: Publisher[A], bufferSize: Int): UIO[ZStream[Any, Throwable, A]] =
     for {
       runtime    <- ZIO.runtime[Any]
       q          <- Queue.bounded[Take[Throwable, A]](bufferSize + 1)
@@ -82,7 +82,7 @@ object Adapters {
       _          <- UIO(publisher.subscribe(subscriber))
     } yield untakeQ(q).tap(_ => subscriber.signalDemand)
 
-  private def untakeQ[R, E, A](q: Queue[Take[E, A]]): Stream[R, E, A] =
+  private def untakeQ[R, E, A](q: Queue[Take[E, A]]): ZStream[R, E, A] =
     Stream.fromQueue(q).unTake ++ Stream.fromEffect(q.shutdown).drain
 
 }

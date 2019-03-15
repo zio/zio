@@ -18,7 +18,8 @@ package scalaz.zio.blocking
 
 import java.util.concurrent._
 
-import scalaz.zio.{ UIO, ZIO }
+import scalaz.zio.{ Exit, UIO, ZIO }
+import Exit.Cause
 import scalaz.zio.internal.{ Executor, NamedThreadFactory }
 import scalaz.zio.internal.PlatformLive
 
@@ -76,21 +77,23 @@ object Blocking extends Serializable {
 
         for {
           a <- (for {
-                fiber <- blocking(ZIO.effectTotal[Either[Throwable, A]] {
+                fiber <- blocking(ZIO.effectTotal[Either[Cause[Throwable], A]] {
                           val current = Some(Thread.currentThread)
 
                           withMutex(thread.set(current))
 
                           try Right(effect)
                           catch {
-                            case t: Throwable =>
+                            case _: InterruptedException =>
                               Thread.interrupted // Clear interrupt status
-                              Left(t)
+                              Left(Cause.interrupt)
+                            case t: Throwable =>
+                              Left(Cause.fail(t))
                           } finally {
                             withMutex { thread.set(None); barrier.set(()) }
                           }
                         }).fork
-                a <- fiber.join.absolve
+                a <- fiber.join.absolve.unsandbox
               } yield a).ensuring(interruptThread *> awaitInterruption)
         } yield a
       })

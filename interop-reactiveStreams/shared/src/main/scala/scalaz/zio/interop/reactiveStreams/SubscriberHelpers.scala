@@ -1,8 +1,8 @@
 package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Subscriber, Subscription }
-import scalaz.zio.stream.Sink
 import scalaz.zio.stream.Sink.Step
+import scalaz.zio.stream.ZSink
 import scalaz.zio.{ Chunk, Queue, Runtime, UIO }
 
 private[reactiveStreams] object SubscriberHelpers {
@@ -10,17 +10,17 @@ private[reactiveStreams] object SubscriberHelpers {
   def demandUnfoldSink[A](
     subscriber: Subscriber[_ >: A],
     demand: Queue[Long]
-  ): Sink[Any, Nothing, Unit, A, Unit] =
-    new Sink[Any, Nothing, Unit, A, Unit] {
+  ): ZSink[Any, Nothing, Unit, A, Unit] =
+    new ZSink[Any, Nothing, Unit, A, Unit] {
       override type State = Long
 
       override def initial: UIO[Step[Long, Nothing]] = UIO(Step.more(0L))
 
       override def step(state: Long, a: A): UIO[Step[Long, Nothing]] =
         demand.isShutdown.flatMap {
-          case true                 => UIO(Step.done(state, Chunk.empty))
-          case false if (state > 0) => UIO(subscriber.onNext(a)).map(_ => Step.more(state - 1))
-          case false                => demand.take.flatMap(n => UIO(subscriber.onNext(a)).map(_ => Step.more(n - 1)))
+          case true               => UIO(Step.done(state, Chunk.empty))
+          case false if state > 0 => UIO(subscriber.onNext(a)).map(_ => Step.more(state - 1))
+          case false              => demand.take.flatMap(n => UIO(subscriber.onNext(a)).map(_ => Step.more(n - 1)))
         }
 
       override def extract(state: Long): UIO[Unit] =
