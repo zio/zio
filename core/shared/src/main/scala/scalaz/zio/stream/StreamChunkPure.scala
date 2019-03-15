@@ -18,7 +18,7 @@ package scalaz.zio.stream
 
 import scalaz.zio._
 
-private[stream] trait StreamChunkPure[-R, @specialized +A] extends ZStreamChunk[R, Nothing, A] { self =>
+private[stream] trait StreamChunkPure[@specialized +A] extends ZStreamChunk[Any, Nothing, A] { self =>
   val chunks: StreamPure[Chunk[A]]
 
   def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
@@ -29,19 +29,19 @@ private[stream] trait StreamChunkPure[-R, @specialized +A] extends ZStreamChunk[
   override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): UIO[S] =
     IO.succeed(foldPureLazy(s)(_ => true)(f))
 
-  override def map[@specialized B](f: A => B): StreamChunkPure[R, B] =
+  override def map[@specialized B](f: A => B): StreamChunkPure[B] =
     StreamChunkPure(chunks.map(_.map(f)))
 
-  override def filter(pred: A => Boolean): StreamChunkPure[R, A] =
+  override def filter(pred: A => Boolean): StreamChunkPure[A] =
     StreamChunkPure(chunks.map(_.filter(pred)))
 
-  override def mapConcat[B](f: A => Chunk[B]): StreamChunkPure[R, B] =
+  override def mapConcat[B](f: A => Chunk[B]): StreamChunkPure[B] =
     StreamChunkPure(chunks.map(_.flatMap(f)))
 }
 
 object StreamChunkPure extends Serializable {
-  final def apply[R, A](chunkStream: StreamPure[Chunk[A]]): StreamChunkPure[R, A] =
-    new StreamChunkPure[R, A] {
+  final def apply[R, A](chunkStream: StreamPure[Chunk[A]]): StreamChunkPure[A] =
+    new StreamChunkPure[A] {
       val chunks = chunkStream
     }
 }
