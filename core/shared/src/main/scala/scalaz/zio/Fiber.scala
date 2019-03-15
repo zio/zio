@@ -180,10 +180,10 @@ trait Fiber[+E, +A] { self =>
     }.flatten
 
   /**
-   * Converts this fiber into a [[scalaz.zio.Managed]]. Fiber is interrupted on release.
+   * Converts this fiber into a [[scalaz.zio.ZManaged]]. Fiber is interrupted on release.
    */
-  final def toManaged: Managed[Any, Nothing, Fiber[E, A]] =
-    Managed.make(UIO.succeed(self))(_.interrupt)
+  final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
+    ZManaged.make(UIO.succeed(self))(_.interrupt)
 }
 
 object Fiber {
