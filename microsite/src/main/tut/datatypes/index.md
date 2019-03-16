@@ -11,7 +11,7 @@ ZIO contains a small number of data types that can help you solve complex proble
 
  - **[Fiber](fiber.html)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
  - **[FiberLocal](fiberlocal.html)** — A `FiberLocal` is a variable whose value depends on the fiber that accesses it, and is the moral equivalent of Java's `ThreadLocal`.
- - **[IO](io.html)** — An `IO` is a value that describes an effectful program, which might fail or succeed.
+ - **[ZIO](io.html)** — A `ZIO` is a value that models an effectful program, which might fail or succeed.
  - **[Managed](managed.html)** — A `Managed` is a value that describes an `IO` perishable resource that may be consumed only once inside a given scope.
  - **[Promise](promise.html)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
  - **[Queue](queue.html)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.

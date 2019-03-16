@@ -2,14 +2,14 @@ package scalaz.zio
 
 import java.io._
 
-class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def serializeAndBack[T](a: T): IO[_, T] = {
     import SerializableSpec._
 
     for {
-      obj       <- IO.sync(serializeToBytes(a))
-      returnObj <- IO.sync(getObjFromBytes[T](obj))
+      obj       <- IO.effectTotal(serializeToBytes(a))
+      returnObj <- IO.effectTotal(getObjFromBytes[T](obj))
     } yield returnObj
   }
 
@@ -39,16 +39,13 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     )
   }
 
-  def e2 = {
-    val live = Clock.Live
+  def e2 =
     unsafeRun(
       for {
-        time1       <- live.nanoTime
-        returnClock <- serializeAndBack(live)
-        time2       <- returnClock.nanoTime
-      } yield (time1 < time2) must beTrue
+        time1 <- clock.nanoTime
+        time2 <- serializeAndBack(clock.nanoTime).flatten
+      } yield (time1 <= time2) must beTrue
     )
-  }
 
   def e3 = unsafeRun(
     for {
@@ -85,7 +82,7 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
 
   def e6 = {
     import FunctionIO._
-    val v = lift[Int, Int](_ + 1)
+    val v = fromFunction[Int, Int](_ + 1)
     unsafeRun(
       for {
         returnKleisli <- serializeAndBack(v)

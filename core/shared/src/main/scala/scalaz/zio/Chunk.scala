@@ -1,3 +1,19 @@
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio
 
 import scala.reflect._
@@ -160,10 +176,10 @@ sealed trait Chunk[@specialized +A] { self =>
     }
   }
 
-  final def foldMLazy[E, S](z: S)(pred: S => Boolean)(f: (S, A) => IO[E, S]): IO[E, S] = {
+  final def foldMLazy[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
     val len = length
 
-    def loop(s: S, i: Int): IO[E, S] =
+    def loop(s: S, i: Int): ZIO[R, E, S] =
       if (i >= len) IO.succeed(s)
       else {
         if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
@@ -203,8 +219,8 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Effectfully folds over the elements in this chunk from the left.
    */
-  final def foldM[E, S](s: S)(f: (S, A) => IO[E, S]): IO[E, S] =
-    foldLeft[IO[E, S]](IO.succeed(s)) { (s, a) =>
+  final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
+    foldLeft[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
       s.flatMap(f(_, a))
     }
 
@@ -385,10 +401,10 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Effectfully traverses the elements of this chunk.
    */
-  final def traverse[E, B](f: A => IO[E, B]): IO[E, Chunk[B]] = {
-    val len                    = self.length
-    var array: IO[E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
-    var i                      = 0
+  final def traverse[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
+    val len                        = self.length
+    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
+    var i                          = 0
 
     while (i < len) {
       val j = i
@@ -415,18 +431,18 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Effectfully traverses the elements of this chunk purely for the effects.
    */
-  final def traverse_[E](f: A => IO[E, _]): IO[E, Unit] = {
-    val len          = self.length
-    var io: IO[E, _] = IO.unit
-    var i            = 0
+  final def traverse_[R, E](f: A => ZIO[R, E, _]): ZIO[R, E, Unit] = {
+    val len               = self.length
+    var zio: ZIO[R, E, _] = ZIO.unit
+    var i                 = 0
 
     while (i < len) {
       val a = self(i)
-      io = io *> f(a)
+      zio = zio *> f(a)
       i += 1
     }
 
-    io.void
+    zio.void
   }
 
   /**
@@ -467,7 +483,7 @@ sealed trait Chunk[@specialized +A] { self =>
    * Zips this chunk with the index of every element, starting from the initial
    * index value.
    */
-  final def zipWithIndex0(indexOffset: Int): Chunk[(A, Int)] = {
+  final def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)] = {
     val len  = self.length
     val dest = Array.ofDim[(A, Int)](len)
 
@@ -485,7 +501,7 @@ sealed trait Chunk[@specialized +A] { self =>
   /**
    * Zips this chunk with the index of every element.
    */
-  final def zipWithIndex: Chunk[(A, Int)] = zipWithIndex0(0)
+  final def zipWithIndex: Chunk[(A, Int)] = zipWithIndexFrom(0)
 
   protected[zio] def apply(n: Int): A
   protected[zio] def foreach(f: A => Unit): Unit
@@ -530,9 +546,9 @@ object Chunk {
     }
 
   /**
-   * Returns a singleton chunk.
+   * Returns a singleton chunk, eagerly evaluated.
    */
-  final def succeedLazy[@specialized A](a: A): Chunk[A] = Singleton(a)
+  final def succeed[@specialized A](a: A): Chunk[A] = Singleton(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
@@ -827,8 +843,7 @@ object Chunk {
 
     override def foreach(f: A => Unit): Unit = vector.foreach(f)
 
-    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
-      vector.copyToArray(dest, n, length)
+    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = { val _ = vector.copyToArray(dest, n, length) }
   }
 
   private object Tags {

@@ -5,7 +5,7 @@ package scalaz.zio
 
 import scalaz.zio.duration._
 
-class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec {
+class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is =
     "SemaphoreSpec".title ^ s2"""
@@ -51,7 +51,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
   def e5 = {
     val n = 1L
     unsafeRun(for {
-      s <- Semaphore.make(n).peek(_.acquire)
+      s <- Semaphore.make(n).tap(_.acquire)
       _ <- s.release.fork
       _ <- s.acquire
     } yield () must_=== (()))
@@ -64,8 +64,8 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
     val n = 1L
     unsafeRun(for {
       s       <- Semaphore.make(n)
-      _       <- s.acquireN(2).timeout(1.milli).attempt
-      permits <- s.release *> IO.sleep(10.millis) *> s.count
+      _       <- s.acquireN(2).timeout(1.milli).either
+      permits <- s.release *> clock.sleep(10.millis) *> s.count
     } yield permits) must_=== 2
   }
 
@@ -76,14 +76,14 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abs
     val n = 0L
     unsafeRun(for {
       s       <- Semaphore.make(n)
-      _       <- s.withPermit(s.release).timeout(1.milli).attempt
-      permits <- s.release *> IO.sleep(10.millis) *> s.count
+      _       <- s.withPermit(s.release).timeout(1.milli).either
+      permits <- s.release *> clock.sleep(10.millis) *> s.count
     } yield permits must_=== 1L)
   }
 
   def offsettingReleasesAcquires(
-    acquires: (Semaphore, Vector[Long]) => IO[Nothing, Unit],
-    releases: (Semaphore, Vector[Long]) => IO[Nothing, Unit]
+    acquires: (Semaphore, Vector[Long]) => UIO[Unit],
+    releases: (Semaphore, Vector[Long]) => UIO[Unit]
   ) = {
     val permits = Vector(1L, 0L, 20L, 4L, 0L, 5L, 2L, 1L, 1L, 3L)
 

@@ -21,7 +21,7 @@ object ArbitraryStream {
 
   def genSucceededStream[T: ClassTag: Arbitrary]: Gen[Stream[Nothing, T]] =
     Arbitrary.arbitrary[List[T]].map { xs =>
-      Stream.unfoldM[List[T], Nothing, T](xs) {
+      ZStream.unfoldM[Any, List[T], Nothing, T](xs) {
         case head :: tail => IO.succeed(Some(head -> tail))
         case _            => IO.succeed(None)
       }
@@ -32,7 +32,7 @@ object ArbitraryStream {
       it <- Arbitrary.arbitrary[List[T]]
       n  <- Gen.choose(0, it.size)
     } yield
-      Stream.unfoldM((n, it)) {
+      ZStream.unfoldM((n, it)) {
         case (_, Nil) | (0, _) =>
           IO.fail("fail-case")
         case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))

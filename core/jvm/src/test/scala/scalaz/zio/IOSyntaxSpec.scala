@@ -5,14 +5,14 @@ import org.specs2.ScalaCheck
 import scalaz.zio.syntax._
 
 class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with GenIO
     with ScalaCheck {
   import Prop.forAll
 
   def is = "IOEagerSyntaxSpec".title ^ s2"""
    Generate a String:
-      `.succeed` extension method returns the same IO[Nothing, String] as `IO.succeed` does. $t1
+      `.succeed` extension method returns the same UIO[String] as `IO.succeed` does. $t1
    Generate a String:
       `.fail` extension method returns the same IO[String, Nothing] as `IO.fail` does. $t2
    Generate a String:
@@ -28,8 +28,8 @@ class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def t2 = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
-      a <- str.fail.attempt
-      b <- IO.fail(str).attempt
+      a <- str.fail.either
+      b <- IO.fail(str).either
     } yield a must ===(b))
   }
 
@@ -44,22 +44,20 @@ class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 }
 
 class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with GenIO
     with ScalaCheck {
   import Prop.forAll
 
   def is = "IOLazySyntaxSpec".title ^ s2"""
    Generate a String:
-      `.point` extension method returns the same IO[Nothing, String] as `IO.point` does. $t1
+      `.point` extension method returns the same UIO[String] as `IO.point` does. $t1
    Generate a String:
-      `.sync` extension method returns the same IO[Nothing, String] as `IO.sync` does. $t2
+      `.sync` extension method returns the same UIO[String] as `IO.sync` does. $t2
    Generate a String:
-      `.syncException` extension method returns the same IO[Exception, String] as `IO.syncException` does. $t3
+      `.sync` extension method returns the same Task[String] as `IO.sync` does. $t4
    Generate a String:
-      `.syncThrowable` extension method returns the same IO[Throwable, String] as `IO.syncThrowable` does. $t4
-   Generate a String:
-      `.syncCatch` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.syncThrowable` does. $t5
+      `.syncCatch` extension method returns the same PartialFunction[Throwable, E] => IO[E, A] as `IO.sync` does. $t5
     """
 
   def t1 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
@@ -72,36 +70,29 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t2 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
       a <- lazyStr.sync
-      b <- IO.sync(lazyStr)
-    } yield a must ===(b))
-  }
-
-  def t3 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
-    unsafeRun(for {
-      a <- lazyStr.syncException
-      b <- IO.syncException(lazyStr)
+      b <- IO.effectTotal(lazyStr)
     } yield a must ===(b))
   }
 
   def t4 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
-      a <- lazyStr.syncThrowable
-      b <- IO.syncThrowable(lazyStr)
+      a <- lazyStr.sync
+      b <- IO.effect(lazyStr)
     } yield a must ===(b))
   }
 
   def t5 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
     unsafeRun(for {
-      a <- lazyStr.syncCatch[Int](partial)
-      b <- IO.syncCatch(lazyStr)(partial)
+      a <- lazyStr.sync.refineOrDie(partial)
+      b <- IO.effect(lazyStr).refineOrDie(partial)
     } yield a must ===(b))
   }
 
 }
 
 class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with GenIO
     with ScalaCheck {
   def is       = "IOIterableSyntaxSpec".title ^ s2"""
@@ -110,7 +101,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Generate an Iterable of Char:
       `.parAll` extension method returns the same IO[E, List[A]] as `IO.parAll` does. $t2
     Generate an Iterable of Char:
-      `.forkAll` extension method returns the same IO[Nothing, Fiber[E, List[A]]] as `IO.forkAll` does. $t3
+      `.forkAll` extension method returns the same UIO[Fiber[E, List[A]]] as `IO.forkAll` does. $t3
     Generate an Iterable of Char:
       `.sequence` extension method returns the same IO[E, List[A]] as `IO.sequence` does. $t4
     """
@@ -127,7 +118,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def t2 = {
-    val ios = TestData.map(IO.sync(_))
+    val ios = TestData.map(IO.effectTotal(_))
     unsafeRun(for {
       parAll1 <- ios.collectAllPar
       parAll2 <- IO.collectAllPar(ios)
@@ -135,7 +126,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def t3 = {
-    val ios: Iterable[IO[String, Char]] = TestData.map(IO.sync(_))
+    val ios: Iterable[IO[String, Char]] = TestData.map(IO.effectTotal(_))
     unsafeRun(for {
       f1       <- ios.forkAll
       forkAll1 <- f1.join
@@ -145,7 +136,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def t4 = {
-    val ios = TestData.map(IO.sync(_))
+    val ios = TestData.map(IO.effectTotal(_))
     unsafeRun(for {
       sequence1 <- ios.collectAll
       sequence2 <- IO.collectAll(ios)
@@ -153,7 +144,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 }
 
-class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOTupleSpec".title ^ s2"""

@@ -1,8 +1,8 @@
 package scalaz.zio.stream
 
-import scalaz.zio.{ AbstractRTSSpec, Exit, IO }
+import scalaz.zio.{ Exit, IO, TestRuntime }
 
-trait StreamTestUtils { self: AbstractRTSSpec =>
+trait StreamTestUtils { self: TestRuntime =>
   def slurp[E, A](s: Stream[E, A]): Exit[E, List[A]] =
     slurp0(s)(_ => true)
 
@@ -11,7 +11,7 @@ trait StreamTestUtils { self: AbstractRTSSpec =>
       Exit.succeed(s.foldPureLazy(List[A]())(cont)((acc, el) => el :: acc).reverse)
     case s =>
       unsafeRunSync {
-        s.fold[E, A, List[A]].flatMap(f0 => f0(List[A](), cont, (acc, el) => IO.succeed(el :: acc)).map(_.reverse))
+        s.fold[Any, E, A, List[A]].flatMap(f0 => f0(List[A](), cont, (acc, el) => IO.succeed(el :: acc)).map(_.reverse))
       }
   }
 }
