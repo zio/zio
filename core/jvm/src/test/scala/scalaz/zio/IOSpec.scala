@@ -44,6 +44,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
+   Check `orElse` method does not recover from defects. $testOrElseDefectHandling
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -218,5 +219,22 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testZipParSucceed = {
     val io = ZIO.interrupt.zipPar(IO.succeed(1))
     unsafeRun(io) must throwA(FiberFailure(Interrupt))
+  }
+
+  def testOrElseDefectHandling = {
+    val ex = new Exception("Died")
+
+    unsafeRun {
+      for {
+        plain <- (ZIO.die(ex) <> IO.unit).run
+        both  <- (ZIO.halt(Cause.Both(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
+        thn   <- (ZIO.halt(Cause.Then(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
+        fail  <- (ZIO.fail(ex) <> IO.unit).run
+      } yield
+        (plain must_=== Exit.die(ex))
+          .and(both must_=== Exit.die(ex))
+          .and(thn must_=== Exit.die(ex))
+          .and(fail must_=== Exit.succeed(()))
+    }
   }
 }
