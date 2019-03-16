@@ -16,7 +16,7 @@ println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${scalaz.zio.
 
 # Main
 
-Your main function can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
+Your application can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
 ```tut:silent
 import scalaz.zio.App
@@ -25,13 +25,13 @@ import scalaz.zio.console._
 object MyApp extends App {
 
   def run(args: List[String]) =
-    myAppLogic.either.map(_.fold(_ => 1, _ => 0))
+    myAppLogic.fold(_ => 1, _ => 0)
 
   val myAppLogic =
     for {
       _ <- putStrLn("Hello! What is your name?")
       n <- getStrLn
-      _ <- putStrLn(s"Hello, ${n}, good to meet you!")
+      _ <- putStrLn(s"Hello, ${n}, welcome to ZIO!")
     } yield ()
 }
 ```
@@ -49,7 +49,7 @@ object IntegrationExample {
 }
 ```
 
-Ideally, your application should have a single runtime.
+Ideally, your application should have a single runtime, because each runtime has its own resources (including thread pool and unhandled error reporter).
 
 # Console
 
@@ -76,7 +76,7 @@ putStrLn("Hello World")
 If you need to read input from the console, you can use `getStrLn`:
 
 ```tut
-val echo = getStrLn.flatMap(putStrLn)
+val echo = getStrLn flatMap putStrLn
 ```
 
 # Learning More

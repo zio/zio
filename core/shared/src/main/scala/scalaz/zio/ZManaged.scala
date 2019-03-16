@@ -124,7 +124,7 @@ object ZManaged {
    * Lifts a ZIO[R, E, R] into ZManaged[R, E, R] with no release action. Use
    * with care.
    */
-  final def liftIO[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
+  final def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
     ZManaged(IO.succeed(Reservation(fa, IO.unit)))
 
   /**

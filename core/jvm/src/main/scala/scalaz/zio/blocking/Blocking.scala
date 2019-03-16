@@ -68,10 +68,22 @@ object Blocking extends Serializable {
           } finally lock.unlock()
 
         val interruptThread: UIO[Unit] =
-          ZIO.effectTotal(withMutex(thread.get match {
-            case None         => ()
-            case Some(thread) => thread.interrupt()
-          }))
+          ZIO.effectTotal {
+            var looping = true
+            var n       = 0L
+            val base    = 2L
+            while (looping) {
+              withMutex(thread.get match {
+                case None         => looping = false; ()
+                case Some(thread) => thread.interrupt()
+              })
+
+              if (looping) {
+                n += 1
+                Thread.sleep(math.min(50, base * n))
+              }
+            }
+          }
 
         val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 
