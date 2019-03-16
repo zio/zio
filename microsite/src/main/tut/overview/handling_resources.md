@@ -1,6 +1,5 @@
 ---
 layout: docs
-position: 6
 section: overview
 title:  "Handling Resources"
 ---

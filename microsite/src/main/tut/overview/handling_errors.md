@@ -1,6 +1,5 @@
 ---
 layout: docs
-position: 5
 section: overview
 title:  "Handling Errors"
 ---
