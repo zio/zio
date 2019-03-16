@@ -1,6 +1,5 @@
 ---
 layout: docs
-position: 3
 section: overview
 title:  "Creating Effects"
 ---
