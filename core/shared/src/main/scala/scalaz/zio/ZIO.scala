@@ -1393,9 +1393,19 @@ trait ZIOFunctions extends Serializable {
     ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _)
 
   /**
-   * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
+   * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
    */
   final def reduceAll[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
+    f: (A, A) => A
+  ): ZIO[R1, E, A] =
+    as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
+      l.zip(r).map(f.tupled)
+    }
+
+  /**
+   * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
+   */
+  final def reduceAllPar[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
   ): ZIO[R1, E, A] =
     as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
@@ -1403,9 +1413,17 @@ trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Merges an `Iterable[IO]` to a single IO, working in parallel.
+   * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   final def mergeAll[R >: LowerR, E <: UpperE, A, B](
+    in: Iterable[ZIO[R, E, A]]
+  )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
+    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
+
+  /**
+   * Merges an `Iterable[IO]` to a single IO, working in parallel.
+   */
+  final def mergeAllPar[R >: LowerR, E <: UpperE, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
