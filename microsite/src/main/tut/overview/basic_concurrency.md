@@ -133,6 +133,38 @@ ZIO provides many operations for performing effects in parallel. These methods a
 
 For example, the ordinary `ZIO#zip` method zips two effects together, sequentially. But there is also a `ZIO#zipPar` method, which zips two effects together in parallel.
 
-The following table summarizes some of the sequential operations and their corresponding parallel analogues:
+The following table summarizes some of the sequential operations and their corresponding parallel versions:
+
+| **Description**              | **Sequential**    | **Parallel**         |
+| ---------------------------: | :---------------: | :------------------: |
+| Zips two effects into one    | `ZIO#zip`         | `ZIO#zipPar`         |
+| Zips two effects into one    | `ZIO#zipWith`     | `ZIO#zipWithPar`     |
+| Collects from many effects   | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
+| Effectfully loop over values | `ZIO.foreach`     | `ZIO.foreachPar`     |
+| Reduces many values          | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
+| Merges many values           | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
+
+For all the parallel operations, if one effect fails, then others will be interrupted, to minimize unnecessary computation. If this behavior is not desired, the potentially failing effects can be converted into infallible effects using the `ZIO#either` or `ZIO#option` methods.
 
 # Racing
+
+ZIO allows you to race multiple effects in parallel, returning the first successful result:
+
+```tut:silent
+for {
+  winner <- IO.succeed("Hello") race IO.succeed("Goodbye")
+} yield winner
+```
+
+If you want the first success or failure, rather than the first success, then you can use `left.either race right.either`, for any effects `left` and `right`.
+
+# Timeout
+
+ZIO lets you timeout any effect using the `ZIO#timeout` method, which succeeds with an `Option`, where a value of `None` indicates the effect timed out before producing the result.
+
+```tut:silent
+import scalaz.zio.duration._
+
+IO.succeed("Hello").timeout(10.seconds)
+```
+

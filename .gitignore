@@ -2,6 +2,7 @@ project/zecret
 project/travis-deploy-key
 project/secrets.tar.xz
 target
+test-output/
 .sbtopts
 project/.sbt
 # if you are here to add your IDE's files please read this instead:
