@@ -168,3 +168,8 @@ import scalaz.zio.duration._
 IO.succeed("Hello").timeout(10.seconds)
 ```
 
+If an effect is timed out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
+
+# Next Steps
+
+If you are comfortable with basic concurrency, then the next step is to learn about [testing effects](testing_effects.html).
