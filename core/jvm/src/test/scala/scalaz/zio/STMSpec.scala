@@ -59,7 +59,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           Permute 2 variables in 100 fibers, the 2 variables should contains the same values $e32
           Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values $e33
           Using `foreach` perform an action in each value and return a single transaction that contains the result $e34
-          Using `orElseEither` tries another computation and return left if the left computation succeed and right if the right one succeed $e35
+          Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed $e35
         Failure must
           rollback full transaction     $e36
     """
