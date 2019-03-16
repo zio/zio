@@ -48,6 +48,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.peel               $peel
   Stream.drain              $drain
 
+  Stream bracketing
+    bracket                              $bracket
+    bracket short circuits               $bracketShortCircuits
+    no acquisition when short circuiting $bracketNoAcquisition
+
   Stream merging
     merge                         $merge
     mergeEither                   $mergeEither
@@ -397,5 +402,45 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _   <- Stream.range(0, 10).mapM(i => ref.update(i :: _)).drain.run(Sink.drain)
         l   <- ref.get
       } yield l.reverse must_=== (0 to 10).toList
+    )
+
+  private def bracket =
+    unsafeRun(
+      for {
+        done <- Ref.make(false)
+        iteratorStream = Stream.bracket(UIO(Iterator.range(0, 3)))(_ => done.set(true)) { it =>
+          if (it.hasNext) UIO(Some(it.next))
+          else UIO(None)
+        }
+        result   <- iteratorStream.run(Sink.collect[Int])
+        released <- done.get
+      } yield (result must_=== List(0, 1, 2)) and (released must_=== true)
+    )
+
+  private def bracketShortCircuits =
+    unsafeRun(
+      for {
+        done <- Ref.make(false)
+        iteratorStream = Stream
+          .bracket(UIO(Iterator.range(0, 3)))(_ => done.set(true)) { it =>
+            if (it.hasNext) UIO(Some(it.next))
+            else UIO(None)
+          }
+          .take(2)
+        result   <- iteratorStream.run(Sink.collect[Int])
+        released <- done.get
+      } yield (result must_=== List(0, 1)) and (released must_=== true)
+    )
+
+  private def bracketNoAcquisition =
+    unsafeRun(
+      for {
+        acquired <- Ref.make(false)
+        iteratorStream = (Stream(1) ++ Stream.bracket(acquired.set(true))(_ => UIO.unit) { _ =>
+          UIO(Some(()))
+        }).take(0)
+        _      <- iteratorStream.run(Sink.drain)
+        result <- acquired.get
+      } yield result must_=== false
     )
 }
