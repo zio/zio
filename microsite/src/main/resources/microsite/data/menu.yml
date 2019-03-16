@@ -5,16 +5,20 @@ options:
     menu_type: overview
 
     nested_options:
-    - title: IO
-      url: overview/io.html
-    - title: Success & Failure
-      url: overview/success_failure.html
-    - title: Composition
-      url: overview/composition.html
-    - title: Error Handling
-      url: overview/error_handling.html
-    - title: Effects
-      url: overview/effects.html
+    - title: Background
+      url: overview/background.html    
+    - title: Overview
+      url: overview/index.html
+    - title: Creating Effects
+      url: overview/creating_effects.html
+    - title: Basic Operations
+      url: overview/basic_operations.html
+    - title: Handling Errors
+      url: overview/handling_errors.html
+    - title: Handling Resources
+      url: overview/handling_resources.html
+    - title: Basic Concurrency
+      url: overview/basic_concurrency.html
 
   - title: Data Types
     url: datatypes/
@@ -70,7 +74,7 @@ options:
     menu_type: usecases
 
     nested_options:
-      - title: Asynchronous
+      - title: Asynchronism
         url: usecases/asynchronous.html
       - title: Concurrency
         url: usecases/concurrency.html
@@ -93,7 +97,7 @@ options:
         url: advanced/error_model.html
       - title: Performance
         url: advanced/performance.html
-      - title: RTS
+      - title: Runtime System
         url: advanced/rts.html
       - title: System
         url: advanced/system.html

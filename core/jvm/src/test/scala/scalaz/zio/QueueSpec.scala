@@ -4,8 +4,9 @@ import scala.collection.immutable.Range
 import org.specs2.specification.AroundTimeout
 import scalaz.zio.QueueSpec.waitForSize
 import scalaz.zio.duration._
+import scalaz.zio.clock.Clock
 
-class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with AroundTimeout {
+class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with AroundTimeout {
 
   def is =
     "QueueSpec".title ^ s2"""
@@ -102,6 +103,16 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     make a sliding queue of size 2, fork a take and then offer 4 values. Must return last item upon join $e63
     make a sliding queue of size 5 and offer 3 values. offerAll must return true $e64
     make a bounded queue of size 5 and offer 3 values. offerAll must return true $e65
+    make a bounded queue, `poll` on empty queue must return None $e66
+    make a bounded queue, offer 4 values, `takeAll`, `poll` must return None $e67
+    make a bounded queue, offer 2 values, first two `poll` return values wrapped in Some, further `poll` return None $e68
+    make a bounded queue, map it, offer 1 value, take returns a value equivalent to applying the function $e69
+    make a bounded queue, map it with identity, offer 1 value, take returns the offered value $e70
+    make a bounded queue, mapM it, offer 1 value, take returns a value equivalent to applying the function $e71
+    make a bounded queue, mapM it with identity, offer 1 failing IO value and 1 successful IO value, take behaves as expected $e72
+    make 2 bounded queues, compose them with `both`, offer 1 value, take yields a tuple of that value $e73
+    make a bounded queue, contramap it, offer 1 value, take yields the result of applying the function $e74
+    make a bounded queue, apply filterInput, offer a value that doesn't pass, size should match $e75
     """
 
   def e1 = unsafeRun(
@@ -130,7 +141,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       queue  <- Queue.bounded[Int](10)
       f      <- IO.forkAll(List.fill(10)(queue.take))
       values = Range.inclusive(1, 10).toList
-      _      <- values.map(queue.offer).foldLeft[IO[Nothing, Boolean]](IO.succeed(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
       v      <- f.join
     } yield v must containTheSameElementsAs(values))
 
@@ -140,16 +151,16 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
       values = Range.inclusive(1, 10).toList
       f      <- IO.forkAll(values.map(queue.offer))
       _      <- waitForSize(queue, 10)
-      l      <- queue.take.repeat(Schedule.recurs(9) *> Schedule.identity[Int].collect)
+      l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
       _      <- f.join
     } yield l must containTheSameElementsAs(values))
 
   def e5 =
     unsafeRun((for {
       queue        <- Queue.bounded[Int](10)
-      _            <- queue.offer(1).repeat(Schedule.recurs(9))
+      _            <- queue.offer(1).repeat(ZSchedule.recurs(9))
       refSuspended <- Ref.make[Boolean](true)
-      _            <- (queue.offer(2).repeat(Schedule.recurs(9)) *> refSuspended.set(false)).fork
+      _            <- (queue.offer(2).repeat(ZSchedule.recurs(9)) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
     } yield isSuspended must beTrue).supervise)
 
@@ -161,7 +172,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
         _      <- IO.forkAll(values.map(queue.offer))
         _      <- waitForSize(queue, 10)
         l <- queue.take
-              .repeat(Schedule.recurs(9) *> Schedule.identity[Int].collect)
+              .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
       } yield l must containTheSameElementsAs(values)
     )
 
@@ -795,11 +806,101 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstrac
     } yield oa must beTrue
   )
 
+  def e66 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      t     <- queue.poll
+    } yield t must_=== None
+  )
+
+  def e67 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      iter  = Range.inclusive(1, 4)
+      _     <- queue.offerAll(iter.toList)
+      _     <- queue.takeAll
+      t     <- queue.poll
+    } yield t must_=== None
+  )
+
+  def e68 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      iter  = Range.inclusive(1, 2)
+      _     <- queue.offerAll(iter.toList)
+      t1    <- queue.poll
+      t2    <- queue.poll
+      t3    <- queue.poll
+      t4    <- queue.poll
+    } yield (t1 must_=== Some(1)).and(t2 must_=== Some(2)).and(t3 must_=== None).and(t4 must_=== None)
+  )
+
+  def e69 = unsafeRun(
+    for {
+      q <- Queue.bounded[Int](100).map(_.map(_.toString))
+      _ <- q.offer(10)
+      v <- q.take
+    } yield v must_=== "10"
+  )
+
+  def e70 = unsafeRun(
+    for {
+      q <- Queue.bounded[Int](100).map(_.map(identity))
+      _ <- q.offer(10)
+      v <- q.take
+    } yield v must_=== 10
+  )
+
+  def e71 = unsafeRun(
+    for {
+      q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed))
+      _ <- q.offer(10)
+      v <- q.take
+    } yield v must_=== 10
+  )
+
+  def e72 = unsafeRun(
+    for {
+      q  <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
+      _  <- q.offer(IO.fail("Ouch"))
+      _  <- q.offer(IO.succeed(10))
+      v1 <- q.take.run
+      v2 <- q.take.run
+    } yield (v1 must_=== Exit.fail("Ouch")) and (v2 must_=== Exit.succeed(10))
+  )
+
+  def e73 = unsafeRun(
+    for {
+      q1 <- Queue.bounded[Int](100)
+      q2 <- Queue.bounded[Int](100)
+      q  = q1 both q2
+      _  <- q.offer(10)
+      v  <- q.take
+    } yield v must_=== ((10, 10))
+  )
+
+  def e74 = unsafeRun(
+    for {
+      q <- Queue.bounded[String](100).map(_.contramap[Int](_.toString))
+      _ <- q.offer(10)
+      v <- q.take
+    } yield v must_=== "10"
+  )
+
+  def e75 = unsafeRun(
+    for {
+      q  <- Queue.bounded[Int](100).map(_.filterInput(_ % 2 == 0))
+      _  <- q.offer(1)
+      s1 <- q.size
+      _  <- q.offer(2)
+      s2 <- q.size
+    } yield (s1 must_=== 0) and (s2 must_=== 1)
+  )
 }
 
 object QueueSpec {
 
-  def waitForSize[A](queue: Queue[A], size: Int): IO[Nothing, Int] =
-    (queue.size <* IO.sleep(10.millis)).repeat(Schedule.doWhile(_ != size))
+  def waitForSize[A](queue: Queue[A], size: Int): ZIO[Clock, Nothing, Int] =
+    (queue.size <* clock.sleep(10.millis)).repeat(ZSchedule.doWhile(_ != size))
 
 }

@@ -1,4 +1,19 @@
-// Copyright (C) 2018 - 2019 John A. De Goes. All rights reserved.
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio.internal
 
 import java.util.concurrent._
@@ -11,11 +26,6 @@ import scala.concurrent.ExecutionContext
 trait Executor {
 
   /**
-   * The role the executor is optimized for.
-   */
-  def role: Executor.Role
-
-  /**
    * The number of operations a fiber should run before yielding.
    */
   def yieldOpCount: Int
@@ -26,12 +36,12 @@ trait Executor {
   def metrics: Option[ExecutionMetrics]
 
   /**
-   * Submits a task for execution.
+   * Submits an effect for execution.
    */
   def submit(runnable: Runnable): Boolean
 
   /**
-   * Submits a task for execution or throws.
+   * Submits an effect for execution or throws.
    */
   final def submitOrThrow(runnable: Runnable): Unit =
     if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
@@ -40,11 +50,6 @@ trait Executor {
    * Whether or not the caller is being run on this executor.
    */
   def here: Boolean
-
-  /**
-   * Initiates shutdown of the executor.
-   */
-  def shutdown(): Unit
 
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
@@ -61,77 +66,14 @@ trait Executor {
 }
 
 object Executor extends Serializable {
-  sealed abstract class Role extends Product with Serializable
-
-  /**
-   * An executor optimized for synchronous tasks, which yield
-   * to the runtime infrequently or never.
-   */
-  final case object Unyielding extends Role
-
-  /**
-   * An executor optimized for asynchronous tasks, which yield
-   * frequently to the runtime.
-   */
-  final case object Yielding extends Role
-
-  /**
-   * Creates a new default executor of the specified type.
-   */
-  final def newDefaultExecutor(role: Role): Executor = role match {
-    case Unyielding =>
-      fromThreadPoolExecutor(role, _ => Int.MaxValue) {
-        val corePoolSize  = 0
-        val maxPoolSize   = Int.MaxValue
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new SynchronousQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-unyielding", true)
-
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-
-        threadPool
-      }
-
-    case Yielding =>
-      fromThreadPoolExecutor(role, _ => 1024) {
-        val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-        val maxPoolSize   = corePoolSize
-        val keepAliveTime = 1000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new LinkedBlockingQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-yielding", true)
-
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-        threadPool.allowCoreThreadTimeOut(true)
-
-        threadPool
-      }
-  }
 
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
    */
-  final def fromExecutionContext(role0: Role, yieldOpCount0: Int)(
+  final def fromExecutionContext(yieldOpCount0: Int)(
     ec: ExecutionContext
   ): Executor =
     new Executor {
-      def role = role0
-
       def yieldOpCount = yieldOpCount0
 
       def submit(runnable: Runnable): Boolean =
@@ -146,55 +88,5 @@ object Executor extends Serializable {
       def here = false
 
       def metrics = None
-
-      def shutdown(): Unit = ()
-    }
-
-  /**
-   * Constructs an `Executor` from a Java `ThreadPoolExecutor`.
-   */
-  final def fromThreadPoolExecutor(role0: Role, yieldOpCount0: ExecutionMetrics => Int)(
-    es: ThreadPoolExecutor
-  ): Executor =
-    new Executor {
-      def role = role0
-
-      private[this] def metrics0 = new ExecutionMetrics {
-        def concurrency: Int = es.getMaximumPoolSize()
-
-        def capacity: Int = {
-          val queue = es.getQueue()
-
-          val remaining = queue.remainingCapacity()
-
-          if (remaining == Int.MaxValue) remaining
-          else remaining + queue.size
-        }
-
-        def size: Int = es.getQueue().size
-
-        def workersCount: Int = es.getPoolSize()
-
-        def enqueuedCount: Long = es.getTaskCount()
-
-        def dequeuedCount: Long = enqueuedCount - size.toLong
-      }
-
-      def metrics = Some(metrics0)
-
-      def yieldOpCount = yieldOpCount0(metrics0)
-
-      def submit(runnable: Runnable): Boolean =
-        try {
-          es.execute(runnable)
-
-          true
-        } catch {
-          case _: RejectedExecutionException => false
-        }
-
-      def here = false
-
-      def shutdown(): Unit = { val _ = es.shutdown() }
     }
 }

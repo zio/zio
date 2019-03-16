@@ -1,8 +1,9 @@
 package scalaz.zio
 
 import org.specs2.ScalaCheck
+import scalaz.zio.clock.Clock
 
-class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends AbstractRTSSpec with GenIO with ScalaCheck {
+class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "RepeatSpec".title ^ s2"""
    Repeat on success according to a provided strategy
       for 'recurs(a negative number)' repeats 0 additional time $repeatNeg
@@ -12,9 +13,12 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       for 'recurs(a positive given number)' repeats that additional number of time $repeatN
    Repeat on failure does not actually repeat $repeatFail
    Repeat a scheduled repeat repeats the whole number $repeatRepeat
+
+   Repeat an action 2 times and call `ensuring` should
+      run the specified finalizer as soon as the schedule is complete $ensuring
     """
 
-  val repeat: Int => IO[Nothing, Int] = (n: Int) =>
+  val repeat: Int => ZIO[Clock, Nothing, Int] = (n: Int) =>
     for {
       ref <- Ref.make(0)
       s   <- ref.update(_ + 1).repeat(Schedule.recurs(n))
@@ -92,7 +96,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
       (for {
         ref <- Ref.make(0)
         _   <- incr(ref).repeat(Schedule.recurs(42))
-      } yield ()).redeem(
+      } yield ()).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )
@@ -100,4 +104,13 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Abstra
 
     repeated must_=== "Error: 1"
   }
+
+  def ensuring =
+    unsafeRun(for {
+      p          <- Promise.make[Nothing, Unit]
+      r          <- Ref.make(0)
+      _          <- r.update(_ + 2).repeat(Schedule.recurs(2)).ensuring(p.succeed(()))
+      v          <- r.get
+      finalizerV <- p.poll
+    } yield (v must_=== 6) and (finalizerV.isDefined must beTrue))
 }

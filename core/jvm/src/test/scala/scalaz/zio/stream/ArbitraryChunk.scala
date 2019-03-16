@@ -10,7 +10,7 @@ object ArbitraryChunk {
     Arbitrary {
       Gen.oneOf(
         Gen.const(Chunk.empty),
-        Arbitrary.arbitrary[T].map(Chunk.succeedLazy),
+        Arbitrary.arbitrary[T].map(Chunk.succeed),
         Arbitrary.arbitrary[Seq[T]].map(seqT => Chunk.fromArray(seqT.toArray)),
         Gen.lzy {
           for {

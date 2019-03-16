@@ -20,9 +20,9 @@ class ArrayFillBenchmarks {
     import IOBenchmarks.unsafeRun
 
     def arrayFill(array: Array[Int]): FunctionIO[Nothing, Int, Int] = {
-      val condition = FunctionIO.lift[Int, Boolean]((i: Int) => i < array.length)
+      val condition = FunctionIO.fromFunction[Int, Boolean]((i: Int) => i < array.length)
 
-      FunctionIO.whileDo[Nothing, Int](condition)(FunctionIO.impureVoid[Int, Int] { (i: Int) =>
+      FunctionIO.whileDo[Nothing, Int](condition)(FunctionIO.effectTotal[Int, Int] { (i: Int) =>
         array.update(i, i)
 
         i + 1
@@ -31,7 +31,7 @@ class ArrayFillBenchmarks {
 
     unsafeRun(
       for {
-        array <- IO.sync[Array[Int]](createTestArray)
+        array <- IO.effectTotal[Array[Int]](createTestArray)
         _     <- arrayFill(array).run(0)
       } yield ()
     )

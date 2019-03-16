@@ -12,7 +12,7 @@ import scalaz.zio.interop.catz._
 
 import scala.concurrent.ExecutionContext.global
 
-class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with RTS {
+class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with AroundTimeout with DefaultRuntime {
 
   def is =
     s2"""
@@ -49,7 +49,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
   def fIsCats = testCaseJoin[cats.effect.IO].unsafeRunSync()
 
   def fIsZio: List[Int] =
-    unsafeRun(testCaseJoin[scalaz.zio.interop.Task])
+    unsafeRun(testCaseJoin[scalaz.zio.Task])
 
   def bracketFail =
     unsafeRun {

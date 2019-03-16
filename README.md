@@ -3,24 +3,29 @@
 | CI | Coverage | Snapshot | Release | Issues | Users |
 | --- | --- | --- | --- | --- | --- |
 | [![Build Status][Badge-Travis]][Link-Travis] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Scaladex dependencies badge][Badge-Scaladex]][Link-Scaladex] |
+# Welcome to ZIO
+
 
 ZIO is a zero-dependency Scala library for asynchronous and concurrent programming.
 
-Powered by highly-scalable, non-blocking fibers that never waste resources, ZIO lets you build scalable, resilient, and reactive applications that meet the needs of your business.
+Powered by highly-scalable, non-blocking fibers that never waste or leak resources, ZIO lets you build scalable, resilient, and reactive applications that meet the needs of your business.
 
- - **High-performance**. Build fast applications with 100x the performance of Scala's `Future`.
- - **Type-safe**. Use the Scala compiler to find bugs at compile time.
- - **Concurrent**. Easily build massively concurrent applications.
- - **Asynchronous**. Escape callback hell with a unified model of computation.
- - **Resource-safe**. Build apps that never leak resources.
+ - **High-performance**. Build scalable applications with 100x the performance of Scala's `Future`.
+ - **Type-safe**. Use the full power of the Scala compiler to catch bugs at compile time.
+ - **Concurrent**. Easily build concurrent apps without deadlocks, race conditions, or complexity.
+ - **Asynchronous**. Write sequential code that looks the same whether it's asynchronous or synchronous.
+ - **Resource-safe**. Build apps that never leak resources (including threads!), even when they fail.
+ - **Testable**. Inject test services into your app for fast, deterministic, and type-safe testing.
+ - **Resilient**. Build apps that never lose errors, and which respond to failure locally and flexibly.
  - **Functional**. Rapidly compose solutions to complex problems from simple building blocks.
 
-See the following references for more information:
+To learn more about ZIO, see the following references:
 
  - [Microsite](https://scalaz.github.io/scalaz-zio/)
  - [Contributor's Guide](CONTRIBUTING.md)
  - [License](LICENSE)
  - [Issues](https://github.com/scalaz/scalaz-zio/issues)
+ - [Pull Requests](https://github.com/scalaz/scalaz-zio/pulls)
 
 ---
 
@@ -30,7 +35,7 @@ See the following references for more information:
 
 ### Legal
 
-Copyright (C) 2017-2018 John A. De Goes and the ZIO Contributors. All rights reserved.
+Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reserved.
 
 
 [Link-Codecov]: https://codecov.io/gh/scalaz/scalaz-zio?branch=master "Codecov"

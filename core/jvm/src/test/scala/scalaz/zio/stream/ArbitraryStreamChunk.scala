@@ -12,9 +12,9 @@ object ArbitraryStreamChunk {
   implicit def arbStreamChunk[T: ClassTag: Arbitrary]: Arbitrary[StreamChunk[String, T]] =
     Arbitrary {
       Gen.oneOf(
-        genFailingStream[Chunk[T]].map(StreamChunk(_)),
+        genFailingStream[Chunk[T]].map(ZStreamChunk(_)),
         genPureStream[Chunk[T]].map(StreamChunkPure(_)),
-        genSucceededStream[Chunk[T]].map(StreamChunk(_))
+        genSucceededStream[Chunk[T]].map(ZStreamChunk(_))
       )
     }
 
@@ -22,7 +22,7 @@ object ArbitraryStreamChunk {
     Arbitrary {
       Gen.oneOf(
         genPureStream[Chunk[T]].map(StreamChunkPure(_)),
-        genSucceededStream[Chunk[T]].map(StreamChunk(_))
+        genSucceededStream[Chunk[T]].map(ZStreamChunk(_))
       )
     }
 }

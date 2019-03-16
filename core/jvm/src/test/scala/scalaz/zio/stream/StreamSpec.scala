@@ -2,12 +2,12 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO, Queue }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
+    extends TestRuntime
     with StreamTestUtils
     with GenIO
     with ScalaCheck {
@@ -22,6 +22,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   PureStream.takeWhile      $takeWhile
   PureStream.mapProp        $map
   PureStream.mapConcat      $mapConcat
+  Stream.filterM            $filterM
   Stream.scan               $mapAccum
   Stream.++                 $concat
   Stream.unfold             $unfold
@@ -34,23 +35,26 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.forever            $forever
   Stream.scanM              $mapAccumM
   Stream.transduce          $transduce
-  Stream.withEffect         $withEffect
+  Stream.tap         $tap
   Stream.fromIterable       $fromIterable
   Stream.fromChunk          $fromChunk
   Stream.fromQueue          $fromQueue
   Stream.toQueue            $toQueue
   Stream.peel               $peel
+  Stream.drain              $drain
 
   Stream merging
-    merge                   $merge
-    mergeEither             $mergeEither
-    mergeWith               $mergeWith
-    mergeWith short circuit $mergeWithShortCircuit
+    merge                         $merge
+    mergeEither                   $mergeEither
+    mergeWith                     $mergeWith
+    mergeWith short circuit       $mergeWithShortCircuit
+    mergeWith prioritizes failure $mergeWithPrioritizesFailure
 
   Stream zipping
-    zipWith                 $zipWith
-    zipWithIndex            $zipWithIndex
-    zipWith ignore RHS      $zipWithIgnoreRhs
+    zipWith                     $zipWith
+    zipWithIndex                $zipWithIndex
+    zipWith ignore RHS          $zipWithIgnoreRhs
+    zipWith prioritizes failure $zipWithPrioritizesFailure
 
   Stream monad laws
     left identity           $monadLaw1
@@ -67,6 +71,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def filter =
     prop { (s: Stream[String, String], p: String => Boolean) =>
       slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))
+    }
+
+  private def filterM =
+    prop { (s: Stream[String, String], p: String => Boolean) =>
+      slurp(s.filterM(s => IO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
     }
 
   private def dropWhile =
@@ -129,10 +138,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def take =
     prop { (s: Stream[String, String], n: Int) =>
-      val takeStreamResult = slurp(s.take(n))
-      val takeListResult   = slurp(s).map(_.take(n))
-      (takeListResult.succeeded ==> (takeStreamResult must_=== takeListResult)) //&&
-    // ((!takeStreamResult.succeeded) ==> (!takeListResult.succeeded))
+      val takeStreamesult = slurp(s.take(n))
+      val takeListResult  = slurp(s).map(_.take(n))
+      (takeListResult.succeeded ==> (takeStreamesult must_=== takeListResult)) //&&
+    // ((!takeStreamesult.succeeded) ==> (!takeListResult.succeeded))
     }
 
   private def foreach0 = {
@@ -140,9 +149,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s   = Stream(1, 1, 1, 1, 1, 1)
 
     unsafeRun(
-      s.foreach0(
+      s.foreachWhile[Any, Nothing](
         a =>
-          IO.sync(
+          IO.effectTotal(
             if (sum >= 3) false
             else {
               sum += a;
@@ -158,7 +167,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     var sum = 0
     val s   = Stream(1, 1, 1, 1, 1)
 
-    unsafeRun(s.foreach(a => IO.sync(sum += a)))
+    unsafeRun(s.foreach[Any, Nothing](a => IO.effectTotal(sum += a)))
     sum must_=== 5
   }
 
@@ -201,9 +210,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def forever = {
     var sum = 0
-    val s = Stream(1).forever.foreach0(
+    val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
-        IO.sync {
+        IO.effectTotal {
           sum += a; if (sum >= 9) false else true
         }
     )
@@ -224,8 +233,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeEither(s2)
+    val list: List[Either[Int, Int]] = slurp(merge).toEither.fold(
+      _ => List.empty,
+      identity
+    )
 
-    slurp(merge).toEither.right.get must containTheSameElementsAs(List(Left(1), Left(2), Right(1), Right(2)))
+    list must containTheSameElementsAs(List(Left(1), Left(2), Right(1), Right(2)))
   }
 
   private def mergeWith = {
@@ -233,8 +246,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
+    val list: List[String] = slurp(merge).toEither.fold(
+      _ => List.empty,
+      identity
+    )
 
-    slurp(merge).toEither.right.get must containTheSameElementsAs(List("1", "2", "1", "2"))
+    list must containTheSameElementsAs(List("1", "2", "1", "2"))
   }
 
   private def mergeWithShortCircuit = {
@@ -242,13 +259,24 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s2 = Stream(1, 2)
 
     val merge = s1.mergeWith(s2)(_.toString, _.toString)
+    val list: List[String] = slurp0(merge)(_ => false).toEither.fold(
+      _ => List("9"),
+      identity
+    )
 
-    slurp0(merge)(_ => false).toEither.right.get must_=== List()
+    list must_=== List()
+  }
+
+  private def mergeWithPrioritizesFailure = {
+    val s1 = Stream.never
+    val s2 = Stream.fail("Ouch")
+
+    slurp(s1.mergeWith(s2)(_ => (), _ => ())) must_=== Exit.fail("Ouch")
   }
 
   private def transduce = {
     val s          = Stream('1', '2', ',', '3', '4')
-    val parser     = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
+    val parser     = ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.readWhile(_ == ',')
     val transduced = s.transduce(parser)
 
     slurp(transduced) must_=== Success(List(12, 34))
@@ -256,8 +284,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def peel = {
     val s      = Stream('1', '2', ',', '3', '4')
-    val parser = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
-    val peeled = s.peel(parser).use {
+    val parser = ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.readWhile(_ == ',')
+    val peeled = s.peel(parser).use[Any, Int, (Int, Exit[Nothing, List[Char]])] {
       case (n, rest) =>
         IO.succeed((n, slurp(rest)))
     }
@@ -265,9 +293,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(peeled) must_=== ((12, Success(List('3', '4'))))
   }
 
-  private def withEffect = {
+  private def tap = {
     var sum     = 0
-    val s       = Stream(1, 1).withEffect(a => IO.sync(sum += a))
+    val s       = Stream(1, 1).tap[Any, Nothing](a => IO.effectTotal(sum += a))
     val slurped = slurp(s)
 
     (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)
@@ -292,6 +320,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     slurp(zipped) must_=== Success(List(1, 2, 3))
   }
 
+  private def zipWithPrioritizesFailure = {
+    val s1 = Stream.never
+    val s2 = Stream.fail("Ouch")
+
+    slurp(s1.zipWith(s2)((_, _) => None)) must_=== Exit.fail("Ouch")
+  }
+
   private def fromIterable = prop { l: List[Int] =>
     val s = Stream.fromIterable(l)
     slurp(s) must_=== Success(l) and (slurp(s) must_=== Success(l))
@@ -308,7 +343,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         queue <- Queue.unbounded[Int]
         _     <- queue.offerAll(c.toSeq)
         s     = Stream.fromQueue(queue)
-        fiber <- s.fold[Nothing, Int, List[Int]].flatMap { f0 =>
+        fiber <- s.fold[Any, Nothing, Int, List[Int]].flatMap { f0 =>
                   f0(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
                     .map(_.reverse)
                     .fork
@@ -330,4 +365,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
     result must_=== Success(c.toSeq.toList.map(i => Take.Value(i)) :+ Take.End)
   }
+
+  private def drain =
+    unsafeRun(
+      for {
+        ref <- Ref.make(List[Int]())
+        _   <- Stream.range(0, 10).mapM(i => ref.update(i :: _)).drain.run(Sink.drain)
+        l   <- ref.get
+      } yield l.reverse must_=== (0 to 10).toList
+    )
 }

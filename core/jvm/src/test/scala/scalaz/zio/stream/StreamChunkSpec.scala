@@ -4,13 +4,10 @@ import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
 import scala.{ Stream => _ }
 import scala.concurrent.duration._
-import scalaz.zio.{ AbstractRTSSpec, Chunk, Exit, GenIO, IO }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
 import scala.annotation.tailrec
 
-class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-    extends AbstractRTSSpec
-    with GenIO
-    with ScalaCheck {
+class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
   override val DefaultTimeout = 20.seconds
 
@@ -32,7 +29,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   StreamChunk.monadLaw1     $monadLaw1
   StreamChunk.monadLaw2     $monadLaw2
   StreamChunk.monadLaw3     $monadLaw3
-  StreamChunk.withEffect    $withEffect
+  StreamChunk.tap    $tap
   StreamChunk.foldLeft      $foldLeft
   StreamChunk.foldLazy      $foldLazy
   StreamChunk.flattenChunks $flattenChunks
@@ -104,7 +101,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def mapAccum =
     prop { s: StreamChunk[String, Int] =>
       val slurped = slurpM(s.mapAccum(0)((acc, el) => (acc + el, acc + el)))
-      slurped must_=== slurp(s).map(_.scan(0)((acc, el) => acc + el).drop(1))
+      slurped must_=== slurp(s).map(_.scanLeft(0)((acc, el) => acc + el).drop(1))
     }
 
   private def mapM =
@@ -117,8 +114,8 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       var acc = List[Int]()
 
       val result = unsafeRunSync {
-        s.foreach0 { a =>
-          IO.sync {
+        s.foreachWhile { a =>
+          IO.effectTotal {
             if (cont(a)) {
               acc ::= a
               true
@@ -135,7 +132,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       var acc = List[Int]()
 
       val result = unsafeRunSync {
-        s.foreach(a => IO.sync(acc ::= a))
+        s.foreach(a => IO.effectTotal(acc ::= a))
       }
 
       result.map(_ => acc.reverse) must_=== slurp(s).map(_.toList)
@@ -144,11 +141,13 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def monadLaw1 =
     prop(
       (x: Int, f: Int => StreamChunk[String, Int]) =>
-        slurp(StreamChunk.succeedLazy(Chunk(x)).flatMap(f)) must_=== slurp(f(x))
+        slurp(ZStreamChunk.succeedLazy(Chunk(x)).flatMap(f)) must_=== slurp(f(x))
     )
 
   private def monadLaw2 =
-    prop((m: StreamChunk[String, Int]) => slurp(m.flatMap(i => StreamChunk.succeedLazy(Chunk(i)))) must_=== slurp(m))
+    prop(
+      (m: StreamChunk[String, Int]) => slurp(m.flatMap(i => ZStreamChunk.succeedLazy(Chunk(i)))) must_=== slurp(m)
+    )
 
   private def monadLaw3 =
     prop { (m: StreamChunk[String, Int], f: Int => StreamChunk[String, Int], g: Int => StreamChunk[String, Int]) =>
@@ -157,13 +156,13 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       slurp(leftStream) must_=== slurp(rightStream)
     }
 
-  private def withEffect =
+  private def tap =
     prop { (s: StreamChunk[String, String]) =>
       val withoutEffect = slurp(s)
       var acc           = List[String]()
-      val withEffect    = slurp(s.withEffect(a => IO.sync(acc ::= a)))
+      val tap           = slurp(s.tap(a => IO.effectTotal(acc ::= a)))
 
-      (withEffect must_=== withoutEffect) and
+      (tap must_=== withoutEffect) and
         ((Success(acc.reverse) must_== withoutEffect) when withoutEffect.succeeded)
     }
 
