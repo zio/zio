@@ -624,10 +624,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Zips this stream together with the index of elements of the stream.
    */
-  def zipWithIndex[R1 <: R]: ZStream[R1, E, (A, Int)] = new ZStream[R1, E, (A, Int)] {
-    override def fold[R2 <: R1, E1 >: E, A1 >: (A, Int), S]: Fold[R2, E1, A1, S] =
+  def zipWithIndex: ZStream[R, E, (A, Int)] = new ZStream[R, E, (A, Int)] {
+    override def fold[R1 <: R, E1 >: E, A1 >: (A, Int), S]: Fold[R1, E1, A1, S] =
       IO.succeedLazy { (s, cont, f) =>
-        self.fold[R2, E1, A, (S, Int)].flatMap { f0 =>
+        self.fold[R1, E1, A, (S, Int)].flatMap { f0 =>
           f0((s, 0), tp => cont(tp._1), {
             case ((s, index), a) => f(s, (a, index)).map(s => (s, index + 1))
           }).map(_._1)
@@ -651,8 +651,8 @@ trait Stream_Functions extends Serializable {
   final def fromIterable[A](it: Iterable[A]): Stream[Nothing, A] = StreamPure.fromIterable(it)
 
   final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
-    new StreamPure[Any, A] {
-      override def fold[R <: Any, E >: Nothing, A1 >: A, S]: ZStream.Fold[R, E, A1, S] =
+    new StreamPure[A] {
+      override def fold[R, E, A1 >: A, S]: ZStream.Fold[R, E, A1, S] =
         IO.succeedLazy((s, cont, f) => c.foldMLazy(s)(cont)(f))
 
       override def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
@@ -778,10 +778,10 @@ trait Stream_Functions extends Serializable {
    * Constructs a stream from state.
    */
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): Stream[Nothing, A] =
-    new StreamPure[Any, A] {
-      override def fold[R1 <: Any, E1 >: Nothing, A1 >: A, S2]: Fold[R1, E1, A1, S2] =
+    new StreamPure[A] {
+      override def fold[R, E, A1 >: A, S2]: Fold[R, E, A1, S2] =
         IO.succeedLazy { (s2, cont, f) =>
-          def loop(s: S, s2: S2): ZIO[R1, E1, (S, S2)] =
+          def loop(s: S, s2: S2): ZIO[R, E, (S, S2)] =
             if (!cont(s2)) IO.succeed((s, s2))
             else
               f0(s) match {
