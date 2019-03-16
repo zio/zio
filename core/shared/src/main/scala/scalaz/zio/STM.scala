@@ -1,8 +1,6 @@
 package scalaz.zio
 
-import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import scala.collection.mutable.{ Map => MutableMap }
 
@@ -212,6 +210,15 @@ final class STM[+E, +A] private (
    */
   final def zipWith[E1 >: E, B, C](that: => STM[E1, B])(f: (A, B) => C): STM[E1, C] =
     self flatMap (a => that map (b => f(a, b)))
+
+  /**
+   * Returns a transactional effect that will produce the value of this effect in left side, unless it
+   * fails, in which case, it will produce the value of the specified effect in right side.
+   */
+  final def orElseEither[E1 >: E, B](that: => STM[E1, B]): STM[E1, Either[A, B]] = {
+    val succeedRight = that.map(Right(_))
+    self.foldM(_ => succeedRight, r => STM.succeed(Left(r)), succeedRight)
+  }
 }
 
 object STM {
@@ -567,9 +574,15 @@ object STM {
    * transactional effect that produces a list of values.
    */
   final def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
-    i.foldLeft[STM[E, List[A]]](STM.succeed(Nil)) {
-        case (acc, stm) =>
-          acc.zipWith(stm)((xs, x) => x :: xs)
-      }
-      .map(_.reverse)
+    i.foldRight[STM[E, List[A]]](STM.succeed(Nil)) {
+      case (stm, acc) =>
+        acc.zipWith(stm)((xs, x) => x :: xs)
+    }
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and
+   * returns a transactional effect that produces a new `List[B]`.
+   */
+  final def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+    collectAll(as.map(f))
 }

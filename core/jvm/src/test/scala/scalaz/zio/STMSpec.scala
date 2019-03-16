@@ -57,8 +57,11 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           Using `collect` filter and map simultaneously the value produced by the transaction $e30
           Permute 2 variables $e31
           Permute 2 variables in 100 fibers, the 2 variables should contains the same values $e32
+          Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values $e33
+          Using `foreach` perform an action in each value and return a single transaction that contains the result $e34
+          Using `orElseEither` perform an action in each value and return a single transaction that contains the result $e35
         Failure must
-          rollback full transaction     $e33
+          rollback full transaction     $e36
     """
 
   def e1 =
@@ -433,13 +436,46 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         tvar2 <- TVar.makeRun(2)
         oldV1 <- tvar1.get.run
         oldV2 <- tvar2.get.run
-        _     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).run))
+        f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).run))
+        _     <- f.join
         v1    <- tvar1.get.run
         v2    <- tvar2.get.run
       } yield (v1 must_=== oldV1) and (v2 must_=== oldV2)
     )
 
   def e33 =
+    unsafeRun(
+      for {
+        it    <- UIO((1 to 100).map(TVar.make(_)))
+        tvars <- STM.collectAll(it).run
+        res   <- UIO.collectAllPar(tvars.map(_.get.run))
+      } yield res must_=== (1 to 100).toList
+    )
+
+  def e34 =
+    unsafeRun(
+      for {
+        tvar      <- TVar.makeRun(0)
+        _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).run
+        expectedV = (1 to 100).sum
+        v         <- tvar.get.run
+      } yield v must_=== expectedV
+    )
+
+  def e35 =
+    unsafeRun(
+      for {
+        rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).run
+        leftV1  <- STM.succeed("Yes :)").orElseEither(STM.succeed("No me!")).run
+        leftV2  <- STM.succeed("Yes Yes :)").orElseEither(STM.fail("No!")).run
+        failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).run.either
+      } yield
+        (rightV must_=== Right(42)) and (leftV1 must_=== Left("Yes :)")) and (leftV2 must_=== Left("Yes Yes :)")) and (failedV must_=== Left(
+          -2
+        ))
+    )
+
+  def e36 =
     unsafeRun(
       for {
         tvar <- TVar.makeRun(0)
