@@ -55,9 +55,10 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
             interrupt the fiber that has executed the transaction in 100 different fibers, should terminate all transactions. $e28
             interrupt the fiber and observe it, it should be resumed with Interrupted Cause   $e29
           Using `collect` filter and map simultaneously the value produced by the transaction $e30
-
-        Failure must 
-          rollback full transaction     $e31
+          Permute 2 variables $e31
+          Permute 2 variables in 100 fibers, the 2 variables should contains the same values $e32
+        Failure must
+          rollback full transaction     $e33
     """
 
   def e1 =
@@ -417,6 +418,30 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e31 =
     unsafeRun(
       for {
+        tvar1 <- TVar.makeRun(1)
+        tvar2 <- TVar.makeRun(2)
+        _     <- permutation(tvar1, tvar2).run
+        v1    <- tvar1.get.run
+        v2    <- tvar2.get.run
+      } yield (v1 must_=== 2) and (v2 must_=== 1)
+    )
+
+  def e32 =
+    unsafeRun(
+      for {
+        tvar1 <- TVar.makeRun(1)
+        tvar2 <- TVar.makeRun(2)
+        oldV1 <- tvar1.get.run
+        oldV2 <- tvar2.get.run
+        _     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).run))
+        v1    <- tvar1.get.run
+        v2    <- tvar2.get.run
+      } yield (v1 must_=== oldV1) and (v2 must_=== oldV2)
+    )
+
+  def e33 =
+    unsafeRun(
+      for {
         tvar <- TVar.makeRun(0)
         e <- (for {
               _ <- tvar.update(_ + 10)
@@ -457,6 +482,15 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         newAmnt <- receiver.get
       } yield newAmnt
     }
+
+  private def permutation(tvar1: TVar[Int], tvar2: TVar[Int]): STM[Nothing, Unit] =
+    for {
+      a <- tvar1.get
+      b <- tvar2.get
+      _ <- tvar1.set(b)
+      _ <- tvar2.set(a)
+    } yield ()
+
 }
 
 object Examples {
