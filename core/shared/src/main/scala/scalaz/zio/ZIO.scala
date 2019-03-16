@@ -286,11 +286,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     tryOrElse(that.map(Right(_)), ZIO.succeedLeft)
 
   private final def tryOrElse[R1 <: R, E2, B](that: => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    (self.tag: @switch) match {
-      case ZIO.Tags.Fail => that
-
-      case _ => new ZIO.Fold[R1, E, E2, A, B](self, _ => that, succ)
-    }
+    new ZIO.Fold[R1, E, E2, A, B](
+      self,
+      _.stripFailures match {
+        case None    => that
+        case Some(c) => ZIO.halt(c)
+      },
+      succ
+    )
 
   /**
    * Returns an effect that performs the outer effect first, followed by the

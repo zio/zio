@@ -5,5 +5,7 @@ target
 test-output/
 .sbtopts
 project/.sbt
+test-output/
+
 # if you are here to add your IDE's files please read this instead:
 # https://stackoverflow.com/questions/7335420/global-git-ignore#22885996
