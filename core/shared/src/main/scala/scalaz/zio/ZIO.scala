@@ -409,10 +409,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     new ZIO.BracketAcquire_(self)
 
   /**
-   * Uncurried version of [[bracket_]]. Doesn't offer curried syntax and
-   * can have different type-inference characteristics. It doesn't allocate
-   * intermediate [[scalaz.zio.ZIO.BracketAcquire_]] and
-   * [[scalaz.zio.ZIO.BracketRelease_]] objects.
+   * Uncurried version. Doesn't offer curried syntax and have worse
+   * type-inference characteristics, but it doesn't allocate intermediate
+   * [[scalaz.zio.ZIO.BracketAcquire_]] and [[scalaz.zio.ZIO.BracketRelease_]] objects.
    */
   final def bracket_[R1 <: R, E1 >: E, B](
     release: ZIO[R1, Nothing, _],
@@ -427,7 +426,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    *
    * Finalizers offer very powerful guarantees, but they are low-level, and
    * should generally not be used for releasing resources. For higher-level
-   * logic built on `ensuring`, see [[ZIO#bracket]].
+   * logic built on `ensuring`, see `ZIO#bracket`.
    */
   final def ensuring(finalizer: UIO[_]): ZIO[R, E, A] =
     new ZIO.Ensuring(self, finalizer)
@@ -1330,12 +1329,11 @@ trait ZIOFunctions extends Serializable {
     new ZIO.BracketAcquire[R, E, A](acquire)
 
   /**
-   * Uncurried version of [[bracket]]. Doesn't offer curried syntax and
-   * can have different type-inference characteristics. It doesn't allocate
-   * intermediate [[scalaz.zio.ZIO.BracketAcquire]] and
-   * [[scalaz.zio.ZIO.BracketRelease]] objects.
+   * Uncurried version. Doesn't offer curried syntax and have worse type-inference
+   * characteristics, but guarantees no extra allocations of intermediate
+   * [[scalaz.zio.ZIO.BracketAcquire]] and [[scalaz.zio.ZIO.BracketRelease]] objects.
    */
-  final def bracket[R >: LowerR, E <: UpperE, A, B](
+  final def bracket[R >: LowerR, E <: UpperE, A, A1 >: A, A2 >: A, B](
     acquire: ZIO[R, E, A],
     release: A => ZIO[R, Nothing, _],
     use: A => ZIO[R, E, B]
@@ -1359,10 +1357,9 @@ trait ZIOFunctions extends Serializable {
     new ZIO.BracketExitAcquire(acquire)
 
   /**
-   * Uncurried version of [[bracketExit]]. Doesn't offer curried syntax and
-   * can have different type-inference characteristics. It doesn't allocate
-   * intermediate [[scalaz.zio.ZIO.BracketAcquire]] and
-   * [[scalaz.zio.ZIO.BracketRelease]] objects.
+   * Uncurried version. Doesn't offer curried syntax and have worse type-inference
+   * characteristics, but guarantees no extra allocations of intermediate
+   * [[scalaz.zio.ZIO.BracketExitAcquire]] and [[scalaz.zio.ZIO.BracketExitRelease]] objects.
    */
   final def bracketExit[R >: LowerR, E <: UpperE, E1 >: E, E2 >: E <: E1, A, B](
     acquire: ZIO[R, E, A],
