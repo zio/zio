@@ -59,7 +59,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           Permute 2 variables in 100 fibers, the 2 variables should contains the same values $e32
           Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values $e33
           Using `foreach` perform an action in each value and return a single transaction that contains the result $e34
-          Using `orElseEither` perform an action in each value and return a single transaction that contains the result $e35
+          Using `orElseEither` tries another computation and return left if the left computation succeed and right if the right one succeed $e35
         Failure must
           rollback full transaction     $e36
     """
@@ -466,11 +466,11 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(
       for {
         rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).run
-        leftV1  <- STM.succeed("Yes :)").orElseEither(STM.succeed("No me!")).run
-        leftV2  <- STM.succeed("Yes Yes :)").orElseEither(STM.fail("No!")).run
+        leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).run
+        leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).run
         failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).run.either
       } yield
-        (rightV must_=== Right(42)) and (leftV1 must_=== Left("Yes :)")) and (leftV2 must_=== Left("Yes Yes :)")) and (failedV must_=== Left(
+        (rightV must_=== Right(42)) and (leftV1 must_=== Left(1)) and (leftV2 must_=== Left(2)) and (failedV must_=== Left(
           -2
         ))
     )
