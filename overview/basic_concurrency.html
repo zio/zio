@@ -1,5 +1,11 @@
 <html><head><title>: Basic Concurrency</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="ZIO contributors" /><meta name="description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="og:image" content="/scalaz-zio/img/poster.png" /><meta name="image" property="og:image" content="/scalaz-zio/img/poster.png" /><meta name="og:title" content=": Basic Concurrency" /><meta name="title" property="og:title" content=": Basic Concurrency" /><meta name="og:site_name" content="" /><meta name="og:url" content="https://scalaz.github.io/scalaz-zio/" /><meta name="og:type" content="website" /><meta name="og:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><link rel="icon" type="image/png" href="/scalaz-zio/img/favicon.png" /><meta name="twitter:title" content=": Basic Concurrency" /><meta name="twitter:image" content="/scalaz-zio/img/poster.png" /><meta name="twitter:description" content="Type-safe, composable asynchronous and concurrent programming for Scala" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="512x512" href="/scalaz-zio/img/favicon.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/scalaz-zio/highlight/styles/default.css" /><link rel="stylesheet" href="/scalaz-zio/css/style.css" /><link rel="stylesheet" href="/scalaz-zio/css/palette.css" /><link rel="stylesheet" href="/scalaz-zio/css/codemirror.css" /><link rel="stylesheet" href="/scalaz-zio/css/override.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/scalaz-zio/" class="brand"><div class="brand-wrapper"><span></span></div></a></li> <li><a href="/scalaz-zio/overview/" class="">Overview</a> <ul class="sub_section"> <li><a href="/scalaz-zio/overview/background.html" class="">Background</a></li> <li><a href="/scalaz-zio/overview/index.html" class="">Overview</a></li> <li><a href="/scalaz-zio/overview/creating_effects.html" class="">Creating Effects</a></li> <li><a href="/scalaz-zio/overview/basic_operations.html" class="">Basic Operations</a></li> <li><a href="/scalaz-zio/overview/handling_errors.html" class="">Handling Errors</a></li> <li><a href="/scalaz-zio/overview/handling_resources.html" class="">Handling Resources</a></li> <li><a href="/scalaz-zio/overview/basic_concurrency.html" class=" active ">Basic Concurrency</a></li></ul></li>    </ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/scalaz/scalaz-zio"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook(' Type-safe, composable asynchronous and concurrent programming for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="scalaz" data-github-repo="scalaz-zio"><div class="content-wrapper"><section><h1 id="basic-concurrency">Basic Concurrency</h1>
 
+<p>ZIO has low-level support for concurrency using <em>fibers</em>. While fibers are very powerful, they are low-level. To improve productivity, ZIO provides high-level operations built on fibers.</p>
+
+<p>If you are able to do so, you should always use higher-level operations, rather than working with fibers directly. For the sake of completeness, this section introduces both fibers and some of the higher-level operations built on them.</p>
+
+<h1 id="fibers">Fibers</h1>
+
 <p>ZIO’s concurrency is built on <em>fibers</em>, which are lightweight “green threads” implemented by the ZIO runtime.</p>
 
 <p>Unlike operating system threads, fibers consume almost no memory, have growable and shrinkable stacks, don’t waste resources blocking, and will be garbage collected automatically if they are inactive and unreachable.</p>
@@ -10,7 +16,7 @@
 
 <p>Even if you only write “single-threaded” code, with no parallel or concurrent operations, then there will be at least one fiber: the “main” fiber that executes your effect.</p>
 
-<h1 id="fiber-type">Fiber Type</h1>
+<h2 id="the-fiber-data-type">The Fiber Data Type</h2>
 
 <p>The <code class="highlighter-rouge">Fiber[E, A]</code> data type in ZIO has two type parameters:</p>
 
@@ -21,7 +27,7 @@
 
 <p>Fibers do not have an <code class="highlighter-rouge">R</code> type parameter, because they model effects that are already being executed, and which therefore have already had their required environment provided to them.</p>
 
-<h1 id="forking-effects">Forking Effects</h1>
+<h2 id="forking-effects">Forking Effects</h2>
 
 <p>The most primitive way of creating a fiber is to take an effect and <em>fork</em> it. Conceptually, <em>forking</em> an effect immediately begins executing the effect on a new fiber, giving you the new fiber.</p>
 
@@ -40,6 +46,80 @@
     <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="n">fib</span><span class="o">(</span><span class="mi">100</span><span class="o">).</span><span class="n">fork</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">fiber</span>
 </code></pre></div></div>
+
+<h2 id="joining-effects">Joining Effects</h2>
+
+<p>One of the methods on <code class="highlighter-rouge">Fiber</code> is <code class="highlighter-rouge">join</code>, which allows another fiber to obtain the result of the fiber being joined. This is similar to awaiting the final result of the fiber, whether that is failure or success.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+  <span class="n">fiber</span>   <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hi!"</span><span class="o">).</span><span class="n">fork</span>
+  <span class="n">message</span> <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">join</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">message</span>
+</code></pre></div></div>
+
+<h2 id="awaiting-fibers">Awaiting Fibers</h2>
+
+<p>Another method on <code class="highlighter-rouge">Fiber</code> is <code class="highlighter-rouge">await</code>, which allows for inspecting the result of a completed <code class="highlighter-rouge">Fiber</code>. This provides access to full details on how the fiber completed, represented by the <code class="highlighter-rouge">Exit</code> data type.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+  <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hi!"</span><span class="o">).</span><span class="n">fork</span>
+  <span class="n">exit</span>  <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">await</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">exit</span>
+</code></pre></div></div>
+
+<h2 id="interrupting-fibers">Interrupting Fibers</h2>
+
+<p>A fiber whose result is no longer needed may be <em>interrupted</em>, which immediately terminates the fiber, safely releasing all resources and running all finalizers.</p>
+
+<p>Like <code class="highlighter-rouge">await</code>, <code class="highlighter-rouge">Fiber#interrupt</code> returns an <code class="highlighter-rouge">Exit</code> describing how the fiber terminated.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+  <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hi!"</span><span class="o">).</span><span class="n">forever</span><span class="o">.</span><span class="n">fork</span>
+  <span class="n">exit</span>  <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">interrupt</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">exit</span>
+</code></pre></div></div>
+
+<p>By design, <code class="highlighter-rouge">interrupt</code> does not resume until the fiber has terminated. If this behavior is not desired, you can <code class="highlighter-rouge">fork</code> the interruption itself:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+  <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hi!"</span><span class="o">).</span><span class="n">forever</span><span class="o">.</span><span class="n">fork</span>
+  <span class="k">_</span>     <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">interrupt</span><span class="o">.</span><span class="n">fork</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<h2 id="composing-fibers">Composing Fibers</h2>
+
+<p>Fibers may be composed in several ways.</p>
+
+<p>One way fibers may be composed is with <code class="highlighter-rouge">Fiber#zip</code> or <code class="highlighter-rouge">Fiber#zipWith</code>. These methods combine two fibers into a single fiber that produces the results of both. If either fiber fails, then the composed fiber will fail.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+  <span class="n">fiber1</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hi!"</span><span class="o">).</span><span class="n">fork</span>
+  <span class="n">fiber2</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Bye!"</span><span class="o">).</span><span class="n">fork</span>
+  <span class="n">fiber</span>   <span class="k">=</span> <span class="n">fiber1</span> <span class="n">zip</span> <span class="n">fiber2</span>
+  <span class="n">tuple</span>  <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">join</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">tuple</span>
+</code></pre></div></div>
+
+<p>The second way fibers can be composed is with <code class="highlighter-rouge">orElse</code>. If the first fiber succeeds, the composed fiber will succeed with that result; otherwise, the composed fiber will complete with the exit of the second fiber.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+  <span class="n">fiber1</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="s">"Uh oh!"</span><span class="o">).</span><span class="n">fork</span>
+  <span class="n">fiber2</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="s">"Hurray!"</span><span class="o">).</span><span class="n">fork</span>
+  <span class="n">fiber</span>   <span class="k">=</span> <span class="n">fiber1</span> <span class="n">orElse</span> <span class="n">fiber2</span>
+  <span class="n">tuple</span>  <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">join</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">tuple</span>
+</code></pre></div></div>
+
+<h1 id="parallelism">Parallelism</h1>
+
+<p>ZIO provides many operations for performing effects in parallel. These methods are all named with a <code class="highlighter-rouge">Par</code> suffix that helps you more easily identify opportunities to parallelize your code.</p>
+
+<p>For example, the ordinary <code class="highlighter-rouge">ZIO#zip</code> method zips two effects together, sequentially. But there is also a <code class="highlighter-rouge">ZIO#zipPar</code> method, which zips two effects together in parallel.</p>
+
+<p>The following table summarizes some of the sequential operations and their corresponding parallel analogues:</p>
+
+<h1 id="racing">Racing</h1>
 </section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
 hljs.initHighlighting();
               </script><script>((window.gitter = {}).chat = {}).options = {
