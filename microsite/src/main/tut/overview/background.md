@@ -1,6 +1,5 @@
 ---
 layout: docs
-position: 1
 section: overview
 title:  "Background"
 ---

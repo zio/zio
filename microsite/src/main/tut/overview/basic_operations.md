@@ -1,6 +1,5 @@
 ---
 layout: docs
-position: 4
 section: overview
 title:  "Basic Operations"
 ---

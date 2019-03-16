@@ -1,6 +1,6 @@
 ---
 layout: docs
-position: 2
+position: 3
 section: overview
 title:  "Overview"
 ---

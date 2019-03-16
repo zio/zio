@@ -1,6 +1,5 @@
 ---
 layout: docs
-position: 7
 section: overview
 title:  "Basic Concurrency"
 ---
@@ -50,4 +49,48 @@ val z: UIO[Fiber[Nothing, Long]] =
   for {
     fiber <- fib(100).fork
   } yield fiber
+```
+
+# Joining Effects
+
+One of the methods on `Fiber` is `join`, which allows another fiber to obtain the result of the fiber being joined. This is similar to awaiting the final result of the fiber, whether that is failure or success.
+
+```tut:silent
+for {
+  fiber   <- IO.succeed("Hi!").fork
+  message <- fiber.join
+} yield message
+```
+
+# Awaiting Fibers
+
+Another method on `Fiber` is `await`, which allows for inspecting the result of a completed `Fiber`. This provides access to full details on how the fiber completed, represented by the `Exit` data type.
+
+```tut:silent
+for {
+  fiber <- IO.succeed("Hi!").fork
+  exit  <- fiber.await
+} yield exit
+```
+
+# Interrupting Fibers
+
+A fiber whose result is no longer needed may be _interrupted_, which immediately terminates the fiber, safely releasing all resources and running all finalizers.
+
+Like `await`, `Fiber#interrupt` returns an `Exit` describing how the fiber terminated.
+
+```tut:silent
+for {
+  fiber <- IO.succeed("Hi!").forever.fork
+  exit  <- fiber.interrupt
+} yield exit
+```
+
+By design, `interrupt` does not resume until the fiber has terminated. If this behavior is not desired, you can `fork` the interruption itself:
+
+```tut:silent
+for {
+  fiber <- IO.succeed("Hi!").forever.fork
+  _     <- fiber.interrupt.fork
+} yield exit
 ```
