@@ -15,7 +15,7 @@ Checkout `interop-cats` module for inter-operation support.
 For convenience we have defined an alias as follow:
 
 ```scala
-  type Task[A] = Task[A]
+  type Task[A] = IO[Throwable, A]
 ```
 
 Therefore, we provide an instance of `Effect[Task]`.
