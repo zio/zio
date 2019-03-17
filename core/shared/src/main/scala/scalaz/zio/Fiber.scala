@@ -174,7 +174,9 @@ trait Fiber[+E, +A] { self =>
       def failure(cause: Exit.Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
       def success(value: A): UIO[p.type]             = UIO(p.success(value))
 
-      UIO.effectTotal(p.future) <* self.await.flatMap(_.foldM(failure, success)).fork
+      UIO.effectTotal(p.future) <* self.await
+        .flatMap[Any, Nothing, p.type](_.foldM[Nothing, p.type](failure, success))
+        .fork
 
     }.flatten
 
