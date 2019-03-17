@@ -1,5 +1,7 @@
 package scalaz.zio
 
+import duration._
+
 class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is =
     "FiberSpec".title ^ s2"""
@@ -11,7 +13,7 @@ class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     for {
       ref   <- Ref.make(false)
       fiber <- IO.unit.bracket(_ => ref.set(true))(_ => IO.never).fork
-      _     <- fiber.toManaged.use(_ => IO.unit)
+      _     <- fiber.toManaged.use(_ => clock.sleep(20.millis))
       value <- ref.get
     } yield value must beTrue
   )
