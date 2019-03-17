@@ -35,7 +35,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def retryCollect[R, E, A, E1 >: E, S](
     io: IO[E, A],
-    retry: Schedule[R, E1, S]
+    retry: ZSchedule[R, E1, S]
   ): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] = {
 
     type State = retry.State
@@ -125,7 +125,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def retryNUnitIntervalJittered = {
-    val schedule: Schedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
+    val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
     val scheduled: List[(Duration, Int)] = unsafeRun(
       schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
@@ -135,7 +135,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def retryNCustomIntervalJittered = {
-    val schedule: Schedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
+    val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
     val scheduled: List[(Duration, Int)] = unsafeRun(
       schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
@@ -156,8 +156,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def recurs10Retry = {
-    var i                                 = 0
-    val strategy: Schedule[Any, Any, Int] = Schedule.recurs(10)
+    var i                            = 0
+    val strategy: Schedule[Any, Int] = Schedule.recurs(10)
     val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
     }
@@ -178,7 +178,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def exponentialWithFactor =
     checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
 
-  def checkErrorWithPredicate(schedule: Schedule[Any, Any, Duration], expectedSteps: List[Int]) = {
+  def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
     var i = 0
     val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")

@@ -186,20 +186,62 @@ val res: UIO[String] =
 
 ### Queue2#mapM
 
-We may also use an effectful function to map the output:
+We may also use an effectful function to map the output. For example,
+we could annotate each element with the timestamp at which it was dequeued:
 
 ```tut:silent
-val res: UIO[Queue2[Any, Nothing, Any, String, Int, String]] = 
+import java.util.concurrent.TimeUnit
+import scalaz.zio.clock._
+
+val currentTimeMillis = currentTime(TimeUnit.MILLISECONDS)
+
+val res: UIO[Queue2[Any, Nothing, Clock, Nothing, String, (Long, String)]] = 
   for {
-    queue  <- Queue.bounded[Int](3)
-    mapped = queue.mapM { i =>
-      if (i % 2 == 0) IO.succeed(i.toString)
-      else IO.fail("Only even values!")
+    queue <- Queue.bounded[String](3)
+    mapped = queue.mapM { el =>
+      currentTimeMillis.map((_, el))
     }
   } yield mapped
 ```
 
-Note how the `EB` type parameter on the resulting queue is now a `String`.
+### Queue2contramapM
+
+Similarly to `mapM`, we can also apply an effectful function to
+elements as they are enqueued. This queue will annotate the elements
+with their enqueue timestamp:
+
+```tut:silent
+val res: UIO[Queue2[Clock, Nothing, Any, Nothing, String, (Long, String)]] = 
+  for {
+    queue <- Queue.bounded[(Long, String)](3)
+    mapped = queue.contramapM { el: String =>
+      currentTimeMillis.map((_, el))
+    }
+  } yield mapped
+```
+
+This queue has the same type as the previous one, but the timestamp is
+attached to the elements when they are enqueued. This is reflected in
+the type of the environment required by the queue for enqueueing.
+
+To complete this example, we could combine this queue with `mapM` to
+compute the time that the elements stayed in the queue:
+
+```tut:silent
+import scalaz.zio.duration._
+
+val res: UIO[Queue2[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] = 
+  for {
+    queue <- Queue.bounded[(Long, String)](3)
+    enqueueTimestamps = queue.contramapM { el: String =>
+      currentTimeMillis.map((_, el))
+    }
+    durations = enqueueTimestamps.mapM { case (enqueueTs, el) =>
+      currentTimeMillis
+        .map(dequeueTs => ((dequeueTs - enqueueTs).millis, el))
+    }
+  } yield durations
+```
 
 ### Queue2#bothWith
 

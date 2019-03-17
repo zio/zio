@@ -2,11 +2,11 @@ package scalaz.zio.interop.reactiveStreams
 
 import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 import scalaz.zio.stream.Sink.Step
-import scalaz.zio.stream.{ Sink, Stream }
+import scalaz.zio.stream.{ Sink, ZStream }
 import scalaz.zio.{ Queue, Runtime, UIO, ZIO }
 
 class StreamPublisher[R, E <: Throwable, A](
-  stream: Stream[R, E, A],
+  stream: ZStream[R, E, A],
   runtime: Runtime[R]
 ) extends Publisher[A] {
 
@@ -30,8 +30,8 @@ class StreamPublisher[R, E <: Throwable, A](
       )
     }
 
-  private def demandUnfoldSink(subscriber: Subscriber[_ >: A], demand: Queue[Long]): Sink[Any, Nothing, A, A, Unit] =
-    new Sink[Any, Nothing, A, A, Unit] {
+  private def demandUnfoldSink(subscriber: Subscriber[_ >: A], demand: Queue[Long]): Sink[Nothing, A, A, Unit] =
+    new Sink[Nothing, A, A, Unit] {
       override type State = Long
 
       override def initial: UIO[Step[Long, Nothing]] = UIO(Step.more(0L))
@@ -61,6 +61,6 @@ class StreamPublisher[R, E <: Throwable, A](
 }
 
 object StreamPublisher {
-  def sinkToPublisher[R, E <: Throwable, A](stream: Stream[R, E, A]): ZIO[R, Nothing, StreamPublisher[R, E, A]] =
+  def sinkToPublisher[R, E <: Throwable, A](stream: ZStream[R, E, A]): ZIO[R, Nothing, StreamPublisher[R, E, A]] =
     ZIO.runtime.map(new StreamPublisher(stream, _))
 }

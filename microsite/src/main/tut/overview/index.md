@@ -1,128 +1,47 @@
 ---
 layout: docs
-position: 3
+position: 2
 section: overview
 title:  "Overview"
 ---
+
 # {{page.title}}
 
-ZIO is a library for asynchronous and concurrent programming that is based on pure functional programming.
+ZIO is a library for asynchronous and concurrent programming that is based on pure functional programming. 
 
-Unlike non-functional Scala programs, ZIO programs only use _pure functions_, which are:
+> For background on how pure functional programming deals with effects like input and output, see the [Background](background.html) section.
 
- * **Total** — Functions return a value for every input.
- * **Deterministic** — Functions return the same value for the same input.
- * **Free of Side Effects** — The only effect of function application is computing the return value.
+At the core of ZIO is `ZIO`, a powerful data type inspired by Haskell's `IO` monad. The `ZIO` effect type lets you solve complex problems with simple, type-safe, testable, and composable code.
 
-Pure functions are easier to understand, easier to test, and easier to refactor.
+# ZIO 
 
-Functional programs do not interact with the external world, because that involves non-determinism and side-effects. Instead, functional programs construct and return _data structures_ that _describe_ interaction with the real world.
+The `ZIO[R, E, A]` data type has three type parameters:
 
-This concept, which is the heart of ZIO, is introduced in the next section.
+ - **`R` - Environment Type**. This is the type of environment required by the effect. An effect that has no requirements can use `Any` for the type parameter.
+ - **`E` - Failure Type**. This is the type of value the effect may fail with. Some applications will use `Throwable`. A type of `Nothing` indicates the effect cannot fail.
+ - **`A` - Success Type**. This is the type of value the effect may succeed with. This type parameter will depend on the specific effect, but `Unit` can be used for effects that do not produce any useful information, while `Nothing` can be used for effects that run forever.
 
-## Programs As Values
+For example, a value of type `ZIO[Any, IOException, Byte]` is an effect that has no requirements; it may fail with a value of type `IOException`, or it may succeed with a value of type `Byte`.
 
-We can build a simple description of a console program that has just three instructions:
+# Type Aliases
 
-```tut
-sealed trait Console[+A]
-final case class Return[A](value: () => A) extends Console[A]
-final case class PrintLine[A](line: String, rest: Console[A]) extends Console[A]
-final case class ReadLine[A](rest: String => Console[A]) extends Console[A]
-```
+Although the `ZIO` data type is the only effect type in ZIO, there are a family of type aliases and companion objects that make it easier to work with common cases:
 
-In this model, `Console[A]` is an immutable data structure, which represents a console program that returns a value of type `A`. The `Console` data structure is a _tree_, and at the very end of the program, you will find a `Return` instruction that stores a value of type `A`, the return value of the `Console[A]` program.
+ - `UIO[A]` — This is a type alias for `ZIO[Any, Nothing, A]`, which represents an effect that has no requirements, and cannot fail, or succeed with an `A`.
+ - `Task[A]` — This is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.
+ - `TaskR[R, A]` — This is a type alias for `ZIO[R, Throwable, A]`, which represents an effect that requires an `R`, and may fail with a `Throwable` value, or succeed with an `A`.
+ - `IO[E, A]` — This is a type alias for `ZIO[Any, E, A]`, which represents an effect that has no requirements, and may fail with an `E`, or succeed with an `A`.
 
-Using this data structure, we can build an interactive program:
+The type aliases all have companion objects, and these companion objects have methods that can be used to construct values of the appropriate type.
 
-```tut
-val example1: Console[Unit] = 
-  PrintLine("Hello, what is your name?",
-    ReadLine(name =>
-      PrintLine(s"Good to meet you, ${name}", Return(() => ())))
-)
-```
+If you are new to functional effects, we recommend starting with the `Task` type, which has a single type parameter, and corresponds most closely to the `Future` data type built into Scala's standard library.
 
-This program is an immutable value, and doesn't do anything&mdash;it just _describes_ a program that prints out a message, asks for input, and prints out another message that depends on the input. 
+If you are using Cats Effect libraries, you may find the `TaskR` type to be most useful, since it allows you to thread requirements through third-party libraries and your application.
 
-Although this program doesn't do anything, we can translate the model into effects quite simply using an interpreter, which recurses on the data structure:
+No matter what type alias you use in your application, `UIO` can be useful for describing infallible effects, including those resulting from handling all errors on fallible effects.
 
-```tut
-def interpret[A](program: Console[A]): A = program match {
-  case Return(value) => 
-    value()
-  case PrintLine(line, next) => 
-    println(line)
-    interpret(next)
-  case ReadLine(next) =>
-    interpret(next(scala.io.StdIn.readLine()))
-}
-```
+Finally, if you are an experienced functional programmer, then direct use of the `ZIO` data type is recommended, although you may find it useful to create your own family of type aliases in different parts of your application.
 
-Interpreting (also called _running_ or _executing_) is not functional, but it only needs to be done a single time: in the main function of the otherwise purely functional application.
+# Next Steps
 
-In practice, it's not very convenient to build console programs using constructors directly. Instead, we can define helper functions, which look more like their effectful equivalents:
-
-```tut
-def succeed[A](a: => A): Console[A] = Return(() => a)
-def printLine(line: String): Console[Unit] =
-  PrintLine(line, succeed(()))
-val readLine: Console[String] =
-  ReadLine(line => succeed(line))
-```
-
-Similarly, it's not easy to compose `Console` values directly, but it's easy to define `map` and `flatMap` methods:
-
-```tut
-implicit class ConsoleSyntax[+A](self: Console[A]) {
-  def map[B](f: A => B): Console[B] =
-    flatMap(a => succeed(f(a)))
-
-  def flatMap[B](f: A => Console[B]): Console[B] =
-    self match {
-      case Return(value) => f(value())
-      case PrintLine(line, next) =>
-        PrintLine(line, next.flatMap(f))
-      case ReadLine(next) =>
-        ReadLine(line => next(line).flatMap(f))
-    }
-}
-```
-
-With these `map` and `flatMap` methods, we can now take advantage of Scala's `for` comprehensions, and write programs that look like their effectful equivalents:
-
-```tut
-val example2: Console[String] =
-  for {
-    _    <- printLine("What's your name?")
-    name <- readLine
-    _    <- printLine(s"Hello, ${name}, good to meet you!")
-  } yield name
-```
-
-When we wish to execute this program, we can call `interpret` on the `Console` value. 
-
-All purely functional programs are constructed this way: instead of interacting with the real world, they build a tree-like data structure. This model of a program _describes_ interaction with the real world, but doesn't do anything itself&mdash;it's just a type-safe, immutable data structure.
-
-ZIO programs build `ZIO` data structures, which are far more powerful, and model asynchronous and concurrent effects, with powerful features and strong guarantees that help you solve the most challenging problems imagineable.
-
-# ZIO
-
-At the core of ZIO is `ZIO`, a powerful data type inspired by Haskell's `IO` monad. The `ZIO` data type allows you to model asynchronous, concurrent, and effectful computations as a pure value.
-
-Effect types like `ZIO` are how purely functional programs interact with the real world. Functional programmers use them to build complex, real world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.
-
-There are many benefits of building your programs using `ZIO`, including all of the following:
-
- * **Asynchronicity**. Like Scala's own `Future`, `ZIO` lets you easily write asynchronous code without blocking or callbacks. Compared to `Future`, `ZIO` has significantly better performance and cleaner, more expressive, and more composable semantics.
- * **Composability**. Purely functional code can't be combined with impure code that has side-effects without sacrificing the straightforward reasoning properties of functional programming. `ZIO` lets you wrap up all effects into a purely functional package that lets you build composable real world programs.
- * **Concurrency**. `ZIO` has all the concurrency features of `Future`, and more, based on a clean fiber concurrency model designed to scale well past the limits of native threads. `ZIO`'s concurrency primitives do not leak resources.
- * **Interruptibility**. All concurrent computations can be interrupted, in a way that still guarantees resources are cleaned up safely, allowing you to write aggressively parallel code that doesn't waste valuable resources or bring down production servers.
- * **Resource Safety**. `ZIO` provides composable resource-safe primitives that ensure resources like threads, sockets, and file handles are not leaked, which allows you to build long-running, robust applications. These applications will not leak resources, even in the presence of errors or interruption.
- * **Testability**. `ZIO` allows you to declare dependencies for your code (like database, configuration, or web service) in a compositional, type-safe way, and easily inject both live and test versions, so you can build fast, deterministic unit tests that give you confidence to refactor safely.
- * **Immutability**. `ZIO`, like Scala's immutable collection types, is an immutable data structure. All `ZIO` methods and functions return new `ZIO` values. This lets you reason about `ZIO` values the same way you reason about immutable collections.
- * **Reification**. `ZIO` reifies programs. In non-functional Scala programming, you cannot pass programs around or store them in data structures, because programs are not values. But `ZIO` turns your programs into ordinary values, and lets you pass them around and compose them with ease.
- * **Performance**. Although simple, synchronous `ZIO` programs tend to be slower than the equivalent imperative Scala, `ZIO` is extremely fast given all the expressive features and strong guarantees it provides. Ordinary imperative Scala could not provide these features and performance without tedious, error-prone boilerplate that no one would ever write.
-
-Nearly all programmers will find the features of `ZIO` help them build scalable, performant, concurrent, and leak-free applications faster and with stronger correctness guarantees than legacy techniques allow.
-
+If you are comfortable with the ZIO data type (and its family of type aliases), the next step is learning how to [create effects](creating_effects.html).

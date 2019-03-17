@@ -96,6 +96,9 @@ object Scalaz {
     }
 
   def stdSettings(prjName: String) = Seq(
+    excludeDependencies ++= Seq(
+      ExclusionRule("org.scalameta", "mdoc")
+    ),
     name := s"scalaz-$prjName",
     scalacOptions := stdOptions,
     crossScalaVersions := Seq("2.12.8", "2.13.0-M5"),

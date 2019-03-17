@@ -286,11 +286,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     tryOrElse(that.map(Right(_)), ZIO.succeedLeft)
 
   private final def tryOrElse[R1 <: R, E2, B](that: => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    (self.tag: @switch) match {
-      case ZIO.Tags.Fail => that
-
-      case _ => new ZIO.Fold[R1, E, E2, A, B](self, _ => that, succ)
-    }
+    new ZIO.Fold[R1, E, E2, A, B](
+      self,
+      _.stripFailures match {
+        case None    => that
+        case Some(c) => ZIO.halt(c)
+      },
+      succ
+    )
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -453,8 +456,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         }
     )(use)
 
-  final def managed(release: A => UIO[_]): Managed[R, E, A] =
-    Managed.make(this)(release)
+  /**
+   * Converts this ZIO to [[scalaz.zio.Managed]].
+   */
+  final def toManaged(release: A => UIO[_]): ZManaged[R, E, A] =
+    ZManaged.make(this)(release)
 
   /**
    * Runs the specified effect if this effect fails, providing the error to the
@@ -562,7 +568,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     orDieWith(ev)
 
   /**
-   * Keeps none of the errors, and terminates the fiber with then, using
+   * Keeps none of the errors, and terminates the fiber with them, using
    * the specified function to convert the `E` into a `Throwable`.
    */
   final def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
@@ -648,7 +654,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Repeats are done in addition to the first execution so that
    * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
    */
-  final def repeat[R1 <: R, B](schedule: Schedule[R1, A, B]): ZIO[R1 with Clock, E, B] =
+  final def repeat[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZIO[R1 with Clock, E, B] =
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
@@ -657,7 +663,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * to date, together with the error, will be passed to the specified handler.
    */
   final def repeatOrElse[R1 <: R, E2, B](
-    schedule: Schedule[R1, A, B],
+    schedule: ZSchedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
   ): ZIO[R1 with Clock, E2, B] =
     repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
@@ -668,7 +674,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * to date, together with the error, will be passed to the specified handler.
    */
   final def repeatOrElseEither[R1 <: R, B, E2, C](
-    schedule: Schedule[R1, A, B],
+    schedule: ZSchedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
   ): ZIO[R1 with Clock, E2, Either[C, B]] = {
     def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
@@ -690,7 +696,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, E1 >: E, S](policy: Schedule[R1, E1, S]): ZIO[R1 with Clock, E1, A] =
+  final def retry[R1 <: R, E1 >: E, S](policy: ZSchedule[R1, E1, S]): ZIO[R1 with Clock, E1, A] =
     retryOrElse[R1, A, E1, S, E1](policy, (e: E1, _: S) => ZIO.fail(e))
 
   /**
@@ -699,7 +705,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the recovery function.
    */
   final def retryOrElse[R1 <: R, A2 >: A, E1 >: E, S, E2](
-    policy: Schedule[R1, E1, S],
+    policy: ZSchedule[R1, E1, S],
     orElse: (E1, S) => ZIO[R1, E2, A2]
   ): ZIO[R1 with Clock, E2, A2] =
     retryOrElseEither(policy, orElse).map(_.merge)
@@ -710,7 +716,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the recovery function.
    */
   final def retryOrElseEither[R1 <: R, E1 >: E, S, E2, B](
-    policy: Schedule[R1, E1, S],
+    policy: ZSchedule[R1, E1, S],
     orElse: (E1, S) => ZIO[R1, E2, B]
   ): ZIO[R1 with Clock, E2, Either[B, A]] = {
     def loop(state: policy.State): ZIO[R1 with Clock, E2, Either[B, A]] =
@@ -1399,9 +1405,19 @@ trait ZIOFunctions extends Serializable {
     ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _)
 
   /**
-   * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
+   * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
    */
   final def reduceAll[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
+    f: (A, A) => A
+  ): ZIO[R1, E, A] =
+    as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
+      l.zip(r).map(f.tupled)
+    }
+
+  /**
+   * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
+   */
+  final def reduceAllPar[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
   ): ZIO[R1, E, A] =
     as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
@@ -1409,9 +1425,17 @@ trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Merges an `Iterable[IO]` to a single IO, working in parallel.
+   * Merges an `Iterable[IO]` to a single IO, working sequentially.
    */
   final def mergeAll[R >: LowerR, E <: UpperE, A, B](
+    in: Iterable[ZIO[R, E, A]]
+  )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
+    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
+
+  /**
+   * Merges an `Iterable[IO]` to a single IO, working in parallel.
+   */
+  final def mergeAllPar[R >: LowerR, E <: UpperE, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
