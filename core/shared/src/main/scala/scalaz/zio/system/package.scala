@@ -17,24 +17,14 @@
 package scalaz.zio
 
 package object system {
-  def env(variable: String): ZIO[System, SecurityException, Option[String]] = systemPackage.env(variable)
-  def property(prop: String): ZIO[System, Throwable, Option[String]]        = systemPackage.property(prop)
-  val lineSeparator: ZIO[System, Nothing, String]                           = systemPackage.lineSeparator
-}
-
-import system._
-
-private object systemPackage extends System.Service[System] {
+  def systemService: ZIO[System, Nothing, System.Service[Any]] = ZIO.access(_.system)
 
   /** Retrieve the value of an environment variable **/
-  def env(variable: String): ZIO[System, SecurityException, Option[String]] =
-    ZIO.accessM(_.system env variable)
+  def env(variable: String): ZIO[System, SecurityException, Option[String]] = ZIO.accessM(_.system.env(variable))
 
   /** Retrieve the value of a system property **/
-  def property(prop: String): ZIO[System, Throwable, Option[String]] =
-    ZIO.accessM(_.system property prop)
+  def property(prop: String): ZIO[System, Throwable, Option[String]] = ZIO.accessM(_.system.property(prop))
 
   /** System-specific line separator **/
-  val lineSeparator: ZIO[System, Nothing, String] =
-    ZIO.accessM(_.system.lineSeparator)
+  val lineSeparator: ZIO[System, Nothing, String] = ZIO.accessM(_.system.lineSeparator)
 }
