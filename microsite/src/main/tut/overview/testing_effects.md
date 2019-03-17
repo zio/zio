@@ -37,8 +37,8 @@ case class Config(server: String, port: Int)
 
 val z: ZIO[Config, Nothing, String] = 
   for {
-    server <- ZIO.access[Config, String](_.server)
-    port   <- ZIO.access[Config, Int](_.port)
+    server <- ZIO.access[Config](_.server)
+    port   <- ZIO.access[Config](_.port)
   } yield s"Server: $server, port: $port"
 ```
 
@@ -52,8 +52,8 @@ trait DatabaseOps {
 
 val z: ZIO[DatabaseOps, Throwable, (List[String], List[String])] = 
   for {
-    tables  <- ZIO.accessM((ops: DatabaseOps) => ops.tableNames)
-    columns <- ZIO.accessM((ops: DatabaseOps) => ops.columnNames("user_table"))
+    tables  <- ZIO.accessM[DatabaseOps](_.tableNames)
+    columns <- ZIO.accessM[DatabaseOps](_.columnNames("user_table"))
   } yield (tables, columns)
 ```
 
