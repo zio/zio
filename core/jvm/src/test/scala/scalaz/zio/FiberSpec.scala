@@ -10,8 +10,11 @@ class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e1 = unsafeRun(
     for {
       ref   <- Ref.make(false)
-      fiber <- IO.unit.bracket(_ => ref.set(true))(_ => IO.never).fork
+      latch <- Promise.make[Nothing, Unit]
+      fiber <- (latch.succeed(()) *> IO.unit).bracket_(ref.set(true))(IO.never).fork
+      _     <- latch.await
       _     <- fiber.toManaged.use(_ => IO.unit)
+      _     <- fiber.await
       value <- ref.get
     } yield value must beTrue
   )
