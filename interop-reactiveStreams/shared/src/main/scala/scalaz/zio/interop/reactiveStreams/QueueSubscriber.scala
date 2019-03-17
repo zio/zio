@@ -28,14 +28,14 @@ private[reactiveStreams] class QueueSubscriber[A](
       subscription.cancel()
     } else {
       subscriptionOpt = Some(subscription)
-      runtime.unsafeRunAsync(q.awaitShutdown *> UIO(subscription.cancel()))(_ => ())
+      runtime.unsafeRunAsync_(q.awaitShutdown *> UIO(subscription.cancel()))
       subscription.request(q.capacity.toLong)
     }
   }
 
   override def onNext(t: A): Unit = {
     if (t == null) throw new NullPointerException("t was null in onNext")
-    runtime.unsafeRun(q.offer(Value(t)))
+    runtime.unsafeRunSync(q.offer(Value(t)))
     signalledDemand -= 1
   }
 
@@ -43,12 +43,14 @@ private[reactiveStreams] class QueueSubscriber[A](
     if (e == null) throw new NullPointerException("t was null in onError")
     signalledDemand = 0
     subscriptionOpt = None
-    runtime.unsafeRun(q.offer(Fail(e)).void)
+    runtime.unsafeRunSync(q.offer(Fail(e)).void)
+    ()
   }
 
   override def onComplete(): Unit = {
     signalledDemand = 0
     subscriptionOpt = None
-    runtime.unsafeRun(q.offer(End).void)
+    runtime.unsafeRunSync(q.offer(End).void)
+    ()
   }
 }
