@@ -25,8 +25,8 @@ object Scalaz {
     "-Xlint:_,-type-parameter-shadow",
     "-Xsource:2.13",
     "-Ywarn-numeric-widen",
-    //"-Ywarn-value-discard",
-    //"-Ywarn-value-discard",
+    "-Ywarn-value-discard",
+    "-Ywarn-value-discard",
     "-Xfatal-warnings"
   )
 
