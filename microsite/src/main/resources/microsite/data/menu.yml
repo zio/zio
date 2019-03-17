@@ -19,6 +19,10 @@ options:
       url: overview/handling_resources.html
     - title: Basic Concurrency
       url: overview/basic_concurrency.html
+    - title: Testing Effects
+      url: overview/testing_effects.html
+    - title: Running Effects
+      url: overview/running_effects.html
 
   - title: Data Types
     url: datatypes/

@@ -737,10 +737,17 @@ trait Stream_Functions extends Serializable {
         IO.succeedLazy { (s, cont, f) =>
           if (cont(s))
             m use { a =>
-              read(a).flatMap {
-                case None    => IO.succeed(s)
-                case Some(b) => f(s, b)
-              }
+              def loop(s: S): ZIO[R1, E1, S] =
+                read(a).flatMap {
+                  case None => IO.succeed(s)
+                  case Some(b) =>
+                    f(s, b) flatMap { s =>
+                      if (cont(s)) loop(s)
+                      else IO.succeed(s)
+                    }
+                }
+
+              loop(s)
             } else IO.succeed(s)
         }
     }
