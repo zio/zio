@@ -57,9 +57,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.4.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.4.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.4.0" % Test
+      "org.specs2" %%% "specs2-core"          % "4.4.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.4.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.4.1" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -234,6 +234,7 @@ lazy val microsite = project.module
   .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM, interopReactiveStreamsJVM)
   .enablePlugins(MicrositesPlugin)
   .settings(
+    unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
@@ -244,7 +245,7 @@ lazy val microsite = project.module
     ),
     micrositeFooterText := Some(
       """
-        |<p>&copy; 2018 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
+        |<p>&copy; 2018-2019 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
         |""".stripMargin
     ),
     micrositeName := "",

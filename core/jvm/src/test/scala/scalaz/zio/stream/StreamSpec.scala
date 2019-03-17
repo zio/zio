@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime, UIO }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
@@ -19,7 +19,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def is = "StreamSpec".title ^ s2"""
   PureStream.filter         $filter
   PureStream.dropWhile      $dropWhile
-  PureStream.takeWhile      $takeWhile
   PureStream.mapProp        $map
   PureStream.mapConcat      $mapConcat
   Stream.filterM            $filterM
@@ -28,20 +27,31 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
   Stream.range              $range
-  Stream.take               $take
+
+  Stream.take
+    take                     $take
+    take short circuits      $takeShortCircuits
+    takeWhile                $takeWhile
+    takeWhile short circuits $takeWhileShortCircuits
+
   Stream.foreach0           $foreach0
   Stream.foreach            $foreach
   Stream.collect            $collect
   Stream.forever            $forever
   Stream.scanM              $mapAccumM
   Stream.transduce          $transduce
-  Stream.tap         $tap
+  Stream.tap                $tap
   Stream.fromIterable       $fromIterable
   Stream.fromChunk          $fromChunk
   Stream.fromQueue          $fromQueue
   Stream.toQueue            $toQueue
   Stream.peel               $peel
   Stream.drain              $drain
+
+  Stream bracketing
+    bracket                              $bracket
+    bracket short circuits               $bracketShortCircuits
+    no acquisition when short circuiting $bracketNoAcquisition
 
   Stream merging
     merge                         $merge
@@ -89,6 +99,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       val listTakeWhile   = slurp(s).map(_.takeWhile(p))
       listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
     }
+
+  private def takeWhileShortCircuits =
+    unsafeRun(
+      for {
+        ran    <- Ref.make(false)
+        stream = (Stream(1) ++ Stream.fromEffect(ran.set(true)).drain).takeWhile(_ => false)
+        _      <- stream.run(Sink.drain)
+        result <- ran.get
+      } yield result must_=== false
+    )
 
   private def map =
     prop { (s: Stream[String, String], f: String => Int) =>
@@ -140,9 +160,18 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     prop { (s: Stream[String, String], n: Int) =>
       val takeStreamesult = slurp(s.take(n))
       val takeListResult  = slurp(s).map(_.take(n))
-      (takeListResult.succeeded ==> (takeStreamesult must_=== takeListResult)) //&&
-    // ((!takeStreamesult.succeeded) ==> (!takeListResult.succeeded))
+      (takeListResult.succeeded ==> (takeStreamesult must_=== takeListResult))
     }
+
+  private def takeShortCircuits =
+    unsafeRun(
+      for {
+        ran    <- Ref.make(false)
+        stream = (Stream(1) ++ Stream.fromEffect(ran.set(true)).drain).take(0)
+        _      <- stream.run(Sink.drain)
+        result <- ran.get
+      } yield result must_=== false
+    )
 
   private def foreach0 = {
     var sum = 0
@@ -373,5 +402,45 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _   <- Stream.range(0, 10).mapM(i => ref.update(i :: _)).drain.run(Sink.drain)
         l   <- ref.get
       } yield l.reverse must_=== (0 to 10).toList
+    )
+
+  private def bracket =
+    unsafeRun(
+      for {
+        done <- Ref.make(false)
+        iteratorStream = Stream.bracket(UIO(Iterator.range(0, 3)))(_ => done.set(true)) { it =>
+          if (it.hasNext) UIO(Some(it.next))
+          else UIO(None)
+        }
+        result   <- iteratorStream.run(Sink.collect[Int])
+        released <- done.get
+      } yield (result must_=== List(0, 1, 2)) and (released must_=== true)
+    )
+
+  private def bracketShortCircuits =
+    unsafeRun(
+      for {
+        done <- Ref.make(false)
+        iteratorStream = Stream
+          .bracket(UIO(Iterator.range(0, 3)))(_ => done.set(true)) { it =>
+            if (it.hasNext) UIO(Some(it.next))
+            else UIO(None)
+          }
+          .take(2)
+        result   <- iteratorStream.run(Sink.collect[Int])
+        released <- done.get
+      } yield (result must_=== List(0, 1)) and (released must_=== true)
+    )
+
+  private def bracketNoAcquisition =
+    unsafeRun(
+      for {
+        acquired <- Ref.make(false)
+        iteratorStream = (Stream(1) ++ Stream.bracket(acquired.set(true))(_ => UIO.unit) { _ =>
+          UIO(Some(()))
+        }).take(0)
+        _      <- iteratorStream.run(Sink.drain)
+        result <- acquired.get
+      } yield result must_=== false
     )
 }

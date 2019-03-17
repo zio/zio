@@ -39,7 +39,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
   import Exit._
 
   private def slurp[E, A](s: StreamChunk[E, A]): Exit[E, Seq[A]] = s match {
-    case s: StreamChunkPure[Any, A] =>
+    case s: StreamChunkPure[A] =>
       succeed(
         s.chunks.foldPureLazy(Chunk.empty: Chunk[A])(_ => true)((acc, el) => acc ++ el).toSeq
       )
