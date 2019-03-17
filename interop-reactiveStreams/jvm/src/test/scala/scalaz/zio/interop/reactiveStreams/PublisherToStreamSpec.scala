@@ -34,8 +34,7 @@ class PublisherToStreamSpec(implicit ee: ExecutionEnv) extends TestRuntime with 
     unsafeRunSync(
       for {
         publisher <- UIO(src.runWith(AkkaSink.asPublisher(fanout = false)))
-        stream    <- publisher.toStream()
-        r         <- stream.run(Sink.collect[Int])
+        r         <- publisher.toStream().run(Sink.collect[Int])
       } yield r
     )
 

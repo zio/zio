@@ -839,7 +839,8 @@ object ZStream extends Stream_Functions {
   type Fold[R, E, +A, S] = ZIO[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZIO[R, E, S]]
 
   implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
-    def unTake: ZStream[R, E, A] = s.mapM(t => Take.option(UIO.succeed(t))).takeWhile(_.isDefined).map(_.get)
+    def unTake: ZStream[R, E, A] =
+      s.mapM(t => Take.option(UIO.succeed(t))).takeWhile(_.isDefined).collect { case Some(v) => v }
   }
 
 }

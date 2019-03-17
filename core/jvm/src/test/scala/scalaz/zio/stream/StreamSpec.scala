@@ -393,9 +393,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def unTakeError = {
     val e = new RuntimeException("boom")
     unsafeRunSync(
-      Stream
-        .range(0, 10)
-        .++(Stream.fail(e))
+      (Stream.range(0, 10) ++ Stream.fail(e))
         .toQueue[Throwable, Int](1)
         .use { q =>
           Stream.fromQueue(q).unTake.run(Sink.collect[Int])

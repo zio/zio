@@ -14,7 +14,7 @@ class SubscriberToSinkSpec(implicit ee: ExecutionEnv) extends TestRuntime with A
 
   def is: SpecStructure =
     "SubscriberToSinkSpec".title ^ s2"""
-   Check if a `Subscriber`converted to a `Sink` correctly
+   Check if a `Subscriber` converted to a `Sink` correctly
      works on the happy path $e1
      transports errors $e2
     """
