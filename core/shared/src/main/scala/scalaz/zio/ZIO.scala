@@ -1006,14 +1006,14 @@ trait ZIOFunctions extends Serializable {
    * val portNumber = effect.access(_.config.portNumber)
    * }}}
    */
-  final def access[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
-    accessM(f.andThen(succeed))
+  final def access[R >: LowerR]: ZIO.AccessPartiallyApplied[R] =
+    new ZIO.AccessPartiallyApplied[R]
 
   /**
    * Effectfully accesses the environment of the effect.
    */
-  final def accessM[R >: LowerR, E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.Read(f)
+  final def accessM[R >: LowerR]: ZIO.AccessMPartiallyApplied[R] =
+    new ZIO.AccessMPartiallyApplied[R]
 
   /**
    * Given an environment `R`, returns a function that can supply the
@@ -1625,6 +1625,16 @@ object ZIO extends ZIO_R_Any {
           b <- f.join
         } yield b).ensuring(flatten(m.get))
       }
+  }
+
+  class AccessPartiallyApplied[R >: LowerR] {
+    def apply[A](f: R => A): ZIO[R, Nothing, A] =
+      new ZIO.Read(r => succeed(f(r)))
+  }
+
+  class AccessMPartiallyApplied[R >: LowerR] {
+    def apply[E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
+      new ZIO.Read(f)
   }
 
   @inline
