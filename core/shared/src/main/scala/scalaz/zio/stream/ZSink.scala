@@ -481,7 +481,7 @@ object ZSink {
   final def collect[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
     fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
 
-  final def liftIO[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
+  final def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
     new ZSink[R, E, Nothing, Any, B] {
       type State = Unit
       val initial                                                     = IO.succeed(Step.done((), Chunk.empty))
