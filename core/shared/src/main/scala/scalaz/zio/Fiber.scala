@@ -174,7 +174,7 @@ trait Fiber[+E, +A] { self =>
       UIO.effectTotal(p.future) <*
         self.await
           .flatMap[Any, Nothing, Unit](
-            _.foldM(cause => UIO(p.failure(cause.squashWith(f))), value => UIO(p.success(value)))
+            _.foldM[Nothing, Unit](cause => UIO(p.failure(cause.squashWith(f))), value => UIO(p.success(value)))
           )
           .fork
     }.flatten

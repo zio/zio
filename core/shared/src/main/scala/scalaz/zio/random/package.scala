@@ -16,7 +16,25 @@
 
 package scalaz.zio
 
-package object random extends Random.Service[Random] {
+import scalaz.zio.random.Random
+
+package object random {
+
+  val randomService: ZIO[Random, Nothing, Random.Service[Any]]  = randomPackage.randomService
+  val nextBoolean: ZIO[Random, Nothing, Boolean]                = randomPackage.nextBoolean
+  def nextBytes(length: Int): ZIO[Random, Nothing, Chunk[Byte]] = randomPackage.nextBytes(length)
+  val nextDouble: ZIO[Random, Nothing, Double]                  = randomPackage.nextDouble
+  val nextFloat: ZIO[Random, Nothing, Float]                    = randomPackage.nextFloat
+  val nextGaussian: ZIO[Random, Nothing, Double]                = randomPackage.nextGaussian
+  def nextInt(n: Int): ZIO[Random, Nothing, Int]                = randomPackage.nextInt(n)
+  val nextInt: ZIO[Random, Nothing, Int]                        = randomPackage.nextInt
+  val nextLong: ZIO[Random, Nothing, FiberId]                   = randomPackage.nextLong
+  val nextPrintableChar: ZIO[Random, Nothing, Char]             = randomPackage.nextPrintableChar
+  def nextString(length: Int): ZIO[Random, Nothing, String]     = randomPackage.nextString(length)
+
+}
+
+private object randomPackage extends Random.Service[Random] {
   final val randomService: ZIO[Random, Nothing, Random.Service[Any]] =
     ZIO.access(_.random)
 

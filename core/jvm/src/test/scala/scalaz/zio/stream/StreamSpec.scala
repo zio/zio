@@ -82,6 +82,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import ArbitraryStream._
   import Exit._
 
+  //in scala 2.11 the proof for Any in not found by the compiler
+  import Stream._
+
   private def filter =
     prop { (s: Stream[String, String], p: String => Boolean) =>
       slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))

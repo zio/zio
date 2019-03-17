@@ -16,7 +16,15 @@
 
 package scalaz.zio
 
-package object system extends System.Service[System] {
+package object system {
+  def env(variable: String): ZIO[System, SecurityException, Option[String]] = systemPackage.env(variable)
+  def property(prop: String): ZIO[System, Throwable, Option[String]]        = systemPackage.property(prop)
+  val lineSeparator: ZIO[System, Nothing, String]                           = systemPackage.lineSeparator
+}
+
+import system._
+
+private object systemPackage extends System.Service[System] {
 
   /** Retrieve the value of an environment variable **/
   def env(variable: String): ZIO[System, SecurityException, Option[String]] =

@@ -25,8 +25,8 @@ object Scalaz {
     "-Xlint:_,-type-parameter-shadow",
     "-Xsource:2.13",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard",
-    "-Ywarn-value-discard",
+    //"-Ywarn-value-discard",
+    //"-Ywarn-value-discard",
     "-Xfatal-warnings"
   )
 
@@ -101,7 +101,7 @@ object Scalaz {
     ),
     name := s"scalaz-$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.8", "2.13.0-M5"),
+    crossScalaVersions := Seq("2.12.8", "2.13.0-M5", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(

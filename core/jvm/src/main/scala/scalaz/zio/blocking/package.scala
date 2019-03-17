@@ -18,7 +18,14 @@ package scalaz.zio
 
 import scalaz.zio.internal.Executor
 
-package object blocking extends Blocking.Service[Blocking] {
+package object blocking {
+  final def blockingExecutor: ZIO[Blocking, Nothing, Executor]                = blockingPackage.blockingExecutor
+  final def blocking[R1 <: Blocking, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] = blockingPackage.blocking(zio)
+  final def interruptible[A](effect: => A): ZIO[Blocking, Throwable, A]       = blockingPackage.interruptible(effect)
+}
+
+import blocking._
+private object blockingPackage extends Blocking.Service[Blocking] {
   def blockingExecutor: ZIO[Blocking, Nothing, Executor] =
     ZIO.accessM(_.blocking.blockingExecutor)
 }

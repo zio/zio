@@ -18,7 +18,17 @@ package scalaz.zio
 
 import java.io.IOException
 
-package object console extends Console.Service[Console] {
+package object console {
+
+  final val consoleService: ZIO[Console, Nothing, Console.Service[Any]] = consolePackage.consoleService
+  final def putStr(line: String): ZIO[Console, Nothing, Unit]           = consolePackage.putStr(line)
+  final def putStrLn(line: String): ZIO[Console, Nothing, Unit]         = consolePackage.putStrLn(line)
+  final val getStrLn: ZIO[Console, IOException, String]                 = consolePackage.getStrLn
+}
+
+import console._
+
+private object consolePackage extends Console.Service[Console] {
   final val consoleService: ZIO[Console, Nothing, Console.Service[Any]] =
     ZIO.access(_.console)
 

@@ -17,10 +17,20 @@
 package scalaz.zio
 
 import scalaz.zio.duration.Duration
-
 import java.util.concurrent.TimeUnit
 
-package object clock extends Clock.Service[Clock] {
+import scalaz.zio.clock.Clock
+
+package object clock {
+
+  final def clockService: ZIO[Clock, Nothing, Clock.Service[Any]]  = clockPackage.clockService
+  final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit]   = clockPackage.sleep(duration)
+  final def currentTime(unit: TimeUnit): ZIO[Clock, Nothing, Long] = clockPackage.currentTime(unit)
+  final def nanoTime: ZIO[Clock, Nothing, Long]                    = clockPackage.nanoTime
+
+}
+
+private object clockPackage extends Clock.Service[Clock] {
   final val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
     ZIO.access(_.clock)
 
