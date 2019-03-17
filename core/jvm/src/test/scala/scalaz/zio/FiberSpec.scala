@@ -11,8 +11,9 @@ class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     for {
       ref   <- Ref.make(false)
       latch <- Promise.make[Nothing, Unit]
-      fiber <- IO.unit.bracket(_ => ref.set(true) *> latch.succeed(()))(_ => IO.never).fork
+      fiber <- IO.unit.bracket(_ => ref.set(true))(_ => latch.succeed(()) *> IO.never).fork
       _     <- fiber.toManaged.use(_ => latch.await)
+      _     <- fiber.await
       value <- ref.get
     } yield value must beTrue
   )
