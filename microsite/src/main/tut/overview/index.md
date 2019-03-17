@@ -23,9 +23,17 @@ The `ZIO[R, E, A]` data type has three type parameters:
 
 For example, a value of type `ZIO[Any, IOException, Byte]` is an effect that has no requirements; it may fail with a value of type `IOException`, or it may succeed with a value of type `Byte`.
 
+A value of type `ZIO[R, E, A]` can be thought of as an effectful version of the following function type:
+
+```scala
+R => Either[E, A]
+```
+
+The function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing a success. ZIO effects are not actually functions, of course, because they model complex effects.
+
 # Type Aliases
 
-Although the `ZIO` data type is the only effect type in ZIO, there are a family of type aliases and companion objects that make it easier to work with common cases:
+The `ZIO` data type is the only effect type in ZIO. However, there are a family of type aliases and companion objects that simplify common cases:
 
  - `UIO[A]` — This is a type alias for `ZIO[Any, Nothing, A]`, which represents an effect that has no requirements, and cannot fail, or succeed with an `A`.
  - `Task[A]` — This is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.
@@ -36,7 +44,7 @@ The type aliases all have companion objects, and these companion objects have me
 
 If you are new to functional effects, we recommend starting with the `Task` type, which has a single type parameter, and corresponds most closely to the `Future` data type built into Scala's standard library.
 
-If you are using Cats Effect libraries, you may find the `TaskR` type to be most useful, since it allows you to thread requirements through third-party libraries and your application.
+If you are using _Cats Effect_ libraries, you may find the `TaskR` type useful, since it allows you to thread environments through third-party libraries and your application.
 
 No matter what type alias you use in your application, `UIO` can be useful for describing infallible effects, including those resulting from handling all errors on fallible effects.
 

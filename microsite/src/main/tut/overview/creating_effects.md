@@ -169,7 +169,7 @@ trait User
 trait AuthError
 ```
 
-```tut
+```tut:silent
 object legacy {
   def login(
     onSuccess: User      => Unit, onFailure: AuthError => Unit): Unit = ???
@@ -194,7 +194,7 @@ ZIO provides the `scalaz.zio.blocking` package, which can be used to safely conv
 
 A blocking side-effect can be converted directly into an interruptible ZIO effect with the `interruptible` method:
 
-```tut
+```tut:silent
 import scalaz.zio.blocking._
 
 val sleeping = 
@@ -205,7 +205,7 @@ The resulting effect will be executed on a separate thread pool designed specifi
 
 If a side-effect has already been converted into a ZIO effect, then instead of `interruptible`, the `blocking` method can be used to shift the effect onto the blocking thread pool:
 
-```tut
+```tut:silent
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
