@@ -16,7 +16,10 @@
 
 package scalaz.zio
 
-package object system extends System.Service[System] {
+// This cannot extend System.Service[System] because of Scala 2.11 support
+package object system {
+
+  def systemService: ZIO[System, Nothing, System.Service[Any]] = ZIO.access(_.system)
 
   /** Retrieve the value of an environment variable **/
   def env(variable: String): ZIO[System, SecurityException, Option[String]] =
