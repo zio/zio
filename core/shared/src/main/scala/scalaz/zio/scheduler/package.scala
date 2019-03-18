@@ -18,6 +18,7 @@ package scalaz.zio
 
 import scalaz.zio.internal.{ Scheduler => IScheduler }
 
+// This cannot extend Scheduler.Service[Scheduler] because of Scala 2.11 support
 package object scheduler {
   final val schedulerService: ZIO[Scheduler, Nothing, Scheduler.Service[Any]] =
     ZIO.access(_.scheduler)

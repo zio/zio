@@ -20,6 +20,7 @@ import scalaz.zio.duration.Duration
 
 import java.util.concurrent.TimeUnit
 
+// This cannot extend Clock.Service[Clock] because of Scala 2.11 support
 package object clock {
   final val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
     ZIO.access(_.clock)

@@ -16,6 +16,7 @@
 
 package scalaz.zio
 
+// This cannot extend Random.Service[Random] because of Scala 2.11 support
 package object random {
   final val randomService: ZIO[Random, Nothing, Random.Service[Any]] =
     ZIO.access(_.random)

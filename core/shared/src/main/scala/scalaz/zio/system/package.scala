@@ -16,6 +16,7 @@
 
 package scalaz.zio
 
+// This cannot extend System.Service[System] because of Scala 2.11 support
 package object system {
 
   def systemService: ZIO[System, Nothing, System.Service[Any]] = ZIO.access(_.system)

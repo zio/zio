@@ -18,6 +18,7 @@ package scalaz.zio
 
 import scalaz.zio.internal.Executor
 
+// This cannot extend Blocking.Service[Blocking] because of Scala 2.11 support
 package object blocking {
   def blockingExecutor: ZIO[Blocking, Nothing, Executor] =
     ZIO.accessM(_.blocking.blockingExecutor)
