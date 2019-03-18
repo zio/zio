@@ -1,9 +1,10 @@
 package scalaz.zio.interop.reactiveStreams
 
-import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Source, Sink => AkkaSink }
+import akka.stream.scaladsl.{ Keep, Sink => AkkaSink }
+import akka.stream.testkit.TestPublisher.Probe
+import akka.stream.testkit.scaladsl.TestSource
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.AfterAll
 import org.specs2.specification.core.SpecStructure
@@ -30,17 +31,38 @@ class PublisherToStreamSpec(implicit ee: ExecutionEnv) extends TestRuntime with 
   private val e   = new RuntimeException("boom")
   private val seq = List.range(0, 100)
 
-  private def publish(src: Source[Int, NotUsed]): Exit[Throwable, List[Int]] =
-    unsafeRunSync(
+  private val bufferSize = 10
+
+  private def publish(seq: List[Int], failure: Option[Throwable]): Exit[Throwable, List[Int]] = {
+
+    val probePublisherGraph = TestSource.probe[Int].toMat(AkkaSink.asPublisher(fanout = false))(Keep.both)
+
+    def loop(probe: Probe[Int], remaining: List[Int], pending: Int): Task[Unit] =
       for {
-        publisher <- UIO(src.runWith(AkkaSink.asPublisher(fanout = false)))
-        r         <- publisher.toStream().run(Sink.collect[Int])
+        n             <- Task(probe.expectRequest())
+        _             <- Task(assert(n + pending <= bufferSize))
+        half          = n.toInt / 2 + 1
+        (nextN, tail) = remaining.splitAt(half)
+        _             <- Task(nextN.foreach(probe.sendNext))
+        _ <- if (nextN.size < half) Task(failure.fold(probe.sendComplete())(probe.sendError))
+            else loop(probe, tail, n.toInt - half)
+      } yield ()
+
+    unsafeRunSync {
+      for {
+        pp                 <- Task(probePublisherGraph.run())
+        (probe, publisher) = pp
+        fiber              <- publisher.toStream(bufferSize).run(Sink.collect[Int]).fork
+        _                  <- Task(probe.ensureSubscription())
+        _                  <- loop(probe, seq, 0)
+        r                  <- fiber.join
       } yield r
-    )
+    }
+  }
 
-  private val e1 = publish(Source(seq)) should_=== Exit.Success(seq)
+  private val e1 = publish(seq, None) should_=== Exit.Success(seq)
 
-  private val e2 = publish(Source.failed[Int](e)) should_=== Exit.Failure(Cause.Fail(`e`))
+  private val e2 = publish(Nil, Some(e)) should_=== Exit.Failure(Cause.Fail(`e`))
 
-  private val e3 = publish(Source(seq).concat(Source.failed(e))) should_=== Exit.Failure(Cause.Fail(`e`))
+  private val e3 = publish(seq, Some(e)) should_=== Exit.Failure(Cause.Fail(`e`))
 }

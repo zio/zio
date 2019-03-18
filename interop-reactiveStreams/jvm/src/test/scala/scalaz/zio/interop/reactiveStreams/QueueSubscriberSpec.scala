@@ -1,8 +1,7 @@
 package scalaz.zio.interop.reactiveStreams
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.core.SpecStructure
-import scalaz.zio.stream.Take
-import scalaz.zio.{ Queue, TestRuntime, UIO }
+import scalaz.zio._
 
 class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
@@ -14,13 +13,11 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def e1 = unsafeRun(
     for {
-      runtime <- UIO.runtime[Any]
-      q       <- Queue.bounded[Take[Throwable, Int]](10)
-      qs      = new QueueSubscriber[Int](runtime, q)
-      _       <- q.shutdown
-      _       <- UIO(qs.onNext(1))
-      _       <- UIO(qs.onError(new Throwable("boom")))
-      _       <- UIO(qs.onComplete())
+      subStr          <- QueueSubscriber.make[Int](10)
+      (subscriber, _) = subStr
+      _               <- UIO(subscriber.onComplete())
+      _               <- UIO(subscriber.onNext(1))
+      _               <- UIO(subscriber.onError(new Throwable("boom")))
     } yield success
   )
 }

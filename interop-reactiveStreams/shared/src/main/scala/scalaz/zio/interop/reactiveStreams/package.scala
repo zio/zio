@@ -19,7 +19,7 @@ package object reactiveStreams {
    * produced by the Sink or any error either produced by the Sink or signaled to the subscriber.
    */
   final implicit class sinkToSubscriber[R, E <: Throwable, A0, A, B](val sink: ZSink[R, E, A0, A, B]) extends AnyVal {
-    def toSubscriber(qSize: Int = 10): ZIO[R, Nothing, (Subscriber[A], Task[B])] =
+    def toSubscriber(qSize: Int = 16): ZIO[R, Nothing, (Subscriber[A], Task[B])] =
       Adapters.sinkToSubscriber(sink, qSize)
   }
 
@@ -27,7 +27,7 @@ package object reactiveStreams {
    * Create a `Stream` from a `Publisher`.
    */
   final implicit class publisherToStream[A](val publisher: Publisher[A]) extends AnyVal {
-    def toStream(qSize: Int = 10): ZStream[Any, Throwable, A] =
+    def toStream(qSize: Int = 16): ZStream[Any, Throwable, A] =
       Adapters.publisherToStream(publisher, qSize)
   }
 
