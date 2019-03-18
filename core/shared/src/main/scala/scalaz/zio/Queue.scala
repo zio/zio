@@ -77,6 +77,11 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   def shutdown: UIO[Unit]
 
   /**
+   * `true` if `shutdown` has been called.
+   */
+  def isShutdown: UIO[Boolean]
+
+  /**
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
    */
@@ -110,6 +115,7 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
       def awaitShutdown: UIO[Unit]                        = self.awaitShutdown
       def size: UIO[Int]                                  = self.size
       def shutdown: UIO[Unit]                             = self.shutdown
+      def isShutdown: UIO[Boolean]                        = self.isShutdown
       def take: ZIO[RB, EB, C]                            = self.take.map(f)
       def takeAll: ZIO[RB, EB, List[C]]                   = self.takeAll.map(_.map(f))
       def takeUpTo(max: Int): ZIO[RB, EB, List[C]]        = self.takeUpTo(max).map(_.map(f))
@@ -126,6 +132,7 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
       def awaitShutdown: UIO[Unit]                        = self.awaitShutdown
       def size: UIO[Int]                                  = self.size
       def shutdown: UIO[Unit]                             = self.shutdown
+      def isShutdown: UIO[Boolean]                        = self.isShutdown
       def take: ZIO[R2, E2, C]                            = self.take.flatMap(f)
       def takeAll: ZIO[R2, E2, List[C]]                   = self.takeAll.flatMap(ZIO.foreach(_)(f))
       def takeUpTo(max: Int): ZIO[R2, E2, List[C]]        = self.takeUpTo(max).flatMap(ZIO.foreach(_)(f))
@@ -152,6 +159,7 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
       def awaitShutdown: UIO[Unit] = self.awaitShutdown *> that.awaitShutdown
       def size: UIO[Int]           = self.size.zipWithPar(that.size)(math.max)
       def shutdown: UIO[Unit]      = self.shutdown.zipWithPar(that.shutdown)((_, _) => ())
+      def isShutdown: UIO[Boolean] = self.isShutdown
       def take: ZIO[R3, E3, D]     = self.take.zipPar(that.take).flatMap(f.tupled)
 
       def takeAll: ZIO[R3, E3, List[D]] =
@@ -212,6 +220,7 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
       def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
       def size: UIO[Int]                           = self.size
       def shutdown: UIO[Unit]                      = self.shutdown
+      def isShutdown: UIO[Boolean]                 = self.isShutdown
       def take: ZIO[RB, EB, B]                     = self.take
       def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
       def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
@@ -233,6 +242,7 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
       def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
       def size: UIO[Int]                           = self.size
       def shutdown: UIO[Unit]                      = self.shutdown
+      def isShutdown: UIO[Boolean]                 = self.isShutdown
       def take: ZIO[RB, EB, B]                     = self.take
       def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
       def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
@@ -264,6 +274,7 @@ object Queue2 {
         def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
         def size: UIO[Int]                           = self.size
         def shutdown: UIO[Unit]                      = self.shutdown
+        def isShutdown: UIO[Boolean]                 = self.isShutdown
         def take: ZIO[RB, EB, B]                     = self.take
         def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
         def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
@@ -292,6 +303,7 @@ object Queue2 {
         def awaitShutdown: UIO[Unit]                 = self.awaitShutdown
         def size: UIO[Int]                           = self.size
         def shutdown: UIO[Unit]                      = self.shutdown
+        def isShutdown: UIO[Boolean]                 = self.isShutdown
         def take: ZIO[RB, EB, B]                     = self.take
         def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
         def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
@@ -381,6 +393,8 @@ object Queue2 {
           IO.effectTotal(unsafePollAll(takers)) >>= (IO.foreachPar(_)(_.interrupt) *> strategy.shutdown)
         )
         .uninterruptible
+
+    final val isShutdown: UIO[Boolean] = shutdownHook.poll.map(_.isDefined)
 
     final val take: UIO[A] =
       for {

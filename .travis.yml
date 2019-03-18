@@ -41,7 +41,7 @@ jobs:
     - &scaladoc
       stage: microsite
       name: "Generate Scaladoc"
-      script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopFutureJS/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc interopJavaJVM/doc
+      script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopFutureJS/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc interopJavaJVM/doc interopReactiveStreamsJVM/doc
     - &microsite
       stage: microsite
       name: "Generate microsite"
