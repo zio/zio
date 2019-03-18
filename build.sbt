@@ -177,6 +177,7 @@ lazy val interopJava = crossProject(JVMPlatform)
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
+val akkaVersion = "2.5.21"
 lazy val interopReactiveStreams = crossProject(JVMPlatform)
   .in(file("interop-reactiveStreams"))
   .settings(stdSettings("zio-interop-reactiveStreams"))
@@ -184,7 +185,9 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams"     % "1.0.2",
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest"       %% "scalatest"           % "3.0.6" % "test"
+      "org.scalatest"       %% "scalatest"           % "3.0.6" % "test",
+      "com.typesafe.akka"   %% "akka-stream"         % akkaVersion % "test",
+      "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
   )
   .dependsOn(core % "test->test;compile->compile")
