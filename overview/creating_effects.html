@@ -141,20 +141,18 @@
 
 <p>An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using <code class="highlighter-rouge">ZIO.effectAsync</code>:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">object</span> <span class="nc">legacy</span> <span class="o">{</span>
-     <span class="o">|</span>   <span class="k">def</span> <span class="n">login</span><span class="o">(</span>
-     <span class="o">|</span>     <span class="n">onSuccess</span><span class="k">:</span> <span class="kt">User</span>      <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">,</span> <span class="n">onFailure</span><span class="k">:</span> <span class="kt">AuthError</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">???</span>
-     <span class="o">|</span> <span class="o">}</span>
-<span class="n">defined</span> <span class="k">object</span> <span class="nc">legacy</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">object</span> <span class="nc">legacy</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">login</span><span class="o">(</span>
+    <span class="n">onSuccess</span><span class="k">:</span> <span class="kt">User</span>      <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">,</span> <span class="n">onFailure</span><span class="k">:</span> <span class="kt">AuthError</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">???</span>
+<span class="o">}</span>
 
-<span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">login</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">AuthError</span>, <span class="kt">User</span><span class="o">]</span> <span class="k">=</span> 
-     <span class="o">|</span>   <span class="nc">IO</span><span class="o">.</span><span class="n">effectAsync</span><span class="o">[</span><span class="kt">AuthError</span>, <span class="kt">User</span><span class="o">]</span> <span class="o">{</span> <span class="n">callback</span> <span class="k">=&gt;</span>
-     <span class="o">|</span>     <span class="n">legacy</span><span class="o">.</span><span class="n">login</span><span class="o">(</span>
-     <span class="o">|</span>       <span class="n">user</span> <span class="k">=&gt;</span> <span class="n">callback</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="n">user</span><span class="o">)),</span>
-     <span class="o">|</span>       <span class="n">err</span>  <span class="k">=&gt;</span> <span class="n">callback</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="n">err</span><span class="o">))</span>
-     <span class="o">|</span>     <span class="o">)</span>
-     <span class="o">|</span>   <span class="o">}</span>
-<span class="n">login</span><span class="k">:</span> <span class="kt">scalaz.zio.IO</span><span class="o">[</span><span class="kt">AuthError</span>,<span class="kt">User</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$EffectAsync</span><span class="k">@</span><span class="mi">769</span><span class="n">e9207</span>
+<span class="k">val</span> <span class="n">login</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">AuthError</span>, <span class="kt">User</span><span class="o">]</span> <span class="k">=</span> 
+  <span class="nc">IO</span><span class="o">.</span><span class="n">effectAsync</span><span class="o">[</span><span class="kt">AuthError</span>, <span class="kt">User</span><span class="o">]</span> <span class="o">{</span> <span class="n">callback</span> <span class="k">=&gt;</span>
+    <span class="n">legacy</span><span class="o">.</span><span class="n">login</span><span class="o">(</span>
+      <span class="n">user</span> <span class="k">=&gt;</span> <span class="n">callback</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">succeed</span><span class="o">(</span><span class="n">user</span><span class="o">)),</span>
+      <span class="n">err</span>  <span class="k">=&gt;</span> <span class="n">callback</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">fail</span><span class="o">(</span><span class="n">err</span><span class="o">))</span>
+    <span class="o">)</span>
+  <span class="o">}</span>
 </code></pre></div></div>
 
 <p>Asynchronous ZIO effects are much easier to use than callback-based APIs, and they benefit from ZIO features like interruption, resource-safety, and superior error handling.</p>
@@ -167,30 +165,25 @@
 
 <p>A blocking side-effect can be converted directly into an interruptible ZIO effect with the <code class="highlighter-rouge">interruptible</code> method:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">import</span> <span class="nn">scalaz.zio.blocking._</span>
-<span class="k">import</span> <span class="nn">scalaz.zio.blocking._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio.blocking._</span>
 
-<span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">sleeping</span> <span class="k">=</span> 
-     <span class="o">|</span>   <span class="n">interruptible</span><span class="o">(</span><span class="nc">Thread</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="nc">Long</span><span class="o">.</span><span class="nc">MaxValue</span><span class="o">))</span>
-<span class="n">sleeping</span><span class="k">:</span> <span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.blocking.Blocking</span>,<span class="kt">Throwable</span>,<span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">scalaz</span><span class="o">.</span><span class="n">zio</span><span class="o">.</span><span class="nc">ZIO$FlatMap</span><span class="k">@</span><span class="mi">31</span><span class="n">c3f867</span>
+<span class="k">val</span> <span class="n">sleeping</span> <span class="k">=</span> 
+  <span class="n">interruptible</span><span class="o">(</span><span class="nc">Thread</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="nc">Long</span><span class="o">.</span><span class="nc">MaxValue</span><span class="o">))</span>
 </code></pre></div></div>
 
 <p>The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.</p>
 
 <p>If a side-effect has already been converted into a ZIO effect, then instead of <code class="highlighter-rouge">interruptible</code>, the <code class="highlighter-rouge">blocking</code> method can be used to shift the effect onto the blocking thread pool:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">import</span> <span class="nn">scala.io.</span><span class="o">{</span> <span class="nc">Codec</span><span class="o">,</span> <span class="nc">Source</span> <span class="o">}</span>
-<span class="k">import</span> <span class="nn">scala.io.</span><span class="o">{</span><span class="nc">Codec</span><span class="o">,</span> <span class="nc">Source</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.io.</span><span class="o">{</span> <span class="nc">Codec</span><span class="o">,</span> <span class="nc">Source</span> <span class="o">}</span>
 
-<span class="n">scala</span><span class="o">&gt;</span> <span class="k">def</span> <span class="n">download</span><span class="o">(</span><span class="n">url</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span>
-     <span class="o">|</span>   <span class="nc">Task</span><span class="o">.</span><span class="n">effect</span> <span class="o">{</span>
-     <span class="o">|</span>     <span class="nc">Source</span><span class="o">.</span><span class="n">fromURL</span><span class="o">(</span><span class="n">url</span><span class="o">)(</span><span class="nc">Codec</span><span class="o">.</span><span class="nc">UTF8</span><span class="o">).</span><span class="n">mkString</span>
-     <span class="o">|</span>   <span class="o">}</span>
-<span class="n">download</span><span class="k">:</span> <span class="o">(</span><span class="kt">url:</span> <span class="kt">String</span><span class="o">)</span><span class="kt">scalaz.zio.Task</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span>
+<span class="k">def</span> <span class="n">download</span><span class="o">(</span><span class="n">url</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span>
+  <span class="nc">Task</span><span class="o">.</span><span class="n">effect</span> <span class="o">{</span>
+    <span class="nc">Source</span><span class="o">.</span><span class="n">fromURL</span><span class="o">(</span><span class="n">url</span><span class="o">)(</span><span class="nc">Codec</span><span class="o">.</span><span class="nc">UTF8</span><span class="o">).</span><span class="n">mkString</span>
+  <span class="o">}</span>
 
-<span class="n">scala</span><span class="o">&gt;</span> <span class="k">def</span> <span class="n">safeDownload</span><span class="o">(</span><span class="n">url</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span> 
-     <span class="o">|</span>   <span class="n">blocking</span><span class="o">(</span><span class="n">download</span><span class="o">(</span><span class="n">url</span><span class="o">))</span>
-<span class="n">safeDownload</span><span class="k">:</span> <span class="o">(</span><span class="kt">url:</span> <span class="kt">String</span><span class="o">)</span><span class="kt">scalaz.zio.ZIO</span><span class="o">[</span><span class="kt">scalaz.zio.blocking.Blocking</span>,<span class="kt">Throwable</span>,<span class="kt">String</span><span class="o">]</span>
+<span class="k">def</span> <span class="n">safeDownload</span><span class="o">(</span><span class="n">url</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span> 
+  <span class="n">blocking</span><span class="o">(</span><span class="n">download</span><span class="o">(</span><span class="n">url</span><span class="o">))</span>
 </code></pre></div></div>
 </section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/scalaz-zio/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
 hljs.initHighlighting();

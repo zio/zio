@@ -20,9 +20,16 @@
 
 <p>For example, a value of type <code class="highlighter-rouge">ZIO[Any, IOException, Byte]</code> is an effect that has no requirements; it may fail with a value of type <code class="highlighter-rouge">IOException</code>, or it may succeed with a value of type <code class="highlighter-rouge">Byte</code>.</p>
 
+<p>A value of type <code class="highlighter-rouge">ZIO[R, E, A]</code> can be thought of as an effectful version of the following function type:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">R</span> <span class="k">=&gt;</span> <span class="nc">Either</span><span class="o">[</span><span class="kt">E</span>, <span class="kt">A</span><span class="o">]</span>
+</code></pre></div></div>
+
+<p>The function, which requires an <code class="highlighter-rouge">R</code>, might produce either an <code class="highlighter-rouge">E</code>, representing failure, or an <code class="highlighter-rouge">A</code>, representing a success. ZIO effects are not actually functions, of course, because they model complex effects.</p>
+
 <h1 id="type-aliases">Type Aliases</h1>
 
-<p>Although the <code class="highlighter-rouge">ZIO</code> data type is the only effect type in ZIO, there are a family of type aliases and companion objects that make it easier to work with common cases:</p>
+<p>The <code class="highlighter-rouge">ZIO</code> data type is the only effect type in ZIO. However, there are a family of type aliases and companion objects that simplify common cases:</p>
 
 <ul>
   <li><code class="highlighter-rouge">UIO[A]</code> — This is a type alias for <code class="highlighter-rouge">ZIO[Any, Nothing, A]</code>, which represents an effect that has no requirements, and cannot fail, or succeed with an <code class="highlighter-rouge">A</code>.</li>
@@ -35,7 +42,7 @@
 
 <p>If you are new to functional effects, we recommend starting with the <code class="highlighter-rouge">Task</code> type, which has a single type parameter, and corresponds most closely to the <code class="highlighter-rouge">Future</code> data type built into Scala’s standard library.</p>
 
-<p>If you are using Cats Effect libraries, you may find the <code class="highlighter-rouge">TaskR</code> type to be most useful, since it allows you to thread requirements through third-party libraries and your application.</p>
+<p>If you are using <em>Cats Effect</em> libraries, you may find the <code class="highlighter-rouge">TaskR</code> type useful, since it allows you to thread environments through third-party libraries and your application.</p>
 
 <p>No matter what type alias you use in your application, <code class="highlighter-rouge">UIO</code> can be useful for describing infallible effects, including those resulting from handling all errors on fallible effects.</p>
 
