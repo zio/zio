@@ -169,14 +169,15 @@ trait Fiber[+E, +A] { self =>
    */
   final def toFutureWith(f: E => Throwable): UIO[Future[A]] =
     UIO.effectTotal {
-      val p = scala.concurrent.Promise[A]()
+      val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
-      UIO.effectTotal(p.future) <*
-        self.await
-          .flatMap[Any, Nothing, Unit](
-            _.foldM(cause => UIO(p.failure(cause.squashWith(f))), value => UIO(p.success(value)))
-          )
-          .fork
+      def failure(cause: Exit.Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
+      def success(value: A): UIO[p.type]             = UIO(p.success(value))
+
+      UIO.effectTotal(p.future) <* self.await
+        .flatMap[Any, Nothing, p.type](_.foldM[Nothing, p.type](failure, success))
+        .fork
+
     }.flatten
 
   /**
