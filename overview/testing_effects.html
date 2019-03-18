@@ -24,8 +24,8 @@
 
 <span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">ZIO</span><span class="o">[</span><span class="kt">Config</span>, <span class="kt">Nothing</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> 
   <span class="k">for</span> <span class="o">{</span>
-    <span class="n">server</span> <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">access</span><span class="o">[</span><span class="kt">Config</span>, <span class="kt">String</span><span class="o">](</span><span class="k">_</span><span class="o">.</span><span class="n">server</span><span class="o">)</span>
-    <span class="n">port</span>   <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">access</span><span class="o">[</span><span class="kt">Config</span>, <span class="kt">Int</span><span class="o">](</span><span class="k">_</span><span class="o">.</span><span class="n">port</span><span class="o">)</span>
+    <span class="n">server</span> <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">access</span><span class="o">[</span><span class="kt">Config</span><span class="o">](</span><span class="k">_</span><span class="o">.</span><span class="n">server</span><span class="o">)</span>
+    <span class="n">port</span>   <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">access</span><span class="o">[</span><span class="kt">Config</span><span class="o">](</span><span class="k">_</span><span class="o">.</span><span class="n">port</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">s</span><span class="s">"Server: $server, port: $port"</span>
 </code></pre></div></div>
 
@@ -38,8 +38,8 @@
 
 <span class="k">val</span> <span class="n">z</span><span class="k">:</span> <span class="kt">ZIO</span><span class="o">[</span><span class="kt">DatabaseOps</span>, <span class="kt">Throwable</span>, <span class="o">(</span><span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span>, <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])]</span> <span class="k">=</span> 
   <span class="k">for</span> <span class="o">{</span>
-    <span class="n">tables</span>  <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">accessM</span><span class="o">((</span><span class="n">ops</span><span class="k">:</span> <span class="kt">DatabaseOps</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">ops</span><span class="o">.</span><span class="n">tableNames</span><span class="o">)</span>
-    <span class="n">columns</span> <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">accessM</span><span class="o">((</span><span class="n">ops</span><span class="k">:</span> <span class="kt">DatabaseOps</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">ops</span><span class="o">.</span><span class="n">columnNames</span><span class="o">(</span><span class="s">"user_table"</span><span class="o">))</span>
+    <span class="n">tables</span>  <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">accessM</span><span class="o">[</span><span class="kt">DatabaseOps</span><span class="o">](</span><span class="k">_</span><span class="o">.</span><span class="n">tableNames</span><span class="o">)</span>
+    <span class="n">columns</span> <span class="k">&lt;-</span> <span class="nc">ZIO</span><span class="o">.</span><span class="n">accessM</span><span class="o">[</span><span class="kt">DatabaseOps</span><span class="o">](</span><span class="k">_</span><span class="o">.</span><span class="n">columnNames</span><span class="o">(</span><span class="s">"user_table"</span><span class="o">))</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">tables</span><span class="o">,</span> <span class="n">columns</span><span class="o">)</span>
 </code></pre></div></div>
 
