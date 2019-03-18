@@ -27,8 +27,8 @@ import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
- * that models an effectful program. The program requires an environment `R`,
- * and the program may fail with an error `E` or produce a single `A`.
+ * that models an effectful program. The effect requires an environment `R`,
+ * and the effect may fail with an error `E` or produce a single `A`.
  *
  * Conceptually, this structure is equivalent to `ReaderT[R, EitherT[UIO, E, ?]]`
  * for some infallible effect monad `UIO`, but because monad transformers
@@ -757,7 +757,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
-   * Provides the `ZIO` program with its required environment, which eliminates
+   * Provides the `ZIO` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
   final def provide(r: R): IO[E, A] = ZIO.provide(r)(self)
@@ -851,12 +851,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
-   * Runs this effect in a new fiber, resuming when the fiber terminates.
-   *
-   * If the fiber fails with an error it will be captured in Right side of the error Either
-   * If the fiber terminates because of defect, list of defects will be captured in the Left side of the Either
-   *
-   * Allows recovery from errors and defects alike, as in:
+   * Exposes the full cause of failure of this effect.
    *
    * {{{
    * case class DomainError()
@@ -882,20 +877,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail, ZIO.succeed)
 
   /**
-   * The inverse operation to `sandbox`
-   *
-   * Terminates with exceptions on the `Left` side of the `Either` error, if it
-   * exists. Otherwise extracts the contained `IO[E, A]`
+   * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
     ZIO.unsandbox(self)
 
   /**
-   * Companion helper to `sandbox`.
-   *
-   * Has a performance penalty due to forking a new fiber.
-   *
-   * Allows recovery, and partial recovery, from errors and defects alike, as in:
+   * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
+   * errors and defects alike, as in:
    *
    * {{{
    * case class DomainError()
@@ -948,14 +937,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts the effect to a [[scala.concurrent.Future]].
    */
-  final def toFuture[R1 <: R](implicit ev2: E <:< Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
-    self.toFutureWith(ev2)
+  final def toFuture(implicit ev2: E <:< Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
+    self toFutureWith ev2
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
    */
   final def toFutureWith(f: E => Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
-    self.fork.flatMap(_.toFutureWith(f))
+    self.fork >>= (_.toFutureWith(f))
 
   /**
    * An integer that identifies the term in the `ZIO` sum type to which this
@@ -990,7 +979,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that models success with the specified lazily-evaluated
    * value. This method should not be used to capture effects. See
-   * `[[IO.effectTotal]]` for capturing total effects, and `[[IO.effect]]` for capturing
+   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
    * partial effects.
    */
   final def succeedLazy[A](a: => A): UIO[A] = effectTotal(a)

@@ -218,7 +218,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testZipParSucceed = {
     val io = ZIO.interrupt.zipPar(IO.succeed(1))
-    unsafeRun(io) must throwA(FiberFailure(Interrupt))
+    unsafeRun(io.sandbox.either).left.map(_.interrupted) must_=== Left(true)
   }
 
   def testOrElseDefectHandling = {
