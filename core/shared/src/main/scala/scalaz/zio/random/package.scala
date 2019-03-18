@@ -17,16 +17,17 @@
 package scalaz.zio
 
 package object random {
+  final val randomService: ZIO[Random, Nothing, Random.Service[Any]] =
+    ZIO.access(_.random)
 
-  final val randomService: ZIO[Random, Nothing, Random.Service[Any]]  = ZIO.access(_.random)
-  final val nextBoolean: ZIO[Random, Nothing, Boolean]                = ZIO.accessM(_.random.nextBoolean)
-  final def nextBytes(length: Int): ZIO[Random, Nothing, Chunk[Byte]] = ZIO.accessM(_.random.nextBytes(length))
-  final val nextDouble: ZIO[Random, Nothing, Double]                  = ZIO.accessM(_.random.nextDouble)
-  final val nextFloat: ZIO[Random, Nothing, Float]                    = ZIO.accessM(_.random.nextFloat)
-  final val nextGaussian: ZIO[Random, Nothing, Double]                = ZIO.accessM(_.random.nextGaussian)
-  final def nextInt(n: Int): ZIO[Random, Nothing, Int]                = ZIO.accessM(_.random.nextInt(n))
-  final val nextInt: ZIO[Random, Nothing, Int]                        = ZIO.accessM(_.random.nextInt)
-  final val nextLong: ZIO[Random, Nothing, Long]                      = ZIO.accessM(_.random.nextLong)
-  final val nextPrintableChar: ZIO[Random, Nothing, Char]             = ZIO.accessM(_.random.nextPrintableChar)
-  final def nextString(length: Int): ZIO[Random, Nothing, String]     = ZIO.accessM(_.random.nextString(length))
+  val nextBoolean: ZIO[Random, Nothing, Boolean]                = ZIO.accessM(_.random.nextBoolean)
+  def nextBytes(length: Int): ZIO[Random, Nothing, Chunk[Byte]] = ZIO.accessM(_.random.nextBytes(length))
+  val nextDouble: ZIO[Random, Nothing, Double]                  = ZIO.accessM(_.random.nextDouble)
+  val nextFloat: ZIO[Random, Nothing, Float]                    = ZIO.accessM(_.random.nextFloat)
+  val nextGaussian: ZIO[Random, Nothing, Double]                = ZIO.accessM(_.random.nextGaussian)
+  def nextInt(n: Int): ZIO[Random, Nothing, Int]                = ZIO.accessM(_.random.nextInt(n))
+  val nextInt: ZIO[Random, Nothing, Int]                        = ZIO.accessM(_.random.nextInt)
+  val nextLong: ZIO[Random, Nothing, Long]                      = ZIO.accessM(_.random.nextLong)
+  val nextPrintableChar: ZIO[Random, Nothing, Char]             = ZIO.accessM(_.random.nextPrintableChar)
+  def nextString(length: Int): ZIO[Random, Nothing, String]     = ZIO.accessM(_.random.nextString(length))
 }

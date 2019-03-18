@@ -18,8 +18,13 @@ package scalaz.zio
 
 import scalaz.zio.internal.Executor
 
-package object blocking {
-  final def blockingExecutor: ZIO[Blocking, Nothing, Executor]                = ZIO.accessM(_.blocking.blockingExecutor)
-  final def blocking[R1 <: Blocking, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] = ZIO.accessM(_.blocking.blocking(zio))
-  final def interruptible[A](effect: => A): ZIO[Blocking, Throwable, A]       = ZIO.accessM(_.blocking.interruptible(effect))
+package object blocking  {
+  def blockingExecutor: ZIO[Blocking, Nothing, Executor] =
+    ZIO.accessM(_.blocking.blockingExecutor)
+
+  def blocking[R1 <: Blocking, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
+    ZIO.accessM(_.blocking.blocking(zio))
+
+  def interruptible[A](effect: => A): ZIO[Blocking, Throwable, A]       =
+    ZIO.accessM(_.blocking.interruptible(effect))
 }
