@@ -73,10 +73,17 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   Stream stack safety
     deep flatMap            $deepFlatMap
+
+  Stream combinators
+    unTake happy path       $unTake
+    unTake with error       $unTakeError
   """
 
   import ArbitraryStream._
   import Exit._
+
+  //in scala 2.11 the proof for Any in not found by the compiler
+  import Stream.ConformsAnyProof
 
   private def filter =
     prop { (s: Stream[String, String], p: String => Boolean) =>
@@ -443,4 +450,26 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         result <- acquired.get
       } yield result must_=== false
     )
+
+  private def unTake =
+    unsafeRun(
+      Stream
+        .range(0, 10)
+        .toQueue[Nothing, Int](1)
+        .use { q =>
+          Stream.fromQueue(q).unTake.run(Sink.collect[Int])
+        }
+        .map(_ must_=== (0 to 10).toList)
+    )
+
+  private def unTakeError = {
+    val e = new RuntimeException("boom")
+    unsafeRunSync(
+      (Stream.range(0, 10) ++ Stream.fail(e))
+        .toQueue[Throwable, Int](1)
+        .use { q =>
+          Stream.fromQueue(q).unTake.run(Sink.collect[Int])
+        }
+    ) must_== Failure(Cause.Fail(e))
+  }
 }

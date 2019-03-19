@@ -113,6 +113,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     make 2 bounded queues, compose them with `both`, offer 1 value, take yields a tuple of that value $e73
     make a bounded queue, contramap it, offer 1 value, take yields the result of applying the function $e74
     make a bounded queue, apply filterInput, offer a value that doesn't pass, size should match $e75
+    make a bounded queue, shut it down, offer a value, takeAllValues, shut it down, isShutdown should return false only after shutdown $e76
     """
 
   def e1 = unsafeRun(
@@ -895,6 +896,19 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _  <- q.offer(2)
       s2 <- q.size
     } yield (s1 must_=== 0) and (s2 must_=== 1)
+  )
+
+  def e76 = unsafeRun(
+    for {
+      queue <- Queue.bounded[Int](5)
+      r1    <- queue.isShutdown
+      _     <- queue.offer(1)
+      r2    <- queue.isShutdown
+      _     <- queue.takeAll
+      r3    <- queue.isShutdown
+      _     <- queue.shutdown
+      r4    <- queue.isShutdown
+    } yield (r1 must beFalse) and (r2 must beFalse) and (r3 must beFalse) and (r4 must beTrue)
   )
 }
 

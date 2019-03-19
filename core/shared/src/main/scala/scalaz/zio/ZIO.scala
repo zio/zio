@@ -27,8 +27,8 @@ import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
- * that models an effectful program. The program requires an environment `R`,
- * and the program may fail with an error `E` or produce a single `A`.
+ * that models an effectful program. The effect requires an environment `R`,
+ * and the effect may fail with an error `E` or produce a single `A`.
  *
  * Conceptually, this structure is equivalent to `ReaderT[R, EitherT[UIO, E, ?]]`
  * for some infallible effect monad `UIO`, but because monad transformers
@@ -409,13 +409,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     new ZIO.BracketAcquire_(self)
 
   /**
+   * Uncurried version. Doesn't offer curried syntax and have worse
+   * type-inference characteristics, but it doesn't allocate intermediate
+   * [[scalaz.zio.ZIO.BracketAcquire_]] and [[scalaz.zio.ZIO.BracketRelease_]] objects.
+   */
+  final def bracket_[R1 <: R, E1 >: E, B](
+    release: ZIO[R1, Nothing, _],
+    use: ZIO[R1, E1, B]
+  ): ZIO[R1, E1, B] =
+    ZIO.bracket(self, (_: A) => release, (_: A) => use)
+
+  /**
    * Returns an effect that, if this effect _starts_ execution, then the
    * specified `finalizer` is guaranteed to begin execution, whether this effect
    * succeeds, fails, or is interrupted.
    *
    * Finalizers offer very powerful guarantees, but they are low-level, and
    * should generally not be used for releasing resources. For higher-level
-   * logic built on `ensuring`, see [[ZIO#bracket]].
+   * logic built on `ensuring`, see `ZIO#bracket`.
    */
   final def ensuring(finalizer: UIO[_]): ZIO[R, E, A] =
     new ZIO.Ensuring(self, finalizer)
@@ -757,7 +768,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
-   * Provides the `ZIO` program with its required environment, which eliminates
+   * Provides the `ZIO` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
   final def provide(r: R): IO[E, A] = ZIO.provide(r)(self)
@@ -851,12 +862,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
-   * Runs this effect in a new fiber, resuming when the fiber terminates.
-   *
-   * If the fiber fails with an error it will be captured in Right side of the error Either
-   * If the fiber terminates because of defect, list of defects will be captured in the Left side of the Either
-   *
-   * Allows recovery from errors and defects alike, as in:
+   * Exposes the full cause of failure of this effect.
    *
    * {{{
    * case class DomainError()
@@ -882,20 +888,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail, ZIO.succeed)
 
   /**
-   * The inverse operation to `sandbox`
-   *
-   * Terminates with exceptions on the `Left` side of the `Either` error, if it
-   * exists. Otherwise extracts the contained `IO[E, A]`
+   * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
     ZIO.unsandbox(self)
 
   /**
-   * Companion helper to `sandbox`.
-   *
-   * Has a performance penalty due to forking a new fiber.
-   *
-   * Allows recovery, and partial recovery, from errors and defects alike, as in:
+   * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
+   * errors and defects alike, as in:
    *
    * {{{
    * case class DomainError()
@@ -948,14 +948,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts the effect to a [[scala.concurrent.Future]].
    */
-  final def toFuture[R1 <: R](implicit ev1: Any =:= R1, ev2: E <:< Throwable): UIO[scala.concurrent.Future[A]] =
-    self.provideSome(ev1).toFutureWith((), ev2)
+  final def toFuture(implicit ev2: E <:< Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
+    self toFutureWith ev2
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
    */
-  final def toFutureWith(r: R, f: E => Throwable): UIO[scala.concurrent.Future[A]] =
-    self.provide(r).fork.flatMap(_.toFutureWith(f))
+  final def toFutureWith(f: E => Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
+    self.fork >>= (_.toFutureWith(f))
 
   /**
    * An integer that identifies the term in the `ZIO` sum type to which this
@@ -990,7 +990,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that models success with the specified lazily-evaluated
    * value. This method should not be used to capture effects. See
-   * `[[IO.effectTotal]]` for capturing total effects, and `[[IO.effect]]` for capturing
+   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
    * partial effects.
    */
   final def succeedLazy[A](a: => A): UIO[A] = effectTotal(a)
@@ -1006,14 +1006,14 @@ trait ZIOFunctions extends Serializable {
    * val portNumber = effect.access(_.config.portNumber)
    * }}}
    */
-  final def access[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
-    accessM(f.andThen(succeed))
+  final def access[R >: LowerR]: ZIO.AccessPartiallyApplied[R] =
+    new ZIO.AccessPartiallyApplied[R]
 
   /**
    * Effectfully accesses the environment of the effect.
    */
-  final def accessM[R >: LowerR, E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.Read(f)
+  final def accessM[R >: LowerR]: ZIO.AccessMPartiallyApplied[R] =
+    new ZIO.AccessMPartiallyApplied[R]
 
   /**
    * Given an environment `R`, returns a function that can supply the
@@ -1318,6 +1318,24 @@ trait ZIOFunctions extends Serializable {
     new ZIO.BracketAcquire[R, E, A](acquire)
 
   /**
+   * Uncurried version. Doesn't offer curried syntax and have worse type-inference
+   * characteristics, but guarantees no extra allocations of intermediate
+   * [[scalaz.zio.ZIO.BracketAcquire]] and [[scalaz.zio.ZIO.BracketRelease]] objects.
+   */
+  final def bracket[R >: LowerR, E <: UpperE, A, A1 >: A, A2 >: A, B](
+    acquire: ZIO[R, E, A],
+    release: A => ZIO[R, Nothing, _],
+    use: A => ZIO[R, E, B]
+  ): ZIO[R, E, B] =
+    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
+      (for {
+        r <- environment[R]
+        a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
+        b <- use(a)
+      } yield b).ensuring(flatten(m.get))
+    }
+
+  /**
    * Acquires a resource, uses the resource, and then releases the resource.
    * Neither the acquisition nor the release will be interrupted, and the
    * resource is guaranteed to be released, so long as the `acquire` effect
@@ -1326,6 +1344,26 @@ trait ZIOFunctions extends Serializable {
    */
   final def bracketExit[R >: LowerR, E <: UpperE, A](acquire: ZIO[R, E, A]): ZIO.BracketExitAcquire[R, E, A] =
     new ZIO.BracketExitAcquire(acquire)
+
+  /**
+   * Uncurried version. Doesn't offer curried syntax and have worse type-inference
+   * characteristics, but guarantees no extra allocations of intermediate
+   * [[scalaz.zio.ZIO.BracketExitAcquire]] and [[scalaz.zio.ZIO.BracketExitRelease]] objects.
+   */
+  final def bracketExit[R >: LowerR, E <: UpperE, E1 >: E, E2 >: E <: E1, A, B](
+    acquire: ZIO[R, E, A],
+    release: (A, Exit[E1, B]) => ZIO[R, Nothing, _],
+    use: A => ZIO[R, E2, B]
+  ): ZIO[R, E2, B] =
+    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
+      (for {
+        r <- environment[R]
+        f <- acquire
+              .flatMap(a => use(a).fork.tap(f => m.set(f.interrupt.flatMap(release(a, _).provide(r)))))
+              .uninterruptible
+        b <- f.join
+      } yield b).ensuring(flatten(m.get))
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1583,7 +1621,7 @@ object ZIO extends ZIO_R_Any {
   }
   class BracketRelease_[R, E](acquire: ZIO[R, E, _], release: ZIO[R, Nothing, _]) {
     def apply[R1 <: R, E1 >: E, B](use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      ZIO.bracket(acquire)(_ => release)(_ => use)
+      ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
   }
 
   class BracketAcquire[R, E, A](acquire: ZIO[R, E, A]) {
@@ -1592,13 +1630,7 @@ object ZIO extends ZIO_R_Any {
   }
   class BracketRelease[R, E, A](acquire: ZIO[R, E, A], release: A => ZIO[R, Nothing, _]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-        (for {
-          r <- environment[R1]
-          a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
-          b <- use(a)
-        } yield b).ensuring(flatten(m.get))
-      }
+      ZIO.bracket(acquire, release, use)
   }
 
   class BracketExitAcquire[R, E, A](acquire: ZIO[R, E, A]) {
@@ -1611,20 +1643,18 @@ object ZIO extends ZIO_R_Any {
     acquire: ZIO[R, E, A],
     release: (A, Exit[E1, B]) => ZIO[R, Nothing, _]
   ) {
-    def apply[R1 <: R, E2 >: E, B1 <: B](use: A => ZIO[R1, E2, B1])(implicit ev: E2 <:< E1): ZIO[R1, E2, B1] =
-      Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-        (for {
-          r <- environment[R]
-          f <- acquire
-                .flatMap(
-                  a =>
-                    use(a).fork
-                      .tap(f => m.set(f.interrupt.flatMap((e: Exit[E2, B1]) => release(a, e.mapError(ev)).provide(r))))
-                )
-                .uninterruptible
-          b <- f.join
-        } yield b).ensuring(flatten(m.get))
-      }
+    def apply[R1 <: R, E2 >: E <: E1, B1 <: B](use: A => ZIO[R1, E2, B1]): ZIO[R1, E2, B1] =
+      ZIO.bracketExit[R1, E, E1, E2, A, B1](acquire, release, use)
+  }
+
+  class AccessPartiallyApplied[R >: LowerR] {
+    def apply[A](f: R => A): ZIO[R, Nothing, A] =
+      new ZIO.Read(r => succeed(f(r)))
+  }
+
+  class AccessMPartiallyApplied[R >: LowerR] {
+    def apply[E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
+      new ZIO.Read(f)
   }
 
   @inline

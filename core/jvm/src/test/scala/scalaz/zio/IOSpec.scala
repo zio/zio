@@ -45,6 +45,9 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
+   Check uncurried `bracket`. $testUncurriedBracket
+   Check uncurried `bracket_`. $testUncurriedBracket_
+   Check uncurried `bracketExit`. $testUncurriedBracketExit
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -218,7 +221,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testZipParSucceed = {
     val io = ZIO.interrupt.zipPar(IO.succeed(1))
-    unsafeRun(io) must throwA(FiberFailure(Interrupt))
+    unsafeRun(io.sandbox.either).left.map(_.interrupted) must_=== Left(true)
   }
 
   def testOrElseDefectHandling = {
@@ -237,4 +240,81 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
           .and(fail must_=== Exit.succeed(()))
     }
   }
+
+  def testUncurriedBracket =
+    unsafeRun {
+      for {
+        release  <- Ref.make(false)
+        result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.succeedLazy(a + 1))
+        released <- release.get
+      } yield (result must_=== 43) and (released must_=== true)
+    }
+
+  def testUncurriedBracket_ =
+    unsafeRun {
+      for {
+        release  <- Ref.make(false)
+        result   <- IO.succeed(42).bracket_(release.set(true), ZIO.succeedLazy(0))
+        released <- release.get
+      } yield (result must_=== 0) and (released must_=== true)
+    }
+
+  def testUncurriedBracketExit =
+    unsafeRun {
+      for {
+        release <- Ref.make(false)
+        result <- ZIO.bracketExit(
+                   IO.succeed(42),
+                   (_: Int, _: Exit[_, _]) => release.set(true),
+                   (_: Int) => IO.succeed(0L)
+                 )
+        released <- release.get
+      } yield (result must_=== 0L) and (released must_=== true)
+    }
+
+  object UncurriedBracketCompilesRegardlessOrderOfEAndRTypes {
+    class A
+    class B
+    class R
+    class R1 extends R
+    class R2 extends R1
+    class E
+    class E1 extends E
+
+    def infersEType1: ZIO[R, E, B] = {
+      val acquire: ZIO[R, E, A]            = ???
+      val release: A => ZIO[R, Nothing, _] = ???
+      val use: A => ZIO[R, E1, B]          = ???
+      ZIO.bracket(acquire, release, use)
+    }
+
+    def infersEType2: ZIO[R, E, B] = {
+      val acquire: ZIO[R, E1, A]           = ???
+      val release: A => ZIO[R, Nothing, _] = ???
+      val use: A => ZIO[R, E, B]           = ???
+      ZIO.bracket(acquire, release, use)
+    }
+
+    def infersRType1: ZIO[R2, E, B] = {
+      val acquire: ZIO[R, E, A]             = ???
+      val release: A => ZIO[R1, Nothing, _] = ???
+      val use: A => ZIO[R2, E, B]           = ???
+      ZIO.bracket(acquire, release, use)
+    }
+
+    def infersRType2: ZIO[R2, E, B] = {
+      val acquire: ZIO[R2, E, A]            = ???
+      val release: A => ZIO[R1, Nothing, _] = ???
+      val use: A => ZIO[R, E, B]            = ???
+      ZIO.bracket(acquire, release, use)
+    }
+
+    def infersRType3: ZIO[R2, E, B] = {
+      val acquire: ZIO[R1, E, A]            = ???
+      val release: A => ZIO[R2, Nothing, _] = ???
+      val use: A => ZIO[R, E, B]            = ???
+      ZIO.bracket(acquire, release, use)
+    }
+  }
+
 }
