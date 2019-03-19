@@ -44,10 +44,10 @@ object javaconcurrent {
         }
       }
 
-    def fromCompletionStage[A, E >: Throwable](csIo: IO[E, CompletionStage[A]]): IO[E, A] =
+    def fromCompletionStage[A, E >: Throwable](csIo: Task[CompletionStage[A]]): Task[E, A] =
       csIo.flatMap(unsafeCompletionStageToIO)
 
-    def fromCompletionStage[A](cs: () => CompletionStage[A]): Task[A] =
+    def fromCompletionStage[A](cs: CompletionStage[A]): Task[A] =
       IO.suspend {
         unsafeCompletionStageToIO(cs())
       }
@@ -63,6 +63,7 @@ object javaconcurrent {
               case e: ExecutionException =>
                 IO.fail(e.getCause)
               case _: InterruptedException =>
+                Thread.interrupted
                 IO.interrupt
               case t: Throwable => // CancellationException
                 IO.fail(t)
@@ -77,10 +78,10 @@ object javaconcurrent {
       }
     }
 
-    def fromFutureJava[A, E >: Throwable](futureIo: IO[E, Future[A]]): IO[E, A] =
+    def fromFutureJava[A, E >: Throwable](futureIo: Task[E, Future[A]]): Task[E, A] =
       futureIo.flatMap(unsafeFutureJavaToIO)
 
-    def fromFutureJava[A](future: () => Future[A]): Task[A] =
+    def fromFutureJava[A](future: Future[A]): Task[A] =
       IO.suspend {
         unsafeFutureJavaToIO(future())
       }
@@ -88,14 +89,14 @@ object javaconcurrent {
 
   implicit class FiberObjOps(private val fiberObj: Fiber.type) extends AnyVal {
 
-    def fromFutureJava[A](_ftr: () => Future[A]): Fiber[Throwable, A] = {
+    def fromFutureJava[A](_ftr: Future[A]): Fiber[Throwable, A] = {
 
       lazy val ftr = _ftr()
 
       new Fiber[Throwable, A] {
 
         def await: UIO[Exit[Throwable, A]] =
-          IO.fromFutureJava(() => ftr).fold(Exit.fail, Exit.succeed)
+          IO.fromFutureJava(ftr).fold(Exit.fail, Exit.succeed)
 
         def poll: UIO[Option[Exit[Throwable, A]]] =
           IO.suspend {
