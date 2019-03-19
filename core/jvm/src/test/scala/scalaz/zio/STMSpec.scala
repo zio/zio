@@ -500,7 +500,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         tvar <- TVar.makeRun(0)
         left = for {
           _ <- tvar.update(_ + 100)
-          _ <- STM.check(false)
+          _ <- STM.retry
         } yield ()
         right = tvar.update(_ + 100).void
         _     <- (left orElse right).run

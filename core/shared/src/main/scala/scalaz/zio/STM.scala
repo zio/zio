@@ -3,6 +3,7 @@ package scalaz.zio
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import scala.collection.mutable.{ Map => MutableMap }
+import scala.util.{ Failure, Success, Try }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -33,6 +34,7 @@ final class STM[+E, +A] private (
   val exec: STM.internal.Journal => STM.internal.TRez[E, A]
 ) extends AnyVal { self =>
   import STM.internal.TRez
+  import STM.internal.resetJournal
 
   /**
    * Sequentially zips this value with the specified one.
@@ -114,6 +116,12 @@ final class STM[+E, +A] private (
     )
 
   /**
+   * Flattens out a nested `STM` effect.
+   */
+  final def flatten[E1 >: E, B](implicit ev: A <:< STM[E1, B]): STM[E1, B] =
+    self flatMap ev
+
+  /**
    * Folds over the `STM` effect, handling both failure and success, but not
    * retry.
    */
@@ -179,13 +187,10 @@ final class STM[+E, +A] private (
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
     new STM(
       journal =>
-        // TODO: Journal may be out of date here. To be precise, we have to
-        // push this logic to `atomically`. Or maybe make the left journal
-        // entries "no ops".
         (self exec journal) match {
-          case TRez.Fail(_)        => { journal.clear(); that exec journal }
+          case TRez.Fail(_)        => { resetJournal(journal); that exec journal }
           case t @ TRez.Succeed(_) => t
-          case TRez.Retry          => { journal.clear(); that exec journal }
+          case TRez.Retry          => { resetJournal(journal); that exec journal }
         }
     )
 
@@ -246,6 +251,12 @@ object STM {
 
     type Journal =
       MutableMap[Long, STM.internal.Entry]
+
+    /**
+     * Resets the journal so that it does not modify any entries.
+     */
+    final def resetJournal(journal: Journal): Unit =
+      journal.values foreach (_.reset())
 
     /**
      * Atomically collects and clears all the todos from any `TVar` that
@@ -322,6 +333,13 @@ object STM {
 
       final def unsafeGet[B]: B =
         newValue.asInstanceOf[B]
+
+      /**
+       * Resets the value of this entry, so that if committed, it will have
+       * no effect on the TVar.
+       */
+      final def reset(): Unit =
+        newValue = expected.value
 
       /**
        * Determines if the entry is invalid. This is the negated version of
@@ -586,6 +604,36 @@ object STM {
    * Returns a value that models failure in the transaction.
    */
   final def fail[E](e: E): STM[E, Nothing] = new STM(_ => TRez.Fail(e))
+
+  /**
+   * Creates an STM effect from an `Either` value.
+   */
+  final def fromEither[E, A](e: Either[E, A]): STM[E, A] =
+    STM.succeedLazy {
+      e match {
+        case Left(t)  => STM.fail(t)
+        case Right(a) => STM.succeed(a)
+      }
+    }.flatten
+
+  /**
+   * Creates an STM effect from a `Try` value.
+   */
+  final def fromTry[A](a: => Try[A]): STM[Throwable, A] =
+    STM.succeedLazy {
+      try a match {
+        case Failure(t) => STM.fail(t)
+        case Success(a) => STM.succeed(a)
+      } catch {
+        case t: Throwable => STM.fail(t)
+      }
+    }.flatten
+
+  /**
+   * Creates an `STM` value from a partial (but pure) function.
+   */
+  final def partial[A](a: => A): STM[Throwable, A] =
+    fromTry(Try(a))
 
   /**
    * Collects all the transactional effects in a list, returning a single
