@@ -58,6 +58,10 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
         Failure must 
           rollback full transaction     $e31
+
+        orElse must
+          rollback left retry           $e32
+          rollback left failure         $e33
     """
 
   def e1 =
@@ -90,8 +94,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e6 =
     unsafeRun(
       (for {
-        s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed, STM.retry)
-        f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"), STM.retry)
+        s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
+        f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
       } yield (s must_=== "Yes!") and (f must_== "No!")).run
     )
 
@@ -425,6 +429,34 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       } yield
         (e must_=== Left("Error!")) and
           (v must_=== 0)
+    )
+
+  def e32 =
+    unsafeRun(
+      for {
+        tvar <- TVar.makeRun(0)
+        left = for {
+          _ <- tvar.update(_ + 100)
+          _ <- STM.check(false)
+        } yield ()
+        right = tvar.update(_ + 100).void
+        _     <- (left orElse right).run
+        v     <- tvar.get.run
+      } yield v must_=== 100
+    )
+
+  def e33 =
+    unsafeRun(
+      for {
+        tvar <- TVar.makeRun(0)
+        left = for {
+          _ <- tvar.update(_ + 100)
+          _ <- STM.fail("Uh oh!")
+        } yield ()
+        right = tvar.update(_ + 100).void
+        _     <- (left orElse right).run
+        v     <- tvar.get.run
+      } yield v must_=== 100
     )
 
   private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =

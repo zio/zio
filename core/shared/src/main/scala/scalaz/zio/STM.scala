@@ -75,6 +75,11 @@ final class STM[+E, +A] private (
     )
 
   /**
+   * Maps the success value of this effect to the specified constant value.
+   */
+  final def const[B](b: => B): STM[E, B] = self map (_ => b)
+
+  /**
    * Converts the failure channel into an `Either`.
    */
   final def either: STM[Nothing, Either[E, A]] =
@@ -125,16 +130,16 @@ final class STM[+E, +A] private (
     )
 
   /**
-   * Effectfully folds over the `STM` effect, handling both failure,
-   * success, or potentially a retry.
+   * Effectfully folds over the `STM` effect, handling both failure and
+   * success.
    */
-  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B], h: => STM[E1, B]): STM[E1, B] =
+  final def foldM[E1, B](f: E => STM[E1, B], g: A => STM[E1, B]): STM[E1, B] =
     new STM(
       journal =>
         (self exec journal) match {
           case TRez.Fail(e)    => f(e) exec journal
           case TRez.Succeed(a) => g(a) exec journal
-          case TRez.Retry      => h exec journal
+          case TRez.Retry      => TRez.Retry
         }
     )
 
@@ -174,12 +179,27 @@ final class STM[+E, +A] private (
    * Tries this effect first, and if it fails, tries the other effect.
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
-    self foldM (_ => that, STM.succeed(_), that)
+    new STM(
+      journal =>
+        // TODO: Journal may be out of date here. To be precise, we have to
+        // push this logic to `atomically`. Or maybe make the left journal
+        // entries "no ops".
+        (self exec journal) match {
+          case TRez.Fail(_)        => { journal.clear(); that exec journal }
+          case t @ TRez.Succeed(_) => t
+          case TRez.Retry          => { journal.clear(); that exec journal }
+        }
+    )
 
   /**
    * Runs this transaction atomically.
    */
   final def run: IO[E, A] = STM.atomically(self)
+
+  /**
+   * Maps the success value of this effect to unit.
+   */
+  final def void: STM[E, Unit] = const(())
 
   /**
    * Same as [[filter]]
