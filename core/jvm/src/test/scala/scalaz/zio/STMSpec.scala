@@ -42,8 +42,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
               resume after satisfying the condition $e21
               be suspended while the condition couldn't be satisfied
           have a complex condition lock should suspend the whole transaction and:
-              resume directly when the condition is already satisfied e22
-              resume directly when the condition is already satisfied and change again the tvar with non satisfying value,
+              resume directly when the condition is already satisfied $e22
           transfer an amount to a sender and send it back the account should contains the amount to transfer!
               run both transactions sequentially in 10 fibers. $e23
               run 10 transactions `toReceiver` and 10 `toSender` concurrently. $e24
