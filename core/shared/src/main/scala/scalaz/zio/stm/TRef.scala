@@ -104,9 +104,9 @@ object TRef {
     })
 
   /**
-   * A convenience method that makes a `TRef` and immediately runs the
+   * A convenience method that makes a `TRef` and immediately commits the
    * transaction to extract the value out.
    */
-  final def makeRun[A](a: => A): UIO[TRef[A]] =
+  final def makeCommit[A](a: => A): UIO[TRef[A]] =
     STM.atomically(make(a))
 }

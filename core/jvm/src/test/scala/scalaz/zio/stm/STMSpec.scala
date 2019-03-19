@@ -70,29 +70,29 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
   def e1 =
     unsafeRun(
-      STM.succeed("Hello World").run
+      STM.succeed("Hello World").commit
     ) must_=== "Hello World"
 
   def e2 =
     unsafeRun(
-      STM.fail("Bye bye World").run.either
+      STM.fail("Bye bye World").commit.either
     ) must left("Bye bye World")
 
   def e3 =
     unsafeRun(
-      STM.succeed(42).either.run
+      STM.succeed(42).either.commit
     ) must right(42)
 
   def e4 =
     unsafeRun(
-      STM.fail("oh no!").either.run
+      STM.fail("oh no!").either.commit
     ) must left("oh no!")
 
   def e5 = unsafeRun(
     (for {
       s <- STM.succeed("Yes!").fold(_ => -1, _ => 1)
       f <- STM.fail("No!").fold(_ => -1, _ => 1)
-    } yield (s must_=== 1) and (f must_== -1)).run
+    } yield (s must_=== 1) and (f must_== -1)).commit
   )
 
   def e6 =
@@ -100,12 +100,12 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       (for {
         s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed)
         f <- STM.fail("No!").foldM(STM.succeed, _ => STM.succeed("Yes!"))
-      } yield (s must_=== "Yes!") and (f must_== "No!")).run
+      } yield (s must_=== "Yes!") and (f must_== "No!")).commit
     )
 
   def e7 =
     unsafeRun(
-      STM.fail(-1).mapError(_ => "oh no!").run.either
+      STM.fail(-1).mapError(_ => "oh no!").commit.either
     ) must left("oh no!")
 
   def e8 =
@@ -115,29 +115,29 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           s <- STM.succeed(1) orElse STM.succeed(2)
           f <- STM.fail("failed") orElse STM.succeed("try this")
         } yield (s must_=== 1) and (f must_=== "try this")
-      ).run
+      ).commit
     )
 
   def e9 =
     unsafeRun(
-      STM.succeed(42).option.run
+      STM.succeed(42).option.commit
     ) must some(42)
 
   def e10 =
     unsafeRun(
-      STM.fail("oh no!").option.run
+      STM.fail("oh no!").option.commit
     ) must none
 
   def e11 =
     unsafeRun(
       (
         STM.succeed(1) <*> STM.succeed('A')
-      ).run
+      ).commit
     ) must_=== ((1, 'A'))
 
   def e12 =
     unsafeRun(
-      STM.succeed(578).zipWith(STM.succeed(2))(_ + _).run
+      STM.succeed(578).zipWith(STM.succeed(2))(_ + _).commit
     ) must_=== 580
 
   def e13 =
@@ -147,7 +147,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           intVar <- TRef.make(14)
           v      <- intVar.get
         } yield v must_== 14
-      ).run
+      ).commit
     )
 
   def e14 =
@@ -158,7 +158,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           _      <- intVar.set(42)
           v      <- intVar.get
         } yield v must_== 42
-      ).run
+      ).commit
     )
 
   private def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[clock.Clock, Nothing, Int] =
@@ -191,11 +191,11 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(
       unsafeRun(
         for {
-          tVar  <- TRef.makeRun(0)
+          tVar  <- TRef.makeCommit(0)
           fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
           _     <- fiber.join
         } yield tVar.get
-      ).run
+      ).commit
     ) must_=== 1000
 
   def e16 =
@@ -210,7 +210,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
           _                         <- fiber.join
         } yield tvar3.get
-      ).run
+      ).commit
     ) must_=== 10000
 
   def e17 =
@@ -238,8 +238,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e19 =
     unsafeRun {
       for {
-        tvar1 <- TRef.makeRun(10)
-        tvar2 <- TRef.makeRun("Failed!")
+        tvar1 <- TRef.makeCommit(10)
+        tvar2 <- TRef.makeCommit("Failed!")
         fiber <- (
                   for {
                     v1 <- tvar1.get
@@ -247,7 +247,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
                     _  <- tvar2.set("Succeeded!")
                     v2 <- tvar2.get
                   } yield v2
-                ).run.fork
+                ).commit.fork
         join <- fiber.join
       } yield join must_=== "Succeeded!"
     }
@@ -255,13 +255,13 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e20 =
     unsafeRun {
       for {
-        tvar <- TRef.makeRun(42)
+        tvar <- TRef.makeCommit(42)
         fiber <- STM.atomically {
                   tvar.get.filter(_ == 42)
                 }.fork
         join <- fiber.join
-        _    <- tvar.set(9).run
-        v    <- tvar.get.run
+        _    <- tvar.set(9).commit
+        v    <- tvar.get.commit
       } yield (v must_=== 9) and (join must_=== 42)
     }
 
@@ -271,8 +271,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
       for {
         done  <- Promise.make[Nothing, Unit]
-        tvar1 <- TRef.makeRun(0)
-        tvar2 <- TRef.makeRun("Failed!")
+        tvar1 <- TRef.makeCommit(0)
+        tvar2 <- TRef.makeCommit("Failed!")
         fiber <- (STM.atomically {
                   for {
                     v1 <- tvar1.get
@@ -283,10 +283,10 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
                   } yield v2
                 } <* done.succeed(())).fork
         _    <- UIO(latch.await())
-        old  <- tvar2.get.run
-        _    <- tvar1.set(43).run
+        old  <- tvar2.get.commit
+        _    <- tvar1.set(43).commit
         _    <- done.await
-        newV <- tvar2.get.run
+        newV <- tvar2.get.commit
         join <- fiber.join
       } yield (old must_=== "Failed!") and (newV must_=== join)
     }
@@ -294,67 +294,67 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e22 =
     unsafeRun {
       for {
-        sender    <- TRef.makeRun(100)
-        receiver  <- TRef.makeRun(0)
+        sender    <- TRef.makeCommit(100)
+        receiver  <- TRef.makeCommit(0)
         _         <- transfer(receiver, sender, 150).fork
-        _         <- sender.update(_ + 100).run
-        _         <- sender.get.filter(_ == 50).run
-        senderV   <- sender.get.run
-        receiverV <- receiver.get.run
+        _         <- sender.update(_ + 100).commit
+        _         <- sender.get.filter(_ == 50).commit
+        senderV   <- sender.get.commit
+        receiverV <- receiver.get.commit
       } yield (senderV must_=== 50) and (receiverV must_=== 150)
     }
 
   def e23 =
     unsafeRun {
       for {
-        sender     <- TRef.makeRun(100)
-        receiver   <- TRef.makeRun(0)
+        sender     <- TRef.makeCommit(100)
+        receiver   <- TRef.makeCommit(0)
         toReceiver = transfer(receiver, sender, 150)
         toSender   = transfer(sender, receiver, 150)
         f          <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
-        _          <- sender.update(_ + 50).run
+        _          <- sender.update(_ + 50).commit
         _          <- f.join
-        senderV    <- sender.get.run
-        receiverV  <- receiver.get.run
+        senderV    <- sender.get.commit
+        receiverV  <- receiver.get.commit
       } yield (senderV must_=== 150) and (receiverV must_=== 0)
     }
 
   def e24 =
     unsafeRun {
       for {
-        sender     <- TRef.makeRun(50)
-        receiver   <- TRef.makeRun(0)
+        sender     <- TRef.makeCommit(50)
+        receiver   <- TRef.makeCommit(0)
         toReceiver = transfer(receiver, sender, 100)
         toSender   = transfer(sender, receiver, 100)
         f1         <- IO.forkAll(List.fill(10)(toReceiver))
         f2         <- IO.forkAll(List.fill(10)(toSender))
-        _          <- sender.update(_ + 50).run
+        _          <- sender.update(_ + 50).commit
         _          <- f1.join
         _          <- f2.join
-        senderV    <- sender.get.run
-        receiverV  <- receiver.get.run
+        senderV    <- sender.get.commit
+        receiverV  <- receiver.get.commit
       } yield (senderV must_=== 100) and (receiverV must_=== 0)
     }
 
   def e25 =
     unsafeRun {
       for {
-        sender       <- TRef.makeRun(50)
-        receiver     <- TRef.makeRun(0)
+        sender       <- TRef.makeCommit(50)
+        receiver     <- TRef.makeCommit(0)
         toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
         toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
         f            <- toReceiver10.zipPar(toSender10).fork
-        _            <- sender.update(_ + 50).run
+        _            <- sender.update(_ + 50).commit
         _            <- f.join
-        senderV      <- sender.get.run
-        receiverV    <- receiver.get.run
+        senderV      <- sender.get.commit
+        receiverV    <- receiver.get.commit
       } yield (senderV must_=== 100) and (receiverV must_=== 0)
     }
 
   def e26 =
     unsafeRun(
       for {
-        tvar <- TRef.makeRun(0)
+        tvar <- TRef.makeCommit(0)
         fiber <- IO.forkAll(
                   (0 to 20).map(
                     i =>
@@ -362,11 +362,11 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
                         v <- tvar.get
                         _ <- STM.check(v == i)
                         _ <- tvar.update(_ + 1)
-                      } yield ()).run
+                      } yield ()).commit
                   )
                 )
         _ <- fiber.join
-        v <- tvar.get.run
+        v <- tvar.get.commit
       } yield v must_=== 21
     )
   import scalaz.zio.duration._
@@ -375,17 +375,17 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun {
       val latch = new CountDownLatch(1)
       for {
-        tvar <- TRef.makeRun(0)
+        tvar <- TRef.makeCommit(0)
         fiber <- (for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
                   _ <- STM.check(v > 0)
                   _ <- tvar.update(10 / _)
-                } yield ()).run.fork
+                } yield ()).commit.fork
         _ <- UIO(latch.await())
         _ <- fiber.interrupt
-        _ <- tvar.set(10).run
-        v <- clock.sleep(10.millis) *> tvar.get.run
+        _ <- tvar.set(10).commit
+        v <- clock.sleep(10.millis) *> tvar.get.commit
       } yield v must_=== 10
     }
 
@@ -393,25 +393,25 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun {
       val latch = new CountDownLatch(1)
       for {
-        tvar <- TRef.makeRun(0)
+        tvar <- TRef.makeCommit(0)
         fiber <- IO.forkAll(List.fill(100)((for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
                   _ <- STM.check(v < 0)
                   _ <- tvar.set(10)
-                } yield ()).run))
+                } yield ()).commit))
         _ <- UIO(latch.await())
         _ <- fiber.interrupt
-        _ <- tvar.set(-1).run
-        v <- tvar.get.run.delay(10.millis)
+        _ <- tvar.set(-1).commit
+        v <- tvar.get.commit.delay(10.millis)
       } yield v must_=== -1
     }
 
   def e29 =
     unsafeRun(
       for {
-        v       <- TRef.makeRun(1)
-        f       <- v.get.flatMap(v => STM.check(v == 0)).run.fork
+        v       <- TRef.makeCommit(1)
+        f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
         _       <- f.interrupt
         observe <- f.poll
       } yield observe must be some Exit.Failure(Cause.Interrupt)
@@ -419,31 +419,31 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
   def e30 =
     unsafeRun(
-      STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.run
+      STM.succeed((1 to 20).toList).collect { case l if l.forall(_ > 0) => "Positive" }.commit
     ) must_=== "Positive"
 
   def e31 =
     unsafeRun(
       for {
-        tvar1 <- TRef.makeRun(1)
-        tvar2 <- TRef.makeRun(2)
-        _     <- permutation(tvar1, tvar2).run
-        v1    <- tvar1.get.run
-        v2    <- tvar2.get.run
+        tvar1 <- TRef.makeCommit(1)
+        tvar2 <- TRef.makeCommit(2)
+        _     <- permutation(tvar1, tvar2).commit
+        v1    <- tvar1.get.commit
+        v2    <- tvar2.get.commit
       } yield (v1 must_=== 2) and (v2 must_=== 1)
     )
 
   def e32 =
     unsafeRun(
       for {
-        tvar1 <- TRef.makeRun(1)
-        tvar2 <- TRef.makeRun(2)
-        oldV1 <- tvar1.get.run
-        oldV2 <- tvar2.get.run
-        f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).run))
+        tvar1 <- TRef.makeCommit(1)
+        tvar2 <- TRef.makeCommit(2)
+        oldV1 <- tvar1.get.commit
+        oldV2 <- tvar2.get.commit
+        f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).commit))
         _     <- f.join
-        v1    <- tvar1.get.run
-        v2    <- tvar2.get.run
+        v1    <- tvar1.get.commit
+        v2    <- tvar2.get.commit
       } yield (v1 must_=== oldV1) and (v2 must_=== oldV2)
     )
 
@@ -451,28 +451,28 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(
       for {
         it    <- UIO((1 to 100).map(TRef.make(_)))
-        tvars <- STM.collectAll(it).run
-        res   <- UIO.collectAllPar(tvars.map(_.get.run))
+        tvars <- STM.collectAll(it).commit
+        res   <- UIO.collectAllPar(tvars.map(_.get.commit))
       } yield res must_=== (1 to 100).toList
     )
 
   def e34 =
     unsafeRun(
       for {
-        tvar      <- TRef.makeRun(0)
-        _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).run
+        tvar      <- TRef.makeCommit(0)
+        _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).commit
         expectedV = (1 to 100).sum
-        v         <- tvar.get.run
+        v         <- tvar.get.commit
       } yield v must_=== expectedV
     )
 
   def e35 =
     unsafeRun(
       for {
-        rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).run
-        leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).run
-        leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).run
-        failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).run.either
+        rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).commit
+        leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
+        leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
+        failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
       } yield
         (rightV must_=== Right(42)) and (leftV1 must_=== Left(1)) and (leftV2 must_=== Left(2)) and (failedV must_=== Left(
           -2
@@ -482,12 +482,12 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e36 =
     unsafeRun(
       for {
-        tvar <- TRef.makeRun(0)
+        tvar <- TRef.makeCommit(0)
         e <- (for {
               _ <- tvar.update(_ + 10)
               _ <- STM.fail("Error!")
-            } yield ()).run.either
-        v <- tvar.get.run
+            } yield ()).commit.either
+        v <- tvar.get.commit
       } yield
         (e must be left "Error!") and
           (v must_=== 0)
@@ -496,28 +496,28 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e37 =
     unsafeRun(
       for {
-        tvar <- TRef.makeRun(0)
+        tvar <- TRef.makeCommit(0)
         left = for {
           _ <- tvar.update(_ + 100)
           _ <- STM.retry
         } yield ()
         right = tvar.update(_ + 100).void
-        _     <- (left orElse right).run
-        v     <- tvar.get.run
+        _     <- (left orElse right).commit
+        v     <- tvar.get.commit
       } yield v must_=== 100
     )
 
   def e38 =
     unsafeRun(
       for {
-        tvar <- TRef.makeRun(0)
+        tvar <- TRef.makeCommit(0)
         left = for {
           _ <- tvar.update(_ + 100)
           _ <- STM.fail("Uh oh!")
         } yield ()
         right = tvar.update(_ + 100).void
-        _     <- (left orElse right).run
-        v     <- tvar.get.run
+        _     <- (left orElse right).commit
+        v     <- tvar.get.commit
       } yield v must_=== 100
     )
 
@@ -564,33 +564,33 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 object Examples {
   object mutex {
     type Mutex = TRef[Boolean]
-    val makeMutex = TRef.make(false).run
+    val makeMutex = TRef.make(false).commit
     def acquire(mutex: Mutex): UIO[Unit] =
       (for {
         value <- mutex.get
         _     <- STM.check(!value)
         _     <- mutex.set(true)
-      } yield ()).run
+      } yield ()).commit
     def release(mutex: Mutex): UIO[Unit] =
-      mutex.set(false).run.void
+      mutex.set(false).commit.void
     def withMutex[R, E, A](mutex: Mutex)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
       acquire(mutex).bracket_(release(mutex))(zio)
   }
   object semaphore {
     type Semaphore = TRef[Int]
-    def makeSemaphore(n: Int): UIO[Semaphore] = TRef.makeRun(n)
+    def makeSemaphore(n: Int): UIO[Semaphore] = TRef.makeCommit(n)
     def acquire(semaphore: Semaphore, n: Int): UIO[Unit] =
       (for {
         value <- semaphore.get
         _     <- STM.check(value >= n)
         _     <- semaphore.set(value - n)
-      } yield ()).run
+      } yield ()).commit
     def release(semaphore: Semaphore, n: Int): UIO[Unit] =
-      semaphore.update(_ + n).run.void
+      semaphore.update(_ + n).commit.void
   }
   object promise {
     type Promise[A] = TRef[Option[A]]
-    def makePromise[A]: UIO[Promise[A]] = TRef.makeRun(None)
+    def makePromise[A]: UIO[Promise[A]] = TRef.makeCommit(None)
     def complete[A](promise: Promise[A], v: A): UIO[Boolean] =
       (for {
         value <- promise.get
@@ -600,24 +600,24 @@ object Examples {
                      promise.set(Some(v)) *>
                        STM.succeed(true)
                  }
-      } yield change).run
+      } yield change).commit
     def await[A](promise: Promise[A]): UIO[A] =
       promise.get.collect {
         case Some(a) => a
-      }.run
+      }.commit
   }
   object queue {
     import scala.collection.immutable.{ Queue => ScalaQueue }
 
     case class Queue[A](capacity: Int, tvar: TRef[ScalaQueue[A]])
     def makeQueue[A](capacity: Int): UIO[Queue[A]] =
-      TRef.makeRun(ScalaQueue.empty[A]).map(Queue(capacity, _))
+      TRef.makeCommit(ScalaQueue.empty[A]).map(Queue(capacity, _))
     def offer[A](queue: Queue[A], a: A): UIO[Unit] =
       (for {
         q <- queue.tvar.get
         _ <- STM.check(q.length < queue.capacity)
         _ <- queue.tvar.update(_ enqueue a)
-      } yield ()).run
+      } yield ()).commit
     def take[A](queue: Queue[A]): UIO[A] =
       (for {
         q <- queue.tvar.get
@@ -626,7 +626,7 @@ object Examples {
                 queue.tvar.set(as) *> STM.succeed(a)
               case _ => STM.retry
             }
-      } yield a).run
+      } yield a).commit
   }
   object fun {
     case class Phone(value: String)
@@ -641,6 +641,6 @@ object Examples {
                 case Some(dev) => STM.succeed(dev)
                 case _         => STM.retry
               }
-      } yield any).run.flatMap(dev => page(dev.phone, "Wake up, too many bugs!"))
+      } yield any).commit.flatMap(dev => page(dev.phone, "Wake up, too many bugs!"))
   }
 }

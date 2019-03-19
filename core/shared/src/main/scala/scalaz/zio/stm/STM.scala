@@ -203,9 +203,9 @@ final class STM[+E, +A] private[stm] (
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
-   * Runs this transaction atomically.
+   * Commits this transaction atomically.
    */
-  final def run: IO[E, A] = STM.atomically(self)
+  final def commit: IO[E, A] = STM.atomically(self)
 
   /**
    * Maps the success value of this effect to unit.
