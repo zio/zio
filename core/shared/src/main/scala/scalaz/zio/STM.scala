@@ -193,7 +193,7 @@ final class STM[+E, +A] private (
    * Returns a transactional effect that will produce the value of this effect in left side, unless it
    * fails, in which case, it will produce the value of the specified effect in right side.
    */
-  final def orElseEither[E1 >: E, B](that: => STM[E1, B]): STM[E1, Either[A, B]] = 
+  final def orElseEither[E1 >: E, B](that: => STM[E1, B]): STM[E1, Either[A, B]] =
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
