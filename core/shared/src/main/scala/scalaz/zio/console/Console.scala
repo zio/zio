@@ -30,15 +30,10 @@ object Console extends Serializable {
   trait Service[R] {
     def putStr(line: String): ZIO[R, Nothing, Unit]
 
-    def putStr(stream: PrintStream)(line: String): ZIO[R, Nothing, Unit]
-
     def putStrLn(line: String): ZIO[R, Nothing, Unit]
-
-    def putStrLn(stream: PrintStream)(line: String): ZIO[R, Nothing, Unit]
 
     val getStrLn: ZIO[R, IOException, String]
 
-    def getStrLn(reader: Reader): ZIO[R, IOException, String]
   }
   trait Live extends Console {
     val console: Service[Any] = new Service[Any] {

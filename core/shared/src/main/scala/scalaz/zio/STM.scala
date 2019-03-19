@@ -1,8 +1,6 @@
 package scalaz.zio
 
-import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
 
 import scala.collection.mutable.{ Map => MutableMap }
 
@@ -190,6 +188,13 @@ final class STM[+E, +A] private (
           case TRez.Retry          => { journal.clear(); that exec journal }
         }
     )
+
+  /**
+   * Returns a transactional effect that will produce the value of this effect in left side, unless it
+   * fails, in which case, it will produce the value of the specified effect in right side.
+   */
+  final def orElseEither[E1 >: E, B](that: => STM[E1, B]): STM[E1, Either[A, B]] = 
+    (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
    * Runs this transaction atomically.
@@ -485,84 +490,83 @@ object STM {
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
     UIO.effectTotal(new AtomicReference[UIO[Unit]](UIO.unit)) flatMap { ref =>
-      (IO
-        .effectAsyncMaybe[E, A] { k =>
-          import internal.globalLock
+      IO.effectAsyncMaybe[E, A] { k =>
+        import internal.globalLock
 
-          val txnId = makeTxnId()
+        val txnId = makeTxnId()
 
-          val done = new AtomicBoolean(false)
+        val done = new AtomicBoolean(false)
 
-          ref set UIO(done synchronized {
-            done set true
-          })
+        ref set UIO(done synchronized {
+          done set true
+        })
 
-          def tryTxn(): Option[IO[E, A]] =
-            if (done.get) None
-            else
-              done synchronized {
-                if (done.get) None
-                else {
-                  var journal = null.asInstanceOf[MutableMap[Long, Entry]]
-                  var value   = null.asInstanceOf[TRez[E, A]]
+        def tryTxn(): Option[IO[E, A]] =
+          if (done.get) None
+          else
+            done synchronized {
+              if (done.get) None
+              else {
+                var journal = null.asInstanceOf[MutableMap[Long, Entry]]
+                var value   = null.asInstanceOf[TRez[E, A]]
 
-                  var loop = true
+                var loop = true
 
-                  while (loop) {
-                    journal = MutableMap.empty[Long, Entry]
-                    value = stm exec journal
-
-                    value match {
-                      case _: TRez.Succeed[_] =>
-                        globalLock.acquire()
-
-                        try if (journal.values forall (_.isValid)) {
-                          journal.values foreach (_.commit())
-
-                          loop = false
-                        } finally globalLock.release()
-
-                      case _: TRez.Fail[_] =>
-                        globalLock.acquire()
-
-                        try loop = journal.values exists (_.isInvalid)
-                        finally globalLock.release()
-
-                      case TRez.Retry =>
-                        addTodo(txnId, journal.values map (_.tvar), tryTxnAsync)
-
-                        loop = false
-                    }
-                  }
-
-                  def completed(io: IO[E, A]): Option[IO[E, A]] = {
-                    done set true
-
-                    val tvars = journal.values map (_.tvar)
-
-                    Some(collectTodos(tvars).fork *> io)
-                  }
+                while (loop) {
+                  journal = MutableMap.empty[Long, Entry]
+                  value = stm exec journal
 
                   value match {
-                    case TRez.Succeed(a) => completed(IO.succeed(a))
-                    case TRez.Fail(e)    => completed(IO.fail(e))
-                    case TRez.Retry =>
-                      val stale = journal.values exists (entry => entry.tvar.versioned ne entry.expected)
+                    case _: TRez.Succeed[_] =>
+                      globalLock.acquire()
 
-                      if (stale) tryTxn() else None
+                      try if (journal.values forall (_.isValid)) {
+                        journal.values foreach (_.commit())
+
+                        loop = false
+                      } finally globalLock.release()
+
+                    case _: TRez.Fail[_] =>
+                      globalLock.acquire()
+
+                      try loop = journal.values exists (_.isInvalid)
+                      finally globalLock.release()
+
+                    case TRez.Retry =>
+                      addTodo(txnId, journal.values map (_.tvar), tryTxnAsync)
+
+                      loop = false
                   }
                 }
+
+                def completed(io: IO[E, A]): Option[IO[E, A]] = {
+                  done set true
+
+                  val tvars = journal.values map (_.tvar)
+
+                  Some(collectTodos(tvars).fork *> io)
+                }
+
+                value match {
+                  case TRez.Succeed(a) => completed(IO.succeed(a))
+                  case TRez.Fail(e)    => completed(IO.fail(e))
+                  case TRez.Retry =>
+                    val stale = journal.values exists (entry => entry.tvar.versioned ne entry.expected)
+
+                    if (stale) tryTxn() else None
+                }
               }
-
-          def tryTxnAsync: UIO[Unit] = UIO {
-            tryTxn() match {
-              case None     =>
-              case Some(io) => k(io)
             }
-          }
 
-          tryTxn()
-        }) ensuring UIO(ref.get).flatten
+        def tryTxnAsync: UIO[Unit] = UIO {
+          tryTxn() match {
+            case None     =>
+            case Some(io) => k(io)
+          }
+        }
+
+        tryTxn()
+      } ensuring UIO(ref.get).flatten
     }
 
   /**
@@ -588,9 +592,15 @@ object STM {
    * transactional effect that produces a list of values.
    */
   final def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
-    i.foldLeft[STM[E, List[A]]](STM.succeed(Nil)) {
-        case (acc, stm) =>
-          acc.zipWith(stm)((xs, x) => x :: xs)
-      }
-      .map(_.reverse)
+    i.foldRight[STM[E, List[A]]](STM.succeed(Nil)) {
+      case (stm, acc) =>
+        acc.zipWith(stm)((xs, x) => x :: xs)
+    }
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and
+   * returns a transactional effect that produces a new `List[B]`.
+   */
+  final def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+    collectAll(as.map(f))
 }

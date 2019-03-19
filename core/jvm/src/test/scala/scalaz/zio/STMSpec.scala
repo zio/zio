@@ -55,13 +55,18 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
             interrupt the fiber that has executed the transaction in 100 different fibers, should terminate all transactions. $e28
             interrupt the fiber and observe it, it should be resumed with Interrupted Cause   $e29
           Using `collect` filter and map simultaneously the value produced by the transaction $e30
+          Permute 2 variables $e31
+          Permute 2 variables in 100 fibers, the 2 variables should contains the same values $e32
+          Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values $e33
+          Using `foreach` perform an action in each value and return a single transaction that contains the result $e34
+          Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed $e35
 
-        Failure must 
-          rollback full transaction     $e31
+        Failure must
+          rollback full transaction     $e36
 
         orElse must
-          rollback left retry           $e32
-          rollback left failure         $e33
+          rollback left retry           $e37
+          rollback left failure         $e38
     """
 
   def e1 =
@@ -375,14 +380,14 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         fiber <- (for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
-                  _ <- STM.check(v == 60)
+                  _ <- STM.check(v > 0)
                   _ <- tvar.update(10 / _)
                 } yield ()).run.fork
         _ <- UIO(latch.await())
         _ <- fiber.interrupt
-        _ <- clock.sleep(100.millis)
-        v <- tvar.get.run
-      } yield v must_=== 0
+        _ <- tvar.set(10).run
+        v <- clock.sleep(10.millis) *> tvar.get.run
+      } yield v must_=== 10
     }
 
   def e28 =
@@ -393,13 +398,14 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         fiber <- IO.forkAll(List.fill(100)((for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
-                  _ <- STM.check(v > 0)
+                  _ <- STM.check(v < 0)
+                  _ <- tvar.set(10)
                 } yield ()).run))
         _ <- UIO(latch.await())
         _ <- fiber.interrupt
-        _ <- clock.sleep(100.millis)
-        v <- tvar.get.run
-      } yield v must_=== 0
+        _ <- tvar.set(-1).run
+        v <- tvar.get.run.delay(10.millis)
+      } yield v must_=== -1
     }
 
   def e29 =
@@ -420,6 +426,63 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e31 =
     unsafeRun(
       for {
+        tvar1 <- TVar.makeRun(1)
+        tvar2 <- TVar.makeRun(2)
+        _     <- permutation(tvar1, tvar2).run
+        v1    <- tvar1.get.run
+        v2    <- tvar2.get.run
+      } yield (v1 must_=== 2) and (v2 must_=== 1)
+    )
+
+  def e32 =
+    unsafeRun(
+      for {
+        tvar1 <- TVar.makeRun(1)
+        tvar2 <- TVar.makeRun(2)
+        oldV1 <- tvar1.get.run
+        oldV2 <- tvar2.get.run
+        f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).run))
+        _     <- f.join
+        v1    <- tvar1.get.run
+        v2    <- tvar2.get.run
+      } yield (v1 must_=== oldV1) and (v2 must_=== oldV2)
+    )
+
+  def e33 =
+    unsafeRun(
+      for {
+        it    <- UIO((1 to 100).map(TVar.make(_)))
+        tvars <- STM.collectAll(it).run
+        res   <- UIO.collectAllPar(tvars.map(_.get.run))
+      } yield res must_=== (1 to 100).toList
+    )
+
+  def e34 =
+    unsafeRun(
+      for {
+        tvar      <- TVar.makeRun(0)
+        _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).run
+        expectedV = (1 to 100).sum
+        v         <- tvar.get.run
+      } yield v must_=== expectedV
+    )
+
+  def e35 =
+    unsafeRun(
+      for {
+        rightV  <- STM.fail("oh no!").orElseEither(STM.succeed(42)).run
+        leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).run
+        leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).run
+        failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).run.either
+      } yield
+        (rightV must_=== Right(42)) and (leftV1 must_=== Left(1)) and (leftV2 must_=== Left(2)) and (failedV must_=== Left(
+          -2
+        ))
+    )
+
+  def e36 =
+    unsafeRun(
+      for {
         tvar <- TVar.makeRun(0)
         e <- (for {
               _ <- tvar.update(_ + 10)
@@ -427,11 +490,11 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
             } yield ()).run.either
         v <- tvar.get.run
       } yield
-        (e must_=== Left("Error!")) and
+        (e must be left "Error!") and
           (v must_=== 0)
     )
 
-  def e32 =
+  def e37 =
     unsafeRun(
       for {
         tvar <- TVar.makeRun(0)
@@ -445,7 +508,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       } yield v must_=== 100
     )
 
-  def e33 =
+  def e38 =
     unsafeRun(
       for {
         tvar <- TVar.makeRun(0)
@@ -488,6 +551,15 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         newAmnt <- receiver.get
       } yield newAmnt
     }
+
+  private def permutation(tvar1: TVar[Int], tvar2: TVar[Int]): STM[Nothing, Unit] =
+    for {
+      a <- tvar1.get
+      b <- tvar2.get
+      _ <- tvar1.set(b)
+      _ <- tvar2.set(a)
+    } yield ()
+
 }
 
 object Examples {
@@ -497,7 +569,7 @@ object Examples {
     def acquire(mutex: Mutex): UIO[Unit] =
       (for {
         value <- mutex.get
-        _     <- STM.check(value == false)
+        _     <- STM.check(!value)
         _     <- mutex.set(true)
       } yield ()).run
     def release(mutex: Mutex): UIO[Unit] =

@@ -2,7 +2,7 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime }
+import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime, UIO }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
@@ -19,7 +19,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def is = "StreamSpec".title ^ s2"""
   PureStream.filter         $filter
   PureStream.dropWhile      $dropWhile
-  PureStream.takeWhile      $takeWhile
   PureStream.mapProp        $map
   PureStream.mapConcat      $mapConcat
   Stream.filterM            $filterM
@@ -28,20 +27,31 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
   Stream.range              $range
-  Stream.take               $take
+
+  Stream.take
+    take                     $take
+    take short circuits      $takeShortCircuits
+    takeWhile                $takeWhile
+    takeWhile short circuits $takeWhileShortCircuits
+
   Stream.foreach0           $foreach0
   Stream.foreach            $foreach
   Stream.collect            $collect
   Stream.forever            $forever
   Stream.scanM              $mapAccumM
   Stream.transduce          $transduce
-  Stream.tap         $tap
+  Stream.tap                $tap
   Stream.fromIterable       $fromIterable
   Stream.fromChunk          $fromChunk
   Stream.fromQueue          $fromQueue
   Stream.toQueue            $toQueue
   Stream.peel               $peel
   Stream.drain              $drain
+
+  Stream bracketing
+    bracket                              $bracket
+    bracket short circuits               $bracketShortCircuits
+    no acquisition when short circuiting $bracketNoAcquisition
 
   Stream merging
     merge                         $merge
@@ -69,34 +79,44 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import Exit._
 
   private def filter =
-    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, String], p: String => Boolean) =>
       slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))
     }
 
   private def filterM =
-    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, String], p: String => Boolean) =>
       slurp(s.filterM(s => IO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
     }
 
   private def dropWhile =
-    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, String], p: String => Boolean) =>
       slurp(s.dropWhile(p)) must_=== slurp(s).map(_.dropWhile(p))
     }
 
   private def takeWhile =
-    prop { (s: Stream[Any, String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, String], p: String => Boolean) =>
       val streamTakeWhile = slurp(s.takeWhile(p))
       val listTakeWhile   = slurp(s).map(_.takeWhile(p))
       listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
     }
 
+  private def takeWhileShortCircuits =
+    unsafeRun(
+      for {
+        ran    <- Ref.make(false)
+        stream = (Stream(1) ++ Stream.fromEffect(ran.set(true)).drain).takeWhile(_ => false)
+        _      <- stream.run(Sink.drain)
+        result <- ran.get
+      } yield result must_=== false
+    )
+
   private def map =
-    prop { (s: Stream[Any, String, String], f: String => Int) =>
+    prop { (s: Stream[String, String], f: String => Int) =>
       slurp(s.map(f)) must_=== slurp(s).map(_.map(f))
     }
 
   private def concat =
-    prop { (s1: Stream[Any, String, String], s2: Stream[Any, String, String]) =>
+    prop { (s1: Stream[String, String], s2: Stream[String, String]) =>
       val listConcat = (slurp(s1) zip slurp(s2)).map {
         case (left, right) => left ++ right
       }
@@ -106,7 +126,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mapConcat = {
     import ArbitraryChunk._
-    prop { (s: Stream[Any, String, String], f: String => Chunk[Int]) =>
+    prop { (s: Stream[String, String], f: String => Chunk[Int]) =>
       slurp(s.mapConcat(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
     }
   }
@@ -137,12 +157,21 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def take =
-    prop { (s: Stream[Any, String, String], n: Int) =>
-      val takeStreamResult = slurp(s.take(n))
-      val takeListResult   = slurp(s).map(_.take(n))
-      (takeListResult.succeeded ==> (takeStreamResult must_=== takeListResult)) //&&
-    // ((!takeStreamResult.succeeded) ==> (!takeListResult.succeeded))
+    prop { (s: Stream[String, String], n: Int) =>
+      val takeStreamesult = slurp(s.take(n))
+      val takeListResult  = slurp(s).map(_.take(n))
+      (takeListResult.succeeded ==> (takeStreamesult must_=== takeListResult))
     }
+
+  private def takeShortCircuits =
+    unsafeRun(
+      for {
+        ran    <- Ref.make(false)
+        stream = (Stream(1) ++ Stream.fromEffect(ran.set(true)).drain).take(0)
+        _      <- stream.run(Sink.drain)
+        result <- ran.get
+      } yield result must_=== false
+    )
 
   private def foreach0 = {
     var sum = 0
@@ -180,20 +209,20 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def monadLaw1 =
-    prop((x: Int, f: Int => Stream[Any, String, Int]) => slurp(Stream(x).flatMap(f)) must_=== slurp(f(x)))
+    prop((x: Int, f: Int => Stream[String, Int]) => slurp(Stream(x).flatMap(f)) must_=== slurp(f(x)))
 
   private def monadLaw2 =
-    prop((m: Stream[Any, String, Int]) => slurp(m.flatMap(i => Stream(i))) must_=== slurp(m))
+    prop((m: Stream[String, Int]) => slurp(m.flatMap(i => Stream(i))) must_=== slurp(m))
 
   private def monadLaw3 =
-    prop { (m: Stream[Any, String, Int], f: Int => Stream[Any, String, Int], g: Int => Stream[Any, String, Int]) =>
+    prop { (m: Stream[String, Int], f: Int => Stream[String, Int], g: Int => Stream[String, Int]) =>
       val leftStream  = m.flatMap(f).flatMap(g)
       val rightStream = m.flatMap(x => f(x).flatMap(g))
       slurp(leftStream) must_=== slurp(rightStream)
     }
 
   private def deepFlatMap = {
-    def fib(n: Int): Stream[Any, Nothing, Int] =
+    def fib(n: Int): Stream[Nothing, Int] =
       if (n <= 1) Stream.succeedLazy(n)
       else
         fib(n - 1).flatMap { a =>
@@ -222,7 +251,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def merge =
-    prop { (s1: Stream[Any, String, Int], s2: Stream[Any, String, Int]) =>
+    prop { (s1: Stream[String, Int], s2: Stream[String, Int]) =>
       val mergedStream = slurp(s1 merge s2).map(_.toSet)
       val mergedLists  = (slurp(s1) zip slurp(s2)).map { case (left, right) => left ++ right }.map(_.toSet)
       (!mergedStream.succeeded && !mergedLists.succeeded) || (mergedStream must_=== mergedLists)
@@ -276,7 +305,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def transduce = {
     val s          = Stream('1', '2', ',', '3', '4')
-    val parser     = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
+    val parser     = ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.readWhile(_ == ',')
     val transduced = s.transduce(parser)
 
     slurp(transduced) must_=== Success(List(12, 34))
@@ -284,7 +313,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def peel = {
     val s      = Stream('1', '2', ',', '3', '4')
-    val parser = Sink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* Sink.readWhile(_ == ',')
+    val parser = ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.readWhile(_ == ',')
     val peeled = s.peel(parser).use[Any, Int, (Int, Exit[Nothing, List[Char]])] {
       case (n, rest) =>
         IO.succeed((n, slurp(rest)))
@@ -310,7 +339,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def zipWithIndex =
-    prop((s: Stream[Any, String, String]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
+    prop((s: Stream[String, String]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
 
   private def zipWithIgnoreRhs = {
     val s1     = Stream(1, 2, 3)
@@ -373,5 +402,45 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _   <- Stream.range(0, 10).mapM(i => ref.update(i :: _)).drain.run(Sink.drain)
         l   <- ref.get
       } yield l.reverse must_=== (0 to 10).toList
+    )
+
+  private def bracket =
+    unsafeRun(
+      for {
+        done <- Ref.make(false)
+        iteratorStream = Stream.bracket(UIO(Iterator.range(0, 3)))(_ => done.set(true)) { it =>
+          if (it.hasNext) UIO(Some(it.next))
+          else UIO(None)
+        }
+        result   <- iteratorStream.run(Sink.collect[Int])
+        released <- done.get
+      } yield (result must_=== List(0, 1, 2)) and (released must_=== true)
+    )
+
+  private def bracketShortCircuits =
+    unsafeRun(
+      for {
+        done <- Ref.make(false)
+        iteratorStream = Stream
+          .bracket(UIO(Iterator.range(0, 3)))(_ => done.set(true)) { it =>
+            if (it.hasNext) UIO(Some(it.next))
+            else UIO(None)
+          }
+          .take(2)
+        result   <- iteratorStream.run(Sink.collect[Int])
+        released <- done.get
+      } yield (result must_=== List(0, 1)) and (released must_=== true)
+    )
+
+  private def bracketNoAcquisition =
+    unsafeRun(
+      for {
+        acquired <- Ref.make(false)
+        iteratorStream = (Stream(1) ++ Stream.bracket(acquired.set(true))(_ => UIO.unit) { _ =>
+          UIO(Some(()))
+        }).take(0)
+        _      <- iteratorStream.run(Sink.drain)
+        result <- acquired.get
+      } yield result must_=== false
     )
 }

@@ -7,13 +7,13 @@ import scalaz.zio.Chunk
 object ArbitraryStep {
   import ArbitraryChunk._
 
-  implicit def arbStep[S: Arbitrary, A0: Arbitrary: ClassTag]: Arbitrary[Sink.Step[S, A0]] =
+  implicit def arbStep[S: Arbitrary, A0: Arbitrary: ClassTag]: Arbitrary[ZSink.Step[S, A0]] =
     Arbitrary {
       Gen.oneOf(
-        Arbitrary.arbitrary[S].map(Sink.Step.more(_)),
+        Arbitrary.arbitrary[S].map(ZSink.Step.more(_)),
         Gen
           .zip(Arbitrary.arbitrary[S], Arbitrary.arbitrary[Chunk[A0]])
-          .map(tp => Sink.Step.done(tp._1, tp._2))
+          .map(tp => ZSink.Step.done(tp._1, tp._2))
       )
     }
 }
