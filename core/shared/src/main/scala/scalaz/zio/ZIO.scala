@@ -21,8 +21,8 @@ import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.{ Executor, Platform }
 
-import scala.concurrent.ExecutionContext
 import scala.annotation.switch
+import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
 /**
@@ -206,12 +206,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         exit.foldM[E1, Either[A, B]](
           _ => right.join.map(Right(_)),
           a => ZIO.succeedLeft(a) <* right.interrupt
-        ),
+      ),
       (exit, left) =>
         exit.foldM[E1, Either[A, B]](
           _ => left.join.map(Left(_)),
           b => ZIO.succeedRight(b) <* left.interrupt
-        )
+      )
     )
 
   /**
@@ -464,7 +464,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Failure(_) => release(a)
           case _               => ZIO.unit
-        }
+      }
     )(use)
 
   /**
@@ -483,7 +483,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Success(_)     => ZIO.unit
           case Exit.Failure(cause) => cleanup(cause)
-        }
+      }
     )(_ => self)
 
   /**
@@ -504,7 +504,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
           case _                   => ZIO.unit
-        }
+      }
     )(_ => self)
 
   /**
@@ -689,7 +689,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           schedule.update(a, state).flatMap { step =>
             if (!step.cont) ZIO.succeedRight(step.finish())
             else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-          }
+        }
       )
 
     schedule.initial.flatMap(loop(None, _))
@@ -733,7 +733,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               decision =>
                 if (decision.cont) clock.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
-            ),
+          ),
         succ => ZIO.succeedRight(succ)
       )
 
@@ -998,7 +998,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Accesses the whole environment of the effect.
    */
-  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(identity)
+  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(r => r)
 
   /**
    * Accesses the environment of the effect.
@@ -1034,7 +1034,7 @@ trait ZIOFunctions extends Serializable {
   final def runtime[R >: LowerR]: ZIO[R, Nothing, Runtime[R]] =
     for {
       environment <- environment[R]
-      platform    <- effectTotalWith(identity)
+      platform    <- effectTotalWith(r => r)
     } yield Runtime(environment, platform)
 
   /**
@@ -1246,6 +1246,28 @@ trait ZIOFunctions extends Serializable {
   final def unsandbox[R >: LowerR, E <: UpperE, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
 
   /**
+   * Returns the identity effectful function, which performs no effects
+   */
+  final def identity[A >: LowerR]: ZIO[A, Nothing, A] = fromFunction[A, A](a => a)
+
+  /**
+   * Returns an effectful function that merely swaps the elements in a `Tuple2`.
+   */
+  final def swap[R >: LowerR, E <: UpperE,  A, B](implicit ev:  R =:= (A, B)): ZIO[R, E, (B, A)] = fromFunction[R, (B, A)](_.swap)
+
+  /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  final def _1[R >: LowerR, E <: UpperE, A, B](implicit ev: R =:= (A, B)): ZIO[R, E, A] = fromFunction[R, A](_._1)
+
+  /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  final def _2[R >: LowerR, E <: UpperE, A, B](implicit ev: R =:= (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
+
+  /**
    * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
    */
   final def fromFunction[R >: LowerR, A](f: R => A): ZIO[R, Nothing, A] =
@@ -1408,14 +1430,14 @@ trait ZIOFunctions extends Serializable {
    * the results. For a parallel version, see `collectAllPar`.
    */
   final def collectAll[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreach[R, E, ZIO[R, E, A], A](in)(identity(_))
+    foreach[R, E, ZIO[R, E, A], A](in)(a => a)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
    * the results. For a sequential version, see `collectAll`.
    */
   final def collectAllPar[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachPar[R, E, ZIO[R, E, A], A](as)(identity(_))
+    foreachPar[R, E, ZIO[R, E, A], A](as)(a => a)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
@@ -1424,7 +1446,7 @@ trait ZIOFunctions extends Serializable {
    * Unlike `foreachAllPar`, this method will use at most `n` fibers.
    */
   final def collectAllParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(identity(_))
+    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(a => a)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -1531,7 +1553,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
         try Right(effect)
         catch {
           case t: Throwable if platform.nonFatal(t) => Left(t)
-        }
+      }
     ).absolve
 
   /**
