@@ -39,7 +39,7 @@ package object zio extends EitherCompat {
     case e: Exception => e
   }
 
-  object ~ {
+  object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))
   }

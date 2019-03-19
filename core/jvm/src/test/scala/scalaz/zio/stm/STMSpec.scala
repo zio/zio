@@ -1,9 +1,9 @@
-package scalaz.zio
+package scalaz.zio.stm
 
-import scalaz.zio.STM.TVar
 import java.util.concurrent.CountDownLatch
 
 import scalaz.zio.Exit.Cause
+import scalaz.zio._
 
 final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "STMSpec".title ^ s2"""
@@ -23,17 +23,17 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
            `zip` to return a tuple of two computations        $e11
            `zipWith` to perform an action to two computations $e12
 
-        Make a new `TVar` and
+        Make a new `TRef` and
            get its initial value $e13
            set a new value       $e14
 
         Using `STM.atomically` perform concurrent computations:
-            increment `TVar` 100 times in 100 fibers. $e15
-            compute a `TVar` from 2 variables, increment the first `TVar` and decrement the second `TVar` in different fibers. $e16
+            increment `TRef` 100 times in 100 fibers. $e15
+            compute a `TRef` from 2 variables, increment the first `TRef` and decrement the second `TRef` in different fibers. $e16
 
         Using `Ref` perform the same concurrent test should return a wrong result
-             increment `TVar` 100 times in 100 fibers. $e17
-             compute a `TVar` from 2 variables, increment the first `TVar` and decrement the second `TVar` in different fibers. $e18
+             increment `TRef` 100 times in 100 fibers. $e17
+             compute a `TRef` from 2 variables, increment the first `TRef` and decrement the second `TRef` in different fibers. $e18
         Using `STM.atomically` perform concurrent computations that
           have a simple condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied $e19
@@ -131,7 +131,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e11 =
     unsafeRun(
       (
-        STM.succeed(1) ~ STM.succeed('A')
+        STM.succeed(1) <*> STM.succeed('A')
       ).run
     ) must_=== ((1, 'A'))
 
@@ -144,7 +144,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(
       (
         for {
-          intVar <- TVar.make(14)
+          intVar <- TRef.make(14)
           v      <- intVar.get
         } yield v must_== 14
       ).run
@@ -154,14 +154,14 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(
       (
         for {
-          intVar <- TVar.make(14)
+          intVar <- TRef.make(14)
           _      <- intVar.set(42)
           v      <- intVar.get
         } yield v must_== 42
       ).run
     )
 
-  private def incrementVarN(n: Int, tvar: STM.TVar[Int]): ZIO[clock.Clock, Nothing, Int] =
+  private def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[clock.Clock, Nothing, Int] =
     STM
       .atomically(for {
         v <- tvar.get
@@ -172,9 +172,9 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
   private def compute3VarN(
     n: Int,
-    tvar1: STM.TVar[Int],
-    tvar2: STM.TVar[Int],
-    tvar3: STM.TVar[Int]
+    tvar1: TRef[Int],
+    tvar2: TRef[Int],
+    tvar3: TRef[Int]
   ): ZIO[clock.Clock, Nothing, Int] =
     STM
       .atomically(for {
@@ -191,7 +191,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(
       unsafeRun(
         for {
-          tVar  <- TVar.makeRun(0)
+          tVar  <- TRef.makeRun(0)
           fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
           _     <- fiber.join
         } yield tVar.get
@@ -204,11 +204,11 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         for {
           tVars <- STM
                     .atomically(
-                      TVar.make(10000) ~ TVar.make(0) ~ TVar.make(0)
+                      TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
                     )
-          tvar1 ~ tvar2 ~ tvar3 = tVars
-          fiber                 <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
-          _                     <- fiber.join
+          tvar1 <*> tvar2 <*> tvar3 = tVars
+          fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
+          _                         <- fiber.join
         } yield tvar3.get
       ).run
     ) must_=== 10000
@@ -238,8 +238,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e19 =
     unsafeRun {
       for {
-        tvar1 <- TVar.makeRun(10)
-        tvar2 <- TVar.makeRun("Failed!")
+        tvar1 <- TRef.makeRun(10)
+        tvar2 <- TRef.makeRun("Failed!")
         fiber <- (
                   for {
                     v1 <- tvar1.get
@@ -255,7 +255,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e20 =
     unsafeRun {
       for {
-        tvar <- TVar.makeRun(42)
+        tvar <- TRef.makeRun(42)
         fiber <- STM.atomically {
                   tvar.get.filter(_ == 42)
                 }.fork
@@ -271,8 +271,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
       for {
         done  <- Promise.make[Nothing, Unit]
-        tvar1 <- TVar.makeRun(0)
-        tvar2 <- TVar.makeRun("Failed!")
+        tvar1 <- TRef.makeRun(0)
+        tvar2 <- TRef.makeRun("Failed!")
         fiber <- (STM.atomically {
                   for {
                     v1 <- tvar1.get
@@ -294,8 +294,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e22 =
     unsafeRun {
       for {
-        sender    <- TVar.makeRun(100)
-        receiver  <- TVar.makeRun(0)
+        sender    <- TRef.makeRun(100)
+        receiver  <- TRef.makeRun(0)
         _         <- transfer(receiver, sender, 150).fork
         _         <- sender.update(_ + 100).run
         _         <- sender.get.filter(_ == 50).run
@@ -307,8 +307,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e23 =
     unsafeRun {
       for {
-        sender     <- TVar.makeRun(100)
-        receiver   <- TVar.makeRun(0)
+        sender     <- TRef.makeRun(100)
+        receiver   <- TRef.makeRun(0)
         toReceiver = transfer(receiver, sender, 150)
         toSender   = transfer(sender, receiver, 150)
         f          <- ZIO.forkAll(List.fill(10)(toReceiver *> toSender))
@@ -322,8 +322,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e24 =
     unsafeRun {
       for {
-        sender     <- TVar.makeRun(50)
-        receiver   <- TVar.makeRun(0)
+        sender     <- TRef.makeRun(50)
+        receiver   <- TRef.makeRun(0)
         toReceiver = transfer(receiver, sender, 100)
         toSender   = transfer(sender, receiver, 100)
         f1         <- IO.forkAll(List.fill(10)(toReceiver))
@@ -339,8 +339,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e25 =
     unsafeRun {
       for {
-        sender       <- TVar.makeRun(50)
-        receiver     <- TVar.makeRun(0)
+        sender       <- TRef.makeRun(50)
+        receiver     <- TRef.makeRun(0)
         toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
         toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
         f            <- toReceiver10.zipPar(toSender10).fork
@@ -354,7 +354,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e26 =
     unsafeRun(
       for {
-        tvar <- TVar.makeRun(0)
+        tvar <- TRef.makeRun(0)
         fiber <- IO.forkAll(
                   (0 to 20).map(
                     i =>
@@ -375,7 +375,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun {
       val latch = new CountDownLatch(1)
       for {
-        tvar <- TVar.makeRun(0)
+        tvar <- TRef.makeRun(0)
         fiber <- (for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
@@ -393,7 +393,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun {
       val latch = new CountDownLatch(1)
       for {
-        tvar <- TVar.makeRun(0)
+        tvar <- TRef.makeRun(0)
         fiber <- IO.forkAll(List.fill(100)((for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
@@ -410,7 +410,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e29 =
     unsafeRun(
       for {
-        v       <- TVar.makeRun(1)
+        v       <- TRef.makeRun(1)
         f       <- v.get.flatMap(v => STM.check(v == 0)).run.fork
         _       <- f.interrupt
         observe <- f.poll
@@ -425,8 +425,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e31 =
     unsafeRun(
       for {
-        tvar1 <- TVar.makeRun(1)
-        tvar2 <- TVar.makeRun(2)
+        tvar1 <- TRef.makeRun(1)
+        tvar2 <- TRef.makeRun(2)
         _     <- permutation(tvar1, tvar2).run
         v1    <- tvar1.get.run
         v2    <- tvar2.get.run
@@ -436,8 +436,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e32 =
     unsafeRun(
       for {
-        tvar1 <- TVar.makeRun(1)
-        tvar2 <- TVar.makeRun(2)
+        tvar1 <- TRef.makeRun(1)
+        tvar2 <- TRef.makeRun(2)
         oldV1 <- tvar1.get.run
         oldV2 <- tvar2.get.run
         f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).run))
@@ -450,7 +450,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e33 =
     unsafeRun(
       for {
-        it    <- UIO((1 to 100).map(TVar.make(_)))
+        it    <- UIO((1 to 100).map(TRef.make(_)))
         tvars <- STM.collectAll(it).run
         res   <- UIO.collectAllPar(tvars.map(_.get.run))
       } yield res must_=== (1 to 100).toList
@@ -459,7 +459,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e34 =
     unsafeRun(
       for {
-        tvar      <- TVar.makeRun(0)
+        tvar      <- TRef.makeRun(0)
         _         <- STM.foreach(1 to 100)(a => tvar.update(_ + a)).run
         expectedV = (1 to 100).sum
         v         <- tvar.get.run
@@ -482,7 +482,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e36 =
     unsafeRun(
       for {
-        tvar <- TVar.makeRun(0)
+        tvar <- TRef.makeRun(0)
         e <- (for {
               _ <- tvar.update(_ + 10)
               _ <- STM.fail("Error!")
@@ -496,7 +496,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e37 =
     unsafeRun(
       for {
-        tvar <- TVar.makeRun(0)
+        tvar <- TRef.makeRun(0)
         left = for {
           _ <- tvar.update(_ + 100)
           _ <- STM.retry
@@ -510,7 +510,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e38 =
     unsafeRun(
       for {
-        tvar <- TVar.makeRun(0)
+        tvar <- TRef.makeRun(0)
         left = for {
           _ <- tvar.update(_ + 100)
           _ <- STM.fail("Uh oh!")
@@ -540,7 +540,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     } yield v3)
       .repeat(Schedule.recurs(n) *> Schedule.identity)
 
-  private def transfer(receiver: TVar[Int], sender: TVar[Int], much: Int): UIO[Int] =
+  private def transfer(receiver: TRef[Int], sender: TRef[Int], much: Int): UIO[Int] =
     STM.atomically {
       for {
         balance <- sender.get
@@ -551,7 +551,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       } yield newAmnt
     }
 
-  private def permutation(tvar1: TVar[Int], tvar2: TVar[Int]): STM[Nothing, Unit] =
+  private def permutation(tvar1: TRef[Int], tvar2: TRef[Int]): STM[Nothing, Unit] =
     for {
       a <- tvar1.get
       b <- tvar2.get
@@ -563,8 +563,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
 object Examples {
   object mutex {
-    type Mutex = TVar[Boolean]
-    val makeMutex = TVar.make(false).run
+    type Mutex = TRef[Boolean]
+    val makeMutex = TRef.make(false).run
     def acquire(mutex: Mutex): UIO[Unit] =
       (for {
         value <- mutex.get
@@ -577,8 +577,8 @@ object Examples {
       acquire(mutex).bracket_(release(mutex))(zio)
   }
   object semaphore {
-    type Semaphore = TVar[Int]
-    def makeSemaphore(n: Int): UIO[Semaphore] = TVar.makeRun(n)
+    type Semaphore = TRef[Int]
+    def makeSemaphore(n: Int): UIO[Semaphore] = TRef.makeRun(n)
     def acquire(semaphore: Semaphore, n: Int): UIO[Unit] =
       (for {
         value <- semaphore.get
@@ -589,8 +589,8 @@ object Examples {
       semaphore.update(_ + n).run.void
   }
   object promise {
-    type Promise[A] = TVar[Option[A]]
-    def makePromise[A]: UIO[Promise[A]] = TVar.makeRun(None)
+    type Promise[A] = TRef[Option[A]]
+    def makePromise[A]: UIO[Promise[A]] = TRef.makeRun(None)
     def complete[A](promise: Promise[A], v: A): UIO[Boolean] =
       (for {
         value <- promise.get
@@ -609,9 +609,9 @@ object Examples {
   object queue {
     import scala.collection.immutable.{ Queue => ScalaQueue }
 
-    case class Queue[A](capacity: Int, tvar: TVar[ScalaQueue[A]])
+    case class Queue[A](capacity: Int, tvar: TRef[ScalaQueue[A]])
     def makeQueue[A](capacity: Int): UIO[Queue[A]] =
-      TVar.makeRun(ScalaQueue.empty[A]).map(Queue(capacity, _))
+      TRef.makeRun(ScalaQueue.empty[A]).map(Queue(capacity, _))
     def offer[A](queue: Queue[A], a: A): UIO[Unit] =
       (for {
         q <- queue.tvar.get
@@ -632,7 +632,7 @@ object Examples {
     case class Phone(value: String)
     case class Developer(name: String, phone: Phone)
     def page(phone: Phone, message: String): UIO[Unit] = ???
-    def pager(sysErrors: TVar[Int], onDuty: TVar[Set[Developer]]): UIO[Unit] =
+    def pager(sysErrors: TRef[Int], onDuty: TRef[Set[Developer]]): UIO[Unit] =
       (for {
         errors <- sysErrors.get
         _      <- STM.check(errors > 100)

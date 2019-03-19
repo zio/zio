@@ -1,6 +1,8 @@
-package scalaz.zio
+package scalaz.zio.stm
 
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
+
+import scalaz.zio.{ IO, UIO }
 
 import scala.collection.mutable.{ Map => MutableMap }
 import scala.util.{ Failure, Success, Try }
@@ -10,8 +12,8 @@ import scala.util.{ Failure, Success, Try }
  * resulting in a failure `E` or a value `A`.
  *
  * {{{
- * def transfer(receiver: TVar[Int],
- *              sender: TVar[Int], much: Int): UIO[Int] =
+ * def transfer(receiver: TRef[Int],
+ *              sender: TRef[Int], much: Int): UIO[Int] =
  *   STM.atomically {
  *     for {
  *       balance <- sender.get
@@ -24,22 +26,21 @@ import scala.util.{ Failure, Success, Try }
  *
  *   val action: UIO[Int] =
  *     for {
- *       t <- STM.atomically(TVar.make(0).zip(TVar.make(20000)))
+ *       t <- STM.atomically(TRef.make(0).zip(TRef.make(20000)))
  *       (receiver, sender) = t
  *       balance <- transfer(receiver, sender, 1000)
  *     } yield balance
  * }}}
  */
-final class STM[+E, +A] private (
+final class STM[+E, +A] private[stm] (
   val exec: STM.internal.Journal => STM.internal.TRez[E, A]
 ) extends AnyVal { self =>
-  import STM.internal.TRez
-  import STM.internal.resetJournal
+  import STM.internal.{ resetJournal, TRez }
 
   /**
    * Sequentially zips this value with the specified one.
    */
-  final def ~[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
+  final def <*>[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
     self zip that
 
   /**
@@ -246,7 +247,7 @@ final class STM[+E, +A] private (
 
 object STM {
 
-  private[STM] object internal {
+  private[stm] object internal {
     class Versioned[A](val value: A)
 
     type Journal =
@@ -261,16 +262,16 @@ object STM {
       journal.values foreach (_.reset())
 
     /**
-     * Atomically collects and clears all the todos from any `TVar` that
+     * Atomically collects and clears all the todos from any `TRef` that
      * participated in the transaction. This is not a pure function, despite
-     * the return type (it effectfully clears todos from `TVar` values).
+     * the return type (it effectfully clears todos from `TRef` values).
      */
-    final def collectTodos(tvars: Iterable[TVar[_]]): Iterable[Todo] = {
+    final def collectTodos(trefs: Iterable[TRef[_]]): Iterable[Todo] = {
       val allTodos  = MutableMap.empty[Long, Todo]
       val emptyTodo = Map.empty[Long, Todo]
 
-      tvars foreach { tvar =>
-        val todo = tvar.todo
+      trefs foreach { tref =>
+        val todo = tref.todo
 
         var loop = true
         while (loop) {
@@ -289,28 +290,28 @@ object STM {
 
     /**
      * For the given transaction id, adds the specified todo effect to all
-     * `TVar` values.
+     * `TRef` values.
      */
-    final def addTodo(txnId: Long, tvars: Iterable[TVar[_]], todoEffect: Todo): Unit =
-      tvars foreach { tvar =>
+    final def addTodo(txnId: Long, trefs: Iterable[TRef[_]], todoEffect: Todo): Unit =
+      trefs foreach { tref =>
         var loop = true
         while (loop) {
-          val oldTodo = tvar.todo.get
+          val oldTodo = tref.todo.get
 
           val newTodo = oldTodo updated (txnId, todoEffect)
 
-          loop = !tvar.todo.compareAndSet(oldTodo, newTodo)
+          loop = !tref.todo.compareAndSet(oldTodo, newTodo)
         }
       }
 
     final val succeedUnit: TRez[Nothing, Unit] =
       TRez.Succeed(())
 
-    final def makeTVarId(): Long = tvarCounter.incrementAndGet()
+    final def makeTRefId(): Long = trefCounter.incrementAndGet()
 
     final def makeTxnId(): Long = txnCounter.incrementAndGet()
 
-    private[this] val tvarCounter: AtomicLong = new AtomicLong()
+    private[this] val trefCounter: AtomicLong = new AtomicLong()
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()
 
@@ -325,7 +326,7 @@ object STM {
 
     abstract class Entry {
       type A
-      val tvar: TVar[A]
+      val tref: TRef[A]
       var newValue: A
       val expected: Versioned[A]
 
@@ -337,7 +338,7 @@ object STM {
 
       /**
        * Resets the value of this entry, so that if committed, it will have
-       * no effect on the TVar.
+       * no effect on the TRef.
        */
       final def reset(): Unit =
         newValue = expected.value
@@ -350,28 +351,28 @@ object STM {
 
       /**
        * Determines if the entry is valid. That is, if the version of the
-       * `TVar` is equal to the expected version.
+       * `TRef` is equal to the expected version.
        */
       final def isValid: Boolean =
-        tvar.versioned eq expected
+        tref.versioned eq expected
 
       /**
-       * Commits the new value to the `TVar`.
+       * Commits the new value to the `TRef`.
        */
       final def commit(): Unit =
-        tvar.versioned = new Versioned(newValue)
+        tref.versioned = new Versioned(newValue)
     }
 
     object Entry {
 
       /**
-       * Creates an entry for the journal, given the `TVar` being updated, the
-       * new value of the `TVar`, and the expected version of the `TVar`.
+       * Creates an entry for the journal, given the `TRef` being updated, the
+       * new value of the `TRef`, and the expected version of the `TRef`.
        */
-      final def apply[A0](tvar0: TVar[A0], newValue0: A0, expected0: Versioned[A0]): Entry =
+      final def apply[A0](tref0: TRef[A0], newValue0: A0, expected0: Versioned[A0]): Entry =
         new Entry {
           type A = A0
-          val tvar     = tvar0
+          val tref     = tref0
           var newValue = newValue0
           val expected = expected0
         }
@@ -379,112 +380,6 @@ object STM {
   }
 
   import internal._
-
-  /**
-   * A variable that can be modified as part of a transactional effect.
-   */
-  class TVar[A] private (
-    val id: Long,
-    @volatile var versioned: Versioned[A],
-    val todo: AtomicReference[Map[Long, Todo]]
-  ) {
-    self =>
-
-    final val debug: UIO[Unit] =
-      UIO(println(toString))
-
-    /**
-     * Retrieves the value of the `TVar`.
-     */
-    final val get: STM[Nothing, A] =
-      new STM(journal => {
-        val entry = getOrMakeEntry(journal)
-
-        TRez.Succeed(entry.unsafeGet[A])
-      })
-
-    /**
-     * Sets the value of the `tvar`.
-     */
-    final def set(newValue: A): STM[Nothing, Unit] =
-      new STM(journal => {
-        val entry = getOrMakeEntry(journal)
-
-        entry unsafeSet newValue
-
-        succeedUnit
-      })
-
-    override final def toString =
-      s"TVar(id = ${id}, versioned.value = ${versioned.value}, todo = ${todo.get})"
-
-    /**
-     * Updates the value of the variable.
-     */
-    final def update(f: A => A): STM[Nothing, A] =
-      new STM(journal => {
-        val entry = getOrMakeEntry(journal)
-
-        val newValue = f(entry.unsafeGet[A])
-
-        entry unsafeSet newValue
-
-        TRez.Succeed(newValue)
-      })
-
-    /**
-     * Updates the value of the variable, returning a function of the specified
-     * value.
-     */
-    final def modify[B](f: A => (B, A)): STM[Nothing, B] =
-      new STM(journal => {
-        val entry = getOrMakeEntry(journal)
-
-        val (retValue, newValue) = f(entry.unsafeGet[A])
-
-        entry unsafeSet newValue
-
-        TRez.Succeed(retValue)
-      })
-
-    private final def getOrMakeEntry(journal: Journal): Entry =
-      if (journal contains id) journal(id)
-      else {
-        val expected = versioned
-        val entry    = Entry(self, expected.value, expected)
-        journal update (id, entry)
-        entry
-      }
-  }
-
-  object TVar {
-
-    /**
-     * Makes a new `TVar` that is initialized to the specified value.
-     */
-    final def make[A](a: => A): STM[Nothing, TVar[A]] =
-      new STM(journal => {
-        val id = makeTVarId()
-
-        val value     = a
-        val versioned = new Versioned(value)
-
-        val todo = new AtomicReference[Map[Long, Todo]](Map())
-
-        val tvar = new TVar(id, versioned, todo)
-
-        journal update (id, Entry(tvar, value, versioned))
-
-        TRez.Succeed(tvar)
-      })
-
-    /**
-     * A convenience method that makes a `TVar` and immediately runs the
-     * transaction to extract the value out.
-     */
-    final def makeRun[A](a: => A): UIO[TVar[A]] =
-      STM.atomically(make(a))
-  }
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.
@@ -553,7 +448,7 @@ object STM {
                         finally globalLock.release()
 
                       case TRez.Retry =>
-                        addTodo(txnId, journal.values map (_.tvar), tryTxnAsync)
+                        addTodo(txnId, journal.values map (_.tref), tryTxnAsync)
 
                         loop = false
                     }
@@ -563,9 +458,9 @@ object STM {
                     done set true
 
                     platform.executor.submitOrThrow { () =>
-                      val tvars = journal.values map (_.tvar)
+                      val trefs = journal.values map (_.tref)
 
-                      collectTodos(tvars) foreach (_())
+                      collectTodos(trefs) foreach (_())
                     }
 
                     Some(io)
@@ -575,7 +470,7 @@ object STM {
                     case TRez.Succeed(a) => completed(IO.succeed(a))
                     case TRez.Fail(e)    => completed(IO.fail(e))
                     case TRez.Retry =>
-                      val stale = journal.values exists (entry => entry.tvar.versioned ne entry.expected)
+                      val stale = journal.values exists (entry => entry.tref.versioned ne entry.expected)
 
                       if (stale) tryTxn() else None
                   }
