@@ -71,7 +71,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         case Nil => IO.succeed(acc)
         case a :: as =>
           self.update(a, s).flatMap {
-            case ZSchedule.Decision(cont, delay, s, finish) =>
+            case ZSchedule.Decision(cont, _, delay, s, finish) =>
               val acc2 = (delay -> finish()) :: acc
 
               if (cont) run0(as, s, acc2)
@@ -185,11 +185,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 
   final def combineWith[R1 <: R, A1 <: A, C](
     that: ZSchedule[R1, A1, C]
-  )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): ZSchedule[R1, A1, (B, C)] =
+  )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration, h: (Boolean, Boolean) => Boolean): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
-      val update  = (a: A1, s: State) => self.update(a, s._1).zipWith(that.update(a, s._2))(_.combineWith(_)(g, f))
+      val update  = (a: A1, s: State) => self.update(a, s._1).zipWith(that.update(a, s._2))(_.combineWith(_)(g, f, h))
     }
 
   /**
@@ -197,7 +197,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * continue, using the maximum of the delays of the two schedules.
    */
   final def &&[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
-    combineWith(that)(_ && _, _ max _)
+    combineWith(that)(_ && _, _ max _, _ && _)
 
   /**
    * A named alias for `&&`.
@@ -239,7 +239,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * using the minimum of the delays of the two schedules.
    */
   final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
-    combineWith(that)(_ || _, _ min _)
+    combineWith(that)(_ || _, _ min _, _ || _)
 
   /**
    * A named alias for `||`.
@@ -435,7 +435,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       val update = (a: A, s: State) =>
         self.update(a, s._1).flatMap { step1 =>
           that.update(step1.finish(), s._2).map { step2 =>
-            step1.combineWith(step2)(_ && _, _ + _).rightMap(_._2)
+            step1.combineWith(step2)(_ && _, _ + _, _ && _).rightMap(_._2)
           }
         }
     }
@@ -482,7 +482,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
       val update = (a: (A, C), s: State) =>
-        self.update(a._1, s._1).zipWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, _ max _))
+        self.update(a._1, s._1).zipWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, _ max _, _ && _))
     }
 
   /**
@@ -525,7 +525,7 @@ trait Schedule_Functions extends Serializable {
    * A schedule that recurs forever, returning each input as the output.
    */
   final def identity[A]: Schedule[A, A] =
-    ZSchedule[Any, Unit, A, A](ZIO.unit, (a, s) => IO.succeed(Decision.cont(Duration.Zero, s, a)))
+    ZSchedule[Any, Unit, A, A](ZIO.unit, (a, s) => IO.succeed(Decision.cont(Duration.Zero, s, a, true)))
 
   /**
    * A schedule that recurs forever, returning the constant for every output.
@@ -628,7 +628,7 @@ trait Schedule_Functions extends Serializable {
    * through recured application of a function to a base value.
    */
   final def unfoldM[R: ConformsR, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ZSchedule[R, Any, A] =
-    ZSchedule[R, A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(Duration.Zero, a, a)))
+    ZSchedule[R, A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(Duration.Zero, a, a, true)))
 
   /**
    * A schedule that waits for the specified amount of time between each
@@ -689,7 +689,7 @@ object ZSchedule extends Schedule_Functions {
 
   implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
 
-  sealed case class Decision[+A, +B](cont: Boolean, delay: Duration, state: A, finish: () => B) { self =>
+  sealed case class Decision[+A, +B](cont: Boolean, ready: Boolean, delay: Duration, state: A, finish: () => B) { self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
     final def leftMap[C](f: A => C): Decision[C, B]             = copy(state = f(state))
     final def rightMap[C](f: B => C): Decision[A, C]            = copy(finish = () => f(finish()))
@@ -700,17 +700,18 @@ object ZSchedule extends Schedule_Functions {
 
     final def combineWith[C, D](
       that: Decision[C, D]
-    )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): Decision[(A, C), (B, D)] =
+    )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration, h: (Boolean, Boolean) => Boolean): Decision[(A, C), (B, D)] =
       Decision(
         g(self.cont, that.cont),
+        h(self.ready, that.ready),
         f(self.delay, that.delay),
         (self.state, that.state),
         () => (self.finish(), that.finish())
       )
   }
   object Decision {
-    final def cont[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(true, d, a, () => b)
-    final def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, d, a, () => b)
+    final def cont[A, B](d: Duration, a: A, b: => B, ready: Boolean): Decision[A, B] = Decision(true, ready, d, a, () => b)
+    final def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, false, d, a, () => b)
   }
 
   /**
@@ -723,7 +724,7 @@ object ZSchedule extends Schedule_Functions {
       (_, start) =>
         for {
           duration <- clock.nanoTime.map(_ - start).map(Duration.fromNanos)
-        } yield Decision.cont(Duration.Zero, start, duration)
+        } yield Decision.cont(Duration.Zero, start, duration, true)
     )
   }
 
@@ -760,7 +761,7 @@ object ZSchedule extends Schedule_Functions {
                 val n = 1 +
                   (if (await < 0) ((now - start) / nanos).toInt else n0)
 
-                Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1)
+                Decision.cont(Duration.fromNanos(await.max(0L)), (start, n, i + 1), i + 1, true)
               }
           }
       )

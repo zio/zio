@@ -653,6 +653,45 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def forever: ZIO[R, E, Nothing] = self *> self.forever
 
+  final def scheduled[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZIO[R1 with Clock, E, B] ={
+    scheduleOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
+  }
+
+  final def scheduleOrElse[R1 <: R, E2, B](
+    schedule: ZSchedule[R1, A, B],
+    orElse: (E, Option[B]) => ZIO[R1, E2, B]
+  ): ZIO[R1 with Clock, E2, B] =
+    scheduleOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
+
+
+  final def scheduleOrElseEither[R1 <: R, B, E2, C](
+     schedule: ZSchedule[R1, A, B],
+     orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
+   ): ZIO[R1 with Clock, E2, Either[C, B]] = {
+
+    def await(lastResult: A, state: schedule.State, last: Option[() => B]): ZIO[R1 with Clock, E2, Either[C, B]] ={
+      schedule.update(lastResult, state).flatMap{ step =>
+        if (!step.cont) ZIO.succeedRight(step.finish())
+        else if (step.ready) loop(last, step.state)
+        else ZIO.succeed(step.state).delay(step.delay).flatMap(s => await(lastResult, s, last))
+      }
+    }
+
+    def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] ={
+      self.foldM(
+        e => orElse(e, last.map(_())).map(Left(_)),
+        a => {
+          schedule.update(a, state).flatMap{ step =>
+            if (!step.cont) ZIO.succeedRight(step.finish())
+            else ZIO.succeed(step.state).delay(step.delay).flatMap(s => await(a, s, Some(step.finish)))
+          }
+        }
+      )
+    }
+
+    schedule.initial.flatMap(loop(None, _))
+  }
+
   /**
    * Repeats this effect with the specified schedule until the schedule
    * completes, or until the first failure.
