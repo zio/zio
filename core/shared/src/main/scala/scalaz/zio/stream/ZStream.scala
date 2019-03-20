@@ -233,6 +233,33 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Maps errors with the specified function.
+   */
+  final def mapError[E1](f: E => E1): ZStream[R, E1, A] = new ZStream[R, E1, A] {
+    override def fold[R1 <: R, E2 >: E1, A1 >: A, S]: Fold[R1, E2, A1, S] = {
+      class WrappedError(val error: E2)
+      IO.succeedLazy { (s, cont, g) =>
+        self
+          .fold[R1, Any, A, S]
+          .flatMap { f0 =>
+            f0(
+              s,
+              cont,
+              (s1, a) =>
+                g(s1, a).either.flatMap {
+                  case Left(e)   => IO.fail(new WrappedError(e))
+                  case Right(s2) => IO.succeed(s2)
+                }
+            ).mapError {
+              case wrapped: WrappedError => wrapped.error
+              case e                     => f(e.asInstanceOf[E])
+            }
+          }
+      }
+    }
+  }
+
+  /**
    * Merges this stream and the specified stream together.
    */
   final def merge[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1], capacity: Int = 1): ZStream[R1, E1, A1] =
