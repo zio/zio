@@ -156,10 +156,10 @@ val res: UIO[Unit] = for {
 
 ## Transforming queues
 
-A `Queue[A]` is in fact a type alias for `Queue2[Any, Nothing, Any, Nothing, A, A]`.
+A `Queue[A]` is in fact a type alias for `ZQueue[Any, Nothing, Any, Nothing, A, A]`.
 The signature for the expanded version is:
 ```scala
-trait Queue2[RA, EA, RB, EB, A, B]
+trait ZQueue[RA, EA, RB, EB, A, B]
 ```
 
 Which is to say:
@@ -170,7 +170,7 @@ Note how the basic `Queue[A]` cannot fail or require any environment for any of 
 
 With separate type parameters for input and output, there are rich composition opportunities for queues:
 
-### Queue2#map
+### ZQueue#map
 
 The output of the queue may be mapped:
 
@@ -184,7 +184,7 @@ val res: UIO[String] =
   } yield s
 ```
 
-### Queue2#mapM
+### ZQueue#mapM
 
 We may also use an effectful function to map the output. For example,
 we could annotate each element with the timestamp at which it was dequeued:
@@ -195,7 +195,7 @@ import scalaz.zio.clock._
 
 val currentTimeMillis = currentTime(TimeUnit.MILLISECONDS)
 
-val res: UIO[Queue2[Any, Nothing, Clock, Nothing, String, (Long, String)]] = 
+val res: UIO[ZQueue[Any, Nothing, Clock, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[String](3)
     mapped = queue.mapM { el =>
@@ -204,14 +204,14 @@ val res: UIO[Queue2[Any, Nothing, Clock, Nothing, String, (Long, String)]] =
   } yield mapped
 ```
 
-### Queue2contramapM
+### ZQueue#contramapM
 
 Similarly to `mapM`, we can also apply an effectful function to
 elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:
 
 ```tut:silent
-val res: UIO[Queue2[Clock, Nothing, Any, Nothing, String, (Long, String)]] = 
+val res: UIO[ZQueue[Clock, Nothing, Any, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     mapped = queue.contramapM { el: String =>
@@ -230,7 +230,7 @@ compute the time that the elements stayed in the queue:
 ```tut:silent
 import scalaz.zio.duration._
 
-val res: UIO[Queue2[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] = 
+val res: UIO[ZQueue[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     enqueueTimestamps = queue.contramapM { el: String =>
@@ -243,7 +243,7 @@ val res: UIO[Queue2[Clock, Nothing, Clock, Nothing, String, (Duration, String)]]
   } yield durations
 ```
 
-### Queue2#bothWith
+### ZQueue#bothWith
 
 We may also compose two queues together into a single queue that
 broadcasts offers and takes from both of the queues:
