@@ -16,10 +16,14 @@
 
 package scalaz.zio
 
+import java.time.temporal.ChronoField
+import java.time.{Instant, LocalDateTime, ZoneId}
+import java.util.concurrent.TimeUnit
+
 import scalaz.zio.ZSchedule.Decision
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration.Duration
-import scalaz.zio.random.{ nextDouble, Random }
+import scalaz.zio.random.{Random, nextDouble}
 
 import scala.annotation.implicitNotFound
 
@@ -666,6 +670,18 @@ trait Schedule_Functions extends Serializable {
    */
   final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
     delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
+
+  final def atTime(minute: Int, hour: Int): ZSchedule[Clock, Any, Long] = {
+    ZSchedule[Clock, Long, Any, Long](
+      initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => 0L),
+      update0 = (_, timesRan) => clock.currentTime(unit = TimeUnit.MILLISECONDS).map{ now =>
+
+        val inst = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), ZoneId.systemDefault())
+        Decision.cont(Duration(amount = 1, unit = TimeUnit.MINUTES), timesRan + 1, timesRan + 1,
+          inst.get(ChronoField.HOUR_OF_DAY) == hour && inst.get(ChronoField.MINUTE_OF_HOUR) == minute)
+      }
+    )
+  }
 }
 
 object Schedule extends Schedule_Functions {
