@@ -188,10 +188,20 @@ trait Fiber[+E, +A] { self =>
 }
 
 object Fiber {
+
+  /**
+   * A record containing information about a [[Fiber]].
+   *
+   * @param id The fiber's unique identifier
+   * @param interrupted Indicates if this fiber was interrupted
+   * @param executor The [[scalaz.zio.internal.Executor]] executing this fiber
+   * @param children The fiber's forked children. This will only be populated if the fiber is supervised (via [[ZIO#supervised]]).
+   */
   final case class Descriptor(
     id: FiberId,
     interrupted: Boolean,
-    executor: Executor
+    executor: Executor,
+    children: UIO[IndexedSeq[Fiber[_, _]]]
   )
 
   /**
