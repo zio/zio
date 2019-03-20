@@ -15,19 +15,22 @@ object Scalaz {
     "-deprecation",
     "-encoding",
     "UTF-8",
-    "-explaintypes",
-    "-Yrangepos",
     "-feature",
-    "-Xfuture",
+    "-unchecked",
+    "-Xfatal-warnings"
+  )
+
+  private val std2xOptions = Seq(
     "-language:higherKinds",
     "-language:existentials",
-    "-unchecked",
-    "-Xlint:_,-type-parameter-shadow",
+    "-explaintypes",
+    "-Yrangepos",
+    "-Xfuture",
     "-Xsource:2.13",
+    "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
-    "-Ywarn-value-discard",
-    "-Xfatal-warnings"
+    "-Ywarn-value-discard"
   )
 
   val buildInfoSettings = Seq(
@@ -65,7 +68,7 @@ object Scalaz {
   def extraOptions(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, 13)) =>
-        Seq()
+        std2xOptions
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -80,7 +83,7 @@ object Scalaz {
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit"
-        )
+        ) ++ std2xOptions
       case Some((2, 11)) =>
         Seq(
           "-Ypartial-unification",
@@ -91,7 +94,7 @@ object Scalaz {
           "-Ywarn-nullary-unit",
           "-Xexperimental",
           "-Ywarn-unused-import"
-        )
+        ) ++ std2xOptions
       case _ => Seq.empty
     }
 
@@ -114,6 +117,8 @@ object Scalaz {
         case Some((2, x)) if x <= 11 =>
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11"))
         case Some((2, x)) if x >= 12 =>
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+        case Some((0, x)) =>
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
         case _ => Nil
       }

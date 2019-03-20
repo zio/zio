@@ -235,7 +235,7 @@ private[zio] final class FiberContext[E, A](
                       // We have finalizers to run. We'll resume executing with the
                       // uncaught failure after we have executed all the finalizers:
                       curIo = doNotInterrupt(finalizer).flatMap(
-                        cause => IO.halt(cause.foldLeft(io.cause)(_ ++ _))
+                        cause => IO.halt(Option.option2Iterable(cause).foldLeft(io.cause)(_ ++ _))
                       )
                     }
                   } else {
@@ -244,7 +244,7 @@ private[zio] final class FiberContext[E, A](
                     if (finalizer eq null) {
                       curIo = nextInstr(io.cause)
                     } else {
-                      curIo = doNotInterrupt(finalizer).map(_.foldLeft(io.cause)(_ ++ _))
+                      curIo = doNotInterrupt(finalizer).map(Option.option2Iterable(_).foldLeft(io.cause)(_ ++ _))
                     }
                   }
 
