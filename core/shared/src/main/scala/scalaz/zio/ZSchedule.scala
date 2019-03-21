@@ -17,13 +17,13 @@
 package scalaz.zio
 
 import java.time.temporal.ChronoField
-import java.time.{Instant, LocalDateTime, ZoneId}
+import java.time.{ Instant, LocalDateTime, ZoneId }
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.ZSchedule.Decision
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration.Duration
-import scalaz.zio.random.{Random, nextDouble}
+import scalaz.zio.random.{ nextDouble, Random }
 
 import scala.annotation.implicitNotFound
 
@@ -189,7 +189,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
 
   final def combineWith[R1 <: R, A1 <: A, C](
     that: ZSchedule[R1, A1, C]
-  )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration, h: (Boolean, Boolean) => Boolean): ZSchedule[R1, A1, (B, C)] =
+  )(
+    g: (Boolean, Boolean) => Boolean,
+    f: (Duration, Duration) => Duration,
+    h: (Boolean, Boolean) => Boolean
+  ): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)
       val initial = self.initial.zip(that.initial)
@@ -671,17 +675,20 @@ trait Schedule_Functions extends Serializable {
   final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
     delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
 
-  final def atTime(minute: Int, hour: Int): ZSchedule[Clock, Any, Long] = {
-    ZSchedule[Clock, Long, Any, Long](
+  final def atTime(minute: Int, hour: Int): ZSchedule[Clock, Unit, (Long, Long)] =
+    ZSchedule[Clock, Long, Unit, (Long, Long)](
       initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => 0L),
-      update0 = (_, timesRan) => clock.currentTime(unit = TimeUnit.MILLISECONDS).map{ now =>
-
-        val inst = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), ZoneId.systemDefault())
-        Decision.cont(Duration(amount = 1, unit = TimeUnit.MINUTES), timesRan + 1, timesRan + 1,
-          inst.get(ChronoField.HOUR_OF_DAY) == hour && inst.get(ChronoField.MINUTE_OF_HOUR) == minute)
-      }
+      update0 = (_, timesRan) =>
+        clock.currentTime(unit = TimeUnit.MILLISECONDS).map { now =>
+          val inst = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), ZoneId.systemDefault())
+          Decision.cont(
+            Duration(amount = 1, unit = TimeUnit.MINUTES),
+            timesRan + 1,
+            (timesRan + 1, now),
+            inst.get(ChronoField.HOUR_OF_DAY) == hour && inst.get(ChronoField.MINUTE_OF_HOUR) == minute
+          )
+        }
     )
-  }
 }
 
 object Schedule extends Schedule_Functions {
@@ -705,7 +712,8 @@ object ZSchedule extends Schedule_Functions {
 
   implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
 
-  sealed case class Decision[+A, +B](cont: Boolean, ready: Boolean, delay: Duration, state: A, finish: () => B) { self =>
+  sealed case class Decision[+A, +B](cont: Boolean, ready: Boolean, delay: Duration, state: A, finish: () => B) {
+    self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
     final def leftMap[C](f: A => C): Decision[C, B]             = copy(state = f(state))
     final def rightMap[C](f: B => C): Decision[A, C]            = copy(finish = () => f(finish()))
@@ -716,7 +724,11 @@ object ZSchedule extends Schedule_Functions {
 
     final def combineWith[C, D](
       that: Decision[C, D]
-    )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration, h: (Boolean, Boolean) => Boolean): Decision[(A, C), (B, D)] =
+    )(
+      g: (Boolean, Boolean) => Boolean,
+      f: (Duration, Duration) => Duration,
+      h: (Boolean, Boolean) => Boolean
+    ): Decision[(A, C), (B, D)] =
       Decision(
         g(self.cont, that.cont),
         h(self.ready, that.ready),
@@ -726,7 +738,8 @@ object ZSchedule extends Schedule_Functions {
       )
   }
   object Decision {
-    final def cont[A, B](d: Duration, a: A, b: => B, ready: Boolean): Decision[A, B] = Decision(true, ready, d, a, () => b)
+    final def cont[A, B](d: Duration, a: A, b: => B, ready: Boolean): Decision[A, B] =
+      Decision(true, ready, d, a, () => b)
     final def done[A, B](d: Duration, a: A, b: => B): Decision[A, B] = Decision(false, false, d, a, () => b)
   }
 
