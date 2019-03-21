@@ -1,3 +1,19 @@
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio.stm
 
 import java.util.concurrent.atomic.AtomicReference
@@ -29,7 +45,7 @@ class TRef[A] private (
     })
 
   /**
-   * Sets the value of the `tvar`.
+   * Sets the value of the `TRef`.
    */
   final def set(newValue: A): STM[Nothing, Unit] =
     new STM(journal => {
@@ -58,6 +74,12 @@ class TRef[A] private (
     })
 
   /**
+   * Updates some values of the variable but leaves others alone.
+   */
+  final def updateSome(f: PartialFunction[A, A]): STM[Nothing, A] =
+    update(f orElse { case a => a })
+
+  /**
    * Updates the value of the variable, returning a function of the specified
    * value.
    */
@@ -71,6 +93,15 @@ class TRef[A] private (
 
       TRez.Succeed(retValue)
     })
+
+  /**
+   * Updates some values of the variable, returning a function of the specified
+   * value or the default.
+   */
+  final def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
+    modify { a =>
+      f.lift(a).getOrElse((default, a))
+    }
 
   private final def getOrMakeEntry(journal: Journal): Entry =
     if (journal contains id) journal(id)
