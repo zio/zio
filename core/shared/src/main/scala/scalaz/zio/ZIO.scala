@@ -776,19 +776,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     def await(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
       schedule.update((), state).flatMap { step =>
         if (!step.cont) ZIO.succeedRight(step.finish())
-        else if (step.ready) exec(last, step.state)
+        else if (step.ready) exec(last, step.state, step.delay)
         else ZIO.succeed(step.state).delay(step.delay).flatMap(s => await(last, s))
       }
 
-    def exec(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
+    def exec(last: Option[() => B], state: schedule.State, delay: Duration): ZIO[R1 with Clock, E2, Either[C, B]] =
       self.foldM(
         e => orElse(e, last.map(_())).map(Left(_)),
-        _ => {
-          schedule.update((), state).flatMap { step =>
-            if (!step.cont) ZIO.succeedRight(step.finish())
-            else ZIO.succeed(step.state).delay(step.delay).flatMap(s => await(Some(step.finish), s))
-          }
-        }
+        _ => ZIO.succeed(state).delay(delay).flatMap(s => await(last, s))
       )
 
     schedule.initial.flatMap(await(None, _))
