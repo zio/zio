@@ -675,6 +675,11 @@ trait Schedule_Functions extends Serializable {
   final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
     delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
 
+  /**
+   * A schedule that always recurs but checks if current time is equals to
+   * minute and hour informed, signaling if it's ready to run or not.
+   * Returns how many runs occurred and the last verified time.
+   */
   final def atTime(minute: Int, hour: Int): ZSchedule[Clock, Unit, (Long, Long)] =
     ZSchedule[Clock, Long, Unit, (Long, Long)](
       initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => 0L),
