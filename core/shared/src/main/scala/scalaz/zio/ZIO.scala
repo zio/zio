@@ -1692,7 +1692,7 @@ object ZIO extends ZIO_R_Any {
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
     a => succeed[Either[Any, Any]](Right(a))
 
-  final object Tags {
+  object Tags {
     final val FlatMap         = 0
     final val Succeed         = 1
     final val Effect          = 2
@@ -1757,7 +1757,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Ensuring
   }
 
-  final object Descriptor extends UIO[Fiber.Descriptor] {
+  object Descriptor extends UIO[Fiber.Descriptor] {
     override def tag = Tags.Descriptor
   }
 
@@ -1765,7 +1765,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Lock
   }
 
-  final object Yield extends UIO[Unit] {
+  object Yield extends UIO[Unit] {
     override def tag = Tags.Yield
   }
 

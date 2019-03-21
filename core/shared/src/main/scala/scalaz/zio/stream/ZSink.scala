@@ -242,7 +242,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     new ZSink[R, Nothing, A0, A, Option[B]] {
       type State = Option[self.State]
 
-      val initial = self.initial.map(Step.leftMap(_)(Some(_))) orElse
+      val initial = self.initial.map(Step.leftMap(_)(Option(_))) orElse
         IO.succeed(Step.done(None, Chunk.empty))
 
       def step(state: State, a: A): ZIO[R, Nothing, Step[State, A0]] =

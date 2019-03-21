@@ -560,8 +560,8 @@ private[zio] object FiberContext {
 
   sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
-    final case object Running   extends FiberStatus
-    final case object Suspended extends FiberStatus
+    case object Running   extends FiberStatus
+    case object Suspended extends FiberStatus
   }
 
   sealed trait FiberState[+E, +A] extends Serializable with Product {
