@@ -236,7 +236,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Merges this stream and the specified stream together.
    */
   final def merge[R1 <: R, E1 >: E, A1 >: A](that: ZStream[R1, E1, A1], capacity: Int = 1): ZStream[R1, E1, A1] =
-    self.mergeWith(that, capacity)(identity, identity)
+    self.mergeWith[R1, E1, A1, A1](that, capacity)(identity, identity) // TODO: Dotty doesn't infer this properly
 
   /**
    * Merges this stream and the specified stream together to produce a stream of
