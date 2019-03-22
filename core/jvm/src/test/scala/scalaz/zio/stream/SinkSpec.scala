@@ -46,7 +46,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = ZSink.fold(0) { (_, (a: Int)) =>
+      val sink = ZSink.fold[Any, Int, Int](0) { (_, a) =>
         effects ::= a
         Step.done(30, Chunk.empty)
       }
@@ -86,7 +86,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = ZSink.foldM(IO.succeed(0)) { (_, (a: Int)) =>
+      val sink = ZSink.foldM[Any, E, Int, Int, Int](IO.succeed(0)) { (_, a) =>
         effects ::= a
         IO.succeed(Step.done(30, Chunk.empty))
       }

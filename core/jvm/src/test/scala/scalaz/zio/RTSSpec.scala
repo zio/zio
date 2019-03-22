@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
+import org.specs2.matcher.describe.Diffable
 import scalaz.zio.Exit.Cause
 import scalaz.zio.Exit.Cause.{ Die, Fail, Then }
 import scalaz.zio.duration._
@@ -197,7 +198,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testFlipValue = {
-    val io = IO.succeed(100).flip
+    implicit val d
+      : Diffable[Right[Nothing, Int]] = Diffable.eitherRightDiffable[Int] //    TODO: Dotty has ambiguous implicits
+    val io                            = IO.succeed(100).flip
     unsafeRun(io.either) must_=== Left(100)
   }
 
@@ -253,7 +256,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(
       IO.effectTotal[Cause[Any]](throw ExampleError)
         .sandbox
-        .fold(identity, identity)
+        .fold[Cause[Any]](identity, identity)
     ) must_=== Die(ExampleError)
 
   def testAttemptOfDeepSyncEffectError =
@@ -392,7 +395,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testBracketRethrownCaughtErrorInUsage = {
-    lazy val actual = unsafeRun(
+    lazy val actual: Int = unsafeRun(
       IO.absolve(
         IO.unit.bracket_(IO.unit)(TaskExampleError).either
       )
@@ -402,8 +405,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1 = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
-    val io2 = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
+    val io1: ZIO[Any, Throwable, Unit] = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
+    val io2: ZIO[Any, Throwable, Unit] = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
 
     unsafeRun(io1) must (throwA(FiberFailure(Fail(ExampleError))))
     unsafeRun(io2) must (throwA(FiberFailure(Fail(ExampleError))))
@@ -900,11 +903,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testRaceChoosesWinner =
     unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
 
-  def testRaceChoosesWinnerInTerminate =
+  def testRaceChoosesWinnerInTerminate = {
+    implicit val d
+      : Diffable[Right[Nothing, Int]] = Diffable.eitherRightDiffable[Int] //    TODO: Dotty has ambiguous implicits
     unsafeRun(IO.die(new Throwable {}).race(IO.succeed(24)).either) must_=== Right(24)
+  }
 
-  def testRaceChoosesFailure =
+  def testRaceChoosesFailure = {
+    implicit val d
+      : Diffable[Left[Int, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
     unsafeRun(IO.fail(42).race(IO.fail(42)).either) must_=== Left(42)
+  }
 
   def testRaceOfValueNever =
     unsafeRun(IO.succeedLazy(42).race(IO.never)) must_=== 42
@@ -915,10 +924,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testRaceAllOfValues =
     unsafeRun(IO.raceAll(IO.fail(42), List(IO.succeed(24))).either) must_=== Right(24)
 
-  def testRaceAllOfFailures =
-    unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).either) must_=== Left(
-      24
-    )
+  def testRaceAllOfFailures = {
+    implicit val d
+      : Diffable[Left[Int, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
+    unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).either) must_=== Left(24)
+  }
 
   def testRaceAllOfFailuresOneSuccess =
     unsafeRun(ZIO.raceAll(IO.fail(42), List(IO.succeed(24).delay(1.millis))).either) must_=== Right(
