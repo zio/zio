@@ -16,11 +16,11 @@ object Scalaz {
     "-encoding",
     "UTF-8",
     "-feature",
-    "-unchecked",
-    "-Xfatal-warnings"
+    "-unchecked"
   )
 
   private val std2xOptions = Seq(
+    "-Xfatal-warnings",
     "-language:higherKinds",
     "-language:existentials",
     "-explaintypes",

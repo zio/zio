@@ -5,6 +5,7 @@ import org.specs2.specification.AroundTimeout
 import scalaz.zio.QueueSpec.waitForSize
 import scalaz.zio.duration._
 import scalaz.zio.clock.Clock
+import scala.language.implicitConversions
 
 class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with AroundTimeout {
 

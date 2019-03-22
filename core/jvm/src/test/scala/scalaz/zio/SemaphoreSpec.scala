@@ -4,6 +4,7 @@
 package scalaz.zio
 
 import scalaz.zio.duration._
+import scala.language.implicitConversions
 
 class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 

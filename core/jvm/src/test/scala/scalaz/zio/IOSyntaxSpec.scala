@@ -3,6 +3,7 @@ package scalaz.zio
 import org.scalacheck._
 import org.specs2.ScalaCheck
 import scalaz.zio.syntax._
+import scala.language.implicitConversions
 
 class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime

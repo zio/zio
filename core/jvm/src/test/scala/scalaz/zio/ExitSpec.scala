@@ -3,6 +3,7 @@ package scalaz.zio
 import org.specs2.ScalaCheck
 import org.specs2.concurrent.ExecutionEnv
 import Exit.Cause
+import scala.language.implicitConversions
 
 class ExitSpec(implicit ee: ExecutionEnv) extends TestRuntime with ScalaCheck {
   import ArbitraryCause._

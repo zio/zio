@@ -1,6 +1,7 @@
 package scalaz.zio.internal
 
 import org.specs2.Specification
+import scala.language.implicitConversions
 
 class OneShotSpec extends Specification {
   def is =

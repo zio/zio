@@ -4,7 +4,7 @@ package internal
 import java.util.concurrent.RejectedExecutionException
 
 import scala.concurrent.ExecutionContext
-
+import scala.language.implicitConversions
 import org.specs2.Specification
 
 final class TestExecutor(val submitResult: Boolean) extends Executor {

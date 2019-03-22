@@ -1,6 +1,7 @@
 package scalaz.zio
 
 import java.io._
+import scala.language.implicitConversions
 
 class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 

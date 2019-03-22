@@ -1,5 +1,7 @@
 package scalaz.zio
 
+import scala.language.implicitConversions
+
 class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is = "PromiseSpec".title ^ s2"""

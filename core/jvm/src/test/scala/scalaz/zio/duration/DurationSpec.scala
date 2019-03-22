@@ -4,7 +4,7 @@ import java.time.{ Duration => JavaDuration }
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
-
+import scala.language.implicitConversions
 import scalaz.zio.TestRuntime
 
 class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {

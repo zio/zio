@@ -3,6 +3,7 @@ package scalaz.zio
 import org.specs2.ScalaCheck
 import scala.collection.mutable
 import duration._
+import scala.language.implicitConversions
 
 class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "ManagedSpec".title ^ s2"""

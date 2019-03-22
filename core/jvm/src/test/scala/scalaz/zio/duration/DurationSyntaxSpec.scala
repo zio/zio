@@ -1,6 +1,7 @@
 package scalaz.zio.duration
 
 import scalaz.zio.TestRuntime
+import scala.language.implicitConversions
 
 class DurationSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 

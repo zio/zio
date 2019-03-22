@@ -5,6 +5,7 @@ import scala.{ Stream => _ }
 import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime, UIO }
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
+import scala.language.implicitConversions
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime

@@ -3,6 +3,7 @@ package scalaz.zio.stream
 import org.specs2._
 import org.specs2.specification.core.SpecStructure
 import scalaz.zio.Chunk
+import scala.language.implicitConversions
 
 class ChunkSpec extends Specification with ScalaCheck {
   def is: SpecStructure =

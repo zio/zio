@@ -6,12 +6,13 @@ import scala.{ Stream => _ }
 import scala.concurrent.duration._
 import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
 import scala.annotation.tailrec
+import scala.language.implicitConversions
 
 class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 
   override val DefaultTimeout = 20.seconds
 
-  implicit val params = Parameters(maxSize = 10)
+  implicit val params: Parameters = Parameters(maxSize = 10)
 
   def is = "StreamChunkSpec".title ^ s2"""
   StreamChunk.map           $map

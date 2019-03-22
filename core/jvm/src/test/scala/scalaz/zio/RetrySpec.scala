@@ -3,6 +3,7 @@ package scalaz.zio
 import org.specs2.ScalaCheck
 import scalaz.zio.duration._
 import scalaz.zio.random._
+import scala.language.implicitConversions
 
 class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "RetrySpec".title ^ s2"""

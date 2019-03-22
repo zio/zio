@@ -2,6 +2,7 @@ package scalaz.zio
 package system
 
 import org.specs2.Specification
+import scala.language.implicitConversions
 
 class SystemSpec extends Specification with DefaultRuntime {
   def is = s2"""
