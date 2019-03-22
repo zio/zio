@@ -42,6 +42,6 @@ class TQueue[A] private (capacity: Int, ref: TRef[ScalaQueue[A]]) {
     } yield a
 }
 object TQueue {
-  def makeQueue[A](capacity: Int): UIO[TQueue[A]] =
+  def make[A](capacity: Int): UIO[TQueue[A]] =
     TRef.makeCommit(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 }
