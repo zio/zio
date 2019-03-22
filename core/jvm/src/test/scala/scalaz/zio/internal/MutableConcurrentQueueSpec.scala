@@ -2,7 +2,6 @@ package scalaz.zio.internal
 
 import org.specs2.Specification
 import scalaz.zio.SerializableSpec._
-import scala.language.implicitConversions
 
 /*
  * This spec is just a sanity check and tests RingBuffer correctness

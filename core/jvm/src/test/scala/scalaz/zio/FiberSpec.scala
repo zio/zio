@@ -1,7 +1,5 @@
 package scalaz.zio
 
-import scala.language.implicitConversions
-
 class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is =
     "FiberSpec".title ^ s2"""

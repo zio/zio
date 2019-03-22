@@ -1,7 +1,5 @@
 package scalaz.zio
 
-import scala.language.implicitConversions
-
 class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is = "RefMSpec".title ^ s2"""

@@ -12,7 +12,6 @@ import scalaz.zio.clock.Clock
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
-import scala.language.implicitConversions
 
 class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 

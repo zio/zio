@@ -4,7 +4,6 @@ import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
-import scala.language.implicitConversions
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime

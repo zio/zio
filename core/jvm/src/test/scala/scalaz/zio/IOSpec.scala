@@ -7,7 +7,6 @@ import scalaz.zio.Exit.Cause
 import scala.collection.mutable
 import scala.util.Try
 import scalaz.zio.Exit.Cause.{ Both, Die, Fail, Interrupt }
-import scala.language.implicitConversions
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll

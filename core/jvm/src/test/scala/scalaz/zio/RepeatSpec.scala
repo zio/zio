@@ -2,7 +2,6 @@ package scalaz.zio
 
 import org.specs2.ScalaCheck
 import scalaz.zio.clock.Clock
-import scala.language.implicitConversions
 
 class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "RepeatSpec".title ^ s2"""

@@ -6,7 +6,6 @@ import scala.{ Stream => _ }
 import scala.concurrent.duration._
 import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
 import scala.annotation.tailrec
-import scala.language.implicitConversions
 
 class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
 

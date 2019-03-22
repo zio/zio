@@ -1,7 +1,6 @@
 package scalaz.zio
 
 import FunctionIO._
-import scala.language.implicitConversions
 
 class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "FunctionIOSpec".title ^ s2"""

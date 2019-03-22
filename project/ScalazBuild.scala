@@ -119,6 +119,20 @@ object Scalaz {
         case Some((2, x)) if x >= 12 =>
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
         case Some((0, x)) =>
+          Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")) ++
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+        case _ => Nil
+      }
+    },
+    Test / scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((0, _)) => Seq("-language:implicitConversions")
+        case _            => Nil
+      }
+    },
+    Test / unmanagedSourceDirectories ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((0, x)) =>
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
         case _ => Nil
       }
