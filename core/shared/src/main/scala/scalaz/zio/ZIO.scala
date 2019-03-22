@@ -742,7 +742,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Schedule this effect using the given schedule.
-   * Scheduled effects will run only the schedule signal it can run, keeping it dormant while it can't or until it fails.
+   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't or until it fails.
    * Readiness are checked from time to time using delay returned by schedule.
    */
   final def scheduled[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZIO[R1 with Clock, E, B] =
@@ -752,7 +752,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Schedule this effect with the specified schedule, until it fails, and then both the
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
-   * Scheduled effects will run only the schedule signal it can run, keeping it dormant while it can't.
+   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
    * Readiness are checked from time to time using delay returned by schedule.
    */
   final def scheduleOrElse[R1 <: R, E2, B](
@@ -765,7 +765,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Schedule this effect with the specified schedule, until it fails, and then both the
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
-   * Scheduled effects will run only the schedule signal it can run, keeping it dormant while it can't.
+   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
    * Readiness are checked from time to time using delay returned by schedule.
    */
   final def scheduleOrElseEither[R1 <: R, B, E2, C](

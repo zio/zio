@@ -75,10 +75,10 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         case Nil => IO.succeed(acc)
         case a :: as =>
           self.update(a, s).flatMap {
-            case ZSchedule.Decision(cont, ready, delay, s, finish) =>
+            case ZSchedule.Decision(cont, _, delay, s, finish) =>
               val acc2 = (delay -> finish()) :: acc
 
-              if (cont && ready) run0(as, s, acc2)
+              if (cont) run0(as, s, acc2)
               else IO.succeed(acc2)
           }
       }
