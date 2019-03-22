@@ -397,7 +397,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testBracketRethrownCaughtErrorInUsage = {
     lazy val actual: Int = unsafeRun(
       IO.absolve(
-        IO.unit.bracket_(IO.unit)(TaskExampleError).either
+        IO.unit
+          .bracket_[Any, Nothing]
+          .apply[Any](IO.unit)(TaskExampleError)
+          .either //    TODO: Dotty doesn't infer this properly
       )
     )
 
@@ -405,8 +408,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testEvalOfAsyncAttemptOfFail = {
-    val io1: ZIO[Any, Throwable, Unit] = IO.unit.bracket_(AsyncUnit[Nothing])(asyncExampleError[Unit])
-    val io2: ZIO[Any, Throwable, Unit] = AsyncUnit[Throwable].bracket_(IO.unit)(asyncExampleError[Unit])
+    val io1 = IO.unit.bracket_[Any, Nothing].apply[Any](AsyncUnit[Nothing])(asyncExampleError[Unit]) //    TODO: Dotty doesn't infer this properly
+    val io2 = AsyncUnit[Throwable].bracket_[Any, Throwable].apply[Any](IO.unit)(asyncExampleError[Unit])
 
     unsafeRun(io1) must (throwA(FiberFailure(Fail(ExampleError))))
     unsafeRun(io2) must (throwA(FiberFailure(Fail(ExampleError))))
@@ -859,8 +862,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
       f <- (
-            p1.succeed(()).bracket_(pa.succeed(1).void)(IO.never) race
-              p2.succeed(()).bracket_(pb.succeed(2).void)(IO.never)
+            p1.succeed(())
+              .bracket_[Any, Nothing]
+              .apply[Any](pa.succeed(1).void)(IO.never) race //    TODO: Dotty doesn't infer this properly
+              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).void)(IO.never)
           ).supervise.fork
       _ <- p1.await *> p2.await
 
@@ -876,8 +881,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Unit]
       f <- (
-            p1.succeed(()).bracket_(pa.succeed(1).void)(IO.never).fork *>
-              p2.succeed(()).bracket_(pb.succeed(2).void)(IO.never).fork *>
+            p1.succeed(())
+              .bracket_[Any, Nothing]
+              .apply[Any](pa.succeed(1).void)(IO.never)
+              .fork *> //    TODO: Dotty doesn't infer this properly
+              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).void)(IO.never).fork *>
               IO.never
           ).supervise.fork
       _ <- p1.await *> p2.await
@@ -893,9 +901,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _ <- (for {
             p1 <- Promise.make[Nothing, Unit]
             p2 <- Promise.make[Nothing, Unit]
-            _  <- p1.succeed(()).bracket_(pa.succeed(1).void)(IO.never).fork
-            _  <- p2.succeed(()).bracket_(pb.succeed(2).void)(IO.never).fork
-            _  <- p1.await *> p2.await
+            _ <- p1
+                  .succeed(())
+                  .bracket_[Any, Nothing]
+                  .apply[Any](pa.succeed(1).void)(IO.never)
+                  .fork //    TODO: Dotty doesn't infer this properly
+            _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).void)(IO.never).fork
+            _ <- p1.await *> p2.await
           } yield ()).supervise
       r <- pa.await zip pb.await
     } yield r) must_=== (1 -> 2)
