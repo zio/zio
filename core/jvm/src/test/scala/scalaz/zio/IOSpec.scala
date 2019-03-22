@@ -113,13 +113,14 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     res must be_===(List("1", "2", "3"))
   }
 
-  def t10 = forAll { (l: List[Int]) =>
+  def t10: Prop = forAll { (l: List[Int]) =>
     unsafeRun(IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))) must_=== unsafeRun(IO.succeed(l.sum))
   }
 
-  def t11 = forAll { (l: List[Int]) =>
-    (l.size > 0) ==>
-      (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
+  val ig = Gen.chooseNum(Int.MinValue, Int.MaxValue)
+  val g  = Gen.nonEmptyListOf(ig) //    TODO: Dotty has ambiguous implicits
+  def t11: Prop = forAll(g) { (l: List[Int]) =>
+    (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
   }
 
   def testDone = {
