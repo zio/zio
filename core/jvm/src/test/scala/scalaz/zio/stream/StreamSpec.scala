@@ -39,7 +39,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.collect            $collect
   Stream.forever            $forever
   Stream.scanM              $mapAccumM
-  Stream.transduce          $transduce
+  Stream.transduce
+    transduces              $transduce
+    no remainder            $transduceNoRemainder
+    remainder               $transduceWithRemainer
   Stream.tap                $tap
   Stream.fromIterable       $fromIterable
   Stream.fromChunk          $fromChunk
@@ -316,6 +319,26 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val transduced = s.transduce(parser)
 
     slurp(transduced) must_=== Success(List(12, 34))
+  }
+
+  private def transduceNoRemainder = {
+    val sink = Sink.fold(None: Option[Int]) { (_, a: Int) =>
+      ZSink.Step.done(Some(a), Chunk.empty)
+    }
+    val transduced = ZStream(1).transduce(sink)
+    val prg        = transduced.run(ZSink.collect[Option[Int]])
+    val list       = unsafeRun(prg)
+    list must_=== List(Some(1))
+  }
+
+  private def transduceWithRemainer = {
+    val sink = Sink.fold(None: Option[Int]) { (_, a: Int) =>
+      ZSink.Step.done(Some(a), if (a < 2) Chunk(a + 1) else Chunk.empty)
+    }
+    val transduced = ZStream(1).transduce(sink)
+    val prg        = transduced.run(ZSink.collect[Option[Int]])
+    val list       = unsafeRun(prg)
+    list must_=== List(Some(1), Some(2))
   }
 
   private def peel = {
