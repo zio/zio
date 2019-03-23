@@ -16,8 +16,6 @@
 
 package scalaz.zio.stm
 
-import scalaz.zio.UIO
-
 class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVal {
   final def await: STM[E, A] =
     ref.get.collect {
@@ -48,6 +46,6 @@ class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVa
 }
 
 object TPromise {
-  def make[E, A]: UIO[TPromise[E, A]] =
-    TRef.makeCommit[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
+  final def make[E, A]: STM[Nothing, TPromise[E, A]] =
+    TRef.make[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
 }

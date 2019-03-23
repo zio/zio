@@ -398,24 +398,6 @@ object STM {
   import internal._
 
   /**
-   * Returns an `STM` effect that succeeds with the specified value.
-   */
-  final def succeed[A](a: A): STM[Nothing, A] =
-    new STM(_ => TRez.Succeed(a))
-
-  /**
-   * Returns an `STM` effect that succeeds with the specified (lazily
-   * evaluated) value.
-   */
-  final def succeedLazy[A](a: => A): STM[Nothing, A] =
-    new STM(_ => TRez.Succeed(a))
-
-  /**
-   * Returns an `STM` effect that succeeds with `Unit`.
-   */
-  final val unit: STM[Nothing, Unit] = succeed(())
-
-  /**
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
@@ -505,21 +487,31 @@ object STM {
     }
 
   /**
-   * Abort and retry the whole transaction when any of the underlying
-   * variables have changed.
-   */
-  final val retry: STM[Nothing, Nothing] =
-    new STM(_ => TRez.Retry)
-
-  /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
   final def check(p: Boolean): STM[Nothing, Unit] =
     if (p) STM.unit else retry
 
+  /**
+   * Collects all the transactional effects in a list, returning a single
+   * transactional effect that produces a list of values.
+   */
+  final def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
+    i.foldRight[STM[E, List[A]]](STM.succeed(Nil)) {
+      case (stm, acc) =>
+        acc.zipWith(stm)((xs, x) => x :: xs)
+    }
+
+  /**
+   * Kills the fiber running the effect.
+   */
   final def die(t: Throwable): STM[Nothing, Nothing] =
     succeedLazy(throw t)
 
+  /**
+   * Kills the fiber running the effect with a `RuntimeException` that contains
+   * the specified message.
+   */
   final def dieMessage(m: String): STM[Nothing, Nothing] =
     die(new RuntimeException(m))
 
@@ -527,6 +519,13 @@ object STM {
    * Returns a value that models failure in the transaction.
    */
   final def fail[E](e: E): STM[E, Nothing] = new STM(_ => TRez.Fail(e))
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and
+   * returns a transactional effect that produces a new `List[B]`.
+   */
+  final def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
+    collectAll(as.map(f))
 
   /**
    * Creates an STM effect from an `Either` value.
@@ -559,19 +558,27 @@ object STM {
     fromTry(Try(a))
 
   /**
-   * Collects all the transactional effects in a list, returning a single
-   * transactional effect that produces a list of values.
+   * Abort and retry the whole transaction when any of the underlying
+   * transactional variables have changed.
    */
-  final def collectAll[E, A](i: Iterable[STM[E, A]]): STM[E, List[A]] =
-    i.foldRight[STM[E, List[A]]](STM.succeed(Nil)) {
-      case (stm, acc) =>
-        acc.zipWith(stm)((xs, x) => x :: xs)
-    }
+  final val retry: STM[Nothing, Nothing] =
+    new STM(_ => TRez.Retry)
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and
-   * returns a transactional effect that produces a new `List[B]`.
+   * Returns an `STM` effect that succeeds with the specified value.
    */
-  final def foreach[E, A, B](as: Iterable[A])(f: A => STM[E, B]): STM[E, List[B]] =
-    collectAll(as.map(f))
+  final def succeed[A](a: A): STM[Nothing, A] =
+    new STM(_ => TRez.Succeed(a))
+
+  /**
+   * Returns an `STM` effect that succeeds with the specified (lazily
+   * evaluated) value.
+   */
+  final def succeedLazy[A](a: => A): STM[Nothing, A] =
+    new STM(_ => TRez.Succeed(a))
+
+  /**
+   * Returns an `STM` effect that succeeds with `Unit`.
+   */
+  final val unit: STM[Nothing, Unit] = succeed(())
 }

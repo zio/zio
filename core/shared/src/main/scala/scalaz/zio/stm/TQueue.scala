@@ -16,8 +16,6 @@
 
 package scalaz.zio.stm
 
-import scalaz.zio.UIO
-
 import scala.collection.immutable.{ Queue => ScalaQueue }
 
 // TODO: Add poll, takeUpTo, etc.
@@ -42,6 +40,6 @@ class TQueue[A] private (capacity: Int, ref: TRef[ScalaQueue[A]]) {
     } yield a
 }
 object TQueue {
-  def make[A](capacity: Int): UIO[TQueue[A]] =
-    TRef.makeCommit(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
+  final def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
+    TRef.make(ScalaQueue.empty[A]).map(ref => new TQueue(capacity, ref))
 }

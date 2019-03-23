@@ -16,8 +16,6 @@
 
 package scalaz.zio.stm
 
-import scalaz.zio.UIO
-
 class TSemaphore private (val total: Long, val permits: TRef[Long]) {
   final def acquire: STM[Nothing, Unit] = acquireN(1L)
 
@@ -42,6 +40,6 @@ class TSemaphore private (val total: Long, val permits: TRef[Long]) {
 }
 
 object TSemaphore {
-  def make(n: Long): UIO[TSemaphore] =
-    TRef.makeCommit(n).map(v => new TSemaphore(n, v))
+  final def make(n: Long): STM[Nothing, TSemaphore] =
+    TRef.make(n).map(v => new TSemaphore(n, v))
 }
