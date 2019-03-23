@@ -136,7 +136,11 @@ object Scalaz {
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
         case _ => Nil
       }
-    }
+    },
+    publishArtifact in (Compile, packageDoc) := (CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((0, _)) => false
+      case _            => true
+    })
   )
 
   implicit class ModuleHelper(p: Project) {
