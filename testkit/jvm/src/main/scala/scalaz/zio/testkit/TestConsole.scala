@@ -16,7 +16,7 @@
 
 package scalaz.zio.testkit
 
-import java.io.IOException
+import java.io.{ IOException, EOFException }
 
 import scalaz.zio.console._
 import scalaz.zio._
@@ -38,7 +38,7 @@ case class TestConsole(ref: Ref[TestConsole.Data]) extends Console.Service[Any] 
       input <- ref.get.flatMap(
                 d =>
                   IO.fromOption(d.input.headOption)
-                    .mapError(_ => new IOException("There is no more input left to read"))
+                    .mapError(_ => new EOFException("There is no more input left to read"))
               )
       _ <- ref.update { data =>
             Data(data.input.tail, data.output)
