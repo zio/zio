@@ -25,14 +25,11 @@ import scalaz.zio.stm.STM.internal._
  * A variable that can be modified as part of a transactional effect.
  */
 class TRef[A] private (
-  val id: Long,
-  @volatile var versioned: Versioned[A],
-  val todo: AtomicReference[Map[Long, Todo]]
+  private[stm] val id: Long,
+  @volatile private[stm] var versioned: Versioned[A],
+  private[stm] val todo: AtomicReference[Map[Long, Todo]]
 ) {
   self =>
-
-  final val debug: UIO[Unit] =
-    UIO(println(toString))
 
   /**
    * Retrieves the value of the `TRef`.
