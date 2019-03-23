@@ -43,6 +43,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     transduces              $transduce
     no remainder            $transduceNoRemainder
     remainder               $transduceWithRemainer
+    sink requests more      $transduceSinkMore
   Stream.tap                $tap
   Stream.fromIterable       $fromIterable
   Stream.fromChunk          $fromChunk
@@ -326,19 +327,31 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       ZSink.Step.done(Some(a), Chunk.empty)
     }
     val transduced = ZStream(1).transduce(sink)
-    val prg        = transduced.run(ZSink.collect[Option[Int]])
-    val list       = unsafeRun(prg)
-    list must_=== List(Some(1))
+
+    slurp(transduced) must_=== Success(List(Some(1)))
   }
 
   private def transduceWithRemainer = {
-    val sink = Sink.fold(None: Option[Int]) { (_, a: Int) =>
-      ZSink.Step.done(Some(a), if (a < 2) Chunk(a + 1) else Chunk.empty)
+    val sink = Sink.fold(0) { (s, a: Int) =>
+      a match {
+        case 1 => ZSink.Step.more(s + 100)
+        case 2 => ZSink.Step.more(s + 100)
+        case 3 => ZSink.Step.done(s + 3, Chunk(a + 1))
+        case _ => ZSink.Step.done(s + 4, Chunk.empty)
+      }
     }
-    val transduced = ZStream(1).transduce(sink)
-    val prg        = transduced.run(ZSink.collect[Option[Int]])
-    val list       = unsafeRun(prg)
-    list must_=== List(Some(1), Some(2))
+    val transduced = ZStream(1, 2, 3).transduce(sink)
+
+    slurp(transduced) must_=== Success(List(203, 4))
+  }
+
+  private def transduceSinkMore = {
+    val sink = Sink.fold(0) { (s, a: Int) =>
+      ZSink.Step.more(s + a)
+    }
+    val transduced = ZStream(1, 2, 3).transduce(sink)
+
+    slurp(transduced) must_=== Success(List(1 + 2 + 3))
   }
 
   private def peel = {
