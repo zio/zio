@@ -10,6 +10,7 @@ import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests, Eff
 import cats.effect.laws.util.{ TestContext, TestInstances }
 import cats.implicits._
 import cats.laws._
+import cats.laws.discipline.MonadTests
 import cats.laws.discipline.{ AlternativeTests, BifunctorTests, MonadErrorTests, ParallelTests, SemigroupKTests }
 import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
@@ -121,6 +122,7 @@ class catzSpec
   checkAllAsync("SemigroupK[Task]", (_) => SemigroupKTests[Task].semigroupK[Int])
   checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
   checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Util.Par].parallel[Int, Int])
+  checkAllAsync("Monad[UIO]", (_) => MonadTests[UIO].apply[Int, Int, Int])
 
   object summoningInstancesTest {
     import cats._, cats.effect._
@@ -134,6 +136,7 @@ class catzSpec
     Functor[TaskR[String, ?]]
     Parallel[TaskR[String, ?], ParIO[String, Throwable, ?]]
     SemigroupK[TaskR[String, ?]]
+    Apply[UIO]
 
     def concurrentEffect[R: Runtime] = ConcurrentEffect[TaskR[R, ?]]
     def effect[R: Runtime]           = Effect[TaskR[R, ?]]
