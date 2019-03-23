@@ -138,9 +138,9 @@
 
 <h2 id="transforming-queues">Transforming queues</h2>
 
-<p>A <code class="highlighter-rouge">Queue[A]</code> is in fact a type alias for <code class="highlighter-rouge">Queue2[Any, Nothing, Any, Nothing, A, A]</code>.
+<p>A <code class="highlighter-rouge">Queue[A]</code> is in fact a type alias for <code class="highlighter-rouge">ZQueue[Any, Nothing, Any, Nothing, A, A]</code>.
 The signature for the expanded version is:</p>
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Queue2</span><span class="o">[</span><span class="kt">RA</span>, <span class="kt">EA</span>, <span class="kt">RB</span>, <span class="kt">EB</span>, <span class="kt">A</span>, <span class="kt">B</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">ZQueue</span><span class="o">[</span><span class="kt">RA</span>, <span class="kt">EA</span>, <span class="kt">RB</span>, <span class="kt">EB</span>, <span class="kt">A</span>, <span class="kt">B</span><span class="o">]</span>
 </code></pre></div></div>
 
 <p>Which is to say:</p>
@@ -153,7 +153,7 @@ The signature for the expanded version is:</p>
 
 <p>With separate type parameters for input and output, there are rich composition opportunities for queues:</p>
 
-<h3 id="queue2map">Queue2#map</h3>
+<h3 id="zqueuemap">ZQueue#map</h3>
 
 <p>The output of the queue may be mapped:</p>
 
@@ -166,7 +166,7 @@ The signature for the expanded version is:</p>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">s</span>
 </code></pre></div></div>
 
-<h3 id="queue2mapm">Queue2#mapM</h3>
+<h3 id="zqueuemapm">ZQueue#mapM</h3>
 
 <p>We may also use an effectful function to map the output. For example,
 we could annotate each element with the timestamp at which it was dequeued:</p>
@@ -176,7 +176,7 @@ we could annotate each element with the timestamp at which it was dequeued:</p>
 
 <span class="k">val</span> <span class="n">currentTimeMillis</span> <span class="k">=</span> <span class="n">currentTime</span><span class="o">(</span><span class="nc">TimeUnit</span><span class="o">.</span><span class="nc">MILLISECONDS</span><span class="o">)</span>
 
-<span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Queue2</span><span class="o">[</span><span class="kt">Any</span>, <span class="kt">Nothing</span>, <span class="kt">Clock</span>, <span class="kt">Nothing</span>, <span class="kt">String</span>, <span class="o">(</span><span class="kt">Long</span>, <span class="kt">String</span><span class="o">)]]</span> <span class="k">=</span> 
+<span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">ZQueue</span><span class="o">[</span><span class="kt">Any</span>, <span class="kt">Nothing</span>, <span class="kt">Clock</span>, <span class="kt">Nothing</span>, <span class="kt">String</span>, <span class="o">(</span><span class="kt">Long</span>, <span class="kt">String</span><span class="o">)]]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
     <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[</span><span class="kt">String</span><span class="o">](</span><span class="mi">3</span><span class="o">)</span>
     <span class="n">mapped</span> <span class="k">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">mapM</span> <span class="o">{</span> <span class="n">el</span> <span class="k">=&gt;</span>
@@ -185,13 +185,13 @@ we could annotate each element with the timestamp at which it was dequeued:</p>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">mapped</span>
 </code></pre></div></div>
 
-<h3 id="queue2contramapm">Queue2contramapM</h3>
+<h3 id="zqueuecontramapm">ZQueue#contramapM</h3>
 
 <p>Similarly to <code class="highlighter-rouge">mapM</code>, we can also apply an effectful function to
 elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Queue2</span><span class="o">[</span><span class="kt">Clock</span>, <span class="kt">Nothing</span>, <span class="kt">Any</span>, <span class="kt">Nothing</span>, <span class="kt">String</span>, <span class="o">(</span><span class="kt">Long</span>, <span class="kt">String</span><span class="o">)]]</span> <span class="k">=</span> 
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">ZQueue</span><span class="o">[</span><span class="kt">Clock</span>, <span class="kt">Nothing</span>, <span class="kt">Any</span>, <span class="kt">Nothing</span>, <span class="kt">String</span>, <span class="o">(</span><span class="kt">Long</span>, <span class="kt">String</span><span class="o">)]]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
     <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[(</span><span class="kt">Long</span>, <span class="kt">String</span><span class="o">)](</span><span class="mi">3</span><span class="o">)</span>
     <span class="n">mapped</span> <span class="k">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">contramapM</span> <span class="o">{</span> <span class="n">el</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span>
@@ -209,7 +209,7 @@ compute the time that the elements stayed in the queue:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio.duration._</span>
 
-<span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">Queue2</span><span class="o">[</span><span class="kt">Clock</span>, <span class="kt">Nothing</span>, <span class="kt">Clock</span>, <span class="kt">Nothing</span>, <span class="kt">String</span>, <span class="o">(</span><span class="kt">Duration</span>, <span class="kt">String</span><span class="o">)]]</span> <span class="k">=</span> 
+<span class="k">val</span> <span class="n">res</span><span class="k">:</span> <span class="kt">UIO</span><span class="o">[</span><span class="kt">ZQueue</span><span class="o">[</span><span class="kt">Clock</span>, <span class="kt">Nothing</span>, <span class="kt">Clock</span>, <span class="kt">Nothing</span>, <span class="kt">String</span>, <span class="o">(</span><span class="kt">Duration</span>, <span class="kt">String</span><span class="o">)]]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
     <span class="n">queue</span> <span class="k">&lt;-</span> <span class="nc">Queue</span><span class="o">.</span><span class="n">bounded</span><span class="o">[(</span><span class="kt">Long</span>, <span class="kt">String</span><span class="o">)](</span><span class="mi">3</span><span class="o">)</span>
     <span class="n">enqueueTimestamps</span> <span class="k">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">contramapM</span> <span class="o">{</span> <span class="n">el</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span>
@@ -222,7 +222,7 @@ compute the time that the elements stayed in the queue:</p>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">durations</span>
 </code></pre></div></div>
 
-<h3 id="queue2bothwith">Queue2#bothWith</h3>
+<h3 id="zqueuebothwith">ZQueue#bothWith</h3>
 
 <p>We may also compose two queues together into a single queue that
 broadcasts offers and takes from both of the queues:</p>
