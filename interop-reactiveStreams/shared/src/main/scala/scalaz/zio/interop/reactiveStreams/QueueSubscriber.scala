@@ -25,7 +25,7 @@ private class QueueSubscriber[A](runtime: Runtime[_], q: Queue[A], subscriptionP
   @volatile private[this] var failed: Option[Throwable] = None
 
   override def fold[R1 <: Any, E1 >: Throwable, A1 >: A, S]: Fold[R1, E1, A1, S] =
-    subscriptionP.await.map { subscription => (s, cont, f) =>
+    subscriptionP.await.map { subscription => (s: S, cont: S => Boolean, f: (S, A1) => ZIO[R1, E1, S]) =>
       def loop(s: S, demand: Long): ZIO[R1, E1, S] =
         if (!cont(s)) UIO.succeed(s)
         else
@@ -37,7 +37,7 @@ private class QueueSubscriber[A](runtime: Runtime[_], q: Queue[A], subscriptionP
             else q.take.flatMap(f(s, _)).flatMap(loop(_, demand - 1))
           } <> failed.fold[Task[S]](UIO.succeed(s))(Task.fail)
       loop(s, 0).ensuring(q.shutdown)
-    }
+    }.onInterrupt(q.shutdown)
 
   override def onSubscribe(s: Subscription): Unit = {
     if (s == null) throw new NullPointerException("s was null in onSubscribe")
@@ -45,7 +45,6 @@ private class QueueSubscriber[A](runtime: Runtime[_], q: Queue[A], subscriptionP
       subscriptionP
         .succeed(s)
         .flatMap[Any, Nothing, Unit] {
-          // when should take lazy param
           case true  => q.awaitShutdown.ensuring(UIO(s.cancel()).whenM(UIO(!completed && failed.isEmpty))).fork.void
           case false => UIO(s.cancel())
         }
