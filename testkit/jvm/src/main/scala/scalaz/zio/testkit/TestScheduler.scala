@@ -27,10 +27,13 @@ final case class TestScheduler(ref: Ref[TestClock.Data]) extends Scheduler.Servi
                      tasks.partition(_._1 <= currentTime)
                    }.map(_.map(x => (x._2, x._3)))
         _ <- ZIO.foreach(dequeued) { task =>
-              task._1.done(ZIO.succeed(())) flatMap { notInterupted =>
-                if (notInterupted) ZIO.effectTotal(task._2.run())
-                else ZIO.unit
-              }
+              task._1
+                .done(ZIO.succeed(()))
+                .flatMap { notInterupted =>
+                  if (notInterupted) ZIO.effectTotal(task._2.run())
+                  else ZIO.unit
+                }
+                .uninterruptible
             }
       } yield ()
       executor <- runWhile(runTask, shouldExit).provide(Environment).fork
