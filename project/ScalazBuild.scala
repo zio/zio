@@ -96,12 +96,9 @@ object Scalaz {
     }
 
   def stdSettings(prjName: String) = Seq(
-    excludeDependencies ++= Seq(
-      ExclusionRule("org.scalameta", "mdoc")
-    ),
     name := s"scalaz-$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.8", "2.13.0-M5", "2.11.12"),
+    crossScalaVersions := Seq("2.12.8", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
