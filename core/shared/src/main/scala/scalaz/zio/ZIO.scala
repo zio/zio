@@ -508,6 +508,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )(_ => self)
 
   /**
+   * Enables supervision for this effect. This will cause fibers forked by
+   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
+   */
+  final def supervised: ZIO[R, E, A] = ZIO.supervised(self)
+
+  /**
    * Supervises this effect, which ensures that any fibers that are forked by
    * the effect are interrupted when this effect completes.
    */
@@ -1125,6 +1131,13 @@ trait ZIOFunctions extends Serializable {
   }
 
   /**
+   * Enables supervision for this effect. This will cause fibers forked by
+   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
+   */
+  final def supervised[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.Supervised(zio)
+
+  /**
    * Returns an effect that supervises the specified effect, ensuring that all
    * fibers that it forks are interrupted as soon as the supervised effect
    * completes.
@@ -1139,8 +1152,8 @@ trait ZIOFunctions extends Serializable {
    */
   final def superviseWith[R >: LowerR, E <: UpperE, A](
     zio: ZIO[R, E, A]
-  )(supervisor: Iterable[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
-    new ZIO.Supervise(zio, supervisor)
+  )(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
+    zio.ensuring(children.flatMap(supervisor(_))).supervised
 
   /**
    * Returns an effect that first executes the outer effect, and then executes
@@ -1501,6 +1514,14 @@ trait ZIOFunctions extends Serializable {
    * Returns information about the current fiber, such as its fiber identity.
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.Descriptor
+
+  /**
+   * Provides access to the list of child fibers supervised by this fiber.
+   *
+   * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
+   * current fiber for this operation to return non-empty lists.
+   */
+  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
 }
 
 trait ZIO_E_Any extends ZIO_E_Throwable {
@@ -1680,7 +1701,7 @@ object ZIO extends ZIO_R_Any {
     final val Fold            = 5
     final val Fork            = 6
     final val Uninterruptible = 7
-    final val Supervise       = 8
+    final val Supervised      = 8
     final val Ensuring        = 9
     final val Descriptor      = 10
     final val Lock            = 11
@@ -1724,11 +1745,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Uninterruptible
   }
 
-  final class Supervise[R, E, A](
-    val value: ZIO[R, E, A],
-    val supervisor: Iterable[Fiber[_, _]] => UIO[_]
-  ) extends ZIO[R, E, A] {
-    override def tag = Tags.Supervise
+  final class Supervised[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.Supervised
   }
 
   final class Fail[E](val cause: Cause[E]) extends IO[E, Nothing] {
