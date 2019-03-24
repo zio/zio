@@ -16,8 +16,7 @@
 
 package scalaz.zio.testkit
 
-import java.io.EOFException
-import java.io.IOException
+import java.io.{ IOException, EOFException }
 
 import scalaz.zio.console._
 import scalaz.zio._
