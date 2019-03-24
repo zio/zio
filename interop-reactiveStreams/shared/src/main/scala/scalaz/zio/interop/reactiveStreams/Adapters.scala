@@ -3,7 +3,7 @@ package scalaz.zio.interop.reactiveStreams
 import org.reactivestreams.{ Publisher, Subscriber }
 import scalaz.zio._
 import scalaz.zio.interop.reactiveStreams.SubscriberHelpers._
-import scalaz.zio.stream.{ Stream, Take, ZSink, ZStream }
+import scalaz.zio.stream.{ Stream, ZSink, ZStream }
 
 //in scala 2.11 the proof for Any in not found by the compiler
 import Stream.ConformsAnyProof
@@ -12,17 +12,11 @@ object Adapters {
 
   def sinkToSubscriber[R, E <: Throwable, A1, A, B](
     sink: ZSink[R, E, A1, A, B],
-    bufferSize: Int = 10
+    bufferSize: Int
   ): ZIO[R, Nothing, (Subscriber[A], Task[B])] =
-    for {
-      runtime    <- ZIO.runtime[Any]
-      q          <- Queue.bounded[Take[Throwable, A]](bufferSize + 1)
-      subscriber = new QueueSubscriber[A](runtime, q)
-      fiber <- untakeQ(q)
-                .tap(_ => subscriber.signalDemand)
-                .run(sink)
-                .fork
-    } yield (subscriber, fiber.join)
+    QueueSubscriber.make[A](bufferSize).flatMap {
+      case (subscriber, stream) => stream.run(sink).fork.map(fiber => (subscriber, fiber.join))
+    }
 
   def streamToPublisher[R, E <: Throwable, A](stream: ZStream[R, E, A]): ZIO[R, Nothing, Publisher[A]] =
     ZIO.runtime.map { runtime => (subscriber: Subscriber[_ >: A]) =>
@@ -55,14 +49,10 @@ object Adapters {
     } yield (error, demandUnfoldSink(subscriber, demand))
 
   def publisherToStream[A](publisher: Publisher[A], bufferSize: Int): ZStream[Any, Throwable, A] =
-    Stream.unwrap(for {
-      runtime    <- ZIO.runtime[Any]
-      q          <- Queue.bounded[Take[Throwable, A]](bufferSize + 1)
-      subscriber = new QueueSubscriber[A](runtime, q)
-      _          <- UIO(publisher.subscribe(subscriber))
-    } yield untakeQ(q).tap(_ => subscriber.signalDemand))
-
-  private def untakeQ[R, E, A](q: Queue[Take[E, A]]): ZStream[R, E, A] =
-    Stream.fromQueue(q).unTake ++ Stream.fromEffect(q.shutdown).drain
+    Stream.unwrap(
+      QueueSubscriber.make[A](bufferSize).flatMap {
+        case (subscriber, stream) => UIO(publisher.subscribe(subscriber)).const(stream)
+      }
+    )
 
 }
