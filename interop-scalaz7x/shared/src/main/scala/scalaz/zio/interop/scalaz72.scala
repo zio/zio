@@ -42,10 +42,8 @@ sealed trait IOInstances1 extends IOInstances2 {
 }
 
 sealed trait IOInstances2 {
-  implicit def ioInstances[R, E]: MonadError[ZIO[R, E, ?], E] 
-      with BindRec[ZIO[R, E, ?]]
-      with Bifunctor[ZIO[R, ?, ?]] 
-      with Plus[ZIO[R, E, ?]] =
+  implicit def ioInstances[R, E]
+    : MonadError[ZIO[R, E, ?], E] with BindRec[ZIO[R, E, ?]] with Bifunctor[ZIO[R, ?, ?]] with Plus[ZIO[R, E, ?]] =
     new IOMonadError[R, E] with IOPlus[R, E] with IOBifunctor[R]
 }
 
@@ -59,7 +57,7 @@ private class IOMonad[R, E] extends Monad[ZIO[R, E, ?]] with BindRec[ZIO[R, E, ?
 
 private class IOMonadError[R, E] extends IOMonad[R, E] with MonadError[ZIO[R, E, ?], E] {
   override def handleError[A](fa: ZIO[R, E, A])(f: E => ZIO[R, E, A]): ZIO[R, E, A] = fa.catchAll(f)
-  override def raiseError[A](e: E): ZIO[R, E, A] = ZIO.fail(e)
+  override def raiseError[A](e: E): ZIO[R, E, A]                                    = ZIO.fail(e)
 }
 
 /** lossy, throws away errors using the "first success" interpretation of Plus */
