@@ -13,4 +13,4 @@ addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"          %
 addSbtPlugin("com.geirsson"                      % "sbt-ci-release"            % "1.2.1")
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies" % "0.2.8")
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                % "5.1.0")
-addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                 % "0.3.0")
+addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                 % "0.3.1")
