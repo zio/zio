@@ -34,6 +34,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     takeWhile                $takeWhile
     takeWhile short circuits $takeWhileShortCircuits
 
+  Stream.collect
+    collectWhile                $collectWhile
+    collectWhile short circuits $collectWhileShortCircuits
+
   Stream.foreach0           $foreach0
   Stream.foreach            $foreach
   Stream.collect            $collect
@@ -112,6 +116,21 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         ran    <- Ref.make(false)
         stream = (Stream(1) ++ Stream.fromEffect(ran.set(true)).drain).takeWhile(_ => false)
+        _      <- stream.run(Sink.drain)
+        result <- ran.get
+      } yield result must_=== false
+    )
+
+  private def collectWhile = {
+    val s = Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) => v }
+    slurp(s) must_=== Success(List(1, 2, 3))
+  }
+
+  private def collectWhileShortCircuits =
+    unsafeRun(
+      for {
+        ran    <- Ref.make(false)
+        stream = (Stream(Option(1)) ++ Stream.fromEffect(ran.set(true)).drain).collectWhile { case None => 1 }
         _      <- stream.run(Sink.drain)
         result <- ran.get
       } yield result must_=== false
