@@ -1,8 +1,10 @@
 package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
+
 import scala.{ Stream => _ }
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime, UIO }
+import scalaz.zio._
+
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
@@ -323,12 +325,15 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def transduceNoRemainder = {
-    val sink = Sink.fold(None: Option[Int]) { (_, a: Int) =>
-      ZSink.Step.done(Some(a), Chunk.empty)
+    val sink = Sink.fold(100) { (s, a: Int) =>
+      if (a % 2 == 0)
+        ZSink.Step.more(s + a)
+      else
+        ZSink.Step.done(s + a, Chunk.empty)
     }
-    val transduced = ZStream(1).transduce(sink)
+    val transduced = ZStream(1, 2, 3, 4).transduce(sink)
 
-    slurp(transduced) must_=== Success(List(Some(1)))
+    slurp(transduced) must_=== Success(List(101, 105, 104))
   }
 
   private def transduceWithRemainer = {

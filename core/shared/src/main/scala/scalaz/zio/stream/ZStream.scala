@@ -528,9 +528,13 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                 sink.extract(ZSink.Step.state(step)).flatMap { c =>
                   f(s2, c).flatMap { s2 =>
                     val remaining = ZSink.Step.leftover(step)
-                    if (cont(s2) && !remaining.isEmpty)
-                      sink.initial.flatMap(initStep => feed(ZSink.Step.state(initStep), s2, remaining))
-                    else IO.succeed((s1, s2, false))
+                    sink.initial.flatMap { initStep =>
+                      if (cont(s2) && !remaining.isEmpty) {
+                        feed(ZSink.Step.state(initStep), s2, remaining)
+                      } else {
+                        IO.succeed((ZSink.Step.state(initStep), s2, false))
+                      }
+                    }
                   }
                 }
               }
