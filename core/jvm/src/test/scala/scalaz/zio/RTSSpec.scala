@@ -840,7 +840,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         _     <- (latch.succeed(()) *> UIO.never).fork
         _     <- latch.await
         fibs  <- ZIO.children
-      } yield fibs must be empty
+      } yield fibs must have size(0)
     )
 
   def testSupervise = {
