@@ -597,6 +597,25 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def const[B](b: => B): ZIO[R, E, B] = self map (_ => b)
 
+  final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
+    for {
+      r1 <- ZIO.environment[R1]
+      r <- that provide r1
+      a <- self provide r
+    } yield a
+
+  final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
+
+  final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+    for {
+      r1 <- ZIO.environment[R]
+      r <- self provide r1
+      a <- that provide r
+    } yield a
+
+  final def andThen[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+    self >>> that
+
   final def first[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] = self &&& ZIO.identity[R1]
 
   final def second[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] = ZIO.identity[R1] &&& self
@@ -1260,7 +1279,6 @@ trait ZIOFunctions extends Serializable {
    */
   final def identity[R >: LowerR]: ZIO[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn[R])
 
-
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
@@ -1277,6 +1295,15 @@ trait ZIOFunctions extends Serializable {
    * tuple.
    */
   final def _2[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
+
+  final def ifThenElse[R >: LowerR, E <: UpperE, A](
+    cond: ZIO[R, E, Boolean]
+  )(then0: ZIO[R, E, A])(else0: ZIO[R, E, A]) : ZIO[R, E, A] =
+    for {
+     r <- ZIO.environment[R]
+     c <- cond provide r
+    a <- if(c) then0 else else0
+    } yield a
 
   /**
    * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
