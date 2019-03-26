@@ -5,6 +5,7 @@ import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport.CrossType
 
 import sbtbuildinfo._
+import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object Scalaz {
@@ -118,29 +119,26 @@ object Scalaz {
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11"))
         case Some((2, x)) if x >= 12 =>
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
-        case Some((0, x)) =>
-          Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")) ++
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
-        case _ => Nil
+        case _ =>
+          if (isDotty.value)
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")) ++
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+          else
+            Nil
       }
     },
     Test / scalacOptions ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((0, _)) => Seq("-language:implicitConversions")
-        case _            => Nil
-      }
+      if (isDotty.value)
+        Seq("-language:implicitConversions")
+      else
+        Nil
     },
     Test / unmanagedSourceDirectories ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((0, x)) =>
-          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
-        case _ => Nil
-      }
-    },
-    publishArtifact in (Compile, packageDoc) := (CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((0, _)) => false
-      case _            => true
-    })
+      if (isDotty.value)
+        CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+      else
+        Nil
+    }
   )
 
   implicit class ModuleHelper(p: Project) {
