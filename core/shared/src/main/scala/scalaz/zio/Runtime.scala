@@ -85,7 +85,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be used at the edges of your program.
    */
-  final def unsafeRunToFuture[E <: Throwable, A](io: IO[E, A]): scala.concurrent.Future[A] =
+  final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): scala.concurrent.Future[A] =
     unsafeRun(io.toFuture)
 }
 

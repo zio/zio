@@ -65,6 +65,8 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         ref         <- Ref.make(Data())
         testConsole <- IO.succeed(TestConsole(ref))
         failed      <- testConsole.getStrLn.either
-      } yield failed must beLeft
+        message     = failed.fold(_.getMessage, identity)
+      } yield (failed must beLeft) and (message must_=== "There is no more input left to read")
     )
+
 }

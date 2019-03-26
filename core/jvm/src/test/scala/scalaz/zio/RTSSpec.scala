@@ -99,6 +99,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     asyncPure creation is interruptible     $testAsyncPureCreationIsInterruptible
     asyncInterrupt runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
     redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
+    supervising returns fiber refs          $testSupervising
+    supervising in unsupervised returns Nil $testSupervisingUnsupervised
     supervise fibers                        $testSupervise
     supervise fibers in supervised          $testSupervised
     supervise fibers in race                $testSuperviseRace
@@ -805,6 +807,35 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       } yield res
     unsafeRun(io) must_=== 0
   }
+
+  def testSupervising = {
+    def forkAwaitStart =
+      for {
+        latch <- Promise.make[Nothing, Unit]
+        _     <- (latch.succeed(()) *> UIO.never).fork
+        _     <- latch.await
+      } yield ()
+
+    unsafeRun(
+      (for {
+        fibs0 <- ZIO.children
+        _     <- forkAwaitStart
+        fibs1 <- ZIO.children
+        _     <- forkAwaitStart
+        fibs2 <- ZIO.children
+      } yield (fibs0 must have size (0)) and (fibs1 must have size (1)) and (fibs2 must have size (2))).supervised
+    )
+  }
+
+  def testSupervisingUnsupervised =
+    unsafeRun(
+      for {
+        latch <- Promise.make[Nothing, Unit]
+        _     <- (latch.succeed(()) *> UIO.never).fork
+        _     <- latch.await
+        fibs  <- ZIO.children
+      } yield fibs must be empty
+    )
 
   def testSupervise = {
     var counter = 0

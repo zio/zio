@@ -71,9 +71,9 @@ sealed trait CatsInstances1 extends CatsInstances2 {
 }
 
 sealed trait CatsInstances2 {
-  implicit def ioInstances[R]
-    : MonadError[TaskR[R, ?], Throwable] with Bifunctor[ZIO[R, ?, ?]] with SemigroupK[TaskR[R, ?]] =
-    new CatsMonadError[R, Throwable] with CatsSemigroupK[R, Throwable] with CatsBifunctor[R]
+  implicit def ioInstances[R, E]
+    : MonadError[ZIO[R, E, ?], E] with Bifunctor[ZIO[R, ?, ?]] with SemigroupK[ZIO[R, E, ?]] =
+    new CatsMonadError[R, E] with CatsBifunctor[R] with CatsSemigroupK[R, E]
 }
 
 private class CatsConcurrentEffect[R](rts: Runtime[R])
