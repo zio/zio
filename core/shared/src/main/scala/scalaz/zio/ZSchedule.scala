@@ -585,9 +585,9 @@ trait Schedule_Functions extends Serializable {
     identity[A].untilInput(f)
 
   /**
-    * A schedule that recurs for until the input value becomes applicable to partial function
-    * and then map that value with given function.
-    * */
+   * A schedule that recurs for until the input value becomes applicable to partial function
+   * and then map that value with given function.
+   * */
   final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, B] =
     doUntil[A](pf.isDefinedAt).map(pf)
 
