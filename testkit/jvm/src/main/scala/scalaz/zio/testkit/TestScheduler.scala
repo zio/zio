@@ -12,7 +12,7 @@ import scalaz.zio.testkit.TestScheduler._
  * Implementation of Scheduler.Service for testing. The passed Ref[TestClock.Data] will be used to determine when
  * to run the scheduled runnables. Make sure to call shutdown() to force execution of all remaining tasks.
  */
-final case class TestScheduler(ref: Ref[TestClock.Data]) extends Scheduler.Service[Any] with DefaultRuntime {
+final case class TestScheduler(ref: Ref[TestClock.Data], runtime: Runtime[Clock]) extends Scheduler.Service[Any] {
 
   private[this] val ConstFalse = () => false
 
@@ -36,7 +36,7 @@ final case class TestScheduler(ref: Ref[TestClock.Data]) extends Scheduler.Servi
                 .uninterruptible
             }
       } yield ()
-      executor <- runWhile(runTask, shouldExit).provide(Environment).fork
+      executor <- runWhile(runTask, shouldExit).provide(runtime.Environment).fork
 
       scheduler = new IScheduler {
         override def schedule(task: Runnable, duration: Duration): CancelToken =
@@ -47,20 +47,20 @@ final case class TestScheduler(ref: Ref[TestClock.Data]) extends Scheduler.Servi
               task.run()
               ConstFalse
             case duration: Duration.Finite =>
-              val promise = unsafeRun(for {
+              val promise = runtime.unsafeRun(for {
                 currentTime <- ref.get.map(_.nanoTime)
                 targetTime  = currentTime + duration.toNanos
                 promise     <- Promise.make[Nothing, Unit]
                 _           <- tasksRef.update(tasks => (targetTime, promise, task) :: tasks)
               } yield promise)
-              () => unsafeRun(promise.done(ZIO.succeed(())))
+              () => runtime.unsafeRun(promise.done(ZIO.succeed(())))
           }
 
         override def size: Int =
-          unsafeRun(tasksRef.get.map(_.size))
+          runtime.unsafeRun(tasksRef.get.map(_.size))
 
         override def shutdown(): Unit =
-          unsafeRun(shouldExit.update(_ => true) *> executor.join)
+          runtime.unsafeRun(shouldExit.update(_ => true) *> executor.join)
       }
     } yield scheduler
 }
@@ -72,11 +72,9 @@ object TestScheduler {
     ref: Ref[Boolean],
     pause: Duration = 10.milliseconds
   ): ZIO[Clock, Nothing, Unit] =
-    for {
-      _    <- task
-      exit <- ref.get
-      _ <- if (exit) task *> ZIO.unit // make sure everything is finished
-          else sleep(pause) *> runWhile(task, ref, pause)
-    } yield ()
+    (task *> ref.get).flatMap { exit =>
+      if (exit) task.void // make sure everything is finished
+      else sleep(pause) *> runWhile(task, ref, pause)
+    }
 
 }

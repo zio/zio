@@ -3,6 +3,7 @@ package scalaz.zio.testkit
 import org.specs2.specification.core.SpecStructure
 import scalaz.zio._
 import SchedulerSpec._
+import scalaz.zio.clock.Clock
 import scalaz.zio.internal.Scheduler
 import scalaz.zio.duration._
 
@@ -18,7 +19,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e1 =
     unsafeRun(
       for {
-        res       <- mkScheduler
+        res       <- mkScheduler(this)
         clock     = res._1
         scheduler = res._2
         promise   <- Promise.make[Nothing, Unit]
@@ -34,7 +35,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e2 =
     unsafeRun(
       for {
-        res       <- mkScheduler
+        res       <- mkScheduler(this)
         clock     = res._1
         scheduler = res._2
         promise   <- Promise.make[Nothing, Unit]
@@ -50,7 +51,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e3 =
     unsafeRun(
       for {
-        res       <- mkScheduler
+        res       <- mkScheduler(this)
         clock     = res._1
         scheduler = res._2
         promise   <- Promise.make[Nothing, Unit]
@@ -67,7 +68,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e4 =
     unsafeRun(
       for {
-        res       <- mkScheduler
+        res       <- mkScheduler(this)
         clock     = res._1
         scheduler = res._2
         promise   <- Promise.make[Nothing, Unit]
@@ -85,11 +86,11 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
 object SchedulerSpec {
 
-  def mkScheduler: UIO[(TestClock, Scheduler)] =
+  def mkScheduler(runtime: Runtime[Clock]): UIO[(TestClock, Scheduler)] =
     for {
       clockData <- Ref.make(TestClock.Zero)
       clock     = TestClock(clockData)
-      scheduler <- TestScheduler(clockData).scheduler
+      scheduler <- TestScheduler(clockData, runtime).scheduler
     } yield (clock, scheduler)
 
 }
