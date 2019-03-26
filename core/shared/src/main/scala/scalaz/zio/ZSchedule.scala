@@ -727,9 +727,7 @@ object ZSchedule extends Schedule_Functions {
     ZSchedule[Clock, Long, Any, Duration](
       clock.nanoTime,
       (_, start) =>
-        for {
-          duration <- clock.nanoTime.map(_ - start).map(Duration.fromNanos)
-        } yield Decision.cont(Duration.Zero, start, duration)
+        clock.nanoTime.map(currentTime => Decision.cont(Duration.Zero, start, Duration.fromNanos(currentTime - start)))
     )
   }
 
