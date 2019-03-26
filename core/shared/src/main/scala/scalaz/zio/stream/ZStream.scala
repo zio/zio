@@ -500,6 +500,25 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Transforms all elements of the stream for as long as the specified partial function is defined.
+   */
+  def collectWhile[B](pred: PartialFunction[A, B]): ZStream[R, E, B] = new ZStream[R, E, B] {
+    override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
+      IO.succeedLazy { (s, cont, f) =>
+        self.fold[R1, E1, A, (Boolean, S)].flatMap { f0 =>
+          f0(true -> s, tp => tp._1 && cont(tp._2), {
+            case ((_, s), a) =>
+              pred
+                .andThen(b => f(s, b).map(true -> _))
+                .applyOrElse(a, { _: A =>
+                  IO.succeed(false -> s)
+                })
+          }).map(_._2)
+        }
+      }
+  }
+
+  /**
    * Converts the stream to a managed queue. After managed queue is used, the
    * queue will never again produce values and should be discarded.
    */
