@@ -16,7 +16,7 @@ final case class TestScheduler(ref: Ref[TestClock.Data], runtime: Runtime[Clock]
 
   private[this] val ConstFalse = () => false
 
-  override def scheduler: ZIO[Any, Nothing, IScheduler] =
+  override def scheduler: ZIO[Any, Nothing, TestIScheduler] =
     for {
       tasksRef   <- Ref.make[List[(Long, Promise[Nothing, Unit], Runnable)]](Nil)
       shouldExit <- Ref.make(false)
@@ -38,7 +38,7 @@ final case class TestScheduler(ref: Ref[TestClock.Data], runtime: Runtime[Clock]
       } yield ()
       executor <- runWhile(runTask, shouldExit).provide(runtime.Environment).fork
 
-      scheduler = new IScheduler {
+      scheduler = new TestIScheduler {
         override def schedule(task: Runnable, duration: Duration): CancelToken =
           duration match {
             case Duration.Infinity =>
@@ -59,13 +59,23 @@ final case class TestScheduler(ref: Ref[TestClock.Data], runtime: Runtime[Clock]
         override def size: Int =
           runtime.unsafeRun(tasksRef.get.map(_.size))
 
+        override def safeShutdown(): UIO[Unit] =
+          shouldExit.update(_ => true) *> executor.join
+
         override def shutdown(): Unit =
-          runtime.unsafeRun(shouldExit.update(_ => true) *> executor.join)
+          runtime.unsafeRun(safeShutdown())
+
       }
     } yield scheduler
 }
 
 object TestScheduler {
+
+  trait TestIScheduler extends IScheduler {
+
+    def safeShutdown(): UIO[Unit]
+
+  }
 
   private[TestScheduler] def runWhile(
     task: UIO[Unit],
