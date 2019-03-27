@@ -28,19 +28,23 @@ import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS, TimeUnit }
 abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
 
+  trait CatsApp extends App {
+    implicit val runtime: Runtime[Environment] = this
+  }
+
   object implicits {
     implicit def ioTimer[E]: effect.Timer[IO[E, ?]] =
       new effect.Timer[IO[E, ?]] {
         override def clock: effect.Clock[IO[E, ?]] = new effect.Clock[IO[E, ?]] {
           override def monotonic(unit: TimeUnit): IO[E, Long] =
-            zioClock.nanoTime.map(unit.convert(_, NANOSECONDS)).provide(Clock.Live)
+            Clock.Live.clock.nanoTime.map(unit.convert(_, NANOSECONDS))
 
           override def realTime(unit: TimeUnit): IO[E, Long] =
-            zioClock.currentTime(unit).provide(Clock.Live)
+            Clock.Live.clock.currentTime(unit)
         }
 
         override def sleep(duration: FiniteDuration): IO[E, Unit] =
-          zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos)).provide(Clock.Live)
+          Clock.Live.clock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
       }
   }
 }
