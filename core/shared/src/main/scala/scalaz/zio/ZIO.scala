@@ -302,7 +302,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * This method can be used to "flatten" nested effects.
    **/
   final def flatten[R1 <: R, E1 >: E, B](implicit ev1: A <:< ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    self.flatMap(a => a)
+    self.flatMap(a => ev1(a))
 
   /**
    * Returns an effect with its error channel mapped using the specified
@@ -387,13 +387,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `ZIO`. The inverse operation of `ZIO.either`.
    */
   final def absolve[R1 <: R, E1, B](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, E1, Either[E1, B]]): ZIO[R1, E1, B] =
-    ZIO.absolve[R1, E1, B](self)
+    ZIO.absolve[R1, E1, B](ev1(self))
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
-    ZIO.absolve(self.mapError(ev1).map(_.toRight(())))
+    ZIO.absolve(self.mapError(ev1).map(ev2(_).toRight(())))
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
@@ -897,7 +897,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
-    ZIO.unsandbox(self)
+    ZIO.unsandbox(ev1(self))
 
   /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
@@ -1692,7 +1692,7 @@ object ZIO extends ZIO_R_Any {
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
     a => succeed[Either[Any, Any]](Right(a))
 
-  final object Tags {
+  object Tags {
     final val FlatMap         = 0
     final val Succeed         = 1
     final val Effect          = 2
@@ -1757,7 +1757,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Ensuring
   }
 
-  final object Descriptor extends UIO[Fiber.Descriptor] {
+  object Descriptor extends UIO[Fiber.Descriptor] {
     override def tag = Tags.Descriptor
   }
 
@@ -1765,7 +1765,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Lock
   }
 
-  final object Yield extends UIO[Unit] {
+  object Yield extends UIO[Unit] {
     override def tag = Tags.Yield
   }
 

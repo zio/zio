@@ -242,7 +242,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     new ZSink[R, Nothing, A0, A, Option[B]] {
       type State = Option[self.State]
 
-      val initial = self.initial.map(Step.leftMap(_)(Some(_))) orElse
+      val initial = self.initial.map(Step.leftMap(_)(Option(_))) orElse
         IO.succeed(Step.done(None, Chunk.empty))
 
       def step(state: State, a: A): ZIO[R, Nothing, Step[State, A0]] =
@@ -313,8 +313,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
             lr.zipWithPar(rr) {
               case (Right(s), _) if !Step.cont(s) => Step.done((Right(Step.state(s)), r), Step.leftover(s))
-              case (_, Right(s)) if !Step.cont(s) => Step.done((l, Right(Step.state(s))), Step.leftover(s))
-              case (lr, rr)                       => Step.more((lr.map(Step.state), rr.map(Step.state)))
+              case (_, Right(s)) if !Step.cont(s) =>
+                Step.done((l, Right(Step.state(s))), Step.leftover(s)): Step[State, A2] // TODO: Dotty doesn't infer this properly
+              case (lr, rr) => Step.more((lr.map(Step.state), rr.map(Step.state)))
             }
         }
 
@@ -651,14 +652,14 @@ object ZSink {
               case Side.State(s) =>
                 self
                   .step(s, a)
-                  .foldM(
+                  .foldM[R, Nothing, Step[Side[E, self.State, B], A]]( // TODO: Dotty doesn't infer this properly
                     e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
                     s =>
                       if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
                       else
                         self
                           .extract(Step.state(s))
-                          .fold(
+                          .fold[Step[Side[E, Nothing, B], A]]( // TODO: Dotty doesn't infer this properly
                             e => Step.done(Side.Error(e), Step.leftover(s)),
                             b => Step.done(Side.Value(b), Step.leftover(s))
                           )
@@ -670,14 +671,14 @@ object ZSink {
               case Side.State(s) =>
                 that
                   .step(s, a)
-                  .foldM(
+                  .foldM[R1, Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]]( // TODO: Dotty doesn't infer this properly
                     e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
                     s =>
                       if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
                       else {
                         that
                           .extract(Step.state(s))
-                          .fold(
+                          .fold[Step[Side[E1, Nothing, (Chunk[A], C)], A]]( // TODO: Dotty doesn't infer this properly
                             e => Step.done(Side.Error(e), Step.leftover(s)),
                             c => Step.done(Side.Value((Step.leftover(s), c)), Step.leftover(s))
                           )
@@ -703,7 +704,7 @@ object ZSink {
                   case Side.State(s) =>
                     self
                       .extract(s)
-                      .fold(
+                      .fold[Step[State, A]]( // TODO: Dotty doesn't infer this properly
                         e => Step.done((Side.Error(e), Step.state(s2)), Step.leftover(s2)),
                         b => Step.done((Side.Value(b), Step.state(s2)), Step.leftover(s1))
                       )
@@ -759,7 +760,7 @@ object ZSink {
                     s2 =>
                       that
                         .stepChunk(Step.state(s2), as)
-                        .map(Step.leftMap(_)(s2 => Right((that, s2))))
+                        .map(Step.leftMap(_)(s2 => Right((that, s2)))): ZIO[R1, E1, Step[State, A]] // TODO: Dotty doesn't infer this properly
                   )
                 }
               }
