@@ -27,10 +27,30 @@ import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS, TimeUnit }
 
 abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
+
+  trait CatsApp extends App {
+    implicit val runtime: Runtime[Environment] = this
+  }
+
+  object implicits {
+    implicit def ioTimer[E]: effect.Timer[IO[E, ?]] =
+      new effect.Timer[IO[E, ?]] {
+        override def clock: effect.Clock[IO[E, ?]] = new effect.Clock[IO[E, ?]] {
+          override def monotonic(unit: TimeUnit): IO[E, Long] =
+            Clock.Live.clock.nanoTime.map(unit.convert(_, NANOSECONDS))
+
+          override def realTime(unit: TimeUnit): IO[E, Long] =
+            Clock.Live.clock.currentTime(unit)
+        }
+
+        override def sleep(duration: FiniteDuration): IO[E, Unit] =
+          Clock.Live.clock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
+      }
+  }
 }
 
 abstract class CatsInstances extends CatsInstances1 {
-  implicit def ioContextShift[R, E]: ContextShift[ZIO[R, E, ?]] = new ContextShift[ZIO[R, E, ?]] {
+  implicit def zioContextShift[R, E]: ContextShift[ZIO[R, E, ?]] = new ContextShift[ZIO[R, E, ?]] {
     override def shift: ZIO[R, E, Unit] =
       ZIO.yieldNow
 
@@ -38,7 +58,7 @@ abstract class CatsInstances extends CatsInstances1 {
       fa.on(ec)
   }
 
-  implicit def ioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
+  implicit def zioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
     override def clock: cats.effect.Clock[ZIO[R, E, ?]] = new effect.Clock[ZIO[R, E, ?]] {
       override def monotonic(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.nanoTime.map(unit.convert(_, NANOSECONDS))
