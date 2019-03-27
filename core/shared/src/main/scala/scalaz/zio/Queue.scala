@@ -386,7 +386,7 @@ object ZQueue {
 
     final val awaitShutdown: UIO[Unit] = shutdownHook.await
 
-    final val size: UIO[Int] = checkShutdownState.map(_ => queue.size - takers.size + strategy.surplusSize)
+    final val size: UIO[Int] = checkShutdownState.map(_ => queue.size() - takers.size() + strategy.surplusSize)
 
     final val shutdown: UIO[Unit] =
       IO.whenM(shutdownHook.succeed(()))(

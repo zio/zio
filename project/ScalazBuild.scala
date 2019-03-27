@@ -5,6 +5,7 @@ import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport.CrossType
 
 import sbtbuildinfo._
+import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object Scalaz {
@@ -15,19 +16,22 @@ object Scalaz {
     "-deprecation",
     "-encoding",
     "UTF-8",
-    "-explaintypes",
-    "-Yrangepos",
     "-feature",
-    "-Xfuture",
+    "-unchecked"
+  )
+
+  private val std2xOptions = Seq(
+    "-Xfatal-warnings",
     "-language:higherKinds",
     "-language:existentials",
-    "-unchecked",
-    "-Xlint:_,-type-parameter-shadow",
+    "-explaintypes",
+    "-Yrangepos",
+    "-Xfuture",
     "-Xsource:2.13",
+    "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
-    "-Ywarn-value-discard",
-    "-Xfatal-warnings"
+    "-Ywarn-value-discard"
   )
 
   val buildInfoSettings = Seq(
@@ -65,7 +69,7 @@ object Scalaz {
   def extraOptions(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, 13)) =>
-        Seq()
+        std2xOptions
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -80,7 +84,7 @@ object Scalaz {
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit"
-        )
+        ) ++ std2xOptions
       case Some((2, 11)) =>
         Seq(
           "-Ypartial-unification",
@@ -91,7 +95,7 @@ object Scalaz {
           "-Ywarn-nullary-unit",
           "-Xexperimental",
           "-Ywarn-unused-import"
-        )
+        ) ++ std2xOptions
       case _ => Seq.empty
     }
 
@@ -115,8 +119,25 @@ object Scalaz {
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11"))
         case Some((2, x)) if x >= 12 =>
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
-        case _ => Nil
+        case _ =>
+          if (isDotty.value)
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")) ++
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+          else
+            Nil
       }
+    },
+    Test / scalacOptions ++= {
+      if (isDotty.value)
+        Seq("-language:implicitConversions")
+      else
+        Nil
+    },
+    Test / unmanagedSourceDirectories ++= {
+      if (isDotty.value)
+        CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+      else
+        Nil
     }
   )
 
