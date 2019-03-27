@@ -590,12 +590,14 @@ trait Schedule_Functions extends Serializable {
    * A schedule that recurs for until the input value becomes applicable to partial function
    * and then map that value with given function.
    * */
-  final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] =
-    identity[A].reconsider { (a, decision) =>
+  final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] = {
+    val idSchedule: Schedule[A, A] = identity[A]
+    idSchedule.reconsider { (a, decision) =>
       pf.lift(a).fold(Decision.cont(decision.delay, decision.state, Option.empty[B])) { b =>
         Decision.done(decision.delay, decision.state, Some(b))
       }
     }
+  }
 
   /**
    * A schedule that recurs forever, dumping input values to the specified
