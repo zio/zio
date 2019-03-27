@@ -39,6 +39,8 @@ package scalaz.zio
  */
 trait App extends DefaultRuntime {
 
+  implicit val runtime: Runtime[Environment] = this
+
   /**
    * The main function of the application, which will be passed the command-line
    * arguments to the program and has to return an `IO` with the errors fully handled.

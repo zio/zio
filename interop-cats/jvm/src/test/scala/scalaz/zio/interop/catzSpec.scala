@@ -142,6 +142,16 @@ class catzSpec
     def effect[R: Runtime]           = Effect[TaskR[R, ?]]
   }
 
+  object summoningRuntimeInstancesTest {
+    import cats.effect.{Clock => CatzClock, _}
+    import scalaz.zio.interop.catz.implicits._
+
+    ContextShift[Task]
+    ContextShift[TaskR[String, ?]]
+    CatzClock[Task]
+    Timer[Task]
+  }
+
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
     new Eq[IO[E, A]] {
       import scalaz.zio.duration._
