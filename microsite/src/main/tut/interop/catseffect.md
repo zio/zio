@@ -8,9 +8,9 @@ title:  "Cats Effect"
 
 Checkout `interop-cats` module for inter-operation support.
 
-### `IO` cats' `Effect` instance
+### `IO` Cats Effect's instances
 
-**ZIO** integrates with Typelevel libraries by providing an instance of `Effect` for `IO` as required, for instance, by `fs2`, `doobie` and `http4s`. Actually, I lied a little bit, it is not possible to implement `Effect` for any error type since `Effect` extends `MonadError` of `Throwable`.
+**ZIO** integrates with Typelevel libraries by providing an instance of `ConcurrentEffect` for `IO` as required, for instance, by `fs2`, `doobie` and `http4s`. Actually, I lied a little bit, it is not possible to implement `ConcurrentEffect` for any error type since `ConcurrentEffect` extends `MonadError` of `Throwable`.
 
 For convenience we have defined an alias as follow:
 
@@ -18,7 +18,17 @@ For convenience we have defined an alias as follow:
   type Task[A] = IO[Throwable, A]
 ```
 
-Therefore, we provide an instance of `Effect[Task]`.
+Therefore, we provide an instance of `ConcurrentEffect[Task]`.
+
+#### Timer
+
+In order to get a `cats.effect.Timer[Task]` instance we need an extra import:
+
+```scala
+import scalaz.zio.interop.catz.implicits._
+```
+
+The reason it is not provided by the default "interop" import is that it makes testing programs that require timing capabilities hard so an extra import wherever needed makes reasoning about it much easier.
 
 #### Example
 

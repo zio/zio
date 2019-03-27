@@ -71,12 +71,16 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
         case _                         => causeToSequential(cause).all
       }
 
+    // Java 11 defines String#lines returning a Stream<String>, so the implicit conversion has to
+    // be requested explicitly
+    def lines(str: String): Iterator[String] = augmentString(str).lines
+
     def causeToSequential(cause: Cause[Any]): Sequential =
       cause match {
         case Cause.Fail(t: Throwable) =>
           Sequential(List(Failure(List("A checked error was not handled: ") ++ t.getStackTrace.map(_.toString))))
         case Cause.Fail(error) =>
-          Sequential(List(Failure(List("A checked error was not handled: ") ++ error.toString.lines)))
+          Sequential(List(Failure(List("A checked error was not handled: ") ++ lines(error.toString))))
         case Cause.Die(t) =>
           Sequential(List(Failure(List("An unchecked error was produced: ") ++ t.getStackTrace.map(_.toString))))
         case Cause.Interrupt    => Sequential(List(Failure(List("The fiber was interrupted"))))

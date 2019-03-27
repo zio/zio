@@ -11,7 +11,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   override val DefaultTimeout = 20.seconds
 
-  implicit val params = Parameters(maxSize = 10)
+  implicit val params: Parameters = Parameters(maxSize = 10)
 
   def is = "StreamChunkSpec".title ^ s2"""
   StreamChunk.map           $map

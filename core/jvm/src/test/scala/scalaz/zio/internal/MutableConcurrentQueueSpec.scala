@@ -45,11 +45,11 @@ class MutableConcurrentQueueSpec extends Specification {
   def offerCheck = {
     val q = MutableConcurrentQueue.bounded[Int](2)
     (q.offer(1) must beTrue)
-      .and(q.size must_=== 1)
+      .and(q.size() must_=== 1)
       .and(q.offer(2) must beTrue)
-      .and(q.size must_=== 2)
+      .and(q.size() must_=== 2)
       .and(q.offer(3) must beFalse)
-      .and(q.isFull must beTrue)
+      .and(q.isFull() must beTrue)
   }
 
   def pollCheck = {
@@ -59,7 +59,7 @@ class MutableConcurrentQueueSpec extends Specification {
     (q.poll(-1) must_=== 1)
       .and(q.poll(-1) must_=== 2)
       .and(q.poll(-1) must_=== -1)
-      .and(q.isEmpty must beTrue)
+      .and(q.isEmpty() must beTrue)
   }
 
   def oneElSerDe = {
