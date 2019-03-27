@@ -28,7 +28,7 @@ In order to get a `cats.effect.Timer[Task]` instance we need an extra import:
 import scalaz.zio.interop.catz.implicits._
 ```
 
-The reason it is not provided by the default by the interop import is that it makes testing programs that require timing capabilities hard so an extra import wherever needed makes reasoning about it much easier.
+The reason it is not provided by the default "interop" import is that it makes testing programs that require timing capabilities hard so an extra import wherever needed makes reasoning about it much easier.
 
 #### Example
 

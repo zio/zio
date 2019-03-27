@@ -150,6 +150,10 @@ class catzSpec
     ContextShift[TaskR[String, ?]]
     CatzClock[Task]
     Timer[Task]
+
+    ContextShift[UIO[?]]
+    CatzClock[UIO[?]]
+    Timer[UIO[?]]
   }
 
   implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =

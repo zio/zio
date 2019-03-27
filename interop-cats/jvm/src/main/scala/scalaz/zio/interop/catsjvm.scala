@@ -29,24 +29,24 @@ abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
 
   object implicits {
-    implicit def taskTimer(implicit T: effect.Timer[ZIO[Clock, Throwable, ?]]): effect.Timer[Task] =
-      new effect.Timer[Task] {
-        override def clock: effect.Clock[Task] = new effect.Clock[Task] {
-          override def monotonic(unit: TimeUnit): Task[Long] =
-            T.clock.monotonic(unit).provide(Clock.Live)
+    implicit def ioTimer[E]: effect.Timer[IO[E, ?]] =
+      new effect.Timer[IO[E, ?]] {
+        override def clock: effect.Clock[IO[E, ?]] = new effect.Clock[IO[E, ?]] {
+          override def monotonic(unit: TimeUnit): IO[E, Long] =
+            zioClock.nanoTime.map(unit.convert(_, NANOSECONDS)).provide(Clock.Live)
 
-          override def realTime(unit: TimeUnit): Task[Long] =
-            T.clock.realTime(unit).provide(Clock.Live)
+          override def realTime(unit: TimeUnit): IO[E, Long] =
+            zioClock.currentTime(unit).provide(Clock.Live)
         }
 
-        override def sleep(duration: FiniteDuration): Task[Unit] =
-          T.sleep(duration).provide(Clock.Live)
+        override def sleep(duration: FiniteDuration): IO[E, Unit] =
+          zioClock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos)).provide(Clock.Live)
       }
   }
 }
 
 abstract class CatsInstances extends CatsInstances1 {
-  implicit def ioContextShift[R, E]: ContextShift[ZIO[R, E, ?]] = new ContextShift[ZIO[R, E, ?]] {
+  implicit def zioContextShift[R, E]: ContextShift[ZIO[R, E, ?]] = new ContextShift[ZIO[R, E, ?]] {
     override def shift: ZIO[R, E, Unit] =
       ZIO.yieldNow
 
@@ -54,7 +54,7 @@ abstract class CatsInstances extends CatsInstances1 {
       fa.on(ec)
   }
 
-  implicit def ioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
+  implicit def zioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
     override def clock: cats.effect.Clock[ZIO[R, E, ?]] = new effect.Clock[ZIO[R, E, ?]] {
       override def monotonic(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.nanoTime.map(unit.convert(_, NANOSECONDS))
