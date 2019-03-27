@@ -30,17 +30,15 @@ object javaconcurrent {
     private def unsafeCompletionStageToIO[A](cs: CompletionStage[A]): Task[A] =
       IO.effectAsync { cb =>
         val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
-          if (v != null) {
-            cb(IO.succeed(v))
-          } else {
-            val io = t match {
-              case e: CompletionException =>
-                IO.fail(e.getCause)
-              case t: Throwable =>
-                IO.fail(t)
-            }
-            cb(io)
+          val io = t match {
+            case null =>
+              IO.succeed(v)
+            case e: CompletionException =>
+              IO.fail(e.getCause)
+            case t: Throwable =>
+              IO.fail(t)
           }
+          cb(io)
         }
       }
 
