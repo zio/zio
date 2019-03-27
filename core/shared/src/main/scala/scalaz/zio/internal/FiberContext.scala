@@ -235,7 +235,7 @@ private[zio] final class FiberContext[E, A](
                       // We have finalizers to run. We'll resume executing with the
                       // uncaught failure after we have executed all the finalizers:
                       curIo = doNotInterrupt(finalizer).flatMap(
-                        cause => IO.halt(cause.foldLeft(io.cause)(_ ++ _))
+                        cause => IO.halt(Option.option2Iterable(cause).foldLeft(io.cause)(_ ++ _))
                       )
                     }
                   } else {
@@ -244,7 +244,7 @@ private[zio] final class FiberContext[E, A](
                     if (finalizer eq null) {
                       curIo = nextInstr(io.cause)
                     } else {
-                      curIo = doNotInterrupt(finalizer).map(_.foldLeft(io.cause)(_ ++ _))
+                      curIo = doNotInterrupt(finalizer).map(Option.option2Iterable(_).foldLeft(io.cause)(_ ++ _))
                     }
                   }
 
@@ -463,7 +463,7 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(_, _, _, observers) =>
+      case Executing(_, _, _, observers: List[Callback[Nothing, Exit[E, A]]]) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Done(v))) done(v)
         else {
           notifyObservers(v, observers)
@@ -560,8 +560,8 @@ private[zio] object FiberContext {
 
   sealed trait FiberStatus extends Serializable with Product
   object FiberStatus {
-    final case object Running   extends FiberStatus
-    final case object Suspended extends FiberStatus
+    case object Running   extends FiberStatus
+    case object Suspended extends FiberStatus
   }
 
   sealed trait FiberState[+E, +A] extends Serializable with Product {

@@ -280,7 +280,7 @@ object Exit extends Serializable {
 
     final case class Fail[E](value: E)     extends Cause[E]
     final case class Die(value: Throwable) extends Cause[Nothing]
-    final case object Interrupt            extends Cause[Nothing]
+    case object Interrupt                  extends Cause[Nothing]
 
     final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
       final def flatten: Set[Cause[E]] = {

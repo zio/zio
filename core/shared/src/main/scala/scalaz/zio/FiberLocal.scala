@@ -57,8 +57,7 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
    * Guarantees that fiber-local data is properly freed via `bracket`.
    */
   final def locally[R, E, B](value: A)(use: ZIO[R, E, B]): ZIO[R, E, B] =
-    set(value).bracket_(empty)(use)
-
+    set(value).bracket_[Any, Nothing].apply[Any](empty)(use) //    TODO: Dotty doesn't infer this properly
 }
 
 object FiberLocal {
