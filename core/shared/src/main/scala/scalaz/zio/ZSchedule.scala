@@ -587,6 +587,17 @@ trait Schedule_Functions extends Serializable {
     identity[A].untilInput(f)
 
   /**
+   * A schedule that recurs for until the input value becomes applicable to partial function
+   * and then map that value with given function.
+   * */
+  final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] =
+    identity[A].reconsider { (a, decision) =>
+      pf.lift(a).fold(Decision.cont(decision.delay, decision.state, Option.empty[B])) { b =>
+        Decision.done(decision.delay, decision.state, Some(b))
+      }
+    }
+
+  /**
    * A schedule that recurs forever, dumping input values to the specified
    * sink, and returning those same values unmodified.
    */
@@ -723,9 +734,7 @@ object ZSchedule extends Schedule_Functions {
     ZSchedule[Clock, Long, Any, Duration](
       clock.nanoTime,
       (_, start) =>
-        for {
-          duration <- clock.nanoTime.map(_ - start).map(Duration.fromNanos)
-        } yield Decision.cont(Duration.Zero, start, duration)
+        clock.nanoTime.map(currentTime => Decision.cont(Duration.Zero, start, Duration.fromNanos(currentTime - start)))
     )
   }
 
