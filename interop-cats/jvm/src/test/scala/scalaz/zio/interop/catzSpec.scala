@@ -143,7 +143,7 @@ class catzSpec
   }
 
   object summoningRuntimeInstancesTest {
-    import cats.effect.{Clock => CatzClock, _}
+    import cats.effect.{ Clock => CatzClock, _ }
     import scalaz.zio.interop.catz.implicits._
 
     ContextShift[Task]

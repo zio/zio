@@ -29,18 +29,19 @@ abstract class CatsPlatform extends CatsInstances {
   val console = interop.console.cats
 
   object implicits {
-    implicit def taskTimer(implicit T: effect.Timer[ZIO[Clock, Throwable, ?]]): effect.Timer[Task] = new effect.Timer[Task] {
-      override def clock: effect.Clock[Task] = new effect.Clock[Task] {
-        override def monotonic(unit: TimeUnit): Task[Long] =
-          T.clock.monotonic(unit).provide(Clock.Live)
+    implicit def taskTimer(implicit T: effect.Timer[ZIO[Clock, Throwable, ?]]): effect.Timer[Task] =
+      new effect.Timer[Task] {
+        override def clock: effect.Clock[Task] = new effect.Clock[Task] {
+          override def monotonic(unit: TimeUnit): Task[Long] =
+            T.clock.monotonic(unit).provide(Clock.Live)
 
-        override def realTime(unit: TimeUnit): Task[Long] =
-          T.clock.realTime(unit).provide(Clock.Live)
+          override def realTime(unit: TimeUnit): Task[Long] =
+            T.clock.realTime(unit).provide(Clock.Live)
+        }
+
+        override def sleep(duration: FiniteDuration): Task[Unit] =
+          T.sleep(duration).provide(Clock.Live)
       }
-
-      override def sleep(duration: FiniteDuration): Task[Unit] =
-        T.sleep(duration).provide(Clock.Live)
-    }
   }
 }
 
