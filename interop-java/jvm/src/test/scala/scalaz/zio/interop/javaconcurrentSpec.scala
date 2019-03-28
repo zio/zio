@@ -22,6 +22,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     catch exceptions thrown by lazy block                $catchBlockExceptionCs
     return an `IO` that fails if `Future` fails          $propagateExceptionFromCs
     return an `IO` that produces the value from `Future` $produceValueFromCs
+    handle null produced by the completed `Future`       $handleNullFromCs
   `Task.toCompletableFuture` must
     produce always a successful `IO` of `Future`         $toCompletableFutureAlwaysSucceeds
     be polymorphic in error type                         $toCompletableFuturePoly
@@ -95,6 +96,11 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   val produceValueFromCs = {
     def someValue: CompletionStage[Int] = CompletableFuture.completedFuture(42)
     unsafeRun(Task.fromCompletionStage(someValue _)) must_=== 42
+  }
+
+  val handleNullFromCs = {
+    def someValue: CompletionStage[String] = CompletableFuture.completedFuture[String](null)
+    unsafeRun(Task.fromCompletionStage[String](someValue _)) must_=== null
   }
 
   val toCompletableFutureAlwaysSucceeds = {
