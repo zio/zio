@@ -25,7 +25,7 @@ import scala.concurrent.ExecutionException
 
 object javaconcurrent {
 
-  implicit class IOObjJavaconcurrentOps(private val ioObj: IO.type) extends AnyVal {
+  implicit class IOObjJavaconcurrentOps(private val taskObj: Task.type) extends AnyVal {
 
     private def unsafeCompletionStageToIO[A](cs: CompletionStage[A]): Task[A] =
       IO.effectAsync { cb =>
@@ -95,7 +95,7 @@ object javaconcurrent {
       new Fiber[Throwable, A] {
 
         def await: UIO[Exit[Throwable, A]] =
-          IO.fromFutureJava(() => ftr).fold(Exit.fail, Exit.succeed)
+          Task.fromFutureJava(() => ftr).fold(Exit.fail, Exit.succeed)
 
         def poll: UIO[Option[Exit[Throwable, A]]] =
           IO.suspend {

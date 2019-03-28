@@ -39,6 +39,16 @@ import Promise.internal._
 class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal {
 
   /**
+   * Checks for completion of this Promise. Produces true if this promise has
+   * already been completed with a value or an error and false otherwise.
+   */
+  final def isDone: UIO[Boolean] =
+    IO.effectTotal(state.get() match {
+      case Done(_)    => true
+      case Pending(_) => false
+    })
+
+  /**
    * Retrieves the value of the promise, suspending the fiber running the action
    * until the result is available.
    */

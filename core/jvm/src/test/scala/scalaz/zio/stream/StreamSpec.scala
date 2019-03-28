@@ -1,8 +1,10 @@
 package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
+
 import scala.{ Stream => _ }
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, Queue, Ref, TestRuntime, UIO }
+import scalaz.zio._
+
 import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
@@ -34,12 +36,20 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     takeWhile                $takeWhile
     takeWhile short circuits $takeWhileShortCircuits
 
+  Stream.collect
+    collectWhile                $collectWhile
+    collectWhile short circuits $collectWhileShortCircuits
+
   Stream.foreach0           $foreach0
   Stream.foreach            $foreach
   Stream.collect            $collect
   Stream.forever            $forever
   Stream.scanM              $mapAccumM
-  Stream.transduce          $transduce
+  Stream.transduce
+    transduces              $transduce
+    no remainder            $transduceNoRemainder
+    remainder               $transduceWithRemainer
+    sink requests more      $transduceSinkMore
   Stream.tap                $tap
   Stream.fromIterable       $fromIterable
   Stream.fromChunk          $fromChunk
@@ -112,6 +122,21 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         ran    <- Ref.make(false)
         stream = (Stream(1) ++ Stream.fromEffect(ran.set(true)).drain).takeWhile(_ => false)
+        _      <- stream.run(Sink.drain)
+        result <- ran.get
+      } yield result must_=== false
+    )
+
+  private def collectWhile = {
+    val s = Stream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) => v }
+    slurp(s) must_=== Success(List(1, 2, 3))
+  }
+
+  private def collectWhileShortCircuits =
+    unsafeRun(
+      for {
+        ran    <- Ref.make(false)
+        stream = (Stream(Option(1)) ++ Stream.fromEffect(ran.set(true)).drain).collectWhile { case None => 1 }
         _      <- stream.run(Sink.drain)
         result <- ran.get
       } yield result must_=== false
@@ -316,6 +341,41 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val transduced = s.transduce(parser)
 
     slurp(transduced) must_=== Success(List(12, 34))
+  }
+
+  private def transduceNoRemainder = {
+    val sink = Sink.fold(100) { (s, a: Int) =>
+      if (a % 2 == 0)
+        ZSink.Step.more(s + a)
+      else
+        ZSink.Step.done(s + a, Chunk.empty)
+    }
+    val transduced = ZStream(1, 2, 3, 4).transduce(sink)
+
+    slurp(transduced) must_=== Success(List(101, 105, 104))
+  }
+
+  private def transduceWithRemainer = {
+    val sink = Sink.fold(0) { (s, a: Int) =>
+      a match {
+        case 1 => ZSink.Step.more(s + 100)
+        case 2 => ZSink.Step.more(s + 100)
+        case 3 => ZSink.Step.done(s + 3, Chunk(a + 1))
+        case _ => ZSink.Step.done(s + 4, Chunk.empty)
+      }
+    }
+    val transduced = ZStream(1, 2, 3).transduce(sink)
+
+    slurp(transduced) must_=== Success(List(203, 4))
+  }
+
+  private def transduceSinkMore = {
+    val sink = Sink.fold(0) { (s, a: Int) =>
+      ZSink.Step.more(s + a)
+    }
+    val transduced = ZStream(1, 2, 3).transduce(sink)
+
+    slurp(transduced) must_=== Success(List(1 + 2 + 3))
   }
 
   private def peel = {

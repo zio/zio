@@ -14,28 +14,20 @@
  * limitations under the License.
  */
 
-package scalaz
+package scalaz.zio
 
-package object zio extends EitherCompat {
-  private[zio] type Callback[E, A] = Exit[E, A] => Unit
+trait ManagedApp extends DefaultRuntime { ma =>
 
-  type Canceler = UIO[_]
-  type FiberId  = Long
+  /**
+   * The main function of the application, which will be passed the command-line
+   * arguments to the program and has to return an `ZManaged` with the errors fully handled.
+   */
+  def run(args: List[String]): ZManaged[Environment, Nothing, Int]
 
-  type IO[+E, +A]    = ZIO[Any, E, A]
-  type Task[+A]      = ZIO[Any, Throwable, A]
-  type TaskR[-R, +A] = ZIO[R, Throwable, A]
-  type UIO[+A]       = ZIO[Any, Nothing, A]
-
-  type Managed[+E, +A] = ZManaged[Any, E, A]
-  val Managed = ZManaged
-
-  type Schedule[-A, +B] = ZSchedule[Any, A, B]
-
-  type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
-  val Queue = ZQueue
-
-  val JustExceptions: PartialFunction[Throwable, Exception] = {
-    case e: Exception => e
+  private val app = new App {
+    override def run(args: List[String]): ZIO[Environment, Nothing, Int] =
+      ma.run(args).use(exit => ZIO.effectTotal(exit))
   }
+
+  final def main(args: Array[String]): Unit = app.main(args)
 }

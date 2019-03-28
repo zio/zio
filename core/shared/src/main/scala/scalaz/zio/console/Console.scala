@@ -16,7 +16,7 @@
 
 package scalaz.zio.console
 
-import java.io.{ IOException, PrintStream, Reader }
+import java.io.{ EOFException, IOException, PrintStream, Reader }
 
 import scalaz.zio.{ IO, UIO, ZIO }
 
@@ -66,9 +66,17 @@ object Console extends Serializable {
       final val getStrLn: ZIO[Any, IOException, String] =
         getStrLn(SConsole.in)
 
+      /**
+       * Retrieves a line of input from the console.
+       * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
+       * returns null.
+       */
       final def getStrLn(reader: Reader): IO[IOException, String] =
         IO.effect(SConsole.withIn(reader) {
-            StdIn.readLine()
+            val line = StdIn.readLine()
+            if (line == null) {
+              throw new EOFException("There is no more input left to read")
+            } else line
           })
           .refineOrDie {
             case e: IOException => e
