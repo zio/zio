@@ -25,10 +25,15 @@ abstract class CatsMtlPlatform extends CatsMtlInstances
 
 abstract class CatsMtlInstances {
 
-  implicit def zioApplicativeAsk[R, E](implicit ev: Applicative[ZIO[R, E, ?]]): ApplicativeAsk[ZIO[R, E, ?], R] =
-    new DefaultApplicativeAsk[ZIO[R, E, ?], R] {
+  implicit def zioApplicativeLocalAsk[R, E](
+    implicit ev: Applicative[ZIO[R, E, ?]]
+  ): ApplicativeLocal[ZIO[R, E, ?], R] =
+    new DefaultApplicativeLocal[ZIO[R, E, ?], R] {
       val applicative: Applicative[ZIO[R, E, ?]] = ev
       def ask: ZIO[R, Nothing, R]                = ZIO.environment
+      def local[A](f: R => R)(fa: ZIO[R, E, A]): ZIO[R, E, A] = ZIO.accessM { env =>
+        fa.provide(f(env))
+      }
     }
 
 }

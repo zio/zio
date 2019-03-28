@@ -3,8 +3,8 @@ package interop
 
 import cats.Eq
 import cats.implicits._
-import cats.mtl.ApplicativeAsk
-import cats.mtl.laws.discipline.ApplicativeAskTests
+import cats.mtl.{ ApplicativeAsk, ApplicativeLocal }
+import cats.mtl.laws.discipline.{ ApplicativeAskTests, ApplicativeLocalTests }
 import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
 import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
@@ -30,8 +30,13 @@ class catzMtlSpec extends FunSuite with BeforeAndAfterAll with Matchers with Che
   trait Error
 
   checkAll("ApplicativeAsk[ZIO[Ctx, Error, ?]]", ApplicativeAskTests[ZIO[Ctx, Error, ?], Ctx].applicativeAsk[Ctx])
+  checkAll(
+    "ApplicativeLocal[ZIO[Ctx, Error, ?]]",
+    ApplicativeLocalTests[ZIO[Ctx, Error, ?], Ctx].applicativeLocal[Ctx, Int]
+  )
 
-  def askSummoner[R, E] = ApplicativeAsk[ZIO[R, E, ?], R]
+  def askSummoner[R, E]   = ApplicativeAsk[ZIO[R, E, ?], R]
+  def localSummoner[R, E] = ApplicativeLocal[ZIO[R, E, ?], R]
 
   implicit def catsEQ[R: Arbitrary, E, A: Eq]: Eq[ZIO[R, E, A]] =
     new Eq[ZIO[R, E, A]] {
