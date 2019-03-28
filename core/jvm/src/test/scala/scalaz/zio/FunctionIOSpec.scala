@@ -1,6 +1,7 @@
 package scalaz.zio
 
 import FunctionIO._
+import org.specs2.matcher.describe.Diffable
 
 class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
   def is = "FunctionIOSpec".title ^ s2"""
@@ -179,6 +180,8 @@ class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
       } yield v must_=== "hola"
     )
 
+  implicit val d
+    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def e18a =
     unsafeRun(
       for {

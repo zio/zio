@@ -1,8 +1,10 @@
 package scalaz.zio
 
 import org.specs2.ScalaCheck
+
 import scala.collection.mutable
 import duration._
+import org.specs2.matcher.describe.Diffable
 
 class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "ManagedSpec".title ^ s2"""
@@ -69,6 +71,8 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       interruption       <- managedFiber.interrupt.timeout(5.seconds).either
     } yield interruption
 
+    implicit val d: Diffable[Right[Nothing, Option[Exit[Nothing, Unit]]]] =
+      Diffable.eitherRightDiffable[Option[Exit[Nothing, Unit]]] //    TODO: Dotty has ambiguous implicits
     unsafeRun(program) must be_===(Right(None))
   }
 }

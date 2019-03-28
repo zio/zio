@@ -1,45 +1,59 @@
 package scalaz.zio.delay
 
+import java.util.concurrent.TimeUnit
+
 import scalaz.zio.ZIO
-import scalaz.zio.clock.Clock
+import scalaz.zio.clock.{ Clock, _ }
 import scalaz.zio.duration.Duration
-import scalaz.zio.clock._
 
 sealed trait Delay extends Serializable with Product {
 
-  def compareTo(that: Delay): Int
-  def eq(that: Delay): Boolean
+  def diff(nanos: Long): Long
 
-  def <(that: Delay): ZIO[Clock, Nothing, Boolean]   = clockService.map(_ => (this compareTo that) < 0)
-  def <=(that: Delay): ZIO[Clock, Nothing, Boolean]  = clockService.map(_ => (this compareTo that) <= 0)
-  def >(that: Delay): ZIO[Clock, Nothing, Boolean]   = clockService.map(_ => (this compareTo that) > 0)
-  def >=(that: Delay): ZIO[Clock, Nothing, Boolean]  = clockService.map(_ => (this compareTo that) >= 0)
-  def ===(that: Delay): ZIO[Clock, Nothing, Boolean] = clockService.map(_ => this eq that)
+  def <(that: Delay): ZIO[Clock, Nothing, Boolean] =
+    currentTime(TimeUnit.NANOSECONDS).map(nanos => this.diff(nanos) < that.diff(nanos))
 
+  def <=(that: Delay): ZIO[Clock, Nothing, Boolean] =
+    currentTime(TimeUnit.NANOSECONDS).map(nanos => this.diff(nanos) <= that.diff(nanos))
+
+  def >(that: Delay): ZIO[Clock, Nothing, Boolean] = that < this
+
+  def >=(that: Delay): ZIO[Clock, Nothing, Boolean] = that <= this
+
+  def ===(that: Delay): ZIO[Clock, Nothing, Boolean] =
+    currentTime(TimeUnit.NANOSECONDS).map(nanos => this.diff(nanos) == that.diff(nanos))
+
+  def *(factor: Double): Delay
+
+  def +(that: Delay): Delay
 }
 
 object Delay {
-  case class Relative(duration: Duration) extends Delay {
-    override def compareTo(that: Delay): Int = that match {
-      case Relative(d)      => duration compareTo d
-      case Absolute(millis) => duration.toMillis compareTo millis
-    }
+  final case class Relative(duration: Duration) extends Delay {
+    override def diff(nanos: Long): Long = duration.toNanos
 
-    override def eq(that: Delay): Boolean = that match {
-      case Relative(d) => d == duration
-      case _           => false
+    override def *(factor: Double): Delay = Relative(duration * factor)
+
+    override def +(that: Delay): Delay = that match {
+      case Relative(d) => Relative(duration + d)
+      case Absolute(d) => Relative(d + duration)
     }
   }
 
-  case class Absolute(millis: Long) extends Delay {
-    override def compareTo(that: Delay): Int = that match {
-      case Relative(d)  => millis compareTo d.toMillis
-      case Absolute(ml) => millis compareTo ml
-    }
+  final case class Absolute(duration: Duration) extends Delay {
+    override def diff(nanos: Long): Long = ???
 
-    override def eq(that: Delay): Boolean = that match {
-      case Absolute(ml) => ml == millis
-      case _            => false
+    override def *(factor: Double): Delay = Absolute(duration * factor)
+
+    override def +(that: Delay): Delay = that match {
+      case Relative(d) =>
+        Absolute(
+          d + Duration.fromNanos(
+            Math.max(d.toNanos, duration.toNanos) -
+              Math.min(d.toNanos, duration.toNanos)
+          )
+        )
+      case Absolute(d) => Absolute(duration + d)
     }
   }
 

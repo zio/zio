@@ -18,12 +18,13 @@ package scalaz.zio
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
+import scalaz.zio.delay.Delay.{Absolute, Relative}
 import scalaz.zio.duration._
-import scalaz.zio.internal.{ Executor, Platform }
+import scalaz.zio.internal.{Executor, Platform}
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -302,7 +303,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * This method can be used to "flatten" nested effects.
    **/
   final def flatten[R1 <: R, E1 >: E, B](implicit ev1: A <:< ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    self.flatMap(a => a)
+    self.flatMap(a => ev1(a))
 
   /**
    * Returns an effect with its error channel mapped using the specified
@@ -387,13 +388,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `ZIO`. The inverse operation of `ZIO.either`.
    */
   final def absolve[R1 <: R, E1, B](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, E1, Either[E1, B]]): ZIO[R1, E1, B] =
-    ZIO.absolve[R1, E1, B](self)
+    ZIO.absolve[R1, E1, B](ev1(self))
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
-    ZIO.absolve(self.mapError(ev1).map(_.toRight(())))
+    ZIO.absolve(self.mapError(ev1).map(ev2(_).toRight(())))
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
@@ -506,6 +507,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           case _                   => ZIO.unit
         }
     )(_ => self)
+
+  /**
+   * Enables supervision for this effect. This will cause fibers forked by
+   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
+   */
+  final def supervised: ZIO[R, E, A] = ZIO.supervised(self)
 
   /**
    * Supervises this effect, which ensures that any fibers that are forked by
@@ -687,8 +694,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule.update(a, state).flatMap { step =>
-            if (!step.cont) ZIO.succeedRight(step.finish())
-            else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
+            step.delay.choose.flatMap{ dl =>
+              val delay = dl match{
+                case Relative(d) => d
+                case Absolute(d) => d
+              }
+
+              if (!step.cont) ZIO.succeedRight(step.finish())
+              else ZIO.succeed(step.state).delay(delay).flatMap(s => loop(Some(step.finish), s))
+
+            }
+
           }
       )
 
@@ -731,62 +747,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
             .update(err, state)
             .flatMap(
               decision =>
-                if (decision.cont) clock.sleep(decision.delay) *> loop(decision.state)
-                else orElse(err, decision.finish()).map(Left(_))
+                decision.delay.choose.flatMap { dl =>
+                  val delay = dl match {
+                    case Relative(d) => d
+                    case Absolute(d) => d
+                  }
+
+                  if (decision.cont) clock.sleep(delay) *> loop(decision.state)
+                  else orElse(err, decision.finish()).map(Left(_))
+                }
             ),
         succ => ZIO.succeedRight(succ)
       )
 
     policy.initial.flatMap(loop)
-  }
-
-  /**
-   * Schedule this effect using the given schedule.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't or until it fails.
-   * Readiness are checked from time to time using delay returned by schedule.
-   */
-  final def scheduled[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZIO[R1 with Clock, E, B] =
-    scheduleOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
-
-  /**
-   * Schedule this effect with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
-   * the recovery function.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
-   * Readiness are checked from time to time using delay returned by schedule.
-   */
-  final def scheduleOrElse[R1 <: R, E2, B](
-    schedule: ZSchedule[R1, Unit, B],
-    orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  ): ZIO[R1 with Clock, E2, B] =
-    scheduleOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
-
-  /**
-   * Schedule this effect with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
-   * the recovery function.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
-   * Readiness are checked from time to time using delay returned by schedule.
-   */
-  final def scheduleOrElseEither[R1 <: R, B, E2, C](
-    schedule: ZSchedule[R1, Unit, B],
-    orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
-  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
-
-    def await(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
-      schedule.update((), state).flatMap { step =>
-        if (!step.cont) ZIO.succeedRight(step.finish())
-        else if (step.ready) exec(last, step.state, step.delay)
-        else ZIO.succeed(step.state).delay(step.delay).flatMap(s => await(last, s))
-      }
-
-    def exec(last: Option[() => B], state: schedule.State, delay: Duration): ZIO[R1 with Clock, E2, Either[C, B]] =
-      self.foldM(
-        e => orElse(e, last.map(_())).map(Left(_)),
-        _ => ZIO.succeed(state).delay(delay).flatMap(s => await(last, s))
-      )
-
-    schedule.initial.flatMap(await(None, _))
   }
 
   /**
@@ -940,7 +914,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
-    ZIO.unsandbox(self)
+    ZIO.unsandbox(ev1(self))
 
   /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
@@ -1174,6 +1148,13 @@ trait ZIOFunctions extends Serializable {
   }
 
   /**
+   * Enables supervision for this effect. This will cause fibers forked by
+   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
+   */
+  final def supervised[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.Supervised(zio)
+
+  /**
    * Returns an effect that supervises the specified effect, ensuring that all
    * fibers that it forks are interrupted as soon as the supervised effect
    * completes.
@@ -1188,8 +1169,8 @@ trait ZIOFunctions extends Serializable {
    */
   final def superviseWith[R >: LowerR, E <: UpperE, A](
     zio: ZIO[R, E, A]
-  )(supervisor: Iterable[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
-    new ZIO.Supervise(zio, supervisor)
+  )(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
+    zio.ensuring(children.flatMap(supervisor(_))).supervised
 
   /**
    * Returns an effect that first executes the outer effect, and then executes
@@ -1550,6 +1531,14 @@ trait ZIOFunctions extends Serializable {
    * Returns information about the current fiber, such as its fiber identity.
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.Descriptor
+
+  /**
+   * Provides access to the list of child fibers supervised by this fiber.
+   *
+   * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
+   * current fiber for this operation to return non-empty lists.
+   */
+  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
 }
 
 trait ZIO_E_Any extends ZIO_E_Throwable {
@@ -1720,7 +1709,7 @@ object ZIO extends ZIO_R_Any {
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
     a => succeed[Either[Any, Any]](Right(a))
 
-  final object Tags {
+  object Tags {
     final val FlatMap         = 0
     final val Succeed         = 1
     final val Effect          = 2
@@ -1729,7 +1718,7 @@ object ZIO extends ZIO_R_Any {
     final val Fold            = 5
     final val Fork            = 6
     final val Uninterruptible = 7
-    final val Supervise       = 8
+    final val Supervised      = 8
     final val Ensuring        = 9
     final val Descriptor      = 10
     final val Lock            = 11
@@ -1773,11 +1762,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Uninterruptible
   }
 
-  final class Supervise[R, E, A](
-    val value: ZIO[R, E, A],
-    val supervisor: Iterable[Fiber[_, _]] => UIO[_]
-  ) extends ZIO[R, E, A] {
-    override def tag = Tags.Supervise
+  final class Supervised[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.Supervised
   }
 
   final class Fail[E](val cause: Cause[E]) extends IO[E, Nothing] {
@@ -1788,7 +1774,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Ensuring
   }
 
-  final object Descriptor extends UIO[Fiber.Descriptor] {
+  object Descriptor extends UIO[Fiber.Descriptor] {
     override def tag = Tags.Descriptor
   }
 
@@ -1796,7 +1782,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Lock
   }
 
-  final object Yield extends UIO[Unit] {
+  object Yield extends UIO[Unit] {
     override def tag = Tags.Yield
   }
 
