@@ -202,7 +202,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * continue, using the maximum of the delays of the two schedules.
    */
   final def &&[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
-    combineWith(that)(_ && _, (a,b) => Max(Choose(a), Choose(b)))
+    combineWith(that)(_ && _, (a, b) => Max(Choose(a), Choose(b)))
 
   /**
    * A named alias for `&&`.
@@ -532,8 +532,10 @@ trait Schedule_Functions extends Serializable {
    * A schedule that recurs forever, returning each input as the output.
    */
   final def identity[A]: Schedule[A, A] =
-    ZSchedule[Any, Unit, A, A](ZIO.unit, (a, s) => IO.succeed(Decision.cont(
-      DelayComparison.delay(Delay.relative(Duration.Zero)), s, a)))
+    ZSchedule[Any, Unit, A, A](
+      ZIO.unit,
+      (a, s) => IO.succeed(Decision.cont(Choose(Delay.relative(Duration.Zero)), s, a))
+    )
 
   /**
    * A schedule that recurs forever, returning the constant for every output.
@@ -661,7 +663,7 @@ trait Schedule_Functions extends Serializable {
    * </pre>
    */
   final def spaced(interval: Duration): Schedule[Any, Int] =
-    forever.delayed(d => DelayComparison.delay(Delay.relative(d + interval)))
+    forever.delayed(d => d + DelayComparison.delay(Delay.relative(interval)))
 
   /**
    * A schedule that always recurs, increasing delays by summing the

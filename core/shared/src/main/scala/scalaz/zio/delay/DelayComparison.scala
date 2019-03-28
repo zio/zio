@@ -12,8 +12,8 @@ sealed trait DelayComparison { self =>
     case Sum(l, r) => l.choose.zip(r.choose).map{ case (l1, r1) => l1 + r1}
   }
 
-  def +(that: DelayComparison) = Sum(self, that)
-  def *(that: Double) = TimesFactor(self, that)
+  def +(that: DelayComparison): DelayComparison = Sum(self, that)
+  def *(that: Double): DelayComparison = TimesFactor(self, that)
 
 }
 object DelayComparison {
