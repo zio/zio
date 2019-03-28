@@ -18,12 +18,13 @@ package scalaz.zio
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
+import scalaz.zio.delay.Delay.{Absolute, Relative}
 import scalaz.zio.duration._
-import scalaz.zio.internal.{ Executor, Platform }
+import scalaz.zio.internal.{Executor, Platform}
 
 import scala.concurrent.ExecutionContext
 import scala.annotation.switch
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -687,8 +688,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule.update(a, state).flatMap { step =>
-            if (!step.cont) ZIO.succeedRight(step.finish())
-            else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
+            step.delay.choose.flatMap{ dl =>
+              val delay = dl match{
+                case Relative(d) => d
+                case Absolute(d) => d
+              }
+
+              if (!step.cont) ZIO.succeedRight(step.finish())
+              else ZIO.succeed(step.state).delay(delay).flatMap(s => loop(Some(step.finish), s))
+
+            }
+
           }
       )
 
@@ -731,62 +741,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
             .update(err, state)
             .flatMap(
               decision =>
-                if (decision.cont) clock.sleep(decision.delay) *> loop(decision.state)
-                else orElse(err, decision.finish()).map(Left(_))
+                decision.delay.choose.flatMap { dl =>
+                  val delay = dl match {
+                    case Relative(d) => d
+                    case Absolute(d) => d
+                  }
+
+                  if (decision.cont) clock.sleep(delay) *> loop(decision.state)
+                  else orElse(err, decision.finish()).map(Left(_))
+                }
             ),
         succ => ZIO.succeedRight(succ)
       )
 
     policy.initial.flatMap(loop)
-  }
-
-  /**
-   * Schedule this effect using the given schedule.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't or until it fails.
-   * Readiness are checked from time to time using delay returned by schedule.
-   */
-  final def scheduled[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZIO[R1 with Clock, E, B] =
-    scheduleOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
-
-  /**
-   * Schedule this effect with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
-   * the recovery function.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
-   * Readiness are checked from time to time using delay returned by schedule.
-   */
-  final def scheduleOrElse[R1 <: R, E2, B](
-    schedule: ZSchedule[R1, Unit, B],
-    orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  ): ZIO[R1 with Clock, E2, B] =
-    scheduleOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
-
-  /**
-   * Schedule this effect with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
-   * the recovery function.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
-   * Readiness are checked from time to time using delay returned by schedule.
-   */
-  final def scheduleOrElseEither[R1 <: R, B, E2, C](
-    schedule: ZSchedule[R1, Unit, B],
-    orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
-  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
-
-    def await(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
-      schedule.update((), state).flatMap { step =>
-        if (!step.cont) ZIO.succeedRight(step.finish())
-        else if (step.ready) exec(last, step.state, step.delay)
-        else ZIO.succeed(step.state).delay(step.delay).flatMap(s => await(last, s))
-      }
-
-    def exec(last: Option[() => B], state: schedule.State, delay: Duration): ZIO[R1 with Clock, E2, Either[C, B]] =
-      self.foldM(
-        e => orElse(e, last.map(_())).map(Left(_)),
-        _ => ZIO.succeed(state).delay(delay).flatMap(s => await(last, s))
-      )
-
-    schedule.initial.flatMap(await(None, _))
   }
 
   /**
