@@ -613,12 +613,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       a <- that provide r
     } yield a
 
+  final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
+    for {
+      either <- ZIO.environment[Either[R, R1]]
+      a1 <- either.fold(self.provide , that.provide )
+    } yield a1
+
+  final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
+
+  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] = for {
+      e <- ZIO.environment[Either[R, R1]]
+      r <- e.fold(self.map(Left(_)) provide _, that.map(Right(_)) provide _)
+    } yield r
+
+
   final def andThen[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
     self >>> that
 
   final def first[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] = self &&& ZIO.identity[R1]
 
   final def second[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] = ZIO.identity[R1] &&& self
+
+  final def left[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] = self +++ ZIO.identity[C]
+
+  final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] = ZIO.identity[C] +++ self
 
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
