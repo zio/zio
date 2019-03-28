@@ -95,7 +95,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect"   % "1.2.0" % Optional,
       "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
-      "co.fs2"        %%% "fs2-core"      % "1.0.3" % Test,
+      "co.fs2"        %%% "fs2-core"      % "1.0.3" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
