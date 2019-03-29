@@ -93,8 +93,9 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio-interop-cats"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional,
-      "co.fs2"        %%% "fs2-core"    % "1.0.3" % Test
+      "org.typelevel" %%% "cats-effect"   % "1.2.0" % Optional,
+      "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
+      "co.fs2"        %%% "fs2-core"      % "1.0.3" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -139,6 +140,7 @@ lazy val interopCatsJVM = interopCats.jvm
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"                                                 % "1.2.0"                              % Test,
       "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
+      "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
     ),
     dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test
