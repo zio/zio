@@ -1,6 +1,7 @@
 package scalaz.zio
 
 import org.specs2.ScalaCheck
+import scalaz.zio.delay.{ Delay, DelayComparison }
 import scalaz.zio.duration._
 import scalaz.zio.random._
 
@@ -36,11 +37,14 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def retryCollect[R, E, A, E1 >: E, S](
     io: IO[E, A],
     retry: ZSchedule[R, E1, S]
-  ): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] = {
+  ): ZIO[R, Nothing, (Either[E1, A], List[(DelayComparison, S)])] = {
 
     type State = retry.State
 
-    def loop(state: State, ss: List[(Duration, S)]): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] =
+    def loop(
+      state: State,
+      ss: List[(DelayComparison, S)]
+    ): ZIO[R, Nothing, (Either[E1, A], List[(DelayComparison, S)])] =
       io.foldM(
         err =>
           retry
@@ -119,29 +123,50 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def retryN = {
-    val retried  = unsafeRun(retryCollect(IO.fail("Error"), Schedule.recurs(5)))
-    val expected = (Left("Error"), List(1, 2, 3, 4, 5, 6).map((Duration.Zero, _)))
+    val retried = unsafeRun(retryCollect(IO.fail("Error"), Schedule.recurs(5)))
+    val expected =
+      (Left("Error"), List(1, 2, 3, 4, 5, 6).map((DelayComparison.delay(Delay.relative(Duration.Zero)), _)))
     retried must_=== expected
   }
 
   def retryNUnitIntervalJittered = {
-    val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
-    val scheduled: List[(Duration, Int)] = unsafeRun(
+    val schedule: ZSchedule[Random, Int, Int] =
+      Schedule.recurs(5).delayed(_ => DelayComparison.delay(Delay.relative(500.millis))).jittered
+    val scheduled: List[(DelayComparison, Int)] = unsafeRun(
       schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
 
-    val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
-    scheduled must_=== expected
+    val expected = List(1, 2, 3, 4, 5).map((DelayComparison.delay(Delay.relative(250.millis)), _))
+
+    val results = scheduled.zip(expected).map {
+      case (r1, r2) =>
+        unsafeRun(for {
+          d1 <- r1._1.choose
+          d2 <- r2._1.choose
+        } yield (d1._2, d2._2))
+    }
+
+    results.map { case (d1, d2) => d1 must_=== d2 }
   }
 
   def retryNCustomIntervalJittered = {
-    val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
-    val scheduled: List[(Duration, Int)] = unsafeRun(
+    val schedule: ZSchedule[Random, Int, Int] =
+      Schedule.recurs(5).delayed(_ => DelayComparison.delay(Delay.relative(500.millis))).jittered(2, 4)
+    val scheduled: List[(DelayComparison, Int)] = unsafeRun(
       schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
     )
 
-    val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
-    scheduled must_=== expected
+    val expected = List(1, 2, 3, 4, 5).map((DelayComparison.delay(Delay.relative(1500.millis)), _))
+
+    val results = scheduled.zip(expected).map {
+      case (r1, r2) =>
+        unsafeRun(for {
+          d1 <- r1._1.choose
+          d2 <- r2._1.choose
+        } yield (d1._2, d2._2))
+    }
+
+    results.map { case (d1, d2) => d1 must_=== d2 }
   }
 
   def fixedWithErrorPredicate = {
@@ -151,8 +176,30 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
-    val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
-    retried must_=== expected
+    val expected =
+      (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((DelayComparison.delay(Delay.relative(200.millis)), _)))
+
+    val results1 = (
+      retried._1,
+      retried._2.map(
+        r1 =>
+          unsafeRun(for {
+            d1 <- r1._1.choose
+          } yield d1._2)
+      )
+    )
+
+    val results2 = (
+      expected._1,
+      expected._2.map(
+        r1 =>
+          unsafeRun(for {
+            d1 <- r1._1.choose
+          } yield d1._2)
+      )
+    )
+
+    results1 must_=== results2
   }
 
   def recurs10Retry = {
@@ -178,15 +225,47 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def exponentialWithFactor =
     checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
 
-  def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
+  def checkErrorWithPredicate(schedule: Schedule[Any, DelayComparison], expectedSteps: List[Int]) = {
     var i = 0
     val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = schedule.whileInput[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
-    val expected = (Left("GiveUpError"), expectedSteps.map(i => ((i * 100).millis, (i * 100).millis)))
-    retried must_=== expected
+    val expected = (
+      Left("GiveUpError"),
+      expectedSteps.map(
+        i =>
+          (
+            DelayComparison.delay(Delay.relative((i * 100).millis)),
+            DelayComparison.delay(Delay.relative((i * 100).millis))
+          )
+      )
+    )
+
+    val results1 = (
+      retried._1,
+      retried._2.map(
+        r1 =>
+          unsafeRun(for {
+            d1 <- r1._1.choose
+            d2 <- r1._2.choose
+          } yield (d1._2, d2._2))
+      )
+    )
+
+    val results2 = (
+      expected._1,
+      expected._2.map(
+        r1 =>
+          unsafeRun(for {
+            d1 <- r1._1.choose
+            d2 <- r1._2.choose
+          } yield (d1._2, d2._2))
+      )
+    )
+
+    results1 must_=== results2
   }
 
   val ioSucceed = (_: String, _: Unit) => IO.succeed("OrElse")

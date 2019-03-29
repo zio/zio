@@ -36,23 +36,17 @@ object Delay {
 
     override def +(that: Delay): Delay = that match {
       case Relative(d) => Relative(duration + d)
-      case Absolute(d) => Relative(d + duration)
+      case Absolute(d) => Relative(duration + d)
     }
   }
 
   final case class Absolute(duration: Duration) extends Delay {
-    override def diff(nanos: Long): Long = ???
+    override def diff(nanos: Long): Long = if (duration.toNanos - nanos > 0) duration.toNanos - nanos else Long.MaxValue
 
     override def *(factor: Double): Delay = Absolute(duration * factor)
 
     override def +(that: Delay): Delay = that match {
-      case Relative(d) =>
-        Absolute(
-          d + Duration.fromNanos(
-            Math.max(d.toNanos, duration.toNanos) -
-              Math.min(d.toNanos, duration.toNanos)
-          )
-        )
+      case Relative(d) => Absolute(duration + d)
       case Absolute(d) => Absolute(duration + d)
     }
   }
