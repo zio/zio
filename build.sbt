@@ -66,7 +66,18 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
 
 lazy val coreJVM = core.jvm
   .configure(_.enablePlugins(JCStressPlugin))
-  .settings(replSettings)
+  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
+  .settings(
+    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
+    sources in (Compile, doc) := {
+      val old = (Compile / doc / sources).value
+      if (isDotty.value) {
+        Nil
+      } else {
+        old
+      }
+    }
+  )
 lazy val coreJS = core.js
 
 lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
@@ -82,8 +93,9 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio-interop-cats"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional,
-      "co.fs2"        %%% "fs2-core"    % "1.0.3" % Test
+      "org.typelevel" %%% "cats-effect"   % "1.2.0" % Optional,
+      "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
+      "co.fs2"        %%% "fs2-core"      % "1.0.3" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -128,6 +140,7 @@ lazy val interopCatsJVM = interopCats.jvm
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"                                                 % "1.2.0"                              % Test,
       "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
+      "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
     ),
     dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test

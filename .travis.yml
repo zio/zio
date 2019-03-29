@@ -70,9 +70,10 @@ jobs:
       - sbt ++$TRAVIS_SCALA_VERSION microsite/publishMicrosite
 
     # Cross-build
-    # - <<: *test
-    #  scala: 2.13.0-M5
-    #  name: "Test for 2.13"
+    - stage: test
+      scala: 0.13.0-RC1
+      name: "Test for dotty 0.13.0-RC1"
+      script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/test:compile coreJVM/package coreJVM/packageSrc coreJVM/publishLocal
 
 cache:
   directories:

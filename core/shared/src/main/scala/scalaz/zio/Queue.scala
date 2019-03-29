@@ -17,19 +17,19 @@
 package scalaz.zio
 
 import scalaz.zio.internal.Platform
-import scalaz.zio.Queue2.internal._
+import scalaz.zio.ZQueue.internal._
 import scalaz.zio.internal.MutableConcurrentQueue
 
 import scala.annotation.tailrec
 
 /**
- * A `Queue2[RA, EA, RB, EB, A, B]` is a lightweight, asynchronous queue into which values of
+ * A `ZQueue[RA, EA, RB, EB, A, B]` is a lightweight, asynchronous queue into which values of
  * type `A` can be enqueued and of which elements of type `B` can be dequeued. The queue's
  * enqueueing operations may utilize an environment of type `RA` and may fail with errors of
  * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
  * with errors of type `EB`.
  */
-trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
+trait ZQueue[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   def capacity: Int
 
   /**
@@ -107,8 +107,8 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   /*
    * Transforms elements dequeued from this queue with a function.
    */
-  def map[C](f: B => C): Queue2[RA, EA, RB, EB, A, C] =
-    new Queue2[RA, EA, RB, EB, A, C] {
+  def map[C](f: B => C): ZQueue[RA, EA, RB, EB, A, C] =
+    new ZQueue[RA, EA, RB, EB, A, C] {
       def capacity: Int                                   = self.capacity
       def offer(a: A): ZIO[RA, EA, Boolean]               = self.offer(a)
       def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] = self.offerAll(as)
@@ -124,8 +124,8 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   /**
    * Transforms elements dequeued from this queue with an effectful function.
    */
-  def mapM[R2 <: RB, E2 >: EB, C](f: B => ZIO[R2, E2, C]): Queue2[RA, EA, R2, E2, A, C] =
-    new Queue2[RA, EA, R2, E2, A, C] {
+  def mapM[R2 <: RB, E2 >: EB, C](f: B => ZIO[R2, E2, C]): ZQueue[RA, EA, R2, E2, A, C] =
+    new ZQueue[RA, EA, R2, E2, A, C] {
       def capacity: Int                                   = self.capacity
       def offer(a: A): ZIO[RA, EA, Boolean]               = self.offer(a)
       def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] = self.offerAll(as)
@@ -148,9 +148,9 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
    * to different elements.
    */
   def bothWithM[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, R3 <: RB1, E3 >: EB1, D](
-    that: Queue2[RA1, EA1, RB1, EB1, A1, C]
-  )(f: (B, C) => ZIO[R3, E3, D]): Queue2[RA1, EA1, R3, E3, A1, D] =
-    new Queue2[RA1, EA1, R3, E3, A1, D] {
+    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
+  )(f: (B, C) => ZIO[R3, E3, D]): ZQueue[RA1, EA1, R3, E3, A1, D] =
+    new ZQueue[RA1, EA1, R3, E3, A1, D] {
       def capacity: Int = math.min(self.capacity, that.capacity)
 
       def offer(a: A1): ZIO[RA1, EA1, Boolean]               = self.offer(a).zipWithPar(that.offer(a))(_ && _)
@@ -185,31 +185,31 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
    * Like `bothWithM`, but uses a pure function.
    */
   def bothWith[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: Queue2[RA1, EA1, RB1, EB1, A1, C]
-  )(f: (B, C) => D): Queue2[RA1, EA1, RB1, EB1, A1, D] =
+    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
+  )(f: (B, C) => D): ZQueue[RA1, EA1, RB1, EB1, A1, D] =
     bothWithM(that)((a, b) => IO.succeed(f(a, b)))
 
   /**
    * Like `bothWith`, but tuples the elements instead of applying a function.
    */
   def both[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: Queue2[RA1, EA1, RB1, EB1, A1, C]
-  ): Queue2[RA1, EA1, RB1, EB1, A1, (B, C)] =
+    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
+  ): ZQueue[RA1, EA1, RB1, EB1, A1, (B, C)] =
     bothWith(that)((_, _))
 
   /**
    * Alias for `both`.
    */
   def &&[RA1 <: RA, EA1 >: EA, A1 <: A, RB1 <: RB, EB1 >: EB, C, D](
-    that: Queue2[RA1, EA1, RB1, EB1, A1, C]
-  ): Queue2[RA1, EA1, RB1, EB1, A1, (B, C)] =
+    that: ZQueue[RA1, EA1, RB1, EB1, A1, C]
+  ): ZQueue[RA1, EA1, RB1, EB1, A1, (B, C)] =
     both(that)
 
   /**
    * Transforms elements enqueued into this queue with a pure function.
    */
-  def contramap[C](f: C => A): Queue2[RA, EA, RB, EB, C, B] =
-    new Queue2[RA, EA, RB, EB, C, B] {
+  def contramap[C](f: C => A): ZQueue[RA, EA, RB, EB, C, B] =
+    new ZQueue[RA, EA, RB, EB, C, B] {
       def capacity: Int = self.capacity
 
       def offer(c: C): ZIO[RA, EA, Boolean] =
@@ -229,8 +229,8 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
   /**
    * Transforms elements enqueued into this queue with an effectful function.
    */
-  def contramapM[RA2 <: RA, EA2 >: EA, C](f: C => ZIO[RA2, EA2, A]): Queue2[RA2, EA2, RB, EB, C, B] =
-    new Queue2[RA2, EA2, RB, EB, C, B] {
+  def contramapM[RA2 <: RA, EA2 >: EA, C](f: C => ZIO[RA2, EA2, A]): ZQueue[RA2, EA2, RB, EB, C, B] =
+    new ZQueue[RA2, EA2, RB, EB, C, B] {
       def capacity: Int = self.capacity
 
       def offer(c: C): ZIO[RA2, EA2, Boolean] =
@@ -249,15 +249,15 @@ trait Queue2[-RA, +EA, -RB, +EB, -A, +B] extends Serializable { self =>
     }
 }
 
-object Queue2 {
-  implicit class InvariantQueue2Ops[RA, EA, RB, EB, A, B](private val self: Queue2[RA, EA, RB, EB, A, B]) {
+object ZQueue {
+  implicit class InvariantZQueueOps[RA, EA, RB, EB, A, B](private val self: ZQueue[RA, EA, RB, EB, A, B]) {
 
     /**
      * Applies a filter to elements enqueued into this queue. Elements that do not
      * pass the filter will be immediately dropped.
      */
-    def filterInput(f: A => Boolean): Queue2[RA, EA, RB, EB, A, B] =
-      new Queue2[RA, EA, RB, EB, A, B] {
+    def filterInput(f: A => Boolean): ZQueue[RA, EA, RB, EB, A, B] =
+      new ZQueue[RA, EA, RB, EB, A, B] {
         def capacity: Int = self.capacity
 
         def offer(a: A): ZIO[RA, EA, Boolean] =
@@ -283,8 +283,8 @@ object Queue2 {
     /**
      * Like `filterInput`, but uses an effectful function to filter the elements.
      */
-    def filterInputM[R2 <: RA, E2 >: EA](f: A => ZIO[R2, E2, Boolean]): Queue2[R2, E2, RB, EB, A, B] =
-      new Queue2[R2, E2, RB, EB, A, B] {
+    def filterInputM[R2 <: RA, E2 >: EA](f: A => ZIO[R2, E2, Boolean]): ZQueue[R2, E2, RB, EB, A, B] =
+      new ZQueue[R2, E2, RB, EB, A, B] {
         def capacity: Int = self.capacity
 
         def offer(a: A): ZIO[R2, E2, Boolean] =
@@ -315,7 +315,7 @@ object Queue2 {
     takers: MutableConcurrentQueue[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
     strategy: Strategy[A]
-  ): Queue2[Any, Nothing, Any, Nothing, A, A] = new Queue2[Any, Nothing, Any, Nothing, A, A] {
+  ): ZQueue[Any, Nothing, Any, Nothing, A, A] = new ZQueue[Any, Nothing, Any, Nothing, A, A] {
 
     private final val checkShutdownState: UIO[Unit] =
       shutdownHook.poll.flatMap(_.fold[UIO[Unit]](IO.unit)(_ => IO.interrupt))
@@ -386,7 +386,7 @@ object Queue2 {
 
     final val awaitShutdown: UIO[Unit] = shutdownHook.await
 
-    final val size: UIO[Int] = checkShutdownState.map(_ => queue.size - takers.size + strategy.surplusSize)
+    final val size: UIO[Int] = checkShutdownState.map(_ => queue.size() - takers.size() + strategy.surplusSize)
 
     final val shutdown: UIO[Unit] =
       IO.whenM(shutdownHook.succeed(()))(

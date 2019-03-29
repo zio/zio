@@ -10,24 +10,25 @@ import scalaz.zio.interop.javaconcurrent._
 class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def is = s2"""
-  `IO.fromFutureJava` must
+  `Task.fromFutureJava` must
     be lazy on the `Future` parameter                    $lazyOnParamRef
     be lazy on the `Future` parameter inline             $lazyOnParamInline
     catch exceptions thrown by lazy block                $catchBlockException
     return an `IO` that fails if `Future` fails          $propagateExceptionFromFuture
     return an `IO` that produces the value from `Future` $produceValueFromFuture
-  `IO.fromCompletionStage` must
+  `Task.fromCompletionStage` must
     be lazy on the `Future` parameter                    $lazyOnParamRefCs
     be lazy on the `Future` parameter inline             $lazyOnParamInlineCs
     catch exceptions thrown by lazy block                $catchBlockExceptionCs
     return an `IO` that fails if `Future` fails          $propagateExceptionFromCs
     return an `IO` that produces the value from `Future` $produceValueFromCs
-  `IO.toCompletableFuture` must
+    handle null produced by the completed `Future`       $handleNullFromCs
+  `Task.toCompletableFuture` must
     produce always a successful `IO` of `Future`         $toCompletableFutureAlwaysSucceeds
     be polymorphic in error type                         $toCompletableFuturePoly
     return a `CompletableFuture` that fails if `IO` fails           $toCompletableFutureFailed
     return a `CompletableFuture` that produces the value from `IO`  $toCompletableFutureValue
-  `IO.toCompletableFutureE` must
+  `Task.toCompletableFutureE` must
     convert error of type `E` to `Throwable`             $toCompletableFutureE
   `Fiber.fromFutureJava` must
     be lazy on the `Future` parameter                    $lazyOnParamRefFiber
@@ -40,61 +41,66 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   val lazyOnParamRef = {
     var evaluated         = false
     def ftr: Future[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
-    IO.fromFutureJava(ftr _)
+    Task.fromFutureJava(ftr _)
     evaluated must beFalse
   }
 
   val lazyOnParamInline = {
     var evaluated = false
-    IO.fromFutureJava(() => CompletableFuture.supplyAsync(() => evaluated = true))
+    Task.fromFutureJava(() => CompletableFuture.supplyAsync(() => evaluated = true))
     evaluated must beFalse
   }
 
   val catchBlockException = {
     val ex                     = new Exception("no future for you!")
     def noFuture: Future[Unit] = throw ex
-    unsafeRun(IO.fromFutureJava(noFuture _)) must (throwA(FiberFailure(Die(ex))))
+    unsafeRun(Task.fromFutureJava(noFuture _)) must (throwA(FiberFailure(Die(ex))))
   }
 
   val propagateExceptionFromFuture = {
     val ex                    = new Exception("no value for you!")
     def noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-    unsafeRun(IO.fromFutureJava(noValue _)) must throwA(FiberFailure(Fail(ex)))
+    unsafeRun(Task.fromFutureJava(noValue _)) must throwA(FiberFailure(Fail(ex)))
   }
 
   val produceValueFromFuture = {
     def someValue: Future[Int] = CompletableFuture.completedFuture(42)
-    unsafeRun(IO.fromFutureJava(someValue _)) must_=== 42
+    unsafeRun(Task.fromFutureJava(someValue _)) must_=== 42
   }
 
   val lazyOnParamRefCs = {
     var evaluated                 = false
     def cs: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
-    IO.fromCompletionStage(cs _)
+    Task.fromCompletionStage(cs _)
     evaluated must beFalse
   }
 
   val lazyOnParamInlineCs = {
     var evaluated = false
-    IO.fromCompletionStage(() => CompletableFuture.supplyAsync(() => evaluated = true))
+    Task.fromCompletionStage(() => CompletableFuture.supplyAsync(() => evaluated = true))
     evaluated must beFalse
   }
 
   val catchBlockExceptionCs = {
     val ex                              = new Exception("no future for you!")
     def noFuture: CompletionStage[Unit] = throw ex
-    unsafeRun(IO.fromCompletionStage(noFuture _)) must (throwA(FiberFailure(Die(ex))))
+    unsafeRun(Task.fromCompletionStage(noFuture _)) must (throwA(FiberFailure(Die(ex))))
   }
 
   val propagateExceptionFromCs = {
     val ex                             = new Exception("no value for you!")
     def noValue: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-    unsafeRun(IO.fromCompletionStage(noValue _)) must throwA(FiberFailure(Fail(ex)))
+    unsafeRun(Task.fromCompletionStage(noValue _)) must throwA(FiberFailure(Fail(ex)))
   }
 
   val produceValueFromCs = {
     def someValue: CompletionStage[Int] = CompletableFuture.completedFuture(42)
-    unsafeRun(IO.fromCompletionStage(someValue _)) must_=== 42
+    unsafeRun(Task.fromCompletionStage(someValue _)) must_=== 42
+  }
+
+  val handleNullFromCs = {
+    def someValue: CompletionStage[String] = CompletableFuture.completedFuture[String](null)
+    unsafeRun(Task.fromCompletionStage[String](someValue _)) must_=== null
   }
 
   val toCompletableFutureAlwaysSucceeds = {
@@ -103,7 +109,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   val toCompletableFuturePoly = {
-    val unitIO: Task[Unit]                          = IO.unit
+    val unitIO: Task[Unit]                          = Task.unit
     val polyIO: IO[String, CompletableFuture[Unit]] = unitIO.toCompletableFuture
     val _                                           = polyIO // avoid warning
     ok
@@ -115,7 +121,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   val toCompletableFutureValue = {
-    val someIO = IO.succeed[Int](42)
+    val someIO = Task.succeed[Int](42)
     unsafeRun(someIO.toCompletableFuture).get() must beEqualTo(42)
   }
 

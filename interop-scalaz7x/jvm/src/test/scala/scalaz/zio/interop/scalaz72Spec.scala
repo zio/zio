@@ -18,7 +18,7 @@ class scalaz72Spec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       MonadPlus              ${monadPlus.laws[IO[Int, ?]]}
       MonadPlus (Monoid)     ${monadPlus.laws[IO[Option[Unit], ?]]}
       MonadError             ${monadError.laws[IO[Int, ?], Int]}
-      Applicative (Parallel) ${applicative.laws[scalaz72.ParIO[Int, ?]]}
+      Applicative (Parallel) ${applicative.laws[scalaz72.ParIO[Any, Int, ?]]}
   """
 
   implicit def ioEqual[E: Equal, A: Equal]: Equal[IO[E, A]] =
@@ -30,9 +30,9 @@ class scalaz72Spec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   implicit def ioArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
     Arbitrary(genIO[E, A])
 
-  implicit def ioParEqual[E: Equal, A: Equal]: Equal[scalaz72.ParIO[E, A]] =
+  implicit def ioParEqual[E: Equal, A: Equal]: Equal[scalaz72.ParIO[Any, E, A]] =
     ioEqual[E, A].contramap(Tag.unwrap)
 
-  implicit def ioParArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[scalaz72.ParIO[E, A]] =
+  implicit def ioParArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[scalaz72.ParIO[Any, E, A]] =
     Arbitrary(genIO[E, A].map(Tag.apply))
 }

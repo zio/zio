@@ -14,8 +14,20 @@
  * limitations under the License.
  */
 
-package scalaz.zio.interop
+package scalaz.zio
 
-object catz extends CatsPlatform {
-  object mtl extends CatsMtlPlatform
+trait ManagedApp extends DefaultRuntime { ma =>
+
+  /**
+   * The main function of the application, which will be passed the command-line
+   * arguments to the program and has to return an `ZManaged` with the errors fully handled.
+   */
+  def run(args: List[String]): ZManaged[Environment, Nothing, Int]
+
+  private val app = new App {
+    override def run(args: List[String]): ZIO[Environment, Nothing, Int] =
+      ma.run(args).use(exit => ZIO.effectTotal(exit))
+  }
+
+  final def main(args: Array[String]): Unit = app.main(args)
 }
