@@ -2,16 +2,25 @@
 
 <p>Checkout <code class="highlighter-rouge">interop-cats</code> module for inter-operation support.</p>
 
-<h3 id="io-cats-effect-instance"><code class="highlighter-rouge">IO</code> cats’ <code class="highlighter-rouge">Effect</code> instance</h3>
+<h3 id="io-cats-effects-instances"><code class="highlighter-rouge">IO</code> Cats Effect’s instances</h3>
 
-<p><strong>ZIO</strong> integrates with Typelevel libraries by providing an instance of <code class="highlighter-rouge">Effect</code> for <code class="highlighter-rouge">IO</code> as required, for instance, by <code class="highlighter-rouge">fs2</code>, <code class="highlighter-rouge">doobie</code> and <code class="highlighter-rouge">http4s</code>. Actually, I lied a little bit, it is not possible to implement <code class="highlighter-rouge">Effect</code> for any error type since <code class="highlighter-rouge">Effect</code> extends <code class="highlighter-rouge">MonadError</code> of <code class="highlighter-rouge">Throwable</code>.</p>
+<p><strong>ZIO</strong> integrates with Typelevel libraries by providing an instance of <code class="highlighter-rouge">ConcurrentEffect</code> for <code class="highlighter-rouge">IO</code> as required, for instance, by <code class="highlighter-rouge">fs2</code>, <code class="highlighter-rouge">doobie</code> and <code class="highlighter-rouge">http4s</code>. Actually, I lied a little bit, it is not possible to implement <code class="highlighter-rouge">ConcurrentEffect</code> for any error type since <code class="highlighter-rouge">ConcurrentEffect</code> extends <code class="highlighter-rouge">MonadError</code> of <code class="highlighter-rouge">Throwable</code>.</p>
 
 <p>For convenience we have defined an alias as follow:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="k">type</span> <span class="kt">Task</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span>
 </code></pre></div></div>
 
-<p>Therefore, we provide an instance of <code class="highlighter-rouge">Effect[Task]</code>.</p>
+<p>Therefore, we provide an instance of <code class="highlighter-rouge">ConcurrentEffect[Task]</code>.</p>
+
+<h4 id="timer">Timer</h4>
+
+<p>In order to get a <code class="highlighter-rouge">cats.effect.Timer[Task]</code> instance we need an extra import:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scalaz.zio.interop.catz.implicits._</span>
+</code></pre></div></div>
+
+<p>The reason it is not provided by the default “interop” import is that it makes testing programs that require timing capabilities hard so an extra import wherever needed makes reasoning about it much easier.</p>
 
 <h4 id="example">Example</h4>
 
