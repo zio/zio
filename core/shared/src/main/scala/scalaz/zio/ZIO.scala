@@ -1522,6 +1522,17 @@ trait ZIOFunctions extends Serializable {
    * current fiber for this operation to return non-empty lists.
    */
   final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
+
+  /**
+   * Lifts a `ZIO[R, E, Reservation[R, E, A]]` into `ZManaged[R, E, A]`
+   * and applies the `A => ZIO[R, E, B]` immediately, unless curried.
+   *
+   * Potentially more convenient and with better inference characteristics
+   * than [[ZManaged#reserve]] but less flexible.
+   */
+  def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+    ZManaged(reservation).use(use)
+
 }
 
 trait ZIO_E_Any extends ZIO_E_Throwable {

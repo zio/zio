@@ -6,14 +6,17 @@ import scala.collection.mutable
 import duration._
 import org.specs2.matcher.describe.Diffable
 
-class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
-  def is = "ManagedSpec".title ^ s2"""
-  Managed.make
+class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
+  def is = "ZManagedSpec".title ^ s2"""
+  ZManaged.make
     Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse
     Properly performs parallel acquire and release. $parallelAcquireAndRelease
     Constructs an uninterruptible Managed value. $uninterruptible
-  Managed.traverse
+  ZManaged.traverse
     Invokes cleanups in reverse order of acquisition. $traverse
+  ZManaged.reserve 
+    Works via ZIO.reserve.      $reserve1
+    Works via ZManaged.reserve. $reserve2
   """
 
   private def invokesCleanupsInReverse = {
@@ -74,5 +77,18 @@ class ManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     implicit val d: Diffable[Right[Nothing, Option[Exit[Nothing, Unit]]]] =
       Diffable.eitherRightDiffable[Option[Exit[Nothing, Unit]]] //    TODO: Dotty has ambiguous implicits
     unsafeRun(program) must be_===(Right(None))
+  }
+
+  private def reserve1 = {
+    val intent  = ZIO.succeed(Reservation(UIO.succeed(21), UIO.unit))
+    val booking = ZIO.reserve(intent)(a => ZIO.succeed(a * 2))
+    unsafeRun(booking) must be_===(42)
+  }
+
+  private def reserve2 = {
+    // Note: 'use' is more flexible in this case but less inferrable?
+    val intent  = ZManaged.reserve(Reservation(UIO.succeed(10), UIO.unit))
+    val booking = intent.use[Any, Nothing, String]((a: Int) => ZIO.succeed("X" * a))
+    unsafeRun(booking) must be_===("XXXXXXXXXX")
   }
 }
