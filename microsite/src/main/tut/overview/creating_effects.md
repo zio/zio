@@ -83,7 +83,7 @@ Unlike `ZIO.fromOption`, the error type of the resulting effect will be whatever
 
 ## Try
 
-A `Try` value can be converted can be converted into a ZIO effect using `ZIO.fromTry`:
+A `Try` value can be converted into a ZIO effect using `ZIO.fromTry`:
 
 ```tut:silent
 import scala.util.Try

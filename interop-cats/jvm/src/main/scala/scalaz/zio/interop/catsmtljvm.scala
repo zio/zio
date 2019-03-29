@@ -14,8 +14,26 @@
  * limitations under the License.
  */
 
-package scalaz.zio.interop
+package scalaz.zio
+package interop
 
-object catz extends CatsPlatform {
-  object mtl extends CatsMtlPlatform
+import cats.Applicative
+import cats.mtl._
+import scalaz.zio._
+
+abstract class CatsMtlPlatform extends CatsMtlInstances
+
+abstract class CatsMtlInstances {
+
+  implicit def zioApplicativeLocalAsk[R, E](
+    implicit ev: Applicative[ZIO[R, E, ?]]
+  ): ApplicativeLocal[ZIO[R, E, ?], R] =
+    new DefaultApplicativeLocal[ZIO[R, E, ?], R] {
+      val applicative: Applicative[ZIO[R, E, ?]] = ev
+      def ask: ZIO[R, Nothing, R]                = ZIO.environment
+      def local[A](f: R => R)(fa: ZIO[R, E, A]): ZIO[R, E, A] = ZIO.accessM { env =>
+        fa.provide(f(env))
+      }
+    }
+
 }
