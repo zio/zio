@@ -18,14 +18,19 @@ package scalaz.zio.stm
 
 import scala.collection.immutable.{ Queue => ScalaQueue }
 
-// TODO: Add poll, takeUpTo, etc.
-class TQueue[A] private (capacity: Int, ref: TRef[ScalaQueue[A]]) {
+class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
   final def offer(a: A): STM[Nothing, Unit] =
     for {
       q <- ref.get
       _ <- STM.check(q.length < capacity)
       _ <- ref.update(_ enqueue a)
     } yield ()
+
+  // TODO: Scala doesn't allow Iterable???
+  final def offerAll(as: List[A]): STM[Nothing, Unit] =
+    ref.update(_.enqueue(as)).void
+
+  final def poll: STM[Nothing, Option[A]] = takeUpTo(1).map(_.headOption)
 
   final def size: STM[Nothing, Int] = ref.get.map(_.length)
 
@@ -38,6 +43,16 @@ class TQueue[A] private (capacity: Int, ref: TRef[ScalaQueue[A]]) {
             case _ => STM.retry
           }
     } yield a
+
+  final def takeAll: STM[Nothing, List[A]] =
+    ref.modify(q => (q.toList, ScalaQueue.empty[A]))
+
+  final def takeUpTo(max: Int): STM[Nothing, List[A]] =
+    for {
+      q               <- ref.get
+      (first, second) = q.splitAt(max)
+      _               <- ref.set(second)
+    } yield first.toList
 }
 object TQueue {
   final def make[A](capacity: Int): STM[Nothing, TQueue[A]] =
