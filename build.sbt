@@ -217,7 +217,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
       "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
   )
-  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(streams % "test->test;compile->compile")
 
 lazy val interopReactiveStreamsJVM = interopReactiveStreams.jvm.dependsOn(interopSharedJVM)
 
