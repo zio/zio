@@ -16,11 +16,12 @@
 
 package scalaz.zio.stm
 
-class TSemaphore private (val total: Long, val permits: TRef[Long]) {
+class TSemaphore private (total: Long, permits: TRef[Long]) {
   final def acquire: STM[Nothing, Unit] = acquireN(1L)
 
   final def acquireN(n: Long): STM[Nothing, Unit] =
     (for {
+      _     <- assertNonNegative(n)
       value <- permits.get
       _     <- STM.check(value >= n)
       _     <- permits.set(value - n)
@@ -33,10 +34,15 @@ class TSemaphore private (val total: Long, val permits: TRef[Long]) {
   final def release: STM[Nothing, Unit] = releaseN(1L)
 
   final def releaseN(n: Long): STM[Nothing, Unit] =
-    permits.update(_ + n).void
+    assertNonNegative(n) *> permits.update(_ + n).void
 
   final def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
     acquire *> stm <* release
+
+  private def assertNonNegative(n: Long): STM[Nothing, Unit] =
+    if (n < 0)
+      STM.die(new RuntimeException(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
+    else STM.unit
 }
 
 object TSemaphore {
