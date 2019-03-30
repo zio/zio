@@ -229,7 +229,7 @@ lazy val testkit = crossProject(JVMPlatform)
 lazy val testkitJVM = testkit.jvm
 
 lazy val benchmarks = project.module
-  .dependsOn(coreJVM)
+  .dependsOn(coreJVM, streamsJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
