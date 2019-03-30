@@ -34,6 +34,8 @@ lazy val root = project
   .aggregate(
     coreJVM,
     coreJS,
+    streamsJVM,
+    streamsJS,
     interopSharedJVM,
     interopSharedJS,
     interopCatsJVM,
