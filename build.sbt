@@ -78,7 +78,19 @@ lazy val coreJVM = core.jvm
       }
     }
   )
+
 lazy val coreJS = core.js
+
+lazy val streams = crossProject(JSPlatform, JVMPlatform)
+  .in(file("streams"))
+  .settings(stdSettings("zio-streams"))
+  .settings(buildInfoSettings)
+  .enablePlugins(BuildInfoPlugin)
+  .dependsOn(core % "test->test;compile->compile")
+
+lazy val streamsJVM = streams.jvm
+
+lazy val streamsJS = streams.js
 
 lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-shared"))
