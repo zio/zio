@@ -83,7 +83,7 @@ object Duration {
     }
 
     final def *(factor: Double): Duration =
-      if (factor < 0) Zero
+      if (factor <= 0 || nanos <= 0) Zero
       else if (factor < 1) Finite((nanos * factor).round)
       else if (factor < Long.MaxValue / nanos) Finite((nanos * factor).round)
       else Infinity
