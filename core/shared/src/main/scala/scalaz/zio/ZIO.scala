@@ -1316,15 +1316,6 @@ trait ZIOFunctions extends Serializable {
    */
   final def _2[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
 
-  final def ifThenElse[R >: LowerR, E <: UpperE, A](
-    cond: ZIO[R, E, Boolean]
-  )(then0: ZIO[R, E, A])(else0: ZIO[R, E, A]): ZIO[R, E, A] =
-    for {
-      r <- ZIO.environment[R]
-      c <- cond provide r
-      a <- if (c) then0 else else0
-    } yield a
-
   /**
    * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
    */
@@ -1488,14 +1479,14 @@ trait ZIOFunctions extends Serializable {
    * the results. For a parallel version, see `collectAllPar`.
    */
   final def collectAll[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreach[R, E, ZIO[R, E, A], A](in)(a => a)
+    foreach[R, E, ZIO[R, E, A], A](in)(ZIO.identityFn)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
    * the results. For a sequential version, see `collectAll`.
    */
   final def collectAllPar[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachPar[R, E, ZIO[R, E, A], A](as)(a => a)
+    foreachPar[R, E, ZIO[R, E, A], A](as)(ZIO.identityFn)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
@@ -1504,7 +1495,7 @@ trait ZIOFunctions extends Serializable {
    * Unlike `foreachAllPar`, this method will use at most `n` fibers.
    */
   final def collectAllParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(a => a)
+    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
