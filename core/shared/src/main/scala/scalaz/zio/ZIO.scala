@@ -206,12 +206,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         exit.foldM[E1, Either[A, B]](
           _ => right.join.map(Right(_)),
           a => ZIO.succeedLeft(a) <* right.interrupt
-      ),
+        ),
       (exit, left) =>
         exit.foldM[E1, Either[A, B]](
           _ => left.join.map(Left(_)),
           b => ZIO.succeedRight(b) <* left.interrupt
-      )
+        )
     )
 
   /**
@@ -464,7 +464,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Failure(_) => release(a)
           case _               => ZIO.unit
-      }
+        }
     )(use)
 
   /**
@@ -483,7 +483,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Success(_)     => ZIO.unit
           case Exit.Failure(cause) => cleanup(cause)
-      }
+        }
     )(_ => self)
 
   /**
@@ -504,7 +504,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
           case _                   => ZIO.unit
-      }
+        }
     )(_ => self)
 
   /**
@@ -600,8 +600,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
     for {
       r1 <- ZIO.environment[R1]
-      r <- that provide r1
-      a <- self provide r
+      r  <- that provide r1
+      a  <- self provide r
     } yield a
 
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
@@ -609,23 +609,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
     for {
       r1 <- ZIO.environment[R]
-      r <- self provide r1
-      a <- that provide r
+      r  <- self provide r1
+      a  <- that provide r
     } yield a
 
   final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
     for {
       either <- ZIO.environment[Either[R, R1]]
-      a1 <- either.fold(self.provide , that.provide )
+      a1     <- either.fold(self.provide, that.provide)
     } yield a1
 
   final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
 
-  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] = for {
+  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
+    for {
       e <- ZIO.environment[Either[R, R1]]
       r <- e.fold(self.map(Left(_)) provide _, that.map(Right(_)) provide _)
     } yield r
-
 
   final def andThen[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
     self >>> that
@@ -668,15 +668,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.flatMap(a => that.map(b => f(a, b)))
 
   /**
-    * Sequentially zips this effect with the specified effect, combining the
-    * results into a tuple.
-    */
+   * Sequentially zips this effect with the specified effect, combining the
+   * results into a tuple.
+   */
   final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self.zipWith(that)((a, b) => (a, b))
 
   /**
-    * A named alias for `&&&`.
-    */
+   * A named alias for `&&&`.
+   */
   final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self &&& that
 
@@ -736,7 +736,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           schedule.update(a, state).flatMap { step =>
             if (!step.cont) ZIO.succeedRight(step.finish())
             else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-        }
+          }
       )
 
     schedule.initial.flatMap(loop(None, _))
@@ -780,7 +780,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               decision =>
                 if (decision.cont) clock.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
-          ),
+            ),
         succ => ZIO.succeedRight(succ)
       )
 
@@ -1194,7 +1194,8 @@ trait ZIOFunctions extends Serializable {
    * the inner effect, returning the value from the inner effect, and effectively
    * flattening a nested effect.
    */
-  final def flatten[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] = zio.flatMap(ZIO.identityFn[ZIO[R, E, A]])
+  final def flatten[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] =
+    zio.flatMap(ZIO.identityFn[ZIO[R, E, A]])
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
@@ -1300,7 +1301,8 @@ trait ZIOFunctions extends Serializable {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
-  final def swap[R >: LowerR, E <: UpperE,  A, B](implicit ev:  R <:< (A, B)): ZIO[R, E, (B, A)] = fromFunction[R, (B, A)](_.swap)
+  final def swap[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, (B, A)] =
+    fromFunction[R, (B, A)](_.swap)
 
   /**
    * Returns an effectful function that extracts out the first element of a
@@ -1316,11 +1318,11 @@ trait ZIOFunctions extends Serializable {
 
   final def ifThenElse[R >: LowerR, E <: UpperE, A](
     cond: ZIO[R, E, Boolean]
-  )(then0: ZIO[R, E, A])(else0: ZIO[R, E, A]) : ZIO[R, E, A] =
+  )(then0: ZIO[R, E, A])(else0: ZIO[R, E, A]): ZIO[R, E, A] =
     for {
-     r <- ZIO.environment[R]
-     c <- cond provide r
-    a <- if(c) then0 else else0
+      r <- ZIO.environment[R]
+      c <- cond provide r
+      a <- if (c) then0 else else0
     } yield a
 
   /**
@@ -1609,7 +1611,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
         try Right(effect)
         catch {
           case t: Throwable if platform.nonFatal(t) => Left(t)
-      }
+        }
     ).absolve
 
   /**
@@ -1678,7 +1680,7 @@ object UIO extends ZIOFunctions {
 object ZIO extends ZIO_R_Any {
   def apply[A](a: => A): Task[A] = effect(a)
 
-  private val _IdentityFn: Any => Any = (a: Any) => a
+  private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
   implicit class ZIOInvariant[R, E, A](val self: ZIO[R, E, A]) extends AnyVal {
