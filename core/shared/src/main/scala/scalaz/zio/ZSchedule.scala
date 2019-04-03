@@ -575,7 +575,7 @@ trait Schedule_Functions extends Serializable {
    * specified as output to the existing duration.
    */
   final def delayed[R: ConformsR, A](s: ZSchedule[R, A, DelayComparison]): ZSchedule[R, A, DelayComparison] =
-    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
+    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay)) // TODO: Dotty doesn't infer this properly
 
   /**
    * A schedule that recurs forever, collecting all inputs into a list.
