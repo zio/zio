@@ -18,7 +18,6 @@ package scalaz.zio
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
-import scalaz.zio.delay.Delay.{ Absolute, Relative }
 import scalaz.zio.duration._
 import scalaz.zio.internal.{ Executor, Platform }
 
@@ -741,18 +740,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         e => orElse(e, last.map(_())).map(Left(_)),
         a =>
           schedule.update(a, state).flatMap { step =>
-            step.delay.choose.flatMap {
-              case (nanos, dl) =>
-                val delay = dl match {
-                  case Relative(d) => d
-                  case Absolute(d) => Duration.fromNanos(d.toNanos - nanos)
-                }
-
-                if (!step.cont) ZIO.succeedRight(step.finish())
-                else ZIO.succeed(step.state).delay(delay).flatMap(s => loop(Some(step.finish), s))
-
+            step.delay.run.flatMap { delay =>
+              if (!step.cont) ZIO.succeedRight(step.finish())
+              else ZIO.succeed(step.state).delay(delay).flatMap(s => loop(Some(step.finish), s))
             }
-
           }
       )
 
@@ -795,13 +786,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
             .update(err, state)
             .flatMap(
               decision =>
-                decision.delay.choose.flatMap {
-                  case (nanos, dl) =>
-                    val delay = dl match {
-                      case Relative(d) => d
-                      case Absolute(d) => Duration.fromNanos(d.toNanos - nanos)
-                    }
-
+                decision.delay.run.flatMap { delay =>
                     if (decision.cont) clock.sleep(delay) *> loop(decision.state)
                     else orElse(err, decision.finish()).map(Left(_))
                 }

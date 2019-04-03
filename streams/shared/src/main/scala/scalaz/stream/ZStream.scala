@@ -18,8 +18,6 @@ package scalaz.zio.stream
 
 import scalaz.zio._
 import scalaz.zio.clock.Clock
-import scalaz.zio.delay.Delay.{ Absolute, Relative }
-import scalaz.zio.duration.Duration
 
 import scala.annotation.implicitNotFound
 
@@ -398,13 +396,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             self.fold[R2, E1, A1, S].flatMap { f0 =>
               f0(s, cont, f).zip(schedule.update((), sched)).flatMap {
                 case (s, decision) =>
-                  decision.delay.choose.flatMap {
-                    case (nanos, dl) =>
-                      val delay = dl match {
-                        case Relative(duration) => duration
-                        case Absolute(duration) => Duration.fromNanos(duration.toNanos - nanos)
-                      }
-
+                  decision.delay.run.flatMap { delay =>
                       if (decision.cont) IO.unit.delay(delay) *> loop(s, decision.state)
                       else IO.succeed(s)
                   }
@@ -424,13 +416,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         IO.succeedLazy { (s, cont, f) =>
           def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
             schedule.update(a, sched).flatMap { decision =>
-              decision.delay.choose.flatMap {
-                case (nanos, dl) =>
-                  val delay = dl match {
-                    case Relative(duration) => duration
-                    case Absolute(duration) => Duration.fromNanos(duration.toNanos - nanos)
-                  }
-
+              decision.delay.run.flatMap { delay =>
                   if (decision.cont)
                     IO.unit.delay(delay) *> f(s, a).flatMap(loop(_, decision.state, a))
                   else IO.succeed(s)

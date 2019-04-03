@@ -1,55 +1,38 @@
 package scalaz.zio.delay
 
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.ZIO
-import scalaz.zio.clock.{ Clock, _ }
+import scalaz.zio.clock.Clock
+import scalaz.zio.clock._
+import scalaz.zio.delay.Delay._
 import scalaz.zio.duration.Duration
 
-sealed trait Delay extends Serializable with Product {
+sealed trait Delay extends Serializable with Product { self =>
+  def run: ZIO[Clock, Nothing, Duration] = currentTime(unit = TimeUnit.MILLISECONDS).flatMap { millis =>
+    self match {
+      case Relative(duration) => ZIO.succeed(duration)
+      case Absolute(instant) => ZIO.succeed(Duration(instant.toEpochMilli - millis, TimeUnit.MILLISECONDS))
+      case Min(l, r) => l.run.zip(r.run).map{ case (d1, d2) => if (d1 < d2) d1 else d2 }
+      case Max(l, r) => Min(r, l).run
+      case Sum(l, r) => l.run.zip(r.run).map{ case (d1, d2) => d1 + d2 }
+      case TimesFactor(l, factor) => l.run.map(d => d * factor)
+    }
+  }
 
-  def diff(nanos: Long): Long
-
-  def <(that: Delay): ZIO[Clock, Nothing, Boolean] =
-    currentTime(TimeUnit.NANOSECONDS).map(nanos => this.diff(nanos) < that.diff(nanos))
-
-  def <=(that: Delay): ZIO[Clock, Nothing, Boolean] =
-    currentTime(TimeUnit.NANOSECONDS).map(nanos => this.diff(nanos) <= that.diff(nanos))
-
-  def >(that: Delay): ZIO[Clock, Nothing, Boolean] = that < this
-
-  def >=(that: Delay): ZIO[Clock, Nothing, Boolean] = that <= this
-
-  def ===(that: Delay): ZIO[Clock, Nothing, Boolean] =
-    currentTime(TimeUnit.NANOSECONDS).map(nanos => this.diff(nanos) == that.diff(nanos))
-
-  def *(factor: Double): Delay
-
-  def +(that: Delay): Delay
+  def *(factor: Double) = TimesFactor(self, factor)
+  def +(delay: Delay) = Sum(self, delay)
 }
 
 object Delay {
-  final case class Relative(duration: Duration) extends Delay {
-    override def diff(nanos: Long): Long = duration.toNanos
+  final case class Relative(duration: Duration) extends Delay
+  final case class Absolute(instant: Instant) extends Delay
+  final case class Min(l: Delay, r: Delay) extends Delay
+  final case class Max(l: Delay, r: Delay) extends Delay
+  final case class TimesFactor(l: Delay, factor: Double) extends Delay
+  final case class Sum(l: Delay, r: Delay) extends Delay
 
-    override def *(factor: Double): Delay = Relative(duration * factor)
-
-    override def +(that: Delay): Delay = that match {
-      case Relative(d) => Relative(duration + d)
-      case Absolute(d) => Relative(duration + d)
-    }
-  }
-
-  final case class Absolute(duration: Duration) extends Delay {
-    override def diff(nanos: Long): Long = if (duration.toNanos - nanos > 0) duration.toNanos - nanos else Long.MaxValue
-
-    override def *(factor: Double): Delay = Absolute(duration * factor)
-
-    override def +(that: Delay): Delay = that match {
-      case Relative(d) => Absolute(duration + d)
-      case Absolute(d) => Absolute(duration + d)
-    }
-  }
-
+  val none: Delay = Relative(Duration.Zero)
   final def relative(delay: Duration) = Relative(delay)
 }
