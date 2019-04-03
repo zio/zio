@@ -787,8 +787,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
             .flatMap(
               decision =>
                 decision.delay.run.flatMap { delay =>
-                    if (decision.cont) clock.sleep(delay) *> loop(decision.state)
-                    else orElse(err, decision.finish()).map(Left(_))
+                  if (decision.cont) clock.sleep(delay) *> loop(decision.state)
+                  else orElse(err, decision.finish()).map(Left(_))
                 }
             ),
         succ => ZIO.succeedRight(succ)

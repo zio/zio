@@ -397,8 +397,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               f0(s, cont, f).zip(schedule.update((), sched)).flatMap {
                 case (s, decision) =>
                   decision.delay.run.flatMap { delay =>
-                      if (decision.cont) IO.unit.delay(delay) *> loop(s, decision.state)
-                      else IO.succeed(s)
+                    if (decision.cont) IO.unit.delay(delay) *> loop(s, decision.state)
+                    else IO.succeed(s)
                   }
               }
             }
@@ -417,9 +417,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
             schedule.update(a, sched).flatMap { decision =>
               decision.delay.run.flatMap { delay =>
-                  if (decision.cont)
-                    IO.unit.delay(delay) *> f(s, a).flatMap(loop(_, decision.state, a))
-                  else IO.succeed(s)
+                if (decision.cont)
+                  IO.unit.delay(delay) *> f(s, a).flatMap(loop(_, decision.state, a))
+                else IO.succeed(s)
               }
             }
 

@@ -22,7 +22,7 @@ import scalaz.zio.delay.Delay
 import scalaz.zio.delay.Delay._
 import scalaz.zio.delay._
 import scalaz.zio.duration.Duration
-import scalaz.zio.random.{Random, nextDouble}
+import scalaz.zio.random.{ nextDouble, Random }
 
 import scala.annotation.implicitNotFound
 
@@ -575,7 +575,7 @@ trait Schedule_Functions extends Serializable {
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */
-  final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Delay]): ZSchedule[R, A, Delay] ={
+  final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Delay]): ZSchedule[R, A, Delay] = {
     val delayed = s.modifyDelay((b, d) => IO.succeed(b + d))
     delayed.reconsider((_, step) => step.copy(finish = () => step.delay))
   }
@@ -755,8 +755,7 @@ object ZSchedule extends Schedule_Functions {
       clock.nanoTime,
       (_, start) =>
         clock.nanoTime.map(
-          currentTime =>
-            Decision.cont(none, start, Duration.fromNanos(currentTime - start))
+          currentTime => Decision.cont(none, start, Duration.fromNanos(currentTime - start))
         )
     )
   }
