@@ -55,6 +55,10 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
           A negative s.c.d.Duration converts to Zero                           $dur1
           The infinite s.c.d.Duration converts to Infinity                     $dur2
           A positive s.c.d.Duration converts to a Finite                       $dur3
+        Check multiplication with finite durations:
+          Zero multiplied with zero                                            $mul0
+          Zero multiplied with one                                             $mul1
+          One second multiplied with 60                                        $mul2
      """
 
   def pos1 =
@@ -173,4 +177,13 @@ class DurationSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   def dur3 =
     Duration.fromScala(ScalaDuration(1L, TimeUnit.NANOSECONDS)) must_=== Duration.fromNanos(1L)
+
+  def mul0 =
+    Duration.Zero * 0 must_=== Duration.Zero
+
+  def mul1 =
+    Duration.Zero * 1 must_=== Duration.Zero
+
+  def mul2 =
+    Duration(1, TimeUnit.SECONDS) * 60 must_=== Duration(1, TimeUnit.MINUTES)
 }

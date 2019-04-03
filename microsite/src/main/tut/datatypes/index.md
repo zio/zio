@@ -18,6 +18,9 @@ ZIO contains a small number of data types that can help you solve complex proble
  - **[Ref](ref.html)** — `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
  - **[Schedule](schedule.html)** — A `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
  - **[Semaphore](semaphore.html)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
+
+Besides the core datatypes, the following datatypes can be found in ZIO streams library:
+
  - **[Sink](sink.html)** — A `Sink` is a consumer of values from a `Stream`, which may produces a value when it has consumed enough.
  - **[Stream](stream.html)** — A `Stream` is a lazy, concurrent, asynchronous source of values.
 
