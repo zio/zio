@@ -1522,6 +1522,25 @@ trait ZIOFunctions extends Serializable {
    * current fiber for this operation to return non-empty lists.
    */
   final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
+
+  def fromOptionM[A](uio: UIO[Option[A]]): IO[Unit, A] = uio.flatMap {
+    case Some(a) => ZIO.succeed(a)
+    case None    => ZIO.fail(())
+  }
+
+  final def fromEitherE[E, A](io: Either[E, A]): IO[E, A] =
+    effectTotal(io).flatMap(_.fold(ZIO.fail, ZIO.succeed))
+
+  def fromEitherM[E, A](io: IO[E, Either[E, A]]): IO[E, A] = io.foldM(ZIO.fail, ZIO.fromEitherE)
+
+  def fromOptionTask[A, E](ifEmpty: => E, onError: Throwable => E)(opt: Task[Option[A]]): IO[E, A] =
+    opt
+      .catchAll(err => ZIO.fail(onError(err)))
+      .flatMap {
+        case Some(x) => ZIO.succeed(x)
+        case None    => ZIO.fail(ifEmpty)
+      }
+
 }
 
 trait ZIO_E_Any extends ZIO_E_Throwable {
