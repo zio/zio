@@ -8,6 +8,7 @@ title:  "Schedule"
 
 ```tut:silent
 import scalaz.zio._
+import scalaz.zio.delay._
 ```
 
 Schedules allow you to define and compose flexible recurrence schedules, which can be used to repeat actions, or retry actions in the event of errors. Schedules are used in the following functions:
@@ -78,7 +79,7 @@ val jitteredExp = Schedule.exponential(10.milliseconds).jittered
 Modifies the delay of a schedule:
 
 ```tut:silent
-val boosted = Schedule.spaced(1.second).delayed(_ + 100.milliseconds)
+val boosted = Schedule.spaced(1.second).delayed(_ + 100.milliseconds.relative)
 ```
 
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy:
