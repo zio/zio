@@ -33,6 +33,7 @@ object Delay {
   final case class TimesFactor(l: Delay, factor: Double) extends Delay
   final case class Sum(l: Delay, r: Delay)               extends Delay
 
-  val none: Delay                     = Relative(Duration.Zero)
-  final def relative(delay: Duration) = Relative(delay)
+  val none: Delay                      = Relative(Duration.Zero)
+  final def relative(delay: Duration)  = Relative(delay)
+  final def absolute(instant: Instant) = Absolute(instant)
 }

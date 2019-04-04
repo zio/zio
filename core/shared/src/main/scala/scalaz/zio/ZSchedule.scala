@@ -16,11 +16,14 @@
 
 package scalaz.zio
 
+import java.time.temporal.ChronoField
+import java.time.{ Instant, LocalDate, LocalTime }
+import java.util.concurrent.TimeUnit
+
 import scalaz.zio.ZSchedule.Decision
 import scalaz.zio.clock.Clock
-import scalaz.zio.delay.Delay
 import scalaz.zio.delay.Delay._
-import scalaz.zio.delay._
+import scalaz.zio.delay.{ Delay, _ }
 import scalaz.zio.duration.Duration
 import scalaz.zio.random.{ nextDouble, Random }
 
@@ -798,4 +801,25 @@ object ZSchedule extends Schedule_Functions {
           }
       )
   }
+
+  final def atTime(minute: Int, hour: Int): ZSchedule[Clock, Unit, (Long, Long)] =
+    ZSchedule[Clock, Long, Unit, (Long, Long)](
+      initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => 0L),
+      update0 = (_, timesRan) =>
+        clock.currentTime(unit = TimeUnit.MILLISECONDS).map { now =>
+          val today        = LocalDate.now()
+          val scheduleTime = LocalTime.of(hour, minute)
+          val time         = LocalTime.now()
+
+          val scheduleMillis = today.toEpochDay * 24 * 60 * 60 * 1000 + scheduleTime.toNanoOfDay / 1000000
+
+          val delay =
+            if (time.get(ChronoField.HOUR_OF_DAY) <= hour && time.get(ChronoField.MINUTE_OF_HOUR) <= minute)
+              Instant.ofEpochMilli(scheduleMillis)
+            else
+              Instant.ofEpochMilli(scheduleMillis + 86400000)
+
+          Decision.cont(absolute(delay), timesRan + 1, (timesRan + 1, now))
+        }
+    )
 }

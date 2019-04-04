@@ -798,6 +798,62 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Schedule this effect using the given schedule.
+   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't or until it fails.
+   */
+  final def scheduled[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZIO[R1 with Clock, E, B] =
+    scheduleOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
+
+  /**
+   * Schedule this effect with the specified schedule, until it fails, and then both the
+   * value produced by the schedule together with the last error are passed to
+   * the recovery function.
+   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
+   */
+  final def scheduleOrElse[R1 <: R, E2, B](
+    schedule: ZSchedule[R1, Unit, B],
+    orElse: (E, Option[B]) => ZIO[R1, E2, B]
+  ): ZIO[R1 with Clock, E2, B] =
+    scheduleOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
+
+  /**
+   * Schedule this effect with the specified schedule, until it fails, and then both the
+   * value produced by the schedule together with the last error are passed to
+   * the recovery function.
+   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
+   */
+  final def scheduleOrElseEither[R1 <: R, B, E2, C](
+    schedule: ZSchedule[R1, Unit, B],
+    orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
+  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
+
+    def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
+      self.foldM(
+        e => orElse(e, last.map(_())).map(Left(_)),
+        _ =>
+          schedule
+            .update((), state)
+            .flatMap(
+              st =>
+                st.delay.run.flatMap { dl =>
+                  ZIO.succeed(st.state).delay(dl).flatMap(loop(last, _))
+                }
+            )
+      )
+
+    schedule.initial.flatMap { initial =>
+      schedule
+        .update((), initial)
+        .flatMap(
+          st =>
+            st.delay.run.flatMap { dl =>
+              ZIO.succeed(st.state).delay(dl).flatMap(loop(None, _))
+            }
+        )
+    }
+  }
+
+  /**
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
   final def void: ZIO[R, E, Unit] = const(())
