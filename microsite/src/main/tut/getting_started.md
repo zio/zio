@@ -14,6 +14,13 @@ if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeR
 println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
 ```
 
+In case you want to have ZIO streams at your disposal, the following dependency has to be included:
+
+```tut:evaluated
+if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
+println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio-streams" % "${scalaz.zio.BuildInfo.version}"""")
+```
+
 # Main
 
 Your application can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:

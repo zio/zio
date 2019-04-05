@@ -67,8 +67,12 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    *
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
    */
-  final def acquireN(n: Long): UIO[Unit] =
-    assertNonNegative(n) *> IO.bracketExit(prepare(n))(cleanup)(_.awaitAcquire)
+  final def acquireN(n: Long): UIO[Unit] = {
+    // TODO: Dotty doesn't infer this properly
+    val i0: ZIO.BracketExitRelease[Any, Nothing, Nothing, Acquisition, Unit] = IO.bracketExit(prepare(n))(cleanup)
+    val i1: UIO[Unit]                                                        = i0(_.awaitAcquire)
+    assertNonNegative(n) *> i1
+  }
 
   /**
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)

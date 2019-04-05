@@ -23,6 +23,12 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
             `succeeded`                                           $e9
             `failed`                                              $e10
             `interrupted`.                                         $e11
+
+        Make a Promise and expect it's `isDone` value to
+          be `false` before it is completed                     $e12
+          be `true` after it has been completed
+            with a value                                        $e13
+            with a failure                                      $e14
      """
 
   def e1 =
@@ -120,5 +126,31 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         attemptResult <- p.poll.get.flatMap(_.run)
       } yield attemptResult must_=== Exit.interrupt
     }
+
+  def e12 =
+    unsafeRun(
+      for {
+        p <- Promise.make[String, Int]
+        d <- p.isDone
+      } yield d must_== false
+    )
+
+  def e13 =
+    unsafeRun(
+      for {
+        p <- Promise.make[String, Int]
+        _ <- p.succeed(0)
+        d <- p.isDone
+      } yield d must_== true
+    )
+
+  def e14 =
+    unsafeRun(
+      for {
+        p <- Promise.make[String, Int]
+        _ <- p.fail("failure")
+        d <- p.isDone
+      } yield d must_== true
+    )
 
 }

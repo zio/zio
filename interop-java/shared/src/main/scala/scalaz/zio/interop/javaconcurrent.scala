@@ -25,22 +25,20 @@ import scala.concurrent.ExecutionException
 
 object javaconcurrent {
 
-  implicit class IOObjJavaconcurrentOps(private val ioObj: IO.type) extends AnyVal {
+  implicit class IOObjJavaconcurrentOps(private val taskObj: Task.type) extends AnyVal {
 
     private def unsafeCompletionStageToIO[A](cs: CompletionStage[A]): Task[A] =
       IO.effectAsync { cb =>
         val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
-          if (v != null) {
-            cb(IO.succeed(v))
-          } else {
-            val io = t match {
-              case e: CompletionException =>
-                IO.fail(e.getCause)
-              case t: Throwable =>
-                IO.fail(t)
-            }
-            cb(io)
+          val io = t match {
+            case null =>
+              IO.succeed(v)
+            case e: CompletionException =>
+              IO.fail(e.getCause)
+            case t: Throwable =>
+              IO.fail(t)
           }
+          cb(io)
         }
       }
 
@@ -95,7 +93,7 @@ object javaconcurrent {
       new Fiber[Throwable, A] {
 
         def await: UIO[Exit[Throwable, A]] =
-          IO.fromFutureJava(() => ftr).fold(Exit.fail, Exit.succeed)
+          Task.fromFutureJava(() => ftr).fold(Exit.fail, Exit.succeed)
 
         def poll: UIO[Option[Exit[Throwable, A]]] =
           IO.suspend {

@@ -6,9 +6,9 @@ title:  "Scalaz 7.x"
 
 # {{page.title}}
 
-### `IO` Instances
+### `ZIO` Instances
 
-If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `IO` instances for several typeclasses, check out [the source code](shared/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.
+If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `ZIO` instances for several typeclasses, check out [the source code](shared/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.
 
 #### Example
 
@@ -16,27 +16,29 @@ If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `IO` instance
 import scalaz._, Scalaz._
 import scalaz.zio.interop.scalaz72._
 
-def findUser(id: UserId): IO[UserError, User] = ...
-def findUsers(ids: IList[UserId]): IO[UserError, IList[User]] = ids.traverse(findUser)
+type Database = IList[User]
+
+def findUser(id: UserId): ZIO[Database, UserError, User] = ...
+def findUsers(ids: IList[UserId]): ZIO[Database, UserError, IList[User]] = ids.traverse(findUser(_))
 ```
 
-### `IO` parallel `Applicative` instance
+### `ZIO` parallel `Applicative` instance
 
-Due to `Applicative` and `Monad` coherence law `IO`'s `Applicative` instance has to be implemented in terms of `bind` hence when composing multiple effects using `Applicative` they will be sequenced. To cope with that limitation `IO` tagged with `Parallel` has an `Applicative` instance which is not `Monad` and operates in parallel.
+Due to `Applicative` and `Monad` coherence law `ZIO`'s `Applicative` instance has to be implemented in terms of `bind` hence when composing multiple effects using `Applicative` they will be sequenced. To cope with that limitation `ZIO` tagged with `Parallel` has an `Applicative` instance which is not `Monad` and operates in parallel.
 
 #### Example
 
 ```scala
-import scalaz._, Scalaz._, Tags.Parallel
+import scalaz._, Scalaz._
 import scalaz.zio.interop.scalaz72._
 
 case class Dashboard(details: UserDetails, history: TransactionHistory)
 
-def getDetails(id: UserId): IO[UserError, UserDetails] = ...
-def getHistory(id: UserId): IO[UserError, TransactionHistory] = ...
+def getDetails(id: UserId): ZIO[Database, UserError, UserDetails] = ...
+def getHistory(id: UserId): ZIO[Database, UserError, TransactionHistory] = ...
 
-def buildDashboard(id: UserId): IO[UserError, Dashboard] =
+def buildDashboard(id: UserId): ZIO[Database, UserError, Dashboard] =
   Tag.unwrap(^(par(getDetails(id)), par(getHistory(id)))(Dashboard.apply))
 
-def par[E, A](io: IO[E, A]): IO[E, A] @@ Parallel = Tag(io)
+def par[R, E, A](io: ZIO[R, E, A]): scalaz72.ParIO[R, E, A] = Tag(io)
 ```

@@ -62,7 +62,7 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
   def asJava: JavaDuration
 }
 
-final object Duration {
+object Duration {
 
   object Finite {
 
@@ -83,7 +83,7 @@ final object Duration {
     }
 
     final def *(factor: Double): Duration =
-      if (factor < 0) Zero
+      if (factor <= 0 || nanos <= 0) Zero
       else if (factor < 1) Finite((nanos * factor).round)
       else if (factor < Long.MaxValue / nanos) Finite((nanos * factor).round)
       else Infinity
@@ -106,7 +106,7 @@ final object Duration {
     override def asJava: JavaDuration = JavaDuration.ofNanos(nanos)
   }
 
-  final case object Infinity extends Duration {
+  case object Infinity extends Duration {
 
     final def +(other: Duration): Duration = Infinity
 

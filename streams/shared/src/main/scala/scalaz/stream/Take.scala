@@ -56,7 +56,7 @@ sealed trait Take[+E, +A] { self =>
 object Take {
   final case class Fail[E](value: E)  extends Take[E, Nothing]
   final case class Value[A](value: A) extends Take[Nothing, A]
-  final case object End               extends Take[Nothing, Nothing]
+  case object End                     extends Take[Nothing, Nothing]
 
   final def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
     io.flatMap {

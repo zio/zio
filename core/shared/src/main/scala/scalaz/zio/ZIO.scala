@@ -21,8 +21,8 @@ import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.{ Executor, Platform }
 
-import scala.concurrent.ExecutionContext
 import scala.annotation.switch
+import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
 /**
@@ -302,7 +302,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * This method can be used to "flatten" nested effects.
    **/
   final def flatten[R1 <: R, E1 >: E, B](implicit ev1: A <:< ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    self.flatMap(a => a)
+    self.flatMap(a => ev1(a))
 
   /**
    * Returns an effect with its error channel mapped using the specified
@@ -387,13 +387,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * `ZIO`. The inverse operation of `ZIO.either`.
    */
   final def absolve[R1 <: R, E1, B](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, E1, Either[E1, B]]): ZIO[R1, E1, B] =
-    ZIO.absolve[R1, E1, B](self)
+    ZIO.absolve[R1, E1, B](ev1(self))
 
   /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
-    ZIO.absolve(self.mapError(ev1).map(_.toRight(())))
+    ZIO.absolve(self.mapError(ev1).map(ev2(_).toRight(())))
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
@@ -508,6 +508,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )(_ => self)
 
   /**
+   * Enables supervision for this effect. This will cause fibers forked by
+   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
+   */
+  final def supervised: ZIO[R, E, A] = ZIO.supervised(self)
+
+  /**
    * Supervises this effect, which ensures that any fibers that are forked by
    * the effect are interrupted when this effect completes.
    */
@@ -597,6 +603,47 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def const[B](b: => B): ZIO[R, E, B] = self map (_ => b)
 
+  final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
+    for {
+      r1 <- ZIO.environment[R1]
+      r  <- that provide r1
+      a  <- self provide r
+    } yield a
+
+  final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
+
+  final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+    for {
+      r1 <- ZIO.environment[R]
+      r  <- self provide r1
+      a  <- that provide r
+    } yield a
+
+  final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
+    for {
+      either <- ZIO.environment[Either[R, R1]]
+      a1     <- either.fold(self.provide, that.provide)
+    } yield a1
+
+  final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
+
+  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
+    for {
+      e <- ZIO.environment[Either[R, R1]]
+      r <- e.fold(self.map(Left(_)) provide _, that.map(Right(_)) provide _)
+    } yield r
+
+  final def andThen[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+    self >>> that
+
+  final def first[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] = self &&& ZIO.identity[R1]
+
+  final def second[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] = ZIO.identity[R1] &&& self
+
+  final def left[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] = self +++ ZIO.identity[C]
+
+  final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] = ZIO.identity[C] +++ self
+
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
    */
@@ -630,8 +677,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */
-  final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+  final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self.zipWith(that)((a, b) => (a, b))
+
+  /**
+   * A named alias for `&&&`.
+   */
+  final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self &&& that
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -891,7 +944,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
-    ZIO.unsandbox(self)
+    ZIO.unsandbox(ev1(self))
 
   /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
@@ -998,7 +1051,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Accesses the whole environment of the effect.
    */
-  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(identity)
+  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(ZIO.identityFn[R])
 
   /**
    * Accesses the environment of the effect.
@@ -1034,7 +1087,7 @@ trait ZIOFunctions extends Serializable {
   final def runtime[R >: LowerR]: ZIO[R, Nothing, Runtime[R]] =
     for {
       environment <- environment[R]
-      platform    <- effectTotalWith(identity)
+      platform    <- effectTotalWith(ZIO.identityFn[Platform])
     } yield Runtime(environment, platform)
 
   /**
@@ -1125,6 +1178,13 @@ trait ZIOFunctions extends Serializable {
   }
 
   /**
+   * Enables supervision for this effect. This will cause fibers forked by
+   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
+   */
+  final def supervised[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.Supervised(zio)
+
+  /**
    * Returns an effect that supervises the specified effect, ensuring that all
    * fibers that it forks are interrupted as soon as the supervised effect
    * completes.
@@ -1139,15 +1199,16 @@ trait ZIOFunctions extends Serializable {
    */
   final def superviseWith[R >: LowerR, E <: UpperE, A](
     zio: ZIO[R, E, A]
-  )(supervisor: Iterable[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
-    new ZIO.Supervise(zio, supervisor)
+  )(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
+    zio.ensuring(children.flatMap(supervisor(_))).supervised
 
   /**
    * Returns an effect that first executes the outer effect, and then executes
    * the inner effect, returning the value from the inner effect, and effectively
    * flattening a nested effect.
    */
-  final def flatten[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] = zio.flatMap(a => a)
+  final def flatten[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] =
+    zio.flatMap(ZIO.identityFn[ZIO[R, E, A]])
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
@@ -1244,6 +1305,29 @@ trait ZIOFunctions extends Serializable {
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
   final def unsandbox[R >: LowerR, E <: UpperE, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
+
+  /**
+   * Returns the identity effectful function, which performs no effects
+   */
+  final def identity[R >: LowerR]: ZIO[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn[R])
+
+  /**
+   * Returns an effectful function that merely swaps the elements in a `Tuple2`.
+   */
+  final def swap[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, (B, A)] =
+    fromFunction[R, (B, A)](_.swap)
+
+  /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  final def _1[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, A] = fromFunction[R, A](_._1)
+
+  /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  final def _2[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
 
   /**
    * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
@@ -1408,14 +1492,14 @@ trait ZIOFunctions extends Serializable {
    * the results. For a parallel version, see `collectAllPar`.
    */
   final def collectAll[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreach[R, E, ZIO[R, E, A], A](in)(identity(_))
+    foreach[R, E, ZIO[R, E, A], A](in)(ZIO.identityFn)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
    * the results. For a sequential version, see `collectAll`.
    */
   final def collectAllPar[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachPar[R, E, ZIO[R, E, A], A](as)(identity(_))
+    foreachPar[R, E, ZIO[R, E, A], A](as)(ZIO.identityFn)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
@@ -1424,7 +1508,7 @@ trait ZIOFunctions extends Serializable {
    * Unlike `foreachAllPar`, this method will use at most `n` fibers.
    */
   final def collectAllParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(identity(_))
+    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -1501,6 +1585,14 @@ trait ZIOFunctions extends Serializable {
    * Returns information about the current fiber, such as its fiber identity.
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.Descriptor
+
+  /**
+   * Provides access to the list of child fibers supervised by this fiber.
+   *
+   * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
+   * current fiber for this operation to return non-empty lists.
+   */
+  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
 }
 
 trait ZIO_E_Any extends ZIO_E_Throwable {
@@ -1587,6 +1679,7 @@ object Task extends ZIO_E_Throwable {
 }
 object TaskR extends ZIO_E_Throwable {
   type UpperE = Throwable
+  type LowerR = Nothing
 
   def apply[A](a: => A): Task[A] = effect(a)
 }
@@ -1599,6 +1692,9 @@ object UIO extends ZIOFunctions {
 
 object ZIO extends ZIO_R_Any {
   def apply[A](a: => A): Task[A] = effect(a)
+
+  private val _IdentityFn: Any => Any    = (a: Any) => a
+  private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
   implicit class ZIOInvariant[R, E, A](val self: ZIO[R, E, A]) extends AnyVal {
     final def bracket: ZIO.BracketAcquire[R, E, A] =
@@ -1671,7 +1767,7 @@ object ZIO extends ZIO_R_Any {
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
     a => succeed[Either[Any, Any]](Right(a))
 
-  final object Tags {
+  object Tags {
     final val FlatMap         = 0
     final val Succeed         = 1
     final val Effect          = 2
@@ -1680,7 +1776,7 @@ object ZIO extends ZIO_R_Any {
     final val Fold            = 5
     final val Fork            = 6
     final val Uninterruptible = 7
-    final val Supervise       = 8
+    final val Supervised      = 8
     final val Ensuring        = 9
     final val Descriptor      = 10
     final val Lock            = 11
@@ -1724,11 +1820,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Uninterruptible
   }
 
-  final class Supervise[R, E, A](
-    val value: ZIO[R, E, A],
-    val supervisor: Iterable[Fiber[_, _]] => UIO[_]
-  ) extends ZIO[R, E, A] {
-    override def tag = Tags.Supervise
+  final class Supervised[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.Supervised
   }
 
   final class Fail[E](val cause: Cause[E]) extends IO[E, Nothing] {
@@ -1739,7 +1832,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Ensuring
   }
 
-  final object Descriptor extends UIO[Fiber.Descriptor] {
+  object Descriptor extends UIO[Fiber.Descriptor] {
     override def tag = Tags.Descriptor
   }
 
@@ -1747,7 +1840,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Lock
   }
 
-  final object Yield extends UIO[Unit] {
+  object Yield extends UIO[Unit] {
     override def tag = Tags.Yield
   }
 

@@ -1,7 +1,6 @@
 package scalaz.zio.internal
 
 import org.openjdk.jcstress.annotations._
-import org.openjdk.jcstress.annotations.Expect._
 import org.openjdk.jcstress.infra.results.{ IIII_Result, II_Result, I_Result }
 
 import scalaz.zio.internal.impls.OneElementConcurrentQueue
@@ -14,8 +13,8 @@ object OneElementConcurrentQueueConcurrencyTests {
   @JCStressTest
   @Outcome.Outcomes(
     Array(
-      new Outcome(id = Array("1"), expect = ACCEPTABLE),
-      new Outcome(id = Array("2"), expect = ACCEPTABLE)
+      new Outcome(id = Array("1"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("2"), expect = Expect.ACCEPTABLE)
     )
   )
   @State
@@ -49,9 +48,9 @@ object OneElementConcurrentQueueConcurrencyTests {
   @JCStressTest
   @Outcome.Outcomes(
     Array(
-      new Outcome(id = Array("1, 1"), expect = ACCEPTABLE),
-      new Outcome(id = Array("2, 2"), expect = ACCEPTABLE),
-      new Outcome(id = Array("3, 3"), expect = ACCEPTABLE)
+      new Outcome(id = Array("1, 1"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("2, 2"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("3, 3"), expect = Expect.ACCEPTABLE)
     )
   )
   @State
@@ -100,17 +99,17 @@ object OneElementConcurrentQueueConcurrencyTests {
     Array(
       new Outcome(
         id = Array("-10, -20"),
-        expect = ACCEPTABLE,
+        expect = Expect.ACCEPTABLE,
         desc = "Both pollers finish before offer starts"
       ),
       new Outcome(
         id = Array("1, -20"),
-        expect = ACCEPTABLE,
+        expect = Expect.ACCEPTABLE,
         desc = "First poller polls offered value"
       ),
       new Outcome(
         id = Array("-10, 1"),
-        expect = ACCEPTABLE,
+        expect = Expect.ACCEPTABLE,
         desc = "Second poller polls offered value"
       )
     )
@@ -150,21 +149,21 @@ object OneElementConcurrentQueueConcurrencyTests {
   @Outcome.Outcomes(
     Array(
       // Both pollers finish before any offer
-      new Outcome(id = Array("1, -2, -3, -4"), expect = ACCEPTABLE),
-      new Outcome(id = Array("-1, 2, -3, -4"), expect = ACCEPTABLE),
+      new Outcome(id = Array("1, -2, -3, -4"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("-1, 2, -3, -4"), expect = Expect.ACCEPTABLE),
       // Only first poller succeeds
-      new Outcome(id = Array("1, -2, 1, -4"), expect = ACCEPTABLE),
-      new Outcome(id = Array("1, 2, 1, -4"), expect = ACCEPTABLE),
-      new Outcome(id = Array("-1, 2, 2, -4"), expect = ACCEPTABLE),
-      new Outcome(id = Array("1, 2, 2, -4"), expect = ACCEPTABLE),
+      new Outcome(id = Array("1, -2, 1, -4"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("1, 2, 1, -4"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("-1, 2, 2, -4"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("1, 2, 2, -4"), expect = Expect.ACCEPTABLE),
       // Only second poller succeeds
-      new Outcome(id = Array("1, -2, -3, 1"), expect = ACCEPTABLE),
-      new Outcome(id = Array("1, 2, -3, 1"), expect = ACCEPTABLE),
-      new Outcome(id = Array("-1, 2, -3, 2"), expect = ACCEPTABLE),
-      new Outcome(id = Array("1, 2, -3, 2"), expect = ACCEPTABLE),
+      new Outcome(id = Array("1, -2, -3, 1"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("1, 2, -3, 1"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("-1, 2, -3, 2"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("1, 2, -3, 2"), expect = Expect.ACCEPTABLE),
       // Both pollers succeed
-      new Outcome(id = Array("1, 2, 1, 2"), expect = ACCEPTABLE),
-      new Outcome(id = Array("1, 2, 2, 1"), expect = ACCEPTABLE)
+      new Outcome(id = Array("1, 2, 1, 2"), expect = Expect.ACCEPTABLE),
+      new Outcome(id = Array("1, 2, 2, 1"), expect = Expect.ACCEPTABLE)
     )
   )
   @State
