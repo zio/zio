@@ -474,7 +474,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
         failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
       } yield
-        (rightV must_=== Right(42)) and (leftV1 must_=== Left(1)) and (leftV2 must_=== Left(2)) and (failedV must_=== Left(
+        (rightV must beRight(42)) and (leftV1 must beLeft(1)) and (leftV2 must beLeft(2)) and (failedV must beLeft(
           -2
         ))
     )
@@ -574,7 +574,7 @@ object Examples {
     def release(mutex: Mutex): UIO[Unit] =
       mutex.set(false).commit.void
     def withMutex[R, E, A](mutex: Mutex)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      acquire(mutex).bracket_(release(mutex))(zio)
+      acquire(mutex).bracket_[R, E].apply[R](release(mutex))[R, E, A](zio)
   }
   object semaphore {
     type Semaphore = TRef[Int]
