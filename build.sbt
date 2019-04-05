@@ -148,6 +148,27 @@ lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
 
+lazy val testRunner = crossProject(JVMPlatform)
+  .in(file("test-sbt"))
+  .settings(stdSettings("zio-test-sbt"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.scala-sbt" % "test-interface" % "1.0",
+      "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
+    )
+  )
+  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(coreTests % "test->test;compile->compile")
+
+lazy val testRunnerJVM = testRunner.jvm
+
+lazy val testRunnerTesting = crossProject(JVMPlatform)
+  .in(file("test-sbt-testing"))
+  .settings(stdSettings("zio-test-sbt-testing"))
+  .settings(testFrameworks += new TestFramework("scalaz.zio.testkit.runner.TestFramework"))
+  .dependsOn(testRunner % "test->test;compile->compile")
+
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
   .enablePlugins(JmhPlugin)
