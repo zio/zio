@@ -16,7 +16,7 @@
 
 package scalaz.zio.stm
 
-class TSemaphore private (total: Long, permits: TRef[Long]) {
+class TSemaphore private (permits: TRef[Long]) {
   final def acquire: STM[Nothing, Unit] = acquireN(1L)
 
   final def acquireN(n: Long): STM[Nothing, Unit] =
@@ -28,8 +28,6 @@ class TSemaphore private (total: Long, permits: TRef[Long]) {
     } yield ())
 
   final def available: STM[Nothing, Long] = permits.get
-
-  final def count: STM[Nothing, Long] = STM.succeed(total)
 
   final def release: STM[Nothing, Unit] = releaseN(1L)
 
@@ -47,5 +45,5 @@ class TSemaphore private (total: Long, permits: TRef[Long]) {
 
 object TSemaphore {
   final def make(n: Long): STM[Nothing, TSemaphore] =
-    TRef.make(n).map(v => new TSemaphore(n, v))
+    TRef.make(n).map(v => new TSemaphore(v))
 }
