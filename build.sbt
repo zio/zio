@@ -34,6 +34,8 @@ lazy val root = project
   .aggregate(
     coreJVM,
     coreJS,
+    streamsJVM,
+    streamsJS,
     interopSharedJVM,
     interopSharedJS,
     interopCatsJVM,
@@ -66,8 +68,31 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
 
 lazy val coreJVM = core.jvm
   .configure(_.enablePlugins(JCStressPlugin))
-  .settings(replSettings)
+  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
+  .settings(
+    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
+    sources in (Compile, doc) := {
+      val old = (Compile / doc / sources).value
+      if (isDotty.value) {
+        Nil
+      } else {
+        old
+      }
+    }
+  )
+
 lazy val coreJS = core.js
+
+lazy val streams = crossProject(JSPlatform, JVMPlatform)
+  .in(file("streams"))
+  .settings(stdSettings("zio-streams"))
+  .settings(buildInfoSettings)
+  .enablePlugins(BuildInfoPlugin)
+  .dependsOn(core % "test->test;compile->compile")
+
+lazy val streamsJVM = streams.jvm
+
+lazy val streamsJS = streams.js
 
 lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-shared"))
@@ -82,8 +107,9 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio-interop-cats"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional,
-      "co.fs2"        %%% "fs2-core"    % "1.0.3" % Test
+      "org.typelevel" %%% "cats-effect"   % "1.2.0" % Optional,
+      "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
+      "co.fs2"        %%% "fs2-core"      % "1.0.3" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -128,6 +154,7 @@ lazy val interopCatsJVM = interopCats.jvm
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"                                                 % "1.2.0"                              % Test,
       "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
+      "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
     ),
     dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test
@@ -190,7 +217,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
       "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
   )
-  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(streams % "test->test;compile->compile")
 
 lazy val interopReactiveStreamsJVM = interopReactiveStreams.jvm.dependsOn(interopSharedJVM)
 
@@ -202,7 +229,7 @@ lazy val testkit = crossProject(JVMPlatform)
 lazy val testkitJVM = testkit.jvm
 
 lazy val benchmarks = project.module
-  .dependsOn(coreJVM)
+  .dependsOn(coreJVM, streamsJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
