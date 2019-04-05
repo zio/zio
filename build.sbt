@@ -239,6 +239,9 @@ lazy val interopTwitterJVM = interopTwitter.jvm.dependsOn(interopSharedJVM)
 lazy val testkit = crossProject(JVMPlatform)
   .in(file("testkit"))
   .settings(stdSettings("zio-testkit"))
+  .settings(
+    libraryDependencies += "org.scala-sbt" % "test-interface" % "1.0"
+  )
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val testkitJVM = testkit.jvm
