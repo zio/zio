@@ -19,12 +19,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import ArbitraryChunk._
 
   def is = "StreamSpec".title ^ s2"""
-  PureStream.filter         $filter
-  PureStream.dropWhile      $dropWhile
-  PureStream.mapProp        $map
-  PureStream.mapConcat      $mapConcat
+  Stream.filter             $filter
+  Stream.dropWhile          $dropWhile
+  Stream.map                $map
+  Stream.mapConcat          $mapConcat
   Stream.filterM            $filterM
-  Stream.scan               $mapAccum
+  Stream.mapAccum           $mapAccum
   Stream.++                 $concat
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
@@ -44,7 +44,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.foreach            $foreach
   Stream.collect            $collect
   Stream.forever            $forever
-  Stream.scanM              $mapAccumM
+  Stream.mapAccumM          $mapAccumM
   Stream.transduce
     transduces              $transduce
     no remainder            $transduceNoRemainder
@@ -96,22 +96,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import Stream.ConformsAnyProof
 
   private def filter =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))
     }
 
   private def filterM =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       slurp(s.filterM(s => IO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
     }
 
   private def dropWhile =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       slurp(s.dropWhile(p)) must_=== slurp(s).map(_.dropWhile(p))
     }
 
   private def takeWhile =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       val streamTakeWhile = slurp(s.takeWhile(p))
       val listTakeWhile   = slurp(s).map(_.takeWhile(p))
       listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
@@ -143,12 +143,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     )
 
   private def map =
-    prop { (s: Stream[String, String], f: String => Int) =>
+    prop { (s: Stream[String, Byte], f: Byte => Int) =>
       slurp(s.map(f)) must_=== slurp(s).map(_.map(f))
     }
 
   private def concat =
-    prop { (s1: Stream[String, String], s2: Stream[String, String]) =>
+    prop { (s1: Stream[String, Byte], s2: Stream[String, Byte]) =>
       val listConcat = (slurp(s1) zip slurp(s2)).map {
         case (left, right) => left ++ right
       }
@@ -158,7 +158,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mapConcat = {
     import ArbitraryChunk._
-    prop { (s: Stream[String, String], f: String => Chunk[Int]) =>
+    prop { (s: Stream[String, Byte], f: Byte => Chunk[Int]) =>
       slurp(s.mapConcat(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
     }
   }
@@ -189,7 +189,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def take =
-    prop { (s: Stream[String, String], n: Int) =>
+    prop { (s: Stream[String, Byte], n: Int) =>
       val takeStreamesult = slurp(s.take(n))
       val takeListResult  = slurp(s).map(_.take(n))
       (takeListResult.succeeded ==> (takeStreamesult must_=== takeListResult))
@@ -406,7 +406,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def zipWithIndex =
-    prop((s: Stream[String, String]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
+    prop((s: Stream[String, Byte]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
 
   private def zipWithIgnoreRhs = {
     val s1     = Stream(1, 2, 3)
