@@ -229,7 +229,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         ref1  <- Ref.make(10000)
         ref2  <- Ref.make(0)
         ref3  <- Ref.make(0)
-        fiber <- ZIO.forkAll(List.fill(10)(compute3RefN(99, ref1, ref2, ref3)))
+        fiber <- ZIO.forkAll(List.fill(100)(compute3RefN(99, ref1, ref2, ref3)))
         _     <- fiber.join
         v3    <- ref3.get
       } yield v3 must_!== 10000
