@@ -14,7 +14,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     with GenIO
     with ScalaCheck {
 
-  override val DefaultTimeout = 20.seconds
+  override val DefaultTimeout = 60.seconds
 
   import ArbitraryChunk._
 
