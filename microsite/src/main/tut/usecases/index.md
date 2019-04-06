@@ -1,6 +1,6 @@
 ---
 layout: docs
-position: 6
+position: 7
 section: usecases
 title:  "Use Cases"
 ---

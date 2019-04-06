@@ -1,6 +1,6 @@
 ---
 layout: docs
-position: 4
+position: 5
 section: datatypes
 title:  "Data Types"
 ---
