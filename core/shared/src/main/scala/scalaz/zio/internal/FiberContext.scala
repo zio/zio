@@ -55,9 +55,9 @@ private[zio] final class FiberContext[E, A](
 
   private class Finalizer(val finalizer: UIO[_]) extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
-      noInterrupt += 1
+      noInterrupt += 2
 
-      finalizer.flatMap(_ => IO.effectTotal { noInterrupt -= 1; v })
+      finalizer.flatMap(_ => IO.effectTotal { noInterrupt -= 2; v })
     }
   }
 
@@ -210,9 +210,9 @@ private[zio] final class FiberContext[E, A](
                   curIo = nextInstr(value)
 
                 case ZIO.Tags.Uninterruptible =>
-                  val io = curIo.asInstanceOf[ZIO.Uninterruptible[Any, E, Any]]
+                  val io = curIo.asInstanceOf[ZIO.Uninterruptible[Any, Any, E, Any]]
 
-                  curIo = doNotInterrupt(io.zio)
+                  curIo = enterUninterruptible(io.zio)
 
                 case ZIO.Tags.Supervised =>
                   val io = curIo.asInstanceOf[ZIO.Supervised[Any, E, Any]]
@@ -234,7 +234,7 @@ private[zio] final class FiberContext[E, A](
                     } else {
                       // We have finalizers to run. We'll resume executing with the
                       // uncaught failure after we have executed all the finalizers:
-                      curIo = doNotInterrupt(finalizer).flatMap(
+                      curIo = enterFinalizer(finalizer).flatMap(
                         cause => IO.halt(Option.option2Iterable(cause).foldLeft(io.cause)(_ ++ _))
                       )
                     }
@@ -244,7 +244,7 @@ private[zio] final class FiberContext[E, A](
                     if (finalizer eq null) {
                       curIo = nextInstr(io.cause)
                     } else {
-                      curIo = doNotInterrupt(finalizer).map(Option.option2Iterable(_).foldLeft(io.cause)(_ ++ _))
+                      curIo = enterFinalizer(finalizer).map(Option.option2Iterable(_).foldLeft(io.cause)(_ ++ _))
                     }
                   }
 
@@ -279,6 +279,11 @@ private[zio] final class FiberContext[E, A](
                   environment = io.r :: environment
 
                   curIo = io.next.ensuring(ZIO.succeedLazy { environment = environment.drop(1) })
+
+                case ZIO.Tags.Interruptible =>
+                  val io = curIo.asInstanceOf[ZIO.Interruptible[Any, E, Any]]
+
+                  curIo = enterInterruptible(io.zio)
               }
             }
           } else {
@@ -435,9 +440,27 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final val exitUninterruptible: UIO[Unit] = IO.effectTotal { noInterrupt -= 1 }
 
-  private[this] final def doNotInterrupt[E, A](io: IO[E, A]): IO[E, A] = {
-    this.noInterrupt += 1
+  private[this] final def enterUninterruptible[E, A](io: IO[E, A]): IO[E, A] = {
+    noInterrupt += 1
     io.ensuring(exitUninterruptible)
+  }
+
+  private[this] final val exitInterruptible: UIO[Unit] = IO.effectTotal { noInterrupt += 1 }
+
+  private[this] final def enterInterruptible[E, A](io: IO[E, A]): IO[E, A] =
+    if (noInterrupt == 1) {
+      noInterrupt -= 1
+      stack.push(new Finalizer(exitInterruptible))
+      io
+    } else {
+      io
+    }
+
+  private[this] final val exitFinalizer: UIO[Unit] = IO.effectTotal { noInterrupt -= 2 }
+
+  private[this] final def enterFinalizer[E, A](io: IO[E, A]): IO[E, A] = {
+    noInterrupt += 2
+    io.ensuring(exitFinalizer)
   }
 
   @tailrec
@@ -450,7 +473,7 @@ private[zio] final class FiberContext[E, A](
           terminate(io)
         else {
           // Interruption cannot be interrupted:
-          noInterrupt += 1
+          noInterrupt += 2
           io
         }
 
@@ -494,7 +517,7 @@ private[zio] final class FiberContext[E, A](
         if (!state.compareAndSet(oldState, Executing(true, true, FiberStatus.Running, observers))) kill0(k)
         else {
           // Interruption may not be interrupted:
-          noInterrupt += 1
+          noInterrupt += 2
 
           evaluateLater(IO.interrupt)
 

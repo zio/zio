@@ -244,17 +244,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       ZIO.flatten(race.modify((c: Int) => (if (c > 0) ZIO.unit else f(res, loser).to(done).void) -> (c + 1)))
 
     for {
-      done  <- Promise.make[E2, C]
-      race  <- Ref.make[Int](0)
-      child <- Ref.make[UIO[Any]](ZIO.unit)
-      c <- ((for {
-            left  <- self.fork.tap(f => child update (_ *> f.interrupt))
-            right <- that.fork.tap(f => child update (_ *> f.interrupt))
-            _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
-            _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
-          } yield ()).uninterruptible *> done.await).onInterrupt(
-            ZIO.flatten(child.get)
-          )
+      done <- Promise.make[E2, C]
+      race <- Ref.make[Int](0)
+      c <- ZIO.uninterruptible {
+            for {
+              left  <- self.fork
+              right <- that.fork
+              _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
+              _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
+              c     <- done.await.interruptible.onInterrupt(left.interrupt *> right.interrupt)
+            } yield c
+          }
     } yield c
   }
 
@@ -531,7 +531,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * being terminated externally, but the effect may fail for internal reasons
    * (e.g. an uncaught error) or terminate due to defect.
    */
-  final def uninterruptible: ZIO[R, E, A] = new ZIO.Uninterruptible(self)
+  final def uninterruptible: ZIO[R, E, A] = new ZIO.Uninterruptible[R, R, E, A](self)
+
+  /**
+   * Performs this effect with the topmost `uninterruptible` layer peeled off.
+   */
+  final def interruptible: ZIO[R with InsideUninterruptible, E, A] = new ZIO.Interruptible(self)
 
   /**
    * Recovers from all errors.
@@ -1203,6 +1208,20 @@ trait ZIOFunctions extends Serializable {
     zio.ensuring(children.flatMap(supervisor(_))).supervised
 
   /**
+   * Returns an effect that performs the specified effect non-interruptibly.
+   * This will prevent the effect from being terminated externally, but the
+   * effect may fail for internal reasons (e.g. an uncaught error) or terminate
+   * due to defect.
+   *
+   * The effect is provided with `InsideUninterruptible` environment, which is
+   * required to use `interruptible`.
+   */
+  final def uninterruptible[R >: LowerR, R1 >: R with InsideUninterruptible, E <: UpperE, A](
+    zio: ZIO[R1, E, A]
+  ): ZIO[R, E, A] =
+    new ZIO.Uninterruptible(zio)
+
+  /**
    * Returns an effect that first executes the outer effect, and then executes
    * the inner effect, returning the value from the inner effect, and effectively
    * flattening a nested effect.
@@ -1249,15 +1268,13 @@ trait ZIOFunctions extends Serializable {
    */
   final def effectAsyncM[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
     for {
-      p   <- Promise.make[E, A]
-      ref <- Ref.make[UIO[Any]](ZIO.unit)
-      a <- (for {
-            r <- ZIO.runtime[Any]
-            _ <- register(k => r.unsafeRunAsync_(k.to(p))).fork
-                  .tap(f => ref.set(f.interrupt))
-                  .uninterruptible
-            a <- p.await
-          } yield a).onInterrupt(flatten(ref.get))
+      p <- Promise.make[E, A]
+      r <- ZIO.runtime[Any]
+      a <- ZIO.uninterruptible {
+            register(k => r.unsafeRunAsync_(k.to(p))).fork.flatMap { f =>
+              p.await.interruptible.onInterrupt(f.interrupt)
+            }
+          }
     } yield a
 
   /**
@@ -1411,13 +1428,10 @@ trait ZIOFunctions extends Serializable {
     release: A => ZIO[R, Nothing, _],
     use: A => ZIO[R, E, B]
   ): ZIO[R, E, B] =
-    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-      (for {
-        r <- environment[R]
-        a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
-        b <- use(a)
-      } yield b).ensuring(flatten(m.get))
-    }
+    for {
+      r <- environment[R]
+      b <- ZIO.uninterruptible(acquire.flatMap(a => use(a).interruptible.ensuring(release(a).provide(r))))
+    } yield b
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
@@ -1439,15 +1453,16 @@ trait ZIOFunctions extends Serializable {
     release: (A, Exit[E1, B]) => ZIO[R, Nothing, _],
     use: A => ZIO[R, E2, B]
   ): ZIO[R, E2, B] =
-    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-      (for {
-        r <- environment[R]
-        f <- acquire
-              .flatMap(a => use(a).fork.tap(f => m.set(f.interrupt.flatMap(release(a, _).provide(r)))))
-              .uninterruptible
-        b <- f.join
-      } yield b).ensuring(flatten(m.get))
-    }
+    for {
+      r <- environment[R]
+      b <- ZIO.uninterruptible {
+            acquire.flatMap { a =>
+              use(a).fork.flatMap { f =>
+                f.join.interruptible.ensuring(f.interrupt.flatMap(release(a, _).provide(r)))
+              }
+            }
+          }
+    } yield b
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1783,6 +1798,7 @@ object ZIO extends ZIO_R_Any {
     final val Yield           = 12
     final val Access          = 13
     final val Provide         = 14
+    final val Interruptible   = 15
   }
   final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.FlatMap
@@ -1816,7 +1832,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Fork
   }
 
-  final class Uninterruptible[R, E, A](val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
+  final class Uninterruptible[R, R1 >: R with InsideUninterruptible, E, A](val zio: ZIO[R1, E, A])
+      extends ZIO[R, E, A] {
     override def tag = Tags.Uninterruptible
   }
 
@@ -1850,5 +1867,9 @@ object ZIO extends ZIO_R_Any {
 
   final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
     override def tag = Tags.Provide
+  }
+
+  final class Interruptible[R, E, A](val zio: ZIO[R, E, A]) extends ZIO[R with InsideUninterruptible, E, A] {
+    override def tag = Tags.Interruptible
   }
 }
