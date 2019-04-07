@@ -5,7 +5,6 @@ import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import scalaz.zio._
 
-import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
@@ -13,8 +12,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     with StreamTestUtils
     with GenIO
     with ScalaCheck {
-
-  override val DefaultTimeout = 20.seconds
 
   import ArbitraryChunk._
 
