@@ -1,7 +1,6 @@
 ---
-layout: home
-position: 2
-section: home
+layout: docs
+section: overview
 title:  "Background"
 ---
 

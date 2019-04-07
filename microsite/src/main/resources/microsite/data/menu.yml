@@ -19,6 +19,8 @@ options:
       url: overview/testing_effects.html
     - title: Running Effects
       url: overview/running_effects.html
+    - title: Background
+      url: overview/background.html
 
   - title: Data Types
     url: datatypes/
