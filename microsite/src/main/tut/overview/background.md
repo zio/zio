@@ -3,7 +3,6 @@ layout: docs
 section: overview
 title:  "Background"
 ---
-
 # {{page.title}}
 
 Non-functional Scala programs use _procedural functions_, which are:

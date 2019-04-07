@@ -1,6 +1,6 @@
 ---
 layout: home
-position: 3
+position: 2
 section: home
 title:  "Getting Started"
 ---

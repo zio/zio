@@ -289,7 +289,7 @@ lazy val microsite = project.module
     micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
     micrositeDocumentationUrl := s"https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/${(version in Compile).value}",
     micrositeDocumentationLabelDescription := "Scaladoc",
-    micrositeBaseUrl := "", // DO NOT MERGE
+    micrositeBaseUrl := "/scalaz-zio",
     micrositePalette := Map(
       "brand-primary"   -> "#990000",
       "brand-secondary" -> "#000000",

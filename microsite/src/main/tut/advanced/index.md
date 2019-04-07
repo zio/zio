@@ -1,6 +1,6 @@
 ---
 layout: docs
-position: 8
+position: 7
 section: advanced
 title:  "Advanced"
 ---
