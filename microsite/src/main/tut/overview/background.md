@@ -114,7 +114,7 @@ When we wish to execute this program, we can call `interpret` on the `Console` v
 
 All purely functional programs are constructed this way: instead of interacting with the real world, they build a _functional effect_, which is nothing more than an immutable, type-safe, tree-like data structure. 
 
-Functional programmers use funtional effects to build complex, real world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.
+Functional programmers use functional effects to build complex, real world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.
 
 # Next Steps
 
