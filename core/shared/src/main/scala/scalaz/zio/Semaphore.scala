@@ -35,11 +35,6 @@ import scala.collection.immutable.{ Queue => IQueue }
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
   /**
-   * The total number of permits allocated to the semaphore.
-   */
-  final def count: UIO[Long] = state.get.map(count_)
-
-  /**
    * The number of permits currently available.
    */
   final def available: UIO[Long] = state.get.map {
@@ -127,11 +122,6 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 
     IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
 
-  }
-
-  private final def count_(state: State): Long = state match {
-    case Left(q)  => -(q.map(_._2).sum)
-    case Right(n) => n
   }
 
 }

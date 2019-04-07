@@ -65,7 +65,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(for {
       s       <- Semaphore.make(n)
       _       <- s.acquireN(2).timeout(1.milli).either
-      permits <- s.release *> clock.sleep(10.millis) *> s.count
+      permits <- s.release *> clock.sleep(10.millis) *> s.available
     } yield permits) must_=== 2
   }
 
@@ -77,7 +77,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(for {
       s       <- Semaphore.make(n)
       _       <- s.withPermit(s.release).timeout(1.milli).either
-      permits <- s.release *> clock.sleep(10.millis) *> s.count
+      permits <- s.release *> clock.sleep(10.millis) *> s.available
     } yield permits must_=== 1L)
   }
 
@@ -93,7 +93,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       releasesFiber <- releases(semaphore, permits).fork
       _             <- acquiresFiber.join
       _             <- releasesFiber.join
-      count         <- semaphore.count
+      count         <- semaphore.available
     } yield count must_=== 0)
   }
 
