@@ -367,10 +367,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testCatchAfterInterruption = {
     val io = for {
+      p <- Promise.make[Nothing, Unit]
       r <- Ref.make(Option.empty[Int])
-      f <- IO.never.ensuring {
+      f <- (p.succeed(()) *> IO.never).ensuring {
             (IO.unit *> IO.fail(1)).catchAll(e => r.set(Some(e)))
           }.fork
+      _ <- p.await
       x <- f.interrupt
       v <- r.get
     } yield (x, v)
@@ -380,10 +382,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testSandboxAfterInterruption = {
     val io = for {
+      p <- Promise.make[Nothing, Unit]
       r <- Ref.make(Option.empty[Boolean])
-      f <- IO.never.ensuring {
+      f <- (p.succeed(()) *> IO.never).ensuring {
             (IO.unit *> IO.interrupt).sandbox.catchAll(e => r.set(Some(e.interrupted)))
           }.fork
+      _ <- p.await
       x <- f.interrupt
       v <- r.get
     } yield (x, v)
