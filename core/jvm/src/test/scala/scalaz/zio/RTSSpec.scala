@@ -145,6 +145,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interruption of raced                   $testInterruptedOfRaceInterruptsContestents
     cancelation is guaranteed               $testCancelationIsGuaranteed
     interruption of unending bracket        $testInterruptionOfUnendingBracket
+    catch after interruption                $testCatchAfterInterruption
+    sandbox after interruption              $testSandboxAfterInterruption
 
   RTS environment
     provide is modular                      $testProvideIsModular
@@ -361,6 +363,32 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     }
 
     reported must_=== Exit.Failure(Die(ExampleError))
+  }
+
+  def testCatchAfterInterruption = {
+    val io = for {
+      r <- Ref.make(Option.empty[Int])
+      f <- IO.never.ensuring {
+            (IO.unit *> IO.fail(1)).catchAll(e => r.set(Some(e)))
+          }.fork
+      x <- f.interrupt
+      v <- r.get
+    } yield (x, v)
+
+    unsafeRun(io) must_== ((Exit.Failure(Exit.Cause.Interrupt), Some(1)))
+  }
+
+  def testSandboxAfterInterruption = {
+    val io = for {
+      r <- Ref.make(Option.empty[Boolean])
+      f <- IO.never.ensuring {
+            (IO.unit *> IO.interrupt).sandbox.catchAll(e => r.set(Some(e.interrupted)))
+          }.fork
+      x <- f.interrupt
+      v <- r.get
+    } yield (x, v)
+
+    unsafeRun(io) must_== ((Exit.Failure(Exit.Cause.Interrupt), Some(true)))
   }
 
   def testExitIsUsageResult =

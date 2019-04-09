@@ -38,11 +38,12 @@ private[zio] final class FiberContext[E, A](
   private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
 
   // Accessed from within a single thread (not necessarily the same):
-  @volatile private[this] var noInterrupt = 0
-  @volatile private[this] var supervised  = List.empty[Set[FiberContext[_, _]]]
-  @volatile private[this] var supervising = 0
-  @volatile private[this] var locked      = List.empty[Executor]
-  @volatile private[this] var environment = List[Any](())
+  @volatile private[this] var noInterrupt       = 0
+  @volatile private[this] var externalInterrupt = false
+  @volatile private[this] var supervised        = List.empty[Set[FiberContext[_, _]]]
+  @volatile private[this] var supervising       = 0
+  @volatile private[this] var locked            = List.empty[Executor]
+  @volatile private[this] var environment       = List[Any](())
 
   private[this] val fiberId = FiberContext.fiberCounter.getAndIncrement()
   private[this] val stack   = new Stack[Any => IO[Any, Any]]()
@@ -73,6 +74,8 @@ private[zio] final class FiberContext[E, A](
     var errorHandler: Any => IO[Any, Any]      = null
     var finalizer: UIO[Option[Cause[Nothing]]] = null
 
+    val allowRecovery = !externalInterrupt
+
     // Unwind the stack, looking for exception handlers and coalescing
     // finalizers.
     while ((errorHandler eq null) && !stack.isEmpty) {
@@ -96,6 +99,7 @@ private[zio] final class FiberContext[E, A](
     // and result in zero heap allocations for the happy path.
     if (errorHandler ne null) stack.push(errorHandler)
 
+    externalInterrupt = false
     finalizer
   }
 
@@ -283,6 +287,7 @@ private[zio] final class FiberContext[E, A](
             }
           } else {
             // Fiber was interrupted
+            externalInterrupt = true
             curIo = terminate(IO.interrupt)
           }
 
@@ -419,12 +424,6 @@ private[zio] final class FiberContext[E, A](
   private[this] final def shouldDie: Boolean = noInterrupt == 0 && state.get.interrupted
 
   @inline
-  private[this] final def allowRecovery: Boolean = {
-    val currentState = state.get
-    !currentState.interrupted || !currentState.terminating && noInterrupt != 0
-  }
-
-  @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
     if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]]
     else {
@@ -495,6 +494,7 @@ private[zio] final class FiberContext[E, A](
         else {
           // Interruption may not be interrupted:
           noInterrupt += 1
+          externalInterrupt = true
 
           evaluateLater(IO.interrupt)
 
