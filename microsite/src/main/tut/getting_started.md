@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: home
 position: 2
 section: home
 title:  "Getting Started"
@@ -12,6 +12,13 @@ Include ZIO in your project by adding the following to your `build.sbt` file:
 ```tut:evaluated
 if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
 println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
+```
+
+In case you want to have ZIO streams at your disposal, the following dependency has to be included:
+
+```tut:evaluated
+if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
+println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio-streams" % "${scalaz.zio.BuildInfo.version}"""")
 ```
 
 # Main

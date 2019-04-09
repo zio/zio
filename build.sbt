@@ -34,6 +34,8 @@ lazy val root = project
   .aggregate(
     coreJVM,
     coreJS,
+    streamsJVM,
+    streamsJS,
     interopSharedJVM,
     interopSharedJS,
     interopCatsJVM,
@@ -78,7 +80,19 @@ lazy val coreJVM = core.jvm
       }
     }
   )
+
 lazy val coreJS = core.js
+
+lazy val streams = crossProject(JSPlatform, JVMPlatform)
+  .in(file("streams"))
+  .settings(stdSettings("zio-streams"))
+  .settings(buildInfoSettings)
+  .enablePlugins(BuildInfoPlugin)
+  .dependsOn(core % "test->test;compile->compile")
+
+lazy val streamsJVM = streams.jvm
+
+lazy val streamsJS = streams.js
 
 lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-shared"))
@@ -203,7 +217,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
       "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
   )
-  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(streams % "test->test;compile->compile")
 
 lazy val interopReactiveStreamsJVM = interopReactiveStreams.jvm.dependsOn(interopSharedJVM)
 
@@ -215,7 +229,7 @@ lazy val testkit = crossProject(JVMPlatform)
 lazy val testkitJVM = testkit.jvm
 
 lazy val benchmarks = project.module
-  .dependsOn(coreJVM)
+  .dependsOn(coreJVM, streamsJVM)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
@@ -285,5 +299,6 @@ lazy val microsite = project.module
       "gray-light"      -> "#E3E2E3",
       "gray-lighter"    -> "#F4F3F4",
       "white-color"     -> "#FFFFFF"
-    )
+    ),
+    micrositeShareOnSocial := false
   )

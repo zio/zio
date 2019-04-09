@@ -21,8 +21,8 @@ import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.{ Executor, Platform }
 
-import scala.concurrent.ExecutionContext
 import scala.annotation.switch
+import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
 /**
@@ -603,6 +603,47 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def const[B](b: => B): ZIO[R, E, B] = self map (_ => b)
 
+  final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
+    for {
+      r1 <- ZIO.environment[R1]
+      r  <- that provide r1
+      a  <- self provide r
+    } yield a
+
+  final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
+
+  final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+    for {
+      r1 <- ZIO.environment[R]
+      r  <- self provide r1
+      a  <- that provide r
+    } yield a
+
+  final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
+    for {
+      either <- ZIO.environment[Either[R, R1]]
+      a1     <- either.fold(self.provide, that.provide)
+    } yield a1
+
+  final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
+
+  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
+    for {
+      e <- ZIO.environment[Either[R, R1]]
+      r <- e.fold(self.map(Left(_)) provide _, that.map(Right(_)) provide _)
+    } yield r
+
+  final def andThen[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+    self >>> that
+
+  final def first[R1 <: R, A1 >: A]: ZIO[R1, E, (A1, R1)] = self &&& ZIO.identity[R1]
+
+  final def second[R1 <: R, A1 >: A]: ZIO[R1, E, (R1, A1)] = ZIO.identity[R1] &&& self
+
+  final def left[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] = self +++ ZIO.identity[C]
+
+  final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] = ZIO.identity[C] +++ self
+
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
    */
@@ -636,8 +677,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */
-  final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+  final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self.zipWith(that)((a, b) => (a, b))
+
+  /**
+   * A named alias for `&&&`.
+   */
+  final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self &&& that
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -1004,7 +1051,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Accesses the whole environment of the effect.
    */
-  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(identity)
+  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(ZIO.identityFn[R])
 
   /**
    * Accesses the environment of the effect.
@@ -1040,7 +1087,7 @@ trait ZIOFunctions extends Serializable {
   final def runtime[R >: LowerR]: ZIO[R, Nothing, Runtime[R]] =
     for {
       environment <- environment[R]
-      platform    <- effectTotalWith(identity)
+      platform    <- effectTotalWith(ZIO.identityFn[Platform])
     } yield Runtime(environment, platform)
 
   /**
@@ -1160,7 +1207,8 @@ trait ZIOFunctions extends Serializable {
    * the inner effect, returning the value from the inner effect, and effectively
    * flattening a nested effect.
    */
-  final def flatten[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] = zio.flatMap(a => a)
+  final def flatten[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] =
+    zio.flatMap(ZIO.identityFn[ZIO[R, E, A]])
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
@@ -1257,6 +1305,29 @@ trait ZIOFunctions extends Serializable {
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
   final def unsandbox[R >: LowerR, E <: UpperE, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
+
+  /**
+   * Returns the identity effectful function, which performs no effects
+   */
+  final def identity[R >: LowerR]: ZIO[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn[R])
+
+  /**
+   * Returns an effectful function that merely swaps the elements in a `Tuple2`.
+   */
+  final def swap[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, (B, A)] =
+    fromFunction[R, (B, A)](_.swap)
+
+  /**
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
+   */
+  final def _1[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, A] = fromFunction[R, A](_._1)
+
+  /**
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
+   */
+  final def _2[R >: LowerR, E <: UpperE, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
 
   /**
    * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
@@ -1421,14 +1492,14 @@ trait ZIOFunctions extends Serializable {
    * the results. For a parallel version, see `collectAllPar`.
    */
   final def collectAll[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreach[R, E, ZIO[R, E, A], A](in)(identity(_))
+    foreach[R, E, ZIO[R, E, A], A](in)(ZIO.identityFn)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
    * the results. For a sequential version, see `collectAll`.
    */
   final def collectAllPar[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachPar[R, E, ZIO[R, E, A], A](as)(identity(_))
+    foreachPar[R, E, ZIO[R, E, A], A](as)(ZIO.identityFn)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
@@ -1437,7 +1508,7 @@ trait ZIOFunctions extends Serializable {
    * Unlike `foreachAllPar`, this method will use at most `n` fibers.
    */
   final def collectAllParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(identity(_))
+    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -1621,6 +1692,9 @@ object UIO extends ZIOFunctions {
 
 object ZIO extends ZIO_R_Any {
   def apply[A](a: => A): Task[A] = effect(a)
+
+  private val _IdentityFn: Any => Any    = (a: Any) => a
+  private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
   implicit class ZIOInvariant[R, E, A](val self: ZIO[R, E, A]) extends AnyVal {
     final def bracket: ZIO.BracketAcquire[R, E, A] =
