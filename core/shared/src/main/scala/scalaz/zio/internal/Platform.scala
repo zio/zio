@@ -37,13 +37,13 @@ trait Platform { self =>
     }
 
   /**
-   * Determines if a throwable is non-fatal or not.
+   * Determines if a throwable is fatal or not.
    */
-  def nonFatal(t: Throwable): Boolean
+  def fatal(t: Throwable): Boolean
 
   def withNonFatal(f: Throwable => Boolean): Platform =
     new Platform.Proxy(self) {
-      override def nonFatal(t: Throwable): Boolean = f(t)
+      override def fatal(t: Throwable): Boolean = f(t)
     }
 
   /**
@@ -65,7 +65,7 @@ trait Platform { self =>
 object Platform {
   class Proxy(self: Platform) extends Platform {
     def executor: Executor                   = self.executor
-    def nonFatal(t: Throwable): Boolean      = self.nonFatal(t)
+    def fatal(t: Throwable): Boolean         = self.fatal(t)
     def reportFailure(cause: Cause[_]): Unit = self.reportFailure(cause)
     def newWeakHashMap[A, B](): JMap[A, B]   = self.newWeakHashMap[A, B]()
   }
