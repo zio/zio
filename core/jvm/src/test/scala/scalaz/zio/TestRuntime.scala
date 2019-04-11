@@ -3,10 +3,10 @@ package scalaz.zio
 import scala.concurrent.duration._
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.execute.{AsResult, Failure, Result, Skipped}
+import org.specs2.execute.{ AsResult, Failure, Result, Skipped }
 import org.specs2.matcher.Expectations
 import org.specs2.matcher.TerminationMatchers.terminate
-import org.specs2.specification.{Around, AroundEach, AroundTimeout}
+import org.specs2.specification.{ Around, AroundEach, AroundTimeout }
 import scalaz.zio.internal.PlatformLive
 
 abstract class TestRuntime(implicit ee: org.specs2.concurrent.ExecutionEnv)
