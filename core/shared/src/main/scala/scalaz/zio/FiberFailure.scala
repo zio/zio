@@ -78,11 +78,15 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
     def causeToSequential(cause: Cause[Any]): Sequential =
       cause match {
         case Cause.Fail(t: Throwable) =>
-          Sequential(List(Failure(List("A checked error was not handled: ") ++ t.getStackTrace.map(_.toString))))
+          Sequential(
+            List(Failure(List(s"A checked error was not handled: ${t.getMessage}") ++ t.getStackTrace.map(_.toString)))
+          )
         case Cause.Fail(error) =>
           Sequential(List(Failure(List("A checked error was not handled: ") ++ lines(error.toString))))
         case Cause.Die(t) =>
-          Sequential(List(Failure(List("An unchecked error was produced: ") ++ t.getStackTrace.map(_.toString))))
+          Sequential(
+            List(Failure(List(s"An unchecked error was produced: ${t.getMessage} ") ++ t.getStackTrace.map(_.toString)))
+          )
         case Cause.Interrupt    => Sequential(List(Failure(List("The fiber was interrupted"))))
         case t: Cause.Then[Any] => Sequential(linearSegments(t))
         case b: Cause.Both[Any] => Sequential(List(Parallel(parallelSegments(b))))
@@ -106,7 +110,7 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
       }
 
     val sequence = causeToSequential(cause)
-    val result   = ("Fiber failed." :: "╥" :: format(sequence)).mkString("\n")
-    result
+
+    ("Fiber failed." :: format(sequence).updated(0, "╥")).mkString("\n")
   }
 }
