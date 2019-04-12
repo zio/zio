@@ -527,11 +527,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.superviseWith(self)(supervisor)
 
   /**
-   * Performs this effect non-interruptibly. This will prevent the effect from
+   * Performs this effect uninterruptibly. This will prevent the effect from
    * being terminated externally, but the effect may fail for internal reasons
-   * (e.g. an uncaught error) or terminate due to defect.
+   * (e.g. an uncaught error) or terminate due to defect. Effects that are
+   * uninterruptible may recover from all failure causes with `foldCauseM`,
+   * `sandbox`, or `run`.
    */
-  final def uninterruptible: ZIO[R, E, A] = new ZIO.Uninterruptible(self)
+  final def uninterruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, false)
+
+  /**
+   * Performs this effect interruptibly. Because this is the default, this
+   * operation only has additional meaning if the effect is located within
+   * an uninterruptible section.
+   */
+  final def interruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, true)
 
   /**
    * Recovers from all errors.
@@ -1775,7 +1784,7 @@ object ZIO extends ZIO_R_Any {
     final val EffectAsync     = 4
     final val Fold            = 5
     final val Fork            = 6
-    final val Uninterruptible = 7
+    final val InterruptStatus = 7
     final val Supervised      = 8
     final val Ensuring        = 9
     final val Descriptor      = 10
@@ -1816,8 +1825,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Fork
   }
 
-  final class Uninterruptible[R, E, A](val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
-    override def tag = Tags.Uninterruptible
+  final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: Boolean) extends ZIO[R, E, A] {
+    override def tag = Tags.InterruptStatus
   }
 
   final class Supervised[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, E, A] {
