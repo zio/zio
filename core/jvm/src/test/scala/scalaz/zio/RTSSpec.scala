@@ -145,6 +145,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interruption of raced                   $testInterruptedOfRaceInterruptsContestents
     cancelation is guaranteed               $testCancelationIsGuaranteed
     interruption of unending bracket        $testInterruptionOfUnendingBracket
+    recovery of error in finalizer          $testRecoveryOfErrorInFinalizer
 
   RTS environment
     provide is modular                      $testProvideIsModular
@@ -728,6 +729,19 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       unsafeRun(io) must_=== 42
     }.reduce(_ and _)
   }
+
+  def testRecoveryOfErrorInFinalizer =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      recovered  <- Ref.make(false)
+      fiber <- (startLatch.succeed(()) *> ZIO.never)
+                .ensuring(
+                  ZIO.unit *> ZIO.fail("Uh oh").catchAll(_ => recovered.set(true))
+                )
+                .fork
+      _     <- fiber.interrupt
+      value <- recovered.get
+    } yield value must_=== true)
 
   def testProvideIsModular = {
     val zio =
