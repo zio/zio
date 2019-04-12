@@ -146,6 +146,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     cancelation is guaranteed               $testCancelationIsGuaranteed
     interruption of unending bracket        $testInterruptionOfUnendingBracket
     recovery of error in finalizer          $testRecoveryOfErrorInFinalizer
+    recovery of interruptible               $testRecoveryOfInterruptible
 
   RTS environment
     provide is modular                      $testProvideIsModular
@@ -738,6 +739,21 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
                 .ensuring(
                   ZIO.unit *> ZIO.fail("Uh oh").catchAll(_ => recovered.set(true))
                 )
+                .fork
+      _     <- fiber.interrupt
+      value <- recovered.get
+    } yield value must_=== true)
+
+  def testRecoveryOfInterruptible =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      recovered  <- Ref.make(false)
+      fiber <- (startLatch.succeed(()) *> ZIO.never.interruptible)
+                .foldCauseM(
+                  cause => recovered.set(cause.interrupted),
+                  _ => recovered.set(false)
+                )
+                .uninterruptible
                 .fork
       _     <- fiber.interrupt
       value <- recovered.get
