@@ -743,6 +743,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
                   ZIO.unit *> ZIO.fail("Uh oh").catchAll(_ => recovered.set(true))
                 )
                 .fork
+      _     <- startLatch.await
       _     <- fiber.interrupt
       value <- recovered.get
     } yield value must_=== true)
