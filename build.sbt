@@ -144,7 +144,7 @@ val CatsScalaCheckShapelessVersion = Def.setting {
     case Some((2, v)) if v <= 12 =>
       "1.1.8"
     case _ =>
-      "1.2.0-1+7-a4ed6f38-SNAPSHOT" // TODO: Stable version
+      "1.2.1" // TODO: Stable version
   }
 }
 
