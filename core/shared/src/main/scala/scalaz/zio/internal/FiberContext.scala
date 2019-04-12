@@ -296,7 +296,7 @@ private[zio] final class FiberContext[E, A](
         // Catastrophic error handler. Any error thrown inside the interpreter is
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
-        case t: Throwable if (platform.nonFatal(t)) =>
+        case t: Throwable if (!platform.fatal(t)) =>
           curIo = terminate(IO.die(t))
       }
     }

@@ -1622,7 +1622,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
       platform =>
         try Right(effect)
         catch {
-          case t: Throwable if platform.nonFatal(t) => Left(t)
+          case t: Throwable if !platform.fatal(t) => Left(t)
         }
     ).absolve
 
