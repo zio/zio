@@ -57,11 +57,11 @@ object Blocking extends Serializable {
       effectBlocking(effect)
 
     /**
-      * Imports a synchronous effect that does blocking IO into a pure value.
-      *
-      * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
-      * will be interrupted via `Thread.interrupt`.
-      */
+     * Imports a synchronous effect that does blocking IO into a pure value.
+     *
+     * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
+     * will be interrupted via `Thread.interrupt`.
+     */
     def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
       ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
@@ -99,24 +99,24 @@ object Blocking extends Serializable {
 
         for {
           a <- (for {
-            fiber <- blocking(ZIO.effectTotal[Either[Cause[Throwable], A]] {
-              val current = Some(Thread.currentThread)
+                fiber <- blocking(ZIO.effectTotal[Either[Cause[Throwable], A]] {
+                          val current = Some(Thread.currentThread)
 
-              withMutex(thread.set(current))
+                          withMutex(thread.set(current))
 
-              try Right(effect)
-              catch {
-                case _: InterruptedException =>
-                  Thread.interrupted // Clear interrupt status
-                  Left(Cause.interrupt)
-                case t: Throwable =>
-                  Left(Cause.fail(t))
-              } finally {
-                withMutex { thread.set(None); barrier.set(()) }
-              }
-            }).fork
-            a <- fiber.join.absolve.unsandbox
-          } yield a).ensuring(interruptThread *> awaitInterruption)
+                          try Right(effect)
+                          catch {
+                            case _: InterruptedException =>
+                              Thread.interrupted // Clear interrupt status
+                              Left(Cause.interrupt)
+                            case t: Throwable =>
+                              Left(Cause.fail(t))
+                          } finally {
+                            withMutex { thread.set(None); barrier.set(()) }
+                          }
+                        }).fork
+                a <- fiber.join.absolve.unsandbox
+              } yield a).ensuring(interruptThread *> awaitInterruption)
         } yield a
       })
   }

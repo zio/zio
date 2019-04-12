@@ -800,8 +800,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def void: ZIO[R, E, Unit] = unit
 
   /**
-    * Returns the effect resulting from mapping the success of this effect to unit.
-    */
+   * Returns the effect resulting from mapping the success of this effect to unit.
+   */
   final def unit: ZIO[R, E, Unit] = const(())
 
   /**

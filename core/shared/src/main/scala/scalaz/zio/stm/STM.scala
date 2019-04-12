@@ -230,8 +230,8 @@ final class STM[+E, +A] private[stm] (
   final def void: STM[E, Unit] = unit
 
   /**
-    * Maps the success value of this effect to unit.
-    */
+   * Maps the success value of this effect to unit.
+   */
   final def unit: STM[E, Unit] = const(())
 
   /**
