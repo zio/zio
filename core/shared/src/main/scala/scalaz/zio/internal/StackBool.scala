@@ -33,7 +33,7 @@ final class StackBool private () {
       j -= 256L
       cur = cur.next
     }
-    assert(j < 256L)
+    assert(j < 256L && j >= 0)
     if (cur eq null) b
     else {
       val mask = 1L << j
