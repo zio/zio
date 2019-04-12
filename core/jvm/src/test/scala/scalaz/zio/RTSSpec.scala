@@ -147,6 +147,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interruption of unending bracket        $testInterruptionOfUnendingBracket
     recovery of error in finalizer          $testRecoveryOfErrorInFinalizer
     recovery of interruptible               $testRecoveryOfInterruptible
+    sandbox of interruptible                $testSandboxOfInterruptible
+    run of interruptible                    $testRunOfInterruptible
+    alternating interruptibility            $testAlternatingInterruptibility
 
   RTS environment
     provide is modular                      $testProvideIsModular
@@ -755,9 +758,49 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
                 )
                 .uninterruptible
                 .fork
+      _     <- startLatch.await
       _     <- fiber.interrupt
       value <- recovered.get
     } yield value must_=== true)
+
+  def testSandboxOfInterruptible =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      recovered  <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
+      fiber <- (startLatch.succeed(()) *> ZIO.never.interruptible).sandbox.either
+                .flatMap(exit => recovered.set(Some(exit)))
+                .uninterruptible
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- recovered.get
+    } yield value must_=== Some(Left(Cause.interrupt)))
+
+  def testRunOfInterruptible =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      recovered  <- Ref.make[Option[Exit[Nothing, Any]]](None)
+      fiber <- (startLatch.succeed(()) *> ZIO.never.interruptible).run
+                .flatMap(exit => recovered.set(Some(exit)))
+                .uninterruptible
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- recovered.get
+    } yield value must_=== Some(Exit.Failure(Cause.interrupt)))
+
+  def testAlternatingInterruptibility =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      counter    <- Ref.make(0)
+      fiber <- ((startLatch.succeed(()) *> (
+                (ZIO.never.interruptible.run *> counter.update(_ + 1)).uninterruptible
+              ).interruptible).run
+                *> counter.update(_ + 1)).uninterruptible.fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- counter.get
+    } yield value must_=== 2)
 
   def testProvideIsModular = {
     val zio =
