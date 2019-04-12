@@ -32,9 +32,9 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     unsafeRun(
       for {
         semaphore   <- Semaphore.make(n)
-        count       <- semaphore.count
+        count       <- semaphore.available
         returnSem   <- serializeAndBack(semaphore)
-        returnCount <- returnSem.count
+        returnCount <- returnSem.available
       } yield returnCount must_=== count
     )
   }
