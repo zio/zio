@@ -227,7 +227,7 @@ final class STM[+E, +A] private[stm] (
    * Maps the success value of this effect to unit.
    */
   @deprecated("use unit", "1.0.0")
-  final def void: STM[E, Unit] = const(())
+  final def void: STM[E, Unit] = unit
 
   /**
     * Maps the success value of this effect to unit.

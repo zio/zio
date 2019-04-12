@@ -54,62 +54,7 @@ object Blocking extends Serializable {
      */
     @deprecated("use effectBlocking()", "1.0.0")
     def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
-      ZIO.flatten(ZIO.effectTotal {
-        import java.util.concurrent.locks.ReentrantLock
-        import java.util.concurrent.atomic.AtomicReference
-        import scalaz.zio.internal.OneShot
-
-        val lock    = new ReentrantLock()
-        val thread  = new AtomicReference[Option[Thread]](None)
-        val barrier = OneShot.make[Unit]
-
-        def withMutex[B](b: => B): B =
-          try {
-            lock.lock(); b
-          } finally lock.unlock()
-
-        val interruptThread: UIO[Unit] =
-          ZIO.effectTotal {
-            var looping = true
-            var n       = 0L
-            val base    = 2L
-            while (looping) {
-              withMutex(thread.get match {
-                case None         => looping = false; ()
-                case Some(thread) => thread.interrupt()
-              })
-
-              if (looping) {
-                n += 1
-                Thread.sleep(math.min(50, base * n))
-              }
-            }
-          }
-
-        val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
-
-        for {
-          a <- (for {
-                fiber <- blocking(ZIO.effectTotal[Either[Cause[Throwable], A]] {
-                          val current = Some(Thread.currentThread)
-
-                          withMutex(thread.set(current))
-
-                          try Right(effect)
-                          catch {
-                            case _: InterruptedException =>
-                              Thread.interrupted // Clear interrupt status
-                              Left(Cause.interrupt)
-                            case t: Throwable =>
-                              Left(Cause.fail(t))
-                          } finally {
-                            withMutex { thread.set(None); barrier.set(()) }
-                          }
-                        }).fork
-                a <- fiber.join.absolve.unsandbox
-              } yield a).ensuring(interruptThread *> awaitInterruption)
-        } yield a
-      })
+      effectBlocking(effect)
 
     /**
       * Imports a synchronous effect that does blocking IO into a pure value.

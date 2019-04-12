@@ -797,7 +797,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
   @deprecated("use unit", "1.0.0")
-  final def void: ZIO[R, E, Unit] = const(())
+  final def void: ZIO[R, E, Unit] = unit
 
   /**
     * Returns the effect resulting from mapping the success of this effect to unit.

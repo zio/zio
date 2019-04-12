@@ -293,7 +293,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule that maps this schedule to a Unit output.
    */
   @deprecated("use unit", "1.0.0")
-  final def void: ZSchedule[R, A, Unit] = const(())
+  final def void: ZSchedule[R, A, Unit] = unit
 
   /**
     * Returns a new schedule that maps this schedule to a Unit output.
