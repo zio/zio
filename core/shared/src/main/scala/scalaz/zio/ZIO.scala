@@ -529,9 +529,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Performs this effect uninterruptibly. This will prevent the effect from
    * being terminated externally, but the effect may fail for internal reasons
-   * (e.g. an uncaught error) or terminate due to defect. Effects that are
-   * uninterruptible may recover from all failure causes with `foldCauseM`,
-   * `sandbox`, or `run`.
+   * (e.g. an uncaught error) or terminate due to defect.
+   * 
+   * Uninterruptible effects may recover from all failure causes (including
+   * interruption of an inner effect that has been made interruptible).
    */
   final def uninterruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, false)
 
