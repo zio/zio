@@ -52,7 +52,7 @@ object Blocking extends Serializable {
      * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
-    @deprecated("use unit", "1.0.0")
+    @deprecated("use effectBlocking()", "1.0.0")
     def interruptible[A](effect: => A): ZIO[R, Throwable, A] =
       ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
