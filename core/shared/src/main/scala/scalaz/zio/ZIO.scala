@@ -1595,11 +1595,13 @@ trait ZIOFunctions extends Serializable {
   final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
 
   /**
-   * Lifts a `ZIO[R, E, Reservation[R, E, A]]` into `ZManaged[R, E, A]`
-   * and applies the `A => ZIO[R, E, B]` immediately, unless curried.
+   * Acquires a resource, uses the resource, and then releases the resource.
+   * However, unlike `bracket`, the separation of these phases allows
+   * the acquisition to be interruptible.
    *
-   * Potentially more convenient and with better inference characteristics
-   * than [[ZManaged#reserve]] but less flexible.
+   * Useful for concurrent data structures and other cases where the
+   * 'deallocator' can tell if the allocation succeeded or not just by
+   * inspecting internal / external state.
    */
   def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     ZManaged(reservation).use(use)
