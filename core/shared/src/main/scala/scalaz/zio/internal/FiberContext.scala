@@ -38,14 +38,14 @@ private[zio] final class FiberContext[E, A](
   private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
 
   // Accessed from within a single thread (not necessarily the same):
-  private[this] val interruptStatus       = StackBool()
   @volatile private[this] var supervised  = List.empty[Set[FiberContext[_, _]]]
   @volatile private[this] var supervising = 0
   @volatile private[this] var locked      = List.empty[Executor]
   @volatile private[this] var environment = List[Any](())
 
-  private[this] val fiberId = FiberContext.fiberCounter.getAndIncrement()
-  private[this] val stack   = new Stack[Any => IO[Any, Any]]()
+  private[this] val interruptStatus = StackBool()
+  private[this] val fiberId         = FiberContext.fiberCounter.getAndIncrement()
+  private[this] val stack           = new Stack[Any => IO[Any, Any]]()
 
   final def runAsync(k: Callback[E, A]): Unit =
     register0(xx => k(Exit.flatten(xx))) match {
@@ -53,18 +53,26 @@ private[zio] final class FiberContext[E, A](
       case v    => k(v)
     }
 
+  private object InterruptExit extends Function[Any, IO[E, Any]] {
+    final def apply(v: Any): IO[E, Any] = {
+      interruptStatus.popDrop(())
+
+      ZIO.succeed(v)
+    }
+  }
   private class Finalizer(val finalizer: UIO[_]) extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
       interruptStatus.push(false)
+      stack.push(InterruptExit)
 
-      finalizer.flatMap(_ => ZIO.effectTotal(interruptStatus.popDrop(v)))
+      finalizer.flatMap(_ => ZIO.succeed(v))
     }
   }
 
   /**
-   * Unwinds the stack, collecting all finalizers and coalescing them into an
-   * `IO` that produces an option of a cause of finalizer failures. If needed,
-   * catch exceptions and apply redeem error handling.
+   * Unwinds the stack, collecting all finalizers and coalescing them into a
+   * `UIO` that produces an option of a cause of finalizer failures. If needed,
+   * catch exceptions and push error handler on the stack.
    */
   final def unwindStack: UIO[Option[Cause[Nothing]]] = {
     def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
@@ -77,6 +85,7 @@ private[zio] final class FiberContext[E, A](
     // finalizers.
     while ((errorHandler eq null) && !stack.isEmpty) {
       stack.pop() match {
+        case InterruptExit => interruptStatus.popDrop(())
         case a: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
         case f0: Finalizer =>
@@ -254,13 +263,12 @@ private[zio] final class FiberContext[E, A](
                   curIo = io.zio
 
                 case ZIO.Tags.Descriptor =>
-                  val value = getDescriptor
-
-                  curIo = nextInstr(value)
+                  curIo = nextInstr(getDescriptor)
 
                 case ZIO.Tags.Lock =>
                   val io = curIo.asInstanceOf[ZIO.Lock[Any, E, Any]]
 
+                  // TODO: Use bracket?
                   curIo = (lock(io.executor) *> io.zio).ensuring(unlock)
 
                 case ZIO.Tags.Yield =>
@@ -441,7 +449,8 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def changeInterrupt[E, A](io: IO[E, A], flag: Boolean): IO[E, A] = {
     interruptStatus.push(flag)
-    io.ensuring(ZIO.effectTotal(interruptStatus.popDrop(())))
+    stack.push(InterruptExit)
+    io
   }
 
   @tailrec
