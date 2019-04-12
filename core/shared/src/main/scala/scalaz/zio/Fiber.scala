@@ -266,7 +266,7 @@ object Fiber {
    * Joins all fibers, awaiting their completion.
    */
   final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.await.void)
+    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.

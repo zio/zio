@@ -43,8 +43,8 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         canceled             <- Promise.make[Unit, Unit]
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
-          override def request(n: Long): Unit = runtime.unsafeRun(canceled.fail(()).void)
-          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).void)
+          override def request(n: Long): Unit = runtime.unsafeRun(canceled.fail(()).unit)
+          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).unit)
         }
         _ <- UIO(subscriber.onSubscribe(s))
         _ <- canceled.await
@@ -59,8 +59,8 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         canceled             <- Promise.make[Unit, Unit]
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
-          override def request(n: Long): Unit = runtime.unsafeRun(canceled.fail(()).void)
-          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).void)
+          override def request(n: Long): Unit = runtime.unsafeRun(canceled.fail(()).unit)
+          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).unit)
         }
         _ <- UIO(subscriber.onSubscribe(s))
         _ <- stream.run(Sink.fail(boom)).catchAll(_ => UIO.unit)
@@ -77,7 +77,7 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
           override def request(n: Long): Unit = (0 until n.toInt).foreach(subscriber.onNext)
-          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).void)
+          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).unit)
         }
         _ <- UIO(subscriber.onSubscribe(s))
         _ <- stream.drop(10).run(Sink.fail(boom)).catchAll(_ => UIO.unit)
@@ -97,7 +97,7 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
           override def request(n: Long): Unit = (0 until n.toInt).foreach(subscriber.onNext)
-          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).void)
+          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).unit)
         }
         _ <- UIO(subscriber.onSubscribe(s))
         _ <- canceled.await
@@ -119,7 +119,7 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
             runtime.unsafeRun(delivered.succeed(()))
             ()
           }
-          override def cancel(): Unit = runtime.unsafeRun(canceled.succeed(()).void)
+          override def cancel(): Unit = runtime.unsafeRun(canceled.succeed(()).unit)
         }
         _ <- UIO(subscriber.onSubscribe(s))
         _ <- delivered.await
