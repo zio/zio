@@ -27,5 +27,5 @@ package object blocking {
     ZIO.accessM(_.blocking.blocking(zio))
 
   def interruptible[A](effect: => A): ZIO[Blocking, Throwable, A] =
-    ZIO.accessM(_.blocking.interruptible(effect))
+    ZIO.accessM(_.blocking.effectBlocking(effect))
 }
