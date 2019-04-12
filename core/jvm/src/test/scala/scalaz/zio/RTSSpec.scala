@@ -129,7 +129,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     manual sync interruption                $testManualSyncInterruption
 
   RTS interruption
-    blocking IO is interruptible            $testBlockingIOIsInterruptible
+    blocking IO is effect blocking          $testBlockingIOIsEffectBlocking
     sync forever is interruptible           $testInterruptSyncForever
     interrupt of never                      $testNeverIsInterruptible
     asyncPure is interruptible              $testAsyncPureIsInterruptible
@@ -1075,7 +1075,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield workers1 == workers2 && thread1 == thread2) must_=== Exit.Success(true)
   }
 
-  def testBlockingIOIsInterruptible = unsafeRun(
+  def testBlockingIOIsEffectBlocking = unsafeRun(
     for {
       done  <- Ref.make(false)
       start <- IO.succeed(internal.OneShot.make[Unit])
