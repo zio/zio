@@ -530,7 +530,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Performs this effect uninterruptibly. This will prevent the effect from
    * being terminated externally, but the effect may fail for internal reasons
    * (e.g. an uncaught error) or terminate due to defect.
-   * 
+   *
    * Uninterruptible effects may recover from all failure causes (including
    * interruption of an inner effect that has been made interruptible).
    */
@@ -1421,13 +1421,11 @@ trait ZIOFunctions extends Serializable {
     release: A => ZIO[R, Nothing, _],
     use: A => ZIO[R, E, B]
   ): ZIO[R, E, B] =
-    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-      (for {
-        r <- environment[R]
-        a <- acquire.flatMap(a => m.set(release(a).provide(r)).const(a)).uninterruptible
-        b <- use(a)
-      } yield b).ensuring(flatten(m.get))
-    }
+    (for {
+      r <- environment[R]
+      a <- acquire
+      b <- use(a).interruptible.ensuring(release(a).provide(r))
+    } yield b).uninterruptible
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
@@ -1449,15 +1447,12 @@ trait ZIOFunctions extends Serializable {
     release: (A, Exit[E1, B]) => ZIO[R, Nothing, _],
     use: A => ZIO[R, E2, B]
   ): ZIO[R, E2, B] =
-    Ref.make[UIO[Any]](ZIO.unit).flatMap { m =>
-      (for {
-        r <- environment[R]
-        f <- acquire
-              .flatMap(a => use(a).fork.tap(f => m.set(f.interrupt.flatMap(release(a, _).provide(r)))))
-              .uninterruptible
-        b <- f.join
-      } yield b).ensuring(flatten(m.get))
-    }
+    (for {
+      r <- environment[R]
+      a <- acquire
+      e <- use(a).interruptible.run.flatMap(e => release(a, e).provide(r).const(e))
+      b <- ZIO.done(e)
+    } yield b).uninterruptible
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
