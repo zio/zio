@@ -37,7 +37,9 @@ trait Platform { self =>
     }
 
   /**
-   * Determines if a throwable is fatal or not.
+   * Determines if a throwable is fatal or not. It is important to identify
+   * these as it is not recommended to catch, and try to recover from, any 
+   * fatal error.
    */
   def fatal(t: Throwable): Boolean
 
