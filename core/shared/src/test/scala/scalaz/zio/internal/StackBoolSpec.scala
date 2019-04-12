@@ -10,6 +10,7 @@ class StackBoolSpec extends Specification {
         From/to list large identity   $e2
         Small push/pop example        $e3
         Large push/pop example        $e4
+        Peek/pop identity             $e5
     """
 
   def e0 = {
@@ -56,6 +57,22 @@ class StackBoolSpec extends Specification {
     list.reverse.foldLeft(true must_=== true) {
       case (result, flag) =>
         result and (stack.popOrElse(!flag) must_=== flag)
+    }
+  }
+
+  def e5 = {
+    val stack = StackBool()
+
+    val list = (1 to 400).map(_ % 2 == 0).toList
+
+    list.foreach(stack.push(_))
+
+    list.reverse.foldLeft(true must_=== true) {
+      case (result, flag) =>
+        val peeked = stack.peekOrElse(!flag)
+        val popped = stack.popOrElse(!flag)
+
+        result and (peeked must_=== popped)
     }
   }
 }

@@ -66,6 +66,19 @@ final class StackBool private () {
       ((1L << index) & head.bits) != 0L
     }
 
+  final def peekOrElse(b: Boolean): Boolean =
+    if (_size == 0L) b
+    else {
+      val size  = _size - 1L
+      val index = size & 0XFFFFFFFFFFFFFFFFL
+      val entry =
+        if (index == 0L && head.next != null) head.next else head
+
+      ((1L << index) & entry.bits) != 0L
+    }
+
+  final def popDrop[A](a: A): A = { popOrElse(false); a }
+
   final def toList: List[Boolean] =
     (0 until _size.toInt).map(getOrElse(_, false)).toList.reverse
 
