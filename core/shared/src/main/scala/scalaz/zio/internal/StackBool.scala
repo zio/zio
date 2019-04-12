@@ -45,7 +45,7 @@ final class StackBool private () {
   final def size = _size
 
   final def push(flag: Boolean): Unit = {
-    val index = _size & 0XFFFFFFFFFFFFFFFFL
+    val index = _size & 0XFFL
 
     if (flag) head.bits = head.bits | (1L << index)
     else head.bits = head.bits & (~(1L << index))
@@ -59,7 +59,7 @@ final class StackBool private () {
     if (_size == 0L) b
     else {
       _size -= 1L
-      val index = _size & 0XFFFFFFFFFFFFFFFFL
+      val index = _size & 0XFFL
 
       if (index == 0L && head.next != null) head = head.next
 
@@ -70,7 +70,7 @@ final class StackBool private () {
     if (_size == 0L) b
     else {
       val size  = _size - 1L
-      val index = size & 0XFFFFFFFFFFFFFFFFL
+      val index = size & 0XFFL
       val entry =
         if (index == 0L && head.next != null) head.next else head
 
