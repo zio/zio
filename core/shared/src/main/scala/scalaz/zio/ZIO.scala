@@ -534,14 +534,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Uninterruptible effects may recover from all failure causes (including
    * interruption of an inner effect that has been made interruptible).
    */
-  final def uninterruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, false)
+  final def uninterruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, Some(false))
 
   /**
    * Performs this effect interruptibly. Because this is the default, this
    * operation only has additional meaning if the effect is located within
    * an uninterruptible section.
    */
-  final def interruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, true)
+  final def interruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, Some(true))
+
+  /**
+   * Performs this effect with an interrupt status inherited from the parent.
+   * This is equivalent to checking the interruptibility of the fiber, and
+   * then if it is interruptible, wrapping the effect in `interruptible`, but
+   * if it is not interruptible, wrapping the effect in `uninterruptible`.
+   */
+  final def interruptInherit: ZIO[R, E, A] = new ZIO.InterruptStatus(self, None)
 
   /**
    * Recovers from all errors.
@@ -1821,7 +1829,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Fork
   }
 
-  final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: Boolean) extends ZIO[R, E, A] {
+  final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: Option[Boolean]) extends ZIO[R, E, A] {
     override def tag = Tags.InterruptStatus
   }
 

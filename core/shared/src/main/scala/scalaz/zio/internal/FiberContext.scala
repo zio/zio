@@ -221,7 +221,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.InterruptStatus =>
                   val io = curIo.asInstanceOf[ZIO.InterruptStatus[Any, E, Any]]
 
-                  curIo = changeInterrupt(io.zio, io.flag)
+                  curIo = changeInterrupt(io.zio, io.flag.getOrElse(interruptible))
 
                 case ZIO.Tags.Supervised =>
                   val io = curIo.asInstanceOf[ZIO.Supervised[Any, E, Any]]
@@ -318,7 +318,7 @@ private[zio] final class FiberContext[E, A](
     IO.effectTotal { locked = locked.drop(1) } *> IO.yieldNow
 
   private[this] final def getDescriptor: Fiber.Descriptor =
-    Fiber.Descriptor(fiberId, state.get.interrupted, executor, getFibers)
+    Fiber.Descriptor(fiberId, state.get.interrupted, interruptible, executor, getFibers)
 
   // We make a copy of the supervised fibers set as an array
   // to prevent mutations of the set from propagating to the caller.
