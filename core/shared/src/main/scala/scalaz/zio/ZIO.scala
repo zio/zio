@@ -434,8 +434,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         self
           .interruptStatus(interruptible)
           .foldCauseM(
-            cause => finalizer *> ZIO.halt(cause),
-            value => finalizer *> ZIO.succeed(value)
+            cause1 =>
+              finalizer.foldCauseM[Any, E, Nothing](
+                cause2 => ZIO.halt(cause1 ++ cause2),
+                _ => ZIO.halt(cause1)
+              ),
+            value =>
+              finalizer.foldCauseM[Any, E, A](
+                cause1 => ZIO.halt(cause1),
+                _ => ZIO.succeed(value)
+              )
           )
           .uninterruptible
     )
