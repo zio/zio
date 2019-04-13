@@ -16,17 +16,17 @@
 
 package scalaz.zio
 
-import java.io.{PrintWriter, StringWriter}
+import java.io.{ PrintWriter, StringWriter }
 import scalaz.zio.Exit.Cause
 
 /**
-  * Represents a failure in a fiber. This could be caused by some non-
-  * recoverable error, such as a defect or system error, by some typed error,
-  * or by interruption (or combinations of all of the above).
-  *
-  * This class is used to wrap ZIO failures into something that can be thrown,
-  * to better integrate with Scala exception handling.
-  */
+ * Represents a failure in a fiber. This could be caused by some non-
+ * recoverable error, such as a defect or system error, by some typed error,
+ * or by interruption (or combinations of all of the above).
+ *
+ * This class is used to wrap ZIO failures into something that can be thrown,
+ * to better integrate with Scala exception handling.
+ */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable {
   override final def getMessage: String = prettyPrint(cause)
 
@@ -122,11 +122,13 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
 
     val sequence = causeToSequential(cause)
 
-    ("Fiber failed." :: { sequence match {
-      // use simple report for single failures
-      case Sequential(List(Failure(cause))) => cause
+    ("Fiber failed." :: {
+      sequence match {
+        // use simple report for single failures
+        case Sequential(List(Failure(cause))) => cause
 
-      case _ => format(sequence).updated(0, "╥")
-    }}).mkString("\n")
+        case _ => format(sequence).updated(0, "╥")
+      }
+    }).mkString("\n")
   }
 }
