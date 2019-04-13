@@ -469,9 +469,13 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield res) must_=== 42
 
   def testTimeoutOfLongComputation =
-    unsafeRun(
-      clock.sleep(10.seconds).timeoutFail(new Exception())(10.milliseconds).either.timed
-    )._1.max(50.milliseconds) must_== 50.milliseconds
+    aroundTimeout(10.milliseconds.asScala)(ee)
+      .around(
+        unsafeRun(
+          clock.sleep(10.seconds) *> UIO(true)
+        )
+      )
+      .message must_== "TIMEOUT: 10000000 nanoseconds"
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): Task[Int] =
