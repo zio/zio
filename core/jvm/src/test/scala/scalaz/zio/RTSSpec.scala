@@ -51,6 +51,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     catch failing finalizers with terminate $testTerminateOfMultipleFailingFinalizers
     run preserves interruption status       $testRunInterruptIsInterrupted
     run swallows inner interruption         $testRunSwallowsInnerInterrupt
+    timeout a long computation              $testTimeoutOfLongComputation
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -466,6 +467,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _   <- IO.interrupt.run *> p.succeed(42)
       res <- p.await
     } yield res) must_=== 42
+
+  def testTimeoutOfLongComputation =
+    unsafeRun(
+      clock.sleep(10.seconds).timeoutFail(new Exception())(10.milliseconds).either.timed
+    )._1.max(50.milliseconds) must_== 50.milliseconds
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): Task[Int] =
