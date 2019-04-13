@@ -191,7 +191,13 @@ sealed trait FunctionIO[+E, -A, +B] extends Serializable { self =>
   /**
    * Maps the output of this effectful function to `Unit`.
    */
-  final def void: FunctionIO[E, A, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: FunctionIO[E, A, Unit] = unit
+
+  /**
+   * Maps the output of this effectful function to `Unit`.
+   */
+  final def unit: FunctionIO[E, A, Unit] = const(())
 
   /**
    * Returns a new effectful function that merely applies this one for its

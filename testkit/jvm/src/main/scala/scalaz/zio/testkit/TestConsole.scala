@@ -27,12 +27,12 @@ case class TestConsole(ref: Ref[TestConsole.Data]) extends Console.Service[Any] 
   override def putStr(line: String): UIO[Unit] =
     ref.update { data =>
       Data(data.input, data.output :+ line)
-    }.void
+    }.unit
 
   override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
     ref.update { data =>
       Data(data.input, data.output :+ s"$line\n")
-    }.void
+    }.unit
 
   val getStrLn: ZIO[Any, IOException, String] = {
     for {

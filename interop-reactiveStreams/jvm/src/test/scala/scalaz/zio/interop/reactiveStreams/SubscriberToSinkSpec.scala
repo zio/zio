@@ -22,7 +22,7 @@ class SubscriberToSinkSpec(implicit ee: ExecutionEnv) extends TestRuntime with A
   implicit private val materializer: ActorMaterializer = ActorMaterializer()
 
   override def afterAll(): Unit =
-    unsafeRun(UIO(materializer.shutdown()) *> Task.fromFuture(_ => system.terminate()).void)
+    unsafeRun(UIO(materializer.shutdown()) *> Task.fromFuture(_ => system.terminate()).unit)
 
   private val seq = List.range(0, 100)
   private val e   = new RuntimeException("boom")
