@@ -221,7 +221,12 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.InterruptStatus =>
                   val io = curIo.asInstanceOf[ZIO.InterruptStatus[Any, E, Any]]
 
-                  curIo = changeInterrupt(io.zio, io.flag.getOrElse(interruptible))
+                  curIo = changeInterrupt(io.zio, io.flag)
+
+                case ZIO.Tags.CheckInterrupt =>
+                  val io = curIo.asInstanceOf[ZIO.CheckInterrupt[Any, E, Any]]
+
+                  curIo = io.f(interruptible)
 
                 case ZIO.Tags.Supervised =>
                   val io = curIo.asInstanceOf[ZIO.Supervised[Any, E, Any]]

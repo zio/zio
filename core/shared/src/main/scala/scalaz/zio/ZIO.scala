@@ -429,7 +429,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * logic built on `ensuring`, see `ZIO#bracket`.
    */
   final def ensuring(finalizer: UIO[_]): ZIO[R, E, A] =
-    new ZIO.Ensuring(self, finalizer)
+    ZIO.checkInterrupt(
+      interruptible =>
+        self
+          .interruptStatus(interruptible)
+          .foldCauseM(
+            cause => finalizer *> ZIO.halt(cause),
+            value => finalizer *> ZIO.succeed(value)
+          )
+          .uninterruptible
+    )
 
   /**
    * Executes the specified finalizer, providing the environment of this `ZIO`
@@ -534,22 +543,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Uninterruptible effects may recover from all failure causes (including
    * interruption of an inner effect that has been made interruptible).
    */
-  final def uninterruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, Some(false))
+  final def uninterruptible: ZIO[R, E, A] = interruptStatus(false)
 
   /**
    * Performs this effect interruptibly. Because this is the default, this
    * operation only has additional meaning if the effect is located within
    * an uninterruptible section.
    */
-  final def interruptible: ZIO[R, E, A] = new ZIO.InterruptStatus(self, Some(true))
+  final def interruptible: ZIO[R, E, A] = interruptStatus(true)
 
   /**
-   * Performs this effect with an interrupt status inherited from the parent.
-   * This is equivalent to checking the interruptibility of the fiber, and
-   * then if it is interruptible, wrapping the effect in `interruptible`, but
-   * if it is not interruptible, wrapping the effect in `uninterruptible`.
+   * Switches the interrupt status for this effect. If `true` is used, then the
+   * effect becomes interruptible (the default), while if `false` is used, then
+   * the effect becomes uninterruptible. These changes are compositional, so
+   * they only affect regions of the effect.
    */
-  final def interruptInherit: ZIO[R, E, A] = new ZIO.InterruptStatus(self, None)
+  final def interruptStatus(flag: Boolean): ZIO[R, E, A] = new ZIO.InterruptStatus(self, flag)
 
   /**
    * Recovers from all errors.
@@ -1599,6 +1608,9 @@ trait ZIOFunctions extends Serializable {
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.Descriptor
 
+  final def checkInterrupt[R >: LowerR, E <: UpperE, A](f: Boolean => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.CheckInterrupt(f)
+
   /**
    * Provides access to the list of child fibers supervised by this fiber.
    *
@@ -1789,13 +1801,14 @@ object ZIO extends ZIO_R_Any {
     final val Fold            = 5
     final val Fork            = 6
     final val InterruptStatus = 7
-    final val Supervised      = 8
-    final val Ensuring        = 9
-    final val Descriptor      = 10
-    final val Lock            = 11
-    final val Yield           = 12
-    final val Access          = 13
-    final val Provide         = 14
+    final val CheckInterrupt  = 8
+    final val Supervised      = 9
+    final val Ensuring        = 10
+    final val Descriptor      = 11
+    final val Lock            = 12
+    final val Yield           = 13
+    final val Access          = 14
+    final val Provide         = 15
   }
   final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.FlatMap
@@ -1829,8 +1842,12 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Fork
   }
 
-  final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: Option[Boolean]) extends ZIO[R, E, A] {
+  final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: Boolean) extends ZIO[R, E, A] {
     override def tag = Tags.InterruptStatus
+  }
+
+  final class CheckInterrupt[R, E, A](val f: Boolean => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.CheckInterrupt
   }
 
   final class Supervised[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, E, A] {
