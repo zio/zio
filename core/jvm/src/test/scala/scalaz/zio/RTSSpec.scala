@@ -472,7 +472,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     aroundTimeout(10.milliseconds.asScala)(ee)
       .around(
         unsafeRun(
-          clock.sleep(10.seconds) *> UIO(true)
+          clock.sleep(60.seconds) *> UIO(true)
         )
       )
       .message must_== "TIMEOUT: 10000000 nanoseconds"
