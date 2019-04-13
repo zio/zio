@@ -480,7 +480,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Takes the specified number of elements from this stream.
    */
   final def take(n: Int): ZStream[R, E, A] =
-    self.zipWithIndex.takeWhile(_._2 < n).map(_._1)
+    self.zipWithIndex.collectWhile { case (v, i) if i < n => v }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate
@@ -873,7 +873,7 @@ object ZStream extends Stream_Functions {
 
   implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
     def unTake: ZStream[R, E, A] =
-      s.mapM(t => Take.option(UIO.succeed(t))).takeWhile(_.isDefined).collect { case Some(v) => v }
+      s.mapM(t => Take.option(UIO.succeed(t))).collectWhile { case Some(v) => v }
   }
 
 }
