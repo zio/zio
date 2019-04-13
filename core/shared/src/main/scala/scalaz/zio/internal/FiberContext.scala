@@ -226,6 +226,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Supervised =>
                   val io = curIo.asInstanceOf[ZIO.Supervised[Any, E, Any]]
 
+                  // TODO: Use bracket?
                   curIo = enterSupervision *> io.value.ensuring(exitSupervision)
 
                 case ZIO.Tags.Fail =>
