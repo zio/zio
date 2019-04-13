@@ -740,7 +740,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       recovered  <- Ref.make(false)
       fiber <- (startLatch.succeed(()) *> ZIO.never)
                 .ensuring(
-                  ZIO.unit *> ZIO.fail("Uh oh").catchAll(_ => recovered.set(true))
+                  (ZIO.unit *> ZIO.fail("Uh oh")).catchAll(_ => recovered.set(true))
                 )
                 .fork
       _     <- startLatch.await
