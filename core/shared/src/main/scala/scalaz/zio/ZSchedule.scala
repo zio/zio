@@ -235,16 +235,15 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     self <* that
 
   /**
-    * Returns a new schedule that continues only as long as both schedules
-    * continue, using the maximum of the delays of the two schedules.
-    */
+   * Returns a new schedule that continues only as long as both schedules
+   * continue, using the maximum of the delays of the two schedules.
+   */
   final def <*>[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self zip that
 
   /**
-    * Named alias for `<*>`.
-    */
+   * Named alias for `<*>`.
+   */
   final def zip[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self && that
-
 
   /**
    * Returns a new schedule that continues as long as either schedule continues,

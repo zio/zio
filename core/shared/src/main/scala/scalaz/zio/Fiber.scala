@@ -113,8 +113,8 @@ trait Fiber[+E, +A] { self =>
     zipWith(that)((a, b) => (a, b))
 
   /**
-    * Named alias for `<*>`.
-    */
+   * Named alias for `<*>`.
+   */
   final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
     self <*> that
 
