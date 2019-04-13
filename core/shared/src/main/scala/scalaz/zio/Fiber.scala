@@ -109,8 +109,14 @@ trait Fiber[+E, +A] { self =>
    * Zips this fiber and the specified fiber togther, producing a tuple of their
    * output.
    */
-  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
     zipWith(that)((a, b) => (a, b))
+
+  /**
+    * Named alias for `<*>`.
+    */
+  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+    self <*> that
 
   /**
    * Same as `zip` but discards the output of the left hand side.

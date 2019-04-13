@@ -681,7 +681,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.zipWith(that)((a, b) => (a, b))
 
   /**
-   * A named alias for `&&&`.
+    * Alias for `&&&`.
+    */
+  final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self &&& that
+
+  /**
+   * A named alias for `&&&` or `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self &&& that
