@@ -21,7 +21,6 @@ import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.{ Executor, Platform }
 
-import scala.annotation.switch
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 
@@ -97,16 +96,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
-  final def map[B](f: A => B): ZIO[R, E, B] = (self.tag: @switch) match {
-    case ZIO.Tags.Succeed =>
-      val io = self.asInstanceOf[ZIO.Succeed[A]]
-
-      new ZIO.Succeed(f(io.value))
-
-    case ZIO.Tags.Fail => self.asInstanceOf[ZIO[R, E, B]]
-
-    case _ => new ZIO.FlatMap(self, (a: A) => new ZIO.Succeed(f(a)))
-  }
+  def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, (a: A) => new ZIO.Succeed(f(a)))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -123,10 +113,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * val parsed = readFile("foo.txt").flatMap(file => parseFile(file))
    * }}}
    */
-  final def flatMap[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = (self.tag: @switch) match {
-    case ZIO.Tags.Fail => self.asInstanceOf[ZIO[R1, E1, B]]
-    case _             => new ZIO.FlatMap(self, k)
-  }
+  def flatMap[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    new ZIO.FlatMap(self, k)
 
   /**
    * Alias for `flatMap`.
@@ -352,14 +340,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * A more powerful version of `foldM` that allows recovering from any kind of failure except interruptions.
    */
-  final def foldCauseM[R1 <: R, E2, B](err: Cause[E] => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    (self.tag: @switch) match {
-      case ZIO.Tags.Fail =>
-        val io = self.asInstanceOf[ZIO.Fail[E]]
-        err(io.cause)
-
-      case _ => new ZIO.Fold(self, err, succ)
-    }
+  def foldCauseM[R1 <: R, E2, B](err: Cause[E] => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+    new ZIO.Fold(self, err, succ)
 
   /**
    * Folds over the failure value or the success value to yield an effect that
@@ -1811,12 +1793,11 @@ object ZIO extends ZIO_R_Any {
     final val InterruptStatus = 7
     final val CheckInterrupt  = 8
     final val Supervised      = 9
-    final val Ensuring        = 10
-    final val Descriptor      = 11
-    final val Lock            = 12
-    final val Yield           = 13
-    final val Access          = 14
-    final val Provide         = 15
+    final val Descriptor      = 10
+    final val Lock            = 11
+    final val Yield           = 12
+    final val Access          = 13
+    final val Provide         = 14
   }
   final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.FlatMap
@@ -1862,12 +1843,20 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Supervised
   }
 
-  final class Fail[E](val cause: Cause[E]) extends IO[E, Nothing] {
+  final class Fail[E, A](val cause: Cause[E]) extends IO[E, A] { self =>
     override def tag = Tags.Fail
-  }
 
-  final class Ensuring[R, E, A](val zio: ZIO[R, E, A], val finalizer: UIO[_]) extends ZIO[R, E, A] {
-    override def tag = Tags.Ensuring
+    override final def map[B](f: A => B): IO[E, B] =
+      self.asInstanceOf[IO[E, B]]
+
+    override final def flatMap[R1 <: Any, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+      self.asInstanceOf[ZIO[R1, E1, B]]
+
+    override final def foldCauseM[R1 <: Any, E2, B](
+      err: Cause[E] => ZIO[R1, E2, B],
+      succ: A => ZIO[R1, E2, B]
+    ): ZIO[R1, E2, B] =
+      err(cause)
   }
 
   object Descriptor extends UIO[Fiber.Descriptor] {

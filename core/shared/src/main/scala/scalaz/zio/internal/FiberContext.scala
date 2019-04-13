@@ -18,7 +18,6 @@ package scalaz.zio.internal
 
 import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
-import scalaz.zio.Exit.Cause
 import scalaz.zio._
 
 import scala.annotation.{ switch, tailrec }
@@ -60,26 +59,14 @@ private[zio] final class FiberContext[E, A](
       ZIO.succeed(v)
     }
   }
-  private class Finalizer(val finalizer: UIO[_]) extends Function[Any, IO[E, Any]] {
-    final def apply(v: Any): IO[E, Any] = {
-      interruptStatus.push(false)
-      stack.push(InterruptExit)
-
-      finalizer.flatMap(_ => ZIO.succeed(v))
-    }
-  }
 
   /**
    * Unwinds the stack, collecting all finalizers and coalescing them into a
    * `UIO` that produces an option of a cause of finalizer failures. If needed,
    * catch exceptions and push error handler on the stack.
    */
-  final def unwindStack: UIO[Option[Cause[Nothing]]] = {
-    def zipCauses(c1: Option[Cause[Nothing]], c2: Option[Cause[Nothing]]): Option[Cause[Nothing]] =
-      c1.flatMap(c1 => c2.map(c1 ++ _)).orElse(c1).orElse(c2)
-
-    var errorHandler: Any => IO[Any, Any]      = null
-    var finalizer: UIO[Option[Cause[Nothing]]] = null
+  final def unwindStack(): Unit = {
+    var errorHandler: Any => IO[Any, Any] = null
 
     // Unwind the stack, looking for exception handlers and coalescing
     // finalizers.
@@ -88,11 +75,6 @@ private[zio] final class FiberContext[E, A](
         case InterruptExit => interruptStatus.popDrop(())
         case a: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
           errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
-        case f0: Finalizer =>
-          val f: UIO[Option[Cause[Nothing]]] =
-            f0.finalizer.foldCauseM(c => IO.succeed(Some(c)), _ => IO.succeed(None))
-          if (finalizer eq null) finalizer = f
-          else finalizer = finalizer.zipWith(f)(zipCauses)
         case _ =>
       }
     }
@@ -104,8 +86,6 @@ private[zio] final class FiberContext[E, A](
     // This lets us return only the finalizer, which will be null for common cases,
     // and result in zero heap allocations for the happy path.
     if (errorHandler ne null) stack.push(errorHandler)
-
-    finalizer
   }
 
   private[this] final def executor: Executor =
@@ -235,38 +215,20 @@ private[zio] final class FiberContext[E, A](
                   curIo = enterSupervision *> io.value.ensuring(exitSupervision)
 
                 case ZIO.Tags.Fail =>
-                  val io = curIo.asInstanceOf[ZIO.Fail[E]]
+                  val io = curIo.asInstanceOf[ZIO.Fail[E, Any]]
 
-                  val finalizer = unwindStack
+                  unwindStack()
 
                   if (stack.isEmpty) {
                     // Error not caught, stack is empty:
-                    if (finalizer eq null) {
-                      // No finalizer, so immediately produce the error.
-                      curIo = null
+                    curIo = null
 
-                      done(Exit.halt(io.cause))
-                    } else {
-                      // We have finalizers to run. We'll resume executing with the
-                      // uncaught failure after we have executed all the finalizers:
-                      curIo = noInterrupt(finalizer).flatMap(
-                        cause => IO.halt(Option.option2Iterable(cause).foldLeft(io.cause)(_ ++ _))
-                      )
-                    }
+                    done(Exit.halt(io.cause))
                   } else {
                     // Error caught, next continuation on the stack will deal
                     // with it, so we just have to compute it here:
-                    if (finalizer eq null) {
-                      curIo = nextInstr(io.cause)
-                    } else {
-                      curIo = noInterrupt(finalizer).map(Option.option2Iterable(_).foldLeft(io.cause)(_ ++ _))
-                    }
+                    curIo = nextInstr(io.cause)
                   }
-
-                case ZIO.Tags.Ensuring =>
-                  val io = curIo.asInstanceOf[ZIO.Ensuring[Any, E, Any]]
-                  stack.push(new Finalizer(io.finalizer))
-                  curIo = io.zio
 
                 case ZIO.Tags.Descriptor =>
                   curIo = nextInstr(getDescriptor)
@@ -449,9 +411,6 @@ private[zio] final class FiberContext[E, A](
 
       null
     }
-
-  private[this] final def noInterrupt[E, A](io: IO[E, A]): IO[E, A] =
-    changeInterrupt(io, false)
 
   private[this] final def changeInterrupt[E, A](io: IO[E, A], flag: Boolean): IO[E, A] = {
     interruptStatus.push(flag)
