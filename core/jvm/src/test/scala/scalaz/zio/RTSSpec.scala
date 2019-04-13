@@ -129,7 +129,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     manual sync interruption                $testManualSyncInterruption
 
   RTS interruption
-    blocking IO is interruptible            $testBlockingIOIsInterruptible
+    blocking IO is effect blocking          $testBlockingIOIsEffectBlocking
     sync forever is interruptible           $testInterruptSyncForever
     interrupt of never                      $testNeverIsInterruptible
     asyncPure is interruptible              $testAsyncPureIsInterruptible
@@ -419,7 +419,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testBracketRegression1 = {
     def makeLogger: Ref[List[String]] => String => UIO[Unit] =
-      (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).void
+      (ref: Ref[List[String]]) => (line: String) => ref.update(_ ::: List(line)).unit
 
     unsafeRun(for {
       ref <- Ref.make[List[String]](Nil)
@@ -500,7 +500,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testDeepAttemptIsStackSafe =
     unsafeRun((0 until 10000).foldLeft(IO.effect[Unit](())) { (acc, _) =>
-      acc.either.void
+      acc.either.unit
     }) must_=== (())
 
   def testDeepFlatMapIsStackSafe = {
@@ -694,7 +694,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       release <- scalaz.zio.Promise.make[Nothing, Int]
       latch   = internal.OneShot.make[Unit]
       async = IO.effectAsyncInterrupt[Any, Nothing, Unit] { _ =>
-        latch.set(()); Left(release.succeed(42).void)
+        latch.set(()); Left(release.succeed(42).unit)
       }
       fiber  <- async.fork
       _      <- IO.effectTotal(latch.get(1000))
@@ -764,7 +764,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       release <- Promise.make[Nothing, Int]
       acquire <- Promise.make[Nothing, Unit]
       task = IO.effectAsyncM[Nothing, Unit] { _ =>
-        IO.bracket(acquire.succeed(()))(_ => release.succeed(42).void)(_ => IO.never)
+        IO.bracket(acquire.succeed(()))(_ => release.succeed(42).unit)(_ => IO.never)
       }
       fiber <- task.fork
       _     <- acquire.await
@@ -780,7 +780,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       release <- Promise.make[Nothing, Int]
       latch   = scala.concurrent.Promise[Unit]()
       async = IO.effectAsyncInterrupt[Any, Nothing, Nothing] { _ =>
-        latch.success(()); Left(release.succeed(42).void)
+        latch.success(()); Left(release.succeed(42).unit)
       }
       fiber <- async.fork
       _ <- IO.effectAsync[Throwable, Unit] { k =>
@@ -864,8 +864,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       f <- (
             p1.succeed(())
               .bracket_[Any, Nothing]
-              .apply[Any](pa.succeed(1).void)(IO.never) race //    TODO: Dotty doesn't infer this properly
-              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).void)(IO.never)
+              .apply[Any](pa.succeed(1).unit)(IO.never) race //    TODO: Dotty doesn't infer this properly
+              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never)
           ).supervise.fork
       _ <- p1.await *> p2.await
 
@@ -883,9 +883,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       f <- (
             p1.succeed(())
               .bracket_[Any, Nothing]
-              .apply[Any](pa.succeed(1).void)(IO.never)
+              .apply[Any](pa.succeed(1).unit)(IO.never)
               .fork *> //    TODO: Dotty doesn't infer this properly
-              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).void)(IO.never).fork *>
+              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork *>
               IO.never
           ).supervise.fork
       _ <- p1.await *> p2.await
@@ -904,9 +904,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
             _ <- p1
                   .succeed(())
                   .bracket_[Any, Nothing]
-                  .apply[Any](pa.succeed(1).void)(IO.never)
+                  .apply[Any](pa.succeed(1).unit)(IO.never)
                   .fork //    TODO: Dotty doesn't infer this properly
-            _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).void)(IO.never).fork
+            _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
             _ <- p1.await *> p2.await
           } yield ()).supervise
       r <- pa.await zip pb.await
@@ -952,7 +952,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       s      <- Semaphore.make(0L)
       effect <- Promise.make[Nothing, Int]
       winner = s.acquire *> IO.effectAsync[Throwable, Unit](_(IO.unit))
-      loser  = IO.bracket(s.release)(_ => effect.succeed(42).void)(_ => IO.never)
+      loser  = IO.bracket(s.release)(_ => effect.succeed(42).unit)(_ => IO.never)
       race   = winner raceEither loser
       _      <- race.either
       b      <- effect.await
@@ -1075,11 +1075,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield workers1 == workers2 && thread1 == thread2) must_=== Exit.Success(true)
   }
 
-  def testBlockingIOIsInterruptible = unsafeRun(
+  def testBlockingIOIsEffectBlocking = unsafeRun(
     for {
       done  <- Ref.make(false)
       start <- IO.succeed(internal.OneShot.make[Unit])
-      fiber <- blocking.interruptible { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
+      fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
       _     <- IO.succeed(start.get())
       res   <- fiber.interrupt
       value <- done.get

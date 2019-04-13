@@ -501,7 +501,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           _ <- tvar.update(_ + 100)
           _ <- STM.retry
         } yield ()
-        right = tvar.update(_ + 100).void
+        right = tvar.update(_ + 100).unit
         _     <- (left orElse right).commit
         v     <- tvar.get.commit
       } yield v must_=== 100
@@ -515,7 +515,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           _ <- tvar.update(_ + 100)
           _ <- STM.fail("Uh oh!")
         } yield ()
-        right = tvar.update(_ + 100).void
+        right = tvar.update(_ + 100).unit
         _     <- (left orElse right).commit
         v     <- tvar.get.commit
       } yield v must_=== 100
@@ -572,7 +572,7 @@ object Examples {
         _     <- mutex.set(true)
       } yield ()).commit
     def release(mutex: Mutex): UIO[Unit] =
-      mutex.set(false).commit.void
+      mutex.set(false).commit.unit
     def withMutex[R, E, A](mutex: Mutex)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
       acquire(mutex).bracket_[R, E].apply[R](release(mutex))[R, E, A](zio)
   }
@@ -586,7 +586,7 @@ object Examples {
         _     <- semaphore.set(value - n)
       } yield ()).commit
     def release(semaphore: Semaphore, n: Int): UIO[Unit] =
-      semaphore.update(_ + n).commit.void
+      semaphore.update(_ + n).commit.unit
   }
   object promise {
     type Promise[A] = TRef[Option[A]]

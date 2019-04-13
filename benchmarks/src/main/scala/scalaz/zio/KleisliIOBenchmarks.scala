@@ -53,7 +53,7 @@ object ScalazIOArray {
           ) >>>
           extractIAndIncrementI
       )
-    sort.run(0).void
+    sort.run(0).unit
   }
 }
 

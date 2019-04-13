@@ -28,7 +28,7 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 
   // TODO: Scala doesn't allow Iterable???
   final def offerAll(as: List[A]): STM[Nothing, Unit] =
-    ref.update(_.enqueue(as)).void
+    ref.update(_.enqueue(as)).unit
 
   final def poll: STM[Nothing, Option[A]] = takeUpTo(1).map(_.headOption)
 
