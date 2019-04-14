@@ -411,10 +411,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * logic built on `ensuring`, see `ZIO#bracket`.
    */
   final def ensuring(finalizer: UIO[_]): ZIO[R, E, A] =
-    ZIO.checkInterrupt(
-      interruptible =>
-        self
-          .interruptStatus(interruptible)
+    ZIO.uninterruptibleMask(
+      restore =>
+        restore(self)
           .foldCauseM(
             cause1 =>
               finalizer.foldCauseM[Any, E, Nothing](
@@ -427,7 +426,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
                 _ => ZIO.succeed(value)
               )
           )
-          .uninterruptible
     )
 
   /**
@@ -1598,8 +1596,41 @@ trait ZIOFunctions extends Serializable {
    */
   final def descriptor: UIO[Fiber.Descriptor] = ZIO.Descriptor
 
-  final def checkInterrupt[R >: LowerR, E <: UpperE, A](f: Boolean => ZIO[R, E, A]): ZIO[R, E, A] =
+  /**
+   * Checks the interrupt status, and produces the effect returned by the
+   * specified callback.
+   */
+  final def checkInterruptible[R >: LowerR, E <: UpperE, A](f: Boolean => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.CheckInterrupt(f)
+
+  /**
+   * Makes an explicit check to see if the fiber has been interrupted, and if
+   * so, performs self-interruption.
+   */
+  final def allowInterrupt: UIO[Unit] =
+    descriptor.flatMap(d => if (d.interrupted) interrupt else unit)
+
+  /**
+   * Makes the effect uninterruptible, but passes it a restore function that
+   * can be used to restore the inherited interruptibility from whatever region
+   * the effect is composed into.
+   */
+  final def uninterruptibleMask[R >: LowerR, E <: UpperE, A](
+    f: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+  ): ZIO[R, E, A] =
+    checkInterruptible(flag => f(new ZIO.InterruptStatusRestore(flag)).uninterruptible)
+
+  /**
+   * Prefix form of `ZIO#uninterruptible`.
+   */
+  final def uninterruptible[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.uninterruptible
+
+  /**
+   * Prefix form of `ZIO#interruptible`.
+   */
+  final def interruptible[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.interruptible
 
   /**
    * Provides access to the list of child fibers supervised by this fiber.
@@ -1717,6 +1748,11 @@ object ZIO extends ZIO_R_Any {
 
     final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
       new ZIO.BracketExitAcquire(self)
+  }
+
+  class InterruptStatusRestore(val flag: Boolean) extends AnyVal {
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      zio.interruptStatus(flag)
   }
 
   class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
