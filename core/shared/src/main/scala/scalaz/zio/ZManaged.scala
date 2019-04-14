@@ -120,8 +120,31 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
       }
     }
 
-  final def zipPar[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+  final def <&>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
     zipWithPar(that)((_, _))
+
+  /**
+   * Named alias for `<&>`.
+   */
+  final def zipPar[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+    self <&> that
+
+  final def <&[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] = self.zipPar(that).map(_._1)
+
+  /**
+   * Named alias for `<&`.
+   */
+  final def zipParLeft[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
+    self <& that
+
+  final def &>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+    self.zipPar(that).map(_._2)
+
+  /**
+   * Named alias for `&>`.
+   */
+  final def zipParRight[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+    self &> that
 }
 
 object ZManaged {

@@ -183,8 +183,42 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * in parallel, combining their results into a tuple. If either side fails,
    * then the other side will be interrupted, interrupted the result.
    */
-  final def zipPar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+  final def <&>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self.zipWithPar(that)((a, b) => (a, b))
+
+  /**
+   * A named alias for `<&>`.
+   */
+  final def zipPar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+    self <&> that
+
+  /**
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel, this effect result returned. If either side fails,
+   * then the other side will be interrupted, interrupted the result.
+   */
+  final def <&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, A] =
+    self.zipWithPar(that)((a, b) => (a, b)).map(_._1)
+
+  /**
+   * A named alias for `<&`.
+   */
+  final def zipParLeft[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, A] =
+    self <& that
+
+  /**
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel, specified effect result returned. If either side fails,
+   * then the other side will be interrupted, interrupted the result.
+   */
+  final def &>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    self.zipWithPar(that)((a, b) => (a, b)).map(_._2)
+
+  /**
+   * A named alias for `&>`.
+   */
+  final def zipParRight[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    self &> that
 
   /**
    * Returns an effect that races this effect with the specified effect,

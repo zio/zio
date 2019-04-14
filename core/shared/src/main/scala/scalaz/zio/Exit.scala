@@ -75,12 +75,62 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Zips this result together with the specified result.
    */
-  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+
+  /**
+   * Named alias for `<*>`.
+   */
+  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
+
+  /**
+   * Zips the this result.
+   */
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <* that
+
+  /**
+   * Zips the specified result.
+   */
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
+
+  /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self *> that
 
   /**
    * Zips this result together with the specified result, in parallel.
    */
-  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+  final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+
+  /**
+   * Named alias for `<&>`.
+   */
+  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <&> that
+
+  /**
+   * Zips the this result, in parallel.
+   */
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
+
+  /**
+   * Named alias for `<&`.
+   */
+  final def zipParLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <& that
+
+  /**
+   * Zips the specified result, in parallel.
+   */
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
+
+  /**
+   * Named alias for `&>`.
+   */
+  final def zipParRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self &> that
 
   /**
    * Zips this together with the specified result using the combination functions.
