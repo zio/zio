@@ -55,9 +55,15 @@ private[zio] final class FiberContext[E, A](
 
   private object InterruptExit extends Function[Any, IO[E, Any]] {
     final def apply(v: Any): IO[E, Any] = {
-      interruptStatus.popDrop(())
+      val isInterruptible = interruptStatus.peekOrElse(true)
 
-      ZIO.succeed(v)
+      if (isInterruptible) {
+        interruptStatus.popDrop(())
+
+        ZIO.succeed(v)
+      } else {
+        ZIO.effectTotal { interruptStatus.popDrop(v) }
+      }
     }
   }
 
