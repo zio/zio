@@ -105,19 +105,23 @@ private[zio] final class FiberContext[E, A](
         var opcount: Int = 0
 
         while (curIo ne null) {
+          val tag = curIo.tag
+
           // Check to see if the fiber should continue executing or not:
-          if (!shouldInterrupt) {
+          if (tag == ZIO.Tags.Fail || !shouldInterrupt) {
             // Fiber does not need to be interrupted, but might need to yield:
-            if (opcount == maxopcount) {
+            if (opcount >= maxopcount) {
               // Cannot capture `curIo` since it will be boxed into `ObjectRef`,
               // which destroys performance. So put `curIo` into a temp val:
               val tmpIo = curIo
 
               curIo = IO.yieldNow *> tmpIo
+
+              opcount = 0
             } else {
               // Fiber is neither being interrupted nor needs to yield. Execute
               // the next instruction in the program:
-              (curIo.tag: @switch) match {
+              tag match {
                 case ZIO.Tags.FlatMap =>
                   val io = curIo.asInstanceOf[ZIO.FlatMap[Any, E, Any, Any]]
 
@@ -199,13 +203,12 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.CheckInterrupt =>
                   val io = curIo.asInstanceOf[ZIO.CheckInterrupt[Any, E, Any]]
 
-                  curIo = io.f(interruptible)
+                  curIo = io.k(interruptible)
 
                 case ZIO.Tags.Supervised =>
                   val io = curIo.asInstanceOf[ZIO.Supervised[Any, E, Any]]
 
-                  // TODO: Use bracket?
-                  curIo = enterSupervision *> io.value.ensuring(exitSupervision)
+                  curIo = enterSupervision.bracket_(exitSupervision)(io.value)
 
                 case ZIO.Tags.Fail =>
                   val io = curIo.asInstanceOf[ZIO.Fail[E, Any]]
@@ -229,8 +232,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Lock =>
                   val io = curIo.asInstanceOf[ZIO.Lock[Any, E, Any]]
 
-                  // TODO: Use bracket?
-                  curIo = (lock(io.executor) *> io.zio).ensuring(unlock)
+                  curIo = lock(io.executor).bracket_(unlock)(io.zio)
 
                 case ZIO.Tags.Yield =>
                   evaluateLater(IO.unit)
@@ -252,7 +254,7 @@ private[zio] final class FiberContext[E, A](
             }
           } else {
             // Fiber was interrupted
-            curIo = terminate(IO.interrupt)
+            curIo = IO.interrupt
           }
 
           opcount = opcount + 1
@@ -260,13 +262,13 @@ private[zio] final class FiberContext[E, A](
       } catch {
         case _: InterruptedException =>
           Thread.interrupted
-          curIo = terminate(IO.interrupt)
+          curIo = IO.interrupt
 
         // Catastrophic error handler. Any error thrown inside the interpreter is
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
         case t: Throwable if (platform.nonFatal(t)) =>
-          curIo = terminate(IO.die(t))
+          curIo = IO.die(t)
       }
     }
   }
@@ -350,8 +352,8 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(interrupted, terminating, _, observers) =>
-        val newState = Executing(interrupted, terminating, FiberStatus.Suspended, observers)
+      case Executing(interrupted, _, observers) =>
+        val newState = Executing(interrupted, FiberStatus.Suspended, observers)
 
         if (!state.compareAndSet(oldState, newState)) enterAsync()
         else if (shouldInterrupt) {
@@ -369,8 +371,8 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(interrupted, terminating, FiberStatus.Suspended, observers) =>
-        if (!state.compareAndSet(oldState, Executing(interrupted, terminating, FiberStatus.Running, observers)))
+      case Executing(interrupted, FiberStatus.Suspended, observers) =>
+        if (!state.compareAndSet(oldState, Executing(interrupted, FiberStatus.Running, observers)))
           exitAsync()
         else true
 
@@ -390,11 +392,10 @@ private[zio] final class FiberContext[E, A](
 
   @inline
   private[this] final def shouldInterrupt: Boolean =
-    state.get.interrupted && interruptible && !state.get.terminating
+    state.get.interrupted && interruptible
 
   @inline
-  private[this] final def allowRecovery: Boolean =
-    !(state.get.interrupted && interruptible)
+  private[this] final def allowRecovery: Boolean = !shouldInterrupt
 
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
@@ -412,25 +413,11 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  private[this] final def terminate(io: UIO[Nothing]): UIO[Nothing] = {
-
-    val oldState = state.get
-    oldState match {
-      case Executing(interrupted, _, status, observers) =>
-        if (!state.compareAndSet(oldState, Executing(interrupted, true, status, observers)))
-          terminate(io)
-        else io
-
-      case _ => null
-    }
-  }
-
-  @tailrec
   private[this] final def done(v: Exit[E, A]): Unit = {
     val oldState = state.get
 
     oldState match {
-      case Executing(_, _, _, observers: List[Callback[Nothing, Exit[E, A]]]) => // TODO: Dotty doesn't infer this properly
+      case Executing(_, _, observers: List[Callback[Nothing, Exit[E, A]]]) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Done(v))) done(v)
         else {
           notifyObservers(v, observers)
@@ -455,20 +442,20 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(_, terminating, FiberStatus.Suspended, observers0) if interruptible =>
+      case Executing(_, FiberStatus.Suspended, observers0) if interruptible =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(true, terminating, FiberStatus.Running, observers))) kill0(k)
+        if (!state.compareAndSet(oldState, Executing(true, FiberStatus.Running, observers))) kill0(k)
         else {
           evaluateLater(IO.interrupt)
 
           None
         }
 
-      case Executing(_, terminating, status, observers0) =>
+      case Executing(_, status, observers0) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(true, terminating, status, observers))) kill0(k)
+        if (!state.compareAndSet(oldState, Executing(true, status, observers))) kill0(k)
         else None
 
       case Done(e) => Some(IO.succeed(e))
@@ -488,10 +475,10 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(interrupted, terminating, status, observers0) =>
+      case Executing(interrupted, status, observers0) =>
         val observers = k :: observers0
 
-        if (!state.compareAndSet(oldState, Executing(interrupted, terminating, status, observers))) register0(k)
+        if (!state.compareAndSet(oldState, Executing(interrupted, status, observers))) register0(k)
         else null
 
       case Done(v) => v
@@ -533,22 +520,17 @@ private[zio] object FiberContext {
     /** indicates if the fiber was interrupted */
     def interrupted: Boolean
 
-    /** indicates if the fiber is terminating */
-    def terminating: Boolean
-
   }
   object FiberState extends Serializable {
     final case class Executing[E, A](
       interrupted: Boolean,
-      terminating: Boolean,
       status: FiberStatus,
       observers: List[Callback[Nothing, Exit[E, A]]]
     ) extends FiberState[E, A]
     final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A] {
       def interrupted: Boolean = value.interrupted
-      def terminating: Boolean = false
     }
 
-    def Initial[E, A] = Executing[E, A](false, false, FiberStatus.Running, Nil)
+    def Initial[E, A] = Executing[E, A](false, FiberStatus.Running, Nil)
   }
 }

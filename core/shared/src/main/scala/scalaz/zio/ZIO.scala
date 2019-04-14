@@ -1616,9 +1616,9 @@ trait ZIOFunctions extends Serializable {
    * the effect is composed into.
    */
   final def uninterruptibleMask[R >: LowerR, E <: UpperE, A](
-    f: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
   ): ZIO[R, E, A] =
-    checkInterruptible(flag => f(new ZIO.InterruptStatusRestore(flag)).uninterruptible)
+    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).uninterruptible)
 
   /**
    * Prefix form of `ZIO#uninterruptible`.
@@ -1871,7 +1871,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.InterruptStatus
   }
 
-  final class CheckInterrupt[R, E, A](val f: Boolean => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  final class CheckInterrupt[R, E, A](val k: Boolean => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.CheckInterrupt
   }
 

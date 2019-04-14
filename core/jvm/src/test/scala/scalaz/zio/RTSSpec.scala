@@ -151,6 +151,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     run of interruptible                    $testRunOfInterruptible
     alternating interruptibility            $testAlternatingInterruptibility
     interruption after defect               $testInterruptionAfterDefect
+    interruption after defect 2             $testInterruptionAfterDefect2
 
   RTS environment
     provide is modular                      $testProvideIsModular
@@ -808,10 +809,24 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(for {
       startLatch <- Promise.make[Nothing, Unit]
       ref        <- Ref.make(false)
-      fiber      <- (ZIO.dieMessage("Uh oh").run *> startLatch.succeed(()) *> ZIO.never).ensuring(ref.set(true)).fork
-      _          <- startLatch.await
-      _          <- fiber.interrupt
-      value      <- ref.get
+      fiber <- (ZIO.succeedLazy(throw new Error).run *> startLatch.succeed(()) *> ZIO.never)
+                .ensuring(ref.set(true))
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- ref.get
+    } yield value must_=== true)
+
+  def testInterruptionAfterDefect2 =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      ref        <- Ref.make(false)
+      fiber <- (ZIO.succeedLazy(throw new Error).run *> startLatch.succeed(()) *> ZIO.unit.forever)
+                .ensuring(ref.set(true))
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- ref.get
     } yield value must_=== true)
 
   def testProvideIsModular = {
