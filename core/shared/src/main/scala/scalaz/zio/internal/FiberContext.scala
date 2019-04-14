@@ -36,12 +36,13 @@ private[zio] final class FiberContext[E, A](
   // Accessed from multiple threads:
   private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
 
-  // Accessed from within a single thread (not necessarily the same):
-  @volatile private[this] var supervising = 0
   @volatile private[this] var interrupted = false
 
-  private[this] val interruptStatus = StackBool()
+  // Accessed from within a single thread (not necessarily the same):
+  @volatile private[this] var supervising = 0
+
   private[this] val fiberId         = FiberContext.fiberCounter.getAndIncrement()
+  private[this] val interruptStatus = StackBool()
   private[this] val stack           = Stack[Any => IO[Any, Any]]()
   private[this] val environment     = Stack[AnyRef]("ZIO")
   private[this] val locked          = Stack[Executor]()
@@ -225,7 +226,11 @@ private[zio] final class FiberContext[E, A](
                     // Error not caught, stack is empty:
                     curIo = null
 
-                    done(Exit.halt(io.cause))
+                    val cause =
+                      if (interrupted && !io.cause.interrupted) io.cause ++ Exit.Cause.interrupt
+                      else io.cause
+
+                    done(Exit.halt(cause))
                   } else {
                     // Error caught, next continuation on the stack will deal
                     // with it, so we just have to compute it here:
