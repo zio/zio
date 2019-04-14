@@ -495,7 +495,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def onInterrupt(cleanup: UIO[_]): ZIO[R, E, A] =
     self.ensuring(
-      ZIO.descriptor flatMap (descriptor => if (descriptor.interrupted) cleanup else ZIO.unit)
+      ZIO.descriptorWith(descriptor => if (descriptor.interrupted) cleanup else ZIO.unit)
     )
 
   /**
@@ -1605,15 +1605,24 @@ trait ZIOFunctions extends Serializable {
   /**
    * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
    */
-  final def foldLeft[R >: LowerR, E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
+  final def foldLeft[R >: LowerR, E <: UpperE, S, A](
+    in: Iterable[A]
+  )(zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
     in.foldLeft(IO.succeed(zero): ZIO[R, E, S]) { (acc, el) =>
       acc.flatMap(f(_, el))
     }
 
   /**
-   * Returns information about the current fiber, such as its fiber identity.
+   * Returns information about the current fiber, such as its identity.
    */
-  final def descriptor: UIO[Fiber.Descriptor] = ZIO.Descriptor
+  final def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeed(_))
+
+  /**
+   * Constructs an effect based on information about the current fiber, such as
+   * its identity.
+   */
+  final def descriptorWith[R >: LowerR, E <: UpperE, A](f: Fiber.Descriptor => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.Descriptor(f)
 
   /**
    * Checks the interrupt status, and produces the effect returned by the
@@ -1627,7 +1636,7 @@ trait ZIOFunctions extends Serializable {
    * so, performs self-interruption.
    */
   final def allowInterrupt: UIO[Unit] =
-    descriptor.flatMap(d => if (d.interrupted) interrupt else unit)
+    descriptorWith(d => if (d.interrupted) interrupt else unit)
 
   /**
    * Makes the effect uninterruptible, but passes it a restore function that
@@ -1657,7 +1666,7 @@ trait ZIOFunctions extends Serializable {
    * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
    * current fiber for this operation to return non-empty lists.
    */
-  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
+  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptorWith(_.children)
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
@@ -1718,7 +1727,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
    * [[scala.concurrent.ExecutionContext]] into a `ZIO`.
    */
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
-    Task.descriptor.flatMap { d =>
+    Task.descriptorWith { d =>
       val ec = d.executor.asEC
       val f  = make(ec)
       f.value
@@ -1927,7 +1936,7 @@ object ZIO extends ZIO_R_Any {
       err(cause)
   }
 
-  object Descriptor extends UIO[Fiber.Descriptor] {
+  final class Descriptor[R, E, A](val k: Fiber.Descriptor => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.Descriptor
   }
 

@@ -148,11 +148,6 @@ private[zio] final class FiberContext[E, A](
 
                       curIo = io.k(io2.effect(platform))
 
-                    case ZIO.Tags.Descriptor =>
-                      val value = getDescriptor
-
-                      curIo = io.k(value)
-
                     case _ =>
                       // Fallback case. We couldn't evaluate the LHS so we have to
                       // use the stack:
@@ -238,7 +233,9 @@ private[zio] final class FiberContext[E, A](
                   }
 
                 case ZIO.Tags.Descriptor =>
-                  curIo = nextInstr(getDescriptor)
+                  val io = curIo.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
+
+                  curIo = io.k(getDescriptor)
 
                 case ZIO.Tags.Lock =>
                   val io = curIo.asInstanceOf[ZIO.Lock[Any, E, Any]]
