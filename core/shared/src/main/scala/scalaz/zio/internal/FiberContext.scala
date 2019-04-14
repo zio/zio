@@ -208,7 +208,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Supervised =>
                   val io = curIo.asInstanceOf[ZIO.Supervised[Any, E, Any]]
 
-                  curIo = enterSupervision.bracket_(exitSupervision)(io.value)
+                  curIo = enterSupervision.bracket_(exitSupervision, io.value)
 
                 case ZIO.Tags.Fail =>
                   val io = curIo.asInstanceOf[ZIO.Fail[E, Any]]
@@ -232,7 +232,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Lock =>
                   val io = curIo.asInstanceOf[ZIO.Lock[Any, E, Any]]
 
-                  curIo = lock(io.executor).bracket_(unlock)(io.zio)
+                  curIo = lock(io.executor).bracket_(unlock, io.zio)
 
                 case ZIO.Tags.Yield =>
                   evaluateLater(IO.unit)
