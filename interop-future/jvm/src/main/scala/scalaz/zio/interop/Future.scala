@@ -115,16 +115,16 @@ package object future {
 
   implicit class FutureSyntax[T](val value: Future[T]) extends AnyVal {
     final def onSuccess[U](pf: PartialFunction[T, U])(implicit ec: ExecutionContext): Unit =
-      unsafeRun(ec, value.join.flatMap[Any, Throwable, Option[U]](t => IO.effect(pf lift t)).fork.void)
+      unsafeRun(ec, value.join.flatMap[Any, Throwable, Option[U]](t => IO.effect(pf lift t)).fork.unit)
 
     final def onFailure[U](pf: PartialFunction[Throwable, U])(implicit ec: ExecutionContext): Unit =
       unsafeRun(ec, value.join.either.flatMap {
         case Left(t)  => IO.effect(pf lift t)
         case Right(_) => IO.unit
-      }.fork.void)
+      }.fork.unit)
 
     final def onComplete[U](f: Try[T] => U)(implicit ec: ExecutionContext): Unit =
-      unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, U](t => IO.effect(f(t))).fork.void)
+      unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, U](t => IO.effect(f(t))).fork.unit)
 
     final def isCompleted: Boolean =
       unsafeRun(Global, value.poll.map(_.fold(false)(_ => true)))

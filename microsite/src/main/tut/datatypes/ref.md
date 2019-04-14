@@ -83,7 +83,7 @@ object S {
   def apply(v: Long): UIO[S] =
     Ref.make(v).map { vref =>
       new S {
-        def V = vref.update(_ + 1).void
+        def V = vref.update(_ + 1).unit
 
         def P = (vref.get.flatMap { v =>
           if (v < 0)
@@ -93,7 +93,7 @@ object S {
               case false => IO.fail(())
               case true  => IO.unit
             }
-        } <> P).either.void
+        } <> P).either.unit
       }
     }
 }

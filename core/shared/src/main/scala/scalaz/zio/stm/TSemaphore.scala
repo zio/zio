@@ -32,7 +32,7 @@ class TSemaphore private (permits: TRef[Long]) {
   final def release: STM[Nothing, Unit] = releaseN(1L)
 
   final def releaseN(n: Long): STM[Nothing, Unit] =
-    assertNonNegative(n) *> permits.update(_ + n).void
+    assertNonNegative(n) *> permits.update(_ + n).unit
 
   final def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
     acquire *> stm <* release

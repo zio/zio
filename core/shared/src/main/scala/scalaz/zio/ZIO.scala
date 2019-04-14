@@ -229,7 +229,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       race: Ref[Int],
       done: Promise[E2, C]
     )(res: Exit[E0, A]): ZIO[R1, Nothing, _] =
-      ZIO.flatten(race.modify((c: Int) => (if (c > 0) ZIO.unit else f(res, loser).to(done).void) -> (c + 1)))
+      ZIO.flatten(race.modify((c: Int) => (if (c > 0) ZIO.unit else f(res, loser).to(done).unit) -> (c + 1)))
 
     for {
       done  <- Promise.make[E2, C]
@@ -811,7 +811,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
-  final def void: ZIO[R, E, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: ZIO[R, E, Unit] = unit
+
+  /**
+   * Returns the effect resulting from mapping the success of this effect to unit.
+   */
+  final def unit: ZIO[R, E, Unit] = const(())
 
   /**
    * Returns an effect that effectfully "peeks" at the success of this effect.
@@ -1575,13 +1581,13 @@ trait ZIOFunctions extends Serializable {
    * The moral equivalent of `if (p) exp`
    */
   final def when[R >: LowerR, E <: UpperE](b: Boolean)(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
-    if (b) zio.void else unit
+    if (b) zio.unit else unit
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   final def whenM[R >: LowerR, E <: UpperE](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) zio.void else unit)
+    b.flatMap(b => if (b) zio.unit else unit)
 
   /**
    * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
@@ -1639,6 +1645,19 @@ trait ZIOFunctions extends Serializable {
    * current fiber for this operation to return non-empty lists.
    */
   final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
+
+  /**
+   * Acquires a resource, uses the resource, and then releases the resource.
+   * However, unlike `bracket`, the separation of these phases allows
+   * the acquisition to be interruptible.
+   *
+   * Useful for concurrent data structures and other cases where the
+   * 'deallocator' can tell if the allocation succeeded or not just by
+   * inspecting internal / external state.
+   */
+  def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+    ZManaged(reservation).use(use)
+
 }
 
 trait ZIO_E_Any extends ZIO_E_Throwable {
@@ -1668,7 +1687,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
       platform =>
         try Right(effect)
         catch {
-          case t: Throwable if platform.nonFatal(t) => Left(t)
+          case t: Throwable if !platform.fatal(t) => Left(t)
         }
     ).absolve
 

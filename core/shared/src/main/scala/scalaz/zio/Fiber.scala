@@ -155,7 +155,13 @@ trait Fiber[+E, +A] { self =>
   /**
    * Maps the output of this fiber to `()`.
    */
-  final def void: Fiber[E, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: Fiber[E, Unit] = unit
+
+  /**
+   * Maps the output of this fiber to `()`.
+   */
+  final def unit: Fiber[E, Unit] = const(())
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]].
@@ -267,7 +273,7 @@ object Fiber {
    * Joins all fibers, awaiting their completion.
    */
   final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.await.void)
+    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
