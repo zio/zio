@@ -61,15 +61,13 @@ private[zio] final class FiberContext[E, A](
   }
 
   /**
-   * Unwinds the stack, collecting all finalizers and coalescing them into a
-   * `UIO` that produces an option of a cause of finalizer failures. If needed,
-   * catch exceptions and push error handler on the stack.
+   * Unwinds the stack, looking for exception handlers, and exiting
+   * interruptible / uninterruptible sections.
    */
   final def unwindStack(): Unit = {
     var unwinding = true
 
-    // Unwind the stack, looking for exception handlers and coalescing
-    // finalizers.
+    // Unwind the stack, looking for exception handlers:
     while (unwinding && !stack.isEmpty) {
       stack.pop() match {
         case InterruptExit => interruptStatus.popDrop(())
