@@ -806,9 +806,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(for {
       startLatch <- Promise.make[Nothing, Unit]
       counter    <- Ref.make(0)
-      fiber <- ((startLatch.succeed(()) *> (
-                (ZIO.never.interruptible.run *> counter.update(_ + 1)).uninterruptible
-              ).interruptible).run
+      fiber <- ((((startLatch.succeed(()) *> ZIO.never.interruptible.run *> counter
+                .update(_ + 1)).uninterruptible).interruptible).run
                 *> counter.update(_ + 1)).uninterruptible.fork
       _     <- startLatch.await
       _     <- fiber.interrupt
