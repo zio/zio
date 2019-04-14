@@ -213,7 +213,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams"     % "1.0.2",
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest"       %% "scalatest"           % "3.0.6" % "test",
+      "org.scalatest"       %% "scalatest"           % "3.0.7" % "test",
       "com.typesafe.akka"   %% "akka-stream"         % akkaVersion % "test",
       "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
