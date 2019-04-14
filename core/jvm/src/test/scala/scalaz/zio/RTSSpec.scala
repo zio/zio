@@ -154,6 +154,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interruption after defect               $testInterruptionAfterDefect
     interruption after defect 2             $testInterruptionAfterDefect2
     cause reflects interruption             $testCauseReflectsInterruption
+    bracket use inherits interrupt status   $testUseInheritsInterruptStatus
+    bracket use inherits interrupt status 2 $testCauseUseInheritsInterruptStatus
 
   RTS environment
     provide is modular                      $testProvideIsModular
@@ -853,6 +855,45 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
     result
   }
+
+  def testUseInheritsInterruptStatus =
+    unsafeRun(
+      for {
+        latch1 <- Promise.make[Nothing, Unit]
+        latch2 <- Promise.make[Nothing, Unit]
+        ref    <- Ref.make(false)
+        fiber1 <- latch1
+                   .succeed(())
+                   .bracket_(ZIO.unit, latch2.await *> clock.sleep(10.millis) *> ref.set(true))
+                   .uninterruptible
+                   .fork
+        _     <- latch1.await
+        _     <- latch2.succeed(())
+        _     <- fiber1.interrupt
+        value <- ref.get
+      } yield value must_=== true
+    )
+
+  def testCauseUseInheritsInterruptStatus =
+    unsafeRun(
+      for {
+        latch1 <- Promise.make[Nothing, Unit]
+        latch2 <- Promise.make[Nothing, Unit]
+        ref    <- Ref.make(false)
+        fiber1 <- latch1
+                   .succeed(())
+                   .bracketExit[Clock, Nothing, Unit](
+                     (_: Boolean, _: Exit[_, _]) => ZIO.unit,
+                     (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
+                   )
+                   .uninterruptible
+                   .fork
+        _     <- latch1.await
+        _     <- latch2.succeed(())
+        _     <- fiber1.interrupt
+        value <- ref.get
+      } yield value must_=== true
+    )
 
   def testProvideIsModular = {
     val zio =

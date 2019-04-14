@@ -401,6 +401,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   ): ZIO[R1, E1, B] =
     ZIO.bracket(self, (_: A) => release, (_: A) => use)
 
+  final def bracketExit[R1 <: R, E1 >: E, A1 >: A]: ZIO.BracketExitAcquire[R1, E1, A1] = ZIO.bracketExit(self)
+
+  final def bracketExit[R1 <: R, E1 >: E, B](
+    release: (A, Exit[E1, B]) => ZIO[R1, Nothing, _],
+    use: A => ZIO[R1, E1, B]
+  ): ZIO[R1, E1, B] = ZIO.bracketExit[R1, E, E1, E1, A, B](self, release, use)
+
   /**
    * Returns an effect that, if this effect _starts_ execution, then the
    * specified `finalizer` is guaranteed to begin execution, whether this effect
@@ -1432,11 +1439,14 @@ trait ZIOFunctions extends Serializable {
     release: A => ZIO[R, Nothing, _],
     use: A => ZIO[R, E, B]
   ): ZIO[R, E, B] =
-    (for {
-      r <- environment[R]
-      a <- acquire
-      b <- use(a).interruptible.ensuring(release(a).provide(r))
-    } yield b).uninterruptible
+    ZIO.uninterruptibleMask[R, E, B](
+      restore =>
+        for {
+          r <- environment[R]
+          a <- acquire
+          b <- restore(use(a)).ensuring(release(a).provide(r))
+        } yield b
+    )
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
@@ -1458,12 +1468,15 @@ trait ZIOFunctions extends Serializable {
     release: (A, Exit[E1, B]) => ZIO[R, Nothing, _],
     use: A => ZIO[R, E2, B]
   ): ZIO[R, E2, B] =
-    (for {
-      r <- environment[R]
-      a <- acquire
-      e <- use(a).interruptible.run.flatMap(e => release(a, e).provide(r).const(e))
-      b <- ZIO.done(e)
-    } yield b).uninterruptible
+    ZIO.uninterruptibleMask[R, E2, B](
+      restore =>
+        for {
+          r <- environment[R]
+          a <- acquire
+          e <- restore(use(a)).run.flatMap(e => release(a, e).provide(r).const(e))
+          b <- ZIO.done(e)
+        } yield b
+    )
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
