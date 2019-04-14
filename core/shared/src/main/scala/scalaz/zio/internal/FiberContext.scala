@@ -66,26 +66,21 @@ private[zio] final class FiberContext[E, A](
    * catch exceptions and push error handler on the stack.
    */
   final def unwindStack(): Unit = {
-    var errorHandler: Any => IO[Any, Any] = null
+    var unwinding = true
 
     // Unwind the stack, looking for exception handlers and coalescing
     // finalizers.
-    while ((errorHandler eq null) && !stack.isEmpty) {
+    while (unwinding && !stack.isEmpty) {
       stack.pop() match {
         case InterruptExit => interruptStatus.popDrop(())
+
         case a: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
-          errorHandler = a.err.asInstanceOf[Any => IO[Any, Any]]
+          // Push error handler onto the stack and abort iteration:
+          stack.push(a.err.asInstanceOf[Any => IO[Any, Any]])
+          unwinding = false
         case _ =>
       }
     }
-
-    // We need to maintain the invariant that an empty stack means the
-    // exception was *not* caught.
-    // The stack will never be empty if the error was caught, because
-    // the error handler will be pushed onto the stack.
-    // This lets us return only the finalizer, which will be null for common cases,
-    // and result in zero heap allocations for the happy path.
-    if (errorHandler ne null) stack.push(errorHandler)
   }
 
   private[this] final def executor: Executor =
