@@ -808,7 +808,7 @@ object ZSink {
       self <* that
 
     final def <*>[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
-      zip(that)
+      self zip that
 
     final def repeatWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       new ZSink[R, E, A, A, S] {
