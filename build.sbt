@@ -60,9 +60,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.4.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.4.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.4.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
