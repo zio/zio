@@ -334,14 +334,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * The error parameter of the returned `IO` may be chosen arbitrarily, since
    * it will depend on the `IO`s returned by the given continuations.
    */
-  final def foldM[R1 <: R, E2, B](err: E => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    foldCauseM((cause: Cause[E]) => cause.failureOrCause.fold(err, ZIO.halt), succ)
+  final def foldM[R1 <: R, E2, B](failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+    foldCauseM(_.failureOrCause.fold(failure, ZIO.halt), success)
 
   /**
    * A more powerful version of `foldM` that allows recovering from any kind of failure except interruptions.
    */
-  def foldCauseM[R1 <: R, E2, B](err: Cause[E] => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    new ZIO.Fold(self, err, succ)
+  def foldCauseM[R1 <: R, E2, B](failure: Cause[E] => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+    new ZIO.Fold(self, failure, success)
 
   /**
    * Folds over the failure value or the success value to yield an effect that
@@ -1894,14 +1894,14 @@ object ZIO extends ZIO_R_Any {
 
   final class Fold[R, E, E2, A, B](
     val value: ZIO[R, E, A],
-    val err: Cause[E] => ZIO[R, E2, B],
-    val succ: A => ZIO[R, E2, B]
+    val failure: Cause[E] => ZIO[R, E2, B],
+    val success: A => ZIO[R, E2, B]
   ) extends ZIO[R, E2, B]
       with Function[A, ZIO[R, E2, B]] {
 
     override def tag = Tags.Fold
 
-    final def apply(v: A): ZIO[R, E2, B] = succ(v)
+    final def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
   final class Fork[E, A](val value: IO[E, A]) extends UIO[Fiber[E, A]] {
@@ -1930,10 +1930,10 @@ object ZIO extends ZIO_R_Any {
       self.asInstanceOf[ZIO[R1, E1, B]]
 
     override final def foldCauseM[R1 <: Any, E2, B](
-      err: Cause[E] => ZIO[R1, E2, B],
-      succ: A => ZIO[R1, E2, B]
+      failure: Cause[E] => ZIO[R1, E2, B],
+      success: A => ZIO[R1, E2, B]
     ): ZIO[R1, E2, B] =
-      err(cause)
+      failure(cause)
   }
 
   final class Descriptor[R, E, A](val k: Fiber.Descriptor => ZIO[R, E, A]) extends ZIO[R, E, A] {

@@ -69,20 +69,20 @@ private[zio] final class FiberContext[E, A](
   }
 
   /**
-   * Unwinds the stack, looking for exception handlers, and exiting
-   * interruptible / uninterruptible sections.
+   * Unwinds the stack, looking for the first error handler, and exiting
+   * interruptible / uninterruptible regions.
    */
   final def unwindStack(): Unit = {
     var unwinding = true
 
-    // Unwind the stack, looking for exception handlers:
+    // Unwind the stack, looking for an error handler:
     while (unwinding && !stack.isEmpty) {
       stack.pop() match {
         case InterruptExit => interruptStatus.popDrop(())
 
-        case a: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
-          // Push error handler onto the stack and abort iteration:
-          stack.push(a.err.asInstanceOf[Any => IO[Any, Any]])
+        case fold: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
+          // Push error handler back onto the stack and halt iteration:
+          stack.push(fold.failure.asInstanceOf[Any => ZIO[Any, Any, Any]])
           unwinding = false
         case _ =>
       }
@@ -136,7 +136,7 @@ private[zio] final class FiberContext[E, A](
 
                   // A mini interpreter for the left side of FlatMap that evaluates
                   // anything that is 1-hop away. This eliminates heap usage for the
-                  // happy path.
+                  // happy path. TODO: Expand.
                   (nested.tag: @switch) match {
                     case ZIO.Tags.Succeed =>
                       val io2 = nested.asInstanceOf[ZIO.Succeed[Any]]
@@ -200,7 +200,10 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.InterruptStatus =>
                   val io = curIo.asInstanceOf[ZIO.InterruptStatus[Any, E, Any]]
 
-                  curIo = changeInterrupt(io.zio, io.flag)
+                  interruptStatus.push(io.flag)
+                  stack.push(InterruptExit)
+
+                  curIo = io.zio
 
                 case ZIO.Tags.CheckInterrupt =>
                   val io = curIo.asInstanceOf[ZIO.CheckInterrupt[Any, E, Any]]
@@ -257,6 +260,7 @@ private[zio] final class FiberContext[E, A](
 
                   environment.push(io.r.asInstanceOf[AnyRef])
 
+                  // TODO: Could be interrupted after push but before pop
                   curIo = io.next.ensuring(ZIO.effectTotal { environment.pop() })
               }
             }
@@ -296,7 +300,7 @@ private[zio] final class FiberContext[E, A](
     UIO {
       val set = supervised.peekOrElse(null)
 
-      if (set == null) Array.empty[Fiber[_, _]]
+      if (set eq null) Array.empty[Fiber[_, _]]
       else {
         val arr = Array.ofDim[Fiber[_, _]](set.size)
         set.toArray[Fiber[_, _]](arr)
@@ -411,12 +415,6 @@ private[zio] final class FiberContext[E, A](
 
       null
     }
-
-  private[this] final def changeInterrupt[E, A](io: IO[E, A], flag: Boolean): IO[E, A] = {
-    interruptStatus.push(flag)
-    stack.push(InterruptExit)
-    io
-  }
 
   @tailrec
   private[this] final def done(v: Exit[E, A]): Unit = {

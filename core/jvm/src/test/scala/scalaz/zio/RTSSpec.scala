@@ -156,6 +156,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     cause reflects interruption             $testCauseReflectsInterruption
     bracket use inherits interrupt status   $testUseInheritsInterruptStatus
     bracket use inherits interrupt status 2 $testCauseUseInheritsInterruptStatus
+    async can be uninterruptible            $testAsyncCanBeUninterruptible
 
   RTS environment
     provide is modular                      $testProvideIsModular
@@ -855,6 +856,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
     result
   }
+
+  def testAsyncCanBeUninterruptible =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      ref        <- Ref.make(false)
+      fiber      <- (startLatch.succeed(()) *> clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
+      _          <- fiber.interrupt
+      value      <- ref.get
+    } yield value must_=== true)
 
   def testUseInheritsInterruptStatus =
     unsafeRun(
