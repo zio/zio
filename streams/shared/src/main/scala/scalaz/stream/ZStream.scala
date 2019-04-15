@@ -126,7 +126,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       .flatMap[R1, E1, Boolean] { f0 =>
         f0(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
       }
-      .void
+      .unit
 
   /**
    * Performs a filter and map in a single step.
@@ -286,8 +286,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           if (cont(s)) {
             (for {
               queue  <- Queue.bounded[Elem](capacity)
-              putL   = (a: A) => queue.offer(Left(Take.Value(a))).void
-              putR   = (b: B) => queue.offer(Right(Take.Value(b))).void
+              putL   = (a: A) => queue.offer(Left(Take.Value(a))).unit
+              putR   = (b: B) => queue.offer(Right(Take.Value(b))).unit
               catchL = (e: E2) => queue.offer(Left(Take.Fail(e)))
               catchR = (e: E2) => queue.offer(Right(Take.Fail(e)))
               endL   = queue.offer(Left(Take.End))
@@ -363,7 +363,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                       }
                     )
                   }
-                  .onError(c => result.done(IO.halt(c)).void)
+                  .onError(c => result.done(IO.halt(c)).unit)
                   .fork
         _ <- fiber.await.flatMap {
               case Exit.Success(Left(_)) =>
@@ -372,7 +372,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                 )
               case Exit.Success(Right((rstate, _, _))) => done.succeed(rstate)
               case Exit.Failure(c)                     => done.done(IO.halt(c))
-            }.fork.void
+            }.fork.unit
       } yield (fiber, result)
 
     ZManaged
@@ -480,7 +480,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Takes the specified number of elements from this stream.
    */
   final def take(n: Int): ZStream[R, E, A] =
-    self.zipWithIndex.takeWhile(_._2 < n).map(_._1)
+    self.zipWithIndex.collectWhile { case (v, i) if i < n => v }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate
@@ -525,7 +525,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): ZManaged[R, Nothing, Queue[Take[E1, A1]]] =
     for {
       queue    <- ZManaged.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
-      offerVal = (a: A) => queue.offer(Take.Value(a)).void
+      offerVal = (a: A) => queue.offer(Take.Value(a)).unit
       offerErr = (e: E) => queue.offer(Take.Fail(e))
       enqueuer = (self.foreach[R, E](offerVal).catchAll(offerErr) *> queue.offer(Take.End)).fork
       _        <- ZManaged.make(enqueuer)(_.interrupt)
@@ -873,7 +873,7 @@ object ZStream extends Stream_Functions {
 
   implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
     def unTake: ZStream[R, E, A] =
-      s.mapM(t => Take.option(UIO.succeed(t))).takeWhile(_.isDefined).collect { case Some(v) => v }
+      s.mapM(t => Take.option(UIO.succeed(t))).collectWhile { case Some(v) => v }
   }
 
 }

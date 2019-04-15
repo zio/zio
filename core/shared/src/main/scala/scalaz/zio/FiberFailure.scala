@@ -16,6 +16,7 @@
 
 package scalaz.zio
 
+import java.io.{ PrintWriter, StringWriter }
 import scalaz.zio.Exit.Cause
 
 /**
@@ -73,16 +74,29 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
 
     // Java 11 defines String#lines returning a Stream<String>, so the implicit conversion has to
     // be requested explicitly
-    def lines(str: String): Iterator[String] = augmentString(str).lines
+    def lines(str: String): List[String] = augmentString(str).lines.toList
+
+    def renderThrowable(e: Throwable): List[String] = {
+      val sw = new StringWriter()
+      val pw = new PrintWriter(sw)
+      e.printStackTrace(pw)
+      lines(sw.toString)
+    }
 
     def causeToSequential(cause: Cause[Any]): Sequential =
       cause match {
         case Cause.Fail(t: Throwable) =>
-          Sequential(List(Failure(List("A checked error was not handled: ") ++ t.getStackTrace.map(_.toString))))
+          Sequential(
+            List(Failure("A checked error was not handled." :: renderThrowable(t)))
+          )
         case Cause.Fail(error) =>
-          Sequential(List(Failure(List("A checked error was not handled: ") ++ lines(error.toString))))
+          Sequential(
+            List(Failure("A checked error was not handled." :: lines(error.toString)))
+          )
         case Cause.Die(t) =>
-          Sequential(List(Failure(List("An unchecked error was produced: ") ++ t.getStackTrace.map(_.toString))))
+          Sequential(
+            List(Failure("An unchecked error was produced." :: renderThrowable(t)))
+          )
         case Cause.Interrupt    => Sequential(List(Failure(List("The fiber was interrupted"))))
         case t: Cause.Then[Any] => Sequential(linearSegments(t))
         case b: Cause.Both[Any] => Sequential(List(Parallel(parallelSegments(b))))
@@ -90,7 +104,8 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
 
     def format(segment: Segment): List[String] =
       segment match {
-        case Failure(lines) => prefixBlock(lines, "─", "  ")
+        case Failure(lines) =>
+          prefixBlock(lines, "─", " ")
         case Parallel(all) =>
           List(("══╦" * (all.size - 1)) + "══╗") ++
             all.foldRight[List[String]](Nil) {
@@ -106,7 +121,14 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable {
       }
 
     val sequence = causeToSequential(cause)
-    val result   = ("Fiber failed." :: "╥" :: format(sequence)).mkString("\n")
-    result
+
+    ("Fiber failed." :: {
+      sequence match {
+        // use simple report for single failures
+        case Sequential(List(Failure(cause))) => cause
+
+        case _ => format(sequence).updated(0, "╥")
+      }
+    }).mkString("\n")
   }
 }

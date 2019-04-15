@@ -23,7 +23,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         scheduler <- res._2.scheduler
         promise   <- Promise.make[Nothing, Unit]
         _ <- ZIO.effectTotal(scheduler.schedule(new Runnable {
-              override def run(): Unit = unsafeRun(promise.done(ZIO.unit).void)
+              override def run(): Unit = unsafeRun(promise.done(ZIO.unit).unit)
             }, 10.seconds))
         _        <- clock.sleep(10.seconds)
         _        <- scheduler.safeShutdown()
@@ -39,7 +39,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         scheduler <- res._2.scheduler
         promise   <- Promise.make[Nothing, Unit]
         _ <- ZIO.effectTotal(scheduler.schedule(new Runnable {
-              override def run(): Unit = unsafeRun(promise.done(ZIO.unit).void)
+              override def run(): Unit = unsafeRun(promise.done(ZIO.unit).unit)
             }, 10.seconds + 1.nanosecond))
         _        <- clock.sleep(10.seconds)
         _        <- scheduler.safeShutdown()
@@ -55,7 +55,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         scheduler <- res._2.scheduler
         promise   <- Promise.make[Nothing, Unit]
         cancel <- ZIO.effectTotal(scheduler.schedule(new Runnable {
-                   override def run(): Unit = unsafeRun(promise.done(ZIO.unit).void)
+                   override def run(): Unit = unsafeRun(promise.done(ZIO.unit).unit)
                  }, 10.seconds))
         canceled <- ZIO.effectTotal(cancel())
         _        <- clock.sleep(10.seconds)
@@ -72,7 +72,7 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         scheduler <- res._2.scheduler
         promise   <- Promise.make[Nothing, Unit]
         cancel <- ZIO.effectTotal(scheduler.schedule(new Runnable {
-                   override def run(): Unit = unsafeRun(promise.done(ZIO.unit).void)
+                   override def run(): Unit = unsafeRun(promise.done(ZIO.unit).unit)
                  }, 10.seconds))
         _        <- clock.sleep(10.seconds)
         _        <- scheduler.safeShutdown()

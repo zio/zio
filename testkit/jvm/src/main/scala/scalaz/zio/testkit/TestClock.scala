@@ -32,14 +32,14 @@ case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
     ref.get.map(_.nanoTime)
 
   final def sleep(duration: Duration): UIO[Unit] =
-    adjust(duration) *> ref.update(data => data.copy(sleeps0 = duration :: data.sleeps0)).void
+    adjust(duration) *> ref.update(data => data.copy(sleeps0 = duration :: data.sleeps0)).unit
 
   val sleeps: UIO[List[Duration]] = ref.get.map(_.sleeps0.reverse)
 
   final def adjust(duration: Duration): UIO[Unit] =
     ref.update { data =>
       Data(data.nanoTime + duration.toNanos, data.currentTimeMillis + duration.toMillis, data.sleeps0)
-    }.void
+    }.unit
 
 }
 

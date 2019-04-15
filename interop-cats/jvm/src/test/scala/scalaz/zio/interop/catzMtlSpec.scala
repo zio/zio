@@ -4,7 +4,12 @@ package interop
 import cats.Eq
 import cats.implicits._
 import cats.mtl.{ ApplicativeAsk, ApplicativeLocal }
-import cats.mtl.laws.discipline.{ ApplicativeAskTests, ApplicativeLocalTests }
+import cats.mtl.laws.discipline.{
+  ApplicativeAskTests,
+  ApplicativeHandleTests,
+  ApplicativeLocalTests,
+  FunctorRaiseTests
+}
 import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.prop.Checkers
 import org.scalatest.{ BeforeAndAfterAll, FunSuite, Matchers }
@@ -26,13 +31,18 @@ class catzMtlSpec extends FunSuite with BeforeAndAfterAll with Matchers with Che
     override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
   }
 
-  type Ctx = String
-  trait Error
+  type Ctx   = String
+  type Error = String
 
   checkAll("ApplicativeAsk[ZIO[Ctx, Error, ?]]", ApplicativeAskTests[ZIO[Ctx, Error, ?], Ctx].applicativeAsk[Ctx])
   checkAll(
     "ApplicativeLocal[ZIO[Ctx, Error, ?]]",
     ApplicativeLocalTests[ZIO[Ctx, Error, ?], Ctx].applicativeLocal[Ctx, Int]
+  )
+  checkAll("FunctorRaise[ZIO[Ctx, Error, ?]]", FunctorRaiseTests[ZIO[Ctx, Error, ?], Error].functorRaise[Int])
+  checkAll(
+    "ApplicativeHandle[ZIO[Ctx, Error, ?]]",
+    ApplicativeHandleTests[ZIO[Ctx, Error, ?], Error].applicativeHandle[Int]
   )
 
   def askSummoner[R, E]   = ApplicativeAsk[ZIO[R, E, ?], R]

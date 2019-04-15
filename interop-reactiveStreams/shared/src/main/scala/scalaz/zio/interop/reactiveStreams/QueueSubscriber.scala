@@ -77,9 +77,9 @@ private[reactiveStreams] object QueueSubscriber {
 
     override def onError(e: Throwable): Unit = {
       if (e == null) throw new NullPointerException("t was null in onError")
-      runtime.unsafeRun(completion.fail(e).void)
+      runtime.unsafeRun(completion.fail(e).unit)
     }
 
-    override def onComplete(): Unit = runtime.unsafeRun(completion.succeed(()).void)
+    override def onComplete(): Unit = runtime.unsafeRun(completion.succeed(()).unit)
   }
 }

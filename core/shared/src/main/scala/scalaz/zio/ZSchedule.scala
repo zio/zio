@@ -292,7 +292,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Returns a new schedule that maps this schedule to a Unit output.
    */
-  final def void: ZSchedule[R, A, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: ZSchedule[R, A, Unit] = unit
+
+  /**
+   * Returns a new schedule that maps this schedule to a Unit output.
+   */
+  final def unit: ZSchedule[R, A, Unit] = const(())
 
   /**
    * Returns a new schedule that effectfully reconsiders the decision made by
@@ -558,7 +564,7 @@ trait Schedule_Functions extends Serializable {
   /**
    * A schedule that executes once.
    */
-  final val once: Schedule[Any, Unit] = recurs(1).void
+  final val once: Schedule[Any, Unit] = recurs(1).unit
 
   /**
    * A new schedule derived from the specified schedule which adds the delay
