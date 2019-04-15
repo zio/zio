@@ -24,7 +24,7 @@ Like `try` / `finally`, the `ensuring` operation guarantees that if an effect be
 val finalizer = 
   UIO.effectTotal(println("Finalizing!"))
 
-val z: IO[String, Unit] = 
+val finalized: IO[String, Unit] = 
   IO.fail("Failed!").ensuring(finalizer)
 ```
 
@@ -61,7 +61,7 @@ def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
 
 ```scala mdoc:silent
-val z: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
+val groupedFileData: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)

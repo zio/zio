@@ -35,7 +35,7 @@ When the environment is a type with fields, then the `ZIO.access` method can be 
 ```scala mdoc:silent
 case class Config(server: String, port: Int)
 
-val z: ZIO[Config, Nothing, String] = 
+val configString: ZIO[Config, Nothing, String] = 
   for {
     server <- ZIO.access[Config](_.server)
     port   <- ZIO.access[Config](_.port)
@@ -50,7 +50,7 @@ trait DatabaseOps {
   def columnNames(table: String): Task[List[String]]
 }
 
-val z: ZIO[DatabaseOps, Throwable, (List[String], List[String])] = 
+val tablesAndColumns: ZIO[DatabaseOps, Throwable, (List[String], List[String])] = 
   for {
     tables  <- ZIO.accessM[DatabaseOps](_.tableNames)
     columns <- ZIO.accessM[DatabaseOps](_.columnNames("user_table"))
@@ -70,7 +70,7 @@ val square: ZIO[Int, Nothing, Int] =
     env <- ZIO.environment[Int]
   } yield env * env
 
-val z: UIO[Int] = square.provide(42)
+val result: UIO[Int] = square.provide(42)
 ```
 
 The combination of `ZIO.accessM` and `ZIO#provide` are all that is necessary to fully use environmental effects for easy testability.
@@ -124,7 +124,7 @@ object database {
 We're now ready to build an example that uses the database service:
 
 ```scala mdoc:silent
-val z: ZIO[Database, Throwable, UserProfile] = 
+val lookedupProfile: ZIO[Database, Throwable, UserProfile] = 
   for {
     profile <- database.lookup(userId)
   } yield profile
@@ -138,7 +138,7 @@ To actually run such an effect, we need to implement the database module.
 
 Now we can implement a live database module, which will actually interact with our production database:
 
-```scala mdoc:silent
+```scala
 trait DatabaseLive extends Database {
   lazy val database: Database.Service = ???
 }
@@ -151,7 +151,7 @@ object DatabaseLive extends DatabaseLive
 
 We can now provide the live database module to our application, using `ZIO.provide`:
 
-```scala mdoc:silent
+```scala
 lazy val main: ZIO[Database, Throwable, Unit] = ???
 
 lazy val main2: ZIO[Any, Throwable, Unit] = 
@@ -192,7 +192,7 @@ object TestDatabase extends TestDatabase
 
 To test code that requires the database, we need only provide it with our test database service.
 
-```scala mdoc:silent
+```scala
 lazy val code: ZIO[Database, Throwable, Unit] = ???
 
 lazy val code2: ZIO[Any, Throwable, Unit] = 

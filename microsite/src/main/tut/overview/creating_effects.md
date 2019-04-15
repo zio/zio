@@ -195,10 +195,8 @@ ZIO provides the `scalaz.zio.blocking` package, which can be used to safely conv
 A blocking side-effect can be converted directly into an interruptible ZIO effect with the `interruptible` method:
 
 ```scala mdoc:silent
-import scalaz.zio.blocking._
-
 val sleeping = 
-  interruptible(Thread.sleep(Long.MaxValue))
+  blocking.interruptible(Thread.sleep(Long.MaxValue))
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
@@ -214,5 +212,5 @@ def download(url: String) =
   }
 
 def safeDownload(url: String) = 
-  blocking(download(url))
+  blocking.blocking(download(url))
 ``` 

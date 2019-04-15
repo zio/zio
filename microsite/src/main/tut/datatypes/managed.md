@@ -16,8 +16,8 @@ Resources do not survive the scope of `use`, meaning that if you attempt to capt
 import scalaz.zio._
 def doSomething(queue: Queue[Int]): UIO[Unit] = IO.unit
 
-val resource = Managed.make(Queue.unbounded[Int])(_.shutdown)
-val res: UIO[Unit] = resource.use { queue => doSomething(queue) }
+val managedResource = Managed.make(Queue.unbounded[Int])(_.shutdown)
+val usedToDoSomething: UIO[Unit] = managedResource.use { queue => doSomething(queue) }
 ```
 
 In this example, the queue will be created when `use` is called, and `shutdown` will be called when `doSomething` completes.
@@ -31,13 +31,13 @@ It can also be created from an effect. In this case the release function will do
 import scalaz.zio._
 def acquire: IO[String, Int] = IO.succeedLazy(???)
 
-val resource: Managed[String, Int] = Managed.fromEffect(acquire)
+val managedResourceFromEffect: Managed[String, Int] = Managed.fromEffect(acquire)
 ```
 
 You can create a `Managed` from a pure value as well.
 ```scala mdoc:silent
 import scalaz.zio._
-val resource: Managed[Nothing, Int] = Managed.succeed(3)
+val managedResourceFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 ```
 
 ## Managed with ZIO environment
@@ -48,8 +48,8 @@ val resource: Managed[Nothing, Int] = Managed.succeed(3)
 import scalaz.zio._
 import scalaz.zio.console._
 
-val resource: ZManaged[Console, Nothing, Unit] = ZManaged.make(console.putStrLn("acquiring"))(_ => console.putStrLn("releasing"))
-val res: ZIO[Console, Nothing, Unit] = resource.use { _ => console.putStrLn("running") }
+val zManagedResource: ZManaged[Console, Nothing, Unit] = ZManaged.make(console.putStrLn("acquiring"))(_ => console.putStrLn("releasing"))
+val usedToPutStrLn: ZIO[Console, Nothing, Unit] = zManagedResource.use { _ => console.putStrLn("running") }
 ```
 
 ## Combining Managed
@@ -77,6 +77,6 @@ val combined: Managed[IOException, (Queue[Int], File)] = for {
     file  <- managedFile
 } yield (queue, file)
 
-val res: IO[IOException, Unit] = combined.use { case (queue, file) => doSomething(queue, file) }
+val combinedManagedResource: IO[IOException, Unit] = combined.use { case (queue, file) => doSomething(queue, file) }
 
 ```

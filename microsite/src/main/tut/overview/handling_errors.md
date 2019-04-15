@@ -67,7 +67,7 @@ val data: IO[IOException, Array[Byte]] =
 You can try one effect, or, if it fails, try another effect, with the `orElse` combinator:
 
 ```scala mdoc:silent
-val z: IO[IOException, Array[Byte]] = 
+val primaryOrBackupData: IO[IOException, Array[Byte]] = 
   openFile("primary.data") orElse openFile("backup.data")
 ```
 
@@ -78,9 +78,9 @@ Just like Scala's `Option` and `Either` data types have `fold`, which let you de
 The first fold method, `fold`, lets you non-effectfully handle both failure and success, by supplying a non-effectful function for each case:
 
 ```scala mdoc:silent
-lazy val DefaultData: Array[Byte] = ???
+lazy val DefaultData: Array[Byte] = Array(0, 0)
 
-val z: UIO[Array[Byte]] = 
+val primaryOrDefaultData: UIO[Array[Byte]] = 
   openFile("primary.data").fold(
     _    => DefaultData,
     data => data)
@@ -89,7 +89,7 @@ val z: UIO[Array[Byte]] =
 The second fold method, `foldM`, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) function for each case:
 
 ```scala mdoc:silent
-val z: IO[IOException, Array[Byte]] = 
+val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
   openFile("primary.data").foldM(
     _    => openFile("secondary.data"),
     data => ZIO.succeed(data))
@@ -107,7 +107,7 @@ def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
 def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
 ```
 ```scala mdoc:silent
-val z: UIO[Content] =
+val urls: UIO[Content] =
   readUrls("urls.json").foldM(
     err => IO.succeedLazy(NoContent(err)), 
     fetchContent
@@ -123,7 +123,7 @@ The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a n
 ```scala mdoc:silent
 import scalaz.zio.clock._
 
-val z: ZIO[Clock, IOException, Array[Byte]] = 
+val primaryData: ZIO[Clock, IOException, Array[Byte]] = 
   openFile("primary.data").retry(Schedule.recurs(5))
 ```
 

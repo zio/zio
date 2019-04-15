@@ -21,7 +21,7 @@ You can lift pure values into `IO` with `IO.succeedLazy`:
 ```scala mdoc:silent
 import scalaz.zio._
 
-val z: UIO[String] = IO.succeedLazy("Hello World")
+val lazyValue: UIO[String] = IO.succeedLazy("Hello World")
 ```
 
 The constructor uses non-strict evaluation, so the parameter will not be evaluated until when and if the `IO` action is executed at runtime, which is useful if the construction is costly and the value may never be needed.
@@ -29,7 +29,7 @@ The constructor uses non-strict evaluation, so the parameter will not be evaluat
 Alternately, you can use the `IO.succeed` constructor to perform strict evaluation of the value:
 
 ```scala mdoc:silent
-val z: UIO[String] = IO.succeed("Hello World")
+val value: UIO[String] = IO.succeed("Hello World")
 ```
 
 You should never use either constructor for importing impure code into `IO`. The result of doing so is undefined.
@@ -49,7 +49,7 @@ because the `Nothing` type is _uninhabitable_, i.e. there can be no actual value
 You can use the `effectTotal` method of `IO` to import effectful synchronous code into your purely functional program:
 
 ```scala mdoc:silent
-val z: Task[Long] = IO.effectTotal(System.nanoTime())
+val effectTotalTask: Task[Long] = IO.effectTotal(System.nanoTime())
 ```
 
 ```scala mdoc:invisible
@@ -96,13 +96,13 @@ You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a
 ```scala mdoc:silent
 import scalaz.zio._
 
-val z: UIO[Int] = IO.succeedLazy(21).map(_ * 2)
+val mappedLazyValue: UIO[Int] = IO.succeedLazy(21).map(_ * 2)
 ```
 
 You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`:
 
 ```scala mdoc:silent
-val z: IO[Exception, String] = IO.fail("No no!").mapError(msg => new Exception(msg))
+val mappedError: IO[Exception, String] = IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
 
 # Chaining
@@ -110,7 +110,7 @@ val z: IO[Exception, String] = IO.fail("No no!").mapError(msg => new Exception(m
 You can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
 ```scala mdoc:silent
-val z: UIO[List[Int]] = IO.succeedLazy(List(1, 2, 3)).flatMap { list =>
+val chainedActionsValue: UIO[List[Int]] = IO.succeedLazy(List(1, 2, 3)).flatMap { list =>
   IO.succeedLazy(list.map(_ + 1))
 }
 ```
@@ -118,7 +118,7 @@ val z: UIO[List[Int]] = IO.succeedLazy(List(1, 2, 3)).flatMap { list =>
 You can use Scala's `for` comprehension syntax to make this type of code more compact:
 
 ```scala mdoc:silent
-val z: UIO[List[Int]] = for {
+val chainedActionsValueWithForComprehension: UIO[List[Int]] = for {
   list <- IO.succeedLazy(List(1, 2, 3))
   added <- IO.succeedLazy(list.map(_ + 1))
 } yield added
@@ -148,7 +148,7 @@ def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
 
 ```scala mdoc:silent
-val z: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
+val groupedFileData: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)

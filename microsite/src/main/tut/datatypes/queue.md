@@ -32,22 +32,22 @@ There are several strategies to process new values when the queue is full:
 
 To create a back-pressured bounded queue:
 ```scala mdoc:silent
-val queue: UIO[Queue[Int]] = Queue.bounded[Int](100)
+val boundedQueue: UIO[Queue[Int]] = Queue.bounded[Int](100)
 ```
 
 To create a dropping queue:
 ```scala mdoc:silent
-val queue: UIO[Queue[Int]] = Queue.dropping[Int](100)
+val droppingQueue: UIO[Queue[Int]] = Queue.dropping[Int](100)
 ```
 
 To create a sliding queue:
 ```scala mdoc:silent
-val queue: UIO[Queue[Int]] = Queue.sliding[Int](100)
+val slidingQueue: UIO[Queue[Int]] = Queue.sliding[Int](100)
 ```
 
 To create an unbounded queue:
 ```scala mdoc:silent
-val queue: UIO[Queue[Int]] = Queue.unbounded[Int]
+val unboundedQueue: UIO[Queue[Int]] = Queue.unbounded[Int]
 ```
 
 ## Adding items to a queue
@@ -55,7 +55,7 @@ val queue: UIO[Queue[Int]] = Queue.unbounded[Int]
 The simplest way to add a value to the queue is `offer`:
 
 ```scala mdoc:silent
-val res: UIO[Unit] = for {
+val res1: UIO[Unit] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(1)
 } yield ()
@@ -64,7 +64,7 @@ val res: UIO[Unit] = for {
 When using a back-pressured queue, offer might suspend if the queue is full: you can use `fork` to wait in a different fiber.
 
 ```scala mdoc:silent
-val res: UIO[Unit] = for {
+val res2: UIO[Unit] = for {
   queue <- Queue.bounded[Int](1)
   _ <- queue.offer(1)
   f <- queue.offer(1).fork // will be suspended because the queue is full
@@ -76,7 +76,7 @@ val res: UIO[Unit] = for {
 It is also possible to add multiple values at once with `offerAll`:
 
 ```scala mdoc:silent
-val res: UIO[Unit] = for {
+val res3: UIO[Unit] = for {
   queue <- Queue.bounded[Int](100)
   items = Range.inclusive(1, 10).toList
   _ <- queue.offerAll(items)
@@ -88,7 +88,7 @@ val res: UIO[Unit] = for {
 The `take` operation removes the oldest item from the queue and returns it. If the queue is empty, this will suspend, and resume only when an item has been added to the queue. As with `offer`, you can use `fork` to wait for the value in a different fiber.
 
 ```scala mdoc:silent
-val res: UIO[String] = for {
+val oldestItem: UIO[String] = for {
   queue <- Queue.bounded[String](100)
   f <- queue.take.fork // will be suspended because the queue is empty
   _ <- queue.offer("something")
@@ -99,7 +99,7 @@ val res: UIO[String] = for {
 You can consume the first item with `poll`. If the queue is empty you will get `None`, otherwise the top item will be returned wrapped in `Some`.
 
 ```scala mdoc:silent
-val res: UIO[Option[Int]] = for {
+val polled: UIO[Option[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
@@ -110,7 +110,7 @@ val res: UIO[Option[Int]] = for {
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
 
 ```scala mdoc:silent
-val res: UIO[List[Int]] = for {
+val taken: UIO[List[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
@@ -121,7 +121,7 @@ val res: UIO[List[Int]] = for {
 Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty list if the queue is empty).
 
 ```scala mdoc:silent
-val res: UIO[List[Int]] = for {
+val all: UIO[List[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
@@ -134,7 +134,7 @@ val res: UIO[List[Int]] = for {
 It is possible with `shutdown` to interrupt all the fibers that are suspended on `offer*` or `take*`. It will also empty the queue and make all future calls to `offer*` and `take*` terminate immediately.
 
 ```scala mdoc:silent
-val res: UIO[Unit] = for {
+val takeFromShutdownQueue: UIO[Unit] = for {
   queue <- Queue.bounded[Int](3)
   f <- queue.take.fork
   _ <- queue.shutdown // will interrupt f
@@ -145,7 +145,7 @@ val res: UIO[Unit] = for {
 You can use `awaitShutdown` to execute an effect when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.
 
 ```scala mdoc:silent
-val res: UIO[Unit] = for {
+val awaitShutdown: UIO[Unit] = for {
   queue <- Queue.bounded[Int](3)
   p <- Promise.make[Nothing, Boolean]
   f <- queue.awaitShutdown.fork
@@ -175,7 +175,7 @@ With separate type parameters for input and output, there are rich composition o
 The output of the queue may be mapped:
 
 ```scala mdoc:silent
-val res: UIO[String] = 
+val mapped: UIO[String] = 
   for {
     queue  <- Queue.bounded[Int](3)
     mapped = queue.map(_.toString)
@@ -195,7 +195,7 @@ import scalaz.zio.clock._
 
 val currentTimeMillis = currentTime(TimeUnit.MILLISECONDS)
 
-val res: UIO[ZQueue[Any, Nothing, Clock, Nothing, String, (Long, String)]] =
+val annotatedOut: UIO[ZQueue[Any, Nothing, Clock, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[String](3)
     mapped = queue.mapM { el =>
@@ -211,7 +211,7 @@ elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:
 
 ```scala mdoc:silent
-val res: UIO[ZQueue[Clock, Nothing, Any, Nothing, String, (Long, String)]] =
+val annotatedIn: UIO[ZQueue[Clock, Nothing, Any, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     mapped = queue.contramapM { el: String =>
@@ -230,7 +230,7 @@ compute the time that the elements stayed in the queue:
 ```scala mdoc:silent
 import scalaz.zio.duration._
 
-val res: UIO[ZQueue[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] =
+val timeQueued: UIO[ZQueue[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     enqueueTimestamps = queue.contramapM { el: String =>
@@ -249,7 +249,7 @@ We may also compose two queues together into a single queue that
 broadcasts offers and takes from both of the queues:
 
 ```scala mdoc:silent
-val res: UIO[(Int, String)] = 
+val fromComposedQueues: UIO[(Int, String)] = 
   for {
     q1       <- Queue.bounded[Int](3)
     q2       <- Queue.bounded[Int](3)
