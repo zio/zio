@@ -18,13 +18,13 @@ You can map over the success channel of an effect by calling the `ZIO#map` metho
 ```scala mdoc:silent
 import scalaz.zio._
 
-val z: UIO[Int] = IO.succeed(21).map(_ * 2)
+val succeded: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
 
 You can map over the error channel of an effect by calling the `ZIO#mapError` method. This lets you transform the failure values of effects into other values.
 
 ```scala mdoc:silent
-val z: IO[Exception, Unit] = 
+val failed: IO[Exception, Unit] = 
   IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
 
@@ -35,7 +35,7 @@ Note that mapping over success or error channels does not change the success or 
 You can execute two effects in sequence with the `flatMap` method. The second effect may depend on the success value of the first effect:
 
 ```scala mdoc:silent
-val z: UIO[List[Int]] = 
+val sequenced: UIO[List[Int]] = 
   IO.succeed(List(1, 2, 3)).flatMap { list =>
     IO.succeed(list.map(_ + 1))
   }
