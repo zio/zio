@@ -506,7 +506,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
 }
 
-trait Schedule_Functions extends Serializable {
+private[zio] trait Schedule_Functions extends Serializable {
 
   type ConformsR[A]
   implicit val ConformsAnyProof: ConformsR[Any]

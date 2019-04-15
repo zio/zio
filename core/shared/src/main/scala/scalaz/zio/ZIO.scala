@@ -1595,7 +1595,7 @@ trait ZIOFunctions extends Serializable {
   final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptor.flatMap(_.children)
 }
 
-trait ZIO_E_Any extends ZIO_E_Throwable {
+private[zio] trait ZIO_E_Any extends ZIO_E_Throwable {
   type UpperE = Any
 
   /**
@@ -1605,7 +1605,7 @@ trait ZIO_E_Any extends ZIO_E_Throwable {
     effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed(_)))
 }
 
-trait ZIO_E_Throwable extends ZIOFunctions {
+private[zio] trait ZIO_E_Throwable extends ZIOFunctions {
   type UpperE >: Throwable
 
   /**
@@ -1655,7 +1655,7 @@ trait ZIO_E_Throwable extends ZIOFunctions {
 
     }
 }
-trait ZIO_R_Any extends ZIO_E_Any {
+private[zio] trait ZIO_R_Any extends ZIO_E_Any {
   type LowerR = Nothing
 
   /**
@@ -1784,19 +1784,19 @@ object ZIO extends ZIO_R_Any {
     final val Access          = 13
     final val Provide         = 14
   }
-  final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.FlatMap
   }
 
-  final class Succeed[A](val value: A) extends UIO[A] {
+  private[zio] final class Succeed[A](val value: A) extends UIO[A] {
     override def tag = Tags.Succeed
   }
 
-  final class Effect[A](val effect: Platform => A) extends UIO[A] {
+  private[zio] final class Effect[A](val effect: Platform => A) extends UIO[A] {
     override def tag = Tags.Effect
   }
 
-  final class EffectAsync[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
+  private[zio] final class EffectAsync[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
     override def tag = Tags.EffectAsync
   }
 
@@ -1812,43 +1812,43 @@ object ZIO extends ZIO_R_Any {
     final def apply(v: A): ZIO[R, E2, B] = succ(v)
   }
 
-  final class Fork[E, A](val value: IO[E, A]) extends UIO[Fiber[E, A]] {
+  private[zio] final class Fork[E, A](val value: IO[E, A]) extends UIO[Fiber[E, A]] {
     override def tag = Tags.Fork
   }
 
-  final class Uninterruptible[R, E, A](val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class Uninterruptible[R, E, A](val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.Uninterruptible
   }
 
-  final class Supervised[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class Supervised[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.Supervised
   }
 
-  final class Fail[E](val cause: Cause[E]) extends IO[E, Nothing] {
+  private[zio] final class Fail[E](val cause: Cause[E]) extends IO[E, Nothing] {
     override def tag = Tags.Fail
   }
 
-  final class Ensuring[R, E, A](val zio: ZIO[R, E, A], val finalizer: UIO[_]) extends ZIO[R, E, A] {
+  private[zio] final class Ensuring[R, E, A](val zio: ZIO[R, E, A], val finalizer: UIO[_]) extends ZIO[R, E, A] {
     override def tag = Tags.Ensuring
   }
 
-  object Descriptor extends UIO[Fiber.Descriptor] {
+  private[zio] object Descriptor extends UIO[Fiber.Descriptor] {
     override def tag = Tags.Descriptor
   }
 
-  final class Lock[R, E, A](val executor: Executor, val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class Lock[R, E, A](val executor: Executor, val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.Lock
   }
 
-  object Yield extends UIO[Unit] {
+  private[zio] object Yield extends UIO[Unit] {
     override def tag = Tags.Yield
   }
 
-  final class Read[R, E, A](val k: R => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class Read[R, E, A](val k: R => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.Access
   }
 
-  final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
+  private[zio] final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
     override def tag = Tags.Provide
   }
 }

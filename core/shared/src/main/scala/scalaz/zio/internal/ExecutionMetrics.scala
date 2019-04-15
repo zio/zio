@@ -16,7 +16,7 @@
 
 package scalaz.zio.internal
 
-trait ExecutionMetrics {
+private[internal] trait ExecutionMetrics {
 
   /**
    * The concurrency level of the executor.
