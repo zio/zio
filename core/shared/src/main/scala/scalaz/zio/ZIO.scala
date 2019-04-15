@@ -391,7 +391,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     new ZIO.BracketAcquire_(self)
 
   /**
-   * Uncurried version. Doesn't offer curried syntax and have worse
+   * Uncurried version. Doesn't offer curried syntax and has worse
    * type-inference characteristics, but it doesn't allocate intermediate
    * [[scalaz.zio.ZIO.BracketAcquire_]] and [[scalaz.zio.ZIO.BracketRelease_]] objects.
    */
@@ -401,12 +401,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   ): ZIO[R1, E1, B] =
     ZIO.bracket(self, (_: A) => release, (_: A) => use)
 
+  /**
+   * Shorthand for the curried version of `ZIO.bracketExit`.
+   */
   final def bracketExit[R1 <: R, E1 >: E, A1 >: A]: ZIO.BracketExitAcquire[R1, E1, A1] = ZIO.bracketExit(self)
 
+  /**
+   * Shorthand for the uncurried version of `ZIO.bracketExit`.
+   */
   final def bracketExit[R1 <: R, E1 >: E, B](
     release: (A, Exit[E1, B]) => ZIO[R1, Nothing, _],
     use: A => ZIO[R1, E1, B]
-  ): ZIO[R1, E1, B] = ZIO.bracketExit[R1, E, E1, E1, A, B](self, release, use)
+  ): ZIO[R1, E1, B] = ZIO.bracketExit(self, release, use)
 
   /**
    * Returns an effect that, if this effect _starts_ execution, then the
@@ -1434,19 +1440,12 @@ trait ZIOFunctions extends Serializable {
    * characteristics, but guarantees no extra allocations of intermediate
    * [[scalaz.zio.ZIO.BracketAcquire]] and [[scalaz.zio.ZIO.BracketRelease]] objects.
    */
-  final def bracket[R >: LowerR, E <: UpperE, A, A1 >: A, A2 >: A, B](
+  final def bracket[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A],
     release: A => ZIO[R, Nothing, _],
     use: A => ZIO[R, E, B]
   ): ZIO[R, E, B] =
-    ZIO.uninterruptibleMask[R, E, B](
-      restore =>
-        for {
-          r <- environment[R]
-          a <- acquire
-          b <- restore(use(a)).ensuring(release(a).provide(r))
-        } yield b
-    )
+    bracketExit(acquire, (a: A, _: Exit[E, B]) => release(a), use)
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
@@ -1463,12 +1462,12 @@ trait ZIOFunctions extends Serializable {
    * characteristics, but guarantees no extra allocations of intermediate
    * [[scalaz.zio.ZIO.BracketExitAcquire]] and [[scalaz.zio.ZIO.BracketExitRelease]] objects.
    */
-  final def bracketExit[R >: LowerR, E <: UpperE, E1 >: E, E2 >: E <: E1, A, B](
+  final def bracketExit[R >: LowerR, E <: UpperE, A, B](
     acquire: ZIO[R, E, A],
-    release: (A, Exit[E1, B]) => ZIO[R, Nothing, _],
-    use: A => ZIO[R, E2, B]
-  ): ZIO[R, E2, B] =
-    ZIO.uninterruptibleMask[R, E2, B](
+    release: (A, Exit[E, B]) => ZIO[R, Nothing, _],
+    use: A => ZIO[R, E, B]
+  ): ZIO[R, E, B] =
+    ZIO.uninterruptibleMask[R, E, B](
       restore =>
         for {
           r <- environment[R]
@@ -1832,7 +1831,7 @@ object ZIO extends ZIO_R_Any {
     release: (A, Exit[E1, B]) => ZIO[R, Nothing, _]
   ) {
     def apply[R1 <: R, E2 >: E <: E1, B1 <: B](use: A => ZIO[R1, E2, B1]): ZIO[R1, E2, B1] =
-      ZIO.bracketExit[R1, E, E1, E2, A, B1](acquire, release, use)
+      ZIO.bracketExit(acquire, release, use)
   }
 
   class AccessPartiallyApplied[R >: LowerR] {
