@@ -17,7 +17,7 @@ import scalaz.zio._
 def doSomething(queue: Queue[Int]): UIO[Unit] = IO.unit
 
 val managedResource = Managed.make(Queue.unbounded[Int])(_.shutdown)
-val usedToDoSomething: UIO[Unit] = managedResource.use { queue => doSomething(queue) }
+val usedResource: UIO[Unit] = managedResource.use { queue => doSomething(queue) }
 ```
 
 In this example, the queue will be created when `use` is called, and `shutdown` will be called when `doSomething` completes.
@@ -31,13 +31,13 @@ It can also be created from an effect. In this case the release function will do
 import scalaz.zio._
 def acquire: IO[String, Int] = IO.succeedLazy(???)
 
-val managedResourceFromEffect: Managed[String, Int] = Managed.fromEffect(acquire)
+val managedFromEffect: Managed[String, Int] = Managed.fromEffect(acquire)
 ```
 
 You can create a `Managed` from a pure value as well.
 ```scala mdoc:silent
 import scalaz.zio._
-val managedResourceFromValue: Managed[Nothing, Int] = Managed.succeed(3)
+val managedFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 ```
 
 ## Managed with ZIO environment
@@ -49,7 +49,7 @@ import scalaz.zio._
 import scalaz.zio.console._
 
 val zManagedResource: ZManaged[Console, Nothing, Unit] = ZManaged.make(console.putStrLn("acquiring"))(_ => console.putStrLn("releasing"))
-val usedToPutStrLn: ZIO[Console, Nothing, Unit] = zManagedResource.use { _ => console.putStrLn("running") }
+val zUsedResource: ZIO[Console, Nothing, Unit] = zManagedResource.use { _ => console.putStrLn("running") }
 ```
 
 ## Combining Managed
@@ -77,6 +77,37 @@ val combined: Managed[IOException, (Queue[Int], File)] = for {
     file  <- managedFile
 } yield (queue, file)
 
-val combinedManagedResource: IO[IOException, Unit] = combined.use { case (queue, file) => doSomething(queue, file) }
+val usedCombinedRes: IO[IOException, Unit] = combined.use { case (queue, file) => doSomething(queue, file) }
 
+```
+
+## Reservation
+
+Unlike `Managed`, `Reservation` does not bind `release` to `acquire` allowing interruptible resource acquisition. 
+
+```scala mdoc:invisible
+import java.io.{ File, IOException, InterruptedIOException }
+import scala.util.Try
+
+def openFile(name: String, p: Promise[IOException, File]): IO[IOException, File] = UIO.succeedLazy(new File(name))
+def closeFile(p: Promise[IOException, File]): UIO[Unit] = UIO.unit
+def readFile(file: File): IO[IOException, String] = IO.succeedLazy("Don't forget to clean up!")
+```
+
+```scala mdoc:silent
+import scalaz.zio._
+```
+
+Whilst having more control, a concurrency primitive such as `Promise` may be needed to help properly manage resource state and clean up.
+
+```scala mdoc:silent
+val data: IO[IOException, String] = for {
+  p <- Promise.make[IOException,File]
+  res = Reservation(openFile("x", p), closeFile(p))
+  result <- (for {
+      fiber  <- res.acquire.fork
+      ex     <- fiber.interrupt
+      data   <- ex.toEither.fold(e => IO.fail(new InterruptedIOException("Stop!")), file => readFile(file))
+    } yield data).ensuringR(res.release)
+} yield result
 ```
