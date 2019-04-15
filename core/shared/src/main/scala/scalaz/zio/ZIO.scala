@@ -1648,6 +1648,16 @@ trait ZIOFunctions extends Serializable {
     checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).uninterruptible)
 
   /**
+   * Makes the effect interruptible, but passes it a restore function that
+   * can be used to restore the inherited interruptibility from whatever region
+   * the effect is composed into.
+   */
+  final def interruptibleMask[R >: LowerR, E <: UpperE, A](
+    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+  ): ZIO[R, E, A] =
+    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).interruptible)
+
+  /**
    * Prefix form of `ZIO#uninterruptible`.
    */
   final def uninterruptible[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
