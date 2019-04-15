@@ -27,7 +27,7 @@ Immutable data structures that model procedural effects are called _functional e
 
 We can build a simple description of a console program that has just three instructions:
 
-```tut:silent
+```scala mdoc:silent
 sealed trait Console[+A]
 final case class Return[A](value: () => A) extends Console[A]
 final case class PrintLine[A](line: String, rest: Console[A]) extends Console[A]
@@ -40,7 +40,7 @@ The `Console` data structure is a _tree_, and at the very end of the program, yo
 
 Although very simple, this data structure is enough to build an interactive program:
 
-```tut:silent
+```scala mdoc:silent
 val example1: Console[Unit] = 
   PrintLine("Hello, what is your name?",
     ReadLine(name =>
@@ -52,7 +52,7 @@ This program is an immutable value, and doesn't do anything&mdash;it just _descr
 
 Although this program is just a model, we can translate the model into effects quite simply using an interpreter, which recurses on the data structure, translating every operation into a side-effect:
 
-```tut:silent
+```scala mdoc:silent
 def interpret[A](program: Console[A]): A = program match {
   case Return(value) => 
     value()
@@ -68,7 +68,7 @@ Interpreting (also called _running_ or _executing_) is not functional, but in an
 
 Now in practice, it's not very convenient to build console programs using constructors directly. Instead, we can define helper functions, which look more like their effectful equivalents:
 
-```tut:silent
+```scala mdoc:silent
 def succeed[A](a: => A): Console[A] = Return(() => a)
 def printLine(line: String): Console[Unit] =
   PrintLine(line, succeed(()))
@@ -83,7 +83,7 @@ Similarly, it's not easy to build `Console` values directly, but the process can
 
  These two methods are defined as follows:
 
-```tut:silent
+```scala mdoc:silent
 implicit class ConsoleSyntax[+A](self: Console[A]) {
   def map[B](f: A => B): Console[B] =
     flatMap(a => succeed(f(a)))
@@ -101,7 +101,7 @@ implicit class ConsoleSyntax[+A](self: Console[A]) {
 
 With these `map` and `flatMap` methods, we can now take advantage of Scala's `for` comprehensions, and write programs that look like their procedural equivalents:
 
-```tut:silent
+```scala mdoc:silent
 val example2: Console[String] =
   for {
     _    <- printLine("What's your name?")

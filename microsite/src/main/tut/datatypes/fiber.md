@@ -10,11 +10,11 @@ To perform an effect without blocking the current process, you can use fibers, w
 
 You can `fork` any `IO[E, A]` to immediately yield an `UIO[Fiber[E, A]]`. The provided `Fiber` can be used to `join` the fiber, which will resume on production of the fiber's value, or to `interrupt` the fiber, which immediately terminates the fiber and safely releases all resources acquired by the fiber.
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 ```
 
-```tut:invisible
+```scala mdoc:invisible
 sealed trait Analysis
 case object Analyzed extends Analysis
 
@@ -24,7 +24,7 @@ def analyzeData[A](data: A): UIO[Analysis] = IO.succeed(Analyzed)
 def validateData[A](data: A): UIO[Boolean] = IO.succeed(true)
 ```
 
-```tut:silent
+```scala mdoc:silent
 val analyzed =
   for {
     fiber1   <- analyzeData(data).fork  // IO[E, Analysis]
@@ -39,7 +39,7 @@ val analyzed =
 
 On the JVM, fibers will use threads, but will not consume *unlimited* threads. Instead, fibers yield cooperatively during periods of high-contention.
 
-```tut:silent
+```scala mdoc:silent
 def fib(n: Int): UIO[Int] =
   if (n <= 1) {
     IO.succeedLazy(1)
@@ -81,13 +81,13 @@ There are no circumstances in which any errors will be "lost", which makes the `
 
 To execute actions in parallel, the `zipPar` method can be used:
 
-```tut:invisible
+```scala mdoc:invisible
 case class Matrix()
 def computeInverse(m: Matrix): UIO[Matrix] = IO.succeed(m)
 def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = IO.succeed(m1)
 ```
 
-```tut:silent
+```scala mdoc:silent
 def bigCompute(m1: Matrix, m2: Matrix, v: Matrix): UIO[Matrix] =
   for {
     t <- computeInverse(m1).zipPar(computeInverse(m2))
@@ -102,7 +102,7 @@ The `zipPar` combinator has resource-safe semantics. If one computation fails, t
 
 Two `IO` actions can be *raced*, which means they will be executed in parallel, and the value of the first action that completes successfully will be returned.
 
-```tut:silent
+```scala mdoc:silent
 fib(100) race fib(200)
 ```
 

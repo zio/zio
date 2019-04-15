@@ -300,5 +300,7 @@ lazy val microsite = project.module
       "gray-lighter"    -> "#F4F3F4",
       "white-color"     -> "#FFFFFF"
     ),
-    micrositeShareOnSocial := false
+    micrositeShareOnSocial := false,
+    micrositeCompilingDocsTool := WithMdoc,
+    mdocIn := file("microsite/src/main/tut")
   )
