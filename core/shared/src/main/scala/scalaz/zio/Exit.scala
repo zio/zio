@@ -73,7 +73,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
 
   /**
-   * Zips this result together with the specified result.
+   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
   final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
@@ -83,7 +83,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
 
   /**
-   * Zips the this result.
+   * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
   final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
 
@@ -93,7 +93,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def zipLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <* that
 
   /**
-   * Zips the specified result.
+   * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
   final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
 
@@ -103,7 +103,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def zipRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self *> that
 
   /**
-   * Zips this result together with the specified result, in parallel.
+   * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
   final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
 
@@ -113,7 +113,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <&> that
 
   /**
-   * Zips the this result, in parallel.
+   * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
   final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
 
@@ -123,7 +123,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def zipParLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <& that
 
   /**
-   * Zips the specified result, in parallel.
+   * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
   final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
 
