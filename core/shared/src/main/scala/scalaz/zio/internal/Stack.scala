@@ -19,7 +19,7 @@ package scalaz.zio.internal
 /**
  * A very fast, growable/shrinkable, mutable stack.
  */
-final class Stack[A <: AnyRef]() {
+private[zio] final class Stack[A <: AnyRef]() {
   private[this] var array   = new Array[AnyRef](13)
   private[this] var size    = 0
   private[this] var nesting = 0
