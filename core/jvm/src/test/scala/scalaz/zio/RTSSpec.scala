@@ -734,11 +734,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       exitLatch  <- Promise.make[Nothing, Int]
       bracketed = IO
         .succeed(21)
-        .bracketExit(
+        .bracketExit[Any, Error, Int]( // TODO: Dotty doesn't infer this
           (r: Int, exit: Exit[_, _]) =>
             if (exit.interrupted) exitLatch.succeed(r)
             else IO.die(new Error("Unexpected case"))
-        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+        )[Any, Error, Int](a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
       fiber      <- bracketed.fork
       startValue <- startLatch.await
       _          <- fiber.interrupt.fork
@@ -862,6 +862,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       startLatch <- Promise.make[Nothing, Unit]
       ref        <- Ref.make(false)
       fiber      <- (startLatch.succeed(()) *> clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
+      _          <- startLatch.await
       _          <- fiber.interrupt
       value      <- ref.get
     } yield value must_=== true)
