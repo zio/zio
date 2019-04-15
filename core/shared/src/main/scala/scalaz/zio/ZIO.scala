@@ -1017,7 +1017,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def tag: Int
 }
 
-trait ZIOFunctions extends Serializable {
+private[zio] trait ZIOFunctions extends Serializable {
   // ALL error types in this trait must be a subtype of `UpperE`.
   type UpperE
   // ALL environment types in this trait must be a supertype of `LowerR`.
