@@ -146,6 +146,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interruption of raced                   $testInterruptedOfRaceInterruptsContestents
     cancelation is guaranteed               $testCancelationIsGuaranteed
     interruption of unending bracket        $testInterruptionOfUnendingBracket
+    recovery of error in finalizer          $testRecoveryOfErrorInFinalizer
+    recovery of interruptible               $testRecoveryOfInterruptible
+    sandbox of interruptible                $testSandboxOfInterruptible
+    run of interruptible                    $testRunOfInterruptible
+    alternating interruptibility            $testAlternatingInterruptibility
+    interruption after defect               $testInterruptionAfterDefect
+    interruption after defect 2             $testInterruptionAfterDefect2
+    cause reflects interruption             $testCauseReflectsInterruption
+    bracket use inherits interrupt status   $testUseInheritsInterruptStatus
+    bracket use inherits interrupt status 2 $testCauseUseInheritsInterruptStatus
+    async can be uninterruptible            $testAsyncCanBeUninterruptible
 
   RTS environment
     provide is modular                      $testProvideIsModular
@@ -723,11 +734,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       exitLatch  <- Promise.make[Nothing, Int]
       bracketed = IO
         .succeed(21)
-        .bracketExit(
-          (r: Int, exit: Exit[_, _]) =>
+        .bracketExit[Any, Error, Int]( // TODO: Dotty doesn't infer curried version
+          (r: Int, exit: Exit[Error, Int]) =>
             if (exit.interrupted) exitLatch.succeed(r)
-            else IO.die(new Error("Unexpected case"))
-        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+            else IO.die(new Error("Unexpected case")),
+          (a: Int) => startLatch.succeed(a) *> IO.never *> IO.succeed(1)
+        )
       fiber      <- bracketed.fork
       startValue <- startLatch.await
       _          <- fiber.interrupt.fork
@@ -738,6 +750,162 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       unsafeRun(io) must_=== 42
     }.reduce(_ and _)
   }
+
+  def testRecoveryOfErrorInFinalizer =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      recovered  <- Ref.make(false)
+      fiber <- (startLatch.succeed(()) *> ZIO.never)
+                .ensuring(
+                  (ZIO.unit *> ZIO.fail("Uh oh")).catchAll(_ => recovered.set(true))
+                )
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- recovered.get
+    } yield value must_=== true)
+
+  def testRecoveryOfInterruptible =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      recovered  <- Ref.make(false)
+      fiber <- (startLatch.succeed(()) *> ZIO.never.interruptible)
+                .foldCauseM(
+                  cause => recovered.set(cause.interrupted),
+                  _ => recovered.set(false)
+                )
+                .uninterruptible
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- recovered.get
+    } yield value must_=== true)
+
+  def testSandboxOfInterruptible =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      recovered  <- Ref.make[Option[Either[Cause[Nothing], Any]]](None)
+      fiber <- (startLatch.succeed(()) *> ZIO.never.interruptible).sandbox.either
+                .flatMap(exit => recovered.set(Some(exit)))
+                .uninterruptible
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- recovered.get
+    } yield value must_=== Some(Left(Cause.interrupt)))
+
+  def testRunOfInterruptible =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      recovered  <- Ref.make[Option[Exit[Nothing, Any]]](None)
+      fiber <- (startLatch.succeed(()) *> ZIO.never.interruptible).run
+                .flatMap(exit => recovered.set(Some(exit)))
+                .uninterruptible
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- recovered.get
+    } yield value must_=== Some(Exit.Failure(Cause.interrupt)))
+
+  def testAlternatingInterruptibility =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      counter    <- Ref.make(0)
+      fiber <- ((((startLatch.succeed(()) *> ZIO.never.interruptible.run *> counter
+                .update(_ + 1)).uninterruptible).interruptible).run
+                *> counter.update(_ + 1)).uninterruptible.fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- counter.get
+    } yield value must_=== 2)
+
+  def testInterruptionAfterDefect =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      ref        <- Ref.make(false)
+      fiber <- (ZIO.succeedLazy(throw new Error).run *> startLatch.succeed(()) *> ZIO.never)
+                .ensuring(ref.set(true))
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- ref.get
+    } yield value must_=== true)
+
+  def testInterruptionAfterDefect2 =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      ref        <- Ref.make(false)
+      fiber <- (ZIO.succeedLazy(throw new Error).run *> startLatch.succeed(()) *> ZIO.unit.forever)
+                .ensuring(ref.set(true))
+                .fork
+      _     <- startLatch.await
+      _     <- fiber.interrupt
+      value <- ref.get
+    } yield value must_=== true)
+
+  def testCauseReflectsInterruption = {
+    val result = (1 to 100).map { _ =>
+      unsafeRun(for {
+        startLatch <- Promise.make[Nothing, Unit]
+        finished   <- Ref.make(false)
+        fiber      <- (startLatch.succeed(()) *> ZIO.fail("foo")).catchAll(_ => finished.set(true)).fork
+        _          <- startLatch.await
+        exit       <- fiber.interrupt
+        finished   <- finished.get
+      } yield (exit.interrupted must_=== true) or (finished must_=== true))
+    }.reduce(_ and _)
+
+    result
+  }
+
+  def testAsyncCanBeUninterruptible =
+    unsafeRun(for {
+      startLatch <- Promise.make[Nothing, Unit]
+      ref        <- Ref.make(false)
+      fiber      <- (startLatch.succeed(()) *> clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
+      _          <- startLatch.await
+      _          <- fiber.interrupt
+      value      <- ref.get
+    } yield value must_=== true)
+
+  def testUseInheritsInterruptStatus =
+    unsafeRun(
+      for {
+        latch1 <- Promise.make[Nothing, Unit]
+        latch2 <- Promise.make[Nothing, Unit]
+        ref    <- Ref.make(false)
+        fiber1 <- latch1
+                   .succeed(())
+                   .bracket_(ZIO.unit, latch2.await *> clock.sleep(10.millis) *> ref.set(true))
+                   .uninterruptible
+                   .fork
+        _     <- latch1.await
+        _     <- latch2.succeed(())
+        _     <- fiber1.interrupt
+        value <- ref.get
+      } yield value must_=== true
+    )
+
+  def testCauseUseInheritsInterruptStatus =
+    unsafeRun(
+      for {
+        latch1 <- Promise.make[Nothing, Unit]
+        latch2 <- Promise.make[Nothing, Unit]
+        ref    <- Ref.make(false)
+        fiber1 <- latch1
+                   .succeed(())
+                   .bracketExit[Clock, Nothing, Unit](
+                     (_: Boolean, _: Exit[_, _]) => ZIO.unit,
+                     (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
+                   )
+                   .uninterruptible
+                   .fork
+        _     <- latch1.await
+        _     <- latch2.succeed(())
+        _     <- fiber1.interrupt
+        value <- ref.get
+      } yield value must_=== true
+    )
 
   def testProvideIsModular = {
     val zio =
