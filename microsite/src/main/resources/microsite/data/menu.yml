@@ -65,6 +65,8 @@ options:
       url: interop/javascript.html
     - title: Monix
       url: interop/monix.html
+    - title: Reactive Streams
+      url: interop/reactivestreams.html
     - title: Scalaz 7.x
       url: interop/scalaz7x.html
     - title: Scalaz 8
