@@ -8,6 +8,10 @@ object IOBenchmarks extends DefaultRuntime {
     Scheduler.computation().withExecutionModel(SynchronousExecution)
   }
 
+  def repeat[R, E, A](n: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] = 
+    if (n <= 1) zio 
+    else zio *> repeat(n - 1)(zio)
+
   class Thunk[A](val unsafeRun: () => A) {
     def map[B](ab: A => B): Thunk[B] =
       new Thunk(() => ab(unsafeRun()))

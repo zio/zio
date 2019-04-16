@@ -1,5 +1,7 @@
 package scalaz.zio
 
+import scalaz.zio.stm._
+
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import cats.effect.{ ContextShift, IO => CIO }
@@ -26,11 +28,13 @@ class QueueBackPressureBenchmark {
 
   var zioQ: Queue[Int]                     = _
   var fs2Q: fs2.concurrent.Queue[CIO, Int] = _
+  var zioTQ: TQueue[Int]                   = _
 
   @Setup(Level.Trial)
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](queueSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](queueSize).unsafeRunSync()
+    zioTQ = unsafeRun(TQueue.make(queueSize).commit)
   }
 
   @Benchmark
@@ -41,8 +45,25 @@ class QueueBackPressureBenchmark {
       else task.flatMap(_ => repeat(task, max - 1))
 
     val io = for {
-      offers <- IO.forkAll(List.fill(parallelism)(repeat(zioQ.offer(0).map(_ => ()), totalSize / parallelism))).fork
-      takes  <- IO.forkAll(List.fill(parallelism)(repeat(zioQ.take.map(_ => ()), totalSize / parallelism))).fork
+      offers <- IO.forkAll(List.fill(parallelism)(repeat(zioQ.offer(0).unit, totalSize / parallelism))).fork
+      takes  <- IO.forkAll(List.fill(parallelism)(repeat(zioQ.take.unit, totalSize / parallelism))).fork
+      _      <- offers.join
+      _      <- takes.join
+    } yield 0
+
+    unsafeRun(io)
+  }
+
+  @Benchmark
+  def zioTQueue(): Int = {
+
+    def repeat(task: UIO[Unit], max: Int): UIO[Unit] =
+      if (max < 1) IO.unit
+      else task.flatMap(_ => repeat(task, max - 1))
+
+    val io = for {
+      offers <- IO.forkAll(List.fill(parallelism)(repeat(zioTQ.offer(0).unit.commit, totalSize / parallelism))).fork
+      takes  <- IO.forkAll(List.fill(parallelism)(repeat(zioTQ.take.unit.commit, totalSize / parallelism))).fork
       _      <- offers.join
       _      <- takes.join
     } yield 0

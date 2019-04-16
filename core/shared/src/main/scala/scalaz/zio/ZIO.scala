@@ -1627,7 +1627,7 @@ trait ZIOFunctions extends Serializable {
   /**
    * Strictly-evaluated unit lifted into the `ZIO` monad.
    */
-  final def unit[R >: LowerR]: ZIO[R, Nothing, Unit] = succeed(())
+  final val unit: ZIO[Any, Nothing, Unit] = succeed(())
 
   /**
    * The moral equivalent of `if (p) exp`
