@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scalaz.zio.internal.MutableConcurrentQueue
 import java.util.concurrent.atomic.AtomicLong
 
-class LinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
+private[zio] class LinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   override final val capacity: Int = Int.MaxValue
 
   private[this] val jucConcurrentQueue = new ConcurrentLinkedQueue[A]()
