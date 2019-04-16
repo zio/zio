@@ -138,9 +138,9 @@ To actually run such an effect, we need to implement the database module.
 
 Now we can implement a live database module, which will actually interact with our production database:
 
-```scala
+```scala mdoc:silent
 trait DatabaseLive extends Database {
-  lazy val database: Database.Service = ???
+  def database: Database.Service = ???
 }
 object DatabaseLive extends DatabaseLive
 ```
@@ -151,10 +151,10 @@ object DatabaseLive extends DatabaseLive
 
 We can now provide the live database module to our application, using `ZIO.provide`:
 
-```scala
-lazy val main: ZIO[Database, Throwable, Unit] = ???
+```scala mdoc:silent
+def main: ZIO[Database, Throwable, Unit] = ???
 
-lazy val main2: ZIO[Any, Throwable, Unit] = 
+def main2: ZIO[Any, Throwable, Unit] = 
   main.provide(DatabaseLive)
 ```
 
@@ -192,10 +192,10 @@ object TestDatabase extends TestDatabase
 
 To test code that requires the database, we need only provide it with our test database service.
 
-```scala
-lazy val code: ZIO[Database, Throwable, Unit] = ???
+```scala mdoc:silent
+def code: ZIO[Database, Throwable, Unit] = ???
 
-lazy val code2: ZIO[Any, Throwable, Unit] = 
+def code2: ZIO[Any, Throwable, Unit] = 
   code.provide(TestDatabase)
 ```
 
