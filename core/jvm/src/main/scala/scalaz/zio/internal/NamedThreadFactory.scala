@@ -19,7 +19,7 @@ package scalaz.zio.internal
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
-final class NamedThreadFactory(name: String, daemon: Boolean) extends ThreadFactory {
+private[zio] final class NamedThreadFactory(name: String, daemon: Boolean) extends ThreadFactory {
 
   private val parentGroup =
     Option(System.getSecurityManager).fold(Thread.currentThread().getThreadGroup)(_.getThreadGroup)
