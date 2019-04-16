@@ -272,8 +272,8 @@ lazy val microsite = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % "1.3.3" % "provided",
-      "commons-io"      % "commons-io"    % "2.6"   % "provided",
+      "com.github.ghik"     %% "silencer-lib"             % "1.3.3" % "provided",
+      "commons-io"          % "commons-io"                % "2.6"   % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.2" % "provided"
     ),
     micrositeFooterText := Some(
