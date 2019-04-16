@@ -1832,7 +1832,7 @@ object ZIO extends ZIO_R_Any {
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  private[zio] implicit class ZIOInvariant[R, E, A](val self: ZIO[R, E, A]) extends AnyVal {
+  implicit class ZIOInvariant[R, E, A](val self: ZIO[R, E, A]) extends AnyVal {
     final def bracket: ZIO.BracketAcquire[R, E, A] =
       new ZIO.BracketAcquire(self)
 
