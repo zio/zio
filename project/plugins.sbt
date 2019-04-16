@@ -1,9 +1,9 @@
 resolvers += Resolver.bintrayRepo("ktosopl", "sbt-plugins/sbt-jcstress")
 
-addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                   % "0.3.5")
+addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                   % "0.3.6")
 addSbtPlugin("pl.project13.scala"                % "sbt-jcstress"              % "0.2.0")
 addSbtPlugin("com.dwijnand"                      % "sbt-travisci"              % "1.2.0")
-addSbtPlugin("org.scala-js"                      % "sbt-scalajs"               % "0.6.26")
+addSbtPlugin("org.scala-js"                      % "sbt-scalajs"               % "0.6.27")
 addSbtPlugin("org.portable-scala"                % "sbt-scalajs-crossproject"  % "0.6.0")
 addSbtPlugin("com.47deg"                         % "sbt-microsites"            % "0.9.0" exclude ("org.scalameta", "mdoc"))
 addSbtPlugin("com.geirsson"                      % "sbt-scalafmt"              % "1.6.0-RC4")

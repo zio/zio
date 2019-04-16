@@ -1,5 +1,4 @@
-package scalaz.zio
-package internal
+package scalaz.zio.internal
 
 import java.util.concurrent.RejectedExecutionException
 

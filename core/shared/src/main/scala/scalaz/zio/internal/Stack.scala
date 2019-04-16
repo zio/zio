@@ -60,4 +60,26 @@ final class Stack[A <: AnyRef]() {
     }
     a.asInstanceOf[A]
   }
+
+  /**
+   * Peeks the item on the head of the stack, or returns `null` if empty.
+   */
+  final def peek(): A = {
+    val idx = size - 1
+    var a   = array(idx)
+    if (idx == 0 && nesting > 0) a = (a.asInstanceOf[Array[AnyRef]])(12)
+    a.asInstanceOf[A]
+  }
+
+  final def peekOrElse(a: A): A = if (size <= 0) a else peek()
+}
+
+object Stack {
+  def apply[A <: AnyRef](as: A*): Stack[A] = {
+    val stack = new Stack[A]
+
+    as.foreach(stack.push)
+
+    stack
+  }
 }
