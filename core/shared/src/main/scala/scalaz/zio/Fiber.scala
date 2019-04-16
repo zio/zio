@@ -109,8 +109,14 @@ trait Fiber[+E, +A] { self =>
    * Zips this fiber and the specified fiber togther, producing a tuple of their
    * output.
    */
-  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
     zipWith(that)((a, b) => (a, b))
+
+  /**
+   * Named alias for `<*>`.
+   */
+  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
+    self <*> that
 
   /**
    * Same as `zip` but discards the output of the left hand side.
@@ -155,7 +161,13 @@ trait Fiber[+E, +A] { self =>
   /**
    * Maps the output of this fiber to `()`.
    */
-  final def void: Fiber[E, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: Fiber[E, Unit] = unit
+
+  /**
+   * Maps the output of this fiber to `()`.
+   */
+  final def unit: Fiber[E, Unit] = const(())
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]].
@@ -200,6 +212,7 @@ object Fiber {
   final case class Descriptor(
     id: FiberId,
     interrupted: Boolean,
+    interruptible: Boolean,
     executor: Executor,
     children: UIO[IndexedSeq[Fiber[_, _]]]
   )
@@ -266,7 +279,7 @@ object Fiber {
    * Joins all fibers, awaiting their completion.
    */
   final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.await.void)
+    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.

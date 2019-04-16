@@ -38,7 +38,7 @@ private[reactiveStreams] object SubscriberHelpers {
     new Subscription {
       override def request(n: Long): Unit = {
         if (n <= 0) subscriber.onError(new IllegalArgumentException("n must be > 0"))
-        runtime.unsafeRunAsync_(demand.offer(n).void)
+        runtime.unsafeRunAsync_(demand.offer(n).unit)
       }
       override def cancel(): Unit = runtime.unsafeRun(demand.shutdown)
     }

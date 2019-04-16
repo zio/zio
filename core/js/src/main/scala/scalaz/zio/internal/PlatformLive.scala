@@ -32,7 +32,7 @@ object PlatformLive {
     new Platform {
       val executor = executor0
 
-      def nonFatal(t: Throwable): Boolean = true
+      def fatal(t: Throwable): Boolean = false
 
       def reportFailure(cause: Cause[_]): Unit =
         if (!cause.interrupted) println(cause.toString)

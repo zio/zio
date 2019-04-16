@@ -119,7 +119,7 @@ private class CatsConcurrentEffect[R](rts: Runtime[R])
           f.await
             .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
-            .const(f.interrupt.void)
+            .const(f.interrupt.unit)
         }
       }
     }
@@ -132,7 +132,7 @@ private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[TaskR[R, ?
 
   private[this] final def toFiber[A](f: Fiber[Throwable, A]): effect.Fiber[TaskR[R, ?], A] =
     new effect.Fiber[TaskR[R, ?], A] {
-      override final val cancel: TaskR[R, Unit] = f.interrupt.void
+      override final val cancel: TaskR[R, Unit] = f.interrupt.unit
 
       override final val join: TaskR[R, A] = f.join
     }

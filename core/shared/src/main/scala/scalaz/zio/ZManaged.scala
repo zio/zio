@@ -17,6 +17,14 @@
 package scalaz.zio
 
 /**
+ * A `Reservation[-R, +E, +A]` encapsulates resource aquisition and disposal
+ * without specifying when or how that resource might be used.
+ *
+ * See [[ZManaged#reserve]] and [[ZIO#reserve]] for details of usage.
+ */
+final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: ZIO[R, Nothing, _])
+
+/**
  * A `ZManaged[R, E, A]` is a managed resource of type `A`, which may be used by
  * invoking the `use` method of the resource. The resource will be automatically
  * acquired before the resource is used, and automatically released after the
@@ -27,8 +35,7 @@ package scalaz.zio
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, ZManaged.Reservation[R, E, A]]) { self =>
-  import ZManaged.Reservation
+final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) { self =>
 
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     reserve.bracket(_.release)(_.acquire.flatMap(f))
@@ -87,8 +94,14 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, ZManaged.Reservation[R,
   final def zipWith[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f: (A, A1) => A2): ZManaged[R1, E1, A2] =
     flatMap(r => that.map(r1 => f(r, r1)))
 
-  final def zip[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+  final def <*>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
     zipWith(that)((_, _))
+
+  /**
+   * Named alias for `<*>`.
+   */
+  final def zip[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+    self <*> that
 
   final def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] =
     ZManaged[R1, E1, A2] {
@@ -107,18 +120,46 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, ZManaged.Reservation[R,
       }
     }
 
-  final def zipPar[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+  final def <&>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
     zipWithPar(that)((_, _))
+
+  /**
+   * Named alias for `<&>`.
+   */
+  final def zipPar[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+    self <&> that
+
+  final def <&[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] = self.zipPar(that).map(_._1)
+
+  /**
+   * Named alias for `<&`.
+   */
+  final def zipParLeft[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
+    self <& that
+
+  final def &>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+    self.zipPar(that).map(_._2)
+
+  /**
+   * Named alias for `&>`.
+   */
+  final def zipParRight[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+    self &> that
 }
 
 object ZManaged {
-  final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: ZIO[R, Nothing, _])
 
   /**
    * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action.
    */
   final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZManaged[R, E, A] =
     ZManaged(acquire.map(r => Reservation(IO.succeed(r), release(r))))
+
+  /**
+   * Lifts a pure `Reservation[R, E, A]` into `ZManaged[R, E, A]`
+   */
+  final def reserve[R, E, A](reservation: Reservation[R, E, A]): ZManaged[R, E, A] =
+    ZManaged(ZIO.succeed(reservation))
 
   /**
    * Lifts a ZIO[R, E, R] into ZManaged[R, E, R] with no release action. Use

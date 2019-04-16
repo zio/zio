@@ -17,7 +17,7 @@
 package scalaz.zio
 package interop
 
-import cats.Applicative
+import cats.{ Applicative, Functor }
 import cats.mtl._
 import scalaz.zio._
 
@@ -36,4 +36,13 @@ abstract class CatsMtlInstances {
       }
     }
 
+  implicit def zioApplicativeHandle[R, E](
+    implicit ev: Applicative[ZIO[R, E, ?]]
+  ): ApplicativeHandle[ZIO[R, E, ?], E] =
+    new DefaultApplicativeHandle[ZIO[R, E, ?], E] {
+      val functor: Functor[ZIO[R, E, ?]]                                      = ev
+      val applicative: Applicative[ZIO[R, E, ?]]                              = ev
+      def raise[A](e: E): IO[E, A]                                            = IO.fail(e)
+      def handleWith[A](fa: ZIO[R, E, A])(f: E => ZIO[R, E, A]): ZIO[R, E, A] = fa.catchAll(f)
+    }
 }

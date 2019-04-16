@@ -60,13 +60,15 @@ final class STM[+E, +A] private[stm] (
     self zip that
 
   /**
-   * An operator for [[zipRight]].
+   * Sequentially zips this value with the specified one, discarding the
+   * second element of the tuple.
    */
   final def <*[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
     self zipLeft that
 
   /**
-   * An operator for [[zipLeft]].
+   * Sequentially zips this value with the specified one, discarding the
+   * first element of the tuple.
    */
   final def *>[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
     self zipRight that
@@ -226,7 +228,13 @@ final class STM[+E, +A] private[stm] (
   /**
    * Maps the success value of this effect to unit.
    */
-  final def void: STM[E, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: STM[E, Unit] = unit
+
+  /**
+   * Maps the success value of this effect to unit.
+   */
+  final def unit: STM[E, Unit] = const(())
 
   /**
    * Same as [[filter]]
@@ -234,21 +242,19 @@ final class STM[+E, +A] private[stm] (
   final def withFilter(f: A => Boolean): STM[E, A] = filter(f)
 
   /**
-   * Sequentially zips this value with the specified one.
+   * Named alias for `<*>`.
    */
   final def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
     (self zipWith that)((a, b) => a -> b)
 
   /**
-   * Sequentially zips this value with the specified one, discarding the
-   * second element of the tuple.
+   * Named alias for `<*`.
    */
   final def zipLeft[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
     (self zip that) map (_._1)
 
   /**
-   * Sequentially zips this value with the specified one, discarding the
-   * first element of the tuple.
+   * Named alias for `*>`.
    */
   final def zipRight[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
     (self zip that) map (_._2)
