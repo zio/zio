@@ -26,7 +26,6 @@ object Scalaz {
     "-language:existentials",
     "-explaintypes",
     "-Yrangepos",
-    // "-Xfuture",
     "-Xsource:2.13",
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
@@ -82,7 +81,8 @@ object Scalaz {
           "-Ywarn-inaccessible",
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
-          "-Ywarn-nullary-unit"
+          "-Ywarn-nullary-unit",
+          "-Xfuture"
         ) ++ std2xOptions
       case Some((2, 11)) =>
         Seq(
@@ -93,7 +93,8 @@ object Scalaz {
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit",
           "-Xexperimental",
-          "-Ywarn-unused-import"
+          "-Ywarn-unused-import",
+          "-Xfuture"
         ) ++ std2xOptions
       case _ => Seq.empty
     }
