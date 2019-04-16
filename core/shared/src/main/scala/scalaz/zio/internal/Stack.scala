@@ -74,7 +74,7 @@ private[zio] final class Stack[A <: AnyRef]() {
   final def peekOrElse(a: A): A = if (size <= 0) a else peek()
 }
 
-object Stack {
+private[zio] object Stack {
   def apply[A <: AnyRef](as: A*): Stack[A] = {
     val stack = new Stack[A]
 

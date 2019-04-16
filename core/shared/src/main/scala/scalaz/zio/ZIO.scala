@@ -228,12 +228,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         exit.foldM[E1, Either[A, B]](
           _ => right.join.map(Right(_)),
           a => ZIO.succeedLeft(a) <* right.interrupt
-        ),
+      ),
       (exit, left) =>
         exit.foldM[E1, Either[A, B]](
           _ => left.join.map(Left(_)),
           b => ZIO.succeedRight(b) <* left.interrupt
-        )
+      )
     )
 
   /**
@@ -466,13 +466,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               finalizer.foldCauseM[Any, E, Nothing](
                 cause2 => ZIO.halt(cause1 ++ cause2),
                 _ => ZIO.halt(cause1)
-              ),
+            ),
             value =>
               finalizer.foldCauseM[Any, E, A](
                 cause1 => ZIO.halt(cause1),
                 _ => ZIO.succeed(value)
-              )
-          )
+            )
+        )
     )
 
   /**
@@ -508,7 +508,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Failure(_) => release(a)
           case _               => ZIO.unit
-        }
+      }
     )(use)
 
   /**
@@ -527,7 +527,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Success(_)     => ZIO.unit
           case Exit.Failure(cause) => cleanup(cause)
-        }
+      }
     )(_ => self)
 
   /**
@@ -548,7 +548,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
           case _                   => ZIO.unit
-        }
+      }
     )(_ => self)
 
   /**
@@ -810,7 +810,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           schedule.update(a, state).flatMap { step =>
             if (!step.cont) ZIO.succeedRight(step.finish())
             else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-          }
+        }
       )
 
     schedule.initial.flatMap(loop(None, _))
@@ -854,7 +854,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               decision =>
                 if (decision.cont) clock.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
-            ),
+          ),
         succ => ZIO.succeedRight(succ)
       )
 
@@ -1759,7 +1759,7 @@ private[zio] trait ZIO_E_Throwable extends ZIOFunctions {
         try Right(effect)
         catch {
           case t: Throwable if !platform.fatal(t) => Left(t)
-        }
+      }
     ).absolve
 
   /**
@@ -1925,7 +1925,8 @@ object ZIO extends ZIO_R_Any {
     final val Access          = 13
     final val Provide         = 14
   }
-  private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
+      extends ZIO[R, E, A] {
     override def tag = Tags.FlatMap
   }
 

@@ -20,7 +20,7 @@ package scalaz.zio.internal
  * A very fast, hand-optimized stack designed just for booleans.
  * In the common case (size < 256), achieves zero allocations.
  */
-final class StackBool private () {
+private[zio] final class StackBool private () {
   import StackBool.Entry
 
   private[this] var head  = new Entry(null)
@@ -91,7 +91,7 @@ final class StackBool private () {
 
   final override def hashCode = toList.hashCode
 }
-object StackBool {
+private[zio] object StackBool {
   def apply(): StackBool = new StackBool
 
   def apply(bools: Boolean*): StackBool = {
