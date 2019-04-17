@@ -63,26 +63,28 @@ trait Fiber[+E, +A] { self =>
   /**
    * Interrupts the fiber with no specified reason. If the fiber has already
    * terminated, either successfully or with error, this will resume
-   * immediately. Otherwise, it will resume when the fiber completes.
+   * immediately. Otherwise, it will resume when the fiber terminates.
    */
   def interrupt: UIO[Exit[E, A]]
 
   /**
-   * Returns a fiber that prefers the left hand side, but falls back to the
-   * right hand side when the left fails.
+   * Returns a fiber that prefers `this` fiber, but falls back to the
+   * `that` one when `this` one fails.
+   * Interrupt call on such a fiber interrupts both (`this` and `that`)
+   * fibers in sequential order.
    * */
   def orElse[E1 >: E, A1 >: A](that: Fiber[E1, A1]): Fiber[E1, A1] =
     new Fiber[E1, A1] {
-      def await: IO[Nothing, Exit[E1, A1]] =
+      def await: UIO[Exit[E1, A1]] =
         self.await.zipWith(that.await) {
           case (Exit.Failure(_), e2) => e2
           case (e1, _)               => e1
         }
 
-      def poll: IO[Nothing, Option[Exit[E1, A1]]] =
+      def poll: UIO[Option[Exit[E1, A1]]] =
         self.poll.zipWith(that.poll)(_ orElse _)
 
-      def interrupt: IO[Nothing, Exit[E1, A1]] =
+      def interrupt: UIO[Exit[E1, A1]] =
         self.interrupt *> that.interrupt
     }
 
@@ -106,7 +108,7 @@ trait Fiber[+E, +A] { self =>
     }
 
   /**
-   * Zips this fiber and the specified fiber togther, producing a tuple of their
+   * Zips this fiber and the specified fiber together, producing a tuple of their
    * output.
    */
   final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
@@ -250,7 +252,7 @@ object Fiber {
   /**
    * Lifts an [[scalaz.zio.IO]] into a `Fiber`.
    */
-  final def fromEffect[E, A](io: IO[E, A]): IO[Nothing, Fiber[E, A]] =
+  final def fromEffect[E, A](io: IO[E, A]): UIO[Fiber[E, A]] =
     io.run.map(done(_))
 
   /**
