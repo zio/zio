@@ -335,10 +335,10 @@ private[zio] final class FiberContext[E, A](
     UIO {
       val set = supervised.peekOrElse(null)
 
-      if (set eq null) Array.empty[Fiber[_, _]]
+      if (set eq null) Array.empty[Fiber[_, _]].toIndexedSeq // FIXME use ArraySeq.unsafeWrapArray (only in 2.13)
       else {
         val arr = Array.ofDim[Fiber[_, _]](set.size)
-        set.toArray[Fiber[_, _]](arr)
+        set.toArray[Fiber[_, _]](arr).toIndexedSeq // FIXME use ArraySeq.unsafeWrapArray (only in 2.13)
       }
     }
 
