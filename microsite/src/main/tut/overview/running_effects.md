@@ -14,7 +14,7 @@ If you construct a single effect for your whole program, then the most natural w
 
 This class provides Scala with a main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method, which will be passed command-line arguments in a `List`:
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 import scalaz.zio.console._
 
@@ -44,13 +44,13 @@ ZIO contains a default runtime called `DefaultRuntime`. This bundles together al
 
 To create a `DefaultRuntime`, merely use the `new` keyword:
 
-```tut:silent
+```scala mdoc:silent
 val runtime = new DefaultRuntime {}
 ```
 
 Once you have a runtime, you can use it to execute effects:
 
-```tut:silent
+```scala mdoc:silent
 runtime.unsafeRun(putStrLn("Hello World!"))
 ```
 
@@ -65,7 +65,7 @@ A custom `Runtime[R]` can be created with two values:
 
 For example, the following creates a `Runtime` that can provide an `Int` to effects, using the default `Platform` provided by ZIO:
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio.internal.PlatformLive
 
 val myRuntime: Runtime[Int] = Runtime(42, PlatformLive.Default)
