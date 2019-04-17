@@ -305,5 +305,6 @@ lazy val microsite = project.module
     ),
     micrositeShareOnSocial := false,
     micrositeCompilingDocsTool := WithMdoc,
-    mdocIn := file("microsite/src/main/tut")
+    mdocIn := file("microsite/src/main/tut"),
+    mdocExtraArguments := List("--no-link-hygiene")
   )

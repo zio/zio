@@ -110,7 +110,7 @@ In this example, the type `Database` is the _module_, which contains the `Databa
 In order to make it easier to access the database service as an environmental effect, we will define helper functions that use `ZIO.accessM`.
 
 ```scala mdoc:silent
-object database {
+object db {
   def lookup(id: UserID): ZIO[Database, Throwable, UserProfile] =
     ZIO.accessM(_.database.lookup(id))
 
@@ -126,7 +126,7 @@ We're now ready to build an example that uses the database service:
 ```scala mdoc:silent
 val lookedupProfile: ZIO[Database, Throwable, UserProfile] = 
   for {
-    profile <- database.lookup(userId)
+    profile <- db.lookup(userId)
   } yield profile
 ```
 
