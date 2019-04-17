@@ -18,18 +18,18 @@ A value of type `IO[E, A]` describes an effect that may fail with an `E`, run fo
 
 You can lift pure values into `IO` with `IO.succeedLazy`:
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 
-val z: UIO[String] = IO.succeedLazy("Hello World")
+val lazyValue: UIO[String] = IO.succeedLazy("Hello World")
 ```
 
 The constructor uses non-strict evaluation, so the parameter will not be evaluated until when and if the `IO` action is executed at runtime, which is useful if the construction is costly and the value may never be needed.
 
 Alternately, you can use the `IO.succeed` constructor to perform strict evaluation of the value:
 
-```tut:silent
-val z: UIO[String] = IO.succeed("Hello World")
+```scala mdoc:silent
+val value: UIO[String] = IO.succeed("Hello World")
 ```
 
 You should never use either constructor for importing impure code into `IO`. The result of doing so is undefined.
@@ -48,11 +48,11 @@ because the `Nothing` type is _uninhabitable_, i.e. there can be no actual value
 
 You can use the `effectTotal` method of `IO` to import effectful synchronous code into your purely functional program:
 
-```tut:silent
-val z: Task[Long] = IO.effectTotal(System.nanoTime())
+```scala mdoc:silent
+val effectTotalTask: Task[Long] = IO.effectTotal(System.nanoTime())
 ```
 
-```tut:invisible
+```scala mdoc:invisible
 import java.io.File
 import org.apache.commons.io.FileUtils
 import java.io.IOException
@@ -62,7 +62,7 @@ The resulting effect may fail for any `Throwable`.
 
 If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
 
-```tut:silent
+```scala mdoc:silent
 def readFile(name: String): IO[String, Array[Byte]] =
   IO.effect(FileUtils.readFileToByteArray(new File(name))).refineOrDie {
     case e : IOException => "Could not read file"
@@ -71,7 +71,7 @@ def readFile(name: String): IO[String, Array[Byte]] =
 
 You can use the `effectAsync` method of `IO` to import effectful asynchronous code into your purely functional program:
 
-```tut:invisible
+```scala mdoc:invisible
 case class HttpException()
 case class Request()
 case class Response()
@@ -82,7 +82,7 @@ object Http {
 }
 ```
 
-```tut:silent
+```scala mdoc:silent
 def makeRequest(req: Request): IO[HttpException, Response] =
   IO.effectAsync[HttpException, Response](k => Http.req(req, k))
 ```
@@ -93,32 +93,32 @@ In this example, it's assumed the `Http.req` method will invoke the specified ca
 
 You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets you transform values produced by actions into other values.
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 
-val z: UIO[Int] = IO.succeedLazy(21).map(_ * 2)
+val mappedLazyValue: UIO[Int] = IO.succeedLazy(21).map(_ * 2)
 ```
 
 You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`:
 
-```tut:silent
-val z: IO[Exception, String] = IO.fail("No no!").mapError(msg => new Exception(msg))
+```scala mdoc:silent
+val mappedError: IO[Exception, String] = IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
 
 # Chaining
 
 You can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
-```tut:silent
-val z: UIO[List[Int]] = IO.succeedLazy(List(1, 2, 3)).flatMap { list =>
+```scala mdoc:silent
+val chainedActionsValue: UIO[List[Int]] = IO.succeedLazy(List(1, 2, 3)).flatMap { list =>
   IO.succeedLazy(list.map(_ + 1))
 }
 ```
 
 You can use Scala's `for` comprehension syntax to make this type of code more compact:
 
-```tut:silent
-val z: UIO[List[Int]] = for {
+```scala mdoc:silent
+val chainedActionsValueWithForComprehension: UIO[List[Int]] = for {
   list <- IO.succeedLazy(List(1, 2, 3))
   added <- IO.succeedLazy(list.map(_ + 1))
 } yield added
@@ -134,11 +134,11 @@ Brackets consist of an *acquire* action, a *utilize* action (which uses the acqu
 
 The release action is guaranteed to be executed by the runtime system, even if the utilize action throws an exception or the executing fiber is interrupted.
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 ```
 
-```tut:invisible
+```scala mdoc:invisible
 import java.io.{ File, IOException }
 
 def openFile(s: String): IO[IOException, File] = IO.succeedLazy(???)
@@ -147,8 +147,8 @@ def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
 
-```tut:silent
-val z: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
+```scala mdoc:silent
+val groupedFileData: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)
@@ -160,7 +160,7 @@ Brackets have compositional semantics, so if a bracket is nested inside another 
 
 A helper method called `ensuring` provides a simpler analogue of `finally`:
 
-```tut:silent
+```scala mdoc:silent
 var i: Int = 0
 val action: Task[String] = Task.effectTotal(i += 1) *> Task.fail(new Throwable("Boom!"))
 val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)

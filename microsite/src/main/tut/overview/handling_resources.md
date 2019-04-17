@@ -10,7 +10,7 @@ This section looks at some of the common ways to safely handle resources using Z
 
 ZIO's resource management features work across synchronous, asynchronous, concurrent, and other effect types, and provide strong guarantees even in the presence of unexpected errors or defects in the application.
 
-```tut:invisible
+```scala mdoc:invisible
 import scalaz.zio._
 ```
 
@@ -20,11 +20,11 @@ ZIO provides similar functionality to `try` / `finally` with the `ZIO#ensuring` 
 
 Like `try` / `finally`, the `ensuring` operation guarantees that if an effect begins executing, then the finalizer will begin executing, even if the first effect fails.
 
-```tut
+```scala mdoc
 val finalizer = 
   UIO.effectTotal(println("Finalizing!"))
 
-val z: IO[String, Unit] = 
+val finalized: IO[String, Unit] = 
   IO.fail("Failed!").ensuring(finalizer)
 ```
 
@@ -50,7 +50,7 @@ ZIO provides encapsulates this common pattern with `ZIO#bracket`, which allows y
 
 The release effect is guaranteed to be executed by the runtime system, even in the presence of errors or interruption.
 
-```tut:invisible
+```scala mdoc:invisible
 import scalaz.zio._
 import java.io.{ File, IOException }
 
@@ -60,8 +60,8 @@ def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
 
-```tut:silent
-val z: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
+```scala mdoc:silent
+val groupedFileData: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)

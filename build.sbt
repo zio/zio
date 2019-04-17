@@ -267,13 +267,14 @@ lazy val microsite = project.module
   .settings(
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
+    scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"             % "1.3.3" % Tut,
-      "commons-io"          % "commons-io"                % "2.6"   % Tut,
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2" % Tut
+      "com.github.ghik"     %% "silencer-lib"             % "1.3.3" % "provided",
+      "commons-io"          % "commons-io"                % "2.6"   % "provided",
+      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2" % "provided"
     ),
     micrositeFooterText := Some(
       """
@@ -302,5 +303,8 @@ lazy val microsite = project.module
       "gray-lighter"    -> "#F4F3F4",
       "white-color"     -> "#FFFFFF"
     ),
-    micrositeShareOnSocial := false
+    micrositeShareOnSocial := false,
+    micrositeCompilingDocsTool := WithMdoc,
+    mdocIn := file("microsite/src/main/tut"),
+    mdocExtraArguments := List("--no-link-hygiene")
   )
