@@ -266,9 +266,12 @@ lazy val benchmarks = project.module
     skip.in(publish) := true,
     moduleName := "scalaz-zio-docs",
 //    mdoc := run.in(Compile).evaluated,
-    libraryDependencies ++= List(
-      "org.jsoup" % "jsoup" % "1.11.3"
+    libraryDependencies ++= Seq(
+      "com.github.ghik"     %% "silencer-lib"             % "1.3.3" % "provided",
+      "commons-io"          % "commons-io"                % "2.6"   % "provided",
+      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2" % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.11.3" % "provided"
     )
   )
-  .dependsOn(root)
+  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM, interopReactiveStreamsJVM)
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
