@@ -4,8 +4,11 @@ import cats._
 import cats.effect.{ Fiber => CFiber }
 import scala.concurrent.ExecutionContext
 import cats.effect.{ ContextShift, IO => CIO }
+import scalaz.zio.internal._
 
 object IOBenchmarks extends DefaultRuntime {
+  override val Platform: Platform = PlatformLive.makeDefault(Int.MaxValue)
+
   import monix.execution.Scheduler
   implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 

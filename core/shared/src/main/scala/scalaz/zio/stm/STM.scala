@@ -300,7 +300,7 @@ object STM {
      */
     final def isValid(journal: Journal): Boolean = {
       var valid = true
-      val it = journal.entrySet.iterator
+      val it    = journal.entrySet.iterator
       while (valid && it.hasNext()) {
         valid = it.next.getValue.isValid
       }
@@ -454,86 +454,89 @@ object STM {
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
     UIO.effectTotalWith { platform =>
-        val txnId = makeTxnId()
+      val txnId = makeTxnId()
 
-        val done = new AtomicBoolean(false)
+      val done = new AtomicBoolean(false)
 
-        val ref = new AtomicReference(UIO[Unit](done synchronized {
-          done set true
-        }))
+      val ref = new AtomicReference(UIO[Unit](done synchronized {
+        done set true
+      }))
 
-        IO.effectAsyncMaybe[E, A] { k =>
-          import internal.globalLock
+      IO.effectAsyncMaybe[E, A] { k =>
+        import internal.globalLock
 
-          def tryTxn(): Option[IO[E, A]] =
-            if (done.get) None
-            else
-              done synchronized {
-                if (done.get) None
-                else {
-                  var journal = null.asInstanceOf[MutableMap[Long, Entry]]
-                  var value   = null.asInstanceOf[TRez[E, A]]
+        def tryTxn(): Option[IO[E, A]] =
+          if (done.get) None
+          else
+            done synchronized {
+              if (done.get) None
+              else {
+                var journal = null.asInstanceOf[MutableMap[Long, Entry]]
+                var value   = null.asInstanceOf[TRez[E, A]]
 
-                  var loop = true
+                var loop = true
 
-                  while (loop) {
-                    journal = if (journal eq null) new MutableMap[Long, Entry](4) else { journal.clear(); journal }
-                    value = stm exec journal
-
-                    value match {
-                      case _: TRez.Succeed[_] =>
-                        globalLock.acquire()
-
-                        try 
-                        if (isValid(journal)) {
-                          commit(journal)
-
-                          loop = false
-                        } finally globalLock.release()
-
-                      case _: TRez.Fail[_] =>
-                        globalLock.acquire()
-
-                        try loop = isInvalid(journal)
-                        finally globalLock.release()
-
-                      case TRez.Retry =>
-                        addTodo(txnId, journal, tryTxnAsync)
-
-                        loop = false
+                while (loop) {
+                  journal =
+                    if (journal eq null) new MutableMap[Long, Entry](4)
+                    else {
+                      journal.clear(); journal
                     }
-                  }
-
-                  def completed(io: IO[E, A]): Option[IO[E, A]] = {
-                    done set true
-
-                    val todos = collectTodos(journal)
-
-                    if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
-
-                    Some(io)
-                  }
+                  value = stm exec journal
 
                   value match {
-                    case TRez.Succeed(a) => completed(IO.succeed(a))
-                    case TRez.Fail(e)    => completed(IO.fail(e))
-                    case TRez.Retry =>
-                      val stale = isInvalid(journal)
+                    case _: TRez.Succeed[_] =>
+                      globalLock.acquire()
 
-                      if (stale) tryTxn() else None
+                      try if (isValid(journal)) {
+                        commit(journal)
+
+                        loop = false
+                      } finally globalLock.release()
+
+                    case _: TRez.Fail[_] =>
+                      globalLock.acquire()
+
+                      try loop = isInvalid(journal)
+                      finally globalLock.release()
+
+                    case TRez.Retry =>
+                      addTodo(txnId, journal, tryTxnAsync)
+
+                      loop = false
                   }
                 }
+
+                def completed(io: IO[E, A]): Option[IO[E, A]] = {
+                  done set true
+
+                  val todos = collectTodos(journal)
+
+                  if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
+
+                  Some(io)
+                }
+
+                value match {
+                  case TRez.Succeed(a) => completed(IO.succeed(a))
+                  case TRez.Fail(e)    => completed(IO.fail(e))
+                  case TRez.Retry =>
+                    val stale = isInvalid(journal)
+
+                    if (stale) tryTxn() else None
+                }
               }
-
-          def tryTxnAsync: Todo = () => {
-            tryTxn() match {
-              case None     =>
-              case Some(io) => k(io)
             }
-          }
 
-          tryTxn()
-        } ensuring UIO(ref.get).flatten
+        def tryTxnAsync: Todo = () => {
+          tryTxn() match {
+            case None     =>
+            case Some(io) => k(io)
+          }
+        }
+
+        tryTxn()
+      } ensuring UIO(ref.get).flatten
     }.flatten
 
   /**

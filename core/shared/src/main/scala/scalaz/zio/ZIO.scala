@@ -141,11 +141,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * } yield a
    * }}}
    */
-  final def fork: ZIO[R, Nothing, Fiber[E, A]] =
-    for {
-      r     <- ZIO.environment[R]
-      fiber <- new ZIO.Fork(self.provide(r))
-    } yield fiber
+  final def fork: ZIO[R, Nothing, Fiber[E, A]] = new ZIO.Fork(self)
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
@@ -1120,7 +1116,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
    * partial effects.
    */
-  final def succeedLazy[A](a: => A): UIO[A] = effectTotal(a)
+  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
 
   /**
    * Accesses the whole environment of the effect.
@@ -1199,7 +1195,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
    * }}}
    */
-  final def effectTotal[A](effect: => A): UIO[A] = effectTotalWith(_ => effect)
+  final def effectTotal[A](effect: => A): UIO[A] = new ZIO.EffectTotal(() => effect)
 
   /**
    * Imports a total synchronous effect into a pure `ZIO` value. This variant
@@ -1213,7 +1209,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
    * }}}
    */
-  final def effectTotalWith[A](effect: Platform => A): UIO[A] = new ZIO.Effect[A](effect)
+  final def effectTotalWith[A](effect: Platform => A): UIO[A] = new ZIO.EffectTotalWith[A](effect)
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh
@@ -1753,14 +1749,7 @@ private[zio] trait ZIO_E_Throwable extends ZIOFunctions {
    * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
    * }}}
    */
-  final def effect[A](effect: => A): Task[A] =
-    effectTotalWith(
-      platform =>
-        try Right(effect)
-        catch {
-          case t: Throwable if !platform.fatal(t) => Left(t)
-        }
-    ).absolve
+  final def effect[A](effect: => A): Task[A] = new ZIO.EffectPartial(() => effect)
 
   /**
    * Lifts a `Try` into a `ZIO`.
@@ -1911,19 +1900,21 @@ object ZIO extends ZIO_R_Any {
   private[zio] object Tags {
     final val FlatMap         = 0
     final val Succeed         = 1
-    final val Effect          = 2
+    final val EffectTotal     = 2
     final val Fail            = 3
-    final val EffectAsync     = 4
-    final val Fold            = 5
-    final val Fork            = 6
-    final val InterruptStatus = 7
-    final val CheckInterrupt  = 8
-    final val Supervised      = 9
-    final val Descriptor      = 10
-    final val Lock            = 11
-    final val Yield           = 12
-    final val Access          = 13
-    final val Provide         = 14
+    final val Fold            = 4
+    final val InterruptStatus = 5
+    final val CheckInterrupt  = 6
+    final val EffectPartial   = 7
+    final val EffectTotalWith = 8
+    final val EffectAsync     = 9
+    final val Fork            = 10
+    final val Supervised      = 11
+    final val Descriptor      = 12
+    final val Lock            = 13
+    final val Yield           = 14
+    final val Access          = 15
+    final val Provide         = 16
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -1934,8 +1925,16 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Succeed
   }
 
-  private[zio] final class Effect[A](val effect: Platform => A) extends UIO[A] {
-    override def tag = Tags.Effect
+  private[zio] final class EffectTotalWith[A](val effect: Platform => A) extends UIO[A] {
+    override def tag = Tags.EffectTotalWith
+  }
+
+  private[zio] final class EffectTotal[A](val effect: () => A) extends UIO[A] {
+    override def tag = Tags.EffectTotal
+  }
+
+  private[zio] final class EffectPartial[A](val effect: () => A) extends Task[A] {
+    override def tag = Tags.EffectPartial
   }
 
   private[zio] final class EffectAsync[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
@@ -1954,7 +1953,7 @@ object ZIO extends ZIO_R_Any {
     final def apply(v: A): ZIO[R, E2, B] = success(v)
   }
 
-  private[zio] final class Fork[E, A](val value: IO[E, A]) extends UIO[Fiber[E, A]] {
+  private[zio] final class Fork[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, Nothing, Fiber[E, A]] {
     override def tag = Tags.Fork
   }
 
