@@ -140,7 +140,7 @@ private[zio] final class FiberContext[E, A](
 
                   // A mini interpreter for the left side of FlatMap that evaluates
                   // anything that is 1-hop away. This eliminates heap usage for the
-                  // happy path. TODO: Expand.
+                  // happy path.
                   (nested.tag: @switch) match {
                     case ZIO.Tags.Succeed =>
                       val io2 = nested.asInstanceOf[ZIO.Succeed[Any]]
