@@ -453,32 +453,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * should generally not be used for releasing resources. For higher-level
    * logic built on `ensuring`, see `ZIO#bracket`.
    */
-  final def ensuring(finalizer: UIO[_]): ZIO[R, E, A] =
+  final def ensuring[R1 <: R](finalizer: ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask(
       restore =>
         restore(self)
           .foldCauseM(
             cause1 =>
-              finalizer.foldCauseM[Any, E, Nothing](
+              finalizer.foldCauseM[R1, E, Nothing](
                 cause2 => ZIO.halt(cause1 ++ cause2),
                 _ => ZIO.halt(cause1)
               ),
             value =>
-              finalizer.foldCauseM[Any, E, A](
+              finalizer.foldCauseM[R1, E, A](
                 cause1 => ZIO.halt(cause1),
                 _ => ZIO.succeed(value)
               )
           )
     )
-
-  /**
-   * Executes the specified finalizer, providing the environment of this `ZIO`
-   * directly and immediately to the finalizer. This method should not be used
-   * for cleaning up resources, because it's possible the fiber will be
-   * interrupted after acquisition but before the finalizer is added.
-   */
-  final def ensuringR[R1 <: R](finalizer: ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
-    ZIO.environment[R1].flatMap(r => self.ensuring(finalizer.provide(r)))
 
   /**
    * Executes the effect on the specified `ExecutionContext` and then shifts back
@@ -1506,9 +1497,8 @@ private[zio] trait ZIOFunctions extends Serializable {
     ZIO.uninterruptibleMask[R, E, B](
       restore =>
         for {
-          r <- environment[R]
           a <- acquire
-          e <- restore(use(a)).run.flatMap(e => release(a, e).provide(r).const(e))
+          e <- restore(use(a)).run.flatMap(e => release(a, e).const(e))
           b <- ZIO.done(e)
         } yield b
     )

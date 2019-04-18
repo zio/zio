@@ -482,7 +482,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       p1 <- Promise.make[Nothing, Unit]
       p2 <- Promise.make[Nothing, Int]
       s <- (p1.succeed(()) *> p2.await)
-            .ensuringR(r.set(true) *> clock.sleep(10.millis))
+            .ensuring(r.set(true) *> clock.sleep(10.millis))
             .fork
       _    <- p1.await
       _    <- s.interrupt
