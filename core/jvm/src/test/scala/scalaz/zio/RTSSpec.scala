@@ -26,6 +26,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     suspend must be lazy                    $testSuspendIsLazy
     suspend must be evaluatable             $testSuspendIsEvaluatable
     point, bind, map                        $testSyncEvalLoop
+    effect, bind, map                       $testSyncEvalLoopEffect
+    effect, bind, map, redeem               $testSyncEvalLoopEffectThrow
     sync effect                             $testEvalOfSyncEffect
     sync on defer                           $testManualSyncOnDefer
     deep effects                            $testEvalOfDeepSyncEffect
@@ -194,6 +196,30 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testSyncEvalLoop = {
     def fibIo(n: Int): Task[BigInt] =
       if (n <= 1) IO.succeedLazy(n)
+      else
+        for {
+          a <- fibIo(n - 1)
+          b <- fibIo(n - 2)
+        } yield a + b
+
+    unsafeRun(fibIo(10)) must_=== fib(10)
+  }
+
+  def testSyncEvalLoopEffect = {
+    def fibIo(n: Int): Task[BigInt] =
+      if (n <= 1) IO.effect(n)
+      else
+        for {
+          a <- fibIo(n - 1)
+          b <- fibIo(n - 2)
+        } yield a + b
+
+    unsafeRun(fibIo(10)) must_=== fib(10)
+  }
+
+  def testSyncEvalLoopEffectThrow = {
+    def fibIo(n: Int): Task[BigInt] =
+      if (n <= 1) Task.effect[BigInt](throw new Error).catchAll(_ => Task.effect(n))
       else
         for {
           a <- fibIo(n - 1)
