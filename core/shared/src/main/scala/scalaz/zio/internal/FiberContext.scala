@@ -296,10 +296,10 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Provide =>
                   val io = curIo.asInstanceOf[ZIO.Provide[Any, E, Any]]
 
-                  environment.push(io.r.asInstanceOf[AnyRef])
+                  val push = ZIO.effectTotal(environment.push(io.r.asInstanceOf[AnyRef]))
+                  val pop  = ZIO.effectTotal(environment.pop())
 
-                  // TODO: Could be interrupted after push but before pop
-                  curIo = io.next.ensuring(ZIO.effectTotal { environment.pop() })
+                  curIo = push.bracket_(pop, io.next)
               }
             }
           } else {
