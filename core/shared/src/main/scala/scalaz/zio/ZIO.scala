@@ -501,14 +501,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts this ZIO to [[scalaz.zio.Managed]].
    */
-  final def toManaged(release: A => UIO[_]): ZManaged[R, E, A] =
-    ZManaged.make(this)(release)
+  final def toManaged[R1 <: R](release: A => ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
+    ZManaged.make[R1, E, A](this)(release)
 
   /**
    * Runs the specified effect if this effect fails, providing the error to the
    * effect if it exists. The provided effect will not be interrupted.
    */
-  final def onError(cleanup: Cause[E] => UIO[_]): ZIO[R, E, A] =
+  final def onError[R1 <: R](cleanup: Cause[E] => ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
     ZIO.bracketExit(ZIO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
@@ -520,7 +520,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Runs the specified effect if this effect is interrupted.
    */
-  final def onInterrupt(cleanup: UIO[_]): ZIO[R, E, A] =
+  final def onInterrupt[R1 <: R](cleanup: ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
     self.ensuring(
       ZIO.descriptorWith(descriptor => if (descriptor.interrupted) cleanup else ZIO.unit)
     )
@@ -529,7 +529,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Runs the specified effect if this effect is terminated, either because of
    * a defect or because of interruption.
    */
-  final def onTermination(cleanup: Cause[Nothing] => UIO[_]): ZIO[R, E, A] =
+  final def onTermination[R1 <: R](cleanup: Cause[Nothing] => ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
     ZIO.bracketExit(ZIO.unit)(
       (_, eb: Exit[E, A]) =>
         eb match {
@@ -554,8 +554,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Supervises this effect, which ensures that any fibers that are forked by
    * the effect are handled by the provided supervisor.
    */
-  final def superviseWith(supervisor: Iterable[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
-    ZIO.superviseWith(self)(supervisor)
+  final def superviseWith[R1 <: R](supervisor: Iterable[Fiber[_, _]] => ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
+    ZIO.superviseWith[R1, E, A](self)(supervisor)
 
   /**
    * Performs this effect uninterruptibly. This will prevent the effect from
@@ -1260,7 +1260,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def superviseWith[R >: LowerR, E <: UpperE, A](
     zio: ZIO[R, E, A]
-  )(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): ZIO[R, E, A] =
+  )(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): ZIO[R, E, A] =
     zio.ensuring(children.flatMap(supervisor(_))).supervised
 
   /**
@@ -1308,12 +1308,14 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
    * necessary when the effect is itself expressed in terms of `ZIO`.
    */
-  final def effectAsyncM[E <: UpperE, A](register: (IO[E, A] => Unit) => UIO[_]): IO[E, A] =
+  final def effectAsyncM[R >: LowerR, E <: UpperE, A](
+    register: (ZIO[R, E, A] => Unit) => ZIO[R, Nothing, _]
+  ): ZIO[R, E, A] =
     for {
       p   <- Promise.make[E, A]
       ref <- Ref.make[UIO[Any]](ZIO.unit)
       a <- (for {
-            r <- ZIO.runtime[Any]
+            r <- ZIO.runtime[R]
             _ <- register(k => r.unsafeRunAsync_(k.to(p))).fork
                   .tap(f => ref.set(f.interrupt))
                   .uninterruptible
