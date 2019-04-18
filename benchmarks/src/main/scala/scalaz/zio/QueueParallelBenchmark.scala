@@ -3,9 +3,9 @@ package scalaz.zio
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import cats.effect.{ ContextShift, IO => CIO }
-import cats.implicits._
 import org.openjdk.jmh.annotations._
 import scalaz.zio.IOBenchmarks._
+import scalaz.zio.stm._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -25,23 +25,34 @@ class QueueParallelBenchmark {
 
   var zioQ: Queue[Int]                     = _
   var fs2Q: fs2.concurrent.Queue[CIO, Int] = _
+  var zioTQ: TQueue[Int]                   = _
 
   @Setup(Level.Trial)
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](totalSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
+    zioTQ = unsafeRun(TQueue.make(totalSize).commit)
   }
 
   @Benchmark
   def zioQueue(): Int = {
 
-    def repeat(task: UIO[Unit], max: Int): UIO[Unit] =
-      if (max < 1) IO.unit
-      else task.flatMap(_ => repeat(task, max - 1))
+    val io = for {
+      offers <- IO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioQ.offer(0).unit)))
+      takes  <- IO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioQ.take.unit)))
+      _      <- offers.join
+      _      <- takes.join
+    } yield 0
+
+    unsafeRun(io)
+  }
+
+  @Benchmark
+  def zioTQueue(): Int = {
 
     val io = for {
-      offers <- IO.forkAll(List.fill(parallelism)(repeat(zioQ.offer(0).map(_ => ()), totalSize / parallelism))).fork
-      takes  <- IO.forkAll(List.fill(parallelism)(repeat(zioQ.take.map(_ => ()), totalSize / parallelism))).fork
+      offers <- IO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioTQ.offer(0).unit.commit)))
+      takes  <- IO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioTQ.take.unit.commit)))
       _      <- offers.join
       _      <- takes.join
     } yield 0
@@ -52,13 +63,9 @@ class QueueParallelBenchmark {
   @Benchmark
   def fs2Queue(): Int = {
 
-    def repeat(task: CIO[Unit], max: Int): CIO[Unit] =
-      if (max < 1) CIO.unit
-      else task >> repeat(task, max - 1)
-
     val io = for {
-      offers <- List.fill(parallelism)(repeat(fs2Q.enqueue1(0), totalSize / parallelism)).sequence.start
-      takes  <- List.fill(parallelism)(repeat(fs2Q.dequeue1.map(_ => ()), totalSize / parallelism)).sequence.start
+      offers <- catsForkAll(List.fill(parallelism)(catsRepeat(totalSize / parallelism)(fs2Q.enqueue1(0))))
+      takes  <- catsForkAll(List.fill(parallelism)(catsRepeat(totalSize / parallelism)(fs2Q.dequeue1.map(_ => ()))))
       _      <- offers.join
       _      <- takes.join
     } yield 0

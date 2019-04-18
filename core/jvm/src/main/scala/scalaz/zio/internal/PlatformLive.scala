@@ -26,7 +26,7 @@ object PlatformLive {
   lazy val Default = makeDefault()
   lazy val Global  = fromExecutionContext(ExecutionContext.global)
 
-  final def makeDefault(): Platform = fromExecutor(ExecutorUtil.makeDefault())
+  final def makeDefault(yieldOpCount: Int = 2048): Platform = fromExecutor(ExecutorUtil.makeDefault(yieldOpCount))
 
   final def fromExecutor(executor0: Executor) =
     new Platform {
@@ -36,7 +36,7 @@ object PlatformLive {
         t.isInstanceOf[VirtualMachineError]
 
       def reportFailure(cause: Cause[_]): Unit =
-        if (!cause.interrupted) println(cause.toString)
+        if (!cause.interrupted) System.err.println(cause.toString)
 
       def newWeakHashMap[A, B](): JMap[A, B] =
         new WeakHashMap[A, B]()
@@ -46,8 +46,8 @@ object PlatformLive {
     fromExecutor(Executor.fromExecutionContext(1024)(ec))
 
   object ExecutorUtil {
-    final def makeDefault(): Executor =
-      fromThreadPoolExecutor(_ => 1024) {
+    final def makeDefault(yieldOpCount: Int): Executor =
+      fromThreadPoolExecutor(_ => yieldOpCount) {
         val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
         val maxPoolSize   = corePoolSize
         val keepAliveTime = 1000L
