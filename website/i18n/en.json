@@ -3,11 +3,61 @@
   "localized-strings": {
     "next": "Next",
     "previous": "Previous",
-    "tagline": "A website for testing",
+    "tagline": "Type-safe, composable asynchronous and concurrent programming for Scala",
     "docs": {
+      "advanced/advanced_error_model": {
+        "title": "Error Model"
+      },
+      "advanced/advanced_index": {
+        "title": "Advanced"
+      },
+      "advanced/advanced_performance": {
+        "title": "Performance"
+      },
+      "advanced/advanced_rts": {
+        "title": "RTS"
+      },
+      "advanced/advanced_system": {
+        "title": "System"
+      },
+      "datatypes/dataypes_fiber": {
+        "title": "Fiber"
+      },
+      "datatypes/datatypes_fiberlocal": {
+        "title": "FiberLocal"
+      },
+      "datatypes/datatypes_index": {
+        "title": "Data Types"
+      },
+      "datatypes/datatypes_io": {
+        "title": "IO"
+      },
+      "datatypes/datatypes_managed": {
+        "title": "Managed"
+      },
+      "datatypes/datatypes_promise": {
+        "title": "Promise"
+      },
+      "datatypes/datatypes_queue": {
+        "title": "Queue"
+      },
+      "datatypes/datatypes_ref": {
+        "title": "Ref"
+      },
+      "datatypes/datatypes_schedule": {
+        "title": "Schedule"
+      },
+      "datatypes/datatypes_semaphore": {
+        "title": "Semaphore"
+      },
+      "datatypes/datatypes_sink": {
+        "title": "Sink"
+      },
+      "datatypes/datatypes_stream": {
+        "title": "Stream"
+      },
       "doc1": {
-        "title": "Latin-ish",
-        "sidebar_label": "Example Page"
+        "title": "Latin-ish"
       },
       "doc2": {
         "title": "document number 2"
@@ -20,16 +70,99 @@
       },
       "doc5": {
         "title": "Fifth Document"
+      },
+      "getting_started": {
+        "title": "Getting Started"
+      },
+      "index": {
+        "title": "Home"
+      },
+      "interop/interop_catseffect": {
+        "title": "Cats Effect"
+      },
+      "interop/interop_future": {
+        "title": "Future"
+      },
+      "interop/interop_index": {
+        "title": "Interop"
+      },
+      "interop/interop_java": {
+        "title": "Java"
+      },
+      "interop/interop_javascript": {
+        "title": "Javascript"
+      },
+      "interop/interop_monix": {
+        "title": "Monix"
+      },
+      "interop/interop_reactivestreams": {
+        "title": "Reactive Streams"
+      },
+      "interop/interop_scalaz7x": {
+        "title": "Scalaz 7.x"
+      },
+      "interop/interop_scalaz_8": {
+        "title": "Scalaz 8"
+      },
+      "overview/overview_background": {
+        "title": "Background"
+      },
+      "overview/overview_basic_concurrency": {
+        "title": "Basic Concurrency"
+      },
+      "overview/overview_basic_operations": {
+        "title": "Basic Operations"
+      },
+      "overview/overview_creating_effectss": {
+        "title": "Creating Effects"
+      },
+      "overview/overview_handling_errors": {
+        "title": "Handling Errors"
+      },
+      "overview/overview_handling_resources": {
+        "title": "Handling Resources"
+      },
+      "overview/overview_index": {
+        "title": "Overview"
+      },
+      "overview/overview_running_effects": {
+        "title": "Running Effects"
+      },
+      "overview/overview_testing_effects": {
+        "title": "Testing Effects"
+      },
+      "usecases/usecases_asynchronous": {
+        "title": "Asynchronous"
+      },
+      "usecases/usecases_concurrency": {
+        "title": "Concurrency"
+      },
+      "usecases/usecases_index": {
+        "title": "Use Cases"
+      },
+      "usecases/usecases_parallelism": {
+        "title": "Parallelism"
+      },
+      "usecases/usecases_queuing": {
+        "title": "Queueing"
+      },
+      "usecases/usecases_reetrying": {
+        "title": "Retrying"
+      },
+      "usecases/usecases_scheduling": {
+        "title": "Scheduling"
+      },
+      "usecases/usecases_streaming": {
+        "title": "Streaming"
       }
     },
     "links": {
       "Docs": "Docs",
       "API": "API",
-      "Help": "Help",
-      "Blog": "Blog"
+      "Help": "Help"
     },
     "categories": {
-      "Docusaurus": "Docusaurus",
+      "Documentation": "Documentation",
       "First Category": "First Category",
       "Second Category": "Second Category"
     }
