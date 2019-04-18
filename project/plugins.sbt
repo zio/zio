@@ -14,3 +14,4 @@ addSbtPlugin("com.geirsson"                      % "sbt-ci-release"            %
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies" % "0.2.8")
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                % "5.2.0")
 addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                 % "0.3.1")
+addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                  % "1.2.7")
