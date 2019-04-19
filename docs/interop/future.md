@@ -3,8 +3,6 @@ id: interop_future
 title:  "Future"
 ---
 
-# {{page.title}}
-
 ## Stdlib `Future`
 
 Checkout `interop-future` module for inter-operation support.

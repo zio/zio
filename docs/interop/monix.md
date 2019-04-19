@@ -3,8 +3,6 @@ id: interop_monix
 title:  "Monix"
 ---
 
-# {{page.title}}
-
 Checkout `interop-monix` module for inter-operation support.
 
 ## `Task` conversions

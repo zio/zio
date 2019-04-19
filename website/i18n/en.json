@@ -5,17 +5,17 @@
     "previous": "Previous",
     "tagline": "Type-safe, composable asynchronous and concurrent programming for Scala",
     "docs": {
-      "advanced/advanced_error_model": {
-        "title": "Error Model"
+      "advanced/error_model": {
+        "title": "advanced/error_model"
       },
-      "advanced/advanced_index": {
-        "title": "Advanced"
+      "advanced/index": {
+        "title": "advanced/index"
       },
       "advanced/advanced_performance": {
         "title": "Performance"
       },
-      "advanced/advanced_rts": {
-        "title": "RTS"
+      "advanced/rts": {
+        "title": "advanced/rts"
       },
       "advanced/advanced_system": {
         "title": "System"
@@ -47,29 +47,14 @@
       "datatypes/datatypes_schedule": {
         "title": "Schedule"
       },
-      "datatypes/datatypes_semaphore": {
-        "title": "Semaphore"
+      "datatypes/semaphore": {
+        "title": "datatypes/semaphore"
       },
-      "datatypes/datatypes_sink": {
-        "title": "Sink"
+      "datatypes/sink": {
+        "title": "datatypes/sink"
       },
-      "datatypes/datatypes_stream": {
-        "title": "Stream"
-      },
-      "doc1": {
-        "title": "Latin-ish"
-      },
-      "doc2": {
-        "title": "document number 2"
-      },
-      "doc3": {
-        "title": "This is document number 3"
-      },
-      "doc4": {
-        "title": "Other Document"
-      },
-      "doc5": {
-        "title": "Fifth Document"
+      "datatypes/stream": {
+        "title": "datatypes/stream"
       },
       "getting_started": {
         "title": "Getting Started"
@@ -86,8 +71,8 @@
       "interop/interop_index": {
         "title": "Interop"
       },
-      "interop/interop_java": {
-        "title": "Java"
+      "interop/java": {
+        "title": "interop/java"
       },
       "interop/interop_javascript": {
         "title": "Javascript"
@@ -101,8 +86,8 @@
       "interop/interop_scalaz7x": {
         "title": "Scalaz 7.x"
       },
-      "interop/interop_scalaz_8": {
-        "title": "Scalaz 8"
+      "interop/scalaz8": {
+        "title": "interop/scalaz8"
       },
       "overview/overview_background": {
         "title": "Background"
@@ -131,40 +116,42 @@
       "overview/overview_testing_effects": {
         "title": "Testing Effects"
       },
-      "usecases/usecases_asynchronous": {
-        "title": "Asynchronous"
+      "usecases/asynchronous": {
+        "title": "usecases/asynchronous"
       },
-      "usecases/usecases_concurrency": {
-        "title": "Concurrency"
+      "usecases/concurrency": {
+        "title": "usecases/concurrency"
       },
       "usecases/usecases_index": {
         "title": "Use Cases"
       },
-      "usecases/usecases_parallelism": {
-        "title": "Parallelism"
+      "usecases/parallelism": {
+        "title": "usecases/parallelism"
       },
-      "usecases/usecases_queuing": {
-        "title": "Queueing"
+      "usecases/queuing": {
+        "title": "usecases/queuing"
       },
-      "usecases/usecases_reetrying": {
-        "title": "Retrying"
+      "usecases/retrying": {
+        "title": "usecases/retrying"
       },
-      "usecases/usecases_scheduling": {
-        "title": "Scheduling"
+      "usecases/scheduling": {
+        "title": "usecases/scheduling"
       },
-      "usecases/usecases_streaming": {
-        "title": "Streaming"
+      "usecases/streaming": {
+        "title": "usecases/streaming"
       }
     },
     "links": {
-      "Docs": "Docs",
-      "API": "API",
-      "Help": "Help"
+      "Overview": "Overview",
+      "Datatypes": "Datatypes",
+      "Interop": "Interop",
+      "Usecases": "Usecases"
     },
     "categories": {
-      "Documentation": "Documentation",
-      "First Category": "First Category",
-      "Second Category": "Second Category"
+      "Overview": "Overview",
+      "DataTypes": "DataTypes",
+      "interop": "interop",
+      "usecases": "usecases"
     }
   },
   "pages-strings": {

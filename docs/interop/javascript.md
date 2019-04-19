@@ -3,8 +3,6 @@ id: interop_javascript
 title:  "Javascript"
 ---
 
-# {{page.title}}
-
 Include ZIO in your Scala.js project by adding the following to your `build.sbt`:
 
 ```scala mdoc

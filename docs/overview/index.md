@@ -3,8 +3,6 @@ id: overview_index
 title:  "Overview"
 ---
 
-# {{page.title}}
-
 ZIO is a library for asynchronous and concurrent programming that is based on pure functional programming. 
 
 > For background on how pure functional programming deals with effects like input and output, see the [Background](background.md) section.

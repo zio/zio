@@ -3,8 +3,6 @@ id: advanced_system
 title: "System"
 ---
 
-# {{page.title}}
-
 Sometimes, environment variables are relevant information to an application. ZIO provides a `system` package to interface with this functionality.
 
 ```scala mdoc:silent

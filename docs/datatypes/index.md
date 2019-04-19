@@ -3,8 +3,6 @@ id: datatypes_index
 title:  "Data Types"
 ---
 
-# {{page.title}}
-
 ZIO contains a small number of data types that can help you solve complex problems in asynchronous and concurrent programming.
 
  - **[Fiber](fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.

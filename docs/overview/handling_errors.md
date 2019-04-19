@@ -3,8 +3,6 @@ id: overview_handling_errors
 title:  "Handling Errors"
 ---
 
-# {{page.title}}
-
 This section looks at some of the common ways to detect and respond to effects that fail.
 
 ```scala mdoc:invisible

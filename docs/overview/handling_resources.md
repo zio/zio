@@ -3,8 +3,6 @@ id: overview_handling_resources
 title:  "Handling Resources"
 ---
 
-# {{page.title}}
-
 This section looks at some of the common ways to safely handle resources using ZIO.
 
 ZIO's resource management features work across synchronous, asynchronous, concurrent, and other effect types, and provide strong guarantees even in the presence of unexpected errors or defects in the application.

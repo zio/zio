@@ -3,8 +3,6 @@ id: overview_creating_effectss
 title:  "Creating Effects"
 ---
 
-# {{page.title}}
-
 This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.
 
 ```scala mdoc:invisible

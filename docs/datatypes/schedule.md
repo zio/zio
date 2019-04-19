@@ -3,8 +3,6 @@ id: datatypes_schedule
 title:  "Schedule"
 ---
 
-# {{page.title}}
-
 ```scala mdoc:silent
 import scalaz.zio._
 ```

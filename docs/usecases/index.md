@@ -3,8 +3,6 @@ id: usecases_index
 title:  "Use Cases"
 ---
 
-# {{page.title}}
-
 The ZIO library lets you easily solve problems in aa variety of areas, including:
 
  - **Asynchronous Programming** — Write asynchronous code as easily as synchronous code, handling all errors and never leaking resources.

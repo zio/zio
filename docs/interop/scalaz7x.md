@@ -3,8 +3,6 @@ id: interop_scalaz7x
 title:  "Scalaz 7.x"
 ---
 
-# {{page.title}}
-
 ### `ZIO` Instances
 
 If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `ZIO` instances for several typeclasses, check out [the source code](https://github.com/scalaz/scalaz-zio/interop-scalaz7x/jvm/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.

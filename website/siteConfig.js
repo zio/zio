@@ -34,9 +34,11 @@ const siteConfig = {
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
-    { doc: 'doc1', label: 'Docs' },
-    { doc: 'doc4', label: 'API' },
-    { page: 'help', label: 'Help' },
+    { doc: 'overview/overview_index', label: 'Overview' },
+    { doc: 'datatypes/datatypes_index', label: 'Datatypes' },
+    { doc: 'interop/interop_index', label: 'Interop' },
+    { doc: 'usecases/usecases_index', label: 'Usecases' },
+//    { doc: 'advanced/advanced_index', label: 'Advanced' },
   ],
 
   // If you have users set above, you add it here:
@@ -68,7 +70,7 @@ const siteConfig = {
   */
 
   // This copyright info is used in /core/Footer.js and blog RSS/Atom feeds.
-  copyright: `Copyright © ${new Date().getFullYear()} Your Name or Your Company Name`,
+  copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers`,
 
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks.
@@ -84,14 +86,14 @@ const siteConfig = {
   cleanUrl: true,
 
   // Open Graph and Twitter card images.
-  ogImage: 'img/docusaurus.png',
-  twitterImage: 'img/docusaurus.png',
+  // ogImage: 'img/docusaurus.png',
+  // twitterImage: 'img/docusaurus.png',
 
   // Show documentation's last contributor's name.
-  // enableUpdateBy: true,
+  enableUpdateBy: true,
 
   // Show documentation's last update time.
-  // enableUpdateTime: true,
+  enableUpdateTime: true,
 
   // You may provide arbitrary config keys to be used as needed by your
   // template. For example, if you need your repo's URL...

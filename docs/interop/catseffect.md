@@ -3,8 +3,6 @@ id: interop_catseffect
 title:  "Cats Effect"
 ---
 
-# {{page.title}}
-
 Checkout `interop-cats` module for inter-operation support.
 
 ### `IO` Cats Effect's instances
