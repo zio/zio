@@ -105,6 +105,6 @@ val data: IO[IOException, String] = for {
       fiber  <- res.acquire.fork
       ex     <- fiber.interrupt
       data   <- ex.toEither.fold(e => IO.fail(new InterruptedIOException("Stop!")), file => readFile(file))
-    } yield data).ensuringR(res.release)
+    } yield data).ensuring(res.release)
 } yield result
 ```
