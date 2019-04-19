@@ -3,8 +3,6 @@ id: overview_basic_operations
 title:  "Basic Operations"
 ---
 
-# {{page.title}}
-
 ```scala mdoc:invisible
 import scalaz.zio._
 import scalaz.zio.console._

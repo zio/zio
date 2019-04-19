@@ -3,8 +3,6 @@ id: datatypes_promise
 title:  "Promise"
 ---
 
-# {{page.title}}
-
 A `Promise` is a variable that can be set exactly once. The type signature of Promise is `Promise[E, A]`, where `E` is
 used to indicate an error and `A` is used to indicate that a value has been successfully set.
 

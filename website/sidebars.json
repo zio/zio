@@ -1,10 +1,55 @@
 {
-  "docs": {
-    "Documentation": ["doc1"],
-    "First Category": ["doc2"],
-    "Second Category": ["doc3"]
+  "overview-sidebar": {
+    "Overview": [
+      "overview/overview_index",
+      "overview/overview_creating_effects",
+      "overview/overview_basic_operations",
+      "overview/overview_handling_errors",
+      "overview/overview_handling_resources",
+      "overview/overview_basic_concurrency",
+      "overview/overview_testing_effects",
+      "overview/overview_running_effects",
+      "overview/overview_background"
+    ]
   },
-  "docs-other": {
-    "First Category": ["doc4", "doc5"]
+  "datatypes-sidebar": {
+    "DataTypes": [
+      "datatypes/datatypes_index",
+      "datatypes/datatypes_fiber",
+      "datatypes/datatypes_fiberlocal",
+      "datatypes/datatypes_io",
+      "datatypes/datatypes_managed",
+      "datatypes/datatypes_promise",
+      "datatypes/datatypes_queue",
+      "datatypes/datatypes_ref",
+      "datatypes/datatypes_schedule",
+      "datatypes/datatypes_semaphore",
+      "datatypes/datatypes_sink",
+      "datatypes/datatypes_stream"
+    ]
+  },
+  "interop-sidebar": {
+    "interop": [
+      "datatypes/interop_index",
+      "datatypes/interop_catseffect",
+      "datatypes/interop_future",
+      "datatypes/interop_java",
+      "datatypes/interop_javascript",
+      "datatypes/interop_monix",
+      "datatypes/interop_scalaz7x",
+      "datatypes/interop_scalaz8",
+      "datatypes/interop_reactivestreams"
+    ]
+  },
+  "usecases-sidebar": {
+    "Usecases": [
+      "usecases/usecases_index",
+      "usecases/usecases_asynchronism",
+      "usecases/usecases_concurrency",
+      "usecases/usecases_parallelism",
+      "usecases/usecases_queueing",
+      "usecases/usecases_scheduling",
+      "usecases/usecases_streaming"
+    ]
   }
 }

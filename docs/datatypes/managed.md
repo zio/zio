@@ -3,8 +3,6 @@ id: datatypes_managed
 title:  "Managed"
 ---
 
-# {{page.title}}
-
 `Managed` is a data structure that encapsulates the acquisition and the release of a resource.
 
 A `Managed[E, A]` is a managed resource of type `A`, which may be used by invoking the `use` method of the resource. The resource will be automatically acquired before the resource is used, and automatically released after the resource is used.

@@ -3,8 +3,6 @@ id: datatypes_queue
 title:  "Queue"
 ---
 
-# {{page.title}}
-
 `Queue` is a lightweight in-memory queue built on ZIO with composable and transparent back-pressure. It is fully asynchronous (no locks or blocking), purely-functional and type-safe.
 
 A `Queue[A]` contains values of type `A` and has two basic operations: `offer`, which places an `A` in the `Queue`, and `take` which removes and returns the oldest value in the `Queue`.

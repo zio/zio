@@ -3,8 +3,6 @@ id: overview_running_effects
 title:  "Running Effects"
 ---
 
-# {{page.title}}
-
 Once you have constructed an effect, you have a choice about how to run it.
 
 # App

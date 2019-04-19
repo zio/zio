@@ -3,8 +3,6 @@ id: interop_reactivestreams
 title:  "Reactive Streams"
 ---
 
-# {{page.title}}
-
 Checkout the `interop-reactiveStreams` module for inter-operation support.
 
 ### Reactive Streams `Producer` and `Subscriber`
