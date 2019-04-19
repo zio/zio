@@ -14,8 +14,23 @@
  * limitations under the License.
  */
 
-package zio.interop
+package zio.interop.console
 
-abstract class CatsPlatform {}
+import _root_.cats.Show
+import zio.ZIO
+import zio.console.Console
 
-abstract class CatsMtlPlatform {}
+object cats {
+
+  /**
+   * Prints the string representation of an object to the console.
+   */
+  def putStr[A](a: A)(implicit ev: Show[A]): ZIO[Console, Nothing, Unit] =
+    zio.console.putStr(ev.show(a))
+
+  /**
+   * Prints the string representation of an object to the console, including a newline character.
+   */
+  def putStrLn[A](a: A)(implicit ev: Show[A]): ZIO[Console, Nothing, Unit] =
+    zio.console.putStrLn(ev.show(a))
+}

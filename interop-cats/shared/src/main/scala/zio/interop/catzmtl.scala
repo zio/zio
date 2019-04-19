@@ -16,32 +16,26 @@
 
 package zio.interop
 
-import cats.{ Applicative, Functor }
 import cats.mtl._
-import zio._
+import cats.{ Applicative, Functor }
+import zio.ZIO
 
 abstract class CatsMtlPlatform extends CatsMtlInstances
 
 abstract class CatsMtlInstances {
 
-  implicit def zioApplicativeLocalAsk[R, E](
-    implicit ev: Applicative[ZIO[R, E, ?]]
-  ): ApplicativeLocal[ZIO[R, E, ?], R] =
+  implicit def zioApplicativeLocalAsk[R, E](implicit ev: Applicative[ZIO[R, E, ?]]): ApplicativeLocal[ZIO[R, E, ?], R] =
     new DefaultApplicativeLocal[ZIO[R, E, ?], R] {
-      val applicative: Applicative[ZIO[R, E, ?]] = ev
-      def ask: ZIO[R, Nothing, R]                = ZIO.environment
-      def local[A](f: R => R)(fa: ZIO[R, E, A]): ZIO[R, E, A] = ZIO.accessM { env =>
-        fa.provide(f(env))
-      }
+      val applicative: Applicative[ZIO[R, E, ?]]              = ev
+      val ask: ZIO[R, Nothing, R]                             = ZIO.environment
+      def local[A](f: R => R)(fa: ZIO[R, E, A]): ZIO[R, E, A] = ZIO.accessM(f.andThen(fa.provide))
     }
 
-  implicit def zioApplicativeHandle[R, E](
-    implicit ev: Applicative[ZIO[R, E, ?]]
-  ): ApplicativeHandle[ZIO[R, E, ?], E] =
+  implicit def zioApplicativeHandle[R, E](implicit ev: Applicative[ZIO[R, E, ?]]): ApplicativeHandle[ZIO[R, E, ?], E] =
     new DefaultApplicativeHandle[ZIO[R, E, ?], E] {
       val functor: Functor[ZIO[R, E, ?]]                                      = ev
       val applicative: Applicative[ZIO[R, E, ?]]                              = ev
-      def raise[A](e: E): IO[E, A]                                            = IO.fail(e)
+      def raise[A](e: E): ZIO[R, E, A]                                        = ZIO.fail(e)
       def handleWith[A](fa: ZIO[R, E, A])(f: E => ZIO[R, E, A]): ZIO[R, E, A] = fa.catchAll(f)
     }
 }

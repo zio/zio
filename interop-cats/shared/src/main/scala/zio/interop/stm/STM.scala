@@ -17,8 +17,8 @@
 package zio.interop.stm
 
 import cats.effect.Async
-import zio.stm.{ STM => ZSTM }
 import zio.Runtime
+import zio.stm.{ STM => ZSTM }
 
 import scala.util.Try
 

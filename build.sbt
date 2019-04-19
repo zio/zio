@@ -132,28 +132,7 @@ lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
 lazy val interopSharedJVM = interopShared.jvm
 lazy val interopSharedJS  = interopShared.js
 
-lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-cats"))
-  .settings(stdSettings("zio-interop-cats"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect"   % "1.3.1" % Optional,
-      "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
-      "co.fs2"        %%% "fs2-core"      % "1.0.5" % Test
-    )
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
 val CatsScalaCheckVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "1.13"
-    case _ =>
-      "1.14"
-  }
-}
-
-val ScalaCheckVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
       "1.13.5"
@@ -169,29 +148,29 @@ val CatsScalaCheckShapelessVersion = Def.setting {
     case Some((2, v)) if v <= 12 =>
       "1.1.8"
     case _ =>
-      "1.2.0-1+7-a4ed6f38-SNAPSHOT" // TODO: Stable version
+      "1.2.0-1"
   }
 }
 
-lazy val interopCatsJVM = interopCats.jvm
-  .dependsOn(interopSharedJVM)
-  // Below is for the cats law spec
-  // Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
-  // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
+lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-cats"))
+  .settings(stdSettings("zio-interop-cats"))
   .settings(
-    resolvers += Resolver
-      .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.1"                              % Test,
-      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.1"                              % Test,
-      "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
-      "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
+      "org.typelevel"              %%% "cats-effect"                                                      % "1.3.1"                              % Optional,
+      "org.typelevel"              %%% "cats-mtl-core"                                                    % "0.5.0"                              % Optional,
+      "co.fs2"                     %%% "fs2-core"                                                         % "1.0.5"                              % Test,
+      "org.typelevel"              %%% "cats-effect-laws"                                                 % "1.2.0"                              % Test,
+      "org.typelevel"              %%% "cats-testkit"                                                     % "1.6.1"                              % Test,
+      "org.typelevel"              %%% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
+      "com.github.alexarchambault" %%% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
     ),
-    dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test
+    dependencyOverrides += "org.scalacheck" %%% "scalacheck" % CatsScalaCheckVersion.value % Test
   )
-  .dependsOn(interopSharedJVM)
+  .dependsOn(core % "test->test;compile->compile")
 
-lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
+lazy val interopCatsJVM = interopCats.jvm.dependsOn(interopSharedJVM)
+lazy val interopCatsJS  = interopCats.js.dependsOn(interopSharedJS)
 
 lazy val interopFuture = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-future"))

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package zio
-package interop
+package zio.interop
 
 import cats.arrow.FunctionK
 import cats.effect.Resource.{ Allocate, Bind, Suspend }
 import cats.effect.{ ConcurrentEffect, ExitCase, LiftIO, Resource, Sync, IO => CIO }
 import cats.{ effect, Bifunctor, Monad, MonadError, Monoid, Semigroup, SemigroupK }
+import zio._
 
 trait CatsZManagedSyntax {
   import scala.language.implicitConversions

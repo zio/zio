@@ -3,8 +3,8 @@ package zio.interop
 import cats.effect.Resource
 import org.specs2.Specification
 import org.specs2.specification.AroundTimeout
-import zio.{ DefaultRuntime, Task, ZIO, ZManaged }
 import zio.interop.catz._
+import zio.{DefaultRuntime, Task, ZIO, ZManaged}
 
 import scala.collection.mutable
 
