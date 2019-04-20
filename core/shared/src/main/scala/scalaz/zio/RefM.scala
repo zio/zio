@@ -34,7 +34,7 @@ import scalaz.zio.Exit.Cause
  * } yield ()
  * }}}
  */
-final class RefM[E, A] private (value: Ref[A], queue: Queue[RefM.Bundle[E, A, _]]) extends Serializable {
+final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) extends Serializable {
 
   /**
    * Reads the value from the `Ref`.
@@ -57,14 +57,14 @@ final class RefM[E, A] private (value: Ref[A], queue: Queue[RefM.Bundle[E, A, _]
    * Atomically modifies the `RefM` with the specified function, returning the
    * value immediately after modification.
    */
-  final def update[R](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
+  final def update[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
     modify(a => f(a).map(a => (a, a)))
 
   /**
    * Atomically modifies the `RefM` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
    */
-  final def updateSome[R](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
+  final def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
     modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
 
   /**
@@ -72,7 +72,7 @@ final class RefM[E, A] private (value: Ref[A], queue: Queue[RefM.Bundle[E, A, _]
    * a return value for the modification. This is a more powerful version of
    * `update`.
    */
-  final def modify[R, B](f: A => ZIO[R, E, (B, A)]): ZIO[R, E, B] =
+  final def modify[R, E, B](f: A => ZIO[R, E, (B, A)]): ZIO[R, E, B] =
     for {
       promise <- Promise.make[E, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
@@ -90,7 +90,7 @@ final class RefM[E, A] private (value: Ref[A], queue: Queue[RefM.Bundle[E, A, _]
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
    */
-  final def modifySome[R, B](default: B)(pf: PartialFunction[A, ZIO[R, E, (B, A)]]): ZIO[R, E, B] =
+  final def modifySome[R, E, B](default: B)(pf: PartialFunction[A, ZIO[R, E, (B, A)]]): ZIO[R, E, B] =
     for {
       promise <- Promise.make[E, B]
       ref     <- Ref.make[Option[Cause[Nothing]]](None)
@@ -126,15 +126,15 @@ object RefM extends Serializable {
   /**
    * Creates a new `RefM` with the specified value.
    */
-  final def make[E, A](
+  final def make[A](
     a: A,
     n: Int = 1000,
-    onDefect: Cause[E] => UIO[Unit] = (_: Cause[E]) => IO.unit
-  ): UIO[RefM[E, A]] =
+    onDefect: Cause[_] => UIO[Unit] = _ => IO.unit
+  ): UIO[RefM[A]] =
     for {
       ref   <- Ref.make(a)
-      queue <- Queue.bounded[Bundle[E, A, _]](n)
+      queue <- Queue.bounded[Bundle[_, A, _]](n)
       _     <- queue.take.flatMap(b => ref.get.flatMap(a => b.run(a, ref, onDefect))).forever.fork
-    } yield new RefM[E, A](ref, queue)
+    } yield new RefM[A](ref, queue)
 
 }
