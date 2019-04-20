@@ -1544,6 +1544,21 @@ private[zio] trait ZIOFunctions extends Serializable {
     } yield bs
 
   /**
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects sequentially.
+   *
+   * Equivalent to `foreach(as)(f).void`, but without the cost of building
+   * the list of results.
+   */
+  final def foreach_[R >: LowerR, E <: UpperE, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    ZIO.succeedLazy(as.iterator).flatMap { i =>
+      def loop: ZIO[R, E, Unit] =
+        if (i.hasNext) f(i.next) *> loop
+        else ZIO.unit
+      loop
+    }
+
+  /**
    * Evaluate each effect in the structure from left to right, and collect
    * the results. For a parallel version, see `collectAllPar`.
    */

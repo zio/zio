@@ -49,6 +49,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check uncurried `bracket`. $testUncurriedBracket
    Check uncurried `bracket_`. $testUncurriedBracket_
    Check uncurried `bracketExit`. $testUncurriedBracketExit
+   Check `foreach_` runs effects in order. $testForeach_Order
+   Check `foreach_` can be run twice. $testForeach_Twice
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -319,6 +321,32 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       val use: A => ZIO[R, E, B]            = ???
       ZIO.bracket(acquire, release, use)
     }
+  }
+
+  def testForeach_Order = {
+    val as = List(1, 2, 3, 4, 5)
+    val r = unsafeRun {
+      for {
+        ref <- Ref.make(List.empty[Int])
+        _   <- ZIO.foreach_(as)(a => ref.update(_ :+ a))
+        rs  <- ref.get
+      } yield rs
+    }
+    r must_== as
+  }
+
+  def testForeach_Twice = {
+    val as = List(1, 2, 3, 4, 5)
+    val r = unsafeRun {
+      for {
+        ref <- Ref.make(0)
+        zio = ZIO.foreach_(as)(a => ref.update(_ + a))
+        _   <- zio
+        _   <- zio
+        sum <- ref.get
+      } yield sum
+    }
+    r must_=== 30
   }
 
 }
