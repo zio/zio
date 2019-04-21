@@ -260,16 +260,16 @@ lazy val benchmarks = project.module
     )
   )
 
-  lazy val docs = project
+lazy val docs = project
   .in(file("scalaz-zio-docs"))
   .settings(
     skip.in(publish) := true,
     moduleName := "scalaz-zio-docs",
 //    mdoc := run.in(Compile).evaluated,
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"             % "1.3.3" % "provided",
-      "commons-io"          % "commons-io"                % "2.6"   % "provided",
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2" % "provided",
+      "com.github.ghik"     %% "silencer-lib"             % "1.3.3"  % "provided",
+      "commons-io"          % "commons-io"                % "2.6"    % "provided",
+      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
       "org.jsoup"           % "jsoup"                     % "1.11.3" % "provided"
     )
   )
