@@ -1559,6 +1559,36 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects in parallel, discarding the results.
+   *
+   * For a sequential version of this method, see `foreach_`.
+   */
+  final def foreachPar_[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    ZIO.succeedLazy(as.iterator).flatMap { i =>
+      def loop(a: A): ZIO[R, E, Unit] =
+        if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
+        else f(a).unit
+      if (i.hasNext) loop(i.next)
+      else ZIO.unit
+    }
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects in parallel, discarding the results.
+   *
+   * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
+   */
+  final def foreachParN_[R >: LowerR, E <: UpperE, A, B](
+    n: Long
+  )(as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    Semaphore.make(n).flatMap { semaphore =>
+      ZIO.foreachPar_(as) { a =>
+        semaphore.withPermit(f(a))
+      }
+    }
+
+  /**
    * Evaluate each effect in the structure from left to right, and collect
    * the results. For a parallel version, see `collectAllPar`.
    */
