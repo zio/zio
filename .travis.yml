@@ -46,7 +46,7 @@ jobs:
     - &microsite
       stage: microsite
       name: "Generate microsite"
-      script: sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
+      script: sbt ++$TRAVIS_SCALA_VERSION docs/docusaurusCreateSite
     - &release
       stage: release
       name: "Release artifacts"
@@ -67,7 +67,7 @@ jobs:
       - git config --global user.email "tim@nequissimus.com"
       - git config --global user.name "Tim Steinbach"
       - git config --global push.default simple
-      - sbt ++$TRAVIS_SCALA_VERSION microsite/publishMicrosite
+      - cd website && yarn install && yarn run publish-gh-pages
 
     # Cross-build
     - stage: test
@@ -76,11 +76,13 @@ jobs:
       script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/test:compile coreJVM/package coreJVM/packageSrc coreJVM/publishLocal
 
 cache:
+  yarn: true
   directories:
   - $HOME/.sbt/1.0/dependency
   - $HOME/.sbt/boot/scala*
   - $HOME/.sbt/launchers
   - $HOME/.rvm
+  - website/node_modules
 
 before_cache:
 - find $HOME/.sbt -name "*.lock" -type f -delete
