@@ -30,7 +30,7 @@ const siteConfig = {
 
   // Used for publishing and more
   projectName: 'scalaz-zio',
-  organizationName: 'scalaz-zio',
+  organizationName: 'scalaz',
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
@@ -38,7 +38,7 @@ const siteConfig = {
     { doc: 'datatypes/datatypes_index', label: 'Datatypes' },
     { doc: 'interop/interop_index', label: 'Interop' },
     { doc: 'usecases/usecases_index', label: 'Usecases' },
-//    { doc: 'advanced/advanced_index', label: 'Advanced' },
+ //   { doc: 'advanced/advanced_index', label: 'Advanced' },
   ],
 
   // If you have users set above, you add it here:
@@ -51,7 +51,7 @@ const siteConfig = {
 
   /* Colors for website */
   colors: {
-    primaryColor: '#990000',
+    primaryColor: '#000000',
     secondaryColor: '#990000',
   },
 

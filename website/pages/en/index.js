@@ -13,6 +13,50 @@ const MarkdownBlock = CompLibrary.MarkdownBlock; /* Used to read markdown */
 const Container = CompLibrary.Container;
 const GridBlock = CompLibrary.GridBlock;
 
+const features = [
+  {
+    name: 'High-Performance',
+    description: 'Build scalable applications with 100x the performance of Scala’s Future'
+  },
+  {
+    name: '',
+    description: ''
+  },
+];
+
+class Description extends React.Component {
+  render() {
+    return (
+      <div className='welcome'>
+        <h2>Welcome to ZIO</h2>
+        <p>
+          <div> 
+            ZIO is a zero-dependency Scala library for asynchronous and concurrent programming.
+          </div>
+          <div>
+            Powered by highly-scalable, non-blocking fibers that never waste or leak resources, ZIO lets you build scalable, resilient, and reactive applications that meet the needs of your business.
+          </div>
+        </p>
+        <div> 
+            <ul>
+              <li><strong>High-performance.</strong> Build scalable applications with 100x the performance of Scala’s Future</li>
+              <li><strong>Type-safe.</strong> Use the full power of the Scala compiler to catch bugs at compile time.</li>
+              <li><strong>Concurrent.</strong> Easily build concurrent apps without deadlocks, race conditions, or complexity</li>
+              <li><strong>Asynchronous.</strong> Write sequential code that looks the same whether it’s asynchronous or synchronous.</li>
+              <li><strong>Resource-safe.</strong> Build apps that never leak resources (including threads!), even when they fail.</li>
+              <li><strong>Testable.</strong> Inject test services into your app for fast, deterministic, and type-safe testing.</li>
+              <li><strong>Resilient.</strong> Build apps that never lose errors, and which respond to failure locally and flexibly.</li>
+              <li><strong>Functional.</strong> Rapidly compose solutions to complex problems from simple building blocks.</li>
+            </ul>
+        </div>
+        <div>
+            To learn more about how ZIO can help you accomplish the impossible, see <a href="./docs/getting_started.html">Getting Started</a> and <a href="./docs/overview/index.html">Overview</a>.
+        </div>
+      </div>
+    );
+  }
+}
+
 class HomeSplash extends React.Component {
   render() {
     const {siteConfig, language = ''} = this.props;
@@ -28,13 +72,6 @@ class HomeSplash extends React.Component {
         </div>
       </div>
     );
-
-    const Logo = props => (
-      <div className="projectLogo">
-        <img src={props.img_src} alt="Project Logo" />
-      </div>
-    );
-
     const ProjectTitle = () => (
       <h2 className="projectTitle">
         {siteConfig.title}
@@ -60,11 +97,10 @@ class HomeSplash extends React.Component {
 
     return (
       <SplashContainer>
-        <Logo img_src={`${baseUrl}img/docusaurus.svg`} />
         <div className="inner">
           <ProjectTitle siteConfig={siteConfig} />
           <PromoSection>
-            <Button href="#try">Getting started</Button>
+            <Button href="./docs/getting_started.html">Getting started</Button>
           </PromoSection>
         </div>
       </SplashContainer>
@@ -89,91 +125,11 @@ class Index extends React.Component {
         />
       </Container>
     );
-
-    const FeatureCallout = () => (
-      <div
-        className="productShowcaseSection paddingBottom"
-        style={{textAlign: 'center'}}>
-        <h2>Welcome to ZIO</h2>
-        <MarkdownBlock doc="index" />
-      </div>
-    );
-/** 
-    const TryOut = () => (
-      <Block id="try">
-        {[
-          {
-            content: 'Talk about trying this out',
-            image: `${baseUrl}img/docusaurus.svg`,
-            imageAlign: 'left',
-            title: 'Try it Out',
-          },
-        ]}
-      </Block>
-    );
-
-    const Description = () => (
-      <Block background="dark">
-        {[
-          {
-            content:
-              'This is another description of how this project is useful',
-            image: `${baseUrl}img/docusaurus.svg`,
-            imageAlign: 'right',
-            title: 'Description',
-          },
-        ]}
-      </Block>
-    );
-
-    const LearnHow = () => (
-      <Block background="light">
-        {[
-          {
-            content: 'Talk about learning how to use this',
-            image: `${baseUrl}img/docusaurus.svg`,
-            imageAlign: 'right',
-            title: 'Learn How',
-          },
-        ]}
-      </Block>
-    );
-*/
-    const Showcase = () => {
-      if ((siteConfig.users || []).length === 0) {
-        return null;
-      }
-
-      const showcase = siteConfig.users
-        .filter(user => user.pinned)
-        .map(user => (
-          <a href={user.infoLink} key={user.infoLink}>
-            <img src={user.image} alt={user.caption} title={user.caption} />
-          </a>
-        ));
-
-      const pageUrl = page => baseUrl + (language ? `${language}/` : '') + page;
-
-      return (
-        <div className="productShowcaseSection paddingBottom">
-          <h2>Who is Using This?</h2>
-          <p>This project is used by all these people</p>
-          <div className="logos">{showcase}</div>
-          <div className="more-users">
-            <a className="button" href={pageUrl('users.html')}>
-              More {siteConfig.title} Users
-            </a>
-          </div>
-        </div>
-      );
-    };
-
     return (
       <div>
         <HomeSplash siteConfig={siteConfig} language={language} />
         <div className="mainContainer">
-          <FeatureCallout />
-          <Showcase />
+          <Description />
         </div>
       </div>
     );
