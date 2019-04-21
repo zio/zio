@@ -38,7 +38,7 @@ const siteConfig = {
     { doc: 'datatypes/datatypes_index', label: 'Datatypes' },
     { doc: 'interop/interop_index', label: 'Interop' },
     { doc: 'usecases/usecases_index', label: 'Usecases' },
- //   { doc: 'advanced/advanced_index', label: 'Advanced' },
+    { doc: 'advanced/advanced_index', label: 'Advanced' },
   ],
 
   // If you have users set above, you add it here:

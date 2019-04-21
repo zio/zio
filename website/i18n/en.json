@@ -8,8 +8,8 @@
       "advanced/error_model": {
         "title": "advanced/error_model"
       },
-      "advanced/index": {
-        "title": "advanced/index"
+      "advanced/advanced_index": {
+        "title": "Advanced"
       },
       "advanced/advanced_performance": {
         "title": "Performance"
@@ -58,9 +58,6 @@
       },
       "getting_started": {
         "title": "Getting Started"
-      },
-      "index": {
-        "title": "Home"
       },
       "interop/interop_catseffect": {
         "title": "Cats Effect"
@@ -145,13 +142,15 @@
       "Overview": "Overview",
       "Datatypes": "Datatypes",
       "Interop": "Interop",
-      "Usecases": "Usecases"
+      "Usecases": "Usecases",
+      "Advanced": "Advanced"
     },
     "categories": {
       "Overview": "Overview",
       "DataTypes": "DataTypes",
       "interop": "interop",
-      "Usecases": "Usecases"
+      "Usecases": "Usecases",
+      "advanced": "advanced"
     }
   },
   "pages-strings": {

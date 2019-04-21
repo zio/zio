@@ -51,5 +51,14 @@
       "usecases/usecases_scheduling",
       "usecases/usecases_streaming"
     ]
+  },
+  "advanced-sidebar": {
+    "advanced": [
+      "advanced/advanced_index",
+      "advanced/advanced_error_model",
+      "advanced/advanced_performance",
+      "advanced/advanced_rts",
+      "advanced/advanced_system"
+    ]
   }
 }
