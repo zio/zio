@@ -10,7 +10,7 @@ title:  "Queue"
 
 A `Queue[A]` contains values of type `A` and has two basic operations: `offer`, which places an `A` in the `Queue`, and `take` which removes and returns the oldest value in the `Queue`.
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 
 val res: UIO[Int] = for {
@@ -31,31 +31,31 @@ There are several strategies to process new values when the queue is full:
 - A `sliding` queue will drop old items when the queue is full.
 
 To create a back-pressured bounded queue:
-```tut:silent
-val queue: UIO[Queue[Int]] = Queue.bounded[Int](100)
+```scala mdoc:silent
+val boundedQueue: UIO[Queue[Int]] = Queue.bounded[Int](100)
 ```
 
 To create a dropping queue:
-```tut:silent
-val queue: UIO[Queue[Int]] = Queue.dropping[Int](100)
+```scala mdoc:silent
+val droppingQueue: UIO[Queue[Int]] = Queue.dropping[Int](100)
 ```
 
 To create a sliding queue:
-```tut:silent
-val queue: UIO[Queue[Int]] = Queue.sliding[Int](100)
+```scala mdoc:silent
+val slidingQueue: UIO[Queue[Int]] = Queue.sliding[Int](100)
 ```
 
 To create an unbounded queue:
-```tut:silent
-val queue: UIO[Queue[Int]] = Queue.unbounded[Int]
+```scala mdoc:silent
+val unboundedQueue: UIO[Queue[Int]] = Queue.unbounded[Int]
 ```
 
 ## Adding items to a queue
 
 The simplest way to add a value to the queue is `offer`:
 
-```tut:silent
-val res: UIO[Unit] = for {
+```scala mdoc:silent
+val res1: UIO[Unit] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(1)
 } yield ()
@@ -63,8 +63,8 @@ val res: UIO[Unit] = for {
 
 When using a back-pressured queue, offer might suspend if the queue is full: you can use `fork` to wait in a different fiber.
 
-```tut:silent
-val res: UIO[Unit] = for {
+```scala mdoc:silent
+val res2: UIO[Unit] = for {
   queue <- Queue.bounded[Int](1)
   _ <- queue.offer(1)
   f <- queue.offer(1).fork // will be suspended because the queue is full
@@ -75,8 +75,8 @@ val res: UIO[Unit] = for {
 
 It is also possible to add multiple values at once with `offerAll`:
 
-```tut:silent
-val res: UIO[Unit] = for {
+```scala mdoc:silent
+val res3: UIO[Unit] = for {
   queue <- Queue.bounded[Int](100)
   items = Range.inclusive(1, 10).toList
   _ <- queue.offerAll(items)
@@ -87,8 +87,8 @@ val res: UIO[Unit] = for {
 
 The `take` operation removes the oldest item from the queue and returns it. If the queue is empty, this will suspend, and resume only when an item has been added to the queue. As with `offer`, you can use `fork` to wait for the value in a different fiber.
 
-```tut:silent
-val res: UIO[String] = for {
+```scala mdoc:silent
+val oldestItem: UIO[String] = for {
   queue <- Queue.bounded[String](100)
   f <- queue.take.fork // will be suspended because the queue is empty
   _ <- queue.offer("something")
@@ -98,8 +98,8 @@ val res: UIO[String] = for {
 
 You can consume the first item with `poll`. If the queue is empty you will get `None`, otherwise the top item will be returned wrapped in `Some`.
 
-```tut:silent
-val res: UIO[Option[Int]] = for {
+```scala mdoc:silent
+val polled: UIO[Option[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
@@ -109,8 +109,8 @@ val res: UIO[Option[Int]] = for {
 
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
 
-```tut:silent
-val res: UIO[List[Int]] = for {
+```scala mdoc:silent
+val taken: UIO[List[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
@@ -120,8 +120,8 @@ val res: UIO[List[Int]] = for {
 
 Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty list if the queue is empty).
 
-```tut:silent
-val res: UIO[List[Int]] = for {
+```scala mdoc:silent
+val all: UIO[List[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
@@ -133,8 +133,8 @@ val res: UIO[List[Int]] = for {
 
 It is possible with `shutdown` to interrupt all the fibers that are suspended on `offer*` or `take*`. It will also empty the queue and make all future calls to `offer*` and `take*` terminate immediately.
 
-```tut:silent
-val res: UIO[Unit] = for {
+```scala mdoc:silent
+val takeFromShutdownQueue: UIO[Unit] = for {
   queue <- Queue.bounded[Int](3)
   f <- queue.take.fork
   _ <- queue.shutdown // will interrupt f
@@ -144,8 +144,8 @@ val res: UIO[Unit] = for {
 
 You can use `awaitShutdown` to execute an effect when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.
 
-```tut:silent
-val res: UIO[Unit] = for {
+```scala mdoc:silent
+val awaitShutdown: UIO[Unit] = for {
   queue <- Queue.bounded[Int](3)
   p <- Promise.make[Nothing, Boolean]
   f <- queue.awaitShutdown.fork
@@ -174,8 +174,8 @@ With separate type parameters for input and output, there are rich composition o
 
 The output of the queue may be mapped:
 
-```tut:silent
-val res: UIO[String] = 
+```scala mdoc:silent
+val mapped: UIO[String] = 
   for {
     queue  <- Queue.bounded[Int](3)
     mapped = queue.map(_.toString)
@@ -189,13 +189,13 @@ val res: UIO[String] =
 We may also use an effectful function to map the output. For example,
 we could annotate each element with the timestamp at which it was dequeued:
 
-```tut:silent
+```scala mdoc:silent
 import java.util.concurrent.TimeUnit
 import scalaz.zio.clock._
 
 val currentTimeMillis = currentTime(TimeUnit.MILLISECONDS)
 
-val res: UIO[ZQueue[Any, Nothing, Clock, Nothing, String, (Long, String)]] =
+val annotatedOut: UIO[ZQueue[Any, Nothing, Clock, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[String](3)
     mapped = queue.mapM { el =>
@@ -210,8 +210,8 @@ Similarly to `mapM`, we can also apply an effectful function to
 elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:
 
-```tut:silent
-val res: UIO[ZQueue[Clock, Nothing, Any, Nothing, String, (Long, String)]] =
+```scala mdoc:silent
+val annotatedIn: UIO[ZQueue[Clock, Nothing, Any, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     mapped = queue.contramapM { el: String =>
@@ -227,10 +227,10 @@ the type of the environment required by the queue for enqueueing.
 To complete this example, we could combine this queue with `mapM` to
 compute the time that the elements stayed in the queue:
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio.duration._
 
-val res: UIO[ZQueue[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] =
+val timeQueued: UIO[ZQueue[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     enqueueTimestamps = queue.contramapM { el: String =>
@@ -248,8 +248,8 @@ val res: UIO[ZQueue[Clock, Nothing, Clock, Nothing, String, (Duration, String)]]
 We may also compose two queues together into a single queue that
 broadcasts offers and takes from both of the queues:
 
-```tut:silent
-val res: UIO[(Int, String)] = 
+```scala mdoc:silent
+val fromComposedQueues: UIO[(Int, String)] = 
   for {
     q1       <- Queue.bounded[Int](3)
     q2       <- Queue.bounded[Int](3)

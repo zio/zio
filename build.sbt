@@ -2,6 +2,7 @@
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
 import xerial.sbt.Sonatype._
+import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 
 name := "scalaz-zio"
 
@@ -59,9 +60,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.4.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.4.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.4.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -204,7 +205,7 @@ lazy val interopJava = crossProject(JVMPlatform)
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
-val akkaVersion = "2.5.21"
+val akkaVersion = "2.5.22"
 lazy val interopReactiveStreams = crossProject(JVMPlatform)
   .in(file("interop-reactiveStreams"))
   .settings(stdSettings("zio-interop-reactiveStreams"))
@@ -212,7 +213,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams"     % "1.0.2",
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest"       %% "scalatest"           % "3.0.6" % "test",
+      "org.scalatest"       %% "scalatest"           % "3.0.7" % "test",
       "com.typesafe.akka"   %% "akka-stream"         % akkaVersion % "test",
       "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
@@ -266,12 +267,14 @@ lazy val microsite = project.module
   .settings(
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
+    scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     skip in publish := true,
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % "1.3.1" % Tut,
-      "commons-io"      % "commons-io"    % "2.6"   % Tut
+      "com.github.ghik"     %% "silencer-lib"             % "1.3.3" % "provided",
+      "commons-io"          % "commons-io"                % "2.6"   % "provided",
+      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2" % "provided"
     ),
     micrositeFooterText := Some(
       """
@@ -300,5 +303,8 @@ lazy val microsite = project.module
       "gray-lighter"    -> "#F4F3F4",
       "white-color"     -> "#FFFFFF"
     ),
-    micrositeShareOnSocial := false
+    micrositeShareOnSocial := false,
+    micrositeCompilingDocsTool := WithMdoc,
+    mdocIn := file("microsite/src/main/tut"),
+    mdocExtraArguments := List("--no-link-hygiene")
   )

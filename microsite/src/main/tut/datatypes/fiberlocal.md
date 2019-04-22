@@ -10,7 +10,7 @@ A `FiberLocal[A]` is a container for fiber-local storage that enables you to bin
 
 `FiberLocal` is the pure equivalent of thread-local storage (e.g. Java's `ThreadLocal`) on a fiber architecture.
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 
 for {
@@ -33,7 +33,7 @@ When binding data to a fiber manually, it is important to always unbind that dat
 
 Instead of using `set` and `empty`, you should always use another method, `locally`, that automatically runs a specified `IO` with fiber-bound data, and guarantees that any bound data is unbound, avoiding possible leaks.
 
-```tut:silent
+```scala mdoc:silent
 for {
   local <- FiberLocal.make[Int]
   f     <- local.locally(10)(local.get).fork

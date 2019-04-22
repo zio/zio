@@ -8,7 +8,7 @@ title:  "Handling Errors"
 
 This section looks at some of the common ways to detect and respond to effects that fail.
 
-```tut:invisible
+```scala mdoc:invisible
 import scalaz.zio._
 ```
 
@@ -16,14 +16,14 @@ import scalaz.zio._
 
 You can surface failures with `ZIO#either`, which takes an `ZIO[R, E, A]` and produces an `ZIO[R, Nothing, Either[E, A]]`.
 
-```tut:silent
+```scala mdoc:silent
 val zeither: UIO[Either[String, Int]] = 
   IO.fail("Uh oh!").either
 ```
 
 You can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns an `ZIO[R, Nothing, Either[E, A]]` into an `ZIO[R, E, A]`:
 
-```tut:silent
+```scala mdoc:silent
 def sqrt(io: UIO[Double]): IO[String, Double] =
   ZIO.absolve(
     io.map(value =>
@@ -37,14 +37,14 @@ def sqrt(io: UIO[Double]): IO[String, Double] =
 
 If you want to catch and recover from all types of errors and effectfully attempt recovery, you can use the `catchAll` method:
 
-```tut:invisible
+```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
 
 def openFile(s: String): IO[IOException, Array[Byte]] =   
   IO.succeedLazy(???)
 ```
 
-```tut:silent
+```scala mdoc:silent
 val z: IO[IOException, Array[Byte]] = 
   openFile("primary.json").catchAll(_ => 
     openFile("backup.json"))
@@ -54,7 +54,7 @@ val z: IO[IOException, Array[Byte]] =
 
 If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the `catchSome` method:
 
-```tut:silent
+```scala mdoc:silent
 val data: IO[IOException, Array[Byte]] = 
   openFile("primary.data").catchSome {
     case _ : FileNotFoundException => 
@@ -66,8 +66,8 @@ val data: IO[IOException, Array[Byte]] =
 
 You can try one effect, or, if it fails, try another effect, with the `orElse` combinator:
 
-```tut:silent
-val z: IO[IOException, Array[Byte]] = 
+```scala mdoc:silent
+val primaryOrBackupData: IO[IOException, Array[Byte]] = 
   openFile("primary.data") orElse openFile("backup.data")
 ```
 
@@ -77,10 +77,10 @@ Just like Scala's `Option` and `Either` data types have `fold`, which let you de
 
 The first fold method, `fold`, lets you non-effectfully handle both failure and success, by supplying a non-effectful function for each case:
 
-```tut:silent
-lazy val DefaultData: Array[Byte] = ???
+```scala mdoc:silent
+lazy val DefaultData: Array[Byte] = Array(0, 0)
 
-val z: UIO[Array[Byte]] = 
+val primaryOrDefaultData: UIO[Array[Byte]] = 
   openFile("primary.data").fold(
     _    => DefaultData,
     data => data)
@@ -88,8 +88,8 @@ val z: UIO[Array[Byte]] =
 
 The second fold method, `foldM`, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) function for each case:
 
-```tut:silent
-val z: IO[IOException, Array[Byte]] = 
+```scala mdoc:silent
+val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
   openFile("primary.data").foldM(
     _    => openFile("secondary.data"),
     data => ZIO.succeed(data))
@@ -99,15 +99,15 @@ Nearly all error handling methods are defined in terms of `foldM`, because it is
 
 In the following example, `foldM` is used to handle both failure and success of the `readUrls` method:
 
-```tut:invisible
+```scala mdoc:invisible
 sealed trait Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
 def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
 def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
 ```
-```tut:silent
-val z: UIO[Content] =
+```scala mdoc:silent
+val urls: UIO[Content] =
   readUrls("urls.json").foldM(
     err => IO.succeedLazy(NoContent(err)), 
     fetchContent
@@ -120,10 +120,10 @@ There are a number of useful methods on the ZIO data type for retrying failed ef
 
 The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first one if it fails, according to the specified policy:
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio.clock._
 
-val z: ZIO[Clock, IOException, Array[Byte]] = 
+val primaryData: ZIO[Clock, IOException, Array[Byte]] = 
   openFile("primary.data").retry(Schedule.recurs(5))
 ```
 

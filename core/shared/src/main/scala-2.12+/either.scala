@@ -16,4 +16,4 @@
 
 package scalaz.zio
 
-trait EitherCompat {}
+private[zio] trait EitherCompat {}

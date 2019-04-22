@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference 
 
 import scalaz.zio.{ IO, UIO }
 
-import scala.collection.mutable.{ Map => MutableMap }
+import java.util.{ HashMap => MutableMap }
 import scala.util.{ Failure, Success, Try }
 
 /**
@@ -60,13 +60,15 @@ final class STM[+E, +A] private[stm] (
     self zip that
 
   /**
-   * An operator for [[zipRight]].
+   * Sequentially zips this value with the specified one, discarding the
+   * second element of the tuple.
    */
   final def <*[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
     self zipLeft that
 
   /**
-   * An operator for [[zipLeft]].
+   * Sequentially zips this value with the specified one, discarding the
+   * first element of the tuple.
    */
   final def *>[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
     self zipRight that
@@ -85,11 +87,16 @@ final class STM[+E, +A] private[stm] (
     new STM(
       journal =>
         (self exec journal) match {
-          case TRez.Fail(e)    => TRez.Fail(e)
-          case TRez.Succeed(a) => if (pf isDefinedAt a) TRez.Succeed(pf(a)) else TRez.Retry
-          case TRez.Retry      => TRez.Retry
+          case t @ TRez.Fail(_) => t
+          case TRez.Succeed(a)  => if (pf isDefinedAt a) TRez.Succeed(pf(a)) else TRez.Retry
+          case TRez.Retry       => TRez.Retry
         }
     )
+
+  /**
+   * Commits this transaction atomically.
+   */
+  final def commit: IO[E, A] = STM.atomically(self)
 
   /**
    * Maps the success value of this effect to the specified constant value.
@@ -219,14 +226,15 @@ final class STM[+E, +A] private[stm] (
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
-   * Commits this transaction atomically.
+   * Maps the success value of this effect to unit.
    */
-  final def commit: IO[E, A] = STM.atomically(self)
+  final def unit: STM[E, Unit] = const(())
 
   /**
    * Maps the success value of this effect to unit.
    */
-  final def void: STM[E, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: STM[E, Unit] = unit
 
   /**
    * Same as [[filter]]
@@ -234,21 +242,19 @@ final class STM[+E, +A] private[stm] (
   final def withFilter(f: A => Boolean): STM[E, A] = filter(f)
 
   /**
-   * Sequentially zips this value with the specified one.
+   * Named alias for `<*>`.
    */
   final def zip[E1 >: E, B](that: => STM[E1, B]): STM[E1, (A, B)] =
     (self zipWith that)((a, b) => a -> b)
 
   /**
-   * Sequentially zips this value with the specified one, discarding the
-   * second element of the tuple.
+   * Named alias for `<*`.
    */
   final def zipLeft[E1 >: E, B](that: => STM[E1, B]): STM[E1, A] =
     (self zip that) map (_._1)
 
   /**
-   * Sequentially zips this value with the specified one, discarding the
-   * first element of the tuple.
+   * Named alias for `*>`.
    */
   final def zipRight[E1 >: E, B](that: => STM[E1, B]): STM[E1, B] =
     (self zip that) map (_._2)
@@ -274,19 +280,50 @@ object STM {
     /**
      * Resets the journal so that it does not modify any entries.
      */
-    final def resetJournal(journal: Journal): Unit =
-      journal.values foreach (_.reset())
+    final def resetJournal(journal: Journal): Unit = {
+      val it = journal.entrySet.iterator
+      while (it.hasNext()) {
+        it.next.getValue.reset()
+      }
+    }
+
+    /**
+     * Commits the journal.
+     */
+    final def commit(journal: Journal): Unit = {
+      val it = journal.entrySet.iterator
+      while (it.hasNext()) it.next.getValue.commit()
+    }
+
+    /**
+     * Determines if the journal is valid.
+     */
+    final def isValid(journal: Journal): Boolean = {
+      var valid = true
+      val it    = journal.entrySet.iterator
+      while (valid && it.hasNext()) {
+        valid = it.next.getValue.isValid
+      }
+      valid
+    }
+
+    /**
+     * Determines if the journal is invalid.
+     */
+    final def isInvalid(journal: Journal): Boolean = !isValid(journal)
 
     /**
      * Atomically collects and clears all the todos from any `TRef` that
-     * participated in the transaction. This is not a pure function, despite
-     * the return type (it effectfully clears todos from `TRef` values).
+     * participated in the transaction.
      */
-    final def collectTodos(trefs: Iterable[TRef[_]]): Iterable[Todo] = {
-      val allTodos  = MutableMap.empty[Long, Todo]
+    final def collectTodos(journal: Journal): MutableMap[Long, Todo] = {
+      val allTodos  = new MutableMap[Long, Todo](4)
       val emptyTodo = Map.empty[Long, Todo]
 
-      trefs foreach { tref =>
+      val it = journal.entrySet().iterator()
+
+      while (it.hasNext()) {
+        val tref = it.next().getValue().tref
         val todo = tref.todo
 
         var loop = true
@@ -296,20 +333,34 @@ object STM {
           loop = !todo.compareAndSet(oldTodo, emptyTodo)
 
           if (!loop) {
-            allTodos ++= oldTodo
+            import collection.JavaConverters._
+
+            allTodos.putAll(oldTodo.asJava)
           }
         }
       }
 
-      allTodos.values
+      allTodos
+    }
+
+    /**
+     * Executes the todos in the current thread, sequentially.
+     */
+    final def execTodos(todos: MutableMap[Long, Todo]): Unit = {
+      val it = todos.entrySet().iterator()
+      while (it.hasNext()) it.next().getValue().apply()
     }
 
     /**
      * For the given transaction id, adds the specified todo effect to all
      * `TRef` values.
      */
-    final def addTodo(txnId: Long, trefs: Iterable[TRef[_]], todoEffect: Todo): Unit =
-      trefs foreach { tref =>
+    final def addTodo(txnId: Long, journal: Journal, todoEffect: Todo): Unit = {
+      val it = journal.entrySet().iterator()
+
+      while (it.hasNext()) {
+        val tref = it.next().getValue().tref
+
         var loop = true
         while (loop) {
           val oldTodo = tref.todo.get
@@ -319,6 +370,7 @@ object STM {
           loop = !tref.todo.compareAndSet(oldTodo, newTodo)
         }
       }
+    }
 
     final val succeedUnit: TRez[Nothing, Unit] =
       TRez.Succeed(())
@@ -353,11 +405,10 @@ object STM {
         newValue.asInstanceOf[B]
 
       /**
-       * Resets the value of this entry, so that if committed, it will have
-       * no effect on the TRef.
+       * Commits the new value to the `TRef`.
        */
-      final def reset(): Unit =
-        newValue = expected.value
+      final def commit(): Unit =
+        tref.versioned = new Versioned(newValue)
 
       /**
        * Determines if the entry is invalid. This is the negated version of
@@ -373,10 +424,11 @@ object STM {
         tref.versioned eq expected
 
       /**
-       * Commits the new value to the `TRef`.
+       * Resets the value of this entry, so that if committed, it will have
+       * no effect on the TRef.
        */
-      final def commit(): Unit =
-        tref.versioned = new Versioned(newValue)
+      final def reset(): Unit =
+        newValue = expected.value
     }
 
     object Entry {
@@ -401,90 +453,91 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-    UIO.effectTotalWith(platform => platform -> new AtomicReference[UIO[Unit]](UIO.unit)) flatMap {
-      case (platform, ref) =>
-        IO.effectAsyncMaybe[E, A] { k =>
-          import internal.globalLock
+    UIO.effectTotalWith { platform =>
+      val txnId = makeTxnId()
 
-          val txnId = makeTxnId()
+      val done = new AtomicBoolean(false)
 
-          val done = new AtomicBoolean(false)
+      val ref = new AtomicReference(UIO[Unit](done synchronized {
+        done set true
+      }))
 
-          ref set UIO(done synchronized {
-            done set true
-          })
+      IO.effectAsyncMaybe[E, A] { k =>
+        import internal.globalLock
 
-          def tryTxn(): Option[IO[E, A]] =
-            if (done.get) None
-            else
-              done synchronized {
-                if (done.get) None
-                else {
-                  var journal = null.asInstanceOf[MutableMap[Long, Entry]]
-                  var value   = null.asInstanceOf[TRez[E, A]]
+        def tryTxn(): Option[IO[E, A]] =
+          if (done.get) None
+          else
+            done synchronized {
+              if (done.get) None
+              else {
+                var journal = null.asInstanceOf[MutableMap[Long, Entry]]
+                var value   = null.asInstanceOf[TRez[E, A]]
 
-                  var loop = true
+                var loop = true
 
-                  while (loop) {
-                    journal = MutableMap.empty[Long, Entry]
-                    value = stm exec journal
-
-                    value match {
-                      case _: TRez.Succeed[_] =>
-                        globalLock.acquire()
-
-                        try if (journal.values forall (_.isValid)) {
-                          journal.values foreach (_.commit())
-
-                          loop = false
-                        } finally globalLock.release()
-
-                      case _: TRez.Fail[_] =>
-                        globalLock.acquire()
-
-                        try loop = journal.values exists (_.isInvalid)
-                        finally globalLock.release()
-
-                      case TRez.Retry =>
-                        addTodo(txnId, journal.values map (_.tref), tryTxnAsync)
-
-                        loop = false
+                while (loop) {
+                  journal =
+                    if (journal eq null) new MutableMap[Long, Entry](4)
+                    else {
+                      journal.clear(); journal
                     }
-                  }
-
-                  def completed(io: IO[E, A]): Option[IO[E, A]] = {
-                    done set true
-
-                    platform.executor.submitOrThrow { () =>
-                      val trefs = journal.values map (_.tref)
-
-                      collectTodos(trefs) foreach (_())
-                    }
-
-                    Some(io)
-                  }
+                  value = stm exec journal
 
                   value match {
-                    case TRez.Succeed(a) => completed(IO.succeed(a))
-                    case TRez.Fail(e)    => completed(IO.fail(e))
-                    case TRez.Retry =>
-                      val stale = journal.values exists (entry => entry.tref.versioned ne entry.expected)
+                    case _: TRez.Succeed[_] =>
+                      globalLock.acquire()
 
-                      if (stale) tryTxn() else None
+                      try if (isValid(journal)) {
+                        commit(journal)
+
+                        loop = false
+                      } finally globalLock.release()
+
+                    case _: TRez.Fail[_] =>
+                      globalLock.acquire()
+
+                      try loop = isInvalid(journal)
+                      finally globalLock.release()
+
+                    case TRez.Retry =>
+                      addTodo(txnId, journal, tryTxnAsync)
+
+                      loop = false
                   }
                 }
+
+                def completed(io: IO[E, A]): Option[IO[E, A]] = {
+                  done set true
+
+                  val todos = collectTodos(journal)
+
+                  if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
+
+                  Some(io)
+                }
+
+                value match {
+                  case TRez.Succeed(a) => completed(IO.succeed(a))
+                  case TRez.Fail(e)    => completed(IO.fail(e))
+                  case TRez.Retry =>
+                    val stale = isInvalid(journal)
+
+                    if (stale) tryTxn() else None
+                }
               }
-
-          def tryTxnAsync: Todo = () => {
-            tryTxn() match {
-              case None     =>
-              case Some(io) => k(io)
             }
-          }
 
-          tryTxn()
-        } ensuring UIO(ref.get).flatten
-    }
+        def tryTxnAsync: Todo = () => {
+          tryTxn() match {
+            case None     =>
+            case Some(io) => k(io)
+          }
+        }
+
+        tryTxn()
+      } ensuring UIO(ref.get).flatten
+    }.flatten
 
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.

@@ -235,6 +235,17 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     self <* that
 
   /**
+   * Returns a new schedule that continues only as long as both schedules
+   * continue, using the maximum of the delays of the two schedules.
+   */
+  final def <*>[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self zip that
+
+  /**
+   * Named alias for `<*>`.
+   */
+  final def zip[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self && that
+
+  /**
    * Returns a new schedule that continues as long as either schedule continues,
    * using the minimum of the delays of the two schedules.
    */
@@ -292,7 +303,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Returns a new schedule that maps this schedule to a Unit output.
    */
-  final def void: ZSchedule[R, A, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: ZSchedule[R, A, Unit] = unit
+
+  /**
+   * Returns a new schedule that maps this schedule to a Unit output.
+   */
+  final def unit: ZSchedule[R, A, Unit] = const(())
 
   /**
    * Returns a new schedule that effectfully reconsiders the decision made by
@@ -506,7 +523,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
 }
 
-trait Schedule_Functions extends Serializable {
+private[zio] trait Schedule_Functions extends Serializable {
 
   type ConformsR[A]
   implicit val ConformsAnyProof: ConformsR[Any]
@@ -558,7 +575,7 @@ trait Schedule_Functions extends Serializable {
   /**
    * A schedule that executes once.
    */
-  final val once: Schedule[Any, Unit] = recurs(1).void
+  final val once: Schedule[Any, Unit] = recurs(1).unit
 
   /**
    * A new schedule derived from the specified schedule which adds the delay

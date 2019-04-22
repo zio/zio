@@ -83,7 +83,7 @@ object TestScheduler {
     pause: Duration = 10.milliseconds
   ): ZIO[Clock, Nothing, Unit] =
     (task *> ref.get).flatMap { exit =>
-      if (exit) task.void // make sure everything is finished
+      if (exit) task.unit // make sure everything is finished
       else sleep(pause) *> runWhile(task, ref, pause)
     }
 

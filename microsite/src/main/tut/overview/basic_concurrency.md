@@ -31,7 +31,7 @@ The `Fiber[E, A]` data type in ZIO has two type parameters:
 
 Fibers do not have an `R` type parameter, because they model effects that are already being executed, and which therefore have already had their required environment provided to them.
 
-```tut:invisible
+```scala mdoc:invisible
 
 import scalaz.zio._
 ```
@@ -61,7 +61,7 @@ val z: UIO[Fiber[Nothing, Long]] =
 
 One of the methods on `Fiber` is `join`, which allows another fiber to obtain the result of the fiber being joined. This is similar to awaiting the final result of the fiber, whether that is failure or success.
 
-```tut:silent
+```scala mdoc:silent
 for {
   fiber   <- IO.succeed("Hi!").fork
   message <- fiber.join
@@ -72,7 +72,7 @@ for {
 
 Another method on `Fiber` is `await`, which allows for inspecting the result of a completed `Fiber`. This provides access to full details on how the fiber completed, represented by the `Exit` data type.
 
-```tut:silent
+```scala mdoc:silent
 for {
   fiber <- IO.succeed("Hi!").fork
   exit  <- fiber.await
@@ -85,7 +85,7 @@ A fiber whose result is no longer needed may be _interrupted_, which immediately
 
 Like `await`, `Fiber#interrupt` returns an `Exit` describing how the fiber terminated.
 
-```tut:silent
+```scala mdoc:silent
 for {
   fiber <- IO.succeed("Hi!").forever.fork
   exit  <- fiber.interrupt
@@ -94,7 +94,7 @@ for {
 
 By design, `interrupt` does not resume until the fiber has terminated. If this behavior is not desired, you can `fork` the interruption itself:
 
-```tut:silent
+```scala mdoc:silent
 for {
   fiber <- IO.succeed("Hi!").forever.fork
   _     <- fiber.interrupt.fork
@@ -107,7 +107,7 @@ Fibers may be composed in several ways.
 
 One way fibers may be composed is with `Fiber#zip` or `Fiber#zipWith`. These methods combine two fibers into a single fiber that produces the results of both. If either fiber fails, then the composed fiber will fail.
 
-```tut:silent
+```scala mdoc:silent
 for {
   fiber1 <- IO.succeed("Hi!").fork
   fiber2 <- IO.succeed("Bye!").fork
@@ -118,7 +118,7 @@ for {
 
 The second way fibers can be composed is with `orElse`. If the first fiber succeeds, the composed fiber will succeed with that result; otherwise, the composed fiber will complete with the exit of the second fiber.
 
-```tut:silent
+```scala mdoc:silent
 for {
   fiber1 <- IO.fail("Uh oh!").fork
   fiber2 <- IO.succeed("Hurray!").fork
@@ -150,7 +150,7 @@ For all the parallel operations, if one effect fails, then others will be interr
 
 ZIO allows you to race multiple effects in parallel, returning the first successful result:
 
-```tut:silent
+```scala mdoc:silent
 for {
   winner <- IO.succeed("Hello") race IO.succeed("Goodbye")
 } yield winner
@@ -162,7 +162,7 @@ If you want the first success or failure, rather than the first success, then yo
 
 ZIO lets you timeout any effect using the `ZIO#timeout` method, which succeeds with an `Option`, where a value of `None` indicates the effect timed out before producing the result.
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio.duration._
 
 IO.succeed("Hello").timeout(10.seconds)

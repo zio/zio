@@ -7,6 +7,7 @@ import cats.effect.{ IO => CIO }
 import cats.implicits._
 import org.openjdk.jmh.annotations._
 import scalaz.zio.IOBenchmarks._
+import scalaz.zio.stm._
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -25,11 +26,13 @@ class QueueSequentialBenchmark {
 
   var zioQ: Queue[Int]                     = _
   var fs2Q: fs2.concurrent.Queue[CIO, Int] = _
+  var zioTQ: TQueue[Int]                   = _
 
   @Setup(Level.Trial)
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](totalSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
+    zioTQ = unsafeRun(TQueue.make(totalSize).commit)
   }
 
   @Benchmark
@@ -42,6 +45,21 @@ class QueueSequentialBenchmark {
     val io = for {
       _ <- repeat(zioQ.offer(0).map(_ => ()), totalSize)
       _ <- repeat(zioQ.take.map(_ => ()), totalSize)
+    } yield 0
+
+    unsafeRun(io)
+  }
+
+  @Benchmark
+  def zioTQueue(): Int = {
+
+    def repeat(task: UIO[Unit], max: Int): UIO[Unit] =
+      if (max < 1) IO.unit
+      else task.flatMap(_ => repeat(task, max - 1))
+
+    val io = for {
+      _ <- repeat(zioTQ.offer(0).unit.commit, totalSize)
+      _ <- repeat(zioTQ.take.unit.commit, totalSize)
     } yield 0
 
     unsafeRun(io)
