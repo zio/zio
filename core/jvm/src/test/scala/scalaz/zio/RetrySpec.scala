@@ -179,7 +179,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def accumulateDelays[T](lst: List[ZIO[scalaz.zio.clock.Clock, Nothing, T]]): ZIO[Clock, Nothing, List[T]] =
-    lst.foldLeft(clock.nanoTime.map(_ => List.empty[T]))((acc, b) => acc.flatMap(d => b.map(d2 => d2 :: d)))
+    lst.foldLeft(clock.nanoTime.map(_ => List.empty[T]))((acc, b) => acc.flatMap(d => b.map(d2 => d :+ d2)))
 
   def fixedWithErrorPredicate = {
     var i = 0
@@ -245,7 +245,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       expectedSteps.map(
         i =>
           (
-            (i * 100).millis.relative,
+            (i * 100).millis,
             (i * 100).millis
           )
       )
@@ -258,18 +258,13 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
             .map(lst => (tup._1, lst))
       )
 
-    val expectedResult = accumulateDelays(expected._2.map {
-      case (dl1, dl2) => dl1.run.map(d1 => (d1, dl2))
-    }).map(lst => (expected._1, lst))
-
-    val (results1, results2) = unsafeRun(
+    val results1 = unsafeRun(
       for {
         r1 <- retriedResults
-        r2 <- expectedResult
-      } yield (r1, r2)
+      } yield r1
     )
 
-    results1 must_=== results2
+    results1 must_=== expected
   }
 
   val ioSucceed = (_: String, _: Unit) => IO.succeed("OrElse")
