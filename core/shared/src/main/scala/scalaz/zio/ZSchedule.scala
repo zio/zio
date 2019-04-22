@@ -17,13 +17,12 @@
 package scalaz.zio
 
 import java.time.temporal.ChronoField
-import java.time.{ Instant, LocalDate, LocalTime }
+import java.time.{ LocalDate, LocalTime }
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.ZSchedule.Decision
 import scalaz.zio.clock.Clock
-import scalaz.zio.delay.Delay._
-import scalaz.zio.delay.{ Delay, _ }
+import scalaz.zio.delay.Delay
 import scalaz.zio.duration.Duration
 import scalaz.zio.random.{ nextDouble, Random }
 
@@ -102,6 +101,20 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       type State = self.State
       val initial = self.initial
       val update  = (a: A1, s: State) => self.update(a, s).map(_.rightMap(f))
+    }
+
+  /**
+   * Returns a new schedule that effectfully mapping over the outputs of this one.
+   */
+  final def mapM[A1 <: A, C](f: B => UIO[C]): ZSchedule[R, A1, C] =
+    new ZSchedule[R, A, C] {
+      type State = self.State
+      val initial = self.initial
+      val update = (a: A, s: State) =>
+        for {
+          step <- self.update(a, s)
+          z    <- f(step.finish())
+        } yield step.rightMap(_ => z)
     }
 
   /**
@@ -206,7 +219,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * continue, using the maximum of the delays of the two schedules.
    */
   final def &&[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
-    combineWith(that)(_ && _, (a, b) => Max(a, b))
+    combineWith(that)(_ && _, _ max _)
 
   /**
    * A named alias for `&&`.
@@ -248,7 +261,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * using the minimum of the delays of the two schedules.
    */
   final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
-    combineWith(that)(_ || _, (a, b) => Min(a, b))
+    combineWith(that)(_ || _, _ min _)
 
   /**
    * A named alias for `||`.
@@ -444,7 +457,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       val update = (a: A, s: State) =>
         self.update(a, s._1).flatMap { step1 =>
           that.update(step1.finish(), s._2).map { step2 =>
-            step1.combineWith(step2)(_ && _, (a, b) => Sum(a, b)).rightMap(_._2)
+            step1.combineWith(step2)(_ && _, _ + _).rightMap(_._2)
           }
         }
     }
@@ -493,7 +506,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       val update = (a: (A, C), s: State) =>
         self
           .update(a._1, s._1)
-          .zipWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, (a, b) => Max(a, b)))
+          .zipWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, _ max _))
     }
 
   /**
@@ -538,7 +551,7 @@ trait Schedule_Functions extends Serializable {
   final def identity[A]: Schedule[A, A] =
     ZSchedule[Any, Unit, A, A](
       ZIO.unit,
-      (a, s) => IO.succeed(Decision.cont(none, s, a))
+      (a, s) => IO.succeed(Decision.cont(Delay.none, s, a))
     )
 
   /**
@@ -580,7 +593,7 @@ trait Schedule_Functions extends Serializable {
    */
   final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Delay]): ZSchedule[R, A, Delay] = {
     val delayed = s.modifyDelay((b, d) => IO.succeed(b + d))
-    delayed.reconsider((_, step) => step.copy(finish = () => step.delay))
+    delayed.reconsider((_, step) => step.copy(finish = () => step.delay)) // TODO: Dotty doesn't infer this properly
   }
 
   /**
@@ -657,7 +670,7 @@ trait Schedule_Functions extends Serializable {
    * through recured application of a function to a base value.
    */
   final def unfoldM[R: ConformsR, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ZSchedule[R, Any, A] =
-    ZSchedule[R, A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(none, a, a)))
+    ZSchedule[R, A, Any, A](a, (_, a) => f(a).map(a => Decision.cont(Delay.none, a, a)))
 
   /**
    * A schedule that waits for the specified amount of time between each
@@ -668,35 +681,35 @@ trait Schedule_Functions extends Serializable {
    * </pre>
    */
   final def spaced(interval: Duration): Schedule[Any, Int] =
-    forever.delayed(d => d + relative(interval))
+    forever.delayed(_ + interval.relative)
 
   /**
    * A schedule that always recurs, increasing delays by summing the
    * preceding two delays (similar to the fibonacci sequence). Returns the
    * current duration between recurrences.
    */
-  final def fibonacci(one: Duration): Schedule[Any, Delay] =
+  final def fibonacci(one: Duration): Schedule[Any, Duration] =
     delayed(
-      unfold[(Delay, Delay)]((none, relative(one))) {
+      unfold[(Delay, Delay)]((Delay.none, one.relative)) {
         case (a1, a2) => (a2, a1 + a2)
       }.map(_._1)
-    )
+    ).mapM(_.run)
 
   /**
    * A schedule that always recurs, but will repeat on a linear time
    * interval, given by `base * n` where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def linear(base: Duration): Schedule[Any, Delay] =
-    delayed(forever.map(i => relative(base * i.doubleValue())))
+  final def linear(base: Duration): Schedule[Any, Duration] =
+    delayed(forever.map(i => (base * i.doubleValue()).relative)).mapM(_.run)
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
    * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Delay] =
-    delayed(forever.map(i => relative(base * math.pow(factor, i.doubleValue))))
+  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
+    delayed(forever.map(i => (base * math.pow(factor, i.doubleValue)).relative)).mapM(_.run)
 }
 
 object Schedule extends Schedule_Functions {
@@ -758,7 +771,7 @@ object ZSchedule extends Schedule_Functions {
       clock.nanoTime,
       (_, start) =>
         clock.nanoTime.map(
-          currentTime => Decision.cont(none, start, Duration.fromNanos(currentTime - start))
+          currentTime => Decision.cont(Delay.none, start, Duration.fromNanos(currentTime - start))
         )
     )
   }
@@ -802,7 +815,10 @@ object ZSchedule extends Schedule_Functions {
       )
   }
 
-  final def atTime(minute: Int, hour: Int): ZSchedule[Clock, Unit, (Long, Long)] =
+  /**
+   * Builds an Schedule capable of running an effect every day at a given minute and hour, every day
+   */
+  final def everyDayAt(minute: Int, hour: Int): ZSchedule[Clock, Unit, (Long, Long)] =
     ZSchedule[Clock, Long, Unit, (Long, Long)](
       initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => 0L),
       update0 = (_, timesRan) =>
@@ -815,11 +831,11 @@ object ZSchedule extends Schedule_Functions {
 
           val delay =
             if (time.get(ChronoField.HOUR_OF_DAY) <= hour && time.get(ChronoField.MINUTE_OF_HOUR) <= minute)
-              Instant.ofEpochMilli(scheduleMillis)
+              scheduleMillis
             else
-              Instant.ofEpochMilli(scheduleMillis + 86400000)
+              scheduleMillis + 86400000
 
-          Decision.cont(absolute(delay), timesRan + 1, (timesRan + 1, now))
+          Decision.cont(Duration.apply(delay, TimeUnit.MILLISECONDS).absolute, timesRan + 1, (timesRan + 1, now))
         }
     )
 }

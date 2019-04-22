@@ -18,6 +18,9 @@ package scalaz.zio.duration
 
 import java.time.{ Duration => JavaDuration }
 import java.util.concurrent.TimeUnit
+
+import scalaz.zio.delay.Delay
+
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 import scala.math.Ordered
 
@@ -60,6 +63,9 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
 
   /** The `java.time.Duration` returned for an infinite Duration is technically "only" ~2x10^16 hours long (`Long.MaxValue` number of seconds) */
   def asJava: JavaDuration
+
+  final def relative: Delay = Delay.relative(this)
+  final def absolute: Delay = Delay.absolute(toMillis)
 }
 
 object Duration {

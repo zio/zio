@@ -1,8 +1,8 @@
 package scalaz.zio
 
 import org.specs2.ScalaCheck
+import scalaz.zio.clock.Clock
 import scalaz.zio.delay.Delay
-import scalaz.zio.delay._
 import scalaz.zio.duration._
 import scalaz.zio.random._
 
@@ -133,19 +133,23 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def retryNUnitIntervalJittered = {
     val schedule: ZSchedule[Random, Int, Int] =
       Schedule.recurs(5).delayed(_ => 500.millis.relative).jittered
-    val scheduled: List[(Delay, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
-    )
 
     val expected = List(1, 2, 3, 4, 5).map((250.millis.relative, _))
 
-    val results = scheduled.zip(expected).map {
-      case (r1, r2) =>
-        unsafeRun(for {
-          d1 <- r1._1.run
-          d2 <- r2._1.run
-        } yield (d1, d2))
-    }
+    val expectedDelays = accumulateDelays(expected.map(_._1.run))
+
+    val expectedScheduled = schedule
+      .run(List(1, 2, 3, 4, 5))
+      .provide(TestRandom)
+      .map(_.map(_._1.run))
+      .flatMap(accumulateDelays)
+
+    val results = unsafeRun(
+      for {
+        d1 <- expectedDelays
+        d2 <- expectedScheduled
+      } yield d1.zip(d2)
+    )
 
     results.map { case (d1, d2) => d1 must_=== d2 }
   }
@@ -153,22 +157,29 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def retryNCustomIntervalJittered = {
     val schedule: ZSchedule[Random, Int, Int] =
       Schedule.recurs(5).delayed(_ => 500.millis.relative).jittered(2, 4)
-    val scheduled: List[(Delay, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
-    )
 
     val expected = List(1, 2, 3, 4, 5).map((1500.millis.relative, _))
 
-    val results = scheduled.zip(expected).map {
-      case (r1, r2) =>
-        unsafeRun(for {
-          d1 <- r1._1.run
-          d2 <- r2._1.run
-        } yield (d1, d2))
-    }
+    val expectedDelays = accumulateDelays(expected.map(_._1.run))
+
+    val expectedScheduled = schedule
+      .run(List(1, 2, 3, 4, 5))
+      .provide(TestRandom)
+      .map(_.map(_._1.run))
+      .flatMap(accumulateDelays)
+
+    val results = unsafeRun(
+      for {
+        d1 <- expectedDelays
+        d2 <- expectedScheduled
+      } yield d1.zip(d2)
+    )
 
     results.map { case (d1, d2) => d1 must_=== d2 }
   }
+
+  def accumulateDelays[T](lst: List[ZIO[scalaz.zio.clock.Clock, Nothing, T]]): ZIO[Clock, Nothing, List[T]] =
+    lst.foldLeft(clock.nanoTime.map(_ => List.empty[T]))((acc, b) => acc.flatMap(d => b.map(d2 => d2 :: d)))
 
   def fixedWithErrorPredicate = {
     var i = 0
@@ -176,28 +187,24 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
-    val retried  = unsafeRun(retryCollect(io, strategy))
+    val retried  = retryCollect(io, strategy)
     val expected =
       (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis.relative, _)))
 
-    val results1 = (
-      retried._1,
-      retried._2.map(
-        r1 =>
-          unsafeRun(for {
-            d1 <- r1._1.run
-          } yield d1)
-      )
+    val retriedResults = retried.flatMap(
+      tup =>
+        accumulateDelays(tup._2.map(res => res._1.run.map(d => (d, res._2))))
+          .map(lst => (tup._1, lst))
     )
 
-    val results2 = (
-      expected._1,
-      expected._2.map(
-        r1 =>
-          unsafeRun(for {
-            d1 <- r1._1.run
-          } yield d1)
-      )
+    val expectedResult = accumulateDelays(expected._2.map { case (dur, ct) => dur.run.map(d1 => (d1, ct)) })
+      .map(lst => (expected._1, lst))
+
+    val (results1, results2) = unsafeRun(
+      for {
+        r1 <- retriedResults
+        r2 <- expectedResult
+      } yield (r1, r2)
     )
 
     results1 must_=== results2
@@ -226,44 +233,40 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def exponentialWithFactor =
     checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
 
-  def checkErrorWithPredicate(schedule: Schedule[Any, Delay], expectedSteps: List[Int]) = {
+  def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
     var i = 0
     val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = schedule.whileInput[String](_ == "KeepTryingError")
-    val retried  = unsafeRun(retryCollect(io, strategy))
+    val retried  = retryCollect(io, strategy)
     val expected = (
       Left("GiveUpError"),
       expectedSteps.map(
         i =>
           (
             (i * 100).millis.relative,
-            (i * 100).millis.relative
+            (i * 100).millis
           )
       )
     )
 
-    val results1 = (
-      retried._1,
-      retried._2.map(
-        r1 =>
-          unsafeRun(for {
-            d1 <- r1._1.run
-            d2 <- r1._2.run
-          } yield (d1, d2))
+    val retriedResults = retried
+      .flatMap(
+        tup =>
+          accumulateDelays(tup._2.map { case (dl1, dl2) => dl1.run.map(d1 => (d1, dl2)) })
+            .map(lst => (tup._1, lst))
       )
-    )
 
-    val results2 = (
-      expected._1,
-      expected._2.map(
-        r1 =>
-          unsafeRun(for {
-            d1 <- r1._1.run
-            d2 <- r1._2.run
-          } yield (d1, d2))
-      )
+    val expectedResult = accumulateDelays(expected._2.map {
+      case (dl1, dl2) => dl1.run.map(d1 => (d1, dl2))
+    }).map(lst => (expected._1, lst))
+
+    val (results1, results2) = unsafeRun(
+      for {
+        r1 <- retriedResults
+        r2 <- expectedResult
+      } yield (r1, r2)
     )
 
     results1 must_=== results2
