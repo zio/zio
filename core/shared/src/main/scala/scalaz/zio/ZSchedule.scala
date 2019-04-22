@@ -705,28 +705,38 @@ private[zio] trait Schedule_Functions extends Serializable {
    * preceding two delays (similar to the fibonacci sequence). Returns the
    * current duration between recurrences.
    */
-  final def fibonacci(one: Duration): Schedule[Any, Duration] =
-    delayed(
+  final def fibonacci[R: ConformsR](one: Duration): Schedule[Any, Duration] ={
+    val f = delayed[Any, Any](
       unfold[(Delay, Delay)]((Delay.none, one.relative)) {
         case (a1, a2) => (a2, a1 + a2)
       }.map(_._1)
-    ).mapM(_.run)
+    )
+
+    f.mapM(_.run) // TODO: Dotty doesn't infer this properly
+  }
+
 
   /**
    * A schedule that always recurs, but will repeat on a linear time
    * interval, given by `base * n` where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def linear(base: Duration): Schedule[Any, Duration] =
-    delayed(forever.map(i => (base * i.doubleValue()).relative)).mapM(_.run)
+  final def linear[R: ConformsR](base: Duration): Schedule[Any, Duration] ={
+    val l = delayed[Any, Any](forever.map(i => (base * i.doubleValue()).relative))
+    l.mapM(_.run) // TODO: Dotty doesn't infer this properly
+  }
+
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
    * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
-    delayed(forever.map(i => (base * math.pow(factor, i.doubleValue)).relative)).mapM(_.run)
+  final def exponential[R: ConformsR](base: Duration, factor: Double = 2.0): Schedule[Any, Duration] ={
+    val e = delayed[Any, Any](forever.map(i => (base * math.pow(factor, i.doubleValue)).relative))
+    e.mapM(_.run) // TODO: Dotty doesn't infer this properly
+  }
+
 }
 
 object Schedule extends Schedule_Functions {

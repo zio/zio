@@ -31,7 +31,7 @@ sealed trait Delay extends Serializable with Product { self =>
 
   /**
    * Multiplies this delay by factor.
-   * @see [[scalaz.zio.duration.Duration.*]]
+   * @see scalaz.zio.duration.Duration.*
    */
   def *(factor: Double) = Scale(self, factor)
 
