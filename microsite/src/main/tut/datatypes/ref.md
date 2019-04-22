@@ -8,7 +8,7 @@ title:  "Ref"
 
 `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 
 for {
@@ -22,7 +22,7 @@ for {
 
 The simplest way to use a `Ref` is by means of `update` or its more powerful sibling `modify`. Let's write a combinator `repeat` just because we can:
 
-```tut:silent
+```scala mdoc:silent
 def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
   Ref.make(0).flatMap { iRef =>
     def loop: IO[E, Unit] = iRef.get.flatMap { i =>
@@ -39,7 +39,7 @@ def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
 
 Those who live on the dark side of mutation sometimes have it easy; they can add state everywhere like it's Christmas. Behold:
 
-```tut:silent
+```scala mdoc:silent
 var idCounter = 0
 def freshVar: String = {
   idCounter += 1
@@ -52,7 +52,7 @@ val v3 = freshVar
 
 As functional programmers, we know better and have captured state mutation in the form of functions of type `S => (A, S)`. `Ref` provides such an encoding, with `S` being the type of the value, and `modify` embodying the state mutation function.
 
-```tut:silent
+```scala mdoc:silent
 Ref.make(0).flatMap { idCounter =>
   def freshVar: UIO[String] =
     idCounter.modify(cpt => (s"var${cpt + 1}", cpt + 1))
@@ -73,7 +73,7 @@ Semaphores are a classic abstract data type for controlling access to shared res
 
 Well, with `Ref`s, that's easy to do! The only difficulty is in `P`, where we must fail and retry when either `v` is negative or its value has changed between the moment we read it and the moment we try to update it. A naive implementation could look like:
 
-```tut:silent
+```scala mdoc:silent
 sealed trait S {
   def P: UIO[Unit]
   def V: UIO[Unit]
@@ -83,7 +83,7 @@ object S {
   def apply(v: Long): UIO[S] =
     Ref.make(v).map { vref =>
       new S {
-        def V = vref.update(_ + 1).void
+        def V = vref.update(_ + 1).unit
 
         def P = (vref.get.flatMap { v =>
           if (v < 0)
@@ -93,7 +93,7 @@ object S {
               case false => IO.fail(())
               case true  => IO.unit
             }
-        } <> P).either.void
+        } <> P).either.unit
       }
     }
 }
@@ -101,7 +101,7 @@ object S {
 
 Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio.duration.Duration
 import scalaz.zio.clock._
 import scalaz.zio.console._

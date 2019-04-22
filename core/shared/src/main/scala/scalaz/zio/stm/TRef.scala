@@ -101,11 +101,11 @@ class TRef[A] private (
     }
 
   private final def getOrMakeEntry(journal: Journal): Entry =
-    if (journal contains id) journal(id)
+    if (journal containsKey id) journal.get(id)
     else {
       val expected = versioned
       val entry    = Entry(self, expected.value, expected)
-      journal update (id, entry)
+      journal put (id, entry)
       entry
     }
 }
@@ -126,7 +126,7 @@ object TRef {
 
       val tvar = new TRef(id, versioned, todo)
 
-      journal update (id, Entry(tvar, value, versioned))
+      journal.put(id, Entry(tvar, value, versioned))
 
       TRez.Succeed(tvar)
     })

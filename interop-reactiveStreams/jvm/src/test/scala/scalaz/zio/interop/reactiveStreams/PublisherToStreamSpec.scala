@@ -26,7 +26,7 @@ class PublisherToStreamSpec(implicit ee: ExecutionEnv) extends TestRuntime with 
   implicit private val materializer: ActorMaterializer = ActorMaterializer()
 
   override def afterAll(): Unit =
-    unsafeRun(UIO(materializer.shutdown()) *> Task.fromFuture(_ => system.terminate()).void)
+    unsafeRun(UIO(materializer.shutdown()) *> Task.fromFuture(_ => system.terminate()).unit)
 
   private val e   = new RuntimeException("boom")
   private val seq = List.range(0, 100)

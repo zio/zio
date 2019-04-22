@@ -73,14 +73,64 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
 
   /**
-   * Zips this result together with the specified result.
+   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
   /**
-   * Zips this result together with the specified result, in parallel.
+   * Named alias for `<*>`.
    */
-  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
+
+  /**
+   * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <* that
+
+  /**
+   * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
+
+  /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self *> that
+
+  /**
+   * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
+   */
+  final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+
+  /**
+   * Named alias for `<&>`.
+   */
+  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <&> that
+
+  /**
+   * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
+
+  /**
+   * Named alias for `<&`.
+   */
+  final def zipParLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <& that
+
+  /**
+   * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
+
+  /**
+   * Named alias for `&>`.
+   */
+  final def zipParRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self &> that
 
   /**
    * Zips this together with the specified result using the combination functions.
@@ -282,39 +332,62 @@ object Exit extends Serializable {
     final case class Die(value: Throwable) extends Cause[Nothing]
     case object Interrupt                  extends Cause[Nothing]
 
-    final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-      final def flatten: Set[Cause[E]] = {
-        def flattenThen(c: Cause[E]): Set[Cause[E]] = c match {
-          case Then(left, right) => flattenThen(left) ++ flattenThen(right)
-          case x                 => Set(x)
-        }
+    case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
+      override final def equals(that: Any): Boolean = that match {
+        case other: Cause[_] => eq(other) || sym(assoc)(other, self) || sym(dist)(self, other)
+        case _               => false
+      }
+      override final def hashCode: Int = flatten(self).hashCode
 
-        flattenThen(left) ++ flattenThen(right)
+      private def eq(that: Cause[_]): Boolean = (self, that) match {
+        case (tl: Then[_], tr: Then[_]) => tl.left == tr.left && tl.right == tr.right
+        case _                          => false
       }
 
-      override final def hashCode: Int = flatten.hashCode
+      private def assoc(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
+        case (Then(Then(al, bl), cl), Then(ar, Then(br, cr))) => al == ar && bl == br && cl == cr
+        case _                                                => false
+      }
 
-      override final def equals(that: Any): Boolean = that match {
-        case that: Then[_] => self.flatten.equals(that.flatten)
-        case _             => false
+      private def dist(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
+        case (Then(al, Both(bl, cl)), Both(Then(ar1, br), Then(ar2, cr)))
+            if ar1 == ar2 && al == ar1 && bl == br && cl == cr =>
+          true
+        case (Then(Both(al, bl), cl), Both(Then(ar, cr1), Then(br, cr2)))
+            if cr1 == cr2 && al == ar && bl == br && cl == cr1 =>
+          true
+        case _ => false
       }
     }
+
     final case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
-      final def flatten: Set[Cause[E]] = {
-        def flattenBoth(c: Cause[E]): Set[Cause[E]] = c match {
-          case Both(left, right) => flattenBoth(left) ++ flattenBoth(right)
-          case x                 => Set(x)
-        }
-
-        flattenBoth(left) ++ flattenBoth(right)
-      }
-
-      override final def hashCode: Int = flatten.hashCode
-
       override final def equals(that: Any): Boolean = that match {
-        case that: Both[_] => self.flatten.equals(that.flatten)
-        case _             => false
+        case other: Cause[_] => eq(other) || sym(assoc)(self, other) || comm(other)
+        case _               => false
       }
+      override final def hashCode: Int = flatten(self).hashCode
+
+      private def eq(that: Cause[_]) = (self, that) match {
+        case (bl: Both[_], br: Both[_]) => bl.left == br.left && bl.right == br.right
+        case _                          => false
+      }
+      private def assoc(l: Cause[_], r: Cause[_]): Boolean = (l, r) match {
+        case (Both(Both(al, bl), cl), Both(ar, Both(br, cr))) => al == ar && bl == br && cl == cr
+        case _                                                => false
+      }
+      private def comm(that: Cause[_]): Boolean = (self, that) match {
+        case (Both(al, bl), Both(ar, br)) => al == br && bl == ar
+        case _                            => false
+      }
+    }
+
+    private[Cause] def sym(f: (Cause[_], Cause[_]) => Boolean): (Cause[_], Cause[_]) => Boolean =
+      (l, r) => f(l, r) || f(r, l)
+
+    private[Cause] def flatten(c: Cause[_]): Set[Cause[_]] = c match {
+      case Then(left, right) => flatten(left) ++ flatten(right)
+      case Both(left, right) => flatten(left) ++ flatten(right)
+      case o                 => Set(o)
     }
   }
 }

@@ -23,21 +23,21 @@ For example, `p.succeed("I'm done!")`. The act of completing a Promise results i
 the `Boolean` represents whether the promise value has been set (`true`) or whether it was already set (`false`).
 This is demonstrated below:
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio._
 import scalaz.zio.syntax._
 ```
 
-```tut:silent
-val ioPromise: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
-val ioBoolean: UIO[Boolean] = ioPromise.flatMap(promise => promise.succeed("I'm done"))
+```scala mdoc:silent
+val ioPromise1: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
+val ioBooleanSucceeded: UIO[Boolean] = ioPromise1.flatMap(promise => promise.succeed("I'm done"))
 ```
 
 You can also signal failure using `fail(...)`. For example,
 
-```tut:silent
-val ioPromise: UIO[Promise[Exception, Nothing]] = Promise.make[Exception, Nothing]
-val ioBoolean: UIO[Boolean] = ioPromise.flatMap(promise => promise.fail(new Exception("boom")))
+```scala mdoc:silent
+val ioPromise2: UIO[Promise[Exception, Nothing]] = Promise.make[Exception, Nothing]
+val ioBooleanFailed: UIO[Boolean] = ioPromise2.flatMap(promise => promise.fail(new Exception("boom")))
 ```
 
 To re-iterate, the `Boolean` tells us whether or not the operation took place successfully (`true`) i.e. the Promise
@@ -48,19 +48,19 @@ As an alternative to using `succeed(...)` or `fail(...)` you can also use `succe
 
 You can get a value from a Promise using `await`
 
-```tut:silent
-val ioPromise: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
-val ioGet: IO[Exception, String] = ioPromise.flatMap(promise => promise.await)
+```scala mdoc:silent
+val ioPromise3: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
+val ioGet: IO[Exception, String] = ioPromise3.flatMap(promise => promise.await)
 ```
 
 The computation will suspend (in a non-blocking fashion) until the Promise is completed with a value or an error.
 If you don't want to suspend and you only want to query the state of whether or not the Promise has been completed,
 you can use `poll`:
 
-```tut:silent
-val ioPromise: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
-val ioIsItDone: UIO[Option[IO[Exception, String]]] = ioPromise.flatMap(p => p.poll)
-val ioIsItDone2: IO[Unit, IO[Exception, String]] = ioPromise.flatMap(p => p.poll.get)
+```scala mdoc:silent
+val ioPromise4: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
+val ioIsItDone: UIO[Option[IO[Exception, String]]] = ioPromise4.flatMap(p => p.poll)
+val ioIsItDone2: IO[Unit, IO[Exception, String]] = ioPromise4.flatMap(p => p.poll.get)
 ```
 
 If the Promise was not completed when you called `poll` then the IO will fail with the `Unit` value otherwise,
@@ -70,7 +70,7 @@ that the Promise successfully completed with an `A` value.
 ## Example Usage
 Here is a scenario where we use a `Promise` to hand-off a value between two `Fiber`s
 
-```tut:silent
+```scala mdoc:silent
 import java.io.IOException
 import scalaz.zio.console._
 import scalaz.zio.duration._

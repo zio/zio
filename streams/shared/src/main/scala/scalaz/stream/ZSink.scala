@@ -212,7 +212,10 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
   final def const[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
 
-  final def void: ZSink[R, E, A0, A, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: ZSink[R, E, A0, A, Unit] = unit
+
+  final def unit: ZSink[R, E, A0, A, Unit] = const(())
 
   final def untilOutput(f: B => Boolean): ZSink[R, E, A0, A, B] =
     new ZSink[R, E, A0, A, B] {
@@ -803,6 +806,9 @@ object ZSink {
 
     final def zipLeft[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, B] =
       self <* that
+
+    final def <*>[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
+      self zip that
 
     final def repeatWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       new ZSink[R, E, A, A, S] {

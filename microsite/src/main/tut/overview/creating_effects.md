@@ -8,21 +8,21 @@ title:  "Creating Effects"
 
 This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.
 
-```tut:invisible
-import scalaz.zio._
+```scala mdoc:invisible
+import scalaz.zio.{ ZIO, Task, UIO, IO }
 ```
 
 # From Success Values
 
 Using the `ZIO.succeed` method, you can create an effect that models success:
 
-```tut:silent
+```scala mdoc:silent
 val s1 = ZIO.succeed(42)
 ```
 
 You can also create effects using methods in the companion object of the `ZIO` type aliases:
 
-```tut:silent
+```scala mdoc:silent
 val s2: Task[Int] = Task.succeed(42)
 ```
 
@@ -30,7 +30,7 @@ The `succeed` method is eager, which means the value will be constructed before 
 
 Although `succeed` is the most common way to construct a successful effect, you can achieve lazy construction using the `ZIO.succeedLazy` method:
 
-```tut:silent
+```scala mdoc:silent
 lazy val bigList = (0 to 1000000).toList
 lazy val bigString = bigList.map(_.toString).mkString("\n")
 
@@ -43,7 +43,7 @@ The successful effect constructed with `ZIO.succeedLazy` will only construct its
 
 Using the `ZIO.fail` method, you can create an effect that models failure:
 
-```tut:silent
+```scala mdoc:silent
 val f1 = ZIO.fail("Uh oh!")
 ```
 
@@ -51,7 +51,7 @@ For the `ZIO` data type, there is no restriction on the error type. You may use 
 
 Many applications will choose to model failures with classes that extend `Throwable` or `Exception`:
 
-```tut:silent
+```scala mdoc:silent
 val f2 = Task.fail(new Exception("Uh oh!"))
 ```
 
@@ -65,7 +65,7 @@ Scala's standard library contains a number of data types that can be converted i
 
 An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 
-```tut:silent
+```scala mdoc:silent
 val zoption: ZIO[Any, Unit, Int] = ZIO.fromOption(Some(2))
 ```
 
@@ -75,7 +75,7 @@ The error type of the resulting effect is `Unit`, because the `None` case of `Op
 
 An `Either` can be converted in to a ZIO effect using `ZIO.fromEither`:
 
-```tut:silent
+```scala mdoc:silent
 val zeither = ZIO.fromEither(Right("Success!"))
 ```
 
@@ -85,7 +85,7 @@ Unlike `ZIO.fromOption`, the error type of the resulting effect will be whatever
 
 A `Try` value can be converted into a ZIO effect using `ZIO.fromTry`:
 
-```tut:silent
+```scala mdoc:silent
 import scala.util.Try
 
 val ztry = ZIO.fromTry(Try(42 / 0))
@@ -97,7 +97,7 @@ The error type of the resulting effect will always be `Throwable`, because a `Tr
 
 A function `A => B` can be converted into a ZIO effect with `ZIO.fromFunction`:
 
-```tut:silent
+```scala mdoc:silent
 val zfun: ZIO[Int, Nothing, Int] = 
   ZIO.fromFunction((i: Int) => i * i)
 ```
@@ -108,7 +108,7 @@ The environment type of the effect is `A` (the input type of the function), beca
 
 A `Future` can be converted into a ZIO effect using `ZIO.fromFuture`:
 
-```tut:silent
+```scala mdoc:silent
 import scala.concurrent.Future
 
 lazy val future = Future.successful("Hello!")
@@ -133,7 +133,7 @@ These functions can be used to wrap non-functional code, allowing you to seamles
 
 A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
 
-```tut:silent
+```scala mdoc:silent
 import scala.io.StdIn
 
 val getStrLn: Task[Unit] =
@@ -144,14 +144,14 @@ The error type of the resulting effect will always be `Throwable`, because side-
 
 If a given side-effect is known not to throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.effectTotal`:
 
-```tut:silent
+```scala mdoc:silent
 def putStrLn(line: String): UIO[Unit] =
   ZIO.effectTotal(println(line))
 ```
 
 If a side-effect is known to throw some specific subtype of `Throwable`, then the `ZIO#refineOrDie` method may be used:
 
-```tut:silent
+```scala mdoc:silent
 import java.io.IOException
 
 val getStrLn2: IO[IOException, String] =
@@ -164,12 +164,12 @@ val getStrLn2: IO[IOException, String] =
 
 An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
 
-```tut:invisible
+```scala mdoc:invisible
 trait User
 trait AuthError
 ```
 
-```tut:silent
+```scala mdoc:silent
 object legacy {
   def login(
     onSuccess: User      => Unit, onFailure: AuthError => Unit): Unit = ???
@@ -192,20 +192,20 @@ Some side-effects use blocking IO or otherwise put a thread into a waiting state
 
 ZIO provides the `scalaz.zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
 
-A blocking side-effect can be converted directly into an interruptible ZIO effect with the `interruptible` method:
+A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
 
-```tut:silent
+```scala mdoc:silent
 import scalaz.zio.blocking._
 
 val sleeping = 
-  interruptible(Thread.sleep(Long.MaxValue))
+  effectBlocking(Thread.sleep(Long.MaxValue))
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
 
-If a side-effect has already been converted into a ZIO effect, then instead of `interruptible`, the `blocking` method can be used to shift the effect onto the blocking thread pool:
+If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to shift the effect onto the blocking thread pool:
 
-```tut:silent
+```scala mdoc:silent
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
