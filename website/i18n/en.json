@@ -5,8 +5,8 @@
     "previous": "Previous",
     "tagline": "Type-safe, composable asynchronous and concurrent programming for Scala",
     "docs": {
-      "advanced/error_model": {
-        "title": "advanced/error_model"
+      "advanced/advanced_error_model": {
+        "title": "Error Model"
       },
       "advanced/advanced_index": {
         "title": "Advanced"
@@ -14,13 +14,13 @@
       "advanced/advanced_performance": {
         "title": "Performance"
       },
-      "advanced/rts": {
-        "title": "advanced/rts"
+      "advanced/advanced_rts": {
+        "title": "RTS"
       },
       "advanced/advanced_system": {
         "title": "System"
       },
-      "datatypes/dataypes_fiber": {
+      "datatypes/datatypes_fiber": {
         "title": "Fiber"
       },
       "datatypes/datatypes_fiberlocal": {
@@ -47,14 +47,14 @@
       "datatypes/datatypes_schedule": {
         "title": "Schedule"
       },
-      "datatypes/semaphore": {
-        "title": "datatypes/semaphore"
+      "datatypes/datatypes_semaphore": {
+        "title": "Semaphore"
       },
-      "datatypes/sink": {
-        "title": "datatypes/sink"
+      "datatypes/datatypes_sink": {
+        "title": "Sink"
       },
-      "datatypes/stream": {
-        "title": "datatypes/stream"
+      "datatypes/datatypes_stream": {
+        "title": "Stream"
       },
       "getting_started": {
         "title": "Getting Started"
@@ -68,8 +68,8 @@
       "interop/interop_index": {
         "title": "Interop"
       },
-      "interop/java": {
-        "title": "interop/java"
+      "interop/interop_java": {
+        "title": "Java"
       },
       "interop/interop_javascript": {
         "title": "Javascript"
@@ -83,8 +83,8 @@
       "interop/interop_scalaz7x": {
         "title": "Scalaz 7.x"
       },
-      "interop/scalaz8": {
-        "title": "interop/scalaz8"
+      "interop/interop_scalaz_8": {
+        "title": "Scalaz 8"
       },
       "overview/overview_background": {
         "title": "Background"
@@ -95,7 +95,7 @@
       "overview/overview_basic_operations": {
         "title": "Basic Operations"
       },
-      "overview/overview_creating_effectss": {
+      "overview/overview_creating_effects": {
         "title": "Creating Effects"
       },
       "overview/overview_handling_errors": {
@@ -113,29 +113,29 @@
       "overview/overview_testing_effects": {
         "title": "Testing Effects"
       },
-      "usecases/asynchronous": {
-        "title": "usecases/asynchronous"
+      "usecases/usecases_asynchronous": {
+        "title": "Asynchronous"
       },
-      "usecases/concurrency": {
-        "title": "usecases/concurrency"
+      "usecases/usecases_concurrency": {
+        "title": "Concurrency"
       },
       "usecases/usecases_index": {
         "title": "Use Cases"
       },
-      "usecases/parallelism": {
-        "title": "usecases/parallelism"
+      "usecases/usecases_parallelism": {
+        "title": "Parallelism"
       },
-      "usecases/queuing": {
-        "title": "usecases/queuing"
+      "usecases/usecases_queuing": {
+        "title": "Queueing"
       },
-      "usecases/retrying": {
-        "title": "usecases/retrying"
+      "usecases/usecases_reetrying": {
+        "title": "Retrying"
       },
-      "usecases/scheduling": {
-        "title": "usecases/scheduling"
+      "usecases/usecases_scheduling": {
+        "title": "Scheduling"
       },
-      "usecases/streaming": {
-        "title": "usecases/streaming"
+      "usecases/usecases_streaming": {
+        "title": "Streaming"
       }
     },
     "links": {

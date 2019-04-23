@@ -1,5 +1,5 @@
 ---
-id: dataypes_fiber
+id: datatypes_fiber
 title:  "Fiber"
 ---
 

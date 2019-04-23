@@ -30,21 +30,21 @@
   },
   "interop-sidebar": {
     "interop": [
-      "datatypes/interop_index",
-      "datatypes/interop_catseffect",
-      "datatypes/interop_future",
-      "datatypes/interop_java",
-      "datatypes/interop_javascript",
-      "datatypes/interop_monix",
-      "datatypes/interop_scalaz7x",
-      "datatypes/interop_scalaz8",
-      "datatypes/interop_reactivestreams"
+      "interop/interop_index",
+      "interop/interop_catseffect",
+      "interop/interop_future",
+      "interop/interop_java",
+      "interop/interop_javascript",
+      "interop/interop_monix",
+      "interop/interop_scalaz7x",
+      "interop/interop_scalaz8",
+      "interop/interop_reactivestreams"
     ]
   },
   "usecases-sidebar": {
     "Usecases": [
       "usecases/usecases_index",
-      "usecases/usecases_asynchronism",
+      "usecases/usecases_asynchronous",
       "usecases/usecases_concurrency",
       "usecases/usecases_parallelism",
       "usecases/usecases_queueing",
