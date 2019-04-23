@@ -850,7 +850,7 @@ trait Stream_Functions extends Serializable {
 
 object Stream extends Stream_Functions {
   @implicitNotFound(
-    "The environment type of all Stream methods must be Any. If you want to use an environment, please use StreamR."
+    "The environment type of all Stream methods must be Any. If you want to use an environment, please use ZStream."
   )
   sealed trait ConformsR1[A]
 
