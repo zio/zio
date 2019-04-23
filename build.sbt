@@ -266,6 +266,7 @@ lazy val docs = project.module
   .settings(
     skip.in(publish) := true,
     moduleName := "scalaz-zio-docs",
+    unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
