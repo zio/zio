@@ -266,6 +266,10 @@ lazy val docs = project.module
   .settings(
     skip.in(publish) := true,
     moduleName := "scalaz-zio-docs",
+    scalacOptions -= "-Yno-imports",
+    scalacOptions -= "-Xfatal-warnings",
+    scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
+    scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
       "com.github.ghik"     %% "silencer-lib"             % "1.3.3"  % "provided",
       "commons-io"          % "commons-io"                % "2.6"    % "provided",
