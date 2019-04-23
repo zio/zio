@@ -251,20 +251,16 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       )
     )
 
-    val retriedResults = retried
-      .flatMap(
-        tup =>
-          accumulateDelays(tup._2.map { case (dl1, dl2) => dl1.run.map(d1 => (d1, dl2)) })
-            .map(lst => (tup._1, lst))
-      )
-
-    val results1 = unsafeRun(
-      for {
-        r1 <- retriedResults
-      } yield r1
+    val retriedResults = unsafeRun(
+      retried
+        .flatMap(
+          tup =>
+            accumulateDelays(tup._2.map { case (dl1, dl2) => dl1.run.map(d1 => (d1, dl2)) })
+              .map(lst => (tup._1, lst))
+        )
     )
 
-    results1 must_=== expected
+    retriedResults must_=== expected
   }
 
   val ioSucceed = (_: String, _: Unit) => IO.succeed("OrElse")
