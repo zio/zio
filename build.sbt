@@ -49,7 +49,8 @@ lazy val root = project
     interopJavaJVM,
     interopReactiveStreamsJVM,
 //  benchmarks,
-    testkitJVM
+    testkitJVM,
+    docs
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -260,12 +261,11 @@ lazy val benchmarks = project.module
     )
   )
 
-lazy val docs = project
+lazy val docs = project.module
   .in(file("scalaz-zio-docs"))
   .settings(
     skip.in(publish) := true,
     moduleName := "scalaz-zio-docs",
-//    mdoc := run.in(Compile).evaluated,
     libraryDependencies ++= Seq(
       "com.github.ghik"     %% "silencer-lib"             % "1.3.3"  % "provided",
       "commons-io"          % "commons-io"                % "2.6"    % "provided",
