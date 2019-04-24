@@ -532,9 +532,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def bufferStream = {
-    val s1 = Stream(1, 2, 3, 4, 5, 6)
+    val s1             = Stream(1, 2, 3, 4, 5, 6)
     val bufferedStream = s1.buffer(1)
-    val list = slurp(bufferedStream)
+    val list           = slurp(bufferedStream)
     list must_=== Success(List(1, 2, 3, 4, 5, 6))
   }
 }

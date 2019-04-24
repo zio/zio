@@ -662,8 +662,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
-    * Stores this stream to a fixed bounded queue and streams data from the bounded queue.
-    */
+   * Stores this stream to a fixed bounded queue and streams data from the bounded queue.
+   */
   final def buffer[R1 <: R, E1 >: E](capacity: Int = 1): ZStream[R1, E1, A] =
     new ZStream[R1, E1, A] {
       override def fold[R2 <: R1, E2 >: E1, A1 >: A, S]: Fold[R2, E2, A, S] =
@@ -671,8 +671,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           type Elem = Take[E2, A]
           def loop(s: S, queue: Queue[Elem]): ZIO[R2, E2, S] =
             queue.take.flatMap {
-              case Take.Fail(e)  => IO.fail(e)
-              case Take.End => IO.succeed(s)
+              case Take.Fail(e) => IO.fail(e)
+              case Take.End     => IO.succeed(s)
               case Take.Value(a) =>
                 f(s, a).flatMap { s =>
                   if (cont(s)) loop(s, queue)
