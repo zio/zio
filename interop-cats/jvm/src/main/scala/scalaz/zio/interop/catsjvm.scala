@@ -19,7 +19,7 @@ package interop
 
 import cats.effect.{ Concurrent, ContextShift, ExitCase }
 import cats.{ effect, _ }
-import scalaz.zio.{ clock => zioClock, ZIO }
+import scalaz.zio.{ App, clock => zioClock, ZIO }
 import scalaz.zio.clock.Clock
 
 import scala.concurrent.ExecutionContext
