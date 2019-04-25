@@ -262,17 +262,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       ZIO.flatten(race.modify((c: Int) => (if (c > 0) ZIO.unit else f(res, loser).to(done).unit) -> (c + 1)))
 
     for {
-      done  <- Promise.make[E2, C]
-      race  <- Ref.make[Int](0)
-      child <- Ref.make[UIO[Any]](ZIO.unit)
-      c <- ((for {
-            left  <- self.fork.tap(f => child update (_ *> f.interrupt))
-            right <- that.fork.tap(f => child update (_ *> f.interrupt))
-            _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
-            _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
-          } yield ()).uninterruptible *> done.await).onInterrupt(
-            ZIO.flatten(child.get)
-          )
+      done <- Promise.make[E2, C]
+      race <- Ref.make[Int](0)
+      c <- ZIO.uninterruptibleMask { restore =>
+            for {
+              left  <- self.fork
+              right <- that.fork
+              _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
+              _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
+              c     <- restore(done.await).onInterrupt(left.interrupt *> right.interrupt)
+            } yield c
+          }
     } yield c
   }
 
@@ -1312,15 +1312,13 @@ private[zio] trait ZIOFunctions extends Serializable {
     register: (ZIO[R, E, A] => Unit) => ZIO[R, Nothing, _]
   ): ZIO[R, E, A] =
     for {
-      p   <- Promise.make[E, A]
-      ref <- Ref.make[UIO[Any]](ZIO.unit)
-      a <- (for {
-            r <- ZIO.runtime[R]
-            _ <- register(k => r.unsafeRunAsync_(k.to(p))).fork
-                  .tap(f => ref.set(f.interrupt))
-                  .uninterruptible
-            a <- p.await
-          } yield a).onInterrupt(flatten(ref.get))
+      p <- Promise.make[E, A]
+      r <- ZIO.runtime[R]
+      a <- ZIO.uninterruptibleMask { restore =>
+            register(k => r.unsafeRunAsync_(k.to(p))).fork.flatMap { f =>
+              restore(p.await).onInterrupt(f.interrupt)
+            }
+          }
     } yield a
 
   /**
@@ -1542,6 +1540,51 @@ private[zio] trait ZIOFunctions extends Serializable {
              semaphore.withPermit(fn(a))
            }
     } yield bs
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects sequentially.
+   *
+   * Equivalent to `foreach(as)(f).void`, but without the cost of building
+   * the list of results.
+   */
+  final def foreach_[R >: LowerR, E <: UpperE, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    ZIO.succeedLazy(as.iterator).flatMap { i =>
+      def loop: ZIO[R, E, Unit] =
+        if (i.hasNext) f(i.next) *> loop
+        else ZIO.unit
+      loop
+    }
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects in parallel, discarding the results.
+   *
+   * For a sequential version of this method, see `foreach_`.
+   */
+  final def foreachPar_[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    ZIO.succeedLazy(as.iterator).flatMap { i =>
+      def loop(a: A): ZIO[R, E, Unit] =
+        if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
+        else f(a).unit
+      if (i.hasNext) loop(i.next)
+      else ZIO.unit
+    }
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects in parallel, discarding the results.
+   *
+   * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
+   */
+  final def foreachParN_[R >: LowerR, E <: UpperE, A, B](
+    n: Long
+  )(as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    Semaphore.make(n).flatMap { semaphore =>
+      ZIO.foreachPar_(as) { a =>
+        semaphore.withPermit(f(a))
+      }
+    }
 
   /**
    * Evaluate each effect in the structure from left to right, and collect

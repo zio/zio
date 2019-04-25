@@ -19,7 +19,7 @@ package interop
 
 import cats.effect.{ Concurrent, ContextShift, ExitCase }
 import cats.{ effect, _ }
-import scalaz.zio.{ clock => zioClock, ZIO }
+import scalaz.zio.{ App, clock => zioClock, ZIO }
 import scalaz.zio.clock.Clock
 
 import scala.concurrent.ExecutionContext
@@ -247,7 +247,7 @@ private class CatsMonad[R, E] extends Monad[ZIO[R, E, ?]] {
   override final def map[A, B](fa: ZIO[R, E, A])(f: A => B): ZIO[R, E, B]                = fa.map(f)
   override final def flatMap[A, B](fa: ZIO[R, E, A])(f: A => ZIO[R, E, B]): ZIO[R, E, B] = fa.flatMap(f)
   override final def tailRecM[A, B](a: A)(f: A => ZIO[R, E, Either[A, B]]): ZIO[R, E, B] =
-    f(a).flatMap {
+    ZIO.suspend(f(a)).flatMap {
       case Left(l)  => tailRecM(l)(f)
       case Right(r) => ZIO.succeed(r)
     }
