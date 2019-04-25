@@ -36,7 +36,8 @@ object PlatformLive {
         t.isInstanceOf[VirtualMachineError]
 
       def reportFailure(cause: Cause[_]): Unit =
-        if (!cause.interrupted) System.err.println(cause.toString)
+        if (!cause.interrupted)
+          System.err.println(cause.prettyPrint)
 
       def newWeakHashMap[A, B](): JMap[A, B] =
         new WeakHashMap[A, B]()
