@@ -24,55 +24,49 @@ class TRef[F[+ _], A] private (underlying: ZTRef[A])(implicit liftIO: ZIO[Any, T
   self =>
 
   /**
-   * Retrieves the value of the `TRef`.
+   * See [[scalaz.zio.stm.TRef#get]]
    */
   final val get: STM[F, A] = new STM(underlying.get)
 
   /**
-   * Sets the value of the `TRef`.
+   * See [[scalaz.zio.stm.TRef#set]]
    */
   final def set(newValue: A): STM[F, Unit] = new STM(underlying.set(newValue))
 
   override final def toString = underlying.toString
 
   /**
-   * Updates the value of the variable.
+   * See [[scalaz.zio.stm.TRef#update]]
    */
   final def update(f: A => A): STM[F, A] = new STM(underlying.update(f))
 
   /**
-   * Updates some values of the variable but leaves others alone.
+   * See [[scalaz.zio.stm.TRef#updateSome]]
    */
   final def updateSome(f: PartialFunction[A, A]): STM[F, A] = new STM(underlying.updateSome(f))
 
   /**
-   * Updates the value of the variable, returning a function of the specified
-   * value.
+   * See [[scalaz.zio.stm.TRef#modify]]
    */
   final def modify[B](f: A => (B, A)): STM[F, B] = new STM(underlying.modify(f))
 
   /**
-   * Updates some values of the variable, returning a function of the specified
-   * value or the default.
+   * See [[scalaz.zio.stm.TRef#modifySome]]
    */
   final def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[F, B] =
     new STM(underlying.modifySome(default)(f))
 
+  /**
+   * Switch from effect F to effect G using transformation `f`.
+   */
   def mapK[G[+ _]](f: F ~> G): TRef[G, A] = new TRef(underlying)(f compose liftIO)
 }
 
 object TRef {
 
-  /**
-   * Makes a new `TRef` that is initialized to the specified value.
-   */
   final def make[F[+ _], A](a: => A)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, TRef[F, A]] =
     new STM(ZTRef.make(a).map(new TRef(_)))
 
-  /**
-   * A convenience method that makes a `TRef` and immediately commits the
-   * transaction to extract the value out.
-   */
   final def makeCommit[F[+ _], A](a: => A)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): F[TRef[F, A]] =
     STM.atomically(make(a))
 }
