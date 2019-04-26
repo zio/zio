@@ -87,12 +87,12 @@ final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Thro
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
-  def flatMap[E1 >: Throwable, B](f: A => STM[F, B]): STM[F, B] = new STM(underlying.flatMap(f.andThen(_.underlying)))
+  def flatMap[B](f: A => STM[F, B]): STM[F, B] = new STM(underlying.flatMap(f.andThen(_.underlying)))
 
   /**
    * Flattens out a nested `STM` effect.
    */
-  def flatten[E1 >: Throwable, B](implicit ev: A <:< STM[F, B]): STM[F, B] =
+  def flatten[B](implicit ev: A <:< STM[F, B]): STM[F, B] =
     self flatMap ev
 
   /**
@@ -105,7 +105,7 @@ final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Thro
    * Effectfully folds over the `STM` effect, handling both failure and
    * success.
    */
-  def foldM[E1 <: Throwable, B](f: Throwable => STM[F, B], g: A => STM[F, B]): STM[F, B] =
+  def foldM[B](f: Throwable => STM[F, B], g: A => STM[F, B]): STM[F, B] =
     new STM(underlying.foldM(f.andThen(_.underlying), g.andThen(_.underlying)))
 
   /**
