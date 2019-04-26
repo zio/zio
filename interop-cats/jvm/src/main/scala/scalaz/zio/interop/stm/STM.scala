@@ -189,10 +189,7 @@ object STM {
   final def collectAll[F[+ _], A](
     i: Iterable[STM[F, A]]
   )(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, List[A]] =
-    i.foldRight[STM[F, List[A]]](STM.succeed(Nil)) {
-      case (stm, acc) =>
-        acc.zipWith(stm)((xs, x) => x :: xs)
-    }
+    new STM(ZSTM.collectAll(i.map(_.underlying)))
 
   final def die[F[+ _]](t: Throwable)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, Nothing] =
     succeedLazy(throw t)
