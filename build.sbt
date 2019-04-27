@@ -113,7 +113,11 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
       "co.fs2"        %%% "fs2-core"      % "1.0.4" % Test
     )
   )
-  .dependsOn(core % "test->test;compile->compile")
+  .dependsOn(
+    core    % "test->test;compile->compile",
+    // TODO Shoud we create a separate module instead of depending here?
+    streams % "test->test;compile->compile"
+  )
 
 val CatsScalaCheckVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
