@@ -225,6 +225,16 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
 
 lazy val interopReactiveStreamsJVM = interopReactiveStreams.jvm.dependsOn(interopSharedJVM)
 
+lazy val interopTwitter = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-twitter"))
+  .settings(stdSettings("zio-interop-twitter"))
+  .settings(
+    libraryDependencies += "com.twitter" %% "util-core" % "19.4.0"
+  )
+  .dependsOn(core % "test->test;compile->compile")
+
+lazy val interopTwitterJVM = interopTwitter.jvm.dependsOn(interopSharedJVM)
+
 lazy val testkit = crossProject(JVMPlatform)
   .in(file("testkit"))
   .settings(stdSettings("zio-testkit"))
