@@ -318,6 +318,96 @@ object Exit extends Serializable {
             case (None, None)       => None
           }
       }
+
+    final def prettyPrint: String = {
+      sealed trait Segment
+      sealed trait Step extends Segment
+
+      final case class Sequential(all: List[Step])     extends Segment
+      final case class Parallel(all: List[Sequential]) extends Step
+      final case class Failure(lines: List[String])    extends Step
+
+      def prefixBlock[A](values: List[String], p1: String, p2: String): List[String] =
+        values match {
+          case Nil => Nil
+          case head :: tail =>
+            (p1 + head) :: tail.map(p2 + _)
+        }
+
+      def parallelSegments(cause: Cause[Any]): List[Sequential] =
+        cause match {
+          case Cause.Both(left, right) => parallelSegments(left) ++ parallelSegments(right)
+          case _                       => List(causeToSequential(cause))
+        }
+
+      def linearSegments(cause: Cause[Any]): List[Step] =
+        cause match {
+          case Cause.Then(first, second) => linearSegments(first) ++ linearSegments(second)
+          case _                         => causeToSequential(cause).all
+        }
+
+      // Java 11 defines String#lines returning a Stream<String>, so the implicit conversion has to
+      // be requested explicitly
+      def lines(str: String): List[String] = augmentString(str).lines.toList
+
+      def renderThrowable(e: Throwable): List[String] = {
+        import java.io.{ PrintWriter, StringWriter }
+
+        val sw = new StringWriter()
+        val pw = new PrintWriter(sw)
+
+        e.printStackTrace(pw)
+        lines(sw.toString)
+      }
+
+      def causeToSequential(cause: Cause[Any]): Sequential =
+        cause match {
+          case Cause.Fail(t: Throwable) =>
+            Sequential(
+              List(Failure("A checked error was not handled." :: renderThrowable(t)))
+            )
+          case Cause.Fail(error) =>
+            Sequential(
+              List(Failure("A checked error was not handled." :: lines(error.toString)))
+            )
+          case Cause.Die(t) =>
+            Sequential(
+              List(Failure("An unchecked error was produced." :: renderThrowable(t)))
+            )
+          case Cause.Interrupt    => Sequential(List(Failure(List("The fiber was interrupted"))))
+          case t: Cause.Then[Any] => Sequential(linearSegments(t))
+          case b: Cause.Both[Any] => Sequential(List(Parallel(parallelSegments(b))))
+        }
+
+      def format(segment: Segment): List[String] =
+        segment match {
+          case Failure(lines) =>
+            prefixBlock(lines, "─", " ")
+          case Parallel(all) =>
+            List(("══╦" * (all.size - 1)) + "══╗") ++
+              all.foldRight[List[String]](Nil) {
+                case (current, acc) =>
+                  prefixBlock(acc, "  ║", "  ║") ++
+                    prefixBlock(format(current), "  ", "  ")
+              }
+          case Sequential(all) =>
+            all.flatMap { segment =>
+              List("║") ++
+                prefixBlock(format(segment), "╠", "║")
+            } ++ List("▼")
+        }
+
+      val sequence = causeToSequential(this)
+
+      ("Fiber failed." :: {
+        sequence match {
+          // use simple report for single failures
+          case Sequential(List(Failure(cause))) => cause
+
+          case _ => format(sequence).updated(0, "╥")
+        }
+      }).mkString("\n")
+    }
   }
 
   object Cause extends Serializable {

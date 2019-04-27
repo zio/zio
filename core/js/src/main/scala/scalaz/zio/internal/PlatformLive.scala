@@ -35,7 +35,8 @@ object PlatformLive {
       def fatal(t: Throwable): Boolean = false
 
       def reportFailure(cause: Cause[_]): Unit =
-        if (!cause.interrupted) println(cause.toString)
+        if (!cause.interrupted)
+          println(cause.prettyPrint)
 
       def newWeakHashMap[A, B](): JMap[A, B] =
         new HashMap[A, B]()
