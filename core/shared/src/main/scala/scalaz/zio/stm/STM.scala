@@ -16,7 +16,7 @@
 
 package scalaz.zio.stm
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import scalaz.zio.{ IO, UIO }
 
@@ -458,9 +458,7 @@ object STM {
 
       val done = new AtomicBoolean(false)
 
-      val ref = new AtomicReference(UIO[Unit](done synchronized {
-        done set true
-      }))
+      val interrupt = UIO(done synchronized { done set true })
 
       IO.effectAsyncMaybe[E, A] { k =>
         import internal.globalLock
@@ -536,7 +534,7 @@ object STM {
         }
 
         tryTxn()
-      } ensuring UIO(ref.get).flatten
+      } ensuring interrupt
     }.flatten
 
   /**
