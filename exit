@@ -1,0 +1,636 @@
+[33mcommit ce58772a009a4cef29f1eab4581bc6ccc9e7d964[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: TheMayoras <ben.mayoras@gmail.com>
+Date:   Sat Apr 27 15:35:14 2019 -0400
+
+    message
+
+[33mcommit 1d1dd37e5313ecea1a6c1aa0e481bc139d9c5550[m[33m ([m[1;32moriginal[m[33m, [m[1;32mchanged[m[33m)[m
+Author: Gleb <glebp@pm.me>
+Date:   Sun Apr 21 22:33:28 2019 +0200
+
+    Fixes #771 RefM should permit errors (#774)
+    
+    * Fixes #771 RefM should permit errors
+    
+    * Moved error type parameter from `RefM` to corresponding methods
+
+[33mcommit fae5d19894f179179cf78dda9f6e306443855db0[m
+Author: Mikhail Vorozhtsov <mikhail.vorozhtsov@gmail.com>
+Date:   Sun Apr 21 21:58:02 2019 +0300
+
+    Add ZIO.foreach_ and variants (#781)
+    
+    * Add ZIO.foreach_
+    
+    * Add foreachPar_ and foreachParN_
+
+[33mcommit 45847116e30eb039431e95ac39357d9bb3fd406e[m
+Author: msosnicki <essn87@gmail.com>
+Date:   Sat Apr 20 15:11:20 2019 +0200
+
+    Fix #747 - equals and hashCode for Exit.Cause (#775)
+
+[33mcommit 9106c1d19f665b094f36bb38eda6d69089a050ba[m
+Author: Mikhail Vorozhtsov <mikhail.vorozhtsov@gmail.com>
+Date:   Sat Apr 20 15:55:46 2019 +0300
+
+    Simplify raceWith and effectAsyncM impls (#782)
+
+[33mcommit 4506dcade8e872e857b0ba30313f28c9abd96ec5[m
+Author: John A. De Goes <john@degoes.net>
+Date:   Thu Apr 18 14:39:56 2019 -0600
+
+    Preliminary STM benchmarks and low-hanging fruit optimizations (#769)
+    
+    * Preliminary STM benchmarks & easy opts
+    
+    * fmt
+    
+    * Cleanup & fix benchmarks
+    
+    * Optimization
+    
+    * Add new tests of new constructors
+    
+    * Delete ensuringR (not req'd) & propagate to bracket
+    
+    * Fix todo (make provide interrupt-safe)
+    
+    * Remove todo
+    
+    * Update microsite
+    
+    * Moar R polymorphism
+
+[33mcommit ee460935d011b6e4f1ebeafd89bd9494f85d8f9c[m
+Author: Dani Maffiew <Dan-M@users.noreply.github.com>
+Date:   Thu Apr 18 01:05:12 2019 +0700
+
+    Switch from tut to mdoc #687 (#765)
+    
+    * Adapt build and md's to use mdoc instead of tut.
+    
+    * Make it build.
+    
+    * mdoc for NotImplemented. Fix getting started mdoc:passthrough
+    
+    * Mark microsite libraryDependencies as provided.
+    
+    * mdoc for reactivestreams.md
+    
+    * Fix formatting.
+    
+    * Fix warnings in microsite build.
+
+[33mcommit fec141251478c121c485cdd2843f749e95acc05d[m
+Author: Eugene Platonov <jozic@live.com>
+Date:   Wed Apr 17 08:56:57 2019 -0400
+
+    Used UIO and updated some ScalaDocs for Fiber (#770)
+
+[33mcommit d858ca7cabb7fdce4f1613e3ff97bdea2e2a2153[m
+Author: Gleb <glebp@pm.me>
+Date:   Tue Apr 16 17:45:49 2019 +0200
+
+    Fixed #745 - reduce visibility of classes (#764)
+    
+    * Fixed #745 - reduce visibility of classes
+    
+    * Addressed PR comments and run scalafmt
+    
+    * reformatted with `fmt`
+    
+    * increase visibility of ZIOInvariant for the Dotty build
+
+[33mcommit 20d8705b2ec1953d2bfbfa67073fbf15485cc1b5[m
+Author: Simon Schenk <simon@schenk-online.net>
+Date:   Tue Apr 16 15:43:59 2019 +0200
+
+    interop-RS documentation (#734)
+    
+    * interop-RS documentation
+    
+    * Run streams in examples
+
+[33mcommit aceae9d999b6fd200f3fa85f4c0fab7d2b675744[m[33m ([m[1;33mtag: v1.0-RC4[m[33m)[m
+Author: Scala steward <43047562+scala-steward@users.noreply.github.com>
+Date:   Tue Apr 16 00:44:20 2019 +0200
+
+    Update sbt-jmh to 0.3.6 (#762)
+
+[33mcommit 0f0a1ab4ef39a1e435b1f908d56ed52a1eaec2f5[m
+Author: Scala steward <43047562+scala-steward@users.noreply.github.com>
+Date:   Mon Apr 15 21:10:44 2019 +0200
+
+    Update silencer-lib, silencer-plugin to 1.3.3 (#752)
+
+[33mcommit ef8ab2135229889a8b5ca35eeb7cab2a745b2f4d[m
+Author: Scala steward <43047562+scala-steward@users.noreply.github.com>
+Date:   Mon Apr 15 21:10:08 2019 +0200
+
+    Update sbt-scalajs, scalajs-compiler to 0.6.27 (#755)
+
+[33mcommit 4fe18d58b61cd0be12a8d14c60eb38cbb95b5408[m
+Author: Jagadesh Adireddi <adireddijagadesh@gmail.com>
+Date:   Mon Apr 15 23:48:29 2019 +0530
+
+    Zio 746 zip and zipPar consistency across all data types (#748)
+    
+    * code changes for zip operator consistency between named and symbolic.
+    
+    * code formatted
+    
+    * code changes for zip and zipPar consistency.
+    
+    * fixed typo's
+    
+    * fixed the comments review comments.
+
+[33mcommit 8fb444ecc260e57ec6320cd9884cf42a3a8ad7ed[m
+Author: John A. De Goes <john@degoes.net>
+Date:   Mon Apr 15 12:12:44 2019 -0600
+
+    Interruptible monadic regions (#740)
+    
+    * add lower r for TaskR
+    
+    * Add StackBool
+    
+    * Stable introduction of stack bool
+    
+    * Introduce new operation
+    
+    * Add test case
+    
+    * First failing test case
+    
+    * Fix too long mask
+    
+    * PR feedback
+    
+    * Get one test passing
+    
+    * More tests
+    
+    * Fix flaky test
+    
+    * improve scaladoc
+    
+    * Replace brackets with new non-forking impl
+    
+    * Delete crashfile
+    
+    * Comment
+    
+    * Last stable point
+    
+    * First stab at replacing ensuring (partial pass)
+    
+    * Collect finalizer failures too
+    
+    * Delete Ensuring
+    
+    * Address PR feedback.
+    
+    * A little Haskell inspiration
+    
+    * Simplify code
+    
+    * Update scaladoc
+    
+    * add another test
+    
+    * Rip out global terminating state, fixes a bug
+    
+    * Fix flaky test
+    
+    * Switch to stacks & minimize ref state (perf)
+    
+    * fix dotty inference
+    
+    * Address PR feedback
+    
+    * Fixes #741
+    
+    * Do not force `use` to be interruptible
+    
+    * Optimize Descriptor
+    
+    * Polishing
+    
+    * Fix flaky test and help Dotty out
+    
+    * Improve type inference, collapse to single bracket
+    
+    * Add interruptibleMask for symmetry
+    
+    * More first aid for Dotty
+
+[33mcommit 1d210c52fb3b757415557c96d93edac98a92bdc8[m
+Author: Scala steward <me@scala-steward.org>
+Date:   Sun Apr 14 20:41:57 2019 +0200
+
+    Update sbt-jmh to 0.3.5
+
+[33mcommit 034ffe683f2814d98357cdd27815599b03ea76a9[m
+Author: Scala steward <me@scala-steward.org>
+Date:   Sun Apr 14 20:41:47 2019 +0200
+
+    Update specs2-core, specs2-matcher-extra, ... to 4.5.1
+
+[33mcommit ba824be236f454311c03d05f3e25447949c63d63[m
+Author: Scala steward <me@scala-steward.org>
+Date:   Sun Apr 14 20:41:20 2019 +0200
+
+    Update akka-stream, akka-stream-testkit to 2.5.22
+
+[33mcommit 5a20ba863ad1eed9dc81d8f2a56633ef0b89a6ca[m
+Author: Scala steward <me@scala-steward.org>
+Date:   Sun Apr 14 20:41:36 2019 +0200
+
+    Update scalatest to 3.0.7
+
+[33mcommit 7c7082b26cd4e9cd6193f9d896bddda8c2958200[m
+Author: Scala steward <me@scala-steward.org>
+Date:   Sun Apr 14 20:40:58 2019 +0200
+
+    Update sbt-travisci to 1.2.0
+
+[33mcommit b7e029335f4ed6a9ce67650e1a3e97f03e736f84[m
+Author: Scala steward <me@scala-steward.org>
+Date:   Sun Apr 14 20:41:25 2019 +0200
+
+    Update sbt-header to 5.2.0
+
+[33mcommit 56a011ecd01642a527c2fa31cb59a3a52d991937[m
+Author: Scala steward <me@scala-steward.org>
+Date:   Sun Apr 14 20:41:52 2019 +0200
+
+    Update kind-projector to 0.9.10
+
+[33mcommit 4815ba92feb2d750406b9ef9604a1adfa601778b[m
+Author: Cereopsis <Cereopsis@users.noreply.github.com>
+Date:   Sun Apr 14 13:46:36 2019 +0100
+
+    Fixed #696 (#710)
+    
+    * WIP #651 Initial pass
+    
+    * WIP #651 Initial pass
+    
+    * Fixed #651. Final tweaks to interop.scalaz72
+    
+    Refactor naming e.g IOInstances1 -> ZIOInstances1
+    Update microsite: change IO -> ZIO and minor changes to examples
+    
+    * #696 Initial pass. Still need to visit microsite
+    
+    * Re: #696 Addressing review issues: edited scaladoc and updated microsite.
+    Also Removed 2 weak test cases in favour of one that tests interruption.
+
+[33mcommit 99e50eba871e0c9a7d1ccc7afc9e9958c8dae177[m
+Author: Georgi Krastev <joro.kr.21@gmail.com>
+Date:   Sun Apr 14 14:42:19 2019 +0200
+
+     Add ApplicativeHandle / FunctorRaise instance for cats-mtl interop (#715)
+    
+    * Add explicitdeps import for implicit instance
+    
+    I couldn't even start sbt without this.
+    Sbt version: 1.2.8
+    
+    * Add ApplicativeHandle / FunctorRaise instance for cats-mtl interop
+
+[33mcommit 339dc5c5be241c07fe3696491a83bcd97f4a7315[m
+Author: Sarath Kallatt Sivasankaran <kssarath2005@gmail.com>
+Date:   Sun Apr 14 13:15:33 2019 +0200
+
+    Decrease minimum duration of a timed test from 6 seconds to 60 ms (#735)
+    
+    * Decrease minimum duration of a timed test from 6 seconds to 60 ms (speeds up tests) #695 - Copied code from #576
+    
+    * scala formatting for scalafmtCheck
+    
+    * test timeout for a long computation
+    
+    * updated test for aroundTimeout
+    
+    * changed timeout from 10 seconds to 60 seconds
+
+[33mcommit 9afd554bf3470c0d5de146226c553031380b8163[m
+Author: Simon Schenk <simon@schenk-online.net>
+Date:   Sat Apr 13 19:41:07 2019 +0200
+
+    Replace takeWhile.[collect|map] by collectWhile (#733)
+
+[33mcommit 1493f82f54eee61ef7835c61227c3147ca30bba9[m
+Author: Maxim Schuwalow <16665913+mschuwalow@users.noreply.github.com>
+Date:   Sat Apr 13 14:13:39 2019 +0200
+
+    update fiberfailure reports (#736)
+    
+    * update fiberfailure reports
+    
+    * update formatting of throwables and add simple reporting in fiberfailure
+    
+    * apply fmt
+
+[33mcommit 97ef17944b0126e25fa3b6b8926955b369570831[m
+Author: Jagadesh Adireddi <adireddijagadesh@gmail.com>
+Date:   Sat Apr 13 17:37:58 2019 +0530
+
+    Fixed:739 -- Minor function renames with old fun deprecation message (#742)
+    
+    * code changes to rename void to unit
+    
+    * code changes renaming blocking interruptible to effectBlocking
+    
+    * typo change in deprecation message.
+    
+    * Fixed review comments to remove duplicate code.
+    
+    * Fixed code format issues and renamed void to unit.
+    
+    * Refactored spec inline with new naming conventions.
+    
+    * Code changes to rename interruptible to effectBlocking
+
+[33mcommit e15eda95257e6fd30793d69565d21ba5bf41f5e3[m
+Author: Justin Heyes-Jones <justinhj@gmail.com>
+Date:   Thu Apr 11 23:36:49 2019 -0700
+
+    WIP Rename Platform.nonFatal to fatal and document (#738)
+    
+    * Rename all non fatal to fatal
+    
+    * Testing for fatals
+    
+    * Document behaviour of fatal function
+    
+    * Move file to correct package
+    
+    * fix formatting
+
+[33mcommit 63925501551944366f418b04b852ccd9d3804a63[m
+Author: Lech Głowiak <LGLO@users.noreply.github.com>
+Date:   Sun Apr 7 17:38:28 2019 -0400
+
+    Microsites changes (#725)
+    
+    * Moving background to homepage. Removing redundant Overview in Overview menu.
+    
+    * refactoring overview and disable social media share in microsite
+    
+    * Fixing positions.
+
+[33mcommit 0ab0478984c1e834db8d950aaf0fcaaf3eefa1b8[m
+Author: Lech Głowiak <LGLO@users.noreply.github.com>
+Date:   Sun Apr 7 15:40:59 2019 -0400
+
+    Remove 'test' target, because it's tested already for 2.11 and 2.12 (#727)
+
+[33mcommit b831153f300671de98dc232c056c11fef4df7004[m
+Author: Michał Gutowski <CucumisSativus@users.noreply.github.com>
+Date:   Sun Apr 7 21:01:16 2019 +0200
+
+    update UID description (#728)
+
+[33mcommit 9b1f6f95a63f3c63138ec59dccd207dfd9fa024c[m
+Merge: fb008e38 bbe93be0
+Author: Lech Głowiak <LGLO@users.noreply.github.com>
+Date:   Sun Apr 7 08:12:54 2019 -0400
+
+    Merge pull request #726 from LGLO/issue-722-flaky-test-concat
+    
+    Issue-722 stream concat test timeout
+
+[33mcommit fb008e38941973f3f137b0b8609f5026785dd86b[m
+Author: John A. De Goes <john@degoes.net>
+Date:   Sun Apr 7 13:43:04 2019 +0200
+
+    ZIO STM (#721)
+    
+    * Revive STM
+    
+    * Improvements
+    
+    * implement STMSpec
+    
+    * Fix subtle race condition
+    
+    * Begin adding retry
+    
+    * Closer to Retry
+    
+    * Not very good attempt to add todos
+    
+    * Ongoing work
+    
+    * First complete sketch of retry
+    
+    * Code cleanup
+    
+    * Polishing
+    
+    * More helpers and better docs
+    
+    * added some test cases to test
+    
+    * Recover from retry in orElse
+    
+    * Improve test
+    
+    * Improve test
+    
+    * Convenience method
+    
+    * Add test and helpers.
+    
+    * Make retries more efficient
+    
+    * Improved retry logic
+    
+    * debug method
+    
+    * test
+    
+    * test
+    
+    * fmt
+    
+    * Rename makeM to makeRun
+    
+    * fix bug and cleanup
+    
+    * fix code
+    
+    * add test
+    
+    * added other test case
+    
+    * Change failure to rollback transaction
+    
+    * Cleanup code
+    
+    * Remove default parameter.
+    
+    * OCD
+    
+    * Cleanup
+    
+    * Add some STM examples (for now in spec)
+    
+    * Added collectAll
+    
+    * some refacto
+    
+    * small refacto
+    
+    * added test
+    
+    * added some functionswith test
+    
+    * refactoring
+    
+    * refactoring
+    
+    * Fix orElse behavior on retry/failure of left and add tests for it
+    
+    * fmt
+    
+    * Improve orElse and add missing functions
+    
+    * prevent interruption of todos
+    
+    * Polish
+    
+    * refactoring names
+    
+    * some other refacto
+    
+    * Added some T* versions
+    
+    * Simplify constructor
+    
+    * Make constructors inside STM and alphabetize STM
+    
+    * Make stuff private
+    
+    * Finish TQueue
+    
+    * Ensure non-negative permit acquisition
+    
+    * Code cleanup
+    
+    * some refacto
+    
+    * Fix two dotty problems...I hope.
+    
+    * refactor a flaky test case
+    
+    * Increase stream spec timeout
+    
+    * Remove timeout
+
+[33mcommit bbe93be0275b6eb585b2eaaeabe70df2576490bd[m
+Author: Lech Głowiak <lech.glowiak@gmail.com>
+Date:   Sat Apr 6 20:36:57 2019 +0200
+
+    Issue-722 concat test timeout. Generating Stream of String takes longer than genrating Stream of bytes.
+
+[33mcommit 134b6028788360dbe78f4c22d22cda854b0561ec[m
+Author: Dejan Mijić <dmijic@acm.org>
+Date:   Mon Apr 1 23:13:44 2019 +0200
+
+    Extract streams into separate submodule (#713)
+    
+    * Create SBT subprojects
+    
+    * Move stream-artifacts into new subproject
+    
+    * Aggregate streamsJVM and streamsJS under root project
+    
+    * Fix reactive-streams project dependency
+    
+    * Add benchmarks project dependency
+    
+    * Document streams dependency in microsite
+
+[33mcommit 2f9289d6fd9f6134c64315b602fd7d2ee435bf53[m
+Author: Barnabás Oláh <stsatlantis@gmail.com>
+Date:   Mon Apr 1 20:19:09 2019 +0200
+
+    WIP  - #647 Add FunctionIO "profunctor" methods to ZIO (#667)
+    
+    * add identity and tuple transformers to ZIO from FunctionIO
+    
+    * add &&&, first and second methods
+    create own identity function
+    
+    * add compose and ifThenElse
+    
+    * add left, right, join(|||) and +++
+    
+    * format code
+    
+    * remove ifThenElse
+    use ZIO.indentityFn instead of a => a
+
+[33mcommit 70be20d087095d511f4a1367cc4019f9e74e5109[m
+Author: Matthias Langer <m.langer798@gmail.com>
+Date:   Sat Mar 30 09:54:56 2019 +0100
+
+    Avoid division by zero (fixes #711) (#712)
+    
+    * Add a few checks to make sure duration multiplication works
+    
+    * Avoid division by zero (fixes #711)
+
+[33mcommit d366626d9ad32f487f7a0688827458a1328801b6[m
+Author: Oleksandra Holubitska <aleksandrag@ukr.net>
+Date:   Fri Mar 29 17:36:34 2019 +0200
+
+    Improve microsite (#708)
+    
+    * fix microsite
+    
+    * fixups
+
+[33mcommit 6ec490e2124f03f6545952f219bcc4ceade5e2a6[m
+Author: John A. De Goes <john@degoes.net>
+Date:   Fri Mar 29 17:35:45 2019 +0200
+
+    add lower r for TaskR (#709)
+
+[33mcommit fb26275fd00665632c219b15c00cb497c7f27e00[m[33m ([m[1;33mtag: v1.0-RC3[m[33m)[m
+Author: Gabriel Volpe <volpegabriel@gmail.com>
+Date:   Fri Mar 29 05:04:53 2019 +0900
+
+    Cats MTL instances: ApplicativeAsk and ApplicativeLocal (#705)
+    
+    * ApplicativeAsk instances
+    
+    * ApplicativeLocal instance and tests
+    
+    * Formatting
+
+[33mcommit 66662dca8a6cd44387f6ed7a566b6dbbe77f56c6[m
+Author: Kopaniev Vladyslav <ivengo53@gmail.com>
+Date:   Thu Mar 28 18:35:47 2019 +0200
+
+    Add a comment about dotty type inference issue #702 (#707)
+
+[33mcommit e1c76f8d00f5ebd8933c76fade999b0f1313ce0c[m
+Author: Cereopsis <Cereopsis@users.noreply.github.com>
+Date:   Thu Mar 28 10:09:46 2019 +0000
+
+    WIP #651 Initial pass (#692)
+    
+    * WIP #651 Initial pass
+    
+    * WIP #651 Initial pass
+    
+    * Fixed #651. Final tweaks to interop.scalaz72
+    
+    Refactor naming e.g IOInstances1 -> ZIOInstances1
+    Update microsite: change IO -> ZIO and minor changes to examples
