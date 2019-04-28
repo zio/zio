@@ -1,10 +1,10 @@
 package scalaz.zio.interop
 
-import monix.eval
-import monix.execution.Scheduler
+import _root_.monix.eval
+import _root_.monix.execution.Scheduler
 import scalaz.zio.{ IO, Task, UIO }
 
-object monixio {
+object monix {
   implicit class IOObjOps(private val obj: IO.type) extends AnyVal {
     def fromTask[A](task: eval.Task[A])(implicit scheduler: Scheduler): Task[A] =
       Task.fromFuture(_ => task.runToFuture)
