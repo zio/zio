@@ -42,13 +42,13 @@ lazy val root = project
     interopCatsJVM,
     interopCatsJS,
     interopFutureJVM,
-//  interopMonixJVM,
-//  interopMonixJS,
+    interopMonixJVM,
+    interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
     interopJavaJVM,
     interopReactiveStreamsJVM,
-//  benchmarks,
+    benchmarks,
     testkitJVM,
     docs
   )
