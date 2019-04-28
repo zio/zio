@@ -48,6 +48,7 @@ lazy val root = project
     interopScalaz7xJS,
     interopJavaJVM,
     interopReactiveStreamsJVM,
+    interopTwitterJVM,
     benchmarks,
     testkitJVM,
     docs
