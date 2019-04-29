@@ -17,7 +17,6 @@
 package scalaz.zio
 package interop
 
-import cats.arrow.FunctionK
 import cats.effect.{ Concurrent, ContextShift, ExitCase }
 import cats.{ effect, _ }
 import scalaz.zio.{ App, clock => zioClock, ZIO }
@@ -74,8 +73,8 @@ abstract class CatsInstances extends CatsInstances1 {
 
   implicit def taskEffectInstances[R](
     implicit runtime: Runtime[R]
-  ): effect.ConcurrentEffect[TaskR[R, ?]] with SemigroupK[TaskR[R, ?]] with FunctionK[TaskR[R, ?], effect.IO] =
-    new CatsConcurrentEffect[R](runtime) with CatsFunctionK[R]
+  ): effect.ConcurrentEffect[TaskR[R, ?]] with SemigroupK[TaskR[R, ?]] =
+    new CatsConcurrentEffect[R](runtime)
 
 }
 
@@ -313,9 +312,4 @@ private class CatsParApplicative[R, E] extends Applicative[ParIO[R, E, ?]] {
 
   final override def unit: ParIO[R, E, Unit] =
     Par(ZIO.unit)
-}
-
-private trait CatsFunctionK[R] extends FunctionK[TaskR[R, ?], effect.IO] {
-  this: effect.ConcurrentEffect[TaskR[R, ?]] =>
-  override def apply[A](fa: TaskR[R, A]): effect.IO[A] = toIO(fa)
 }
