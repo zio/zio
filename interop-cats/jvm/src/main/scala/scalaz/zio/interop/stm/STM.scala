@@ -16,18 +16,16 @@
 
 package scalaz.zio.interop.stm
 
-import cats.~>
-import scalaz.zio.ZIO
+import cats.effect.Async
 import scalaz.zio.stm.{ STM => ZSTM }
+import scalaz.zio.Runtime
 
 import scala.util.Try
 
 /**
  * See [[scalaz.zio.stm.STM]]
  */
-final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Throwable, A])(
-  implicit liftIO: ZIO[Any, Throwable, ?] ~> F
-) {
+final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Throwable, A]) {
   self =>
 
   /**
@@ -62,7 +60,7 @@ final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Thro
   /**
    * See [[scalaz.zio.stm.STM#commit]]
    */
-  final def commit: F[A] = liftIO(underlying.commit)
+  final def commit(implicit R: Runtime[Any], A: Async[F]): F[A] = STM.atomically(self)
 
   /**
    * See [[scalaz.zio.stm.STM#const]]
@@ -173,51 +171,55 @@ final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Thro
   /**
    * Switch from effect F to effect G using transformation `f`.
    */
-  final def mapK[G[+ _]](f: F ~> G): STM[G, A] = new STM(underlying)(f compose liftIO)
+  final def mapK[G[+ _]]: STM[G, A] = new STM(underlying)
 }
 
 object STM {
 
-  final def succeed[F[+ _], A](a: A)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, A] = new STM(ZSTM.succeed(a))
+  final def succeed[F[+ _], A](a: A): STM[F, A] = new STM(ZSTM.succeed(a))
 
-  final def atomically[F[+ _], A](stm: STM[F, A])(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): F[A] =
-    liftIO(ZSTM.atomically(stm.underlying))
+  final def atomically[F[+ _], A](stm: STM[F, A])(implicit R: Runtime[Any], A: Async[F]): F[A] =
+    A.async { cb =>
+      R.unsafeRunAsync(ZSTM.atomically(stm.underlying)) { exit =>
+        cb(exit.toEither)
+      }
+    }
 
-  final def check[F[+ _]](p: Boolean)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, Unit] =
+  final def check[F[+ _]](p: Boolean): STM[F, Unit] =
     if (p) STM.unit else retry
 
   final def collectAll[F[+ _], A](
     i: Iterable[STM[F, A]]
-  )(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, List[A]] =
+  ): STM[F, List[A]] =
     new STM(ZSTM.collectAll(i.map(_.underlying)))
 
-  final def die[F[+ _]](t: Throwable)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, Nothing] =
+  final def die[F[+ _]](t: Throwable): STM[F, Nothing] =
     succeedLazy(throw t)
 
-  final def dieMessage[F[+ _]](m: String)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, Nothing] =
+  final def dieMessage[F[+ _]](m: String): STM[F, Nothing] =
     die(new RuntimeException(m))
 
-  final def fail[F[+ _]](e: Throwable)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, Nothing] =
+  final def fail[F[+ _]](e: Throwable): STM[F, Nothing] =
     new STM(ZSTM.fail(e))
 
   final def foreach[F[+ _], A, B](
     as: Iterable[A]
-  )(f: A => STM[F, B])(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, List[B]] =
+  )(f: A => STM[F, B]): STM[F, List[B]] =
     collectAll(as.map(f))
 
-  final def fromEither[F[+ _], A](e: Either[Throwable, A])(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, A] =
+  final def fromEither[F[+ _], A](e: Either[Throwable, A]): STM[F, A] =
     new STM(ZSTM.fromEither(e))
 
-  final def fromTry[F[+ _], A](a: => Try[A])(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, A] =
+  final def fromTry[F[+ _], A](a: => Try[A]): STM[F, A] =
     new STM(ZSTM.fromTry(a))
 
-  final def partial[F[+ _], A](a: => A)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, A] =
+  final def partial[F[+ _], A](a: => A): STM[F, A] =
     fromTry(Try(a))
 
-  final def retry[F[+ _]](implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, Nothing] = new STM(ZSTM.retry)
+  final def retry[F[+ _]]: STM[F, Nothing] = new STM(ZSTM.retry)
 
-  final def succeedLazy[F[+ _], A](a: => A)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, A] =
+  final def succeedLazy[F[+ _], A](a: => A): STM[F, A] =
     new STM(ZSTM.succeedLazy(a))
 
-  final def unit[F[+ _]](implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, Unit] = succeed(())
+  final def unit[F[+ _]]: STM[F, Unit] = succeed(())
 }

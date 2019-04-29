@@ -16,17 +16,17 @@
 
 package scalaz.zio.interop.stm
 
-import cats.~>
-import scalaz.zio.ZIO
+import cats.effect.Async
+import scalaz.zio.Runtime
 import scalaz.zio.stm.{ TRef => ZTRef }
 
-class TRef[F[+ _], A] private (underlying: ZTRef[A])(implicit liftIO: ZIO[Any, Throwable, ?] ~> F) {
+class TRef[F[+ _], A] private (val underlying: ZTRef[A]) extends AnyVal {
   self =>
 
   /**
    * See [[scalaz.zio.stm.TRef#get]]
    */
-  final val get: STM[F, A] = new STM(underlying.get)
+  final def get: STM[F, A] = new STM(underlying.get)
 
   /**
    * See [[scalaz.zio.stm.TRef#set]]
@@ -59,14 +59,14 @@ class TRef[F[+ _], A] private (underlying: ZTRef[A])(implicit liftIO: ZIO[Any, T
   /**
    * Switch from effect F to effect G using transformation `f`.
    */
-  def mapK[G[+ _]](f: F ~> G): TRef[G, A] = new TRef(underlying)(f compose liftIO)
+  def mapK[G[+ _]]: TRef[G, A] = new TRef(underlying)
 }
 
 object TRef {
 
-  final def make[F[+ _], A](a: => A)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): STM[F, TRef[F, A]] =
+  final def make[F[+ _], A](a: => A): STM[F, TRef[F, A]] =
     new STM(ZTRef.make(a).map(new TRef(_)))
 
-  final def makeCommit[F[+ _], A](a: => A)(implicit liftIO: ZIO[Any, Throwable, ?] ~> F): F[TRef[F, A]] =
+  final def makeCommit[F[+ _], A](a: => A)(implicit R: Runtime[Any], A: Async[F]): F[TRef[F, A]] =
     STM.atomically(make(a))
 }
