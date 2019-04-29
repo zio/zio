@@ -118,6 +118,15 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   )
   .dependsOn(core % "test->test;compile->compile")
 
+lazy val interopCatsEffect = 
+  crossProject(JSPlatform, JVMPlatform)
+    .in(file("interop-cats-effect"))
+    .settings(stdSettings("zio-interop-cats-effect"))
+    .settings(
+      libraryDependencies += "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional
+    )
+    .dependsOn(core % "test->test;compile->compile")
+
 val CatsScalaCheckVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
