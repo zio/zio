@@ -17,11 +17,16 @@
 package scalaz.zio
 package interop
 
-trait Fiber2[F[+ _, + _], E, A] {
+abstract class Fiber2[F[+ _, + _], E, A] {
 
   def cancel: F[Nothing, Option[Either[E, A]]]
 
   def await: F[Nothing, Option[Either[E, A]]]
 
   def join: F[E, A]
+}
+
+object Fiber2 {
+
+  @inline def apply[E, A, F[+ _, + _]: Fiber2[?[_, _], E, A]]: Fiber2[F, E, A] = implicitly
 }

@@ -19,7 +19,7 @@ package interop
 
 import scala.concurrent.ExecutionContext
 
-trait Concurrent2[F[+ _, + _]] extends Temporal2[F] {
+abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
 
   def start[E, A](fa: F[E, A]): F[Nothing, Fiber2[F, E, A]]
 
@@ -28,4 +28,9 @@ trait Concurrent2[F[+ _, + _]] extends Temporal2[F] {
   def yieldTo[E, A](fa: F[E, A]): F[E, A]
 
   def evalOn[E, A](fa: F[E, A], ec: ExecutionContext): F[E, A]
+}
+
+object Concurrent2 {
+
+  @inline def apply[F[+ _, + _]: Concurrent2]: Concurrent2[F] = implicitly
 }

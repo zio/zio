@@ -19,9 +19,14 @@ package interop
 
 import cats.{ Applicative, Bifunctor }
 
-trait Guaranteed2[F[+ _, + _]] extends Bifunctor[F] {
+abstract class Guaranteed2[F[+ _, + _]] extends Bifunctor[F] {
 
   def applicative[E]: Applicative[F[E, ?]]
 
   def guarantee[E, A](fa: F[E, A], f: F[Nothing, Unit]): F[E, A]
+}
+
+object Guaranteed2 {
+
+  @inline def apply[F[+ _, + _]: Guaranteed2]: Guaranteed2[F] = implicitly
 }
