@@ -41,6 +41,8 @@ lazy val root = project
     interopSharedJS,
     interopCatsJVM,
     interopCatsJS,
+    interopCatsEffectJVM,
+    interopCatsEffectJS,
     interopFutureJVM,
 //  interopMonixJVM,
 //  interopMonixJS,
@@ -118,7 +120,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   )
   .dependsOn(core % "test->test;compile->compile")
 
-lazy val interopCatsEffect = 
+lazy val interopCatsEffect =
   crossProject(JSPlatform, JVMPlatform)
     .in(file("interop-cats-effect"))
     .settings(stdSettings("zio-interop-cats-effect"))
@@ -126,6 +128,9 @@ lazy val interopCatsEffect =
       libraryDependencies += "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional
     )
     .dependsOn(core % "test->test;compile->compile")
+
+lazy val interopCatsEffectJVM = interopCatsEffect.jvm
+lazy val interopCatsEffectJS  = interopCatsEffect.js
 
 val CatsScalaCheckVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
