@@ -113,6 +113,11 @@ final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Thro
   final def mapError[E1 <: Throwable](f: Throwable => E1): STM[F, A] = new STM(underlying.mapError(f))
 
   /**
+    * Switch from effect F to effect G.
+    */
+  final def mapK[G[+ _]]: STM[G, A] = new STM(underlying)
+
+  /**
    * See [[scalaz.zio.stm.STM#option]]
    */
   final def option: STM[F, Option[A]] =
@@ -168,15 +173,9 @@ final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Thro
   final def zipWith[B, C](that: => STM[F, B])(f: (A, B) => C): STM[F, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  /**
-   * Switch from effect F to effect G using transformation `f`.
-   */
-  final def mapK[G[+ _]]: STM[G, A] = new STM(underlying)
 }
 
 object STM {
-
-  final def succeed[F[+ _], A](a: A): STM[F, A] = new STM(ZSTM.succeed(a))
 
   final def atomically[F[+ _], A](stm: STM[F, A])(implicit R: Runtime[Any], A: Async[F]): F[A] =
     A.async { cb =>
@@ -217,6 +216,8 @@ object STM {
     fromTry(Try(a))
 
   final def retry[F[+ _]]: STM[F, Nothing] = new STM(ZSTM.retry)
+
+  final def succeed[F[+ _], A](a: A): STM[F, A] = new STM(ZSTM.succeed(a))
 
   final def succeedLazy[F[+ _], A](a: => A): STM[F, A] =
     new STM(ZSTM.succeedLazy(a))

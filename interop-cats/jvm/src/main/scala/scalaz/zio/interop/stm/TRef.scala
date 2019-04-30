@@ -29,6 +29,22 @@ class TRef[F[+ _], A] private (val underlying: ZTRef[A]) extends AnyVal {
   final def get: STM[F, A] = new STM(underlying.get)
 
   /**
+   * Switch from effect F to effect G.
+   */
+  def mapK[G[+ _]]: TRef[G, A] = new TRef(underlying)
+
+  /**
+   * See [[scalaz.zio.stm.TRef#modify]]
+   */
+  final def modify[B](f: A => (B, A)): STM[F, B] = new STM(underlying.modify(f))
+
+  /**
+   * See [[scalaz.zio.stm.TRef#modifySome]]
+   */
+  final def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[F, B] =
+    new STM(underlying.modifySome(default)(f))
+
+  /**
    * See [[scalaz.zio.stm.TRef#set]]
    */
   final def set(newValue: A): STM[F, Unit] = new STM(underlying.set(newValue))
@@ -44,22 +60,6 @@ class TRef[F[+ _], A] private (val underlying: ZTRef[A]) extends AnyVal {
    * See [[scalaz.zio.stm.TRef#updateSome]]
    */
   final def updateSome(f: PartialFunction[A, A]): STM[F, A] = new STM(underlying.updateSome(f))
-
-  /**
-   * See [[scalaz.zio.stm.TRef#modify]]
-   */
-  final def modify[B](f: A => (B, A)): STM[F, B] = new STM(underlying.modify(f))
-
-  /**
-   * See [[scalaz.zio.stm.TRef#modifySome]]
-   */
-  final def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[F, B] =
-    new STM(underlying.modifySome(default)(f))
-
-  /**
-   * Switch from effect F to effect G using transformation `f`.
-   */
-  def mapK[G[+ _]]: TRef[G, A] = new TRef(underlying)
 }
 
 object TRef {
