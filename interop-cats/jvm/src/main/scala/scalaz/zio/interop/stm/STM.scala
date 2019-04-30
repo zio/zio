@@ -113,8 +113,8 @@ final class STM[F[+ _], +A] private[stm] (private[stm] val underlying: ZSTM[Thro
   final def mapError[E1 <: Throwable](f: Throwable => E1): STM[F, A] = new STM(underlying.mapError(f))
 
   /**
-    * Switch from effect F to effect G.
-    */
+   * Switch from effect F to effect G.
+   */
   final def mapK[G[+ _]]: STM[G, A] = new STM(underlying)
 
   /**
