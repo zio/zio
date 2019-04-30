@@ -16,15 +16,22 @@
 
 package scalaz.zio
 package interop
+package bio
 
-abstract class RunAsync2[F[+ _, + _]] extends Async2[F] {
+import scala.concurrent.ExecutionContext
 
-  def runAsync[G[+ _, + _], E, A](fa: F[E, A], k: Either[E, A] => G[Nothing, Unit])(
-    implicit G: Sync2[G]
-  ): G[Nothing, Unit]
+abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
+
+  def start[E, A](fa: F[E, A]): F[Nothing, Fiber2[F, E, A]]
+
+  def uninterruptible[E, A](fa: F[E, A]): F[E, A]
+
+  def yieldTo[E, A](fa: F[E, A]): F[E, A]
+
+  def evalOn[E, A](fa: F[E, A], ec: ExecutionContext): F[E, A]
 }
 
-object RunAsync2 {
+object Concurrent2 {
 
-  @inline def apply[F[+ _, + _]: RunAsync2]: RunAsync2[F] = implicitly
+  @inline def apply[F[+ _, + _]: Concurrent2]: Concurrent2[F] = implicitly
 }

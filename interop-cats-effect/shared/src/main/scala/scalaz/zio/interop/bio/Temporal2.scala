@@ -16,13 +16,20 @@
 
 package scalaz.zio
 package interop
+package bio
 
-abstract class Sync2[F[+ _, + _]] extends Errorful2[F] {
+import java.time.Instant
 
-  def delay[A](a: => A): F[Nothing, A]
+import scala.concurrent.duration.Duration
+
+abstract class Temporal2[F[+ _, + _]] extends Errorful2[F] {
+
+  def sleep(duration: Duration): F[Nothing, Unit]
+
+  def now: F[Nothing, Instant]
 }
 
-object Sync2 {
+object Temporal2 {
 
-  @inline def apply[F[+ _, + _]: Sync2]: Sync2[F] = implicitly
+  @inline def apply[F[+ _, + _]: Temporal2]: Temporal2[F] = implicitly
 }

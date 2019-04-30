@@ -16,19 +16,10 @@
 
 package scalaz.zio
 package interop
+package bio
 
-import java.time.Instant
+abstract class ConcurrentData2[F[+ _, + _]] {
 
-import scala.concurrent.duration.Duration
-
-abstract class Temporal2[F[+ _, + _]] extends Errorful2[F] {
-
-  def sleep(duration: Duration): F[Nothing, Unit]
-
-  def now: F[Nothing, Instant]
-}
-
-object Temporal2 {
-
-  @inline def apply[F[+ _, + _]: Temporal2]: Temporal2[F] = implicitly
+//      def ref[A]: F[Nothing, Ref2[F, A]]
+//      def deferred[E, A]: F[Nothing, Deferred2[F, E, A]]
 }

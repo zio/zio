@@ -16,21 +16,14 @@
 
 package scalaz.zio
 package interop
+package bio
 
-import scala.concurrent.ExecutionContext
+abstract class Sync2[F[+ _, + _]] extends Errorful2[F] {
 
-abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
-
-  def start[E, A](fa: F[E, A]): F[Nothing, Fiber2[F, E, A]]
-
-  def uninterruptible[E, A](fa: F[E, A]): F[E, A]
-
-  def yieldTo[E, A](fa: F[E, A]): F[E, A]
-
-  def evalOn[E, A](fa: F[E, A], ec: ExecutionContext): F[E, A]
+  def delay[A](a: => A): F[Nothing, A]
 }
 
-object Concurrent2 {
+object Sync2 {
 
-  @inline def apply[F[+ _, + _]: Concurrent2]: Concurrent2[F] = implicitly
+  @inline def apply[F[+ _, + _]: Sync2]: Sync2[F] = implicitly
 }

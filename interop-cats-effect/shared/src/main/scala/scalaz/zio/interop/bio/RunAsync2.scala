@@ -16,9 +16,16 @@
 
 package scalaz.zio
 package interop
+package bio
 
-abstract class ConcurrentData2[F[+ _, + _]] {
+abstract class RunAsync2[F[+ _, + _]] extends Async2[F] {
 
-//      def ref[A]: F[Nothing, Ref2[F, A]]
-//      def deferred[E, A]: F[Nothing, Deferred2[F, E, A]]
+  def runAsync[G[+ _, + _], E, A](fa: F[E, A], k: Either[E, A] => G[Nothing, Unit])(
+    implicit G: Sync2[G]
+  ): G[Nothing, Unit]
+}
+
+object RunAsync2 {
+
+  @inline def apply[F[+ _, + _]: RunAsync2]: RunAsync2[F] = implicitly
 }

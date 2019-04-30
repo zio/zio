@@ -16,6 +16,7 @@
 
 package scalaz.zio
 package interop
+package bio
 
 abstract class Fiber2[F[+ _, + _], E, A] {
 

@@ -16,8 +16,9 @@
 
 package scalaz.zio
 package interop
+package bio
 
-import cats.{ Applicative, Monad }
+import cats.{Applicative, Monad}
 
 abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
 
