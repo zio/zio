@@ -25,7 +25,6 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
   def monad[E]: Monad[F[E, ?]]
 
   /**
-   *
    * Returns an effect `F` that will fail with an error of type `E`.
    *
    * TODO: Example:
@@ -50,17 +49,6 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    *
    */
   @inline def redeem[E1, E2, A, B](fa: F[E1, A])(failure: E1 => F[E2, B], success: A => F[E2, B]): F[E2, B]
-
-  /**
-   * Overrides
-   */
-  override def applicative[E]: Applicative[F[E, ?]] = monad[E]
-
-  override def bimap[A, B, C, D](fab: F[A, B])(f: A => C, g: B => D): F[C, D] =
-    redeem(fab)(
-      f andThen raiseError,
-      g andThen monad.pure
-    )
 
   /**
    * Allows to recover from the error in a non failing way.
@@ -161,6 +149,18 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
     }
 
   /**
+   * Flips the types of `F`
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def flip[E, A](fa: F[E, A]): F[A, E] =
+    redeem(fa)(monad.pure, raiseError)
+
+  /**
    * Lifts an `Option` into `F`
    *
    * TODO: Example:
@@ -216,6 +216,14 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
       case scala.util.Failure(th) => raiseError(th)
       case scala.util.Success(a)  => monad.pure(a)
     }
+
+  override def applicative[E]: Applicative[F[E, ?]] = monad[E]
+
+  override def bimap[A, B, C, D](fab: F[A, B])(f: A => C, g: B => D): F[C, D] =
+    redeem(fab)(
+      f andThen raiseError,
+      g andThen monad.pure
+    )
 }
 
 object Errorful2 {

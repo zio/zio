@@ -20,7 +20,29 @@ package bio
 
 abstract class Sync2[F[+ _, + _]] extends Errorful2[F] {
 
+  /**
+   * Lazily lifts a pure value into the effect `F`.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
   def delay[A](a: => A): F[Nothing, A]
+
+  /**
+   * Allows to construct an effect from a lazily provided value
+   * that can be itself effectful.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def suspend[E, A](fa: => F[E, A]): F[E, A] =
+    monad flatten delay(fa)
 }
 
 object Sync2 {

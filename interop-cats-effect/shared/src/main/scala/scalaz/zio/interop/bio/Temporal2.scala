@@ -24,9 +24,18 @@ import scala.concurrent.duration.Duration
 
 abstract class Temporal2[F[+ _, + _]] extends Errorful2[F] {
 
-  def sleep(duration: Duration): F[Nothing, Unit]
-
   def now: F[Nothing, Instant]
+
+  /**
+   * Creates an effect that will sleep for the given `duration` before finishing execution.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def sleep(duration: Duration): F[Nothing, Unit]
 }
 
 object Temporal2 {

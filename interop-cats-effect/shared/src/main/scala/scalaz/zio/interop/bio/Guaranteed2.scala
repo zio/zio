@@ -24,6 +24,17 @@ abstract class Guaranteed2[F[+ _, + _]] extends Bifunctor[F] {
 
   def applicative[E]: Applicative[F[E, ?]]
 
+  /**
+   * Describes the guarantee that, if the effect `fa` starts,
+   * the finalizer `f` will begin execution after it, regardless
+   * the fact that the former fail or succeed.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
   def guarantee[E, A](fa: F[E, A], f: F[Nothing, Unit]): F[E, A]
 }
 

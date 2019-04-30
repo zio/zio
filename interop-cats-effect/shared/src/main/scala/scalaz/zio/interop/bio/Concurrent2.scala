@@ -29,6 +29,9 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
   def yieldTo[E, A](fa: F[E, A]): F[E, A]
 
   def evalOn[E, A](fa: F[E, A], ec: ExecutionContext): F[E, A]
+
+  // may be
+  def cont[E, A](r: (F[E, A] => F[Nothing, Unit]) => F[Nothing, Unit]): F[E, A]
 }
 
 object Concurrent2 {
