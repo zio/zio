@@ -86,8 +86,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream combinators
     unTake happy path       $unTake
     unTake with error       $unTakeError
-    buffer the Stream                          $bufferStream
-    buffer the Stream with Error               $bufferStreamError
+    buffer the Stream            $bufferStream
+    buffer the Stream with Error $bufferStreamError
   """
 
   import ArbitraryStream._
@@ -535,16 +535,17 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     ) must_== Failure(Cause.Fail(e))
   }
 
-  private def bufferStream =
+  private def bufferStream = prop { list: List[Int] =>
     unsafeRunSync(
       Stream
-        .range(0, 10)
+        .fromIterable(list)
         .buffer(2)
         .use { steam ⇒
           steam.run(Sink.collect[Int])
         }
         .interruptible
-    ) must_== (Success((0 to 10).toList))
+    ) must_== (Success(list))
+  }
 
   private def bufferStreamError = {
     val e = new RuntimeException("boom")
