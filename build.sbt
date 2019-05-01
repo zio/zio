@@ -125,6 +125,7 @@ lazy val interopCatsEffect =
     .in(file("interop-cats-effect"))
     .settings(stdSettings("zio-interop-cats-effect"))
     .settings(
+      skip in publish := true,
       libraryDependencies += "org.typelevel" %%% "cats-effect" % "1.2.0" % Optional
     )
     .dependsOn(core % "test->test;compile->compile")
