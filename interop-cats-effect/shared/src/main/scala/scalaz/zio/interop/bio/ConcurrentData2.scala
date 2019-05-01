@@ -18,8 +18,11 @@ package scalaz.zio
 package interop
 package bio
 
+import scalaz.zio.interop.bio.data.{Deferred2, Ref2}
+
 abstract class ConcurrentData2[F[+ _, + _]] {
 
   def ref[A]: F[Nothing, Ref2[F, A]]
+
   def deferred[E, A]: F[Nothing, Deferred2[F, E, A]]
 }

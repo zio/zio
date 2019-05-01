@@ -17,6 +17,7 @@
 package scalaz.zio
 package interop
 package bio
+package data
 
 abstract class Ref2[F[+ _, + _], A] {
 
