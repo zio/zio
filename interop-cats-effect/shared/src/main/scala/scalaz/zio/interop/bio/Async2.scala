@@ -20,9 +20,44 @@ package bio
 
 abstract class Async2[F[+ _, + _]] extends Sync2[F] {
 
-  def async[E, A](k: (F[E, A] => Unit) => Unit): F[E, A]
+  /**
+   * Imports into `F` an asynchronous effect with the possibility to
+   * return the value synchronously.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def asyncMayBe[E, A](k: (F[E, A] => Unit) => Option[F[E, A]]): F[E, A]
 
+  /**
+   * Imports into `F` an asynchronous effect with the possibility to
+   * return the value synchronously.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
   def asyncF[E, A](k: (F[E, A] => Unit) => F[Nothing, Unit]): F[E, A]
+
+  /**
+   * Imports into `F` an asynchronous effect.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def async[E, A](k: (F[E, A] => Unit) => Unit): F[E, A] =
+    asyncMayBe { callback =>
+      k(callback)
+      None
+    }
 }
 
 object Async2 {
