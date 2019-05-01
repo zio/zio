@@ -17,7 +17,7 @@ sealed trait Delay extends Serializable with Product { self =>
   /**
    * Computes delay related to current time in milliseconds
    */
-  def run: ZIO[Any, Nothing, Duration] = currentTime(unit = TimeUnit.MILLISECONDS).provide(Clock.Live).flatMap {
+  final def run: ZIO[Any, Nothing, Duration] = currentTime(unit = TimeUnit.MILLISECONDS).provide(Clock.Live).flatMap {
     millis =>
       self match {
         case Relative(duration) => ZIO.succeed(duration)

@@ -65,7 +65,6 @@ sealed trait Duration extends Ordered[Duration] with Serializable with Product {
   def asJava: JavaDuration
 
   final def relative: Delay = Delay.relative(this)
-  final def absolute: Delay = Delay.absolute(toMillis)
 }
 
 object Duration {

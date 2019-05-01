@@ -660,12 +660,21 @@ private[zio] trait Schedule_Functions extends Serializable {
   final def recurs(n: Int): Schedule[Any, Int] = forever.whileOutput(_ <= n)
 
   /**
-   * A schedule that will recur forever with no delay, returning the duration
+   * A schedule that will recur forever with no delay, returning the delay
    * between steps. You can chain this onto the end of schedules to find out
    * what their delay is, e.g. `Schedule.spaced(1.second) >>> Schedule.delay`.
    */
   final val delay: Schedule[Any, Delay] =
-    forever.reconsider[Any, Delay]((_, d) => d.copy(finish = () => d.delay))
+    forever.reconsider[Any, Delay]((_, d) => {
+      d.copy(finish = () => d.delay)
+    })
+
+  /**
+   * A schedule that will recur forever with no delay, taking a Delay as input
+   * and returning its representation as Duration
+   */
+  final val duration: Schedule[Delay, Duration] =
+    forever.reconsider[Delay, Delay]((s, d) => d.rightMap(_ => s)).mapM(_.run)
 
   /**
    * A schedule that will recur forever with no delay, returning the decision
@@ -705,35 +714,28 @@ private[zio] trait Schedule_Functions extends Serializable {
    * preceding two delays (similar to the fibonacci sequence). Returns the
    * current duration between recurrences.
    */
-  final def fibonacci(one: Duration): Schedule[Any, Duration] = {
-    val f = delayed[Any, Any](
-      unfold[(Delay, Delay)]((Delay.none, one.relative)) {
+  final def fibonacci(one: Duration): Schedule[Any, Duration] =
+    delayed[Any, Any](
+      unfold[(Duration, Duration)]((Duration.Zero, one)) {
         case (a1, a2) => (a2, a1 + a2)
-      }.map(_._1)
-    )
-
-    f.mapM(_.run) // TODO: Dotty doesn't infer this properly
-  }
+      }.map(_._1.relative)
+    ) >>> duration
 
   /**
    * A schedule that always recurs, but will repeat on a linear time
    * interval, given by `base * n` where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def linear(base: Duration): Schedule[Any, Duration] = {
-    val l = delayed[Any, Any](forever.map(i => (base * i.doubleValue()).relative))
-    l.mapM(_.run) // TODO: Dotty doesn't infer this properly
-  }
+  final def linear(base: Duration): Schedule[Any, Duration] =
+    delayed[Any, Any](forever.map(i => (base * i.doubleValue()).relative)) >>> duration
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
    * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] = {
-    val e = delayed[Any, Any](forever.map(i => (base * math.pow(factor, i.doubleValue)).relative))
-    e.mapM(_.run) // TODO: Dotty doesn't infer this properly
-  }
+  final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
+    delayed[Any, Any](forever.map(i => (base * math.pow(factor, i.doubleValue)).relative)) >>> duration
 
 }
 
@@ -758,7 +760,7 @@ object ZSchedule extends Schedule_Functions {
 
   implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
 
-  sealed case class Decision[+A, +B](cont: Boolean, delay: Delay, state: A, finish: () => B) {
+  final case class Decision[+A, +B](cont: Boolean, delay: Delay, state: A, finish: () => B) {
     self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
     final def leftMap[C](f: A => C): Decision[C, B]             = copy(state = f(state))
@@ -843,7 +845,7 @@ object ZSchedule extends Schedule_Functions {
   /**
    * Builds an Schedule capable of running an effect at a given minute and hour, every day
    */
-  final def everyDayAt(minute: Int, hour: Int): ZSchedule[Clock, Unit, (Long, Long)] =
+  final def everyDay(minute: Int, hour: Int): ZSchedule[Clock, Unit, (Long, Long)] =
     ZSchedule[Clock, Long, Unit, (Long, Long)](
       initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => 0L),
       update0 = (_, timesRan) =>
@@ -860,7 +862,11 @@ object ZSchedule extends Schedule_Functions {
             else
               scheduleMillis + 86400000
 
-          Decision.cont(Duration.apply(delay, TimeUnit.MILLISECONDS).absolute, timesRan + 1, (timesRan + 1, now))
+          Decision.cont(
+            Delay.absolute(Duration.apply(delay, TimeUnit.MILLISECONDS).toMillis),
+            timesRan + 1,
+            (timesRan + 1, now)
+          )
         }
     )
 }

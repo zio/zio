@@ -14,6 +14,11 @@ if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeR
 println(s"""libraryDependencies += "org.scalaz" %%% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
 ```
 
+### Dependencies
+
+`scalaz.zio.ZSchedule` depends on `java.time` package for a simple absolute time schedule implementation,
+so be aware of adding `scala-js-java-time` dependency to your project too.
+
 ### Example
 
 Your main function can extend `App` as follows.
