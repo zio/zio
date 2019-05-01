@@ -18,7 +18,7 @@ package scalaz.zio
 package interop
 package bio
 
-import cats.{Applicative, Bifunctor}
+import cats.{ Applicative, Bifunctor }
 
 abstract class Guaranteed2[F[+ _, + _]] extends Bifunctor[F] {
 

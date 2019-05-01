@@ -24,6 +24,16 @@ import scala.concurrent.duration.Duration
 
 abstract class Temporal2[F[+ _, + _]] extends Errorful2[F] {
 
+  /**
+   * Creates an effect that succeeds with the `Instant`
+   * taken when it begins execution.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
   def now: F[Nothing, Instant]
 
   /**

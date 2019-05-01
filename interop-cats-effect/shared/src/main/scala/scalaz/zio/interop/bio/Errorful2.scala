@@ -18,7 +18,7 @@ package scalaz.zio
 package interop
 package bio
 
-import cats.{Applicative, Monad}
+import cats.Monad
 
 abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
 
@@ -216,8 +216,6 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
       case scala.util.Failure(th) => raiseError(th)
       case scala.util.Success(a)  => monad.pure(a)
     }
-
-  override def applicative[E]: Applicative[F[E, ?]] = monad[E]
 
   override def bimap[A, B, C, D](fab: F[A, B])(f: A => C, g: B => D): F[C, D] =
     redeem(fab)(
