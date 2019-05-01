@@ -12,7 +12,7 @@ class StreamToPublisherTest(env: TestEnvironment, publisherShutdownTimeout: Long
     with DefaultRuntime {
 
   def this() {
-    this(new TestEnvironment(500), 1000)
+    this(new TestEnvironment(1000, 500), 1000)
   }
 
   def createPublisher(elements: Long): Publisher[Int] =
