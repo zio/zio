@@ -15,7 +15,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   import ArbitraryChunk._
 
-  def is = "StreamSpec".title ^ s2"""
+  def is =
+    "StreamSpec".title ^
+      s2"""
   Stream.filter             $filter
   Stream.dropWhile          $dropWhile
   Stream.map                $map
@@ -84,7 +86,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream combinators
     unTake happy path       $unTake
     unTake with error       $unTakeError
-    buffer the Stream       $bufferStream
+    buffer the Stream                          $bufferStream
+    buffer the Stream with Error               $bufferStreamError
   """
 
   import ArbitraryStream._
@@ -272,7 +275,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
         IO.effectTotal {
-          sum += a; if (sum >= 9) false else true
+          sum += a;
+          if (sum >= 9) false else true
         }
     )
 
@@ -531,10 +535,26 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     ) must_== Failure(Cause.Fail(e))
   }
 
-  private def bufferStream = {
-    val s1             = Stream(1, 2, 3, 4, 5, 6)
-    val bufferedStream = s1.buffer(1)
-    val list           = slurp(bufferedStream)
-    list must_=== Success(List(1, 2, 3, 4, 5, 6))
+  private def bufferStream =
+    unsafeRunSync(
+      Stream
+        .range(0, 10)
+        .buffer(2)
+        .use { steam ⇒
+          steam.run(Sink.collect[Int])
+        }
+        .interruptible
+    ) must_== (Success((0 to 10).toList))
+
+  private def bufferStreamError = {
+    val e = new RuntimeException("boom")
+    unsafeRunSync(
+      (Stream.range(0, 10) ++ Stream.fail(e))
+        .buffer(2)
+        .use { steam ⇒
+          steam.run(Sink.collect[Int])
+        }
+        .interruptible
+    ) must_== Failure(Cause.Fail(e))
   }
 }
