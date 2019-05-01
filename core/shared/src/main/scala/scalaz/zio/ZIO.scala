@@ -19,10 +19,12 @@ package scalaz.zio
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
-import scalaz.zio.internal.{ Executor, Platform }
+import scalaz.zio.internal.tracing.ZIOFn
+import scalaz.zio.internal.{Executor, Platform}
+import scalaz.zio.stacktracer.SourceLocation
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -696,18 +698,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
    */
-  final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] = self flatMap (_ => that)
+  final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    self.flatMap(new ZIO.ZipRightFn(() => that))
 
   /**
    * A named alias for `*>`.
    */
-  final def zipRight[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] = self *> that
+  final def zipRight[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+    self *> that
 
   /**
    * Sequences the specified effect after this effect, but ignores the
    * value produced by the effect.
    */
-  final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, A] = self flatMap (that const (_))
+  final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, A] =
+    self.flatMap(new ZIO.ZipLeftFn(() => that))
 
   /**
    * A named alias for `<*`.
@@ -866,7 +871,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * readFile("data.json").tap(putStrLn)
    * }}}
    */
-  final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] = self.flatMap(a => f(a).const(a))
+  final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] = self.flatMap(new ZIO.TapFn(f))
 
   /**
    * Returns an effect that effectfully "peeks" at the failure or success or
@@ -1762,8 +1767,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    * 'deallocator' can tell if the allocation succeeded or not just by
    * inspecting internal / external state.
    */
-  def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+  final def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     ZManaged(reservation).use(use)
+
+  final def trace: UIO[List[SourceLocation]] =
+    new ZIO.Trace
 
 }
 
@@ -1861,7 +1869,7 @@ object ZIO extends ZIO_R_Any {
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  implicit class ZIOInvariant[R, E, A](val self: ZIO[R, E, A]) extends AnyVal {
+  implicit class ZIOInvariant[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
     final def bracket: ZIO.BracketAcquire[R, E, A] =
       new ZIO.BracketAcquire(self)
 
@@ -1869,7 +1877,7 @@ object ZIO extends ZIO_R_Any {
       new ZIO.BracketExitAcquire(self)
   }
 
-  class InterruptStatusRestore(val flag: Boolean) extends AnyVal {
+  class InterruptStatusRestore(private val flag: Boolean) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.interruptStatus(flag)
   }
@@ -1937,6 +1945,23 @@ object ZIO extends ZIO_R_Any {
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
     a => succeed[Either[Any, Any]](Right(a))
 
+  final class ZipLeftFn[R, E, A, B](override val underlying: () => ZIO[R, E, A]) extends ZIOFn[B, ZIO[R, E, B]] {
+    def apply(v1: B): ZIO[R, E, B] =
+      underlying().const(v1)
+  }
+
+  final class ZipRightFn[R, E, A, B](override val underlying: () => ZIO[R, E, B]) extends ZIOFn[A, ZIO[R, E, B]] {
+    def apply(v1: A): ZIO[R, E, B] = {
+      val _ = v1
+      underlying()
+    }
+  }
+
+  final class TapFn[R, E, A](override val underlying: A => ZIO[R, E, _]) extends ZIOFn[A, ZIO[R, E, A]] {
+    def apply(v1: A): ZIO[R, E, A] =
+      underlying(v1).const(v1)
+  }
+
   private[zio] object Tags {
     final val FlatMap         = 0
     final val Succeed         = 1
@@ -1955,6 +1980,7 @@ object ZIO extends ZIO_R_Any {
     final val Yield           = 14
     final val Access          = 15
     final val Provide         = 16
+    final val Trace           = 17
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2044,5 +2070,9 @@ object ZIO extends ZIO_R_Any {
 
   private[zio] final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
     override def tag = Tags.Provide
+  }
+
+  private[zio] final class Trace[R] extends ZIO[R, Nothing, List[SourceLocation]] {
+    override def tag = Tags.Trace
   }
 }

@@ -16,11 +16,14 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.{ Executor => _, _ }
-import java.util.{ WeakHashMap, Map => JMap }
-import scala.concurrent.ExecutionContext
+import java.util.concurrent.{Executor => _, _}
+import java.util.{WeakHashMap, Map => JMap}
 
+import scala.concurrent.ExecutionContext
 import scalaz.zio.Exit.Cause
+import scalaz.zio.internal.tracing.Tracer
+import scalaz.zio.stacktracer.impl.{AkkaExtractorImpl, GlobalConcurrentHashMapCache}
+import scalaz.zio.stacktracer.{SourceExtractor, SourceLocationCache}
 
 object PlatformLive {
   lazy val Default = makeDefault()
@@ -31,6 +34,14 @@ object PlatformLive {
   final def fromExecutor(executor0: Executor) =
     new Platform {
       val executor = executor0
+      val tracer = new Tracer {
+        override val extractor: SourceExtractor        = new AkkaExtractorImpl
+        override val cache: SourceLocationCache = new GlobalConcurrentHashMapCache
+
+        override def maxTraceLength: Int           = 1024
+        override def fiberAncestorTraceLength: Int = 10
+        override def traceLeftBindsOnly: Boolean   = true
+      }
 
       def fatal(t: Throwable): Boolean =
         t.isInstanceOf[VirtualMachineError]

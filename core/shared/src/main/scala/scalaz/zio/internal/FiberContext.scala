@@ -16,11 +16,14 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 import scalaz.zio._
+import scalaz.zio.internal.tracing.ZIOFn
+import scalaz.zio.stacktracer.SourceLocation
 
-import scala.annotation.{ switch, tailrec }
+import scala.annotation.{switch, tailrec}
+import scala.collection.mutable
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -48,6 +51,28 @@ private[zio] final class FiberContext[E, A](
   private[this] val environment     = Stack[AnyRef](startEnv)
   private[this] val locked          = Stack[Executor]()
   private[this] val supervised      = Stack[Set[FiberContext[_, _]]]()
+
+  // TODO: disable allocation on JS or when tracing is disabled
+//  private[this] val trace           = RingBuffer(platform.tracer.maxTraceLength)
+  private[this] val trace = mutable.ArrayBuffer[SourceLocation]()
+//  private[this] val tracingStatus   = StackBool()
+
+  // TODO
+  val traceCache = platform.tracer.cache
+  val traceFn    = platform.tracer.extractor.extractSourceLocation(_: AnyRef).get
+  private[this] final def addTrace(lambda: Function[_, _]): Unit = {
+    val unwrapped = lambda match {
+      case z: ZIOFn[_, _] =>
+        val underlying = z.underlying
+        if (underlying == null) // allow declaring traceless ZIOFn's, e.g. skip trivial lambas such as succeed(_), fail(_). TODO
+          return
+        else
+          underlying
+      case other          => other
+    }
+
+    trace += traceCache.getOrElseUpdate(unwrapped, traceFn); ()
+  }
 
   final def runAsync(k: Callback[E, A]): Unit =
     register0(xx => k(Exit.flatten(xx))) match {
@@ -145,17 +170,26 @@ private[zio] final class FiberContext[E, A](
                     case ZIO.Tags.Succeed =>
                       val io2 = nested.asInstanceOf[ZIO.Succeed[Any]]
 
-                      curIo = io.k(io2.value)
+                      val k = io.k
+                      addTrace(k)
+
+                      curIo = k(io2.value)
 
                     case ZIO.Tags.EffectTotalWith =>
                       val io2 = nested.asInstanceOf[ZIO.EffectTotalWith[Any]]
 
-                      curIo = io.k(io2.effect(platform))
+                      val k = io.k
+                      addTrace(k)
+
+                      curIo = k(io2.effect(platform))
 
                     case ZIO.Tags.EffectTotal =>
                       val io2 = nested.asInstanceOf[ZIO.EffectTotal[Any]]
 
-                      curIo = io.k(io2.effect())
+                      val k = io.k
+                      addTrace(k)
+
+                      curIo = k(io2.effect())
 
                     case ZIO.Tags.EffectPartial =>
                       val io2 = nested.asInstanceOf[ZIO.EffectPartial[Any]]
@@ -166,8 +200,12 @@ private[zio] final class FiberContext[E, A](
                         case t: Throwable if !platform.fatal(t) =>
                           nextIo = ZIO.fail(t.asInstanceOf[E])
                       }
-                      if (nextIo eq null) curIo = io.k(value)
-                      else curIo = nextIo
+                      if (nextIo eq null) {
+                        val k = io.k
+                        addTrace(k)
+
+                        curIo = k(value)
+                      } else curIo = nextIo
 
                     case _ =>
                       // Fallback case. We couldn't evaluate the LHS so we have to
@@ -253,7 +291,10 @@ private[zio] final class FiberContext[E, A](
 
                   // Enter suspended state:
                   curIo = if (enterAsync()) {
-                    io.register(resumeAsync) match {
+                    val k = io.register
+                    addTrace(k)
+
+                    k(resumeAsync) match {
                       case Some(io) => if (exitAsync()) io else null
                       case None     => null
                     }
@@ -276,7 +317,10 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Descriptor =>
                   val io = curIo.asInstanceOf[ZIO.Descriptor[Any, E, Any]]
 
-                  curIo = io.k(getDescriptor)
+                  val k = io.k
+                  addTrace(k)
+
+                  curIo = k(getDescriptor)
 
                 case ZIO.Tags.Lock =>
                   val io = curIo.asInstanceOf[ZIO.Lock[Any, E, Any]]
@@ -291,7 +335,10 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Access =>
                   val io = curIo.asInstanceOf[ZIO.Read[Any, E, Any]]
 
-                  curIo = io.k(environment.peek())
+                  val k = io.k
+                  addTrace(k)
+
+                  curIo = k(environment.peek())
 
                 case ZIO.Tags.Provide =>
                   val io = curIo.asInstanceOf[ZIO.Provide[Any, E, Any]]
@@ -300,6 +347,11 @@ private[zio] final class FiberContext[E, A](
                   val pop  = ZIO.effectTotal(environment.pop())
 
                   curIo = push.bracket_(pop, io.next)
+
+                case ZIO.Tags.Trace =>
+                  val value = trace.toList
+
+                  curIo = nextInstr(value)
               }
             }
           } else {
@@ -328,6 +380,12 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def unlock: UIO[Unit] =
     IO.effectTotal { locked.pop() } *> IO.yieldNow
+
+//  private[this] final def tracingRegion(trace: Boolean): UIO[Unit] =
+//    IO.effectTotal { tracingStatus.push(trace) }
+//
+//  private[this] final def endTracingRegion: UIO[Unit] =
+//    IO.effectTotal { tracingStatus.popDrop(()) }
 
   private[this] final def getDescriptor: Fiber.Descriptor =
     Fiber.Descriptor(fiberId, interrupted, interruptible, executor, getFibers)
@@ -447,8 +505,12 @@ private[zio] final class FiberContext[E, A](
 
   @inline
   private[this] final def nextInstr(value: Any): IO[E, Any] =
-    if (!stack.isEmpty) stack.pop()(value).asInstanceOf[IO[E, Any]]
-    else {
+    if (!stack.isEmpty) {
+      val k = stack.pop()
+
+      addTrace(k)
+      k(value).asInstanceOf[IO[E, Any]]
+    } else {
       done(Exit.succeed(value.asInstanceOf[A]))
 
       null

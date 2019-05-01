@@ -50,7 +50,8 @@ lazy val root = project
     interopReactiveStreamsJVM,
 //  benchmarks,
     testkitJVM,
-    docs
+    docs,
+    stacktracerJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -68,6 +69,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
+  .dependsOn(stacktracerJVM)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
   .settings(
@@ -231,6 +233,20 @@ lazy val testkit = crossProject(JVMPlatform)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val testkitJVM = testkit.jvm
+
+lazy val stacktracer = crossProject(JVMPlatform)
+  .in(file("stacktracer"))
+  .settings(stdSettings("zio-stacktracer"))
+  .settings(buildInfoSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
+    )
+  )
+
+lazy val stacktracerJVM = stacktracer.jvm
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
