@@ -18,6 +18,9 @@ package scalaz.zio.interop.stm
 
 import scalaz.zio.stm.{ TQueue => ZTQueue }
 
+/**
+ * See [[scalaz.zio.stm.TQueue]]
+ */
 class TQueue[F[+ _], A] private (val underlying: ZTQueue[A]) extends AnyVal {
 
   /**
@@ -25,18 +28,39 @@ class TQueue[F[+ _], A] private (val underlying: ZTQueue[A]) extends AnyVal {
    */
   def mapK[G[+ _]]: TQueue[G, A] = new TQueue(underlying)
 
+  /**
+   * See [[scalaz.zio.stm.TQueue#offer]]
+   */
   final def offer(a: A): STM[F, Unit] = new STM(underlying.offer(a))
 
+  /**
+   * See [[scalaz.zio.stm.TQueue#offerAll]]
+   */
   final def offerAll(as: List[A]): STM[F, Unit] = new STM(underlying.offerAll(as))
 
-  final def poll: STM[F, Option[A]] = takeUpTo(1).map(_.headOption)
+  /**
+   * See [[scalaz.zio.stm.TQueue#poll]]
+   */
+  final def poll: STM[F, Option[A]] = new STM(underlying.poll)
 
+  /**
+   * See [[scalaz.zio.stm.TQueue#size]]
+   */
   final def size: STM[F, Int] = new STM(underlying.size)
 
+  /**
+   * See [[scalaz.zio.stm.TQueue#take]]
+   */
   final def take: STM[F, A] = new STM(underlying.take)
 
+  /**
+   * See [[scalaz.zio.stm.TQueue#takeAll]]
+   */
   final def takeAll: STM[F, List[A]] = new STM(underlying.takeAll)
 
+  /**
+   * See [[scalaz.zio.stm.TQueue#takeUpTo]]
+   */
   final def takeUpTo(max: Int): STM[F, List[A]] = new STM(underlying.takeUpTo(max))
 }
 

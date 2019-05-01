@@ -18,11 +18,24 @@ package scalaz.zio.interop.stm
 
 import scalaz.zio.stm.{ TPromise => ZTPromise }
 
+/**
+ * See [[scalaz.zio.stm.TPromise]]
+ */
 class TPromise[F[+ _], E <: Throwable, A] private (underlying: ZTPromise[E, A]) {
+
+  /**
+   * See [[scalaz.zio.stm.TPromise#await]]
+   */
   final def await: STM[F, A] = new STM(underlying.await)
 
+  /**
+   * See [[scalaz.zio.stm.TPromise#done]]
+   */
   final def done(v: Either[E, A]): STM[F, Boolean] = new STM(underlying.done(v))
 
+  /**
+   * See [[scalaz.zio.stm.TPromise#fail]]
+   */
   final def fail(e: E): STM[F, Boolean] =
     done(Left(e))
 
@@ -31,8 +44,14 @@ class TPromise[F[+ _], E <: Throwable, A] private (underlying: ZTPromise[E, A]) 
    */
   def mapK[G[+ _]]: TPromise[G, E, A] = new TPromise(underlying)
 
+  /**
+   * See [[scalaz.zio.stm.TPromise#poll]]
+   */
   final def poll: STM[F, Option[STM[F, A]]] = new STM(underlying.poll.map(_.map(new STM(_))))
 
+  /**
+   * See [[scalaz.zio.stm.TPromise#succeed]]
+   */
   final def succeed(a: A): STM[F, Boolean] =
     done(Right(a))
 }

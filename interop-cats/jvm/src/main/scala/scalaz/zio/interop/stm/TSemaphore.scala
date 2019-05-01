@@ -18,11 +18,24 @@ package scalaz.zio.interop.stm
 
 import scalaz.zio.stm.{ TSemaphore => ZTSemaphore }
 
+/**
+ * See [[scalaz.zio.stm.TSemaphore]]
+ */
 class TSemaphore[F[+ _]] private (underlying: ZTSemaphore) {
+
+  /**
+   * See [[scalaz.zio.stm.TSemaphore#acquire]]
+   */
   final def acquire: STM[F, Unit] = acquireN(1L)
 
+  /**
+   * See [[scalaz.zio.stm.TSemaphore#acquireN]]
+   */
   final def acquireN(n: Long): STM[F, Unit] = new STM(underlying.acquireN(n))
 
+  /**
+   * See [[scalaz.zio.stm.TSemaphore#available]]
+   */
   final def available: STM[F, Long] = new STM(underlying.available)
 
   /**
@@ -30,12 +43,21 @@ class TSemaphore[F[+ _]] private (underlying: ZTSemaphore) {
    */
   def mapK[G[+ _]]: TSemaphore[G] = new TSemaphore(underlying)
 
+  /**
+   * See [[scalaz.zio.stm.TSemaphore#release]]
+   */
   final def release: STM[F, Unit] = releaseN(1L)
 
+  /**
+   * See [[scalaz.zio.stm.TSemaphore#releaseN]]
+   */
   final def releaseN(n: Long): STM[F, Unit] = new STM(underlying.releaseN(n))
 
-  final def withPermit[E, B](stm: STM[F, B]): STM[F, B] =
-    acquire *> stm <* release
+  /**
+   * See [[scalaz.zio.stm.TSemaphore#withPermit]]
+   */
+  final def withPermit[B](stm: STM[F, B]): STM[F, B] =
+    new STM(underlying.withPermit(stm.underlying))
 }
 
 object TSemaphore {
