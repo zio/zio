@@ -53,7 +53,7 @@
     ]
   },
   "advanced-sidebar": {
-    "advanced": [
+    "Advanced": [
       "advanced/advanced_index",
       "advanced/advanced_error_model",
       "advanced/advanced_performance",

@@ -50,7 +50,7 @@ class Description extends React.Component {
             </ul>
         </div>
         <div>
-            To learn more about how ZIO can help you accomplish the impossible, see <a href="./docs/getting_started.html">Getting Started</a> and <a href="./docs/overview/index.html">Overview</a>.
+            To learn more about how ZIO can help you accomplish the impossible, see <a href="./docs/getting_started.html">Getting Started</a> and <a href="./docs/overview/overview_index.html">Overview</a>.
         </div>
       </div>
     );

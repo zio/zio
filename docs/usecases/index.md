@@ -1,6 +1,6 @@
 ---
 id: usecases_index
-title:  "Use Cases"
+title:  "Summary"
 ---
 
 The ZIO library lets you easily solve problems in aa variety of areas, including:
