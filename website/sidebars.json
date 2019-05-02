@@ -29,7 +29,7 @@
     ]
   },
   "interop-sidebar": {
-    "interop": [
+    "Interop": [
       "interop/interop_index",
       "interop/interop_catseffect",
       "interop/interop_future",
@@ -37,7 +37,7 @@
       "interop/interop_javascript",
       "interop/interop_monix",
       "interop/interop_scalaz7x",
-      "interop/interop_scalaz8",
+      "interop/interop_scalaz_8",
       "interop/interop_reactivestreams"
     ]
   },
@@ -47,7 +47,7 @@
       "usecases/usecases_asynchronous",
       "usecases/usecases_concurrency",
       "usecases/usecases_parallelism",
-      "usecases/usecases_queueing",
+      "usecases/usecases_queuing",
       "usecases/usecases_scheduling",
       "usecases/usecases_streaming"
     ]
