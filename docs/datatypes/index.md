@@ -1,6 +1,6 @@
 ---
 id: datatypes_index
-title:  "Data Types"
+title:  "Summary"
 ---
 
 ZIO contains a small number of data types that can help you solve complex problems in asynchronous and concurrent programming.

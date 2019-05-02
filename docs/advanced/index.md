@@ -1,6 +1,6 @@
 ---
 id: advanced_index
-title:  "Advanced"
+title:  "Summary"
 ---
 
-*** Need some content on index to show up in top nav.
+Coming soon
