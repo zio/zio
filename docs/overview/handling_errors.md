@@ -9,7 +9,7 @@ This section looks at some of the common ways to detect and respond to effects t
 import scalaz.zio._
 ```
 
-# Either
+## Either
 
 You can surface failures with `ZIO#either`, which takes an `ZIO[R, E, A]` and produces an `ZIO[R, Nothing, Either[E, A]]`.
 
@@ -30,7 +30,7 @@ def sqrt(io: UIO[Double]): IO[String, Double] =
   )
 ```
 
-# Catching All Errors
+## Catching All Errors
 
 If you want to catch and recover from all types of errors and effectfully attempt recovery, you can use the `catchAll` method:
 
@@ -47,7 +47,7 @@ val z: IO[IOException, Array[Byte]] =
     openFile("backup.json"))
 ```
 
-# Catching Some Errors
+## Catching Some Errors
 
 If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the `catchSome` method:
 
@@ -59,7 +59,7 @@ val data: IO[IOException, Array[Byte]] =
   }
 ```
 
-# Fallback
+## Fallback
 
 You can try one effect, or, if it fails, try another effect, with the `orElse` combinator:
 
@@ -68,7 +68,7 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
   openFile("primary.data") orElse openFile("backup.data")
 ```
 
-# Folding
+## Folding
 
 Just like Scala's `Option` and `Either` data types have `fold`, which let you deal with both failure and success at the same time, `ZIO` effects also have several methods to fold over them.
 
@@ -111,7 +111,7 @@ val urls: UIO[Content] =
   )
 ```
 
-# Retrying
+## Retrying
 
 There are a number of useful methods on the ZIO data type for retrying failed effects. 
 
@@ -136,6 +136,6 @@ The final method, `ZIO#retryOrElseEither`, allows returning a different type for
 
 For more information on how to build schedules, see the documentation on [Schedule](../datatypes/schedule.md).
 
-# Next Steps
+## Next Steps
 
 If you are comfortable with basic error handling, then the next step is to learn about [safe resource handling](handling_resources.md).

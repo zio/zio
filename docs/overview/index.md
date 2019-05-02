@@ -9,7 +9,7 @@ ZIO is a library for asynchronous and concurrent programming that is based on pu
 
 At the core of ZIO is `ZIO`, a powerful data type inspired by Haskell's `IO` monad. The `ZIO` effect type lets you solve complex problems with simple, type-safe, testable, and composable code.
 
-# ZIO 
+## ZIO 
 
 The `ZIO[R, E, A]` data type has three type parameters:
 
@@ -27,7 +27,7 @@ R => Either[E, A]
 
 The function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing a success. ZIO effects are not actually functions, of course, because they model complex effects.
 
-# Type Aliases
+## Type Aliases
 
 The `ZIO` data type is the only effect type in ZIO. However, there are a family of type aliases and companion objects that simplify common cases:
 
@@ -46,6 +46,6 @@ No matter what type alias you use in your application, `UIO` can be useful for d
 
 Finally, if you are an experienced functional programmer, then direct use of the `ZIO` data type is recommended, although you may find it useful to create your own family of type aliases in different parts of your application.
 
-# Next Steps
+## Next Steps
 
 If you are comfortable with the ZIO data type (and its family of type aliases), the next step is learning how to [create effects](creating_effects.md).

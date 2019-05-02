@@ -12,7 +12,7 @@ import scalaz.zio._
 import scalaz.zio.console._
 ```
 
-# Environments
+## Environments
 
 The ZIO data type has an `R` type parameter, which is used to describe the type of _environment_ required by the effect. 
 
@@ -72,13 +72,13 @@ val result: UIO[Int] = square.provide(42)
 
 The combination of `ZIO.accessM` and `ZIO#provide` are all that is necessary to fully use environmental effects for easy testability.
 
-# Environmental Effects
+## Environmental Effects
 
 The fundamental idea behind environmental effect is to _program to an interface, not an implementation_. Rather than passing around interfaces manually, or injecting them using dependency injection, we take advantage of ZIO environment to automatically pass interfaces wherever they are required.
 
 In this section, we'll explore environmental effects by developing a testable database service.
 
-## Define the Service
+### Define the Service
 
 We will define the database service with the help of a module, which is an interface that contains only a single field, which provides access to the service.
 
@@ -102,7 +102,7 @@ trait Database {
 
 In this example, the type `Database` is the _module_, which contains the `Database.Service` _service_. The _service_ is just an ordinary interface, placed inside the companion object of the module, which contains effectful functions that represent the _capabilities_ of the database service.
 
-## Provide Helpers
+### Provide Helpers
 
 In order to make it easier to access the database service as an environmental effect, we will define helper functions that use `ZIO.accessM`.
 
@@ -116,7 +116,7 @@ object db {
 }
 ```
 
-## Use the Service
+### Use the Service
 
 We're now ready to build an example that uses the database service:
 
@@ -131,7 +131,7 @@ The effect in this example interacts with the database solely through the enviro
 
 To actually run such an effect, we need to implement the database module.
 
-## Implement Live Service
+### Implement Live Service
 
 Now we can implement a live database module, which will actually interact with our production database:
 
@@ -144,7 +144,7 @@ object DatabaseLive extends DatabaseLive
 
 (The real implementation is not provided because that would require details beyond the scope of this section.)
 
-## Run the Database Effect
+### Run the Database Effect
 
 We can now provide the live database module to our application, using `ZIO.provide`:
 
@@ -157,7 +157,7 @@ def main2: ZIO[Any, Throwable, Unit] =
 
 The resulting effect has no requirements, so it can now be executed.
 
-## Implement Test Service
+### Implement Test Service
 
 To test code that interacts with the database, we would like to not interact with a real database, because that will make our test slow and brittle, and fail randomly even when our application logic is correct.
 
@@ -185,7 +185,7 @@ trait TestDatabase extends Database {
 object TestDatabase extends TestDatabase
 ```
 
-## Test Database Code
+### Test Database Code
 
 To test code that requires the database, we need only provide it with our test database service.
 
@@ -198,6 +198,6 @@ def code2: ZIO[Any, Throwable, Unit] =
 
 The same code can work with either our production database module, or our test database module.
 
-# Next Steps
+## Next Steps
 
 If you are comfortable with testing effects, then the next step is to learn about [running effects](running_effects.md).

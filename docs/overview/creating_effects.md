@@ -9,7 +9,7 @@ This section explores some of the common ways to create ZIO effects from values,
 import scalaz.zio.{ ZIO, Task, UIO, IO }
 ```
 
-# From Success Values
+## From Success Values
 
 Using the `ZIO.succeed` method, you can create an effect that models success:
 
@@ -36,7 +36,7 @@ val s3 = ZIO.succeedLazy(bigString)
 
 The successful effect constructed with `ZIO.succeedLazy` will only construct its value if the effect itself ends up being used.
 
-# From Failure Values
+## From Failure Values
 
 Using the `ZIO.fail` method, you can create an effect that models failure:
 
@@ -54,11 +54,11 @@ val f2 = Task.fail(new Exception("Uh oh!"))
 
 Note that the `UIO` companion object does not have `UIO.fail`, because `UIO` values cannot fail.
 
-# From Scala Values
+## From Scala Values
 
 Scala's standard library contains a number of data types that can be converted into ZIO effects.
 
-## Option
+### Option
 
 An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 
@@ -68,7 +68,7 @@ val zoption: ZIO[Any, Unit, Int] = ZIO.fromOption(Some(2))
 
 The error type of the resulting effect is `Unit`, because the `None` case of `Option` provides no information on why the value is not there. You can change that `Unit` into a more specific error type using `ZIO#mapError`.
 
-## Either
+### Either
 
 An `Either` can be converted in to a ZIO effect using `ZIO.fromEither`:
 
@@ -78,7 +78,7 @@ val zeither = ZIO.fromEither(Right("Success!"))
 
 Unlike `ZIO.fromOption`, the error type of the resulting effect will be whatever type the `Left` case has, while the success type will be whatever type the `Right` case has.
 
-## Try
+### Try
 
 A `Try` value can be converted into a ZIO effect using `ZIO.fromTry`:
 
@@ -90,7 +90,7 @@ val ztry = ZIO.fromTry(Try(42 / 0))
 
 The error type of the resulting effect will always be `Throwable`, because a `Try` can fail with any value of type `Throwable`.
 
-## Function
+### Function
 
 A function `A => B` can be converted into a ZIO effect with `ZIO.fromFunction`:
 
@@ -101,7 +101,7 @@ val zfun: ZIO[Int, Nothing, Int] =
 
 The environment type of the effect is `A` (the input type of the function), because in order to run the effect, it must first be supplied with such a value.
 
-## Future
+### Future
 
 A `Future` can be converted into a ZIO effect using `ZIO.fromFuture`:
 
@@ -120,13 +120,13 @@ The function passed to `fromFuture` is passed an `ExecutionContext`, which will 
 
 The error type of the resulting effect will always be `Throwable`, because a `Future` can fail with any value of type `Throwable`.
 
-# From Side-Effects
+## From Side-Effects
 
 ZIO can convert both synchronous and asynchronous side-effects into ZIO effects (pure values). 
 
 These functions can be used to wrap non-functional code, allowing you to seamlessly use all features of ZIO with legacy Scala and Java code, as well as third-party libraries.
 
-## Synchronous Side-Effects
+### Synchronous Side-Effects
 
 A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
 
@@ -157,7 +157,7 @@ val getStrLn2: IO[IOException, String] =
   }
 ```
 
-## Asynchronous Side-Effects
+### Asynchronous Side-Effects
 
 An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
 
@@ -183,7 +183,7 @@ val login: IO[AuthError, User] =
 
 Asynchronous ZIO effects are much easier to use than callback-based APIs, and they benefit from ZIO features like interruption, resource-safety, and superior error handling.
 
-# Blocking Synchronous Side-Effects
+## Blocking Synchronous Side-Effects
 
 Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from an application's main thread pool.
 

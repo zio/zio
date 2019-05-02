@@ -5,13 +5,13 @@ title:  "Reactive Streams"
 
 Checkout the `interop-reactiveStreams` module for inter-operation support.
 
-### Reactive Streams `Producer` and `Subscriber`
+## Reactive Streams `Producer` and `Subscriber`
 
 **ZIO** integrates with [Reactive Streams](http://reactivestreams.org) by providing conversions from `zio.stream.Stream` to `org.reactivestreams.Publisher`
 and from `zio.stream.Sink` to `org.reactivestreams.Subscriber` and vice versa. Simply import `import scalaz.zio.interop.reactiveStreams._` to make the 
 conversions available.
 
-### Examples
+## Examples
 
 First, let's get a few imports out of the way.
 
@@ -36,7 +36,7 @@ val subscriber = new SyncSubscriber[Int] {
 }
 ```
 
-#### Publisher to Stream
+### Publisher to Stream
 
 A `Publisher` used as a `Stream` buffers up to `qSize` elements. If possible, `qSize` should be
 a power of two for best performance. The default is 16.
@@ -48,7 +48,7 @@ runtime.unsafeRun(
 )
 ```
 
-#### Subscriber to Sink
+### Subscriber to Sink
 
 When running a `Stream` to a `Subscriber`, a side channel is needed for signalling failures.
 For this reason `toSink` returns a tuple of `Promise` and `Sink`. The `Promise` must be failed
@@ -64,7 +64,7 @@ runtime.unsafeRun(
 )
 ```
 
-#### Stream to Publisher
+### Stream to Publisher
 
 ```scala mdoc
 val stream = Stream.range(3, 13)
@@ -75,7 +75,7 @@ runtime.unsafeRun(
 )
 ```
 
-#### Sink to Subscriber
+### Sink to Subscriber
 
 `toSubscriber` returns a `Subscriber` and an `IO` which completes with the result of running the 
 `Sink` or the error if the `Publisher` fails.

@@ -27,7 +27,7 @@
         "title": "FiberLocal"
       },
       "datatypes/datatypes_index": {
-        "title": "Data Types"
+        "title": "Summary"
       },
       "datatypes/datatypes_io": {
         "title": "IO"
@@ -66,7 +66,7 @@
         "title": "Future"
       },
       "interop/interop_index": {
-        "title": "Interop"
+        "title": "Summary"
       },
       "interop/interop_java": {
         "title": "Java"
@@ -120,7 +120,7 @@
         "title": "Concurrency"
       },
       "usecases/usecases_index": {
-        "title": "Use Cases"
+        "title": "Summary"
       },
       "usecases/usecases_parallelism": {
         "title": "Parallelism"
@@ -150,7 +150,7 @@
       "DataTypes": "DataTypes",
       "interop": "interop",
       "Usecases": "Usecases",
-      "advanced": "advanced"
+      "Advanced": "Advanced"
     }
   },
   "pages-strings": {

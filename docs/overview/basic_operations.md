@@ -8,7 +8,7 @@ import scalaz.zio._
 import scalaz.zio.console._
 ```
 
-# Mapping
+## Mapping
 
 You can map over the success channel of an effect by calling the `ZIO#map` method. This lets you transform the success values of effects into other values.
 
@@ -27,7 +27,7 @@ val failed: IO[Exception, Unit] =
 
 Note that mapping over success or error channels does not change the success or failure of the effect, in the same way that mapping over an `Either` does not change whether the `Either` is `Left` or `Right`.
 
-# Chaining
+## Chaining
 
 You can execute two effects in sequence with the `flatMap` method. The second effect may depend on the success value of the first effect:
 
@@ -38,7 +38,7 @@ val sequenced: UIO[List[Int]] =
   }
 ```
 
-# For Comprehensions
+## For Comprehensions
 
 Because the `ZIO` data type supports both `flatMap` and `map`, you can use Scala's _for comprehensions_ to build sequential effects:
 
@@ -51,6 +51,6 @@ val program =
   } yield ()
 ```
 
-# Next Step
+## Next Step
 
 If you are comfortable with the basic operations on ZIO effects, then the next step is to learn about [error handling](handling_errors.md).

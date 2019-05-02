@@ -22,7 +22,7 @@ Schedules define stateful, possibly effectful, recurring schedules of events, an
 
 A `Schedule[A, B]` consumes input values of type `A` (errors in the case of `retry`, or values in the case of `repeat`), and based on these values and internal state, decides whether to recur or conclude. Every decision is accompanied by a (possibly zero) delay, indicating how much time before the next recurrence, and an output value of type `B`.
 
-# Base Schedules
+## Base Schedules
 
 ```scala mdoc:invisible
 import scalaz.zio.duration._
@@ -64,7 +64,7 @@ A schedule that recurs using fibonacci backoff:
 val fibonacci = Schedule.fibonacci(10.milliseconds)
 ```
 
-# Schedule Combinators
+## Schedule Combinators
 
 Applying random jitter to a schedule:
 

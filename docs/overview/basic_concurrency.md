@@ -7,7 +7,7 @@ ZIO has low-level support for concurrency using _fibers_. While fibers are very 
 
 If you are able to do so, you should always use higher-level operations, rather than working with fibers directly. For the sake of completeness, this section introduces both fibers and some of the higher-level operations built on them.
 
-# Fibers
+## Fibers
 
 ZIO's concurrency is built on _fibers_, which are lightweight "green threads" implemented by the ZIO runtime.
 
@@ -19,7 +19,7 @@ All effects in ZIO are executed by _some_ fiber. If you did not create the fiber
 
 Even if you only write "single-threaded" code, with no parallel or concurrent operations, then there will be at least one fiber: the "main" fiber that executes your effect.
 
-## The Fiber Data Type
+### The Fiber Data Type
 
 The `Fiber[E, A]` data type in ZIO has two type parameters:
 
@@ -33,7 +33,7 @@ Fibers do not have an `R` type parameter, because they model effects that are al
 import scalaz.zio._
 ```
 
-## Forking Effects
+### Forking Effects
 
 The most primitive way of creating a fiber is to take an effect and _fork_ it. Conceptually, _forking_ an effect immediately begins executing the effect on a new fiber, giving you the new fiber.
 
@@ -54,7 +54,7 @@ val z: UIO[Fiber[Nothing, Long]] =
   } yield fiber
 ```
 
-## Joining Effects
+### Joining Effects
 
 One of the methods on `Fiber` is `join`, which allows another fiber to obtain the result of the fiber being joined. This is similar to awaiting the final result of the fiber, whether that is failure or success.
 
@@ -65,7 +65,7 @@ for {
 } yield message
 ```
 
-## Awaiting Fibers
+### Awaiting Fibers
 
 Another method on `Fiber` is `await`, which allows for inspecting the result of a completed `Fiber`. This provides access to full details on how the fiber completed, represented by the `Exit` data type.
 
@@ -76,7 +76,7 @@ for {
 } yield exit
 ```
 
-## Interrupting Fibers
+### Interrupting Fibers
 
 A fiber whose result is no longer needed may be _interrupted_, which immediately terminates the fiber, safely releasing all resources and running all finalizers.
 
@@ -98,7 +98,7 @@ for {
 } yield ()
 ```
 
-## Composing Fibers
+### Composing Fibers
 
 Fibers may be composed in several ways. 
 
@@ -124,7 +124,7 @@ for {
 } yield tuple
 ```
 
-# Parallelism
+## Parallelism
 
 ZIO provides many operations for performing effects in parallel. These methods are all named with a `Par` suffix that helps you more easily identify opportunities to parallelize your code.
 
@@ -143,7 +143,7 @@ The following table summarizes some of the sequential operations and their corre
 
 For all the parallel operations, if one effect fails, then others will be interrupted, to minimize unnecessary computation. If this behavior is not desired, the potentially failing effects can be converted into infallible effects using the `ZIO#either` or `ZIO#option` methods.
 
-# Racing
+## Racing
 
 ZIO allows you to race multiple effects in parallel, returning the first successful result:
 
@@ -155,7 +155,7 @@ for {
 
 If you want the first success or failure, rather than the first success, then you can use `left.either race right.either`, for any effects `left` and `right`.
 
-# Timeout
+## Timeout
 
 ZIO lets you timeout any effect using the `ZIO#timeout` method, which succeeds with an `Option`, where a value of `None` indicates the effect timed out before producing the result.
 
@@ -167,6 +167,6 @@ IO.succeed("Hello").timeout(10.seconds)
 
 If an effect is timed out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
 
-# Next Steps
+## Next Steps
 
 If you are comfortable with basic concurrency, then the next step is to learn about [testing effects](testing_effects.md).

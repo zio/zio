@@ -21,7 +21,7 @@ Functional programs do not interact with the external world directly, because th
 
 Immutable data structures that model procedural effects are called _functional effects_. The concept of functional effects is critical to deeply understanding how ZIO works, and is introduced in the next section.
 
-# Programs As Values
+## Programs As Values
 
 We can build a simple description of a console program that has just three instructions:
 
@@ -114,6 +114,6 @@ All purely functional programs are constructed this way: instead of interacting 
 
 Functional programmers use functional effects to build complex, real world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.
 
-# Next Steps
+## Next Steps
 
 If functional effects are starting to make more sense, then the next step is to learn more about the [core effect type](index.md) in ZIO.

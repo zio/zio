@@ -3,7 +3,7 @@ id: interop_index
 title:  "Summary"
 ---
 
-# Interop
+## Interop
 
 ZIO provides the ability to interoperate with other parts of the broader ecosystem, including:
 
