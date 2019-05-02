@@ -11,7 +11,7 @@ ZIO's resource management features work across synchronous, asynchronous, concur
 import scalaz.zio._
 ```
 
-# Finalizing
+## Finalizing
 
 ZIO provides similar functionality to `try` / `finally` with the `ZIO#ensuring` method. 
 
@@ -31,7 +31,7 @@ Like `try` / `finally`, finalizers can be nested, and the failure of any inner f
 
 Unlike `try` / `finally`, `ensuring` works across all types of effects, including asynchronous and concurrent effects.
 
-# Bracket 
+## Bracket 
 
 A common use for `try` / `finally` is safely acquiring and releasing resources, such as opened sockets or files:
 
@@ -68,6 +68,6 @@ val groupedFileData: IO[IOException, Unit] = openFile("data.json").bracket(close
 
 Like `ensuring`, brackets have compositional semantics, so if one bracket is nested inside another bracket, and the outer bracket acquires a resource, then the outer bracket's release will always be called, even if, for example, the inner bracket's release fails.
 
-# Next Steps
+## Next Steps
 
 If you are comfortable with resource handling, then the next step is to learn about [basic concurrency](basic_concurrency.md).

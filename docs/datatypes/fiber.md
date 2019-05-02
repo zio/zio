@@ -54,7 +54,7 @@ The interrupt operation does not resume until the fiber has completed or has bee
 
 A more powerful variant of `fork`, called `fork0`, allows specification of supervisor that will be passed any non-recoverable errors from the forked fiber, including all such errors that occur in finalizers. If this supervisor is not specified, then the supervisor of the parent fiber will be used, recursively, up to the root handler, which can be specified in `DefaultRuntime` (the default supervisor merely prints the stack trace).
 
-# Error Model
+## Error Model
 
 The `IO` error model is simple, consistent, permits both typed errors and termination, and does not violate any laws in the `Functor` hierarchy.
 
@@ -74,7 +74,7 @@ A fiber cannot stop its own interruption. However, all finalizers will be run du
 
 There are no circumstances in which any errors will be "lost", which makes the `IO` error model more diagnostic-friendly than the `try`/`catch`/`finally` construct that is baked into both Scala and Java, which can easily lose errors.
 
-# Parallelism
+## Parallelism
 
 To execute actions in parallel, the `zipPar` method can be used:
 

@@ -3,11 +3,11 @@ id: interop_scalaz7x
 title:  "Scalaz 7.x"
 ---
 
-### `ZIO` Instances
+## `ZIO` Instances
 
 If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `ZIO` instances for several typeclasses, check out [the source code](https://github.com/scalaz/scalaz-zio/interop-scalaz7x/jvm/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.
 
-#### Example
+### Example
 
 ```scala
 import scalaz._, Scalaz._
@@ -19,11 +19,11 @@ def findUser(id: UserId): ZIO[Database, UserError, User] = ...
 def findUsers(ids: IList[UserId]): ZIO[Database, UserError, IList[User]] = ids.traverse(findUser(_))
 ```
 
-### `ZIO` parallel `Applicative` instance
+## `ZIO` parallel `Applicative` instance
 
 Due to `Applicative` and `Monad` coherence law `ZIO`'s `Applicative` instance has to be implemented in terms of `bind` hence when composing multiple effects using `Applicative` they will be sequenced. To cope with that limitation `ZIO` tagged with `Parallel` has an `Applicative` instance which is not `Monad` and operates in parallel.
 
-#### Example
+### Example
 
 ```scala
 import scalaz._, Scalaz._

@@ -3,4 +3,4 @@ id: datatypes_semaphore
 title:  "Semaphore"
 ---
 
-TBD
+Coming soon...

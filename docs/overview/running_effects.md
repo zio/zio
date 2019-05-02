@@ -5,7 +5,7 @@ title:  "Running Effects"
 
 Once you have constructed an effect, you have a choice about how to run it.
 
-# App
+## App
 
 If you construct a single effect for your whole program, then the most natural way to run the effect is to extend `scalaz.zio.App`. 
 
@@ -31,7 +31,7 @@ object MyApp extends App {
 
 If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provide`) before you return it from `run`, because `App` does not know how to supply custom environments.
 
-# DefaultRuntime
+## DefaultRuntime
 
 Most applications are not greenfield, and must integrate with legacy code, and non-functional libraries and frameworks.
 
@@ -51,7 +51,7 @@ Once you have a runtime, you can use it to execute effects:
 runtime.unsafeRun(putStrLn("Hello World!"))
 ```
 
-# Custom Runtime
+## Custom Runtime
 
 If you are using a custom environment for your application, then you may find it useful to create a `Runtime` specifically tailed for that environment.
 
@@ -68,6 +68,6 @@ import scalaz.zio.internal.PlatformLive
 val myRuntime: Runtime[Int] = Runtime(42, PlatformLive.Default)
 ```
 
-# Next Steps
+## Next Steps
 
 If you are comfortable with running effects, then congratulations! You are now ready to dive into other sections on the ZIO microsite, covering data types, use cases, and interop with other systems. Refer to the Scaladoc for detailed documentation on all the core ZIO types and methods.

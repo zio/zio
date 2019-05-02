@@ -11,7 +11,7 @@ if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeR
 println(s"""libraryDependencies += "org.scalaz" %%% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
 ```
 
-### Example
+## Example
 
 Your main function can extend `App` as follows.
 This example uses [scala-js-dom](https://github.com/scala-js/scala-js-dom) to access the DOM; to run the example you

@@ -11,7 +11,7 @@ A value of type `IO[E, A]` describes an effect that may fail with an `E`, run fo
 
 `IO` can be _interpreted_ by the ZIO runtime system into effectful interactions with the external world. Ideally, this occurs at a single time, in your application's `main` function. The `App` class provides this functionality automatically.
 
-# Pure Values
+## Pure Values
 
 You can lift pure values into `IO` with `IO.succeedLazy`:
 
@@ -31,17 +31,17 @@ val value: UIO[String] = IO.succeed("Hello World")
 
 You should never use either constructor for importing impure code into `IO`. The result of doing so is undefined.
 
-# Infallible IO
+## Infallible IO
 
 `IO` values of type `UIO[A]` (where the error type is `Nothing`) are considered _infallible_,
 because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may produce an `A`, but will never fail with an `E`.
 
-# Unproductive IO
+## Unproductive IO
 
 `IO` values of type `IO[E, Nothing]` (where the value type is `Nothing`) are considered _unproductive_,
 because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may fail with an `E`, but will never produce a value.
 
-# Impure Code
+## Impure Code
 
 You can use the `effectTotal` method of `IO` to import effectful synchronous code into your purely functional program:
 
@@ -86,7 +86,7 @@ def makeRequest(req: Request): IO[HttpException, Response] =
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.
 
-# Mapping
+## Mapping
 
 You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets you transform values produced by actions into other values.
 
@@ -102,7 +102,7 @@ You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` me
 val mappedError: IO[Exception, String] = IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
 
-# Chaining
+## Chaining
 
 You can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
@@ -121,7 +121,7 @@ val chainedActionsValueWithForComprehension: UIO[List[Int]] = for {
 } yield added
 ```
 
-# Brackets
+## Brackets
 
 Brackets are a built-in primitive that let you safely acquire and release resources.
 

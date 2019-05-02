@@ -3,7 +3,7 @@ id: getting_started
 title:  "Getting Started"
 ---
 
-# Getting Started
+## Getting Started
 
 Include ZIO in your project by adding the following to your `build.sbt` file:
 ```scala mdoc:passthrough
@@ -24,7 +24,7 @@ println(s"""libraryDependencies += "org.scalaz" %% "calaz-zio-streams" % "${scal
 println(s"""```""")
 ```
 
-# Main
+## Main
 
 Your application can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
@@ -61,7 +61,7 @@ object IntegrationExample {
 
 Ideally, your application should have a single runtime, because each runtime has its own resources (including thread pool and unhandled error reporter).
 
-# Console
+## Console
 
 ZIO provides a module for interacting with the console. You can import the functions in this module with the following code snippet:
 
@@ -69,7 +69,7 @@ ZIO provides a module for interacting with the console. You can import the funct
 import scalaz.zio.console._
 ```
 
-## Printing Output
+### Printing Output
 
 If you need to print text to the console, you can use `putStr` and `putStrLn`:
 
@@ -81,7 +81,7 @@ putStr("Hello World")
 putStrLn("Hello World")
 ```
 
-## Reading Input
+### Reading Input
 
 If you need to read input from the console, you can use `getStrLn`:
 
@@ -89,6 +89,6 @@ If you need to read input from the console, you can use `getStrLn`:
 val echo = getStrLn flatMap putStrLn
 ```
 
-# Learning More
+## Learning More
 
 To learn more about ZIO, see the [Overview](overview/index.md).
