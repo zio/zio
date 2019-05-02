@@ -12,7 +12,7 @@ class SinkToSubscriberTest(env: TestEnvironment)
     with DefaultRuntime {
 
   def this() {
-    this(new TestEnvironment(500))
+    this(new TestEnvironment(1000, 500))
   }
 
   override def createSubscriber(): Subscriber[Int] =
