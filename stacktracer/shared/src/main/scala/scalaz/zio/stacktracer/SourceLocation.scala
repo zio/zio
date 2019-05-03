@@ -1,11 +1,21 @@
 package scalaz.zio.stacktracer
 
+import scala.util.matching.Regex
+
 final case class SourceLocation(file: String, clazz: String, method: Option[String], line: Int) {
 
-  final def toStackTraceElement: StackTraceElement =
-    new StackTraceElement(clazz, method getOrElse "apply", file, line)
+  final def toStackTraceElement: StackTraceElement = {
+    val className = clazz.replace('/', '.')
+    val methodName = method.flatMap(SourceLocation.lambdaNamePattern.findFirstMatchIn(_).map(_.group(1))).getOrElse("apply")
+
+    new StackTraceElement(className, methodName, file, line)
+  }
 
   // FIXME:
-  override final def toString: String = toStackTraceElement.toString
+  final def prettyPrint: String = toStackTraceElement.toString
 
+}
+
+object SourceLocation {
+  val lambdaNamePattern: Regex = """\$anonfun\$(.+?)\$\d""".r
 }

@@ -1,7 +1,7 @@
 package scalaz.zio.stacktracer
 
 import org.specs2.Specification
-import scalaz.zio.stacktracer.impl.AkkaExtractorImpl
+import scalaz.zio.stacktracer.impl.AkkaTracer
 
 class MainTest extends Specification {
 
@@ -45,7 +45,7 @@ object Main {
 
   def akka(l: X => X) = {
     val start                                                   = System.nanoTime()
-    val Some(SourceLocation(file, className, methodName, line)) = new AkkaExtractorImpl().extractSourceLocation(l)
+    val Some(SourceLocation(file, className, methodName, line)) = AkkaTracer.traceLocation(l)
     val end                                                     = System.nanoTime()
 
     System.err.println(s"  at $className.$methodName($file:$line) akka micros: ${(end - start) / 1000}")

@@ -21,7 +21,6 @@ import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.tracing.ZIOFn
 import scalaz.zio.internal.{Executor, Platform}
-import scalaz.zio.stacktracer.SourceLocation
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -98,7 +97,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
-  def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, (a: A) => new ZIO.Succeed(f(a)))
+  def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, new ZIO.MapFn(f))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -1770,7 +1769,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     ZManaged(reservation).use(use)
 
-  final def trace: UIO[List[SourceLocation]] =
+  final def trace: UIO[ZTrace] =
     new ZIO.Trace
 
 }
@@ -1946,20 +1945,26 @@ object ZIO extends ZIO_R_Any {
     a => succeed[Either[Any, Any]](Right(a))
 
   final class ZipLeftFn[R, E, A, B](override val underlying: () => ZIO[R, E, A]) extends ZIOFn[B, ZIO[R, E, B]] {
-    def apply(v1: B): ZIO[R, E, B] =
-      underlying().const(v1)
+    def apply(a: B): ZIO[R, E, B] =
+      underlying().const(a)
   }
 
   final class ZipRightFn[R, E, A, B](override val underlying: () => ZIO[R, E, B]) extends ZIOFn[A, ZIO[R, E, B]] {
-    def apply(v1: A): ZIO[R, E, B] = {
-      val _ = v1
+    def apply(a: A): ZIO[R, E, B] = {
+      val _ = a
       underlying()
     }
   }
 
   final class TapFn[R, E, A](override val underlying: A => ZIO[R, E, _]) extends ZIOFn[A, ZIO[R, E, A]] {
-    def apply(v1: A): ZIO[R, E, A] =
-      underlying(v1).const(v1)
+    def apply(a: A): ZIO[R, E, A] =
+      underlying(a).const(a)
+  }
+
+  final class MapFn[R, E, A, B](override val underlying: A => B) extends ZIOFn[A, ZIO[R, E, B]] {
+    def apply(a: A): ZIO[R, E, B] = {
+      new ZIO.Succeed(underlying(a))
+    }
   }
 
   private[zio] object Tags {
@@ -2012,10 +2017,13 @@ object ZIO extends ZIO_R_Any {
     val value: ZIO[R, E, A],
     val failure: Cause[E] => ZIO[R, E2, B],
     val success: A => ZIO[R, E2, B]
-  ) extends ZIO[R, E2, B]
-      with Function[A, ZIO[R, E2, B]] {
+  ) extends ZIOFn[A, ZIO[R, E2, B]]
+    with ZIO[R, E2, B]
+    with Function[A, ZIO[R, E2, B]] {
 
     override def tag = Tags.Fold
+
+    override def underlying = success
 
     final def apply(v: A): ZIO[R, E2, B] = success(v)
   }
@@ -2072,7 +2080,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Provide
   }
 
-  private[zio] final class Trace[R] extends ZIO[R, Nothing, List[SourceLocation]] {
+  private[zio] final class Trace[R] extends ZIO[R, Nothing, ZTrace] {
     override def tag = Tags.Trace
   }
 }

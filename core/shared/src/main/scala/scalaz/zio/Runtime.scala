@@ -16,7 +16,8 @@
 
 package scalaz.zio
 
-import scalaz.zio.internal.{ FiberContext, Platform }
+import scalaz.zio.internal.tracing.FiberAncestry
+import scalaz.zio.internal.{FiberContext, Platform}
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -65,7 +66,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
-    val context = new FiberContext[E, A](Platform, Environment.asInstanceOf[AnyRef])
+    val context = new FiberContext[E, A](Platform, Environment.asInstanceOf[AnyRef], FiberAncestry.empty)
 
     context.evaluateNow(zio.asInstanceOf[IO[E, A]])
     context.runAsync(k)
