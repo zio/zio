@@ -1,9 +1,10 @@
 package scalaz.zio
 
 import FunctionIO._
+import org.specs2.Specification
 import org.specs2.matcher.describe.Diffable
 
-class FunctionIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+class FunctionIOSpec extends Specification with DefaultRuntime {
   def is = "FunctionIOSpec".title ^ s2"""
    Check if the functions in `FunctionIO` work correctly
      `fromFunction` lifts from A => B into effectful function $e1
