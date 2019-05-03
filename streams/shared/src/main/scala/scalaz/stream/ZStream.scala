@@ -666,10 +666,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    *   which is a power of 2.
    * Stores this stream to a fixed managed queue and streams data from the managed queue.
    */
-  final def buffer[R1 <: R, E1 >: E, A1 >: A](capacity: Int): ZManaged[R, Nothing, ZStream[R, E, A]] =
-    for {
-      queue <- self.toQueue(capacity)
-    } yield (Stream.fromQueue(queue).unTake)
+  final def buffer(capacity: Int): ZStream[R, E, A] =
+    ZStream.managed(self.toQueue(capacity)) { queue =>
+      Take.option(queue.take)
+    }
 }
 
 trait Stream_Functions extends Serializable {

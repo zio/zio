@@ -540,10 +540,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       Stream
         .fromIterable(list)
         .buffer(2)
-        .use { steam ⇒
-          steam.run(Sink.collect[Int])
-        }
-        .interruptible
+        .run(Sink.collect[Int])
     ) must_== (Success(list))
   }
 
@@ -552,10 +549,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRunSync(
       (Stream.range(0, 10) ++ Stream.fail(e))
         .buffer(2)
-        .use { steam ⇒
-          steam.run(Sink.collect[Int])
-        }
-        .interruptible
+        .run(Sink.collect[Int])
     ) must_== Failure(Cause.Fail(e))
   }
 }
