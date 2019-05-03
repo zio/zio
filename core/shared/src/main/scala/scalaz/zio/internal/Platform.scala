@@ -16,7 +16,7 @@
 
 package scalaz.zio.internal
 
-import java.util.{Map => JMap}
+import java.util.{ Map => JMap }
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.tracing.TracingConfig

@@ -10,8 +10,7 @@ object Tracer {
       val traceFn: AnyRef => SourceLocation =
         tracer.traceLocation(_).orNull
 
-      def traceLocation(lambda: AnyRef): Option[SourceLocation] = {
+      def traceLocation(lambda: AnyRef): Option[SourceLocation] =
         Option(cache.getOrElseUpdate(lambda, traceFn))
-      }
     }
 }

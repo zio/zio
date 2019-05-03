@@ -30,9 +30,8 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
     }
   }
 
-  @inline private[this] def currentIndex: Int = {
+  @inline private[this] def currentIndex: Int =
     idx % capacity
-  }
 }
 
 object SingleThreadedRingBuffer {

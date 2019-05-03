@@ -1,12 +1,11 @@
 package scalaz.zio
 
 import org.specs2.ScalaCheck
+import org.specs2.matcher.describe.Diffable
+import scalaz.zio.Exit.{Cause, Failure}
+import scalaz.zio.duration._
 
 import scala.collection.mutable
-import duration._
-import org.specs2.matcher.describe.Diffable
-import scalaz.zio.Exit.Failure
-import scalaz.zio.Exit.Cause.Interrupt
 
 class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   def is = "ZManagedSpec".title ^ s2"""
@@ -16,7 +15,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Constructs an uninterruptible Managed value. $uninterruptible
   ZManaged.traverse
     Invokes cleanups in reverse order of acquisition. $traverse
-  ZManaged.reserve 
+  ZManaged.reserve
     Interruption is possible when using this form. $interruptible
   """
 
@@ -71,7 +70,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   // unlike make, reserve allows interruption
   private def interruptible =
-    doInterrupt(io => ZManaged.reserve(Reservation(io, IO.unit)), Some(Failure(Interrupt)))
+    doInterrupt(io => ZManaged.reserve(Reservation(io, IO.unit)), Some(Failure(Cause.interrupt)))
 
   private def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],

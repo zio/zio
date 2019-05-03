@@ -1,18 +1,18 @@
 package scalaz.zio.stacktracer.impl
 
-import scalaz.zio.stacktracer.{ AkkaLineNumbers, Tracer, SourceLocation }
+import scalaz.zio.stacktracer.{ AkkaLineNumbers, SourceLocation, Tracer }
 
 object AkkaTracer extends Tracer {
 
   override def traceLocation(lambda: AnyRef): Some[SourceLocation] = Some {
     AkkaLineNumbers(lambda) match {
-      case AkkaLineNumbers.NoSourceInfo                     =>
+      case AkkaLineNumbers.NoSourceInfo =>
         SourceLocation("<nosource>", "<unknown>", None, 0)
 
       case AkkaLineNumbers.UnknownSourceFormat(explanation) =>
         SourceLocation(explanation, "<unknown>", None, 0)
 
-      case AkkaLineNumbers.SourceFile(filename)             =>
+      case AkkaLineNumbers.SourceFile(filename) =>
         SourceLocation(filename, "<unknown>", None, 0)
 
       case AkkaLineNumbers.SourceFileLines(filename, from, _, className, methodName) =>

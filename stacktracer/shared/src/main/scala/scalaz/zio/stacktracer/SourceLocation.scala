@@ -6,7 +6,8 @@ final case class SourceLocation(file: String, clazz: String, method: Option[Stri
 
   final def toStackTraceElement: StackTraceElement = {
     val className = clazz.replace('/', '.')
-    val methodName = method.flatMap(SourceLocation.lambdaNamePattern.findFirstMatchIn(_).map(_.group(1))).getOrElse("apply")
+    val methodName =
+      method.flatMap(SourceLocation.lambdaNamePattern.findFirstMatchIn(_).map(_.group(1))).getOrElse("apply")
 
     new StackTraceElement(className, methodName, file, line)
   }

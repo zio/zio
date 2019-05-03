@@ -23,10 +23,8 @@ package scalaz.zio.internal.tracing
 final case class TracingConfig(
   traceExecution: Boolean,
   traceStack: Boolean,
-
   executionTraceLength: Int,
   stackTraceLength: Int,
-
   ancestorExecutionTraceLength: Int,
   ancestorStackTraceLength: Int
 )

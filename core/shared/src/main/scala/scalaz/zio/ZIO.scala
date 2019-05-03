@@ -20,10 +20,10 @@ import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.tracing.ZIOFn
-import scalaz.zio.internal.{Executor, Platform}
+import scalaz.zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -1962,9 +1962,8 @@ object ZIO extends ZIO_R_Any {
   }
 
   final class MapFn[R, E, A, B](override val underlying: A => B) extends ZIOFn[A, ZIO[R, E, B]] {
-    def apply(a: A): ZIO[R, E, B] = {
+    def apply(a: A): ZIO[R, E, B] =
       new ZIO.Succeed(underlying(a))
-    }
   }
 
   private[zio] object Tags {
@@ -2018,8 +2017,8 @@ object ZIO extends ZIO_R_Any {
     val failure: Cause[E] => ZIO[R, E2, B],
     val success: A => ZIO[R, E2, B]
   ) extends ZIOFn[A, ZIO[R, E2, B]]
-    with ZIO[R, E2, B]
-    with Function[A, ZIO[R, E2, B]] {
+      with ZIO[R, E2, B]
+      with Function[A, ZIO[R, E2, B]] {
 
     override def tag = Tags.Fold
 

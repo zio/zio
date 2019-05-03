@@ -16,13 +16,13 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.{Executor => _, _}
-import java.util.{WeakHashMap, Map => JMap}
+import java.util.concurrent.{ Executor => _, _ }
+import java.util.{ WeakHashMap, Map => JMap }
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.tracing.TracingConfig
 import scalaz.zio.stacktracer.Tracer
-import scalaz.zio.stacktracer.impl.{AkkaTracer, ConcurrentHashMapCache}
+import scalaz.zio.stacktracer.impl.{ AkkaTracer, ConcurrentHashMapCache }
 
 import scala.concurrent.ExecutionContext
 
@@ -34,8 +34,8 @@ object PlatformLive {
 
   final def fromExecutor(executor0: Executor) =
     new Platform {
-      val executor = executor0
-      val tracer = Tracer.cachedTracer(AkkaTracer, ConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
+      val executor      = executor0
+      val tracer        = Tracer.cachedTracer(AkkaTracer, ConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
       val tracingConfig = TracingConfig.default
 
       def fatal(t: Throwable): Boolean =

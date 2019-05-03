@@ -1,9 +1,11 @@
 package scalaz.zio
 
 import org.specs2.mutable
+import scalaz.zio.Exit.Cause._
 
-class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime
-  with mutable.SpecificationLike {
+class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends TestRuntime
+    with mutable.SpecificationLike {
 
 //  def is = "StacktracesSpec".title ^ s2"""
 //    basic test $basicTest
@@ -16,6 +18,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   "basic test" >> basicTest
   "foreach" >> foreachTrace
+  "foreach fail" >> foreachFail
   "left-associative fold" >> leftAssociativeFold
   "nested left binds" >> nestedLeftBinds
   "fiber ancestry" >> fiberAncestry
@@ -41,6 +44,25 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     res must_=== res
   }
 
+  def foreachFail = {
+
+    def res() = unsafeRun(for {
+      _     <- ZIO.effectTotal(())
+      _     <- ZIO.foreach_(1 to 10) {
+                    i => if (i == 7)
+                      ZIO.unit *> // FIXME: flatMap required to get the line...
+                        ZIO.fail("Dummy error!")
+                    else
+                      ZIO.unit *> // FIXME: flatMap required to get the line...
+                        ZIO.trace
+                  }
+      trace <- ZIO.trace
+      _     <- UIO(println(trace.prettyPrint))
+    } yield ())
+
+    res() must throwA(FiberFailure(fail("Dummy error!")))
+  }
+
   def leftAssociativeFold = {
     def left(): ZIO[Any, Nothing, ZTrace] =
       (1 to 10)
@@ -64,24 +86,28 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   def nestedLeftBinds = {
 
-    def m2 = for {
-      trace <- ZIO.trace
-      _ <- UIO(println(trace.prettyPrint))
-    } yield println()
+    def m2 =
+      for {
+        trace <- ZIO.trace
+        _     <- UIO(println(trace.prettyPrint))
+      } yield println()
 
-    def m1 = for {
-      _ <- m2
-      _ <- ZIO.unit
-    } yield ()
+    def m1 =
+      for {
+        _ <- m2
+        _ <- ZIO.unit
+      } yield ()
 
-    def m0: ZIO[Any, Unit, Unit] = (for {
-      _ <- m1
-    } yield ())
-      .foldM(
-        failure = _ => IO.fail(()),
-        success = _ => IO.trace
-          .flatMap(t => UIO(println(t.prettyPrint)))
-      )
+    def m0: ZIO[Any, Unit, Unit] =
+      (for {
+        _ <- m1
+      } yield ())
+        .foldM(
+          failure = _ => IO.fail(()),
+          success = _ =>
+            IO.trace
+              .flatMap(t => UIO(println(t.prettyPrint)))
+        )
 
     val res = unsafeRun(m0)
 
@@ -90,21 +116,24 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   def fiberAncestry = {
 
-    def m0 = for {
-      _ <- m1.fork
-    } yield ()
+    def m0 =
+      for {
+        _ <- m1.fork
+      } yield ()
 
-    def m1 = for {
-      _ <- ZIO.unit
-      _ <- ZIO.unit
-      _ <- m2.fork
-      _ <- ZIO.unit
-    } yield ()
+    def m1 =
+      for {
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+        _ <- m2.fork
+        _ <- ZIO.unit
+      } yield ()
 
-    def m2 = for {
-      trace <- ZIO.trace
-      _ <- UIO(println(trace.prettyPrint))
-    } yield ()
+    def m2 =
+      for {
+        trace <- ZIO.trace
+        _     <- UIO(println(trace.prettyPrint))
+      } yield ()
 
     val res = unsafeRun(m0)
 
