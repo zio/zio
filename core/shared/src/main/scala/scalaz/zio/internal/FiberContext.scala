@@ -117,9 +117,9 @@ private[zio] final class FiberContext[E, A](
     // TODO: revisit logic later & test
     def findLeftmostTraceless(c: Cause[E], putBack: Cause[E] => Cause[E]): Option[(Cause[E], Cause[E] => Cause[E])] = {
       c match {
-        case f @ Fail(_, None) => Some((f, putBack))
-        case d @ Die(_, None) => Some((d, putBack))
-        case i @ Interrupt(None) => Some((i, putBack))
+        case f @ Fail(_) if f.trace.isEmpty => Some((f, putBack))
+        case d @ Die(_) if d.trace.isEmpty => Some((d, putBack))
+        case i @ Interrupt() if i.trace.isEmpty => Some((i, putBack))
         case Then(left, right) => findLeftmostTraceless(left, x => putBack(x ++ right))
         case Both(left, right) => findLeftmostTraceless(left, x => putBack(x && right))
         case _ => None
@@ -130,9 +130,10 @@ private[zio] final class FiberContext[E, A](
       case Some((thisFiberCause, insert)) =>
         insert(thisFiberCause.setTrace(Some(trace)))
       case None =>
+        cause
         // FIXME: corner case: this Cause is exclusively a result of joining other fibers: add an interrupt Cause to the beginning
         //  with the sole purpose of carrying a trace (wrong thing to do really!)
-        Cause.Interrupt(Some(trace)) ++ cause
+//        Cause.Interrupt()(Some(trace)) ++ cause
     }
   }
 

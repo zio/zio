@@ -261,8 +261,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     def sync[A](effect: => A): IO[Throwable, A] =
       IO.effectTotal(effect)
         .foldCauseM({
-          case Cause.Die(t, _) => IO.fail(t)
-          case cause           => IO.halt(cause)
+          case Cause.Die(t) => IO.fail(t)
+          case cause        => IO.halt(cause)
         }, IO.succeed(_))
 
     def putStrLn(text: String): IO[Throwable, Unit] =
@@ -1271,8 +1271,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     def sync[A](effect: => A): IO[Throwable, A] =
       IO.effectTotal(effect)
         .foldCauseM({
-          case Cause.Die(t, _) => IO.fail(t)
-          case cause           => IO.halt(cause)
+          case Cause.Die(t) => IO.fail(t)
+          case cause        => IO.halt(cause)
         }, IO.succeed(_))
 
     def putStr(text: String): IO[Throwable, Unit] =
