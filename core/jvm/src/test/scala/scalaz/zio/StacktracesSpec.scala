@@ -12,6 +12,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 //    nested left binds $nestedLeftBinds
 //  """
 
+  // Using mutable Spec here for now to easily run individual tests from Intellij
+
   "basic test" >> basicTest
   "foreach" >> foreachTrace
   "left-associative fold" >> leftAssociativeFold
