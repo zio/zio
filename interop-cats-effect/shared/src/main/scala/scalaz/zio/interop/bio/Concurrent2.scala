@@ -106,7 +106,6 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * Returns an effect that races `fa1` with `fa2`, calling specified
    * finisher as soon as one result or the other has been computed.
    *
-   *
    * TODO: Example:
    * {{{
    *
