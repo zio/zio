@@ -460,7 +460,7 @@ object STM {
 
       val interrupt = UIO(done synchronized { done set true })
 
-      IO.effectAsyncMaybe[E, A] { k =>
+      IO.effectAsyncMaybe[Any, E, A] { k =>
         import internal.globalLock
 
         def tryTxn(): Option[IO[E, A]] =
