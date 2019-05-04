@@ -99,8 +99,20 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    */
   @inline def race[E1, A, E, EE >: E, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
     implicit CD: ConcurrentData2[F]
-  ): F[EE, AA] = ???
+  ): F[EE, Option[AA]] =
+    monad.map(raceEither(fa1, fa2))(_ map (_.merge))
 
+  /**
+   * Returns an effect that races `fa1` with `fa2`, calling specified
+   * finisher as soon as one result or the other has been computed.
+   *
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
   @inline def raceEither[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
     implicit ev: ConcurrentData2[F]
   ): F[EE, Option[Either[A, B]]] = {
@@ -128,8 +140,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   }
 
   /**
-   * Returns an effect that races this effect with the specified effect, calling
-   * the specified finisher as soon as one result or the other has been computed.
+   * Returns an effect that races `fa1` with `fa2`, calling specified
+   * finisher as soon as one result or the other has been computed.
    *
    * TODO: Example:
    * {{{
