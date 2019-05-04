@@ -3,7 +3,10 @@ package interop
 package bio
 package syntax
 
+import cats.kernel.Monoid
 import scalaz.zio.interop.bio.syntax.Concurrent2Syntax.Concurrent2Ops
+
+import scala.language.implicitConversions
 
 private[syntax] trait Concurrent2Syntax {
 
@@ -15,19 +18,28 @@ private[syntax] object Concurrent2Syntax {
 
   final class Concurrent2Ops[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
 
-    def <&>[EE >: E, B](fa1: F[E, A], fa2: F[EE, B])(
-      implicit C: Concurrent2[F]
+    @inline def <&>[EE >: E, B](fa1: F[E, A], fa2: F[EE, B])(
+      implicit
+      C: Concurrent2[F],
+      CD: ConcurrentData2[F],
+      MD: Monoid[EE]
     ): F[EE, (A, B)] =
       C.zipPar(fa1, fa2)
 
-    def <&[EE >: E, B](fa1: F[E, A], fa2: F[EE, B])(
-      implicit C: Concurrent2[F]
+    @inline def <&[EE >: E, B](fa1: F[E, A], fa2: F[EE, B])(
+      implicit
+      C: Concurrent2[F],
+      CD: ConcurrentData2[F],
+      MD: Monoid[EE]
     ): F[EE, A] =
       C.zipParLeft(fa1, fa2)
 
-    def &>[EE >: E, B](fa1: F[E, A], fa2: F[EE, B])(
-      implicit C: Concurrent2[F]
-    ): F[EE, A] =
+    @inline def &>[EE >: E, B](fa1: F[E, A], fa2: F[EE, B])(
+      implicit
+      C: Concurrent2[F],
+      CD: ConcurrentData2[F],
+      MD: Monoid[EE]
+    ): F[EE, B] =
       C.zipParRight(fa1, fa2)
   }
 }

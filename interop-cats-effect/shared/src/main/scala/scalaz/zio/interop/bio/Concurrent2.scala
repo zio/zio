@@ -18,6 +18,7 @@ package scalaz.zio
 package interop
 package bio
 
+import cats.kernel.Monoid
 import cats.syntax.option._
 import cats.syntax.flatMap.catsSyntaxFlatten
 import scalaz.zio.interop.bio.data.{ Deferred2, Ref2 }
@@ -207,9 +208,9 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   }
 
   /**
-   * Returns an effect that races `fa` with all the effects in `xs`.
-   * The semantic is the same as `race` applied to a collection of
-   * parallel effects.
+   * Returns an effect that executes both `fa1` and `fa2` in parallel
+   * and combines their results with `f`. If one of the two fails
+   * then the other will be interrupted.
    *
    * TODO: Example:
    * {{{
@@ -217,7 +218,64 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipWithPar[E, EE >: E, A, B, C](fa1: F[E, A], fa2: F[EE, B])(f: (A, B) => C): F[EE, C]
+  @inline def zipWithPar[E, A, B, C](fa1: F[E, A], fa2: F[E, B])(f: (A, B) => C)(
+    implicit
+    CD: ConcurrentData2[F],
+    MD: Monoid[E]
+  ): F[E, C] = {
+
+    def coordinate[AA, BB](f: (AA, BB) => C)(winner: Option[Either[E, AA]], loser: Fiber2[F, E, BB]): F[E, C] =
+      winner match {
+        case Some(Right(a)) => monad.map(loser.join)(f(a, _))
+        case Some(Left(winnerError)) =>
+          monad.flatMap(loser.cancel) {
+            case Some(Right(_))         => raiseError(winnerError)
+            case Some(Left(loserError)) => raiseError(MD.combine(loserError, winnerError))
+            case None                   => raiseError(MD.empty) // TODO: What to do in case the fiber is interrupted (None) ?
+          }
+        case None => raiseError(MD.empty) // TODO: What to do in case the fiber is interrupted (None) ?
+      }
+
+    val g = (b: B, a: A) => f(a, b)
+
+    raceWith(fa1, fa2)(coordinate(f), coordinate(g))
+  }
+
+  /**
+   * Returns an effect that executes both `fa1` and `fa2` in parallel
+   * and combines their results in a tuple. If one of the two fails
+   * then the other will be interrupted.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def zipPar[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
+    implicit
+    CD: ConcurrentData2[F],
+    MD: Monoid[EE]
+  ): F[EE, (A, B)] =
+    zipWithPar(fa1, fa2)((a, b) => (a, b))
+
+  /**
+   * Returns an effect that executes both `fa1` and `fa2` in parallel
+   * and returns the result of `fa1`. If one of the two fails
+   * then the other will be interrupted.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def zipParLeft[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
+    implicit
+    CD: ConcurrentData2[F],
+    MD: Monoid[EE]
+  ): F[EE, A] =
+    zipWithPar(fa1, fa2)((a, _) => a)
 
   /**
    * Returns an effect that races `fa` with all the effects in `xs`.
@@ -230,33 +288,12 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipPar[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, (A, B)]
-
-  /**
-   * Returns an effect that races `fa` with all the effects in `xs`.
-   * The semantic is the same as `race` applied to a collection of
-   * parallel effects.
-   *
-   * TODO: Example:
-   * {{{
-   *
-   * }}}
-   *
-   */
-  @inline def zipParLeft[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, A]
-
-  /**
-   * Returns an effect that races `fa` with all the effects in `xs`.
-   * The semantic is the same as `race` applied to a collection of
-   * parallel effects.
-   *
-   * TODO: Example:
-   * {{{
-   *
-   * }}}
-   *
-   */
-  @inline def zipParRight[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, A]
+  @inline def zipParRight[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
+    implicit
+    CD: ConcurrentData2[F],
+    MD: Monoid[EE]
+  ): F[EE, B] =
+    zipWithPar(fa1, fa2)((_, b) => b)
 
   // may be
   def cont[E, A](r: (F[E, A] => F[Nothing, Unit]) => F[Nothing, Unit]): F[E, A]
