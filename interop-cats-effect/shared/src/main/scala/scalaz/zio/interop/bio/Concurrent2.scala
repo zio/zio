@@ -18,11 +18,13 @@ package scalaz.zio
 package interop
 package bio
 
+import cats.syntax.apply._
+import cats.syntax.flatMap.catsSyntaxFlatten
 import scalaz.zio.interop.bio.data.{ Deferred2, Ref2 }
 
 import scala.concurrent.ExecutionContext
 
-abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
+abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
   /**
    * Returns an effect that runs `fa` into its own separate `Fiber2`
@@ -47,7 +49,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
    * }}}
    *
    */
-  def uninterruptible[E, A, IS](fa: F[E, A]): F[E, A]
+  def uninterruptible[E, A](fa: F[E, A]): F[E, A]
 
   /**
    * Executes the `cleanup` effect if `fa` is interrupted
@@ -95,12 +97,35 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
    * }}}
    *
    */
-  @inline def race[E1, A, E2, E3, AA >: A](fa1: F[E1, A], fa2: F[E1, AA]): F[E3, AA]
+  @inline def race[E1, A, E, EE >: E, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
+    implicit CD: ConcurrentData2[F]
+  ): F[EE, AA] = ???
 
-  //  def raceEither[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, Either[A, B]] =
-//    raceWith(fa1, fa2)(
-//      case (e1, )
-//    )
+  @inline def raceEither[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
+    implicit ev: ConcurrentData2[F]
+  ): F[EE, Option[Either[A, B]]] = {
+
+    import cats.syntax.either._
+
+    implicit val err: Errorful2[F] = self
+
+    raceWith(fa1, fa2)(
+      (fa1Result, fiber2) =>
+        fa1Result.fold[F[EE, Option[Either[A, B]]]](monad.pure(None)) {
+          _.fold(
+            _ => fiber2.join map (f2r => Some(f2r.asRight)),
+            a => monad.pure(Some(a.asLeft)) <* fiber2.cancel
+          )
+        },
+      (fa2Result, fiber1) =>
+        fa2Result.fold[F[EE, Option[Either[A, B]]]](monad.pure(None)) {
+          _.fold(
+            _ => fiber1.join map (f1r => Some(f1r.asLeft)),
+            b => monad.pure(Some(b.asRight)) <* fiber1.cancel
+          )
+        }
+    )
+  }
 
   /**
    * Returns an effect that races this effect with the specified effect, calling
@@ -116,10 +141,10 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
     leftDone: (Option[Either[E1, A]], Fiber2[F, E2, B]) => F[E3, C],
     rightDone: (Option[Either[E2, B]], Fiber2[F, E1, A]) => F[E3, C]
   )(
-    implicit
-    CD: ConcurrentData2[F],
-    ev: Errorful2[F]
+    implicit CD: ConcurrentData2[F]
   ): F[E3, C] = {
+
+    implicit val ev: Errorful2[F] = self
 
     def arbiter[EE0, EE1, AA, BB](
       f: (Option[Either[EE0, AA]], Fiber2[F, EE1, BB]) => F[E3, C],
@@ -127,22 +152,22 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] {
       race: Ref2[F, Int],
       whenDone: Deferred2[F, E3, C]
     )(res: Option[Either[EE0, AA]]): F[Nothing, Unit] =
-      monad.flatten(race.modify { c =>
-        (if (c > 0) monad.unit else monad.map(whenDone.done(f(res, loser)))(_ => ())) -> (c + 1)
-      })
+      race.modify { c =>
+        (if (c > 0) monad.unit else whenDone.done(f(res, loser)) map (_ => ())) -> (c + 1)
+      }.flatten
 
     for {
       done <- CD.deferred[E3, C]
       race <- CD.refSet(0)
-      c <- uninterruptible(
-        for {
-          left <- start(fa1)
-          right <- start(fa2)
-          _ <- start[Nothing, Unit](left.await >>= arbiter(leftDone, right, race, done))
-          _ <- start[Nothing, Unit](right.await >>= arbiter(rightDone, left, race, done))
-          cc <- onInterrupt(done.await)(left.cancel >> right.cancel)
-        } yield cc
-      )
+      c <- uninterruptible[E3, C](
+            for {
+              left  <- start(fa1)
+              right <- start(fa2)
+              _     <- start[Nothing, Unit](left.await >>= arbiter(leftDone, right, race, done))
+              _     <- start[Nothing, Unit](right.await >>= arbiter(rightDone, left, race, done))
+              rc    <- onInterrupt(done.await)(left.cancel >> right.cancel)
+            } yield rc
+          )
     } yield c
   }
 
