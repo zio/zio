@@ -41,7 +41,7 @@ package object bio {
     def <*[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, A] =
       flatMap(a => fb map (_ => a))
 
-    @silent def widenBoth[EE, AA](implicit ev1: A <:< AA, ev2: E <:< EE): F[EE, AA] =
+    @silent @inline def widenBoth[EE, AA](implicit ev1: A <:< AA, ev2: E <:< EE): F[EE, AA] =
       fa.asInstanceOf[F[EE, AA]]
   }
 }

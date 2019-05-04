@@ -193,7 +193,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  def raceAll[E, A, EE >: E, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
+  @inline def raceAll[E, A, EE >: E, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
     implicit CD: ConcurrentData2[F]
   ): F[EE, Option[AA]] = {
 
@@ -205,6 +205,58 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
       race(acc, curr.map(_.some)) map (_.flatten)
     }
   }
+
+  /**
+   * Returns an effect that races `fa` with all the effects in `xs`.
+   * The semantic is the same as `race` applied to a collection of
+   * parallel effects.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def zipWithPar[E, EE >: E, A, B, C](fa1: F[E, A], fa2: F[EE, B])(f: (A, B) => C): F[EE, C]
+
+  /**
+   * Returns an effect that races `fa` with all the effects in `xs`.
+   * The semantic is the same as `race` applied to a collection of
+   * parallel effects.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def zipPar[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, (A, B)]
+
+  /**
+   * Returns an effect that races `fa` with all the effects in `xs`.
+   * The semantic is the same as `race` applied to a collection of
+   * parallel effects.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def zipParLeft[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, A]
+
+  /**
+   * Returns an effect that races `fa` with all the effects in `xs`.
+   * The semantic is the same as `race` applied to a collection of
+   * parallel effects.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def zipParRight[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, A]
 
   // may be
   def cont[E, A](r: (F[E, A] => F[Nothing, Unit]) => F[Nothing, Unit]): F[E, A]
