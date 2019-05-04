@@ -98,7 +98,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def race[E1, A, E, EE >: E, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
+  @inline def race[E, EE >: E, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
     implicit CD: ConcurrentData2[F]
   ): F[EE, Option[AA]] =
     monad.map(raceEither(fa1, fa2))(_ map (_.merge))
@@ -194,7 +194,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def raceAll[E, A, EE >: E, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
+  @inline def raceAll[E, EE >: E, A, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
     implicit CD: ConcurrentData2[F]
   ): F[EE, Option[AA]] = {
 
