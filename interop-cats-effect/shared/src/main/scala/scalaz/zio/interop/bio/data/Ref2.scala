@@ -105,3 +105,8 @@ abstract class Ref2[F[+ _, + _], A] {
    */
   def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): F[Nothing, B]
 }
+
+object Ref2 {
+
+  @inline def apply[F[+ _, + _]: Ref2[?[_, _], A], A]: Ref2[F, A] = implicitly
+}

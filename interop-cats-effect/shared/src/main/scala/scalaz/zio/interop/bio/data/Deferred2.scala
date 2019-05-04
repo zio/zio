@@ -34,6 +34,27 @@ abstract class Deferred2[F[+ _, + _], E, A] {
   def await: F[E, A]
 
   /**
+   * Creates an effect that completes the `Deferred`.
+   *
+   * If the state is not set:
+   *
+   * - if `fa` succeeds the state is set to its result
+   *   and the effect returns `true`
+   * - if `fa` fails the `Deferred` fails and the effect
+   *   returns `true`
+   *
+   * If the state is already set it doesn't change and
+   * the effect returns false.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def done(fa: F[E, A]): F[Nothing, Boolean]
+
+  /**
    * Creates an effect that completes the `Deferred` with the
    * specified value. The effect returns `true` if the state
    * wasn't already set and returns false without changing
@@ -45,11 +66,13 @@ abstract class Deferred2[F[+ _, + _], E, A] {
    * }}}
    *
    */
-  def succeed(a: A): F[Nothing, Boolean]
+  def succeed(a: A)(implicit err: Errorful2[F]): F[Nothing, Boolean] =
+    done(err.monad.pure(a))
 
   /**
-   * Creates an effect that fails the deferred with the
-   * error `e` and returns a value `true`.
+   * Creates an effect that fails the `Deferred` with the
+   * error `e` and returns a value `true` if the state is
+   * not already set.
    *
    * TODO: Example:
    * {{{
@@ -57,5 +80,11 @@ abstract class Deferred2[F[+ _, + _], E, A] {
    * }}}
    *
    */
-  def fail(e: E): F[E, Boolean]
+  def fail(e: E)(implicit err: Errorful2[F]): F[E, Boolean] =
+    done(err.raiseError(e))
+}
+
+object Deferred2 {
+
+  @inline def apply[F[+ _, + _]: Deferred2[?[_, _], E, A], E, A]: Deferred2[F, E, A] = implicitly
 }

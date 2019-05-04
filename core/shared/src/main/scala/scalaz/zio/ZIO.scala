@@ -953,7 +953,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Returns an effect whose execution is locked to the specified executor.
-   * This is useful when an effect must be executued somewhere, for example:
+   * This is useful when an effect must be executed somewhere, for example:
    * on a UI thread, inside a client library's thread pool, inside a blocking
    * thread pool, inside a low-latency thread pool, or elsewhere.
    *

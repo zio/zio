@@ -22,4 +22,19 @@ import cats.Monad
 package object bio {
 
   implicit def errorful2ImpliesMonad[F[+ _, + _], E](implicit ev: Errorful2[F]): Monad[F[E, ?]] = ev.monad
+
+  implicit final class MonadOps[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
+
+    def map[B](f: A => B)(implicit m: Monad[F[E, ?]]): F[E, B] =
+      (m map fa)(f)
+
+    def flatMap[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
+      (m flatMap fa)(f)
+
+    def >>=[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
+      flatMap(f)
+
+    def >>[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
+      flatMap(_ => fb)
+  }
 }

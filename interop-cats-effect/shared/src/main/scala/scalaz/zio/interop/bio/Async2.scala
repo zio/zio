@@ -58,6 +58,18 @@ abstract class Async2[F[+ _, + _]] extends Sync2[F] {
       k(callback)
       None
     }
+
+  /**
+   * Returns an effect `F` that never completes execution.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def never: F[Nothing, Nothing] =
+    async(_ => ())
 }
 
 object Async2 {
