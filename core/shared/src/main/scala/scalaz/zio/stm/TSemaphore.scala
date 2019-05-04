@@ -16,7 +16,7 @@
 
 package scalaz.zio.stm
 
-class TSemaphore private (permits: TRef[Long]) {
+class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
   final def acquire: STM[Nothing, Unit] = acquireN(1L)
 
   final def acquireN(n: Long): STM[Nothing, Unit] =
