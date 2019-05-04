@@ -201,10 +201,8 @@ private class CatsEffect[R]
     TaskR.never
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): TaskR[R, A] =
-    ZIO.accessM { r =>
-      TaskR.effectAsync { (kk: Task[A] => Unit) =>
-        k(e => kk(eitherToIO(e).provide(r)))
-      }
+    TaskR.effectAsync { (kk: TaskR[R, A] => Unit) =>
+      k(e => kk(eitherToIO(e)))
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => TaskR[R, Unit]): TaskR[R, A] =
