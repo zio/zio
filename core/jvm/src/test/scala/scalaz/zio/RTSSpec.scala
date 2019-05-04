@@ -87,6 +87,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interrupt of asyncPure register         $testAsyncPureInterruptRegister
     sleep 0 must return                     $testSleepZeroReturns
     shallow bind of async chain             $testShallowBindOfAsyncChainIsCorrect
+    effectAsyncM can fail before registering $testEffectAsyncMCanFail
 
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
@@ -608,6 +609,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _ <- fiber.interrupt.fork
       a <- release.await
     } yield a) must_=== (())
+
+  def testEffectAsyncMCanFail =
+    unsafeRun {
+      ZIO
+        .effectAsyncM[Any, String, Nothing](_ => ZIO.fail("Ouch"))
+        .flip
+        .map(_ must_=== "Ouch")
+    }
 
   def testSleepZeroReturns =
     unsafeRun(clock.sleep(1.nanos)) must_=== ((): Unit)

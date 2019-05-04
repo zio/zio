@@ -1309,15 +1309,18 @@ private[zio] trait ZIOFunctions extends Serializable {
    * necessary when the effect is itself expressed in terms of `ZIO`.
    */
   final def effectAsyncM[R >: LowerR, E <: UpperE, A](
-    register: (ZIO[R, E, A] => Unit) => ZIO[R, Nothing, _]
+    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _]
   ): ZIO[R, E, A] =
     for {
       p <- Promise.make[E, A]
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
-            register(k => r.unsafeRunAsync_(k.to(p))).fork.flatMap { f =>
-              restore(p.await).onInterrupt(f.interrupt)
-            }
+            register(k => r.unsafeRunAsync_(k.to(p)))
+              .catchAll(p.fail)
+              .fork
+              .flatMap { f =>
+                restore(p.await).onInterrupt(f.interrupt)
+              }
           }
     } yield a
 
