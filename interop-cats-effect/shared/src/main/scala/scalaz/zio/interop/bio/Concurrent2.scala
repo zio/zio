@@ -18,7 +18,7 @@ package scalaz.zio
 package interop
 package bio
 
-import cats.syntax.apply._
+import cats.syntax.option._
 import cats.syntax.flatMap.catsSyntaxFlatten
 import scalaz.zio.interop.bio.data.{ Deferred2, Ref2 }
 
@@ -118,7 +118,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
     import cats.syntax.either._
 
-    implicit val err: Errorful2[F] = self
+    implicit val _: Errorful2[F] = self
 
     raceWith(fa1, fa2)(
       (fa1Result, fiber2) =>
@@ -176,10 +176,34 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
               right <- start(fa2)
               _     <- start[Nothing, Unit](left.await >>= arbiter(leftDone, right, race, done))
               _     <- start[Nothing, Unit](right.await >>= arbiter(rightDone, left, race, done))
-              rc    <- onInterrupt(done.await)(left.cancel >> right.cancel)
+              rc    <- onInterrupt(done.await)(left.cancel *> right.cancel)
             } yield rc
           )
     } yield c
+  }
+
+  /**
+   * Returns an effect that races `fa` with all the effects in `xs`.
+   * The semantic is the same as `race` applied to a collection of
+   * parallel effects.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def raceAll[E, A, EE >: E, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
+    implicit CD: ConcurrentData2[F]
+  ): F[EE, Option[AA]] = {
+
+    implicit val _: Errorful2[F] = self
+
+    val init = fa.widenBoth[EE, AA] map (_.some)
+
+    xs.foldLeft(init) { (acc, curr) =>
+      race(acc, curr.map(_.some)) map (_.flatten)
+    }
   }
 
   // may be

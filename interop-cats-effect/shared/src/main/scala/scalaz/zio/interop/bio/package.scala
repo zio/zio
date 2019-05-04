@@ -18,12 +18,13 @@ package scalaz.zio
 package interop
 
 import cats.Monad
+import com.github.ghik.silencer.silent
 
 package object bio {
 
-  implicit def errorful2ImpliesMonad[F[+ _, + _], E](implicit ev: Errorful2[F]): Monad[F[E, ?]] = ev.monad
+  @inline implicit def errorful2ImpliesMonad[F[+ _, + _], E](implicit ev: Errorful2[F]): Monad[F[E, ?]] = ev.monad
 
-  implicit final class MonadOps[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
+  implicit private[bio] final class FaSyntax[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
 
     def map[B](f: A => B)(implicit m: Monad[F[E, ?]]): F[E, B] =
       (m map fa)(f)
@@ -34,7 +35,13 @@ package object bio {
     def >>=[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
       flatMap(f)
 
-    def >>[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
+    def *>[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
       flatMap(_ => fb)
+
+    def <*[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, A] =
+      flatMap(a => fb map (_ => a))
+
+    @silent def widenBoth[EE, AA](implicit ev1: A <:< AA, ev2: E <:< EE): F[EE, AA] =
+      fa.asInstanceOf[F[EE, AA]]
   }
 }
