@@ -231,9 +231,9 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
           monad.flatMap(loser.cancel) {
             case Some(Right(_))         => raiseError(winnerError)
             case Some(Left(loserError)) => raiseError(MD.combine(loserError, winnerError))
-            case None                   => raiseError(MD.empty) // TODO: What to do in case the fiber is interrupted (None) ?
+            case None                   => raiseError(MD.empty) // TODO: What to do in this case (None) ?
           }
-        case None => raiseError(MD.empty) // TODO: What to do in case the fiber is interrupted (None) ?
+        case None => raiseError(MD.empty) // TODO: What to do in this case (None) ?
       }
 
     val g = (b: B, a: A) => f(a, b)
@@ -294,6 +294,35 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     MD: Monoid[EE]
   ): F[EE, B] =
     zipWithPar(fa1, fa2)((_, b) => b)
+
+  /**
+   * Returns an effect that will acquire a resource and will release
+   * it after the execution of `use` regardless the fact that `use`
+   * succeed or fail.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  final def bracket[E, A, B](acquire: F[E, A], release: (A, Either[E, B]) => F[Nothing, Unit])(
+    use: A => F[E, B]
+  ): F[E, B] = {
+
+    implicit val _: Errorful2[F] = self
+
+    uninterruptible(
+      for {
+        a <- acquire
+        r <- absolve(
+              either(use(a)) >>= { eb =>
+                release(a, eb) map (_ => eb)
+              }
+            )
+      } yield r
+    )
+  }
 
   // may be
   def cont[E, A](r: (F[E, A] => F[Nothing, Unit]) => F[Nothing, Unit]): F[E, A]
