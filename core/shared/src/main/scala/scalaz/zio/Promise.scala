@@ -21,24 +21,24 @@ import scalaz.zio.internal.Executor
 import Promise.internal._
 
 /** A promise represents an asynchronous variable that can be set exactly once,
- * with the ability for an arbitrary number of fibers to suspend (by calling
- * `get`) and automatically resume when the variable is set.
+ *  with the ability for an arbitrary number of fibers to suspend (by calling
+ *  `get`) and automatically resume when the variable is set.
  *
- * Promises can be used for building primitive actions whose completions
- * require the coordinated action of multiple fibers, and for building
- * higher-level concurrent or asynchronous structures.
- * {{{
- * for {
+ *  Promises can be used for building primitive actions whose completions
+ *  require the coordinated action of multiple fibers, and for building
+ *  higher-level concurrent or asynchronous structures.
+ *  {{{
+ *  for {
  *   promise <- Promise.make[Nothing, Int]
  *   _       <- promise.complete(42).delay(1.second).fork
  *   value   <- promise.get // Resumes when forked fiber completes promise
- * } yield value
- * }}}
+ *  } yield value
+ *  }}}
  */
 class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal {
 
   /** Checks for completion of this Promise. Produces true if this promise has
-   * already been completed with a value or an error and false otherwise.
+   *  already been completed with a value or an error and false otherwise.
    */
   final def isDone: UIO[Boolean] =
     IO.effectTotal(state.get() match {
@@ -47,11 +47,11 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     })
 
   /** Retrieves the value of the promise, suspending the fiber running the action
-   * until the result is available.
+   *  until the result is available.
    */
-  final def await: IO[Any, E, A] =
+  final def await: IO[E, A] =
     IO.effectAsyncInterrupt[E, A](k => {
-      var result = null.asInstanceOf[Either[Canceler, IO[Any, E, A]]]
+      var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
       var retry  = true
 
       while (retry) {
@@ -87,17 +87,17 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   final def succeed(a: A): UIO[Boolean] = done(IO.succeed(a))
 
   /** Fails the promise with the specified error, which will be propagated to all
-   * fibers waiting on the value of the promise.
+   *  fibers waiting on the value of the promise.
    */
   final def fail(e: E): UIO[Boolean] = done(IO.fail(e))
 
   /** Completes the promise with interruption. This will interrupt all fibers
-   * waiting on the value of the promise.
+   *  waiting on the value of the promise.
    */
   final def interrupt: UIO[Boolean] = done(IO.interrupt)
 
   /** Completes the promise with the specified result. If the specified promise
-   * has already been completed, the method will produce false.
+   *  has already been completed, the method will produce false.
    */
   final def done(io: IO[E, A]): UIO[Boolean] =
     IO.flatten(IO.effectTotal {
@@ -176,8 +176,8 @@ object Promise {
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
 
   /** Acquires a resource and performs a state change atomically, and then
-   * guarantees that if the resource is acquired (and the state changed), a
-   * release action will be called.
+   *  guarantees that if the resource is acquired (and the state changed), a
+   *  release action will be called.
    */
   final def bracket[E, A, B, C](
     ref: Ref[A]

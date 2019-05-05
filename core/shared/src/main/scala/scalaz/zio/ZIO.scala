@@ -1078,46 +1078,32 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def tag: Int
 }
 
-/*
- * ------------------------------------------------------------------------------------------------
- * ------------------------------------------------------------------------------------------------
- * ------------------------------------------------------------------------------------------------
- * Traits that IO, UIO, TaskR, and Task Inherited.
- * ------------------------------------------------------------------------------------------------
- * ------------------------------------------------------------------------------------------------
- * ------------------------------------------------------------------------------------------------
- */
-private[zio] trait ZIOFunctions extends Serializable {
+object ZIO {
 
   /**
-   * Returns an effect that models failure with the specified error.
-   * The moral equivalent of `throw` for pure code.
+   * Returns an effect that is interrupted.
    */
-  final def fail[E](error: E): IO[E, Nothing] = halt(Cause.fail(error))
+  final val interrupt: UIO[Nothing] = halt(Cause.interrupt)
 
   /**
-   * Returns an effect that models failure with the specified `Cause`.
+   * Returns a effect that will never produce anything. The moral
+   * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
-  final def halt[E](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(cause)
+  final val never: UIO[Nothing] = effectAsync[Nothing, Nothing](_ => ())
 
   /**
-   * Returns an effect that models success with the specified strictly-
-   * evaluated value.
+   * Returns an effect that yields to the runtime system, starting on a fresh
+   * stack. Manual use of this method can improve fairness, at the cost of
+   * overhead.
    */
-  final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
+  final val yieldNow: UIO[Unit] = ZIO.Yield
 
   /**
-   * Returns an effect that models success with the specified lazily-evaluated
-   * value. This method should not be used to capture effects. See
-   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
-   * partial effects.
+   * Submerges the error case of an `Either` into the `ZIO`. The inverse
+   * operation of `IO.either`.
    */
-  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
-
-  /**
-   * Accesses the whole environment of the effect.
-   */
-  final def environment[R]: ZIO[R, Nothing, R] = access(ZIO.identityFn[R])
+  final def absolve[R, E, A](v: ZIO[R, E, Either[E, A]]): ZIO[R, E, A] =
+    v.flatMap(fromEither(_))
 
   /**
    * Accesses the environment of the effect.
@@ -1135,305 +1121,13 @@ private[zio] trait ZIOFunctions extends Serializable {
     new ZIO.AccessMPartiallyApplied[R]
 
   /**
-   * Given an environment `R`, returns a function that can supply the
-   * environment to programs that require it, removing their need for any
-   * specific environment.
-   *
-   * This is similar to dependency injection, and the `provide` function can be
-   * thought of as `inject`.
+   * Makes an explicit check to see if the fiber has been interrupted, and if
+   * so, performs self-interruption.
    */
-  final def provide[R, E, A](r: R): ZIO[R, E, A] => IO[E, A] =
-    (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
+  final def allowInterrupt: UIO[Unit] =
+    descriptorWith(d => if (d.interrupted) interrupt else unit)
 
-  /**
-   * Returns an effect that accesses the runtime, which can be used to
-   * (unsafely) execute tasks. This is useful for integration with
-   * non-functional code that must call back into functional code.
-   */
-  final def runtime[R]: ZIO[R, Nothing, Runtime[R]] =
-    for {
-      environment <- environment[R]
-      platform    <- effectTotalWith(ZIO.identityFn[Platform])
-    } yield Runtime(environment, platform)
-
-  /**
-   * Returns an effect that is interrupted.
-   */
-  final val interrupt: UIO[Nothing] = halt(Cause.interrupt)
-
-  /**
-   * Returns a effect that will never produce anything. The moral
-   * equivalent of `while(true) {}`, only without the wasted CPU cycles.
-   */
-  final val never: UIO[Nothing] = effectAsync[Nothing, Nothing](_ => ())
-
-  /**
-   * Returns an effect that dies with the specified `Throwable`.
-   * This method can be used for terminating a fiber because a defect has been
-   * detected in the code.
-   */
-  final def die(t: Throwable): UIO[Nothing] = halt(Cause.die(t))
-
-  /**
-   * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
-   * specified text message. This method can be used for terminating a fiber
-   * because a defect has been detected in the code.
-   */
-  final def dieMessage(message: String): UIO[Nothing] = die(new RuntimeException(message))
-
-  /**
-   * Imports a total synchronous effect into a pure `ZIO` value.
-   * The effect must not throw any exceptions. If you wonder if the effect
-   * throws exceptions, then do not use this method, use [[Task.effect]],
-   * [[IO.effect]], or [[ZIO.effect]].
-   *
-   * {{{
-   * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
-   * }}}
-   */
-  final def effectTotal[A](effect: => A): UIO[A] = new ZIO.EffectTotal(() => effect)
-
-  /**
-   * Imports a total synchronous effect into a pure `ZIO` value. This variant
-   * of `effectTotal` lets the impure code use the platform capabilities.
-   *
-   * The effect must not throw any exceptions. If you wonder if the effect
-   * throws exceptions, then do not use this method, use [[Task.effect]],
-   * [[IO.effect]], or [[ZIO.effect]].
-   *
-   * {{{
-   * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
-   * }}}
-   */
-  final def effectTotalWith[A](effect: Platform => A): UIO[A] = new ZIO.EffectTotalWith[A](effect)
-
-  /**
-   * Returns an effect that yields to the runtime system, starting on a fresh
-   * stack. Manual use of this method can improve fairness, at the cost of
-   * overhead.
-   */
-  final val yieldNow: UIO[Unit] = ZIO.Yield
-
-  /**
-   * Returns an effect that forks all of the specified values, and returns a
-   * composite fiber that produces a list of their results, in order.
-   */
-  final def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Fiber[E, List[A]]] =
-    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeedLazy[E, List[A]](List()))) {
-      (aIO, asFiberIO) =>
-        asFiberIO.zip(aIO.fork).map {
-          case (asFiber, aFiber) =>
-            asFiber.zipWith(aFiber)((as, a) => a :: as)
-        }
-    }
-
-  /**
-   * Returns an effect that forks all of the specified values, and returns a
-   * composite fiber that produces unit. This version is faster than [[forkAll]]
-   * in cases where the results of the forked fibers are not needed.
-   */
-  final def forkAll_[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Unit] =
-    as.foldRight[ZIO[R, Nothing, Unit]](ZIO.unit)(_.fork *> _)
-
-  /**
-   * Returns an effect from a [[scalaz.zio.Exit]] value.
-   */
-  final def done[E, A](r: Exit[E, A]): IO[E, A] = r match {
-    case Exit.Success(b)     => succeed(b)
-    case Exit.Failure(cause) => halt(cause)
-  }
-
-  /**
-   * Enables supervision for this effect. This will cause fibers forked by
-   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
-   */
-  final def supervised[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.Supervised(zio)
-
-  /**
-   * Returns an effect that supervises the specified effect, ensuring that all
-   * fibers that it forks are interrupted as soon as the supervised effect
-   * completes.
-   */
-  final def supervise[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    superviseWith(zio)(Fiber.interruptAll)
-
-  /**
-   * Returns an effect that supervises the specified effect, ensuring that all
-   * fibers that it forks are passed to the specified supervisor as soon as the
-   * supervised effect completes.
-   */
-  final def superviseWith[R, E, A](
-    zio: ZIO[R, E, A]
-  )(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): ZIO[R, E, A] =
-    zio.ensuring(children.flatMap(supervisor(_))).supervised
-
-  /**
-   * Returns an effect that first executes the outer effect, and then executes
-   * the inner effect, returning the value from the inner effect, and effectively
-   * flattening a nested effect.
-   */
-  final def flatten[R, E, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] =
-    zio.flatMap(ZIO.identityFn[ZIO[R, E, A]])
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. This is a shortcut for `flatten(effectTotal(io))`.
-   */
-  final def suspend[R, E, A](io: => ZIO[R, E, A]): ZIO[R, E, A] =
-    flatten(effectTotal(io))
-
-  /**
-   * Returns an effect that will execute the specified effect fully on the
-   * provided executor, before returning to the default executor.
-   */
-  final def lock[R, E, A](executor: Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.Lock(executor, zio)
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value. See `effectAsyncMaybe` for
-   * the more expressive variant of this function that can return a value
-   * synchronously.
-   */
-  final def effectAsync[E, A](register: (ZIO[Any, E, A] => Unit) => Unit): ZIO[Any, E, A] =
-    effectAsyncMaybe((callback: ZIO[Any, E, A] => Unit) => {
-      register(callback)
-
-      None
-    })
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
-   * the value synchronously.
-   */
-  final def effectAsyncMaybe[E, A](register: (ZIO[Any, E, A] => Unit) => Option[IO[E, A]]): ZIO[Any, E, A] =
-    new ZIO.EffectAsync(register)
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
-   * necessary when the effect is itself expressed in terms of `ZIO`.
-   */
-  final def effectAsyncM[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => ZIO[R, Nothing, _]
-  ): ZIO[R, E, A] =
-    for {
-      p <- Promise.make[E, A]
-      r <- ZIO.runtime[R]
-      a <- ZIO.uninterruptibleMask { restore =>
-            register(k => r.unsafeRunAsync_(k.to(p))).fork.flatMap { f =>
-              restore(p.await).onInterrupt(f.interrupt)
-            }
-          }
-    } yield a
-
-  /**
-   * Imports an asynchronous effect into a pure `IO` value. The effect has the
-   * option of returning the value synchronously, which is useful in cases
-   * where it cannot be determined if the effect is synchronous or asynchronous
-   * until the effect is actually executed. The effect also has the option of
-   * returning a canceler, which will be used by the runtime to cancel the
-   * asynchronous effect if the fiber executing the effect is interrupted.
-   */
-  final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
-  ): ZIO[R, E, A] = {
-    import java.util.concurrent.atomic.AtomicBoolean
-    import internal.OneShot
-
-    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
-      case (started, cancel) =>
-        flatten {
-          effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
-            started.set(true)
-
-            try register(io => k(ZIO.succeed(io))) match {
-              case Left(canceler) =>
-                cancel.set(canceler)
-                None
-              case Right(io) => Some(ZIO.succeed(io))
-            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
-          })
-        }.onInterrupt(flatten(effectTotal(if (started.get) cancel.get() else ZIO.unit)))
-    }
-  }
-
-  /**
-   * Submerges the error case of an `Either` into the `ZIO`. The inverse
-   * operation of `IO.either`.
-   */
-  final def absolve[R, E, A](v: ZIO[R, E, Either[E, A]]): ZIO[R, E, A] =
-    v.flatMap(fromEither(_))
-
-  /**
-   * The inverse operation `IO.sandboxed`
-   *
-   * Terminates with exceptions on the `Left` side of the `Either` error, if it
-   * exists. Otherwise extracts the contained `IO[E, A]`
-   */
-  final def unsandbox[R, E, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
-
-  /**
-   * Returns the identity effectful function, which performs no effects
-   */
-  final def identity[R]: ZIO[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn[R])
-
-  /**
-   * Returns an effectful function that merely swaps the elements in a `Tuple2`.
-   */
-  final def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, (B, A)] =
-    fromFunction[R, (B, A)](_.swap)
-
-  /**
-   * Returns an effectful function that extracts out the first element of a
-   * tuple.
-   */
-  final def _1[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, A] = fromFunction[R, A](_._1)
-
-  /**
-   * Returns an effectful function that extracts out the second element of a
-   * tuple.
-   */
-  final def _2[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
-
-  /**
-   * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
-   */
-  final def fromFunction[R, A](f: R => A): ZIO[R, Nothing, A] =
-    environment[R].map(f)
-
-  /**
-   * Lifts an effectful function whose effect requires no environment into
-   * an effect that requires the input to the function.
-   */
-  final def fromFunctionM[R, E, A](f: R => IO[E, A]): ZIO[R, E, A] =
-    environment[R].flatMap(f)
-
-  /**
-   * Lifts an `Either` into a `ZIO` value.
-   */
-  final def fromEither[E, A](v: => Either[E, A]): IO[E, A] =
-    effectTotal(v).flatMap(_.fold(fail, succeed))
-
-  /**
-   * Creates a `ZIO` value that represents the exit value of the specified
-   * fiber.
-   */
-  final def fromFiber[E, A](fiber: => Fiber[E, A]): IO[E, A] =
-    effectTotal(fiber).flatMap(_.join)
-
-  /**
-   * Creates a `ZIO` value that represents the exit value of the specified
-   * fiber.
-   */
-  final def fromFiberM[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
-    fiber.flatMap(_.join)
-
-  /**
-   * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
-   * value, then the specified error will be raised.
-   */
-  final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
-    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
+  def apply[A](a: => A): Task[A] = effect(a)
 
   /**
    * When this effect represents acquisition of a resource (for example,
@@ -1507,6 +1201,211 @@ private[zio] trait ZIOFunctions extends Serializable {
           b <- ZIO.done(e)
         } yield b
     )
+
+  /**
+   * Checks the interrupt status, and produces the effect returned by the
+   * specified callback.
+   */
+  final def checkInterruptible[R, E, A](f: Boolean => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.CheckInterrupt(f)
+
+  /**
+   * Provides access to the list of child fibers supervised by this fiber.
+   *
+   * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
+   * current fiber for this operation to return non-empty lists.
+   */
+  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptorWith(_.children)
+
+  /**
+   * Evaluate each effect in the structure from left to right, and collect
+   * the results. For a parallel version, see `collectAllPar`.
+   */
+  final def collectAll[R, E, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    foreach[R, E, ZIO[R, E, A], A](in)(ZIO.identityFn)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect
+   * the results. For a sequential version, see `collectAll`.
+   */
+  final def collectAllPar[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    foreachPar[R, E, ZIO[R, E, A], A](as)(ZIO.identityFn)
+
+  /**
+   * Evaluate each effect in the structure in parallel, and collect
+   * the results. For a sequential version, see `collectAll`.
+   *
+   * Unlike `foreachAllPar`, this method will use at most `n` fibers.
+   */
+  final def collectAllParN[R, E, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
+
+  /**
+   * Returns an effect that dies with the specified `Throwable`.
+   * This method can be used for terminating a fiber because a defect has been
+   * detected in the code.
+   */
+  final def die(t: Throwable): UIO[Nothing] = halt(Cause.die(t))
+
+  /**
+   * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
+   * specified text message. This method can be used for terminating a fiber
+   * because a defect has been detected in the code.
+   */
+  final def dieMessage(message: String): UIO[Nothing] = die(new RuntimeException(message))
+
+  /**
+   * Returns an effect from a [[scalaz.zio.Exit]] value.
+   */
+  final def done[E, A](r: Exit[E, A]): IO[E, A] = r match {
+    case Exit.Success(b)     => succeed(b)
+    case Exit.Failure(cause) => halt(cause)
+  }
+
+  /**
+   * Returns information about the current fiber, such as its identity.
+   */
+  final def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeed(_))
+
+  /**
+   * Constructs an effect based on information about the current fiber, such as
+   * its identity.
+   */
+  final def descriptorWith[R, E, A](f: Fiber.Descriptor => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.Descriptor(f)
+
+  /**
+   *
+   * Imports a synchronous effect into a pure `ZIO` value, translating any
+   * throwables into a `Throwable` failure in the returned value.
+   *
+   * {{{
+   * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
+   * }}}
+   */
+  final def effect[A](effect: => A): Task[A] = new ZIO.EffectPartial(() => effect)
+
+  /**
+   * Imports an asynchronous effect into a pure `ZIO` value. See `effectAsyncMaybe` for
+   * the more expressive variant of this function that can return a value
+   * synchronously.
+   */
+  final def effectAsync[E, A](register: (ZIO[Any, E, A] => Unit) => Unit): ZIO[Any, E, A] =
+    effectAsyncMaybe((callback: ZIO[Any, E, A] => Unit) => {
+      register(callback)
+
+      None
+    })
+
+  /**
+   * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
+   * the value synchronously.
+   */
+  final def effectAsyncMaybe[E, A](register: (ZIO[Any, E, A] => Unit) => Option[IO[E, A]]): ZIO[Any, E, A] =
+    new ZIO.EffectAsync(register)
+
+  /**
+   * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
+   * necessary when the effect is itself expressed in terms of `ZIO`.
+   */
+  final def effectAsyncM[R, E, A](
+    register: (ZIO[R, E, A] => Unit) => ZIO[R, Nothing, _]
+  ): ZIO[R, E, A] =
+    for {
+      p <- Promise.make[E, A]
+      r <- ZIO.runtime[R]
+      a <- ZIO.uninterruptibleMask { restore =>
+            register(k => r.unsafeRunAsync_(k.to(p))).fork.flatMap { f =>
+              restore(p.await).onInterrupt(f.interrupt)
+            }
+          }
+    } yield a
+
+  /**
+   * Imports an asynchronous effect into a pure `IO` value. The effect has the
+   * option of returning the value synchronously, which is useful in cases
+   * where it cannot be determined if the effect is synchronous or asynchronous
+   * until the effect is actually executed. The effect also has the option of
+   * returning a canceler, which will be used by the runtime to cancel the
+   * asynchronous effect if the fiber executing the effect is interrupted.
+   */
+  final def effectAsyncInterrupt[R, E, A](
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]
+  ): ZIO[R, E, A] = {
+    import java.util.concurrent.atomic.AtomicBoolean
+    import internal.OneShot
+
+    effectTotal((new AtomicBoolean(false), OneShot.make[UIO[Any]])).flatMap {
+      case (started, cancel) =>
+        flatten {
+          effectAsyncMaybe((k: UIO[ZIO[R, E, A]] => Unit) => {
+            started.set(true)
+
+            try register(io => k(ZIO.succeed(io))) match {
+              case Left(canceler) =>
+                cancel.set(canceler)
+                None
+              case Right(io) => Some(ZIO.succeed(io))
+            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+          })
+        }.onInterrupt(flatten(effectTotal(if (started.get) cancel.get() else ZIO.unit)))
+    }
+  }
+
+  /**
+   * Imports a total synchronous effect into a pure `ZIO` value.
+   * The effect must not throw any exceptions. If you wonder if the effect
+   * throws exceptions, then do not use this method, use [[Task.effect]],
+   * [[IO.effect]], or [[ZIO.effect]].
+   *
+   * {{{
+   * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
+   * }}}
+   */
+  final def effectTotal[A](effect: => A): UIO[A] = new ZIO.EffectTotal(() => effect)
+
+  /**
+   * Imports a total synchronous effect into a pure `ZIO` value. This variant
+   * of `effectTotal` lets the impure code use the platform capabilities.
+   *
+   * The effect must not throw any exceptions. If you wonder if the effect
+   * throws exceptions, then do not use this method, use [[Task.effect]],
+   * [[IO.effect]], or [[ZIO.effect]].
+   *
+   * {{{
+   * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
+   * }}}
+   */
+  final def effectTotalWith[A](effect: Platform => A): UIO[A] = new ZIO.EffectTotalWith[A](effect)
+
+  /**
+   * Accesses the whole environment of the effect.
+   */
+  final def environment[R]: ZIO[R, Nothing, R] = access(ZIO.identityFn[R])
+
+  /**
+   * Returns an effect that models failure with the specified error.
+   * The moral equivalent of `throw` for pure code.
+   */
+  final def fail[E](error: E): IO[E, Nothing] = halt(Cause.fail(error))
+
+  /**
+   * Returns an effect that first executes the outer effect, and then executes
+   * the inner effect, returning the value from the inner effect, and effectively
+   * flattening a nested effect.
+   */
+  final def flatten[R, E, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] =
+    zio.flatMap(ZIO.identityFn[ZIO[R, E, A]])
+
+  /**
+   * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
+   */
+  final def foldLeft[R, E, S, A](
+    in: Iterable[A]
+  )(zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
+    in.foldLeft(IO.succeed(zero): ZIO[R, E, S]) { (acc, el) =>
+      acc.flatMap(f(_, el))
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
@@ -1592,27 +1491,153 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Evaluate each effect in the structure from left to right, and collect
-   * the results. For a parallel version, see `collectAllPar`.
+   * Returns an effect that forks all of the specified values, and returns a
+   * composite fiber that produces a list of their results, in order.
    */
-  final def collectAll[R, E, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreach[R, E, ZIO[R, E, A], A](in)(ZIO.identityFn)
+  final def forkAll[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Fiber[E, List[A]]] =
+    as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeedLazy[E, List[A]](List()))) {
+      (aIO, asFiberIO) =>
+        asFiberIO.zip(aIO.fork).map {
+          case (asFiber, aFiber) =>
+            asFiber.zipWith(aFiber)((as, a) => a :: as)
+        }
+    }
 
   /**
-   * Evaluate each effect in the structure in parallel, and collect
-   * the results. For a sequential version, see `collectAll`.
+   * Returns an effect that forks all of the specified values, and returns a
+   * composite fiber that produces unit. This version is faster than [[forkAll]]
+   * in cases where the results of the forked fibers are not needed.
    */
-  final def collectAllPar[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachPar[R, E, ZIO[R, E, A], A](as)(ZIO.identityFn)
+  final def forkAll_[R, E, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Unit] =
+    as.foldRight[ZIO[R, Nothing, Unit]](ZIO.unit)(_.fork *> _)
 
   /**
-   * Evaluate each effect in the structure in parallel, and collect
-   * the results. For a sequential version, see `collectAll`.
+   * Lifts an `Either` into a `ZIO` value.
+   */
+  final def fromEither[E, A](v: => Either[E, A]): IO[E, A] =
+    effectTotal(v).flatMap(_.fold(fail, succeed))
+
+  /**
+   * Creates a `ZIO` value that represents the exit value of the specified
+   * fiber.
+   */
+  final def fromFiber[E, A](fiber: => Fiber[E, A]): IO[E, A] =
+    effectTotal(fiber).flatMap(_.join)
+
+  /**
+   * Creates a `ZIO` value that represents the exit value of the specified
+   * fiber.
+   */
+  final def fromFiberM[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
+    fiber.flatMap(_.join)
+
+  /**
+   * Lifts a function `R => A` into a `ZIO[R, Nothing, A]`.
+   */
+  final def fromFunction[R, A](f: R => A): ZIO[R, Nothing, A] =
+    environment[R].map(f)
+
+  /**
+   * Lifts an effectful function whose effect requires no environment into
+   * an effect that requires the input to the function.
+   */
+  final def fromFunctionM[R, E, A](f: R => IO[E, A]): ZIO[R, E, A] =
+    environment[R].flatMap(f)
+
+  /**
+   * Imports a function that creates a [[scala.concurrent.Future]] from an
+   * [[scala.concurrent.ExecutionContext]] into a `ZIO`.
+   */
+  final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    Task.descriptorWith { d =>
+      val ec = d.executor.asEC
+      val f  = make(ec)
+      f.value
+        .fold(
+          Task.effectAsync { (cb: Task[A] => Unit) =>
+            f.onComplete {
+              case Success(a) => cb(Task.succeed(a))
+              case Failure(t) => cb(Task.fail(t))
+            }(ec)
+          }
+        )(Task.fromTry(_))
+
+    }
+
+  /**
+   * Lifts an `Option` into a `ZIO`.
+   */
+  final def fromOption[A](v: => Option[A]): IO[Unit, A] =
+    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed(_)))
+
+  /**
+   * Lifts a `Try` into a `ZIO`.
+   */
+  final def fromTry[A](value: => scala.util.Try[A]): Task[A] =
+    effect(value).flatMap {
+      case scala.util.Success(v) => ZIO.succeed(v)
+      case scala.util.Failure(t) => ZIO.fail(t)
+    }
+
+  /**
+   * Returns an effect that models failure with the specified `Cause`.
+   */
+  final def halt[E](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(cause)
+
+  /**
+   * Returns the identity effectful function, which performs no effects
+   */
+  final def identity[R]: ZIO[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn[R])
+
+  /**
+   * Prefix form of `ZIO#interruptible`.
+   */
+  final def interruptible[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.interruptible
+
+  /**
+   * Makes the effect interruptible, but passes it a restore function that
+   * can be used to restore the inherited interruptibility from whatever region
+   * the effect is composed into.
+   */
+  final def interruptibleMask[R, E, A](
+    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+  ): ZIO[R, E, A] =
+    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).interruptible)
+
+  /**
+   * Returns an effect that will execute the specified effect fully on the
+   * provided executor, before returning to the default executor.
+   */
+  final def lock[R, E, A](executor: Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.Lock(executor, zio)
+
+  /**
+   * Merges an `Iterable[IO]` to a single IO, working sequentially.
+   */
+  final def mergeAll[R, E, A, B](
+    in: Iterable[ZIO[R, E, A]]
+  )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
+    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
+
+  /**
+   * Merges an `Iterable[IO]` to a single IO, working in parallel.
+   */
+  final def mergeAllPar[R, E, A, B](
+    in: Iterable[ZIO[R, E, A]]
+  )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
+    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
+
+  /**
+   * Given an environment `R`, returns a function that can supply the
+   * environment to programs that require it, removing their need for any
+   * specific environment.
    *
-   * Unlike `foreachAllPar`, this method will use at most `n` fibers.
+   * This is similar to dependency injection, and the `provide` function can be
+   * thought of as `inject`.
    */
-  final def collectAllParN[R, E, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
-    foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
+  final def provide[R, E, A](r: R): ZIO[R, E, A] => IO[E, A] =
+    (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -1645,25 +1670,122 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
-   * Merges an `Iterable[IO]` to a single IO, working sequentially.
+   * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
+   * value, then the specified error will be raised.
    */
-  final def mergeAll[R, E, A, B](
-    in: Iterable[ZIO[R, E, A]]
-  )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zip(a).map(f.tupled))
+  final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
+    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
 
   /**
-   * Merges an `Iterable[IO]` to a single IO, working in parallel.
+   * Acquires a resource, uses the resource, and then releases the resource.
+   * However, unlike `bracket`, the separation of these phases allows
+   * the acquisition to be interruptible.
+   *
+   * Useful for concurrent data structures and other cases where the
+   * 'deallocator' can tell if the allocation succeeded or not just by
+   * inspecting internal / external state.
    */
-  final def mergeAllPar[R, E, A, B](
-    in: Iterable[ZIO[R, E, A]]
-  )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
+  def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
+    ZManaged(reservation).use(use)
+
+  /**
+   * Returns an effect that accesses the runtime, which can be used to
+   * (unsafely) execute tasks. This is useful for integration with
+   * non-functional code that must call back into functional code.
+   */
+  final def runtime[R]: ZIO[R, Nothing, Runtime[R]] =
+    for {
+      environment <- environment[R]
+      platform    <- effectTotalWith(ZIO.identityFn[Platform])
+    } yield Runtime(environment, platform)
+
+  /**
+   * Sleeps for the specified duration. This method is asynchronous, and does
+   * not actually block the fiber.
+   */
+  final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
+    clock.sleep(duration)
+
+  /**
+   * Returns an effect that models success with the specified strictly-
+   * evaluated value.
+   */
+  final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
+
+  /**
+   * Returns an effect that models success with the specified lazily-evaluated
+   * value. This method should not be used to capture effects. See
+   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
+   * partial effects.
+   */
+  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
+
+  /**
+   * Returns an effect that supervises the specified effect, ensuring that all
+   * fibers that it forks are interrupted as soon as the supervised effect
+   * completes.
+   */
+  final def supervise[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    superviseWith(zio)(Fiber.interruptAll)
+
+  /**
+   * Enables supervision for this effect. This will cause fibers forked by
+   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
+   */
+  final def supervised[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.Supervised(zio)
+
+  /**
+   * Returns an effect that supervises the specified effect, ensuring that all
+   * fibers that it forks are passed to the specified supervisor as soon as the
+   * supervised effect completes.
+   */
+  final def superviseWith[R, E, A](
+    zio: ZIO[R, E, A]
+  )(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): ZIO[R, E, A] =
+    zio.ensuring(children.flatMap(supervisor(_))).supervised
+
+  /**
+   * Returns a lazily constructed effect, whose construction may itself require
+   * effects. This is a shortcut for `flatten(effectTotal(io))`.
+   */
+  final def suspend[R, E, A](io: => ZIO[R, E, A]): ZIO[R, E, A] =
+    flatten(effectTotal(io))
+
+  /**
+   * Returns an effectful function that merely swaps the elements in a `Tuple2`.
+   */
+  final def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, (B, A)] =
+    fromFunction[R, (B, A)](_.swap)
+
+  /**
+   * Prefix form of `ZIO#uninterruptible`.
+   */
+  final def uninterruptible[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.uninterruptible
+
+  /**
+   * Makes the effect uninterruptible, but passes it a restore function that
+   * can be used to restore the inherited interruptibility from whatever region
+   * the effect is composed into.
+   */
+  final def uninterruptibleMask[R, E, A](
+    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+  ): ZIO[R, E, A] =
+    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).uninterruptible)
 
   /**
    * Strictly-evaluated unit lifted into the `ZIO` monad.
    */
   final val unit: ZIO[Any, Nothing, Unit] = succeed(())
+
+  /**
+   * The inverse operation `IO.sandboxed`
+   *
+   * Terminates with exceptions on the `Left` side of the `Either` error, if it
+   * exists. Otherwise extracts the contained `IO[E, A]`
+   */
+  final def unsandbox[R, E, A](v: ZIO[R, Cause[E], A]): ZIO[R, E, A] = v.catchAll[R, E, A](halt)
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -1678,200 +1800,16 @@ private[zio] trait ZIOFunctions extends Serializable {
     b.flatMap(b => if (b) zio.unit else unit)
 
   /**
-   * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.
+   * Returns an effectful function that extracts out the first element of a
+   * tuple.
    */
-  final def foldLeft[R, E, S, A](
-    in: Iterable[A]
-  )(zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    in.foldLeft(IO.succeed(zero): ZIO[R, E, S]) { (acc, el) =>
-      acc.flatMap(f(_, el))
-    }
+  final def _1[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, A] = fromFunction[R, A](_._1)
 
   /**
-   * Returns information about the current fiber, such as its identity.
+   * Returns an effectful function that extracts out the second element of a
+   * tuple.
    */
-  final def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeed(_))
-
-  /**
-   * Constructs an effect based on information about the current fiber, such as
-   * its identity.
-   */
-  final def descriptorWith[R, E, A](f: Fiber.Descriptor => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.Descriptor(f)
-
-  /**
-   * Checks the interrupt status, and produces the effect returned by the
-   * specified callback.
-   */
-  final def checkInterruptible[R, E, A](f: Boolean => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.CheckInterrupt(f)
-
-  /**
-   * Makes an explicit check to see if the fiber has been interrupted, and if
-   * so, performs self-interruption.
-   */
-  final def allowInterrupt: UIO[Unit] =
-    descriptorWith(d => if (d.interrupted) interrupt else unit)
-
-  /**
-   * Makes the effect uninterruptible, but passes it a restore function that
-   * can be used to restore the inherited interruptibility from whatever region
-   * the effect is composed into.
-   */
-  final def uninterruptibleMask[R, E, A](
-    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
-  ): ZIO[R, E, A] =
-    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).uninterruptible)
-
-  /**
-   * Makes the effect interruptible, but passes it a restore function that
-   * can be used to restore the inherited interruptibility from whatever region
-   * the effect is composed into.
-   */
-  final def interruptibleMask[R, E, A](
-    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
-  ): ZIO[R, E, A] =
-    checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).interruptible)
-
-  /**
-   * Prefix form of `ZIO#uninterruptible`.
-   */
-  final def uninterruptible[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    zio.uninterruptible
-
-  /**
-   * Prefix form of `ZIO#interruptible`.
-   */
-  final def interruptible[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    zio.interruptible
-
-  /**
-   * Provides access to the list of child fibers supervised by this fiber.
-   *
-   * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
-   * current fiber for this operation to return non-empty lists.
-   */
-  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptorWith(_.children)
-
-  /**
-   * Acquires a resource, uses the resource, and then releases the resource.
-   * However, unlike `bracket`, the separation of these phases allows
-   * the acquisition to be interruptible.
-   *
-   * Useful for concurrent data structures and other cases where the
-   * 'deallocator' can tell if the allocation succeeded or not just by
-   * inspecting internal / external state.
-   */
-  def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
-    ZManaged(reservation).use(use)
-
-}
-
-private[zio] trait ZIO_E_Any extends ZIO_E_Throwable {
-
-  /**
-   * Lifts an `Option` into a `ZIO`.
-   */
-  final def fromOption[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed(_)))
-}
-
-private[zio] trait ZIO_E_Throwable extends ZIOFunctions {
-
-  /**
-   *
-   * Imports a synchronous effect into a pure `ZIO` value, translating any
-   * throwables into a `Throwable` failure in the returned value.
-   *
-   * {{{
-   * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
-   * }}}
-   */
-  final def effect[A](effect: => A): Task[A] = new ZIO.EffectPartial(() => effect)
-
-  /**
-   * Lifts a `Try` into a `ZIO`.
-   */
-  final def fromTry[A](value: => scala.util.Try[A]): Task[A] =
-    effect(value).flatMap {
-      case scala.util.Success(v) => ZIO.succeed(v)
-      case scala.util.Failure(t) => ZIO.fail(t)
-    }
-
-  /**
-   * Imports a function that creates a [[scala.concurrent.Future]] from an
-   * [[scala.concurrent.ExecutionContext]] into a `ZIO`.
-   */
-  final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
-    Task.descriptorWith { d =>
-      val ec = d.executor.asEC
-      val f  = make(ec)
-      f.value
-        .fold(
-          Task.effectAsync { (cb: Task[A] => Unit) =>
-            f.onComplete {
-              case Success(a) => cb(Task.succeed(a))
-              case Failure(t) => cb(Task.fail(t))
-            }(ec)
-          }
-        )(Task.fromTry(_))
-
-    }
-}
-private[zio] trait ZIO_R_Any extends ZIO_E_Any {
-
-  /**
-   * Sleeps for the specified duration. This method is asynchronous, and does
-   * not actually block the fiber.
-   */
-  final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
-    clock.sleep(duration)
-}
-
-/*
- * ------------------------------------------------------------------------------------------------
- *
- * ------------------------------------------------------------------------------------------------
- * DELETE DELETE DELETE
- * ------------------------------------------------------------------------------------------------
- *
- * ------------------------------------------------------------------------------------------------
- */
-//object IO extends ZIO_E_Any {
-//  type LowerR = Any
-//
-//  def apply[A](a: => A): Task[A] = effect(a)
-//}
-//object Task extends ZIO_E_Throwable {
-//  type UpperE = Throwable
-//  type LowerR = Any
-//
-//  def apply[A](a: => A): Task[A] = effect(a)
-//}
-//object TaskR extends ZIO_E_Throwable {
-//  type UpperE = Throwable
-//  type LowerR = Nothing
-//
-//  def apply[A](a: => A): Task[A] = effect(a)
-//}
-//object UIO extends ZIOFunctions {
-//  type UpperE = Nothing
-//  type LowerR = Any
-//
-//  def apply[A](a: => A): UIO[A] = effectTotal(a)
-//}
-/*
- * ------------------------------------------------------------------------------------------------
- *
- * ------------------------------------------------------------------------------------------------
- *
- * ------------------------------------------------------------------------------------------------
- *
- * ------------------------------------------------------------------------------------------------
- */
-
-object ZIO extends ZIO_R_Any {
-  def apply[A](a: => A): Task[A] = effect(a)
+  final def _2[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, B] = fromFunction[R, B](_._2)
 
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
@@ -2059,4 +1997,5 @@ object ZIO extends ZIO_R_Any {
   private[zio] final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
     override def tag = Tags.Provide
   }
+
 }
