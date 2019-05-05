@@ -216,17 +216,18 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testNonMemoizationRT = forAll(Gen.alphaStr) { str =>
-    val io: UIO[Option[String]] = IO.succeedLazy(Some(str))  // using `Some` for object allocation
+    val io: UIO[Option[String]] = IO.succeedLazy(Some(str)) // using `Some` for object allocation
     unsafeRun(
       (io <*> io)
-        .map(tuple => tuple._1 must not beTheSameAs(tuple._2))
+        .map(tuple => tuple._1 must not beTheSameAs (tuple._2))
     )
   }
 
   def testMemoization = forAll(Gen.alphaStr) { str =>
-    val ioMemo: UIO[UIO[Option[String]]] = IO.succeedLazy(Some(str)).memoize  // using `Some` for object allocation
+    val ioMemo: UIO[UIO[Option[String]]] = IO.succeedLazy(Some(str)).memoize // using `Some` for object allocation
     unsafeRun(
-      ioMemo.flatMap(io => io <*> io)
+      ioMemo
+        .flatMap(io => io <*> io)
         .map(tuple => tuple._1 must beTheSameAs(tuple._2))
     )
   }
