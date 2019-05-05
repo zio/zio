@@ -3,8 +3,6 @@ id: interop_index
 title:  "Summary"
 ---
 
-## Interop
-
 ZIO provides the ability to interoperate with other parts of the broader ecosystem, including:
 
  - **Cats Effect** — In a separate module that is not part of core, ZIO has instances for the Cats Effect library, which allow you to use ZIO with any libraries that rely on Cats Effect (including FS2, Doobie, Http4s).

@@ -13,7 +13,7 @@
     ]
   },
   "datatypes-sidebar": {
-    "DataTypes": [
+    "Data Types": [
       "datatypes/datatypes_index",
       "datatypes/datatypes_fiber",
       "datatypes/datatypes_fiberlocal",
@@ -42,7 +42,7 @@
     ]
   },
   "usecases-sidebar": {
-    "Usecases": [
+    "Use Cases": [
       "usecases/usecases_index",
       "usecases/usecases_asynchronous",
       "usecases/usecases_concurrency",
