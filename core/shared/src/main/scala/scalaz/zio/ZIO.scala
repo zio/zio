@@ -1160,7 +1160,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Returns a effect that will never produce anything. The moral
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
-  final val never: UIO[Nothing] = effectAsync[Nothing, Nothing](_ => ())
+  final val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
 
   /**
    * Returns an effect that dies with the specified `Throwable`.
@@ -1290,8 +1290,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    * the more expressive variant of this function that can return a value
    * synchronously.
    */
-  final def effectAsync[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Unit): ZIO[Any, E, A] =
-    effectAsyncMaybe((callback: ZIO[Any, E, A] => Unit) => {
+  final def effectAsync[R >: LowerR, E <: UpperE, A](register: (ZIO[R, E, A] => Unit) => Unit): ZIO[R, E, A] =
+    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
       register(callback)
 
       None
@@ -1301,7 +1301,9 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
    * the value synchronously.
    */
-  final def effectAsyncMaybe[E <: UpperE, A](register: (ZIO[Any, E, A] => Unit) => Option[IO[E, A]]): ZIO[Any, E, A] =
+  final def effectAsyncMaybe[R >: LowerR, E <: UpperE, A](
+    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]
+  ): ZIO[R, E, A] =
     new ZIO.EffectAsync(register)
 
   /**
@@ -1309,15 +1311,18 @@ private[zio] trait ZIOFunctions extends Serializable {
    * necessary when the effect is itself expressed in terms of `ZIO`.
    */
   final def effectAsyncM[R >: LowerR, E <: UpperE, A](
-    register: (ZIO[R, E, A] => Unit) => ZIO[R, Nothing, _]
+    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _]
   ): ZIO[R, E, A] =
     for {
       p <- Promise.make[E, A]
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
-            register(k => r.unsafeRunAsync_(k.to(p))).fork.flatMap { f =>
-              restore(p.await).onInterrupt(f.interrupt)
-            }
+            register(k => r.unsafeRunAsync_(k.to(p)))
+              .catchAll(p.fail)
+              .fork
+              .flatMap { f =>
+                restore(p.await).onInterrupt(f.interrupt)
+              }
           }
     } yield a
 
@@ -1972,7 +1977,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.EffectPartial
   }
 
-  private[zio] final class EffectAsync[E, A](val register: (IO[E, A] => Unit) => Option[IO[E, A]]) extends IO[E, A] {
+  private[zio] final class EffectAsync[R, E, A](val register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]])
+      extends ZIO[R, E, A] {
     override def tag = Tags.EffectAsync
   }
 
