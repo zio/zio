@@ -42,6 +42,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `supervise` returns same value as IO.supervise. $testSupervise
    Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
+   Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
+   Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
@@ -211,6 +213,22 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       abs1 <- ioEither.absolve
       abs2 <- IO.absolve(ioEither)
     } yield abs1 must ===(abs2))
+  }
+
+  def testNonMemoizationRT = forAll(Gen.alphaStr) { str =>
+    val io: UIO[Option[String]] = IO.succeedLazy(Some(str))  // using `Some` for object allocation
+    unsafeRun(
+      (io <*> io)
+        .map(tuple => tuple._1 must not beTheSameAs(tuple._2))
+    )
+  }
+
+  def testMemoization = forAll(Gen.alphaStr) { str =>
+    val ioMemo: UIO[UIO[Option[String]]] = IO.succeedLazy(Some(str)).memoize  // using `Some` for object allocation
+    unsafeRun(
+      ioMemo.flatMap(io => io <*> io)
+        .map(tuple => tuple._1 must beTheSameAs(tuple._2))
+    )
   }
 
   def testRaceAll = {
