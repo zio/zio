@@ -17,3 +17,7 @@
 .welcome {
   padding-left: 30px
 }
+
+.gitter-chat-embed {
+  z-index: 10000;
+}

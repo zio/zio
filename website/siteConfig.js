@@ -52,7 +52,7 @@ const siteConfig = {
   /* Colors for website */
   colors: {
     primaryColor: '#000000',
-    secondaryColor: '#00008B',
+    secondaryColor: '#000000',
   },
 
   /* Custom fonts for website */
@@ -100,6 +100,9 @@ const siteConfig = {
   //   repoUrl: 'https://github.com/facebook/test-site',
 
   scrollToTop: true,
+  scrollToTopOptions: {
+    cornerOffset: 100,
+  },
 
   customDocsPath: 'scalaz-zio-docs/target/mdoc',
 };

@@ -5,6 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import Gitter from 'react-sidecar';
+
 const React = require('react');
 
 class Footer extends React.Component {
@@ -24,6 +26,9 @@ class Footer extends React.Component {
   render() {
     return (
       <footer className="nav-footer" id="footer">
+        <section>
+          <Gitter room="scalaz/scalaz-zio" title="Open Chat" />
+        </section>
         <section className="sitemap">
           <a href={this.props.config.baseUrl} className="nav-home">
             {this.props.config.footerIcon && (
