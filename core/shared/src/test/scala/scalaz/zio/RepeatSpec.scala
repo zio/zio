@@ -1,9 +1,8 @@
 package scalaz.zio
 
-import org.specs2.ScalaCheck
 import scalaz.zio.clock.Clock
 
-class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
+class RepeatSpec extends TestRuntimeJS {
   def is = "RepeatSpec".title ^ s2"""
    Repeat on success according to a provided strategy
       for 'recurs(a negative number)' repeats 0 additional time $repeatNeg
@@ -27,61 +26,43 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   /*
    * A repeat with a negative number of times should not repeat the action at all
    */
-  def repeatNeg = {
-    val repeated = unsafeRun(repeat(-5))
-    repeated must_=== 1
-  }
+  def repeatNeg =
+    repeat(-5).map(x => x must_=== 1)
 
   /*
    * A repeat with 0 number of times should not repeat the action at all
    */
-  def repeat0 = {
-    val n        = 0
-    val repeated = unsafeRun(repeat(n))
-    repeated must_=== 1
-  }
+  def repeat0 =
+    repeat(0).map(x => x must_=== 1)
 
-  def never = {
-    val repeated = unsafeRun(for {
+  def never =
+    for {
       ref <- Ref.make(0)
       _   <- ref.update(_ + 1).repeat(Schedule.never)
       res <- ref.get
-    } yield res)
+    } yield res must_=== 1
 
-    repeated must_=== 1
-  }
+  def repeat1 =
+    repeat(1).map(x => x must_=== 2)
 
-  def repeat1 = {
-    val n        = 1
-    val repeated = unsafeRun(repeat(n))
-    repeated must_=== n + 1
-  }
-
-  def once = {
-    val repeated = unsafeRun(for {
+  def once =
+    for {
       ref <- Ref.make(0)
       _   <- ref.update(_ + 1).repeat(Schedule.once)
       res <- ref.get
-    } yield res)
+    } yield res must_=== 2
 
-    repeated must_=== 2
-  }
-
-  def repeatN = {
-    val n        = 42
-    val repeated = unsafeRun(repeat(n))
-    repeated must_=== n + 1
-  }
+  def repeatN =
+    repeat(42).map(x => x must_=== 42 + 1)
 
   def repeatRepeat = {
     val n = 42
-    val repeated = unsafeRun(for {
+    for {
       ref <- Ref.make(0)
       io  = ref.update(_ + 1).repeat(Schedule.recurs(n))
       _   <- io.repeat(Schedule.recurs(1))
       res <- ref.get
-    } yield res)
-    repeated must_=== (n + 1) * 2
+    } yield res must_=== (n + 1) * 2
   }
 
   def repeatFail = {
@@ -92,7 +73,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         _ <- IO.fail(s"Error: $i")
       } yield i
 
-    val repeated = unsafeRun(
+    val repeated =
       (for {
         ref <- Ref.make(0)
         _   <- incr(ref).repeat(Schedule.recurs(42))
@@ -100,17 +81,16 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )
-    )
 
-    repeated must_=== "Error: 1"
+    repeated.map(x => x must_=== "Error: 1")
   }
 
   def ensuring =
-    unsafeRun(for {
+    for {
       p          <- Promise.make[Nothing, Unit]
       r          <- Ref.make(0)
       _          <- r.update(_ + 2).repeat(Schedule.recurs(2)).ensuring(p.succeed(()))
       v          <- r.get
       finalizerV <- p.poll
-    } yield (v must_=== 6) and (finalizerV.isDefined must beTrue))
+    } yield (v must_=== 6) and (finalizerV.isDefined must beTrue)
 }
