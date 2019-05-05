@@ -3,8 +3,6 @@ id: getting_started
 title:  "Getting Started"
 ---
 
-## Getting Started
-
 Include ZIO in your project by adding the following to your `build.sbt` file:
 ```scala mdoc:passthrough
 println(s"""```""")
