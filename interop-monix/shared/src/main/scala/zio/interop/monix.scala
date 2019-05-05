@@ -13,7 +13,7 @@ object monix {
       Task.fromTry(coeval.runTry())
   }
 
-  implicit class IOThrowableOps[A](private val io: Task[A]) extends AnyVal {
+  implicit class TaskOps[A](private val io: Task[A]) extends AnyVal {
     def toTask: UIO[eval.Task[A]] =
       io.fold(eval.Task.raiseError, eval.Task.now)
 
