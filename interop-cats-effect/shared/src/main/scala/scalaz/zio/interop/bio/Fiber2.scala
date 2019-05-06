@@ -26,8 +26,3 @@ abstract class Fiber2[F[+ _, + _], E, A] {
 
   def join: F[E, A]
 }
-
-object Fiber2 {
-
-  @inline def apply[E, A, F[+ _, + _]: Fiber2[?[_, _], E, A]]: Fiber2[F, E, A] = implicitly
-}

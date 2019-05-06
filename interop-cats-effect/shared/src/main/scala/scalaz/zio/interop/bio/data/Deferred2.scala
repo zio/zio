@@ -83,8 +83,3 @@ abstract class Deferred2[F[+ _, + _], E, A] {
   def fail(e: E)(implicit err: Errorful2[F]): F[E, Boolean] =
     done(err.raiseError(e))
 }
-
-object Deferred2 {
-
-  @inline def apply[F[+ _, + _]: Deferred2[?[_, _], E, A], E, A]: Deferred2[F, E, A] = implicitly
-}
