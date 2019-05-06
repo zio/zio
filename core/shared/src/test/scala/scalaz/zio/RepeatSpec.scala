@@ -2,7 +2,7 @@ package scalaz.zio
 
 import scalaz.zio.clock.Clock
 
-class RepeatSpec extends TestRuntimeJS {
+class RepeatSpec extends BaseCrossPlatformSpec {
   def is = "RepeatSpec".title ^ s2"""
    Repeat on success according to a provided strategy
       for 'recurs(a negative number)' repeats 0 additional time $repeatNeg
