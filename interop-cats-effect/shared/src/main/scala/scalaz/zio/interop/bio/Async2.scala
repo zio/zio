@@ -30,7 +30,7 @@ abstract class Async2[F[+ _, + _]] extends Sync2[F] {
    * }}}
    *
    */
-  def asyncMayBe[E, A](k: (F[E, A] => Unit) => Option[F[E, A]]): F[E, A]
+  def asyncMaybe[E, A](k: (F[E, A] => Unit) => Option[F[E, A]]): F[E, A]
 
   /**
    * Imports into `F` an asynchronous effect with the possibility to
@@ -54,7 +54,7 @@ abstract class Async2[F[+ _, + _]] extends Sync2[F] {
    *
    */
   @inline def async[E, A](k: (F[E, A] => Unit) => Unit): F[E, A] =
-    asyncMayBe { callback =>
+    asyncMaybe { callback =>
       k(callback)
       None
     }
