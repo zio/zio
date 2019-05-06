@@ -16,13 +16,13 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.{ Executor => _, _ }
-import java.util.{ WeakHashMap, Map => JMap }
+import java.util.concurrent.{Executor => _, _}
+import java.util.{WeakHashMap, Map => JMap}
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.tracing.TracingConfig
 import scalaz.zio.stacktracer.Tracer
-import scalaz.zio.stacktracer.impl.{ AkkaTracer, ConcurrentHashMapCache }
+import scalaz.zio.stacktracer.impl.{AkkaTracer, ConcurrentHashMapCache}
 
 import scala.concurrent.ExecutionContext
 
@@ -35,7 +35,24 @@ object PlatformLive {
   final def fromExecutor(executor0: Executor) =
     new Platform {
       val executor      = executor0
-      val tracer        = Tracer.cachedTracer(AkkaTracer, ConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
+      val tracer        = Tracer.cachedTracer(new AkkaTracer, ConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
+//      val tracer        = Tracer.cachedTracer(new AsmTracer, ConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
+//      val tracer        = new AkkaTracer
+//      val tracer        = new AsmTracer
+//      val tracer        = new Tracer {
+//        val someLocation = Some(SourceLocation("", "", None, 1))
+//        override def traceLocation(lambda: AnyRef): Option[SourceLocation] = {
+//          someLocation
+//        }
+//      }
+//      val tracer        = new Tracer {
+//        override def traceLocation(l: AnyRef): Option[SourceLocation] = {
+//          val c            = l.getClass
+//          val writeReplace = c.getDeclaredMethod("writeReplace")
+//          writeReplace.setAccessible(true)
+//          Some(writeReplace.invoke(l)).asInstanceOf[Option[SourceLocation]]
+//        }
+//      }
       val tracingConfig = TracingConfig.default
 
       def fatal(t: Throwable): Boolean =

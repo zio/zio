@@ -1052,7 +1052,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.sandbox
       .foldM(
         cause => ZIO.fail(cause.squashWith(f)),
-        ZIO.succeed(_)
+        ZIO.succeed
       )
 
   /**
@@ -1092,12 +1092,17 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
-  final def fail[E <: UpperE](error: E): IO[E, Nothing] = halt(Cause.fail(error))
+  final def fail[E <: UpperE](error: E): IO[E, Nothing] = haltWith(trace => Cause.Fail(error)(Some(trace())))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  final def halt[E <: UpperE](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(cause)
+  final def halt[E <: UpperE](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(_ => cause)
+
+  /**
+   * Returns an effect that models failure with the specified `Cause`.
+   */
+  final def haltWith[E <: UpperE](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] = new ZIO.Fail(function)
 
   /**
    * Returns an effect that models success with the specified strictly-
@@ -1158,7 +1163,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that is interrupted.
    */
-  final val interrupt: UIO[Nothing] = halt(Cause.interrupt)
+  final val interrupt: UIO[Nothing] = haltWith(trace => Cause.Interrupt()(Some(trace())))
 
   /**
    * Returns a effect that will never produce anything. The moral
@@ -1171,7 +1176,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * This method can be used for terminating a fiber because a defect has been
    * detected in the code.
    */
-  final def die(t: Throwable): UIO[Nothing] = halt(Cause.die(t))
+  final def die(t: Throwable): UIO[Nothing] = haltWith(trace => Cause.Die(t)(Some(trace())))
 
   /**
    * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
@@ -2050,7 +2055,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Supervised
   }
 
-  private[zio] final class Fail[E, A](val cause: Cause[E]) extends IO[E, A] { self =>
+  private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] { self =>
     override def tag = Tags.Fail
 
     override final def map[B](f: A => B): IO[E, B] =
@@ -2058,12 +2063,6 @@ object ZIO extends ZIO_R_Any {
 
     override final def flatMap[R1 <: Any, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       self.asInstanceOf[ZIO[R1, E1, B]]
-
-    override final def foldCauseM[R1 <: Any, E2, B](
-      failure: Cause[E] => ZIO[R1, E2, B],
-      success: A => ZIO[R1, E2, B]
-    ): ZIO[R1, E2, B] =
-      failure(cause)
   }
 
   private[zio] final class Descriptor[R, E, A](val k: Fiber.Descriptor => ZIO[R, E, A]) extends ZIO[R, E, A] {

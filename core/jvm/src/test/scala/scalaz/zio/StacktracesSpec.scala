@@ -1,7 +1,6 @@
 package scalaz.zio
 
 import org.specs2.mutable
-import scalaz.zio.Exit.Cause._
 
 class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -46,7 +45,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def foreachFail = {
 
-    def res() = unsafeRun(for {
+    def res() = unsafeRunSync(for {
       _     <- ZIO.effectTotal(())
       _     <- ZIO.foreach_(1 to 10) {
                     i => if (i == 7)
@@ -56,11 +55,13 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
                       ZIO.unit *> // FIXME: flatMap required to get the line...
                         ZIO.trace
                   }
+          .foldCauseM(e => UIO(println(e)), _ => ZIO.unit)
       trace <- ZIO.trace
       _     <- UIO(println(trace.prettyPrint))
+      _     <- UIO(println(trace))
     } yield ())
 
-    res() must throwA(FiberFailure(fail("Dummy error!")))
+    res() must_!= Exit.fail("Dummy error!")
   }
 
   def leftAssociativeFold = {

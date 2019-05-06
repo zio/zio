@@ -9,6 +9,15 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
     increment()
   }
 
+  def pop(): Unit = {
+    // TODO: remove
+    if (currentIndex == 0) throw new Exception("empty!")
+    //
+
+    array(currentIndex) = null
+    decrement()
+  }
+
   def toList: List[A] = {
     val cIdx = currentIndex
 
@@ -24,9 +33,15 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
   }
 
   @inline private[this] def increment(): Unit = {
-    idx = idx + 1
+    idx += 1
     if (idx == 2 * capacity) { // to avoid infinite increments
       idx = capacity
+    }
+  }
+
+  @inline private[this] def decrement(): Unit = {
+    if (idx != 0) {
+      idx = idx - 1
     }
   }
 

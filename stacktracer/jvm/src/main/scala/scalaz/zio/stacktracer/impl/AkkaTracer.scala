@@ -2,7 +2,7 @@ package scalaz.zio.stacktracer.impl
 
 import scalaz.zio.stacktracer.{ AkkaLineNumbers, SourceLocation, Tracer }
 
-object AkkaTracer extends Tracer {
+final class AkkaTracer extends Tracer {
 
   override def traceLocation(lambda: AnyRef): Some[SourceLocation] = Some {
     AkkaLineNumbers(lambda) match {

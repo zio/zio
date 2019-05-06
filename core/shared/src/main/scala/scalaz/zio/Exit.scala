@@ -226,18 +226,6 @@ object Exit extends Serializable {
     }
 
     /**
-     * Set current trace IFF this node is a leaf node - one of `Fail`, `Die`, `Interrupt`
-     * */
-    final def setTrace(trace: Option[ZTrace]): Cause[E] ={
-      this match {
-        case Fail(value) => Fail(value)(trace)
-        case Die(value) => Die(value)(trace)
-        case Interrupt() => Interrupt()(trace)
-        case other => other
-      }
-    }
-
-    /**
      * Squashes a `Cause` down to a single `Throwable`, chosen to be the
      * "most important" `Throwable`.
      */

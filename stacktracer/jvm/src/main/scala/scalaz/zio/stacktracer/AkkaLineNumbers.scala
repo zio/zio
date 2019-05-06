@@ -163,8 +163,8 @@ object AkkaLineNumbers {
 
   private[this] def forObject(obj: AnyRef): Result =
     getStreamForLambda(obj).orElse(getStreamForClass(obj.getClass)) match {
-      case None                                  => NoSourceInfo
       case Some((stream, className, methodName)) => getInfo(stream, className, methodName)
+      case None                                  => NoSourceInfo
     }
 
   private[this] def getInfo(stream: InputStream, className: String, methodName: Option[String]): Result = {
@@ -208,7 +208,7 @@ object AkkaLineNumbers {
     Option(r).map((_, name, None))
   }
 
-  private[this] def getStreamForLambda(l: AnyRef): Option[(InputStream, String, Some[String])] =
+  def getStreamForLambda(l: AnyRef): Option[(InputStream, String, Some[String])] =
     try {
       val c            = l.getClass
       val writeReplace = c.getDeclaredMethod("writeReplace")
@@ -257,7 +257,9 @@ object AkkaLineNumbers {
 
   private[this] def skipInterfaceInfo(d: DataInputStream)(implicit c: Constants): Unit = {
     val count = d.readUnsignedShort()
-    for (_ <- 1 to count) {
+    var i = 1
+    while (i <= count) {
+      i += 1
       val intf = d.readUnsignedShort()
       if (debug) println(s"LNB:   implements ${c(intf)}")
     }
@@ -266,7 +268,11 @@ object AkkaLineNumbers {
   private[this] def skipFields(d: DataInputStream)(implicit c: Constants): Unit = {
     val count = d.readUnsignedShort()
     if (debug) println(s"LNB: reading $count fields:")
-    for (_ <- 1 to count) skipMethodOrField(d)
+    var i = 1
+    while (i <= count) {
+      i += 1
+      skipMethodOrField(d)
+    }
   }
 
   private[this] def skipMethodOrField(d: DataInputStream)(implicit c: Constants): Unit = {
@@ -274,7 +280,11 @@ object AkkaLineNumbers {
     val name = d.readUnsignedShort() // name
     skip(d, 2) // signature
     val attributes = d.readUnsignedShort()
-    for (_ <- 1 to attributes) skipAttribute(d)
+    var i = 1
+    while (i <= attributes) {
+      i += 1
+      skipAttribute(d)
+    }
     if (debug) println(s"LNB:   ${c(name)} ($attributes attributes)")
   }
 
@@ -299,7 +309,11 @@ object AkkaLineNumbers {
         case other             => Some(other)
       } else {
       if (debug) println(s"LNB:   (skipped)")
-      for (_ <- 1 to count) skipMethodOrField(d)
+      var i = 1
+      while (i <= count) {
+        i += 1
+        skipMethodOrField(d)
+      }
       None
     }
   }

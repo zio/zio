@@ -45,7 +45,7 @@ object Main {
 
   def akka(l: X => X) = {
     val start                                                   = System.nanoTime()
-    val Some(SourceLocation(file, className, methodName, line)) = AkkaTracer.traceLocation(l)
+    val Some(SourceLocation(file, className, methodName, line)) = new AkkaTracer().traceLocation(l)
     val end                                                     = System.nanoTime()
 
     System.err.println(s"  at $className.$methodName($file:$line) akka micros: ${(end - start) / 1000}")
