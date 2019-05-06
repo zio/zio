@@ -20,10 +20,10 @@ import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.tracing.ZIOFn
-import scalaz.zio.internal.{ Executor, Platform }
+import scalaz.zio.internal.{Executor, Platform}
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -651,7 +651,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Maps this effect to the specified constant while preserving the
    * effects of this effect.
    */
-  final def const[B](b: => B): ZIO[R, E, B] = self map (_ => b)
+  final def const[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstFn(() => b))
 
   final def <<<[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] =
     for {
@@ -1781,7 +1781,7 @@ private[zio] trait ZIO_E_Any extends ZIO_E_Throwable {
    * Lifts an `Option` into a `ZIO`.
    */
   final def fromOption[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed(_)))
+    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed))
 }
 
 private[zio] trait ZIO_E_Throwable extends ZIOFunctions {
@@ -1964,6 +1964,13 @@ object ZIO extends ZIO_R_Any {
   final class MapFn[R, E, A, B](override val underlying: A => B) extends ZIOFn[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] =
       new ZIO.Succeed(underlying(a))
+  }
+
+  final class ConstFn[R, E, A, B](override val underlying: () => B) extends ZIOFn[A, ZIO[R, E, B]] {
+    def apply(a: A): ZIO[R, E, B] = {
+      val _ = a
+      new ZIO.Succeed(underlying())
+    }
   }
 
   private[zio] object Tags {
