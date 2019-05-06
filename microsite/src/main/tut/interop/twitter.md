@@ -1,26 +1,30 @@
 ---
 layout: docs
 section: interop
-title: "Twitter Future"
+title: "Twitter"
 ---
 
 # {{page.title}}
 
-`interop-twitter` module provides capability for converting Twitter's future into ZIO `Task`.
+`interop-twitter` module provides capability to convert Twitter `Future` into ZIO `Task`.
 
 ### Example
 
 ```scala
 import com.twitter.util.Future
 import scalaz.zio.{ App, Task }
+import scalaz.zio.console._
 import scalaz.zio.interop.twitter._
 
 object Example extends App {
   def run(args: List[String]) =     
     for {
-      res <- Task.fromFuture(unsafe)
-    } yield res
+      _        <- putStrLn("Hello! What is your name?")
+      name     <- getStrLn
+      greeting <- Task.fromFuture(unsafe)
+      _        <- putStrLn(greeting)
+    } yield ()
 
-  private def unsafe: Future[Int] = ???
+  private def greet(name: String): Future[Int] = Future.const($"Hello, $name!")
 }
 ```
