@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class RefMSpec extends TestRuntimeJS {
+class RefMSpec extends BaseCrossPlatformSpec {
 
   def is = "RefMSpec".title ^ s2"""
    Create a new RefM with a specified value and check if:
