@@ -32,6 +32,9 @@ package object bio {
     def flatMap[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
       (m flatMap fa)(f)
 
+    def tap[EE >: E, B](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, A] =
+      flatMap(a => m.map(f(a))(_ => a))
+
     def >>=[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
       flatMap(f)
 

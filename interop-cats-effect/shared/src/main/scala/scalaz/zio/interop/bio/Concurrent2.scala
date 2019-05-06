@@ -53,17 +53,6 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   def uninterruptible[E, A](fa: F[E, A]): F[E, A]
 
   /**
-   * Executes the `cleanup` effect if `fa` is interrupted
-   *
-   * TODO: Example:
-   * {{{
-   *
-   * }}}
-   *
-   */
-  def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, _]): F[E, A]
-
-  /**
    *
    *
    * TODO: Example:
@@ -170,7 +159,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
     for {
       done <- CD.deferred[E3, C]
-      race <- CD.refSet(0)
+      race <- CD.ref(0)
       c <- uninterruptible[E3, C](
             for {
               left  <- start(fa1)
@@ -306,23 +295,39 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  final def bracket[E, A, B](acquire: F[E, A], release: (A, Either[E, B]) => F[Nothing, Unit])(
+  final def bracket[E, A, B](acquire: F[E, A], release: (A, Option[Either[E, B]]) => F[Nothing, Unit])(
     use: A => F[E, B]
+  )(
+    implicit
+    CD: ConcurrentData2[F]
   ): F[E, B] = {
 
     implicit val _: Errorful2[F] = self
 
-    uninterruptible(
-      for {
-        a <- acquire
-        r <- rethrow(
-              attempt(use(a)) >>= { eb =>
-                release(a, eb) map (_ => eb)
-              }
-            )
-      } yield r
-    )
+    CD.ref(monad.unit) >>= { m =>
+      guarantee(
+        uninterruptible(
+          acquire >>= { a =>
+            (use andThen start)(a) tap { useFiber =>
+              m set (useFiber.cancel >>= (release(a, _)))
+            }
+          }
+        ) >>= (_.join),
+        monad.flatten(m.get)
+      )
+    }
   }
+
+  /**
+   * Executes the `cleanup` effect if `fa` is interrupted
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, _]): F[E, A]
 
   // may be
   def cont[E, A](r: (F[E, A] => F[Nothing, Unit]) => F[Nothing, Unit]): F[E, A]

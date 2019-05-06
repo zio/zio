@@ -23,17 +23,6 @@ import scalaz.zio.interop.bio.data.{ Deferred2, Ref2 }
 abstract class ConcurrentData2[F[+ _, + _]] {
 
   /**
-   * Creates a `Ref2[F, A]`.
-   *
-   * TODO: Example:
-   * {{{
-   *
-   * }}}
-   *
-   */
-  def ref[A]: F[Nothing, Ref2[F, A]]
-
-  /**
    * Creates a `Ref2[F, A]` where the value is set to `a`.
    *
    * TODO: Example:
@@ -42,7 +31,7 @@ abstract class ConcurrentData2[F[+ _, + _]] {
    * }}}
    *
    */
-  def refSet[A](a: A): F[Nothing, Ref2[F, A]]
+  def ref[A](a: A): F[Nothing, Ref2[F, A]]
 
   /**
    * Creates a `Deferred2[F, E, A]`.

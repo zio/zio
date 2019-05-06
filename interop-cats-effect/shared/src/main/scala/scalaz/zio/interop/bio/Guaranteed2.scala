@@ -35,7 +35,7 @@ abstract class Guaranteed2[F[+ _, + _]] extends Bifunctor[F] {
    * }}}
    *
    */
-  def guarantee[E, A](fa: F[E, A], f: F[Nothing, Unit]): F[E, A]
+  def guarantee[E, A](fa: F[E, A], finalizer: F[Nothing, Unit]): F[E, A]
 }
 
 object Guaranteed2 {
