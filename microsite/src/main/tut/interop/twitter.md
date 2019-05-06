@@ -17,14 +17,18 @@ import scalaz.zio.console._
 import scalaz.zio.interop.twitter._
 
 object Example extends App {
-  def run(args: List[String]) =     
-    for {
-      _        <- putStrLn("Hello! What is your name?")
-      name     <- getStrLn
-      greeting <- Task.fromFuture(unsafe)
-      _        <- putStrLn(greeting)
-    } yield ()
+  def run(args: List[String]) = {
+    val program =
+      for {
+        _        <- putStrLn("Hello! What is your name?")
+        name     <- getStrLn
+        greeting <- Task.fromTwitterFuture(greet(name))
+        _        <- putStrLn(greeting)
+      } yield ()
 
-  private def greet(name: String): Future[Int] = Future.const($"Hello, $name!")
+    program.fold(_ => 1, _ => 0)
+  }
+
+  private def greet(name: String): Future[String] = Future.value(s"Hello, $name!")
 }
 ```
