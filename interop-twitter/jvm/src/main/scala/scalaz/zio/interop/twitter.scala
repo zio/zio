@@ -5,7 +5,7 @@ import scalaz.zio.Task
 
 package object twitter {
   implicit class TaskObjOps(private val obj: Task.type) extends AnyVal {
-    final def fromFuture[A](future: => Future[A]): Task[A] =
+    final def fromTwitterFuture[A](future: => Future[A]): Task[A] =
       Task.effectAsync { cb =>
         future.respond {
           case Return(a) => cb(Task.succeed(a))
