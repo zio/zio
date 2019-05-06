@@ -315,8 +315,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     uninterruptible(
       for {
         a <- acquire
-        r <- absolve(
-              either(use(a)) >>= { eb =>
+        r <- rethrow(
+              attempt(use(a)) >>= { eb =>
                 release(a, eb) map (_ => eb)
               }
             )

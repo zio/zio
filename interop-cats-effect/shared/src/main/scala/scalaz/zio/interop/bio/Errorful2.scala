@@ -45,10 +45,10 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    *
    * }}}
    *
-   * @see [[redeemPure]] to recover from the error in a non failing way.
+   * @see [[redeem]] to recover from the error in a non failing way.
    *
    */
-  @inline def redeem[E1, E2, A, B](fa: F[E1, A])(failure: E1 => F[E2, B], success: A => F[E2, B]): F[E2, B]
+  @inline def redeemWith[E1, E2, A, B](fa: F[E1, A])(failure: E1 => F[E2, B], success: A => F[E2, B]): F[E2, B]
 
   /**
    * Allows to recover from the error in a non failing way.
@@ -59,8 +59,8 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    * }}}
    *
    */
-  @inline def redeemPure[E1, A, B](fa: F[E1, A])(failure: E1 => B, success: A => B): F[Nothing, B] =
-    redeem(fa)(
+  @inline def redeem[E1, A, B](fa: F[E1, A])(failure: E1 => B, success: A => B): F[Nothing, B] =
+    redeemWith(fa)(
       failure andThen monad.pure,
       success andThen monad.pure
     )
@@ -75,7 +75,7 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    *
    */
   @inline def orElse[E1, E2, A, AA >: A](fa: F[E1, A])(that: => F[E2, AA]): F[E2, AA] =
-    redeem(fa)(_ => that, monad.pure)
+    redeemWith(fa)(_ => that, monad.pure)
 
   /**
    * Allows to surface a possible failure of the effect and make it explicit
@@ -86,14 +86,14 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    *
    * }}}
    *
-   * * @see [[absolve]] to submerge the error in `F`
+   * * @see [[rethrow]] to submerge the error in `F`
    *
    */
-  @inline def either[E, A](fa: F[E, A]): F[Nothing, Either[E, A]] =
-    redeemPure(fa)(Left(_), Right(_))
+  @inline def attempt[E, A](fa: F[E, A]): F[Nothing, Either[E, A]] =
+    redeem(fa)(Left(_), Right(_))
 
   /**
-   * Inverse of [[either]] submerges the `Either`'s error in `F`
+   * Inverse of [[attempt]] submerges the `Either`'s error in `F`
    *
    * TODO: Example:
    * {{{
@@ -101,7 +101,7 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    * }}}
    *
    */
-  @inline def absolve[E, A](fa: F[Nothing, Either[E, A]]): F[E, A] =
+  @inline def rethrow[E, A](fa: F[Nothing, Either[E, A]]): F[E, A] =
     monad.flatMap(fa)(
       _.fold(raiseError, monad.pure)
     )
@@ -116,8 +116,8 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    * }}}
    *
    */
-  @inline def catchAll[E1, E2, A, AA >: A](fa: F[E1, A])(f: E1 => F[E2, AA]): F[E2, AA] =
-    redeem(fa)(f, monad.pure)
+  @inline def handleErrorWith[E1, E2, A, AA >: A](fa: F[E1, A])(f: E1 => F[E2, AA]): F[E2, AA] =
+    redeemWith(fa)(f, monad.pure)
 
   /**
    * Recovers from some or all the errors depending on `pf`'s domain
@@ -128,8 +128,8 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    * }}}
    *
    */
-  @inline def catchSome[E, EE >: E, A, AA >: A](fa: F[E, A])(pf: PartialFunction[E, F[EE, AA]]): F[EE, AA] =
-    redeem(fa)(
+  @inline def recoverWith[E, EE >: E, A, AA >: A](fa: F[E, A])(pf: PartialFunction[E, F[EE, AA]]): F[EE, AA] =
+    redeemWith(fa)(
       pf.applyOrElse(_, raiseError[EE]),
       monad.pure
     )
@@ -158,7 +158,7 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    *
    */
   @inline def flip[E, A](fa: F[E, A]): F[A, E] =
-    redeem(fa)(monad.pure, raiseError)
+    redeemWith(fa)(monad.pure, raiseError)
 
   /**
    * Lifts an `Option` into `F`
@@ -218,7 +218,7 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
     }
 
   override def bimap[A, B, C, D](fab: F[A, B])(f: A => C, g: B => D): F[C, D] =
-    redeem(fab)(
+    redeemWith(fab)(
       f andThen raiseError,
       g andThen monad.pure
     )
