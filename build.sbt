@@ -292,5 +292,14 @@ lazy val docs = project.module
       "org.jsoup"           % "jsoup"                     % "1.11.3" % "provided"
     )
   )
-  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM, interopReactiveStreamsJVM)
+  .dependsOn(
+    coreJVM,
+    interopCatsJVM,
+    interopFutureJVM,
+    interopMonixJVM,
+    interopScalaz7xJVM,
+    interopJavaJVM,
+    interopReactiveStreamsJVM,
+    interopTwitterJVM
+  )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)

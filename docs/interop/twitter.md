@@ -1,10 +1,7 @@
 ---
-layout: docs
-section: interop
+id: interop_twitter
 title: "Twitter"
 ---
-
-# {{page.title}}
 
 `interop-twitter` module provides capability to convert Twitter `Future` into ZIO `Task`.
 
