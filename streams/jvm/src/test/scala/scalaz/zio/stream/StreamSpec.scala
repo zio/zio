@@ -86,8 +86,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream combinators
     unTake happy path       $unTake
     unTake with error       $unTakeError
-    buffer the Stream            $bufferStream
-    buffer the Stream with Error $bufferStreamError
+    buffer the Stream                      $bufferStream
+    buffer the Stream with Error           $bufferStreamError
+    fast producer progress independently   $fastProducerSlowConsumer
   """
 
   import ArbitraryStream._
@@ -552,4 +553,16 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .run(Sink.collect[Int])
     ) must_== Failure(Cause.Fail(e))
   }
+
+  private def fastProducerSlowConsumer =
+    unsafeRun(
+      for {
+        ref          <- Ref.make(List[Int](1, 10))
+        list         <- ref.get
+        fastProducer = Stream.fromIterable(list).buffer(2)
+        _            <- fastProducer.mapM(_ => IO.never).run(Sink.collect[Int]).fork
+      } yield {
+        slurp(fastProducer) must_=== Success(List(1, 10))
+      }
+    )
 }
