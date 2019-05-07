@@ -21,3 +21,7 @@
 .gitter-chat-embed {
   z-index: 10000;
 }
+
+.gridBlock {
+  background-color: lightgray;
+}
