@@ -21,7 +21,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   val repeat: Int => ZIO[Clock, Nothing, Int] = (n: Int) =>
     for {
       ref <- Ref.make(0)
-      s   <- ref.update(_ + 1).repeat(Schedule.recurs(n))
+      s   <- ref.get *> ref.update(_ + 1).scheduled(Schedule.recurs(n))
     } yield s
 
   /*
@@ -44,7 +44,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def never = {
     val repeated = unsafeRun(for {
       ref <- Ref.make(0)
-      _   <- ref.update(_ + 1).repeat(Schedule.never)
+      _   <- ref.update(_ + 1) *> ref.update(_ + 1).scheduled(Schedule.never)
       res <- ref.get
     } yield res)
 
@@ -60,7 +60,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def once = {
     val repeated = unsafeRun(for {
       ref <- Ref.make(0)
-      _   <- ref.update(_ + 1).repeat(Schedule.once)
+      _   <- ref.update(_ + 1) *> ref.update(_ + 1).scheduled(Schedule.once)
       res <- ref.get
     } yield res)
 
@@ -77,8 +77,8 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val n = 42
     val repeated = unsafeRun(for {
       ref <- Ref.make(0)
-      io  = ref.update(_ + 1).repeat(Schedule.recurs(n))
-      _   <- io.repeat(Schedule.recurs(1))
+      io  = ref.update(_ + 1) *> ref.update(_ + 1).scheduled(Schedule.recurs(n))
+      _   <- io *> io.scheduled(Schedule.recurs(1))
       res <- ref.get
     } yield res)
     repeated must_=== (n + 1) * 2
@@ -95,7 +95,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     val repeated = unsafeRun(
       (for {
         ref <- Ref.make(0)
-        _   <- incr(ref).repeat(Schedule.recurs(42))
+        _   <- ref.get *> incr(ref).scheduled(Schedule.recurs(42).map(_ => None))
       } yield ()).foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
@@ -109,7 +109,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(for {
       p          <- Promise.make[Nothing, Unit]
       r          <- Ref.make(0)
-      _          <- r.update(_ + 2).repeat(Schedule.recurs(2)).ensuring(p.succeed(()))
+      _          <- r.update(_ + 2) *> r.update(_ + 2).scheduled(Schedule.recurs(2)).ensuring(p.succeed(()))
       v          <- r.get
       finalizerV <- p.poll
     } yield (v must_=== 6) and (finalizerV.isDefined must beTrue))

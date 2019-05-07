@@ -152,16 +152,18 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       values = Range.inclusive(1, 10).toList
       f      <- IO.forkAll(values.map(queue.offer))
       _      <- waitForSize(queue, 10)
-      l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
-      _      <- f.join
+      l <- queue.take.scheduled(
+            ZSchedule.recurs(10).map(Option.apply) *> ZSchedule.identity[Option[Int]].collect.map(_.flatten)
+          )
+      _ <- f.join
     } yield l must containTheSameElementsAs(values))
 
   def e5 =
     unsafeRun((for {
       queue        <- Queue.bounded[Int](10)
-      _            <- queue.offer(1).repeat(ZSchedule.recurs(9))
+      _            <- queue.offer(1).scheduled(ZSchedule.recurs(9))
       refSuspended <- Ref.make[Boolean](true)
-      _            <- (queue.offer(2).repeat(ZSchedule.recurs(9)) *> refSuspended.set(false)).fork
+      _            <- (queue.offer(2).scheduled(ZSchedule.recurs(9)) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
     } yield isSuspended must beTrue).supervise)
 
@@ -172,8 +174,9 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         values = Range.inclusive(1, 10).toList
         _      <- IO.forkAll(values.map(queue.offer))
         _      <- waitForSize(queue, 10)
-        l <- queue.take
-              .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
+        l <- queue.take.scheduled(
+              ZSchedule.recurs(10).map(Option.apply) *> ZSchedule.identity[Option[Int]].collect.map(_.flatten)
+            )
       } yield l must containTheSameElementsAs(values)
     )
 
@@ -356,7 +359,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _      <- queue.offerAll(orders).fork
       size   <- waitForSize(queue, 3)
       l      <- queue.takeAll
-    } yield (size must_=== 3).and(l must_=== List(1, 2)))
+    } yield (l must_=== List(1, 2)).and(size.exists(_ must_=== 3)))
 
   def e25 =
     unsafeRun(for {
@@ -914,7 +917,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
 object QueueSpec {
 
-  def waitForSize[A](queue: Queue[A], size: Int): ZIO[Clock, Nothing, Int] =
-    (queue.size <* clock.sleep(10.millis)).repeat(ZSchedule.doWhile(_ != size))
+  def waitForSize[A](queue: Queue[A], size: Int): ZIO[Clock, Nothing, Option[Int]] =
+    (queue.size <* clock.sleep(10.millis)).scheduled(ZSchedule.doWhile(_.getOrElse(0) != size))
 
 }

@@ -762,50 +762,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def forever: ZIO[R, E, Nothing] = self *> self.forever
 
   /**
-   * Repeats this effect with the specified schedule until the schedule
-   * completes, or until the first failure.
-   * Repeats are done in addition to the first execution so that
-   * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
-   */
-  final def repeat[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZIO[R1 with Clock, E, B] =
-    repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
-
-  /**
-   * Repeats this effect with the specified schedule until the schedule
-   * completes, or until the first failure. In the event of failure the progress
-   * to date, together with the error, will be passed to the specified handler.
-   */
-  final def repeatOrElse[R1 <: R, E2, B](
-    schedule: ZSchedule[R1, A, B],
-    orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  ): ZIO[R1 with Clock, E2, B] =
-    repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
-
-  /**
-   * Repeats this effect with the specified schedule until the schedule
-   * completes, or until the first failure. In the event of failure the progress
-   * to date, together with the error, will be passed to the specified handler.
-   */
-  final def repeatOrElseEither[R1 <: R, B, E2, C](
-    schedule: ZSchedule[R1, A, B],
-    orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
-  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
-    def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
-      self.foldM(
-        e => orElse(e, last.map(_())).map(Left(_)),
-        a =>
-          schedule.update(a, state).flatMap { step =>
-            step.delay.run.flatMap { delay =>
-              if (!step.cont) ZIO.succeedRight(step.finish())
-              else ZIO.succeed(step.state).delay(delay).flatMap(s => loop(Some(step.finish), s))
-            }
-          }
-      )
-
-    schedule.initial.flatMap(loop(None, _))
-  }
-
-  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
@@ -856,7 +812,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Schedule this effect using the given schedule.
    * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't or until it fails.
    */
-  final def scheduled[R1 <: R, B](schedule: ZSchedule[R1, Unit, B]): ZIO[R1 with Clock, E, B] =
+  final def scheduled[R1 <: R, B](schedule: ZSchedule[R1, Option[A], B]): ZIO[R1 with Clock, E, B] =
     scheduleOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
@@ -866,7 +822,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
    */
   final def scheduleOrElse[R1 <: R, E2, B](
-    schedule: ZSchedule[R1, Unit, B],
+    schedule: ZSchedule[R1, Option[A], B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
   ): ZIO[R1 with Clock, E2, B] =
     scheduleOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
@@ -878,31 +834,33 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
    */
   final def scheduleOrElseEither[R1 <: R, B, E2, C](
-    schedule: ZSchedule[R1, Unit, B],
+    schedule: ZSchedule[R1, Option[A], B],
     orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
   ): ZIO[R1 with Clock, E2, Either[C, B]] = {
 
     def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
       self.foldM(
         e => orElse(e, last.map(_())).map(Left(_)),
-        _ =>
+        r =>
           schedule
-            .update((), state)
+            .update(Some(r), state)
             .flatMap(
-              st =>
-                st.delay.run.flatMap { dl =>
-                  ZIO.succeed(st.state).delay(dl).flatMap(loop(last, _))
+              step =>
+                step.delay.run.flatMap { dl =>
+                  if (!step.cont) ZIO.succeedRight(step.finish())
+                  else ZIO.succeed(step.state).delay(dl).flatMap(s => loop(Some(step.finish), s))
                 }
             )
       )
 
     schedule.initial.flatMap { initial =>
       schedule
-        .update((), initial)
+        .update(None, initial)
         .flatMap(
-          st =>
-            st.delay.run.flatMap { dl =>
-              ZIO.succeed(st.state).delay(dl).flatMap(loop(None, _))
+          step =>
+            step.delay.run.flatMap { dl =>
+              if (!step.cont) ZIO.succeedRight(step.finish())
+              else ZIO.succeed(step.state).delay(dl).flatMap(s => loop(Some(step.finish), s))
             }
         )
     }

@@ -161,22 +161,24 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       ).commit
     )
 
-  private def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[clock.Clock, Nothing, Int] =
-    STM
+  private def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[clock.Clock, Nothing, Int] = {
+    val eff = STM
       .atomically(for {
         v <- tvar.get
         _ <- tvar.set(v + 1)
         v <- tvar.get
       } yield v)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
+
+    eff *> eff.scheduled(Schedule.recurs(n))
+  }
 
   private def compute3VarN(
     n: Int,
     tvar1: TRef[Int],
     tvar2: TRef[Int],
     tvar3: TRef[Int]
-  ): ZIO[clock.Clock, Nothing, Int] =
-    STM
+  ): ZIO[clock.Clock, Nothing, Int] = {
+    val eff = STM
       .atomically(for {
         v1 <- tvar1.get
         v2 <- tvar2.get
@@ -185,7 +187,9 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         _  <- tvar1.set(v1 - 1)
         _  <- tvar2.set(v2 + 1)
       } yield v3)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
+
+    eff *> eff.scheduled(Schedule.recurs(n))
+  }
 
   def e15 =
     unsafeRun(
@@ -341,8 +345,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       for {
         sender       <- TRef.makeCommit(50)
         receiver     <- TRef.makeCommit(0)
-        toReceiver10 = transfer(receiver, sender, 100).repeat(Schedule.recurs(9))
-        toSender10   = transfer(sender, receiver, 100).repeat(Schedule.recurs(9))
+        toReceiver10 = transfer(receiver, sender, 100) *> transfer(receiver, sender, 100).scheduled(Schedule.recurs(9))
+        toSender10   = transfer(sender, receiver, 100) *> transfer(sender, receiver, 100).scheduled(Schedule.recurs(9))
         f            <- toReceiver10.zipPar(toSender10).fork
         _            <- sender.update(_ + 50).commit
         _            <- f.join
@@ -521,24 +525,28 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       } yield v must_=== 100
     )
 
-  private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
-    (for {
+  private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] = {
+    val eff = for {
       v <- ref.get
       _ <- ref.set(v + 1)
       v <- ref.get
-    } yield v)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
+    } yield v
 
-  private def compute3RefN(n: Int, ref1: Ref[Int], ref2: Ref[Int], ref3: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
-    (for {
+    eff *> eff.scheduled(Schedule.recurs(n))
+  }
+
+  private def compute3RefN(n: Int, ref1: Ref[Int], ref2: Ref[Int], ref3: Ref[Int]): ZIO[clock.Clock, Nothing, Int] = {
+    val eff = for {
       v1 <- ref1.get
       v2 <- ref2.get
       _  <- ref3.set(v1 + v2)
       v3 <- ref3.get
       _  <- ref1.set(v1 - 1)
       _  <- ref2.set(v2 + 1)
-    } yield v3)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
+    } yield v3
+
+    eff *> eff.scheduled(Schedule.recurs(n))
+  }
 
   private def transfer(receiver: TRef[Int], sender: TRef[Int], much: Int): UIO[Int] =
     STM.atomically {

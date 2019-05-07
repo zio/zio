@@ -845,8 +845,8 @@ object ZSchedule extends Schedule_Functions {
   /**
    * Builds an Schedule capable of running an effect at a given minute and hour, every day
    */
-  final def everyDay(minute: Int, hour: Int): ZSchedule[Clock, Unit, (Long, Long)] =
-    ZSchedule[Clock, Long, Unit, (Long, Long)](
+  final def everyDay(minute: Int, hour: Int): ZSchedule[Clock, Option[Any], (Long, Long)] =
+    ZSchedule[Clock, Long, Option[Any], (Long, Long)](
       initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => 0L),
       update0 = (_, timesRan) =>
         clock.currentTime(unit = TimeUnit.MILLISECONDS).map { now =>
