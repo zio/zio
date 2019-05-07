@@ -11,7 +11,7 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
 
   def pop(): Unit = {
     // TODO: remove
-    if (currentIndex == 0) throw new Exception("empty!")
+//    if (currentIndex == 0) throw new Exception("empty!")
     //
 
     array(currentIndex) = null
@@ -39,11 +39,10 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
     }
   }
 
-  @inline private[this] def decrement(): Unit = {
+  @inline private[this] def decrement(): Unit =
     if (idx != 0) {
       idx = idx - 1
     }
-  }
 
   @inline private[this] def currentIndex: Int =
     idx % capacity

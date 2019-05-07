@@ -257,7 +257,7 @@ object AkkaLineNumbers {
 
   private[this] def skipInterfaceInfo(d: DataInputStream)(implicit c: Constants): Unit = {
     val count = d.readUnsignedShort()
-    var i = 1
+    var i     = 1
     while (i <= count) {
       i += 1
       val intf = d.readUnsignedShort()
@@ -280,7 +280,7 @@ object AkkaLineNumbers {
     val name = d.readUnsignedShort() // name
     skip(d, 2) // signature
     val attributes = d.readUnsignedShort()
-    var i = 1
+    var i          = 1
     while (i <= attributes) {
       i += 1
       skipAttribute(d)

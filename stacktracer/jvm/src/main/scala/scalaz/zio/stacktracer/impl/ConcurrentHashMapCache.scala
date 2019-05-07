@@ -3,7 +3,7 @@ package scalaz.zio.stacktracer.impl
 //import java.util.concurrent.ConcurrentHashMap
 import java.util
 
-import scalaz.zio.stacktracer.{SourceLocation, SourceLocationCache}
+import scalaz.zio.stacktracer.{ SourceLocation, SourceLocationCache }
 
 final class ConcurrentHashMapCache extends SourceLocationCache {
 //  val cache = new ConcurrentHashMap[Class[_], SourceLocation]

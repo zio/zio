@@ -20,10 +20,10 @@ import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
 import scalaz.zio.internal.tracing.ZIOFn
-import scalaz.zio.internal.{Executor, Platform}
+import scalaz.zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -304,7 +304,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def orElseEither[R1 <: R, E2, B](that: => ZIO[R1, E2, B]): ZIO[R1, E2, Either[A, B]] =
     tryOrElse(that.map(Right(_)), ZIO.succeedLeft)
 
-  private final def tryOrElse[R1 <: R, E2, B](that: => ZIO[R1, E2, B], succ: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+  private[this] final def tryOrElse[R1 <: R, E2, B](
+    that: => ZIO[R1, E2, B],
+    succ: A => ZIO[R1, E2, B]
+  ): ZIO[R1, E2, B] =
     new ZIO.Fold[R1, E, E2, A, B](
       self,
       _.stripFailures match {
@@ -607,6 +610,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
     self.foldM[R1, E1, A1](tryRescue, ZIO.succeed)
   }
+
+  /**
+   * Attach a wrapping trace pointing to this location to the `Cause`
+   * in case of error.
+   *
+   * Useful when joining fibers, to make the resulting trace mention
+   * the `join` point, otherwise only the traces joined fibers are
+   * included.
+   *
+   * {{{
+   *   for {
+   *     badFiber <- UIO(1 / 0).fork
+   *     _ <- badFiber.join.refailWithTrace
+   *   } yield ()
+   * }}}
+   * */
+  final def refailWithTrace: ZIO[R, E, A] =
+    foldCauseM(c => ZIO.haltWith(trace => Cause.refail(c, trace())), ZIO.succeed)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1101,6 +1122,8 @@ private[zio] trait ZIOFunctions extends Serializable {
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
+   *
+   * This version takes in a lazily-evaluated trace attachable to the `Cause`.
    */
   final def haltWith[E <: UpperE](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] = new ZIO.Fail(function)
 
@@ -1536,8 +1559,9 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def foreachPar[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     as.foldRight[ZIO[R, E, List[B]]](effectTotal(Nil)) { (a, io) =>
-      fn(a).zipWithPar(io)((b, bs) => b :: bs)
-    }
+        fn(a).zipWithPar(io)((b, bs) => b :: bs)
+      }
+      .refailWithTrace
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
@@ -1548,12 +1572,12 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def foreachParN[R >: LowerR, E <: UpperE, A, B](
     n: Long
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    for {
+    (for {
       semaphore <- Semaphore.make(n)
       bs <- foreachPar[R, E, A, B](as) { a =>
              semaphore.withPermit(fn(a))
            }
-    } yield bs
+    } yield bs).refailWithTrace
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -1577,13 +1601,16 @@ private[zio] trait ZIOFunctions extends Serializable {
    * For a sequential version of this method, see `foreach_`.
    */
   final def foreachPar_[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
-    ZIO.succeedLazy(as.iterator).flatMap { i =>
-      def loop(a: A): ZIO[R, E, Unit] =
-        if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
-        else f(a).unit
-      if (i.hasNext) loop(i.next)
-      else ZIO.unit
-    }
+    ZIO
+      .succeedLazy(as.iterator)
+      .flatMap { i =>
+        def loop(a: A): ZIO[R, E, Unit] =
+          if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
+          else f(a).unit
+        if (i.hasNext) loop(i.next)
+        else ZIO.unit
+      }
+      .refailWithTrace
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -1594,11 +1621,14 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def foreachParN_[R >: LowerR, E <: UpperE, A, B](
     n: Long
   )(as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
-    Semaphore.make(n).flatMap { semaphore =>
-      ZIO.foreachPar_(as) { a =>
-        semaphore.withPermit(f(a))
+    Semaphore
+      .make(n)
+      .flatMap { semaphore =>
+        ZIO.foreachPar_(as) { a =>
+          semaphore.withPermit(f(a))
+        }
       }
-    }
+      .refailWithTrace
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
@@ -1631,7 +1661,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     zio: ZIO[R, E, A],
     ios: Iterable[ZIO[R1, E, A]]
   ): ZIO[R1, E, A] =
-    ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _)
+    ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _).refailWithTrace
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
@@ -1667,7 +1697,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def mergeAllPar[R >: LowerR, E <: UpperE, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
+    in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
 
   /**
    * Strictly-evaluated unit lifted into the `ZIO` monad.

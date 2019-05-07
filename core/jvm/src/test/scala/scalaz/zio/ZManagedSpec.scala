@@ -2,7 +2,7 @@ package scalaz.zio
 
 import org.specs2.ScalaCheck
 import org.specs2.matcher.describe.Diffable
-import scalaz.zio.Exit.{Cause, Failure}
+import scalaz.zio.Exit.{ Cause, Failure }
 import scalaz.zio.duration._
 
 import scala.collection.mutable

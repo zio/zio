@@ -1,6 +1,7 @@
 package scalaz.zio
 
 import org.specs2.mutable
+import scalaz.zio.stacktracer.SourceLocation
 
 class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -18,6 +19,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   "basic test" >> basicTest
   "foreach" >> foreachTrace
   "foreach fail" >> foreachFail
+  "foreachPar fail" >> foreachParFail
   "left-associative fold" >> leftAssociativeFold
   "nested left binds" >> nestedLeftBinds
   "fiber ancestry" >> fiberAncestry
@@ -45,23 +47,39 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def foreachFail = {
 
-    def res() = unsafeRunSync(for {
-      _     <- ZIO.effectTotal(())
-      _     <- ZIO.foreach_(1 to 10) {
-                    i => if (i == 7)
-                      ZIO.unit *> // FIXME: flatMap required to get the line...
-                        ZIO.fail("Dummy error!")
-                    else
-                      ZIO.unit *> // FIXME: flatMap required to get the line...
-                        ZIO.trace
-                  }
-          .foldCauseM(e => UIO(println(e)), _ => ZIO.unit)
-      trace <- ZIO.trace
-      _     <- UIO(println(trace.prettyPrint))
-      _     <- UIO(println(trace))
-    } yield ())
+    def res() =
+      unsafeRunSync(for {
+        _ <- ZIO
+              .foreach_(1 to 10) { i =>
+                if (i == 7)
+                  ZIO.unit *> // FIXME: flatMap required to get the line...
+                    ZIO.fail("Dummy error!")
+                else
+                  ZIO.unit *> // FIXME: flatMap required to get the line...
+                    ZIO.trace
+              }
+              .foldCauseM(e => UIO(println(e)), _ => ZIO.unit)
+        trace <- ZIO.trace
+        _     <- UIO(println(trace.prettyPrint))
+        _     <- UIO(println(trace))
+      } yield ())
 
     res() must_!= Exit.fail("Dummy error!")
+  }
+
+  def foreachParFail = {
+
+    import duration._
+    def res() =
+      unsafeRunSync(for {
+        _ <- ZIO.foreachPar(1 to 10) { i =>
+              ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+            }
+      } yield ())
+
+    res().fold(_.traces.head.stackTrace, _ => Nil) must have size 1 and contain {
+      (_: SourceLocation).method.exists(_ contains "foreachParFail")
+    }
   }
 
   def leftAssociativeFold = {
@@ -142,7 +160,3 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
 }
-
-//object x extends scala.App {
-//  new StacktracesSpec()(null).nestedLeftBinds
-//}

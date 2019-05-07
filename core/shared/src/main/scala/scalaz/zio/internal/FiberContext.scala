@@ -16,14 +16,14 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
+import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio._
-import scalaz.zio.internal.tracing.{FiberAncestry, ZIOFn}
+import scalaz.zio.internal.tracing.{ FiberAncestry, ZIOFn }
 import scalaz.zio.stacktracer.SourceLocation
 
-import scala.annotation.{switch, tailrec}
+import scala.annotation.{ switch, tailrec }
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -33,7 +33,7 @@ private[zio] final class FiberContext[E, A](
   startEnv: AnyRef,
   ancestor: FiberAncestry
 ) extends Fiber[E, A] {
-  import java.util.{Collections, Set}
+  import java.util.{ Collections, Set }
 
   import FiberContext._
   import FiberState._
@@ -55,7 +55,7 @@ private[zio] final class FiberContext[E, A](
 
   // TODO: disable allocation on JS or when tracing is disabled
 //  private[this] val tracingStatus   = StackBool()
-  private[this] val trace      = SingleThreadedRingBuffer[SourceLocation](platform.tracingConfig.executionTraceLength)
+  private[this] val trace = SingleThreadedRingBuffer[SourceLocation](platform.tracingConfig.executionTraceLength)
   // TODO: revisit
   private[this] val stackTrace = SingleThreadedRingBuffer[SourceLocation](platform.tracingConfig.stackTraceLength)
   private[this] val tracer     = platform.tracer
@@ -91,15 +91,13 @@ private[zio] final class FiberContext[E, A](
     stackTrace.put(tracer.traceLocation(unwrapped).get)
   }
 
-  def popStackTrace(): Unit = {
+  def popStackTrace(): Unit =
     // FIXME: stack trace is not fully well-behaved yet (esp. on failure recovery)
     // FIXME: bad behavior on failing to get location - mismatched pop. (remove Option in SourceLocation & cache nulls?)
     stackTrace.pop()
-  }
 
-  private[this] final def takeCurrentTrace: ZTrace = {
+  private[this] final def captureTrace(): ZTrace =
     ZTrace(fiberId, trace.toList, stackTrace.toList, ancestor)
-  }
 
   private[this] final def cutAncestryTrace(trace: ZTrace): ZTrace = {
     val maxExecLength  = platform.tracingConfig.ancestorExecutionTraceLength
@@ -140,22 +138,23 @@ private[zio] final class FiberContext[E, A](
 
     // Unwind the stack, looking for an error handler:
     while (unwinding && !stack.isEmpty) {
-      // FIXME: stack trace popping mismatches
-      popStackTrace()
       stack.pop() match {
         case InterruptExit =>
+          // do not remove InterruptExit from stack trace as it was not added
           interruptStatus.popDrop(())
 
         case fold: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
           // Push error handler back onto the stack and halt iteration:
           val k = fold.failure.asInstanceOf[Any => ZIO[Any, Any, Any]]
 
-          // TODO FIXME: strange
+          popStackTrace()
           addStackTrace(k)
-
           stack.push(k)
+
           unwinding = false
+
         case _ =>
+          popStackTrace()
       }
     }
   }
@@ -273,7 +272,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Fail =>
                   val io = curIo.asInstanceOf[ZIO.Fail[E, Any]]
 
-                  val cause0 = io.fill(() => takeCurrentTrace)
+                  val cause0 = io.fill(() => captureTrace())
 
                   unwindStack()
 
@@ -296,14 +295,16 @@ private[zio] final class FiberContext[E, A](
                   val io = curIo.asInstanceOf[ZIO.Fold[Any, E, Any, Any, Any]]
 
                   curIo = io.value
-                  // FIXME TODO: trace Folds [remove lambda wrapping in methods]
+                  // FIXME TODO: remove lambda wrapping in Fold methods
 
+                  addStackTrace(io)
                   stack.push(io)
 
                 case ZIO.Tags.InterruptStatus =>
                   val io = curIo.asInstanceOf[ZIO.InterruptStatus[Any, E, Any]]
 
                   interruptStatus.push(io.flag)
+                  // do not add InterruptExit to the stack trace
                   stack.push(InterruptExit)
 
                   curIo = io.zio
@@ -395,7 +396,7 @@ private[zio] final class FiberContext[E, A](
                   curIo = push.bracket_(pop, io.next)
 
                 case ZIO.Tags.Trace =>
-                  curIo = nextInstr(takeCurrentTrace)
+                  curIo = nextInstr(captureTrace())
               }
             }
           } else {
@@ -451,7 +452,7 @@ private[zio] final class FiberContext[E, A](
    * Forks an `IO` with the specified failure handler.
    */
   final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
-    val ancestry = FiberAncestry(Some(cutAncestryTrace(takeCurrentTrace)))
+    val ancestry = FiberAncestry(Some(cutAncestryTrace(captureTrace())))
     val context  = new FiberContext[E, A](platform, environment.peek(), ancestry)
 
     platform.executor.submitOrThrow(() => context.evaluateNow(io))
@@ -555,8 +556,7 @@ private[zio] final class FiberContext[E, A](
 
       addTrace(k)
       // TODO FIXME: strange
-      if (!k.isInstanceOf[ZIO.Fold[_, _, _, _, _]]
-          && !k.isInstanceOf[InterruptExit.type])
+      if (!k.isInstanceOf[InterruptExit.type])
         popStackTrace()
 
       k(value).asInstanceOf[IO[E, Any]]
