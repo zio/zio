@@ -1,6 +1,8 @@
 package scalaz.zio
 
-class RefSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+import org.specs2.Specification
+
+class RefSpec extends Specification with DefaultRuntime {
 
   def is = "RefSpec".title ^ s2"""
    Create a new Ref with a specified value and check if:
