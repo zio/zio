@@ -38,7 +38,8 @@
       "interop/interop_monix",
       "interop/interop_scalaz7x",
       "interop/interop_scalaz_8",
-      "interop/interop_reactivestreams"
+      "interop/interop_reactivestreams",
+      "interop/interop_twitter"
     ]
   },
   "usecases-sidebar": {
