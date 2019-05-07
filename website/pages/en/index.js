@@ -24,39 +24,6 @@ const features = [
   },
 ];
 
-class Description extends React.Component {
-  render() {
-    return (
-      <div className='welcome'>
-        <h2>Welcome to ZIO</h2>
-        <p>
-          <div> 
-            ZIO is a zero-dependency Scala library for asynchronous and concurrent programming.
-          </div>
-          <div>
-            Powered by highly-scalable, non-blocking fibers that never waste or leak resources, ZIO lets you build scalable, resilient, and reactive applications that meet the needs of your business.
-          </div>
-        </p>
-        <div> 
-            <ul>
-              <li><strong>High-performance.</strong> Build scalable applications with 100x the performance of Scala’s Future</li>
-              <li><strong>Type-safe.</strong> Use the full power of the Scala compiler to catch bugs at compile time.</li>
-              <li><strong>Concurrent.</strong> Easily build concurrent apps without deadlocks, race conditions, or complexity</li>
-              <li><strong>Asynchronous.</strong> Write sequential code that looks the same whether it’s asynchronous or synchronous.</li>
-              <li><strong>Resource-safe.</strong> Build apps that never leak resources (including threads!), even when they fail.</li>
-              <li><strong>Testable.</strong> Inject test services into your app for fast, deterministic, and type-safe testing.</li>
-              <li><strong>Resilient.</strong> Build apps that never lose errors, and which respond to failure locally and flexibly.</li>
-              <li><strong>Functional.</strong> Rapidly compose solutions to complex problems from simple building blocks.</li>
-            </ul>
-        </div>
-        <div>
-            To learn more about how ZIO can help you accomplish the impossible, see <a href="./docs/getting_started.html">Getting Started</a> and <a href="./docs/overview/overview_index.html">Overview</a>.
-        </div>
-      </div>
-    );
-  }
-}
-
 class HomeSplash extends React.Component {
   render() {
     const {siteConfig, language = ''} = this.props;
@@ -94,7 +61,6 @@ class HomeSplash extends React.Component {
         </a>
       </div>
     );
-
     return (
       <SplashContainer>
         <div className="inner">
@@ -125,11 +91,51 @@ class Index extends React.Component {
         />
       </Container>
     );
+
+    const Features = () => (
+      <Block layout="threeColumn">
+        {[
+          {
+            content: 'Build scalable applications with 100x the performance of Scala’s Future',
+            title: 'High-performance',
+          },
+          {
+            content: 'Use the full power of the Scala compiler to catch bugs at compile time',
+            title: 'Type-safe',
+          },
+          {
+            content: 'Easily build concurrent apps without deadlocks, race conditions, or complexity',
+            title: 'Concurrent',
+          },
+          {
+            content: 'Write sequential code that looks the same whether it’s asynchronous or synchronous',
+            title:'Asynchronous',
+          },
+          {
+            content: 'Build apps that never leak resources (including threads!), even when they fail',
+            title: 'Resource-safe',
+          },
+          {
+            content: 'Inject test services into your app for fast, deterministic, and type-safe testing',
+            title: 'Testable',
+          },
+          {
+            content: 'Build apps that never lose errors, and which respond to failure locally and flexibly',
+            title: 'Resilient',
+          },
+          {
+            content: 'Rapidly compose solutions to complex problems from simple building blocks',
+            title: 'Functional'
+          },
+        ]}
+      </Block>
+    );
+
     return (
       <div>
         <HomeSplash siteConfig={siteConfig} language={language} />
         <div className="mainContainer">
-          <Description />
+          <Features />
         </div>
       </div>
     );
