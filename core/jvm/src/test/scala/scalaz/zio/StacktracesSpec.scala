@@ -24,6 +24,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   "nested left binds" >> nestedLeftBinds
   "fiber ancestry" >> fiberAncestry
 
+  "blocking trace" >> blockingTrace
+
   def basicTest = {
     val res = unsafeRun(for {
       _     <- ZIO.unit
@@ -108,6 +110,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     def m2 =
       for {
         trace <- ZIO.trace
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+        _ <- ZIO.unit
         _     <- UIO(println(trace.prettyPrint))
       } yield println()
 
@@ -115,11 +120,16 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         _ <- m2
         _ <- ZIO.unit
+        _ <- ZIO.unit
+        _ <- ZIO.unit
       } yield ()
 
     def m0: ZIO[Any, Unit, Unit] =
       (for {
         _ <- m1
+        _ <- ZIO.unit
+        _ <- ZIO.unit
+        _ <- ZIO.unit
       } yield ())
         .foldM(
           failure = _ => IO.fail(()),
@@ -128,35 +138,46 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
               .flatMap(t => UIO(println(t.prettyPrint)))
         )
 
-    val res = unsafeRun(m0)
-
-    res must_== (())
+    unsafeRun(m0) must_== (())
   }
 
   def fiberAncestry = {
 
-    def m0 =
+    def fiber0 =
       for {
-        _ <- m1.fork
+        _ <- fiber1.fork
       } yield ()
 
-    def m1 =
+    def fiber1 =
       for {
         _ <- ZIO.unit
         _ <- ZIO.unit
-        _ <- m2.fork
+        _ <- fiber2.fork
         _ <- ZIO.unit
       } yield ()
 
-    def m2 =
+    def fiber2 =
       for {
         trace <- ZIO.trace
         _     <- UIO(println(trace.prettyPrint))
       } yield ()
 
-    val res = unsafeRun(m0)
+    val res = unsafeRun(fiber0)
 
     res must_== (())
+  }
+
+  def blockingTrace = {
+    val io = for {
+    _ <- blocking.effectBlocking { throw new Exception() }
+    } yield ()
+
+    unsafeRunSync(io).fold(cause => {
+      val trace = cause.traces.head
+
+      trace.stackTrace.head.method.exists(_ contains "blockingTrace") and
+        trace.executionTrace.head.method.exists(_ contains "blockingTrace")
+    }, _ => failure)
   }
 
 }

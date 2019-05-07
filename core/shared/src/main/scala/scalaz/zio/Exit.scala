@@ -386,8 +386,8 @@ object Exit extends Serializable {
       }
 
       def renderTrace(maybeTrace: Option[ZTrace]): List[String] =
-        maybeTrace.fold("No ZIO trace." :: Nil) { trace =>
-          "ZIO trace:" :: lines(trace.prettyPrint)
+        maybeTrace.fold("No ZIO traces available." :: Nil) { trace =>
+          "" :: lines(trace.prettyPrint)
         }
 
       def causeToSequential(cause: Cause[Any]): Sequential =

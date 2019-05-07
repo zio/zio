@@ -44,7 +44,7 @@ trait Platform { self =>
   def tracer: Tracer
 
   /**
-   * Tracing configuration for this `Platform`
+   * Tracing configuration
    */
   def tracingConfig: TracingConfig
 

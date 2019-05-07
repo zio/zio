@@ -60,7 +60,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val stackTrace = SingleThreadedRingBuffer[SourceLocation](platform.tracingConfig.stackTraceLength)
   private[this] val tracer     = platform.tracer
 
-  private[this] final def addTrace(lambda: Function[_, _]): Unit = {
+  private[this] final def addTrace(lambda: AnyRef): Unit = {
     val unwrapped = lambda match {
       case z: ZIOFn[_, _] =>
         val underlying = z.underlying
@@ -180,6 +180,9 @@ private[zio] final class FiberContext[E, A](
     // Put the maximum operation count on the stack for fast access:
     val maxopcount = executor.yieldOpCount
 
+    // Put trace configuration on the stack:
+    val traceEffects = this.platform.tracingConfig.traceEffectOpsInExecution
+
     while (curIo ne null) {
       try {
         var opcount: Int = 0
@@ -220,24 +223,31 @@ private[zio] final class FiberContext[E, A](
                       curIo = k(io2.value)
 
                     case ZIO.Tags.EffectTotalWith =>
-                      val io2 = nested.asInstanceOf[ZIO.EffectTotalWith[Any]]
+                      val io2    = nested.asInstanceOf[ZIO.EffectTotalWith[Any]]
+                      val effect = io2.effect
 
+                      if (traceEffects) addTrace(effect)
                       addTrace(k)
 
-                      curIo = k(io2.effect(platform))
+                      curIo = k(effect(platform))
 
                     case ZIO.Tags.EffectTotal =>
-                      val io2 = nested.asInstanceOf[ZIO.EffectTotal[Any]]
+                      val io2    = nested.asInstanceOf[ZIO.EffectTotal[Any]]
+                      val effect = io2.effect
 
+                      if (traceEffects) addTrace(effect)
                       addTrace(k)
 
-                      curIo = k(io2.effect())
+                      curIo = k(effect())
 
                     case ZIO.Tags.EffectPartial =>
-                      val io2 = nested.asInstanceOf[ZIO.EffectPartial[Any]]
+                      val io2    = nested.asInstanceOf[ZIO.EffectPartial[Any]]
+                      val effect = io2.effect
+
+                      if (traceEffects) addTrace(effect)
 
                       var failIO = null.asInstanceOf[IO[E, Any]]
-                      val value = try io2.effect()
+                      val value = try effect()
                       catch {
                         case t: Throwable if !platform.fatal(t) =>
                           failIO = ZIO.fail(t.asInstanceOf[E])
@@ -265,9 +275,12 @@ private[zio] final class FiberContext[E, A](
                   curIo = nextInstr(value)
 
                 case ZIO.Tags.EffectTotal =>
-                  val io = curIo.asInstanceOf[ZIO.EffectTotal[Any]]
+                  val io     = curIo.asInstanceOf[ZIO.EffectTotal[Any]]
+                  val effect = io.effect
 
-                  curIo = nextInstr(io.effect())
+                  if (traceEffects) addTrace(effect)
+
+                  curIo = nextInstr(effect())
 
                 case ZIO.Tags.Fail =>
                   val io = curIo.asInstanceOf[ZIO.Fail[E, Any]]
@@ -315,10 +328,13 @@ private[zio] final class FiberContext[E, A](
                   curIo = io.k(interruptible)
 
                 case ZIO.Tags.EffectPartial =>
-                  val io = curIo.asInstanceOf[ZIO.EffectPartial[Any]]
+                  val io     = curIo.asInstanceOf[ZIO.EffectPartial[Any]]
+                  val effect = io.effect
+
+                  if (traceEffects) addTrace(effect)
 
                   var nextIo = null.asInstanceOf[IO[E, Any]]
-                  val value = try io.effect()
+                  val value = try effect()
                   catch {
                     case t: Throwable if !platform.fatal(t) =>
                       nextIo = ZIO.fail(t.asInstanceOf[E])
@@ -327,9 +343,12 @@ private[zio] final class FiberContext[E, A](
                   else curIo = nextIo
 
                 case ZIO.Tags.EffectTotalWith =>
-                  val io = curIo.asInstanceOf[ZIO.EffectTotalWith[Any]]
+                  val io     = curIo.asInstanceOf[ZIO.EffectTotalWith[Any]]
+                  val effect = io.effect
 
-                  val value = io.effect(platform)
+                  if (traceEffects) addTrace(effect)
+
+                  val value = effect(platform)
 
                   curIo = nextInstr(value)
 
@@ -339,7 +358,8 @@ private[zio] final class FiberContext[E, A](
                   // Enter suspended state:
                   curIo = if (enterAsync()) {
                     val k = io.register
-                    addTrace(k)
+
+                    if (traceEffects) addTrace(k)
 
                     k(resumeAsync) match {
                       case Some(io) => if (exitAsync()) io else null

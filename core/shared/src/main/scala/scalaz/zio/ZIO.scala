@@ -1144,7 +1144,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Accesses the whole environment of the effect.
    */
-  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(ZIO.identityFn[R])
+  final def environment[R >: LowerR]: ZIO[R, Nothing, R] = access(r => r)
 
   /**
    * Accesses the environment of the effect.
@@ -1301,7 +1301,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * flattening a nested effect.
    */
   final def flatten[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] =
-    zio.flatMap(ZIO.identityFn[ZIO[R, E, A]])
+    zio.flatMap(io => io)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
