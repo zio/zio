@@ -662,9 +662,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
-   * @note in case you need extreme performance, make sure to use capacity
-   *   which is a power of 2.
-   * Stores this stream to a fixed managed queue and streams data from the managed queue.
+   * @note when possible, prefer capacities that are powers of 2 for better performance.
+   * Allow a faster producer to progress independently of a slower consumer by buffering
+   *   up to `capacity` elements in a queue.
    */
   final def buffer(capacity: Int): ZStream[R, E, A] =
     ZStream.managed(self.toQueue(capacity)) { queue =>
