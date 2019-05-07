@@ -67,7 +67,7 @@ trait Runtime[+R] {
   final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
     val context = new FiberContext[E, A](Platform, Environment.asInstanceOf[AnyRef])
 
-    context.evaluateNow(zio.asInstanceOf[IO[E, A]])
+    context.evaluateNow(zio.asInstanceOf[BIO[E, A]])
     context.runAsync(k)
   }
 

@@ -12,22 +12,22 @@ class scalaz72Spec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   def is = s2"""
     laws must hold for
-      Bifunctor              ${bifunctor.laws[IO]}
-      BindRec                ${bindRec.laws[IO[Int, ?]]}
-      Plus                   ${plus.laws[IO[Int, ?]]}
-      MonadPlus              ${monadPlus.laws[IO[Int, ?]]}
-      MonadPlus (Monoid)     ${monadPlus.laws[IO[Option[Unit], ?]]}
-      MonadError             ${monadError.laws[IO[Int, ?], Int]}
+      Bifunctor              ${bifunctor.laws[BIO]}
+      BindRec                ${bindRec.laws[BIO[Int, ?]]}
+      Plus                   ${plus.laws[BIO[Int, ?]]}
+      MonadPlus              ${monadPlus.laws[BIO[Int, ?]]}
+      MonadPlus (Monoid)     ${monadPlus.laws[BIO[Option[Unit], ?]]}
+      MonadError             ${monadError.laws[BIO[Int, ?], Int]}
       Applicative (Parallel) ${applicative.laws[scalaz72.ParIO[Any, Int, ?]]}
   """
 
-  implicit def ioEqual[E: Equal, A: Equal]: Equal[IO[E, A]] =
-    new Equal[IO[E, A]] {
-      override def equal(io1: IO[E, A], io2: IO[E, A]): Boolean =
+  implicit def ioEqual[E: Equal, A: Equal]: Equal[BIO[E, A]] =
+    new Equal[BIO[E, A]] {
+      override def equal(io1: BIO[E, A], io2: BIO[E, A]): Boolean =
         unsafeRun(io1.either) === unsafeRun(io2.either)
     }
 
-  implicit def ioArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
+  implicit def ioArbitrary[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[BIO[E, A]] =
     Arbitrary(genIO[E, A])
 
   implicit def ioParEqual[E: Equal, A: Equal]: Equal[scalaz72.ParIO[Any, E, A]] =

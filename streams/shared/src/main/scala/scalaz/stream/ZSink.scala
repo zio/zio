@@ -101,7 +101,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Effectfully filters the inputs fed to this sink.
    */
-  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
+  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => BIO[E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
     new ZSink[R1, E1, A0, A1, B] {
       type State = self.State
 
@@ -136,7 +136,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   final def filterNot[A1 <: A](f: A1 => Boolean): ZSink[R, E, A0, A1, B] =
     filter(a => !f(a))
 
-  final def filterNotM[E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R, E1, A0, A1, B] =
+  final def filterNotM[E1 >: E, A1 <: A](f: A1 => BIO[E1, Boolean]): ZSink[R, E1, A0, A1, B] =
     filterM(a => f(a).map(!_))
 
   final def contramapM[R1 <: R, E1 >: E, C](f: C => ZIO[R1, E1, A]): ZSink[R1, E1, A0, C, B] =
@@ -840,7 +840,7 @@ object ZSink {
                 }
             )
 
-        def extract(state: State): IO[E, S] =
+        def extract(state: State): BIO[E, S] =
           IO.succeed(state._2)
       }
 
@@ -873,7 +873,7 @@ object ZSink {
               }
             }
 
-        def extract(state: State): IO[E, S] =
+        def extract(state: State): BIO[E, S] =
           IO.succeed(state._1)
       }
 

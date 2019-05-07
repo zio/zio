@@ -2,7 +2,7 @@ package scalaz.zio.interop
 
 import monix.eval
 import monix.execution.Scheduler
-import scalaz.zio.{ IO, Task, UIO }
+import scalaz.zio.{ BIO, Task, UIO }
 
 object monixio {
   implicit class IOObjOps(private val obj: IO.type) extends AnyVal {

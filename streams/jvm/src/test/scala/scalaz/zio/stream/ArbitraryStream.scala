@@ -1,7 +1,7 @@
 package scalaz.zio.stream
 
 import org.scalacheck.{ Arbitrary, Gen }
-import scalaz.zio.IO
+import scalaz.zio.BIO
 
 import scala.reflect.ClassTag
 

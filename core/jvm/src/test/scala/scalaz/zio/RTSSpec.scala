@@ -174,7 +174,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val op1 = IO.effectTotal[String]("1")
     val op2 = IO.effectTotal[String]("2")
 
-    val result: IO[RuntimeException, String] = for {
+    val result: BIO[RuntimeException, String] = for {
       r1 <- op1
       r2 <- op2
     } yield r1 + r2
@@ -258,14 +258,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testManualSyncOnDefer = {
-    def sync[A](effect: => A): IO[Throwable, A] =
+    def sync[A](effect: => A): BIO[Throwable, A] =
       IO.effectTotal(effect)
         .foldCauseM({
           case Cause.Die(t) => IO.fail(t)
           case cause        => IO.halt(cause)
         }, IO.succeed(_))
 
-    def putStrLn(text: String): IO[Throwable, Unit] =
+    def putStrLn(text: String): BIO[Throwable, Unit] =
       sync(println(text))
 
     unsafeRun(putStrLn("Hello")) must_=== (())
@@ -553,7 +553,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     }) must_=== (())
 
   def testDeepFlatMapIsStackSafe = {
-    def fib(n: Int, a: BigInt = 0, b: BigInt = 1): IO[Error, BigInt] =
+    def fib(n: Int, a: BigInt = 0, b: BigInt = 1): BIO[Error, BigInt] =
       IO.succeed(a + b).flatMap { b2 =>
         if (n > 0)
           fib(n - 1, b, b2)
@@ -665,7 +665,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         promise <- Promise.make[Nothing, Unit]
         fiber <- IO
                   .bracketExit(promise.succeed(()) *> IO.never *> IO.succeed(1))((_, _: Exit[_, _]) => IO.unit)(
-                    _ => IO.unit: IO[Nothing, Unit]
+                    _ => IO.unit: BIO[Nothing, Unit]
                   )
                   .fork
         res <- promise.await *> fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
@@ -1268,14 +1268,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testManualSyncInterruption = {
-    def sync[A](effect: => A): IO[Throwable, A] =
+    def sync[A](effect: => A): BIO[Throwable, A] =
       IO.effectTotal(effect)
         .foldCauseM({
           case Cause.Die(t) => IO.fail(t)
           case cause        => IO.halt(cause)
         }, IO.succeed(_))
 
-    def putStr(text: String): IO[Throwable, Unit] =
+    def putStr(text: String): BIO[Throwable, Unit] =
       sync(scala.io.StdIn.print(text))
 
     unsafeRun(

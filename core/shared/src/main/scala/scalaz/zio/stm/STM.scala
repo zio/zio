@@ -18,7 +18,7 @@ package scalaz.zio.stm
 
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
-import scalaz.zio.{ IO, UIO }
+import scalaz.zio.{ BIO, UIO }
 
 import java.util.{ HashMap => MutableMap }
 import scala.util.{ Failure, Success, Try }
@@ -115,7 +115,7 @@ final class STM[+E, +A] private[stm] (
   /**
    * Commits this transaction atomically.
    */
-  final def commit: IO[E, A] = STM.atomically(self)
+  final def commit: BIO[E, A] = STM.atomically(self)
 
   /**
    * Maps the success value of this effect to the specified constant value.
@@ -471,7 +471,7 @@ object STM {
   /**
    * Atomically performs a batch of operations in a single transaction.
    */
-  final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
+  final def atomically[E, A](stm: STM[E, A]): BIO[E, A] =
     UIO.effectTotalWith { platform =>
       val txnId = makeTxnId()
 
@@ -482,7 +482,7 @@ object STM {
       IO.effectAsyncMaybe[Any, E, A] { k =>
         import internal.globalLock
 
-        def tryTxn(): Option[IO[E, A]] =
+        def tryTxn(): Option[BIO[E, A]] =
           if (done.get) None
           else
             done synchronized {
@@ -524,7 +524,7 @@ object STM {
                   }
                 }
 
-                def completed(io: IO[E, A]): Option[IO[E, A]] = {
+                def completed(io: BIO[E, A]): Option[BIO[E, A]] = {
                   done set true
 
                   val todos = collectTodos(journal)

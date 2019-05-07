@@ -34,7 +34,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   """
 
   def retryCollect[R, E, A, E1 >: E, S](
-    io: IO[E, A],
+    io: BIO[E, A],
     retry: ZSchedule[R, E1, S]
   ): ZIO[R, Nothing, (Either[E1, A], List[(Duration, S)])] = {
 
@@ -49,7 +49,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
               step =>
                 if (!step.cont) IO.succeed((Left(err), (step.delay, step.finish()) :: ss))
                 else loop(step.state, (step.delay, step.finish()) :: ss)
-            ),
+          ),
         suc => IO.succeed((Right(suc), ss))
       )
 
@@ -262,7 +262,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
    * It returns either a failure if ref value is 0 or less
    * before increment, and the value in other cases.
    */
-  def failOn0(ref: Ref[Int]): IO[String, Int] =
+  def failOn0(ref: Ref[Int]): BIO[String, Int] =
     for {
       i <- ref.update(_ + 1)
       x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
@@ -272,7 +272,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
    * A function that increments ref each time it is called.
    * It always fails, with the incremented value in error
    */
-  def alwaysFail(ref: Ref[Int]): IO[String, Int] =
+  def alwaysFail(ref: Ref[Int]): BIO[String, Int] =
     for {
       i <- ref.update(_ + 1)
       x <- IO.fail(s"Error: $i")

@@ -97,7 +97,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
       env     <- ZIO.environment[R]
       bundle = RefM.Bundle[E, A, B](
         ref,
-        pf.andThen(_.provide(env)).orElse[A, IO[E, (B, A)]] { case a => IO.succeed(default -> a) },
+        pf.andThen(_.provide(env)).orElse[A, BIO[E, (B, A)]] { case a => IO.succeed(default -> a) },
         promise
       )
       b <- (for {
@@ -110,7 +110,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
 object RefM extends Serializable {
   private[RefM] final case class Bundle[E, A, B](
     interrupted: Ref[Option[Cause[Nothing]]],
-    update: A => IO[E, (B, A)],
+    update: A => BIO[E, (B, A)],
     promise: Promise[E, B]
   ) {
     final def run(a: A, ref: Ref[A], onDefect: Cause[E] => UIO[Unit]): UIO[Unit] =

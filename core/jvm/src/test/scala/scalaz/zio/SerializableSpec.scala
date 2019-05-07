@@ -4,7 +4,7 @@ import java.io._
 
 class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
-  def serializeAndBack[T](a: T): IO[_, T] = {
+  def serializeAndBack[T](a: T): BIO[_, T] = {
     import SerializableSpec._
 
     for {

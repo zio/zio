@@ -862,7 +862,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e72 = unsafeRun(
     for {
-      q  <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
+      q  <- Queue.bounded[BIO[String, Int]](100).map(_.mapM(identity))
       _  <- q.offer(IO.fail("Ouch"))
       _  <- q.offer(IO.succeed(10))
       v1 <- q.take.run

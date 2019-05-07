@@ -58,7 +58,7 @@ trait Fiber[+E, +A] { self =>
    * fiber has been determined. Attempting to join a fiber that has errored will
    * result in a catchable error, _if_ that error does not result from interruption.
    */
-  final def join: IO[E, A] = await.flatMap(IO.done)
+  final def join: BIO[E, A] = await.flatMap(IO.done)
 
   /**
    * Interrupts the fiber with no specified reason. If the fiber has already
@@ -250,9 +250,9 @@ object Fiber {
   final def fail[E](e: E): Fiber[E, Nothing] = done(Exit.fail(e))
 
   /**
-   * Lifts an [[scalaz.zio.IO]] into a `Fiber`.
+   * Lifts an [[scalaz.zio.BIO]] into a `Fiber`.
    */
-  final def fromEffect[E, A](io: IO[E, A]): UIO[Fiber[E, A]] =
+  final def fromEffect[E, A](io: BIO[E, A]): UIO[Fiber[E, A]] =
     io.run.map(done(_))
 
   /**

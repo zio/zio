@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 
 import scalaz.zio.duration.Duration
 import scalaz.zio.scheduler.{ Scheduler, SchedulerLive }
-import scalaz.zio.{ IO, UIO, ZIO }
+import scalaz.zio.{ BIO, UIO, ZIO }
 
 trait Clock extends Scheduler with Serializable {
   val clock: Clock.Service[Any]

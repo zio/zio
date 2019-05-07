@@ -91,7 +91,7 @@ sealed trait FunctionIO[+E, -A, +B] extends Serializable { self =>
    * Applies the effectful function with the specified value, returning the
    * output in `IO`.
    */
-  val run: A => IO[E, B]
+  val run: A => BIO[E, B]
 
   /**
    * Maps the output of this effectful function by the specified function.
@@ -211,9 +211,9 @@ object FunctionIO extends Serializable {
     final def unsafeCoerce[E2] = error.asInstanceOf[E2]
   }
 
-  private[zio] final class Pure[E, A, B](val run: A => IO[E, B]) extends FunctionIO[E, A, B] {}
+  private[zio] final class Pure[E, A, B](val run: A => BIO[E, B]) extends FunctionIO[E, A, B] {}
   private[zio] final class Impure[E, A, B](val apply0: A => B) extends FunctionIO[E, A, B] {
-    val run: A => IO[E, B] = a =>
+    val run: A => BIO[E, B] = a =>
       IO.suspend {
         try IO.succeed[B](apply0(a))
         catch {
@@ -247,7 +247,7 @@ object FunctionIO extends Serializable {
   /**
    * Lifts a pure `A => IO[E, B]` into `FunctionIO`.
    */
-  final def fromFunctionM[E, A, B](f: A => IO[E, B]): FunctionIO[E, A, B] = new Pure(f)
+  final def fromFunctionM[E, A, B](f: A => BIO[E, B]): FunctionIO[E, A, B] = new Pure(f)
 
   /**
    * Lifts a pure `A => B` into `FunctionIO`.

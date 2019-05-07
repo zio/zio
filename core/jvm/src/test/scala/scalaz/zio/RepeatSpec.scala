@@ -86,7 +86,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def repeatFail = {
     // a method that increment ref and fail with the incremented value in error message
-    def incr(ref: Ref[Int]): IO[String, Int] =
+    def incr(ref: Ref[Int]): BIO[String, Int] =
       for {
         i <- ref.update(_ + 1)
         _ <- IO.fail(s"Error: $i")

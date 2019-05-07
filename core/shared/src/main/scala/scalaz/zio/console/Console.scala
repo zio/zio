@@ -18,7 +18,7 @@ package scalaz.zio.console
 
 import java.io.{ EOFException, IOException, PrintStream, Reader }
 
-import scalaz.zio.{ IO, UIO, ZIO }
+import scalaz.zio.{ BIO, UIO, ZIO }
 
 import scala.io.StdIn
 import scala.{ Console => SConsole }
@@ -71,7 +71,7 @@ object Console extends Serializable {
        * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
        * returns null.
        */
-      final def getStrLn(reader: Reader): IO[IOException, String] =
+      final def getStrLn(reader: Reader): BIO[IOException, String] =
         IO.effect(SConsole.withIn(reader) {
             val line = StdIn.readLine()
             if (line == null) {

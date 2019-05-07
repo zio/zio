@@ -113,14 +113,14 @@ class catzSpec
   checkAllAsync(s"ConcurrentEffect[Task]", implicit tctx => IOConcurrentEffectTests().concurrentEffect[Int, Int, Int])
   checkAllAsync("Effect[Task]", implicit tctx => EffectTests[Task].effect[Int, Int, Int])
   checkAllAsync("Concurrent[Task]", (_) => ConcurrentTests[Task].concurrent[Int, Int, Int])
-  checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[IO[Int, ?], Int].monadError[Int, Int, Int])
-  checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[IO[Int, ?]].alternative[Int, Int, Int])
+  checkAllAsync("MonadError[IO[Int, ?]]", (_) => MonadErrorTests[BIO[Int, ?], Int].monadError[Int, Int, Int])
+  checkAllAsync("Alternative[IO[Int, ?]]", (_) => AlternativeTests[BIO[Int, ?]].alternative[Int, Int, Int])
   checkAllAsync(
     "Alternative[IO[Option[Unit], ?]]",
-    (_) => AlternativeTests[IO[Option[Unit], ?]].alternative[Int, Int, Int]
+    (_) => AlternativeTests[BIO[Option[Unit], ?]].alternative[Int, Int, Int]
   )
   checkAllAsync("SemigroupK[Task]", (_) => SemigroupKTests[Task].semigroupK[Int])
-  checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[IO].bifunctor[Int, Int, Int, Int, Int, Int])
+  checkAllAsync("Bifunctor[IO]", (_) => BifunctorTests[BIO].bifunctor[Int, Int, Int, Int, Int, Int])
   checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Util.Par].parallel[Int, Int])
   checkAllAsync("Monad[UIO]", (_) => MonadTests[UIO].apply[Int, Int, Int])
 
@@ -128,20 +128,20 @@ class catzSpec
 
   object summoningInstancesTest {
     import cats._, cats.effect._
-    Concurrent[TaskR[String, ?]]
-    Async[TaskR[String, ?]]
-    LiftIO[TaskR[String, ?]]
-    Sync[TaskR[String, ?]]
-    MonadError[TaskR[String, ?], Throwable]
-    Monad[TaskR[String, ?]]
-    Applicative[TaskR[String, ?]]
-    Functor[TaskR[String, ?]]
-    Parallel[TaskR[String, ?], ParIO[String, Throwable, ?]]
-    SemigroupK[TaskR[String, ?]]
+    Concurrent[RIO[String, ?]]
+    Async[RIO[String, ?]]
+    LiftIO[RIO[String, ?]]
+    Sync[RIO[String, ?]]
+    MonadError[RIO[String, ?], Throwable]
+    Monad[RIO[String, ?]]
+    Applicative[RIO[String, ?]]
+    Functor[RIO[String, ?]]
+    Parallel[RIO[String, ?], ParIO[String, Throwable, ?]]
+    SemigroupK[RIO[String, ?]]
     Apply[UIO]
 
-    def concurrentEffect[R: Runtime] = ConcurrentEffect[TaskR[R, ?]]
-    def effect[R: Runtime]           = Effect[TaskR[R, ?]]
+    def concurrentEffect[R: Runtime] = ConcurrentEffect[RIO[R, ?]]
+    def effect[R: Runtime]           = Effect[RIO[R, ?]]
   }
 
   object summoningRuntimeInstancesTest {
@@ -149,7 +149,7 @@ class catzSpec
     import scalaz.zio.interop.catz.implicits._
 
     ContextShift[Task]
-    ContextShift[TaskR[String, ?]]
+    ContextShift[RIO[String, ?]]
     CatzClock[Task]
     Timer[Task]
 
@@ -158,11 +158,11 @@ class catzSpec
     Timer[UIO[?]]
   }
 
-  implicit def catsEQ[E, A: Eq]: Eq[IO[E, A]] =
-    new Eq[IO[E, A]] {
+  implicit def catsEQ[E, A: Eq]: Eq[BIO[E, A]] =
+    new Eq[BIO[E, A]] {
       import scalaz.zio.duration._
 
-      def eqv(io1: IO[E, A], io2: IO[E, A]): Boolean = {
+      def eqv(io1: BIO[E, A], io2: BIO[E, A]): Boolean = {
         val v1  = rts.unsafeRunSync(io1.timeout(20.seconds)).map(_.get)
         val v2  = rts.unsafeRunSync(io2.timeout(20.seconds)).map(_.get)
         val res = v1 === v2
@@ -185,7 +185,7 @@ class catzSpec
   implicit def zioArbitrary[E, A: Arbitrary: Cogen, R: Arbitrary: Cogen]: Arbitrary[ZIO[R, E, A]] =
     Arbitrary(genSuccess[E, A])
 
-  implicit def ioArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
+  implicit def ioArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[BIO[E, A]] =
     Arbitrary(genSuccess[E, A])
 
   implicit def ioParArbitrary[E, A: Arbitrary: Cogen, R <: Any]: Arbitrary[ParIO[R, E, A]] =

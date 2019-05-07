@@ -3,7 +3,7 @@ package scalaz.zio.stream
 import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
+import scalaz.zio.{ BIO, Chunk, Exit, GenIO, TestRuntime }
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -63,9 +63,9 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def foldM = {
-    implicit val ioArb: Arbitrary[IO[String, String]] = Arbitrary(genSuccess[String, String])
+    implicit val ioArb: Arbitrary[BIO[String, String]] = Arbitrary(genSuccess[String, String])
 
-    prop { (s: Stream[String, Int], f: (String, Int) => IO[String, String], z: IO[String, String]) =>
+    prop { (s: Stream[String, Int], f: (String, Int) => BIO[String, String], z: BIO[String, String]) =>
       val ff         = (acc: String, el: Int) => f(acc, el).map(Step.more)
       val sinkResult = unsafeRunSync(s.run(ZSink.foldM(z)(ff)))
       val foldResult = unsafeRunSync {

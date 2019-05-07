@@ -59,7 +59,7 @@ class ArrayFillBenchmarks {
   def catsArrayFill() = {
     import cats.effect.IO
 
-    def arrayFill(array: Array[Int])(i: Int): IO[Unit] =
+    def arrayFill(array: Array[Int])(i: Int): BIO[Unit] =
       if (i >= array.length) IO.unit
       else IO(array.update(i, i)).flatMap(_ => arrayFill(array)(i + 1))
 

@@ -1,6 +1,6 @@
 package scalaz.zio.stream
 
-import scalaz.zio.{ Exit, IO, TestRuntime }
+import scalaz.zio.{ BIO, Exit, TestRuntime }
 
 trait StreamTestUtils { self: TestRuntime =>
   def slurp[E, A](s: Stream[E, A]): Exit[E, List[A]] =

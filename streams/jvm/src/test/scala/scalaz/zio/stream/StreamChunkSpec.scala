@@ -4,7 +4,7 @@ import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
 import scala.{ Stream => _ }
 import scala.concurrent.duration._
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
+import scalaz.zio.{ BIO, Chunk, Exit, GenIO, TestRuntime }
 import scala.annotation.tailrec
 
 class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {

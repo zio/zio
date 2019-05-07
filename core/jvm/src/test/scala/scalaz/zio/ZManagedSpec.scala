@@ -16,7 +16,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Constructs an uninterruptible Managed value. $uninterruptible
   ZManaged.traverse
     Invokes cleanups in reverse order of acquisition. $traverse
-  ZManaged.reserve 
+  ZManaged.reserve
     Interruption is possible when using this form. $interruptible
   """
 
@@ -74,7 +74,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     doInterrupt(io => ZManaged.reserve(Reservation(io, IO.unit)), Some(Failure(Interrupt)))
 
   private def doInterrupt(
-    managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
+    managed: BIO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
     expected: Option[Exit[Nothing, Unit]]
   ) = {
     val program = for {

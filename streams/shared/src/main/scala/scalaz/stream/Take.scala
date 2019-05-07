@@ -16,7 +16,7 @@
 
 package scalaz.zio.stream
 
-import scalaz.zio.IO
+import scalaz.zio.BIO
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of
@@ -58,7 +58,7 @@ object Take {
   final case class Value[A](value: A) extends Take[Nothing, A]
   case object End                     extends Take[Nothing, Nothing]
 
-  final def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
+  final def option[E, A](io: BIO[E, Take[E, A]]): BIO[E, Option[A]] =
     io.flatMap {
       case Take.End      => IO.succeed(None)
       case Take.Value(a) => IO.succeed(Some(a))

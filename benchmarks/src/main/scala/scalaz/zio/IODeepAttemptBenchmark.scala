@@ -116,7 +116,7 @@ class IODeepAttemptBenchmark {
 
   @Benchmark
   def scalazDeepAttempt(): BigInt = {
-    def descend(n: Int): IO[ScalazError, BigInt] =
+    def descend(n: Int): BIO[ScalazError, BigInt] =
       if (n == depth) IO.fail(ScalazError("Oh noes!"))
       else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
@@ -126,7 +126,7 @@ class IODeepAttemptBenchmark {
 
   @Benchmark
   def scalazDeepAttemptBaseline(): BigInt = {
-    def descend(n: Int): IO[Error, BigInt] =
+    def descend(n: Int): BIO[Error, BigInt] =
       if (n == depth) IO.fail(new Error("Oh noes!"))
       else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
@@ -138,7 +138,7 @@ class IODeepAttemptBenchmark {
   def catsDeepAttempt(): BigInt = {
     import cats.effect._
 
-    def descend(n: Int): IO[BigInt] =
+    def descend(n: Int): BIO[BigInt] =
       if (n == depth) IO.raiseError(new Error("Oh noes!"))
       else if (n == halfway) descend(n + 1).attempt.map(_.fold(_ => 50, a => a))
       else descend(n + 1).map(_ + n)

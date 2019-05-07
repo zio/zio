@@ -129,7 +129,7 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def t3 = {
-    val ios: Iterable[IO[String, Char]] = TestData.map(IO.effectTotal(_))
+    val ios: Iterable[BIO[String, Char]] = TestData.map(IO.effectTotal(_))
     unsafeRun(for {
       f1       <- ios.forkAll
       forkAll1 <- f1.join

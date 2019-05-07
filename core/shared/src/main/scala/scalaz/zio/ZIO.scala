@@ -638,7 +638,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect that, if evaluated, will return the lazily computed result
    * of this effect.
    */
-  final def memoize: ZIO[R, Nothing, IO[E, A]] =
+  final def memoize: ZIO[R, Nothing, BIO[E, A]] =
     for {
       r <- ZIO.environment[R]
       p <- Promise.make[E, A]
@@ -885,7 +885,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Provides the `ZIO` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
-  final def provide(r: R): IO[E, A] = ZIO.provide(r)(self)
+  final def provide(r: R): BIO[E, A] = ZIO.provide(r)(self)
 
   /**
    * Returns an effect that will timeout this effect, returning `None` if the
@@ -1088,12 +1088,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
-  final def fail[E <: UpperE](error: E): IO[E, Nothing] = halt(Cause.fail(error))
+  final def fail[E <: UpperE](error: E): BIO[E, Nothing] = halt(Cause.fail(error))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  final def halt[E <: UpperE](cause: Cause[E]): IO[E, Nothing] = new ZIO.Fail(cause)
+  final def halt[E <: UpperE](cause: Cause[E]): BIO[E, Nothing] = new ZIO.Fail(cause)
 
   /**
    * Returns an effect that models success with the specified strictly-
@@ -1137,7 +1137,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * This is similar to dependency injection, and the `provide` function can be
    * thought of as `inject`.
    */
-  final def provide[R >: LowerR, E <: UpperE, A](r: R): ZIO[R, E, A] => IO[E, A] =
+  final def provide[R >: LowerR, E <: UpperE, A](r: R): ZIO[R, E, A] => BIO[E, A] =
     (zio: ZIO[R, E, A]) => new ZIO.Provide(r, zio)
 
   /**
@@ -1180,7 +1180,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Imports a total synchronous effect into a pure `ZIO` value.
    * The effect must not throw any exceptions. If you wonder if the effect
    * throws exceptions, then do not use this method, use [[Task.effect]],
-   * [[IO.effect]], or [[ZIO.effect]].
+   * [[BIO.effect]], or [[ZIO.effect]].
    *
    * {{{
    * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
@@ -1194,7 +1194,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * The effect must not throw any exceptions. If you wonder if the effect
    * throws exceptions, then do not use this method, use [[Task.effect]],
-   * [[IO.effect]], or [[ZIO.effect]].
+   * [[BIO.effect]], or [[ZIO.effect]].
    *
    * {{{
    * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
@@ -1233,7 +1233,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect from a [[scalaz.zio.Exit]] value.
    */
-  final def done[E <: UpperE, A](r: Exit[E, A]): IO[E, A] = r match {
+  final def done[E <: UpperE, A](r: Exit[E, A]): BIO[E, A] = r match {
     case Exit.Success(b)     => succeed(b)
     case Exit.Failure(cause) => halt(cause)
   }
@@ -1405,35 +1405,35 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */
-  final def fromFunctionM[R >: LowerR, E, A](f: R => IO[E, A]): ZIO[R, E, A] =
+  final def fromFunctionM[R >: LowerR, E, A](f: R => BIO[E, A]): ZIO[R, E, A] =
     environment[R].flatMap(f)
 
   /**
    * Lifts an `Either` into a `ZIO` value.
    */
-  final def fromEither[E <: UpperE, A](v: => Either[E, A]): IO[E, A] =
+  final def fromEither[E <: UpperE, A](v: => Either[E, A]): BIO[E, A] =
     effectTotal(v).flatMap(_.fold(fail, succeed))
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
-  final def fromFiber[E <: UpperE, A](fiber: => Fiber[E, A]): IO[E, A] =
+  final def fromFiber[E <: UpperE, A](fiber: => Fiber[E, A]): BIO[E, A] =
     effectTotal(fiber).flatMap(_.join)
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
-  final def fromFiberM[E <: UpperE, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
+  final def fromFiberM[E <: UpperE, A](fiber: BIO[E, Fiber[E, A]]): BIO[E, A] =
     fiber.flatMap(_.join)
 
   /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
-  final def require[E <: UpperE, A](error: E): IO[E, Option[A]] => IO[E, A] =
-    (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
+  final def require[E <: UpperE, A](error: E): BIO[E, Option[A]] => BIO[E, A] =
+    (io: BIO[E, Option[A]]) => io.flatMap(_.fold[BIO[E, A]](fail[E](error))(succeed[A]))
 
   /**
    * When this effect represents acquisition of a resource (for example,
@@ -1773,8 +1773,8 @@ private[zio] trait ZIO_E_Any extends ZIO_E_Throwable {
   /**
    * Lifts an `Option` into a `ZIO`.
    */
-  final def fromOption[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeed(_)))
+  final def fromOption[A](v: => Option[A]): BIO[Unit, A] =
+    effectTotal(v).flatMap(_.fold[BIO[Unit, A]](fail(()))(succeed(_)))
 }
 
 private[zio] trait ZIO_E_Throwable extends ZIOFunctions {
@@ -1927,14 +1927,14 @@ object ZIO extends ZIO_R_Any {
   private final def succeedLeft[E, A]: E => UIO[Either[E, A]] =
     _succeedLeft.asInstanceOf[E => UIO[Either[E, A]]]
 
-  private val _succeedLeft: Any => IO[Any, Either[Any, Any]] =
+  private val _succeedLeft: Any => BIO[Any, Either[Any, Any]] =
     e2 => succeed[Either[Any, Any]](Left(e2))
 
   @inline
   private final def succeedRight[E, A]: A => UIO[Either[E, A]] =
     _succeedRight.asInstanceOf[A => UIO[Either[E, A]]]
 
-  private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
+  private val _succeedRight: Any => BIO[Any, Either[Any, Any]] =
     a => succeed[Either[Any, Any]](Right(a))
 
   private[zio] object Tags {
@@ -2010,11 +2010,11 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Supervised
   }
 
-  private[zio] final class Fail[E, A](val cause: Cause[E]) extends IO[E, A] { self =>
+  private[zio] final class Fail[E, A](val cause: Cause[E]) extends BIO[E, A] { self =>
     override def tag = Tags.Fail
 
-    override final def map[B](f: A => B): IO[E, B] =
-      self.asInstanceOf[IO[E, B]]
+    override final def map[B](f: A => B): BIO[E, B] =
+      self.asInstanceOf[BIO[E, B]]
 
     override final def flatMap[R1 <: Any, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       self.asInstanceOf[ZIO[R1, E1, B]]
@@ -2042,7 +2042,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Access
   }
 
-  private[zio] final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
+  private[zio] final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends BIO[E, A] {
     override def tag = Tags.Provide
   }
 }

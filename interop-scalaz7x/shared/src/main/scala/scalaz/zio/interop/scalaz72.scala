@@ -26,8 +26,7 @@ object scalaz72 extends ZIOInstances with Scalaz72Platform {
 
 abstract class ZIOInstances extends ZIOInstances1 {
 
-  implicit def zioTaskInstances[R]
-    : MonadError[TaskR[R, ?], Throwable] with BindRec[TaskR[R, ?]] with Plus[TaskR[R, ?]] =
+  implicit def zioTaskInstances[R]: MonadError[RIO[R, ?], Throwable] with BindRec[RIO[R, ?]] with Plus[RIO[R, ?]] =
     new ZIOMonadError[R, Throwable] with ZIOPlus[R, Throwable]
 
   // cached for efficiency

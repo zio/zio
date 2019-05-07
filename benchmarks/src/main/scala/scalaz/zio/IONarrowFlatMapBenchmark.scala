@@ -117,7 +117,7 @@ class IONarrowFlatMapBenchmark {
   def catsNarrowFlatMap(): Int = {
     import cats.effect._
 
-    def loop(i: Int): IO[Int] =
+    def loop(i: Int): BIO[Int] =
       if (i < size) IO(i + 1).flatMap(loop)
       else IO(i)
 

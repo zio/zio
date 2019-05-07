@@ -126,7 +126,7 @@ class IOLeftBindBenchmark {
   def catsLeftBindBenchmark(): Int = {
     import cats.effect._
 
-    def loop(i: Int): IO[Int] =
+    def loop(i: Int): BIO[Int] =
       if (i % depth == 0) IO(i + 1).flatMap(loop)
       else if (i < size) loop(i + 1).flatMap(i => IO(i))
       else IO(i)

@@ -52,9 +52,9 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Retrieves the value of the promise, suspending the fiber running the action
    * until the result is available.
    */
-  final def await: IO[E, A] =
+  final def await: BIO[E, A] =
     IO.effectAsyncInterrupt[Any, E, A](k => {
-      var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
+      var result = null.asInstanceOf[Either[Canceler, BIO[E, A]]]
       var retry  = true
 
       while (retry) {
@@ -80,7 +80,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   /**
    * Completes immediately this promise and returns optionally it's result.
    */
-  final def poll: UIO[Option[IO[E, A]]] =
+  final def poll: UIO[Option[BIO[E, A]]] =
     IO.effectTotal(state.get).flatMap {
       case Pending(_) => IO.succeed(None)
       case Done(io)   => IO.succeed(Some(io))
@@ -107,7 +107,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Completes the promise with the specified result. If the specified promise
    * has already been completed, the method will produce false.
    */
-  final def done(io: IO[E, A]): UIO[Boolean] =
+  final def done(io: BIO[E, A]): UIO[Boolean] =
     IO.flatten(IO.effectTotal {
         var action: UIO[Boolean] = null.asInstanceOf[UIO[Boolean]]
         var retry                = true
@@ -136,9 +136,9 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       })
       .uninterruptible
 
-  private[zio] final def unsafeDone(io: IO[E, A], exec: Executor): Unit = {
-    var retry: Boolean                  = true
-    var joiners: List[IO[E, A] => Unit] = null
+  private[zio] final def unsafeDone(io: BIO[E, A], exec: Executor): Unit = {
+    var retry: Boolean                   = true
+    var joiners: List[BIO[E, A] => Unit] = null
 
     while (retry) {
       val oldState = state.get
@@ -156,7 +156,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     if (joiners ne null) joiners.reverse.foreach(k => exec.submit(() => k(io)))
   }
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
+  private def interruptJoiner(joiner: BIO[E, A] => Unit): Canceler = IO.effectTotal {
     var retry = true
 
     while (retry) {
@@ -193,7 +193,7 @@ object Promise {
     ref: Ref[A]
   )(
     acquire: (Promise[E, B], A) => (UIO[C], A)
-  )(release: (C, Promise[E, B]) => UIO[_]): IO[E, B] =
+  )(release: (C, Promise[E, B]) => UIO[_]): BIO[E, B] =
     for {
       pRef <- Ref.make[Option[(C, Promise[E, B])]](None)
       b <- (for {
@@ -211,8 +211,8 @@ object Promise {
     } yield b
 
   private[zio] object internal {
-    sealed trait State[E, A]                                        extends Serializable with Product
-    final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
-    final case class Done[E, A](value: IO[E, A])                    extends State[E, A]
+    sealed trait State[E, A]                                         extends Serializable with Product
+    final case class Pending[E, A](joiners: List[BIO[E, A] => Unit]) extends State[E, A]
+    final case class Done[E, A](value: BIO[E, A])                    extends State[E, A]
   }
 }

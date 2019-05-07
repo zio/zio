@@ -309,7 +309,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def peel[R1 <: R, E1 >: E, A1 >: A, B](
     sink: ZSink[R1, E1, A1, A1, B]
   ): ZManaged[R1, E1, (B, ZStream[R1, E1, A1])] = {
-    type Folder = (Any, A1) => IO[E1, Any]
+    type Folder = (Any, A1) => BIO[E1, Any]
     type Cont   = Any => Boolean
     type Fold   = (Any, Cont, Folder)
     type State  = Either[sink.State, Fold]
@@ -325,7 +325,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             if (!cont(s)) IO.succeed(s)
             else
               resume.succeed((s, cont.asInstanceOf[Cont], f.asInstanceOf[Folder])) *>
-                done.await.asInstanceOf[IO[E2, S]]
+                done.await.asInstanceOf[BIO[E2, S]]
           }
       }
 
@@ -460,7 +460,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
-  final def mapAccumM[E1 >: E, S1, B](s1: S1)(f1: (S1, A) => IO[E1, (S1, B)]): ZStream[R, E1, B] =
+  final def mapAccumM[E1 >: E, S1, B](s1: S1)(f1: (S1, A) => BIO[E1, (S1, B)]): ZStream[R, E1, B] =
     new ZStream[R, E1, B] {
       override def fold[R1 <: R, E2 >: E1, B1 >: B, S]: Fold[R1, E2, B1, S] =
         IO.succeedLazy { (s, cont, f) =>

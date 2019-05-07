@@ -28,7 +28,7 @@ case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
   final def currentTime(unit: TimeUnit): UIO[Long] =
     ref.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
-  final val nanoTime: IO[Nothing, Long] =
+  final val nanoTime: BIO[Nothing, Long] =
     ref.get.map(_.nanoTime)
 
   final def sleep(duration: Duration): UIO[Unit] =

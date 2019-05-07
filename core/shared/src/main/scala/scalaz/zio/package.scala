@@ -22,9 +22,13 @@ package object zio extends EitherCompat {
   type Canceler = UIO[_]
   type FiberId  = Long
 
-  type IO[+E, +A]    = ZIO[Any, E, A]
-  type Task[+A]      = ZIO[Any, Throwable, A]
+  @deprecated("Use BIO instead", "1.0.0")
+  type IO[+E, +A]  = ZIO[Any, E, A]
+  type BIO[+E, +A] = ZIO[Any, E, A]
+  type Task[+A]    = ZIO[Any, Throwable, A]
+  @deprecated("Use RIO instead", "1.0.0")
   type TaskR[-R, +A] = ZIO[R, Throwable, A]
+  type RIO[-R, +A]   = ZIO[R, Throwable, A]
   type UIO[+A]       = ZIO[Any, Nothing, A]
 
   type Managed[+E, +A] = ZManaged[Any, E, A]

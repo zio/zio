@@ -42,7 +42,7 @@ abstract class CatsMtlInstances {
     new DefaultApplicativeHandle[ZIO[R, E, ?], E] {
       val functor: Functor[ZIO[R, E, ?]]                                      = ev
       val applicative: Applicative[ZIO[R, E, ?]]                              = ev
-      def raise[A](e: E): IO[E, A]                                            = IO.fail(e)
+      def raise[A](e: E): BIO[E, A]                                           = IO.fail(e)
       def handleWith[A](fa: ZIO[R, E, A])(f: E => ZIO[R, E, A]): ZIO[R, E, A] = fa.catchAll(f)
     }
 }

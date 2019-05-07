@@ -116,7 +116,7 @@ class IOMapBenchmark {
     import cats.effect._
 
     @tailrec
-    def sumTo(t: IO[BigInt], n: Int): IO[BigInt] =
+    def sumTo(t: BIO[BigInt], n: Int): BIO[BigInt] =
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 

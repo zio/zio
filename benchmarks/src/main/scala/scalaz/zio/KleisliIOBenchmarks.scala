@@ -60,11 +60,11 @@ object ScalazIOArray {
 object CatsIOArray {
   import cats.effect.IO
 
-  def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): IO[Unit] = {
-    def outerLoop(i: Int): IO[Unit] =
+  def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): BIO[Unit] = {
+    def outerLoop(i: Int): BIO[Unit] =
       if (i >= array.length - 1) IO.unit else innerLoop(i, i + 1).flatMap(_ => outerLoop(i + 1))
 
-    def innerLoop(i: Int, j: Int): IO[Unit] =
+    def innerLoop(i: Int, j: Int): BIO[Unit] =
       if (j >= array.length) IO.unit
       else
         IO((array(i), array(j))).flatMap {
@@ -74,7 +74,7 @@ object CatsIOArray {
             maybeSwap.flatMap(_ => innerLoop(i, j + 1))
         }
 
-    def swapIJ(i: Int, ia: A, j: Int, ja: A): IO[Unit] =
+    def swapIJ(i: Int, ia: A, j: Int, ja: A): BIO[Unit] =
       IO { array.update(i, ja); array.update(j, ia) }
 
     outerLoop(0)

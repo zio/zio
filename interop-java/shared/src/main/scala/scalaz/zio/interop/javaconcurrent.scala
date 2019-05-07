@@ -42,7 +42,7 @@ object javaconcurrent {
         }
       }
 
-    def fromCompletionStage[A, E >: Throwable](csIo: IO[E, CompletionStage[A]]): IO[E, A] =
+    def fromCompletionStage[A, E >: Throwable](csIo: BIO[E, CompletionStage[A]]): BIO[E, A] =
       csIo.flatMap(unsafeCompletionStageToIO)
 
     def fromCompletionStage[A](cs: () => CompletionStage[A]): Task[A] =
@@ -75,7 +75,7 @@ object javaconcurrent {
       }
     }
 
-    def fromFutureJava[A, E >: Throwable](futureIo: IO[E, Future[A]]): IO[E, A] =
+    def fromFutureJava[A, E >: Throwable](futureIo: BIO[E, Future[A]]): BIO[E, A] =
       futureIo.flatMap(unsafeFutureJavaToIO)
 
     def fromFutureJava[A](future: () => Future[A]): Task[A] =
@@ -129,7 +129,7 @@ object javaconcurrent {
       io.fold(CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A])
   }
 
-  implicit class IOOps[E, A](private val io: IO[E, A]) extends AnyVal {
+  implicit class IOOps[E, A](private val io: BIO[E, A]) extends AnyVal {
     def toCompletableFutureE(f: E => Throwable): UIO[CompletableFuture[A]] =
       io.mapError(f).toCompletableFuture
   }

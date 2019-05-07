@@ -16,7 +16,7 @@ package object future {
 
   private val Global = ExecutionContext.Implicits.global
 
-  private final def unsafeRun[E, A](ec: ExecutionContext, io: IO[E, A]): A =
+  private final def unsafeRun[E, A](ec: ExecutionContext, io: BIO[E, A]): A =
     Runtime[Any]((), PlatformLive.fromExecutionContext(ec)).unsafeRun(io)
 
   private final def toTry[A](e: Either[Throwable, A]): Try[A] =
@@ -63,7 +63,7 @@ package object future {
     final def find[T](futures: Iterable[Future[T]])(p: T => Boolean)(implicit ec: ExecutionContext): Future[Option[T]] =
       unsafeRun(
         ec,
-        (futures.foldLeft[IO[Throwable, Option[T]]](IO.interrupt) {
+        (futures.foldLeft[BIO[Throwable, Option[T]]](IO.interrupt) {
           case (acc, future) =>
             acc orElse future.join.flatMap(t => if (p(t)) IO.succeed(t) else IO.interrupt).map(Some(_))
         } orElse IO.succeed(None)).fork
@@ -75,7 +75,7 @@ package object future {
       unsafeRun(
         ec,
         futures
-          .foldLeft[IO[Throwable, R]](IO.succeed(zero)) {
+          .foldLeft[BIO[Throwable, R]](IO.succeed(zero)) {
             case (acc, future) =>
               acc.flatMap(r => future.join.map(op(r, _)))
           }
@@ -139,7 +139,7 @@ package object future {
       unsafeRun(ec, value.join.bimap(f, s).fork)
 
     final def transform[S](f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] = {
-      val g: Try[T] => IO[Throwable, S] =
+      val g: Try[T] => BIO[Throwable, S] =
         (t: Try[T]) =>
           IO.effect(f(t) match {
               case Failure(t) => IO.fail(t)
@@ -151,7 +151,7 @@ package object future {
     }
 
     final def transformWith[S](f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] = {
-      val g: Try[T] => IO[Throwable, S] =
+      val g: Try[T] => BIO[Throwable, S] =
         (t: Try[T]) => IO.effect(f(t).join).flatten
 
       unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, S](g).fork)

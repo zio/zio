@@ -128,7 +128,7 @@ class IOShallowAttemptBenchmark {
 
   @Benchmark
   def scalazShallowAttempt(): BigInt = {
-    def throwup(n: Int): IO[ScalazError, BigInt] =
+    def throwup(n: Int): BIO[ScalazError, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) IO.succeedLazy(1)
       else throwup(n + 1).foldM[Any, ScalazError, BigInt](_ => IO.succeed(0), _ => IO.fail(ScalazError("Oh noes!")))
@@ -138,7 +138,7 @@ class IOShallowAttemptBenchmark {
 
   @Benchmark
   def scalazShallowAttemptBaseline(): BigInt = {
-    def throwup(n: Int): IO[Error, BigInt] =
+    def throwup(n: Int): BIO[Error, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) IO.succeedLazy(1)
       else throwup(n + 1).foldM[Any, Error, BigInt](_ => IO.succeed(0), _ => IO.fail(new Error("Oh noes!")))
@@ -150,7 +150,7 @@ class IOShallowAttemptBenchmark {
   def catsShallowAttempt(): BigInt = {
     import cats.effect._
 
-    def throwup(n: Int): IO[BigInt] =
+    def throwup(n: Int): BIO[BigInt] =
       if (n == 0) throwup(n + 1).attempt.map(_.fold(_ => 0, a => a))
       else if (n == depth) IO(1)
       else

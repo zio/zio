@@ -1,7 +1,7 @@
 package scalaz.zio.testkit
 
 import scalaz.zio.testkit.TestSystem.Data
-import scalaz.zio.{ IO, Ref, TestRuntime }
+import scalaz.zio.{ BIO, Ref, TestRuntime }
 
 class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 

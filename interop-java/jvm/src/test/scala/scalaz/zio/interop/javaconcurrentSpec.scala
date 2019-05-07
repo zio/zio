@@ -109,9 +109,9 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   val toCompletableFuturePoly = {
-    val unitIO: Task[Unit]                          = Task.unit
-    val polyIO: IO[String, CompletableFuture[Unit]] = unitIO.toCompletableFuture
-    val _                                           = polyIO // avoid warning
+    val unitIO: Task[Unit]                           = Task.unit
+    val polyIO: BIO[String, CompletableFuture[Unit]] = unitIO.toCompletableFuture
+    val _                                            = polyIO // avoid warning
     ok
   }
 
@@ -126,7 +126,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   val toCompletableFutureE = {
-    val failedIO: IO[String, Unit] = IO.fail[String]("IOs also can fail")
+    val failedIO: BIO[String, Unit] = IO.fail[String]("IOs also can fail")
     unsafeRun(failedIO.toCompletableFutureE(new Exception(_))).get() must throwA[Exception](
       message = "IOs also can fail"
     )

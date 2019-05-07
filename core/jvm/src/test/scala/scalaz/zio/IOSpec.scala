@@ -184,8 +184,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
 
   def testUnsandbox = {
-    val failure: IO[Exit.Cause[Exception], String] = IO.fail(Cause.fail(new Exception("fail")))
-    val success: IO[Exit.Cause[Any], Int]          = IO.succeed(100)
+    val failure: BIO[Exit.Cause[Exception], String] = IO.fail(Cause.fail(new Exception("fail")))
+    val success: BIO[Exit.Cause[Any], Int]          = IO.succeed(100)
     unsafeRun(for {
       message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
       result  <- success.unsandbox
