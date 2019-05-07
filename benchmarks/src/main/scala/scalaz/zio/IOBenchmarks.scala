@@ -4,6 +4,7 @@ import cats._
 import cats.effect.{ Fiber => CFiber }
 import scala.concurrent.ExecutionContext
 import cats.effect.{ ContextShift, IO => CIO }
+import monix.eval.{ Task => MTask }
 import scalaz.zio.internal._
 
 object IOBenchmarks extends DefaultRuntime {
@@ -14,7 +15,7 @@ object IOBenchmarks extends DefaultRuntime {
 
   implicit val monixScheduler: Scheduler = {
     import monix.execution.ExecutionModel.SynchronousExecution
-    Scheduler.computation().withExecutionModel(SynchronousExecution)
+    Scheduler.global.withExecutionModel(SynchronousExecution)
   }
 
   def repeat[R, E, A](n: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -32,6 +33,18 @@ object IOBenchmarks extends DefaultRuntime {
   def catsRepeat[A](n: Int)(io: CIO[A]): CIO[A] =
     if (n <= 1) io
     else io.flatMap(_ => catsRepeat(n - 1)(io))
+
+  def monixForkAll[A](as: Iterable[MTask[A]]): MTask[CFiber[MTask, List[A]]] = {
+    type Fiber[A] = CFiber[MTask, A]
+
+    as.foldRight[MTask[CFiber[MTask, List[A]]]](MTask(Applicative[Fiber].pure(Nil))) { (io, listFiber) =>
+      MTask.map2(listFiber, io.start)((f1, f2) => Applicative[Fiber].map2(f1, f2)((as, a) => a :: as))
+    }
+  }
+
+  def monixRepeat[A](n: Int)(mio: MTask[A]): MTask[A] =
+    if (n <= 1) mio
+    else mio.flatMap(_ => monixRepeat(n - 1)(mio))
 
   class Thunk[A](val unsafeRun: () => A) {
     def map[B](ab: A => B): Thunk[B] =
