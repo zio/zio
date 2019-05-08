@@ -170,14 +170,61 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Maps each element of this stream to another stream, and returns the
    * concatenation of those streams.
    */
-  final def flatMap[R1 <: R, E1 >: E, B](f: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] = new ZStream[R1, E1, B] {
-    override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
-      IO.succeedLazy { (s, cont, g) =>
-        self.fold[R2, E2, A, S].flatMap { f0 =>
-          f0(s, cont, (s, a) => f(a).fold[R2, E2, B1, S].flatMap(h => h(s, cont, g)))
+  final def flatMap[R1 <: R, E1 >: E, B](f: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+    new ZStream[R1, E1, B] {
+      override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
+        IO.succeedLazy { (s, cont, g) =>
+          self.fold[R2, E2, A, S].flatMap { f0 =>
+            f0(s, cont, (s, a) => f(a).fold[R2, E2, B1, S].flatMap(h => h(s, cont, g)))
+          }
         }
-      }
-  }
+    }
+
+  /**
+   * Maps each element of this stream to another stream and returns the
+   * non-deterministic merge of those streams, executing up to `n` inner streams
+   * concurrently. Up to `outputBuffer` elements of the produced streams may be
+   * buffered in memory by this operator.
+   */
+  final def flatMapPar[R1 <: R, E1 >: E, B](n: Long, outputBuffer: Int = 16)(
+    f: A => ZStream[R1, E1, B]
+  ): ZStream[R1, E1, B] =
+    new ZStream[R1, E1, B] {
+      override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
+        ZIO.succeedLazy { (s, cont, g) =>
+          for {
+            out          <- Queue.bounded[Take[E1, B]](outputBuffer)
+            permits      <- Semaphore.make(n)
+            driverFailed <- Ref.make[Boolean](false)
+            // - The driver stream forks an inner fiber for each stream created
+            //   by f, with an upper bound of n concurrent fibers.
+            //   - On completion, the driver stream joins all pending inner fibers and
+            //     emits a Take.End value
+            //   - On error, the driver stream interrupts all inner fibers and emits a
+            //     Take.Fail value
+            //   - On interruption, the driver stream interrupts all inner fibers and
+            //     shuts down the queue
+            // - Inner fibers enqueue Take values from their streams to the output queue
+            //   - On error, an inner fiber enqueues a Take.Error value
+            //   - On interruption, an inner fiber does nothing
+            //   - On completion, an inner fiber does nothing
+            driver = (for {
+              _ <- self.foreach { a =>
+                    permits.withPermit {
+                      f(a)
+                        .foreach(b => out.offer(Take.Value(b)).unit)
+                        .catchAll(e => out.offer(Take.Fail(e)).unit)
+                    }.fork.unit
+                  }.catchAll(e => ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Take.Fail(e)))
+              _ <- ZIO.children.flatMap(Fiber.joinAll)
+              _ <- out.offer(Take.End)
+            } yield ()).onInterrupt(out.shutdown *> ZIO.children.flatMap(Fiber.interruptAll)).supervised.fork
+            driverFiber <- driver
+            outputFold  <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S]
+            s           <- outputFold(s, cont, g).onInterrupt(driverFiber.interrupt)
+          } yield s
+        }
+    }
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -737,6 +784,21 @@ trait Stream_Functions extends Serializable {
    */
   final def flatten[R: ConformsR, E, A](fa: ZStream[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     fa.flatMap(identity)
+
+  /**
+   * Flattens a stream of streams into a stream by executing a non-deterministic
+   * concurrent merge. Up to `n` streams may be consumed in parallel and up to
+   * `outputBuffer` elements may be buffered by this operator.
+   */
+  final def flattenPar[R: ConformsR, E, A](n: Long, outputBuffer: Int = 16)(
+    fa: ZStream[R, E, ZStream[R, E, A]]
+  ): ZStream[R, E, A] =
+    fa.flatMapPar(n, outputBuffer)(identity)
+
+  final def mergeAll[R: ConformsR, E, A](n: Long, outputBuffer: Int = 16)(
+    streams: ZStream[R, E, A]*
+  ): ZStream[R, E, A] =
+    flattenPar(n, outputBuffer)(Stream.fromIterable(streams))
 
   /**
    * Unwraps a stream wrapped inside of an `IO` value.

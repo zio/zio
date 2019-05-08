@@ -55,6 +55,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.peel               $peel
   Stream.drain              $drain
 
+  Stream.flatMapPar/flattenPar/mergeAll
+    consistent with flatMap  $flatMapParConsistency
+    short circuiting         $flatMapParShortCircuiting
+    interruption propagation $flatMapParInterruptionPropagation
+
   Stream bracketing
     bracket                              $bracket
     bracket short circuits               $bracketShortCircuits
@@ -264,6 +269,41 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val expected = 6765
 
     slurp(stream).toEither must beRight(List(expected))
+  }
+
+  private def flatMapParConsistency = prop { (n: Long, m: List[Int]) =>
+    val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i))
+    val flatMapPar = Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i))
+
+    (n > 0) ==> (slurp(flatMap).map(_.toSet) must_=== slurp(flatMapPar).map(_.toSet))
+  }
+
+  private def flatMapParShortCircuiting = unsafeRun {
+    for {
+      results <- Stream
+                  .mergeAll(2)(
+                    Stream.never,
+                    Stream(1)
+                  )
+                  .take(1)
+                  .run(Sink.collect[Int])
+    } yield results must_=== List(1)
+  }
+
+  private def flatMapParInterruptionPropagation = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      fiber <- Stream(())
+                .flatMapPar(1)(
+                  _ => Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
+                )
+                .run(Sink.collect[Unit])
+                .fork
+      _         <- latch.await
+      _         <- fiber.interrupt
+      cancelled <- substreamCancelled.get
+    } yield cancelled must_=== true
   }
 
   private def forever = {
