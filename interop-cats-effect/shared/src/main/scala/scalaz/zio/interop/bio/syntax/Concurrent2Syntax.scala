@@ -41,21 +41,24 @@ private[syntax] object Concurrent2Syntax {
     @inline def race[EE >: E, AA >: A](fa2: F[EE, AA])(
       implicit
       C: Concurrent2[F],
-      CD: ConcurrentData2[F]
+      CD: ConcurrentData2[F],
+      MD: Monoid[EE]
     ): F[EE, Option[AA]] =
       C.race(fa, fa2)
 
     @inline def raceEither[EE >: E, B](fa2: F[EE, B])(
       implicit
       C: Concurrent2[F],
-      CD: ConcurrentData2[F]
+      CD: ConcurrentData2[F],
+      MD: Monoid[EE]
     ): F[EE, Option[Either[A, B]]] =
       C.raceEither(fa, fa2)
 
     @inline def raceAll[EE >: E, AA >: A](xs: Iterable[F[EE, AA]])(
       implicit
       C: Concurrent2[F],
-      CD: ConcurrentData2[F]
+      CD: ConcurrentData2[F],
+      MD: Monoid[EE]
     ): F[EE, Option[AA]] =
       C.raceAll[E, EE, A, AA](fa)(xs)
 

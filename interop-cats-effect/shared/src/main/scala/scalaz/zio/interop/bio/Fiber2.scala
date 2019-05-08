@@ -18,11 +18,11 @@ package scalaz.zio
 package interop
 package bio
 
-abstract class Fiber2[F[+ _, + _], E, A] {
-
-  def cancel: F[Nothing, Option[Either[E, A]]]
+abstract class Fiber2[F[+ _, + _], E, A] { self =>
 
   def await: F[Nothing, Option[Either[E, A]]]
+
+  def cancel: F[Nothing, Option[Either[E, A]]]
 
   def join: F[E, A]
 }

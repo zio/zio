@@ -89,7 +89,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   @inline def race[E, EE >: E, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
-    implicit CD: ConcurrentData2[F]
+    implicit CD: ConcurrentData2[F],
+    MD: Monoid[EE]
   ): F[EE, Option[AA]] =
     monad.map(raceEither(fa1, fa2))(_ map (_.merge))
 
@@ -104,28 +105,42 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   @inline def raceEither[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
-    implicit ev: ConcurrentData2[F]
+    implicit
+    ev: ConcurrentData2[F],
+    MD: Monoid[EE]
   ): F[EE, Option[Either[A, B]]] = {
 
     import cats.syntax.either._
 
     implicit val _: Errorful2[F] = self
 
+    def decider[E1 <: EE, E2 <: EE, A1, B1](
+      winner: Option[Either[E1, A1]],
+      other: Fiber2[F, E2, B1]
+    ): F[EE, Option[Either[A1, B1]]] =
+      winner match {
+
+        case Some(Left(e)) =>
+          other.await >>= {
+            case Some(Left(oe)) => raiseError(MD.combine(e, oe))
+            case Some(Right(b)) => monad.pure(b.asRight.some)
+            case None           => raiseError(e)
+          }
+
+        case Some(Right(a)) =>
+          monad.pure(a.asLeft.some) <* other.cancel
+
+        case None =>
+          other.await >>= {
+            case Some(Left(oe)) => raiseError(oe)
+            case Some(Right(b)) => monad.pure(b.asRight.some)
+            case None           => monad.pure(None)
+          }
+      }
+
     raceWith(fa1, fa2)(
-      (fa1Result, fiber2) =>
-        fa1Result.fold[F[EE, Option[Either[A, B]]]](monad.pure(None)) {
-          _.fold(
-            _ => fiber2.join map (f2r => Some(f2r.asRight)),
-            a => monad.pure(Some(a.asLeft)) <* fiber2.cancel
-          )
-        },
-      (fa2Result, fiber1) =>
-        fa2Result.fold[F[EE, Option[Either[A, B]]]](monad.pure(None)) {
-          _.fold(
-            _ => fiber1.join map (f1r => Some(f1r.asLeft)),
-            b => monad.pure(Some(b.asRight)) <* fiber1.cancel
-          )
-        }
+      (fa1Done, fiber2) => decider(fa1Done, fiber2),
+      (fa2Done, fiber1) => decider(fa2Done, fiber1) map (_ map (_.swap))
     )
   }
 
@@ -185,7 +200,9 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   @inline def raceAll[E, EE >: E, A, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
-    implicit CD: ConcurrentData2[F]
+    implicit
+    CD: ConcurrentData2[F],
+    MD: Monoid[EE]
   ): F[EE, Option[AA]] = {
 
     implicit val _: Errorful2[F] = self
@@ -216,13 +233,16 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
     def coordinate[AA, BB](f: (AA, BB) => C)(winner: Option[Either[E, AA]], loser: Fiber2[F, E, BB]): F[E, C] =
       winner match {
-        case Some(Right(a)) => monad.map(loser.join)(f(a, _))
+        case Some(Right(a)) =>
+          monad.map(loser.join)(f(a, _))
+
         case Some(Left(winnerError)) =>
           monad.flatMap(loser.cancel) {
             case Some(Right(_))         => raiseError(winnerError)
             case Some(Left(loserError)) => raiseError(MD.combine(loserError, winnerError))
             case None                   => raiseError(MD.empty) // TODO: What to do in this case (None) ?
           }
+
         case None => raiseError(MD.empty) // TODO: What to do in this case (None) ?
       }
 
