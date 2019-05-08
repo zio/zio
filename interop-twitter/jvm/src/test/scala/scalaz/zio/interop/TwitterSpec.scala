@@ -22,7 +22,7 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   private def propagateFailures = {
     val error  = new Exception
-    val future = Future.exception[Int](error)
+    val future = Task(Future.exception[Int](error))
     val task   = Task.fromTwitterFuture(future)
 
     unsafeRun(task) must throwAn(FiberFailure(Fail(error)))
@@ -30,7 +30,7 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   private def propagateResults = {
     val value  = 10
-    val future = Future.value(value)
+    val future = Task(Future.value(value))
     val task   = Task.fromTwitterFuture(future)
 
     unsafeRun(task) ==== value
@@ -39,13 +39,11 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   private def propagateInterrupts = {
     implicit val timer = new JavaTimer(true)
 
+    val value         = new AtomicInteger(0)
     val futureTimeout = TwitterDuration.fromSeconds(3)
     val taskTimeout   = Duration.fromScala(1.second)
-    val value         = new AtomicInteger(0)
-
-    lazy val future = Future.sleep(futureTimeout).map(_ => value.incrementAndGet())
-
-    val task = Task.fromTwitterFuture(future).timeout(taskTimeout)
+    val future        = Task(Future.sleep(futureTimeout).map(_ => value.incrementAndGet()))
+    val task          = Task.fromTwitterFuture(future).timeout(taskTimeout)
 
     unsafeRun(task) must beNone
 
