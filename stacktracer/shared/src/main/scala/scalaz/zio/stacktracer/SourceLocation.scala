@@ -1,5 +1,7 @@
 package scalaz.zio.stacktracer
 
+import scalaz.zio.stacktracer.SourceLocation.lambdaNamePattern
+
 import scala.util.matching.Regex
 
 final case class SourceLocation(file: String, clazz: String, method: Option[String], line: Int) {
@@ -7,7 +9,7 @@ final case class SourceLocation(file: String, clazz: String, method: Option[Stri
   final def toStackTraceElement: StackTraceElement = {
     val className = clazz.replace('/', '.')
     val methodName =
-      method.flatMap(SourceLocation.lambdaNamePattern.findFirstMatchIn(_).map(_.group(1))).getOrElse("apply")
+      method.fold("apply")(m => lambdaNamePattern.findFirstMatchIn(m).map(_.group(1)).getOrElse(m))
 
     new StackTraceElement(className, methodName, file, line)
   }

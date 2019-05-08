@@ -18,10 +18,9 @@ package scalaz.zio.blocking
 
 import java.util.concurrent._
 
-import scalaz.zio.{ IO, UIO, ZIO }
-import scalaz.zio.internal.{ Executor, NamedThreadFactory }
-import scalaz.zio.internal.PlatformLive
 import scalaz.zio.internal.tracing.ZIOFn
+import scalaz.zio.internal.{ Executor, NamedThreadFactory, PlatformLive }
+import scalaz.zio.{ IO, UIO, ZIO }
 
 /**
  * The `Blocking` module provides access to a thread pool that can be used for performing
@@ -66,8 +65,9 @@ object Blocking extends Serializable {
       // Reference user's lambda for the tracer
       ZIOFn.recordTrace(() => effect) *>
         ZIO.flatten(ZIO.effectTotal {
-          import java.util.concurrent.locks.ReentrantLock
           import java.util.concurrent.atomic.AtomicReference
+          import java.util.concurrent.locks.ReentrantLock
+
           import scalaz.zio.internal.OneShot
 
           val lock    = new ReentrantLock()

@@ -28,6 +28,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   "blocking trace" >> blockingTrace
 
+  "tracing regions" >> tracingRegions
+  "tracing region is inherited on fork" >> tracingRegionsInheritance
+
   def basicTest = {
     val res = unsafeRun(for {
       _     <- ZIO.unit
@@ -178,11 +181,55 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       cause => {
         val trace = cause.traces.head
 
+        // the first items on exec trace and stack trace refer to this line
         trace.stackTrace.head.method.exists(_ contains "blockingTrace") and
           trace.executionTrace.head.method.exists(_ contains "blockingTrace")
       },
       _ => failure
     )
   }
+
+  def tracingRegions = {
+    val io = (for {
+      _ <- ZIO.unit
+      _ <- ZIO.unit
+      _ <- ZIO.effect(traceThis()).traced.traced.traced
+      _ <- ZIO.unit
+      _ <- ZIO.unit
+      _ <- ZIO.fail("end")
+    } yield ()).untraced
+
+    unsafeRunSync(io).fold[Result](
+      cause => {
+        println(cause.prettyPrint)
+
+        (cause.traces must have size 1) and
+          cause.traces.head.executionTrace.exists(_.method.exists(_.contains("traceThis"))) and
+          !cause.traces.head.executionTrace.exists(_.method.exists(_.contains("tracingRegions"))) and
+          cause.traces.head.stackTrace.isEmpty
+      },
+      _ => failure
+    )
+  }
+
+  def tracingRegionsInheritance = {
+    val io = for {
+      _                <- ZIO.unit
+      _                <- ZIO.unit
+      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!")).fork).untraced
+      _                <- untraceableFiber.join
+    } yield ()
+
+    unsafeRunSync(io).fold[Result](
+      cause => {
+        println(cause.prettyPrint)
+
+        cause.traces must beEmpty
+      },
+      _ => failure
+    )
+  }
+
+  val traceThis: () => String = () => "trace this!"
 
 }

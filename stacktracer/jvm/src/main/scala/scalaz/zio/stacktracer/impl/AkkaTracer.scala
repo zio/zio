@@ -4,7 +4,7 @@ import scalaz.zio.stacktracer.{ AkkaLineNumbers, SourceLocation, Tracer }
 
 final class AkkaTracer extends Tracer {
 
-  override def traceLocation(lambda: AnyRef): Some[SourceLocation] = Some {
+  override def traceLocation(lambda: AnyRef): SourceLocation =
     AkkaLineNumbers(lambda) match {
       case AkkaLineNumbers.NoSourceInfo =>
         SourceLocation("<nosource>", "<unknown>", None, 0)
@@ -18,6 +18,5 @@ final class AkkaTracer extends Tracer {
       case AkkaLineNumbers.SourceFileLines(filename, from, _, className, methodName) =>
         SourceLocation(filename.intern(), className.intern(), Some(methodName.intern()), from)
     }
-  }
 
 }

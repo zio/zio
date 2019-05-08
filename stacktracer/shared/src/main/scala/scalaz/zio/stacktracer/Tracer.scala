@@ -1,16 +1,25 @@
 package scalaz.zio.stacktracer
 
+import java.util.concurrent.ConcurrentHashMap
+
 abstract class Tracer extends Serializable {
-  def traceLocation(lambda: AnyRef): Option[SourceLocation]
+  def traceLocation(lambda: AnyRef): SourceLocation
 }
 
 object Tracer {
-  def cachedTracer(tracer: Tracer, cache: SourceLocationCache): Tracer =
+  def cachedTracer(tracer: Tracer, jmapCache: ConcurrentHashMap[Class[_], SourceLocation]): Tracer =
     new Tracer {
-      val traceFn: AnyRef => SourceLocation =
-        tracer.traceLocation(_).orNull
+      def traceLocation(lambda: AnyRef): SourceLocation = {
+        val clazz = lambda.getClass
 
-      def traceLocation(lambda: AnyRef): Option[SourceLocation] =
-        Option(cache.getOrElseUpdate(lambda, traceFn))
+        val res = jmapCache.get(clazz)
+        if (res eq null) {
+          val v = tracer.traceLocation(lambda)
+          jmapCache.put(clazz, v)
+          v
+        } else {
+          res
+        }
+      }
     }
 }

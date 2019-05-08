@@ -19,7 +19,7 @@ package scalaz.zio
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
-import scalaz.zio.internal.tracing.ZIOFn
+import scalaz.zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import scalaz.zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
@@ -1085,7 +1085,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.run.flatMap(x => p.done(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
-   * Converts the effect to a [[scala.concurrent.Future]].
+   * Converts the effect into a [[scala.concurrent.Future]].
    */
   final def toFuture(implicit ev2: E <:< Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
     self toFutureWith ev2
@@ -1095,6 +1095,32 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def toFutureWith(f: E => Throwable): ZIO[R, Nothing, scala.concurrent.Future[A]] =
     self.fork >>= (_.toFutureWith(f))
+
+  /**
+   * Disables ZIO tracing facilities for the duration of the effect.
+   *
+   * Note: ZIO tracing is cached, as such after the first iteration
+   * it has a negligible effect on performance of hot-spots (Additional
+   * hash map lookup per flatMap). As such, using `untraceable` sections
+   * is not guaranteed to result in a noticeable performance increase.
+   */
+  final def untraced: ZIO[R, E, A] = tracingStatus(false)
+
+  /**
+   * Enables ZIO tracing for this effect. Because this is the default, this
+   * operation only has an additional meaning if the effect is located within
+   * an `untraceable` section, or the current fiber has been spawned by a parent
+   * inside an `untraceable` section.
+   */
+  final def traced: ZIO[R, E, A] = tracingStatus(true)
+
+  /**
+   * Toggles ZIO tracing support for this effect. If `true` is used, then the
+   * effect will accumulate traces, while if `false` is used, then tracing
+   * is disabled. These changes are compositional, so they only affect regions
+   * of the effect.
+   */
+  final def tracingStatus(flag: Boolean): ZIO[R, E, A] = new ZIO.TracingStatus(self, flag)
 
   /**
    * An integer that identifies the term in the `ZIO` sum type to which this
@@ -1509,7 +1535,7 @@ private[zio] trait ZIOFunctions extends Serializable {
     release: A => ZIO[R, Nothing, _],
     use: A => ZIO[R, E, B]
   ): ZIO[R, E, B] =
-    bracketExit(acquire, (a: A, _: Exit[E, B]) => release(a), use)
+    bracketExit(acquire, new ZIO.BracketReleaseFn(release): (A, Exit[E, B]) => ZIO[R, Nothing, _], use)
 
   /**
    * Acquires a resource, uses the resource, and then releases the resource.
@@ -1533,11 +1559,12 @@ private[zio] trait ZIOFunctions extends Serializable {
   ): ZIO[R, E, B] =
     ZIO.uninterruptibleMask[R, E, B](
       restore =>
-        for {
-          a <- acquire
-          e <- restore(use(a)).run.flatMap(e => release(a, e).const(e))
-          b <- ZIO.done(e)
-        } yield b
+        acquire.flatMap(ZIOFn(traceAs = use) { a =>
+          restore(use(a)).run.flatMap(ZIOFn(traceAs = release) { e =>
+            release(a, e) *>
+              ZIO.done(e)
+          })
+        })
     )
 
   /**
@@ -1785,6 +1812,18 @@ private[zio] trait ZIOFunctions extends Serializable {
     zio.interruptible
 
   /**
+   * Prefix form of `ZIO#untraceable`.
+   */
+  final def untraceable[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.untraced
+
+  /**
+   * Prefix form of `ZIO#traced`.
+   */
+  final def traced[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.traced
+
+  /**
    * Provides access to the list of child fibers supervised by this fiber.
    *
    * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
@@ -1903,7 +1942,7 @@ object ZIO extends ZIO_R_Any {
   private val _IdentityFn: Any => Any    = (a: Any) => a
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
-  implicit class ZIOInvariant[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
+  implicit final class ZIOInvariant[R, E, A](private val self: ZIO[R, E, A]) extends AnyVal {
     final def bracket: ZIO.BracketAcquire[R, E, A] =
       new ZIO.BracketAcquire(self)
 
@@ -1923,7 +1962,7 @@ object ZIO extends ZIO_R_Any {
         .sandboxWith[R with Clock, E, B1](io => ZIO.absolve(io.either race ZIO.succeedRight(b).delay(duration)))
   }
 
-  class BracketAcquire_[R, E](acquire: ZIO[R, E, _]) {
+  final class BracketAcquire_[R, E](private val acquire: ZIO[R, E, _]) extends AnyVal {
     def apply[R1 <: R](release: ZIO[R1, Nothing, _]): BracketRelease_[R1, E] =
       new BracketRelease_(acquire, release)
   }
@@ -1932,7 +1971,7 @@ object ZIO extends ZIO_R_Any {
       ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
   }
 
-  class BracketAcquire[R, E, A](acquire: ZIO[R, E, A]) {
+  final class BracketAcquire[R, E, A](private val acquire: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R](release: A => ZIO[R1, Nothing, _]): BracketRelease[R1, E, A] =
       new BracketRelease[R1, E, A](acquire, release)
   }
@@ -1941,7 +1980,7 @@ object ZIO extends ZIO_R_Any {
       ZIO.bracket(acquire, release, use)
   }
 
-  class BracketExitAcquire[R, E, A](acquire: ZIO[R, E, A]) {
+  final class BracketExitAcquire[R, E, A](private val acquire: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, B](
       release: (A, Exit[E1, B]) => ZIO[R1, Nothing, _]
     ): BracketExitRelease[R1, E, E1, A, B] =
@@ -1955,12 +1994,12 @@ object ZIO extends ZIO_R_Any {
       ZIO.bracketExit(acquire, release, use)
   }
 
-  class AccessPartiallyApplied[R >: LowerR] {
+  final class AccessPartiallyApplied[R >: LowerR](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZIO[R, Nothing, A] =
       new ZIO.Read(r => succeed(f(r)))
   }
 
-  class AccessMPartiallyApplied[R >: LowerR] {
+  final class AccessMPartiallyApplied[R >: LowerR](private val dummy: Boolean = true) extends AnyVal {
     def apply[E <: UpperE, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
       new ZIO.Read(f)
   }
@@ -1979,32 +2018,40 @@ object ZIO extends ZIO_R_Any {
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
     a => succeed[Either[Any, Any]](Right(a))
 
-  final class ZipLeftFn[R, E, A, B](override val underlying: () => ZIO[R, E, A]) extends ZIOFn[B, ZIO[R, E, B]] {
+  final class ZipLeftFn[R, E, A, B](override val underlying: () => ZIO[R, E, A]) extends ZIOFn1[B, ZIO[R, E, B]] {
     def apply(a: B): ZIO[R, E, B] =
       underlying().const(a)
   }
 
-  final class ZipRightFn[R, E, A, B](override val underlying: () => ZIO[R, E, B]) extends ZIOFn[A, ZIO[R, E, B]] {
+  final class ZipRightFn[R, E, A, B](override val underlying: () => ZIO[R, E, B]) extends ZIOFn1[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] = {
       val _ = a
       underlying()
     }
   }
 
-  final class TapFn[R, E, A](override val underlying: A => ZIO[R, E, _]) extends ZIOFn[A, ZIO[R, E, A]] {
+  final class TapFn[R, E, A](override val underlying: A => ZIO[R, E, _]) extends ZIOFn1[A, ZIO[R, E, A]] {
     def apply(a: A): ZIO[R, E, A] =
       underlying(a).const(a)
   }
 
-  final class MapFn[R, E, A, B](override val underlying: A => B) extends ZIOFn[A, ZIO[R, E, B]] {
+  final class MapFn[R, E, A, B](override val underlying: A => B) extends ZIOFn1[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] =
       new ZIO.Succeed(underlying(a))
   }
 
-  final class ConstFn[R, E, A, B](override val underlying: () => B) extends ZIOFn[A, ZIO[R, E, B]] {
+  final class ConstFn[R, E, A, B](override val underlying: () => B) extends ZIOFn1[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] = {
       val _ = a
       new ZIO.Succeed(underlying())
+    }
+  }
+
+  final class BracketReleaseFn[R, E, A, B](override val underlying: A => ZIO[R, Nothing, _])
+      extends ZIOFn2[A, Exit[E, B], ZIO[R, Nothing, _]] {
+    override def apply(a: A, exit: Exit[E, B]): ZIO[R, Nothing, _] = {
+      val _ = exit
+      underlying(a)
     }
   }
 
@@ -2027,6 +2074,7 @@ object ZIO extends ZIO_R_Any {
     final val Access          = 15
     final val Provide         = 16
     final val Trace           = 17
+    final val TracingStatus   = 18
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2058,7 +2106,7 @@ object ZIO extends ZIO_R_Any {
     val value: ZIO[R, E, A],
     val failure: Cause[E] => ZIO[R, E2, B],
     val success: A => ZIO[R, E2, B]
-  ) extends ZIOFn[A, ZIO[R, E2, B]]
+  ) extends ZIOFn1[A, ZIO[R, E2, B]]
       with ZIO[R, E2, B]
       with Function[A, ZIO[R, E2, B]] {
 
@@ -2117,5 +2165,9 @@ object ZIO extends ZIO_R_Any {
 
   private[zio] final class Trace[R] extends ZIO[R, Nothing, ZTrace] {
     override def tag = Tags.Trace
+  }
+
+  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: Boolean) extends ZIO[R, E, A] {
+    override def tag = Tags.TracingStatus
   }
 }

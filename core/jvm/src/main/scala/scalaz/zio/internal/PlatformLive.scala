@@ -22,7 +22,7 @@ import java.util.{ WeakHashMap, Map => JMap }
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.tracing.TracingConfig
 import scalaz.zio.stacktracer.Tracer
-import scalaz.zio.stacktracer.impl.{ AkkaTracer, ConcurrentHashMapCache }
+import scalaz.zio.stacktracer.impl.{ AkkaTracer, GlobalConcurrentHashMapCache }
 
 import scala.concurrent.ExecutionContext
 
@@ -35,8 +35,9 @@ object PlatformLive {
   final def fromExecutor(executor0: Executor) =
     new Platform {
       val executor = executor0
-      val tracer   = Tracer.cachedTracer(new AkkaTracer, ConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
-//      val tracer        = Tracer.cachedTracer(new AsmTracer, ConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
+      val tracer =
+        Tracer.cachedTracer(new AkkaTracer, GlobalConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
+//      val tracer        = Tracer.cachedTracer(new AsmTracer, GlobalConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
 //      val tracer        = new AkkaTracer
 //      val tracer        = new AsmTracer
 //      val tracer        = new Tracer {
@@ -53,8 +54,8 @@ object PlatformLive {
 //          Some(writeReplace.invoke(l)).asInstanceOf[Option[SourceLocation]]
 //        }
 //      }
-//      val tracingConfig = TracingConfig.default
-      val tracingConfig = TracingConfig.disabled
+      val tracingConfig = TracingConfig.default
+//      val tracingConfig = TracingConfig.disabled
 
       def fatal(t: Throwable): Boolean =
         t.isInstanceOf[VirtualMachineError]
