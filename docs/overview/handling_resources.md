@@ -21,8 +21,8 @@ Like `try` / `finally`, the `ensuring` operation guarantees that if an effect be
 val finalizer = 
   UIO.effectTotal(println("Finalizing!"))
 
-val finalized: IO[String, Unit] = 
-  IO.fail("Failed!").ensuring(finalizer)
+val finalized: BIO[String, Unit] = 
+  BIO.fail("Failed!").ensuring(finalizer)
 ```
 
 The finalizer is not allowed to fail, which means that it must handle any errors. 
@@ -51,14 +51,14 @@ The release effect is guaranteed to be executed by the runtime system, even in t
 import scalaz.zio._
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.succeedLazy(???)
-def closeFile(f: File): UIO[Unit] = IO.succeedLazy(???)
-def decodeData(f: File): IO[IOException, Unit] = IO.unit
-def groupData(u: Unit): IO[IOException, Unit] = IO.unit
+def openFile(s: String): BIO[IOException, File] = BIO.succeedLazy(???)
+def closeFile(f: File): UIO[Unit] = BIO.succeedLazy(???)
+def decodeData(f: File): BIO[IOException, Unit] = BIO.unit
+def groupData(u: Unit): BIO[IOException, Unit] = BIO.unit
 ```
 
 ```scala mdoc:silent
-val groupedFileData: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
+val groupedFileData: BIO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)

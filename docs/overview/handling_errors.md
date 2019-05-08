@@ -15,13 +15,13 @@ You can surface failures with `ZIO#either`, which takes an `ZIO[R, E, A]` and pr
 
 ```scala mdoc:silent
 val zeither: UIO[Either[String, Int]] = 
-  IO.fail("Uh oh!").either
+  BIO.fail("Uh oh!").either
 ```
 
 You can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns an `ZIO[R, Nothing, Either[E, A]]` into an `ZIO[R, E, A]`:
 
 ```scala mdoc:silent
-def sqrt(io: UIO[Double]): IO[String, Double] =
+def sqrt(io: UIO[Double]): BIO[String, Double] =
   ZIO.absolve(
     io.map(value =>
       if (value < 0.0) Left("Value must be >= 0.0")
@@ -37,12 +37,12 @@ If you want to catch and recover from all types of errors and effectfully attemp
 ```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
 
-def openFile(s: String): IO[IOException, Array[Byte]] =   
-  IO.succeedLazy(???)
+def openFile(s: String): BIO[IOException, Array[Byte]] =   
+  BIO.succeedLazy(???)
 ```
 
 ```scala mdoc:silent
-val z: IO[IOException, Array[Byte]] = 
+val z: BIO[IOException, Array[Byte]] = 
   openFile("primary.json").catchAll(_ => 
     openFile("backup.json"))
 ```
@@ -52,7 +52,7 @@ val z: IO[IOException, Array[Byte]] =
 If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the `catchSome` method:
 
 ```scala mdoc:silent
-val data: IO[IOException, Array[Byte]] = 
+val data: BIO[IOException, Array[Byte]] = 
   openFile("primary.data").catchSome {
     case _ : FileNotFoundException => 
       openFile("backup.data")
@@ -64,7 +64,7 @@ val data: IO[IOException, Array[Byte]] =
 You can try one effect, or, if it fails, try another effect, with the `orElse` combinator:
 
 ```scala mdoc:silent
-val primaryOrBackupData: IO[IOException, Array[Byte]] = 
+val primaryOrBackupData: BIO[IOException, Array[Byte]] = 
   openFile("primary.data") orElse openFile("backup.data")
 ```
 
@@ -86,7 +86,7 @@ val primaryOrDefaultData: UIO[Array[Byte]] =
 The second fold method, `foldM`, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) function for each case:
 
 ```scala mdoc:silent
-val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
+val primaryOrSecondaryData: BIO[IOException, Array[Byte]] = 
   openFile("primary.data").foldM(
     _    => openFile("secondary.data"),
     data => ZIO.succeed(data))
@@ -100,13 +100,13 @@ In the following example, `foldM` is used to handle both failure and success of 
 sealed trait Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
-def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
-def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
+def readUrls(file: String): Task[List[String]] = BIO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = BIO.succeed(OkContent("Roger"))
 ```
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldM(
-    err => IO.succeedLazy(NoContent(err)), 
+    err => BIO.succeedLazy(NoContent(err)), 
     fetchContent
   )
 ```

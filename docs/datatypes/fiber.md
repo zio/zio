@@ -5,7 +5,7 @@ title:  "Fiber"
 
 To perform an effect without blocking the current process, you can use fibers, which are a lightweight mechanism for concurrency.
 
-You can `fork` any `IO[E, A]` to immediately yield an `UIO[Fiber[E, A]]`. The provided `Fiber` can be used to `join` the fiber, which will resume on production of the fiber's value, or to `interrupt` the fiber, which immediately terminates the fiber and safely releases all resources acquired by the fiber.
+You can `fork` any `BIO[E, A]` to immediately yield an `UIO[Fiber[E, A]]`. The provided `Fiber` can be used to `join` the fiber, which will resume on production of the fiber's value, or to `interrupt` the fiber, which immediately terminates the fiber and safely releases all resources acquired by the fiber.
 
 ```scala mdoc:silent
 import scalaz.zio._
@@ -17,19 +17,19 @@ case object Analyzed extends Analysis
 
 val data: String = "tut"
 
-def analyzeData[A](data: A): UIO[Analysis] = IO.succeed(Analyzed)
-def validateData[A](data: A): UIO[Boolean] = IO.succeed(true)
+def analyzeData[A](data: A): UIO[Analysis] = BIO.succeed(Analyzed)
+def validateData[A](data: A): UIO[Boolean] = BIO.succeed(true)
 ```
 
 ```scala mdoc:silent
 val analyzed =
   for {
-    fiber1   <- analyzeData(data).fork  // IO[E, Analysis]
-    fiber2   <- validateData(data).fork // IO[E, Boolean]
+    fiber1   <- analyzeData(data).fork  // BIO[E, Analysis]
+    fiber2   <- validateData(data).fork // BIO[E, Boolean]
     // Do other stuff
     valid    <- fiber2.join
     _        <- if (!valid) fiber1.interrupt
-                else IO.unit
+                else BIO.unit
     analyzed <- fiber1.join
   } yield analyzed
 ```
@@ -39,7 +39,7 @@ On the JVM, fibers will use threads, but will not consume *unlimited* threads. I
 ```scala mdoc:silent
 def fib(n: Int): UIO[Int] =
   if (n <= 1) {
-    IO.succeedLazy(1)
+    BIO.succeedLazy(1)
   } else {
     for {
       fiber1 <- fib(n - 2).fork
@@ -56,23 +56,23 @@ A more powerful variant of `fork`, called `fork0`, allows specification of super
 
 ## Error Model
 
-The `IO` error model is simple, consistent, permits both typed errors and termination, and does not violate any laws in the `Functor` hierarchy.
+The `BIO` error model is simple, consistent, permits both typed errors and termination, and does not violate any laws in the `Functor` hierarchy.
 
-An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable, and may be caught by the `attempt` method. The `attempt` method yields a value that cannot possibly fail with any error `E`. This rigorous guarantee can be reflected at compile-time by choosing a new error type such as `Nothing`, which is possible because `attempt` is polymorphic in the error type of the returned value.
+An `BIO[E, A]` value may only raise errors of type `E`. These errors are recoverable, and may be caught by the `attempt` method. The `attempt` method yields a value that cannot possibly fail with any error `E`. This rigorous guarantee can be reflected at compile-time by choosing a new error type such as `Nothing`, which is possible because `attempt` is polymorphic in the error type of the returned value.
 
 Separately from errors of type `E`, a fiber may be terminated for the following reasons:
 
  * The fiber self-terminated or was interrupted by another fiber. The "main" fiber cannot be interrupted because it was not forked from any other fiber.
- * The fiber failed to handle some error of type `E`. This can happen only when an `IO.fail` is not handled. For values of type `UIO[A]`, this type of failure is impossible.
+ * The fiber failed to handle some error of type `E`. This can happen only when an `BIO.fail` is not handled. For values of type `UIO[A]`, this type of failure is impossible.
  * The fiber has a defect that leads to a non-recoverable error. There are only two ways this can happen:
      1. A partial function is passed to a higher-order function such as `map` or `flatMap`. For example, `io.map(_ => throw e)`, or `io.flatMap(a => throw e)`. The solution to this problem is to not to pass impure functions to purely functional libraries like ZIO, because doing so leads to violations of laws and destruction of equational reasoning.
-     2. Error-throwing code was embedded into some value via `IO.succeedLazy`, `IO.sync`, etc. For importing partial effects into `IO`, the proper solution is to use a method such as `syncException`, which safely translates exceptions into values.
+     2. Error-throwing code was embedded into some value via `BIO.succeedLazy`, `BIO.sync`, etc. For importing partial effects into `BIO`, the proper solution is to use a method such as `syncException`, which safely translates exceptions into values.
 
 When a fiber is terminated, the reason for the termination, expressed as a `Throwable`, is passed to the fiber's supervisor, which may choose to log, print the stack trace, restart the fiber, or perform some other action appropriate to the context.
 
 A fiber cannot stop its own interruption. However, all finalizers will be run during termination, even when some finalizers throw non-recoverable errors. Errors thrown by finalizers are passed to the fiber's supervisor.
 
-There are no circumstances in which any errors will be "lost", which makes the `IO` error model more diagnostic-friendly than the `try`/`catch`/`finally` construct that is baked into both Scala and Java, which can easily lose errors.
+There are no circumstances in which any errors will be "lost", which makes the `BIO` error model more diagnostic-friendly than the `try`/`catch`/`finally` construct that is baked into both Scala and Java, which can easily lose errors.
 
 ## Parallelism
 
@@ -80,8 +80,8 @@ To execute actions in parallel, the `zipPar` method can be used:
 
 ```scala mdoc:invisible
 case class Matrix()
-def computeInverse(m: Matrix): UIO[Matrix] = IO.succeed(m)
-def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = IO.succeed(m1)
+def computeInverse(m: Matrix): UIO[Matrix] = BIO.succeed(m)
+def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = BIO.succeed(m1)
 ```
 
 ```scala mdoc:silent

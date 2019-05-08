@@ -7,12 +7,12 @@ Checkout `interop-cats` module for inter-operation support.
 
 ## `IO` Cats Effect's instances
 
-**ZIO** integrates with Typelevel libraries by providing an instance of `ConcurrentEffect` for `IO` as required, for instance, by `fs2`, `doobie` and `http4s`. Actually, I lied a little bit, it is not possible to implement `ConcurrentEffect` for any error type since `ConcurrentEffect` extends `MonadError` of `Throwable`.
+**ZIO** integrates with Typelevel libraries by providing an instance of `ConcurrentEffect` for `BIO` as required, for instance, by `fs2`, `doobie` and `http4s`. Actually, I lied a little bit, it is not possible to implement `ConcurrentEffect` for any error type since `ConcurrentEffect` extends `MonadError` of `Throwable`.
 
 For convenience we have defined an alias as follow:
 
 ```scala
-  type Task[A] = IO[Throwable, A]
+  type Task[A] = BIO[Throwable, A]
 ```
 
 Therefore, we provide an instance of `ConcurrentEffect[Task]`.

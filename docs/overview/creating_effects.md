@@ -6,7 +6,7 @@ title:  "Creating Effects"
 This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.
 
 ```scala mdoc:invisible
-import scalaz.zio.{ ZIO, Task, UIO, IO }
+import scalaz.zio.{ ZIO, Task, UIO, BIO }
 ```
 
 ## From Success Values
@@ -151,7 +151,7 @@ If a side-effect is known to throw some specific subtype of `Throwable`, then th
 ```scala mdoc:silent
 import java.io.IOException
 
-val getStrLn2: IO[IOException, String] =
+val getStrLn2: BIO[IOException, String] =
   ZIO.effect(StdIn.readLine()).refineOrDie {
     case e : IOException => e
   }
@@ -172,11 +172,11 @@ object legacy {
     onSuccess: User      => Unit, onFailure: AuthError => Unit): Unit = ???
 }
 
-val login: IO[AuthError, User] = 
-  IO.effectAsync[Any, AuthError, User] { callback =>
+val login: BIO[AuthError, User] = 
+  BIO.effectAsync[Any, AuthError, User] { callback =>
     legacy.login(
-      user => callback(IO.succeed(user)),
-      err  => callback(IO.fail(err))
+      user => callback(BIO.succeed(user)),
+      err  => callback(BIO.fail(err))
     )
   }
 ```

@@ -60,7 +60,7 @@ One of the methods on `Fiber` is `join`, which allows another fiber to obtain th
 
 ```scala mdoc:silent
 for {
-  fiber   <- IO.succeed("Hi!").fork
+  fiber   <- BIO.succeed("Hi!").fork
   message <- fiber.join
 } yield message
 ```
@@ -71,7 +71,7 @@ Another method on `Fiber` is `await`, which allows for inspecting the result of 
 
 ```scala mdoc:silent
 for {
-  fiber <- IO.succeed("Hi!").fork
+  fiber <- BIO.succeed("Hi!").fork
   exit  <- fiber.await
 } yield exit
 ```
@@ -84,7 +84,7 @@ Like `await`, `Fiber#interrupt` returns an `Exit` describing how the fiber termi
 
 ```scala mdoc:silent
 for {
-  fiber <- IO.succeed("Hi!").forever.fork
+  fiber <- BIO.succeed("Hi!").forever.fork
   exit  <- fiber.interrupt
 } yield exit
 ```
@@ -93,7 +93,7 @@ By design, `interrupt` does not resume until the fiber has terminated. If this b
 
 ```scala mdoc:silent
 for {
-  fiber <- IO.succeed("Hi!").forever.fork
+  fiber <- BIO.succeed("Hi!").forever.fork
   _     <- fiber.interrupt.fork
 } yield ()
 ```
@@ -106,8 +106,8 @@ One way fibers may be composed is with `Fiber#zip` or `Fiber#zipWith`. These met
 
 ```scala mdoc:silent
 for {
-  fiber1 <- IO.succeed("Hi!").fork
-  fiber2 <- IO.succeed("Bye!").fork
+  fiber1 <- BIO.succeed("Hi!").fork
+  fiber2 <- BIO.succeed("Bye!").fork
   fiber   = fiber1 zip fiber2
   tuple  <- fiber.join
 } yield tuple
@@ -117,8 +117,8 @@ The second way fibers can be composed is with `orElse`. If the first fiber succe
 
 ```scala mdoc:silent
 for {
-  fiber1 <- IO.fail("Uh oh!").fork
-  fiber2 <- IO.succeed("Hurray!").fork
+  fiber1 <- BIO.fail("Uh oh!").fork
+  fiber2 <- BIO.succeed("Hurray!").fork
   fiber   = fiber1 orElse fiber2
   tuple  <- fiber.join
 } yield tuple
@@ -149,7 +149,7 @@ ZIO allows you to race multiple effects in parallel, returning the first success
 
 ```scala mdoc:silent
 for {
-  winner <- IO.succeed("Hello") race IO.succeed("Goodbye")
+  winner <- BIO.succeed("Hello") race BIO.succeed("Goodbye")
 } yield winner
 ```
 
@@ -162,7 +162,7 @@ ZIO lets you timeout any effect using the `ZIO#timeout` method, which succeeds w
 ```scala mdoc:silent
 import scalaz.zio.duration._
 
-IO.succeed("Hello").timeout(10.seconds)
+BIO.succeed("Hello").timeout(10.seconds)
 ```
 
 If an effect is timed out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.

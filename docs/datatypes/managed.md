@@ -11,7 +11,7 @@ Resources do not survive the scope of `use`, meaning that if you attempt to capt
 
 ```scala mdoc:silent
 import scalaz.zio._
-def doSomething(queue: Queue[Int]): UIO[Unit] = IO.unit
+def doSomething(queue: Queue[Int]): UIO[Unit] = BIO.unit
 
 val managedResource = Managed.make(Queue.unbounded[Int])(_.shutdown)
 val usedResource: UIO[Unit] = managedResource.use { queue => doSomething(queue) }
@@ -26,7 +26,7 @@ As shown in the previous example, a `Managed` can be created by passing an `acqu
 It can also be created from an effect. In this case the release function will do nothing.
 ```scala mdoc:silent
 import scalaz.zio._
-def acquire: IO[String, Int] = IO.succeedLazy(???)
+def acquire: BIO[String, Int] = BIO.succeedLazy(???)
 
 val managedFromEffect: Managed[String, Int] = Managed.fromEffect(acquire)
 ```
@@ -60,9 +60,9 @@ import scalaz.zio._
 ```scala mdoc:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.succeedLazy(???)
-def closeFile(f: File): UIO[Unit] = IO.succeedLazy(???)
-def doSomething(queue: Queue[Int], file: File): UIO[Unit] = IO.succeedLazy(???)
+def openFile(s: String): BIO[IOException, File] = BIO.succeedLazy(???)
+def closeFile(f: File): UIO[Unit] = BIO.succeedLazy(???)
+def doSomething(queue: Queue[Int], file: File): UIO[Unit] = BIO.succeedLazy(???)
 ```
 
 ```scala mdoc:silent
@@ -74,7 +74,7 @@ val combined: Managed[IOException, (Queue[Int], File)] = for {
     file  <- managedFile
 } yield (queue, file)
 
-val usedCombinedRes: IO[IOException, Unit] = combined.use { case (queue, file) => doSomething(queue, file) }
+val usedCombinedRes: BIO[IOException, Unit] = combined.use { case (queue, file) => doSomething(queue, file) }
 
 ```
 
@@ -86,9 +86,9 @@ Unlike `Managed`, `Reservation` does not bind `release` to `acquire` allowing in
 import java.io.{ File, IOException, InterruptedIOException }
 import scala.util.Try
 
-def openFile(name: String, p: Promise[IOException, File]): IO[IOException, File] = UIO.succeedLazy(new File(name))
+def openFile(name: String, p: Promise[IOException, File]): BIO[IOException, File] = UIO.succeedLazy(new File(name))
 def closeFile(p: Promise[IOException, File]): UIO[Unit] = UIO.unit
-def readFile(file: File): IO[IOException, String] = IO.succeedLazy("Don't forget to clean up!")
+def readFile(file: File): BIO[IOException, String] = BIO.succeedLazy("Don't forget to clean up!")
 ```
 
 ```scala mdoc:silent
@@ -98,13 +98,13 @@ import scalaz.zio._
 Whilst having more control, a concurrency primitive such as `Promise` may be needed to help properly manage resource state and clean up.
 
 ```scala mdoc:silent
-val data: IO[IOException, String] = for {
+val data: BIO[IOException, String] = for {
   p <- Promise.make[IOException,File]
   res = Reservation(openFile("x", p), closeFile(p))
   result <- (for {
       fiber  <- res.acquire.fork
       ex     <- fiber.interrupt
-      data   <- ex.toEither.fold(e => IO.fail(new InterruptedIOException("Stop!")), file => readFile(file))
+      data   <- ex.toEither.fold(e => BIO.fail(new InterruptedIOException("Stop!")), file => readFile(file))
     } yield data).ensuring(res.release)
 } yield result
 ```

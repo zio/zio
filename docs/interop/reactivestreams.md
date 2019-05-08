@@ -77,7 +77,7 @@ runtime.unsafeRun(
 
 ### Sink to Subscriber
 
-`toSubscriber` returns a `Subscriber` and an `IO` which completes with the result of running the 
+`toSubscriber` returns a `Subscriber` and an `BIO` which completes with the result of running the 
 `Sink` or the error if the `Publisher` fails.
 A `Sink` used as a `Subscriber` buffers up to `qSize` elements. If possible, `qSize` should be
 a power of two for best performance. The default is 16.

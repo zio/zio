@@ -47,7 +47,7 @@ You can get a value from a Promise using `await`
 
 ```scala mdoc:silent
 val ioPromise3: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
-val ioGet: IO[Exception, String] = ioPromise3.flatMap(promise => promise.await)
+val ioGet: BIO[Exception, String] = ioPromise3.flatMap(promise => promise.await)
 ```
 
 The computation will suspend (in a non-blocking fashion) until the Promise is completed with a value or an error.
@@ -56,12 +56,12 @@ you can use `poll`:
 
 ```scala mdoc:silent
 val ioPromise4: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
-val ioIsItDone: UIO[Option[IO[Exception, String]]] = ioPromise4.flatMap(p => p.poll)
-val ioIsItDone2: IO[Unit, IO[Exception, String]] = ioPromise4.flatMap(p => p.poll.get)
+val ioIsItDone: UIO[Option[BIO[Exception, String]]] = ioPromise4.flatMap(p => p.poll)
+val ioIsItDone2: BIO[Unit, BIO[Exception, String]] = ioPromise4.flatMap(p => p.poll.get)
 ```
 
 If the Promise was not completed when you called `poll` then the IO will fail with the `Unit` value otherwise,
-you obtain an `IO[E, A]`, where `E` represents if the Promise completed with an error and `A` indicates
+you obtain an `BIO[E, A]`, where `E` represents if the Promise completed with an error and `A` indicates
 that the Promise successfully completed with an `A` value.
 
 ## Example Usage
@@ -76,7 +76,7 @@ import scalaz.zio.clock._
 val program: ZIO[Console with Clock, IOException, Unit] = 
   for {
     promise         <-  Promise.make[Nothing, String]
-    sendHelloWorld  =   (IO.succeed("hello world") <* sleep(1.second)).flatMap(promise.succeed)
+    sendHelloWorld  =   (BIO.succeed("hello world") <* sleep(1.second)).flatMap(promise.succeed)
     getAndPrint     =   promise.await.flatMap(putStrLn)
     fiberA          <-  sendHelloWorld.fork
     fiberB          <-  getAndPrint.fork

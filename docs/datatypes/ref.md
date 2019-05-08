@@ -20,13 +20,13 @@ for {
 The simplest way to use a `Ref` is by means of `update` or its more powerful sibling `modify`. Let's write a combinator `repeat` just because we can:
 
 ```scala mdoc:silent
-def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
+def repeat[E, A](n: Int)(io: BIO[E, A]): BIO[E, Unit] =
   Ref.make(0).flatMap { iRef =>
-    def loop: IO[E, Unit] = iRef.get.flatMap { i =>
+    def loop: BIO[E, Unit] = iRef.get.flatMap { i =>
       if (i < n)
         io *> iRef.update(_ + 1) *> loop
       else
-        IO.unit
+        BIO.unit
     }
     loop
   }
@@ -84,11 +84,11 @@ object S {
 
         def P = (vref.get.flatMap { v =>
           if (v < 0)
-            IO.fail(())
+            BIO.fail(())
           else
             vref.modify(v0 => if (v0 == v) (true, v - 1) else (false, v)).flatMap {
-              case false => IO.fail(())
-              case true  => IO.unit
+              case false => BIO.fail(())
+              case true  => BIO.unit
             }
         } <> P).either.unit
       }

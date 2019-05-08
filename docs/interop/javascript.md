@@ -19,16 +19,16 @@ will need to add that library as a dependency to your `build.sbt`.
 
 ```scala
 import org.scalajs.dom.document
-import scalaz.zio.{App, IO}
+import scalaz.zio.{App, BIO}
 
 object MyApp extends App {
 
-  def run(args: List[String]): IO[Nothing, Unit] =
+  def run(args: List[String]): BIO[Nothing, Unit] =
     for {
-      p <- IO.defer(document.createElement("p"))
-      t <- IO.defer(document.createTextNode("Hello World"))
-      _ <- IO.defer(p.appendChild(t))
-      _ <- IO.defer(document.body.appendChild(p))
+      p <- BIO.defer(document.createElement("p"))
+      t <- BIO.defer(document.createTextNode("Hello World"))
+      _ <- BIO.defer(p.appendChild(t))
+      _ <- BIO.defer(document.body.appendChild(p))
     } yield ()
 }
 
