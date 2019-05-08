@@ -49,8 +49,8 @@ lazy val root = project
     interopJavaJVM,
     interopReactiveStreamsJVM,
 //  benchmarks,
-    microsite,
-    testkitJVM
+    testkitJVM,
+    docs
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -264,50 +264,22 @@ lazy val benchmarks = project.module
     )
   )
 
-lazy val microsite = project.module
-  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM, interopReactiveStreamsJVM)
-  .enablePlugins(MicrositesPlugin)
+lazy val docs = project.module
+  .in(file("scalaz-zio-docs"))
   .settings(
+    skip.in(publish) := true,
+    moduleName := "scalaz-zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    skip in publish := true,
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"             % "1.3.3" % "provided",
-      "commons-io"          % "commons-io"                % "2.6"   % "provided",
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2" % "provided"
-    ),
-    micrositeFooterText := Some(
-      """
-        |<p>&copy; 2018-2019 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
-        |""".stripMargin
-    ),
-    micrositeName := "",
-    micrositeDescription := "Type-safe, composable asynchronous and concurrent programming for Scala",
-    micrositeAuthor := "ZIO contributors",
-    micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-zio",
-    micrositeGitterChannelUrl := "scalaz/scalaz-zio",
-    micrositeGitHostingUrl := "https://github.com/scalaz/scalaz-zio",
-    micrositeGithubOwner := "scalaz",
-    micrositeGithubRepo := "scalaz-zio",
-    micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
-    micrositeDocumentationUrl := s"https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/${(version in Compile).value}",
-    micrositeDocumentationLabelDescription := "Scaladoc",
-    micrositeBaseUrl := "/scalaz-zio",
-    micrositePalette := Map(
-      "brand-primary"   -> "#990000",
-      "brand-secondary" -> "#000000",
-      "brand-tertiary"  -> "#990000",
-      "gray-dark"       -> "#453E46",
-      "gray"            -> "#837F84",
-      "gray-light"      -> "#E3E2E3",
-      "gray-lighter"    -> "#F4F3F4",
-      "white-color"     -> "#FFFFFF"
-    ),
-    micrositeShareOnSocial := false,
-    micrositeCompilingDocsTool := WithMdoc,
-    mdocIn := file("microsite/src/main/tut"),
-    mdocExtraArguments := List("--no-link-hygiene")
+      "com.github.ghik"     %% "silencer-lib"             % "1.3.3"  % "provided",
+      "commons-io"          % "commons-io"                % "2.6"    % "provided",
+      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.11.3" % "provided"
+    )
   )
+  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM, interopReactiveStreamsJVM)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)
