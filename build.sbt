@@ -51,12 +51,14 @@ lazy val root = project
 //  benchmarks,
     testkitJVM,
     docs,
+    stacktracerJS,
     stacktracerJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
+  .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
   .settings(buildInfoSettings)
   .settings(
@@ -69,7 +71,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
-  .dependsOn(stacktracerJVM)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
   .settings(
@@ -234,7 +235,7 @@ lazy val testkit = crossProject(JVMPlatform)
 
 lazy val testkitJVM = testkit.jvm
 
-lazy val stacktracer = crossProject(JVMPlatform)
+lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(buildInfoSettings)
@@ -247,6 +248,7 @@ lazy val stacktracer = crossProject(JVMPlatform)
     )
   )
 
+lazy val stacktracerJS  = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
 
 lazy val benchmarks = project.module

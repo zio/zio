@@ -53,7 +53,8 @@ object PlatformLive {
 //          Some(writeReplace.invoke(l)).asInstanceOf[Option[SourceLocation]]
 //        }
 //      }
-      val tracingConfig = TracingConfig.default
+//      val tracingConfig = TracingConfig.default
+      val tracingConfig = TracingConfig.disabled
 
       def fatal(t: Throwable): Boolean =
         t.isInstanceOf[VirtualMachineError]

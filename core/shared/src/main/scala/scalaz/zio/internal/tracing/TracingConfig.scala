@@ -7,11 +7,12 @@ package scalaz.zio.internal.tracing
  *
  * @param traceStack Collect trace of the current stack of future continuations,
  *                   This trace resembles an imperative stacktrace and will usually include similar information,
- *                   but due to the way ZIO tracing works, it includes only references to *future continuations*
- *                   rather than references to the start of the "stack frame".
+ *                   but due to the way ZIO tracing works, it includes only references to *future continuations*,
+ *                   i.e. the *end* of a "stack frame" rather than the start of a "stack frame".
  *
- * @param traceEffectOpsInExecution Collect traces of ZIO.effect* operations. May multiply the amount of memory used
- *                                  by the tracing cache.
+ * @param traceEffectOpsInExecution Add traces of ZIO.effect* operations in Full Execution Trace. Applies when
+ *                                  `traceExecution` is enabled. May multiply the amount of memory used by the
+ *                                  tracing cache.
  *
  * @param executionTraceLength Preserve how many lines of a full execution trace
  *
@@ -36,5 +37,6 @@ final case class TracingConfig(
 )
 
 object TracingConfig {
-  final def default = TracingConfig(true, true, true, 100, 100, 10, 10)
+  final def default  = TracingConfig(true, true, true, 100, 100, 10, 10)
+  final def disabled = TracingConfig(false, false, false, 0, 0, 0, 0)
 }

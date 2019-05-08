@@ -1,6 +1,8 @@
 package scalaz.zio
 
+import org.specs2.execute.Result
 import org.specs2.mutable
+import scalaz.zio.duration._
 import scalaz.zio.stacktracer.SourceLocation
 
 class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
@@ -14,7 +16,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 //    nested left binds $nestedLeftBinds
 //  """
 
-  // Using mutable Spec here for now to easily run individual tests from Intellij
+  // Using mutable Spec here for now to easily run individual tests from Intellij to inspect result traces
 
   "basic test" >> basicTest
   "foreach" >> foreachTrace
@@ -70,18 +72,18 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   def foreachParFail = {
+    val io = for {
+      _ <- ZIO.foreachPar(1 to 10) { i =>
+            ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+          }
+    } yield ()
 
-    import duration._
-    def res() =
-      unsafeRunSync(for {
-        _ <- ZIO.foreachPar(1 to 10) { i =>
-              ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
-            }
-      } yield ())
-
-    res().fold(_.traces.head.stackTrace, _ => Nil) must have size 1 and contain {
-      (_: SourceLocation).method.exists(_ contains "foreachParFail")
-    }
+    unsafeRunSync(io).fold[Result](
+      _.traces.head.stackTrace must have size 1 and contain {
+        (_: SourceLocation).method.exists(_ contains "foreachParFail")
+      },
+      _ => failure
+    )
   }
 
   def leftAssociativeFold = {
@@ -110,9 +112,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     def m2 =
       for {
         trace <- ZIO.trace
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-        _ <- ZIO.unit
+        _     <- ZIO.unit
+        _     <- ZIO.unit
+        _     <- ZIO.unit
         _     <- UIO(println(trace.prettyPrint))
       } yield println()
 
@@ -169,15 +171,18 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def blockingTrace = {
     val io = for {
-    _ <- blocking.effectBlocking { throw new Exception() }
+      _ <- blocking.effectBlocking { throw new Exception() }
     } yield ()
 
-    unsafeRunSync(io).fold(cause => {
-      val trace = cause.traces.head
+    unsafeRunSync(io).fold(
+      cause => {
+        val trace = cause.traces.head
 
-      trace.stackTrace.head.method.exists(_ contains "blockingTrace") and
-        trace.executionTrace.head.method.exists(_ contains "blockingTrace")
-    }, _ => failure)
+        trace.stackTrace.head.method.exists(_ contains "blockingTrace") and
+          trace.executionTrace.head.method.exists(_ contains "blockingTrace")
+      },
+      _ => failure
+    )
   }
 
 }
