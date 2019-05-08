@@ -480,7 +480,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Takes the specified number of elements from this stream.
    */
   final def take(n: Int): ZStream[R, E, A] =
-    self.zipWithIndex.collectWhile { case (v, i) if i < n => v }
+    if (n <= 0) Stream.empty
+    else
+      new ZStream[R, E, A] {
+        override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+          IO.succeedLazy { (s, cont, f) =>
+            self.zipWithIndex.fold[R1, E1, (A, Int), (S, Boolean)].flatMap { f0 =>
+              f0(s -> true, tp => cont(tp._1) && tp._2, {
+                case ((s, _), (a, i)) =>
+                  f(s, a).map((_, i < n - 1))
+              }).map(_._1)
+            }
+          }
+      }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate
