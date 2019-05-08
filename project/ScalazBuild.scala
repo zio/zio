@@ -30,7 +30,6 @@ object Scalaz {
     "-Xsource:2.13",
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard",
     "-Ywarn-value-discard"
   )
 
@@ -76,7 +75,7 @@ object Scalaz {
           "-Ywarn-unused:_,imports",
           "-Ywarn-unused:imports",
           "-opt:l:inline",
-          "-opt-inline-from:<source>",
+          "-opt-inline-from:<sources>",
           "-Ypartial-unification",
           "-Yno-adapted-args",
           "-Ywarn-inaccessible",
