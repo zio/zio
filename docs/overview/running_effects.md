@@ -53,7 +53,7 @@ runtime.unsafeRun(putStrLn("Hello World!"))
 
 ## Custom Runtime
 
-If you are using a custom environment for your application, then you may find it useful to create a `Runtime` specifically tailed for that environment.
+If you are using a custom environment for your application, then you may find it useful to create a `Runtime` specifically tailored for that environment.
 
 A custom `Runtime[R]` can be created with two values:
 
