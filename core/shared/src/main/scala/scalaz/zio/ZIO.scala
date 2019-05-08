@@ -411,7 +411,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Executes this effect, skipping the error but returning optionally the success.
    */
   final def option: ZIO[R, Nothing, Option[A]] =
-    self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
+    self.foldCauseM(_ => BIO.succeed(None), a => BIO.succeed(Some(a)))
 
   /**
    * A less powerful variant of `bracket` where the resource acquired by this
@@ -632,7 +632,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified function to convert the `E` into a `Throwable`.
    */
   final def orDieWith(f: E => Throwable): ZIO[R, Nothing, A] =
-    (self mapError f) catchAll (IO.die)
+    (self mapError f) catchAll (BIO.die)
 
   /**
    * Returns an effect that, if evaluated, will return the lazily computed result
@@ -1683,7 +1683,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def foldLeft[R >: LowerR, E <: UpperE, S, A](
     in: Iterable[A]
   )(zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    in.foldLeft(IO.succeed(zero): ZIO[R, E, S]) { (acc, el) =>
+    in.foldLeft(BIO.succeed(zero): ZIO[R, E, S]) { (acc, el) =>
       acc.flatMap(f(_, el))
     }
 
@@ -1831,7 +1831,7 @@ private[zio] trait ZIO_R_Any extends ZIO_E_Any {
     clock.sleep(duration)
 }
 
-object IO extends ZIO_E_Any {
+object BIO extends ZIO_E_Any {
   type LowerR = Any
 
   def apply[A](a: => A): Task[A] = effect(a)
@@ -1842,7 +1842,7 @@ object Task extends ZIO_E_Throwable {
 
   def apply[A](a: => A): Task[A] = effect(a)
 }
-object TaskR extends ZIO_E_Throwable {
+object RIO extends ZIO_E_Throwable {
   type UpperE = Throwable
   type LowerR = Nothing
 

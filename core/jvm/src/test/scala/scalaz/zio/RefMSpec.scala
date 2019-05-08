@@ -48,7 +48,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM  <- RefM.make(current)
-        value <- refM.update(_ => IO.effectTotal(update))
+        value <- refM.update(_ => BIO.effectTotal(update))
       } yield value must beTheSameAs(update)
     )
 
@@ -56,7 +56,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       (for {
         refM  <- RefM.make[String](current)
-        value <- refM.update(_ => IO.fail(fail))
+        value <- refM.update(_ => BIO.fail(fail))
       } yield value).flip.map(_ must beTheSameAs(fail))
     )
 
@@ -64,10 +64,10 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM   <- RefM.make[State](Active)
-        value1 <- refM.updateSome { case Active => IO.succeed(Changed) }
+        value1 <- refM.updateSome { case Active => BIO.succeed(Changed) }
         value2 <- refM.updateSome {
-                   case Active  => IO.succeed(Changed)
-                   case Changed => IO.succeed(Closed)
+                   case Active  => BIO.succeed(Changed)
+                   case Changed => BIO.succeed(Closed)
                  }
       } yield (value1 must beTheSameAs(Changed)) and (value2 must beTheSameAs(Closed))
     )
@@ -76,7 +76,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM  <- RefM.make[State](Active)
-        value <- refM.updateSome { case Closed => IO.succeed(Active) }
+        value <- refM.updateSome { case Closed => BIO.succeed(Active) }
       } yield value must beTheSameAs(Active)
     )
 
@@ -84,10 +84,10 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       (for {
         refM <- RefM.make[State](Active)
-        _    <- refM.updateSome { case Active => IO.fail(fail) }
+        _    <- refM.updateSome { case Active => BIO.fail(fail) }
         value2 <- refM.updateSome {
-                   case Active  => IO.succeed(Changed)
-                   case Changed => IO.succeed(Closed)
+                   case Active  => BIO.succeed(Changed)
+                   case Changed => BIO.succeed(Closed)
                  }
       } yield value2).flip.map(_ must beTheSameAs(fail))
     )
@@ -96,7 +96,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM  <- RefM.make(current)
-        r     <- refM.modify(_ => IO.effectTotal(("hello", update)))
+        r     <- refM.modify(_ => BIO.effectTotal(("hello", update)))
         value <- refM.get
       } yield (r must beTheSameAs("hello")) and (value must beTheSameAs(update))
     )
@@ -105,7 +105,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       (for {
         refM <- RefM.make[String](current)
-        r    <- refM.modify(_ => IO.fail(fail))
+        r    <- refM.modify(_ => BIO.fail(fail))
       } yield r).flip map (_ must beTheSameAs(fail))
     )
 
@@ -113,11 +113,11 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM   <- RefM.make[State](Active)
-        r1     <- refM.modifySome("doesn't change the state") { case Active => IO.succeed("changed" -> Changed) }
+        r1     <- refM.modifySome("doesn't change the state") { case Active => BIO.succeed("changed" -> Changed) }
         value1 <- refM.get
         r2 <- refM.modifySome("doesn't change the state") {
-               case Active  => IO.succeed("changed" -> Changed)
-               case Changed => IO.succeed("closed"  -> Closed)
+               case Active  => BIO.succeed("changed" -> Changed)
+               case Changed => BIO.succeed("closed"  -> Closed)
              }
         value2 <- refM.get
       } yield
@@ -130,7 +130,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM  <- RefM.make[State](Active)
-        r     <- refM.modifySome("State doesn't change") { case Closed => IO.succeed("active" -> Active) }
+        r     <- refM.modifySome("State doesn't change") { case Closed => BIO.succeed("active" -> Active) }
         value <- refM.get
       } yield (r must beTheSameAs("State doesn't change")) and (value must beTheSameAs(Active))
     )
@@ -139,7 +139,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       for {
         refM  <- RefM.make[State](Active)
-        r     <- refM.modifySome("State doesn't change") { case Closed => IO.fail(fail) }
+        r     <- refM.modifySome("State doesn't change") { case Closed => BIO.fail(fail) }
         value <- refM.get
       } yield (r must beTheSameAs("State doesn't change")) and (value must beTheSameAs(Active))
     )
@@ -148,7 +148,7 @@ class RefMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRunt
     unsafeRun(
       (for {
         refM  <- RefM.make[State](Active)
-        _     <- refM.modifySome("State doesn't change") { case Active => IO.fail(fail) }
+        _     <- refM.modifySome("State doesn't change") { case Active => BIO.fail(fail) }
         value <- refM.get
       } yield value).flip.map(_ must beTheSameAs(fail))
     )

@@ -8,8 +8,8 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
     import SerializableSpec._
 
     for {
-      obj       <- IO.effectTotal(serializeToBytes(a))
-      returnObj <- IO.effectTotal(getObjFromBytes[T](obj))
+      obj       <- BIO.effectTotal(serializeToBytes(a))
+      returnObj <- BIO.effectTotal(getObjFromBytes[T](obj))
     } yield returnObj
   }
 
@@ -71,7 +71,7 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
 
   def e5 = {
     val list = List("1", "2", "3")
-    val io   = IO.succeedLazy(list)
+    val io   = BIO.succeedLazy(list)
     unsafeRun(
       for {
         returnIO <- serializeAndBack(io)
@@ -93,7 +93,7 @@ class SerializableSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends 
 
   def e7 = {
     val list = List("1", "2", "3")
-    val io   = IO.succeed(list)
+    val io   = BIO.succeed(list)
     val exit = unsafeRun(
       for {
         fiber          <- io.fork

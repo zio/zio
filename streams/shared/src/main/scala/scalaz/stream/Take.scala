@@ -60,8 +60,8 @@ object Take {
 
   final def option[E, A](io: BIO[E, Take[E, A]]): BIO[E, Option[A]] =
     io.flatMap {
-      case Take.End      => IO.succeed(None)
-      case Take.Value(a) => IO.succeed(Some(a))
-      case Take.Fail(e)  => IO.fail(e)
+      case Take.End      => BIO.succeed(None)
+      case Take.Value(a) => BIO.succeed(Some(a))
+      case Take.Fail(e)  => BIO.fail(e)
     }
 }

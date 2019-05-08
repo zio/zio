@@ -56,7 +56,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
 
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     ZManaged[R1, E1, B] {
-      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[ZIO[R1, Nothing, Any]](BIO.unit).map { finalizers =>
         Reservation(
           acquire = for {
             resR <- self.reserve
@@ -105,7 +105,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
 
   final def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] =
     ZManaged[R1, E1, A2] {
-      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[ZIO[R1, Nothing, Any]](BIO.unit).map { finalizers =>
         Reservation(
           acquire = {
             val left =
@@ -153,7 +153,7 @@ object ZManaged {
    * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action.
    */
   final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZManaged[R, E, A] =
-    ZManaged(acquire.map(r => Reservation(IO.succeed(r), release(r))))
+    ZManaged(acquire.map(r => Reservation(BIO.succeed(r), release(r))))
 
   /**
    * Lifts a pure `Reservation[R, E, A]` into `ZManaged[R, E, A]`
@@ -166,7 +166,7 @@ object ZManaged {
    * with care.
    */
   final def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
-    ZManaged(IO.succeed(Reservation(fa, IO.unit)))
+    ZManaged(BIO.succeed(Reservation(fa, BIO.unit)))
 
   /**
    * Unwraps a `ZManaged` that is inside a `ZIO`.
@@ -178,13 +178,13 @@ object ZManaged {
    * Lifts a strict, pure value into a Managed.
    */
   final def succeed[R, A](r: A): ZManaged[R, Nothing, A] =
-    ZManaged(IO.succeed(Reservation(IO.succeed(r), IO.unit)))
+    ZManaged(BIO.succeed(Reservation(BIO.succeed(r), BIO.unit)))
 
   /**
    * Lifts a by-name, pure value into a Managed.
    */
   final def succeedLazy[R, A](r: => A): ZManaged[R, Nothing, A] =
-    ZManaged(IO.succeed(Reservation(IO.succeedLazy(r), IO.unit)))
+    ZManaged(BIO.succeed(Reservation(BIO.succeedLazy(r), BIO.unit)))
 
   final def foreach[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
     as.foldRight[ZManaged[R, E, List[A2]]](succeed(Nil)) { (a, m) =>

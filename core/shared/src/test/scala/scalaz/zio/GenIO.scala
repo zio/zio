@@ -7,13 +7,13 @@ trait GenIO {
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.point` constructor.
    */
-  def genSyncSuccess[E, A: Arbitrary]: Gen[BIO[E, A]] = Arbitrary.arbitrary[A].map(IO.succeedLazy[A](_))
+  def genSyncSuccess[E, A: Arbitrary]: Gen[BIO[E, A]] = Arbitrary.arbitrary[A].map(BIO.succeedLazy[A](_))
 
   /**
    * Given a generator for `A`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncSuccess[E, A: Arbitrary]: Gen[BIO[E, A]] =
-    Arbitrary.arbitrary[A].map(a => IO.effectAsync[Any, E, A](k => k(IO.succeed(a))))
+    Arbitrary.arbitrary[A].map(a => BIO.effectAsync[Any, E, A](k => k(BIO.succeed(a))))
 
   /**
    * Randomly uses either `genSyncSuccess` or `genAsyncSuccess` with equal probability.
@@ -23,13 +23,13 @@ trait GenIO {
   /**
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.fail` constructor.
    */
-  def genSyncFailure[E: Arbitrary, A]: Gen[BIO[E, A]] = Arbitrary.arbitrary[E].map(IO.fail[E])
+  def genSyncFailure[E: Arbitrary, A]: Gen[BIO[E, A]] = Arbitrary.arbitrary[E].map(BIO.fail[E])
 
   /**
    * Given a generator for `E`, produces a generator for `IO[E, A]` using the `IO.async` constructor.
    */
   def genAsyncFailure[E: Arbitrary, A]: Gen[BIO[E, A]] =
-    Arbitrary.arbitrary[E].map(err => IO.effectAsync[Any, E, A](k => k(IO.fail(err))))
+    Arbitrary.arbitrary[E].map(err => BIO.effectAsync[Any, E, A](k => k(BIO.fail(err))))
 
   /**
    * Randomly uses either `genSyncFailure` or `genAsyncFailure` with equal probability.
@@ -105,10 +105,10 @@ trait GenIO {
     gen.map(nextIO => io.flatMap(_ => nextIO))
 
   private def genOfIdentityFlatMaps[E, A](io: BIO[E, A]): Gen[BIO[E, A]] =
-    Gen.const(io.flatMap(a => IO.succeedLazy(a)))
+    Gen.const(io.flatMap(a => BIO.succeedLazy(a)))
 
   private def genOfRace[E, A](io: BIO[E, A]): Gen[BIO[E, A]] =
-    Gen.const(io.race(IO.never))
+    Gen.const(io.race(BIO.never))
 
   private def genOfParallel[E, A](io: BIO[E, A])(gen: Gen[BIO[E, A]]): Gen[BIO[E, A]] =
     gen.map(parIo => io.zipPar(parIo).map(_._1))

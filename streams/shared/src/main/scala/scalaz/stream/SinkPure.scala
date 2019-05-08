@@ -21,9 +21,9 @@ import scalaz.zio._
 trait SinkPure[+E, +A0, -A, +B] extends ZSink[Any, E, A0, A, B] { self =>
   import ZSink.Step
 
-  override def initial              = IO.succeed(initialPure)
-  override def step(s: State, a: A) = IO.succeed(stepPure(s, a))
-  override def extract(s: State)    = IO.fromEither(extractPure(s))
+  override def initial              = BIO.succeed(initialPure)
+  override def step(s: State, a: A) = BIO.succeed(stepPure(s, a))
+  override def extract(s: State)    = BIO.fromEither(extractPure(s))
 
   def initialPure: Step[State, Nothing]
   def stepPure(s: State, a: A): Step[State, A0]

@@ -104,7 +104,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   val toCompletableFutureAlwaysSucceeds = {
-    val failedIO = IO.fail[Throwable](new Exception("IOs also can fail"))
+    val failedIO = BIO.fail[Throwable](new Exception("IOs also can fail"))
     unsafeRun(failedIO.toCompletableFuture) must beAnInstanceOf[CompletableFuture[Unit]]
   }
 
@@ -116,7 +116,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   val toCompletableFutureFailed = {
-    val failedIO: Task[Unit] = IO.fail[Throwable](new Exception("IOs also can fail"))
+    val failedIO: Task[Unit] = BIO.fail[Throwable](new Exception("IOs also can fail"))
     unsafeRun(failedIO.toCompletableFuture).get() must throwA[Exception](message = "IOs also can fail")
   }
 
@@ -126,7 +126,7 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   val toCompletableFutureE = {
-    val failedIO: BIO[String, Unit] = IO.fail[String]("IOs also can fail")
+    val failedIO: BIO[String, Unit] = BIO.fail[String]("IOs also can fail")
     unsafeRun(failedIO.toCompletableFutureE(new Exception(_))).get() must throwA[Exception](
       message = "IOs also can fail"
     )

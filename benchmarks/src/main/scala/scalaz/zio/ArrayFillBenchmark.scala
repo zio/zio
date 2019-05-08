@@ -31,7 +31,7 @@ class ArrayFillBenchmarks {
 
     unsafeRun(
       for {
-        array <- IO.effectTotal[Array[Int]](createTestArray)
+        array <- BIO.effectTotal[Array[Int]](createTestArray)
         _     <- arrayFill(array).run(0)
       } yield ()
     )
@@ -60,11 +60,11 @@ class ArrayFillBenchmarks {
     import cats.effect.IO
 
     def arrayFill(array: Array[Int])(i: Int): BIO[Unit] =
-      if (i >= array.length) IO.unit
-      else IO(array.update(i, i)).flatMap(_ => arrayFill(array)(i + 1))
+      if (i >= array.length) BIO.unit
+      else BIO(array.update(i, i)).flatMap(_ => arrayFill(array)(i + 1))
 
     (for {
-      array <- IO(createTestArray)
+      array <- BIO(createTestArray)
       _     <- arrayFill(array)(0)
     } yield ()).unsafeRunSync()
   }

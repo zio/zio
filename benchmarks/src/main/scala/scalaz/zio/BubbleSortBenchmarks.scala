@@ -27,9 +27,9 @@ class BubbleSortBenchmarks {
 
     unsafeRun(
       for {
-        array <- IO.effectTotal[Array[Int]](createTestArray)
+        array <- BIO.effectTotal[Array[Int]](createTestArray)
         _     <- bubbleSort[Int](_ <= _)(array)
-        _     <- IO.effectTotal[Unit](assertSorted(array))
+        _     <- BIO.effectTotal[Unit](assertSorted(array))
       } yield ()
     )
   }
@@ -39,9 +39,9 @@ class BubbleSortBenchmarks {
     import cats.effect.IO
 
     (for {
-      array <- IO(createTestArray)
+      array <- BIO(createTestArray)
       _     <- bubbleSort[Int](_ <= _)(array)
-      _     <- IO(assertSorted(array))
+      _     <- BIO(assertSorted(array))
     } yield ()).unsafeRunSync()
   }
   @Benchmark

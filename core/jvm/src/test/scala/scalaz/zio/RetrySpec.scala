@@ -47,10 +47,10 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
             .update(err, state)
             .flatMap(
               step =>
-                if (!step.cont) IO.succeed((Left(err), (step.delay, step.finish()) :: ss))
+                if (!step.cont) BIO.succeed((Left(err), (step.delay, step.finish()) :: ss))
                 else loop(step.state, (step.delay, step.finish()) :: ss)
           ),
-        suc => IO.succeed((Right(suc), ss))
+        suc => BIO.succeed((Right(suc), ss))
       )
 
     retry.initial.flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
@@ -95,8 +95,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         ref <- Ref.make(0)
         _   <- alwaysFail(ref).retry(Schedule.once)
       } yield ()).foldM(
-        err => IO.succeed(err),
-        _ => IO.succeed("A failure was expected")
+        err => BIO.succeed(err),
+        _ => BIO.succeed("A failure was expected")
       )
     )
 
@@ -110,8 +110,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         ref <- Ref.make(0)
         i   <- alwaysFail(ref).retry(Schedule.recurs(0))
       } yield i).foldM(
-        err => IO.succeed(err),
-        _ => IO.succeed("it should not be a success")
+        err => BIO.succeed(err),
+        _ => BIO.succeed("it should not be a success")
       )
     )
 
@@ -119,7 +119,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def retryN = {
-    val retried  = unsafeRun(retryCollect(IO.fail("Error"), Schedule.recurs(5)))
+    val retried  = unsafeRun(retryCollect(BIO.fail("Error"), Schedule.recurs(5)))
     val expected = (Left("Error"), List(1, 2, 3, 4, 5, 6).map((Duration.Zero, _)))
     retried must_=== expected
   }
@@ -146,8 +146,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def fixedWithErrorPredicate = {
     var i = 0
-    val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
-      if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
+    val io = BIO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
+      if (i < 5) BIO.fail("KeepTryingError") else BIO.fail("GiveUpError")
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
@@ -158,8 +158,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def recurs10Retry = {
     var i                            = 0
     val strategy: Schedule[Any, Int] = Schedule.recurs(10)
-    val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
-      if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
+    val io = BIO.effectTotal[Unit](i += 1).flatMap { _ =>
+      if (i < 5) BIO.fail("KeepTryingError") else BIO.succeedLazy(i)
     }
     val result   = unsafeRun(io.retry(strategy))
     val expected = 5
@@ -180,8 +180,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
     var i = 0
-    val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
-      if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
+    val io = BIO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
+      if (i < 5) BIO.fail("KeepTryingError") else BIO.fail("GiveUpError")
     }
     val strategy = schedule.whileInput[String](_ == "KeepTryingError")
     val retried  = unsafeRun(retryCollect(io, strategy))
@@ -189,9 +189,9 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     retried must_=== expected
   }
 
-  val ioSucceed = (_: String, _: Unit) => IO.succeed("OrElse")
+  val ioSucceed = (_: String, _: Unit) => BIO.succeed("OrElse")
 
-  val ioFail = (_: String, _: Unit) => IO.fail("OrElseFailed")
+  val ioFail = (_: String, _: Unit) => BIO.fail("OrElseFailed")
 
   def retryOrElseSucceed = {
     val retried = unsafeRun(for {
@@ -217,8 +217,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         ref <- Ref.make(0)
         i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
       } yield i).foldM(
-        err => IO.succeed(err),
-        _ => IO.succeed("it should not be a success")
+        err => BIO.succeed(err),
+        _ => BIO.succeed("it should not be a success")
       )
     )
 
@@ -249,8 +249,8 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         ref <- Ref.make(0)
         i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
       } yield i).foldM(
-        err => IO.succeed(err),
-        _ => IO.succeed("it should not be a success")
+        err => BIO.succeed(err),
+        _ => BIO.succeed("it should not be a success")
       )
     )
 
@@ -265,7 +265,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def failOn0(ref: Ref[Int]): BIO[String, Int] =
     for {
       i <- ref.update(_ + 1)
-      x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
+      x <- if (i <= 1) BIO.fail(s"Error: $i") else BIO.succeed(i)
     } yield x
 
   /*
@@ -275,13 +275,13 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def alwaysFail(ref: Ref[Int]): BIO[String, Int] =
     for {
       i <- ref.update(_ + 1)
-      x <- IO.fail(s"Error: $i")
+      x <- BIO.fail(s"Error: $i")
     } yield x
 
   def ensuring =
     unsafeRun(for {
       p          <- Promise.make[Nothing, Unit]
-      v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
+      v          <- BIO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
       finalizerV <- p.poll
     } yield (v must beNone) and (finalizerV.isDefined must beTrue))
 

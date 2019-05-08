@@ -38,7 +38,7 @@ case class TestConsole(ref: Ref[TestConsole.Data]) extends Console.Service[Any] 
     for {
       input <- ref.get.flatMap(
                 d =>
-                  IO.fromOption(d.input.headOption)
+                  BIO.fromOption(d.input.headOption)
                     .mapError(_ => new EOFException("There is no more input left to read"))
               )
       _ <- ref.update { data =>

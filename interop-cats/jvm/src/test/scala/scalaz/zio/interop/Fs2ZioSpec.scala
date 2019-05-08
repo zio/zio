@@ -58,7 +58,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         _ <- Stream
               .bracket(started.succeed(()).unit)(_ => released.succeed(()).unit)
               .evalMap[Task, Unit] { _ =>
-                fail.await *> IO.fail(new Exception())
+                fail.await *> BIO.fail(new Exception())
               }
               .compile
               .drain
@@ -79,7 +79,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         _ <- Stream
               .bracket(started.succeed(()).unit)(_ => released.succeed(()).unit)
               .evalMap[Task, Unit] { _ =>
-                terminate.await *> IO.die(new Exception())
+                terminate.await *> BIO.die(new Exception())
               }
               .compile
               .drain
@@ -97,8 +97,8 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         started  <- Promise.make[Nothing, Unit]
         released <- Promise.make[Nothing, Unit]
         f <- Stream
-              .bracket(IO.unit)(_ => released.succeed(()).unit)
-              .evalMap[Task, Unit](_ => started.succeed(()) *> IO.never)
+              .bracket(BIO.unit)(_ => released.succeed(()).unit)
+              .evalMap[Task, Unit](_ => started.succeed(()) *> BIO.never)
               .compile
               .drain
               .fork

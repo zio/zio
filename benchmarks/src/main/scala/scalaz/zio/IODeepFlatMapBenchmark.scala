@@ -131,10 +131,10 @@ class IODeepFlatMapBenchmark {
     import cats.effect._
 
     def fib(n: Int): BIO[BigInt] =
-      if (n <= 1) IO(n)
+      if (n <= 1) BIO(n)
       else
         fib(n - 1).flatMap { a =>
-          fib(n - 2).flatMap(b => IO(a + b))
+          fib(n - 2).flatMap(b => BIO(a + b))
         }
 
     fib(depth).unsafeRunSync

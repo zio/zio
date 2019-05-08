@@ -326,8 +326,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         receiver   <- TRef.makeCommit(0)
         toReceiver = transfer(receiver, sender, 100)
         toSender   = transfer(sender, receiver, 100)
-        f1         <- IO.forkAll(List.fill(10)(toReceiver))
-        f2         <- IO.forkAll(List.fill(10)(toSender))
+        f1         <- BIO.forkAll(List.fill(10)(toReceiver))
+        f2         <- BIO.forkAll(List.fill(10)(toSender))
         _          <- sender.update(_ + 50).commit
         _          <- f1.join
         _          <- f2.join
@@ -355,7 +355,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(
       for {
         tvar <- TRef.makeCommit(0)
-        fiber <- IO.forkAll(
+        fiber <- BIO.forkAll(
                   (0 to 20).map(
                     i =>
                       (for {
@@ -394,7 +394,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       val latch = new CountDownLatch(1)
       for {
         tvar <- TRef.makeCommit(0)
-        fiber <- IO.forkAll(List.fill(100)((for {
+        fiber <- BIO.forkAll(List.fill(100)((for {
                   v <- tvar.get
                   _ <- STM.succeedLazy(latch.countDown())
                   _ <- STM.check(v < 0)
@@ -440,7 +440,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         tvar2 <- TRef.makeCommit(2)
         oldV1 <- tvar1.get.commit
         oldV2 <- tvar2.get.commit
-        f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).commit))
+        f     <- BIO.forkAll(List.fill(100)(permutation(tvar1, tvar2).commit))
         _     <- f.join
         v1    <- tvar1.get.commit
         v2    <- tvar2.get.commit

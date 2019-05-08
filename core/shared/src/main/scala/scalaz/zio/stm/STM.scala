@@ -479,7 +479,7 @@ object STM {
 
       val interrupt = UIO(done synchronized { done set true })
 
-      IO.effectAsyncMaybe[Any, E, A] { k =>
+      BIO.effectAsyncMaybe[Any, E, A] { k =>
         import internal.globalLock
 
         def tryTxn(): Option[BIO[E, A]] =
@@ -535,8 +535,8 @@ object STM {
                 }
 
                 value match {
-                  case TRez.Succeed(a) => completed(IO.succeed(a))
-                  case TRez.Fail(e)    => completed(IO.fail(e))
+                  case TRez.Succeed(a) => completed(BIO.succeed(a))
+                  case TRez.Fail(e)    => completed(BIO.fail(e))
                   case TRez.Retry =>
                     val stale = isInvalid(journal)
 

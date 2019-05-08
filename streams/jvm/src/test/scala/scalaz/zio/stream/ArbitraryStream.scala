@@ -1,6 +1,6 @@
 package scalaz.zio.stream
 
-import org.scalacheck.{ Arbitrary, Gen }
+import org.scalacheck.{Arbitrary, Gen}
 import scalaz.zio.BIO
 
 import scala.reflect.ClassTag
@@ -22,8 +22,8 @@ object ArbitraryStream {
   def genSucceededStream[T: ClassTag: Arbitrary]: Gen[Stream[Nothing, T]] =
     Arbitrary.arbitrary[List[T]].map { xs =>
       ZStream.unfoldM[Any, List[T], Nothing, T](xs) {
-        case head :: tail => IO.succeed(Some(head -> tail))
-        case _            => IO.succeed(None)
+        case head :: tail => BIO.succeed(Some(head -> tail))
+        case _            => BIO.succeed(None)
       }
     }
 
@@ -34,7 +34,7 @@ object ArbitraryStream {
     } yield
       ZStream.unfoldM((n, it)) {
         case (_, Nil) | (0, _) =>
-          IO.fail("fail-case")
-        case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
+          BIO.fail("fail-case")
+        case (n, head :: rest) => BIO.succeed(Some((head, (n - 1, rest))))
       }
 }

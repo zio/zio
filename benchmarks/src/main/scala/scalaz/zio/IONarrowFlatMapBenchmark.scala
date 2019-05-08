@@ -107,10 +107,10 @@ class IONarrowFlatMapBenchmark {
   @Benchmark
   def scalazNarrowFlatMap(): Int = {
     def loop(i: Int): UIO[Int] =
-      if (i < size) IO.succeedLazy[Int](i + 1).flatMap(loop)
-      else IO.succeedLazy(i)
+      if (i < size) BIO.succeedLazy[Int](i + 1).flatMap(loop)
+      else BIO.succeedLazy(i)
 
-    unsafeRun(IO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
+    unsafeRun(BIO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
   }
 
   @Benchmark
@@ -118,9 +118,9 @@ class IONarrowFlatMapBenchmark {
     import cats.effect._
 
     def loop(i: Int): BIO[Int] =
-      if (i < size) IO(i + 1).flatMap(loop)
-      else IO(i)
+      if (i < size) BIO(i + 1).flatMap(loop)
+      else BIO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync
+    BIO(0).flatMap(loop).unsafeRunSync
   }
 }

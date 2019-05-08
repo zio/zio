@@ -9,7 +9,7 @@ import scala.collection.mutable
 import scala.util.Try
 import scalaz.zio.Exit.Cause.{ Both, Die, Fail, Interrupt }
 
-class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
+class BIOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOSpec".title ^ s2"""
@@ -64,7 +64,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     Gen.listOfN(100, Gen.alphaNumStr)
 
   def t1 = forAll(functionIOGen, listGen) { (f, list) =>
-    val res = unsafeRun(IO.foreach(list)(f))
+    val res = unsafeRun(BIO.foreach(list)(f))
     res must be size 100
     res must beAnInstanceOf[List[Int]]
   }
@@ -72,61 +72,61 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def t2 = {
     val list    = List("1", "2", "3")
     val effects = new mutable.ListBuffer[String]
-    val res     = unsafeRun(IO.foreach(list)(x => IO.effectTotal(effects += x) *> IO.succeedLazy[Int](x.toInt)))
+    val res     = unsafeRun(BIO.foreach(list)(x => BIO.effectTotal(effects += x) *> BIO.succeedLazy[Int](x.toInt)))
     (effects.toList, res) must be_===((list, List(1, 2, 3)))
   }
 
   def t3 = {
     val list = List("1", "h", "3")
-    val res  = Try(unsafeRun(IO.foreach(list)(x => IO.succeedLazy[Int](x.toInt))))
+    val res  = Try(unsafeRun(BIO.foreach(list)(x => BIO.succeedLazy[Int](x.toInt))))
     res must beAFailedTry.withThrowable[FiberFailure]
   }
 
   def t4 = {
     val list = List("1", "2", "3")
-    val res  = unsafeRun(IO.foreachPar(list)(x => IO.succeedLazy[Int](x.toInt)))
+    val res  = unsafeRun(BIO.foreachPar(list)(x => BIO.succeedLazy[Int](x.toInt)))
     res must be_===(List(1, 2, 3))
   }
 
   implicit val d
     : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def t5 = forAll { (i: Int) =>
-    val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).either)
+    val res = unsafeRun(BIO.fail[Int](i).bimap(_.toString, identity).either)
     res must_=== Left(i.toString)
   }
 
   def t6 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
-    val res  = unsafeRun(IO.collectAllPar(list))
+    val list = List(1, 2, 3).map(BIO.succeedLazy[Int](_))
+    val res  = unsafeRun(BIO.collectAllPar(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t7 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
-    val res  = unsafeRun(IO.forkAll(list).flatMap[Any, Nothing, List[Int]](_.join))
+    val list = List(1, 2, 3).map(BIO.succeedLazy[Int](_))
+    val res  = unsafeRun(BIO.forkAll(list).flatMap[Any, Nothing, List[Int]](_.join))
     res must be_===(List(1, 2, 3))
   }
 
   def t8 = {
-    val list = List(1, 2, 3).map(IO.succeedLazy[Int](_))
-    val res  = unsafeRun(IO.collectAllParN(2)(list))
+    val list = List(1, 2, 3).map(BIO.succeedLazy[Int](_))
+    val res  = unsafeRun(BIO.collectAllParN(2)(list))
     res must be_===(List(1, 2, 3))
   }
 
   def t9 = {
     val list = List(1, 2, 3)
-    val res  = unsafeRun(IO.foreachParN(2)(list)(x => IO.succeedLazy(x.toString)))
+    val res  = unsafeRun(BIO.foreachParN(2)(list)(x => BIO.succeedLazy(x.toString)))
     res must be_===(List("1", "2", "3"))
   }
 
   def t10: Prop = forAll { (l: List[Int]) =>
-    unsafeRun(IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))) must_=== unsafeRun(IO.succeed(l.sum))
+    unsafeRun(BIO.foldLeft(l)(0)((acc, el) => BIO.succeed(acc + el))) must_=== unsafeRun(BIO.succeed(l.sum))
   }
 
   val ig = Gen.chooseNum(Int.MinValue, Int.MaxValue)
   val g  = Gen.nonEmptyListOf(ig) //    TODO: Dotty has ambiguous implicits
   def t11: Prop = forAll(g) { (l: List[Int]) =>
-    (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
+    (unsafeRunSync(BIO.foldLeft(l)(0)((_, _) => BIO.fail("fail"))) must_=== unsafeRunSync(BIO.fail("fail")))
   }
 
   def testDone = {
@@ -136,10 +136,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     val terminated: Exit[Error, Int]  = Exit.die(error)
     val failed: Exit[Error, Int]      = Exit.fail(error)
 
-    unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interrupt))
-    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Die(error)))
-    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Fail(error)))
+    unsafeRun(BIO.done(completed)) must_=== 1
+    unsafeRun(BIO.done(interrupted)) must throwA(FiberFailure(Interrupt))
+    unsafeRun(BIO.done(terminated)) must throwA(FiberFailure(Die(error)))
+    unsafeRun(BIO.done(failed)) must throwA(FiberFailure(Fail(error)))
   }
 
   def testWhen =
@@ -151,8 +151,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         _         <- effectRef.set(2).when(true)
         val2      <- effectRef.get
         failure   = new Exception("expected")
-        _         <- IO.fail(failure).when(false)
-        failed    <- IO.fail(failure).when(true).either
+        _         <- BIO.fail(failure).when(false)
+        failed    <- BIO.fail(failure).when(true).either
       } yield
         (val1 must_=== 0) and
           (val2 must_=== 2) and
@@ -173,8 +173,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         val2           <- effectRef.get
         conditionVal2  <- conditionRef.get
         failure        = new Exception("expected")
-        _              <- IO.fail(failure).whenM(conditionFalse)
-        failed         <- IO.fail(failure).whenM(conditionTrue).either
+        _              <- BIO.fail(failure).whenM(conditionFalse)
+        failed         <- BIO.fail(failure).whenM(conditionTrue).either
       } yield
         (val1 must_=== 0) and
           (conditionVal1 must_=== 1) and
@@ -184,39 +184,39 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
 
   def testUnsandbox = {
-    val failure: BIO[Exit.Cause[Exception], String] = IO.fail(Cause.fail(new Exception("fail")))
-    val success: BIO[Exit.Cause[Any], Int]          = IO.succeed(100)
+    val failure: BIO[Exit.Cause[Exception], String] = BIO.fail(Cause.fail(new Exception("fail")))
+    val success: BIO[Exit.Cause[Any], Int]          = BIO.succeed(100)
     unsafeRun(for {
-      message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
+      message <- failure.unsandbox.foldM(e => BIO.succeed(e.getMessage), _ => BIO.succeed("unexpected"))
       result  <- success.unsandbox
     } yield (message must_=== "fail") and (result must_=== 100))
   }
 
   def testSupervise = {
-    val io = IO.effectTotal("supercalifragilisticexpialadocious")
+    val io = BIO.effectTotal("supercalifragilisticexpialadocious")
     unsafeRun(for {
       supervise1 <- io.supervise
-      supervise2 <- IO.supervise(io)
+      supervise2 <- BIO.supervise(io)
     } yield supervise1 must ===(supervise2))
   }
 
   def testFlatten = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
-      flatten1 <- IO.succeedLazy(IO.succeedLazy(str)).flatten
-      flatten2 <- IO.flatten(IO.succeedLazy(IO.succeedLazy(str)))
+      flatten1 <- BIO.succeedLazy(BIO.succeedLazy(str)).flatten
+      flatten2 <- BIO.flatten(BIO.succeedLazy(BIO.succeedLazy(str)))
     } yield flatten1 must ===(flatten2))
   }
 
   def testAbsolve = forAll(Gen.alphaStr) { str =>
-    val ioEither: UIO[Either[Nothing, String]] = IO.succeed(Right(str))
+    val ioEither: UIO[Either[Nothing, String]] = BIO.succeed(Right(str))
     unsafeRun(for {
       abs1 <- ioEither.absolve
-      abs2 <- IO.absolve(ioEither)
+      abs2 <- BIO.absolve(ioEither)
     } yield abs1 must ===(abs2))
   }
 
   def testNonMemoizationRT = forAll(Gen.alphaStr) { str =>
-    val io: UIO[Option[String]] = IO.succeedLazy(Some(str)) // using `Some` for object allocation
+    val io: UIO[Option[String]] = BIO.succeedLazy(Some(str)) // using `Some` for object allocation
     unsafeRun(
       (io <*> io)
         .map(tuple => tuple._1 must not beTheSameAs (tuple._2))
@@ -224,7 +224,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testMemoization = forAll(Gen.alphaStr) { str =>
-    val ioMemo: UIO[UIO[Option[String]]] = IO.succeedLazy(Some(str)).memoize // using `Some` for object allocation
+    val ioMemo: UIO[UIO[Option[String]]] = BIO.succeedLazy(Some(str)).memoize // using `Some` for object allocation
     unsafeRun(
       ioMemo
         .flatMap(io => io <*> io)
@@ -233,21 +233,21 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   def testRaceAll = {
-    val io  = IO.effectTotal("supercalifragilisticexpialadocious")
+    val io  = BIO.effectTotal("supercalifragilisticexpialadocious")
     val ios = List.empty[UIO[String]]
     unsafeRun(for {
       race1 <- io.raceAll(ios)
-      race2 <- IO.raceAll(io, ios)
+      race2 <- BIO.raceAll(io, ios)
     } yield race1 must ===(race2))
   }
 
   def testZipParInterupt = {
-    val io = ZIO.interrupt.zipPar(IO.interrupt)
+    val io = ZIO.interrupt.zipPar(BIO.interrupt)
     unsafeRun(io) must throwA(FiberFailure(Both(Interrupt, Interrupt)))
   }
 
   def testZipParSucceed = {
-    val io = ZIO.interrupt.zipPar(IO.succeed(1))
+    val io = ZIO.interrupt.zipPar(BIO.succeed(1))
     unsafeRun(io.sandbox.either).left.map(_.interrupted) must_=== Left(true)
   }
 
@@ -256,10 +256,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
     unsafeRun {
       for {
-        plain <- (ZIO.die(ex) <> IO.unit).run
-        both  <- (ZIO.halt(Cause.Both(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
-        thn   <- (ZIO.halt(Cause.Then(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
-        fail  <- (ZIO.fail(ex) <> IO.unit).run
+        plain <- (ZIO.die(ex) <> BIO.unit).run
+        both  <- (ZIO.halt(Cause.Both(Cause.Interrupt, Cause.die(ex))) <> BIO.unit).run
+        thn   <- (ZIO.halt(Cause.Then(Cause.Interrupt, Cause.die(ex))) <> BIO.unit).run
+        fail  <- (ZIO.fail(ex) <> BIO.unit).run
       } yield
         (plain must_=== Exit.die(ex))
           .and(both must_=== Exit.die(ex))
@@ -272,7 +272,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun {
       for {
         release  <- Ref.make(false)
-        result   <- ZIO.bracket(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.succeedLazy(a + 1))
+        result   <- ZIO.bracket(BIO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.succeedLazy(a + 1))
         released <- release.get
       } yield (result must_=== 43) and (released must_=== true)
     }
@@ -281,7 +281,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun {
       for {
         release  <- Ref.make(false)
-        result   <- IO.succeed(42).bracket_(release.set(true), ZIO.succeedLazy(0))
+        result   <- BIO.succeed(42).bracket_(release.set(true), ZIO.succeedLazy(0))
         released <- release.get
       } yield (result must_=== 0) and (released must_=== true)
     }
@@ -291,9 +291,9 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       for {
         release <- Ref.make(false)
         result <- ZIO.bracketExit(
-                   IO.succeed(42),
+                   BIO.succeed(42),
                    (_: Int, _: Exit[_, _]) => release.set(true),
-                   (_: Int) => IO.succeed(0L)
+                   (_: Int) => BIO.succeed(0L)
                  )
         released <- release.get
       } yield (result must_=== 0L) and (released must_=== true)

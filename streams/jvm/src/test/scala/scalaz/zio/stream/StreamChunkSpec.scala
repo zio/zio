@@ -2,9 +2,11 @@ package scalaz.zio.stream
 
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
-import scala.{ Stream => _ }
+
+import scala.{Stream => _}
 import scala.concurrent.duration._
-import scalaz.zio.{ BIO, Chunk, Exit, GenIO, TestRuntime }
+import scalaz.zio.{BIO, Chunk, Exit, GenIO, TestRuntime}
+
 import scala.annotation.tailrec
 
 class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
@@ -48,7 +50,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   private def slurpM[E, A](s: StreamChunk[E, A]): Exit[E, Seq[A]] =
     unsafeRunSync {
-      s.foldLazyChunks(Chunk.empty: Chunk[A])(_ => true)((acc, el) => IO.succeed(acc ++ el)).map(_.toSeq)
+      s.foldLazyChunks(Chunk.empty: Chunk[A])(_ => true)((acc, el) => BIO.succeed(acc ++ el)).map(_.toSeq)
     }
 
   private def map =
@@ -106,7 +108,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   private def mapM =
     prop { (s: StreamChunk[String, Int], f: Int => Int) =>
-      slurpM(s.mapM(a => IO.succeed(f(a)))) must_=== slurp(s).map(_.map(f))
+      slurpM(s.mapM(a => BIO.succeed(f(a)))) must_=== slurp(s).map(_.map(f))
     }
 
   private def foreach0 =
@@ -115,7 +117,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
       val result = unsafeRunSync {
         s.foreachWhile { a =>
-          IO.effectTotal {
+          BIO.effectTotal {
             if (cont(a)) {
               acc ::= a
               true
@@ -132,7 +134,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       var acc = List[Int]()
 
       val result = unsafeRunSync {
-        s.foreach(a => IO.effectTotal(acc ::= a))
+        s.foreach(a => BIO.effectTotal(acc ::= a))
       }
 
       result.map(_ => acc.reverse) must_=== slurp(s).map(_.toList)
@@ -160,7 +162,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
     prop { (s: StreamChunk[String, String]) =>
       val withoutEffect = slurp(s)
       var acc           = List[String]()
-      val tap           = slurp(s.tap(a => IO.effectTotal(acc ::= a)))
+      val tap           = slurp(s.tap(a => BIO.effectTotal(acc ::= a)))
 
       (tap must_=== withoutEffect) and
         ((Success(acc.reverse) must_== withoutEffect) when withoutEffect.succeeded)
@@ -173,7 +175,7 @@ class StreamChunkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
 
   private def foldLazy =
     prop { (s: StreamChunk[Nothing, String], zero: Int, cont: Int => Boolean, f: (Int, String) => Int) =>
-      val streamResult = unsafeRunSync(s.foldLazy(zero)(cont)((acc, a) => IO.succeed(f(acc, a))))
+      val streamResult = unsafeRunSync(s.foldLazy(zero)(cont)((acc, a) => BIO.succeed(f(acc, a))))
       val listResult   = slurp(s).map(l => foldLazyList(l.toList, zero)(cont)(f))
       streamResult must_=== listResult
     }

@@ -11,12 +11,12 @@ class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     for {
       ref   <- Ref.make(false)
       latch <- Promise.make[Nothing, Unit]
-      fiber <- (latch.succeed(()) *> IO.unit)
+      fiber <- (latch.succeed(()) *> BIO.unit)
                 .bracket_[Any, Nothing]
-                .apply[Any](ref.set(true))(IO.never)
+                .apply[Any](ref.set(true))(BIO.never)
                 .fork //    TODO: Dotty doesn't infer this properly
       _     <- latch.await
-      _     <- fiber.toManaged.use(_ => IO.unit)
+      _     <- fiber.toManaged.use(_ => BIO.unit)
       _     <- fiber.await
       value <- ref.get
     } yield value must beTrue

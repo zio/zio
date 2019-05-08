@@ -117,7 +117,7 @@ private class CatsConcurrentEffect[R](rts: Runtime[R])
       rts.unsafeRun {
         fa.fork.flatMap { f =>
           f.await
-            .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
+            .flatMap(exit => BIO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
             .const(f.interrupt.unit)
         }
@@ -167,8 +167,8 @@ private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[RIO[R, ?]]
     fb: RIO[R, B]
   ): RIO[R, Either[(A, effect.Fiber[RIO[R, ?], B]), (effect.Fiber[RIO[R, ?], A], B)]] =
     (fa raceWith fb)(
-      { case (l, f) => l.fold(f.interrupt *> TaskR.halt(_), TaskR.succeed).map(lv => Left((lv, toFiber(f)))) },
-      { case (r, f) => r.fold(f.interrupt *> TaskR.halt(_), TaskR.succeed).map(rv => Right((toFiber(f), rv))) }
+      { case (l, f) => l.fold(f.interrupt *> RIO.halt(_), RIO.succeed).map(lv => Left((lv, toFiber(f)))) },
+      { case (r, f) => r.fold(f.interrupt *> RIO.halt(_), RIO.succeed).map(rv => Right((toFiber(f), rv))) }
     )
 }
 
@@ -183,8 +183,8 @@ private class CatsEffect[R]
     }, Right(_))
 
   @inline final protected[this] def eitherToIO[A]: Either[Throwable, A] => RIO[R, A] = {
-    case Left(t)  => TaskR.fail(t)
-    case Right(r) => TaskR.succeed(r)
+    case Left(t)  => RIO.fail(t)
+    case Right(r) => RIO.succeed(r)
   }
 
   @inline final private[this] def exitToExitCase[A]: Exit[Throwable, A] => ExitCase[Throwable] = {
@@ -198,25 +198,25 @@ private class CatsEffect[R]
   }
 
   override final def never[A]: RIO[R, A] =
-    TaskR.never
+    RIO.never
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): RIO[R, A] =
-    TaskR.effectAsync { (kk: RIO[R, A] => Unit) =>
+    RIO.effectAsync { (kk: RIO[R, A] => Unit) =>
       k(e => kk(eitherToIO(e)))
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => RIO[R, Unit]): RIO[R, A] =
     ZIO.accessM { r =>
-      TaskR.effectAsyncM { (kk: Task[A] => Unit) =>
+      RIO.effectAsyncM { (kk: Task[A] => Unit) =>
         k(e => kk(eitherToIO(e).provide(r))).provide(r).orDie
       }
     }
 
   override final def suspend[A](thunk: => RIO[R, A]): RIO[R, A] =
-    ZIO.flatten(TaskR.effect(thunk))
+    ZIO.flatten(RIO.effect(thunk))
 
   override final def delay[A](thunk: => A): RIO[R, A] =
-    TaskR.effect(thunk)
+    RIO.effect(thunk)
 
   override final def bracket[A, B](acquire: RIO[R, A])(use: A => RIO[R, B])(
     release: A => RIO[R, Unit]

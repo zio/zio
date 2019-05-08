@@ -140,9 +140,9 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e3 =
     unsafeRun(for {
       queue  <- Queue.bounded[Int](10)
-      f      <- IO.forkAll(List.fill(10)(queue.take))
+      f      <- BIO.forkAll(List.fill(10)(queue.take))
       values = Range.inclusive(1, 10).toList
-      _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](BIO.succeed(false))(_ *> _)
       v      <- f.join
     } yield v must containTheSameElementsAs(values))
 
@@ -150,7 +150,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     unsafeRun(for {
       queue  <- Queue.bounded[Int](10)
       values = Range.inclusive(1, 10).toList
-      f      <- IO.forkAll(values.map(queue.offer))
+      f      <- BIO.forkAll(values.map(queue.offer))
       _      <- waitForSize(queue, 10)
       l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
       _      <- f.join
@@ -170,7 +170,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       for {
         queue  <- Queue.bounded[Int](5)
         values = Range.inclusive(1, 10).toList
-        _      <- IO.forkAll(values.map(queue.offer))
+        _      <- BIO.forkAll(values.map(queue.offer))
         _      <- waitForSize(queue, 10)
         l <- queue.take
               .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
@@ -235,7 +235,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     unsafeRun(for {
       queue  <- Queue.bounded[Int](4)
       values = List(1, 2, 3, 4)
-      _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft(BIO.succeed(false))(_ *> _)
       _      <- queue.offer(5).fork
       _      <- waitForSize(queue, 5)
       v      <- queue.takeAll
@@ -334,7 +334,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     unsafeRun((for {
       queue  <- Queue.bounded[Int](4)
       values = List(1, 2, 3, 4)
-      _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
+      _      <- values.map(queue.offer).foldLeft(BIO.succeed(false))(_ *> _)
       _      <- queue.offer(5).fork
       _      <- waitForSize(queue, 5)
       l      <- queue.takeUpTo(5)
@@ -393,7 +393,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     unsafeRun(for {
       queue  <- Queue.bounded[Int](50)
       orders = Range.inclusive(1, 100).toList
-      takers <- IO.forkAll(List.fill(100)(queue.take))
+      takers <- BIO.forkAll(List.fill(100)(queue.take))
       _      <- waitForSize(queue, -100)
       _      <- queue.offerAll(orders)
       l      <- takers.join
@@ -404,7 +404,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     unsafeRun(for {
       queue  <- Queue.bounded[Int](256)
       orders = Range.inclusive(1, 128).toList
-      takers <- IO.forkAll(List.fill(64)(queue.take))
+      takers <- BIO.forkAll(List.fill(64)(queue.take))
       _      <- waitForSize(queue, -64)
       _      <- queue.offerAll(orders)
       l      <- takers.join
@@ -416,7 +416,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     unsafeRun(for {
       queue  <- Queue.bounded[Int](32)
       orders = Range.inclusive(1, 256).toList
-      takers <- IO.forkAll(List.fill(128)(queue.take))
+      takers <- BIO.forkAll(List.fill(128)(queue.take))
       _      <- waitForSize(queue, -128)
       _      <- queue.offerAll(orders).fork
       l      <- takers.join
@@ -428,9 +428,9 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     unsafeRun(for {
       queue  <- Queue.bounded[Int](200)
       values = Range.inclusive(1, 100).toList
-      takers <- IO.forkAll(List.fill(100)(queue.take))
+      takers <- BIO.forkAll(List.fill(100)(queue.take))
       _      <- waitForSize(queue, -100)
-      _      <- IO.forkAll(List.fill(100)(queue.take))
+      _      <- BIO.forkAll(List.fill(100)(queue.take))
       _      <- waitForSize(queue, -200)
       _      <- queue.offerAll(values)
       l      <- takers.join
@@ -707,7 +707,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e56 = unsafeRun(
     for {
-      capacity <- IO.succeed(4)
+      capacity <- BIO.succeed(4)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 5)
       _        <- queue.offerAll(iter)
@@ -717,7 +717,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e57 = unsafeRun(
     for {
-      capacity <- IO.succeed(2)
+      capacity <- BIO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
       v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
       ta       <- queue.takeAll
@@ -726,7 +726,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e58 = unsafeRun(
     for {
-      capacity <- IO.succeed(128)
+      capacity <- BIO.succeed(128)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 256)
       _        <- queue.offerAll(iter)
@@ -747,7 +747,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e60 = unsafeRun(
     for {
-      capacity <- IO.succeed(2)
+      capacity <- BIO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 6)
       _        <- queue.offerAll(iter)
@@ -757,7 +757,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e61 = unsafeRun(
     for {
-      capacity <- IO.succeed(5)
+      capacity <- BIO.succeed(5)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 3)
       v1       <- queue.offerAll(iter)
@@ -767,7 +767,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e62 = unsafeRun(
     for {
-      capacity <- IO.succeed(2)
+      capacity <- BIO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
       iter     = Range.inclusive(1, 4)
       f        <- queue.take.fork
@@ -779,7 +779,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e63 = unsafeRun(
     for {
-      capacity <- IO.succeed(2)
+      capacity <- BIO.succeed(2)
       queue    <- Queue.sliding[Int](capacity)
       iter     = Range.inclusive(1, 4)
       _        <- queue.take.fork
@@ -791,7 +791,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e64 = unsafeRun(
     for {
-      capacity <- IO.succeed(5)
+      capacity <- BIO.succeed(5)
       queue    <- Queue.sliding[Int](capacity)
       iter     = Range.inclusive(1, 3)
       oa       <- queue.offerAll(iter.toList)
@@ -800,7 +800,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e65 = unsafeRun(
     for {
-      capacity <- IO.succeed(5)
+      capacity <- BIO.succeed(5)
       queue    <- Queue.bounded[Int](capacity)
       iter     = Range.inclusive(1, 3)
       oa       <- queue.offerAll(iter.toList)
@@ -854,7 +854,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def e71 = unsafeRun(
     for {
-      q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed))
+      q <- Queue.bounded[Int](100).map(_.mapM(BIO.succeed))
       _ <- q.offer(10)
       v <- q.take
     } yield v must_=== 10
@@ -863,8 +863,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e72 = unsafeRun(
     for {
       q  <- Queue.bounded[BIO[String, Int]](100).map(_.mapM(identity))
-      _  <- q.offer(IO.fail("Ouch"))
-      _  <- q.offer(IO.succeed(10))
+      _  <- q.offer(BIO.fail("Ouch"))
+      _  <- q.offer(BIO.succeed(10))
       v1 <- q.take.run
       v2 <- q.take.run
     } yield (v1 must_=== Exit.fail("Ouch")) and (v2 must_=== Exit.succeed(10))

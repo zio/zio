@@ -63,7 +63,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(
       for {
         ref        <- Ref.make(Data(integers = List(5, 6, 7)))
-        testRandom <- IO.succeed(TestRandom(ref))
+        testRandom <- BIO.succeed(TestRandom(ref))
         next1      <- testRandom.nextInt(2)
         next2      <- testRandom.nextInt(6)
         next3      <- testRandom.nextInt(99)
@@ -184,8 +184,8 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(
       for {
         ref           <- Ref.make(data)
-        testRandom    <- IO.succeed(TestRandom(ref))
-        randomResults <- IO.foreach(1 to expected.length)(_ => f(testRandom))
+        testRandom    <- BIO.succeed(TestRandom(ref))
+        randomResults <- BIO.foreach(1 to expected.length)(_ => f(testRandom))
       } yield randomResults must_=== expected
     )
 }

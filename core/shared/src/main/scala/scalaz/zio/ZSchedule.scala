@@ -68,14 +68,14 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def run(as: Iterable[A]): ZIO[R, Nothing, List[(Duration, B)]] = {
     def run0(as: List[A], s: State, acc: List[(Duration, B)]): ZIO[R, Nothing, List[(Duration, B)]] =
       as match {
-        case Nil => IO.succeed(acc)
+        case Nil => BIO.succeed(acc)
         case a :: as =>
           self.update(a, s).flatMap {
             case ZSchedule.Decision(cont, delay, s, finish) =>
               val acc2 = (delay -> finish()) :: acc
 
               if (cont) run0(as, s, acc2)
-              else IO.succeed(acc2)
+              else BIO.succeed(acc2)
           }
       }
 
@@ -124,7 +124,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
       update =>
         (a, s) =>
           update(a, s).flatMap { decision =>
-            if (decision.cont) IO.succeed(decision)
+            if (decision.cont) BIO.succeed(decision)
             else self.initial.map(state => decision.copy(cont = true, state = state))
           }
     )
@@ -139,7 +139,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         (a, s) =>
           update(a, s).flatMap { d =>
             if (d.cont) test(a, d.finish()).map(b => d.copy(cont = b))
-            else IO.succeed(d)
+            else BIO.succeed(d)
           }
     )
 
@@ -162,14 +162,14 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * is satisfied on the output value of the schedule.
    */
   final def whileOutput(f: B => Boolean): ZSchedule[R, A, B] =
-    check((_, b) => IO.succeed(f(b)))
+    check((_, b) => BIO.succeed(f(b)))
 
   /**
    * Returns a new schedule that continues this schedule so long as the
    * predicate is satisfied on the input of the schedule.
    */
   final def whileInput[A1 <: A](f: A1 => Boolean): ZSchedule[R, A1, B] =
-    check((a, _) => IO.succeed(f(a)))
+    check((a, _) => BIO.succeed(f(a)))
 
   /**
    * Returns a new schedule that continues the schedule only until the predicate
@@ -277,7 +277,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
         state match {
           case Left(v) =>
             self.update(a, v).flatMap { step =>
-              if (step.cont) IO.succeed(step.bimap(Left(_), Left(_)))
+              if (step.cont) BIO.succeed(step.bimap(Left(_), Left(_)))
               else
                 for {
                   state <- that.initial
@@ -333,7 +333,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def reconsider[A1 <: A, C](
     f: (A1, ZSchedule.Decision[State, B]) => ZSchedule.Decision[State, C]
   ): ZSchedule[R, A1, C] =
-    reconsiderM((a, s) => IO.succeed(f(a, s)))
+    reconsiderM((a, s) => BIO.succeed(f(a, s)))
 
   /**
    * A new schedule that applies the current one but runs the specified effect
@@ -387,7 +387,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * applied to each delay produced by this schedule.
    */
   final def delayed(f: Duration => Duration): ZSchedule[R, A, B] =
-    modifyDelay((_, d) => IO.succeed(f(d)))
+    modifyDelay((_, d) => BIO.succeed(f(d)))
 
   /**
    * Applies random jitter to the schedule bounded by the factors 0.0 and 1.0.
@@ -410,7 +410,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Sends every output value to the specified sink.
    */
   final def logOutput[R1 <: R](f: B => ZIO[R1, Nothing, Unit]): ZSchedule[R1, A, B] =
-    updated[R1, A, B](update => (a, s) => update(a, s).flatMap(step => f(step.finish()) *> IO.succeed(step)))
+    updated[R1, A, B](update => (a, s) => update(a, s).flatMap(step => f(step.finish()) *> BIO.succeed(step)))
 
   /**
    * Returns a new schedule that collects the outputs of this one into a list.
@@ -422,7 +422,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule that folds over the outputs of this one.
    */
   final def fold[Z](z: Z)(f: (Z, B) => Z): ZSchedule[R, A, Z] =
-    foldM[Z](IO.succeed(z))((z, b) => IO.succeed(f(z, b)))
+    foldM[Z](BIO.succeed(z))((z, b) => BIO.succeed(f(z, b)))
 
   /**
    * Returns a new schedule that effectfully folds over the outputs of this one.
@@ -542,7 +542,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A schedule that recurs forever, returning each input as the output.
    */
   final def identity[A]: Schedule[A, A] =
-    ZSchedule[Any, Unit, A, A](ZIO.unit, (a, s) => IO.succeed(Decision.cont(Duration.Zero, s, a)))
+    ZSchedule[Any, Unit, A, A](ZIO.unit, (a, s) => BIO.succeed(Decision.cont(Duration.Zero, s, a)))
 
   /**
    * A schedule that recurs forever, returning the constant for every output.
@@ -582,7 +582,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * specified as output to the existing duration.
    */
   final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] = {
-    val delayed = s.modifyDelay((b, d) => IO.succeed(b + d))
+    val delayed = s.modifyDelay((b, d) => BIO.succeed(b + d))
     delayed.reconsider((_, step) => step.copy(finish = () => step.delay)) // TODO: Dotty doesn't infer this properly
   }
 
@@ -653,7 +653,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * through recured application of a function to a base value.
    */
   final def unfold[A](a: => A)(f: A => A): Schedule[Any, A] =
-    unfoldM(IO.succeedLazy(a))(f.andThen(IO.succeedLazy[A](_)))
+    unfoldM(BIO.succeedLazy(a))(f.andThen(BIO.succeedLazy[A](_)))
 
   /**
    * A schedule that always recurs without delay, and computes the output

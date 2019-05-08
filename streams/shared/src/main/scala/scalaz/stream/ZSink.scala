@@ -41,9 +41,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     val len = as.length
 
     def loop(s: Step[State, A0], i: Int): ZIO[R, E, Step[State, A0]] =
-      if (i >= len) IO.succeed(s)
+      if (i >= len) BIO.succeed(s)
       else if (Step.cont(s)) self.step(Step.state(s), as(i)).flatMap(loop(_, i + 1))
-      else IO.succeed(s)
+      else BIO.succeed(s)
 
     loop(Step.more(state), 0)
   }
@@ -51,7 +51,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   final def update(state: Step[State, Nothing]): ZSink[R, E, A0, A, B] =
     new ZSink[R, E, A0, A, B] {
       type State = self.State
-      val initial: ZIO[R, E, Step[State, Nothing]]             = IO.succeed(state)
+      val initial: ZIO[R, E, Step[State, Nothing]]             = BIO.succeed(state)
       def step(state: State, a: A): ZIO[R, E, Step[State, A0]] = self.step(state, a)
       def extract(state: State): ZIO[R, E, B]                  = self.extract(state)
     }
@@ -111,7 +111,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
         f(a).flatMap(
           b =>
             if (b) self.step(state, a)
-            else IO.succeed(Step.more(state))
+            else BIO.succeed(Step.more(state))
         )
 
       def extract(state: State) = self.extract(state)
@@ -128,7 +128,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
       def step(state: State, a: A1) =
         if (f(a)) self.step(state, a)
-        else IO.succeed(Step.more(state))
+        else BIO.succeed(Step.more(state))
 
       def extract(state: State) = self.extract(state)
     }
@@ -228,10 +228,10 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
           if (Step.cont(s))
             extract(Step.state(s))
               .foldM(
-                _ => IO.succeed(s),
-                b => if (f(b)) IO.succeed(Step.done(Step.state(s), Chunk.empty)) else IO.succeed(s)
+                _ => BIO.succeed(s),
+                b => if (f(b)) BIO.succeed(Step.done(Step.state(s), Chunk.empty)) else BIO.succeed(s)
               )
-          else IO.succeed(s)
+          else BIO.succeed(s)
         }
 
       def extract(state: State): ZIO[R, E, B] = self.extract(state)
@@ -246,24 +246,24 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       type State = Option[self.State]
 
       val initial = self.initial.map(Step.leftMap(_)(Option(_))) orElse
-        IO.succeed(Step.done(None, Chunk.empty))
+        BIO.succeed(Step.done(None, Chunk.empty))
 
       def step(state: State, a: A): ZIO[R, Nothing, Step[State, A0]] =
         state match {
-          case None => IO.succeed(Step.done(state, Chunk.empty))
+          case None => BIO.succeed(Step.done(state, Chunk.empty))
           case Some(state) =>
             self
               .step(state, a)
               .foldM(
-                _ => IO.succeed(Step.done[State, A0](Some(state), Chunk.empty)),
-                s => IO.succeed(Step.leftMap(s)(Some(_)))
+                _ => BIO.succeed(Step.done[State, A0](Some(state), Chunk.empty)),
+                s => BIO.succeed(Step.leftMap(s)(Some(_)))
               )
         }
 
       def extract(state: State): ZIO[R, Nothing, Option[B]] =
         state match {
-          case None        => IO.succeed(None)
-          case Some(state) => self.extract(state).map(Some(_)) orElse IO.succeed(None)
+          case None        => BIO.succeed(None)
+          case Some(state) => self.extract(state).map(Some(_)) orElse BIO.succeed(None)
         }
     }
 
@@ -311,8 +311,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def step(state: State, a: A1): ZIO[R1, E1, Step[State, A2]] =
         state match {
           case (l, r) =>
-            val lr = l.fold(e => IO.succeed(Left(e)), self.step(_, a).either)
-            val rr = r.fold(e => IO.succeed(Left(e)), that.step(_, a).either)
+            val lr = l.fold(e => BIO.succeed(Left(e)), self.step(_, a).either)
+            val rr = r.fold(e => BIO.succeed(Left(e)), that.step(_, a).either)
 
             lr.zipWithPar(rr) {
               case (Right(s), _) if !Step.cont(s) => Step.done((Right(Step.state(s)), r), Step.leftover(s))
@@ -326,8 +326,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
         state match {
           case (Right(s), _) => self.extract(s).map(Left(_))
           case (_, Right(s)) => that.extract(s).map(Right(_))
-          case (Left(e), _)  => IO.fail(e)
-          case (_, Left(e))  => IO.fail(e)
+          case (Left(e), _)  => BIO.fail(e)
+          case (_, Left(e))  => BIO.fail(e)
         }
     }
 
@@ -339,7 +339,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
       def step(state: State, a: A1): ZIO[R, E, Step[State, A0]] =
         if (pred(a)) self.step(state, a)
-        else IO.succeed(Step.done(state, Chunk.empty))
+        else BIO.succeed(Step.done(state, Chunk.empty))
 
       def extract(state: State) = self.extract(state)
     }
@@ -353,7 +353,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def step(state: State, a: A1): ZIO[R, E, Step[State, A0]] =
         if (!state._2) self.step(state._1, a).map(Step.leftMap(_)((_, false)))
         else {
-          if (pred(a)) IO.succeed(ZSink.Step.more((state)))
+          if (pred(a)) BIO.succeed(ZSink.Step.more((state)))
           else self.step(state._1, a).map(Step.leftMap(_)((_, false)))
         }
 
@@ -453,7 +453,7 @@ object ZSink {
     new ZSink[R1, E, A0, A, B] {
       type State = Option[(ZSink[R1, E, A0, A, B], Any)]
 
-      val initial = IO.succeed(Step.more(None))
+      val initial = BIO.succeed(Step.more(None))
 
       def step(state: State, a: A): ZIO[R1, E, Step[State, A0]] = state match {
         case None =>
@@ -488,8 +488,8 @@ object ZSink {
   final def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
     new ZSink[R, E, Nothing, Any, B] {
       type State = Unit
-      val initial                                                     = IO.succeed(Step.done((), Chunk.empty))
-      def step(state: State, a: Any): ZIO[R, E, Step[State, Nothing]] = IO.succeed(Step.done(state, Chunk.empty))
+      val initial                                                     = BIO.succeed(Step.done((), Chunk.empty))
+      def step(state: State, a: Any): ZIO[R, E, Step[State, Nothing]] = BIO.succeed(Step.done(state, Chunk.empty))
       def extract(state: State): ZIO[R, E, B]                         = b
     }
 
@@ -549,22 +549,22 @@ object ZSink {
       .map(_.reverse)
 
   def readWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
-    readWhileM(a => IO.succeed(p(a)))
+    readWhileM(a => BIO.succeed(p(a)))
 
   def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, Unit] =
     new ZSink[R, E, A, A, Unit] {
       type State = Unit
 
-      val initial = IO.succeed(Step.more(()))
+      val initial = BIO.succeed(Step.more(()))
 
       def step(state: State, a: A): ZIO[R, E, Step[State, A]] =
         p(a).map(if (_) Step.more(()) else Step.done((), Chunk(a)))
 
-      def extract(state: State) = IO.succeed(())
+      def extract(state: State) = BIO.succeed(())
     }
 
   def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
-    ignoreWhileM(a => IO.succeed(p(a)))
+    ignoreWhileM(a => BIO.succeed(p(a)))
 
   def await[A]: ZSink[Any, Unit, Nothing, A, A] =
     new SinkPure[Unit, Nothing, A, A] {
@@ -656,9 +656,9 @@ object ZSink {
                 self
                   .step(s, a)
                   .foldM[R, Nothing, Step[Side[E, self.State, B], A]]( // TODO: Dotty doesn't infer this properly
-                    e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
+                    e => BIO.succeed(Step.done(Side.Error(e), Chunk.empty)),
                     s =>
-                      if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
+                      if (Step.cont(s)) BIO.succeed(Step.more(Side.State(Step.state(s))))
                       else
                         self
                           .extract(Step.state(s))
@@ -667,7 +667,7 @@ object ZSink {
                             b => Step.done(Side.Value(b), Step.leftover(s))
                           )
                   )
-              case s => IO.succeed(Step.done(s, Chunk.empty))
+              case s => BIO.succeed(Step.done(s, Chunk.empty))
             }
           val rightStep: ZIO[R1, Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]] =
             state._2 match {
@@ -675,9 +675,9 @@ object ZSink {
                 that
                   .step(s, a)
                   .foldM[R1, Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]]( // TODO: Dotty doesn't infer this properly
-                    e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
+                    e => BIO.succeed(Step.done(Side.Error(e), Chunk.empty)),
                     s =>
-                      if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
+                      if (Step.cont(s)) BIO.succeed(Step.more(Side.State(Step.state(s))))
                       else {
                         that
                           .extract(Step.state(s))
@@ -690,20 +690,20 @@ object ZSink {
               case Side.Value((a0, c)) =>
                 val a3 = a0 ++ Chunk(a)
 
-                IO.succeed(Step.done(Side.Value((a3, c)), a3))
+                BIO.succeed(Step.done(Side.Value((a3, c)), a3))
 
-              case s => IO.succeed(Step.done(s, Chunk.empty))
+              case s => BIO.succeed(Step.done(s, Chunk.empty))
             }
 
           leftStep.zip(rightStep).flatMap {
             case (s1, s2) =>
               if (Step.cont(s1) && Step.cont(s2))
-                IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
+                BIO.succeed(Step.more((Step.state(s1), Step.state(s2))))
               else if (!Step.cont(s1) && !Step.cont(s2)) {
                 // Step.Done(s1, a1), Step.Done(s2, a2)
                 Step.state(s1) match {
-                  case Side.Error(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s2)))
-                  case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
+                  case Side.Error(_) => BIO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s2)))
+                  case Side.Value(_) => BIO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
                   case Side.State(s) =>
                     self
                       .extract(s)
@@ -712,12 +712,12 @@ object ZSink {
                         b => Step.done((Side.Value(b), Step.state(s2)), Step.leftover(s1))
                       )
                 }
-              } else if (Step.cont(s1) && !Step.cont(s2)) IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
+              } else if (Step.cont(s1) && !Step.cont(s2)) BIO.succeed(Step.more((Step.state(s1), Step.state(s2))))
               else {
                 // Step.Done(s1, a1), Step.More(s2)
                 Step.state(s1) match {
-                  case Side.Error(_) => IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
-                  case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
+                  case Side.Error(_) => BIO.succeed(Step.more((Step.state(s1), Step.state(s2))))
+                  case Side.Value(_) => BIO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
                   case Side.State(s) =>
                     self.extract(s).fold(Side.Error(_), Side.Value(_)).map(s1 => Step.more((s1, Step.state(s2))))
                 }
@@ -728,14 +728,14 @@ object ZSink {
 
         def extract(state: State): ZIO[R1, E1, Either[B, C]] = {
           def fromRight: ZIO[R1, E1, Either[B, C]] = state._2 match {
-            case Side.Value((_, c)) => IO.succeed(Right(c))
+            case Side.Value((_, c)) => BIO.succeed(Right(c))
             case Side.State(s)      => that.extract(s).map(Right(_))
-            case Side.Error(e)      => IO.fail(e)
+            case Side.Error(e)      => BIO.fail(e)
           }
 
           state match {
-            case (Side.Value(b), _) => IO.succeed(Left(b))
-            case (Side.State(s), _) => self.extract(s).foldM(_ => fromRight, b => IO.succeed(Left(b)))
+            case (Side.Value(b), _) => BIO.succeed(Left(b))
+            case (Side.State(s), _) => self.extract(s).foldM(_ => fromRight, b => BIO.succeed(Left(b)))
             case _                  => fromRight
           }
         }
@@ -752,7 +752,7 @@ object ZSink {
         def step(state: State, a: A): ZIO[R1, E1, Step[State, A]] = state match {
           case Left(s1) =>
             self.step(s1, a) flatMap { s1 =>
-              if (Step.cont(s1)) IO.succeed(Step.more(Left(Step.state(s1))))
+              if (Step.cont(s1)) BIO.succeed(Step.more(Left(Step.state(s1))))
               else {
                 val as = Step.leftover(s1)
 
@@ -820,9 +820,9 @@ object ZSink {
           self
             .step(state._3, a)
             .foldM(
-              e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
+              e => BIO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
               step =>
-                if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
+                if (Step.cont(step)) BIO.succeed(Step.more((state._1, state._2, Step.state(step))))
                 else {
                   val s  = Step.state(step)
                   val as = Step.leftover(step)
@@ -841,7 +841,7 @@ object ZSink {
             )
 
         def extract(state: State): BIO[E, S] =
-          IO.succeed(state._2)
+          BIO.succeed(state._2)
       }
 
     final def repeat: ZSink[R, E, A, A, List[B]] =
@@ -860,7 +860,7 @@ object ZSink {
           if (!p(a)) self.extract(state._2).map(b => Step.done((f(state._1, b), state._2), Chunk(a)))
           else
             self.step(state._2, a).flatMap { step =>
-              if (Step.cont(step)) IO.succeed(Step.more((state._1, Step.state(step))))
+              if (Step.cont(step)) BIO.succeed(Step.more((state._1, Step.state(step))))
               else {
                 val s  = Step.state(step)
                 val as = Step.leftover(step)
@@ -874,7 +874,7 @@ object ZSink {
             }
 
         def extract(state: State): BIO[E, S] =
-          IO.succeed(state._1)
+          BIO.succeed(state._1)
       }
 
     final def repeatWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] =

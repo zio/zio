@@ -99,7 +99,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def filterM =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
-      slurp(s.filterM(s => IO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
+      slurp(s.filterM(s => BIO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
     }
 
   private def dropWhile =
@@ -166,7 +166,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def mapAccumM = {
-    val stream = Stream(1, 1, 1).mapAccumM(0)((acc, el) => IO.succeed((acc + el, acc + el)))
+    val stream = Stream(1, 1, 1).mapAccumM(0)((acc, el) => BIO.succeed((acc + el, acc + el)))
     (slurp(stream) must_=== Success(List(1, 2, 3))) and (slurp(stream) must_=== Success(List(1, 2, 3)))
   }
 
@@ -176,7 +176,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def unfoldM = {
-    val s = Stream.unfoldM(0)(i => if (i < 10) IO.succeed(Some((i, i + 1))) else IO.succeed(None))
+    val s = Stream.unfoldM(0)(i => if (i < 10) BIO.succeed(Some((i, i + 1))) else BIO.succeed(None))
     slurp(s) must_=== Success((0 to 9).toList) and (slurp(s) must_=== Success((0 to 9).toList))
   }
 
@@ -209,7 +209,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(
       s.foreachWhile[Any, Nothing](
         a =>
-          IO.effectTotal(
+          BIO.effectTotal(
             if (sum >= 3) false
             else {
               sum += a;
@@ -225,7 +225,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     var sum = 0
     val s   = Stream(1, 1, 1, 1, 1)
 
-    unsafeRun(s.foreach[Any, Nothing](a => IO.effectTotal(sum += a)))
+    unsafeRun(s.foreach[Any, Nothing](a => BIO.effectTotal(sum += a)))
     sum must_=== 5
   }
 
@@ -270,7 +270,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     var sum = 0
     val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
-        IO.effectTotal {
+        BIO.effectTotal {
           sum += a; if (sum >= 9) false else true
         }
     )
@@ -380,7 +380,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val parser = ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.readWhile(_ == ',')
     val peeled = s.peel(parser).use[Any, Int, (Int, Exit[Nothing, List[Char]])] {
       case (n, rest) =>
-        IO.succeed((n, slurp(rest)))
+        BIO.succeed((n, slurp(rest)))
     }
 
     unsafeRun(peeled) must_=== ((12, Success(List('3', '4'))))
@@ -388,7 +388,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def tap = {
     var sum     = 0
-    val s       = Stream(1, 1).tap[Any, Nothing](a => IO.effectTotal(sum += a))
+    val s       = Stream(1, 1).tap[Any, Nothing](a => BIO.effectTotal(sum += a))
     val slurped = slurp(s)
 
     (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)
@@ -437,7 +437,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _     <- queue.offerAll(c.toSeq)
         s     = Stream.fromQueue(queue)
         fiber <- s.fold[Any, Nothing, Int, List[Int]].flatMap { f0 =>
-                  f0(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
+                  f0(List[Int](), _ => true, (acc, el) => BIO.succeed(el :: acc))
                     .map(_.reverse)
                     .fork
                 }

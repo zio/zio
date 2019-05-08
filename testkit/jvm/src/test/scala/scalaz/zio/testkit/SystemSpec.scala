@@ -1,7 +1,7 @@
 package scalaz.zio.testkit
 
 import scalaz.zio.testkit.TestSystem.Data
-import scalaz.zio.{ BIO, Ref, TestRuntime }
+import scalaz.zio.{BIO, Ref, TestRuntime}
 
 class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
@@ -22,7 +22,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(
       for {
         data       <- Ref.make(Data(envs = Map("k1" -> "v1")))
-        testSystem <- IO.succeed(TestSystem(data))
+        testSystem <- BIO.succeed(TestSystem(data))
         env        <- testSystem.env("k1")
       } yield env must_=== Option("v1")
     )
@@ -31,7 +31,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(
       for {
         data       <- Ref.make(Data())
-        testSystem <- IO.succeed(TestSystem(data))
+        testSystem <- BIO.succeed(TestSystem(data))
         env        <- testSystem.env("k1")
       } yield env must_=== Option.empty
     )
@@ -40,7 +40,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(
       for {
         data       <- Ref.make(Data(properties = Map("k1" -> "v1")))
-        testSystem <- IO.succeed(TestSystem(data))
+        testSystem <- BIO.succeed(TestSystem(data))
         prop       <- testSystem.property("k1")
       } yield prop must_=== Option("v1")
     )
@@ -49,7 +49,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(
       for {
         data       <- Ref.make(Data())
-        testSystem <- IO.succeed(TestSystem(data))
+        testSystem <- BIO.succeed(TestSystem(data))
         prop       <- testSystem.property("k1")
       } yield prop must_=== Option.empty
     )
@@ -58,7 +58,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     unsafeRun(
       for {
         data       <- Ref.make(Data(lineSeparator = ","))
-        testSystem <- IO.succeed(TestSystem(data))
+        testSystem <- BIO.succeed(TestSystem(data))
         lineSep    <- testSystem.lineSeparator
       } yield lineSep must_=== ","
     )

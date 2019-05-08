@@ -115,11 +115,11 @@ class IOLeftBindBenchmark {
   @Benchmark
   def scalazLeftBindBenchmark(): Int = {
     def loop(i: Int): UIO[Int] =
-      if (i % depth == 0) IO.succeedLazy[Int](i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => IO.succeedLazy(i))
-      else IO.succeedLazy(i)
+      if (i % depth == 0) BIO.succeedLazy[Int](i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => BIO.succeedLazy(i))
+      else BIO.succeedLazy(i)
 
-    unsafeRun(IO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
+    unsafeRun(BIO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
   }
 
   @Benchmark
@@ -127,10 +127,10 @@ class IOLeftBindBenchmark {
     import cats.effect._
 
     def loop(i: Int): BIO[Int] =
-      if (i % depth == 0) IO(i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => IO(i))
-      else IO(i)
+      if (i % depth == 0) BIO(i + 1).flatMap(loop)
+      else if (i < size) loop(i + 1).flatMap(i => BIO(i))
+      else BIO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync
+    BIO(0).flatMap(loop).unsafeRunSync
   }
 }

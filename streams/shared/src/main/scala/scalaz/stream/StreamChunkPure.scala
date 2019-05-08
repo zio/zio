@@ -27,7 +27,7 @@ private[stream] trait StreamChunkPure[@specialized +A] extends ZStreamChunk[Any,
     }
 
   override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): UIO[S] =
-    IO.succeed(foldPureLazy(s)(_ => true)(f))
+    BIO.succeed(foldPureLazy(s)(_ => true)(f))
 
   override def map[@specialized B](f: A => B): StreamChunkPure[B] =
     StreamChunkPure(chunks.map(_.map(f)))

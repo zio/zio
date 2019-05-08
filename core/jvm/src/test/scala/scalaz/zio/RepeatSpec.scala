@@ -89,7 +89,7 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
     def incr(ref: Ref[Int]): BIO[String, Int] =
       for {
         i <- ref.update(_ + 1)
-        _ <- IO.fail(s"Error: $i")
+        _ <- BIO.fail(s"Error: $i")
       } yield i
 
     val repeated = unsafeRun(
@@ -97,8 +97,8 @@ class RepeatSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         ref <- Ref.make(0)
         _   <- incr(ref).repeat(Schedule.recurs(42))
       } yield ()).foldM(
-        err => IO.succeed(err),
-        _ => IO.succeed("it should not be a success at all")
+        err => BIO.succeed(err),
+        _ => BIO.succeed("it should not be a success at all")
       )
     )
 

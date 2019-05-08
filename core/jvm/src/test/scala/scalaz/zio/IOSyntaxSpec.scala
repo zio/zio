@@ -5,7 +5,7 @@ import org.specs2.ScalaCheck
 import org.specs2.matcher.describe.Diffable
 import scalaz.zio.syntax._
 
-class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+class BIOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
     with GenIO
     with ScalaCheck {
@@ -23,7 +23,7 @@ class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t1 = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
       a <- str.succeed
-      b <- IO.succeed(str)
+      b <- BIO.succeed(str)
     } yield a must ===(b))
   }
   implicit val d
@@ -32,21 +32,21 @@ class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t2 = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
       a <- str.fail.either
-      b <- IO.fail(str).either
+      b <- BIO.fail(str).either
     } yield a must ===(b))
   }
 
   def t3 = forAll(Gen.alphaStr) { str =>
-    val ioSome = IO.succeed(Some(42))
+    val ioSome = BIO.succeed(Some(42))
     unsafeRun(for {
       a <- str.require(ioSome)
-      b <- IO.require(str)(ioSome)
+      b <- BIO.require(str)(ioSome)
     } yield a must ===(b))
   }
 
 }
 
-class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+class BIOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
     with GenIO
     with ScalaCheck {
@@ -66,21 +66,21 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def t1 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
       a <- lazyStr.succeedLazy
-      b <- IO.succeedLazy(lazyStr)
+      b <- BIO.succeedLazy(lazyStr)
     } yield a must ===(b))
   }
 
   def t2 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
       a <- lazyStr.sync
-      b <- IO.effectTotal(lazyStr)
+      b <- BIO.effectTotal(lazyStr)
     } yield a must ===(b))
   }
 
   def t4 = forAll(Gen.lzy(Gen.alphaStr)) { lazyStr =>
     unsafeRun(for {
       a <- lazyStr.sync
-      b <- IO.effect(lazyStr)
+      b <- BIO.effect(lazyStr)
     } yield a must ===(b))
   }
 
@@ -88,13 +88,13 @@ class IOCreationLazySyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val partial: PartialFunction[Throwable, Int] = { case _: Throwable => 42 }
     unsafeRun(for {
       a <- lazyStr.sync.refineOrDie(partial)
-      b <- IO.effect(lazyStr).refineOrDie(partial)
+      b <- BIO.effect(lazyStr).refineOrDie(partial)
     } yield a must ===(b))
   }
 
 }
 
-class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+class BIOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
     with GenIO
     with ScalaCheck {
@@ -111,43 +111,43 @@ class IOIterableSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   val TestData = "supercalifragilisticexpialadocious".toList
 
   def t1 = {
-    val ios                          = TestData.map(IO.succeed)
+    val ios                          = TestData.map(BIO.succeed)
     val zero                         = List.empty[Char]
     def merger[A](as: List[A], a: A) = a :: as
     unsafeRun(for {
       merged1 <- ios.mergeAll(zero)(merger)
-      merged2 <- IO.mergeAll(ios)(zero)(merger)
+      merged2 <- BIO.mergeAll(ios)(zero)(merger)
     } yield merged1 must ===(merged2))
   }
 
   def t2 = {
-    val ios = TestData.map(IO.effectTotal(_))
+    val ios = TestData.map(BIO.effectTotal(_))
     unsafeRun(for {
       parAll1 <- ios.collectAllPar
-      parAll2 <- IO.collectAllPar(ios)
+      parAll2 <- BIO.collectAllPar(ios)
     } yield parAll1 must ===(parAll2))
   }
 
   def t3 = {
-    val ios: Iterable[BIO[String, Char]] = TestData.map(IO.effectTotal(_))
+    val ios: Iterable[BIO[String, Char]] = TestData.map(BIO.effectTotal(_))
     unsafeRun(for {
       f1       <- ios.forkAll
       forkAll1 <- f1.join
-      f2       <- IO.forkAll(ios)
+      f2       <- BIO.forkAll(ios)
       forkAll2 <- f2.join
     } yield forkAll1 must ===(forkAll2))
   }
 
   def t4 = {
-    val ios = TestData.map(IO.effectTotal(_))
+    val ios = TestData.map(BIO.effectTotal(_))
     unsafeRun(for {
       sequence1 <- ios.collectAll
-      sequence2 <- IO.collectAll(ios)
+      sequence2 <- BIO.collectAll(ios)
     } yield sequence1 must ===(sequence2))
   }
 }
 
-class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
+class BIOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
 
   def is = "IOTupleSpec".title ^ s2"""
@@ -161,7 +161,7 @@ class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   def t1 = forAll(Gen.posNum[Int], Gen.alphaStr) { (int: Int, str: String) =>
     def f(i: Int, s: String): String = i.toString + s
-    val ios                          = (IO.succeed(int), IO.succeed(str))
+    val ios                          = (BIO.succeed(int), BIO.succeed(str))
     unsafeRun(for {
       map2 <- ios.map2[String](f)
     } yield map2 must ===(f(int, str)))
@@ -169,7 +169,7 @@ class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   def t2 = forAll(Gen.posNum[Int], Gen.alphaStr, Gen.alphaStr) { (int: Int, str1: String, str2: String) =>
     def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
-    val ios                                       = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2))
+    val ios                                       = (BIO.succeed(int), BIO.succeed(str1), BIO.succeed(str2))
     unsafeRun(for {
       map3 <- ios.map3[String](f)
     } yield map3 must ===(f(int, str1, str2)))
@@ -178,7 +178,7 @@ class IOTuplesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   def t3 = forAll(Gen.posNum[Int], Gen.alphaStr, Gen.alphaStr, Gen.alphaStr) {
     (int: Int, str1: String, str2: String, str3: String) =>
       def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
-      val ios                                                   = (IO.succeed(int), IO.succeed(str1), IO.succeed(str2), IO.succeed(str3))
+      val ios                                                   = (BIO.succeed(int), BIO.succeed(str1), BIO.succeed(str2), BIO.succeed(str3))
       unsafeRun(for {
         map4 <- ios.map4[String](f)
       } yield map4 must ===(f(int, str1, str2, str3)))

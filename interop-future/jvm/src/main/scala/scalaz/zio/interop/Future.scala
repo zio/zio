@@ -46,27 +46,27 @@ package object future {
       }
 
     final def apply[T](body: => T)(implicit ec: ExecutionContext): Future[T] =
-      unsafeRun(ec, IO.effect(body).fork)
+      unsafeRun(ec, BIO.effect(body).fork)
 
     final def sequence[A](in: List[Future[A]])(implicit ec: ExecutionContext): Future[List[A]] =
-      unsafeRun(ec, IO.collectAll(in.map(_.join)).fork)
+      unsafeRun(ec, BIO.collectAll(in.map(_.join)).fork)
 
     final def sequence[A](in: Vector[Future[A]])(implicit ec: ExecutionContext): Future[Vector[A]] =
-      unsafeRun(ec, IO.collectAll(in.map(_.join)).map(_.toVector).fork)
+      unsafeRun(ec, BIO.collectAll(in.map(_.join)).map(_.toVector).fork)
 
     final def sequence[A](in: Seq[Future[A]])(implicit ec: ExecutionContext): Future[Seq[A]] =
-      unsafeRun(ec, IO.collectAll(in.map(_.join)).map(_.toSeq).fork)
+      unsafeRun(ec, BIO.collectAll(in.map(_.join)).map(_.toSeq).fork)
 
     final def firstCompletedOf[T](futures: Iterable[Future[T]])(implicit ec: ExecutionContext): Future[T] =
-      unsafeRun(ec, IO.absolve(IO.raceAll(IO.interrupt, futures.map(_.join.either))).fork)
+      unsafeRun(ec, BIO.absolve(BIO.raceAll(BIO.interrupt, futures.map(_.join.either))).fork)
 
     final def find[T](futures: Iterable[Future[T]])(p: T => Boolean)(implicit ec: ExecutionContext): Future[Option[T]] =
       unsafeRun(
         ec,
-        (futures.foldLeft[BIO[Throwable, Option[T]]](IO.interrupt) {
+        (futures.foldLeft[BIO[Throwable, Option[T]]](BIO.interrupt) {
           case (acc, future) =>
-            acc orElse future.join.flatMap(t => if (p(t)) IO.succeed(t) else IO.interrupt).map(Some(_))
-        } orElse IO.succeed(None)).fork
+            acc orElse future.join.flatMap(t => if (p(t)) BIO.succeed(t) else BIO.interrupt).map(Some(_))
+        } orElse BIO.succeed(None)).fork
       )
 
     final def foldLeft[T, R](
@@ -75,7 +75,7 @@ package object future {
       unsafeRun(
         ec,
         futures
-          .foldLeft[BIO[Throwable, R]](IO.succeed(zero)) {
+          .foldLeft[BIO[Throwable, R]](BIO.succeed(zero)) {
             case (acc, future) =>
               acc.flatMap(r => future.join.map(op(r, _)))
           }
@@ -104,33 +104,33 @@ package object future {
       reduce[T, R](futures)(op)
 
     final def traverse[A, B](in: List[A])(fn: A => Future[B])(implicit ec: ExecutionContext): Future[List[B]] =
-      unsafeRun(ec, IO.foreach(in)(a => fn(a).join).fork)
+      unsafeRun(ec, BIO.foreach(in)(a => fn(a).join).fork)
 
     final def traverse[A, B](in: Vector[A])(fn: A => Future[B])(implicit ec: ExecutionContext): Future[Vector[B]] =
-      unsafeRun(ec, IO.foreach(in)(a => fn(a).join).map(_.toVector).fork)
+      unsafeRun(ec, BIO.foreach(in)(a => fn(a).join).map(_.toVector).fork)
 
     final def traverse[A, B](in: Seq[A])(fn: A => Future[B])(implicit ec: ExecutionContext): Future[Seq[B]] =
-      unsafeRun(ec, IO.foreach(in)(a => fn(a).join).map(_.toSeq).fork)
+      unsafeRun(ec, BIO.foreach(in)(a => fn(a).join).map(_.toSeq).fork)
   }
 
   implicit class FutureSyntax[T](val value: Future[T]) extends AnyVal {
     final def onSuccess[U](pf: PartialFunction[T, U])(implicit ec: ExecutionContext): Unit =
-      unsafeRun(ec, value.join.flatMap[Any, Throwable, Option[U]](t => IO.effect(pf lift t)).fork.unit)
+      unsafeRun(ec, value.join.flatMap[Any, Throwable, Option[U]](t => BIO.effect(pf lift t)).fork.unit)
 
     final def onFailure[U](pf: PartialFunction[Throwable, U])(implicit ec: ExecutionContext): Unit =
       unsafeRun(ec, value.join.either.flatMap {
-        case Left(t)  => IO.effect(pf lift t)
-        case Right(_) => IO.unit
+        case Left(t)  => BIO.effect(pf lift t)
+        case Right(_) => BIO.unit
       }.fork.unit)
 
     final def onComplete[U](f: Try[T] => U)(implicit ec: ExecutionContext): Unit =
-      unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, U](t => IO.effect(f(t))).fork.unit)
+      unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, U](t => BIO.effect(f(t))).fork.unit)
 
     final def isCompleted: Boolean =
       unsafeRun(Global, value.poll.map(_.fold(false)(_ => true)))
 
     final def failed: Future[Throwable] =
-      unsafeRun(Global, value.join.flip.catchAll[Any, Nothing, Throwable](_ => IO.interrupt).fork)
+      unsafeRun(Global, value.join.flip.catchAll[Any, Nothing, Throwable](_ => BIO.interrupt).fork)
 
     final def foreach[U](f: T => U)(implicit ec: ExecutionContext): Unit =
       onSuccess { case t => f(t) }
@@ -141,9 +141,9 @@ package object future {
     final def transform[S](f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] = {
       val g: Try[T] => BIO[Throwable, S] =
         (t: Try[T]) =>
-          IO.effect(f(t) match {
-              case Failure(t) => IO.fail(t)
-              case Success(s) => IO.succeed(s)
+          BIO.effect(f(t) match {
+              case Failure(t) => BIO.fail(t)
+              case Success(s) => BIO.succeed(s)
             })
             .flatten
 
@@ -152,7 +152,7 @@ package object future {
 
     final def transformWith[S](f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] = {
       val g: Try[T] => BIO[Throwable, S] =
-        (t: Try[T]) => IO.effect(f(t).join).flatten
+        (t: Try[T]) => BIO.effect(f(t).join).flatten
 
       unsafeRun(ec, value.join.either.map(toTry(_)).flatMap[Any, Throwable, S](g).fork)
     }
@@ -177,10 +177,10 @@ package object future {
       filter(p)
 
     final def collect[S](pf: PartialFunction[T, S])(implicit ec: ExecutionContext): Future[S] =
-      unsafeRun(ec, value.join.flatMap[Any, Throwable, S](t => IO.effect(pf(t))).fork)
+      unsafeRun(ec, value.join.flatMap[Any, Throwable, S](t => BIO.effect(pf(t))).fork)
 
     final def recover[U >: T](pf: PartialFunction[Throwable, U])(implicit ec: ExecutionContext): Future[U] =
-      unsafeRun(ec, value.join.catchSome[Any, Throwable, U](pf.andThen(IO.succeed(_))).fork)
+      unsafeRun(ec, value.join.catchSome[Any, Throwable, U](pf.andThen(BIO.succeed(_))).fork)
 
     final def recoverWith[U >: T](pf: PartialFunction[Throwable, Future[U]])(
       implicit ec: ExecutionContext
@@ -204,7 +204,7 @@ package object future {
 
     final def andThen[U](pf: PartialFunction[Try[T], U])(implicit ec: ExecutionContext): Future[T] =
       unsafeRun(ec, value.join.either.flatMap { either =>
-        IO.effect(pf lift (toTry(either))).either *> IO.succeed(either)
+        BIO.effect(pf lift (toTry(either))).either *> BIO.succeed(either)
       }.absolve.fork)
   }
 }

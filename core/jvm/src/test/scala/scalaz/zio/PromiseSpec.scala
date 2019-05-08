@@ -44,7 +44,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        s <- p.done(IO.succeed(14))
+        s <- p.done(BIO.succeed(14))
         v <- p.await
       } yield s must beTrue and (v must_=== 14)
     )
@@ -62,7 +62,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done(IO.fail("error in e4"))
+        s <- p.done(BIO.fail("error in e4"))
         v <- p.await.either
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
@@ -72,7 +72,7 @@ class PromiseSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       for {
         p <- Promise.make[Nothing, Int]
         _ <- p.succeed(1)
-        s <- p.done(IO.succeed(9))
+        s <- p.done(BIO.succeed(9))
         v <- p.await
       } yield s must beFalse and (v must_=== 1)
     )

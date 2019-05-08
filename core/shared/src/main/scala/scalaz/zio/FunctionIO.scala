@@ -214,10 +214,10 @@ object FunctionIO extends Serializable {
   private[zio] final class Pure[E, A, B](val run: A => BIO[E, B]) extends FunctionIO[E, A, B] {}
   private[zio] final class Impure[E, A, B](val apply0: A => B) extends FunctionIO[E, A, B] {
     val run: A => BIO[E, B] = a =>
-      IO.suspend {
-        try IO.succeed[B](apply0(a))
+      BIO.suspend {
+        try BIO.succeed[B](apply0(a))
         catch {
-          case e: FunctionIOError[_] => IO.fail[E](e.unsafeCoerce[E])
+          case e: FunctionIOError[_] => BIO.fail[E](e.unsafeCoerce[E])
         }
       }
   }
@@ -352,7 +352,7 @@ object FunctionIO extends Serializable {
       case _ =>
         lazy val loop: FunctionIO[E, A, A] =
           FunctionIO.fromFunctionM(
-            (a: A) => check.run(a).flatMap((b: Boolean) => if (b) body.run(a).flatMap(loop.run) else IO.succeed(a))
+            (a: A) => check.run(a).flatMap((b: Boolean) => if (b) body.run(a).flatMap(loop.run) else BIO.succeed(a))
           )
 
         loop
@@ -426,7 +426,7 @@ object FunctionIO extends Serializable {
       case _ =>
         FunctionIO.fromFunctionM[E, Either[A, C], Either[B, C]] {
           case Left(a)  => k.run(a).map[Either[B, C]](Left[B, C])
-          case Right(c) => IO.succeed[Either[B, C]](Right(c))
+          case Right(c) => BIO.succeed[Either[B, C]](Right(c))
         }
     }
 
@@ -442,7 +442,7 @@ object FunctionIO extends Serializable {
         })
       case _ =>
         FunctionIO.fromFunctionM[E, Either[C, A], Either[C, B]] {
-          case Left(c)  => IO.succeed[Either[C, B]](Left(c))
+          case Left(c)  => BIO.succeed[Either[C, B]](Left(c))
           case Right(a) => k.run(a).map[Either[C, B]](Right[C, B])
         }
     }

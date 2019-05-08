@@ -27,7 +27,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
     }
 
   def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
-    foldLazy(s)(_ => true)((s, a) => IO.succeed(f(s, a)))
+    foldLazy(s)(_ => true)((s, a) => BIO.succeed(f(s, a)))
 
   /**
    * Executes an effectful fold over the stream of chunks.
@@ -59,7 +59,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
     chunks.foreachWhile[R1, E1] { as =>
       as.foldM(true) { (p, a) =>
         if (p) f(a)
-        else IO.succeedLazy(p)
+        else BIO.succeedLazy(p)
       }
     }
 
@@ -74,14 +74,14 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
       override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: ZStream.Fold[R1, E1, A1, S] =
-        IO.succeedLazy { (s, cont, f) =>
+        BIO.succeedLazy { (s, cont, f) =>
           self
             .foldLazyChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
               case ((true, s), as) =>
                 val remaining = as.dropWhile(pred)
 
                 if (remaining.length > 0) f(s, remaining).map(false -> _)
-                else IO.succeed(true                                -> s)
+                else BIO.succeed(true                                -> s)
               case ((false, s), as) => f(s, as).map(false -> _)
             }
             .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
@@ -91,7 +91,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
       override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: ZStream.Fold[R1, E1, A1, S] =
-        IO.succeedLazy { (s, cont, f) =>
+        BIO.succeedLazy { (s, cont, f) =>
           self
             .foldLazyChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) { (s, as) =>
               val remaining = as.takeWhile(pred)
@@ -107,7 +107,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
     ZStreamChunk(
       new ZStream[R, E, Chunk[(A, Int)]] {
         override def fold[R1 <: R, E1 >: E, A1 >: Chunk[(A, Int)], S]: ZStream.Fold[R1, E1, A1, S] =
-          IO.succeedLazy { (s, cont, f) =>
+          BIO.succeedLazy { (s, cont, f) =>
             chunks.fold[R1, E1, Chunk[A], (S, Int)].flatMap { f0 =>
               f0((s, 0), tp => cont(tp._1), {
                 case ((s, index), as) =>

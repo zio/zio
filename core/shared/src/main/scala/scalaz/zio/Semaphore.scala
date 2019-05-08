@@ -69,7 +69,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    */
   final def acquireN(n: Long): UIO[Unit] = {
     // TODO: Dotty doesn't infer this properly
-    val i0: ZIO.BracketExitRelease[Any, Nothing, Nothing, Acquisition, Unit] = IO.bracketExit(prepare(n))(cleanup)
+    val i0: ZIO.BracketExitRelease[Any, Nothing, Nothing, Acquisition, Unit] = BIO.bracketExit(prepare(n))(cleanup)
     val i1: UIO[Unit]                                                        = i0(_.awaitAcquire)
     assertNonNegative(n) *> i1
   }
@@ -79,18 +79,18 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    */
   final private def prepare(n: Long): UIO[Acquisition] = {
     def restore(p: Promise[Nothing, Unit], n: Long): UIO[Unit] =
-      IO.flatten(state.modify {
+      BIO.flatten(state.modify {
         case Left(q) =>
           q.find(_._1 == p).fold(releaseN(n) -> Left(q))(x => releaseN(n - x._2) -> Left(q.filter(_._1 != p)))
-        case Right(m) => IO.unit -> Right(m + n)
+        case Right(m) => BIO.unit -> Right(m + n)
       })
 
     if (n == 0)
-      IO.succeed(Acquisition(IO.unit, IO.unit))
+      BIO.succeed(Acquisition(BIO.unit, BIO.unit))
     else
       Promise.make[Nothing, Unit].flatMap { p =>
         state.modify {
-          case Right(m) if m >= n => Acquisition(IO.unit, releaseN(n))   -> Right(m - n)
+          case Right(m) if m >= n => Acquisition(BIO.unit, releaseN(n))   -> Right(m - n)
           case Right(m)           => Acquisition(p.await, restore(p, n)) -> Left(IQueue(p -> (n - m)))
           case Left(q)            => Acquisition(p.await, restore(p, n)) -> Left(q.enqueue(p -> n))
         }
@@ -100,7 +100,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): UIO[Unit] =
     res match {
       case Exit.Failure(c) if c.interrupted => ops.release
-      case _                                => IO.unit
+      case _                                => BIO.unit
     }
 
   final def releaseN(toRelease: Long): UIO[Unit] = {
@@ -120,7 +120,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
         }
     }
 
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
+    BIO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, BIO.unit))).uninterruptible
 
   }
 
@@ -144,8 +144,8 @@ private object internals {
 
   def assertNonNegative(n: Long): UIO[Unit] =
     if (n < 0)
-      IO.die(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
-    else IO.unit
+      BIO.die(new NegativeArgument(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
+    else BIO.unit
 
   class NegativeArgument(message: String) extends IllegalArgumentException(message)
 }

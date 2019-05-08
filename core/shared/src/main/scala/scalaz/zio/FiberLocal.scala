@@ -29,7 +29,7 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
    */
   final def get: UIO[Option[A]] =
     for {
-      descriptor <- IO.descriptor
+      descriptor <- BIO.descriptor
       value      <- state.get
     } yield value.get(descriptor.id)
 
@@ -38,7 +38,7 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
    */
   final def set(value: A): UIO[Unit] =
     for {
-      descriptor <- IO.descriptor
+      descriptor <- BIO.descriptor
       _          <- state.update(_ + (descriptor.id -> value))
     } yield ()
 
@@ -47,7 +47,7 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
    */
   final def empty: UIO[Unit] =
     for {
-      descriptor <- IO.descriptor
+      descriptor <- BIO.descriptor
       _          <- state.update(_ - descriptor.id)
     } yield ()
 

@@ -45,7 +45,7 @@ object Console extends Serializable {
         putStr(SConsole.out)(line)
 
       final def putStr(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.effectTotal(SConsole.withOut(stream) {
+        BIO.effectTotal(SConsole.withOut(stream) {
           SConsole.print(line)
         })
 
@@ -56,7 +56,7 @@ object Console extends Serializable {
         putStrLn(SConsole.out)(line)
 
       final def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.effectTotal(SConsole.withOut(stream) {
+        BIO.effectTotal(SConsole.withOut(stream) {
           SConsole.println(line)
         })
 
@@ -72,7 +72,7 @@ object Console extends Serializable {
        * returns null.
        */
       final def getStrLn(reader: Reader): BIO[IOException, String] =
-        IO.effect(SConsole.withIn(reader) {
+        BIO.effect(SConsole.withIn(reader) {
             val line = StdIn.readLine()
             if (line == null) {
               throw new EOFException("There is no more input left to read")

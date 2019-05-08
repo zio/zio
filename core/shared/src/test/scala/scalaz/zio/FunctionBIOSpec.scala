@@ -4,7 +4,7 @@ import FunctionIO._
 import org.specs2.Specification
 import org.specs2.matcher.describe.Diffable
 
-class FunctionIOSpec extends Specification with DefaultRuntime {
+class FunctionBIOSpec extends Specification with DefaultRuntime {
   def is = "FunctionIOSpec".title ^ s2"""
    Check if the functions in `FunctionIO` work correctly
      `fromFunction` lifts from A => B into effectful function $e1
@@ -142,10 +142,10 @@ class FunctionIOSpec extends Specification with DefaultRuntime {
   def e14b =
     unsafeRun(
       for {
-        v1 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
+        v1 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => BIO.succeed(a > 0)))(succeedLazy("is positive"))(
                succeedLazy("is negative")
              ).run(-1)
-        v2 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => IO.succeed(a > 0)))(succeedLazy("is positive"))(
+        v2 <- ifThenElse(fromFunctionM[Nothing, Int, Boolean](a => BIO.succeed(a > 0)))(succeedLazy("is positive"))(
                succeedLazy("is negative")
              ).run(1)
       } yield (v1 must_=== "is negative") and (v2 must_=== "is positive")
@@ -161,8 +161,8 @@ class FunctionIOSpec extends Specification with DefaultRuntime {
   def e15b =
     unsafeRun(
       for {
-        v <- whileDo[Nothing, Int](fromFunctionM[Nothing, Int, Boolean](a => IO.succeed[Boolean](a < 10)))(
-              fromFunctionM[Nothing, Int, Int](a => IO.effectTotal[Int](a + 1))
+        v <- whileDo[Nothing, Int](fromFunctionM[Nothing, Int, Boolean](a => BIO.succeed[Boolean](a < 10)))(
+              fromFunctionM[Nothing, Int, Int](a => BIO.effectTotal[Int](a + 1))
             ).run(1)
       } yield v must_=== 10
     )

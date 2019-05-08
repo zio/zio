@@ -58,7 +58,7 @@ trait Fiber[+E, +A] { self =>
    * fiber has been determined. Attempting to join a fiber that has errored will
    * result in a catchable error, _if_ that error does not result from interruption.
    */
-  final def join: BIO[E, A] = await.flatMap(IO.done)
+  final def join: BIO[E, A] = await.flatMap(BIO.done)
 
   /**
    * Interrupts the fiber with no specified reason. If the fiber has already
@@ -229,9 +229,9 @@ object Fiber {
    */
   final val never: Fiber[Nothing, Nothing] =
     new Fiber[Nothing, Nothing] {
-      def await: UIO[Exit[Nothing, Nothing]]        = IO.never
-      def poll: UIO[Option[Exit[Nothing, Nothing]]] = IO.succeed(None)
-      def interrupt: UIO[Exit[Nothing, Nothing]]    = IO.never
+      def await: UIO[Exit[Nothing, Nothing]]        = BIO.never
+      def poll: UIO[Option[Exit[Nothing, Nothing]]] = BIO.succeed(None)
+      def interrupt: UIO[Exit[Nothing, Nothing]]    = BIO.never
     }
 
   /**
@@ -239,9 +239,9 @@ object Fiber {
    */
   final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
-      def await: UIO[Exit[E, A]]        = IO.succeedLazy(exit)
-      def poll: UIO[Option[Exit[E, A]]] = IO.succeedLazy(Some(exit))
-      def interrupt: UIO[Exit[E, A]]    = IO.succeedLazy(exit)
+      def await: UIO[Exit[E, A]]        = BIO.succeedLazy(exit)
+      def poll: UIO[Option[Exit[E, A]]] = BIO.succeedLazy(Some(exit))
+      def interrupt: UIO[Exit[E, A]]    = BIO.succeedLazy(exit)
     }
 
   /**
@@ -275,13 +275,13 @@ object Fiber {
    * Interrupts all fibers, awaiting their interruption.
    */
   final def interruptAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
+    fs.foldLeft(BIO.unit)((io, f) => io <* f.interrupt)
 
   /**
    * Joins all fibers, awaiting their completion.
    */
   final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
+    fs.foldLeft(BIO.unit)((io, f) => io *> f.await.unit)
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
@@ -292,7 +292,7 @@ object Fiber {
 
       def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
 
-      def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
+      def poll: UIO[Option[Exit[Throwable, A]]] = BIO.effectTotal(ftr.value.map(Exit.fromTry))
 
       def interrupt: UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
     }

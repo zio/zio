@@ -28,15 +28,15 @@ object javaconcurrent {
   implicit class IOObjJavaconcurrentOps(private val taskObj: Task.type) extends AnyVal {
 
     private def unsafeCompletionStageToIO[A](cs: CompletionStage[A]): Task[A] =
-      IO.effectAsync { cb =>
+      BIO.effectAsync { cb =>
         val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
           val io = t match {
             case null =>
-              IO.succeed(v)
+              BIO.succeed(v)
             case e: CompletionException =>
-              IO.fail(e.getCause)
+              BIO.fail(e.getCause)
             case t: Throwable =>
-              IO.fail(t)
+              BIO.fail(t)
           }
           cb(io)
         }
@@ -46,24 +46,24 @@ object javaconcurrent {
       csIo.flatMap(unsafeCompletionStageToIO)
 
     def fromCompletionStage[A](cs: () => CompletionStage[A]): Task[A] =
-      IO.suspend {
+      BIO.suspend {
         unsafeCompletionStageToIO(cs())
       }
 
     private def unsafeFutureJavaToIO[A](future: Future[A]): Task[A] = {
       def unwrap[B](f: Future[B]): Task[B] =
-        IO.flatten {
-          IO.effectTotal {
+        BIO.flatten {
+          BIO.effectTotal {
             try {
               val result = f.get()
-              IO.succeed(result)
+              BIO.succeed(result)
             } catch {
               case e: ExecutionException =>
-                IO.fail(e.getCause)
+                BIO.fail(e.getCause)
               case _: InterruptedException =>
-                IO.interrupt
+                BIO.interrupt
               case t: Throwable => // CancellationException
-                IO.fail(t)
+                BIO.fail(t)
             }
           }
         }
@@ -79,7 +79,7 @@ object javaconcurrent {
       futureIo.flatMap(unsafeFutureJavaToIO)
 
     def fromFutureJava[A](future: () => Future[A]): Task[A] =
-      IO.suspend {
+      BIO.suspend {
         unsafeFutureJavaToIO(future())
       }
   }
@@ -96,14 +96,14 @@ object javaconcurrent {
           Task.fromFutureJava(() => ftr).fold(Exit.fail, Exit.succeed)
 
         def poll: UIO[Option[Exit[Throwable, A]]] =
-          IO.suspend {
+          BIO.suspend {
             if (ftr.isDone) {
-              IO.effect(ftr.get())
+              BIO.effect(ftr.get())
                 .refineOrDie(JustExceptions)
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))
             } else {
-              IO.succeed(None)
+              BIO.succeed(None)
             }
           }
 

@@ -62,20 +62,20 @@ object CatsIOArray {
 
   def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): BIO[Unit] = {
     def outerLoop(i: Int): BIO[Unit] =
-      if (i >= array.length - 1) IO.unit else innerLoop(i, i + 1).flatMap(_ => outerLoop(i + 1))
+      if (i >= array.length - 1) BIO.unit else innerLoop(i, i + 1).flatMap(_ => outerLoop(i + 1))
 
     def innerLoop(i: Int, j: Int): BIO[Unit] =
-      if (j >= array.length) IO.unit
+      if (j >= array.length) BIO.unit
       else
-        IO((array(i), array(j))).flatMap {
+        BIO((array(i), array(j))).flatMap {
           case (ia, ja) =>
-            val maybeSwap = if (lessThanEqual0(ia, ja)) IO.unit else swapIJ(i, ia, j, ja)
+            val maybeSwap = if (lessThanEqual0(ia, ja)) BIO.unit else swapIJ(i, ia, j, ja)
 
             maybeSwap.flatMap(_ => innerLoop(i, j + 1))
         }
 
     def swapIJ(i: Int, ia: A, j: Int, ja: A): BIO[Unit] =
-      IO { array.update(i, ja); array.update(j, ia) }
+      BIO { array.update(i, ja); array.update(j, ia) }
 
     outerLoop(0)
   }

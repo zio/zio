@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 
 import scalaz.zio.duration.Duration
 import scalaz.zio.scheduler.{ Scheduler, SchedulerLive }
-import scalaz.zio.{ BIO, UIO, ZIO }
+import scalaz.zio.{BIO, UIO, ZIO }
 
 trait Clock extends Scheduler with Serializable {
   val clock: Clock.Service[Any]
@@ -36,9 +36,9 @@ object Clock extends Serializable {
   trait Live extends SchedulerLive with Clock {
     val clock: Service[Any] = new Service[Any] {
       def currentTime(unit: TimeUnit): UIO[Long] =
-        IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
+        BIO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
 
-      val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
+      val nanoTime: UIO[Long] = BIO.effectTotal(System.nanoTime)
 
       def sleep(duration: Duration): UIO[Unit] =
         scheduler.scheduler.flatMap(

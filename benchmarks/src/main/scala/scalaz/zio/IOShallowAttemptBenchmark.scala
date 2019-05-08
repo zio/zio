@@ -130,8 +130,8 @@ class IOShallowAttemptBenchmark {
   def scalazShallowAttempt(): BigInt = {
     def throwup(n: Int): BIO[ScalazError, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
-      else if (n == depth) IO.succeedLazy(1)
-      else throwup(n + 1).foldM[Any, ScalazError, BigInt](_ => IO.succeed(0), _ => IO.fail(ScalazError("Oh noes!")))
+      else if (n == depth) BIO.succeedLazy(1)
+      else throwup(n + 1).foldM[Any, ScalazError, BigInt](_ => BIO.succeed(0), _ => BIO.fail(ScalazError("Oh noes!")))
 
     unsafeRun(throwup(0))
   }
@@ -140,8 +140,8 @@ class IOShallowAttemptBenchmark {
   def scalazShallowAttemptBaseline(): BigInt = {
     def throwup(n: Int): BIO[Error, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
-      else if (n == depth) IO.succeedLazy(1)
-      else throwup(n + 1).foldM[Any, Error, BigInt](_ => IO.succeed(0), _ => IO.fail(new Error("Oh noes!")))
+      else if (n == depth) BIO.succeedLazy(1)
+      else throwup(n + 1).foldM[Any, Error, BigInt](_ => BIO.succeed(0), _ => BIO.fail(new Error("Oh noes!")))
 
     unsafeRun(throwup(0))
   }
@@ -152,11 +152,11 @@ class IOShallowAttemptBenchmark {
 
     def throwup(n: Int): BIO[BigInt] =
       if (n == 0) throwup(n + 1).attempt.map(_.fold(_ => 0, a => a))
-      else if (n == depth) IO(1)
+      else if (n == depth) BIO(1)
       else
         throwup(n + 1).attempt.flatMap {
-          case Left(_)  => IO(0)
-          case Right(_) => IO.raiseError(new Error("Oh noes!"))
+          case Left(_)  => BIO(0)
+          case Right(_) => BIO.raiseError(new Error("Oh noes!"))
         }
 
     throwup(0).unsafeRunSync()

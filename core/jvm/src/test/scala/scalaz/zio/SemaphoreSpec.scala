@@ -24,7 +24,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     val n = 20L
     unsafeRun(for {
       semaphore <- Semaphore.make(n)
-      available <- IO.foreach((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
+      available <- BIO.foreach((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
     } yield available must_=== 0)
   }
 
@@ -32,20 +32,20 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     val n = 20L
     unsafeRun(for {
       semaphore <- Semaphore.make(n)
-      available <- IO.foreachPar((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
+      available <- BIO.foreachPar((0L until n).toList)(_ => semaphore.acquire) *> semaphore.available
     } yield available must_=== 0)
   }
 
   def e3 =
     offsettingReleasesAcquires(
-      (s, permits) => IO.foreach(permits)(s.acquireN).unit,
-      (s, permits) => IO.foreach(permits.reverse)(s.releaseN).unit
+      (s, permits) => BIO.foreach(permits)(s.acquireN).unit,
+      (s, permits) => BIO.foreach(permits.reverse)(s.releaseN).unit
     )
 
   def e4 =
     offsettingReleasesAcquires(
-      (s, permits) => IO.foreachPar(permits)(amount => s.acquireN(amount)).unit,
-      (s, permits) => IO.foreachPar(permits.reverse)(amount => s.releaseN(amount)).unit
+      (s, permits) => BIO.foreachPar(permits)(amount => s.acquireN(amount)).unit,
+      (s, permits) => BIO.foreachPar(permits.reverse)(amount => s.releaseN(amount)).unit
     )
 
   def e5 = {

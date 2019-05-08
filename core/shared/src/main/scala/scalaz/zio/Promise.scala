@@ -43,7 +43,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * already been completed with a value or an error and false otherwise.
    */
   final def isDone: UIO[Boolean] =
-    IO.effectTotal(state.get() match {
+    BIO.effectTotal(state.get() match {
       case Done(_)    => true
       case Pending(_) => false
     })
@@ -53,7 +53,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * until the result is available.
    */
   final def await: BIO[E, A] =
-    IO.effectAsyncInterrupt[Any, E, A](k => {
+    BIO.effectAsyncInterrupt[Any, E, A](k => {
       var result = null.asInstanceOf[Either[Canceler, BIO[E, A]]]
       var retry  = true
 
@@ -81,34 +81,34 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * Completes immediately this promise and returns optionally it's result.
    */
   final def poll: UIO[Option[BIO[E, A]]] =
-    IO.effectTotal(state.get).flatMap {
-      case Pending(_) => IO.succeed(None)
-      case Done(io)   => IO.succeed(Some(io))
+    BIO.effectTotal(state.get).flatMap {
+      case Pending(_) => BIO.succeed(None)
+      case Done(io)   => BIO.succeed(Some(io))
     }
 
   /**
    * Completes the promise with the specified value.
    */
-  final def succeed(a: A): UIO[Boolean] = done(IO.succeed(a))
+  final def succeed(a: A): UIO[Boolean] = done(BIO.succeed(a))
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def fail(e: E): UIO[Boolean] = done(IO.fail(e))
+  final def fail(e: E): UIO[Boolean] = done(BIO.fail(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise.
    */
-  final def interrupt: UIO[Boolean] = done(IO.interrupt)
+  final def interrupt: UIO[Boolean] = done(BIO.interrupt)
 
   /**
    * Completes the promise with the specified result. If the specified promise
    * has already been completed, the method will produce false.
    */
   final def done(io: BIO[E, A]): UIO[Boolean] =
-    IO.flatten(IO.effectTotal {
+    BIO.flatten(BIO.effectTotal {
         var action: UIO[Boolean] = null.asInstanceOf[UIO[Boolean]]
         var retry                = true
 
@@ -118,13 +118,13 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
           val newState = oldState match {
             case Pending(joiners) =>
               action =
-                IO.forkAll_(joiners.map(k => IO.effectTotal[Unit](k(io)))) *>
-                  IO.succeed[Boolean](true)
+                BIO.forkAll_(joiners.map(k => BIO.effectTotal[Unit](k(io)))) *>
+                  BIO.succeed[Boolean](true)
 
               Done(io)
 
             case Done(_) =>
-              action = IO.succeed[Boolean](false)
+              action = BIO.succeed[Boolean](false)
 
               oldState
           }
@@ -156,7 +156,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     if (joiners ne null) joiners.reverse.foreach(k => exec.submit(() => k(io)))
   }
 
-  private def interruptJoiner(joiner: BIO[E, A] => Unit): Canceler = IO.effectTotal {
+  private def interruptJoiner(joiner: BIO[E, A] => Unit): Canceler = BIO.effectTotal {
     var retry = true
 
     while (retry) {
@@ -179,7 +179,7 @@ object Promise {
   /**
    * Makes a new promise.
    */
-  final def make[E, A]: UIO[Promise[E, A]] = IO.effectTotal[Promise[E, A]](unsafeMake[E, A])
+  final def make[E, A]: UIO[Promise[E, A]] = BIO.effectTotal[Promise[E, A]](unsafeMake[E, A])
 
   private final def unsafeMake[E, A]: Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
@@ -204,10 +204,10 @@ object Promise {
 
                   ((p, io), a2)
                 }.flatMap {
-                  case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.succeed(p))
+                  case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> BIO.succeed(p))
                 }.uninterruptible
             b <- p.await
-          } yield b).ensuring(pRef.get.flatMap(_.map(t => release(t._1, t._2)).getOrElse(IO.unit)))
+          } yield b).ensuring(pRef.get.flatMap(_.map(t => release(t._1, t._2)).getOrElse(BIO.unit)))
     } yield b
 
   private[zio] object internal {

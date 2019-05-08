@@ -180,10 +180,10 @@ sealed trait Chunk[@specialized +A] { self =>
     val len = length
 
     def loop(s: S, i: Int): ZIO[R, E, S] =
-      if (i >= len) IO.succeed(s)
+      if (i >= len) BIO.succeed(s)
       else {
         if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
-        else IO.succeed(s)
+        else BIO.succeed(s)
       }
 
     loop(z, 0)
@@ -220,7 +220,7 @@ sealed trait Chunk[@specialized +A] { self =>
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    foldLeft[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
+    foldLeft[ZIO[R, E, S]](BIO.succeed(s)) { (s, a) =>
       s.flatMap(f(_, a))
     }
 
@@ -403,7 +403,7 @@ sealed trait Chunk[@specialized +A] { self =>
    */
   final def traverse[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] = {
     val len                        = self.length
-    var array: ZIO[R, E, Array[B]] = IO.succeed(null.asInstanceOf[Array[B]])
+    var array: ZIO[R, E, Array[B]] = BIO.succeed(null.asInstanceOf[Array[B]])
     var i                          = 0
 
     while (i < len) {

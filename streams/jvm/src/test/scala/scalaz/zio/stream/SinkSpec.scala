@@ -2,8 +2,8 @@ package scalaz.zio.stream
 
 import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
-import scala.{ Stream => _ }
-import scalaz.zio.{ BIO, Chunk, Exit, GenIO, TestRuntime }
+import scala.{Stream => _}
+import scalaz.zio.{BIO, Chunk, Exit, GenIO, TestRuntime}
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -86,9 +86,9 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = ZSink.foldM[Any, E, Int, Int, Int](IO.succeed(0)) { (_, a) =>
+      val sink = ZSink.foldM[Any, E, Int, Int, Int](BIO.succeed(0)) { (_, a) =>
         effects ::= a
-        IO.succeed(Step.done(30, Chunk.empty))
+        BIO.succeed(Step.done(30, Chunk.empty))
       }
 
       val exit = unsafeRunSync(stream.run(sink))
@@ -120,25 +120,25 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     val numArrayParser =
       ZSink
-        .foldM(IO.succeed((ParserState.Start: ParserState, List.empty[Int]))) { (s, a: Char) =>
+        .foldM(BIO.succeed((ParserState.Start: ParserState, List.empty[Int]))) { (s, a: Char) =>
           s match {
             case (ParserState.Start, acc) =>
               a match {
-                case a if a.isWhitespace => IO.succeed(ZSink.Step.more((ParserState.Start, acc)))
-                case '['                 => IO.succeed(ZSink.Step.more((ParserState.Element(""), acc)))
-                case _                   => IO.fail("Expected '['")
+                case a if a.isWhitespace => BIO.succeed(ZSink.Step.more((ParserState.Start, acc)))
+                case '['                 => BIO.succeed(ZSink.Step.more((ParserState.Element(""), acc)))
+                case _                   => BIO.fail("Expected '['")
               }
 
             case (ParserState.Element(el), acc) =>
               a match {
-                case a if a.isDigit => IO.succeed(ZSink.Step.more((ParserState.Element(el + a), acc)))
-                case ','            => IO.succeed(ZSink.Step.more((ParserState.Element(""), acc :+ el.toInt)))
-                case ']'            => IO.succeed(ZSink.Step.done((ParserState.Done, acc :+ el.toInt), Chunk.empty))
-                case _              => IO.fail("Expected a digit or ,")
+                case a if a.isDigit => BIO.succeed(ZSink.Step.more((ParserState.Element(el + a), acc)))
+                case ','            => BIO.succeed(ZSink.Step.more((ParserState.Element(""), acc :+ el.toInt)))
+                case ']'            => BIO.succeed(ZSink.Step.done((ParserState.Done, acc :+ el.toInt), Chunk.empty))
+                case _              => BIO.fail("Expected a digit or ,")
               }
 
             case (ParserState.Done, acc) =>
-              IO.succeed(ZSink.Step.done((ParserState.Done, acc), Chunk.empty))
+              BIO.succeed(ZSink.Step.done((ParserState.Done, acc), Chunk.empty))
           }
         }
         .map(_._2)
@@ -165,7 +165,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val elements = numbers <* brace
 
     lazy val start: ZSink[Any, String, Char, Char, List[Int]] =
-      ZSink.more(IO.fail("Input was empty")) {
+      ZSink.more(BIO.fail("Input was empty")) {
         case a if a.isWhitespace => start
         case '['                 => elements
         case _                   => ZSink.fail("Expected '['")

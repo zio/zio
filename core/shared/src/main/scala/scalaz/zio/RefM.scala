@@ -65,7 +65,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
    * if the function is undefined in the current value it returns the old value without changing it.
    */
   final def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
-    modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
+    modify(a => pf.applyOrElse(a, (_: A) => BIO.succeed(a)).map(a => (a, a)))
 
   /**
    * Atomically modifies the `RefM` with the specified function, which computes
@@ -97,7 +97,7 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
       env     <- ZIO.environment[R]
       bundle = RefM.Bundle[E, A, B](
         ref,
-        pf.andThen(_.provide(env)).orElse[A, BIO[E, (B, A)]] { case a => IO.succeed(default -> a) },
+        pf.andThen(_.provide(env)).orElse[A, BIO[E, (B, A)]] { case a => BIO.succeed(default -> a) },
         promise
       )
       b <- (for {
@@ -129,7 +129,7 @@ object RefM extends Serializable {
   final def make[A](
     a: A,
     n: Int = 1000,
-    onDefect: Cause[_] => UIO[Unit] = _ => IO.unit
+    onDefect: Cause[_] => UIO[Unit] = _ => BIO.unit
   ): UIO[RefM[A]] =
     for {
       ref   <- Ref.make(a)

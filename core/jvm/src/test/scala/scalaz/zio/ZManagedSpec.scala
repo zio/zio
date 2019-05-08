@@ -23,7 +23,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def invokesCleanupsInReverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(BIO.effectTotal { effects += x; () })(_ => BIO.effectTotal { effects += x; () })
 
     val (first, second, third) = (res(1), res(2), res(3))
 
@@ -33,7 +33,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       _ <- third
     } yield ()
 
-    val program = composed.use[Any, Nothing, Unit](_ => IO.unit)
+    val program = composed.use[Any, Nothing, Unit](_ => BIO.unit)
 
     unsafeRun(program)
 
@@ -44,9 +44,9 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     val cleanups = new mutable.ListBuffer[String]
 
     def managed(v: String): ZManaged[Any, Nothing, String] =
-      ZManaged.make(IO.succeed(v))(_ => IO.effectTotal { cleanups += v; () })
+      ZManaged.make(BIO.succeed(v))(_ => BIO.effectTotal { cleanups += v; () })
 
-    val program = managed("A").zipWithPar(managed("B"))(_ + _).use[Any, Nothing, String](IO.succeed)
+    val program = managed("A").zipWithPar(managed("B"))(_ + _).use[Any, Nothing, String](BIO.succeed)
 
     val result = unsafeRun(program)
 
@@ -57,21 +57,21 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def traverse = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int) =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+      ZManaged.make(BIO.effectTotal { effects += x; () })(_ => BIO.effectTotal { effects += x; () })
 
     val resources = ZManaged.foreach(List(1, 2, 3))(res)
 
-    unsafeRun(resources.use(_ => IO.unit))
+    unsafeRun(resources.use(_ => BIO.unit))
 
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
 
   private def uninterruptible =
-    doInterrupt(io => ZManaged.make(io)(_ => IO.unit), None)
+    doInterrupt(io => ZManaged.make(io)(_ => BIO.unit), None)
 
   // unlike make, reserve allows interruption
   private def interruptible =
-    doInterrupt(io => ZManaged.reserve(Reservation(io, IO.unit)), Some(Failure(Interrupt)))
+    doInterrupt(io => ZManaged.reserve(Reservation(io, BIO.unit)), Some(Failure(Interrupt)))
 
   private def doInterrupt(
     managed: BIO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
@@ -80,7 +80,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     val program = for {
       never              <- Promise.make[Nothing, Unit]
       reachedAcquisition <- Promise.make[Nothing, Unit]
-      managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(IO.unit).fork
+      managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).use_(BIO.unit).fork
       _                  <- reachedAcquisition.await
       interruption       <- managedFiber.interrupt.timeout(5.seconds).either
     } yield interruption
