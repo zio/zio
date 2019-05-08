@@ -25,7 +25,11 @@ private[syntax] object Concurrent2Syntax {
     @inline def uninterruptible(implicit C: Concurrent2[F]): F[E, A] =
       C.uninterruptible(fa)
 
-    @inline def onInterrupt(cleanup: F[Nothing, _])(implicit C: Concurrent2[F]): F[E, A] =
+    @inline def onInterrupt(cleanup: F[Nothing, Unit])(
+      implicit
+      C: Concurrent2[F],
+      CD: ConcurrentData2[F]
+    ): F[E, A] =
       C.onInterrupt(fa)(cleanup)
 
     @inline def yieldTo(implicit C: Concurrent2[F]): F[E, A] =

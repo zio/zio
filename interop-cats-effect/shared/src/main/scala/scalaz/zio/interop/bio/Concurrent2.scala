@@ -21,6 +21,7 @@ package bio
 import cats.kernel.Monoid
 import cats.syntax.option._
 import cats.syntax.flatMap.catsSyntaxFlatten
+import cats.syntax.flatMap.catsSyntaxFlatMapOps
 import scalaz.zio.interop.bio.data.{ Deferred2, Ref2 }
 
 import scala.concurrent.ExecutionContext
@@ -166,7 +167,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
               right <- start(fa2)
               _     <- start[Nothing, Unit](left.await >>= arbiter(leftDone, right, race, done))
               _     <- start[Nothing, Unit](right.await >>= arbiter(rightDone, left, race, done))
-              rc    <- onInterrupt(done.await)(left.cancel *> right.cancel)
+              rc    <- onInterrupt(done.await)(left.cancel >> right.cancel >> monad.unit)
             } yield rc
           )
     } yield c
@@ -298,8 +299,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   final def bracket[E, A, B](acquire: F[E, A], release: (A, Option[Either[E, B]]) => F[Nothing, Unit])(
     use: A => F[E, B]
   )(
-    implicit
-    CD: ConcurrentData2[F]
+    implicit CD: ConcurrentData2[F]
   ): F[E, B] = {
 
     implicit val _: Errorful2[F] = self
@@ -327,7 +327,17 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, _]): F[E, A]
+  def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, Unit])(
+    implicit CD: ConcurrentData2[F]
+  ): F[E, A] = {
+
+    def maybeCleanup[AA]: (AA, Option[Either[_, A]]) => F[Nothing, Unit] = {
+      case (_, None) => cleanup
+      case _         => monad.unit
+    }
+
+    bracket(monad.unit, maybeCleanup)(_ => fa)
+  }
 
   // may be
   def cont[E, A](r: (F[E, A] => F[Nothing, Unit]) => F[Nothing, Unit]): F[E, A]
