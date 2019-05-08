@@ -1572,7 +1572,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * For a sequential version of this method, see `foreach_`.
    */
-  final def foreachPar_[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+  final def foreachPar_[R >: LowerR, E <: UpperE, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     ZIO.succeedLazy(as.iterator).flatMap { i =>
       def loop(a: A): ZIO[R, E, Unit] =
         if (i.hasNext) f(a).zipWithPar(loop(i.next))((_, _) => ())
@@ -1587,7 +1587,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
-  final def foreachParN_[R >: LowerR, E <: UpperE, A, B](
+  final def foreachParN_[R >: LowerR, E <: UpperE, A](
     n: Long
   )(as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     Semaphore.make(n).flatMap { semaphore =>
