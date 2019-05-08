@@ -32,6 +32,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.take
     take                     $take
     take short circuits      $takeShortCircuits
+    take(0) short circuits   $take0ShortCircuitsStreamNever
+    take(1) short circuits   $take1ShortCircuitsStreamNever
     takeWhile                $takeWhile
     takeWhile short circuits $takeWhileShortCircuits
 
@@ -205,6 +207,20 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _      <- stream.run(Sink.drain)
         result <- ran.get
       } yield result must_=== false
+    )
+
+  private def take0ShortCircuitsStreamNever =
+    unsafeRun(
+      for {
+        units <- Stream.never.take(0).run(Sink.collect[Unit])
+      } yield units must_=== List()
+    )
+
+  private def take1ShortCircuitsStreamNever =
+    unsafeRun(
+      for {
+        ints <- (Stream(1) ++ Stream.never).take(1).run(Sink.collect[Int])
+      } yield ints must_=== List(1)
     )
 
   private def foreach0 = {
