@@ -1,17 +1,23 @@
 package scalaz.zio.interop
 
-import com.twitter.util.Future
+import java.util.concurrent.atomic.AtomicInteger
+
+import com.twitter.util.{ Duration => TwitterDuration, Future, JavaTimer }
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.{ FiberFailure, Task, TestRuntime }
 import scalaz.zio.Exit.Cause.Fail
+import scalaz.zio.duration.Duration
 import scalaz.zio.interop.twitter._
+
+import scala.concurrent.duration._
 
 class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is =
     "Twitter spec".title ^ s2"""
-    `Task.fromTwitterFuture` must return
-      a failing `Task` if the future failed.                   $propagateFailures
-      a successful `Task` that produces the value from future. $propagateResults
+    `Task.fromTwitterFuture` must
+      return failing `Task` if future failed.          $propagateFailures
+      return successful `Task` if future succeeded.    $propagateResults
+      ensure future is interrupted together with task. $propagateInterrupts
     """
 
   private def propagateFailures = {
@@ -28,5 +34,23 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val task   = Task.fromTwitterFuture(future)
 
     unsafeRun(task) ==== value
+  }
+
+  private def propagateInterrupts = {
+    implicit val timer = new JavaTimer(true)
+
+    val futureTimeout = TwitterDuration.fromSeconds(3)
+    val taskTimeout   = Duration.fromScala(1.second)
+    val value         = new AtomicInteger(0)
+
+    lazy val future = Future.sleep(futureTimeout).map(_ => value.incrementAndGet())
+
+    val task = Task.fromTwitterFuture(future).timeout(taskTimeout)
+
+    unsafeRun(task) must beNone
+
+    SECONDS.sleep(5)
+
+    value.get() ==== 0
   }
 }
