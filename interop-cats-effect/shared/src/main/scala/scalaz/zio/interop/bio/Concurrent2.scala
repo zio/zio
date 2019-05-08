@@ -114,7 +114,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
     implicit val _: Errorful2[F] = self
 
-    def decider[E1 <: EE, E2 <: EE, A1, B1](
+    def arbiter[E1 <: EE, E2 <: EE, A1, B1](
       winner: Option[Either[E1, A1]],
       other: Fiber2[F, E2, B1]
     ): F[EE, Option[Either[A1, B1]]] =
@@ -139,8 +139,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
       }
 
     raceWith(fa1, fa2)(
-      (fa1Done, fiber2) => decider(fa1Done, fiber2),
-      (fa2Done, fiber1) => decider(fa2Done, fiber1) map (_ map (_.swap))
+      arbiter(_, _),
+      arbiter(_, _) map (_ map (_.swap))
     )
   }
 
