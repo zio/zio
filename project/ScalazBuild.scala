@@ -75,7 +75,7 @@ object Scalaz {
           "-Ywarn-unused:_,imports",
           "-Ywarn-unused:imports",
           "-opt:l:inline",
-          "-opt-inline-from:<sources>",
+          "-opt-inline-from:scalaz.zio.internal.**",
           "-Ypartial-unification",
           "-Yno-adapted-args",
           "-Ywarn-inaccessible",
