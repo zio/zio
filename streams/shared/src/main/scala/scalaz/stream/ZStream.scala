@@ -198,15 +198,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               permits <- Managed.fromEffect(Semaphore.make(n))
               // - The driver stream forks an inner fiber for each stream created
               //   by f, with an upper bound of n concurrent fibers, enforced by the semaphore.
-              //   - On completion, the driver stream joins all pending inner fibers and
-              //     emits a Take.End value
+              //   - On completion, the driver stream joins all pending inner fibers:
+              //     - If one of them failed, all other fibers are interrupted
+              //     - If they all succeeded, Take.End is enqueued
               //   - On error, the driver stream interrupts all inner fibers and emits a
               //     Take.Fail value
               //   - On interruption, the driver stream interrupts all inner fibers and
               //     shuts down the queue
               // - Inner fibers enqueue Take values from their streams to the output queue
-              //   - On error, an inner fiber enqueues a Take.Error value and interrupts
-              //     the driver stream
+              //   - On error, an inner fiber enqueues a Take.Error value and signals its failure
+              //     with a promise. The driver will pick that up and interrupt all other fibers.
               //   - On interruption, an inner fiber does nothing
               //   - On completion, an inner fiber does nothing
               _ <- Managed.make {
