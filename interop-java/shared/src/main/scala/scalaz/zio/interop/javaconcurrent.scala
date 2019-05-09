@@ -98,7 +98,8 @@ object javaconcurrent {
         def poll: UIO[Option[Exit[Throwable, A]]] =
           BIO.suspend {
             if (ftr.isDone) {
-              BIO.effect(ftr.get())
+              BIO
+                .effect(ftr.get())
                 .refineOrDie(JustExceptions)
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))

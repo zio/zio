@@ -16,7 +16,7 @@
 
 package scalaz.zio.syntax
 
-import scalaz.zio.{BIO, Fiber, Task, UIO}
+import scalaz.zio.{ BIO, Fiber, Task, UIO }
 
 object BIOSyntax {
   final class BIOCreationLazySyntax[A](val a: () => A) extends AnyVal {

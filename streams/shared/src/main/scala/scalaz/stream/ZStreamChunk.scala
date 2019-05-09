@@ -81,7 +81,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
                 val remaining = as.dropWhile(pred)
 
                 if (remaining.length > 0) f(s, remaining).map(false -> _)
-                else BIO.succeed(true                                -> s)
+                else BIO.succeed(true                               -> s)
               case ((false, s), as) => f(s, as).map(false -> _)
             }
             .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11

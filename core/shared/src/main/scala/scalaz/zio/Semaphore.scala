@@ -90,7 +90,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     else
       Promise.make[Nothing, Unit].flatMap { p =>
         state.modify {
-          case Right(m) if m >= n => Acquisition(BIO.unit, releaseN(n))   -> Right(m - n)
+          case Right(m) if m >= n => Acquisition(BIO.unit, releaseN(n))  -> Right(m - n)
           case Right(m)           => Acquisition(p.await, restore(p, n)) -> Left(IQueue(p -> (n - m)))
           case Left(q)            => Acquisition(p.await, restore(p, n)) -> Left(q.enqueue(p -> n))
         }

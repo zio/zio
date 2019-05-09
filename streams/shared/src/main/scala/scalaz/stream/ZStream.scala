@@ -157,7 +157,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         self.fold[R1, E1, A, (Boolean, S)].flatMap { f0 =>
           def func(tp: (Boolean, S), a: A): ZIO[R1, E1, (Boolean, S)] =
             (tp, a) match {
-              case ((true, s), a) if pred(a) => BIO.succeed(true   -> s)
+              case ((true, s), a) if pred(a) => BIO.succeed(true  -> s)
               case ((_, s), a)               => f(s, a).map(false -> _)
             }
 
@@ -493,7 +493,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           f0(true -> s, tp => tp._1 && cont(tp._2), {
             case ((_, s), a) =>
               if (pred(a)) f(s, a).map(true -> _)
-              else BIO.succeed(false         -> s)
+              else BIO.succeed(false        -> s)
           }).map(_._2)
         }
       }

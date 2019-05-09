@@ -72,7 +72,8 @@ object Console extends Serializable {
        * returns null.
        */
       final def getStrLn(reader: Reader): BIO[IOException, String] =
-        BIO.effect(SConsole.withIn(reader) {
+        BIO
+          .effect(SConsole.withIn(reader) {
             val line = StdIn.readLine()
             if (line == null) {
               throw new EOFException("There is no more input left to read")

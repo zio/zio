@@ -108,7 +108,8 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * has already been completed, the method will produce false.
    */
   final def done(io: BIO[E, A]): UIO[Boolean] =
-    BIO.flatten(BIO.effectTotal {
+    BIO
+      .flatten(BIO.effectTotal {
         var action: UIO[Boolean] = null.asInstanceOf[UIO[Boolean]]
         var retry                = true
 

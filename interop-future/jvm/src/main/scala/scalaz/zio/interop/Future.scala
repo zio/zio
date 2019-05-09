@@ -141,7 +141,8 @@ package object future {
     final def transform[S](f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] = {
       val g: Try[T] => BIO[Throwable, S] =
         (t: Try[T]) =>
-          BIO.effect(f(t) match {
+          BIO
+            .effect(f(t) match {
               case Failure(t) => BIO.fail(t)
               case Success(s) => BIO.succeed(s)
             })

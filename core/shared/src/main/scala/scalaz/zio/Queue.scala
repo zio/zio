@@ -389,7 +389,8 @@ object ZQueue {
     final val size: UIO[Int] = checkShutdownState.map(_ => queue.size() - takers.size() + strategy.surplusSize)
 
     final val shutdown: UIO[Unit] =
-      BIO.whenM(shutdownHook.succeed(()))(
+      BIO
+        .whenM(shutdownHook.succeed(()))(
           BIO.effectTotal(unsafePollAll(takers)) >>= (BIO.foreachPar(_)(_.interrupt) *> strategy.shutdown)
         )
         .uninterruptible
