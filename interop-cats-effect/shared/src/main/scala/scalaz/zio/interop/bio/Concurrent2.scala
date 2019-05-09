@@ -176,15 +176,17 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     for {
       done <- CD.deferred[E3, C]
       race <- CD.ref(0)
-      c <- uninterruptible[E3, C](
+      c <- bracket(
             for {
               left  <- start(fa1)
               right <- start(fa2)
               _     <- start[Nothing, Unit](left.await >>= arbiter(leftDone, right, race, done))
               _     <- start[Nothing, Unit](right.await >>= arbiter(rightDone, left, race, done))
-              rc    <- onInterrupt(done.await)(left.cancel >> right.cancel >> monad.unit)
-            } yield rc
-          )
+            } yield (left, right),
+            (_: (Fiber2[F, E1, A], Fiber2[F, E2, B]), _: Option[Either[_, C]]) => monad.unit
+          ) {
+            case (left, right) => onInterrupt(done.await)(left.cancel >> right.cancel >> monad.unit)
+          }
     } yield c
   }
 
