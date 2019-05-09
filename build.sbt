@@ -257,7 +257,7 @@ lazy val benchmarks = project.module
         "org.typelevel"            %% "cats-effect"     % "1.3.0",
         "co.fs2"                   %% "fs2-core"        % "1.0.4",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.20",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.6",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.8",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2"
