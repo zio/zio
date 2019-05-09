@@ -192,37 +192,68 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     new ZStream[R1, E1, B] {
       override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
         ZIO.succeedLazy { (s, cont, g) =>
-          for {
-            out          <- Queue.bounded[Take[E1, B]](outputBuffer)
-            permits      <- Semaphore.make(n)
-            driverFailed <- Ref.make[Boolean](false)
-            // - The driver stream forks an inner fiber for each stream created
-            //   by f, with an upper bound of n concurrent fibers.
-            //   - On completion, the driver stream joins all pending inner fibers and
-            //     emits a Take.End value
-            //   - On error, the driver stream interrupts all inner fibers and emits a
-            //     Take.Fail value
-            //   - On interruption, the driver stream interrupts all inner fibers and
-            //     shuts down the queue
-            // - Inner fibers enqueue Take values from their streams to the output queue
-            //   - On error, an inner fiber enqueues a Take.Error value
-            //   - On interruption, an inner fiber does nothing
-            //   - On completion, an inner fiber does nothing
-            driver = (for {
-              _ <- self.foreach { a =>
-                    permits.withPermit {
-                      f(a)
-                        .foreach(b => out.offer(Take.Value(b)).unit)
-                        .catchAll(e => out.offer(Take.Fail(e)).unit)
-                    }.fork.unit
-                  }.catchAll(e => ZIO.children.flatMap(Fiber.interruptAll) *> out.offer(Take.Fail(e)))
-              _ <- ZIO.children.flatMap(Fiber.joinAll)
-              _ <- out.offer(Take.End)
-            } yield ()).onInterrupt(out.shutdown *> ZIO.children.flatMap(Fiber.interruptAll)).supervised.fork
-            driverFiber <- driver
-            outputFold  <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S]
-            s           <- outputFold(s, cont, g).onInterrupt(driverFiber.interrupt)
-          } yield s
+          val resources =
+            for {
+              out     <- Managed.fromEffect(Queue.bounded[Take[E1, B]](outputBuffer))
+              permits <- Managed.fromEffect(Semaphore.make(n))
+              // - The driver stream forks an inner fiber for each stream created
+              //   by f, with an upper bound of n concurrent fibers, enforced by the semaphore.
+              //   - On completion, the driver stream joins all pending inner fibers and
+              //     emits a Take.End value
+              //   - On error, the driver stream interrupts all inner fibers and emits a
+              //     Take.Fail value
+              //   - On interruption, the driver stream interrupts all inner fibers and
+              //     shuts down the queue
+              // - Inner fibers enqueue Take values from their streams to the output queue
+              //   - On error, an inner fiber enqueues a Take.Error value and interrupts
+              //     the driver stream
+              //   - On interruption, an inner fiber does nothing
+              //   - On completion, an inner fiber does nothing
+              _ <- Managed.make {
+                    Promise.make[E1, Nothing].flatMap { innerFailure =>
+                      self.foreach { a =>
+                        permits.withPermit {
+                          f(a)
+                            .foreach(b => out.offer(Take.Value(b)).unit)
+                            .catchAll(e => innerFailure.fail(e) *> out.offer(Take.Fail(e)).unit)
+                            .fork
+                            .unit
+                        }
+                      }.foldCauseM(
+                          cause =>
+                            cause.failureOrCause.fold(
+                              // The driver stream failed.
+                              e => out.offer(Take.Fail(e)),
+                              // The driver stream had a defect.
+                              c => out.shutdown *> ZIO.halt(c)
+                            ),
+                          _ =>
+                            for {
+                              innerFibers <- ZIO.children
+                              _ <- innerFailure.await.raceWith(Fiber.joinAll(innerFibers))(
+                                    // One of the inner fibers failed. It already enqueued its failure,
+                                    // so we don't need to do anything except interrupt all the other fibers.
+                                    leftDone = (_, _) => ZIO.children.flatMap(Fiber.interruptAll),
+                                    // All fibers completed successfully, so we just need to signal that
+                                    // we're done.
+                                    rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt
+                                  )
+                            } yield ()
+                        )
+                        .onInterrupt(ZIO.children.flatMap(Fiber.interruptAll) *> out.shutdown)
+                        .supervised
+                        .fork
+                    }
+                  }(_.interrupt)
+            } yield out
+
+          resources use { out =>
+            ZStream
+              .fromQueue(out)
+              .unTake
+              .fold[R2, E2, B1, S]
+              .flatMap(outputFold => outputFold(s, cont, g))
+          }
         }
     }
 

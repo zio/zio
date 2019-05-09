@@ -58,9 +58,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.drain              $drain
 
   Stream.flatMapPar/flattenPar/mergeAll
-    consistent with flatMap  $flatMapParConsistency
-    short circuiting         $flatMapParShortCircuiting
-    interruption propagation $flatMapParInterruptionPropagation
+    consistent with flatMap     $flatMapParConsistency
+    short circuiting            $flatMapParShortCircuiting
+    interruption propagation    $flatMapParInterruptionPropagation
+    errors interrupt all fibers $flatMapParErrorsInterruptAllFibers
 
   Stream bracketing
     bracket                              $bracket
@@ -295,15 +296,14 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def flatMapParShortCircuiting = unsafeRun {
-    for {
-      results <- Stream
-                  .mergeAll(2)(
-                    Stream.never,
-                    Stream(1)
-                  )
-                  .take(1)
-                  .run(Sink.collect[Int])
-    } yield results must_=== List(1)
+    Stream
+      .mergeAll(2)(
+        Stream.never,
+        Stream(1)
+      )
+      .take(1)
+      .run(Sink.collect[Int])
+      .map(_ must_=== List(1))
   }
 
   private def flatMapParInterruptionPropagation = unsafeRun {
@@ -320,6 +320,20 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       _         <- fiber.interrupt
       cancelled <- substreamCancelled.get
     } yield cancelled must_=== true
+  }
+
+  private def flatMapParErrorsInterruptAllFibers = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- Stream(
+                 Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
+                 Stream.fromEffect(latch.await *> ZIO.fail("Ouch"))
+               ).flatMapPar(2)(identity)
+                 .run(Sink.drain)
+                 .either
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
   }
 
   private def forever = {
