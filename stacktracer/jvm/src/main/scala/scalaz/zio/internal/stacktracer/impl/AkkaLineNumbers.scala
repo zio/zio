@@ -2,34 +2,17 @@
  * Copyright (C) 2014-2019 Lightbend Inc. <https://www.lightbend.com>
  */
 
-package scalaz.zio.stacktracer
+package scalaz.zio.internal.stacktracer.impl
 
-import java.io.{ DataInputStream, InputStream }
+import java.io.{DataInputStream, InputStream}
 import java.lang.invoke.SerializedLambda
 
 import scala.annotation.switch
 import scala.util.control.NonFatal
 
-// asm micros: 628
-//  a.t(LambdaExtractor.scala:166) akka micros: 125
-//  at scalaz.zio.stacktracer.Main$.main(LambdaExtractor.scala:166)
-//asm micros: 657
-//  a.t(LambdaExtractor.scala:160) akka micros: 169
-//  at subclass of scala.Function1 scalaz.zio.stacktracer.Main$$anon$2 defined at(LambdaExtractor.scala:160)
-//asm micros: 708
-//  a.t(LambdaExtractor.scala:120) akka micros: 105
-//  at scalaz.zio.stacktracer.z$.x(LambdaExtractor.scala:120)
-//asm micros: 613
-//  a.t(LambdaExtractor.scala:121) akka micros: 99
-//  at scalaz.zio.stacktracer.z$.x(LambdaExtractor.scala:121)
-//asm micros: 593
-//  a.t(LambdaExtractor.scala:123) akka micros: 97
-//  at scalaz.zio.stacktracer.z$.x(LambdaExtractor.scala:123)
-//asm micros: 632
-
 /**
- * This parser has been copied from `akka-typed` project and modified,
- * as always those guys are way ahead of us! ;)
+ * This parser has been copied from the `akka-typed` project and modified,
+ * as always these guys are way ahead of us! ;)
  *
  * https://github.com/akka/akka/blob/4729a80e7e6f2923a7e6369b21b2693f82c64589/akka-actor/src/main/scala/akka/util/LineNumbers.scala
  *
@@ -47,7 +30,7 @@ object AkkaLineNumbers {
   sealed trait Result
   case object NoSourceInfo                                  extends Result
   final case class UnknownSourceFormat(explanation: String) extends Result
-  final case class SourceFile(filename: String) extends Result {
+  final case class SourceFile(filename: String)             extends Result {
     override def toString = filename
   }
   final case class SourceFileLines(filename: String, from: Int, to: Int, className: String, methodName: String)
@@ -65,19 +48,10 @@ object AkkaLineNumbers {
    * byte code for those.
    */
   // FIXME: this needs memoization with an LRU cache
-  final def apply(obj: AnyRef): Result = forObject(obj)
-
-  /**
-   * Extract source information if available and format a string to identify the
-   * class definition in question. This will include the package name and either
-   * source file information or the class name.
-   */
-  def prettyName(obj: AnyRef): String =
-    apply(obj) match {
-      case NoSourceInfo             => obj.getClass.getName
-      case UnknownSourceFormat(msg) => s"${obj.getClass.getName}($msg)"
-      case SourceFile(f)            => s"${obj.getClass.getName}($f)"
-      case l: SourceFileLines       => s"${obj.getClass.getPackage.getName}/$l"
+  final def apply(obj: AnyRef): Result =
+    getStreamForLambda(obj) orElse getStreamForClass(obj.getClass) match {
+      case Some((stream, className, methodName)) => getInfo(stream, className, methodName)
+      case None                                  => NoSourceInfo
     }
 
   /*
@@ -161,12 +135,6 @@ object AkkaLineNumbers {
 
   }
 
-  private[this] def forObject(obj: AnyRef): Result =
-    getStreamForLambda(obj).orElse(getStreamForClass(obj.getClass)) match {
-      case Some((stream, className, methodName)) => getInfo(stream, className, methodName)
-      case None                                  => NoSourceInfo
-    }
-
   private[this] def getInfo(stream: InputStream, className: String, methodName: Option[String]): Result = {
     val dis = new DataInputStream(stream)
 
@@ -185,17 +153,19 @@ object AkkaLineNumbers {
       if (source.isEmpty) NoSourceInfo
       else
         lines match {
-          case None => SourceFile(source.get)
+          case None =>
+            SourceFile(source.get)
           case Some((from, to)) =>
-            SourceFileLines(source.get, from, to, className, methodName.getOrElse("<anon_class>"))
+            SourceFileLines(source.get, from, to, className, methodName.getOrElse("apply"))
         }
 
     } catch {
       case NonFatal(ex) => UnknownSourceFormat(s"parse error: ${ex.getMessage}")
-    } finally try dis.close()
-    catch {
-      case ex: InterruptedException => throw ex
-      case NonFatal(_)              => // ignore
+    } finally {
+      try dis.close() catch {
+        case ex: InterruptedException => throw ex
+        case NonFatal(_) => // ignore
+      }
     }
   }
 

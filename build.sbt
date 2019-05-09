@@ -241,7 +241,6 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-//      "org.ow2.asm" % "asm"                    % "7.1",
       "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
       "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
       "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
@@ -250,6 +249,18 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
 
 lazy val stacktracerJS  = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
+  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
+  .settings(
+    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
+    sources in (Compile, doc) := {
+      val old = (Compile / doc / sources).value
+      if (isDotty.value) {
+        Nil
+      } else {
+        old
+      }
+    }
+  )
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
@@ -268,7 +279,8 @@ lazy val benchmarks = project.module
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.6",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
-        "com.google.code.findbugs" % "jsr305"           % "3.0.2"
+        "com.google.code.findbugs" % "jsr305"           % "3.0.2",
+        "org.ow2.asm"              % "asm"              % "7.1"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))

@@ -3,7 +3,8 @@ package scalaz.zio
 import org.specs2.execute.Result
 import org.specs2.mutable
 import scalaz.zio.duration._
-import scalaz.zio.stacktracer.SourceLocation
+import scalaz.zio.internal.stacktracer.ZTraceElement
+import scalaz.zio.internal.stacktracer.ZTraceElement.SourceLocation
 
 class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -31,6 +32,21 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   "tracing regions" >> tracingRegions
   "tracing region is inherited on fork" >> tracingRegionsInheritance
 
+  val debug = true
+
+  def show(trace: ZTrace): Unit = if (debug) println(trace.prettyPrint)
+  def show(cause: Exit.Cause[_]): Unit = if (debug) println(cause.prettyPrint)
+  def show(exit: Exit[_, _]): Unit = if (debug) println(exit.fold(_.prettyPrint, _ => "success"))
+
+  def mentionsMethod(method: String, trace: ZTraceElement): Boolean =
+    trace match {
+      case s: SourceLocation => s.method contains method
+      case _ => false
+    }
+
+  def mentionsMethod(method: String, traces: List[ZTraceElement]): Boolean =
+    traces.exists(mentionsMethod(method, _))
+
   def basicTest = {
     val res = unsafeRun(for {
       _     <- ZIO.unit
@@ -47,7 +63,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       trace <- ZIO.trace
     } yield trace)
 
-    System.err.println(res.prettyPrint)
+    show(res)
 
     res must_=== res
   }
@@ -65,10 +81,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
                   ZIO.unit *> // FIXME: flatMap required to get the line...
                     ZIO.trace
               }
-              .foldCauseM(e => UIO(println(e)), _ => ZIO.unit)
+              .foldCauseM(e => UIO(show(e)), _ => ZIO.unit)
         trace <- ZIO.trace
-        _     <- UIO(println(trace.prettyPrint))
-        _     <- UIO(println(trace))
+        _     <- UIO(show(trace))
       } yield ())
 
     res() must_!= Exit.fail("Dummy error!")
@@ -83,7 +98,10 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRunSync(io).fold[Result](
       _.traces.head.stackTrace must have size 1 and contain {
-        (_: SourceLocation).method.exists(_ contains "foreachParFail")
+        (_: ZTraceElement) match {
+          case s: SourceLocation => s.method contains "foreachParFail"
+          case _ => false
+        }
       },
       _ => failure
     )
@@ -92,8 +110,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   def leftAssociativeFold = {
     def left(): ZIO[Any, Nothing, ZTrace] =
       (1 to 10)
-        .foldLeft(ZIO.unit *> ZIO.unit) { (acc, i) =>
-          acc *> UIO(println(i))
+        .foldLeft(ZIO.unit *> ZIO.unit) { (acc, _) =>
+          acc *> UIO(())
         } *>
         ZIO.unit *>
         ZIO.unit *>
@@ -104,8 +122,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       trace <- left()
     } yield trace)
 
-    System.err.println(res.prettyPrint)
-    System.err.println(res.executionTrace.mkString("\n"))
+    show(res)
 
     res must_=== res
   }
@@ -118,8 +135,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         _     <- ZIO.unit
         _     <- ZIO.unit
         _     <- ZIO.unit
-        _     <- UIO(println(trace.prettyPrint))
-      } yield println()
+        _     <- UIO(show(trace))
+      } yield ()
 
     def m1 =
       for {
@@ -140,7 +157,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
           failure = _ => IO.fail(()),
           success = _ =>
             IO.trace
-              .flatMap(t => UIO(println(t.prettyPrint)))
+              .flatMap(t => UIO(show(t)))
         )
 
     unsafeRun(m0) must_== (())
@@ -164,7 +181,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     def fiber2 =
       for {
         trace <- ZIO.trace
-        _     <- UIO(println(trace.prettyPrint))
+        _     <- UIO(show(trace))
       } yield ()
 
     val res = unsafeRun(fiber0)
@@ -182,8 +199,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         val trace = cause.traces.head
 
         // the first items on exec trace and stack trace refer to this line
-        trace.stackTrace.head.method.exists(_ contains "blockingTrace") and
-          trace.executionTrace.head.method.exists(_ contains "blockingTrace")
+        mentionsMethod("blockingTrace", trace.stackTrace.head) and
+          mentionsMethod("blockingTrace", trace.executionTrace.head)
       },
       _ => failure
     )
@@ -201,11 +218,11 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRunSync(io).fold[Result](
       cause => {
-        println(cause.prettyPrint)
+        show(cause)
 
         (cause.traces must have size 1) and
-          cause.traces.head.executionTrace.exists(_.method.exists(_.contains("traceThis"))) and
-          !cause.traces.head.executionTrace.exists(_.method.exists(_.contains("tracingRegions"))) and
+          mentionsMethod("traceThis", cause.traces.head.executionTrace) and
+          !mentionsMethod("tracingRegions", cause.traces.head.executionTrace) and
           cause.traces.head.stackTrace.isEmpty
       },
       _ => failure
@@ -222,9 +239,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRunSync(io).fold[Result](
       cause => {
-        println(cause.prettyPrint)
+        show(cause)
 
-        cause.traces must beEmpty
+        cause.traces.isEmpty
       },
       _ => failure
     )

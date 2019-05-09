@@ -231,7 +231,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           _ => left.join.map(Left(_)),
           b => ZIO.succeedRight(b) <* left.interrupt
         )
-    )
+    ).refailWithTrace
 
   /**
    * Returns an effect that races this effect with the specified effect,
@@ -242,7 +242,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     raceWith(that)(
       { case (l, f) => l.fold(f.interrupt *> ZIO.halt(_), ZIO.succeed) },
       { case (r, f) => r.fold(f.interrupt *> ZIO.halt(_), ZIO.succeed) }
-    )
+    ).refailWithTrace
 
   /**
    * Returns an effect that races this effect with the specified effect, calling
@@ -894,15 +894,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] = self.flatMap(new ZIO.TapFn(f))
 
   /**
-   * Returns an effect that effectfully "peeks" at the failure or success or
+   * Returns an effect that effectfully "peeks" at the failure or success of
    * this effect.
    * {{{
    * readFile("data.json").tapBoth(logError(_), logData(_))
    * }}}
    */
   final def tapBoth[R1 <: R, E1 >: E, A1 >: A](f: E => ZIO[R1, E1, _], g: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
-    self.foldM(
-      e => f(e) *> ZIO.fail(e),
+    self.foldCauseM(
+      c => c.failureOrCause.fold(f(_) *> ZIO.halt(c), _ => ZIO.halt(c)),
       a => g(a) *> ZIO.succeed(a)
     )
 
@@ -1101,7 +1101,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    *
    * Note: ZIO tracing is cached, as such after the first iteration
    * it has a negligible effect on performance of hot-spots (Additional
-   * hash map lookup per flatMap). As such, using `untraceable` sections
+   * hash map lookup per flatMap). As such, using `untraced` sections
    * is not guaranteed to result in a noticeable performance increase.
    */
   final def untraced: ZIO[R, E, A] = tracingStatus(false)
@@ -1109,8 +1109,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Enables ZIO tracing for this effect. Because this is the default, this
    * operation only has an additional meaning if the effect is located within
-   * an `untraceable` section, or the current fiber has been spawned by a parent
-   * inside an `untraceable` section.
+   * an `untraced` section, or the current fiber has been spawned by a parent
+   * inside an `untraced` section.
    */
   final def traced: ZIO[R, E, A] = tracingStatus(true)
 
@@ -1812,9 +1812,9 @@ private[zio] trait ZIOFunctions extends Serializable {
     zio.interruptible
 
   /**
-   * Prefix form of `ZIO#untraceable`.
+   * Prefix form of `ZIO#untraced`.
    */
-  final def untraceable[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  final def untraced[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.untraced
 
   /**
@@ -1822,6 +1822,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def traced[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.traced
+
+  /**
+   * Capture ZIO trace at the current point
+   * */
+  final def trace: UIO[ZTrace] = new ZIO.Trace
 
   /**
    * Provides access to the list of child fibers supervised by this fiber.
@@ -1842,9 +1847,6 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
     ZManaged(reservation).use(use)
-
-  final def trace: UIO[ZTrace] =
-    new ZIO.Trace
 
 }
 

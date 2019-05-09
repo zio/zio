@@ -527,6 +527,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .use { q =>
           Stream.fromQueue(q).unTake.run(Sink.collect[Int])
         }
-    ) must_== Failure(Cause.Fail(e))
+    ) must_== Failure(Cause.fail(e))
   }
 }

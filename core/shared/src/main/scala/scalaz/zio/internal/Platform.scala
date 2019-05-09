@@ -20,7 +20,7 @@ import java.util.{ Map => JMap }
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.tracing.TracingConfig
-import scalaz.zio.stacktracer.Tracer
+import scalaz.zio.internal.stacktracer.Tracer
 
 /**
  * A `Platform` provides the minimum capabilities necessary to bootstrap

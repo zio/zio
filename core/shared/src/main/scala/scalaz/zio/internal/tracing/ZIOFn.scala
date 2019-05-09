@@ -7,6 +7,10 @@ import scalaz.zio.{ UIO, ZIO }
  *
  * Allows access to the underlying lambda so that stacktraces can
  * point to supplied user's code, instead of ZIO internals.
+ *
+ * NOTE: it being an `abstract class`, not trait is important as typecasing
+ * on class appears to be about 10 times faster in [[scalaz.zio.internal.FiberContext.unwrap]]
+ * hot-spot.
  * */
 private[zio] abstract class ZIOFn {
   def underlying: AnyRef

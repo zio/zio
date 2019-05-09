@@ -16,14 +16,14 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio._
-import scalaz.zio.internal.tracing.{ FiberAncestry, ZIOFn }
-import scalaz.zio.stacktracer.SourceLocation
+import scalaz.zio.internal.stacktracer.ZTraceElement
+import scalaz.zio.internal.tracing.{FiberAncestry, ZIOFn}
 
-import scala.annotation.{ switch, tailrec }
+import scala.annotation.{switch, tailrec}
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -34,7 +34,7 @@ private[zio] final class FiberContext[E, A](
   ancestor: FiberAncestry,
   initialTracingStatus: Boolean
 ) extends Fiber[E, A] {
-  import java.util.{ Collections, Set }
+  import java.util.{Collections, Set}
 
   import FiberContext._
   import FiberState._
@@ -56,10 +56,10 @@ private[zio] final class FiberContext[E, A](
 
   private[this] val tracingStatus = if (tracingEnabled) StackBool(initialTracingStatus) else null
   private[this] val trace =
-    if (traceExec) SingleThreadedRingBuffer[SourceLocation](platform.tracingConfig.executionTraceLength)
+    if (traceExec) SingleThreadedRingBuffer[ZTraceElement](platform.tracingConfig.executionTraceLength)
     else null
   private[this] val stackTrace =
-    if (traceStack) SingleThreadedRingBuffer[SourceLocation](platform.tracingConfig.stackTraceLength)
+    if (traceStack) SingleThreadedRingBuffer[ZTraceElement](platform.tracingConfig.stackTraceLength)
     else null
 
   private[this] val tracer = platform.tracer
@@ -83,8 +83,8 @@ private[zio] final class FiberContext[E, A](
 
   @noinline
   private[this] final def unwrap(lambda: AnyRef): AnyRef =
-    // This is a huge hotspot, hiding loop after the match
-    // allows a faster happy path
+    // This is a huge hotspot, hiding loop under
+    // the match allows a faster happy path
     lambda match {
       case fn: ZIOFn =>
         var unwrapped = fn.underlying
