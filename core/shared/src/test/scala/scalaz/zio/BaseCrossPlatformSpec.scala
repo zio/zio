@@ -43,9 +43,7 @@ abstract class BaseCrossPlatformSpec extends Specification with DefaultRuntime {
     }
     timer.schedule(task, timeout.toMillis)
 
-    unsafeRunToFuture(io.mapError(FailedZIO(_))).map(p.success)
+    unsafeRunToFuture(io.sandbox.mapError(FiberFailure(_))).map(p.success)
     p.future
   }
 }
-
-case class FailedZIO[E](e: E) extends Throwable
