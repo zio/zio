@@ -89,7 +89,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   @inline def race[E, EE >: E, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
-    implicit CD: ConcurrentData2[F],
+    implicit
+    CD: ConcurrentData2[F],
     MD: Semigroup[EE]
   ): F[EE, Option[AA]] =
     monad.map(raceEither(fa1, fa2))(_ map (_.merge))
@@ -116,23 +117,22 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
     def arbiter[E1 <: EE, E2 <: EE, A1, B1](
       winner: Option[Either[E1, A1]],
-      other: Fiber2[F, E2, B1]
+      loser: Fiber2[F, E2, B1]
     ): F[EE, Option[Either[A1, B1]]] =
       winner match {
-
-        case Some(Left(e)) =>
-          other.await >>= {
-            case Some(Left(oe)) => raiseError(MD.combine(e, oe))
+        case Some(Left(we)) =>
+          loser.await >>= {
+            case Some(Left(le)) => raiseError(MD.combine(we, le))
             case Some(Right(b)) => monad.pure(b.asRight.some)
-            case None           => raiseError(e)
+            case None           => raiseError(we)
           }
 
         case Some(Right(a)) =>
-          monad.pure(a.asLeft.some) <* other.cancel
+          monad.pure(a.asLeft.some) <* loser.cancel
 
         case None =>
-          other.await >>= {
-            case Some(Left(oe)) => raiseError(oe)
+          loser.await >>= {
+            case Some(Left(le)) => raiseError(le)
             case Some(Right(b)) => monad.pure(b.asRight.some)
             case None           => monad.pure(None)
           }
@@ -227,25 +227,37 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipWithPar[E, A, B, C](fa1: F[E, A], fa2: F[E, B])(f: (A, B) => C)(
+  @inline def zipWithPar[E, EE >: E, A, B, C](fa1: F[E, A], fa2: F[EE, B])(f: (A, B) => C)(
     implicit
     CD: ConcurrentData2[F],
-    MD: Monoid[E]
-  ): F[E, C] = {
+    MD: Monoid[EE]
+  ): F[EE, C] = {
 
-    def coordinate[AA, BB](f: (AA, BB) => C)(winner: Option[Either[E, AA]], loser: Fiber2[F, E, BB]): F[E, C] =
+    implicit val ev: Errorful2[F] = self
+
+    def coordinate[E1 <: EE, E2 <: EE, AA, BB](f: (AA, BB) => C)(
+      winner: Option[Either[E1, AA]],
+      loser: Fiber2[F, E2, BB]
+    ): F[EE, C] =
       winner match {
-        case Some(Right(a)) =>
-          monad.map(loser.join)(f(a, _))
-
-        case Some(Left(winnerError)) =>
-          monad.flatMap(loser.cancel) {
-            case Some(Right(_))         => raiseError(winnerError)
-            case Some(Left(loserError)) => raiseError(MD.combine(loserError, winnerError))
-            case None                   => raiseError(MD.empty) // TODO: What to do in this case (None) ?
+        case Some(Left(we)) =>
+          loser.cancel >>= {
+            case Some(Right(_)) => raiseError(we)
+            case Some(Left(le)) => raiseError(MD.combine(le, we))
+            case None           => raiseError(Monoid.empty)
           }
 
-        case None => raiseError(MD.empty) // TODO: What to do in this case (None) ?
+        case Some(Right(wa)) =>
+          loser.await >>= {
+            case Some(Right(la)) => monad.pure(f(wa, la))
+            case Some(Left(le))  => raiseError(le)
+            case None            => raiseError(Monoid.empty)
+            // TODO: still not sure what to return in case one or both are interrupted
+            // an option could be returning F[Option[E], A] but it means that will be propagated
+            // almost everywhere
+          }
+
+        case None => raiseError(Monoid.empty)
       }
 
     val g = (b: B, a: A) => f(a, b)
