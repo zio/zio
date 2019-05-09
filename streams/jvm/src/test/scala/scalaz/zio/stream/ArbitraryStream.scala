@@ -31,10 +31,9 @@ object ArbitraryStream {
     for {
       it <- Arbitrary.arbitrary[List[T]]
       n  <- Gen.choose(0, it.size)
-    } yield
-      ZStream.unfoldM((n, it)) {
-        case (_, Nil) | (0, _) =>
-          IO.fail("fail-case")
-        case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
-      }
+    } yield ZStream.unfoldM((n, it)) {
+      case (_, Nil) | (0, _) =>
+        IO.fail("fail-case")
+      case (n, head :: rest) => IO.succeed(Some((head, (n - 1, rest))))
+    }
 }
