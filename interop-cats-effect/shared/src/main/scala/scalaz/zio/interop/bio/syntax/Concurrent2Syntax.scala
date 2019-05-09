@@ -3,7 +3,7 @@ package interop
 package bio
 package syntax
 
-import cats.kernel.Monoid
+import cats.kernel.{ Monoid, Semigroup }
 import scalaz.zio.interop.bio.syntax.Concurrent2Syntax.Concurrent2Ops
 
 import scala.concurrent.ExecutionContext
@@ -42,7 +42,7 @@ private[syntax] object Concurrent2Syntax {
       implicit
       C: Concurrent2[F],
       CD: ConcurrentData2[F],
-      MD: Monoid[EE]
+      MD: Semigroup[EE]
     ): F[EE, Option[AA]] =
       C.race(fa, fa2)
 
@@ -50,7 +50,7 @@ private[syntax] object Concurrent2Syntax {
       implicit
       C: Concurrent2[F],
       CD: ConcurrentData2[F],
-      MD: Monoid[EE]
+      MD: Semigroup[EE]
     ): F[EE, Option[Either[A, B]]] =
       C.raceEither(fa, fa2)
 
@@ -58,7 +58,7 @@ private[syntax] object Concurrent2Syntax {
       implicit
       C: Concurrent2[F],
       CD: ConcurrentData2[F],
-      MD: Monoid[EE]
+      MD: Semigroup[EE]
     ): F[EE, Option[AA]] =
       C.raceAll[E, EE, A, AA](fa)(xs)
 

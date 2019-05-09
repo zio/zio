@@ -18,7 +18,7 @@ package scalaz.zio
 package interop
 package bio
 
-import cats.kernel.Monoid
+import cats.kernel.{ Monoid, Semigroup }
 import cats.syntax.option._
 import cats.syntax.flatMap.catsSyntaxFlatten
 import cats.syntax.flatMap.catsSyntaxFlatMapOps
@@ -90,7 +90,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    */
   @inline def race[E, EE >: E, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
     implicit CD: ConcurrentData2[F],
-    MD: Monoid[EE]
+    MD: Semigroup[EE]
   ): F[EE, Option[AA]] =
     monad.map(raceEither(fa1, fa2))(_ map (_.merge))
 
@@ -107,7 +107,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   @inline def raceEither[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
     implicit
     ev: ConcurrentData2[F],
-    MD: Monoid[EE]
+    MD: Semigroup[EE]
   ): F[EE, Option[Either[A, B]]] = {
 
     import cats.syntax.either._
@@ -204,7 +204,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   @inline def raceAll[E, EE >: E, A, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
     implicit
     CD: ConcurrentData2[F],
-    MD: Monoid[EE]
+    MD: Semigroup[EE]
   ): F[EE, Option[AA]] = {
 
     implicit val _: Errorful2[F] = self
