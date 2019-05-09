@@ -557,12 +557,14 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def fastProducerSlowConsumer =
     unsafeRun(
       for {
-        ref          <- Ref.make(List[Int](1, 10))
-        list         <- ref.get
-        fastProducer = Stream.fromIterable(list).buffer(2)
-        _            <- fastProducer.mapM(_ => IO.never).run(Sink.collect[Int]).fork
+        promise <- Promise.make[Nothing, Ref[List[Int]]]
+        ref     <- Ref.make(List[Int]())
+        _       <- Stream.range(1, 4).mapM(i => ref.update(i :: _)).buffer(2).mapM(_ => IO.never).run(Sink.drain).fork
+        _       <- promise.succeed(ref)
+        refList <- promise.await
+        list    <- refList.get
       } yield {
-        slurp(fastProducer) must_=== Success(List(1, 10))
+        list.reverse must_=== (1 to 4).toList
       }
     )
 }
