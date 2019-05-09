@@ -216,7 +216,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                         permits.withPermit {
                           f(a)
                             .foreach(b => out.offer(Take.Value(b)).unit)
-                            .catchAll(e => innerFailure.fail(e) *> out.offer(Take.Fail(e)).unit)
+                            .onError { cause =>
+                              cause.failureOrCause.fold(
+                                e => out.offer(Take.Fail(e)) *> innerFailure.fail(e),
+                                _ => ZIO.unit
+                              )
+                            }
                             .fork
                             .unit
                         }
