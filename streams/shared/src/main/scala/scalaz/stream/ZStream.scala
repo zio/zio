@@ -234,7 +234,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                               _ <- innerFailure.await.raceWith(Fiber.joinAll(innerFibers))(
                                     // One of the inner fibers failed. It already enqueued its failure,
                                     // so we don't need to do anything except interrupt all the other fibers.
-                                    leftDone = (_, _) => ZIO.children.flatMap(Fiber.interruptAll),
+                                    leftDone = (_, _) => Fiber.interruptAll(innerFibers),
                                     // All fibers completed successfully, so we just need to signal that
                                     // we're done.
                                     rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt
