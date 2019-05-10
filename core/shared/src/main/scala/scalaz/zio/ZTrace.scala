@@ -10,11 +10,29 @@ final case class ZTrace(
   fiberAncestry: FiberAncestry
 ) {
   final def prettyPrint: String = {
-    val execPrint = s"Fiber:$fiberId ZIO Execution trace:" ::
-      executionTrace.reverse.map(loc => "  at " + loc.prettyPrint)
-    val stackPrint = "" :: s"Fiber:$fiberId was supposed to continue to:" ::
-      stackTrace.reverse.map(loc => s"  a future continuation at " + loc.prettyPrint)
-    val ancestry = fiberAncestry.parentTrace.map(trace => s"\nFiber:$fiberId was spawned by:\n\n" + trace.prettyPrint)
+    val execTrace = executionTrace.nonEmpty
+    val stackTrace = this.stackTrace.nonEmpty
+
+    val execPrint =
+      if (execTrace)
+        s"Fiber:$fiberId ZIO Execution trace:" ::
+          executionTrace.reverse.map(loc => "  at " + loc.prettyPrint)
+      else Nil
+
+    val stackPrint =
+      if (stackTrace)
+        (if (execTrace) "" :: (_: List[String]) else ZIO.identityFn[List[String]]) {
+          s"Fiber:$fiberId was supposed to continue to:" ::
+            this.stackTrace.reverse.map(loc => s"  a future continuation at " + loc.prettyPrint)
+        }
+      else Nil
+
+    val ancestry: List[String] =
+      (if (execTrace || stackTrace) "" :: (_: List[String]) else ZIO.identityFn[List[String]]) {
+        fiberAncestry.parentTrace.map {
+          trace => s"Fiber:$fiberId was spawned by:\n" :: trace.prettyPrint :: Nil
+        }.getOrElse(s"Fiber was Fiber:$fiberId" :: Nil)
+    }
 
     (execPrint ++ stackPrint ++ ancestry).mkString("\n")
   }

@@ -34,14 +34,14 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   val debug = true
 
-  def show(trace: ZTrace): Unit = if (debug) println(trace.prettyPrint)
+  def show(trace: ZTrace): Unit        = if (debug) println(trace.prettyPrint)
   def show(cause: Exit.Cause[_]): Unit = if (debug) println(cause.prettyPrint)
-  def show(exit: Exit[_, _]): Unit = if (debug) println(exit.fold(_.prettyPrint, _ => "success"))
+  def show(exit: Exit[_, _]): Unit     = if (debug) println(exit.fold(_.prettyPrint, _ => "success"))
 
   def mentionsMethod(method: String, trace: ZTraceElement): Boolean =
     trace match {
       case s: SourceLocation => s.method contains method
-      case _ => false
+      case _                 => false
     }
 
   def mentionsMethod(method: String, traces: List[ZTraceElement]): Boolean =
@@ -100,7 +100,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       _.traces.head.stackTrace must have size 1 and contain {
         (_: ZTraceElement) match {
           case s: SourceLocation => s.method contains "foreachParFail"
-          case _ => false
+          case _                 => false
         }
       },
       _ => failure
@@ -167,26 +167,35 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def fiber0 =
       for {
-        _ <- fiber1.fork
+        f1 <- fiber1.fork
+        _  <- f1.join
       } yield ()
 
     def fiber1 =
       for {
-        _ <- ZIO.unit
-        _ <- ZIO.unit
-        _ <- fiber2.fork
-        _ <- ZIO.unit
+        _  <- ZIO.unit
+        _  <- ZIO.unit
+        f2 <- fiber2.fork
+        _  <- ZIO.unit
+        _  <- f2.join
       } yield ()
 
     def fiber2 =
       for {
-        trace <- ZIO.trace
-        _     <- UIO(show(trace))
+        _ <- UIO { throw new Exception() }
       } yield ()
 
-    val res = unsafeRun(fiber0)
+    unsafeRunSync(fiber0).fold[Result](
+      cause => {
+        show(cause)
 
-    res must_== (())
+        (cause.traces must not be empty) and
+          (cause.traces.head.fiberAncestry.parentTrace must not be empty) and
+          (cause.traces.head.fiberAncestry.parentTrace.get.fiberAncestry.parentTrace must not be empty) and
+          (cause.traces.head.fiberAncestry.parentTrace.get.fiberAncestry.parentTrace.get.fiberAncestry.parentTrace must beEmpty)
+      },
+      _ => failure
+    )
   }
 
   def blockingTrace = {
@@ -196,6 +205,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRunSync(io).fold(
       cause => {
+        show(cause)
         val trace = cause.traces.head
 
         // the first items on exec trace and stack trace refer to this line
@@ -233,7 +243,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val io = for {
       _                <- ZIO.unit
       _                <- ZIO.unit
-      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!")).fork).untraced
+      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.unit).fork).untraced
       _                <- untraceableFiber.join
     } yield ()
 
@@ -241,7 +251,10 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       cause => {
         show(cause)
 
-        cause.traces.isEmpty
+        (cause.traces must have size 1) and
+          (cause.traces.head.executionTrace must beEmpty) and
+          (cause.traces.head.stackTrace must beEmpty) and
+          (cause.traces.head.fiberAncestry.parentTrace must beEmpty)
       },
       _ => failure
     )

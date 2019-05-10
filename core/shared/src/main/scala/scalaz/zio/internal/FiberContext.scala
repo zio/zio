@@ -245,18 +245,18 @@ private[zio] final class FiberContext[E, A](
                       val effect = io2.effect
 
                       if (traceEffects && inTracingRegion) addTrace(effect)
+                      val value = effect(platform)
                       if (traceExec && inTracingRegion) addTrace(k)
-
-                      curIo = k(effect(platform))
+                      curIo = k(value)
 
                     case ZIO.Tags.EffectTotal =>
                       val io2    = nested.asInstanceOf[ZIO.EffectTotal[Any]]
                       val effect = io2.effect
 
                       if (traceEffects && inTracingRegion) addTrace(effect)
+                      val value = effect()
                       if (traceExec && inTracingRegion) addTrace(k)
-
-                      curIo = k(effect())
+                      curIo = k(value)
 
                     case ZIO.Tags.EffectPartial =>
                       val io2    = nested.asInstanceOf[ZIO.EffectPartial[Any]]
