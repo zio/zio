@@ -54,13 +54,13 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   val catchBlockException = {
     val ex                     = new Exception("no future for you!")
     def noFuture: Future[Unit] = throw ex
-    unsafeRun(Task.fromFutureJava(noFuture _)) must (throwA(FiberFailure(die(ex))))
+    unsafeRunSync(Task.fromFutureJava(noFuture _)) must_=== Exit.Failure(die(ex))
   }
 
   val propagateExceptionFromFuture = {
     val ex                    = new Exception("no value for you!")
     def noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-    unsafeRun(Task.fromFutureJava(noValue _)) must throwA(FiberFailure(fail(ex)))
+    unsafeRunSync(Task.fromFutureJava(noValue _)) must_=== Exit.Failure(fail(ex))
   }
 
   val produceValueFromFuture = {
@@ -84,13 +84,13 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   val catchBlockExceptionCs = {
     val ex                              = new Exception("no future for you!")
     def noFuture: CompletionStage[Unit] = throw ex
-    unsafeRun(Task.fromCompletionStage(noFuture _)) must (throwA(FiberFailure(die(ex))))
+    unsafeRunSync(Task.fromCompletionStage(noFuture _)) must_=== Exit.Failure(die(ex))
   }
 
   val propagateExceptionFromCs = {
     val ex                             = new Exception("no value for you!")
     def noValue: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-    unsafeRun(Task.fromCompletionStage(noValue _)) must throwA(FiberFailure(fail(ex)))
+    unsafeRunSync(Task.fromCompletionStage(noValue _)) must_=== Exit.Failure(fail(ex))
   }
 
   val produceValueFromCs = {
@@ -148,13 +148,13 @@ class javaconcurrentSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   val catchBlockExceptionFiber = {
     val ex                     = new Exception("no future for you!")
     def noFuture: Future[Unit] = throw ex
-    unsafeRun(Fiber.fromFutureJava(noFuture _).join) must (throwA(FiberFailure(die(ex))))
+    unsafeRunSync(Fiber.fromFutureJava(noFuture _).join) must_=== Exit.Failure(die(ex))
   }
 
   val propagateExceptionFromFutureFiber = {
     val ex                    = new Exception("no value for you!")
     def noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-    unsafeRun(Fiber.fromFutureJava(noValue _).join) must (throwA(FiberFailure(fail(ex))))
+    unsafeRunSync(Fiber.fromFutureJava(noValue _).join) must_=== Exit.Failure(fail(ex))
   }
 
   val produceValueFromFutureFiber = {

@@ -252,9 +252,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         show(cause)
 
         (cause.traces must have size 1) and
-          (cause.traces.head.executionTrace must beEmpty) and
-          (cause.traces.head.stackTrace must beEmpty) and
-          (cause.traces.head.fiberAncestry.parentTrace must beEmpty)
+          cause.traces.head.executionTrace.isEmpty and
+          cause.traces.head.stackTrace.isEmpty and
+          cause.traces.head.fiberAncestry.parentTrace.isEmpty
       },
       _ => failure
     )

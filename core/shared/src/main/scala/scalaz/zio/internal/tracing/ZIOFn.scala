@@ -12,7 +12,7 @@ import scalaz.zio.{ UIO, ZIO }
  * on class appears to be about 10 times faster in [[scalaz.zio.internal.FiberContext.unwrap]]
  * hot-spot.
  * */
-private[zio] abstract class ZIOFn {
+private[zio] abstract class ZIOFn extends Serializable {
   def underlying: AnyRef
 }
 

@@ -137,9 +137,9 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     val failed: Exit[Error, Int]      = Exit.fail(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(interrupt))
-    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(die(error)))
-    unsafeRun(IO.done(failed)) must throwA(FiberFailure(fail(error)))
+    unsafeRunSync(IO.done(interrupted)) must_=== Exit.interrupt
+    unsafeRunSync(IO.done(terminated)) must_=== Exit.die(error)
+    unsafeRunSync(IO.done(failed)) must_=== Exit.fail(error)
   }
 
   def testWhen =
@@ -243,7 +243,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testZipParInterupt = {
     val io = ZIO.interrupt.zipPar(IO.interrupt)
-    unsafeRun(io) must throwA(FiberFailure(Both(interrupt, interrupt)))
+    unsafeRunSync(io) must_=== Exit.Failure(Both(interrupt, interrupt))
   }
 
   def testZipParSucceed = {
