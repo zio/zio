@@ -1,13 +1,13 @@
 package scalaz.zio
 
-class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+class FiberSpec extends BaseCrossPlatformSpec {
   def is =
     "FiberSpec".title ^ s2"""
     Create a new Fiber and
       lift it into Managed $e1
     """
 
-  def e1 = unsafeRun(
+  def e1 =
     for {
       ref   <- Ref.make(false)
       latch <- Promise.make[Nothing, Unit]
@@ -20,5 +20,4 @@ class FiberSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- fiber.await
       value <- ref.get
     } yield value must beTrue
-  )
 }
