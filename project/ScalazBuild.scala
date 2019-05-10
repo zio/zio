@@ -105,7 +105,7 @@ object Scalaz {
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.typelevel"  %% "kind-projector"  % "0.10.0"),
+      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.0"),
       compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.3.3")
     ),
     parallelExecution in Test := true,
