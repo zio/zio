@@ -67,7 +67,7 @@ private[syntax] object Concurrent2Syntax {
       C: Concurrent2[F],
       CD: ConcurrentData2[F],
       MD: Monoid[EE]
-    ): F[EE, (A, B)] =
+    ): F[Option[EE], (A, B)] =
       C.zipPar(fa1, fa2)
 
     @inline def <&[EE >: E, B](fa1: F[E, A], fa2: F[EE, B])(
@@ -75,7 +75,7 @@ private[syntax] object Concurrent2Syntax {
       C: Concurrent2[F],
       CD: ConcurrentData2[F],
       MD: Monoid[EE]
-    ): F[EE, A] =
+    ): F[Option[EE], A] =
       C.zipParLeft(fa1, fa2)
 
     @inline def &>[EE >: E, B](fa1: F[E, A], fa2: F[EE, B])(
@@ -83,7 +83,7 @@ private[syntax] object Concurrent2Syntax {
       C: Concurrent2[F],
       CD: ConcurrentData2[F],
       MD: Monoid[EE]
-    ): F[EE, B] =
+    ): F[Option[EE], B] =
       C.zipParRight(fa1, fa2)
   }
 }

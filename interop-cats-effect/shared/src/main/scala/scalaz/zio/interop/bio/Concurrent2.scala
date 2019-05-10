@@ -170,7 +170,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
       whenDone: Deferred2[F, E3, C]
     )(res: Option[Either[EE0, AA]]): F[Nothing, Unit] =
       race.modify { c =>
-        (if (c > 0) monad.unit else whenDone.done(f(res, loser)) map (_ => ())) -> (c + 1)
+        (if (c > 0) monad.unit else whenDone.done(f(res, loser)) >> monad.unit) -> (c + 1)
       }.flatten
 
     for {
@@ -230,34 +230,31 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   @inline def zipWithPar[E, EE >: E, A, B, C](fa1: F[E, A], fa2: F[EE, B])(f: (A, B) => C)(
     implicit
     CD: ConcurrentData2[F],
-    MD: Monoid[EE]
-  ): F[EE, C] = {
+    MD: Semigroup[EE]
+  ): F[Option[EE], C] = {
 
     implicit val ev: Errorful2[F] = self
 
     def coordinate[E1 <: EE, E2 <: EE, AA, BB](f: (AA, BB) => C)(
       winner: Option[Either[E1, AA]],
       loser: Fiber2[F, E2, BB]
-    ): F[EE, C] =
+    ): F[Option[EE], C] =
       winner match {
         case Some(Left(we)) =>
           loser.cancel >>= {
-            case Some(Right(_)) => raiseError(we)
-            case Some(Left(le)) => raiseError(MD.combine(le, we))
-            case None           => raiseError(Monoid.empty)
+            case Some(Right(_)) => raiseError(we.some)
+            case Some(Left(le)) => raiseError(MD.combine(le, we).some)
+            case None           => raiseError(None)
           }
 
         case Some(Right(wa)) =>
           loser.await >>= {
             case Some(Right(la)) => monad.pure(f(wa, la))
-            case Some(Left(le))  => raiseError(le)
-            case None            => raiseError(Monoid.empty)
-            // TODO: still not sure what to return in case one or both are interrupted
-            // an option could be returning F[Option[E], A] but it means that will be propagated
-            // almost everywhere
+            case Some(Left(le))  => raiseError(le.some)
+            case None            => raiseError(None)
           }
 
-        case None => raiseError(Monoid.empty)
+        case None => raiseError(None)
       }
 
     val g = (b: B, a: A) => f(a, b)
@@ -280,7 +277,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit
     CD: ConcurrentData2[F],
     MD: Monoid[EE]
-  ): F[EE, (A, B)] =
+  ): F[Option[EE], (A, B)] =
     zipWithPar(fa1, fa2)((a, b) => (a, b))
 
   /**
@@ -298,7 +295,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit
     CD: ConcurrentData2[F],
     MD: Monoid[EE]
-  ): F[EE, A] =
+  ): F[Option[EE], A] =
     zipWithPar(fa1, fa2)((a, _) => a)
 
   /**
@@ -316,7 +313,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit
     CD: ConcurrentData2[F],
     MD: Monoid[EE]
-  ): F[EE, B] =
+  ): F[Option[EE], B] =
     zipWithPar(fa1, fa2)((_, b) => b)
 
   /**
@@ -372,9 +369,6 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
     bracket(monad.unit, maybeCleanup)(_ => fa)
   }
-
-  // may be
-  def cont[E, A](r: (F[E, A] => F[Nothing, Unit]) => F[Nothing, Unit]): F[E, A]
 }
 
 object Concurrent2 {
