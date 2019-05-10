@@ -36,8 +36,7 @@ object PlatformLive {
     new Platform {
       val executor = executor0
 
-      val tracer =
-        Tracer.cachedTracer(new AkkaTracer, GlobalConcurrentHashMapCache.globalMutableSharedSourceLocationCache)
+      val tracer = Tracer.globallyCached(new AkkaTracer)
 
       val tracingConfig = TracingConfig.default
 

@@ -7,19 +7,24 @@ abstract class Tracer extends Serializable {
 }
 
 object Tracer {
-  def cachedTracer(tracer: Tracer, jmapCache: ConcurrentHashMap[Class[_], ZTraceElement]): Tracer =
+  def globallyCached(tracer: Tracer): Tracer = cached(globalMutableSharedTracerCache)(tracer)
+
+  def cached(tracerCache: TracerCache)(tracer: Tracer): Tracer =
     new Tracer {
       def traceLocation(lambda: AnyRef): ZTraceElement = {
         val clazz = lambda.getClass
 
-        val res = jmapCache.get(clazz)
+        val res = tracerCache.get(clazz)
         if (res eq null) {
           val v = tracer.traceLocation(lambda)
-          jmapCache.put(clazz, v)
+          tracerCache.put(clazz, v)
           v
         } else {
           res
         }
       }
     }
+
+  final type TracerCache = ConcurrentHashMap[Class[_], ZTraceElement]
+  lazy val globalMutableSharedTracerCache = new TracerCache(10000)
 }

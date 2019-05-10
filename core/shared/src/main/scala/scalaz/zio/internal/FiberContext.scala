@@ -104,8 +104,6 @@ private[zio] final class FiberContext[E, A](
     stackTrace.put(tracer.traceLocation(unwrap(lambda)))
 
   private[this] final def popStackTrace(): Unit =
-    // FIXME: stack trace is not fully well-behaved yet (esp. on failure recovery)
-    // FIXME: bad behavior on failing to get location - mismatched pop. (remove Option in SourceLocation & cache nulls?)
     stackTrace.pop()
 
   private[this] final def captureTrace(): ZTrace = {

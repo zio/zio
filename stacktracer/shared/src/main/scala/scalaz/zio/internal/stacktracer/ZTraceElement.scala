@@ -1,6 +1,6 @@
 package scalaz.zio.internal.stacktracer
 
-sealed abstract class ZTraceElement extends Serializable {
+sealed abstract class ZTraceElement extends Product with Serializable {
   def prettyPrint: String
 }
 
