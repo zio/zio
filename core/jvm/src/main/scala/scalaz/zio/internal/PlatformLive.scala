@@ -20,9 +20,9 @@ import java.util.concurrent.{Executor => _, _}
 import java.util.{WeakHashMap, Map => JMap}
 
 import scalaz.zio.Exit.Cause
-import scalaz.zio.internal.tracing.TracingConfig
-import scalaz.zio.internal.stacktracer.{GlobalConcurrentHashMapCache, Tracer}
+import scalaz.zio.internal.stacktracer.Tracer
 import scalaz.zio.internal.stacktracer.impl.AkkaTracer
+import scalaz.zio.internal.tracing.TracingConfig
 
 import scala.concurrent.ExecutionContext
 
