@@ -559,9 +559,15 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         promise <- Promise.make[Nothing, Unit]
         ref     <- Ref.make(List[Int]())
-        _       <- Stream.range(1, 4).mapM(i => ref.update(i :: _) <* promise.succeed(())).buffer(2).mapM(_ => IO.never).run(Sink.drain).fork
-        _       <- promise.await
-        list    <- ref.get
+        _ <- Stream
+              .range(1, 4)
+              .mapM(i => ref.update(i :: _) <* promise.succeed(()))
+              .buffer(2)
+              .mapM(_ => IO.never)
+              .run(Sink.drain)
+              .fork
+        _    <- promise.await
+        list <- ref.get
       } yield {
         list.reverse must_=== (1 to 4).toList
       }
