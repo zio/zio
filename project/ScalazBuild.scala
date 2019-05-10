@@ -114,13 +114,16 @@ object Scalaz {
     Compile / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
-          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11"))
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")) ++
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11"))
         case Some((2, x)) if x >= 12 =>
-          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
         case _ =>
           if (isDotty.value)
             Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")) ++
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
           else
             Nil
       }
@@ -132,10 +135,18 @@ object Scalaz {
         Nil
     },
     Test / unmanagedSourceDirectories ++= {
-      if (isDotty.value)
-        CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
-      else
-        Nil
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 11 =>
+          Seq(file(sourceDirectory.value.getPath + "/test/scala-2.11"))
+        case Some((2, x)) if x >= 12 =>
+          Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+"))
+        case _ =>
+          if (isDotty.value)
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
+              Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+"))
+          else
+            Nil
+      }
     }
   )
 
