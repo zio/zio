@@ -22,20 +22,30 @@ import cats.effect.{ ExitCase, LiftIO, Resource, Sync, IO => CIO }
 import cats.{ effect, Bifunctor, Monad, MonadError, Monoid, Semigroup, SemigroupK }
 
 trait CatsZManagedSyntax {
+  import scala.language.implicitConversions
+
+  implicit final def catsIOResourceSyntax[A](resource: Resource[CIO, A]): CatsIOResourceSyntax[A] =
+    new CatsIOResourceSyntax(resource)
+
+  implicit final def zManagedSyntax[R, E, A](managed: ZManaged[R, E, A]): ZManagedSyntax[R, E, A] =
+    new ZManagedSyntax(managed)
+
+}
+
+final class CatsIOResourceSyntax[A](private val resource: Resource[CIO, A]) extends AnyVal {
 
   /**
    * Convert a cats Resource into a ZManaged.
    * Beware that unhandled error during release of the resource will result in the fiber dying.
    */
-  implicit class ResourceSyntax[A](resource: Resource[CIO, A]) {
-    def toManaged[R, E](
-      implicit l: LiftIO[ZIO[R, Throwable, ?]]
-    ): ZManaged[R, Throwable, A] = {
-      def convert[A1](resource: Resource[CIO, A1]): ZManaged[R, Throwable, A1] =
-        resource match {
-          case Allocate(res) =>
-            ZManaged.unwrap(
-              l.liftIO(res.bracketCase {
+  def toManaged[R](
+    implicit l: LiftIO[ZIO[R, Throwable, ?]]
+  ): ZManaged[R, Throwable, A] = {
+    def convert[A1](resource: Resource[CIO, A1]): ZManaged[R, Throwable, A1] =
+      resource match {
+        case Allocate(res) =>
+          ZManaged.unwrap(
+            l.liftIO(res.bracketCase {
                 case (a, r) =>
                   CIO.delay(
                     ZManaged.reserve(Reservation(ZIO.succeed(a), l.liftIO(r(ExitCase.Completed)).orDie.uninterruptible))
@@ -46,26 +56,26 @@ trait CatsZManagedSyntax {
                 case ((_, release), ec) =>
                   release(ec)
               })
-            )
-          case Bind(source, fs) =>
-            convert(source).flatMap(s => convert(fs(s)))
-          case Suspend(res) =>
-            ZManaged.unwrap(l.liftIO(res).map(convert))
-        }
-      convert(resource)
-    }
+              .uninterruptible
+          )
+        case Bind(source, fs) =>
+          convert(source).flatMap(s => convert(fs(s)))
+        case Suspend(res) =>
+          ZManaged.unwrap(l.liftIO(res).map(convert))
+      }
+    convert(resource)
   }
+}
 
-  implicit class ZManagedSyntax[R, E, A](managed: ZManaged[R, E, A]) {
-    def toResource[F[_]](implicit r: Runtime[R], S: Sync[F]): Resource[F, A] =
-      Resource.suspend(S.delay {
-        r.unsafeRun(managed.reserve) match {
-          case Reservation(acquire, release) =>
-            Resource.make(S.delay(r.unsafeRun(acquire)))(_ => S.delay(r.unsafeRun(release.unit)))
-        }
-      })
+final class ZManagedSyntax[R, E, A](private val managed: ZManaged[R, E, A]) extends AnyVal {
 
-  }
+  def toResource[F[_]](implicit r: Runtime[R], S: Sync[F]): Resource[F, A] =
+    Resource.suspend(S.delay {
+      r.unsafeRun(managed.reserve) match {
+        case Reservation(acquire, release) =>
+          Resource.make(S.delay(r.unsafeRun(acquire)))(_ => S.delay(r.unsafeRun(release.unit)))
+      }
+    })
 
 }
 
@@ -126,7 +136,9 @@ private class CatsZManagedMonadError[R, E] extends CatsZManagedMonad[R, E] with 
     fa.catchAll(f)
 }
 
-/** lossy, throws away errors using the "first success" interpretation of SemigroupK */
+/**
+ * lossy, throws away errors using the "first success" interpretation of SemigroupK
+ */
 private class CatsZManagedSemigroupK[R, E] extends SemigroupK[ZManaged[R, E, ?]] {
   override def combineK[A](x: ZManaged[R, E, A], y: ZManaged[R, E, A]): ZManaged[R, E, A] =
     x.orElse(y)
