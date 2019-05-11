@@ -159,10 +159,8 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * Recovers from some or all of the error cases.
    */
-  final def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZManaged[R1, E1, A1]]): ZManaged[R1, E1, A1] = {
-    val tryRescue = (t: E) => pf.applyOrElse(t, (_: E) => ZManaged.fail(t))
-    foldM(tryRescue, ZManaged.succeed)
-  }
+  final def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZManaged[R1, E1, A1]]): ZManaged[R1, E1, A1] =
+    foldM(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.fail), ZManaged.succeed)
 
   /**
    * Executes the second effect and then provides its output as an environment to this effect
@@ -394,14 +392,14 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     def loop[B](zio: ZIO[R, E1, B], state: policy.State): ZIO[R1 with Clock, E1, (policy.State, B)] =
       zio.foldM(
         err =>
-          policy.update(err, state)
-          .flatMap(
-            decision =>
-              if (decision.cont) clock.sleep(decision.delay) *> loop(zio, decision.state)
-              else ZIO.fail(err)
-          ),
-        succ =>
-          ZIO.succeed((state, succ))
+          policy
+            .update(err, state)
+            .flatMap(
+              decision =>
+                if (decision.cont) clock.sleep(decision.delay) *> loop(zio, decision.state)
+                else ZIO.fail(err)
+            ),
+        succ => ZIO.succeed((state, succ))
       )
     ZManaged {
       policy.initial.flatMap(initial => loop(reserve, initial)).map {
@@ -436,20 +434,66 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ZManaged {
       clock.nanoTime.flatMap { start =>
         reserve.map {
-          case Reservation(acquire, release) => Reservation(acquire.zipWith(clock.nanoTime)((res, end) => (Duration.fromNanos(end - start), res)), release)
+          case Reservation(acquire, release) =>
+            Reservation(acquire.zipWith(clock.nanoTime)((res, end) => (Duration.fromNanos(end - start), res)), release)
         }
       }
     }
 
   /**
-   * Returns an effect that will timeout this effect, returning `None` if the
-   * timeout elapses before the effect has produced a value; and returning
-   * `Some` of the produced value otherwise.
+   * Returns an effect that will timeout this resource, returning `None` if the
+   * timeout elapses before the resource was reserved and acquired.
+   * If the reservation completes successfully (even after the timeout) the release action will be run on a new fiber.
+   * `Some` will be returned if acquisition and reservation complete in time
    */
-  final def timeout(d: Duration): ZManaged[R with Clock, E, Option[A]] =
+  final def timeout(d: Duration): ZManaged[R with Clock, E, Option[A]] = {
+    def timeoutReservation[B](
+      zio: ZIO[R, E, Reservation[R, E, A]],
+      d: Duration
+    ): ZIO[R with Clock, E, Option[(Duration, Reservation[R, E, A])]] =
+      clock.nanoTime.flatMap { start =>
+        zio
+          .raceWith(ZIO.unit.delay(d))(
+            {
+              case (leftDone, rightFiber) =>
+                for {
+                  _   <- rightFiber.interrupt
+                  env <- ZIO.environment[Clock]
+                  result <- leftDone.foldM(
+                             ZIO.halt,
+                             succ =>
+                               clock.nanoTime.map(end => Some((Duration.fromNanos(end - start), succ))).provide(env)
+                           )
+
+                } yield result
+            }, {
+              case (_, leftFiber) =>
+                (for {
+                  env <- ZIO.environment[R]
+                  cleanup = leftFiber.await
+                    .flatMap(
+                      _.foldM[Nothing, Any](
+                        _ => ZIO.unit,
+                        _.release.provide(env)
+                      )
+                    )
+                    .uninterruptible
+                  _ <- cleanup.fork
+                } yield None).uninterruptible
+            }
+          )
+          .uninterruptible
+      }
+
     ZManaged {
-      reserve.map { case Reservation(acquire, release) => Reservation(acquire.timeout(d), release) }
+      timeoutReservation(reserve, d).map {
+        case Some((spentTime, Reservation(acquire, release))) if spentTime < d =>
+          Reservation(acquire.timeout(Duration.fromNanos(d.toNanos - spentTime.toNanos)), release)
+        case _ => Reservation(ZIO.succeed(None), ZIO.unit)
+      }
     }
+
+  }
 
   /**
    * Return unit while running the effect
@@ -687,7 +731,7 @@ object ZManaged {
   )(
     f: A1 => ZManaged[R, E, A2]
   ): ZManaged[R, E, List[A2]] =
-    mergeAllParN[R, E, A2, Vector[A2]](n)(as.map(f))(Vector())((acc, a2) => acc :+ a2 ).map(_.toList)
+    mergeAllParN[R, E, A2, Vector[A2]](n)(as.map(f))(Vector())((acc, a2) => acc :+ a2).map(_.toList)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -719,11 +763,11 @@ object ZManaged {
     }
 
   /**
-    * Applies the function `f` to each element of the `Iterable[A]` and runs
-    * produced effects in parallel, discarding the results.
-    *
-    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
-    */
+   * Applies the function `f` to each element of the `Iterable[A]` and runs
+   * produced effects in parallel, discarding the results.
+   *
+   * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
+   */
   final def foreachParN_[R, E, A](
     n: Long
   )(
@@ -731,7 +775,9 @@ object ZManaged {
   )(
     f: A => ZManaged[R, E, _]
   ): ZManaged[R, E, Unit] =
-    mergeAllParN[R, E, Any, Unit](n)(as.map(f))(()) { (_, _) => () }
+    mergeAllParN[R, E, Any, Unit](n)(as.map(f))(()) { (_, _) =>
+      ()
+    }
 
   /**
    * Lifts a ZIO[R, E, R] into ZManaged[R, E, R] with no release action. Use
@@ -806,25 +852,28 @@ object ZManaged {
       Ref.make[ZIO[R, Nothing, Any]](IO.unit).map { finalizers =>
         Reservation(
           Queue.unbounded[(ZManaged[R, E, A], Promise[E, A])].flatMap { queue =>
-            val worker = queue.take.flatMap { case (a, prom) =>
-              ZIO.uninterruptibleMask { restore =>
+            val worker = queue.take.flatMap {
+              case (a, prom) =>
+                ZIO.uninterruptibleMask { restore =>
                   a.reserve
-                  .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
-                  .flatMap(res => restore(res.acquire))
-              }.foldCauseM(
-                _.failureOrCause.fold(prom.fail, prom.halt),
-                prom.succeed
-              )
+                    .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                    .flatMap(res => restore(res.acquire))
+                }.foldCauseM(
+                  _.failureOrCause.fold(prom.fail, prom.halt),
+                  prom.succeed
+                )
             }
             ZIO.foreach(1L to n)(_ => worker.forever.fork).flatMap { fibers =>
               (for {
-                proms  <- ZIO.foreach(in) { a =>
-                  for {
-                    prom <- Promise.make[E, A]
-                    _    <- queue.offer((a, prom))
-                  } yield prom
-                }
-                b      <- proms.foldLeft[ZIO[R, E, B]](ZIO.succeedLazy(zero)) { (acc, prom) => acc.zip(prom.await).map(f.tupled) }
+                proms <- ZIO.foreach(in) { a =>
+                          for {
+                            prom <- Promise.make[E, A]
+                            _    <- queue.offer((a, prom))
+                          } yield prom
+                        }
+                b <- proms.foldLeft[ZIO[R, E, B]](ZIO.succeedLazy(zero)) { (acc, prom) =>
+                      acc.zip(prom.await).map(f.tupled)
+                    }
               } yield b).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
@@ -872,31 +921,35 @@ object ZManaged {
       Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
         Reservation(
           Queue.unbounded[(ZManaged[R1, E, A], Promise[E, A])].flatMap { queue =>
-            val worker = queue.take.flatMap { case (a, prom) =>
-              ZIO.uninterruptibleMask { restore =>
-                a.reserve
-                  .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
-                  .flatMap(res => restore(res.acquire))
-              }.foldCauseM(
-                _.failureOrCause.fold(prom.fail, prom.halt),
-                prom.succeed
-              )
+            val worker = queue.take.flatMap {
+              case (a, prom) =>
+                ZIO.uninterruptibleMask { restore =>
+                  a.reserve
+                    .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                    .flatMap(res => restore(res.acquire))
+                }.foldCauseM(
+                  _.failureOrCause.fold(prom.fail, prom.halt),
+                  prom.succeed
+                )
             }
-            ZIO.foreach(1L to n)(_ => worker.forever.fork).flatMap { fibers =>
-              (for {
-                proms  <- ZIO.foreach(as) { a =>
+            ZIO.foreach(1L to n)(_ => worker.forever.fork).flatMap {
+              fibers =>
+                (for {
+                  proms <- ZIO.foreach(as) { a =>
                             for {
                               prom <- Promise.make[E, A]
                               _    <- queue.offer((a, prom))
                             } yield prom
                           }
-                zero    = ZIO.uninterruptibleMask { restore =>
-                            a1.reserve
-                              .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
-                              .flatMap(res => restore(res.acquire))
-                          }
-                result <- proms.foldLeft[ZIO[R, E, A]](zero) { (acc, a) => acc.zip(a.await).map(f.tupled) }
-              } yield result).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
+                  zero = ZIO.uninterruptibleMask { restore =>
+                    a1.reserve
+                      .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                      .flatMap(res => restore(res.acquire))
+                  }
+                  result <- proms.foldLeft[ZIO[R, E, A]](zero) { (acc, a) =>
+                             acc.zip(a.await).map(f.tupled)
+                           }
+                } yield result).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
           ZIO.flatten(finalizers.get)

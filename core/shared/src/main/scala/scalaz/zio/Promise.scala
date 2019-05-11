@@ -97,9 +97,9 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
   final def fail(e: E): UIO[Boolean] = done(IO.fail(e))
 
   /**
-    * Halts the promise with the specified cause, which will be propagated to all
-    * fibers waiting on the value of the promise.
-    */
+   * Halts the promise with the specified cause, which will be propagated to all
+   * fibers waiting on the value of the promise.
+   */
   final def halt(e: Cause[E]): UIO[Boolean] = done(IO.halt(e))
 
   /**
