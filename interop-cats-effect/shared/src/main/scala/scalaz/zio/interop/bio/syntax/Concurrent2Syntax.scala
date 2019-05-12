@@ -43,7 +43,7 @@ private[syntax] object Concurrent2Syntax {
       C: Concurrent2[F],
       ev1: ConcurrentData2[F],
       ev2: Semigroup[EE]
-    ): F[EE, Option[AA]] =
+    ): F[EE, AA] =
       C.race(fa, fa2)
 
     @inline def raceEither[EE >: E, B](fa2: F[EE, B])(
@@ -51,7 +51,7 @@ private[syntax] object Concurrent2Syntax {
       C: Concurrent2[F],
       ev1: ConcurrentData2[F],
       ev2: Semigroup[EE]
-    ): F[EE, Option[Either[A, B]]] =
+    ): F[EE, Either[A, B]] =
       C.raceEither(fa, fa2)
 
     @inline def raceAll[EE >: E, AA >: A](xs: Iterable[F[EE, AA]])(
@@ -59,7 +59,7 @@ private[syntax] object Concurrent2Syntax {
       C: Concurrent2[F],
       ev1: ConcurrentData2[F],
       ev2: Semigroup[EE]
-    ): F[EE, Option[AA]] =
+    ): F[EE, AA] =
       C.raceAll[E, EE, A, AA](fa)(xs)
 
     @inline def <&>[EE >: E: Semigroup, B](fa1: F[E, A], fa2: F[EE, B])(

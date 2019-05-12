@@ -19,9 +19,7 @@ package interop
 package bio
 
 import cats.kernel.Semigroup
-import cats.syntax.option._
-import cats.syntax.flatMap.catsSyntaxFlatten
-import cats.syntax.flatMap.catsSyntaxFlatMapOps
+import cats.syntax.flatMap.{ catsSyntaxFlatMapOps, catsSyntaxFlatten }
 import scalaz.zio.interop.bio.data.{ Deferred2, Ref2 }
 
 import scala.concurrent.ExecutionContext
@@ -101,12 +99,14 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    */
   @inline def race[E, EE >: E: Semigroup, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
     implicit ev: ConcurrentData2[F]
-  ): F[EE, Option[AA]] =
-    monad.map(raceEither(fa1, fa2))(_ map (_.merge))
+  ): F[EE, AA] =
+    monad.map(raceEither(fa1, fa2))(_.merge)
 
   /**
-   * Returns an effect that races `fa1` with `fa2`, calling specified
-   * finisher as soon as one result or the other has been computed.
+   * Returns an effect that races `fa1` with `fa2` returning the result of
+   * one or the other depending on the winner. If both of them fail it will
+   * return the combined error. If both are interrupted it will return an
+   * interrupted effect.
    *
    * TODO: Example:
    * {{{
@@ -118,7 +118,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit
     ev: ConcurrentData2[F],
     SG: Semigroup[EE]
-  ): F[EE, Option[Either[A, B]]] = {
+  ): F[EE, Either[A, B]] = {
 
     import cats.syntax.either._
 
@@ -127,29 +127,25 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     def arbiter[E1 <: EE, E2 <: EE, A1, B1](
       winner: Option[Either[E1, A1]],
       loser: Fiber2[F, E2, B1]
-    ): F[EE, Option[Either[A1, B1]]] =
+    ): F[EE, Either[A1, B1]] =
       winner match {
         case Some(Left(we)) =>
           loser.await >>= {
             case Some(Left(le)) => raiseError(SG.combine(we, le))
-            case Some(Right(b)) => monad.pure(b.asRight.some)
+            case Some(Right(b)) => monad.pure(b.asRight)
             case None           => raiseError(we)
           }
 
         case Some(Right(a)) =>
-          monad.pure(a.asLeft.some) <* loser.cancel
+          monad.pure(a.asLeft) <* loser.cancel
 
         case None =>
-          loser.await >>= {
-            case Some(Left(le)) => raiseError(le)
-            case Some(Right(b)) => monad.pure(b.asRight.some)
-            case None           => monad.pure(None)
-          }
+          loser.join >>= (b1 => monad.pure(b1.asRight))
       }
 
     raceWith(fa1, fa2)(
       arbiter(_, _),
-      arbiter(_, _) map (_ map (_.swap))
+      arbiter(_, _) map (_.swap)
     )
   }
 
@@ -212,16 +208,10 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    */
   @inline def raceAll[E, EE >: E: Semigroup, A, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
     implicit ev: ConcurrentData2[F]
-  ): F[EE, Option[AA]] = {
-
-    implicit val _: Errorful2[F] = self
-
-    val init = fa.widenBoth[EE, AA] map (_.some)
-
-    xs.foldLeft(init) { (acc, curr) =>
-      race(acc, curr.map(_.some)) map (_.flatten)
+  ): F[EE, AA] =
+    xs.foldLeft(fa.widenBoth[EE, AA]) { (acc, curr) =>
+      race(acc, curr)
     }
-  }
 
   /**
    * Returns an effect that executes both `fa1` and `fa2` in parallel
@@ -240,7 +230,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     SG: Semigroup[EE]
   ): F[EE, C] = {
 
-    implicit val ev1: Errorful2[F] = self
+    implicit val _: Errorful2[F] = self
 
     def coordinate[E1 <: EE, E2 <: EE, AA, BB](f: (AA, BB) => C)(
       winner: Option[Either[E1, AA]],
@@ -251,14 +241,14 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
           loser.cancel >>= {
             case Some(Right(_)) => raiseError(we)
             case Some(Left(le)) => raiseError(SG.combine(le, we))
-            case None           => monad.unit *> interrupted
+            case None           => monad[EE].unit >> interrupted
           }
 
         case Some(Right(wa)) =>
           loser.join map (f(wa, _))
 
         case None =>
-          loser.cancel *> interrupted
+          loser.cancel >> interrupted
       }
 
     val g = (b: B, a: A) => f(a, b)
