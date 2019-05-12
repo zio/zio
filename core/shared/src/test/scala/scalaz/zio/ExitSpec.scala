@@ -1,6 +1,6 @@
 package scalaz.zio
 
-import org.specs2.{ScalaCheck, Specification}
+import org.specs2.{ ScalaCheck, Specification }
 import scalaz.zio.Exit.Cause
 
 class ExitSpec extends Specification with ScalaCheck {
