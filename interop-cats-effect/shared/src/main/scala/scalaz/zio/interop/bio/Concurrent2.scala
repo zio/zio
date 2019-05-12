@@ -18,7 +18,7 @@ package scalaz.zio
 package interop
 package bio
 
-import cats.kernel.{ Monoid, Semigroup }
+import cats.kernel.Semigroup
 import cats.syntax.option._
 import cats.syntax.flatMap.catsSyntaxFlatten
 import cats.syntax.flatMap.catsSyntaxFlatMapOps
@@ -52,6 +52,17 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   def uninterruptible[E, A](fa: F[E, A]): F[E, A]
+
+  /**
+   * Returns an interrupted effect `F`.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def interrupted[E, A]: F[Nothing, Nothing]
 
   /**
    *
@@ -88,10 +99,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def race[E, EE >: E, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
-    implicit
-    CD: ConcurrentData2[F],
-    MD: Semigroup[EE]
+  @inline def race[E, EE >: E: Semigroup, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
+    implicit ev: ConcurrentData2[F]
   ): F[EE, Option[AA]] =
     monad.map(raceEither(fa1, fa2))(_ map (_.merge))
 
@@ -108,7 +117,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   @inline def raceEither[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
     implicit
     ev: ConcurrentData2[F],
-    MD: Semigroup[EE]
+    SG: Semigroup[EE]
   ): F[EE, Option[Either[A, B]]] = {
 
     import cats.syntax.either._
@@ -122,7 +131,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
       winner match {
         case Some(Left(we)) =>
           loser.await >>= {
-            case Some(Left(le)) => raiseError(MD.combine(we, le))
+            case Some(Left(le)) => raiseError(SG.combine(we, le))
             case Some(Right(b)) => monad.pure(b.asRight.some)
             case None           => raiseError(we)
           }
@@ -201,10 +210,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def raceAll[E, EE >: E, A, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
-    implicit
-    CD: ConcurrentData2[F],
-    MD: Semigroup[EE]
+  @inline def raceAll[E, EE >: E: Semigroup, A, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
+    implicit ev: ConcurrentData2[F]
   ): F[EE, Option[AA]] = {
 
     implicit val _: Errorful2[F] = self
@@ -229,32 +236,29 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    */
   @inline def zipWithPar[E, EE >: E, A, B, C](fa1: F[E, A], fa2: F[EE, B])(f: (A, B) => C)(
     implicit
-    CD: ConcurrentData2[F],
-    MD: Semigroup[EE]
-  ): F[Option[EE], C] = {
+    ev: ConcurrentData2[F],
+    SG: Semigroup[EE]
+  ): F[EE, C] = {
 
-    implicit val ev: Errorful2[F] = self
+    implicit val ev1: Errorful2[F] = self
 
     def coordinate[E1 <: EE, E2 <: EE, AA, BB](f: (AA, BB) => C)(
       winner: Option[Either[E1, AA]],
       loser: Fiber2[F, E2, BB]
-    ): F[Option[EE], C] =
+    ): F[EE, C] =
       winner match {
         case Some(Left(we)) =>
           loser.cancel >>= {
-            case Some(Right(_)) => raiseError(we.some)
-            case Some(Left(le)) => raiseError(MD.combine(le, we).some)
-            case None           => raiseError(None)
+            case Some(Right(_)) => raiseError(we)
+            case Some(Left(le)) => raiseError(SG.combine(le, we))
+            case None           => monad.unit *> interrupted
           }
 
         case Some(Right(wa)) =>
-          loser.await >>= {
-            case Some(Right(la)) => monad.pure(f(wa, la))
-            case Some(Left(le))  => raiseError(le.some)
-            case None            => raiseError(None)
-          }
+          loser.join map (f(wa, _))
 
-        case None => raiseError(None)
+        case None =>
+          loser.cancel *> interrupted
       }
 
     val g = (b: B, a: A) => f(a, b)
@@ -273,11 +277,9 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipPar[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
-    implicit
-    CD: ConcurrentData2[F],
-    MD: Monoid[EE]
-  ): F[Option[EE], (A, B)] =
+  @inline def zipPar[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B])(
+    implicit ev: ConcurrentData2[F]
+  ): F[EE, (A, B)] =
     zipWithPar(fa1, fa2)((a, b) => (a, b))
 
   /**
@@ -291,11 +293,9 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipParLeft[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
-    implicit
-    CD: ConcurrentData2[F],
-    MD: Monoid[EE]
-  ): F[Option[EE], A] =
+  @inline def zipParLeft[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B])(
+    implicit ev: ConcurrentData2[F]
+  ): F[EE, A] =
     zipWithPar(fa1, fa2)((a, _) => a)
 
   /**
@@ -309,11 +309,9 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipParRight[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
-    implicit
-    CD: ConcurrentData2[F],
-    MD: Monoid[EE]
-  ): F[Option[EE], B] =
+  @inline def zipParRight[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B])(
+    implicit ev: ConcurrentData2[F]
+  ): F[EE, B] =
     zipWithPar(fa1, fa2)((_, b) => b)
 
   /**

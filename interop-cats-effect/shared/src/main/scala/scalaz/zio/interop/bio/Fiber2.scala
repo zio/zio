@@ -24,5 +24,17 @@ abstract class Fiber2[F[+ _, + _], E, A] { self =>
 
   def cancel: F[Nothing, Option[Either[E, A]]]
 
+  /**
+   * The fiber running the invocation to `join` will suspend waiting for the result of the
+   * `self` fiber. If `self` completes in error the resulting effect `F[E, A]` will complete
+   * with an error, if the joined fiber `self` succeeds the effect will retunr an `A` and
+   * if the `self` is interrupted the returned effect will be interrupted.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
   def join: F[E, A]
 }
