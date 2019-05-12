@@ -48,7 +48,7 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    * @see [[redeem]] to recover from the error in a non failing way.
    *
    */
-  @inline def redeemWith[E1, E2, A, B](fa: F[E1, A])(failure: E1 => F[E2, B], success: A => F[E2, B]): F[E2, B]
+  def redeemWith[E1, E2, A, B](fa: F[E1, A])(failure: E1 => F[E2, B], success: A => F[E2, B]): F[E2, B]
 
   /**
    * Allows to recover from the error in a non failing way.

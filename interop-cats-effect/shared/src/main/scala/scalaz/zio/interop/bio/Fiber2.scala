@@ -26,10 +26,10 @@ abstract class Fiber2[F[+ _, + _], E, A] { self =>
 
   /**
    * The fiber running the invocation to `join` will suspend waiting for the result of the
-   * `self` fiber. If `self` completes in error the resulting effect `F[E, A]` will complete
-   * with an error, if the joined fiber `self` succeeds the effect will return an `A` and
-   * if the joining fiber or the `self` fiber are interrupted the returned effect will also
-   * be interrupted.
+   * `self` fiber. If the joined `self` completes in error the resulting effect `F[E, A]`
+   * will complete with an error, if the joined fiber `self` succeeds the effect will
+   * return an `A` and if the joining fiber or the `self` fiber are interrupted the returned
+   * effect will also be interrupted.
    *
    * TODO: Example:
    * {{{

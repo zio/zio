@@ -60,7 +60,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  def interrupted[E, A]: F[Nothing, Nothing]
+  def interrupted: F[Nothing, Nothing]
 
   /**
    *
