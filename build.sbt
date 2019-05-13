@@ -289,7 +289,7 @@ lazy val docs = project.module
       "com.github.ghik"     %% "silencer-lib"             % "1.3.3"  % "provided",
       "commons-io"          % "commons-io"                % "2.6"    % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
-      "org.jsoup"           % "jsoup"                     % "1.11.3" % "provided"
+      "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided"
     )
   )
   .dependsOn(
