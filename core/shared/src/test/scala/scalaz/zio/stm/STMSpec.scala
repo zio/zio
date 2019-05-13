@@ -605,7 +605,7 @@ object Examples {
       }.commit
   }
   object queue {
-    import scala.collection.immutable.{ Queue => ScalaQueue }
+    import scala.collection.immutable.{Queue => ScalaQueue}
 
     case class Queue[A](capacity: Int, tvar: TRef[ScalaQueue[A]])
     def makeQueue[A](capacity: Int): UIO[Queue[A]] =
