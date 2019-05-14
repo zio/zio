@@ -86,12 +86,10 @@ class RetrySpec extends BaseCrossPlatformSpec {
     (for {
       ref <- Ref.make(0)
       _   <- alwaysFail(ref).retry(Schedule.once)
-    } yield ())
-      .foldM(
-        err => IO.succeed(err),
-        _ => IO.succeed("A failure was expected")
-      )
-      .map(a => a must_=== "Error: 2")
+    } yield ()).foldM(
+      err => IO.succeed(err),
+      _ => IO.succeed("A failure was expected")
+    ) must_=== "Error: 2"
 
   // 0 retry means "one execution in all, no retry, whatever the output"
   def retryRecurs0 =
@@ -102,13 +100,12 @@ class RetrySpec extends BaseCrossPlatformSpec {
       .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      )
-      .map(a => a must_=== "Error: 1")
+      ) must_=== "Error: 1"
 
   def retryN = {
     val retried  = retryCollect(IO.fail("Error"), Schedule.recurs(5))
     val expected = (Left("Error"), List(1, 2, 3, 4, 5, 6).map((Duration.Zero, _)))
-    retried.map(r => r must_=== expected)
+    retried must_=== expected
   }
 
   def retryNUnitIntervalJittered = {
@@ -116,7 +113,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
     val scheduled: UIO[List[(Duration, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
 
     val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
-    scheduled.map(a => a must_=== expected)
+    scheduled must_=== expected
   }
 
   def retryNCustomIntervalJittered = {
@@ -124,7 +121,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
     val scheduled: UIO[List[(Duration, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
 
     val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
-    scheduled.map(a => a must_=== expected)
+    scheduled must_=== expected
   }
 
   def fixedWithErrorPredicate = {
@@ -135,7 +132,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
     val retried  = retryCollect(io, strategy)
     val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
-    retried.map(a => a must_=== expected)
+    retried must_=== expected
   }
 
   def recurs10Retry = {
@@ -144,7 +141,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
     val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
     }
-    io.retry(strategy).map(a => a must_=== 5)
+    io.retry(strategy) must_=== 5
   }
 
   def fibonacci =
@@ -166,7 +163,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
     }
     val strategy = schedule.whileInput[String](_ == "KeepTryingError")
     val expected = (Left("GiveUpError"), expectedSteps.map(i => ((i * 100).millis, (i * 100).millis)))
-    retryCollect(io, strategy).map(a => a must_=== expected)
+    retryCollect(io, strategy) must_=== expected
   }
 
   val ioSucceed = (_: String, _: Unit) => IO.succeed("OrElse")
@@ -193,8 +190,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
       .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      )
-      .map(a => a must_=== "OrElseFailed")
+      ) must_=== "OrElseFailed"
 
   def retryOrElseEitherSucceed =
     for {
@@ -216,8 +212,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
       .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      )
-      .map(a => a must_=== "OrElseFailed")
+      ) must_=== "OrElseFailed"
 
   /*
    * A function that increments ref each time it is called.

@@ -483,7 +483,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
+    ) mustFailBecauseOf Cause.interrupt
 
   def e37 =
     (
@@ -494,7 +494,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
+    ) mustFailBecauseOf Cause.interrupt
 
   def e38 =
     (
@@ -507,7 +507,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
+    ) mustFailBecauseOf Cause.interrupt
 
   def e39 =
     (
@@ -516,7 +516,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- queue.offer(1)
       } yield ()
-    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
+    ) mustFailBecauseOf Cause.interrupt
 
   def e40 =
     (
@@ -525,7 +525,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- queue.take
       } yield ()
-    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
+    ) mustFailBecauseOf Cause.interrupt
 
   def e41 =
     (
@@ -534,7 +534,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- queue.takeAll
       } yield ()
-    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
+    ) mustFailBecauseOf Cause.interrupt
 
   def e42 =
     (
@@ -543,7 +543,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- queue.takeUpTo(1)
       } yield ()
-    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
+    ) mustFailBecauseOf Cause.interrupt
 
   def e43 =
     (
@@ -552,7 +552,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- queue.size
       } yield ()
-    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
+    ) mustFailBecauseOf Cause.interrupt
 
   def e44 =
     for {
