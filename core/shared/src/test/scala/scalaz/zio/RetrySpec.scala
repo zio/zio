@@ -83,23 +83,27 @@ class RetrySpec extends BaseCrossPlatformSpec {
 
   // no more than one retry on retry `once`
   def retryOnceFail =
-      (for {
-        ref <- Ref.make(0)
-        _   <- alwaysFail(ref).retry(Schedule.once)
-      } yield ()).foldM(
+    (for {
+      ref <- Ref.make(0)
+      _   <- alwaysFail(ref).retry(Schedule.once)
+    } yield ())
+      .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("A failure was expected")
-      ).map(a => a must_=== "Error: 2")
+      )
+      .map(a => a must_=== "Error: 2")
 
   // 0 retry means "one execution in all, no retry, whatever the output"
   def retryRecurs0 =
-      (for {
-        ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retry(Schedule.recurs(0))
-      } yield i).foldM(
+    (for {
+      ref <- Ref.make(0)
+      i   <- alwaysFail(ref).retry(Schedule.recurs(0))
+    } yield i)
+      .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      ).map(a => a must_=== "Error: 1")
+      )
+      .map(a => a must_=== "Error: 1")
 
   def retryN = {
     val retried  = retryCollect(IO.fail("Error"), Schedule.recurs(5))
@@ -182,13 +186,15 @@ class RetrySpec extends BaseCrossPlatformSpec {
     } yield o must_=== "OrElse"
 
   def retryOrElseFallbackFailed =
-      (for {
-        ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
-      } yield i).foldM(
+    (for {
+      ref <- Ref.make(0)
+      i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
+    } yield i)
+      .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      ).map(a => a must_=== "OrElseFailed")
+      )
+      .map(a => a must_=== "OrElseFailed")
 
   def retryOrElseEitherSucceed =
     for {
@@ -203,13 +209,15 @@ class RetrySpec extends BaseCrossPlatformSpec {
     } yield o must beLeft("OrElse")
 
   def retryOrElseEitherFallbackFailed =
-      (for {
-        ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
-      } yield i).foldM(
+    (for {
+      ref <- Ref.make(0)
+      i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
+    } yield i)
+      .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      ).map(a => a must_=== "OrElseFailed")
+      )
+      .map(a => a must_=== "OrElseFailed")
 
   /*
    * A function that increments ref each time it is called.

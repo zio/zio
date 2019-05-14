@@ -1,6 +1,6 @@
 package scalaz.zio
 
-import org.specs2.specification.AroundTimeout
+import scalaz.zio.Exit.Cause
 import scalaz.zio.QueueSpec.waitForSize
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
@@ -130,8 +130,8 @@ class QueueSpec extends BaseCrossPlatformSpec {
     for {
       queue <- Queue.bounded[String](100)
       f1 <- queue.take
-        .zipWith(queue.take)(_ + _)
-        .fork
+             .zipWith(queue.take)(_ + _)
+             .fork
       _ <- queue.offer("don't ") *> queue.offer("give up :D")
       v <- f1.join
     } yield v must_=== "don't give up :D"
@@ -165,14 +165,13 @@ class QueueSpec extends BaseCrossPlatformSpec {
     } yield isSuspended must beTrue).supervise
 
   def e6 =
-
     for {
       queue  <- Queue.bounded[Int](5)
       values = Range.inclusive(1, 10).toList
       _      <- IO.forkAll(values.map(queue.offer))
       _      <- waitForSize(queue, 10)
       l <- queue.take
-        .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
+            .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
     } yield l must containTheSameElementsAs(values)
 
   def e7 =
@@ -433,7 +432,6 @@ class QueueSpec extends BaseCrossPlatformSpec {
     } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3)
 
   def e33 =
-
     for {
       queue   <- Queue.bounded[Int](2)
       orders  = Range.inclusive(1, 3).toList
@@ -450,7 +448,6 @@ class QueueSpec extends BaseCrossPlatformSpec {
     } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3).and(v4 must_=== 4).and(v5 must_=== 5)
 
   def e34 =
-
     for {
       queue  <- Queue.bounded[Int](1000)
       orders = Range.inclusive(2, 1000).toList
@@ -478,7 +475,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
       .and(v3 must_=== 35)
 
   def e36 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](3)
         f     <- queue.take.fork
@@ -486,10 +483,10 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupt
+    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
 
   def e37 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.sliding[Int](1)
         f     <- queue.take.fork
@@ -497,10 +494,10 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupt
+    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
 
   def e38 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](2)
         _     <- queue.offer(1)
@@ -510,52 +507,52 @@ class QueueSpec extends BaseCrossPlatformSpec {
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupt
+    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
 
   def e39 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.offer(1)
       } yield ()
-    ) must_=== Exit.interrupt
+    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
 
   def e40 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.take
       } yield ()
-    ) must_=== Exit.interrupt
+    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
 
   def e41 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.takeAll
       } yield ()
-    ) must_=== Exit.interrupt
+    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
 
   def e42 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.takeUpTo(1)
       } yield ()
-    ) must_=== Exit.interrupt
+    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
 
   def e43 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.size
       } yield ()
-    ) must_=== Exit.interrupt
+    ).sandbox.flip.map(error => error must_=== Cause.interrupt)
 
   def e44 =
     for {
@@ -629,8 +626,8 @@ class QueueSpec extends BaseCrossPlatformSpec {
     for {
       queue <- Queue.sliding[Int](5)
       f1 <- queue.take
-        .zipWith(queue.take)(_ + _)
-        .fork
+             .zipWith(queue.take)(_ + _)
+             .fork
       _ <- queue.offer(1) *> queue.offer(2)
       v <- f1.join
     } yield v must_=== 3
@@ -680,7 +677,6 @@ class QueueSpec extends BaseCrossPlatformSpec {
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== List(1, 2, 3, 4)).and(ta.size must_=== capacity)
-  )
 
   def e57 =
     for {
@@ -703,8 +699,8 @@ class QueueSpec extends BaseCrossPlatformSpec {
     for {
       queue <- Queue.dropping[Int](5)
       f1 <- queue.take
-        .zipWith(queue.take)(_ + _)
-        .fork
+             .zipWith(queue.take)(_ + _)
+             .fork
       _ <- queue.offer(1) *> queue.offer(2)
       v <- f1.join
     } yield v must_=== 3
