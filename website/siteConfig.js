@@ -39,6 +39,7 @@ const siteConfig = {
     { doc: 'interop/interop_index', label: 'Interop' },
     { doc: 'usecases/usecases_index', label: 'Use Cases' },
     { doc: 'advanced/advanced_index', label: 'Advanced' },
+    { doc: 'resources/resources', label: 'Resources & Ecosystem' },
   ],
 
   // If you have users set above, you add it here:

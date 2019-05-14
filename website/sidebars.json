@@ -61,5 +61,11 @@
       "advanced/advanced_rts",
       "advanced/advanced_system"
     ]
+  },
+  "resources-sidebar": {
+    "Resources & Ecosystem": [
+      "resources/resources",
+      "resources/ecosystem"
+    ]
   }
 }
