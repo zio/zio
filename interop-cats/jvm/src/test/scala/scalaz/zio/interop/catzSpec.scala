@@ -124,6 +124,8 @@ class catzSpec
   checkAllAsync("Parallel[Task, Task.Par]", (_) => ParallelTests[Task, Util.Par].parallel[Int, Int])
   checkAllAsync("Monad[UIO]", (_) => MonadTests[UIO].apply[Int, Int, Int])
 
+  checkAllAsync("Monad[UIO]", (_) => ExtraMonadTests[UIO].monadExtras[Int])
+
   object summoningInstancesTest {
     import cats._, cats.effect._
     Concurrent[TaskR[String, ?]]

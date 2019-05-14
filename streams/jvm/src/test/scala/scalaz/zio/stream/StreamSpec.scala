@@ -5,7 +5,6 @@ import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import scalaz.zio._
 
-import scala.concurrent.duration._
 import scalaz.zio.QueueSpec.waitForSize
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
@@ -14,17 +13,17 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     with GenIO
     with ScalaCheck {
 
-  override val DefaultTimeout = 20.seconds
-
   import ArbitraryChunk._
 
-  def is = "StreamSpec".title ^ s2"""
-  PureStream.filter         $filter
-  PureStream.dropWhile      $dropWhile
-  PureStream.mapProp        $map
-  PureStream.mapConcat      $mapConcat
+  def is =
+    "StreamSpec".title ^
+      s2"""
+  Stream.filter             $filter
+  Stream.dropWhile          $dropWhile
+  Stream.map                $map
+  Stream.mapConcat          $mapConcat
   Stream.filterM            $filterM
-  Stream.scan               $mapAccum
+  Stream.mapAccum           $mapAccum
   Stream.++                 $concat
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
@@ -44,7 +43,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.foreach            $foreach
   Stream.collect            $collect
   Stream.forever            $forever
-  Stream.scanM              $mapAccumM
+  Stream.mapAccumM          $mapAccumM
   Stream.transduce
     transduces              $transduce
     no remainder            $transduceNoRemainder
@@ -87,6 +86,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream combinators
     unTake happy path       $unTake
     unTake with error       $unTakeError
+    buffer the Stream                      $bufferStream
+    buffer the Stream with Error           $bufferStreamError
+    fast producer progress independently   $fastProducerSlowConsumer
   """
 
   import ArbitraryStream._
@@ -96,22 +98,22 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import Stream.ConformsAnyProof
 
   private def filter =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))
     }
 
   private def filterM =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       slurp(s.filterM(s => IO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
     }
 
   private def dropWhile =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       slurp(s.dropWhile(p)) must_=== slurp(s).map(_.dropWhile(p))
     }
 
   private def takeWhile =
-    prop { (s: Stream[String, String], p: String => Boolean) =>
+    prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       val streamTakeWhile = slurp(s.takeWhile(p))
       val listTakeWhile   = slurp(s).map(_.takeWhile(p))
       listTakeWhile.succeeded ==> (streamTakeWhile must_=== listTakeWhile)
@@ -143,12 +145,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     )
 
   private def map =
-    prop { (s: Stream[String, String], f: String => Int) =>
+    prop { (s: Stream[String, Byte], f: Byte => Int) =>
       slurp(s.map(f)) must_=== slurp(s).map(_.map(f))
     }
 
   private def concat =
-    prop { (s1: Stream[String, String], s2: Stream[String, String]) =>
+    prop { (s1: Stream[String, Byte], s2: Stream[String, Byte]) =>
       val listConcat = (slurp(s1) zip slurp(s2)).map {
         case (left, right) => left ++ right
       }
@@ -158,7 +160,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mapConcat = {
     import ArbitraryChunk._
-    prop { (s: Stream[String, String], f: String => Chunk[Int]) =>
+    prop { (s: Stream[String, Byte], f: Byte => Chunk[Int]) =>
       slurp(s.mapConcat(f)) must_=== slurp(s).map(_.flatMap(v => f(v).toSeq))
     }
   }
@@ -189,7 +191,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def take =
-    prop { (s: Stream[String, String], n: Int) =>
+    prop { (s: Stream[String, Byte], n: Int) =>
       val takeStreamesult = slurp(s.take(n))
       val takeListResult  = slurp(s).map(_.take(n))
       (takeListResult.succeeded ==> (takeStreamesult must_=== takeListResult))
@@ -274,7 +276,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
         IO.effectTotal {
-          sum += a; if (sum >= 9) false else true
+          sum += a;
+          if (sum >= 9) false else true
         }
     )
 
@@ -406,7 +409,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def zipWithIndex =
-    prop((s: Stream[String, String]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
+    prop((s: Stream[String, Byte]) => slurp(s.zipWithIndex) must_=== slurp(s).map(_.zipWithIndex))
 
   private def zipWithIgnoreRhs = {
     val s1     = Stream(1, 2, 3)
@@ -532,4 +535,41 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         }
     ) must_== Failure(Cause.Fail(e))
   }
+
+  private def bufferStream = prop { list: List[Int] =>
+    unsafeRunSync(
+      Stream
+        .fromIterable(list)
+        .buffer(2)
+        .run(Sink.collect[Int])
+    ) must_== (Success(list))
+  }
+
+  private def bufferStreamError = {
+    val e = new RuntimeException("boom")
+    unsafeRunSync(
+      (Stream.range(0, 10) ++ Stream.fail(e))
+        .buffer(2)
+        .run(Sink.collect[Int])
+    ) must_== Failure(Cause.Fail(e))
+  }
+
+  private def fastProducerSlowConsumer =
+    unsafeRun(
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        ref     <- Ref.make(List[Int]())
+        _ <- Stream
+              .range(1, 4)
+              .mapM(i => ref.update(i :: _) <* promise.succeed(()))
+              .buffer(2)
+              .mapM(_ => IO.never)
+              .run(Sink.drain)
+              .fork
+        _    <- promise.await
+        list <- ref.get
+      } yield {
+        list.reverse must_=== (1 to 4).toList
+      }
+    )
 }

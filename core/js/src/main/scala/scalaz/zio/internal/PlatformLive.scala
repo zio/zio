@@ -32,15 +32,16 @@ object PlatformLive {
     new Platform {
       val executor = executor0
 
-      def nonFatal(t: Throwable): Boolean = true
+      def fatal(t: Throwable): Boolean = false
 
       def reportFailure(cause: Cause[_]): Unit =
-        if (!cause.interrupted) println(cause.toString)
+        if (!cause.interrupted)
+          println(cause.prettyPrint)
 
       def newWeakHashMap[A, B](): JMap[A, B] =
         new HashMap[A, B]()
     }
 
-  final def fromExecutionContext(ec: ExecutionContext): Platform =
-    fromExecutor(Executor.fromExecutionContext(1024)(ec))
+  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
+    fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 }

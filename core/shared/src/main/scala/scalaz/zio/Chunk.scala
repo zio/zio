@@ -442,7 +442,7 @@ sealed trait Chunk[@specialized +A] { self =>
       i += 1
     }
 
-    zio.void
+    zio.unit
   }
 
   /**

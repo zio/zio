@@ -2,6 +2,7 @@
 import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import Scalaz._
 import xerial.sbt.Sonatype._
+import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 
 name := "scalaz-zio"
 
@@ -41,15 +42,16 @@ lazy val root = project
     interopCatsJVM,
     interopCatsJS,
     interopFutureJVM,
-//  interopMonixJVM,
-//  interopMonixJS,
+    interopMonixJVM,
+    interopMonixJS,
     interopScalaz7xJVM,
     interopScalaz7xJS,
     interopJavaJVM,
     interopReactiveStreamsJVM,
-//  benchmarks,
-    microsite,
-    testkitJVM
+    interopTwitterJVM,
+    benchmarks,
+    testkitJVM,
+    docs
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -59,9 +61,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.4.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.4.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.4.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
     )
   )
   .enablePlugins(BuildInfoPlugin)
@@ -82,6 +84,9 @@ lazy val coreJVM = core.jvm
   )
 
 lazy val coreJS = core.js
+  .settings(
+    libraryDependencies += "org.scala-js" %%% "scalajs-java-time" % "0.2.5" % Test
+  )
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
@@ -107,9 +112,9 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio-interop-cats"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect"   % "1.2.0" % Optional,
+      "org.typelevel" %%% "cats-effect"   % "1.3.0" % Optional,
       "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
-      "co.fs2"        %%% "fs2-core"      % "1.0.3" % Test
+      "co.fs2"        %%% "fs2-core"      % "1.0.4" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -152,7 +157,7 @@ lazy val interopCatsJVM = interopCats.jvm
     resolvers += Resolver
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.2.0"                              % Test,
+      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.0"                              % Test,
       "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
       "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
@@ -204,7 +209,7 @@ lazy val interopJava = crossProject(JVMPlatform)
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
-val akkaVersion = "2.5.21"
+val akkaVersion = "2.5.22"
 lazy val interopReactiveStreams = crossProject(JVMPlatform)
   .in(file("interop-reactiveStreams"))
   .settings(stdSettings("zio-interop-reactiveStreams"))
@@ -212,7 +217,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams"     % "1.0.2",
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest"       %% "scalatest"           % "3.0.6" % "test",
+      "org.scalatest"       %% "scalatest"           % "3.0.7" % "test",
       "com.typesafe.akka"   %% "akka-stream"         % akkaVersion % "test",
       "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
@@ -220,6 +225,16 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
   .dependsOn(streams % "test->test;compile->compile")
 
 lazy val interopReactiveStreamsJVM = interopReactiveStreams.jvm.dependsOn(interopSharedJVM)
+
+lazy val interopTwitter = crossProject(JSPlatform, JVMPlatform)
+  .in(file("interop-twitter"))
+  .settings(stdSettings("zio-interop-twitter"))
+  .settings(
+    libraryDependencies += "com.twitter" %% "util-core" % "19.4.0"
+  )
+  .dependsOn(core % "test->test;compile->compile")
+
+lazy val interopTwitterJVM = interopTwitter.jvm.dependsOn(interopSharedJVM)
 
 lazy val testkit = crossProject(JVMPlatform)
   .in(file("testkit"))
@@ -239,12 +254,12 @@ lazy val benchmarks = project.module
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "io.monix"                 %% "monix"           % "3.0.0-RC2",
-        "org.typelevel"            %% "cats-effect"     % "1.2.0",
-        "co.fs2"                   %% "fs2-core"        % "1.0.3",
+        "org.typelevel"            %% "cats-effect"     % "1.3.0",
+        "co.fs2"                   %% "fs2-core"        % "1.0.4",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.20",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.6",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.8",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.2.5.RELEASE",
+        "io.projectreactor"        % "reactor-core"     % "3.2.9.RELEASE",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
@@ -260,44 +275,31 @@ lazy val benchmarks = project.module
     )
   )
 
-lazy val microsite = project.module
-  .dependsOn(coreJVM, interopCatsJVM, interopFutureJVM, interopScalaz7xJVM, interopJavaJVM, interopReactiveStreamsJVM)
-  .enablePlugins(MicrositesPlugin)
+lazy val docs = project.module
+  .in(file("scalaz-zio-docs"))
   .settings(
+    skip.in(publish) := true,
+    moduleName := "scalaz-zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
+    scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    skip in publish := true,
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % "1.3.1" % Tut,
-      "commons-io"      % "commons-io"    % "2.6"   % Tut
-    ),
-    micrositeFooterText := Some(
-      """
-        |<p>&copy; 2018-2019 <a href="https://github.com/scalaz/scalaz-zio">ZIO Maintainers</a></p>
-        |""".stripMargin
-    ),
-    micrositeName := "",
-    micrositeDescription := "Type-safe, composable asynchronous and concurrent programming for Scala",
-    micrositeAuthor := "ZIO contributors",
-    micrositeOrganizationHomepage := "https://github.com/scalaz/scalaz-zio",
-    micrositeGitterChannelUrl := "scalaz/scalaz-zio",
-    micrositeGitHostingUrl := "https://github.com/scalaz/scalaz-zio",
-    micrositeGithubOwner := "scalaz",
-    micrositeGithubRepo := "scalaz-zio",
-    micrositeFavicons := Seq(microsites.MicrositeFavicon("favicon.png", "512x512")),
-    micrositeDocumentationUrl := s"https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/${(version in Compile).value}",
-    micrositeDocumentationLabelDescription := "Scaladoc",
-    micrositeBaseUrl := "/scalaz-zio",
-    micrositePalette := Map(
-      "brand-primary"   -> "#990000",
-      "brand-secondary" -> "#000000",
-      "brand-tertiary"  -> "#990000",
-      "gray-dark"       -> "#453E46",
-      "gray"            -> "#837F84",
-      "gray-light"      -> "#E3E2E3",
-      "gray-lighter"    -> "#F4F3F4",
-      "white-color"     -> "#FFFFFF"
+      "com.github.ghik"     %% "silencer-lib"             % "1.3.3"  % "provided",
+      "commons-io"          % "commons-io"                % "2.6"    % "provided",
+      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided"
     )
   )
+  .dependsOn(
+    coreJVM,
+    interopCatsJVM,
+    interopFutureJVM,
+    interopMonixJVM,
+    interopScalaz7xJVM,
+    interopJavaJVM,
+    interopReactiveStreamsJVM,
+    interopTwitterJVM
+  )
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)

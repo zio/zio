@@ -19,7 +19,7 @@ package interop
 
 import cats.effect.{ Concurrent, ContextShift, ExitCase }
 import cats.{ effect, _ }
-import scalaz.zio.{ clock => zioClock, ZIO }
+import scalaz.zio.{ App, clock => zioClock, ZIO }
 import scalaz.zio.clock.Clock
 
 import scala.concurrent.ExecutionContext
@@ -119,7 +119,7 @@ private class CatsConcurrentEffect[R](rts: Runtime[R])
           f.await
             .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
-            .const(f.interrupt.void)
+            .const(f.interrupt.unit)
         }
       }
     }
@@ -132,7 +132,7 @@ private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[TaskR[R, ?
 
   private[this] final def toFiber[A](f: Fiber[Throwable, A]): effect.Fiber[TaskR[R, ?], A] =
     new effect.Fiber[TaskR[R, ?], A] {
-      override final val cancel: TaskR[R, Unit] = f.interrupt.void
+      override final val cancel: TaskR[R, Unit] = f.interrupt.unit
 
       override final val join: TaskR[R, A] = f.join
     }
@@ -201,10 +201,8 @@ private class CatsEffect[R]
     TaskR.never
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): TaskR[R, A] =
-    ZIO.accessM { r =>
-      TaskR.effectAsync { (kk: Task[A] => Unit) =>
-        k(e => kk(eitherToIO(e).provide(r)))
-      }
+    TaskR.effectAsync { (kk: TaskR[R, A] => Unit) =>
+      k(e => kk(eitherToIO(e)))
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => TaskR[R, Unit]): TaskR[R, A] =
@@ -247,7 +245,7 @@ private class CatsMonad[R, E] extends Monad[ZIO[R, E, ?]] {
   override final def map[A, B](fa: ZIO[R, E, A])(f: A => B): ZIO[R, E, B]                = fa.map(f)
   override final def flatMap[A, B](fa: ZIO[R, E, A])(f: A => ZIO[R, E, B]): ZIO[R, E, B] = fa.flatMap(f)
   override final def tailRecM[A, B](a: A)(f: A => ZIO[R, E, Either[A, B]]): ZIO[R, E, B] =
-    f(a).flatMap {
+    ZIO.suspend(f(a)).flatMap {
       case Left(l)  => tailRecM(l)(f)
       case Right(r) => ZIO.succeed(r)
     }

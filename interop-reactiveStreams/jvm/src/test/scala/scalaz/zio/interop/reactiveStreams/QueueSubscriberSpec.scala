@@ -1,13 +1,13 @@
 package scalaz.zio.interop.reactiveStreams
+
 import org.reactivestreams.Subscription
 import org.specs2.concurrent.ExecutionEnv
+import org.specs2.execute.Result
 import org.specs2.specification.core.SpecStructure
-import scalaz.zio.Exit.Success
+import scala.concurrent.duration._
 import scalaz.zio._
 import scalaz.zio.stream.Sink
 import scalaz.zio.duration.Duration
-
-import scala.concurrent.duration._
 
 class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
@@ -35,82 +35,87 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   )
 
   private def e2 =
-    unsafeRunSync(
-      (for {
+    unsafeRun(
+      for {
         subStr               <- QueueSubscriber.make[Int](10)
         (subscriber, stream) = subStr
-        _                    <- stream.run(Sink.fail(boom)).fork
-        canceled             <- Promise.make[Unit, Unit]
+        fiber                <- stream.run(Sink.fail(boom)).fork
+        canceled             <- Promise.make[Nothing, Result]
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
-          override def request(n: Long): Unit = runtime.unsafeRun(canceled.fail(()).void)
-          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).void)
+          override def request(n: Long): Unit = runtime.unsafeRun(canceled.succeed(failure).unit)
+          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(success).unit)
         }
-        _ <- UIO(subscriber.onSubscribe(s))
-        _ <- canceled.await
-      } yield ()).timeoutFail(())(Duration(2, SECONDS))
-    ) should_=== Success(())
+        _  <- UIO(subscriber.onSubscribe(s))
+        _  <- fiber.await
+        ro <- canceled.poll
+        r  <- ro.fold(UIO.succeed[Result](failure))(identity)
+      } yield r
+    )
 
   private def e3 =
-    unsafeRunSync(
-      (for {
+    unsafeRun(
+      for {
         subStr               <- QueueSubscriber.make[Int](10)
         (subscriber, stream) = subStr
-        canceled             <- Promise.make[Unit, Unit]
+        canceled             <- Promise.make[Nothing, Result]
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
-          override def request(n: Long): Unit = runtime.unsafeRun(canceled.fail(()).void)
-          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).void)
+          override def request(n: Long): Unit = runtime.unsafeRun(canceled.succeed(failure).unit)
+          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(success).unit)
         }
-        _ <- UIO(subscriber.onSubscribe(s))
-        _ <- stream.run(Sink.fail(boom)).catchAll(_ => UIO.unit)
-        _ <- canceled.await
-      } yield ()).timeoutFail(())(Duration(2, SECONDS))
-    ) should_=== Success(())
+        _  <- UIO(subscriber.onSubscribe(s))
+        _  <- stream.run(Sink.fail(boom)).catchAll(_ => UIO.unit)
+        ro <- canceled.poll
+        r  <- ro.fold(UIO.succeed[Result](failure))(identity)
+      } yield r
+    )
 
   private def e4 =
-    unsafeRunSync(
-      (for {
+    unsafeRun(
+      for {
         subStr               <- QueueSubscriber.make[Int](10)
         (subscriber, stream) = subStr
-        canceled             <- Promise.make[Unit, Unit]
+        canceled             <- Promise.make[Nothing, Result]
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
           override def request(n: Long): Unit = (0 until n.toInt).foreach(subscriber.onNext)
-          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).void)
+          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(success).unit)
         }
-        _ <- UIO(subscriber.onSubscribe(s))
-        _ <- stream.drop(10).run(Sink.fail(boom)).catchAll(_ => UIO.unit)
-        _ <- canceled.await
-      } yield ()).timeoutFail(())(Duration(2, SECONDS))
-    ) should_=== Success(())
+        _  <- UIO(subscriber.onSubscribe(s))
+        _  <- stream.drop(10).run(Sink.fail(boom)).catchAll(_ => UIO.unit)
+        ro <- canceled.poll
+        r  <- ro.fold(UIO.succeed[Result](failure))(identity)
+      } yield r
+    )
 
   private def e5 =
-    unsafeRunSync(
-      (for {
+    unsafeRun(
+      for {
         subStr               <- QueueSubscriber.make[Int](10)
         (subscriber, stream) = subStr
         fiber                <- stream.run(Sink.collect[Int]).fork
         _                    <- ZIO.sleep(Duration(100, MILLISECONDS))
         _                    <- fiber.interrupt
-        canceled             <- Promise.make[Unit, Unit]
+        canceled             <- Promise.make[Nothing, Result]
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
           override def request(n: Long): Unit = (0 until n.toInt).foreach(subscriber.onNext)
-          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(()).void)
+          override def cancel(): Unit         = runtime.unsafeRun(canceled.succeed(success).unit)
         }
-        _ <- UIO(subscriber.onSubscribe(s))
-        _ <- canceled.await
-      } yield ()).timeoutFail(())(Duration(2, SECONDS))
-    ) should_=== Success(())
+        _  <- UIO(subscriber.onSubscribe(s))
+        ro <- canceled.poll
+        r  <- ro.fold(UIO.succeed[Result](failure))(identity)
+      } yield r
+    )
 
   private def e6 =
-    unsafeRunSync(
-      (for {
+    unsafeRun(
+      for {
         subStr               <- QueueSubscriber.make[Int](10)
         (subscriber, stream) = subStr
         fiber                <- stream.drop(10).run(Sink.collect[Int]).fork
-        canceled             <- Promise.make[Unit, Unit]
+        canceled             <- Promise.make[Nothing, Result]
         delivered            <- Promise.make[Nothing, Unit]
         runtime              <- ZIO.runtime[Any]
         s = new Subscription {
@@ -119,13 +124,14 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
             runtime.unsafeRun(delivered.succeed(()))
             ()
           }
-          override def cancel(): Unit = runtime.unsafeRun(canceled.succeed(()).void)
+          override def cancel(): Unit = runtime.unsafeRun(canceled.succeed(success).unit)
         }
-        _ <- UIO(subscriber.onSubscribe(s))
-        _ <- delivered.await
-        _ <- fiber.interrupt
-        _ <- canceled.await
-      } yield ()).timeoutFail(())(Duration(2, SECONDS))
-    ) should_=== Success(())
+        _  <- UIO(subscriber.onSubscribe(s))
+        _  <- delivered.await
+        _  <- fiber.interrupt
+        ro <- canceled.poll
+        r  <- ro.fold(UIO.succeed[Result](failure))(identity)
+      } yield r
+    )
 
 }
