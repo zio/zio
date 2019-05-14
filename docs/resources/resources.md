@@ -5,6 +5,7 @@ title:  "Resources"
 
 ## Blog Articles
 
+Note that these articles reflect the state of ZIO at the time of their publication, so the code samples might be outdated considering ZIO is still under active development.
 - [Bifunctor IO: A Step Away from Dynamically-Typed Error Handling](http://degoes.net/articles/bifunctor-io) by John De Goes
 - [Beautiful, Simple, Testable Functional Effects for Scala](http://degoes.net/articles/zio-environment) (introducing ZIO Environment) by John De Goes
 - [Testing Incrementally with ZIO Environment](http://degoes.net/articles/testable-zio) by John De Goes
