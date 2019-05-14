@@ -1,52 +1,53 @@
 package scalaz.zio.internal
 
-private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
+private[zio]
+final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
   private[this] val array = new Array[AnyRef](capacity)
-  private[this] var idx   = 0
+  private[this] var size = 0
+  private[this] var current = 0
 
   def put(value: A): Unit = {
-    array(currentIndex) = value
+    array(current) = value
     increment()
   }
 
-  def pop(): Unit = {
-    // TODO: remove
-//    if (currentIndex == 0) throw new Exception("empty!")
-    //
-
-    array(currentIndex) = null
-    decrement()
+  def dropLast(): Unit = {
+    if (size > 0) {
+      decrement()
+      array(current) = null
+    }
   }
 
   def toList: List[A] = {
-    val cIdx = currentIndex
+    val begin = current - size
 
-    val newArray = if (idx <= capacity) {
-      array.slice(0, idx)
-    } else if (cIdx == 0) {
-      array.slice(cIdx, capacity)
+    val newArray = if (begin < 0) {
+      array.slice(capacity + begin, capacity) ++ array.slice(0, current)
     } else {
-      array.slice(cIdx, capacity) ++ array.slice(0, cIdx)
+      array.slice(begin, current)
     }
 
     newArray.toList.asInstanceOf[List[A]]
   }
 
   @inline private[this] def increment(): Unit = {
-    idx += 1
-    if (idx == 2 * capacity) { // to avoid infinite increments
-      idx = capacity
+    if (size < capacity) {
+      size = size + 1
     }
+    current = (current + 1) % capacity
   }
 
-  @inline private[this] def decrement(): Unit =
-    if (idx != 0) {
-      idx = idx - 1
+  @inline private[this] def decrement(): Unit = {
+    assert(size > 0 && current >= 0 && current < capacity)
+    size = size - 1
+    if (current > 0) {
+      current = current - 1
+    } else {
+      current = capacity - 1
     }
-
-  @inline private[this] def currentIndex: Int =
-    idx % capacity
+  }
 }
+
 
 object SingleThreadedRingBuffer {
   def apply[A <: AnyRef](capacity: Int): SingleThreadedRingBuffer[A] = new SingleThreadedRingBuffer[A](capacity)

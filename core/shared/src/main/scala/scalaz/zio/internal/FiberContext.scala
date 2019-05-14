@@ -104,7 +104,7 @@ private[zio] final class FiberContext[E, A](
     stackTrace.put(tracer.traceLocation(unwrap(lambda)))
 
   private[this] final def popStackTrace(): Unit =
-    stackTrace.pop()
+    stackTrace.dropLast()
 
   private[this] final def captureTrace(): ZTrace = {
     val exec  = if (trace ne null) trace.toList else Nil
