@@ -63,9 +63,13 @@
     ]
   },
   "resources-sidebar": {
-    "Resources & Ecosystem": [
-      "resources/resources",
-      "resources/ecosystem"
+    "Resources": [
+      "resources/resources"
+    ]
+  },
+  "ecosystem-sidebar": {
+    "Ecosystem": [
+      "ecosystem/ecosystem"
     ]
   }
 }
