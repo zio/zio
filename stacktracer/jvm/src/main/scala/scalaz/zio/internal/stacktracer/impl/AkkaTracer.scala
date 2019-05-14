@@ -1,7 +1,7 @@
 package scalaz.zio.internal.stacktracer.impl
 
-import scalaz.zio.internal.stacktracer.ZTraceElement.{NoLocation, SourceLocation}
-import scalaz.zio.internal.stacktracer.{Tracer, ZTraceElement}
+import scalaz.zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
+import scalaz.zio.internal.stacktracer.{ Tracer, ZTraceElement }
 
 import scala.util.matching.Regex
 

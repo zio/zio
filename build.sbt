@@ -247,7 +247,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
     )
   )
 
-lazy val stacktracerJS  = stacktracer.js
+lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
   .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
   .settings(

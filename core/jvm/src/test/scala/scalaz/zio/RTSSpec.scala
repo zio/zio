@@ -305,9 +305,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testAttemptOfDeepFailError =
     unsafeRun(deepErrorFail(100).either) must_=== Left(ExampleError)
 
-  def testEvalOfUncaughtFail = {
+  def testEvalOfUncaughtFail =
     unsafeRunSync(Task.fail(ExampleError): Task[Any]) must_=== Exit.Failure(fail(ExampleError))
-  }
 
   def testEvalOfUncaughtFailSupervised =
     unsafeRunSync(Task.fail(ExampleError).supervise: Task[Unit]) must_=== Exit.Failure(fail(ExampleError))
@@ -411,7 +410,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRunSync(IO.bracket(IO.unit)(_ => IO.die(ExampleError))(_ => IO.unit)) must_=== Exit.Failure(die(ExampleError))
 
   def testBracketErrorInUsage =
-    unsafeRunSync(Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])) must_=== Exit.Failure(fail(ExampleError))
+    unsafeRunSync(Task.bracket(Task.unit)(_ => Task.unit)(_ => Task.fail(ExampleError): Task[Unit])) must_=== Exit
+      .Failure(fail(ExampleError))
 
   def testBracketRethrownCaughtErrorInAcquisition = {
     val io = IO.absolve(IO.bracket(TaskExampleError)(_ => IO.unit)(_ => IO.unit).either)

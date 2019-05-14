@@ -16,7 +16,7 @@
 
 package scalaz.zio.internal.stacktracer.impl
 
-import java.io.{DataInputStream, InputStream}
+import java.io.{ DataInputStream, InputStream }
 import java.lang.invoke.SerializedLambda
 
 import scala.annotation.switch
@@ -42,7 +42,7 @@ object AkkaLineNumbers {
   sealed trait Result
   case object NoSourceInfo                                  extends Result
   final case class UnknownSourceFormat(explanation: String) extends Result
-  final case class SourceFile(filename: String)             extends Result {
+  final case class SourceFile(filename: String) extends Result {
     override def toString = filename
   }
   final case class SourceFileLines(filename: String, from: Int, to: Int, className: String, methodName: String)
@@ -174,9 +174,10 @@ object AkkaLineNumbers {
     } catch {
       case NonFatal(ex) => UnknownSourceFormat(s"parse error: ${ex.getMessage}")
     } finally {
-      try dis.close() catch {
+      try dis.close()
+      catch {
         case ex: InterruptedException => throw ex
-        case NonFatal(_) => // ignore
+        case NonFatal(_)              => // ignore
       }
     }
   }

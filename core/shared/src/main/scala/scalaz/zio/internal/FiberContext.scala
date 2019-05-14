@@ -16,14 +16,14 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
+import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio._
 import scalaz.zio.internal.stacktracer.ZTraceElement
-import scalaz.zio.internal.tracing.{FiberAncestry, ZIOFn}
+import scalaz.zio.internal.tracing.{ FiberAncestry, ZIOFn }
 
-import scala.annotation.{switch, tailrec}
+import scala.annotation.{ switch, tailrec }
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -34,7 +34,7 @@ private[zio] final class FiberContext[E, A](
   ancestor: FiberAncestry,
   initialTracingStatus: Boolean
 ) extends Fiber[E, A] {
-  import java.util.{Collections, Set}
+  import java.util.{ Collections, Set }
 
   import FiberContext._
   import FiberState._

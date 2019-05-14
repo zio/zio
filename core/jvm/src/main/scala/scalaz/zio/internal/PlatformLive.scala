@@ -16,8 +16,8 @@
 
 package scalaz.zio.internal
 
-import java.util.concurrent.{Executor => _, _}
-import java.util.{WeakHashMap, Map => JMap}
+import java.util.concurrent.{ Executor => _, _ }
+import java.util.{ WeakHashMap, Map => JMap }
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.stacktracer.Tracer

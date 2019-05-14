@@ -12,7 +12,7 @@ object ZTraceElement {
 
   final case class SourceLocation(file: String, clazz: String, method: String, line: Int) extends ZTraceElement {
     final def toStackTraceElement: StackTraceElement = new StackTraceElement(clazz, method, file, line)
-    final def prettyPrint: String = toStackTraceElement.toString
+    final def prettyPrint: String                    = toStackTraceElement.toString
   }
 
 }

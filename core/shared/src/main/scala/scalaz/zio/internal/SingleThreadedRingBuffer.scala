@@ -1,9 +1,8 @@
 package scalaz.zio.internal
 
-private[zio]
-final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
-  private[this] val array = new Array[AnyRef](capacity)
-  private[this] var size = 0
+private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
+  private[this] val array   = new Array[AnyRef](capacity)
+  private[this] var size    = 0
   private[this] var current = 0
 
   def put(value: A): Unit = {
@@ -11,12 +10,11 @@ final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
     increment()
   }
 
-  def dropLast(): Unit = {
+  def dropLast(): Unit =
     if (size > 0) {
       decrement()
       array(current) = null
     }
-  }
 
   def toList: List[A] = {
     val begin = current - size
@@ -47,7 +45,6 @@ final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
     }
   }
 }
-
 
 object SingleThreadedRingBuffer {
   def apply[A <: AnyRef](capacity: Int): SingleThreadedRingBuffer[A] = new SingleThreadedRingBuffer[A](capacity)
