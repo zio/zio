@@ -885,20 +885,20 @@ object ZManaged {
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
    */
-  final def reduceAll[R, R1 <: R, E, A](a: ZManaged[R, E, A], as: Iterable[ZManaged[R1, E, A]])(
+  final def reduceAll[R, E, A](a: ZManaged[R, E, A], as: Iterable[ZManaged[R, E, A]])(
     f: (A, A) => A
-  ): ZManaged[R1, E, A] =
-    as.foldLeft[ZManaged[R1, E, A]](a) { (l, r) =>
+  ): ZManaged[R, E, A] =
+    as.foldLeft[ZManaged[R, E, A]](a) { (l, r) =>
       l.zip(r).map(f.tupled)
     }
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.
    */
-  final def reduceAllPar[R, R1 <: R, E, A](a: ZManaged[R, E, A], as: Iterable[ZManaged[R1, E, A]])(
+  final def reduceAllPar[R, E, A](a: ZManaged[R, E, A], as: Iterable[ZManaged[R, E, A]])(
     f: (A, A) => A
-  ): ZManaged[R1, E, A] =
-    as.foldLeft[ZManaged[R1, E, A]](a) { (l, r) =>
+  ): ZManaged[R, E, A] =
+    as.foldLeft[ZManaged[R, E, A]](a) { (l, r) =>
       l.zipPar(r).map(f.tupled)
     }
 
@@ -909,18 +909,18 @@ object ZManaged {
    *
    * This is not implemented in terms of ZIO.foreach / ZManaged.zipWithPar as otherwise all reservation phases would always run, causing unnecessary work
    */
-  final def reduceAllParN[R, R1 <: R, E, A](
+  final def reduceAllParN[R, E, A](
     n: Long
   )(
     a1: ZManaged[R, E, A],
-    as: Iterable[ZManaged[R1, E, A]]
+    as: Iterable[ZManaged[R, E, A]]
   )(
     f: (A, A) => A
-  ): ZManaged[R1, E, A] =
-    ZManaged[R1, E, A] {
-      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
+  ): ZManaged[R, E, A] =
+    ZManaged[R, E, A] {
+      Ref.make[ZIO[R, Nothing, Any]](IO.unit).map { finalizers =>
         Reservation(
-          Queue.unbounded[(ZManaged[R1, E, A], Promise[E, A])].flatMap { queue =>
+          Queue.unbounded[(ZManaged[R, E, A], Promise[E, A])].flatMap { queue =>
             val worker = queue.take.flatMap {
               case (a, prom) =>
                 ZIO.uninterruptibleMask { restore =>
