@@ -2,14 +2,12 @@ package scalaz.zio.interop
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.twitter.util.{ Duration => TwitterDuration, Future, JavaTimer }
+import com.twitter.util.{ Future, JavaTimer, Duration => TwitterDuration }
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.{ FiberFailure, Task, TestRuntime }
 import scalaz.zio.Exit.Cause.Fail
-import scalaz.zio.duration.Duration
+import scalaz.zio.duration._
 import scalaz.zio.interop.twitter._
-
-import scala.concurrent.duration._
+import scalaz.zio.{ FiberFailure, Task, TestRuntime, ZIO }
 
 class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is =
@@ -40,16 +38,13 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     implicit val timer = new JavaTimer(true)
 
     val value       = new AtomicInteger(0)
-    val futureDelay = TwitterDuration.fromMilliseconds(300)
+    val futureDelay = TwitterDuration.fromSeconds(1)
     val future      = Task.succeed(Future.sleep(futureDelay).map(_ => value.incrementAndGet()))
 
-    val taskTimeout = Duration.fromScala(100.millis)
+    val taskTimeout = 500.millis
     val task        = Task.fromTwitterFuture(future).timeout(taskTimeout)
 
-    unsafeRun(task) must beNone
-
-    MILLISECONDS.sleep(500)
-
+    unsafeRun(task <* ZIO.unit.delay(3.seconds)) must beNone
     value.get() ==== 0
   }
 }
