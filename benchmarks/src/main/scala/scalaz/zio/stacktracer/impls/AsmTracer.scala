@@ -60,7 +60,6 @@ object AsmTracer {
     var line: Int          = _
 
     override def visitSource(source: String, debug: String): Unit =
-      //println(source, debug)
       sourcefile = source
 
     override def visitMethod(

@@ -54,7 +54,9 @@ private[zio] final class FiberContext[E, A](
   private[this] val locked          = Stack[Executor]()
   private[this] val supervised      = Stack[Set[FiberContext[_, _]]]()
 
-  private[this] val tracingStatus = if (tracingEnabled) StackBool(initialTracingStatus) else null
+  private[this] val tracingStatus =
+    if (tracingEnabled) StackBool(initialTracingStatus)
+    else null
   private[this] val trace =
     if (traceExec) SingleThreadedRingBuffer[ZTraceElement](platform.tracingConfig.executionTraceLength)
     else null
