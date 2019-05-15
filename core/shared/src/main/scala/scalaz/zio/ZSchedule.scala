@@ -210,7 +210,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   ): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)
-      val initial = self.initial.zip(that.initial).map{ case (s1, s2) => (s1._1 max s2._1, (s1._2, s2._2)) }
+      val initial = self.initial.zip(that.initial).map { case (s1, s2) => (s1._1 max s2._1, (s1._2, s2._2)) }
       val update  = (a: A1, s: State) => self.update(a, s._1).zipWith(that.update(a, s._2))(_.combineWith(_)(g, f))
     }
 
@@ -397,7 +397,9 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * Returns a new schedule with the specified initial state transformed
    * by the specified initial transformer.
    */
-  final def initialized[R1 <: R, A1 <: A](f: ZIO[R1, Nothing, (Delay, State)] => ZIO[R1, Nothing, (Delay, State)]): ZSchedule[R1, A1, B] =
+  final def initialized[R1 <: R, A1 <: A](
+    f: ZIO[R1, Nothing, (Delay, State)] => ZIO[R1, Nothing, (Delay, State)]
+  ): ZSchedule[R1, A1, B] =
     new ZSchedule[R1, A1, B] {
       type State = self.State
       val initial = f(self.initial)
@@ -441,8 +443,8 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     fold(List.empty[B])((xs, x) => x :: xs).map(_.reverse)
 
   /**
-  * Returns this schedule capable of running immediately, without initial delay
-    */
+   * Returns this schedule capable of running immediately, without initial delay
+   */
   final def immediately: ZSchedule[R, A, (Delay, B)] =
     self.map(res => (Delay.none, res))
 
@@ -459,7 +461,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R, A, Z] {
       type State = (self.State, Z)
 
-      val initial = self.initial.zip(z).map{ case (s1, s2) => (s1._1, (s1._2, s2)) }
+      val initial = self.initial.zip(z).map { case (s1, s2) => (s1._1, (s1._2, s2)) }
 
       val update = (a: A, s0: State) =>
         for {
@@ -476,7 +478,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def >>>[R1 <: R, C](that: ZSchedule[R1, B, C]): ZSchedule[R1, A, C] =
     new ZSchedule[R1, A, C] {
       type State = (self.State, that.State)
-      val initial = self.initial.zip(that.initial).map{ case (s1, s2) => (s2._1, (s1._2, s2._2)) }
+      val initial = self.initial.zip(that.initial).map { case (s1, s2) => (s2._1, (s1._2, s2._2)) }
       val update = (a: A, s: State) =>
         self.update(a, s._1).flatMap { step1 =>
           that.update(step1.finish(), s._2).map { step2 =>
@@ -525,7 +527,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def ***[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, (A, C), (B, D)] =
     new ZSchedule[R1, (A, C), (B, D)] {
       type State = (self.State, that.State)
-      val initial = self.initial.zip(that.initial).map{ case (s1, s2) => (s1._1 max s2._1, (s1._2, s2._2)) }
+      val initial = self.initial.zip(that.initial).map { case (s1, s2) => (s1._1 max s2._1, (s1._2, s2._2)) }
       val update = (a: (A, C), s: State) =>
         self
           .update(a._1, s._1)
@@ -544,7 +546,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def +++[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, Either[A, C], Either[B, D]] =
     new ZSchedule[R1, Either[A, C], Either[B, D]] {
       type State = (self.State, that.State)
-      val initial = self.initial.zip(that.initial).map{ case (s1, s2) => (s1._1 max s2._1, (s1._2, s2._2)) }
+      val initial = self.initial.zip(that.initial).map { case (s1, s2) => (s1._1 max s2._1, (s1._2, s2._2)) }
       val update = (a: Either[A, C], s: State) =>
         a match {
           case Left(a)  => self.update(a, s._1).map(_.leftMap((_, s._2)).rightMap(Left(_)))
@@ -752,7 +754,7 @@ object Schedule extends Schedule_Functions {
   sealed trait ConformsR1[A]
 
   type ConformsR[A] = ConformsR1[A]
-  implicit val ConformsAnyProof: ConformsR1[Any] = new ConformsR1[Any] {}
+  implicit val ConformsAnyProof: ConformsR1[Any]     = new ConformsR1[Any]   {}
   implicit val ConformsClockProof: ConformsR1[Clock] = new ConformsR1[Clock] {}
 
 }

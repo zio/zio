@@ -1,6 +1,6 @@
 package scalaz.zio.delay
 
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.{ LocalDateTime, ZoneOffset }
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.TestRuntime
@@ -37,7 +37,7 @@ class DelaySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def applyingFactor(c: Duration => Delay) =
     unsafeRun(
       for {
-        d  <- (c(Duration(200, TimeUnit.MILLISECONDS)) * 2).run
+        d <- (c(Duration(200, TimeUnit.MILLISECONDS)) * 2).run
       } yield d must_=== Duration(200, TimeUnit.MILLISECONDS) * 2
     )
 
@@ -61,9 +61,5 @@ class DelaySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def atThePast =
     unsafeRun(Delay.absolute(Duration.fromNanos(100)).run) must_=== Duration.fromNanos(0)
-
-  def oneMinuteAhead = {
-    LocalDateTime.now().plusMinutes(1).toInstant(ZoneOffset.UTC)
-  }
 
 }

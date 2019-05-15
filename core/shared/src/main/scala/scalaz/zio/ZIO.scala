@@ -20,10 +20,10 @@ import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.delay.Delay
 import scalaz.zio.duration._
-import scalaz.zio.internal.{Executor, Platform}
+import scalaz.zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -803,10 +803,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           }
       )
 
-    schedule.initial.flatMap{ case (dl, state) =>
-      dl.run.flatMap( dur =>
-        ZIO.succeed(state).delay(dur).flatMap(st => loop(None, st))
-      )
+    schedule.initial.flatMap {
+      case (dl, state) =>
+        dl.run.flatMap(dur => ZIO.succeed(state).delay(dur).flatMap(st => loop(None, st)))
     }
   }
 
@@ -854,7 +853,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         succ => ZIO.succeedRight(succ)
       )
 
-    policy.initial.map(_._2).flatMap(loop)
+    policy.initial.flatMap {
+      case (dl, state) =>
+        dl.run.flatMap(dur => ZIO.succeed(state).delay(dur).flatMap(loop))
+    }
   }
 
   /**

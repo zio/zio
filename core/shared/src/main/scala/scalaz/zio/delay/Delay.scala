@@ -17,16 +17,15 @@ sealed abstract class Delay extends Serializable with Product { self =>
   /**
    * Computes delay related to current time in milliseconds
    */
-  final def run: ZIO[Clock, Nothing, Duration] = currentTime(unit = TimeUnit.MILLISECONDS).flatMap {
-    millis =>
-      self match {
-        case Relative(duration) => ZIO.succeed(duration)
-        case Absolute(instant)  => ZIO.succeed(Duration(instant.toMillis - millis, TimeUnit.MILLISECONDS))
-        case Min(l, r)          => l.run.zip(r.run).map { case (d1, d2) => if (d1 < d2) d1 else d2 }
-        case Max(l, r)          => l.run.zip(r.run).map { case (d1, d2) => if (d1 > d2) d1 else d2 }
-        case Sum(l, r)          => l.run.zip(r.run).map { case (d1, d2) => d1 + d2 }
-        case Scale(l, factor)   => l.run.map(d => d * factor)
-      }
+  final def run: ZIO[Clock, Nothing, Duration] = currentTime(unit = TimeUnit.MILLISECONDS).flatMap { millis =>
+    self match {
+      case Relative(duration) => ZIO.succeed(duration)
+      case Absolute(instant)  => ZIO.succeed(Duration(instant.toMillis - millis, TimeUnit.MILLISECONDS))
+      case Min(l, r)          => l.run.zip(r.run).map { case (d1, d2) => if (d1 < d2) d1 else d2 }
+      case Max(l, r)          => l.run.zip(r.run).map { case (d1, d2) => if (d1 > d2) d1 else d2 }
+      case Sum(l, r)          => l.run.zip(r.run).map { case (d1, d2) => d1 + d2 }
+      case Scale(l, factor)   => l.run.map(d => d * factor)
+    }
   }
 
   /**
@@ -75,7 +74,7 @@ object Delay {
 
   /**
    * Creates an absolute delay based on given point. Absolute delay must always be in the future, as it will be subtracted
-    * from current time during evaluation.
+   * from current time during evaluation.
    */
   final def absolute(point: Duration) = Absolute(point)
 

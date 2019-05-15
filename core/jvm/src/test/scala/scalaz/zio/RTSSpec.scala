@@ -473,7 +473,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
             .fork
       _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("start 1")).immediately)
       _ <- f.interrupt
-      _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("release 2")).immediately)
+      _ <- (ref.get <* clock.sleep(1.millis))
+            .repeat(ZSchedule.doUntil[List[String]](_.contains("release 2")).immediately)
       l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
@@ -1261,7 +1262,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(
       for {
         f <- test.fork
-        c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[Int](_ >= 1).immediately) <* f.interrupt
+        c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
+              .repeat(ZSchedule.doUntil[Int](_ >= 1).immediately) <* f.interrupt
       } yield c must be_>=(1)
     )
 
