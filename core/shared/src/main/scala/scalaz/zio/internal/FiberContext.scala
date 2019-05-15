@@ -367,11 +367,11 @@ private[zio] final class FiberContext[E, A](
   private[this] final val resumeAsync: IO[E, Any] => Unit =
     io => if (exitAsync()) evaluateLater(io)
 
-  final def interrupt: UIO[Exit[E, A]] = IO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
+  final def interrupt: UIO[Exit[E, A]] = IO.effectAsyncMaybe[Nothing, Exit[E, A]] { k =>
     kill0(x => k(IO.done(x)))
   }
 
-  final def await: UIO[Exit[E, A]] = IO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
+  final def await: UIO[Exit[E, A]] = IO.effectAsyncMaybe[Nothing, Exit[E, A]] { k =>
     observe0(x => k(IO.done(x)))
   }
 

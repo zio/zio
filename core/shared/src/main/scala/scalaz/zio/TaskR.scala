@@ -183,7 +183,7 @@ object TaskR {
   /**
     * See [[scalaz.zio.ZIO.environment]]
     */
-  final def environment[R]: ZIO[R, Nothing, R] = ZIO.access(taskr.identityFn[R])
+  final def environment[R]: ZIO[R, Nothing, R] = ZIO.access(ZIO.identityFn[R])
 
   /**
     * See [[scalaz.zio.ZIO.fail]]

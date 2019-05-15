@@ -324,7 +324,7 @@ object IO {
    * See [[scalaz.zio.ZIO.require]]
    */
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
-    ZIO.require(error)
+    ZIO.require[Any, E, A](error)
 
   /**
    * See [[scalaz.zio.ZIO.reserve]]
