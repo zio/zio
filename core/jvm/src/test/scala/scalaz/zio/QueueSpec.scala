@@ -491,11 +491,10 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         v1     <- queue.take
         v2     <- queue.take
         v3     <- queue.take
-      } yield
-        (v must_=== Range.inclusive(1, 32).toList)
-          .and(v1 must_=== 33)
-          .and(v2 must_=== 34)
-          .and(v3 must_=== 35)
+      } yield (v must_=== Range.inclusive(1, 32).toList)
+        .and(v1 must_=== 33)
+        .and(v2 must_=== 34)
+        .and(v3 must_=== 35)
     )
 
   def e36 =

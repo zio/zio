@@ -673,6 +673,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
       }
   }
+
+  /**
+   * @note when possible, prefer capacities that are powers of 2 for better performance.
+   * Allow a faster producer to progress independently of a slower consumer by buffering
+   *   up to `capacity` elements in a queue.
+   */
+  final def buffer(capacity: Int): ZStream[R, E, A] =
+    ZStream.managed(self.toQueue(capacity)) { queue =>
+      Take.option(queue.take)
+    }
 }
 
 trait Stream_Functions extends Serializable {

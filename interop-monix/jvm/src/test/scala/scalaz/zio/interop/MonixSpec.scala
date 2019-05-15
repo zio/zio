@@ -1,11 +1,11 @@
 package scalaz.zio.interop
 
-import monix.eval
-import monix.execution.Scheduler
+import _root_.monix.eval
+import _root_.monix.execution.Scheduler
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause.Fail
 import scalaz.zio.{ FiberFailure, IO, TestRuntime }
-import scalaz.zio.interop.monixio._
+import scalaz.zio.interop.monix._
 
 class MonixSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is = s2"""
