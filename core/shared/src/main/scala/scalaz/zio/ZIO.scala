@@ -1078,7 +1078,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def tag: Int
 }
 
-object ZIO {
+object ZIO extends Serializable {
 
   /**
    * Returns an effect that is interrupted.
@@ -1673,7 +1673,7 @@ object ZIO {
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
-  final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
+  final def require[R, E, A](error: E): ZIO[R, E, Option[A]] => ZIO[R, E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
 
   /**
