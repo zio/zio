@@ -18,11 +18,12 @@ package scalaz.zio
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
+import scalaz.zio.delay.Delay
 import scalaz.zio.duration._
-import scalaz.zio.internal.{ Executor, Platform }
+import scalaz.zio.internal.{Executor, Platform}
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -762,6 +763,54 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def forever: ZIO[R, E, Nothing] = self *> self.forever
 
   /**
+   * Repeats this effect with the specified schedule until the schedule
+   * completes, or until the first failure.
+   * Repeats are done in addition to the first execution so that
+   * `io.repeat(Schedule.once)` means "execute io and in case of success repeat `io` once".
+   */
+  final def repeat[R1 <: R, B](schedule: ZSchedule[R1, A, (Delay, B)]): ZIO[R1 with Clock, E, B] =
+    repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
+
+  /**
+   * Repeats this effect with the specified schedule until the schedule
+   * completes, or until the first failure. In the event of failure the progress
+   * to date, together with the error, will be passed to the specified handler.
+   */
+  final def repeatOrElse[R1 <: R, E2, B](
+    schedule: ZSchedule[R1, A, (Delay, B)],
+    orElse: (E, Option[B]) => ZIO[R1, E2, B]
+  ): ZIO[R1 with Clock, E2, B] =
+    repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
+
+  /**
+   * Repeats this effect with the specified schedule until the schedule
+   * completes, or until the first failure. In the event of failure the progress
+   * to date, together with the error, will be passed to the specified handler.
+   */
+  final def repeatOrElseEither[R1 <: R, B, E2, C](
+    schedule: ZSchedule[R1, A, (Delay, B)],
+    orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
+  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
+    def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
+      self.foldM(
+        e => orElse(e, last.map(_())).map(Left(_)),
+        a =>
+          schedule.update(a, state).flatMap { step =>
+            step.delay.run.flatMap { delay =>
+              if (!step.cont) ZIO.succeedRight(step.finish()._2)
+              else ZIO.succeed(step.state).delay(delay).flatMap(s => loop(Some(() => step.finish()._2), s))
+            }
+          }
+      )
+
+    schedule.initial.flatMap{ case (dl, state) =>
+      dl.run.flatMap( dur =>
+        ZIO.succeed(state).delay(dur).flatMap(st => loop(None, st))
+      )
+    }
+  }
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
@@ -805,65 +854,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         succ => ZIO.succeedRight(succ)
       )
 
-    policy.initial.flatMap(loop)
-  }
-
-  /**
-   * Schedule this effect using the given schedule.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't or until it fails.
-   */
-  final def scheduled[R1 <: R, B](schedule: ZSchedule[R1, Option[A], B]): ZIO[R1 with Clock, E, B] =
-    scheduleOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
-
-  /**
-   * Schedule this effect with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
-   * the recovery function.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
-   */
-  final def scheduleOrElse[R1 <: R, E2, B](
-    schedule: ZSchedule[R1, Option[A], B],
-    orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  ): ZIO[R1 with Clock, E2, B] =
-    scheduleOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
-
-  /**
-   * Schedule this effect with the specified schedule, until it fails, and then both the
-   * value produced by the schedule together with the last error are passed to
-   * the recovery function.
-   * Scheduled effects will run only when schedule signal it can run, keeping it dormant while it can't.
-   */
-  final def scheduleOrElseEither[R1 <: R, B, E2, C](
-    schedule: ZSchedule[R1, Option[A], B],
-    orElse: (E, Option[B]) => ZIO[R1 with Clock, E2, C]
-  ): ZIO[R1 with Clock, E2, Either[C, B]] = {
-
-    def loop(last: Option[() => B], state: schedule.State): ZIO[R1 with Clock, E2, Either[C, B]] =
-      self.foldM(
-        e => orElse(e, last.map(_())).map(Left(_)),
-        r =>
-          schedule
-            .update(Some(r), state)
-            .flatMap(
-              step =>
-                step.delay.run.flatMap { dl =>
-                  if (!step.cont) ZIO.succeedRight(step.finish())
-                  else ZIO.succeed(step.state).delay(dl).flatMap(s => loop(Some(step.finish), s))
-                }
-            )
-      )
-
-    schedule.initial.flatMap { initial =>
-      schedule
-        .update(None, initial)
-        .flatMap(
-          step =>
-            step.delay.run.flatMap { dl =>
-              if (!step.cont) ZIO.succeedRight(step.finish())
-              else ZIO.succeed(step.state).delay(dl).flatMap(s => loop(Some(step.finish), s))
-            }
-        )
-    }
+    policy.initial.map(_._2).flatMap(loop)
   }
 
   /**

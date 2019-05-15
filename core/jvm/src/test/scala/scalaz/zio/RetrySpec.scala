@@ -58,7 +58,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         suc => IO.succeed((Right(suc), ss))
       )
 
-    retry.initial.flatMap(s => loop(s, Nil)).map(x => (x._1, x._2.reverse))
+    retry.initial.flatMap(s => loop(s._2, Nil)).map(x => (x._1, x._2.reverse))
   }
 
   /*
@@ -233,12 +233,12 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def exponentialWithFactor =
     checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
 
-  def checkErrorWithPredicate(schedule: Schedule[Any, Duration], expectedSteps: List[Int]) = {
+  def checkErrorWithPredicate(schedule: ZSchedule[Clock, Any, Duration], expectedSteps: List[Int]) = {
     var i = 0
     val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
-    val strategy = schedule.whileInput[String](_ == "KeepTryingError")
+    val strategy = schedule.whileInput[String](_ == "KeepTryingError").immediately.map(_._2)
     val retried  = retryCollect(io, strategy)
     val expected = (
       Left("GiveUpError"),

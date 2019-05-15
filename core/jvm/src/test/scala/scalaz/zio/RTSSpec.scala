@@ -471,13 +471,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
               )
             )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
             .fork
-      _ <- (ref.get <* clock.sleep(1.millis)) *> ref.get.scheduled(
-            ZSchedule.doUntil[Option[List[String]]](_.exists(_.contains("start 1")))
-          )
+      _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("start 1")).immediately)
       _ <- f.interrupt
-      _ <- (ref.get <* clock.sleep(1.millis)) *> ref.get.scheduled(
-            ZSchedule.doUntil[Option[List[String]]](_.exists(_.contains("release 2")))
-          )
+      _ <- (ref.get <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[List[String]](_.contains("release 2")).immediately)
       l <- ref.get
     } yield l) must_=== ("start 1" :: "release 1" :: "start 2" :: "release 2" :: Nil)
   }
@@ -1265,10 +1261,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(
       for {
         f <- test.fork
-        c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis)) *> (IO.effectTotal[Int](c.get) <* clock.sleep(
-              1.millis
-            )).scheduled(ZSchedule.doUntil[Option[Int]](_.exists(_ >= 1))) <* f.interrupt
-      } yield c.getOrElse(0) must be_>=(1)
+        c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis)).repeat(ZSchedule.doUntil[Int](_ >= 1).immediately) <* f.interrupt
+      } yield c must be_>=(1)
     )
 
   }

@@ -403,7 +403,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               }
             }
 
-          schedule.initial.flatMap(loop(s, _))
+
+          schedule.initial.flatMap{ case (dl, state) =>
+            dl.run.flatMap( dur =>
+              ZIO.succeed(state).delay(dur).flatMap(st => loop(s, st))
+            )
+          }
         }
     }
 
@@ -423,10 +428,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               }
             }
 
-          schedule.initial.flatMap { sched =>
-            self.fold[R2, E1, A, S].flatMap { f =>
-              f(s, cont, (s, a) => loop(s, sched, a))
-            }
+          schedule.initial.flatMap{ case (dl, state) =>
+            dl.run.flatMap( dur =>
+              ZIO.succeed(state).delay(dur).flatMap( st =>
+                self.fold[R2, E1, A, S].flatMap { f =>
+                  f(s, cont, (s, a) => loop(s, st, a))
+                }
+              )
+            )
           }
         }
     }

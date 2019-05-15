@@ -12,18 +12,18 @@ import scalaz.zio.duration.Duration
  * Delays can be relative to current time (a given duration + current time) or an absolute point in time
  * Delays make waiting less cpu intensive and avoids clock drifts caused by context switching or hibernation
  */
-sealed trait Delay extends Serializable with Product { self =>
+sealed abstract class Delay extends Serializable with Product { self =>
 
   /**
    * Computes delay related to current time in milliseconds
    */
-  final def run: ZIO[Any, Nothing, Duration] = currentTime(unit = TimeUnit.MILLISECONDS).provide(Clock.Live).flatMap {
+  final def run: ZIO[Clock, Nothing, Duration] = currentTime(unit = TimeUnit.MILLISECONDS).flatMap {
     millis =>
       self match {
         case Relative(duration) => ZIO.succeed(duration)
-        case Absolute(instant)  => ZIO.succeed(Duration(instant - millis, TimeUnit.MILLISECONDS))
+        case Absolute(instant)  => ZIO.succeed(Duration(instant.toMillis - millis, TimeUnit.MILLISECONDS))
         case Min(l, r)          => l.run.zip(r.run).map { case (d1, d2) => if (d1 < d2) d1 else d2 }
-        case Max(l, r)          => Min(r, l).run
+        case Max(l, r)          => l.run.zip(r.run).map { case (d1, d2) => if (d1 > d2) d1 else d2 }
         case Sum(l, r)          => l.run.zip(r.run).map { case (d1, d2) => d1 + d2 }
         case Scale(l, factor)   => l.run.map(d => d * factor)
       }
@@ -56,7 +56,7 @@ sealed trait Delay extends Serializable with Product { self =>
 
 object Delay {
   final case class Relative(duration: Duration)    extends Delay
-  final case class Absolute(instant: Long)         extends Delay
+  final case class Absolute(point: Duration)       extends Delay
   final case class Min(l: Delay, r: Delay)         extends Delay
   final case class Max(l: Delay, r: Delay)         extends Delay
   final case class Scale(l: Delay, factor: Double) extends Delay
@@ -74,8 +74,9 @@ object Delay {
   final def relative(delay: Duration) = Relative(delay)
 
   /**
-   * Creates an absolute delays based on given epoch in milliseconds
+   * Creates an absolute delay based on given point. Absolute delay must always be in the future, as it will be subtracted
+    * from current time during evaluation.
    */
-  final def absolute(instant: Long) = Absolute(instant)
+  final def absolute(point: Duration) = Absolute(point)
 
 }
