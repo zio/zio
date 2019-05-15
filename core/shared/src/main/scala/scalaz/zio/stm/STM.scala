@@ -16,7 +16,7 @@
 
 package scalaz.zio.stm
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import scalaz.zio.{ IO, UIO }
 
@@ -47,6 +47,25 @@ import scala.util.{ Failure, Success, Try }
  *       balance <- transfer(receiver, sender, 1000)
  *     } yield balance
  * }}}
+ *
+ * Software Transactional Memory is a technique which allows composition
+ *  of arbitrary atomic operations. It is the software analog of transactions in database systems.
+ *
+ * The API is lifted directly from the Haskell package Control.Concurrent.STM although the implementation does not
+ *  resemble the Haskell one at all.
+ *  [[http://hackage.haskell.org/package/stm-2.5.0.0/docs/Control-Concurrent-STM.html]]
+ *
+ *  STM in Haskell was introduced in:
+ *  Composable memory transactions, by Tim Harris, Simon Marlow, Simon Peyton Jones, and Maurice Herlihy, in ACM
+ *  Conference on Principles and Practice of Parallel Programming 2005.
+ * [[https://www.microsoft.com/en-us/research/publication/composable-memory-transactions/]]
+ *
+ * See also:
+ * Lock Free Data Structures using STMs in Haskell, by Anthony Discolo, Tim Harris, Simon Marlow, Simon Peyton Jones,
+ * Satnam Singh) FLOPS 2006: Eighth International Symposium on Functional and Logic Programming, Fuji Susono, JAPAN,
+ *  April 2006
+ *  [[https://www.microsoft.com/en-us/research/publication/lock-free-data-structures-using-stms-in-haskell/]]
+ *
  */
 final class STM[+E, +A] private[stm] (
   val exec: STM.internal.Journal => STM.internal.TRez[E, A]
@@ -458,11 +477,9 @@ object STM {
 
       val done = new AtomicBoolean(false)
 
-      val ref = new AtomicReference(UIO[Unit](done synchronized {
-        done set true
-      }))
+      val interrupt = UIO(done synchronized { done set true })
 
-      IO.effectAsyncMaybe[E, A] { k =>
+      IO.effectAsyncMaybe[Any, E, A] { k =>
         import internal.globalLock
 
         def tryTxn(): Option[IO[E, A]] =
@@ -536,7 +553,7 @@ object STM {
         }
 
         tryTxn()
-      } ensuring UIO(ref.get).flatten
+      } ensuring interrupt
     }.flatten
 
   /**

@@ -26,7 +26,7 @@ package scalaz.zio
  * object MyApp extends App {
  *
  *   final def run(args: List[String]) =
- *     myAppLogic.attempt.map(_.fold(_ => 1, _ => 0))
+ *     myAppLogic.fold(_ => 1, _ => 0)
  *
  *   def myAppLogic =
  *     for {

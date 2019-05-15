@@ -59,7 +59,6 @@ object Scalaz {
                                                |import scalaz._
                                                |import scalaz.zio._
                                                |import scalaz.zio.console._
-                                               |import scalaz.zio.stream._
                                                |object replRTS extends DefaultRuntime {}
                                                |import replRTS._
                                                |implicit class RunSyntax[E, A](io: IO[E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
@@ -106,7 +105,7 @@ object Scalaz {
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.spire-math"  %% "kind-projector"  % "0.9.10"),
+      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.0"),
       compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.3.3")
     ),
     parallelExecution in Test := true,

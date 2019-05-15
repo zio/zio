@@ -660,6 +660,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
       }
   }
+
+  /**
+   * @note when possible, prefer capacities that are powers of 2 for better performance.
+   * Allow a faster producer to progress independently of a slower consumer by buffering
+   *   up to `capacity` elements in a queue.
+   */
+  final def buffer(capacity: Int): ZStream[R, E, A] =
+    ZStream.managed(self.toQueue(capacity)) { queue =>
+      Take.option(queue.take)
+    }
 }
 
 trait Stream_Functions extends Serializable {
@@ -781,8 +791,6 @@ trait Stream_Functions extends Serializable {
   /**
    * Constructs an infinite stream from a `ZQueue`.
    */
-  final def fromQueue[A](queue: Queue[A]): Stream[Nothing, A] =
-    unfoldM(())(_ => queue.take.map(a => Some((a, ()))) <> IO.succeed(None))
   final def fromQueue[RB: ConformsR, EB, B](queue: ZQueue[_, _, RB, EB, _, B]): ZStream[RB, EB, B] =
     unfoldM(())(_ => queue.take.map(b => Some((b, ()))) <> IO.succeed(None))
 
@@ -850,7 +858,7 @@ trait Stream_Functions extends Serializable {
 
 object Stream extends Stream_Functions {
   @implicitNotFound(
-    "The environment type of all Stream methods must be Any. If you want to use an environment, please use StreamR."
+    "The environment type of all Stream methods must be Any. If you want to use an environment, please use ZStream."
   )
   sealed trait ConformsR1[A]
 
