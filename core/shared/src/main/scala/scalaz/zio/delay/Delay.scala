@@ -20,7 +20,7 @@ sealed abstract class Delay extends Serializable with Product { self =>
   final def run: ZIO[Clock, Nothing, Duration] = currentTime(unit = TimeUnit.MILLISECONDS).flatMap { millis =>
     self match {
       case Relative(duration) => ZIO.succeed(duration)
-      case Absolute(instant)  => ZIO.succeed(Duration(instant.toMillis - millis, TimeUnit.MILLISECONDS))
+      case Absolute(instant)  => ZIO.succeed(Duration(instant.delay - millis, TimeUnit.MILLISECONDS))
       case Min(l, r)          => l.run.zip(r.run).map { case (d1, d2) => if (d1 < d2) d1 else d2 }
       case Max(l, r)          => l.run.zip(r.run).map { case (d1, d2) => if (d1 > d2) d1 else d2 }
       case Sum(l, r)          => l.run.zip(r.run).map { case (d1, d2) => d1 + d2 }
@@ -54,12 +54,12 @@ sealed abstract class Delay extends Serializable with Product { self =>
 }
 
 object Delay {
-  final case class Relative(duration: Duration)    extends Delay
-  final case class Absolute(point: Duration)       extends Delay
-  final case class Min(l: Delay, r: Delay)         extends Delay
-  final case class Max(l: Delay, r: Delay)         extends Delay
-  final case class Scale(l: Delay, factor: Double) extends Delay
-  final case class Sum(l: Delay, r: Delay)         extends Delay
+  final case class Relative(duration: Duration)        extends Delay
+  final case class Absolute(point: ScheduleExpression) extends Delay
+  final case class Min(l: Delay, r: Delay)             extends Delay
+  final case class Max(l: Delay, r: Delay)             extends Delay
+  final case class Scale(l: Delay, factor: Double)     extends Delay
+  final case class Sum(l: Delay, r: Delay)             extends Delay
 
   /**
    * Zero delay
@@ -73,9 +73,8 @@ object Delay {
   final def relative(delay: Duration) = Relative(delay)
 
   /**
-   * Creates an absolute delay based on given point. Absolute delay must always be in the future, as it will be subtracted
-   * from current time during evaluation.
+   * Creates an absolute delay based on given point.
    */
-  final def absolute(point: Duration) = Absolute(point)
+  final def absolute(expression: ScheduleExpression) = Absolute(expression)
 
 }

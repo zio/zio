@@ -1,11 +1,10 @@
 package scalaz.zio.delay
 
-import java.time.{ LocalDateTime, ZoneOffset }
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.TestRuntime
-import scalaz.zio.duration.Duration
 import scalaz.zio.clock._
+import scalaz.zio.duration.Duration
 
 class DelaySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 

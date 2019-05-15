@@ -855,29 +855,14 @@ object ZSchedule extends Schedule_Functions {
    * Builds an Schedule capable of running an effect at a given minute and hour, every day
    */
   final def everyDay(minute: Int, hour: Int): ZSchedule[Clock, Nothing, (Long, Long)] = {
-
-    def calculateDelay: Delay = {
-      val today        = LocalDate.now()
-      val scheduleTime = LocalTime.of(hour, minute)
-      val time         = LocalTime.now()
-
-      val scheduleMillis = today.toEpochDay * 24 * 60 * 60 * 1000 + scheduleTime.toNanoOfDay / 1000000
-
-      val delay =
-        if (time.get(ChronoField.HOUR_OF_DAY) <= hour && time.get(ChronoField.MINUTE_OF_HOUR) <= minute)
-          scheduleMillis
-        else
-          scheduleMillis + 86400000
-
-      Delay.absolute(Duration.apply(delay, TimeUnit.MILLISECONDS))
-    }
+    import scalaz.zio.delay.ScheduleExpression._
 
     ZSchedule[Clock, Long, Nothing, (Long, Long)](
-      initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => (calculateDelay, 0L)),
+      initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => (Delay.absolute(EveryDay(hour, minute)), 0L)),
       update0 = (_, timesRan) =>
         clock.currentTime(unit = TimeUnit.MILLISECONDS).map { now =>
           Decision.cont(
-            calculateDelay,
+            Delay.absolute(EveryDay(hour, minute)),
             timesRan + 1,
             (timesRan + 1, now)
           )
