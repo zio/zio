@@ -16,8 +16,6 @@
 
 package scalaz.zio
 
-import java.time.temporal.ChronoField
-import java.time.{ LocalDate, LocalTime }
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.ZSchedule.Decision

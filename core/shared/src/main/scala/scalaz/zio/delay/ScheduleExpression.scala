@@ -21,7 +21,7 @@ object ScheduleExpression {
         else
           7 - Math.abs(currentDay - weekDay)
 
-      LocalDate.now().plusDays(plusDays).toEpochDay * 24 * 60 * 60 * 1000
+      LocalDate.now().plusDays(plusDays.toLong).toEpochDay * 24 * 60 * 60 * 1000
     }
   }
 
