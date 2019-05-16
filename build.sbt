@@ -35,6 +35,7 @@ lazy val root = project
   .aggregate(
     coreJVM,
     coreJS,
+    docs,
     streamsJVM,
     streamsJS,
     interopSharedJVM,
@@ -50,8 +51,7 @@ lazy val root = project
     interopReactiveStreamsJVM,
     interopTwitterJVM,
     benchmarks,
-    testkitJVM,
-    docs
+    testkitJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
