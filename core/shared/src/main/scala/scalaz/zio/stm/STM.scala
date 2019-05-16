@@ -432,24 +432,27 @@ object STM {
       TryCommit.Done(io)
     }
 
-    def tryCommitAsync[E, A](platform: Platform, stm: STM[E, A], txnId: Long, done: AtomicBoolean)(
+    def tryCommitAsync[E, A](journal: Journal, platform: Platform, stm: STM[E, A], txnId: Long, done: AtomicBoolean)(
       k: IO[E, A] => Unit
     ): Unit = {
       def complete(io: IO[E, A]): Unit = { done.set(true); k(io) }
+      def suspend(journal: Journal): Unit = {
+        addTodo(txnId, journal, () => tryCommitAsync(null, platform, stm, txnId, done)(k))
+
+        if (isInvalid(journal)) tryCommit(platform, stm) match {
+          case TryCommit.Done(io) => complete(io)
+          case _                  =>
+        }
+      }
 
       done.synchronized {
         if (!done.get) {
-          tryCommit(platform, stm) match {
-            case TryCommit.Done(io) => complete(io)
-
-            case TryCommit.Suspend(journal) =>
-              addTodo(txnId, journal, () => tryCommitAsync(platform, stm, txnId, done)(k))
-
-              if (isInvalid(journal)) tryCommit(platform, stm) match {
-                case TryCommit.Done(io) => complete(io)
-                case _                  =>
-              }
-          }
+          if (journal ne null) suspend(journal)
+          else
+            tryCommit(platform, stm) match {
+              case TryCommit.Done(io)         => complete(io)
+              case TryCommit.Suspend(journal) => suspend(journal)
+            }
         }
       }
     }
@@ -589,11 +592,11 @@ object STM {
     IO.suspendWith { platform =>
       tryCommit(platform, stm) match {
         case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
-        case _ =>
+        case TryCommit.Suspend(journal) =>
           val txnId     = makeTxnId()
           val done      = new AtomicBoolean(false)
           val interrupt = UIO(done.synchronized(done.set(true)))
-          val async     = IO.effectAsync[Any, E, A](tryCommitAsync(platform, stm, txnId, done))
+          val async     = IO.effectAsync[Any, E, A](tryCommitAsync(journal, platform, stm, txnId, done))
 
           async ensuring interrupt
       }
