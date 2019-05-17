@@ -957,7 +957,7 @@ object Stream extends Stream_Functions {
   implicit val ConformsAnyProof: ConformsR1[Any] = new ConformsR1[Any] {}
 }
 
-object ZStream extends Stream_Functions {
+object ZStream extends Stream_Functions with ZStreamPlatformSpecific {
   sealed trait ConformsR1[A]
 
   private val _ConformsR1: ConformsR1[Any] = new ConformsR1[Any] {}

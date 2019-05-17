@@ -3,7 +3,7 @@ package scalaz.zio.stream
 import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
+import scalaz.zio._
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -20,6 +20,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Sink.foldM                  $foldM
     Sink.foldM short circuits   $foldMShortCircuits
     Sink.readWhile              $readWhile
+    ZSink.fromOutputStream      $sinkFromOutputStream
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -87,7 +88,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = ZSink.foldM[Any, E, Int, Int, Int](IO.succeed(0)) { (_, a) =>
+      val sink = ZSink.foldM[Any, Any, E, Int, Int, Int](IO.succeed(0)) { (_, a) =>
         effects ::= a
         IO.succeed(Step.done(30, Chunk.empty))
       }
@@ -179,5 +180,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     (partialParse must_=== (Exit.fail("Expected closing brace; instead: None"))) and
       (fullParse must_=== (Exit.Success(List(123, 4))))
+  }
+
+  private def sinkFromOutputStream = unsafeRun {
+    import java.io.ByteArrayOutputStream
+
+    val output = new ByteArrayOutputStream()
+    val data   = "0123456789"
+    val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
+
+    stream.run(ZSink.fromOutputStream(output)) map { bytesWritten =>
+      (bytesWritten must_=== 10) and (new String(output.toByteArray, "UTF-8") must_=== data)
+    }
   }
 }
