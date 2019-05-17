@@ -17,14 +17,13 @@
 package scalaz.zio
 package interop
 
+import scalaz.zio.interop.bio.{ Concurrent2, Errorful2, RunAsync2, RunSync2 }
 import cats.Monad
 import com.github.ghik.silencer.silent
 
-package object bio {
+package object bio extends SyntaxInstances0 {
 
-  @inline implicit def errorful2ImpliesMonad[F[+ _, + _], E](implicit ev: Errorful2[F]): Monad[F[E, ?]] = ev.monad
-
-  implicit private[bio] final class FaSyntax[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
+  implicit private[interop] final class FaSyntax[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
 
     def map[B](f: A => B)(implicit m: Monad[F[E, ?]]): F[E, B] =
       (m map fa)(f)
@@ -47,4 +46,27 @@ package object bio {
     @silent @inline def widenBoth[EE, AA](implicit ev1: A <:< AA, ev2: E <:< EE): F[EE, AA] =
       fa.asInstanceOf[F[EE, AA]]
   }
+
+  implicit private[interop] final class FFaSyntax[F[+ _, + _], E, EE >: E, A](private val ffa: F[E, F[EE, A]])
+      extends AnyVal {
+
+    def flatten[B](implicit m: Errorful2[F]): F[EE, A] =
+      m.monad flatten ffa
+  }
+}
+
+private[interop] sealed abstract class SyntaxInstances0 extends SyntaxInstances1 {
+  @inline implicit def runAsync2ImpliesMonad[F[+ _, + _], E](implicit ev: RunAsync2[F]): Monad[F[E, ?]] = ev.monad
+}
+
+private[interop] sealed abstract class SyntaxInstances1 extends SyntaxInstances2 {
+  @inline implicit def runSync2ImpliesMonad[F[+ _, + _], E](implicit ev: RunSync2[F]): Monad[F[E, ?]] = ev.monad
+}
+
+private[interop] sealed abstract class SyntaxInstances2 extends SyntaxInstances3 {
+  @inline implicit def concurrent2ImpliesMonad[F[+ _, + _], E](implicit ev: Concurrent2[F]): Monad[F[E, ?]] = ev.monad
+}
+
+private[interop] sealed abstract class SyntaxInstances3 {
+  @inline implicit def errorful2ImpliesMonad[F[+ _, + _], E](implicit ev: Errorful2[F]): Monad[F[E, ?]] = ev.monad
 }

@@ -175,7 +175,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
       whenDone: Deferred2[F, E3, C]
     )(res: Option[Either[EE0, AA]]): F[Nothing, Unit] =
       race.modify { c =>
-        (if (c > 0) monad.unit else whenDone.done(f(res, loser)) >> monad.unit) -> (c + 1)
+        (if (c > 0) monad.unit else whenDone.done(f(res, loser)) *> monad.unit) -> (c + 1)
       }.flatten
 
     for {
@@ -190,7 +190,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
             } yield (left, right),
             (_: (Fiber2[F, E1, A], Fiber2[F, E2, B]), _: Option[Either[_, C]]) => monad.unit
           ) {
-            case (left, right) => onInterrupt(done.await)(left.cancel >> right.cancel >> monad.unit)
+            case (left, right) => onInterrupt(done.await)(left.cancel *> right.cancel *> monad.unit)
           }
     } yield c
   }
@@ -241,14 +241,14 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
           loser.cancel >>= {
             case Some(Right(_)) => raiseError(we)
             case Some(Left(le)) => raiseError(SG.combine(le, we))
-            case None           => monad[EE].unit >> interrupted
+            case None           => monad[EE].unit *> interrupted
           }
 
         case Some(Right(wa)) =>
           loser.join map (f(wa, _))
 
         case None =>
-          loser.cancel >> interrupted
+          loser.cancel *> interrupted
       }
 
     val g = (b: B, a: A) => f(a, b)

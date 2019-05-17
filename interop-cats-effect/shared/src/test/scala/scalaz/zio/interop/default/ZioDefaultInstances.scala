@@ -1,3 +1,19 @@
+/*
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package scalaz.zio
 package interop
 package default
@@ -6,6 +22,7 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 import cats.{ Applicative, Monad }
+import scalaz.zio.Exit.{ Failure, Success }
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration.{ Duration => zioDuration }
 import scalaz.zio.interop.bio.instances.ZioFiber2
@@ -130,7 +147,15 @@ private[default] object ZioDefaultInstances {
 
     implicit def runtime: DefaultRuntime
 
-    override def runSync[G[+ _, + _], E, A](fa: IO[E, A])(implicit G: Sync2[G]): G[E, A] = ???
+    override def runSync[G[+ _, + _], E, A](fa: IO[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A] = {
+
+      import scalaz.zio.interop.bio._
+
+      SG.delay(runtime.unsafeRunSync(fa.either)) >>= {
+        case Success(ea) => ea.fold(SG.raiseError, SG.monad.pure(_))
+        case Failure(_)  => CG.interrupted
+      }
+    }
   }
 
   private[default] sealed trait ZioAsync2 extends Async2[IO] with ZioSync2 {
