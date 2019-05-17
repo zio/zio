@@ -16,6 +16,8 @@
 
 package scalaz.zio
 
+import java.time.temporal.ChronoField
+import java.time.{ LocalDate, LocalTime }
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.ZSchedule.Decision
@@ -721,7 +723,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * current duration between recurrences.
    */
   final def fibonacci(one: Duration): ZSchedule[Clock, Any, Duration] =
-    delayed(
+    delayed[Any, Any](
       unfold[(Duration, Duration)]((Duration.Zero, one)) {
         case (a1, a2) => (a2, a1 + a2)
       }.map(_._1.relative)
@@ -733,7 +735,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def linear(base: Duration): ZSchedule[Clock, Any, Duration] =
-    delayed(forever.map(i => (base * i.doubleValue()).relative)) >>> duration
+    delayed[Any, Any](forever.map(i => (base * i.doubleValue()).relative)) >>> duration
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
@@ -741,7 +743,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, Duration] =
-    delayed(forever.map(i => (base * math.pow(factor, i.doubleValue)).relative)) >>> duration
+    delayed[Any, Any](forever.map(i => (base * math.pow(factor, i.doubleValue)).relative)) >>> duration
 
 }
 
@@ -853,14 +855,28 @@ object ZSchedule extends Schedule_Functions {
    * Builds an Schedule capable of running an effect at a given minute and hour, every day
    */
   final def everyDay(minute: Int, hour: Int): ZSchedule[Clock, Nothing, (Long, Long)] = {
-    import scalaz.zio.delay.ScheduleExpression._
+    def calculateDelay: Delay = {
+      val today        = LocalDate.now()
+      val scheduleTime = LocalTime.of(hour, minute)
+      val time         = LocalTime.now()
+
+      val scheduleMillis = today.toEpochDay * 24 * 60 * 60 * 1000 + scheduleTime.toNanoOfDay / 1000000
+
+      val delay =
+        if (time.get(ChronoField.HOUR_OF_DAY) <= hour && time.get(ChronoField.MINUTE_OF_HOUR) <= minute)
+          scheduleMillis
+        else
+          scheduleMillis + 86400000
+
+      Delay.absolute(delay)
+    }
 
     ZSchedule[Clock, Long, Nothing, (Long, Long)](
-      initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => (Delay.absolute(EveryDay(hour, minute)), 0L)),
+      initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => (calculateDelay, 0L)),
       update0 = (_, timesRan) =>
         clock.currentTime(unit = TimeUnit.MILLISECONDS).map { now =>
           Decision.cont(
-            Delay.absolute(EveryDay(hour, minute)),
+            calculateDelay,
             timesRan + 1,
             (timesRan + 1, now)
           )

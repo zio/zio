@@ -59,6 +59,6 @@ class DelaySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   }
 
   def atThePast =
-    unsafeRun(Delay.absolute(Duration.fromNanos(100)).run) must_=== Duration.fromNanos(0)
+    unsafeRun(Delay.absolute(100).run) must_=== Duration.fromNanos(0)
 
 }
