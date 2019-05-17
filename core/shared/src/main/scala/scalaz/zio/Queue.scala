@@ -372,7 +372,7 @@ object ZQueue {
                     for {
                       surplus <- IO.effectTotal {
                                   val as = unsafeOfferAll(queue, remaining.toList)
-                                  unsafeCompleteTakers
+                                  unsafeCompleteTakers()
                                   as
                                 }
                       res <- if (surplus.isEmpty) IO.succeed(true)
