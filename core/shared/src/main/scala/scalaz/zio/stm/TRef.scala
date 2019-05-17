@@ -48,7 +48,7 @@ class TRef[A] private (
     new STM(journal => {
       val entry = getOrMakeEntry(journal)
 
-      entry unsafeSet newValue
+      entry.unsafeSet(newValue)
 
       succeedUnit
     })
@@ -65,7 +65,7 @@ class TRef[A] private (
 
       val newValue = f(entry.unsafeGet[A])
 
-      entry unsafeSet newValue
+      entry.unsafeSet(newValue)
 
       TRez.Succeed(newValue)
     })
@@ -86,7 +86,7 @@ class TRef[A] private (
 
       val (retValue, newValue) = f(entry.unsafeGet[A])
 
-      entry unsafeSet newValue
+      entry.unsafeSet(newValue)
 
       TRez.Succeed(retValue)
     })
@@ -96,16 +96,13 @@ class TRef[A] private (
    * value or the default.
    */
   final def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
-    modify { a =>
-      f.lift(a).getOrElse((default, a))
-    }
+    modify(a => f.lift(a).getOrElse((default, a)))
 
   private final def getOrMakeEntry(journal: Journal): Entry =
     if (journal containsKey id) journal.get(id)
     else {
-      val expected = versioned
-      val entry    = Entry(self, expected.value, expected)
-      journal put (id, entry)
+      val entry = Entry(self)
+      journal.put(id, entry)
       entry
     }
 }
@@ -126,7 +123,7 @@ object TRef {
 
       val tvar = new TRef(id, versioned, todo)
 
-      journal.put(id, Entry(tvar, value, versioned))
+      journal.put(id, Entry(tvar))
 
       TRez.Succeed(tvar)
     })
