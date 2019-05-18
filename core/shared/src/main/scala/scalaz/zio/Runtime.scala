@@ -16,7 +16,7 @@
 
 package scalaz.zio
 
-import scalaz.zio.internal.{FiberContext, Platform}
+import scalaz.zio.internal.{ FiberContext, Platform }
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.

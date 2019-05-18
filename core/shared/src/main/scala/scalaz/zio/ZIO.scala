@@ -2062,7 +2062,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.FiberRefGet
   }
 
-  private[zio] final class FiberRefSet[A](val fiberRef: FiberRef[A], val value: A, val fiberId: FiberId) extends UIO[Unit] {
+  private[zio] final class FiberRefSet[A](val fiberRef: FiberRef[A], val value: A, val fiberId: FiberId)
+      extends UIO[Unit] {
     override def tag = Tags.FiberRefSet
   }
 }
