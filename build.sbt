@@ -114,7 +114,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
     )
   )
   .dependsOn(
-    core    % "test->test;compile->compile",
+    core % "test->test;compile->compile",
     // TODO Shoud we create a separate module instead of depending here?
     streams % "test->test;compile->compile"
   )
