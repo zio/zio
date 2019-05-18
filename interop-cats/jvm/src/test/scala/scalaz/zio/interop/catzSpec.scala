@@ -126,6 +126,12 @@ class catzSpec
 
   checkAllAsync("Monad[UIO]", (_) => ExtraMonadTests[UIO].monadExtras[Int])
 
+  // ZManaged Tests
+  checkAllAsync("Monad[ZManaged]", (_) => MonadTests[ZManaged[Any, Throwable, ?]].apply[Int, Int, Int])
+  checkAllAsync("Monad[ZManaged]", (_) => ExtraMonadTests[ZManaged[Any, Throwable, ?]].monadExtras[Int])
+  checkAllAsync("SemigroupK[ZManaged]", (_) => SemigroupKTests[ZManaged[Any, Throwable, ?]].semigroupK[Int])
+  checkAllAsync("MonadError[ZManaged]", (_) => MonadErrorTests[ZManaged[Any, Int, ?], Int].monadError[Int, Int, Int])
+
   object summoningInstancesTest {
     import cats._, cats.effect._
     Concurrent[TaskR[String, ?]]
@@ -139,6 +145,12 @@ class catzSpec
     Parallel[TaskR[String, ?], ParIO[String, Throwable, ?]]
     SemigroupK[TaskR[String, ?]]
     Apply[UIO]
+    LiftIO[ZManaged[String, Throwable, ?]]
+    MonadError[ZManaged[String, Throwable, ?], Throwable]
+    Monad[ZManaged[String, Throwable, ?]]
+    Applicative[ZManaged[String, Throwable, ?]]
+    Functor[ZManaged[String, Throwable, ?]]
+    SemigroupK[ZManaged[String, Throwable, ?]]
 
     def concurrentEffect[R: Runtime] = ConcurrentEffect[TaskR[R, ?]]
     def effect[R: Runtime]           = Effect[TaskR[R, ?]]
@@ -179,6 +191,12 @@ class catzSpec
         rts.unsafeRun(Par.unwrap(io1).either) === rts.unsafeRun(Par.unwrap(io2).either)
     }
 
+  implicit def catsZManagedEQ[E: Eq, A: Eq]: Eq[ZManaged[Any, E, A]] =
+    new Eq[ZManaged[Any, E, A]] {
+      def eqv(io1: ZManaged[Any, E, A], io2: ZManaged[Any, E, A]): Boolean =
+        rts.unsafeRun(io1.reserve.flatMap(_.acquire).either) === rts.unsafeRun(io2.reserve.flatMap(_.acquire).either)
+    }
+
   implicit def params: Parameters =
     Parameters.default.copy(allowNonTerminationLaws = false)
 
@@ -190,4 +208,7 @@ class catzSpec
 
   implicit def ioParArbitrary[E, A: Arbitrary: Cogen, R <: Any]: Arbitrary[ParIO[R, E, A]] =
     Arbitrary(genSuccess[E, A].map(Par.apply))
+
+  implicit def zManagedArbitrary[E, A: Arbitrary: Cogen, R <: Any]: Arbitrary[ZManaged[R, E, A]] =
+    Arbitrary(genSuccess[E, A].map(ZManaged.fromEffect(_)))
 }
