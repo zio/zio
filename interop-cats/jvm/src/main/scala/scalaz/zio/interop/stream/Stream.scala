@@ -16,7 +16,6 @@
 
 package scalaz.zio.interop.stream
 
-// import cats.~>
 import cats.effect.{ Effect, Sync }
 import cats.implicits._
 import scalaz.zio.clock.Clock
@@ -29,8 +28,6 @@ import scalaz.zio.stream.{ Take, ZStream }
  */
 final class Stream[F[+ _], +A] private[stream] (private[stream] val underlying: ZStream[Any, Throwable, A])
     extends AnyVal {
-
-  self =>
 
   import Stream.Fold
   // import Stream.Env
@@ -143,6 +140,9 @@ final class Stream[F[+ _], +A] private[stream] (private[stream] val underlying: 
   def mapConcat[B](f: A => Chunk[B]): Stream[F, B] =
     new Stream(underlying.mapConcat(f))
 
+  /**
+   * Switches to a different effect type `G`
+   */
   def mapK[G[+ _]]: Stream[G, A] =
     new Stream(underlying)
 

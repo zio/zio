@@ -17,7 +17,7 @@
 package scalaz.zio.interop.stream
 
 import cats.effect.Effect
-import scalaz.zio.{Chunk, Runtime}
+import scalaz.zio.{ Chunk, Runtime }
 import scalaz.zio.stream.ZSink
 import scalaz.zio.stream.ZSink.Step
 

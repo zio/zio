@@ -645,12 +645,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                 leftResult.fold(
                   e => rightFiber.interrupt *> ZIO.halt(e),
                   l => rightFiber.join.flatMap(r => handleSuccess(l, r))
-              ),
+                ),
               (rightResult, leftFiber) =>
                 rightResult.fold(
                   e => leftFiber.interrupt *> ZIO.halt(e),
                   r => leftFiber.join.flatMap(l => handleSuccess(l, r))
-              )
+                )
             )
           }
 
