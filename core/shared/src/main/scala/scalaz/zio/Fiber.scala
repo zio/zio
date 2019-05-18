@@ -58,7 +58,7 @@ trait Fiber[+E, +A] { self =>
    * fiber has been determined. Attempting to join a fiber that has errored will
    * result in a catchable error, _if_ that error does not result from interruption.
    */
-  final def join: IO[E, A] = await.flatMap(IO.done)
+  final def join: IO[E, A] = await.flatMap(IO.done) <* inheritLocals
 
   /**
    * Interrupts the fiber with no specified reason. If the fiber has already
@@ -66,6 +66,12 @@ trait Fiber[+E, +A] { self =>
    * immediately. Otherwise, it will resume when the fiber terminates.
    */
   def interrupt: UIO[Exit[E, A]]
+
+  /**
+   * Inherits values from all [[FiberLocal]] instances into current fiber.
+   * This will resume immediately.
+   */
+  def inheritLocals: UIO[Unit]
 
   /**
    * Returns a fiber that prefers `this` fiber, but falls back to the
@@ -86,6 +92,9 @@ trait Fiber[+E, +A] { self =>
 
       def interrupt: UIO[Exit[E1, A1]] =
         self.interrupt *> that.interrupt
+
+      def inheritLocals: UIO[Unit] =
+        that.inheritLocals *> self.inheritLocals
     }
 
   /**
@@ -105,6 +114,8 @@ trait Fiber[+E, +A] { self =>
         }
 
       def interrupt: UIO[Exit[E1, C]] = self.interrupt.zipWith(that.interrupt)(_.zipWith(_)(f, _ && _))
+
+      def inheritLocals: UIO[Unit] = that.inheritLocals *> self.inheritLocals
     }
 
   /**
@@ -152,6 +163,7 @@ trait Fiber[+E, +A] { self =>
       def await: UIO[Exit[E, B]]        = self.await.map(_.map(f))
       def poll: UIO[Option[Exit[E, B]]] = self.poll.map(_.map(_.map(f)))
       def interrupt: UIO[Exit[E, B]]    = self.interrupt.map(_.map(f))
+      def inheritLocals: UIO[Unit]      = self.inheritLocals
     }
 
   /**
@@ -232,6 +244,7 @@ object Fiber {
       def await: UIO[Exit[Nothing, Nothing]]        = IO.never
       def poll: UIO[Option[Exit[Nothing, Nothing]]] = IO.succeed(None)
       def interrupt: UIO[Exit[Nothing, Nothing]]    = IO.never
+      def inheritLocals: UIO[Unit]                  = IO.unit
     }
 
   /**
@@ -242,6 +255,8 @@ object Fiber {
       def await: UIO[Exit[E, A]]        = IO.succeedLazy(exit)
       def poll: UIO[Option[Exit[E, A]]] = IO.succeedLazy(Some(exit))
       def interrupt: UIO[Exit[E, A]]    = IO.succeedLazy(exit)
+      def inheritLocals: UIO[Unit]      = IO.unit
+
     }
 
   /**
@@ -295,5 +310,8 @@ object Fiber {
       def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
 
       def interrupt: UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+
+      def inheritLocals: UIO[Unit] = IO.unit
+
     }
 }

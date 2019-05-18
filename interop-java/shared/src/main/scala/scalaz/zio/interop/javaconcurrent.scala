@@ -109,6 +109,8 @@ object javaconcurrent {
 
         def interrupt: UIO[Exit[Throwable, A]] =
           join.fold(Exit.fail, Exit.succeed)
+
+        def inheritLocals: UIO[Unit] = UIO.unit
       }
     }
   }

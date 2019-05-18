@@ -18,28 +18,26 @@ package scalaz.zio.internal
 
 import java.util
 import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
-import java.util.concurrent.locks.ReentrantLock
 
-import scalaz.zio._
+import scalaz.zio
+import scalaz.zio.internal.FiberContext.FiberRefLocals
+import scalaz.zio.{ UIO, _ }
 
 import scala.annotation.{ switch, tailrec }
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
-private[zio] final class FiberContext[E, A](
-  platform: Platform,
-  startEnv: AnyRef
-) extends Fiber[E, A] {
+private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef, initialFiberRefLocals: FiberRefLocals)
+    extends Fiber[E, A] {
   import java.util.{ Collections, Set }
 
   import FiberContext._
   import FiberState._
 
   // Accessed from multiple threads:
-  private[this] val state      = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
-  private[this] val locals     = platform.newWeakHashMap[FiberLocal[_], FiberId]()
-  private[this] val localsLock = new ReentrantLock()
+  private[this] val state          = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
+  private[this] val fiberRefLocals = initialFiberRefLocals
 
   @volatile private[this] var interrupted = false
 
@@ -266,7 +264,7 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.Fork =>
                   val io = curIo.asInstanceOf[ZIO.Fork[Any, _, Any]]
 
-                  val value: FiberContext[_, Any] = fork(new zio.ZIO.InheritLocals(this) *> io.value)
+                  val value: FiberContext[_, Any] = fork(io.value)
 
                   supervise(value)
 
@@ -305,37 +303,28 @@ private[zio] final class FiberContext[E, A](
 
                   curIo = push.bracket_(pop, io.next)
 
-                case ZIO.Tags.InheritLocals =>
-                  val io = curIo.asInstanceOf[ZIO.InheritLocals]
+                case ZIO.Tags.FiberRefNew =>
+                  val io = curIo.asInstanceOf[ZIO.FiberRefNew[Any]]
 
-                  val fiber = io.fiber.asInstanceOf[FiberContext[_, _]]
-                  localsLock.lock()
-                  try {
-                    fiber.copyLocals(locals)
-                  } finally {
-                    localsLock.unlock()
-                  }
+                  val fiberRef = new FiberRef[Any](io.initialValue)
+                  fiberRefLocals.synchronized(fiberRefLocals.put(fiberRef, (io.initialValue, fiberId)))
+
+                  curIo = nextInstr(fiberRef)
+
+                case ZIO.Tags.FiberRefGet =>
+                  val io = curIo.asInstanceOf[ZIO.FiberRefGet[Any]]
+
+                  val value = Option(fiberRefLocals.synchronized(fiberRefLocals.get(io.fiberRef)))
+
+                  curIo = nextInstr(value)
+
+                case ZIO.Tags.FiberRefSet =>
+                  val io = curIo.asInstanceOf[ZIO.FiberRefSet[Any]]
+
+                  fiberRefLocals.synchronized(fiberRefLocals.put(io.fiberRef, (io.value, io.fiberId)))
 
                   curIo = nextInstr(())
 
-                case ZIO.Tags.GetLocal =>
-                  val io = curIo.asInstanceOf[ZIO.GetLocal]
-
-                  localsLock.lock()
-                  val maybeFiberId = Option(locals.get(io.fiberLocal))
-                  localsLock.unlock()
-
-                  curIo = nextInstr(maybeFiberId)
-
-                case ZIO.Tags.SetLocal =>
-                  val io = curIo.asInstanceOf[ZIO.SetLocal]
-
-                  localsLock.lock()
-                  val fiberId = getDescriptor.id
-                  locals.put(io.fiberLocal, fiberId)
-                  localsLock.unlock()
-
-                  curIo = nextInstr(fiberId)
               }
             }
           } else {
@@ -385,7 +374,11 @@ private[zio] final class FiberContext[E, A](
    * Forks an `IO` with the specified failure handler.
    */
   final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
-    val context = new FiberContext[E, A](platform, environment.peek())
+    val childFiberRefLocals: FiberRefLocals = platform.newWeakHashMap()
+    fiberRefLocals.synchronized {
+      childFiberRefLocals.putAll(fiberRefLocals)
+    }
+    val context = new FiberContext[E, A](platform, environment.peek(), childFiberRefLocals)
 
     platform.executor.submitOrThrow(() => context.evaluateNow(io))
 
@@ -393,7 +386,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] final def evaluateLater(io: IO[E, Any]): Unit =
-    executor.submitOrThrow(() =>  evaluateNow(io))
+    executor.submitOrThrow(() => evaluateNow(io))
 
   /**
    * Resumes an asynchronous computation.
@@ -412,6 +405,25 @@ private[zio] final class FiberContext[E, A](
   }
 
   final def poll: UIO[Option[Exit[E, A]]] = IO.effectTotal(poll0)
+  import scala.collection.JavaConverters._
+
+  final def inheritLocals: UIO[Unit] =
+    for {
+      descriptor  <- ZIO.descriptor
+      fiberLocals <- UIO.effectTotal(fiberRefLocals.synchronized(fiberRefLocals.asScala.toMap))
+      _ <- UIO.foreach_(fiberLocals) {
+            case (fiberRef, (value, updateFiberId)) =>
+              if (updateFiberId == descriptor.id) {
+                ZIO.unit
+              } else {
+                new zio.ZIO.FiberRefSet[Any](
+                  fiberRef.asInstanceOf[FiberRef[Any]],
+                  value,
+                  descriptor.id
+                )
+              }
+          }
+    } yield ()
 
   private[this] final def enterSupervision: IO[E, Unit] = IO.effectTotal {
     supervising += 1
@@ -588,18 +600,6 @@ private[zio] final class FiberContext[E, A](
           .submitOrThrow(() => k(result))
     )
   }
-
-  private final def copyLocals(target: FiberLocals): Unit = {
-    localsLock.lock()
-    try {
-      locals.forEach { (fiberLocal, fiberId) =>
-        target.putIfAbsent(fiberLocal, fiberId)
-        ()
-      }
-    } finally {
-      localsLock.unlock()
-    }
-  }
 }
 private[zio] object FiberContext {
   val fiberCounter = new AtomicLong(0)
@@ -621,5 +621,5 @@ private[zio] object FiberContext {
     def Initial[E, A] = Executing[E, A](FiberStatus.Running, Nil)
   }
 
-  type FiberLocals = util.Map[FiberLocal[_], FiberId]
+  type FiberRefLocals = util.Map[FiberRef[_], (Any, FiberId)]
 }

@@ -224,12 +224,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         exit.foldM[E1, Either[A, B]](
           _ => right.join.map(Right(_)),
           a => ZIO.succeedLeft(a) <* right.interrupt
-      ),
+        ),
       (exit, left) =>
         exit.foldM[E1, Either[A, B]](
           _ => left.join.map(Left(_)),
           b => ZIO.succeedRight(b) <* left.interrupt
-      )
+        )
     )
 
   /**
@@ -495,7 +495,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Failure(_) => release(a)
           case _               => ZIO.unit
-      }
+        }
     )(use)
 
   /**
@@ -514,7 +514,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Success(_)     => ZIO.unit
           case Exit.Failure(cause) => cleanup(cause)
-      }
+        }
     )(_ => self)
 
   /**
@@ -535,7 +535,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
         eb match {
           case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
           case _                   => ZIO.unit
-      }
+        }
     )(_ => self)
 
   /**
@@ -797,7 +797,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           schedule.update(a, state).flatMap { step =>
             if (!step.cont) ZIO.succeedRight(step.finish())
             else ZIO.succeed(step.state).delay(step.delay).flatMap(s => loop(Some(step.finish), s))
-        }
+          }
       )
 
     schedule.initial.flatMap(loop(None, _))
@@ -841,7 +841,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               decision =>
                 if (decision.cont) clock.sleep(decision.delay) *> loop(decision.state)
                 else orElse(err, decision.finish()).map(Left(_))
-          ),
+            ),
         succ => ZIO.succeedRight(succ)
       )
 
@@ -1955,6 +1955,10 @@ object ZIO extends ZIO_R_Any {
     final val Yield           = 14
     final val Access          = 15
     final val Provide         = 16
+    final val FiberRefNew     = 17
+    final val FiberRefGet     = 18
+    final val FiberRefSet     = 19
+
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2046,16 +2050,15 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Provide
   }
 
-  final class InheritLocals(val fiber: Fiber[_, _]) extends UIO[Unit] {
-    override def tag = Tags.InheritLocals
+  private[zio] final class FiberRefNew[A](val initialValue: A) extends UIO[FiberRef[A]] {
+    override def tag = Tags.FiberRefNew
   }
 
-  final class GetLocal(val fiberLocal: FiberLocal[_]) extends UIO[Option[FiberId]] {
-    override def tag: Int = Tags.GetLocal
+  private[zio] final class FiberRefGet[A](val fiberRef: FiberRef[A]) extends UIO[Option[(A, FiberId)]] {
+    override def tag = Tags.FiberRefGet
   }
 
-  final class SetLocal(val fiberLocal: FiberLocal[_]) extends UIO[FiberId] {
-    override def tag: Int = Tags.SetLocal
-
+  private[zio] final class FiberRefSet[A](val fiberRef: FiberRef[A], val value: A, val fiberId: FiberId) extends UIO[Unit] {
+    override def tag = Tags.FiberRefSet
   }
 }
