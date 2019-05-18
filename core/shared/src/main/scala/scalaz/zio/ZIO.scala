@@ -869,16 +869,28 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
-   * Returns an effect that effectfully "peeks" at the failure or success or
+   * Returns an effect that effectfully "peeks" at the failure or success of
    * this effect.
    * {{{
    * readFile("data.json").tapBoth(logError(_), logData(_))
    * }}}
    */
-  final def tapBoth[R1 <: R, E1 >: E, A1 >: A](f: E => ZIO[R1, E1, _], g: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
+  final def tapBoth[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, _], g: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
     self.foldM(
       e => f(e) *> ZIO.fail(e),
       a => g(a) *> ZIO.succeed(a)
+    )
+
+  /**
+   * Returns an effect that effectfully "peeks" at the failure of this effect.
+   * {{{
+   * readFile("data.json").tapError(logError(_))
+   * }}}
+   */
+  final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
+    self.foldM(
+      e => f(e) *> ZIO.fail(e),
+      ZIO.succeed
     )
 
   /**
@@ -1268,6 +1280,8 @@ object ZIO extends Serializable {
    */
   final def descriptorWith[R, E, A](f: Fiber.Descriptor => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.Descriptor(f)
+
+
 
   /**
    *
@@ -1753,6 +1767,13 @@ object ZIO extends Serializable {
     flatten(effectTotal(io))
 
   /**
+   * Returns a lazily constructed effect, whose construction may itself require
+   * effects. This is a shortcut for `flatten(effectTotal(io))`.
+   */
+  final def suspendWith[R >: LowerR, E <: UpperE, A](io: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.SuspendWith(io)
+
+  /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
   final def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZIO[R, E, (B, A)] =
@@ -1899,15 +1920,15 @@ object ZIO extends Serializable {
     final val InterruptStatus = 5
     final val CheckInterrupt  = 6
     final val EffectPartial   = 7
-    final val EffectTotalWith = 8
-    final val EffectAsync     = 9
-    final val Fork            = 10
-    final val Supervised      = 11
-    final val Descriptor      = 12
-    final val Lock            = 13
-    final val Yield           = 14
-    final val Access          = 15
-    final val Provide         = 16
+    final val EffectAsync     = 8
+    final val Fork            = 9
+    final val Supervised      = 10
+    final val Descriptor      = 11
+    final val Lock            = 12
+    final val Yield           = 13
+    final val Access          = 14
+    final val Provide         = 15
+    final val SuspendWith     = 16
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -1916,10 +1937,6 @@ object ZIO extends Serializable {
 
   private[zio] final class Succeed[A](val value: A) extends UIO[A] {
     override def tag = Tags.Succeed
-  }
-
-  private[zio] final class EffectTotalWith[A](val effect: Platform => A) extends UIO[A] {
-    override def tag = Tags.EffectTotalWith
   }
 
   private[zio] final class EffectTotal[A](val effect: () => A) extends UIO[A] {
@@ -1999,4 +2016,7 @@ object ZIO extends Serializable {
     override def tag = Tags.Provide
   }
 
+  private[zio] final class SuspendWith[R, E, A](val f: Platform => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.SuspendWith
+  }
 }

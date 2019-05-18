@@ -19,6 +19,7 @@ package scalaz.zio.stm
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import scalaz.zio.{ IO, UIO }
+import scalaz.zio.internal.Platform
 
 import java.util.{ HashMap => MutableMap }
 import scala.util.{ Failure, Success, Try }
@@ -289,6 +290,8 @@ final class STM[+E, +A] private[stm] (
 object STM {
 
   private[stm] object internal {
+    final val DefaultJournalSize = 4
+
     class Versioned[A](val value: A)
 
     type Journal =
@@ -301,18 +304,25 @@ object STM {
      */
     final def resetJournal(journal: Journal): Unit = {
       val it = journal.entrySet.iterator
-      while (it.hasNext()) {
-        it.next.getValue.reset()
-      }
+      while (it.hasNext) it.next.getValue.reset()
     }
 
     /**
      * Commits the journal.
      */
-    final def commit(journal: Journal): Unit = {
+    final def commitJournal(journal: Journal): Unit = {
       val it = journal.entrySet.iterator
-      while (it.hasNext()) it.next.getValue.commit()
+      while (it.hasNext) it.next.getValue.commit()
     }
+
+    /**
+     * Allocates memory for the journal, if it is null, otherwise just clears it.
+     */
+    final def allocJournal(journal: Journal): Journal =
+      if (journal eq null) new MutableMap[Long, Entry](DefaultJournalSize)
+      else {
+        journal.clear(); journal
+      }
 
     /**
      * Determines if the journal is valid.
@@ -320,10 +330,32 @@ object STM {
     final def isValid(journal: Journal): Boolean = {
       var valid = true
       val it    = journal.entrySet.iterator
-      while (valid && it.hasNext()) {
-        valid = it.next.getValue.isValid
-      }
+      while (valid && it.hasNext) valid = it.next.getValue.isValid
       valid
+    }
+
+    /**
+     * Analyzes the journal, determining whether it is valid and whether it is
+     * read only in a single pass. Note that information on whether the
+     * journal is read only will only be accurate if the journal is valid, due
+     * to short-circuiting that occurs on an invalid journal.
+     */
+    final def analyzeJournal(journal: Journal): JournalAnalysis = {
+      var result = JournalAnalysis.ReadOnly: JournalAnalysis
+      val it     = journal.entrySet.iterator
+      while ((result ne JournalAnalysis.Invalid) && it.hasNext) {
+        val value = it.next.getValue
+        if (value.isInvalid) result = JournalAnalysis.Invalid
+        else if (value.isChanged) result = JournalAnalysis.ReadWrite
+      }
+      result
+    }
+
+    sealed trait JournalAnalysis extends Serializable with Product
+    object JournalAnalysis {
+      case object Invalid   extends JournalAnalysis
+      case object ReadOnly  extends JournalAnalysis
+      case object ReadWrite extends JournalAnalysis
     }
 
     /**
@@ -336,13 +368,15 @@ object STM {
      * participated in the transaction.
      */
     final def collectTodos(journal: Journal): MutableMap[Long, Todo] = {
-      val allTodos  = new MutableMap[Long, Todo](4)
+      import collection.JavaConverters._
+
+      val allTodos  = new MutableMap[Long, Todo](DefaultJournalSize)
       val emptyTodo = Map.empty[Long, Todo]
 
       val it = journal.entrySet().iterator()
 
-      while (it.hasNext()) {
-        val tref = it.next().getValue().tref
+      while (it.hasNext) {
+        val tref = it.next.getValue.tref
         val todo = tref.todo
 
         var loop = true
@@ -351,11 +385,7 @@ object STM {
 
           loop = !todo.compareAndSet(oldTodo, emptyTodo)
 
-          if (!loop) {
-            import collection.JavaConverters._
-
-            allTodos.putAll(oldTodo.asJava)
-          }
+          if (!loop) allTodos.putAll(oldTodo.asJava)
         }
       }
 
@@ -367,7 +397,7 @@ object STM {
      */
     final def execTodos(todos: MutableMap[Long, Todo]): Unit = {
       val it = todos.entrySet().iterator()
-      while (it.hasNext()) it.next().getValue().apply()
+      while (it.hasNext) it.next().getValue().apply()
     }
 
     /**
@@ -377,22 +407,93 @@ object STM {
     final def addTodo(txnId: Long, journal: Journal, todoEffect: Todo): Unit = {
       val it = journal.entrySet().iterator()
 
-      while (it.hasNext()) {
+      while (it.hasNext) {
         val tref = it.next().getValue().tref
 
         var loop = true
         while (loop) {
           val oldTodo = tref.todo.get
 
-          val newTodo = oldTodo updated (txnId, todoEffect)
+          val newTodo = oldTodo.updated(txnId, todoEffect)
 
           loop = !tref.todo.compareAndSet(oldTodo, newTodo)
         }
       }
     }
 
-    final val succeedUnit: TRez[Nothing, Unit] =
-      TRez.Succeed(())
+    /**
+     * Runs all the todos.
+     */
+    def completeTodos[E, A](io: IO[E, A], journal: Journal, platform: Platform): TryCommit[E, A] = {
+      val todos = collectTodos(journal)
+
+      if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
+
+      TryCommit.Done(io)
+    }
+
+    def tryCommitAsync[E, A](journal: Journal, platform: Platform, stm: STM[E, A], txnId: Long, done: AtomicBoolean)(
+      k: IO[E, A] => Unit
+    ): Unit = {
+      def complete(io: IO[E, A]): Unit = { done.set(true); k(io) }
+      def suspend(journal: Journal): Unit = {
+        addTodo(txnId, journal, () => tryCommitAsync(null, platform, stm, txnId, done)(k))
+
+        if (isInvalid(journal)) tryCommit(platform, stm) match {
+          case TryCommit.Done(io) => complete(io)
+          case _                  =>
+        }
+      }
+
+      done.synchronized {
+        if (!done.get) {
+          if (journal ne null) suspend(journal)
+          else
+            tryCommit(platform, stm) match {
+              case TryCommit.Done(io)         => complete(io)
+              case TryCommit.Suspend(journal) => suspend(journal)
+            }
+        }
+      }
+    }
+
+    def tryCommit[E, A](platform: Platform, stm: STM[E, A]): TryCommit[E, A] = {
+      var journal = null.asInstanceOf[MutableMap[Long, Entry]]
+      var value   = null.asInstanceOf[TRez[E, A]]
+
+      var loop = true
+
+      while (loop) {
+        journal = allocJournal(journal)
+        value = stm.exec(journal)
+
+        val analysis = analyzeJournal(journal)
+
+        if (analysis ne JournalAnalysis.Invalid) {
+          loop = false
+
+          value match {
+            case _: TRez.Succeed[_] =>
+              if (analysis eq JournalAnalysis.ReadWrite) {
+                globalLock.acquire()
+
+                try if (isValid(journal)) commitJournal(journal) else loop = true
+                finally globalLock.release()
+              }
+
+            case _ =>
+          }
+        }
+      }
+
+      value match {
+        case TRez.Succeed(a) => completeTodos(IO.succeed(a), journal, platform)
+        case TRez.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
+        case TRez.Retry      => TryCommit.Suspend(journal)
+      }
+    }
+
+    final val succeedUnit: TRez[Nothing, Unit] = TRez.Succeed(())
 
     final def makeTRefId(): Long = trefCounter.incrementAndGet()
 
@@ -413,21 +514,25 @@ object STM {
 
     abstract class Entry {
       type A
+
       val tref: TRef[A]
-      var newValue: A
-      val expected: Versioned[A]
 
-      final def unsafeSet(value: Any): Unit =
+      protected[this] val expected: Versioned[A]
+      protected[this] var newValue: A
+
+      private[this] var _isChanged = false
+
+      final def unsafeSet(value: Any): Unit = {
+        _isChanged = true
         newValue = value.asInstanceOf[A]
+      }
 
-      final def unsafeGet[B]: B =
-        newValue.asInstanceOf[B]
+      final def unsafeGet[B]: B = newValue.asInstanceOf[B]
 
       /**
        * Commits the new value to the `TRef`.
        */
-      final def commit(): Unit =
-        tref.versioned = new Versioned(newValue)
+      final def commit(): Unit = tref.versioned = new Versioned(newValue)
 
       /**
        * Determines if the entry is invalid. This is the negated version of
@@ -439,15 +544,18 @@ object STM {
        * Determines if the entry is valid. That is, if the version of the
        * `TRef` is equal to the expected version.
        */
-      final def isValid: Boolean =
-        tref.versioned eq expected
+      final def isValid: Boolean = tref.versioned eq expected
+
+      /**
+       * Determines if the variable has been set in a transaction.
+       */
+      final def isChanged: Boolean = _isChanged
 
       /**
        * Resets the value of this entry, so that if committed, it will have
        * no effect on the TRef.
        */
-      final def reset(): Unit =
-        newValue = expected.value
+      final def reset(): Unit = newValue = expected.value
     }
 
     object Entry {
@@ -456,13 +564,22 @@ object STM {
        * Creates an entry for the journal, given the `TRef` being updated, the
        * new value of the `TRef`, and the expected version of the `TRef`.
        */
-      final def apply[A0](tref0: TRef[A0], newValue0: A0, expected0: Versioned[A0]): Entry =
+      final def apply[A0](tref0: TRef[A0]): Entry = {
+        val versioned = tref0.versioned
+
         new Entry {
           type A = A0
           val tref     = tref0
-          var newValue = newValue0
-          val expected = expected0
+          val expected = versioned
+          var newValue = versioned.value
         }
+      }
+    }
+
+    sealed abstract class TryCommit[+E, +A]
+    object TryCommit {
+      final case class Done[+E, +A](io: IO[E, A]) extends TryCommit[E, A]
+      final case class Suspend(journal: Journal)  extends TryCommit[Nothing, Nothing]
     }
   }
 
@@ -472,6 +589,7 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
+<<<<<<< HEAD
     UIO.effectTotalWith { platform =>
       val txnId = makeTxnId()
 
@@ -555,12 +673,25 @@ object STM {
         tryTxn()
       } ensuring interrupt
     }.flatten
+=======
+    IO.suspendWith { platform =>
+      tryCommit(platform, stm) match {
+        case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
+        case TryCommit.Suspend(journal) =>
+          val txnId     = makeTxnId()
+          val done      = new AtomicBoolean(false)
+          val interrupt = UIO(done.synchronized(done.set(true)))
+          val async     = IO.effectAsync[Any, E, A](tryCommitAsync(journal, platform, stm, txnId, done))
+
+          async ensuring interrupt
+      }
+    }
+>>>>>>> 7f8a304aa662b7873b737cda784ff491abfa9dff
 
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
-  final def check(p: Boolean): STM[Nothing, Unit] =
-    if (p) STM.unit else retry
+  final def check(p: Boolean): STM[Nothing, Unit] = if (p) STM.unit else retry
 
   /**
    * Collects all the transactional effects in a list, returning a single
@@ -575,15 +706,13 @@ object STM {
   /**
    * Kills the fiber running the effect.
    */
-  final def die(t: Throwable): STM[Nothing, Nothing] =
-    succeedLazy(throw t)
+  final def die(t: Throwable): STM[Nothing, Nothing] = succeedLazy(throw t)
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
    * the specified message.
    */
-  final def dieMessage(m: String): STM[Nothing, Nothing] =
-    die(new RuntimeException(m))
+  final def dieMessage(m: String): STM[Nothing, Nothing] = die(new RuntimeException(m))
 
   /**
    * Returns a value that models failure in the transaction.
@@ -600,52 +729,52 @@ object STM {
   /**
    * Creates an STM effect from an `Either` value.
    */
-  final def fromEither[E, A](e: Either[E, A]): STM[E, A] =
-    STM.succeedLazy {
+  final def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
+    STM.suspend {
       e match {
         case Left(t)  => STM.fail(t)
         case Right(a) => STM.succeed(a)
       }
-    }.flatten
+    }
 
   /**
    * Creates an STM effect from a `Try` value.
    */
   final def fromTry[A](a: => Try[A]): STM[Throwable, A] =
-    STM.succeedLazy {
-      try a match {
+    STM.suspend {
+      Try(a).flatten match {
         case Failure(t) => STM.fail(t)
         case Success(a) => STM.succeed(a)
-      } catch {
-        case t: Throwable => STM.fail(t)
       }
-    }.flatten
+    }
 
   /**
    * Creates an `STM` value from a partial (but pure) function.
    */
-  final def partial[A](a: => A): STM[Throwable, A] =
-    fromTry(Try(a))
+  final def partial[A](a: => A): STM[Throwable, A] = fromTry(Try(a))
 
   /**
    * Abort and retry the whole transaction when any of the underlying
    * transactional variables have changed.
    */
-  final val retry: STM[Nothing, Nothing] =
-    new STM(_ => TRez.Retry)
+  final val retry: STM[Nothing, Nothing] = new STM(_ => TRez.Retry)
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  final def succeed[A](a: A): STM[Nothing, A] =
-    new STM(_ => TRez.Succeed(a))
+  final def succeed[A](a: A): STM[Nothing, A] = new STM(_ => TRez.Succeed(a))
 
   /**
    * Returns an `STM` effect that succeeds with the specified (lazily
    * evaluated) value.
    */
-  final def succeedLazy[A](a: => A): STM[Nothing, A] =
-    new STM(_ => TRez.Succeed(a))
+  final def succeedLazy[A](a: => A): STM[Nothing, A] = new STM(_ => TRez.Succeed(a))
+
+  /**
+   * Suspends creation of the specified transaction lazily.
+   */
+  final def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
+    STM.succeedLazy(stm).flatten
 
   /**
    * Returns an `STM` effect that succeeds with `Unit`.

@@ -1,12 +1,13 @@
 package scalaz.zio
 
-import scala.collection.immutable.Range
-import org.specs2.specification.AroundTimeout
+import scalaz.zio.Exit.Cause
 import scalaz.zio.QueueSpec.waitForSize
-import scalaz.zio.duration._
 import scalaz.zio.clock.Clock
+import scalaz.zio.duration._
 
-class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with AroundTimeout {
+import scala.collection.immutable.Range
+
+class QueueSpec extends BaseCrossPlatformSpec {
 
   def is =
     "QueueSpec".title ^ s2"""
@@ -116,7 +117,7 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     make a bounded queue, shut it down, offer a value, takeAllValues, shut it down, isShutdown should return false only after shutdown $e76
     """
 
-  def e1 = unsafeRun(
+  def e1 =
     for {
       queue <- Queue.bounded[Int](100)
       o1    <- queue.offer(10)
@@ -124,9 +125,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       o2    <- queue.offer(20)
       v2    <- queue.take
     } yield (v1 must_=== 10).and(v2 must_=== 20).and(o1 must beTrue).and(o2 must beTrue)
-  )
 
-  def e2 = unsafeRun(
+  def e2 =
     for {
       queue <- Queue.bounded[String](100)
       f1 <- queue.take
@@ -135,49 +135,46 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _ <- queue.offer("don't ") *> queue.offer("give up :D")
       v <- f1.join
     } yield v must_=== "don't give up :D"
-  )
 
   def e3 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](10)
       f      <- IO.forkAll(List.fill(10)(queue.take))
       values = Range.inclusive(1, 10).toList
       _      <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
       v      <- f.join
-    } yield v must containTheSameElementsAs(values))
+    } yield v must containTheSameElementsAs(values)
 
   def e4 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](10)
       values = Range.inclusive(1, 10).toList
       f      <- IO.forkAll(values.map(queue.offer))
       _      <- waitForSize(queue, 10)
       l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
       _      <- f.join
-    } yield l must containTheSameElementsAs(values))
+    } yield l must containTheSameElementsAs(values)
 
   def e5 =
-    unsafeRun((for {
+    (for {
       queue        <- Queue.bounded[Int](10)
       _            <- queue.offer(1).repeat(ZSchedule.recurs(9))
       refSuspended <- Ref.make[Boolean](true)
       _            <- (queue.offer(2).repeat(ZSchedule.recurs(9)) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
-    } yield isSuspended must beTrue).supervise)
+    } yield isSuspended must beTrue).supervise
 
   def e6 =
-    unsafeRun(
-      for {
-        queue  <- Queue.bounded[Int](5)
-        values = Range.inclusive(1, 10).toList
-        _      <- IO.forkAll(values.map(queue.offer))
-        _      <- waitForSize(queue, 10)
-        l <- queue.take
-              .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
-      } yield l must containTheSameElementsAs(values)
-    )
+    for {
+      queue  <- Queue.bounded[Int](5)
+      values = Range.inclusive(1, 10).toList
+      _      <- IO.forkAll(values.map(queue.offer))
+      _      <- waitForSize(queue, 10)
+      l <- queue.take
+            .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
+    } yield l must containTheSameElementsAs(values)
 
-  def e7 = unsafeRun(
+  def e7 =
     for {
       queue <- Queue.bounded[Int](100)
       f     <- queue.take.fork
@@ -185,9 +182,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- f.interrupt
       size  <- queue.size
     } yield size must_=== 0
-  )
 
-  def e8 = unsafeRun(
+  def e8 =
     for {
       queue <- Queue.bounded[Int](2)
       _     <- queue.offer(1)
@@ -197,9 +193,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- f.interrupt
       size  <- queue.size
     } yield size must_=== 2
-  )
 
-  def e9 = unsafeRun(
+  def e9 =
     for {
       queue <- Queue.unbounded[Int]
       _     <- queue.offer(1)
@@ -209,9 +204,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v2    <- queue.take
       v3    <- queue.take
     } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3)
-  )
 
-  def e10 = unsafeRun(
+  def e10 =
     for {
       queue <- Queue.unbounded[Int]
       _     <- queue.offer(1)
@@ -219,9 +213,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.offer(3)
       v     <- queue.takeAll
     } yield v must_=== List(1, 2, 3)
-  )
 
-  def e11 = unsafeRun(
+  def e11 =
     for {
       queue <- Queue.unbounded[Int]
       c     <- queue.takeAll
@@ -229,10 +222,9 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.take
       v     <- queue.takeAll
     } yield (c must_=== List.empty).and(v must_=== List.empty)
-  )
 
   def e12 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](4)
       values = List(1, 2, 3, 4)
       _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
@@ -240,32 +232,29 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _      <- waitForSize(queue, 5)
       v      <- queue.takeAll
       c      <- queue.take
-    } yield (v must containTheSameElementsAs(values)).and(c must_=== 5))
+    } yield (v must containTheSameElementsAs(values)).and(c must_=== 5)
 
-  def e13 = unsafeRun(
+  def e13 =
     for {
       queue <- Queue.bounded[Int](100)
       list  <- queue.takeUpTo(2)
     } yield list must_=== Nil
-  )
 
-  def e14 = unsafeRun(
+  def e14 =
     for {
       queue <- Queue.bounded[Int](100)
       list  <- queue.takeUpTo(101)
     } yield list must_=== Nil
-  )
 
-  def e15 = unsafeRun(
+  def e15 =
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.offer(10)
       _     <- queue.offer(20)
       list  <- queue.takeUpTo(2)
     } yield list must_=== List(10, 20)
-  )
 
-  def e16 = unsafeRun(
+  def e16 =
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.offer(10)
@@ -274,9 +263,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.offer(40)
       list  <- queue.takeUpTo(2)
     } yield list must_=== List(10, 20)
-  )
 
-  def e17 = unsafeRun(
+  def e17 =
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.offer(10)
@@ -285,9 +273,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.offer(40)
       list  <- queue.takeUpTo(10)
     } yield list must_=== List(10, 20, 30, 40)
-  )
 
-  def e18 = unsafeRun(
+  def e18 =
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.offer(10)
@@ -296,17 +283,15 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.offer(40)
       list  <- queue.takeUpTo(0)
     } yield list must_=== Nil
-  )
 
-  def e19 = unsafeRun(
+  def e19 =
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.offer(10)
       list  <- queue.takeUpTo(-1)
     } yield list must_=== Nil
-  )
 
-  def e20 = unsafeRun(
+  def e20 =
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.offer(10)
@@ -316,9 +301,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.offer(40)
       list2 <- queue.takeUpTo(2)
     } yield (list1, list2) must_=== ((List(10, 20), List(30, 40)))
-  )
 
-  def e21 = unsafeRun(
+  def e21 =
     for {
       queue <- Queue.bounded[Int](100)
       _     <- queue.offer(10)
@@ -328,38 +312,37 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       list1 <- queue.takeUpTo(2)
       list2 <- queue.takeUpTo(2)
     } yield (list1, list2) must_=== ((List(10, 20), List(30, 40)))
-  )
 
   def e22 =
-    unsafeRun((for {
+    (for {
       queue  <- Queue.bounded[Int](4)
       values = List(1, 2, 3, 4)
       _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
       _      <- queue.offer(5).fork
       _      <- waitForSize(queue, 5)
       l      <- queue.takeUpTo(5)
-    } yield l must_=== List(1, 2, 3, 4)).supervise)
+    } yield l must_=== List(1, 2, 3, 4)).supervise
 
   def e23 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](10)
       orders = Range.inclusive(1, 10).toList
       _      <- queue.offerAll(orders)
       _      <- waitForSize(queue, 10)
       l      <- queue.takeAll
-    } yield l must_=== orders)
+    } yield l must_=== orders
 
   def e24 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](2)
       orders = Range.inclusive(1, 3).toList
       _      <- queue.offerAll(orders).fork
       size   <- waitForSize(queue, 3)
       l      <- queue.takeAll
-    } yield (size must_=== 3).and(l must_=== List(1, 2)))
+    } yield (size must_=== 3).and(l must_=== List(1, 2))
 
   def e25 =
-    unsafeRun(for {
+    for {
       queue   <- Queue.bounded[Int](2)
       orders1 = Range.inclusive(1, 2).toList
       orders2 = Range.inclusive(3, 4).toList
@@ -369,28 +352,28 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _       <- f.interrupt
       l1      <- queue.takeAll
       l2      <- queue.takeAll
-    } yield (l1 must_=== orders1).and(l2 must_=== Nil))
+    } yield (l1 must_=== orders1).and(l2 must_=== Nil)
 
   def e26 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](100)
       orders = Range.inclusive(1, 100).toList
       _      <- queue.offerAll(orders)
       _      <- waitForSize(queue, 100)
       l      <- queue.takeAll
-    } yield l must_=== orders)
+    } yield l must_=== orders
 
   def e27 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](64)
       orders = Range.inclusive(1, 128).toList
       _      <- queue.offerAll(orders).fork
       _      <- waitForSize(queue, 128)
       l      <- queue.takeAll
-    } yield l must_=== Range.inclusive(1, 64).toList)
+    } yield l must_=== Range.inclusive(1, 64).toList
 
   def e28 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](50)
       orders = Range.inclusive(1, 100).toList
       takers <- IO.forkAll(List.fill(100)(queue.take))
@@ -398,10 +381,10 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _      <- queue.offerAll(orders)
       l      <- takers.join
       s      <- queue.size
-    } yield (l.toSet must_=== orders.toSet).and(s must_=== 0))
+    } yield (l.toSet must_=== orders.toSet).and(s must_=== 0)
 
   def e29 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](256)
       orders = Range.inclusive(1, 128).toList
       takers <- IO.forkAll(List.fill(64)(queue.take))
@@ -410,10 +393,10 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       l      <- takers.join
       s      <- queue.size
       values = orders.take(64)
-    } yield (l must containTheSameElementsAs(values)).and(s must_=== 64))
+    } yield (l must containTheSameElementsAs(values)).and(s must_=== 64)
 
   def e30 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](32)
       orders = Range.inclusive(1, 256).toList
       takers <- IO.forkAll(List.fill(128)(queue.take))
@@ -422,10 +405,10 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       l      <- takers.join
       _      <- waitForSize(queue, 128)
       values = orders.take(128)
-    } yield l must containTheSameElementsAs(values))
+    } yield l must containTheSameElementsAs(values)
 
   def e31 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](200)
       values = Range.inclusive(1, 100).toList
       takers <- IO.forkAll(List.fill(100)(queue.take))
@@ -435,10 +418,10 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _      <- queue.offerAll(values)
       l      <- takers.join
       s      <- queue.size
-    } yield (l must containTheSameElementsAs(values)).and(s must_=== -100))
+    } yield (l must containTheSameElementsAs(values)).and(s must_=== -100)
 
   def e32 =
-    unsafeRun(for {
+    for {
       queue  <- Queue.bounded[Int](2)
       orders = Range.inclusive(1, 3).toList
       _      <- queue.offerAll(orders).fork
@@ -446,59 +429,53 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v1     <- queue.take
       v2     <- queue.take
       v3     <- queue.take
-    } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3))
+    } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3)
 
   def e33 =
-    unsafeRun(
-      for {
-        queue   <- Queue.bounded[Int](2)
-        orders  = Range.inclusive(1, 3).toList
-        orders2 = Range.inclusive(4, 5).toList
-        _       <- queue.offerAll(orders).fork
-        _       <- waitForSize(queue, 3)
-        _       <- queue.offerAll(orders2).fork
-        _       <- waitForSize(queue, 5)
-        v1      <- queue.take
-        v2      <- queue.take
-        v3      <- queue.take
-        v4      <- queue.take
-        v5      <- queue.take
-      } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3).and(v4 must_=== 4).and(v5 must_=== 5)
-    )
+    for {
+      queue   <- Queue.bounded[Int](2)
+      orders  = Range.inclusive(1, 3).toList
+      orders2 = Range.inclusive(4, 5).toList
+      _       <- queue.offerAll(orders).fork
+      _       <- waitForSize(queue, 3)
+      _       <- queue.offerAll(orders2).fork
+      _       <- waitForSize(queue, 5)
+      v1      <- queue.take
+      v2      <- queue.take
+      v3      <- queue.take
+      v4      <- queue.take
+      v5      <- queue.take
+    } yield (v1 must_=== 1).and(v2 must_=== 2).and(v3 must_=== 3).and(v4 must_=== 4).and(v5 must_=== 5)
 
   def e34 =
-    unsafeRun(
-      for {
-        queue  <- Queue.bounded[Int](1000)
-        orders = Range.inclusive(2, 1000).toList
-        _      <- queue.offer(1)
-        _      <- queue.offerAll(orders)
-        _      <- waitForSize(queue, 1000)
-        v1     <- queue.takeAll
-      } yield v1 must_=== Range.inclusive(1, 1000).toList
-    )
+    for {
+      queue  <- Queue.bounded[Int](1000)
+      orders = Range.inclusive(2, 1000).toList
+      _      <- queue.offer(1)
+      _      <- queue.offerAll(orders)
+      _      <- waitForSize(queue, 1000)
+      v1     <- queue.takeAll
+    } yield v1 must_=== Range.inclusive(1, 1000).toList
 
   def e35 =
-    unsafeRun(
-      for {
-        queue  <- Queue.bounded[Int](32)
-        orders = Range.inclusive(3, 35).toList
-        _      <- queue.offer(1)
-        _      <- queue.offer(2)
-        _      <- queue.offerAll(orders).fork
-        _      <- waitForSize(queue, 35)
-        v      <- queue.takeAll
-        v1     <- queue.take
-        v2     <- queue.take
-        v3     <- queue.take
-      } yield (v must_=== Range.inclusive(1, 32).toList)
-        .and(v1 must_=== 33)
-        .and(v2 must_=== 34)
-        .and(v3 must_=== 35)
-    )
+    for {
+      queue  <- Queue.bounded[Int](32)
+      orders = Range.inclusive(3, 35).toList
+      _      <- queue.offer(1)
+      _      <- queue.offer(2)
+      _      <- queue.offerAll(orders).fork
+      _      <- waitForSize(queue, 35)
+      v      <- queue.takeAll
+      v1     <- queue.take
+      v2     <- queue.take
+      v3     <- queue.take
+    } yield (v must_=== Range.inclusive(1, 32).toList)
+      .and(v1 must_=== 33)
+      .and(v2 must_=== 34)
+      .and(v3 must_=== 35)
 
   def e36 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](3)
         f     <- queue.take.fork
@@ -506,10 +483,10 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupt
+    ) mustFailBecauseOf Cause.interrupt
 
   def e37 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.sliding[Int](1)
         f     <- queue.take.fork
@@ -517,10 +494,10 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupt
+    ) mustFailBecauseOf Cause.interrupt
 
   def e38 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](2)
         _     <- queue.offer(1)
@@ -530,54 +507,54 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         _     <- queue.shutdown
         _     <- f.join
       } yield ()
-    ) must_=== Exit.interrupt
+    ) mustFailBecauseOf Cause.interrupt
 
   def e39 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.offer(1)
       } yield ()
-    ) must_=== Exit.interrupt
+    ) mustFailBecauseOf Cause.interrupt
 
   def e40 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.take
       } yield ()
-    ) must_=== Exit.interrupt
+    ) mustFailBecauseOf Cause.interrupt
 
   def e41 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.takeAll
       } yield ()
-    ) must_=== Exit.interrupt
+    ) mustFailBecauseOf Cause.interrupt
 
   def e42 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.takeUpTo(1)
       } yield ()
-    ) must_=== Exit.interrupt
+    ) mustFailBecauseOf Cause.interrupt
 
   def e43 =
-    unsafeRunSync(
+    (
       for {
         queue <- Queue.bounded[Int](1)
         _     <- queue.shutdown
         _     <- queue.size
       } yield ()
-    ) must_=== Exit.interrupt
+    ) mustFailBecauseOf Cause.interrupt
 
-  def e44 = unsafeRun(
+  def e44 =
     for {
       queue <- Queue.bounded[Int](2)
       _     <- queue.offerAll(List(1, 2))
@@ -587,9 +564,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v2    <- queue.take
       _     <- f.join
     } yield (v1 must_=== 1).and(v2 must_=== 2)
-  )
 
-  def e45 = unsafeRun(
+  def e45 =
     for {
       queue <- Queue.bounded[Int](2)
       _     <- queue.offerAll(List(1, 2))
@@ -598,9 +574,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v1    <- queue.takeAll
       _     <- f.join
     } yield v1 must_=== List(1, 2)
-  )
 
-  def e46 = unsafeRun(
+  def e46 =
     for {
       queue <- Queue.bounded[Int](2)
       _     <- queue.offerAll(List(1, 2))
@@ -609,9 +584,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v1    <- queue.takeUpTo(2)
       _     <- f.join
     } yield v1 must_=== List(1, 2)
-  )
 
-  def e47 = unsafeRun(
+  def e47 =
     for {
       queue <- Queue.bounded[Int](2)
       _     <- queue.offerAll(List(1, 2))
@@ -622,9 +596,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v3    <- queue.takeAll
       _     <- f.join
     } yield (v1 must_=== List(1, 2)).and(v2 must_=== List(3, 4)).and(v3 must_=== List(5))
-  )
 
-  def e48 = unsafeRun(
+  def e48 =
     for {
       queue <- Queue.sliding[Int](2)
       _     <- queue.offer(1)
@@ -632,17 +605,15 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v2    <- queue.offer(3)
       l     <- queue.takeAll
     } yield (l must_=== List(2, 3)).and(v1 must beTrue).and(v2 must beFalse)
-  )
 
-  def e49 = unsafeRun(
+  def e49 =
     for {
       queue <- Queue.sliding[Int](2)
       v     <- queue.offerAll(List(1, 2, 3))
       size  <- queue.size
     } yield (size must_=== 2).and(v must beFalse)
-  )
 
-  def e50 = unsafeRun(
+  def e50 =
     for {
       queue <- Queue.sliding[Int](100)
       _     <- queue.offer(1)
@@ -650,9 +621,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.offer(3)
       l     <- queue.takeAll
     } yield l must_=== List(1, 2, 3)
-  )
 
-  def e51 = unsafeRun(
+  def e51 =
     for {
       queue <- Queue.sliding[Int](5)
       f1 <- queue.take
@@ -661,17 +631,15 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _ <- queue.offer(1) *> queue.offer(2)
       v <- f1.join
     } yield v must_=== 3
-  )
 
-  def e52 = unsafeRun(
+  def e52 =
     for {
       queue <- Queue.sliding[Int](2)
       v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
       l     <- queue.takeAll
     } yield (l must_=== List(5, 6)).and(v1 must beFalse)
-  )
 
-  def e53 = unsafeRun(
+  def e53 =
     for {
       queue <- Queue.bounded[Int](3)
       p     <- Promise.make[Nothing, Boolean]
@@ -679,9 +647,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.shutdown
       res   <- p.await
     } yield res must beTrue
-  )
 
-  def e54 = unsafeRun(
+  def e54 =
     for {
       queue <- Queue.bounded[Int](3)
       p1    <- Promise.make[Nothing, Boolean]
@@ -692,9 +659,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       res1  <- p1.await
       res2  <- p2.await
     } yield (res1 must beTrue).and(res2 must beTrue)
-  )
 
-  def e55 = unsafeRun(
+  def e55 =
     for {
       queue <- Queue.bounded[Int](3)
       _     <- queue.shutdown
@@ -702,9 +668,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- (queue.awaitShutdown *> p.succeed(true)).fork
       res   <- p.await
     } yield res must beTrue
-  )
 
-  def e56 = unsafeRun(
+  def e56 =
     for {
       capacity <- IO.succeed(4)
       queue    <- Queue.dropping[Int](capacity)
@@ -712,18 +677,16 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== List(1, 2, 3, 4)).and(ta.size must_=== capacity)
-  )
 
-  def e57 = unsafeRun(
+  def e57 =
     for {
       capacity <- IO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
       v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
       ta       <- queue.takeAll
     } yield (ta.size must_=== 2).and(v1 must beFalse)
-  )
 
-  def e58 = unsafeRun(
+  def e58 =
     for {
       capacity <- IO.succeed(128)
       queue    <- Queue.dropping[Int](capacity)
@@ -731,9 +694,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== Range.inclusive(1, 128).toList).and(ta.size must_=== capacity)
-  )
 
-  def e59 = unsafeRun(
+  def e59 =
     for {
       queue <- Queue.dropping[Int](5)
       f1 <- queue.take
@@ -742,9 +704,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _ <- queue.offer(1) *> queue.offer(2)
       v <- f1.join
     } yield v must_=== 3
-  )
 
-  def e60 = unsafeRun(
+  def e60 =
     for {
       capacity <- IO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
@@ -752,9 +713,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _        <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== List(1, 2)).and(ta.size must_=== capacity)
-  )
 
-  def e61 = unsafeRun(
+  def e61 =
     for {
       capacity <- IO.succeed(5)
       queue    <- Queue.dropping[Int](capacity)
@@ -762,9 +722,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v1       <- queue.offerAll(iter)
       ta       <- queue.takeAll
     } yield (ta must_=== List(1, 2, 3)).and(v1 must beTrue)
-  )
 
-  def e62 = unsafeRun(
+  def e62 =
     for {
       capacity <- IO.succeed(2)
       queue    <- Queue.dropping[Int](capacity)
@@ -774,9 +733,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       oa       <- queue.offerAll(iter.toList)
       j        <- f.join
     } yield (j must_=== 1).and(oa must beFalse)
-  )
 
-  def e63 = unsafeRun(
+  def e63 =
     for {
       capacity <- IO.succeed(2)
       queue    <- Queue.sliding[Int](capacity)
@@ -786,34 +744,30 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       oa       <- queue.offerAll(iter.toList)
       t        <- queue.take
     } yield (t must_=== 3).and(oa must beFalse)
-  )
 
-  def e64 = unsafeRun(
+  def e64 =
     for {
       capacity <- IO.succeed(5)
       queue    <- Queue.sliding[Int](capacity)
       iter     = Range.inclusive(1, 3)
       oa       <- queue.offerAll(iter.toList)
     } yield oa must beTrue
-  )
 
-  def e65 = unsafeRun(
+  def e65 =
     for {
       capacity <- IO.succeed(5)
       queue    <- Queue.bounded[Int](capacity)
       iter     = Range.inclusive(1, 3)
       oa       <- queue.offerAll(iter.toList)
     } yield oa must beTrue
-  )
 
-  def e66 = unsafeRun(
+  def e66 =
     for {
       queue <- Queue.bounded[Int](5)
       t     <- queue.poll
     } yield t must_=== None
-  )
 
-  def e67 = unsafeRun(
+  def e67 =
     for {
       queue <- Queue.bounded[Int](5)
       iter  = Range.inclusive(1, 4)
@@ -821,9 +775,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.takeAll
       t     <- queue.poll
     } yield t must_=== None
-  )
 
-  def e68 = unsafeRun(
+  def e68 =
     for {
       queue <- Queue.bounded[Int](5)
       iter  = Range.inclusive(1, 2)
@@ -833,33 +786,29 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       t3    <- queue.poll
       t4    <- queue.poll
     } yield (t1 must_=== Some(1)).and(t2 must_=== Some(2)).and(t3 must_=== None).and(t4 must_=== None)
-  )
 
-  def e69 = unsafeRun(
+  def e69 =
     for {
       q <- Queue.bounded[Int](100).map(_.map(_.toString))
       _ <- q.offer(10)
       v <- q.take
     } yield v must_=== "10"
-  )
 
-  def e70 = unsafeRun(
+  def e70 =
     for {
       q <- Queue.bounded[Int](100).map(_.map(identity))
       _ <- q.offer(10)
       v <- q.take
     } yield v must_=== 10
-  )
 
-  def e71 = unsafeRun(
+  def e71 =
     for {
       q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed))
       _ <- q.offer(10)
       v <- q.take
     } yield v must_=== 10
-  )
 
-  def e72 = unsafeRun(
+  def e72 =
     for {
       q  <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
       _  <- q.offer(IO.fail("Ouch"))
@@ -867,9 +816,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       v1 <- q.take.run
       v2 <- q.take.run
     } yield (v1 must_=== Exit.fail("Ouch")) and (v2 must_=== Exit.succeed(10))
-  )
 
-  def e73 = unsafeRun(
+  def e73 =
     for {
       q1 <- Queue.bounded[Int](100)
       q2 <- Queue.bounded[Int](100)
@@ -877,17 +825,15 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _  <- q.offer(10)
       v  <- q.take
     } yield v must_=== ((10, 10))
-  )
 
-  def e74 = unsafeRun(
+  def e74 =
     for {
       q <- Queue.bounded[String](100).map(_.contramap[Int](_.toString))
       _ <- q.offer(10)
       v <- q.take
     } yield v must_=== "10"
-  )
 
-  def e75 = unsafeRun(
+  def e75 =
     for {
       q  <- Queue.bounded[Int](100).map(_.filterInput(_ % 2 == 0))
       _  <- q.offer(1)
@@ -895,9 +841,8 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _  <- q.offer(2)
       s2 <- q.size
     } yield (s1 must_=== 0) and (s2 must_=== 1)
-  )
 
-  def e76 = unsafeRun(
+  def e76 =
     for {
       queue <- Queue.bounded[Int](5)
       r1    <- queue.isShutdown
@@ -908,7 +853,6 @@ class QueueSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       _     <- queue.shutdown
       r4    <- queue.isShutdown
     } yield (r1 must beFalse) and (r2 must beFalse) and (r3 must beFalse) and (r4 must beTrue)
-  )
 }
 
 object QueueSpec {

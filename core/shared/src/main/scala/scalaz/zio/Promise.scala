@@ -17,7 +17,6 @@
 package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicReference
-import scalaz.zio.internal.Executor
 import Promise.internal._
 
 /**
@@ -108,35 +107,32 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     * has already been completed, the method will produce false.
     */
   final def done(io: IO[E, A]): UIO[Boolean] =
-    IO.flatten(IO.effectTotal {
-        var action: UIO[Boolean] = null.asInstanceOf[UIO[Boolean]]
-        var retry                = true
+    IO.effectTotal {
+      var action: () => Boolean = null.asInstanceOf[() => Boolean]
+      var retry                 = true
 
-        while (retry) {
-          val oldState = state.get
+      while (retry) {
+        val oldState = state.get
 
-          val newState = oldState match {
-            case Pending(joiners) =>
-              action =
-                IO.forkAll_(joiners.map(k => IO.effectTotal[Unit](k(io)))) *>
-                  IO.succeed[Boolean](true)
+        val newState = oldState match {
+          case Pending(joiners) =>
+            action = () => { joiners.foreach(_(io)); true }
 
-              Done(io)
+            Done(io)
 
-            case Done(_) =>
-              action = IO.succeed[Boolean](false)
+          case Done(_) =>
+            action = Promise.ConstFalse
 
-              oldState
-          }
-
-          retry = !state.compareAndSet(oldState, newState)
+            oldState
         }
 
-        action
-      })
-      .uninterruptible
+        retry = !state.compareAndSet(oldState, newState)
+      }
 
-  private[zio] final def unsafeDone(io: IO[E, A], exec: Executor): Unit = {
+      action()
+    }
+
+  private[zio] final def unsafeDone(io: IO[E, A]): Unit = {
     var retry: Boolean                  = true
     var joiners: List[IO[E, A] => Unit] = null
 
@@ -153,7 +149,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.reverse.foreach(k => exec.submit(() => k(io)))
+    if (joiners ne null) joiners.reverse.foreach(_(io))
   }
 
   private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler =
@@ -177,6 +173,7 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
 }
 
 object Promise {
+  private val ConstFalse: () => Boolean = () => false
 
   /**
     * Makes a new promise.
