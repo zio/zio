@@ -407,7 +407,7 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
   final def inheritLocals: UIO[Unit] =
     for {
       descriptor <- ZIO.descriptor
-      locals     <- copyFiberLocals(descriptor)
+      locals     <- copyFiberLocals
       _ <- ZIO.foreach_(locals) {
             case (fiberRef, (value, updateFiberId)) =>
               if (updateFiberId != descriptor.id) {
@@ -422,11 +422,10 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
           }
     } yield ()
 
-  private def copyFiberLocals(descriptor: Descriptor) =
-    UIO.effectTotal {
-      import scala.collection.JavaConverters._
-      fiberRefLocals.synchronized(fiberRefLocals.asScala)
-    }
+  private def copyFiberLocals = UIO.effectTotal {
+    import scala.collection.JavaConverters._
+    fiberRefLocals.synchronized(fiberRefLocals.asScala)
+  }
 
   private[this] final def enterSupervision: IO[E, Unit] = ZIO.effectTotal {
     supervising += 1
