@@ -364,21 +364,12 @@ private[zio] final class FiberContext[E, A](
   private[this] final val resumeAsync: IO[E, Any] => Unit =
     io => if (exitAsync()) evaluateLater(io)
 
-<<<<<<< HEAD
-  final def interrupt: UIO[Exit[E, A]] = IO.effectAsyncMaybe[Nothing, Exit[E, A]] { k =>
-    kill0(x => k(IO.done(x)))
-  }
-
-  final def await: UIO[Exit[E, A]] = IO.effectAsyncMaybe[Nothing, Exit[E, A]] { k =>
-    observe0(x => k(IO.done(x)))
-=======
   final def interrupt: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     kill0(x => k(ZIO.done(x)))
   }
 
   final def await: UIO[Exit[E, A]] = ZIO.effectAsyncMaybe[Any, Nothing, Exit[E, A]] { k =>
     observe0(x => k(ZIO.done(x)))
->>>>>>> 7f8a304aa662b7873b737cda784ff491abfa9dff
   }
 
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)

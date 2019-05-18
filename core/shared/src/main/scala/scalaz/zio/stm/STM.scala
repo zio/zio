@@ -589,7 +589,6 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-<<<<<<< HEAD
     UIO.effectTotalWith { platform =>
       val txnId = makeTxnId()
 
@@ -673,7 +672,6 @@ object STM {
         tryTxn()
       } ensuring interrupt
     }.flatten
-=======
     IO.suspendWith { platform =>
       tryCommit(platform, stm) match {
         case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
@@ -686,7 +684,6 @@ object STM {
           async ensuring interrupt
       }
     }
->>>>>>> 7f8a304aa662b7873b737cda784ff491abfa9dff
 
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.

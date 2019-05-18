@@ -1222,7 +1222,7 @@ object ZIO extends Serializable {
    * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
    * current fiber for this operation to return non-empty lists.
    */
-  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptorWith(_.children)
+  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptorWith(_.children
 
   /**
    * Evaluate each effect in the structure from left to right, and collect
@@ -1281,7 +1281,12 @@ object ZIO extends Serializable {
   final def descriptorWith[R, E, A](f: Fiber.Descriptor => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.Descriptor(f)
 
-
+  /**
+   * Returns a lazily constructed effect, whose construction may itself require
+   * effects. This is a shortcut for `flatten(effectTotal(io))`.
+   */
+  final def suspendWith[R >: LowerR, E <: UpperE, A](io: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.SuspendWith(io)
 
   /**
    *
