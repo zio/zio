@@ -47,7 +47,7 @@ final class FiberRef[A](private[zio] val initial: A) extends Serializable {
    */
   final def locally[R, E, B](value: A)(use: ZIO[R, E, B]): ZIO[R, E, B] = {
     // let's write initial value to fiber's locals map if there is no record
-    val readWithDefault = read.flatMap {
+    val readWithDefault: UIO[(A, FiberId)] = read.flatMap {
       case Some(pair) => ZIO.succeed(pair)
       case None       => ZIO.descriptor.map(descriptor => (initial, descriptor.id))
     }
