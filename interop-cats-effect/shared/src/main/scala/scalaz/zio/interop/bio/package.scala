@@ -17,30 +17,30 @@
 package scalaz.zio
 package interop
 
-import scalaz.zio.interop.bio.{ Concurrent2, Errorful2, RunAsync2, RunSync2 }
 import cats.Monad
 import com.github.ghik.silencer.silent
+import scalaz.zio.interop.bio.{ Concurrent2, Errorful2, RunAsync2, RunSync2 }
 
 package object bio extends SyntaxInstances0 {
 
   implicit private[interop] final class FaSyntax[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
 
-    def map[B](f: A => B)(implicit m: Monad[F[E, ?]]): F[E, B] =
+    @inline def map[B](f: A => B)(implicit m: Monad[F[E, ?]]): F[E, B] =
       (m map fa)(f)
 
-    def flatMap[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
+    @inline def flatMap[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
       (m flatMap fa)(f)
 
-    def tap[EE >: E, B](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, A] =
+    @inline def tap[EE >: E, B](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, A] =
       flatMap(a => m.map(f(a))(_ => a))
 
-    def >>=[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
+    @inline def >>=[B, EE >: E](f: A => F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
       flatMap(f)
 
-    def *>[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
+    @inline def *>[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, B] =
       flatMap(_ => fb)
 
-    def <*[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, A] =
+    @inline def <*[B, EE >: E](fb: F[EE, B])(implicit m: Monad[F[EE, ?]]): F[EE, A] =
       flatMap(a => fb map (_ => a))
 
     @silent @inline def widenBoth[EE, AA](implicit ev1: A <:< AA, ev2: E <:< EE): F[EE, AA] =
@@ -50,8 +50,8 @@ package object bio extends SyntaxInstances0 {
   implicit private[interop] final class FFaSyntax[F[+ _, + _], E, EE >: E, A](private val ffa: F[E, F[EE, A]])
       extends AnyVal {
 
-    def flatten[B](implicit m: Errorful2[F]): F[EE, A] =
-      m.monad flatten ffa
+    def flatten[B](implicit m: Monad[F[EE, ?]]): F[EE, A] =
+      m flatten ffa
   }
 }
 

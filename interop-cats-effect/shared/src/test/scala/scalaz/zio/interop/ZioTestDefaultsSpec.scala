@@ -24,8 +24,7 @@ final class ZioTestDefaultsSpec extends TestRuntime {
 
   def is = "ZioTestDefaultsSpec".title ^ s2"""
     The default test type-class instances for Zio:
-      Don't give conflict when unified all together. $unifyAll
-      Can summon Monad[F[E, ?]] when hierarchy instances are in scope. $summonSyntax
+      don't give conflict when unified all together. $unifyAll
   """
 
   private[this] def unifyAll = {
@@ -50,38 +49,4 @@ final class ZioTestDefaultsSpec extends TestRuntime {
     success
   }
 
-  private[this] def summonSyntax = {
-
-    import scalaz.zio.interop.bio.{ Concurrent2, RunAsync2, RunSync2, _ }
-
-    @silent def f1[F[+ _, + _], E, A](fa: F[E, A])(
-      implicit
-      A: Concurrent2[F],
-      B: RunSync2[F],
-      C: RunAsync2[F]
-    ): Unit =
-      fa >>= { _ =>
-        A.monad.unit
-      }
-
-    @silent def f2[F[+ _, + _], E, A](fa: F[E, A])(
-      implicit
-      A: Concurrent2[F],
-      B: Sync2[F]
-    ): Unit =
-      fa >>= { _ =>
-        A.monad.unit
-      }
-
-    @silent def f3[F[+ _, + _], E, A](fa: F[E, A])(
-      implicit
-      A: Concurrent2[F],
-      B: Async2[F]
-    ): Unit =
-      fa >>= { _ =>
-        A.monad.unit
-      }
-
-    success
-  }
 }
