@@ -869,16 +869,28 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] = self.flatMap(a => f(a).const(a))
 
   /**
-   * Returns an effect that effectfully "peeks" at the failure or success or
+   * Returns an effect that effectfully "peeks" at the failure or success of
    * this effect.
    * {{{
    * readFile("data.json").tapBoth(logError(_), logData(_))
    * }}}
    */
-  final def tapBoth[R1 <: R, E1 >: E, A1 >: A](f: E => ZIO[R1, E1, _], g: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
+  final def tapBoth[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, _], g: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
     self.foldM(
       e => f(e) *> ZIO.fail(e),
       a => g(a) *> ZIO.succeed(a)
+    )
+
+  /**
+   * Returns an effect that effectfully "peeks" at the failure of this effect.
+   * {{{
+   * readFile("data.json").tapError(logError(_))
+   * }}}
+   */
+  final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
+    self.foldM(
+      e => f(e) *> ZIO.fail(e),
+      ZIO.succeed
     )
 
   /**
