@@ -1,10 +1,9 @@
 package scalaz.zio
 
-import org.specs2.ScalaCheck
 import scalaz.zio.duration._
 import scalaz.zio.random._
 
-class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
+class RetrySpec extends BaseCrossPlatformSpec {
   def is = "RetrySpec".title ^ s2"""
    Retry on failure according to a provided strategy
       retry 0 time for `once` when first time succeeds $notRetryOnSuccess
@@ -67,68 +66,51 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
    */
 
   // no retry on success
-  def notRetryOnSuccess = {
-    val retried = unsafeRun(for {
+  def notRetryOnSuccess =
+    for {
       ref <- Ref.make(0)
       _   <- ref.update(_ + 1).retry(Schedule.once)
       i   <- ref.get
-    } yield i)
-
-    retried must_=== 1
-  }
+    } yield i must_=== 1
 
   // one retry on failure
-  def retryOnceSuccess = {
-    val retried = unsafeRun(for {
+  def retryOnceSuccess =
+    for {
       ref <- Ref.make(0)
       _   <- failOn0(ref).retry(Schedule.once)
       r   <- ref.get
-    } yield r)
-
-    retried must_=== 2
-  }
+    } yield r must_=== 2
 
   // no more than one retry on retry `once`
-  def retryOnceFail = {
-    val retried = unsafeRun(
-      (for {
-        ref <- Ref.make(0)
-        _   <- alwaysFail(ref).retry(Schedule.once)
-      } yield ()).foldM(
-        err => IO.succeed(err),
-        _ => IO.succeed("A failure was expected")
-      )
-    )
-
-    retried must_=== "Error: 2"
-  }
+  def retryOnceFail =
+    (for {
+      ref <- Ref.make(0)
+      _   <- alwaysFail(ref).retry(Schedule.once)
+    } yield ()).foldM(
+      err => IO.succeed(err),
+      _ => IO.succeed("A failure was expected")
+    ) must_=== "Error: 2"
 
   // 0 retry means "one execution in all, no retry, whatever the output"
-  def retryRecurs0 = {
-    val retried = unsafeRun(
-      (for {
-        ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retry(Schedule.recurs(0))
-      } yield i).foldM(
+  def retryRecurs0 =
+    (for {
+      ref <- Ref.make(0)
+      i   <- alwaysFail(ref).retry(Schedule.recurs(0))
+    } yield i)
+      .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      )
-    )
-
-    retried must_=== "Error: 1"
-  }
+      ) must_=== "Error: 1"
 
   def retryN = {
-    val retried  = unsafeRun(retryCollect(IO.fail("Error"), Schedule.recurs(5)))
+    val retried  = retryCollect(IO.fail("Error"), Schedule.recurs(5))
     val expected = (Left("Error"), List(1, 2, 3, 4, 5, 6).map((Duration.Zero, _)))
     retried must_=== expected
   }
 
   def retryNUnitIntervalJittered = {
     val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered
-    val scheduled: List[(Duration, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
-    )
+    val scheduled: UIO[List[(Duration, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
 
     val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
     scheduled must_=== expected
@@ -136,9 +118,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
 
   def retryNCustomIntervalJittered = {
     val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis).jittered(2, 4)
-    val scheduled: List[(Duration, Int)] = unsafeRun(
-      schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
-    )
+    val scheduled: UIO[List[(Duration, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
 
     val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
     scheduled must_=== expected
@@ -150,7 +130,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
-    val retried  = unsafeRun(retryCollect(io, strategy))
+    val retried  = retryCollect(io, strategy)
     val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
     retried must_=== expected
   }
@@ -161,9 +141,7 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     val io = IO.effectTotal[Unit](i += 1).flatMap { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.succeedLazy(i)
     }
-    val result   = unsafeRun(io.retry(strategy))
-    val expected = 5
-    result must_=== expected
+    io.retry(strategy) must_=== 5
   }
 
   def fibonacci =
@@ -184,78 +162,57 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
     }
     val strategy = schedule.whileInput[String](_ == "KeepTryingError")
-    val retried  = unsafeRun(retryCollect(io, strategy))
     val expected = (Left("GiveUpError"), expectedSteps.map(i => ((i * 100).millis, (i * 100).millis)))
-    retried must_=== expected
+    retryCollect(io, strategy) must_=== expected
   }
 
   val ioSucceed = (_: String, _: Unit) => IO.succeed("OrElse")
 
   val ioFail = (_: String, _: Unit) => IO.fail("OrElseFailed")
 
-  def retryOrElseSucceed = {
-    val retried = unsafeRun(for {
+  def retryOrElseSucceed =
+    for {
       ref <- Ref.make(0)
       o   <- failOn0(ref).retryOrElse(Schedule.once, ioFail)
-    } yield o)
+    } yield o must_=== 2
 
-    retried must_=== 2
-  }
-
-  def retryOrElseFallbackSucceed = {
-    val retried = unsafeRun(for {
+  def retryOrElseFallbackSucceed =
+    for {
       ref <- Ref.make(0)
       o   <- alwaysFail(ref).retryOrElse(Schedule.once, ioSucceed)
-    } yield o)
+    } yield o must_=== "OrElse"
 
-    retried must_=== "OrElse"
-  }
-
-  def retryOrElseFallbackFailed = {
-    val retried = unsafeRun(
-      (for {
-        ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
-      } yield i).foldM(
+  def retryOrElseFallbackFailed =
+    (for {
+      ref <- Ref.make(0)
+      i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
+    } yield i)
+      .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      )
-    )
+      ) must_=== "OrElseFailed"
 
-    retried must_=== "OrElseFailed"
-  }
-
-  def retryOrElseEitherSucceed = {
-    val retried = unsafeRun(for {
+  def retryOrElseEitherSucceed =
+    for {
       ref <- Ref.make(0)
       o   <- failOn0(ref).retryOrElseEither(Schedule.once, ioFail)
-    } yield o)
+    } yield o must beRight(2)
 
-    retried must beRight(2)
-  }
-
-  def retryOrElseEitherFallbackSucceed = {
-    val retried = unsafeRun(for {
+  def retryOrElseEitherFallbackSucceed =
+    for {
       ref <- Ref.make(0)
       o   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioSucceed)
-    } yield o)
+    } yield o must beLeft("OrElse")
 
-    retried must beLeft("OrElse")
-  }
-
-  def retryOrElseEitherFallbackFailed = {
-    val retried = unsafeRun(
-      (for {
-        ref <- Ref.make(0)
-        i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
-      } yield i).foldM(
+  def retryOrElseEitherFallbackFailed =
+    (for {
+      ref <- Ref.make(0)
+      i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
+    } yield i)
+      .foldM(
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success")
-      )
-    )
-
-    retried must_=== "OrElseFailed"
-  }
+      ) must_=== "OrElseFailed"
 
   /*
    * A function that increments ref each time it is called.
@@ -279,11 +236,11 @@ class RetrySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
     } yield x
 
   def ensuring =
-    unsafeRun(for {
+    for {
       p          <- Promise.make[Nothing, Unit]
       v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
       finalizerV <- p.poll
-    } yield (v must beNone) and (finalizerV.isDefined must beTrue))
+    } yield (v must beNone) and (finalizerV.isDefined must beTrue)
 
   object TestRandom extends Random {
     object random extends Random.Service[Any] {

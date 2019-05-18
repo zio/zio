@@ -1,6 +1,6 @@
 package scalaz.zio
 
-class FiberLocalSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+class FiberLocalSpec extends BaseCrossPlatformSpec {
 
   def is =
     "FiberLocalSpec".title ^ s2"""
@@ -12,32 +12,29 @@ class FiberLocalSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
       setting does not overwrite existing fiber-local data $e5
     """
 
-  def e1 = unsafeRun(
+  def e1 =
     for {
       local <- FiberLocal.make[Int]
       _     <- local.set(10)
       v     <- local.get
     } yield v must_=== Some(10)
-  )
 
-  def e2 = unsafeRun(
+  def e2 =
     for {
       local <- FiberLocal.make[Int]
       _     <- local.set(10)
       _     <- local.empty
       v     <- local.get
     } yield v must_=== None
-  )
 
-  def e3 = unsafeRun(
+  def e3 =
     for {
       local <- FiberLocal.make[Int]
       v1    <- local.locally(10)(local.get)
       v2    <- local.get
     } yield (v1 must_=== Some(10)) and (v2 must_=== None)
-  )
 
-  def e4 = unsafeRun(
+  def e4 =
     for {
       local <- FiberLocal.make[Int]
       p     <- Promise.make[Nothing, Unit]
@@ -45,9 +42,8 @@ class FiberLocalSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
       _     <- p.await
       v     <- local.get
     } yield (v must_=== None)
-  )
 
-  def e5 = unsafeRun(
+  def e5 =
     for {
       local <- FiberLocal.make[Int]
       p     <- Promise.make[Nothing, Unit]
@@ -57,6 +53,5 @@ class FiberLocalSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Te
       v1    <- f.join
       v2    <- local.get
     } yield (v1 must_=== Some(10)) and (v2 must_== Some(20))
-  )
 
 }
