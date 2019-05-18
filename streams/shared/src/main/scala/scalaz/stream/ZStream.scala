@@ -385,6 +385,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Provides the `ZStream` effect with its required environment, which eliminates
+   * its dependency on `R`.
+   */
+  final def provide(environment: R): ZIO[Any, E, ZStream[Any, E, A]] =
+    run(
+      ZSink.foldM[Any, E, A, A, ZStream[Any, E, A]](UIO(ZStream.empty))(
+        (s, x) => UIO(ZSink.Step.more(s ++ ZStream.succeed(x)))
+      )
+    ).provide(environment)
+
+  /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
@@ -634,12 +645,12 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                 leftResult.fold(
                   e => rightFiber.interrupt *> ZIO.halt(e),
                   l => rightFiber.join.flatMap(r => handleSuccess(l, r))
-                ),
+              ),
               (rightResult, leftFiber) =>
                 rightResult.fold(
                   e => leftFiber.interrupt *> ZIO.halt(e),
                   r => leftFiber.join.flatMap(l => handleSuccess(l, r))
-                )
+              )
             )
           }
 
@@ -757,7 +768,7 @@ trait Stream_Functions extends Serializable {
   )(release: A => UIO[Unit])(read: A => ZIO[R, E, Option[B]]): ZStream[R, E, B] =
     managed(ZManaged.make(acquire)(release))(read)
 
-  final def managed[R: ConformsR, E, A, B](m: ZManaged[R, E, A])(read: A => ZIO[R, E, Option[B]]) =
+  final def managed[R: ConformsR, E, A, B](m: ZManaged[R, E, A])(read: A => ZIO[R, E, Option[B]]): ZStream[R, E, B] =
     new ZStream[R, E, B] {
       override def fold[R1 <: R, E1 >: E, B1 >: B, S]: Fold[R1, E1, B1, S] =
         IO.succeedLazy { (s, cont, f) =>

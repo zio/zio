@@ -17,7 +17,6 @@
 package scalaz.zio.interop.stream
 
 // import cats.~>
-import cats.FlatMap
 import cats.effect.{ Effect, Sync }
 import cats.implicits._
 import scalaz.zio.clock.Clock
@@ -95,13 +94,18 @@ final class Stream[F[+ _], +A] private[stream] (private[stream] val underlying: 
   /**
    * See [[scalaz.zio.stream.ZStream#fold]]
    */
-  def fold[A1 >: A, S]: Fold[F, A1, S] = ???
+  def fold[A1 >: A, S](implicit E: Effect[F], R: Runtime[Any]): Fold[F, A1, S] =
+    // cats: type Fold[F[+ _], +A, S] =   F[            (S, S => Boolean, (S, A) =>         F[S]) =>         F[S]]
+    // zio:  type Fold[R, E,   +A, S] = ZIO[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZIO[R, E, S]]
+    E.delay(
+      (s, f, op) => liftF(underlying.fold[Any, Throwable, A1, S].flatMap(_(s, f, (s, a1) => liftZIO(op(s, a1)))))
+    )
 
   /**
    * See [[scalaz.zio.stream.ZStream#foldLeft]]
    */
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => F[S])(implicit fm: FlatMap[F]): F[S] =
-    (fold[A, S]: F[(S, S => Boolean, (S, A) => F[S]) => F[S]]).flatMap(_(s, _ => false, f))
+  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => F[S])(implicit E: Effect[F], R: Runtime[Any]): F[S] =
+    (fold[A, S]: F[(S, S => Boolean, (S, A1) => F[S]) => F[S]]).flatMap(_(s, _ => true, f))
 
   /**
    * See [[scalaz.zio.stream.ZStream#flatMap]]
@@ -173,7 +177,7 @@ final class Stream[F[+ _], +A] private[stream] (private[stream] val underlying: 
    */
   def peel[A1 >: A, B](sink: Sink[F, A1, A1, B]): ZManaged[Any, Throwable, (B, Stream[F, A1])] =
     ???
-    // underlying.peel(sink.underlying)
+  // underlying.peel(sink.underlying)
 
   /**
    * TODO
@@ -181,24 +185,24 @@ final class Stream[F[+ _], +A] private[stream] (private[stream] val underlying: 
    *  - Find out how to deal correctly with "with Clock"
    * See [[scalaz.zio.stream.ZStream#]]
    */
-  def repeat(schedule: ZSchedule[Any, Unit, _])(implicit r: Runtime[Clock]): Stream[F, A] =
-    ??? // new Stream(underlying.repeat(schedule))
+  // cats: type Fold[F[+ _], +A, S] =   F[            (S, S => Boolean, (S, A) =>         F[S]) =>         F[S]]
+  // zio:  type Fold[R, E,   +A, S] = ZIO[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZIO[R, E, S]]
+  def repeat(schedule: ZSchedule[Any, Unit, _])(implicit R: Runtime[Clock]): Stream[F, A] =
+    new Stream(R.unsafeRun(underlying.repeat(schedule).provide(R.Environment)))
 
   /**
    * TODO
    *  - Schedule #790
-   *  - Find out how to deal correctly with "with Clock"
    * See [[scalaz.zio.stream.ZStream#repeatElems]]
    */
-  def repeatElems[B](schedule: ZSchedule[Any, A, B])(implicit r: Runtime[Clock]): Stream[F, A] =
-    ??? // new Stream(underlying.repeatElems(schedule))
+  def repeatElems[B](schedule: ZSchedule[Any, A, B])(implicit R: Runtime[Clock]): Stream[F, A] =
+    new Stream(R.unsafeRun(underlying.repeatElems(schedule).provide(R.Environment)))
 
   /**
-   * TODO Sink
    * See [[scalaz.zio.stream.ZStream#run]]
    */
-  def run[A0, A1 >: A, B](sink: Sink[F, A0, A1, B])(implicit r: Runtime[Any], sync: Sync[F]): F[B] =
-    sync.delay(r.unsafeRun(underlying.run(sink.underlying)))
+  def run[A0, A1 >: A, B](sink: Sink[F, A0, A1, B])(implicit R: Runtime[Any], sync: Sync[F]): F[B] =
+    sync.delay(R.unsafeRun(underlying.run(sink.underlying)))
 
   /**
    * See [[scalaz.zio.stream.ZStream#mapAccum]]
@@ -336,7 +340,7 @@ object Stream {
     }
    */
 
-  // FIXME - duplicate code in #790 (shamelessly stole it)
+  // FIXME - duplicate code in #790 (shamelessly copied it)
 
   import scalaz.zio.interop.catz.taskEffectInstances
 
