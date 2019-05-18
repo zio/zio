@@ -22,7 +22,6 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 import cats.{ Applicative, Monad }
-import scalaz.zio.Exit.{ Failure, Success }
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration.{ Duration => zioDuration }
 import scalaz.zio.interop.bio.instances.ZioFiber2
@@ -56,8 +55,8 @@ private[default] abstract class ZioDefaultInstances2 extends ZioDefaultInstances
 
 private[default] abstract class ZioDefaultInstances3 {
 
-  implicit final val zioTestRunAsync2: RunAsync2[IO] =
-    new ZioRunAsync2 {}
+  implicit final def zioTestRunAsync2(implicit rts: DefaultRuntime): RunAsync2[IO] =
+    new ZioRunAsync2 { implicit val runtime = rts }
 }
 
 private[default] object ZioDefaultInstances {
@@ -147,15 +146,15 @@ private[default] object ZioDefaultInstances {
 
     implicit def runtime: DefaultRuntime
 
-    override def runSync[G[+ _, + _], E, A](fa: IO[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A] = {
-
-      import scalaz.zio.interop.bio._
-
-      SG.delay(runtime.unsafeRunSync(fa.either)) >>= {
-        case Success(ea) => ea.fold(SG.raiseError, SG.monad.pure(_))
-        case Failure(_)  => CG.interrupted
-      }
-    }
+    override def runSync[G[+ _, + _], E, A](fa: IO[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A] =
+      SG.suspend(
+        runtime
+          .unsafeRunSync(fa.either)
+          .fold(
+            _ => CG.interrupted,
+            ea => ea.fold(SG.raiseError, SG.monad.pure(_))
+          )
+      )
   }
 
   private[default] sealed trait ZioAsync2 extends Async2[IO] with ZioSync2 {
@@ -169,8 +168,20 @@ private[default] object ZioDefaultInstances {
 
   private[default] sealed trait ZioRunAsync2 extends RunAsync2[IO] with ZioAsync2 {
 
+    implicit def runtime: DefaultRuntime
+
     override def runAsync[G[+ _, + _], E, A](fa: IO[E, A], k: Either[E, A] => G[Nothing, Unit])(
-      implicit G: Sync2[G]
-    ): G[Nothing, Unit] = ???
+      implicit
+      AG: Async2[G],
+      CG: Concurrent2[G]
+    ): G[Nothing, Unit] =
+      AG.async { cb =>
+        runtime
+          .unsafeRunSync(fa.either)
+          .fold(
+            _ => cb(CG.interrupted),
+            ea => cb(k(ea))
+          )
+      }
   }
 }
