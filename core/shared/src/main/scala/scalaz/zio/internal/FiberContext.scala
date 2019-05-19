@@ -405,7 +405,7 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
 
   private def copyFiberLocals = UIO.effectTotal {
     import scala.collection.JavaConverters._
-    fiberRefLocals.synchronized(fiberRefLocals.asScala)
+    fiberRefLocals.asScala
   }
 
   private[this] final def enterSupervision: IO[E, Unit] = ZIO.effectTotal {
