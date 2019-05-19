@@ -34,13 +34,13 @@ import scalaz.zio
  * @param initial
  * @tparam A
  */
-final class FiberRef[A](private[zio] val initial: A) extends Serializable {
+final class FiberRef[A](private[zio] val initial: A) extends AnyVal with Serializable {
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
    * no value was `set` or inherited from parent.
    */
-  final val get: UIO[A] = modify(v => (v, v))
+  final def get: UIO[A] = modify(v => (v, v))
 
   /**
    * Sets the value associated with the current fiber.
