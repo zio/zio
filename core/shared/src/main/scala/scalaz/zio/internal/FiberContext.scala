@@ -17,19 +17,19 @@
 package scalaz.zio.internal
 
 import java.util
-import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
+import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
 import scalaz.zio.internal.FiberContext.FiberRefLocals
-import scalaz.zio.{UIO, _}
+import scalaz.zio.{ UIO, _ }
 
-import scala.annotation.{switch, tailrec}
+import scala.annotation.{ switch, tailrec }
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef, fiberRefLocals: FiberRefLocals)
     extends Fiber[E, A] {
-  import java.util.{Collections, Set}
+  import java.util.{ Collections, Set }
 
   import FiberContext._
   import FiberState._
