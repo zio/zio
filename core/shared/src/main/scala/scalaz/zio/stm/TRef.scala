@@ -25,9 +25,9 @@ import scalaz.zio.stm.STM.internal._
  * A variable that can be modified as part of a transactional effect.
  */
 class TRef[A] private (
-  private[stm] val id: Long,
+  private[stm] val id: TRefId,
   @volatile private[stm] var versioned: Versioned[A],
-  private[stm] val todo: AtomicReference[Map[Long, Todo]]
+  private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
 ) {
   self =>
 
@@ -35,7 +35,7 @@ class TRef[A] private (
    * Retrieves the value of the `TRef`.
    */
   final val get: STM[Nothing, A] =
-    new STM(journal => {
+    new STM((journal, _) => {
       val entry = getOrMakeEntry(journal)
 
       TRez.Succeed(entry.unsafeGet[A])
@@ -45,7 +45,7 @@ class TRef[A] private (
    * Sets the value of the `TRef`.
    */
   final def set(newValue: A): STM[Nothing, Unit] =
-    new STM(journal => {
+    new STM((journal, _) => {
       val entry = getOrMakeEntry(journal)
 
       entry.unsafeSet(newValue)
@@ -60,7 +60,7 @@ class TRef[A] private (
    * Updates the value of the variable.
    */
   final def update(f: A => A): STM[Nothing, A] =
-    new STM(journal => {
+    new STM((journal, _) => {
       val entry = getOrMakeEntry(journal)
 
       val newValue = f(entry.unsafeGet[A])
@@ -81,7 +81,7 @@ class TRef[A] private (
    * value.
    */
   final def modify[B](f: A => (B, A)): STM[Nothing, B] =
-    new STM(journal => {
+    new STM((journal, _) => {
       val entry = getOrMakeEntry(journal)
 
       val (retValue, newValue) = f(entry.unsafeGet[A])
@@ -113,13 +113,13 @@ object TRef {
    * Makes a new `TRef` that is initialized to the specified value.
    */
   final def make[A](a: => A): STM[Nothing, TRef[A]] =
-    new STM(journal => {
+    new STM((journal, makeTRefId) => {
       val id = makeTRefId()
 
       val value     = a
       val versioned = new Versioned(value)
 
-      val todo = new AtomicReference[Map[Long, Todo]](Map())
+      val todo = new AtomicReference[Map[TxnId, Todo]](Map())
 
       val tvar = new TRef(id, versioned, todo)
 

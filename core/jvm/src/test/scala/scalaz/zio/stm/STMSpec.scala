@@ -34,6 +34,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         Using `Ref` perform the same concurrent test should return a wrong result
              increment `TRef` 100 times in 100 fibers. $e17
              compute a `TRef` from 2 variables, increment the first `TRef` and decrement the second `TRef` in different fibers. $e18
+
         Using `STM.atomically` perform concurrent computations that
           have a simple condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied $e19
@@ -59,6 +60,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values $e33
           Using `foreach` perform an action in each value and return a single transaction that contains the result $e34
           Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed $e35
+          
 
         Failure must
           rollback full transaction     $e36
@@ -66,6 +68,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         orElse must
           rollback left retry           $e37
           rollback left failure         $e38
+          local reset, not global       $e39
     """
 
   def e1 =
@@ -486,11 +489,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e37 =
     unsafeRun(
       for {
-        tvar <- TRef.makeCommit(0)
-        left = for {
-          _ <- tvar.update(_ + 100)
-          _ <- STM.retry
-        } yield ()
+        tvar  <- TRef.makeCommit(0)
+        left  = tvar.update(_ + 100) *> STM.retry
         right = tvar.update(_ + 100).unit
         _     <- (left orElse right).commit
         v     <- tvar.get.commit
@@ -500,16 +500,24 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e38 =
     unsafeRun(
       for {
-        tvar <- TRef.makeCommit(0)
-        left = for {
-          _ <- tvar.update(_ + 100)
-          _ <- STM.fail("Uh oh!")
-        } yield ()
+        tvar  <- TRef.makeCommit(0)
+        left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
         right = tvar.update(_ + 100).unit
         _     <- (left orElse right).commit
         v     <- tvar.get.commit
       } yield v must_=== 100
     )
+
+  def e39 =
+    unsafeRun(for {
+      ref <- TRef.make(0).commit
+      result <- STM.atomically(for {
+                 _       <- ref.set(2)
+                 newVal1 <- ref.get
+                 _       <- STM.partial(throw new RuntimeException).orElse(STM.unit)
+                 newVal2 <- ref.get
+               } yield (newVal1, newVal2))
+    } yield result must_=== (2 -> 2))
 
   private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
     (for {
