@@ -72,7 +72,7 @@ import scala.annotation.tailrec
 final class STM[+E, +A] private[stm] (
   val exec: (STM.internal.Journal, () => STM.internal.TRefId) => STM.internal.TRez[E, A]
 ) extends AnyVal { self =>
-  import STM.internal.{ resetJournal, TRez }
+  import STM.internal.{ prepareResetJournal, TRez }
 
   /**
    * Sequentially zips this value with the specified one.
@@ -231,12 +231,17 @@ final class STM[+E, +A] private[stm] (
    */
   final def orElse[E1, A1 >: A](that: => STM[E1, A1]): STM[E1, A1] =
     new STM(
-      (journal, makeTRefId) =>
-        (self.exec(journal, makeTRefId)) match {
-          case TRez.Fail(_)        => { resetJournal(journal); that.exec(journal, makeTRefId) }
+      (journal, makeTRefId) => {
+        val reset = prepareResetJournal(journal)
+
+        val executed = self.exec(journal, makeTRefId)
+
+        executed match {
+          case TRez.Fail(_)        => { reset(); that.exec(journal, makeTRefId) }
           case t @ TRez.Succeed(_) => t
-          case TRez.Retry          => { resetJournal(journal); that.exec(journal, makeTRefId) }
+          case TRez.Retry          => { reset(); that.exec(journal, makeTRefId) }
         }
+      }
     )
 
   /**
@@ -305,15 +310,23 @@ object STM {
     type Todo = () => Unit
 
     /**
-     * Resets the journal so that it does not modify any entries.
+     * Creates a function that can reset the journal.
      */
-    final def resetJournal(journal: Journal): Unit =
-      journal.forEach((_, value) => value.reset())
+    final def prepareResetJournal(journal: Journal): () => Unit = {
+      val saved = new MutableMap[TRefId, Entry](journal.size)
+
+      journal.forEach { (key, value) =>
+        saved.put(key, value.copy())
+        ()
+      }
+
+      () => { journal.clear(); journal.putAll(saved); () }
+    }
 
     /**
      * Commits the journal.
      */
-    final def commitJournal(journal: Journal): Unit = 
+    final def commitJournal(journal: Journal): Unit =
       journal.forEach((_, value) => value.commit())
 
     /**
@@ -395,7 +408,7 @@ object STM {
     /**
      * Executes the todos in the current thread, sequentially.
      */
-    final def execTodos(todos: MutableMap[TxnId, Todo]): Unit = 
+    final def execTodos(todos: MutableMap[TxnId, Todo]): Unit =
       todos.forEach((_, value) => value.apply())
 
     /**
@@ -405,7 +418,7 @@ object STM {
     final def addTodo(txnId: TxnId, journal: Journal, todoEffect: Todo): Boolean = {
       var added = false
 
-      journal.forEach { (_, value) => 
+      journal.forEach { (_, value) =>
         val tref = value.tref
 
         var loop = true
@@ -445,13 +458,22 @@ object STM {
       diffJournal.putAll(newJournal)
 
       newJournal.forEach { (key, _) =>
-        if (oldJournal.containsKey(key)) { diffJournal.remove(key); () }
+        if (oldJournal.containsKey(key)) {
+          diffJournal.remove(key); ()
+        }
       }
 
       diffJournal
     }
 
-    final def tryCommitAsync[E, A](journal: Journal, makeTxnId: () => TRefId, platform: Platform, stm: STM[E, A], txnId: TxnId, done: AtomicBoolean)(
+    final def tryCommitAsync[E, A](
+      journal: Journal,
+      makeTxnId: () => TRefId,
+      platform: Platform,
+      stm: STM[E, A],
+      txnId: TxnId,
+      done: AtomicBoolean
+    )(
       k: IO[E, A] => Unit
     ): Unit = {
       def complete(io: IO[E, A]): Unit = { done.set(true); k(io) }
@@ -462,9 +484,9 @@ object STM {
 
         if (isInvalid(journal)) tryCommit(makeTxnId, platform, stm) match {
           case TryCommit.Done(io) => complete(io)
-          case TryCommit.Suspend(journal2) => 
+          case TryCommit.Suspend(journal2) =>
             val diff = diffJournals(accum, journal2)
-            
+
             if (diff.size > 0) {
               accum.putAll(diff)
 
@@ -531,9 +553,9 @@ object STM {
 
     private[stm] class MakeTRefId(txnId: TxnId) extends (() => TRefId) {
       private var seqNo = 0
-  
+
       def apply(): TRefId = {
-        seqNo = seqNo + 1 
+        seqNo = seqNo + 1
         TRefId(txnId, seqNo)
       }
     }
@@ -545,7 +567,7 @@ object STM {
       final case object Retry               extends TRez[Nothing, Nothing]
     }
 
-    abstract class Entry {
+    abstract class Entry { self =>
       type A
 
       val tref: TRef[A]
@@ -568,6 +590,17 @@ object STM {
       final def commit(): Unit = tref.versioned = new Versioned(newValue)
 
       /**
+       * Creates a copy of the Entry.
+       */
+      final def copy(): Entry = new Entry {
+        type A = self.A
+        val tref     = self.tref
+        val expected = self.expected
+        var newValue = self.newValue
+        _isChanged = self.isChanged
+      }
+
+      /**
        * Determines if the entry is invalid. This is the negated version of
        * `isValid`.
        */
@@ -584,11 +617,8 @@ object STM {
        */
       final def isChanged: Boolean = _isChanged
 
-      /**
-       * Resets the value of this entry, so that if committed, it will have
-       * no effect on the TRef.
-       */
-      final def reset(): Unit = newValue = expected.value
+      override def toString: String =
+        s"Entry(expected.value = ${expected.value}, newValue = ${newValue}, tref = ${tref}, isChanged = ${isChanged})"
     }
 
     object Entry {

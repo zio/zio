@@ -108,6 +108,7 @@ class TRef[A] private (
 }
 
 object TRef {
+
   /**
    * Makes a new `TRef` that is initialized to the specified value.
    */
