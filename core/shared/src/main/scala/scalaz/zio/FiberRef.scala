@@ -21,38 +21,27 @@ import scalaz.zio
  */
 final class FiberRef[A](private[zio] val initial: A) extends Serializable {
 
-  private[this] val read = new ZIO.FiberRefGet[A](this)
-
-  private def write(value: A, fiberId: FiberId) = new ZIO.FiberRefSet[A](this, value, fiberId)
-
   /**
    * Reads the value associated with the current fiber. Returns initial value if
    * no value was `set` or inherited from parent.
    */
-  final val get: UIO[A] = read.map(_.map(_._1).getOrElse(initial))
+  final val get: UIO[A] = new ZIO.FiberRefModify[A, A](this, v => (v, v))
 
   /**
    * Sets the value associated with the current fiber.
    */
-  final def set(value: A): UIO[Unit] =
-    for {
-      descriptor <- ZIO.descriptor
-      _          <- write(value, descriptor.id)
-    } yield ()
+  final def set(value: A): UIO[Unit] = new ZIO.FiberRefModify[A, Unit](this, _ => ((), value))
 
   /**
    * Returns an `IO` that runs with `value` bound to the current fiber.
    *
    * Guarantees that fiber data is properly restored via `bracket`.
    */
-  final def locally[R, E, B](value: A)(use: ZIO[R, E, B]): ZIO[R, E, B] = {
-    // let's write initial value to fiber's locals map if there is no record
-    val readWithDefault: UIO[(A, FiberId)] = read.flatMap {
-      case Some(pair) => ZIO.succeed(pair)
-      case None       => ZIO.descriptor.map(descriptor => (initial, descriptor.id))
-    }
-    readWithDefault.bracket(pair => write(pair._1, pair._2))(_ => set(value) *> use)
-  }
+  final def locally[R, E, B](value: A)(use: ZIO[R, E, B]): ZIO[R, E, B] =
+    for {
+      oldValue <- get
+      b        <- set(value).bracket_(set(oldValue))(use)
+    } yield b
 
 }
 

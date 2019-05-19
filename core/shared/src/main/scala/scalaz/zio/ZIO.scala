@@ -1961,8 +1961,7 @@ object ZIO extends ZIO_R_Any {
     final val Provide         = 15
     final val SuspendWith     = 16
     final val FiberRefNew     = 17
-    final val FiberRefGet     = 18
-    final val FiberRefSet     = 19
+    final val FiberRefModify  = 18
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2058,12 +2057,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.FiberRefNew
   }
 
-  private[zio] final class FiberRefGet[A](val fiberRef: FiberRef[A]) extends UIO[Option[(A, FiberId)]] {
-    override def tag = Tags.FiberRefGet
-  }
-
-  private[zio] final class FiberRefSet[A](val fiberRef: FiberRef[A], val value: A, val fiberId: FiberId)
-      extends UIO[Unit] {
-    override def tag = Tags.FiberRefSet
+  private[zio] final class FiberRefModify[A, B](val fiberRef: FiberRef[A], val f: A => (B, A)) extends UIO[B] {
+    override def tag = Tags.FiberRefModify
   }
 }

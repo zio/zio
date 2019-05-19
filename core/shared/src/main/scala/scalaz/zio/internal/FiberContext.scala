@@ -17,28 +17,25 @@
 package scalaz.zio.internal
 
 import java.util
-import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
-import scalaz.zio
-import scalaz.zio.Fiber.Descriptor
 import scalaz.zio.internal.FiberContext.FiberRefLocals
-import scalaz.zio.{ UIO, _ }
+import scalaz.zio.{UIO, _}
 
-import scala.annotation.{ switch, tailrec }
+import scala.annotation.{switch, tailrec}
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
-private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef, initialFiberRefLocals: FiberRefLocals)
+private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef, fiberRefLocals: FiberRefLocals)
     extends Fiber[E, A] {
-  import java.util.{ Collections, Set }
+  import java.util.{Collections, Set}
 
   import FiberContext._
   import FiberState._
 
   // Accessed from multiple threads:
-  private[this] val state          = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
-  private[this] val fiberRefLocals = initialFiberRefLocals
+  private[this] val state = new AtomicReference[FiberState[E, A]](FiberState.Initial[E, A])
 
   @volatile private[this] var interrupted = false
 
@@ -301,23 +298,18 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
                   val io = curIo.asInstanceOf[ZIO.FiberRefNew[Any]]
 
                   val fiberRef = new FiberRef[Any](io.initialValue)
-                  fiberRefLocals.synchronized(fiberRefLocals.put(fiberRef, (io.initialValue, fiberId)))
+                  fiberRefLocals.put(fiberRef, (io.initialValue, fiberId))
 
                   curIo = nextInstr(fiberRef)
 
-                case ZIO.Tags.FiberRefGet =>
-                  val io = curIo.asInstanceOf[ZIO.FiberRefGet[Any]]
+                case ZIO.Tags.FiberRefModify =>
+                  val io = curIo.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
 
-                  val value = Option(fiberRefLocals.synchronized(fiberRefLocals.get(io.fiberRef)))
+                  val oldValue           = Option(fiberRefLocals.get(io.fiberRef))
+                  val (result, newValue) = io.f(oldValue.map(_._1).getOrElse(io.fiberRef.initial))
+                  fiberRefLocals.put(io.fiberRef, (newValue, fiberId))
 
-                  curIo = nextInstr(value)
-
-                case ZIO.Tags.FiberRefSet =>
-                  val io = curIo.asInstanceOf[ZIO.FiberRefSet[Any]]
-
-                  fiberRefLocals.synchronized(fiberRefLocals.put(io.fiberRef, (io.value, io.fiberId)))
-
-                  curIo = nextInstr(())
+                  curIo = nextInstr(result)
 
               }
             }
@@ -373,9 +365,7 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
    */
   final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = platform.newWeakHashMap()
-    fiberRefLocals.synchronized {
-      childFiberRefLocals.putAll(fiberRefLocals)
-    }
+    childFiberRefLocals.putAll(fiberRefLocals)
     val context = new FiberContext[E, A](platform, environment.peek(), childFiberRefLocals)
 
     platform.executor.submitOrThrow(() => context.evaluateNow(io))
@@ -406,19 +396,10 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
 
   final def inheritLocals: UIO[Unit] =
     for {
-      descriptor <- ZIO.descriptor
-      locals     <- copyFiberLocals
+      locals <- copyFiberLocals
       _ <- ZIO.foreach_(locals) {
-            case (fiberRef, (value, updateFiberId)) =>
-              if (updateFiberId != descriptor.id) {
-                new zio.ZIO.FiberRefSet[Any](
-                  fiberRef.asInstanceOf[FiberRef[Any]],
-                  value,
-                  descriptor.id
-                )
-              } else {
-                ZIO.unit
-              }
+            case (fiberRef, (value, _)) =>
+              fiberRef.asInstanceOf[FiberRef[Any]].set(value)
           }
     } yield ()
 

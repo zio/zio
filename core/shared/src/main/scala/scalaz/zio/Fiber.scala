@@ -68,7 +68,7 @@ trait Fiber[+E, +A] { self =>
   def interrupt: UIO[Exit[E, A]]
 
   /**
-   * Inherits values from all [[FiberLocal]] instances into current fiber.
+   * Inherits values from all [[FiberRef]] instances into current fiber.
    * This will resume immediately.
    */
   def inheritLocals: UIO[Unit]
