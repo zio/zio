@@ -179,7 +179,6 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     unsafeRun(program) must be_===(Right(expected))
   }
 
-<<<<<<< HEAD
   private def foldMFailure = {
     val effects = new mutable.ListBuffer[Int]
     def res(x: Int): ZManaged[Any, Unit, Unit] =
@@ -252,7 +251,8 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     unsafeRun(resource.use(_ => IO.unit).orElse(ZIO.unit))
 
     effects must be_===(List(1, 2, 2, 1))
-=======
+  }
+
   private def retryReservation = {
     var retries = 0
 
@@ -931,7 +931,6 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       managed.use[Clock, Nothing, Unit](_ => ZIO.unit).orElse(ZIO.unit)
     }
     effect.get must be_<=(4)
->>>>>>> finish tests for zmanaged
   }
 
 }
