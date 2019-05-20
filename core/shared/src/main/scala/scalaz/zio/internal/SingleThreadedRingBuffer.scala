@@ -16,7 +16,7 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
       array(current) = null
     }
 
-  final def toList: List[A] = {
+  final def toReversedList: List[A] = {
     val begin = current - size
 
     val newArray = if (begin < 0) {
@@ -25,7 +25,17 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
       array.slice(begin, current)
     }
 
-    newArray.toList.asInstanceOf[List[A]]
+    arrayToReversedList(newArray).asInstanceOf[List[A]]
+  }
+
+  @inline private[this] final def arrayToReversedList(array: Array[AnyRef]): List[AnyRef] = {
+    var i                    = 0
+    var result: List[AnyRef] = Nil
+    while (i < array.length) {
+      result ::= array(i)
+      i += 1
+    }
+    result
   }
 
   @inline private[this] final def increment(): Unit = {

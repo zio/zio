@@ -13,7 +13,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   // Using mutable Spec here to easily run individual tests from Intellij to inspect result traces
 
-  // set to true to show traces in log
+  // set to true to print traces
   private val debug = true
 
   "basic test" >> basicTest
@@ -35,6 +35,10 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   "execution trace example with conditional" >> executionTraceConditionalExample
 
+  "catchSome with optimized effect path" >> catchSomeWithOptimizedEffect
+  "catchAll with optimized effect path" >> catchAllWithOptimizedEffect
+  "foldM with optimized effect path" >> foldMWithOptimizedEffect
+
   "single effect for-comprehension" >> singleTaskForComp
   "single effectTotal for-comprehension" >> singleUIOForComp
   "single effectTotalWith for-comprehension" >> singleEffectTotalWithForComp
@@ -48,6 +52,17 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       case _                 => false
     }
 
+  private def mentionMethod(method: String)(implicit dummy: DummyImplicit): Matcher[ZTraceElement] =
+    new Matcher[ZTraceElement] {
+      def apply[S <: ZTraceElement](expectable: Expectable[S]) =
+        result(
+          mentionsMethod(method, expectable.value),
+          expectable.description + s" mentions method `$method`",
+          expectable.description + s" does not mention method `$method`",
+          expectable
+        )
+    }
+
   private def mentionMethod(method: String): Matcher[List[ZTraceElement]] =
     new Matcher[List[ZTraceElement]] {
       def apply[S <: List[ZTraceElement]](expectable: Expectable[S]) =
@@ -58,6 +73,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
           expectable
         )
     }
+
   private def mentionedMethod(method: String): Matcher[List[ZTraceElement]] = mentionMethod(method)
 
   private implicit final class CauseMust[R >: Environment](io: ZIO[R, _, _]) {
@@ -172,7 +188,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       show(trace)
 
       (trace.stackTrace must beEmpty) and
-        (trace.executionTrace must forall[ZTraceElement](mentionsMethod("leftAssociativeFold", _)))
+        (trace.executionTrace must forall[ZTraceElement](mentionMethod("leftAssociativeFold")))
     }
   }
 
@@ -270,10 +286,10 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     uploadUsers(List(new User)) causeMust { cause =>
       (cause.traces.head.stackTrace must have size 1) and
-        mentionsMethod("uploadUsers", cause.traces.head.stackTrace.head) and
+        (cause.traces.head.stackTrace.head must mentionMethod("uploadUsers")) and
         (cause.traces(1).stackTrace must beEmpty) and
         (cause.traces(1).executionTrace must have size 1) and
-        mentionsMethod("uploadTo", cause.traces(1).executionTrace.head) and
+        (cause.traces(1).executionTrace.head must mentionMethod("uploadTo")) and
         (cause.traces(1).parentTrace must not be empty) and
         (cause.traces(1).parentTrace.get.stackTrace must mentionMethod("uploadUsers"))
     }
@@ -304,9 +320,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     io causeMust { cause =>
       val trace = cause.traces.head
 
-      // the first items on exec trace and stack trace refer to this line
-      mentionsMethod("blockingTrace", trace.stackTrace.head) and
-        mentionsMethod("blockingTrace", trace.executionTrace.head)
+      // the bottom items on exec trace and stack trace refer to this line
+      (trace.stackTrace.last must mentionMethod("blockingTrace")) and
+        (trace.executionTrace.last must mentionMethod("blockingTrace"))
     }
 
   }
@@ -359,9 +375,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     io causeMust { cause =>
       val trace = cause.traces.head
 
-      mentionsMethod("doSideWork", trace.executionTrace.head) and
+      (trace.executionTrace.last must mentionMethod("doSideWork")) and
         (trace.executionTrace must mentionMethod("doMainWork")) and
-        mentionsMethod("doWork", trace.stackTrace.head)
+        (trace.stackTrace.head must mentionMethod("doWork"))
     }
   }
 
@@ -382,7 +398,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     selectHumans causeMust { cause =>
       (cause.traces must have size 1) and
         (cause.traces.head.stackTrace must have size 1) and
-        mentionsMethod("selectHumans", cause.traces.head.stackTrace.head)
+        (cause.traces.head.stackTrace.head must mentionMethod("selectHumans"))
     }
   }
 
@@ -401,7 +417,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     selectHumans causeMust { cause =>
       (cause.traces must have size 1) and
         (cause.traces.head.stackTrace must have size 1) and
-        mentionsMethod("selectHumans", cause.traces.head.stackTrace.head)
+        (cause.traces.head.stackTrace.last must mentionMethod("selectHumans"))
     }
   }
 
@@ -420,7 +436,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     selectHumans causeMust { cause =>
       (cause.traces must have size 1) and
         (cause.traces.head.stackTrace must have size 1) and
-        mentionsMethod("selectHumans", cause.traces.head.stackTrace.head)
+        (cause.traces.head.stackTrace.last must mentionMethod("selectHumans"))
     }
   }
 
@@ -431,6 +447,87 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()
     } yield ()
+  }
+
+  def catchSomeWithOptimizedEffect = {
+    import catchSomeWithOptimizedEffectFixture._
+
+    val io = for {
+      t <- Task(fail())
+            .flatMap(badMethod)
+            .catchSome {
+              case _: ArithmeticException => ZIO.fail("impossible match!")
+            }
+    } yield t
+
+    io causeMust { cause =>
+      (cause.traces must have size 1) and
+        (cause.traces.head.executionTrace must have size 1) and
+        (cause.traces.head.executionTrace must mentionMethod("fail")) and
+        (cause.traces.head.stackTrace must have size 3) and
+        (cause.traces.head.stackTrace.head must mentionMethod("badMethod")) and
+        (cause.traces.head.stackTrace(1) must mentionMethod("apply")) and
+        (cause.traces.head.stackTrace(2) must mentionMethod("catchSomeWithOptimizedEffect"))
+    }
+  }
+
+  object catchSomeWithOptimizedEffectFixture {
+    val fail               = () => throw new Exception("error!")
+    val badMethod = ZIO.succeed(_: ZTrace)
+  }
+
+  def catchAllWithOptimizedEffect = {
+    import catchAllWithOptimizedEffectFixture._
+
+    val io = for {
+      t <- Task(fail())
+            .flatMap(succ)
+            .catchAll(refailAndLoseTrace)
+    } yield t
+
+    io causeMust { cause =>
+      // after we refail and lose the trace, the only continuation we have left is the map from yield
+      (cause.traces must have size 1) and
+        (cause.traces.head.executionTrace must have size 2) and
+        (cause.traces.head.executionTrace.head must mentionMethod("refailAndLoseTrace")) and
+        (cause.traces.head.executionTrace.last must mentionMethod("fail")) and
+        (cause.traces.head.stackTrace must have size 1) and
+        (cause.traces.head.stackTrace.head must mentionMethod("catchAllWithOptimizedEffect"))
+    }
+  }
+
+  object catchAllWithOptimizedEffectFixture {
+    val succ               = ZIO.succeed(_: ZTrace)
+    val fail               = () => throw new Exception("error!")
+    val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
+  }
+
+  def foldMWithOptimizedEffect = {
+    import foldMWithOptimizedEffectFixture._
+
+    val io = for {
+      t <- Task(fail())
+            .flatMap(badMethod1)
+            .foldM(mkTrace, badMethod2)
+    } yield t
+
+    unsafeRun(io) must {
+      trace: ZTrace =>
+        show(trace)
+
+        (trace.stackTrace must have size 1) and
+        (trace.stackTrace must mentionMethod("foldMWithOptimizedEffect")) and
+        (trace.executionTrace must have size 2) and
+        (trace.executionTrace.head must mentionMethod("mkTrace")) and
+        (trace.executionTrace.last must mentionMethod("fail"))
+    }
+  }
+
+  object foldMWithOptimizedEffectFixture {
+    val mkTrace    = (_: Any) => ZIO.trace
+    val fail       = () => throw new Exception("error!")
+    val badMethod1 = ZIO.succeed(_: ZTrace)
+    val badMethod2 = ZIO.succeed(_: ZTrace)
   }
 
 }

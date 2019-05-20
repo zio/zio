@@ -9,20 +9,20 @@ final case class ZTrace(
   parentTrace: Option[ZTrace]
 ) {
   final def prettyPrint: String = {
-    val execTrace  = executionTrace.nonEmpty
+    val execTrace  = this.executionTrace.nonEmpty
     val stackTrace = this.stackTrace.nonEmpty
 
     val stackPrint =
       if (stackTrace)
         s"Fiber:$fiberId was supposed to continue to:" ::
-          this.stackTrace.reverse.map(loc => s"  a future continuation at " + loc.prettyPrint)
+          this.stackTrace.map(loc => s"  a future continuation at " + loc.prettyPrint)
       else
         s"Fiber:$fiberId was supposed to continue to: <empty trace>" :: Nil
 
     val execPrint =
       if (execTrace)
         s"Fiber:$fiberId execution trace:" ::
-          executionTrace.reverse.map(loc => "  at " + loc.prettyPrint)
+          executionTrace.map(loc => "  at " + loc.prettyPrint)
       else s"Fiber:$fiberId ZIO Execution trace: <empty trace>" :: Nil
 
     val ancestry: List[String] =
