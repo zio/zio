@@ -442,12 +442,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
 
   /**
-   * Executes this effect, skipping the error but returning optionally the success.
-   */
-  final def option: ZIO[R, Nothing, Option[A]] =
-    self.foldCauseM(_ => IO.succeed(None), a => IO.succeed(Some(a)))
-
-  /**
    * Translates effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */

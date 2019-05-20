@@ -315,7 +315,7 @@ object STM {
       while (it.hasNext) it.next.getValue.commit()
     }
 
-    /**
+    /** 
      * Allocates memory for the journal, if it is null, otherwise just clears it.
      */
     final def allocJournal(journal: Journal): Journal =
@@ -672,18 +672,18 @@ object STM {
         tryTxn()
       } ensuring interrupt
     }.flatten
-    IO.suspendWith { platform =>
-      tryCommit(platform, stm) match {
-        case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
-        case TryCommit.Suspend(journal) =>
-          val txnId     = makeTxnId()
-          val done      = new AtomicBoolean(false)
-          val interrupt = UIO(done.synchronized(done.set(true)))
-          val async     = IO.effectAsync[Any, E, A](tryCommitAsync(journal, platform, stm, txnId, done))
+  IO.suspendWith { platform =>
+    tryCommit(platform, stm) match {
+      case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
+      case TryCommit.Suspend(journal) =>
+        val txnId     = makeTxnId()
+        val done      = new AtomicBoolean(false)
+        val interrupt = UIO(done.synchronized(done.set(true)))
+        val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, stm, txnId, done))
 
-          async ensuring interrupt
-      }
+        async ensuring interrupt
     }
+  }
 
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.

@@ -372,6 +372,12 @@ object IO {
     ZIO.suspend(io)
 
   /**
+    * [[scalaz.zio.ZIO.suspendWith]]
+    */
+  final def suspendWith[R, E, A](io: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.SuspendWith(io)
+
+  /**
    * See [[scalaz.zio.ZIO.uninterruptible]]
    */
   final def uninterruptible[E, A](io: IO[E, A]): IO[E, A] =
