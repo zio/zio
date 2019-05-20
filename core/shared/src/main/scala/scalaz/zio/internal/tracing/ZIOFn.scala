@@ -25,12 +25,11 @@ private[zio] abstract class ZIOFn2[-A, -B, +C] extends ZIOFn with Function2[A, B
 }
 
 private[zio] object ZIOFn {
-  @noinline
-  def apply[A, B](traceAs: AnyRef)(real: A => B): ZIOFn1[A, B] = new ZIOFn1[A, B] {
+  final def apply[A, B](traceAs: AnyRef)(real: A => B): ZIOFn1[A, B] = new ZIOFn1[A, B] {
     final val underlying: AnyRef = traceAs
     final def apply(a: A): B     = real(a)
   }
 
   @noinline
-  def recordTrace(lambda: AnyRef): UIO[Unit] = UIO.unit.flatMap(ZIOFn(lambda)(ZIO.succeed))
+  final def recordTrace(lambda: AnyRef): UIO[Unit] = UIO.unit.flatMap(ZIOFn(lambda)(ZIO.succeed))
 }

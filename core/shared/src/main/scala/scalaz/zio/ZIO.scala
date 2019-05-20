@@ -1735,13 +1735,15 @@ private[zio] trait ZIOFunctions extends Serializable {
    * The moral equivalent of `if (p) exp`
    */
   final def when[R >: LowerR, E <: UpperE](b: Boolean)(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
-    if (b) zio.unit else unit
+    if (b)
+      zio.const(())
+    else unit
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   final def whenM[R >: LowerR, E <: UpperE](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) zio.unit else unit)
+    b.flatMap(b => if (b) zio.const(()) else unit)
 
   /**
    * Folds an `Iterable[A]` using an effectful function `f`, working sequentially.

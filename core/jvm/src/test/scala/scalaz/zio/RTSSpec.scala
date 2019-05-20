@@ -21,6 +21,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   RTS synchronous correctness
     widen Nothing                           $testWidenNothing
     evaluation of point                     $testPoint
+    blocking caches threads                 $testBlockingThreadCaching
     point must be lazy                      $testPointIsLazy
     now must be eager                       $testNowIsEager
     suspend must be lazy                    $testSuspendIsLazy
@@ -1282,9 +1283,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       blocking.blockingExecutor.map(_.metrics.get.workersCount)
 
     unsafeRunSync(for {
-      thread1  <- blocking.blocking(IO.effectTotal(Thread.currentThread()))
+      thread1  <- blocking.effectBlocking(Thread.currentThread())
       workers1 <- currentNumLiveWorkers
-      thread2  <- blocking.blocking(IO.effectTotal(Thread.currentThread()))
+      thread2  <- blocking.effectBlocking(Thread.currentThread())
       workers2 <- currentNumLiveWorkers
     } yield workers1 == workers2 && thread1 == thread2) must_=== Exit.Success(true)
   }

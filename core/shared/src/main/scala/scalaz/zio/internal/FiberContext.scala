@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 import scalaz.zio.Exit.Cause
 import scalaz.zio._
 import scalaz.zio.internal.stacktracer.ZTraceElement
-import scalaz.zio.internal.tracing.{ FiberAncestry, ZIOFn }
+import scalaz.zio.internal.tracing.ZIOFn
 
 import scala.annotation.{ switch, tailrec }
 
@@ -31,7 +31,7 @@ import scala.annotation.{ switch, tailrec }
 private[zio] final class FiberContext[E, A](
   platform: Platform,
   startEnv: AnyRef,
-  ancestor: FiberAncestry,
+  parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean
 ) extends Fiber[E, A] {
   import java.util.{ Collections, Set }
@@ -55,9 +55,9 @@ private[zio] final class FiberContext[E, A](
   private[this] val supervised      = Stack[Set[FiberContext[_, _]]]()
 
   private[this] val tracingStatus =
-    if (tracingEnabled) StackBool(initialTracingStatus)
+    if (tracingEnabled) StackBool()
     else null
-  private[this] val trace =
+  private[this] val execTrace =
     if (traceExec) SingleThreadedRingBuffer[ZTraceElement](platform.tracingConfig.executionTraceLength)
     else null
   private[this] val stackTrace =
@@ -81,7 +81,7 @@ private[zio] final class FiberContext[E, A](
 
   @noinline
   private[this] final def inTracingRegion: Boolean =
-    if (tracingStatus ne null) tracingStatus.peekOrElse(true) else false
+    if (tracingStatus ne null) tracingStatus.peekOrElse(initialTracingStatus) else false
 
   @noinline
   private[this] final def unwrap(lambda: AnyRef): AnyRef =
@@ -97,21 +97,26 @@ private[zio] final class FiberContext[E, A](
       case _ => lambda
     }
 
+  // FIXME: bench
+  @noinline
+  private[this] final def traceLocation(lambda: AnyRef): ZTraceElement =
+    tracer.traceLocation(unwrap(lambda))
+
   @noinline
   private[this] final def addTrace(lambda: AnyRef): Unit =
-    trace.put(tracer.traceLocation(unwrap(lambda)))
+    execTrace.put(traceLocation(lambda))
 
   @noinline
   private[this] final def addStackTrace(lambda: AnyRef): Unit =
-    stackTrace.put(tracer.traceLocation(unwrap(lambda)))
+    stackTrace.put(traceLocation(lambda))
 
   private[this] final def popStackTrace(): Unit =
     stackTrace.dropLast()
 
   private[this] final def captureTrace(): ZTrace = {
-    val exec  = if (trace ne null) trace.toList else Nil
+    val exec  = if (execTrace ne null) execTrace.toList else Nil
     val stack = if (stackTrace ne null) stackTrace.toList else Nil
-    ZTrace(fiberId, exec, stack, ancestor)
+    ZTrace(fiberId, exec, stack, parentTrace)
   }
 
   private[this] final def cutAncestryTrace(trace: ZTrace): ZTrace = {
@@ -496,8 +501,8 @@ private[zio] final class FiberContext[E, A](
   final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
     val tracingRegion = inTracingRegion
     val ancestry =
-      if (tracingEnabled && tracingRegion) FiberAncestry(Some(cutAncestryTrace(captureTrace())))
-      else FiberAncestry(None)
+      if (tracingEnabled && tracingRegion) Some(cutAncestryTrace(captureTrace()))
+      else None
 
     val context = new FiberContext[E, A](platform, environment.peek(), ancestry, tracingRegion)
 

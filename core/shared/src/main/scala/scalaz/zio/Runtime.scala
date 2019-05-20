@@ -16,7 +16,6 @@
 
 package scalaz.zio
 
-import scalaz.zio.internal.tracing.FiberAncestry
 import scalaz.zio.internal.{ FiberContext, Platform, PlatformConstants }
 
 /**
@@ -69,7 +68,7 @@ trait Runtime[+R] {
     val context = new FiberContext[E, A](
       Platform,
       Environment.asInstanceOf[AnyRef],
-      FiberAncestry(None),
+      None,
       PlatformConstants.tracingSupported
     )
 
