@@ -1,7 +1,0 @@
-[0m[[0m[31merror[0m] [0m[0mD:\Software\Eclipse\Workspace\Scala\scalaz-zio_issue744\scalaz-zio\core\shared\src\main\scala\scalaz\zio\IO.scala:327:9: a type was inferred to be `Any`; this may indicate a programming error.[0m
-[0m[[0m[31merror[0m] [0m[0m    ZIO.require(error)[0m
-[0m[[0m[31merror[0m] [0m[0m        ^[0m
-[0m[[0m[31merror[0m] [0m[0mD:\Software\Eclipse\Workspace\Scala\scalaz-zio_issue744\scalaz-zio\core\shared\src\main\scala\scalaz\zio\Task.scala:317:9: a type was inferred to be `Any`; this may indicate a programming error.[0m
-[0m[[0m[31merror[0m] [0m[0m    ZIO.require(error)[0m
-[0m[[0m[31merror[0m] [0m[0m        ^[0m
-[0m[[0m[31merror[0m] [0m[0mtwo errors found[0m
