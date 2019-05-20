@@ -16,8 +16,6 @@
 
 package scalaz.zio
 
-import scalaz.zio
-
 /**
  * Fiber's counterpart for Java's `ThreadLocal`. Value is automatically propagated
  * to child on fork and merged back in after joining child.
@@ -34,18 +32,13 @@ import scalaz.zio
  * @param initial
  * @tparam A
  */
-final class FiberRef[A](private[zio] val initial: A) extends AnyVal with Serializable {
+final class FiberRef[A](private[zio] val initial: A) extends Serializable {
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
    * no value was `set` or inherited from parent.
    */
-  final def get: UIO[A] = modify(v => (v, v))
-
-  /**
-   * Sets the value associated with the current fiber.
-   */
-  final def set(value: A): UIO[Unit] = modify(_ => ((), value))
+  final val get: UIO[A] = modify(v => (v, v))
 
   /**
    * Returns an `IO` that runs with `value` bound to the current fiber.
@@ -61,6 +54,28 @@ final class FiberRef[A](private[zio] val initial: A) extends AnyVal with Seriali
         i0(set(oldValue))(use)
       }
     } yield b
+
+  /**
+   * Atomically modifies the `FiberRef` with the specified function, which computes
+   * a return value for the modification. This is a more powerful version of
+   * `update`.
+   */
+  final def modify[B](f: A => (B, A)): UIO[B] = new ZIO.FiberRefModify(this, f)
+
+  /**
+   * Atomically modifies the `FiberRef` with the specified partial function, which computes
+   * a return value for the modification if the function is defined in the current value
+   * otherwise it returns a default value.
+   * This is a more powerful version of `updateSome`.
+   */
+  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = modify { v =>
+    pf.applyOrElse[A, (B, A)](v, _ => (default, v))
+  }
+
+  /**
+   * Sets the value associated with the current fiber.
+   */
+  final def set(value: A): UIO[Unit] = modify(_ => ((), value))
 
   /**
    * Atomically modifies the `FiberRef` with the specified function.
@@ -79,22 +94,6 @@ final class FiberRef[A](private[zio] val initial: A) extends AnyVal with Seriali
     (result, result)
   }
 
-  /**
-   * Atomically modifies the `FiberRef` with the specified function, which computes
-   * a return value for the modification. This is a more powerful version of
-   * `update`.
-   */
-  final def modify[B](f: A => (B, A)): UIO[B] = new ZIO.FiberRefModify(this, f)
-
-  /**
-   * Atomically modifies the `FiberRef` with the specified partial function, which computes
-   * a return value for the modification if the function is defined in the current value
-   * otherwise it returns a default value.
-   * This is a more powerful version of `updateSome`.
-   */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = modify { v =>
-    pf.applyOrElse[A, (B, A)](v, _ => (default, v))
-  }
 }
 
 object FiberRef extends Serializable {
@@ -102,5 +101,5 @@ object FiberRef extends Serializable {
   /**
    * Creates a new `FiberRef` with given initial value.
    */
-  def make[A](initialValue: A): UIO[FiberRef[A]] = new zio.ZIO.FiberRefNew(initialValue)
+  def make[A](initialValue: A): UIO[FiberRef[A]] = new ZIO.FiberRefNew(initialValue)
 }

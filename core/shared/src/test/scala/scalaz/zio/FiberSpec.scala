@@ -33,7 +33,7 @@ class FiberSpec extends BaseCrossPlatformSpec {
       latch    <- Promise.make[Nothing, Unit]
       child    <- (fiberRef.set(update) *> latch.succeed(())).fork
       _        <- latch.await
-      _        <- child.map(_ => ()).inheritLocals
+      _        <- child.map(_ => ()).inheritFiberRefs
       value    <- fiberRef.get
     } yield value must beTheSameAs(update)
 
@@ -45,7 +45,7 @@ class FiberSpec extends BaseCrossPlatformSpec {
       child1    <- (fiberRef.set("child1") *> semaphore.release).fork
       child2    <- (fiberRef.set("child2") *> semaphore.release).fork
       _         <- semaphore.acquireN(2)
-      _         <- child1.orElse(child2).inheritLocals
+      _         <- child1.orElse(child2).inheritFiberRefs
       value     <- fiberRef.get
     } yield value must beTheSameAs("child1")
 
@@ -57,7 +57,7 @@ class FiberSpec extends BaseCrossPlatformSpec {
       child1    <- (fiberRef.set("child1") *> semaphore.release).fork
       child2    <- (fiberRef.set("child2") *> semaphore.release).fork
       _         <- semaphore.acquireN(2)
-      _         <- child1.zip(child2).inheritLocals
+      _         <- child1.zip(child2).inheritFiberRefs
       value     <- fiberRef.get
     } yield value must beTheSameAs("child1")
 }

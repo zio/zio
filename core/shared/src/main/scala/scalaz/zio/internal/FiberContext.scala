@@ -16,7 +16,6 @@
 
 package scalaz.zio.internal
 
-import java.util
 import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
 import scalaz.zio.internal.FiberContext.FiberRefLocals
@@ -394,18 +393,15 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
 
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
-  final def inheritLocals: UIO[Unit] =
-    for {
-      locals <- copyFiberLocals
-      _ <- ZIO.foreach_(locals) {
-            case (fiberRef, (value, _)) =>
-              fiberRef.asInstanceOf[FiberRef[Any]].set(value)
-          }
-    } yield ()
-
-  private def copyFiberLocals = UIO.effectTotal {
+  final def inheritFiberRefs: UIO[Unit] = UIO.suspend {
     import scala.collection.JavaConverters._
-    fiberRefLocals.asScala
+    val locals = fiberRefLocals.asScala
+    if (locals.isEmpty) UIO.unit
+    else
+      UIO.foreach_(locals) {
+        case (fiberRef, (value, _)) =>
+          fiberRef.asInstanceOf[FiberRef[Any]].set(value)
+      }
   }
 
   private[this] final def enterSupervision: IO[E, Unit] = ZIO.effectTotal {
@@ -604,5 +600,5 @@ private[zio] object FiberContext {
     def Initial[E, A] = Executing[E, A](FiberStatus.Running, Nil)
   }
 
-  type FiberRefLocals = util.Map[FiberRef[_], (Any, FiberId)]
+  type FiberRefLocals = java.util.Map[FiberRef[_], (Any, FiberId)]
 }
