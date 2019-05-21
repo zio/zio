@@ -163,7 +163,7 @@ trait Fiber[+E, +A] { self =>
       def await: UIO[Exit[E, B]]        = self.await.map(_.map(f))
       def poll: UIO[Option[Exit[E, B]]] = self.poll.map(_.map(_.map(f)))
       def interrupt: UIO[Exit[E, B]]    = self.interrupt.map(_.map(f))
-      def inheritFiberRefs: UIO[Unit]      = self.inheritFiberRefs
+      def inheritFiberRefs: UIO[Unit]   = self.inheritFiberRefs
     }
 
   /**
@@ -244,7 +244,7 @@ object Fiber {
       def await: UIO[Exit[Nothing, Nothing]]        = IO.never
       def poll: UIO[Option[Exit[Nothing, Nothing]]] = IO.succeed(None)
       def interrupt: UIO[Exit[Nothing, Nothing]]    = IO.never
-      def inheritFiberRefs: UIO[Unit]                  = IO.unit
+      def inheritFiberRefs: UIO[Unit]               = IO.unit
     }
 
   /**
@@ -255,7 +255,7 @@ object Fiber {
       def await: UIO[Exit[E, A]]        = IO.succeedLazy(exit)
       def poll: UIO[Option[Exit[E, A]]] = IO.succeedLazy(Some(exit))
       def interrupt: UIO[Exit[E, A]]    = IO.succeedLazy(exit)
-      def inheritFiberRefs: UIO[Unit]      = IO.unit
+      def inheritFiberRefs: UIO[Unit]   = IO.unit
 
     }
 
