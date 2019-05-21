@@ -1,10 +1,10 @@
 package scalaz.zio
 
 import scalaz.zio.stm._
-
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import cats.effect.{ ContextShift, IO => CIO }
+import monix.eval.{ Task => MTask }
 import org.openjdk.jmh.annotations._
 import scalaz.zio.IOBenchmarks._
 
@@ -18,22 +18,23 @@ import scalaz.zio.IOBenchmarks._
  * This benchmark offers and takes a number of items in parallel, with a very small queue to enforce back pressure mechanism is used.
  */
 class QueueBackPressureBenchmark {
-
   val queueSize   = 2
   val totalSize   = 1000
   val parallelism = 5
 
   implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
-  var zioQ: Queue[Int]                     = _
-  var fs2Q: fs2.concurrent.Queue[CIO, Int] = _
-  var zioTQ: TQueue[Int]                   = _
+  var zioQ: Queue[Int]                                 = _
+  var fs2Q: fs2.concurrent.Queue[CIO, Int]             = _
+  var zioTQ: TQueue[Int]                               = _
+  var monixQ: monix.catnap.ConcurrentQueue[MTask, Int] = _
 
   @Setup(Level.Trial)
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](queueSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](queueSize).unsafeRunSync()
     zioTQ = unsafeRun(TQueue.make(queueSize).commit)
+    monixQ = monix.catnap.ConcurrentQueue.bounded[MTask, Int](queueSize).runSyncUnsafe()
   }
 
   @Benchmark
@@ -73,5 +74,19 @@ class QueueBackPressureBenchmark {
     } yield 0
 
     io.unsafeRunSync()
+  }
+
+  @Benchmark
+  def monixQueue(): Int = {
+    import IOBenchmarks.monixScheduler
+
+    val io = for {
+      offers <- monixForkAll(List.fill(parallelism)(monixRepeat(totalSize / parallelism)(monixQ.offer(0))))
+      takes  <- monixForkAll(List.fill(parallelism)(monixRepeat(totalSize / parallelism)(monixQ.poll.map(_ => ()))))
+      _      <- offers.join
+      _      <- takes.join
+    } yield 0
+
+    io.runSyncUnsafe()
   }
 }
