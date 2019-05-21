@@ -58,7 +58,12 @@ A more powerful variant of `fork`, called `fork0`, allows specification of super
 
 The `IO` error model is simple, consistent, permits both typed errors and termination, and does not violate any laws in the `Functor` hierarchy.
 
-An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable, and may be caught by the `attempt` method. The `attempt` method yields a value that cannot possibly fail with any error `E`. This rigorous guarantee can be reflected at compile-time by choosing a new error type such as `Nothing`, which is possible because `attempt` is polymorphic in the error type of the returned value.
+An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case bas been exposed as part of the `Either` success case.  
+
+```scala mdoc:silent 
+val error: ZIO[Any, Throwable, String] = IO.fail(new RuntimeException("Some Error"))
+val errorEither: ZIO[Any, Nothing, Either[Throwable, String]] = error.either
+```
 
 Separately from errors of type `E`, a fiber may be terminated for the following reasons:
 

@@ -35,6 +35,7 @@ lazy val root = project
   .aggregate(
     coreJVM,
     coreJS,
+    docs,
     streamsJVM,
     streamsJS,
     interopSharedJVM,
@@ -50,8 +51,7 @@ lazy val root = project
     interopReactiveStreamsJVM,
     interopTwitterJVM,
     benchmarks,
-    testkitJVM,
-    docs
+    testkitJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -230,7 +230,7 @@ lazy val interopTwitter = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-twitter"))
   .settings(stdSettings("zio-interop-twitter"))
   .settings(
-    libraryDependencies += "com.twitter" %% "util-core" % "19.4.0"
+    libraryDependencies += "com.twitter" %% "util-core" % "19.5.0"
   )
   .dependsOn(core % "test->test;compile->compile")
 

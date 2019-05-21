@@ -73,6 +73,51 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
       }
     }
 
+  final def foldM[R1 <: R, E2, B](
+    failure: E => ZManaged[R1, E2, B],
+    success: A => ZManaged[R1, E2, B]
+  ): ZManaged[R1, E2, B] =
+    ZManaged[R1, E2, B] {
+      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
+        Reservation(
+          acquire = {
+            val direct =
+              ZIO.uninterruptibleMask { restore =>
+                self.reserve
+                  .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                  .flatMap(res => restore(res.acquire))
+              }
+            val onFailure = (e: E) =>
+              ZIO.uninterruptibleMask { restore =>
+                failure(e).reserve
+                  .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                  .flatMap(res => restore(res.acquire))
+              }
+            val onSuccess = (a: A) =>
+              ZIO.uninterruptibleMask { restore =>
+                success(a).reserve
+                  .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                  .flatMap(res => restore(res.acquire))
+              }
+            direct.foldM(onFailure, onSuccess)
+          },
+          release = ZIO.flatten(finalizers.get)
+        )
+      }
+    }
+
+  final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZManaged[R1, E2, A1]) =
+    self.foldM(h, ZManaged.succeed)
+
+  final def orElse[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+    self.foldM(_ => that, ZManaged.succeed)
+
+  /**
+   * Operator alias for `orElse`.
+   */
+  final def <>[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+    self.orElse(that)
+
   final def *>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
     flatMap(_ => that)
 
@@ -145,6 +190,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    */
   final def zipParRight[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
     self &> that
+
 }
 
 object ZManaged {
@@ -193,4 +239,10 @@ object ZManaged {
 
   final def collectAll[R, E, A1, A2](ms: Iterable[ZManaged[R, E, A2]]): ZManaged[R, E, List[A2]] =
     foreach(ms)(identity)
+
+  final def fail[E](cause: E): ZManaged[Any, E, Nothing] =
+    ZManaged.fromEffect(ZIO.fail(cause))
+
+  final val unit: ZManaged[Any, Nothing, Unit] =
+    ZManaged.succeed(())
 }

@@ -4,7 +4,10 @@ import java.util.{ Timer, TimerTask }
 
 import org.specs2.Specification
 import org.specs2.execute.AsResult
+import org.specs2.matcher.MatchResult
+import org.specs2.matcher.describe.Diffable
 import org.specs2.specification.core.{ AsExecution, Execution }
+import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.PlatformLive
 import scalaz.zio.clock.Clock
 import scalaz.zio.console.Console
@@ -45,5 +48,15 @@ abstract class BaseCrossPlatformSpec extends Specification with DefaultRuntime {
 
     unsafeRunToFuture(io.sandbox.mapError(FiberFailure(_))).map(p.success)
     p.future
+  }
+
+  implicit class ZIOMustExpectable[R, E, A](zio: ZIO[R, E, A]) {
+
+    def must_===(other: => A)(implicit di: Diffable[A]): ZIO[R, E, MatchResult[A]] =
+      zio.map(a => a must_=== other)
+
+    def mustFailBecauseOf(cause: Cause[E]): ZIO[R, A, MatchResult[Cause[E]]] =
+      zio.sandbox.flip.map(error => error must_=== cause)
+
   }
 }
