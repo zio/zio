@@ -13,7 +13,7 @@ for {
   fiberRef <- FiberRef.make[Int](0)
   _        <- fiberRef.set(10)
   v        <- fiberRef.get
-} yield v == Some(10)
+} yield v == 10
 ```
 
 ## Operations
