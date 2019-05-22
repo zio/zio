@@ -36,9 +36,7 @@ object PlatformLive {
     new Platform {
       val executor = executor0
 
-      val tracer = Tracer.globallyCached(new AkkaTracer)
-
-      val tracingConfig = TracingConfig.default
+      val tracing = Tracing(Tracer.globallyCached(new AkkaTracer), TracingConfig.enabled)
 
       def fatal(t: Throwable): Boolean =
         t.isInstanceOf[VirtualMachineError]

@@ -19,8 +19,6 @@ package scalaz.zio.internal
 import java.util.{ Map => JMap }
 
 import scalaz.zio.Exit.Cause
-import scalaz.zio.internal.tracing.TracingConfig
-import scalaz.zio.internal.stacktracer.Tracer
 
 /**
  * A `Platform` provides the minimum capabilities necessary to bootstrap
@@ -35,18 +33,18 @@ trait Platform { self =>
 
   def withExecutor(e: Executor): Platform =
     new Platform.Proxy(self) {
-      override def executor = e
+      override def executor: Executor = e
     }
 
   /**
-   * Retrieves the default tracer
+   * ZIO Tracing configuration.
    */
-  def tracer: Tracer
+  def tracing: Tracing
 
-  /**
-   * Tracing configuration
-   */
-  def tracingConfig: TracingConfig
+  def withTracing(t: Tracing): Platform =
+    new Platform.Proxy(self) {
+      override def tracing: Tracing = t
+    }
 
   /**
    * Determines if a throwable is fatal or not. It is important to identify
@@ -79,8 +77,7 @@ trait Platform { self =>
 object Platform {
   class Proxy(self: Platform) extends Platform {
     def executor: Executor                   = self.executor
-    def tracer: Tracer                       = self.tracer
-    def tracingConfig: TracingConfig         = self.tracingConfig
+    def tracing: Tracing                     = self.tracing
     def fatal(t: Throwable): Boolean         = self.fatal(t)
     def reportFailure(cause: Cause[_]): Unit = self.reportFailure(cause)
     def newWeakHashMap[A, B](): JMap[A, B]   = self.newWeakHashMap[A, B]()

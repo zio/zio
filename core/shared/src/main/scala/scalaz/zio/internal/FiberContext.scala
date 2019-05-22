@@ -48,13 +48,13 @@ private[zio] final class FiberContext[E, A](
   @volatile private[this] var supervising = 0
 
   private[this] val traceExec: Boolean =
-    PlatformConstants.tracingSupported && platform.tracingConfig.traceExecution
+    PlatformConstants.tracingSupported && platform.tracing.tracingConfig.traceExecution
 
   private[this] val traceStack: Boolean =
-    PlatformConstants.tracingSupported && platform.tracingConfig.traceStack
+    PlatformConstants.tracingSupported && platform.tracing.tracingConfig.traceStack
 
   private[this] val traceEffects: Boolean =
-    traceExec && platform.tracingConfig.traceEffectOpsInExecution
+    traceExec && platform.tracing.tracingConfig.traceEffectOpsInExecution
 
   private[this] val fiberId         = FiberContext.fiberCounter.getAndIncrement()
   private[this] val interruptStatus = StackBool()
@@ -67,26 +67,13 @@ private[zio] final class FiberContext[E, A](
     if (traceExec || traceStack) StackBool()
     else null
   private[this] val execTrace =
-    if (traceExec) SingleThreadedRingBuffer[ZTraceElement](platform.tracingConfig.executionTraceLength)
+    if (traceExec) SingleThreadedRingBuffer[ZTraceElement](platform.tracing.tracingConfig.executionTraceLength)
     else null
   private[this] val stackTrace =
-    if (traceStack) SingleThreadedRingBuffer[ZTraceElement](platform.tracingConfig.stackTraceLength)
+    if (traceStack) SingleThreadedRingBuffer[ZTraceElement](platform.tracing.tracingConfig.stackTraceLength)
     else null
 
-  private[this] val tracer = platform.tracer
-
-  @inline
-  private[this] final def traceExec: Boolean =
-    PlatformConstants.tracingSupported && platform.tracingConfig.traceExecution
-
-  @inline
-  private[this] final def traceStack: Boolean = PlatformConstants.tracingSupported && platform.tracingConfig.traceStack
-
-  @inline
-  private[this] final def tracingEnabled: Boolean = traceExec || traceStack
-
-  @inline
-  private[this] final def traceEffects: Boolean = traceExec && platform.tracingConfig.traceEffectOpsInExecution
+  private[this] val tracer = platform.tracing.tracer
 
   @noinline
   private[this] final def inTracingRegion: Boolean =
@@ -132,8 +119,8 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] final def cutAncestryTrace(trace: ZTrace): ZTrace = {
-    val maxExecLength  = platform.tracingConfig.ancestorExecutionTraceLength
-    val maxStackLength = platform.tracingConfig.ancestorStackTraceLength
+    val maxExecLength  = platform.tracing.tracingConfig.ancestorExecutionTraceLength
+    val maxStackLength = platform.tracing.tracingConfig.ancestorStackTraceLength
 
     trace.copy(
       executionTrace = trace.executionTrace.take(maxExecLength),

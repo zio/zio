@@ -42,8 +42,7 @@ object PlatformLive {
       def newWeakHashMap[A, B](): JMap[A, B] =
         new HashMap[A, B]()
 
-      val tracer        = null
-      val tracingConfig = TracingConfig.disabled
+      val tracing = Tracing(null, TracingConfig.disabled)
     }
 
   final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
