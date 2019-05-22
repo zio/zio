@@ -628,7 +628,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    * */
   final def refailWithTrace: ZIO[R, E, A] =
-    foldCauseM(c => ZIO.haltWith(trace => Cause.refail(c, trace())), ZIO.succeed)
+    foldCauseM(c => ZIO.haltWith(trace => Cause.traced(c, trace())), ZIO.succeed)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1140,7 +1140,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
-  final def fail[E <: UpperE](error: E): IO[E, Nothing] = haltWith(trace => Cause.Fail(error)(Some(trace())))
+  final def fail[E <: UpperE](error: E): IO[E, Nothing] = haltWith(trace => Cause.Traced(Cause.Fail(error), trace()))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
@@ -1214,7 +1214,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that is interrupted.
    */
-  final val interrupt: UIO[Nothing] = haltWith(trace => Cause.Interrupt()(Some(trace())))
+  final val interrupt: UIO[Nothing] = haltWith(trace => Cause.Traced(Cause.Interrupt, trace()))
 
   /**
    * Returns a effect that will never produce anything. The moral
@@ -1227,7 +1227,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * This method can be used for terminating a fiber because a defect has been
    * detected in the code.
    */
-  final def die(t: Throwable): UIO[Nothing] = haltWith(trace => Cause.Die(t)(Some(trace())))
+  final def die(t: Throwable): UIO[Nothing] = haltWith(trace => Cause.Traced(Cause.Die(t), trace()))
 
   /**
    * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
