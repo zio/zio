@@ -72,7 +72,6 @@ object AsmTracer {
       if (name == methodName && (methodSignature == null || methodSignature == descriptor)) {
         new MethodVisitor(apiVersion) {
           override def visitLineNumber(line: Int, start: Label): Unit =
-            //println((line, start))
             MethodSearchVisitor.this.line = line
         }
       } else {
