@@ -66,9 +66,11 @@ private[zio] final class FiberContext[E, A](
   private[this] val tracingStatus =
     if (traceExec || traceStack) StackBool()
     else null
+
   private[this] val execTrace =
     if (traceExec) SingleThreadedRingBuffer[ZTraceElement](platform.tracing.tracingConfig.executionTraceLength)
     else null
+
   private[this] val stackTrace =
     if (traceStack) SingleThreadedRingBuffer[ZTraceElement](platform.tracing.tracingConfig.stackTraceLength)
     else null
