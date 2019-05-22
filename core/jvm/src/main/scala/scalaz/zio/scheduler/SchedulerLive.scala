@@ -23,8 +23,8 @@ import scalaz.zio.internal.{ NamedThreadFactory, Scheduler => IScheduler }
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
-trait SchedulerLive extends Scheduler {
-  private[this] val scheduler0 = new IScheduler {
+private[scheduler] object internal {
+  private[scheduler] val GlobalScheduler = new IScheduler {
     import IScheduler.CancelToken
 
     val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
@@ -63,9 +63,11 @@ trait SchedulerLive extends Scheduler {
 
     override def shutdown(): Unit = service.shutdown()
   }
+}
 
+trait SchedulerLive extends Scheduler {
   val scheduler: Scheduler.Service[Any] = new Scheduler.Service[Any] {
-    val scheduler = ZIO.succeed(scheduler0)
+    val scheduler = ZIO.succeed(internal.GlobalScheduler)
   }
 }
 object SchedulerLive extends SchedulerLive

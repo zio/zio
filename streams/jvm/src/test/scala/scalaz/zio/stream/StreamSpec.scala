@@ -15,7 +15,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   import ArbitraryChunk._
 
-  def is = "StreamSpec".title ^ s2"""
+  def is =
+    "StreamSpec".title ^
+      s2"""
   Stream.filter             $filter
   Stream.dropWhile          $dropWhile
   Stream.map                $map
@@ -84,6 +86,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream combinators
     unTake happy path       $unTake
     unTake with error       $unTakeError
+    buffer the Stream                      $bufferStream
+    buffer the Stream with Error           $bufferStreamError
+    fast producer progress independently   $fastProducerSlowConsumer
   """
 
   import ArbitraryStream._
@@ -271,7 +276,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
         IO.effectTotal {
-          sum += a; if (sum >= 9) false else true
+          sum += a;
+          if (sum >= 9) false else true
         }
     )
 
@@ -529,4 +535,41 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         }
     ) must_== Failure(Cause.fail(e))
   }
+
+  private def bufferStream = prop { list: List[Int] =>
+    unsafeRunSync(
+      Stream
+        .fromIterable(list)
+        .buffer(2)
+        .run(Sink.collect[Int])
+    ) must_== (Success(list))
+  }
+
+  private def bufferStreamError = {
+    val e = new RuntimeException("boom")
+    unsafeRunSync(
+      (Stream.range(0, 10) ++ Stream.fail(e))
+        .buffer(2)
+        .run(Sink.collect[Int])
+    ) must_== Failure(Cause.Fail(e))
+  }
+
+  private def fastProducerSlowConsumer =
+    unsafeRun(
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        ref     <- Ref.make(List[Int]())
+        _ <- Stream
+              .range(1, 4)
+              .mapM(i => ref.update(i :: _) <* promise.succeed(()))
+              .buffer(2)
+              .mapM(_ => IO.never)
+              .run(Sink.drain)
+              .fork
+        _    <- promise.await
+        list <- ref.get
+      } yield {
+        list.reverse must_=== (1 to 4).toList
+      }
+    )
 }

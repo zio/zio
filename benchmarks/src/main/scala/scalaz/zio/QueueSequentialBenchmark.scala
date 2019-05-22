@@ -1,13 +1,17 @@
 package scalaz.zio
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.ExecutionContext
-import cats.effect.ContextShift
-import cats.effect.{ IO => CIO }
+
+import cats.effect.{ ContextShift, IO => CIO }
 import cats.implicits._
+import monix.eval.{ Task => MTask }
+import monix.execution.BufferCapacity.Bounded
+import monix.execution.ChannelType.SPSC
 import org.openjdk.jmh.annotations._
 import scalaz.zio.IOBenchmarks._
 import scalaz.zio.stm._
+
+import scala.concurrent.ExecutionContext
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -24,15 +28,17 @@ class QueueSequentialBenchmark {
 
   implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
 
-  var zioQ: Queue[Int]                     = _
-  var fs2Q: fs2.concurrent.Queue[CIO, Int] = _
-  var zioTQ: TQueue[Int]                   = _
+  var zioQ: Queue[Int]                                 = _
+  var fs2Q: fs2.concurrent.Queue[CIO, Int]             = _
+  var zioTQ: TQueue[Int]                               = _
+  var monixQ: monix.catnap.ConcurrentQueue[MTask, Int] = _
 
   @Setup(Level.Trial)
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](totalSize))
     fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
     zioTQ = unsafeRun(TQueue.make(totalSize).commit)
+    monixQ = monix.catnap.ConcurrentQueue.custom[MTask, Int](Bounded(totalSize), SPSC).runSyncUnsafe()
   }
 
   @Benchmark
@@ -78,5 +84,21 @@ class QueueSequentialBenchmark {
     } yield 0
 
     io.unsafeRunSync()
+  }
+
+  @Benchmark
+  def monixQueue(): Int = {
+    import IOBenchmarks.monixScheduler
+
+    def repeat(task: MTask[Unit], max: Int): MTask[Unit] =
+      if (max < 1) MTask.unit
+      else task >> repeat(task, max - 1)
+
+    val io = for {
+      _ <- repeat(monixQ.offer(0), totalSize)
+      _ <- repeat(monixQ.poll.map(_ => ()), totalSize)
+    } yield 0
+
+    io.runSyncUnsafe()
   }
 }
