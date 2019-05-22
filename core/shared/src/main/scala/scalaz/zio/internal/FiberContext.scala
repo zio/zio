@@ -114,8 +114,8 @@ private[zio] final class FiberContext[E, A](
     stackTrace.dropLast()
 
   private[this] final def captureTrace(lastStack: ZTraceElement): ZTrace = {
-    val exec   = if (execTrace ne null) execTrace.toReversedList else Nil
-    val stack  = {
+    val exec = if (execTrace ne null) execTrace.toReversedList else Nil
+    val stack = {
       val stack0 = if (stackTrace ne null) stackTrace.toReversedList else Nil
       if (lastStack ne null) lastStack :: stack0 else stack0
     }
@@ -213,7 +213,7 @@ private[zio] final class FiberContext[E, A](
     // of a 1-hop left bind, to show a stack trace closer to the point of failure
     var fastPathFlatMapContinuationTrace: ZTraceElement = null
 
-    @noinline def fastPathTrace(k: Any => ZIO[Any, E, Any], effect: AnyRef): ZTraceElement = {
+    @noinline def fastPathTrace(k: Any => ZIO[Any, E, Any], effect: AnyRef): ZTraceElement =
       if (inTracingRegion) {
         val kTrace = traceLocation(k)
 
@@ -222,9 +222,7 @@ private[zio] final class FiberContext[E, A](
         if (traceStack) fastPathFlatMapContinuationTrace = kTrace
 
         kTrace
-      }
-      else null
-    }
+      } else null
 
     while (curIo ne null) {
       try {
@@ -394,16 +392,6 @@ private[zio] final class FiberContext[E, A](
                   if (nextIo eq null) curIo = nextInstr(value)
                   else curIo = nextIo
 
-                case ZIO.Tags.EffectTotalWith =>
-                  val io     = curIo.asInstanceOf[ZIO.EffectTotalWith[Any]]
-                  val effect = io.effect
-
-                  if (traceEffects && inTracingRegion) addTrace(effect)
-
-                  val value = effect(platform)
-
-                  curIo = nextInstr(value)
-
                 case ZIO.Tags.EffectAsync =>
                   val io = curIo.asInstanceOf[ZIO.EffectAsync[Any, E, Any]]
 
@@ -470,7 +458,10 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.SuspendWith =>
                   val io = curIo.asInstanceOf[ZIO.SuspendWith[Any, E, Any]]
 
-                  curIo = io.f(platform)
+                  val k = io.f
+                  if (traceExec && inTracingRegion) addTrace(k)
+
+                  curIo = k(platform)
 
                 case ZIO.Tags.Trace =>
                   curIo = nextInstr(captureTrace(null))

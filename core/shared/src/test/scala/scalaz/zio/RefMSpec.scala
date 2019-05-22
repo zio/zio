@@ -101,9 +101,10 @@ class RefMSpec extends BaseCrossPlatformSpec {
              case Changed => IO.succeed("closed"  -> Closed)
            }
       value2 <- refM.get
-    } yield (r1 must beTheSameAs("changed")) and (value1 must beTheSameAs(Changed)) and (r2 must beTheSameAs(
-      "closed"
-    )) and (value2 must beTheSameAs(Closed))
+    } yield
+      (r1 must beTheSameAs("changed")) and (value1 must beTheSameAs(Changed)) and (r2 must beTheSameAs(
+        "closed"
+      )) and (value2 must beTheSameAs(Closed))
 
   def e11 =
     for {

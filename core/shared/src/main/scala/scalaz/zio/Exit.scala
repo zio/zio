@@ -223,8 +223,8 @@ object Exit extends Serializable {
       case c @ Die(_)  => c
       case Interrupt   => Interrupt
 
-      case Then(left, right) => Then(left.map(f), right.map(f))
-      case Both(left, right) => Both(left.map(f), right.map(f))
+      case Then(left, right)    => Then(left.map(f), right.map(f))
+      case Both(left, right)    => Both(left.map(f), right.map(f))
       case Traced(cause, trace) => Traced(cause.map(f), trace)
     }
 
@@ -389,27 +389,23 @@ object Exit extends Serializable {
           "" :: lines(trace.prettyPrint)
         }
 
-      def renderFail(error: List[String], maybeTrace: Option[ZTrace]): Sequential = {
+      def renderFail(error: List[String], maybeTrace: Option[ZTrace]): Sequential =
         Sequential(
           List(Failure("A checked error was not handled." :: error ++ renderTrace(maybeTrace)))
         )
-      }
 
-      def renderFailThrowable(t: Throwable, maybeTrace: Option[ZTrace]): Sequential = {
+      def renderFailThrowable(t: Throwable, maybeTrace: Option[ZTrace]): Sequential =
         renderFail(renderThrowable(t), maybeTrace)
-      }
 
-      def renderDie(t: Throwable, maybeTrace: Option[ZTrace]): Sequential = {
+      def renderDie(t: Throwable, maybeTrace: Option[ZTrace]): Sequential =
         Sequential(
           List(Failure("An unchecked error was produced." :: renderThrowable(t) ++ renderTrace(maybeTrace)))
         )
-      }
 
-      def renderInterrupt(maybeTrace: Option[ZTrace]): Sequential = {
+      def renderInterrupt(maybeTrace: Option[ZTrace]): Sequential =
         Sequential(
           List(Failure("An unchecked error was produced." :: renderTrace(maybeTrace)))
         )
-      }
 
       def causeToSequential(cause: Cause[Any]): Sequential =
         cause match {
@@ -422,8 +418,8 @@ object Exit extends Serializable {
           case Cause.Interrupt =>
             renderInterrupt(None)
 
-          case t: Cause.Then[Any]    => Sequential(linearSegments(t))
-          case b: Cause.Both[Any]    => Sequential(List(Parallel(parallelSegments(b))))
+          case t: Cause.Then[Any] => Sequential(linearSegments(t))
+          case b: Cause.Both[Any] => Sequential(List(Parallel(parallelSegments(b))))
           case Traced(c, trace) =>
             c match {
               case Cause.Fail(t: Throwable) =>
@@ -480,9 +476,9 @@ object Exit extends Serializable {
     final val interrupt: Cause[Nothing]                            = Interrupt
     final def traced[E](cause: Cause[E], trace: ZTrace): Traced[E] = Traced(cause, trace)
 
-    final case class Fail[E](value: E)                         extends Cause[E]
-    final case class Die(value: Throwable)                     extends Cause[Nothing]
-    case object Interrupt                                      extends Cause[Nothing]
+    final case class Fail[E](value: E)     extends Cause[E]
+    final case class Die(value: Throwable) extends Cause[Nothing]
+    case object Interrupt                  extends Cause[Nothing]
     final case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
       // Traced is excluded completely from equals & hashCode
       override final def hashCode(): Int = cause.hashCode()

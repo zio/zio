@@ -52,8 +52,6 @@ lazy val root = project
     interopTwitterJVM,
     benchmarks,
     testkitJVM,
-    docs,
-    st    docs,
     stacktracerJS,
     stacktracerJVM
   )

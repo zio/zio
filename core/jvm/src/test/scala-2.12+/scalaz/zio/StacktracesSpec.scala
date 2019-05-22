@@ -41,7 +41,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   "single effect for-comprehension" >> singleEffectForComp
   "single effectTotal for-comprehension" >> singleEffectTotalForComp
-  "single effectTotalWith for-comprehension" >> singleEffectTotalWithForComp
+  "single suspendWith for-comprehension" >> singleSuspendWithForComp
 
   private def show(trace: ZTrace): Unit        = if (debug) println(trace.prettyPrint)
   private def show(cause: Exit.Cause[_]): Unit = if (debug) println(cause.prettyPrint)
@@ -430,7 +430,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     } yield ()
   }
 
-  def singleEffectTotalWithForComp = {
+  def singleSuspendWithForComp = {
     import singleEffectTotalWithForCompFixture._
 
     selectHumans causeMust { cause =>
@@ -442,7 +442,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   object singleEffectTotalWithForCompFixture {
     def asyncDbCall(): Task[Unit] =
-      UIO.effectTotalWith(_ => throw new Exception)
+      UIO.suspendWith(_ => throw new Exception)
 
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()
@@ -472,7 +472,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   object catchSomeWithOptimizedEffectFixture {
-    val fail               = () => throw new Exception("error!")
+    val fail      = () => throw new Exception("error!")
     val badMethod = ZIO.succeed(_: ZTrace)
   }
 
@@ -511,11 +511,10 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
             .foldM(mkTrace, badMethod2)
     } yield t
 
-    unsafeRun(io) must {
-      trace: ZTrace =>
-        show(trace)
+    unsafeRun(io) must { trace: ZTrace =>
+      show(trace)
 
-        (trace.stackTrace must have size 1) and
+      (trace.stackTrace must have size 1) and
         (trace.stackTrace must mentionMethod("foldMWithOptimizedEffect")) and
         (trace.executionTrace must have size 2) and
         (trace.executionTrace.head must mentionMethod("mkTrace")) and

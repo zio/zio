@@ -2096,8 +2096,6 @@ object ZIO extends ZIO_R_Any {
     final val SuspendWith     = 16
     final val Trace           = 17
     final val TracingStatus   = 18
-    final val Trace           = 17
-    final val TracingStatus   = 18
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2182,10 +2180,11 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Provide
   }
 
-  private[zio] final class SuspendWith
-  private[zio] final class Trace[R
-  }] e
-  xtends ZIO[R, Nothing, ZTrace] {
+  private[zio] final class SuspendWith[R, E, A](val f: Platform => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.SuspendWith
+  }
+
+  private[zio] final class Trace[R] extends ZIO[R, Nothing, ZTrace] {
     override def tag = Tags.Trace
   }
 

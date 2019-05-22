@@ -468,9 +468,10 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
         leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
         failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
-      } yield (rightV must beRight(42)) and (leftV1 must beLeft(1)) and (leftV2 must beLeft(2)) and (failedV must beLeft(
-        -2
-      ))
+      } yield
+        (rightV must beRight(42)) and (leftV1 must beLeft(1)) and (leftV2 must beLeft(2)) and (failedV must beLeft(
+          -2
+        ))
     )
 
   def e36 =
@@ -482,8 +483,9 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
               _ <- STM.fail("Error!")
             } yield ()).commit.either
         v <- tvar.get.commit
-      } yield (e must be left "Error!") and
-        (v must_=== 0)
+      } yield
+        (e must be left "Error!") and
+          (v must_=== 0)
     )
 
   def e37 =

@@ -153,9 +153,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         failure   = new Exception("expected")
         _         <- IO.fail(failure).when(false)
         failed    <- IO.fail(failure).when(true).either
-      } yield (val1 must_=== 0) and
-        (val2 must_=== 2) and
-        (failed must beLeft(failure))
+      } yield
+        (val1 must_=== 0) and
+          (val2 must_=== 2) and
+          (failed must beLeft(failure))
     )
 
   def testWhenM =
@@ -174,11 +175,12 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         failure        = new Exception("expected")
         _              <- IO.fail(failure).whenM(conditionFalse)
         failed         <- IO.fail(failure).whenM(conditionTrue).either
-      } yield (val1 must_=== 0) and
-        (conditionVal1 must_=== 1) and
-        (val2 must_=== 2) and
-        (conditionVal2 must_=== 2) and
-        (failed must beLeft(failure))
+      } yield
+        (val1 must_=== 0) and
+          (conditionVal1 must_=== 1) and
+          (val2 must_=== 2) and
+          (conditionVal2 must_=== 2) and
+          (failed must beLeft(failure))
     )
 
   def testUnsandbox = {
@@ -258,10 +260,11 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         both  <- (ZIO.halt(Cause.Both(interrupt, die(ex))) <> IO.unit).run
         thn   <- (ZIO.halt(Cause.Then(interrupt, die(ex))) <> IO.unit).run
         fail  <- (ZIO.fail(ex) <> IO.unit).run
-      } yield (plain must_=== Exit.die(ex))
-        .and(both must_=== Exit.die(ex))
-        .and(thn must_=== Exit.die(ex))
-        .and(fail must_=== Exit.succeed(()))
+      } yield
+        (plain must_=== Exit.die(ex))
+          .and(both must_=== Exit.die(ex))
+          .and(thn must_=== Exit.die(ex))
+          .and(fail must_=== Exit.succeed(()))
     }
   }
 
