@@ -369,7 +369,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * it will depend on the `IO`s returned by the given continuations.
    */
   final def foldM[R1 <: R, E2, B](failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
-    foldCauseM(_.failureOrCause.fold(failure, ZIO.halt), success)
+    foldCauseM(new ZIO.FoldCauseMFailureFn(failure), success)
 
   /**
    * A more powerful version of `foldM` that allows recovering from any kind of failure except interruptions.
@@ -594,7 +594,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    */
   final def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
-    self.foldM[R1, E2, A1](h, ZIO.succeed)
+    self.foldM[R1, E2, A1](h, new ZIO.SucceedFn(h))
 
   /**
    * Recovers from some or all of the error cases.
@@ -606,9 +606,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    */
   final def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = {
-    def tryRescue(t: E): ZIO[R1, E1, A1] = pf.applyOrElse(t, (_: E) => ZIO.fail[E1](t))
+    def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
+      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => ZIO.halt(c)), ZIO.halt)
 
-    self.foldM[R1, E1, A1](tryRescue, ZIO.succeed)
+    self.foldCauseM[R1, E1, A1](ZIOFn(pf)(tryRescue), new ZIO.SucceedFn(pf))
   }
 
   /**
@@ -1149,7 +1150,8 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns an effect that models failure with the specified `Cause`.
    *
-   * This version takes in a lazily-evaluated trace attachable to the `Cause`.
+   * This version takes in a lazily-evaluated trace that can be attached to the `Cause`
+   * via `Cause.Traced`.
    */
   final def haltWith[E <: UpperE](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] = new ZIO.Fail(function)
 
@@ -2057,6 +2059,16 @@ object ZIO extends ZIO_R_Any {
       val _ = exit
       underlying(a)
     }
+  }
+
+  final class SucceedFn[R, E, A](override val underlying: AnyRef) extends ZIOFn1[A, ZIO[R, E, A]] {
+    def apply(a: A): ZIO[R, E, A] = new ZIO.Succeed(a)
+  }
+
+  final class FoldCauseMFailureFn[R, E, E2, A](override val underlying: E => ZIO[R, E2, A])
+      extends ZIOFn1[Cause[E], ZIO[R, E2, A]] {
+    def apply(a: Cause[E]): ZIO[R, E2, A] =
+      a.failureOrCause.fold(underlying, ZIO.halt)
   }
 
   private[zio] object Tags {

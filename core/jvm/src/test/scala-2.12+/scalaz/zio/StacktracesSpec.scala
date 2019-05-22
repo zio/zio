@@ -39,8 +39,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   "catchAll with optimized effect path" >> catchAllWithOptimizedEffect
   "foldM with optimized effect path" >> foldMWithOptimizedEffect
 
-  "single effect for-comprehension" >> singleTaskForComp
-  "single effectTotal for-comprehension" >> singleUIOForComp
+  "single effect for-comprehension" >> singleEffectForComp
+  "single effectTotal for-comprehension" >> singleEffectTotalForComp
   "single effectTotalWith for-comprehension" >> singleEffectTotalWithForComp
 
   private def show(trace: ZTrace): Unit        = if (debug) println(trace.prettyPrint)
@@ -392,7 +392,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     def doMainWork() = Task(throw new Exception("Worker failed!"))
   }
 
-  def singleTaskForComp = {
+  def singleEffectForComp = {
     import singleTaskForCompFixture._
 
     selectHumans causeMust { cause =>
@@ -411,7 +411,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     } yield ()
   }
 
-  def singleUIOForComp = {
+  def singleEffectTotalForComp = {
     import singleUIOForCompFixture._
 
     selectHumans causeMust { cause =>
