@@ -16,8 +16,9 @@
 
 package scalaz.zio.interop
 
-import com.twitter.util.{ Future, FutureCancelledException, Return, Throw }
-import scalaz.zio.{ Task, UIO }
+import com.twitter.util.{ Future, FutureCancelledException, Promise, Return, Throw }
+import scalaz.zio.Exit.Cause
+import scalaz.zio.{ Runtime, Task, UIO, ZIO }
 
 package object twitter {
   implicit class TaskObjOps(private val obj: Task.type) extends AnyVal {
@@ -32,5 +33,24 @@ package object twitter {
           Left(UIO(f.raise(new FutureCancelledException)))
         }
       }
+  }
+
+  implicit class RuntimeOps[R](private val runtime: Runtime[R]) extends AnyVal {
+    def unsafeRunToTwitterFuture[A](io: ZIO[R, Throwable, A]): Future[A] = {
+      val promise                                = Promise[A]()
+      def failure(cause: Cause[Throwable]): Unit = promise.setException(cause.squash)
+      def success(value: A): Unit                = promise.setValue(value)
+
+      runtime.unsafeRunAsync {
+        io.fork.flatMap { f =>
+          promise.setInterruptHandler {
+            case _ => runtime.unsafeRunAsync_(f.interrupt)
+          }
+          f.join
+        }
+      }(_.fold(failure, success))
+
+      promise
+    }
   }
 }
