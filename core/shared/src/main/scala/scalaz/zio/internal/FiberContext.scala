@@ -47,6 +47,15 @@ private[zio] final class FiberContext[E, A](
   // Accessed from within a single thread (not necessarily the same):
   @volatile private[this] var supervising = 0
 
+  private[this] val traceExec: Boolean =
+    PlatformConstants.tracingSupported && platform.tracingConfig.traceExecution
+
+  private[this] val traceStack: Boolean =
+    PlatformConstants.tracingSupported && platform.tracingConfig.traceStack
+
+  private[this] val traceEffects: Boolean =
+    traceExec && platform.tracingConfig.traceEffectOpsInExecution
+
   private[this] val fiberId         = FiberContext.fiberCounter.getAndIncrement()
   private[this] val interruptStatus = StackBool()
   private[this] val stack           = Stack[Any => IO[Any, Any]]()
@@ -55,7 +64,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val supervised      = Stack[Set[FiberContext[_, _]]]()
 
   private[this] val tracingStatus =
-    if (tracingEnabled) StackBool()
+    if (traceExec || traceStack) StackBool()
     else null
   private[this] val execTrace =
     if (traceExec) SingleThreadedRingBuffer[ZTraceElement](platform.tracingConfig.executionTraceLength)
@@ -205,9 +214,9 @@ private[zio] final class FiberContext[E, A](
     val maxopcount = executor.yieldOpCount
 
     // Put tracing configuration on the stack:
-    val traceExec    = this.traceExec
-    val traceStack   = this.traceStack
-    val traceEffects = this.traceEffects
+//    val traceExec    = this.traceExec
+//    val traceStack   = this.traceStack
+//    val traceEffects = this.traceEffects
 
     // Store the trace of the immediate future flatMap during evaluation
     // of a 1-hop left bind, to show a stack trace closer to the point of failure
@@ -217,9 +226,9 @@ private[zio] final class FiberContext[E, A](
       if (inTracingRegion) {
         val kTrace = traceLocation(k)
 
-        if (traceEffects) addTrace(effect)
+        if (this.traceEffects) addTrace(effect)
         // record the nearest continuation for a better trace in case of failure
-        if (traceStack) fastPathFlatMapContinuationTrace = kTrace
+        if (this.traceStack) fastPathFlatMapContinuationTrace = kTrace
 
         kTrace
       } else null
@@ -526,7 +535,7 @@ private[zio] final class FiberContext[E, A](
   final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
     val tracingRegion = inTracingRegion
     val ancestry =
-      if (tracingEnabled && tracingRegion) Some(cutAncestryTrace(captureTrace(null)))
+      if ((traceExec || traceStack) && tracingRegion) Some(cutAncestryTrace(captureTrace(null)))
       else None
 
     val context = new FiberContext[E, A](platform, environment.peek(), ancestry, tracingRegion)
