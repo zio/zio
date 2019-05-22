@@ -93,18 +93,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   RTS concurrency correctness
     shallow fork/join identity              $testForkJoinIsId
     deep fork/join identity                 $testDeepForkJoinIsId
-    interrupt of never                      $testNeverIsInterruptible
-    asyncPure is interruptible              $testAsyncPureIsInterruptible
-    async is interruptible                  $testAsyncIsInterruptible
-    bracket acquire is uninterruptible      $testBracketAcquireIsUninterruptible
-    bracket0 acquire is uninterruptible     $testBracket0AcquireIsUninterruptible
-    bracket use is interruptible            $testBracketUseIsInterruptible
-    bracket0 use is interruptible           $testBracket0UseIsInterruptible
-    bracket release called on interrupt     $testBracketReleaseOnInterrupt
-    bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
     asyncPure creation is interruptible     $testAsyncPureCreationIsInterruptible
     asyncInterrupt runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
-    redeem + ensuring + interrupt           $testRedeemEnsuringInterrupt
     supervising returns fiber refs          $testSupervising
     supervising in unsupervised returns Nil $testSupervisingUnsupervised
     supervise fibers                        $testSupervise
