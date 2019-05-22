@@ -7,7 +7,7 @@ import scalaz.zio.internal.stacktracer.Tracer
 import scalaz.zio.internal.stacktracer.ZTraceElement.SourceLocation
 import scalaz.zio.stacktracer.impls.AsmTracer.MethodSearchVisitor
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
  * Java 8+ only
@@ -18,12 +18,12 @@ import scala.util.{Failure, Success, Try}
 final class AsmTracer extends Tracer {
 
   final def traceLocation(lambda: AnyRef): SourceLocation = {
-    val clazz = lambda.getClass
+    val clazz       = lambda.getClass
     val classLoader = clazz.getClassLoader
 
     Try(clazz.getDeclaredMethod("writeReplace")) match {
       case Failure(_) =>
-        val name = clazz.getName
+        val name   = clazz.getName
         val reader = new ClassReader(classLoader.getResourceAsStream(name.replace('.', '/') + ".class"))
 
         val cv = new MethodSearchVisitor("apply", null, Opcodes.ASM7)
@@ -35,10 +35,10 @@ final class AsmTracer extends Tracer {
       case Success(replaceMethod) =>
         replaceMethod.setAccessible(true)
 
-        val sl = replaceMethod.invoke(lambda).asInstanceOf[SerializedLambda]
-        val reader = new ClassReader(classLoader.getResourceAsStream(sl.getImplClass.replace('.', '/') + ".class"))
+        val sl         = replaceMethod.invoke(lambda).asInstanceOf[SerializedLambda]
+        val reader     = new ClassReader(classLoader.getResourceAsStream(sl.getImplClass.replace('.', '/') + ".class"))
         val methodName = sl.getImplMethodName
-        val cv = new MethodSearchVisitor(methodName, sl.getImplMethodSignature, Opcodes.ASM7)
+        val cv         = new MethodSearchVisitor(methodName, sl.getImplMethodSignature, Opcodes.ASM7)
         reader.accept(cv, 0)
 
         val classString = sl.getImplClass.replace('/', '.')

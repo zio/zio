@@ -5,7 +5,7 @@ import _root_.monix.execution.Scheduler
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.Exit.Cause.fail
 import scalaz.zio.interop.monix._
-import scalaz.zio.{Exit, IO, TestRuntime}
+import scalaz.zio.{ Exit, IO, TestRuntime }
 
 class MonixSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is = s2"""

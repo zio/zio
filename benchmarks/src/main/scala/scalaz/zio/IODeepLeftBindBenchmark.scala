@@ -16,7 +16,7 @@ class IODeepLeftBindBenchmark {
   def monixDeepLeftBindBenchmark(): Int = {
     import monix.eval.Task
 
-    var i = 0
+    var i  = 0
     var io = Task.eval(i)
     while (i < depth) {
       io = io.flatMap(i => Task.eval(i))
@@ -28,7 +28,7 @@ class IODeepLeftBindBenchmark {
 
   @Benchmark
   def scalazDeepLeftBindBenchmark(): Int = {
-    var i = 0
+    var i  = 0
     var io = IO.succeedLazy(i)
     while (i < depth) {
       io = io.flatMap(i => IO.succeedLazy(i))
@@ -42,7 +42,7 @@ class IODeepLeftBindBenchmark {
   def catsDeepLeftBindBenchmark(): Int = {
     import cats.effect.IO
 
-    var i = 0
+    var i  = 0
     var io = IO(i)
     while (i < depth) {
       io = io.flatMap(i => IO(i))
