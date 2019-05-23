@@ -4,6 +4,7 @@ import org.reactivestreams.{ Subscriber, Subscription }
 import scalaz.zio.stream.ZStream
 import scalaz.zio.stream.ZStream.Fold
 import scalaz.zio.{ Promise, Queue, Runtime, UIO, ZIO }
+import scalaz.zio.ZManaged
 
 private[reactiveStreams] object QueueSubscriber {
 
@@ -34,7 +35,11 @@ private[reactiveStreams] object QueueSubscriber {
         completion.await.ensuring(q.size.flatMap(n => if (n <= 0) q.shutdown else UIO.unit)).fork
 
       override def fold[R1 <: Any, E1 >: Throwable, A1 >: A, S]: Fold[R1, E1, A1, S] =
-        forkQShutdownHook *> subscription.await.map { sub => (s: S, cont: S => Boolean, f: (S, A1) => ZIO[R1, E1, S]) =>
+        for {
+          _   <- ZManaged.finalizer(q.shutdown)
+          _   <- forkQShutdownHook.toManaged_
+          sub <- subscription.await.toManaged_
+        } yield { (s: S, cont: S => Boolean, f: (S, A1) => ZIO[R1, E1, S]) =>
           def loop(s: S, demand: Long): ZIO[R1, E1, S] =
             if (!cont(s)) UIO.succeed(s)
             else {
@@ -49,8 +54,9 @@ private[reactiveStreams] object QueueSubscriber {
                 } else takeAndLoop
               } <> completeWithS
             }
-          loop(s, 0).ensuring(UIO(sub.cancel()).whenM(completion.isDone.map(!_)) *> q.shutdown)
-        }.onInterrupt(q.shutdown)
+
+          loop(s, 0).ensuring(UIO(sub.cancel()).whenM(completion.isDone.map(!_)) *> q.shutdown).toManaged_
+        }
     }
 
   private def subscriber[A](

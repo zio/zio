@@ -91,7 +91,9 @@ lazy val coreJS = core.js
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
   .settings(stdSettings("zio-streams"))
+  .settings(replSettings)
   .settings(buildInfoSettings)
+  .settings(replSettings)
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile")
 
