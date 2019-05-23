@@ -4,6 +4,7 @@ import org.specs2.ScalaCheck
 
 import scala.{ Stream => _ }
 import scalaz.zio._
+import scalaz.zio.duration._
 
 import scalaz.zio.QueueSpec.waitForSize
 
@@ -15,19 +16,71 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   import ArbitraryChunk._
 
-  def is =
-    "StreamSpec".title ^
-      s2"""
-  Stream.filter             $filter
-  Stream.dropWhile          $dropWhile
+  def is = "StreamSpec".title ^ s2"""
+  Stream monad laws
+    left identity           $monadLaw1
+    right identity          $monadLaw2
+    associativity           $monadLaw3
+
+  Stream stack safety
+    deep flatMap            $deepFlatMap
+
+  Stream.++                 $concat
+
+  Stream bracketing
+    bracket                              $bracket
+    bracket short circuits               $bracketShortCircuits
+    no acquisition when short circuiting $bracketNoAcquisition
+
+  Stream.collect            $collect
+  Stream.collectWhile
+    collectWhile                $collectWhile
+    collectWhile short circuits $collectWhileShortCircuits
+
+  Stream.drain              $drain
+
+  Stream.dropWhile
+    dropWhile         $dropWhile
+    short circuits    $dropWhileShortCircuiting
+
+  Stream.filter
+    filter            $filter
+    short circuits #1 $filterShortCircuiting1
+    short circuits #2 $filterShortCircuiting2
+
+  Stream.filterM
+    filterM           $filterM
+    short circuits #1 $filterMShortCircuiting1
+    short circuits #2 $filterMShortCircuiting2
+
+  Stream.flatMapPar/flattenPar/mergeAll
+    consistent with flatMap     $flatMapParConsistency
+    short circuiting            $flatMapParShortCircuiting
+    interruption propagation    $flatMapParInterruptionPropagation
+    errors interrupt all fibers $flatMapParErrorsInterruptAllFibers
+    finalizer ordering          $flatMapParFinalizerOrdering
+
+  Stream.foreach0           $foreach0
+  Stream.foreach            $foreach
+  Stream.forever            $forever
+  Stream.fromIterable       $fromIterable
+  Stream.fromChunk          $fromChunk
+  Stream.fromQueue          $fromQueue
   Stream.map                $map
   Stream.mapConcat          $mapConcat
-  Stream.filterM            $filterM
   Stream.mapAccum           $mapAccum
-  Stream.++                 $concat
-  Stream.unfold             $unfold
-  Stream.unfoldM            $unfoldM
+  Stream.mapAccumM          $mapAccumM
+
+  Stream merging
+    merge                         $merge
+    mergeEither                   $mergeEither
+    mergeWith                     $mergeWith
+    mergeWith short circuit       $mergeWithShortCircuit
+    mergeWith prioritizes failure $mergeWithPrioritizesFailure
+
+  Stream.peel               $peel
   Stream.range              $range
+
   Stream.repeat             
     repeat                  $repeat
     short circuits          $repeatShortCircuits
@@ -44,53 +97,23 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     takeWhile                $takeWhile
     takeWhile short circuits $takeWhileShortCircuits
 
-  Stream.collect
-    collectWhile                $collectWhile
-    collectWhile short circuits $collectWhileShortCircuits
-
-  Stream.foreach0           $foreach0
-  Stream.foreach            $foreach
-  Stream.collect            $collect
-  Stream.forever            $forever
-  Stream.mapAccumM          $mapAccumM
-  Stream.transduce
-    transduces              $transduce
-    no remainder            $transduceNoRemainder
-    remainder               $transduceWithRemainer
-    sink requests more      $transduceSinkMore
   Stream.tap                $tap
-  Stream.fromIterable       $fromIterable
-  Stream.fromChunk          $fromChunk
-  Stream.fromQueue          $fromQueue
   Stream.toQueue            $toQueue
-  Stream.peel               $peel
-  Stream.drain              $drain
 
-  Stream bracketing
-    bracket                              $bracket
-    bracket short circuits               $bracketShortCircuits
-    no acquisition when short circuiting $bracketNoAcquisition
+  Stream.transduce
+    transduce                            $transduce
+    no remainder                         $transduceNoRemainder
+    with remainder                       $transduceWithRemainder
+    with a sink that always signals more $transduceSinkMore
 
-  Stream merging
-    merge                         $merge
-    mergeEither                   $mergeEither
-    mergeWith                     $mergeWith
-    mergeWith short circuit       $mergeWithShortCircuit
-    mergeWith prioritizes failure $mergeWithPrioritizesFailure
+  Stream.unfold             $unfold
+  Stream.unfoldM            $unfoldM
 
   Stream zipping
     zipWith                     $zipWith
     zipWithIndex                $zipWithIndex
     zipWith ignore RHS          $zipWithIgnoreRhs
-    zipWith prioritizes failure zipWithPrioritizesFailure (FIXME!!!)
-
-  Stream monad laws
-    left identity           $monadLaw1
-    right identity          $monadLaw2
-    associativity           $monadLaw3
-
-  Stream stack safety
-    deep flatMap            $deepFlatMap
+    zipWith prioritizes failure $zipWithPrioritizesFailure
 
   Stream combinators
     unTake happy path       $unTake
@@ -111,14 +134,60 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       slurp(s.filter(p)) must_=== slurp(s).map(_.filter(p))
     }
 
+  private def filterShortCircuiting1 = unsafeRun {
+    (Stream(1) ++ Stream.fail("Ouch"))
+      .filter(_ => true)
+      .take(1)
+      .runDrain
+      .either
+      .map(_ must beRight(()))
+  }
+
+  private def filterShortCircuiting2 = unsafeRun {
+    (Stream(1) ++ Stream.fail("Ouch"))
+      .take(1)
+      .filter(_ => true)
+      .runDrain
+      .either
+      .map(_ must beRight(()))
+  }
+
   private def filterM =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       slurp(s.filterM(s => IO.succeed(p(s)))) must_=== slurp(s).map(_.filter(p))
     }
 
+  private def filterMShortCircuiting1 = unsafeRun {
+    (Stream(1) ++ Stream.fail("Ouch"))
+      .take(1)
+      .filterM(_ => UIO.succeed(true))
+      .runDrain
+      .either
+      .map(_ must beRight(()))
+  }
+
+  private def filterMShortCircuiting2 = unsafeRun {
+    (Stream(1) ++ Stream.fail("Ouch"))
+      .filterM(_ => UIO.succeed(true))
+      .take(1)
+      .runDrain
+      .either
+      .map(_ must beRight(()))
+  }
+
   private def dropWhile =
     prop { (s: Stream[String, Byte], p: Byte => Boolean) =>
       slurp(s.dropWhile(p)) must_=== slurp(s).map(_.dropWhile(p))
+    }
+
+  private def dropWhileShortCircuiting =
+    unsafeRun {
+      (Stream(1) ++ Stream.fail("Ouch"))
+        .take(1)
+        .dropWhile(_ => true)
+        .runDrain
+        .either
+        .map(_ must beRight(()))
     }
 
   private def takeWhile =
@@ -130,12 +199,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def takeWhileShortCircuits =
     unsafeRun(
-      for {
-        ran    <- Ref.make(false)
-        stream = (Stream(1) ++ Stream.fromEffect(ran.set(true)).drain).takeWhile(_ => false)
-        _      <- stream.run(Sink.drain)
-        result <- ran.get
-      } yield result must_=== false
+      (Stream(1) ++ Stream.fail("Ouch"))
+        .takeWhile(_ => false)
+        .runDrain
+        .either
+        .map(_ must beRight(()))
     )
 
   private def collectWhile = {
@@ -144,14 +212,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def collectWhileShortCircuits =
-    unsafeRun(
-      for {
-        ran    <- Ref.make(false)
-        stream = (Stream(Option(1)) ++ Stream.fromEffect(ran.set(true)).drain).collectWhile { case None => 1 }
-        _      <- stream.run(Sink.drain)
-        result <- ran.get
-      } yield result must_=== false
-    )
+    unsafeRun {
+      (Stream(Option(1)) ++ Stream.fail("Ouch")).collectWhile {
+        case None => 1
+      }.runDrain.either
+        .map(_ must beRight(()))
+    }
 
   private def map =
     prop { (s: Stream[String, Byte], f: Byte => Int) =>
@@ -294,6 +360,67 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     slurp(stream).toEither must beRight(List(expected))
   }
 
+  private def flatMapParConsistency = prop { (n: Long, m: List[Int]) =>
+    val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i))
+    val flatMapPar = Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i))
+
+    (n > 0) ==> (slurp(flatMap).map(_.toSet) must_=== slurp(flatMapPar).map(_.toSet))
+  }
+
+  private def flatMapParShortCircuiting = unsafeRun {
+    Stream
+      .mergeAll(2)(
+        Stream.never,
+        Stream(1)
+      )
+      .take(1)
+      .run(Sink.collect[Int])
+      .map(_ must_=== List(1))
+  }
+
+  private def flatMapParInterruptionPropagation = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      fiber <- Stream(())
+                .flatMapPar(1)(
+                  _ => Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
+                )
+                .run(Sink.collect[Unit])
+                .fork
+      _         <- latch.await
+      _         <- fiber.interrupt
+      cancelled <- substreamCancelled.get
+    } yield cancelled must_=== true
+  }
+
+  private def flatMapParErrorsInterruptAllFibers = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- Stream(
+                 Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
+                 Stream.fromEffect(latch.await *> ZIO.fail("Ouch"))
+               ).flatMapPar(2)(identity)
+                 .run(Sink.drain)
+                 .either
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
+  }
+
+  private def flatMapParFinalizerOrdering = unsafeRun {
+    for {
+      execution <- Ref.make[List[String]](Nil)
+      inner = Stream
+        .bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
+      _ <- Stream
+            .bracket(execution.update("OuterAcquire" :: _).const(inner))(_ => execution.update("OuterRelease" :: _))
+            .flatMapPar(2)(identity)
+            .runDrain
+      results <- execution.get
+    } yield results must_=== List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")
+  }
+
   private def forever = {
     var sum = 0
     val s = Stream(1).forever.foreachWhile[Any, Nothing](
@@ -354,11 +481,14 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     list must_=== List()
   }
 
-  private def mergeWithPrioritizesFailure = {
+  private def mergeWithPrioritizesFailure = unsafeRun {
     val s1 = Stream.never
     val s2 = Stream.fail("Ouch")
 
-    slurp(s1.mergeWith(s2)(_ => (), _ => ())) must_=== Exit.fail("Ouch")
+    s1.mergeWith(s2)(_ => (), _ => ())
+      .runCollect
+      .either
+      .map(_ must_=== Left("Ouch"))
   }
 
   private def transduce = {
@@ -381,7 +511,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     slurp(transduced) must_=== Success(List(101, 105, 104))
   }
 
-  private def transduceWithRemainer = {
+  private def transduceWithRemainder = {
     val sink = Sink.fold(0) { (s, a: Int) =>
       a match {
         case 1 => ZSink.Step.more(s + 100)
@@ -442,12 +572,12 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     slurp(zipped) must_=== Success(List(1, 2, 3))
   }
 
-  // FIXME: Re-enable test
-  def zipWithPrioritizesFailure = {
-    val s1 = Stream.never
-    val s2 = Stream.fail("Ouch")
-
-    slurp(s1.zipWith(s2)((_, _) => None)) must_=== Exit.fail("Ouch")
+  private def zipWithPrioritizesFailure = unsafeRun {
+    Stream.never
+      .zipWith(Stream.fail("Ouch"))((_, _) => None)
+      .runCollect
+      .either
+      .map(_ must_=== Left("Ouch"))
   }
 
   private def fromIterable = prop { l: List[Int] =>
@@ -465,12 +595,15 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         queue <- Queue.unbounded[Int]
         _     <- queue.offerAll(c.toSeq)
-        s     = Stream.fromQueue(queue)
-        fiber <- s.fold[Any, Nothing, Int, List[Int]].flatMap { f0 =>
-                  f0(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
-                    .map(_.reverse)
-                    .fork
-                }
+        fiber <- Stream
+                  .fromQueue(queue)
+                  .fold[Any, Nothing, Int, List[Int]]
+                  .flatMap { fold =>
+                    fold(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
+                  }
+                  .use(ZIO.succeed)
+                  .map(_.reverse)
+                  .fork
         _     <- waitForSize(queue, -1)
         _     <- queue.shutdown
         items <- fiber.join
@@ -501,13 +634,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def bracket =
     unsafeRun(
       for {
-        done <- Ref.make(false)
-        iteratorStream = Stream.bracket(UIO(Iterator.range(0, 3)))(_ => done.set(true)) { it =>
-          if (it.hasNext) UIO(Some(it.next))
-          else UIO(None)
-        }
-        result   <- iteratorStream.run(Sink.collect[Int])
-        released <- done.get
+        done           <- Ref.make(false)
+        iteratorStream = Stream.bracket(UIO(0 to 2))(_ => done.set(true)).flatMap(Stream.fromIterable)
+        result         <- iteratorStream.run(Sink.collect[Int])
+        released       <- done.get
       } yield (result must_=== List(0, 1, 2)) and (released must_=== true)
     )
 
@@ -516,10 +646,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         done <- Ref.make(false)
         iteratorStream = Stream
-          .bracket(UIO(Iterator.range(0, 3)))(_ => done.set(true)) { it =>
-            if (it.hasNext) UIO(Some(it.next))
-            else UIO(None)
-          }
+          .bracket(UIO(0 to 3))(_ => done.set(true))
+          .flatMap(Stream.fromIterable)
           .take(2)
         result   <- iteratorStream.run(Sink.collect[Int])
         released <- done.get
@@ -529,12 +657,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def bracketNoAcquisition =
     unsafeRun(
       for {
-        acquired <- Ref.make(false)
-        iteratorStream = (Stream(1) ++ Stream.bracket(acquired.set(true))(_ => UIO.unit) { _ =>
-          UIO(Some(()))
-        }).take(0)
-        _      <- iteratorStream.run(Sink.drain)
-        result <- acquired.get
+        acquired       <- Ref.make(false)
+        iteratorStream = (Stream(1) ++ Stream.bracket(acquired.set(true))(_ => UIO.unit)).take(0)
+        _              <- iteratorStream.run(Sink.drain)
+        result         <- acquired.get
       } yield result must_=== false
     )
 
@@ -579,6 +705,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def fastProducerSlowConsumer =
+    // TODO: flaky
     unsafeRun(
       for {
         promise <- Promise.make[Nothing, Unit]
@@ -596,8 +723,6 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         list.reverse must_=== (1 to 4).toList
       }
     )
-
-  import scalaz.zio.duration._
 
   private def repeat =
     unsafeRun(

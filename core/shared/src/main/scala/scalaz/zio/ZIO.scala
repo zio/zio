@@ -513,6 +513,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZManaged.make[R1, E, A](this)(release)
 
   /**
+   * Converts this ZIO to [[scalaz.zio.ZManaged]] with no release action.
+   */
+  final def toManaged_ : ZManaged[R, E, A] =
+    ZManaged.fromEffect[R, E, A](this)
+
+  /**
    * Runs the specified effect if this effect fails, providing the error to the
    * effect if it exists. The provided effect will not be interrupted.
    */
