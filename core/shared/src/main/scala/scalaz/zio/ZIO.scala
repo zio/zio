@@ -76,7 +76,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * effect.provideSome[Console](console =>
    *   new Console with Logging {
    *     val console = console
-   *     val logging = new Logging
+   *     val logging = new Logging {
    *       def log(line: String) = console.putStrLn(line)
    *     }
    *   }
