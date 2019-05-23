@@ -11,6 +11,6 @@ The ZIO library lets you easily solve problems in aa variety of areas, including
  - **Queuing** — Build work processing flows and ration scarce resources with powerful asynchronous queues.
  - **Retrying** — Create and test robust retry strategies that make your application resilient to transient failures.
  - **Scheduling** — Schedule repeating work, like report generation or email notifications, on flexible, composable schedules.
- — **Streaming** — Handle huge or infinite amounts of data in constant heap space with efficient, lazy, concurrent streams.
+ - **Streaming** — Handle huge or infinite amounts of data in constant heap space with efficient, lazy, concurrent streams.
 
 Explore the pages above and learn how the simple, powerful building blocks in ZIO help you solve problems in all these areas.

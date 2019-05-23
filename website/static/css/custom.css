@@ -22,10 +22,38 @@
   z-index: 10000;
 }
 
-.gridBlock {
-  background-color: lightgray;
-}
-
 a {
   color: #bd271a
+}
+
+.blockContent h2 {
+  color: #bd271a
+}
+
+.homeContainer {
+  background: #000000 url("../img/jumbotron_pattern.png") no-repeat center bottom;
+  padding-top: 176px;
+  padding-bottom: 90px;
+}
+
+.projectTitle {
+  color: #ffffff
+}
+
+.promoSection .button {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.promoSection .button:hover {
+  color: #000000;
+  background-color: #ffffff;
+}
+
+.mainContainer {
+  padding-top: 0
+}
+
+.nav-footer .sitemap .nav-home {
+  width: 150px;
 }
