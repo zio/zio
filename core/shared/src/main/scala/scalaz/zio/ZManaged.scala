@@ -293,6 +293,33 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     }
 
   /**
+   * Creates a `ZManaged` value that acquires the original resource in a fiber,
+   * and provides that fiber. The finalizer for this value will interrupt the fiber
+   * and run the original finalizer.
+   */
+  final def fork: ZManaged[R, Nothing, Fiber[E, A]] =
+    ZManaged {
+      for {
+        finalizer <- Ref.make[ZIO[R, Nothing, _]](UIO.unit)
+        // The reservation phase of the new `ZManaged` runs uninterruptibly;
+        // so to make sure the acquire phase of the original `ZManaged` runs
+        // interruptibly, we need to create an interruptible hole in the region.
+        fiber <- ZIO.interruptibleMask { restore =>
+                  restore {
+                    for {
+                      reservation <- self.reserve
+                      _           <- finalizer.set(reservation.release)
+                    } yield reservation
+                  } >>= (_.acquire)
+                }.fork
+        reservation = Reservation(
+          acquire = UIO.succeed(fiber),
+          release = fiber.interrupt *> finalizer.get.flatMap(identity(_))
+        )
+      } yield reservation
+    }
+
+  /**
    * Unwraps the optional success of this effect, but can fail with unit value.
    */
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZManaged[R, Unit, B] =
@@ -311,6 +338,16 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   final def map[B](f0: A => B): ZManaged[R, E, B] =
     ZManaged[R, E, B] {
       reserve.map(token => token.copy(acquire = token.acquire.map(f0)))
+    }
+
+  /**
+   * Effectfully maps the resource acquired by this value.
+   */
+  final def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+    ZManaged[R1, E1, B] {
+      reserve.map { token =>
+        token.copy(acquire = token.acquire.flatMap(f))
+      }
     }
 
   /**
@@ -683,6 +720,13 @@ object ZManaged {
     halt(Cause.fail(error))
 
   /**
+   * Creates an effect that only executes the `UIO` value as its
+   * release action.
+   */
+  final def finalizer(f: UIO[_]): ZManaged[Any, Nothing, Unit] =
+    ZManaged.reserve(Reservation(ZIO.unit, f))
+
+  /**
    * Returns an effect that performs the outer effect first, followed by the
    * inner effect, yielding the value of the inner effect.
    *
@@ -884,6 +928,11 @@ object ZManaged {
     }
 
   /**
+   * Returns a `ZManaged` that never acquires a resource.
+   */
+  val never: ZManaged[Any, Nothing, Nothing] = ZManaged.fromEffect(ZIO.never)
+
+  /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
    */
   final def reduceAll[R, E, A](a: ZManaged[R, E, A], as: Iterable[ZManaged[R, E, A]])(
@@ -1007,7 +1056,7 @@ object ZManaged {
    * Unwraps a `ZManaged` that is inside a `ZIO`.
    */
   final def unwrap[R, E, A](fa: ZIO[R, E, ZManaged[R, E, A]]): ZManaged[R, E, A] =
-    ZManaged(fa.flatMap(_.reserve))
+    ZManaged.fromEffect(fa).flatten
 
   /**
    * The moral equivalent of `if (p) exp`

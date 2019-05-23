@@ -19,23 +19,27 @@ package scalaz.zio.stream
 import scalaz.zio._
 
 trait ZStreamChunk[-R, +E, @specialized +A] { self =>
+  import ZStream.Fold
+
   val chunks: ZStream[R, E, Chunk[A]]
 
-  def foldLazy[R1 <: R, E1 >: E, A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    chunks.fold[R1, E1, Chunk[A1], S].flatMap { f0 =>
-      f0(s, cont, (s, as) => as.foldMLazy(s)(cont)(f))
+  def fold[R1 <: R, E1 >: E, A1 >: A, S]: ZStream.Fold[R1, E1, A1, S] =
+    ZManaged.succeedLazy { (s, cont, f) =>
+      chunks.fold[R1, E1, Chunk[A1], S].flatMap { fold =>
+        fold(s, cont, (s, as) => as.foldMLazy(s)(cont)(f))
+      }
     }
 
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZIO[R, E, S] =
-    foldLazy(s)(_ => true)((s, a) => IO.succeed(f(s, a)))
+  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
+    fold[R, E, A1, S].flatMap(fold => fold(s, _ => true, (s, a) => ZIO.succeed(f(s, a))))
 
   /**
    * Executes an effectful fold over the stream of chunks.
    */
-  def foldLazyChunks[R1 <: R, E1 >: E, A1 >: A, S](
+  def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
-  )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
-    chunks.fold[R1, E1, Chunk[A1], S].flatMap(f0 => f0(s, cont, f))
+  )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    chunks.fold[R1, E1, Chunk[A1], S].flatMap(fold => fold(s, cont, f))
 
   def flattenChunks: ZStream[R, E, A] =
     chunks.flatMap(ZStream.fromChunk)
@@ -57,7 +61,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
 
   final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
     chunks.foreachWhile[R1, E1] { as =>
-      as.foldM(true) { (p, a) =>
+      as.foldMLazy(true)(identity) { (p, a) =>
         if (p) f(a)
         else IO.succeedLazy(p)
       }
@@ -73,10 +77,10 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
 
   def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: ZStream.Fold[R1, E1, A1, S] =
-        IO.succeedLazy { (s, cont, f) =>
+      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
           self
-            .foldLazyChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
+            .foldChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
               case ((true, s), as) =>
                 val remaining = as.dropWhile(pred)
 
@@ -90,10 +94,10 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
 
   def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
-      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: ZStream.Fold[R1, E1, A1, S] =
-        IO.succeedLazy { (s, cont, f) =>
+      override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
           self
-            .foldLazyChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) { (s, as) =>
+            .foldChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) { (s, as) =>
               val remaining = as.takeWhile(pred)
 
               if (remaining.length == as.length) f(s._2, as).map(true -> _)
@@ -106,10 +110,10 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   def zipWithIndex: ZStreamChunk[R, E, (A, Int)] =
     ZStreamChunk(
       new ZStream[R, E, Chunk[(A, Int)]] {
-        override def fold[R1 <: R, E1 >: E, A1 >: Chunk[(A, Int)], S]: ZStream.Fold[R1, E1, A1, S] =
-          IO.succeedLazy { (s, cont, f) =>
-            chunks.fold[R1, E1, Chunk[A], (S, Int)].flatMap { f0 =>
-              f0((s, 0), tp => cont(tp._1), {
+        override def fold[R1 <: R, E1 >: E, A1 >: Chunk[(A, Int)], S]: Fold[R1, E1, A1, S] =
+          ZManaged.succeedLazy { (s, cont, f) =>
+            chunks.fold[R1, E1, Chunk[A], (S, Int)].flatMap { fold =>
+              fold((s, 0), tp => cont(tp._1), {
                 case ((s, index), as) =>
                   val zipped = as.zipWithIndexFrom(index)
 
@@ -140,7 +144,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   final def ++[R1 <: R, E1 >: E, A1 >: A](that: ZStreamChunk[R1, E1, A1]): ZStreamChunk[R1, E1, A1] =
     ZStreamChunk(chunks ++ that.chunks)
 
-  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 1): ZManaged[R, Nothing, Queue[Take[E1, Chunk[A1]]]] =
+  final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, E1, Queue[Take[E1, Chunk[A1]]]] =
     chunks.toQueue(capacity)
 
   final def toQueueWith[R1 <: R, E1 >: E, A1 >: A, Z](

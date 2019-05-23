@@ -53,6 +53,9 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Uses at most n fibers for reservation $foreachParN_ReservePar
     Uses at most n fibers for acquisition $foreachParN_AcquirePar
     Runs finalizers $foreachParN_Finalizers
+  ZManaged.fork
+    Runs finalizers properly $forkFinalizer
+    Acquires interruptibly   $forkAcquisitionIsInterruptible
   ZManaged.mergeAll
     Merges elements in the correct order $mergeAllOrder
     Runs finalizers $mergeAllFinalizers
@@ -503,6 +506,40 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     unsafeRun {
       testReservePar(2, res => ZManaged.foreachParN_(2)(List(1, 2, 3, 4))(_ => res))
     }
+
+  private def forkFinalizer = unsafeRun {
+    for {
+      finalized <- Ref.make(false)
+      latch     <- Promise.make[Nothing, Unit]
+      _ <- ZManaged
+            .reserve(Reservation(latch.succeed(()) *> ZIO.never, finalized.set(true)))
+            .fork
+            .use_(latch.await)
+      result <- finalized.get
+    } yield result must_=== true
+  }
+
+  private def forkAcquisitionIsInterruptible = unsafeRun {
+    for {
+      finalized    <- Ref.make(false)
+      acquireLatch <- Promise.make[Nothing, Unit]
+      useLatch     <- Promise.make[Nothing, Unit]
+      fib <- ZManaged
+              .reserve(
+                Reservation(
+                  acquireLatch.succeed(()) *> ZIO.never,
+                  finalized.set(true)
+                )
+              )
+              .fork
+              .use_(useLatch.succeed(()) *> ZIO.never)
+              .fork
+      _      <- acquireLatch.await
+      _      <- useLatch.await
+      _      <- fib.interrupt
+      result <- finalized.get
+    } yield result must_=== true
+  }
 
   private def mergeAllOrder = {
     def res(int: Int) =
