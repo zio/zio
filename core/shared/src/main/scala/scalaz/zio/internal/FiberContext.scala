@@ -26,8 +26,12 @@ import scala.annotation.{ switch, tailrec }
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
-private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef, fiberRefLocals: FiberRefLocals)
-    extends Fiber[E, A] {
+private[zio] final class FiberContext[E, A](
+  platform: Platform,
+  startEnv: AnyRef,
+  startIStatus: InterruptStatus,
+  fiberRefLocals: FiberRefLocals
+) extends Fiber[E, A] {
   import java.util.{ Collections, Set }
 
   import FiberContext._
@@ -42,7 +46,7 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
   @volatile private[this] var supervising = 0
 
   private[this] val fiberId         = FiberContext.fiberCounter.getAndIncrement()
-  private[this] val interruptStatus = StackBool()
+  private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
   private[this] val stack           = Stack[Any => IO[Any, Any]]()
   private[this] val environment     = Stack[AnyRef](startEnv)
   private[this] val locked          = Stack[Executor]()
@@ -213,7 +217,7 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
                 case ZIO.Tags.InterruptStatus =>
                   val io = curIo.asInstanceOf[ZIO.InterruptStatus[Any, E, Any]]
 
-                  interruptStatus.push(io.flag)
+                  interruptStatus.push(io.flag.toBoolean)
                   stack.push(InterruptExit)
 
                   curIo = io.zio
@@ -221,7 +225,7 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
                 case ZIO.Tags.CheckInterrupt =>
                   val io = curIo.asInstanceOf[ZIO.CheckInterrupt[Any, E, Any]]
 
-                  curIo = io.k(interruptible)
+                  curIo = io.k(InterruptStatus.fromBoolean(interruptible))
 
                 case ZIO.Tags.EffectPartial =>
                   val io = curIo.asInstanceOf[ZIO.EffectPartial[Any]]
@@ -361,7 +365,12 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
   final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = platform.newWeakHashMap()
     childFiberRefLocals.putAll(fiberRefLocals)
-    val context = new FiberContext[E, A](platform, environment.peek(), childFiberRefLocals)
+    val context = new FiberContext[E, A](
+      platform,
+      environment.peek(),
+      InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
+      childFiberRefLocals
+    )
 
     platform.executor.submitOrThrow(() => context.evaluateNow(io))
 

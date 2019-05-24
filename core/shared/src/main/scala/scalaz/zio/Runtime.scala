@@ -76,7 +76,14 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
-    val context = new FiberContext[E, A](Platform, Environment.asInstanceOf[AnyRef], Platform.newWeakHashMap())
+    val InitialInterruptStatus = InterruptStatus.Interruptible
+
+    val context = new FiberContext[E, A](
+      Platform,
+      Environment.asInstanceOf[AnyRef],
+      InitialInterruptStatus,
+      Platform.newWeakHashMap()
+    )
 
     context.evaluateNow(zio.asInstanceOf[IO[E, A]])
     context.runAsync(k)

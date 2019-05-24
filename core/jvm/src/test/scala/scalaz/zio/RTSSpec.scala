@@ -164,6 +164,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   RTS environment
     provide is modular                      $testProvideIsModular
     effectAsync can use environment         $testAsyncCanUseEnvironment
+
+  RTS forking inheritability
+    interruption status is hereditable      $testInterruptStatusIsHereditable
   """
   }
 
@@ -961,6 +964,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
                  }
                  .provide(10)
     } yield result must_=== 10
+  }
+
+  def testInterruptStatusIsHereditable = unsafeRun {
+    for {
+      ref <- Ref.make(InterruptStatus.interruptible)
+      _   <- ZIO.uninterruptible(ZIO.checkInterruptible(ref.set).fork)
+      v   <- ref.get
+    } yield v must_=== InterruptStatus.uninterruptible
   }
 
   def testAsyncPureIsInterruptible = {

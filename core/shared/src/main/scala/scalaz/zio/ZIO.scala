@@ -266,8 +266,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       race <- Ref.make[Int](0)
       c <- ZIO.uninterruptibleMask { restore =>
             for {
-              left  <- self.fork
-              right <- that.fork
+              left  <- restore(self).fork
+              right <- restore(that).fork
               _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
               _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
               c     <- restore(done.await).onInterrupt(left.interrupt *> right.interrupt)
@@ -565,14 +565,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Uninterruptible effects may recover from all failure causes (including
    * interruption of an inner effect that has been made interruptible).
    */
-  final def uninterruptible: ZIO[R, E, A] = interruptStatus(false)
+  final def uninterruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Uninterruptible)
 
   /**
    * Performs this effect interruptibly. Because this is the default, this
    * operation only has additional meaning if the effect is located within
    * an uninterruptible section.
    */
-  final def interruptible: ZIO[R, E, A] = interruptStatus(true)
+  final def interruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Interruptible)
 
   /**
    * Switches the interrupt status for this effect. If `true` is used, then the
@@ -580,7 +580,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the effect becomes uninterruptible. These changes are compositional, so
    * they only affect regions of the effect.
    */
-  final def interruptStatus(flag: Boolean): ZIO[R, E, A] = new ZIO.InterruptStatus(self, flag)
+  final def interruptStatus(flag: InterruptStatus): ZIO[R, E, A] = new ZIO.InterruptStatus(self, flag)
 
   /**
    * Recovers from all errors.
@@ -1322,12 +1322,12 @@ private[zio] trait ZIOFunctions extends Serializable {
       p <- Promise.make[E, A]
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
-            register(k => r.unsafeRunAsync_(k.to(p)))
-              .catchAll(p.fail)
-              .fork
-              .flatMap { f =>
-                restore(p.await).onInterrupt(f.interrupt)
-              }
+            restore(
+              register(k => r.unsafeRunAsync_(k.to(p)))
+                .catchAll(p.fail)
+            ).fork.flatMap { f =>
+              restore(p.await).onInterrupt(f.interrupt)
+            }
           }
     } yield a
 
@@ -1708,7 +1708,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Checks the interrupt status, and produces the effect returned by the
    * specified callback.
    */
-  final def checkInterruptible[R >: LowerR, E <: UpperE, A](f: Boolean => ZIO[R, E, A]): ZIO[R, E, A] =
+  final def checkInterruptible[R >: LowerR, E <: UpperE, A](f: InterruptStatus => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.CheckInterrupt(f)
 
   /**
@@ -1874,7 +1874,7 @@ object ZIO extends ZIO_R_Any {
       new ZIO.BracketExitAcquire(self)
   }
 
-  class InterruptStatusRestore(val flag: Boolean) extends AnyVal {
+  class InterruptStatusRestore(val flag: scalaz.zio.InterruptStatus) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.interruptStatus(flag)
   }
@@ -2001,11 +2001,13 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Fork
   }
 
-  private[zio] final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: Boolean) extends ZIO[R, E, A] {
+  private[zio] final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: scalaz.zio.InterruptStatus)
+      extends ZIO[R, E, A] {
     override def tag = Tags.InterruptStatus
   }
 
-  private[zio] final class CheckInterrupt[R, E, A](val k: Boolean => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class CheckInterrupt[R, E, A](val k: scalaz.zio.InterruptStatus => ZIO[R, E, A])
+      extends ZIO[R, E, A] {
     override def tag = Tags.CheckInterrupt
   }
 
