@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.twitter.util.{ Future, JavaTimer, Duration => TwitterDuration }
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.duration._
+import scalaz.zio.clock
 import scalaz.zio.interop.twitter._
 import scalaz.zio.{ Exit, Task, TestRuntime, ZIO }
 
@@ -43,7 +44,7 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val taskTimeout = 500.millis
     val task        = Task.fromTwitterFuture(future).timeout(taskTimeout)
 
-    unsafeRun(task <* ZIO.unit.delay(3.seconds)) must beNone
+    unsafeRun(clock.sleep(3.seconds) *> task) must beNone
     value.get() ==== 0
   }
 }
