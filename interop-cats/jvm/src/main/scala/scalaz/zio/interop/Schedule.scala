@@ -403,7 +403,7 @@ object Schedule {
     new Schedule(new ZSchedule[Env, A, B] {
       type State = S
       val initial = fromEffect(initial0).orDie
-      val update  = (a, s) => fromEffect(update0(a, s)).orDie
+      val update  = (a: A, s: State) => fromEffect(update0(a, s)).orDie
     })
 
   /**
