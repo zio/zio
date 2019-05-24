@@ -19,11 +19,11 @@ package scalaz.zio
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
-import scalaz.zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
-import scalaz.zio.internal.{ Executor, Platform }
+import scalaz.zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
+import scalaz.zio.internal.{Executor, Platform}
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -289,7 +289,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * otherwise executes the specified effect.
    */
   final def orElse[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
-    tryOrElse(that, ZIO.succeed)
+    tryOrElse(that, new ZIO.SucceedFn(() => that))
 
   /**
    * Operator alias for `orElse`.
@@ -310,10 +310,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   ): ZIO[R1, E2, B] =
     new ZIO.Fold[R1, E, E2, A, B](
       self,
-      _.stripFailures match {
-        case None    => that
-        case Some(c) => ZIO.halt(c)
-      },
+      ZIOFn(() => that)(
+        _.stripFailures match {
+          case None    => that
+          case Some(c) => ZIO.halt(c)
+        }),
       succ
     )
 
@@ -332,7 +333,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * error.
    */
   final def mapError[E2](f: E => E2): ZIO[R, E2, A] =
-    self.foldM(f.andThen(ZIO.fail), ZIO.succeed)
+    self.foldM(new ZIO.MapErrorFn(f), new ZIO.SucceedFn(f))
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -383,7 +384,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * function passed to `fold`.
    */
   final def fold[B](err: E => B, succ: A => B): ZIO[R, Nothing, B] =
-    foldM(err.andThen(ZIO.succeed), succ.andThen(ZIO.succeed))
+    foldM(new ZIO.MapFn(err), new ZIO.MapFn(succ))
 
   /**
    * Returns an effect whose failure and success have been lifted into an
@@ -613,11 +614,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
-   * Attach a wrapping trace pointing to this location to the `Cause`
-   * in case of error.
+   * Attach a wrapping trace pointing to this location in case of error.
    *
-   * Useful when joining fibers, to make the resulting trace mention
-   * the `join` point, otherwise only the traces joined fibers are
+   * Useful when joining fibers to make the resulting trace mention
+   * the `join` point, otherwise only the traces of joined fibers are
    * included.
    *
    * {{{
@@ -746,7 +746,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * specified combiner function.
    */
   final def zipWith[R1 <: R, E1 >: E, B, C](that: ZIO[R1, E1, B])(f: (A, B) => C): ZIO[R1, E1, C] =
-    self.flatMap(a => that.map(b => f(a, b)))
+    self.flatMap(a => that.map(ZIOFn(f)(b => f(a, b))))
 
   /**
    * Sequentially zips this effect with the specified effect, combining the
@@ -902,10 +902,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    */
   final def tapBoth[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, _], g: A => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
-    self.foldCauseM(
-      c => c.failureOrCause.fold(f(_) *> ZIO.halt(c), _ => ZIO.halt(c)),
-      a => g(a) *> ZIO.succeed(a)
-    )
+    self.foldCauseM(new ZIO.TapErrorRefailFn(f), new ZIO.TapFn(g))
 
   /**
    * Returns an effect that effectfully "peeks" at the failure of this effect.
@@ -914,10 +911,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * }}}
    */
   final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, _]): ZIO[R1, E1, A] =
-    self.foldM(
-      e => f(e) *> ZIO.fail(e),
-      ZIO.succeed
-    )
+    self.foldCauseM(new ZIO.TapErrorRefailFn(f), ZIO.succeed)
 
   /**
    * Provides the `ZIO` effect with its required environment, which eliminates
@@ -1327,7 +1321,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * flattening a nested effect.
    */
   final def flatten[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, ZIO[R, E, A]]): ZIO[R, E, A] =
-    zio.flatMap(io => io)
+    zio.flatMap(ZIO.identityFn)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
@@ -1765,7 +1759,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Returns information about the current fiber, such as its identity.
    */
-  final def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeed(_))
+  final def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeed)
 
   /**
    * Constructs an effect based on information about the current fiber, such as
@@ -2070,10 +2064,20 @@ object ZIO extends ZIO_R_Any {
     def apply(a: A): ZIO[R, E, A] = new ZIO.Succeed(a)
   }
 
+  final class MapErrorFn[R, E, E2, A](override val underlying: E => E2) extends ZIOFn1[E, ZIO[R, E2, Nothing]] {
+    def apply(a: E): ZIO[R, E2, Nothing] = ZIO.fail(underlying(a))
+  }
+
   final class FoldCauseMFailureFn[R, E, E2, A](override val underlying: E => ZIO[R, E2, A])
       extends ZIOFn1[Cause[E], ZIO[R, E2, A]] {
-    def apply(a: Cause[E]): ZIO[R, E2, A] =
-      a.failureOrCause.fold(underlying, ZIO.halt)
+    def apply(c: Cause[E]): ZIO[R, E2, A] =
+      c.failureOrCause.fold(underlying, ZIO.halt)
+  }
+
+  final class TapErrorRefailFn[R, E, E1 >: E, A](override val underlying: E => ZIO[R, E1, _])
+      extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
+    def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
+      c.failureOrCause.fold(underlying(_) *> ZIO.halt(c), _ => ZIO.halt(c))
   }
 
   private[zio] object Tags {
