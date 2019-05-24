@@ -28,6 +28,13 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
   Stream.range              $range
+  Stream.repeat             
+    repeat                  $repeat
+    short circuits          $repeatShortCircuits
+  
+  Stream.repeatElems        
+    repeatElems             $repeatElems
+    short circuits          $repeatElemsShortCircuits
 
   Stream.take
     take                     $take
@@ -587,5 +594,45 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       } yield {
         list.reverse must_=== (1 to 4).toList
       }
+    )
+
+  import scalaz.zio.duration._
+
+  private def repeat =
+    unsafeRun(
+      Stream(1)
+        .repeat(Schedule.recurs(4))
+        .run(Sink.collect[Int])
+        .map(_ must_=== List(1, 1, 1, 1, 1))
+    )
+
+  private def repeatShortCircuits =
+    unsafeRun(
+      for {
+        ref <- Ref.make[List[Int]](Nil)
+        _ <- Stream
+              .fromEffect(ref.update(1 :: _))
+              .repeat(Schedule.spaced(10.millis))
+              .take(2)
+              .run(Sink.drain)
+        result <- ref.get
+      } yield result must_=== List(1, 1)
+    )
+
+  private def repeatElems =
+    unsafeRun(
+      Stream(1, 2, 3)
+        .repeatElems(Schedule.recurs(1))
+        .run(Sink.collect[Int])
+        .map(_ must_=== List(1, 1, 2, 2, 3, 3))
+    )
+
+  private def repeatElemsShortCircuits =
+    unsafeRun(
+      Stream(1, 2, 3)
+        .repeatElems(Schedule.recurs(1))
+        .take(3)
+        .run(Sink.collect[Int])
+        .map(_ must_=== List(1, 1, 2))
     )
 }
