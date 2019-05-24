@@ -18,6 +18,7 @@ package scalaz.zio.internal
 
 import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
+import scalaz.zio.internal.FiberContext.FiberRefLocals
 import scalaz.zio.Exit.Cause
 import scalaz.zio._
 import scalaz.zio.internal.stacktracer.ZTraceElement
@@ -32,7 +33,8 @@ private[zio] final class FiberContext[E, A](
   platform: Platform,
   startEnv: AnyRef,
   parentTrace: Option[ZTrace],
-  initialTracingStatus: Boolean
+  initialTracingStatus: Boolean,
+  fiberRefLocals: FiberRefLocals
 ) extends Fiber[E, A] {
   import java.util.{ Collections, Set }
 
@@ -463,6 +465,24 @@ private[zio] final class FiberContext[E, A](
 
                 case ZIO.Tags.Trace =>
                   curIo = nextInstr(captureTrace(null))
+
+                case ZIO.Tags.FiberRefNew =>
+                  val io = curIo.asInstanceOf[ZIO.FiberRefNew[Any]]
+
+                  val fiberRef = new FiberRef[Any](io.initialValue)
+                  fiberRefLocals.put(fiberRef, io.initialValue)
+
+                  curIo = nextInstr(fiberRef)
+
+                case ZIO.Tags.FiberRefModify =>
+                  val io = curIo.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
+
+                  val oldValue           = Option(fiberRefLocals.get(io.fiberRef))
+                  val (result, newValue) = io.f(oldValue.getOrElse(io.fiberRef.initial))
+                  fiberRefLocals.put(io.fiberRef, newValue)
+
+                  curIo = nextInstr(result)
+
               }
             }
           } else {
@@ -481,11 +501,7 @@ private[zio] final class FiberContext[E, A](
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
         case t: Throwable =>
-          if (platform.fatal(t)) {
-            t.printStackTrace()
-            try System.exit(-1)
-            catch { case _: SecurityException => throw t }
-          } else curIo = ZIO.die(t)
+          curIo = if (platform.fatal(t)) platform.reportFatal(t) else ZIO.die(t)
       }
     }
   }
@@ -522,12 +538,15 @@ private[zio] final class FiberContext[E, A](
    * Forks an `IO` with the specified failure handler.
    */
   final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
+    val childFiberRefLocals: FiberRefLocals = platform.newWeakHashMap()
+    childFiberRefLocals.putAll(fiberRefLocals)
+
     val tracingRegion = inTracingRegion
     val ancestry =
       if ((traceExec || traceStack) && tracingRegion) Some(cutAncestryTrace(captureTrace(null)))
       else None
 
-    val context = new FiberContext[E, A](platform, environment.peek(), ancestry, tracingRegion)
+    val context = new FiberContext[E, A](platform, environment.peek(), ancestry, tracingRegion, childFiberRefLocals)
 
     platform.executor.submitOrThrow(() => context.evaluateNow(io))
 
@@ -554,6 +573,17 @@ private[zio] final class FiberContext[E, A](
   }
 
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
+
+  final def inheritFiberRefs: UIO[Unit] = UIO.suspend {
+    import scala.collection.JavaConverters._
+    val locals = fiberRefLocals.asScala
+    if (locals.isEmpty) UIO.unit
+    else
+      UIO.foreach_(locals) {
+        case (fiberRef, value) =>
+          fiberRef.asInstanceOf[FiberRef[Any]].set(value)
+      }
+  }
 
   private[this] final def enterSupervision: IO[E, Unit] = ZIO.effectTotal {
     supervising += 1
@@ -759,4 +789,6 @@ private[zio] object FiberContext {
 
     def Initial[E, A] = Executing[E, A](FiberStatus.Running, Nil)
   }
+
+  type FiberRefLocals = java.util.Map[FiberRef[_], Any]
 }

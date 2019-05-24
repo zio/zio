@@ -77,7 +77,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * effect.provideSome[Console](console =>
    *   new Console with Logging {
    *     val console = console
-   *     val logging = new Logging
+   *     val logging = new Logging {
    *       def log(line: String) = console.putStrLn(line)
    *     }
    *   }
@@ -1634,7 +1634,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * For a sequential version of this method, see `foreach_`.
    */
-  final def foreachPar_[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+  final def foreachPar_[R >: LowerR, E <: UpperE, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     ZIO
       .succeedLazy(as.iterator)
       .flatMap { i =>
@@ -1652,7 +1652,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    *
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
-  final def foreachParN_[R >: LowerR, E <: UpperE, A, B](
+  final def foreachParN_[R >: LowerR, E <: UpperE, A](
     n: Long
   )(as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
     Semaphore
@@ -2094,8 +2094,10 @@ object ZIO extends ZIO_R_Any {
     final val Access          = 14
     final val Provide         = 15
     final val SuspendWith     = 16
-    final val Trace           = 17
-    final val TracingStatus   = 18
+    final val FiberRefNew     = 17
+    final val FiberRefModify  = 18
+    final val Trace           = 19
+    final val TracingStatus   = 20
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2184,6 +2186,13 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.SuspendWith
   }
 
+  private[zio] final class FiberRefNew[A](val initialValue: A) extends UIO[FiberRef[A]] {
+    override def tag = Tags.FiberRefNew
+  }
+
+  private[zio] final class FiberRefModify[A, B](val fiberRef: FiberRef[A], val f: A => (B, A)) extends UIO[B] {
+    override def tag = Tags.FiberRefModify
+  }
   private[zio] final class Trace[R] extends ZIO[R, Nothing, ZTrace] {
     override def tag = Tags.Trace
   }

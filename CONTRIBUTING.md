@@ -161,7 +161,7 @@ fmt
 If your changes altered an API, then you may need to rebuild the microsite to make sure none of the (compiled) documentation breaks:
 
 ```bash
-makeMicrosite
+docs/docusaurusCreateSite
 ```
 
 (If you get an error about _Jekyll_, that means all the code examples work and you can ignore the rest.)

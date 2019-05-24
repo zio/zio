@@ -25,7 +25,6 @@ import scalaz.zio.stm.STM.internal._
  * A variable that can be modified as part of a transactional effect.
  */
 class TRef[A] private (
-  private[stm] val id: TRefId,
   @volatile private[stm] var versioned: Versioned[A],
   private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
 ) {
@@ -35,7 +34,7 @@ class TRef[A] private (
    * Retrieves the value of the `TRef`.
    */
   final val get: STM[Nothing, A] =
-    new STM((journal, _) => {
+    new STM(journal => {
       val entry = getOrMakeEntry(journal)
 
       TRez.Succeed(entry.unsafeGet[A])
@@ -45,7 +44,7 @@ class TRef[A] private (
    * Sets the value of the `TRef`.
    */
   final def set(newValue: A): STM[Nothing, Unit] =
-    new STM((journal, _) => {
+    new STM(journal => {
       val entry = getOrMakeEntry(journal)
 
       entry.unsafeSet(newValue)
@@ -54,13 +53,13 @@ class TRef[A] private (
     })
 
   override final def toString =
-    s"TRef(id = $id, versioned.value = ${versioned.value}, todo = ${todo.get})"
+    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
 
   /**
    * Updates the value of the variable.
    */
   final def update(f: A => A): STM[Nothing, A] =
-    new STM((journal, _) => {
+    new STM(journal => {
       val entry = getOrMakeEntry(journal)
 
       val newValue = f(entry.unsafeGet[A])
@@ -81,7 +80,7 @@ class TRef[A] private (
    * value.
    */
   final def modify[B](f: A => (B, A)): STM[Nothing, B] =
-    new STM((journal, _) => {
+    new STM(journal => {
       val entry = getOrMakeEntry(journal)
 
       val (retValue, newValue) = f(entry.unsafeGet[A])
@@ -99,10 +98,10 @@ class TRef[A] private (
     modify(a => f.lift(a).getOrElse((default, a)))
 
   private final def getOrMakeEntry(journal: Journal): Entry =
-    if (journal containsKey id) journal.get(id)
+    if (journal.containsKey(self)) journal.get(self)
     else {
-      val entry = Entry(self)
-      journal.put(id, entry)
+      val entry = Entry(self, false)
+      journal.put(self, entry)
       entry
     }
 }
@@ -113,19 +112,17 @@ object TRef {
    * Makes a new `TRef` that is initialized to the specified value.
    */
   final def make[A](a: => A): STM[Nothing, TRef[A]] =
-    new STM((journal, makeTRefId) => {
-      val id = makeTRefId()
-
+    new STM(journal => {
       val value     = a
       val versioned = new Versioned(value)
 
       val todo = new AtomicReference[Map[TxnId, Todo]](Map())
 
-      val tvar = new TRef(id, versioned, todo)
+      val tref = new TRef(versioned, todo)
 
-      journal.put(id, Entry(tvar))
+      journal.put(tref, Entry(tref, true))
 
-      TRez.Succeed(tvar)
+      TRez.Succeed(tref)
     })
 
   /**

@@ -17,12 +17,13 @@
 package scalaz.zio.internal
 
 import java.util.concurrent.{ Executor => _, _ }
-import java.util.{ WeakHashMap, Map => JMap }
-
+import java.util.{ Collections, WeakHashMap, Map => JMap }
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.stacktracer.Tracer
 import scalaz.zio.internal.stacktracer.impl.AkkaTracer
 import scalaz.zio.internal.tracing.TracingConfig
+
+import scala.concurrent.ExecutionContext
 
 import scala.concurrent.ExecutionContext
 
@@ -41,12 +42,21 @@ object PlatformLive {
       def fatal(t: Throwable): Boolean =
         t.isInstanceOf[VirtualMachineError]
 
+      def reportFatal(t: Throwable): Nothing = {
+        t.printStackTrace()
+        try {
+          System.exit(-1)
+          throw t
+        } catch { case _: Throwable => throw t }
+      }
+
       def reportFailure(cause: Cause[_]): Unit =
         if (!cause.interrupted)
           System.err.println(cause.prettyPrint)
 
       def newWeakHashMap[A, B](): JMap[A, B] =
-        new WeakHashMap[A, B]()
+        Collections.synchronizedMap(new WeakHashMap[A, B]())
+
     }
 
   final def fromExecutionContext(ec: ExecutionContext): Platform =

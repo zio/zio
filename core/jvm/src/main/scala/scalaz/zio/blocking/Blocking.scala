@@ -22,6 +22,29 @@ import scalaz.zio.internal.tracing.ZIOFn
 import scalaz.zio.internal.{ Executor, NamedThreadFactory, PlatformLive }
 import scalaz.zio.{ IO, UIO, ZIO }
 
+private[blocking] object internal {
+  private[blocking] val blockingExecutor0 =
+    PlatformLive.ExecutorUtil.fromThreadPoolExecutor(_ => Int.MaxValue) {
+      val corePoolSize  = 0
+      val maxPoolSize   = Int.MaxValue
+      val keepAliveTime = 1000L
+      val timeUnit      = TimeUnit.MILLISECONDS
+      val workQueue     = new SynchronousQueue[Runnable]()
+      val threadFactory = new NamedThreadFactory("zio-default-blocking", true)
+
+      val threadPool = new ThreadPoolExecutor(
+        corePoolSize,
+        maxPoolSize,
+        keepAliveTime,
+        timeUnit,
+        workQueue,
+        threadFactory
+      )
+
+      threadPool
+    }
+}
+
 /**
  * The `Blocking` module provides access to a thread pool that can be used for performing
  * blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
@@ -127,28 +150,7 @@ object Blocking extends Serializable {
 
   trait Live extends Blocking {
     val blocking: Service[Any] = new Service[Any] {
-      private[this] val blockingExecutor0 =
-        PlatformLive.ExecutorUtil.fromThreadPoolExecutor(_ => Int.MaxValue) {
-          val corePoolSize  = 0
-          val maxPoolSize   = Int.MaxValue
-          val keepAliveTime = 1000L
-          val timeUnit      = TimeUnit.MILLISECONDS
-          val workQueue     = new SynchronousQueue[Runnable]()
-          val threadFactory = new NamedThreadFactory("zio-default-blocking", true)
-
-          val threadPool = new ThreadPoolExecutor(
-            corePoolSize,
-            maxPoolSize,
-            keepAliveTime,
-            timeUnit,
-            workQueue,
-            threadFactory
-          )
-
-          threadPool
-        }
-
-      val blockingExecutor: UIO[Executor] = ZIO.succeed(blockingExecutor0)
+      val blockingExecutor: UIO[Executor] = ZIO.succeed(internal.blockingExecutor0)
     }
   }
   object Live extends Live

@@ -35,6 +35,11 @@ object PlatformLive {
 
       def fatal(t: Throwable): Boolean = false
 
+      def reportFatal(t: Throwable): Nothing = {
+        t.printStackTrace()
+        throw t
+      }
+
       def reportFailure(cause: Cause[_]): Unit =
         if (!cause.interrupted)
           println(cause.prettyPrint)
