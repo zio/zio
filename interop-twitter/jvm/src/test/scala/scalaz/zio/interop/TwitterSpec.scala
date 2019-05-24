@@ -41,10 +41,10 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val futureDelay = TwitterDuration.fromSeconds(1)
     val future      = Task.succeed(Future.sleep(futureDelay).map(_ => value.incrementAndGet()))
 
-    val taskTimeout = 500.millis
+    val taskTimeout = 100.millis
     val task        = Task.fromTwitterFuture(future).timeout(taskTimeout)
 
-    unsafeRun(clock.sleep(3.seconds) *> task) must beNone
+    unsafeRun(task <* clock.sleep(3.seconds)) must beNone
     value.get() ==== 0
   }
 }
