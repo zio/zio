@@ -23,6 +23,7 @@ import scalaz.zio.{ TaskR, ZSchedule }
 import scalaz.zio.duration.{ Duration => ZDuration }
 import scalaz.zio.interop.Schedule.Env
 import scalaz.zio.random.Random
+import scalaz.zio.Runtime
 
 import scala.concurrent.duration.Duration
 
