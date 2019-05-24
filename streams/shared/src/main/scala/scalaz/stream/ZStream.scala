@@ -396,7 +396,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             self.fold[R2, E1, A1, S].flatMap { f0 =>
               f0(s, cont, f).zip(schedule.update((), sched)).flatMap {
                 case (s, decision) =>
-                  if (decision.cont) IO.unit.delay(decision.delay) *> loop(s, decision.state)
+                  if (decision.cont && cont(s)) IO.unit.delay(decision.delay) *> loop(s, decision.state)
                   else IO.succeed(s)
               }
             }
@@ -413,11 +413,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
           def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
-            schedule.update(a, sched).flatMap { decision =>
-              if (decision.cont)
-                IO.unit.delay(decision.delay) *> f(s, a).flatMap(loop(_, decision.state, a))
-              else IO.succeed(s)
-            }
+            if (!cont(s)) ZIO.succeed(s)
+            else
+              f(s, a).zip(schedule.update(a, sched)).flatMap {
+                case (s, decision) =>
+                  if (decision.cont && cont(s))
+                    IO.unit.delay(decision.delay) *> loop(s, decision.state, a)
+                  else IO.succeed(s)
+              }
 
           schedule.initial.flatMap { sched =>
             self.fold[R2, E1, A, S].flatMap { f =>
