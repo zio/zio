@@ -28,7 +28,6 @@ import scala.util.control.NonFatal
  *
  * https://github.com/akka/akka/blob/4729a80e7e6f2923a7e6369b21b2693f82c64589/akka-actor/src/main/scala/akka/util/LineNumbers.scala
  *
- * ==
  * This is a minimized byte-code parser that concentrates exclusively on line
  * numbers and source file extraction. It works for all normal classes up to
  * format 52:0 (JDK8), and it also works for Lambdas that are Serializable. The
@@ -36,7 +35,7 @@ import scala.util.control.NonFatal
  * LambdaMetafactory otherwise contains no information about which method backs
  * this particular lambda (and there might be multiple defined within a single
  * class).
- **/
+ */
 object AkkaLineNumbers {
 
   sealed trait Result
