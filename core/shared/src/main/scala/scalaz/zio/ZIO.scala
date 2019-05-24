@@ -19,11 +19,11 @@ package scalaz.zio
 import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration._
-import scalaz.zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
-import scalaz.zio.internal.{Executor, Platform}
+import scalaz.zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
+import scalaz.zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -310,11 +310,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   ): ZIO[R1, E2, B] =
     new ZIO.Fold[R1, E, E2, A, B](
       self,
-      ZIOFn(() => that)(
-        _.stripFailures match {
-          case None    => that
-          case Some(c) => ZIO.halt(c)
-        }),
+      ZIOFn(() => that)(_.stripFailures match {
+        case None    => that
+        case Some(c) => ZIO.halt(c)
+      }),
       succ
     )
 

@@ -2,11 +2,11 @@ package scalaz.zio.interop
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.twitter.util.{Future, JavaTimer, Duration => TwitterDuration}
+import com.twitter.util.{ Future, JavaTimer, Duration => TwitterDuration }
 import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.duration._
 import scalaz.zio.interop.twitter._
-import scalaz.zio.{Exit, Task, TestRuntime, ZIO}
+import scalaz.zio.{ Exit, Task, TestRuntime, ZIO }
 
 class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is =
