@@ -109,7 +109,7 @@ final class STM[+E, +A] private[stm] (
       journal =>
         self.exec(journal) match {
           case t @ TRez.Fail(_) => t
-          case TRez.Succeed(a)  => if (pf isDefinedAt a) TRez.Succeed(pf(a)) else TRez.Retry
+          case TRez.Succeed(a)  => if (pf.isDefinedAt(a)) TRez.Succeed(pf(a)) else TRez.Retry
           case TRez.Retry       => TRez.Retry
         }
     )
