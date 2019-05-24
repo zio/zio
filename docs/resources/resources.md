@@ -34,6 +34,7 @@ Note that these articles reflect the state of ZIO at the time of their publicati
 ## Cheat Sheet
 
 - [ZIO Cheat Sheet](https://github.com/ghostdogpr/zio-cheatsheet)
+- [Helper functions to interop scala Future & scalaz Task](https://gist.github.com/ubourdon/7b7e929117343b2324cde6eab57674a6)
 
 ## Sample Projects
 
