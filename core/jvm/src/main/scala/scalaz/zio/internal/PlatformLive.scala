@@ -35,6 +35,14 @@ object PlatformLive {
       def fatal(t: Throwable): Boolean =
         t.isInstanceOf[VirtualMachineError]
 
+      def reportFatal(t: Throwable): Nothing = {
+        t.printStackTrace()
+        try {
+          System.exit(-1)
+          throw t
+        } catch { case _: Throwable => throw t }
+      }
+
       def reportFailure(cause: Cause[_]): Unit =
         if (!cause.interrupted)
           System.err.println(cause.prettyPrint)
