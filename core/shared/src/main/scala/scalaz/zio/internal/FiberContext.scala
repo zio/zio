@@ -328,11 +328,7 @@ private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef
         // either a bug in the interpreter or a bug in the user's code. Let the
         // fiber die but attempt finalization & report errors.
         case t: Throwable =>
-          if (platform.fatal(t)) {
-            t.printStackTrace()
-            try System.exit(-1)
-            catch { case _: SecurityException => throw t }
-          } else curIo = ZIO.die(t)
+          curIo = if (platform.fatal(t)) platform.reportFatal(t) else ZIO.die(t)
       }
     }
   }
