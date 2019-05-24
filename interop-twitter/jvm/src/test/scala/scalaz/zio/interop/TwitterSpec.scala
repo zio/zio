@@ -41,11 +41,11 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   private def propagateInterrupts = {
     val value = new AtomicInteger(0)
 
-    val promise = Promise[Unit]()
-    promise.setInterruptHandler {
-      case e => promise.setException(e)
+    val promise = new Promise[Unit] with Promise.InterruptHandler {
+      override protected def onInterrupt(t: Throwable): Unit = setException(t)
     }
-    val future  = Task(promise.flatMap(_ => Future(value.incrementAndGet())))
+
+    val future = Task(promise.flatMap(_ => Future(value.incrementAndGet())))
 
     unsafeRun {
       for {

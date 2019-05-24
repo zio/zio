@@ -23,14 +23,14 @@ import scalaz.zio.{ Runtime, Task, UIO, ZIO }
 package object twitter {
   implicit class TaskObjOps(private val obj: Task.type) extends AnyVal {
     final def fromTwitterFuture[A](future: Task[Future[A]]): Task[A] =
-      future.flatMap { f =>
-        Task.effectAsyncInterrupt { cb =>
-          f.respond {
-            case Return(a) => cb(Task.succeed(a))
-            case Throw(e)  => cb(Task.fail(e))
-          }
-
-          Left(UIO(f.raise(new FutureCancelledException)))
+      Task.uninterruptibleMask { restore =>
+        future.flatMap { f =>
+          restore(Task.effectAsync { cb: (Task[A] => Unit) =>
+            val _ = f.respond {
+              case Return(a) => cb(Task.succeed(a))
+              case Throw(e)  => cb(Task.fail(e))
+            }
+          }).onInterrupt(UIO(f.raise(new FutureCancelledException)))
         }
       }
   }
