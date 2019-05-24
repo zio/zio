@@ -139,7 +139,7 @@ object Scalaz {
         case Some((2, x)) if x <= 11 =>
           Seq(file(sourceDirectory.value.getPath + "/test/scala-2.11"))
         case Some((2, x)) if x >= 12 =>
-          Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+"))
+          Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12"), file(sourceDirectory.value.getPath + "/test/scala-2.12+"))
         case _ =>
           if (isDotty.value)
             CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
