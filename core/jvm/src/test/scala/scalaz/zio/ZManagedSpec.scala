@@ -377,7 +377,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   def timed = {
     val managed = ZManaged(
-      clock.sleep(100.milliseconds) *> ZIO.succeed(Reservation(clock.sleep(100.milliseconds), ZIO.unit))
+      clock.sleep(1000.milliseconds) *> ZIO.succeed(Reservation(clock.sleep(1000.milliseconds), ZIO.unit))
     )
     unsafeRun {
       managed.timed.use { case (duration, _) => ZIO.succeed((duration >= 200.milliseconds) must beTrue) }
@@ -432,7 +432,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(4)
   }
@@ -444,7 +444,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(4)
   }
@@ -476,7 +476,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.foreachParN(2)(List(1, 2, 3, 4))(_ => res)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(2)
   }
@@ -488,7 +488,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.foreachParN(2)(List(1, 2, 3, 4))(_ => res)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(2)
   }
@@ -496,7 +496,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   def foreachParNCancel = {
     val effect = new AtomicInteger(0)
     val res = ZManaged.reserve(
-      Reservation(clock.sleep(100.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt, ZIO.unit)
+      Reservation(clock.sleep(1000.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt, ZIO.unit)
     )
 
     val managed = ZManaged.foreachParN(2)(List.fill(4)(1))(_ => res)
@@ -547,7 +547,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.foreachPar_(List(1, 2, 3, 4))(_ => res)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(10.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
     }
     effect.get must be_===(4)
   }
@@ -559,7 +559,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.foreachPar_(List(1, 2, 3, 4))(_ => res)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(10.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
     }
     effect.get must be_===(4)
   }
@@ -581,7 +581,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.foreachParN_(2)(List(1, 2, 3, 4))(_ => res)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(2)
   }
@@ -593,7 +593,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.foreachParN_(2)(List(1, 2, 3, 4))(_ => res)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(2)
   }
@@ -601,7 +601,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   def foreachParN_Cancel = {
     val effect = new AtomicInteger(0)
     val res = ZManaged.reserve(
-      Reservation(clock.sleep(100.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt, ZIO.unit)
+      Reservation(clock.sleep(1000.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt, ZIO.unit)
     )
 
     val managed = ZManaged.foreachParN_(2)(List.fill(4)(1))(_ => res)
@@ -677,7 +677,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.mergeAllPar(List(1, 2, 3, 4).map(res))(0)(_ + _)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(4)
   }
@@ -691,7 +691,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.mergeAllPar(List(1, 2, 3, 4).map(res))(0)(_ + _)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(10.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
     }
     effect.get must be_===(4)
   }
@@ -727,7 +727,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.mergeAllParN(2)(List(1, 2, 3, 4).map(res))(0)(_ + _)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(2)
   }
@@ -741,7 +741,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.mergeAllParN(2)(List(1, 2, 3, 4).map(res))(0)(_ + _)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(10.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
     }
     effect.get must be_===(2)
   }
@@ -751,7 +751,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     def res(int: Int) =
       ZManaged.reserve(
         Reservation(
-          clock.sleep(100.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt.const(int),
+          clock.sleep(1000.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt.const(int),
           ZIO.unit
         )
       )
@@ -767,7 +767,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     val effect = new AtomicInteger(0)
     def res(int: Int) =
       ZManaged.make(
-        clock.sleep(100.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt.const(int)
+        clock.sleep(1000.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt.const(int)
       )(_ => ZIO.unit)
 
     val managed = ZManaged.mergeAllParN(2)(List.fill(100)(0).map(res))(0)(_ + _)
@@ -830,7 +830,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.reduceAllPar(ZManaged.succeed(0), List(1, 2, 3, 4).map(res))(_ + _)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(4)
   }
@@ -844,7 +844,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.reduceAllPar(ZManaged.succeed(0), List(1, 2, 3, 4).map(res))(_ + _)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(10.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
     }
     effect.get must be_===(4)
   }
@@ -882,7 +882,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.reduceAllParN(2)(ZManaged.succeed(0), List(1, 2, 3, 4).map(res))(_ + _)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(1000.milliseconds)
     }
     effect.get must be_===(2)
   }
@@ -896,7 +896,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val managed = ZManaged.reduceAllParN(2)(ZManaged.succeed(0), List(1, 2, 3, 4).map(res))(_ + _)
     unsafeRun {
-      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(10.milliseconds)
+      managed.use[Clock, Nothing, Unit](_ => ZIO.unit).fork *> clock.sleep(100.milliseconds)
     }
     effect.get must be_===(2)
   }
@@ -906,7 +906,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     def res(int: Int) =
       ZManaged.reserve(
         Reservation(
-          clock.sleep(100.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt.const(int),
+          clock.sleep(1000.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt.const(int),
           ZIO.unit
         )
       )
@@ -922,7 +922,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     val effect = new AtomicInteger(0)
     def res(int: Int) =
       ZManaged.make(
-        clock.sleep(100.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt.const(int)
+        clock.sleep(1000.milliseconds) *> ZIO.effectTotal(effect.incrementAndGet) *> ZIO.interrupt.const(int)
       )(_ => ZIO.unit)
 
     val managed = ZManaged.reduceAllParN(2)(ZManaged.succeed(0), List.fill(100)(0).map(res))(_ + _)
