@@ -7,7 +7,7 @@ import org.specs2.concurrent.ExecutionEnv
 import scalaz.zio.duration._
 import scalaz.zio.clock
 import scalaz.zio.interop.twitter._
-import scalaz.zio.{ Exit, Task, TestRuntime, ZIO }
+import scalaz.zio.{ Exit, Task, TestRuntime }
 
 class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is =
