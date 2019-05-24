@@ -396,7 +396,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             self.fold[R2, E1, A1, S].flatMap { f0 =>
               f0(s, cont, f).zip(schedule.update((), sched)).flatMap {
                 case (s, decision) =>
-                  if (decision.cont && cont(s)) IO.unit.delay(decision.delay) *> loop(s, decision.state)
+                  if (decision.cont && cont(s)) loop(s, decision.state).delay(decision.delay)
                   else IO.succeed(s)
               }
             }
@@ -408,7 +408,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Repeats elements of the stream using the provided schedule.
    */
-  def repeatElems[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
+  def spaced[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
     new ZStream[R1 with Clock, E, A] {
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
@@ -418,7 +418,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               f(s, a).zip(schedule.update(a, sched)).flatMap {
                 case (s, decision) =>
                   if (decision.cont && cont(s))
-                    IO.unit.delay(decision.delay) *> loop(s, decision.state, a)
+                    loop(s, decision.state, a).delay(decision.delay)
                   else IO.succeed(s)
               }
 

@@ -32,9 +32,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     repeat                  $repeat
     short circuits          $repeatShortCircuits
   
-  Stream.repeatElems        
-    repeatElems             $repeatElems
-    short circuits          $repeatElemsShortCircuits
+  Stream.spaced
+    spaced                  $spaced
+    short circuits          $spacedShortCircuits
 
   Stream.take
     take                     $take
@@ -619,18 +619,18 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       } yield result must_=== List(1, 1)
     )
 
-  private def repeatElems =
+  private def spaced =
     unsafeRun(
       Stream(1, 2, 3)
-        .repeatElems(Schedule.recurs(1))
+        .spaced(Schedule.recurs(1))
         .run(Sink.collect[Int])
         .map(_ must_=== List(1, 1, 2, 2, 3, 3))
     )
 
-  private def repeatElemsShortCircuits =
+  private def spacedShortCircuits =
     unsafeRun(
       Stream(1, 2, 3)
-        .repeatElems(Schedule.recurs(1))
+        .spaced(Schedule.recurs(1))
         .take(3)
         .run(Sink.collect[Int])
         .map(_ must_=== List(1, 1, 2))
