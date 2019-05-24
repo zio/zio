@@ -18,17 +18,16 @@ package scalaz.zio.internal
 
 import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 
-import scalaz.zio._
+import scalaz.zio.internal.FiberContext.FiberRefLocals
+import scalaz.zio.{ UIO, _ }
 
 import scala.annotation.{ switch, tailrec }
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
-private[zio] final class FiberContext[E, A](
-  platform: Platform,
-  startEnv: AnyRef
-) extends Fiber[E, A] {
+private[zio] final class FiberContext[E, A](platform: Platform, startEnv: AnyRef, fiberRefLocals: FiberRefLocals)
+    extends Fiber[E, A] {
   import java.util.{ Collections, Set }
 
   import FiberContext._
@@ -293,6 +292,24 @@ private[zio] final class FiberContext[E, A](
                   val io = curIo.asInstanceOf[ZIO.SuspendWith[Any, E, Any]]
 
                   curIo = io.f(platform)
+
+                case ZIO.Tags.FiberRefNew =>
+                  val io = curIo.asInstanceOf[ZIO.FiberRefNew[Any]]
+
+                  val fiberRef = new FiberRef[Any](io.initialValue)
+                  fiberRefLocals.put(fiberRef, io.initialValue)
+
+                  curIo = nextInstr(fiberRef)
+
+                case ZIO.Tags.FiberRefModify =>
+                  val io = curIo.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
+
+                  val oldValue           = Option(fiberRefLocals.get(io.fiberRef))
+                  val (result, newValue) = io.f(oldValue.getOrElse(io.fiberRef.initial))
+                  fiberRefLocals.put(io.fiberRef, newValue)
+
+                  curIo = nextInstr(result)
+
               }
             }
           } else {
@@ -346,7 +363,9 @@ private[zio] final class FiberContext[E, A](
    * Forks an `IO` with the specified failure handler.
    */
   final def fork[E, A](io: IO[E, A]): FiberContext[E, A] = {
-    val context = new FiberContext[E, A](platform, environment.peek())
+    val childFiberRefLocals: FiberRefLocals = platform.newWeakHashMap()
+    childFiberRefLocals.putAll(fiberRefLocals)
+    val context = new FiberContext[E, A](platform, environment.peek(), childFiberRefLocals)
 
     platform.executor.submitOrThrow(() => context.evaluateNow(io))
 
@@ -373,6 +392,17 @@ private[zio] final class FiberContext[E, A](
   }
 
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
+
+  final def inheritFiberRefs: UIO[Unit] = UIO.suspend {
+    import scala.collection.JavaConverters._
+    val locals = fiberRefLocals.asScala
+    if (locals.isEmpty) UIO.unit
+    else
+      UIO.foreach_(locals) {
+        case (fiberRef, value) =>
+          fiberRef.asInstanceOf[FiberRef[Any]].set(value)
+      }
+  }
 
   private[this] final def enterSupervision: IO[E, Unit] = ZIO.effectTotal {
     supervising += 1
@@ -569,4 +599,6 @@ private[zio] object FiberContext {
 
     def Initial[E, A] = Executing[E, A](FiberStatus.Running, Nil)
   }
+
+  type FiberRefLocals = java.util.Map[FiberRef[_], Any]
 }

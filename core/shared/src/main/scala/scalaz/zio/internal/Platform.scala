@@ -59,7 +59,7 @@ trait Platform { self =>
     }
 
   /**
-   * Creates a new java.util.WeakHashMap if supported by the platform,
+   * Creates a new thread safe java.util.WeakHashMap if supported by the platform,
    * otherwise any implementation of Map.
    */
   def newWeakHashMap[A, B](): JMap[A, B]

@@ -17,9 +17,9 @@
 package scalaz.zio.internal
 
 import java.util.concurrent.{ Executor => _, _ }
-import java.util.{ WeakHashMap, Map => JMap }
-import scala.concurrent.ExecutionContext
+import java.util.{ Collections, WeakHashMap, Map => JMap }
 
+import scala.concurrent.ExecutionContext
 import scalaz.zio.Exit.Cause
 
 object PlatformLive {
@@ -40,7 +40,8 @@ object PlatformLive {
           System.err.println(cause.prettyPrint)
 
       def newWeakHashMap[A, B](): JMap[A, B] =
-        new WeakHashMap[A, B]()
+        Collections.synchronizedMap(new WeakHashMap[A, B]())
+
     }
 
   final def fromExecutionContext(ec: ExecutionContext): Platform =
