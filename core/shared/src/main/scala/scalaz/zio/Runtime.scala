@@ -38,7 +38,7 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
-  final def mapEnvironment[R1](f: R => R1): Runtime[R1] = Runtime(f(Environment), Platform)
+  final def map[R1](f: R => R1): Runtime[R1] = Runtime(f(Environment), Platform)
 
   /**
    * Constructs a new `Runtime` by mapping the platform.
@@ -101,7 +101,7 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified new environment.
    */
-  final def withEnvironment[R1](r1: R1): Runtime[R1] = mapEnvironment(_ => r1)
+  final def const[R1](r1: R1): Runtime[R1] = map(_ => r1)
 
   /**
    * Constructs a new `Runtime` with the specified executor.
