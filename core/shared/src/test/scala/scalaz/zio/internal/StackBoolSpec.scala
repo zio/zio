@@ -1,8 +1,9 @@
 package scalaz.zio.internal
 
-import org.specs2.Specification
+import org.scalacheck.{ Arbitrary, Gen }
+import org.specs2.{ ScalaCheck, Specification }
 
-class StackBoolSpec extends Specification {
+class StackBoolSpec extends Specification with ScalaCheck {
   def is =
     "StackBoolSpec".title ^ s2"""
         Size tracking                 $e0
@@ -13,23 +14,31 @@ class StackBoolSpec extends Specification {
         Peek/pop identity             $e5
     """
 
-  def e0 = {
-    val list = List.fill(100)(true)
+  implicit val booleanGen: Gen[Boolean] = Arbitrary.arbitrary[Boolean]
 
-    StackBool(list: _*).size must_== list.length
-  }
+  def e0 =
+    prop { list: List[Boolean] =>
+      StackBool(list: _*).size must_== list.length
+    }.setGen(for {
+      size <- Gen.choose(0, 100)
+      g    <- Gen.listOfN(size, booleanGen)
+    } yield g)
 
-  def e1 = {
-    val list = (1 to 200).map(_ % 2 == 0).toList
+  def e1 =
+    prop { list: List[Boolean] =>
+      StackBool(list: _*).toList must_=== list
+    }.setGen(for {
+      size <- Gen.choose(0, 32)
+      g    <- Gen.listOfN(size, booleanGen)
+    } yield g)
 
-    StackBool(list: _*).toList must_=== list
-  }
-
-  def e2 = {
-    val list = (1 to 400).map(_ % 2 == 0).toList
-
-    StackBool(list: _*).toList must_=== list
-  }
+  def e2 =
+    prop { list: List[Boolean] =>
+      StackBool(list: _*).toList must_=== list
+    }.setGen(for {
+      size <- Gen.choose(0, 400)
+      g    <- Gen.listOfN(size, booleanGen)
+    } yield g)
 
   def e3 = {
     val stack = StackBool()
@@ -47,32 +56,36 @@ class StackBoolSpec extends Specification {
       (v3 must_=== true)
   }
 
-  def e4 = {
-    val stack = StackBool()
+  def e4 =
+    prop { list: List[Boolean] =>
+      val stack = StackBool()
 
-    val list = (1 to 400).map(_ % 2 == 0).toList
+      list.foreach(stack.push(_))
 
-    list.foreach(stack.push(_))
+      list.reverse.foldLeft(true must_=== true) {
+        case (result, flag) =>
+          result and (stack.popOrElse(!flag) must_=== flag)
+      }
+    }.setGen(for {
+      size <- Gen.choose(100, 400)
+      g    <- Gen.listOfN(size, booleanGen)
+    } yield g)
 
-    list.reverse.foldLeft(true must_=== true) {
-      case (result, flag) =>
-        result and (stack.popOrElse(!flag) must_=== flag)
-    }
-  }
+  def e5 =
+    prop { list: List[Boolean] =>
+      val stack = StackBool()
 
-  def e5 = {
-    val stack = StackBool()
+      list.foreach(stack.push(_))
 
-    val list = (1 to 400).map(_ % 2 == 0).toList
+      list.reverse.foldLeft(true must_=== true) {
+        case (result, flag) =>
+          val peeked = stack.peekOrElse(!flag)
+          val popped = stack.popOrElse(!flag)
 
-    list.foreach(stack.push(_))
-
-    list.reverse.foldLeft(true must_=== true) {
-      case (result, flag) =>
-        val peeked = stack.peekOrElse(!flag)
-        val popped = stack.popOrElse(!flag)
-
-        result and (peeked must_=== popped)
-    }
-  }
+          result and (peeked must_=== popped)
+      }
+    }.setGen(for {
+      size <- Gen.choose(100, 400)
+      g    <- Gen.listOfN(size, booleanGen)
+    } yield g)
 }

@@ -18,7 +18,7 @@ package scalaz.zio.internal
 
 /**
  * A very fast, hand-optimized stack designed just for booleans.
- * In the common case (size < 256), achieves zero allocations.
+ * In the common case (size < 64), achieves zero allocations.
  */
 private[zio] final class StackBool private () {
   import StackBool.Entry
@@ -27,30 +27,32 @@ private[zio] final class StackBool private () {
   private[this] var _size = 0L
 
   final def getOrElse(index: Int, b: Boolean): Boolean = {
-    var j   = index.toLong
+    val i0  = _size & 63L
+    val i   = ((64L - i0) + index) & 63L
+    var ie  = ((64L - i0) + index) >> 6
     var cur = head
-    while (j >= 256L && (cur.next ne null)) {
-      j -= 256L
+
+    while (ie > 0) {
+      ie -= 1
       cur = cur.next
     }
-    assert(j < 256L && j >= 0)
+    assert(i < 64L && i >= 0)
     if (cur eq null) b
     else {
-      val mask = 1L << j
-
+      val mask = 1L << (63L - i)
       (cur.bits & mask) != 0L
     }
   }
 
-  final def size = _size
+  final def size: Long = _size
 
   final def push(flag: Boolean): Unit = {
-    val index = _size & 0XFFL
+    val index = _size & 0X3FL
 
     if (flag) head.bits = head.bits | (1L << index)
     else head.bits = head.bits & (~(1L << index))
 
-    if (index == 255L) head = new Entry(head)
+    if (index == 63L) head = new Entry(head)
 
     _size += 1L
   }
@@ -59,9 +61,9 @@ private[zio] final class StackBool private () {
     if (_size == 0L) b
     else {
       _size -= 1L
-      val index = _size & 0XFFL
+      val index = _size & 0X3FL
 
-      if (index == 0L && head.next != null) head = head.next
+      if (index == 63L && head.next != null) head = head.next
 
       ((1L << index) & head.bits) != 0L
     }
@@ -70,9 +72,9 @@ private[zio] final class StackBool private () {
     if (_size == 0L) b
     else {
       val size  = _size - 1L
-      val index = size & 0XFFL
+      val index = size & 0X3FL
       val entry =
-        if (index == 0L && head.next != null) head.next else head
+        if (index == 63L && head.next != null) head.next else head
 
       ((1L << index) & entry.bits) != 0L
     }
@@ -80,7 +82,7 @@ private[zio] final class StackBool private () {
   final def popDrop[A](a: A): A = { popOrElse(false); a }
 
   final def toList: List[Boolean] =
-    (0 until _size.toInt).map(getOrElse(_, false)).toList.reverse
+    (0 until _size.toInt).map(getOrElse(_, false)).toList
 
   final override def toString: String =
     "StackBool(" + toList.mkString(", ") + ")"
