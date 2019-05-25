@@ -335,8 +335,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
     ZIO.absolve(self.mapError(ev1).map(ev2(_).toRight(())))
 
-  private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
-
   /**
    * Performs this effect interruptibly. Because this is the default, this
    * operation only has additional meaning if the effect is located within
@@ -1451,20 +1449,6 @@ object ZIO extends Serializable {
   final def effectTotal[A](effect: => A): UIO[A] = new ZIO.EffectTotal(() => effect)
 
   /**
-   * Imports a total synchronous effect into a pure `ZIO` value. This variant
-   * of `effectTotal` lets the impure code use the platform capabilities.
-   *
-   * The effect must not throw any exceptions. If you wonder if the effect
-   * throws exceptions, then do not use this method, use [[Task.effect]],
-   * [[IO.effect]], or [[ZIO.effect]].
-   *
-   * {{{
-   * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
-   * }}}
-   */
-  final def effectTotalWith[A](effect: Platform => A): UIO[A] = new ZIO.EffectTotalWith[A](effect)
-
-  /**
    * Accesses the whole environment of the effect.
    */
   final def environment[R]: ZIO[R, Nothing, R] = access(ZIO.identityFn[R])
@@ -1712,6 +1696,8 @@ object ZIO extends Serializable {
    */
   final def identity[R]: ZIO[R, Nothing, R] = fromFunction[R, R](ZIO.identityFn[R])
 
+  private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
+
   /**
    * Returns an effect that is interrupted.
    */
@@ -1845,7 +1831,7 @@ object ZIO extends Serializable {
   final def runtime[R]: ZIO[R, Nothing, Runtime[R]] =
     for {
       environment <- environment[R]
-      platform    <- effectTotalWith(ZIO.identityFn[Platform])
+      platform    <- suspendWith(ZIO.succeed)
     } yield Runtime(environment, platform)
 
   /**

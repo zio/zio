@@ -1,8 +1,8 @@
 package scalaz.zio
 
-import scalaz.zio.Exit.Cause
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration.Duration
+import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
@@ -176,14 +176,15 @@ object TaskR {
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
-   * See [[scalaz.zio.ZIO.effectTotalWith]]
-   */
-  final def effectTotalWith[A](effect: Platform => A): UIO[A] = ZIO.effectTotalWith(effect)
+    * [[scalaz.zio.ZIO.suspendWith]]
+    */
+  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
+    new ZIO.SuspendWith(io)
 
   /**
    * See [[scalaz.zio.ZIO.environment]]
    */
-  final def environment[R]: ZIO[R, Nothing, R] = ZIO.access(ZIO.identityFn[R])
+  final def environment[R]: ZIO[R, Nothing, R] = ZIO.environment
 
   /**
    * See [[scalaz.zio.ZIO.fail]]

@@ -2,6 +2,7 @@ package scalaz.zio
 
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.{ Executor, Platform }
+
 import scala.concurrent.ExecutionContext
 
 object IO {
@@ -158,9 +159,10 @@ object IO {
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
-   * See [[scalaz.zio.ZIO.effectTotalWith]]
+   * [[scalaz.zio.ZIO.suspendWith]]
    */
-  final def effectTotalWith[A](effect: Platform => A): UIO[A] = ZIO.effectTotalWith(effect)
+  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
+    new ZIO.SuspendWith(io)
 
   /**
    * See [[scalaz.zio.ZIO.fail]]
@@ -372,8 +374,8 @@ object IO {
     ZIO.suspend(io)
 
   /**
-    * [[scalaz.zio.ZIO.suspendWith]]
-    */
+   * [[scalaz.zio.ZIO.suspendWith]]
+   */
   final def suspendWith[R, E, A](io: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.SuspendWith(io)
 

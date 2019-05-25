@@ -661,12 +661,12 @@ object STM {
         case TryCommit.Suspend(journal) =>
           val done      = new AtomicBoolean(false)
           val interrupt = UIO(done.synchronized(done.set(true)))
-          val async     = IO.effectAsync[Any, E, A](tryCommitAsync(journal, makeTRefId, platform, stm, txnId, done))
+          val async     = IO.effectAsync[E, A](tryCommitAsync(journal, makeTRefId, platform, stm, txnId, done))
 
           async ensuring interrupt
       }
     }
-  }
+
 
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
