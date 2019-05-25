@@ -18,6 +18,7 @@ package scalaz.zio
 
 import java.util.concurrent.atomic.AtomicReference
 import Promise.internal._
+import scalaz.zio.Exit.Cause
 
 /**
  * A promise represents an asynchronous variable that can be set exactly once,
@@ -95,6 +96,18 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    * fibers waiting on the value of the promise.
    */
   final def fail(e: E): UIO[Boolean] = done(IO.fail(e))
+
+  /**
+   * Kills the promise with the specified error, which will be propagated to all
+   * fibers waiting on the value of the promise.
+   */
+  final def die(e: Throwable): UIO[Boolean] = done(IO.die(e))
+
+  /**
+   * Halts the promise with the specified cause, which will be propagated to all
+   * fibers waiting on the value of the promise.
+   */
+  final def halt(e: Cause[E]): UIO[Boolean] = done(IO.halt(e))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers

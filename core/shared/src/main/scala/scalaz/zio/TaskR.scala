@@ -149,7 +149,7 @@ object TaskR {
   /**
    * See [[scalaz.zio.ZIO.effectAsync]]
    */
-  final def effectAsync[A](register: (Task[A] => Unit) => Unit): Task[A] =
+  final def effectAsync[R, A](register: (TaskR[R, A] => Unit) => Unit): TaskR[R, A] =
     ZIO.effectAsync(register)
 
   /**
@@ -174,12 +174,6 @@ object TaskR {
    * See [[scalaz.zio.ZIO.effectTotal]]
    */
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
-
-  /**
-    * [[scalaz.zio.ZIO.suspendWith]]
-    */
-  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(io)
 
   /**
    * See [[scalaz.zio.ZIO.environment]]
@@ -415,6 +409,12 @@ object TaskR {
    */
   final def suspend[R, A](taskr: => TaskR[R, A]): TaskR[R, A] =
     ZIO.suspend(taskr)
+
+  /**
+    * [[scalaz.zio.ZIO.suspendWith]]
+    */
+  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
+    new ZIO.SuspendWith(io)
 
   /**
    * See [[scalaz.zio.ZIO.swap]]

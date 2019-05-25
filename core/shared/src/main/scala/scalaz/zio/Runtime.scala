@@ -16,7 +16,8 @@
 
 package scalaz.zio
 
-import scalaz.zio.internal.{ FiberContext, Platform }
+import scalaz.zio.Exit.Cause
+import scalaz.zio.internal.{ Executor, FiberContext, Platform }
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -33,6 +34,16 @@ trait Runtime[+R] {
    * necessary to bootstrap execution of tasks.
    */
   val Platform: Platform
+
+  /**
+   * Constructs a new `Runtime` by mapping the environment.
+   */
+  final def map[R1](f: R => R1): Runtime[R1] = Runtime(f(Environment), Platform)
+
+  /**
+   * Constructs a new `Runtime` by mapping the platform.
+   */
+  final def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(Environment, f(Platform))
 
   /**
    * Executes the effect synchronously, failing
@@ -65,15 +76,14 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
-    val context = new FiberContext[E, A](Platform, Environment.asInstanceOf[AnyRef])
+    val context = new FiberContext[E, A](Platform, Environment.asInstanceOf[AnyRef], Platform.newWeakHashMap())
 
     context.evaluateNow(zio.asInstanceOf[IO[E, A]])
     context.runAsync(k)
   }
 
   /**
-   * Executes the effect asynchronously,
-   * discarding the result of execution.
+   * Executes the effect asynchronously, discarding the result of execution.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
@@ -87,6 +97,31 @@ trait Runtime[+R] {
    */
   final def unsafeRunToFuture[E <: Throwable, A](io: ZIO[R, E, A]): scala.concurrent.Future[A] =
     unsafeRun(io.toFuture)
+
+  /**
+   * Constructs a new `Runtime` with the specified new environment.
+   */
+  final def const[R1](r1: R1): Runtime[R1] = map(_ => r1)
+
+  /**
+   * Constructs a new `Runtime` with the specified executor.
+   */
+  final def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
+
+  /**
+   * Constructs a new `Runtime` with the specified non-fatal predicate.
+   */
+  final def withNonFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withNonFatal(f))
+
+  /**
+   * Constructs a new `Runtime` with the fatal error reporter.
+   */
+  final def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.withReportFatal(f))
+
+  /**
+   * Constructs a new `Runtime` with the specified error reporter.
+   */
+  final def withReportFailure(f: Cause[_] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
 }
 
 object Runtime {

@@ -158,12 +158,6 @@ object Task {
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
-   * [[scalaz.zio.ZIO.suspendWith]]
-   */
-  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(io)
-
-  /**
    * See [[scalaz.zio.ZIO.fail]]
    */
   final def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
@@ -361,6 +355,12 @@ object Task {
    */
   final def suspend[A](io: => Task[A]): Task[A] =
     ZIO.suspend(io)
+
+  /**
+    * [[scalaz.zio.ZIO.suspendWith]]
+    */
+  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
+    new ZIO.SuspendWith(io)
 
   /**
    * See [[scalaz.zio.ZIO.uninterruptible]]

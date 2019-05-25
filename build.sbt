@@ -230,7 +230,7 @@ lazy val interopTwitter = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-twitter"))
   .settings(stdSettings("zio-interop-twitter"))
   .settings(
-    libraryDependencies += "com.twitter" %% "util-core" % "19.5.0"
+    libraryDependencies += "com.twitter" %% "util-core" % "19.5.1"
   )
   .dependsOn(core % "test->test;compile->compile")
 
@@ -256,7 +256,7 @@ lazy val benchmarks = project.module
         "io.monix"                 %% "monix"           % "3.0.0-RC2",
         "org.typelevel"            %% "cats-effect"     % "1.3.0",
         "co.fs2"                   %% "fs2-core"        % "1.0.4",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.20",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.8",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.2.9.RELEASE",
@@ -286,7 +286,7 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"             % "1.3.3"  % "provided",
+      "com.github.ghik"     %% "silencer-lib"             % "1.3.4"  % "provided",
       "commons-io"          % "commons-io"                % "2.6"    % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
       "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided"

@@ -124,12 +124,6 @@ object UIO {
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
-   * [[scalaz.zio.ZIO.suspendWith]]
-   */
-  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(io)
-
-  /**
    * See [[scalaz.zio.ZIO.effectAsync]]
    */
   final def effectAsync[A](register: (UIO[A] => Unit) => Unit): UIO[A] =
@@ -304,6 +298,12 @@ object UIO {
    */
   final def suspend[A](uio: => UIO[A]): UIO[A] =
     ZIO.suspend(uio)
+
+  /**
+    * [[scalaz.zio.ZIO.suspendWith]]
+    */
+  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
+    new ZIO.SuspendWith(io)
 
   /**
    * See [[scalaz.zio.ZIO.interruptibleMask]]
