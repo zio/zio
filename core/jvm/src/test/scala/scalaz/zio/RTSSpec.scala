@@ -166,7 +166,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     effectAsync can use environment         $testAsyncCanUseEnvironment
 
   RTS forking inheritability
-    interruption status is hereditable      $testInterruptStatusIsHereditable
+    interruption status is heritable        $testInterruptStatusIsHeritable
+    executor is hereditble                  $testExecutorIsHeritable
+    supervision is heritable                $testSupervisionIsHeritable
   """
   }
 
@@ -312,7 +314,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(Task.fail(ExampleError): Task[Any]) must (throwA(FiberFailure(Fail(ExampleError))))
 
   def testEvalOfUncaughtFailSupervised =
-    unsafeRun(Task.fail(ExampleError).supervise: Task[Unit]) must (throwA(
+    unsafeRun(Task.fail(ExampleError).interruptChildren: Task[Unit]) must (throwA(
       FiberFailure(Fail(ExampleError))
     ))
 
@@ -320,7 +322,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(IO.effectTotal[Int](throw ExampleError)) must (throwA(FiberFailure(Die(ExampleError))))
 
   def testEvalOfUncaughtThrownSupervisedSyncEffect =
-    unsafeRun(IO.effectTotal[Int](throw ExampleError).supervise) must (throwA(FiberFailure(Die(ExampleError))))
+    unsafeRun(IO.effectTotal[Int](throw ExampleError).interruptChildren) must (throwA(FiberFailure(Die(ExampleError))))
 
   def testEvalOfDeepUncaughtThrownSyncEffect =
     unsafeRun(deepErrorEffect(100)) must (throwA(FiberFailure(Fail(ExampleError))))
@@ -966,12 +968,31 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield result must_=== 10
   }
 
-  def testInterruptStatusIsHereditable = unsafeRun {
+  def testInterruptStatusIsHeritable = unsafeRun {
     for {
-      ref <- Ref.make(InterruptStatus.interruptible)
-      _   <- ZIO.uninterruptible(ZIO.checkInterruptible(ref.set).fork)
-      v   <- ref.get
+      latch <- Promise.make[Nothing, Unit]
+      ref   <- Ref.make(InterruptStatus.interruptible)
+      _     <- ZIO.uninterruptible((ZIO.checkInterruptible(ref.set) *> latch.succeed(())).fork *> latch.await)
+      v     <- ref.get
     } yield v must_=== InterruptStatus.uninterruptible
+  }
+
+  def testExecutorIsHeritable = unsafeRun {
+    for {
+      ref  <- Ref.make(Option.empty[internal.Executor])
+      exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
+      _    <- IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e))).fork.lock(exec)
+      v    <- ref.get
+    } yield v must_=== Some(exec)
+  }
+
+  def testSupervisionIsHeritable = unsafeRun {
+    for {
+      latch <- Promise.make[Nothing, Unit]
+      ref   <- Ref.make(SuperviseStatus.unsupervised)
+      _     <- ((ZIO.checkSupervised(ref.set) *> latch.succeed(())).fork *> latch.await).supervised
+      v     <- ref.get
+    } yield v must_=== SuperviseStatus.Supervised
   }
 
   def testAsyncPureIsInterruptible = {
@@ -1083,7 +1104,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun((for {
       _ <- (clock.sleep(200.millis) *> IO.unit).fork
       _ <- (clock.sleep(400.millis) *> IO.unit).fork
-    } yield ()).superviseWith { fs =>
+    } yield ()).handleChildrenWith { fs =>
       fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> IO.effectTotal(counter += 1))
     })
     counter must_=== 2
@@ -1101,7 +1122,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
               .bracket_[Any, Nothing]
               .apply[Any](pa.succeed(1).unit)(IO.never) race //    TODO: Dotty doesn't infer this properly
               p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never)
-          ).supervise.fork
+          ).interruptChildren.fork
       _ <- p1.await *> p2.await
 
       _ <- f.interrupt
@@ -1122,7 +1143,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
               .fork *> //    TODO: Dotty doesn't infer this properly
               p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork *>
               IO.never
-          ).supervise.fork
+          ).interruptChildren.fork
       _ <- p1.await *> p2.await
 
       _ <- f.interrupt
@@ -1143,7 +1164,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
                   .fork //    TODO: Dotty doesn't infer this properly
             _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
             _ <- p1.await *> p2.await
-          } yield ()).supervise
+          } yield ()).interruptChildren
       r <- pa.await zip pb.await
     } yield r) must_=== (1 -> 2)
 

@@ -226,7 +226,8 @@ object Fiber {
   final case class Descriptor(
     id: FiberId,
     interrupted: Boolean,
-    interruptible: Boolean,
+    interruptStatus: InterruptStatus,
+    superviseStatus: SuperviseStatus,
     executor: Executor,
     children: UIO[IndexedSeq[Fiber[_, _]]]
   )

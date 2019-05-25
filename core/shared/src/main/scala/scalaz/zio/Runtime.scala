@@ -81,7 +81,9 @@ trait Runtime[+R] {
     val context = new FiberContext[E, A](
       Platform,
       Environment.asInstanceOf[AnyRef],
+      Platform.executor,
       InitialInterruptStatus,
+      FiberContext.SuperviseStatus.Unsupervised,
       Platform.newWeakHashMap()
     )
 

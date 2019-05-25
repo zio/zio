@@ -545,17 +545,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def supervised: ZIO[R, E, A] = ZIO.supervised(self)
 
   /**
-   * Supervises this effect, which ensures that any fibers that are forked by
+   * Disables supervision for this effect. This will cause fibers forked by
+   * this effect to not be tracked or appear in the list returned by [[ZIO.children]].
+   */
+  final def unsupervised: ZIO[R, E, A] = ZIO.unsupervised(self)
+
+  /**
+   * Returns a new effect that nsures that any fibers that are forked by
    * the effect are interrupted when this effect completes.
    */
-  final def supervise: ZIO[R, E, A] = ZIO.supervise(self)
+  final def interruptChildren: ZIO[R, E, A] = ZIO.interruptChildren(self)
 
   /**
    * Supervises this effect, which ensures that any fibers that are forked by
    * the effect are handled by the provided supervisor.
    */
-  final def superviseWith[R1 <: R](supervisor: Iterable[Fiber[_, _]] => ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
-    ZIO.superviseWith[R1, E, A](self)(supervisor)
+  final def handleChildrenWith[R1 <: R](supervisor: Iterable[Fiber[_, _]] => ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
+    ZIO.handleChildrenWith[R1, E, A](self)(supervisor)
 
   /**
    * Performs this effect uninterruptibly. This will prevent the effect from
@@ -1241,22 +1247,42 @@ private[zio] trait ZIOFunctions extends Serializable {
    * this effect to be tracked and will enable their inspection via [[ZIO.children]].
    */
   final def supervised[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.Supervised(zio)
+    superviseStatus[R, E, A](SuperviseStatus.Supervised)(zio)
+
+  /**
+   * Disables supervision for this effect. This will cause fibers forked by
+   * this effect to not be tracked or appear in the list returned by [[ZIO.children]].
+   */
+  final def unsupervised[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    superviseStatus[R, E, A](SuperviseStatus.Unsupervised)(zio)
+
+  /**
+   * Returns a new effect that has the same effects as this one, but with the
+   * supervision status changed as specified.
+   */
+  final def superviseStatus[R >: LowerR, E <: UpperE, A](status: SuperviseStatus)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.SuperviseStatus(zio, status)
+
+  /**
+   * Checks supervision status.
+   */
+  final def checkSupervised[R >: LowerR, E <: UpperE, A](f: SuperviseStatus => ZIO[R, E, A]): ZIO[R, E, A] =
+    descriptorWith(d => f(d.superviseStatus))
 
   /**
    * Returns an effect that supervises the specified effect, ensuring that all
    * fibers that it forks are interrupted as soon as the supervised effect
    * completes.
    */
-  final def supervise[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    superviseWith(zio)(Fiber.interruptAll)
+  final def interruptChildren[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    handleChildrenWith(zio)(Fiber.interruptAll)
 
   /**
    * Returns an effect that supervises the specified effect, ensuring that all
    * fibers that it forks are passed to the specified supervisor as soon as the
    * supervised effect completes.
    */
-  final def superviseWith[R >: LowerR, E <: UpperE, A](
+  final def handleChildrenWith[R >: LowerR, E <: UpperE, A](
     zio: ZIO[R, E, A]
   )(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): ZIO[R, E, A] =
     zio.ensuring(children.flatMap(supervisor(_))).supervised
@@ -1953,7 +1979,7 @@ object ZIO extends ZIO_R_Any {
     final val EffectPartial   = 7
     final val EffectAsync     = 8
     final val Fork            = 9
-    final val Supervised      = 10
+    final val SuperviseStatus = 10
     final val Descriptor      = 11
     final val Lock            = 12
     final val Yield           = 13
@@ -2011,8 +2037,9 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.CheckInterrupt
   }
 
-  private[zio] final class Supervised[R, E, A](val value: ZIO[R, E, A]) extends ZIO[R, E, A] {
-    override def tag = Tags.Supervised
+  private[zio] final class SuperviseStatus[R, E, A](val value: ZIO[R, E, A], val status: scalaz.zio.SuperviseStatus)
+      extends ZIO[R, E, A] {
+    override def tag = Tags.SuperviseStatus
   }
 
   private[zio] final class Fail[E, A](val cause: Cause[E]) extends IO[E, A] { self =>
