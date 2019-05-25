@@ -1908,7 +1908,9 @@ object ZIO extends ZIO_R_Any {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
       self
         .map(f)
-        .sandboxWith[R with Clock, E, B1](io => ZIO.absolve(io.either race ZIO.succeedRight(b).delay(duration)))
+        .sandboxWith[R with Clock, E, B1](
+          io => ZIO.absolve(io.either race ZIO.interruptible(ZIO.succeedRight(b).delay(duration)))
+        )
   }
 
   class BracketAcquire_[R, E](acquire: ZIO[R, E, _]) {
