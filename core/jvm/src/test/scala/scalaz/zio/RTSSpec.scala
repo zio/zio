@@ -169,6 +169,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     interruption status is heritable        $testInterruptStatusIsHeritable
     executor is hereditble                  $testExecutorIsHeritable
     supervision is heritable                $testSupervisionIsHeritable
+    supervision inheritance                 $testSupervisingInheritance
   """
   }
 
@@ -993,6 +994,22 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _     <- ((ZIO.checkSupervised(ref.set) *> latch.succeed(())).fork *> latch.await).supervised
       v     <- ref.get
     } yield v must_=== SuperviseStatus.Supervised
+  }
+
+  def testSupervisingInheritance = {
+    def forkAwaitStart[A](io: UIO[A]) =
+      for {
+        latch <- Promise.make[Nothing, Unit]
+        _     <- (latch.succeed(()) *> io).fork
+        _     <- latch.await
+      } yield ()
+
+    unsafeRun(
+      (for {
+        _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()))))
+        fibs <- ZIO.children
+      } yield fibs must have size 3).supervised
+    )
   }
 
   def testAsyncPureIsInterruptible = {
