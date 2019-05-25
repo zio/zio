@@ -453,36 +453,28 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ): ZIO[R with Clock, E, Option[(Duration, Reservation[R, E, A])]] =
       clock.nanoTime.flatMap { start =>
         zio
-          .raceWith(ZIO.unit.delay(d))(
+          .raceWith(ZIO.interruptible(ZIO.sleep(d)))(
             {
               case (leftDone, rightFiber) =>
-                for {
-                  _   <- rightFiber.interrupt
-                  env <- ZIO.environment[Clock]
-                  result <- leftDone.foldM(
-                             ZIO.halt,
-                             succ =>
-                               clock.nanoTime.map(end => Some((Duration.fromNanos(end - start), succ))).provide(env)
-                           )
-
-                } yield result
+                rightFiber.interrupt.flatMap(
+                  _ =>
+                    leftDone.foldM(
+                      ZIO.halt,
+                      succ => clock.nanoTime.map(end => Some((Duration.fromNanos(end - start), succ)))
+                    )
+                )
             }, {
               case (_, leftFiber) =>
-                (for {
-                  env <- ZIO.environment[R]
-                  cleanup = leftFiber.await
-                    .flatMap(
-                      _.foldM[Nothing, Any](
-                        _ => ZIO.unit,
-                        _.release.provide(env)
-                      )
+                leftFiber.interrupt
+                  .flatMap(
+                    _.foldM(
+                      _ => ZIO.unit,
+                      _.release
                     )
-                    .uninterruptible
-                  _ <- cleanup.fork
-                } yield None).uninterruptible
+                  )
+                  .const(None)
             }
           )
-          .uninterruptible
       }
 
     ZManaged {

@@ -366,15 +366,15 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     }
   }
 
-  def timeoutRunFinalizers = {
-    var release = 0
-    val managed = ZManaged(
-      clock.sleep(1.millisecond) *> ZIO.succeed(Reservation(clock.sleep(5.seconds), ZIO.effectTotal(release += 1)))
-    )
-    unsafeRun {
-      managed.timeout(100.millisecond).use(res => ZIO.succeed((res must be_===(None)) && (release must be_===(1))))
-    }
-  }
+  def timeoutRunFinalizers =
+    unsafeRun(for {
+      latch   <- Promise.make[Nothing, Unit]
+      release <- Ref.make[Int](0)
+      managed = ZManaged.reserve(Reservation(ZIO.never, release.update(_ + 1) *> latch.succeed(())))
+      res     <- managed.timeout(10.millisecond).use(ZIO.succeed(_))
+      _       <- latch.await
+      v       <- release.get
+    } yield (res must beNone) && (v must be_===(1)))
 
   def timed = {
     val managed = ZManaged(

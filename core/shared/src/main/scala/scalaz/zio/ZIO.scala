@@ -221,12 +221,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
     raceWith(that)(
       (exit, right) =>
-        exit.foldM[E1, Either[A, B]](
+        exit.foldM[Any, E1, Either[A, B]](
           _ => right.join.map(Right(_)),
           a => ZIO.succeedLeft(a) <* right.interrupt
         ),
       (exit, left) =>
-        exit.foldM[E1, Either[A, B]](
+        exit.foldM[Any, E1, Either[A, B]](
           _ => left.join.map(Left(_)),
           b => ZIO.succeedRight(b) <* left.interrupt
         )
@@ -551,7 +551,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def unsupervised: ZIO[R, E, A] = ZIO.unsupervised(self)
 
   /**
-   * Returns a new effect that nsures that any fibers that are forked by
+   * Returns a new effect that ensures that any fibers that are forked by
    * the effect are interrupted when this effect completes.
    */
   final def interruptChildren: ZIO[R, E, A] = ZIO.interruptChildren(self)
@@ -1270,9 +1270,8 @@ private[zio] trait ZIOFunctions extends Serializable {
     descriptorWith(d => f(d.superviseStatus))
 
   /**
-   * Returns an effect that supervises the specified effect, ensuring that all
-   * fibers that it forks are interrupted as soon as the supervised effect
-   * completes.
+   * Returns a new effect that ensures that any fibers that are forked by
+   * the effect are interrupted when this effect completes.
    */
   final def interruptChildren[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     handleChildrenWith(zio)(Fiber.interruptAll)
