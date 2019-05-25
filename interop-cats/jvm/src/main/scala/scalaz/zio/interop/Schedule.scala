@@ -28,7 +28,7 @@ import scalaz.zio.Runtime
 import scala.concurrent.duration.Duration
 
 /**
- * See [[scalaz.zio.ZSchedule]]
+ * See [[scalaz.zio.ZSchedule!]]
  */
 class Schedule[F[+ _], -A, +B] private[interop] (private[interop] val underlying: ZSchedule[Env, A, B]) { self =>
   import Schedule.{ fromEffect, toEffect, Env }
@@ -469,13 +469,13 @@ object Schedule {
     new Schedule(ZSchedule.doWhile(f))
 
   /**
-   * See [[scalaz.zio.ZSchedule.doUntil]]
+   * See [[scalaz.zio.ZSchedule!.doUntil[A](A=>Boolean):Schedule[A, A]*]]
    */
   final def doUntil[F[+ _]: ConcurrentEffect, A](f: A => Boolean): Schedule[F, A, A] =
     new Schedule(ZSchedule.doUntil(f))
 
   /**
-   * See [[scalaz.zio.ZSchedule.doUntil]]
+    * See [[scalaz.zio.ZSchedule!.doUntil[A, B](PartialFunction[A,B]):Schedule[A, Option[B]]*]]
    */
   final def doUntil[F[+ _]: ConcurrentEffect, A, B](
     pf: PartialFunction[A, B]
