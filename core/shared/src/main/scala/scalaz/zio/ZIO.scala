@@ -89,9 +89,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * An effectful version of `provideSome`, useful when the act of partial
    * provision requires an effect.
+   *
+   * {{{
+   * val effect: ZIO[Console with Logging, Nothing, Unit] = ???
+   *
+   * val r0: ZIO[Console, Nothing, Console with Logging] = ???
+   *
+   * effect.provideSomeM(r0)
+   * }}}
    */
-  final def provideSomeM[R0, R1 >: R0, E1 >: E](f: R1 => ZIO[R0, E1, R]): ZIO[R0, E1, A] =
-    ZIO.accessM(r0 => f(r0).flatMap(self.provide))
+  final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R]): ZIO[R0, E1, A] =
+    r0.flatMap(self.provide)
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
