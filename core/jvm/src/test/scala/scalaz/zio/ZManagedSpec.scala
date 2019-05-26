@@ -1,4 +1,3 @@
-
 package scalaz.zio
 
 import org.scalacheck.{ Gen, _ }
