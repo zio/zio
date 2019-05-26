@@ -133,7 +133,11 @@ object Blocking extends Serializable {
                               Thread.interrupted // Clear interrupt status
                               Left(Cause.interrupt)
                             case t: Throwable =>
-                              Left(Cause.fail(t.asInstanceOf[E]))
+                              try {
+                                Left(Cause.fail(t.asInstanceOf[E]))
+                              } catch {
+                                case _: ClassCastException => Left(Cause.die(t))
+                              }
                           } finally {
                             withMutex { thread.set(None); barrier.set(()) }
                           }
