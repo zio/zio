@@ -36,7 +36,6 @@ private[zio] final class StackBool private () {
       ie -= 1
       cur = cur.next
     }
-    assert(i < 64L && i >= 0)
     if (cur eq null) b
     else {
       val mask = 1L << (63L - i)
