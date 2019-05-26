@@ -55,7 +55,7 @@ class StackBoolSpec extends Specification with ScalaCheck {
     }
 
   def e4 = {
-    val stack = StackBool()
+    val stack  = StackBool()
     val result = stack.getOrElse(100, true)
     result must_=== true
   }
