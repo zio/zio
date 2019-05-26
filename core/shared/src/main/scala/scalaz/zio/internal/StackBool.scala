@@ -31,7 +31,6 @@ private[zio] final class StackBool private () {
     val base = (64L - i0) + index
     val i    = base & 63L
     var ie   = base >> 6
-    var ie  = ((64L - i0) + index) >> 6
     var cur = head
 
     while (ie > 0 && (cur ne null)) {
