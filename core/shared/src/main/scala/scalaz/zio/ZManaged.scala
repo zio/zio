@@ -521,6 +521,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     use(_ => f)
 
   /**
+   * Use the resource until interruption.
+   * Useful for resources that you want to acquire and use as long as the application is running, like a HTTP server.
+   */
+  final val useForever: ZIO[R, E, Nothing] = use(_ => ZIO.never)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
   final def when(b: Boolean): ZManaged[R, E, Unit] =

@@ -21,8 +21,6 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Invokes cleanups in reverse order of acquisition. $invokesCleanupsInReverse
     Properly performs parallel acquire and release. $parallelAcquireAndRelease
     Constructs an uninterruptible Managed value. $uninterruptible
-  ZManaged.traverse
-    Invokes cleanups in reverse order of acquisition. $traverse
   ZManaged.reserve 
     Interruption is possible when using this form. $interruptible
   ZManaged.foldM
@@ -35,6 +33,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   ZManaged.foreach
     Returns elements in the correct order $foreachOrder
     Runs finalizers $foreachFinalizers
+    Invokes cleanups in reverse order of acquisition. $foreachFinalizerOrder
   ZManaged.foreachPar
     Returns elements in the correct order $foreachParOrder
     Runs finalizers $foreachParFinalizers
@@ -141,18 +140,6 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     result must haveSize(2)
     result.size === cleanups.size
-  }
-
-  private def traverse = {
-    val effects = new mutable.ListBuffer[Int]
-    def res(x: Int) =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
-
-    val resources = ZManaged.foreach(List(1, 2, 3))(res)
-
-    unsafeRun(resources.use(_ => IO.unit))
-
-    effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
 
   private def uninterruptible =
@@ -404,6 +391,18 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       managed.use[Any, Nothing, Unit](_ => ZIO.unit)
     }
     effect must be_===(4)
+  }
+
+  def foreachFinalizerOrder = {
+    val effects = new mutable.ListBuffer[Int]
+    def res(x: Int) =
+      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+
+    val resources = ZManaged.foreach(List(1, 2, 3))(res)
+
+    unsafeRun(resources.use(_ => IO.unit))
+
+    effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
 
   def foreachParOrder = {
