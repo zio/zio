@@ -15,13 +15,13 @@ class FiberSpec extends BaseCrossPlatformSpec {
 
   def e1 =
     for {
-      ref   <- Ref.make(false)
-      latch <- Promise.make[Nothing, Unit]
-      fiber <- (latch.succeed(()) *> IO.unit)
-                .bracket_[Any, Nothing]
-                .apply[Any](ref.set(true))(IO.never)
-                .fork //    TODO: Dotty doesn't infer this properly
-      _     <- latch.await
+      ref <- Ref.make(false)
+      fiber <- withLatch { release =>
+                (release *> IO.unit)
+                  .bracket_[Any, Nothing]
+                  .apply[Any](ref.set(true))(IO.never)
+                  .fork //    TODO: Dotty doesn't infer this properly
+              }
       _     <- fiber.toManaged.use(_ => IO.unit)
       _     <- fiber.await
       value <- ref.get
@@ -30,11 +30,11 @@ class FiberSpec extends BaseCrossPlatformSpec {
   def e2 =
     for {
       fiberRef <- FiberRef.make(initial)
-      latch    <- Promise.make[Nothing, Unit]
-      child    <- (fiberRef.set(update) *> latch.succeed(())).fork
-      _        <- latch.await
-      _        <- child.map(_ => ()).inheritFiberRefs
-      value    <- fiberRef.get
+      child <- withLatch { release =>
+                (fiberRef.set(update) *> release).fork
+              }
+      _     <- child.map(_ => ()).inheritFiberRefs
+      value <- fiberRef.get
     } yield value must beTheSameAs(update)
 
   def e3 =

@@ -17,7 +17,7 @@ import scalaz.zio.system.System
 import scala.concurrent.duration.{ Duration, _ }
 import scala.concurrent.{ ExecutionContext, Future }
 
-abstract class BaseCrossPlatformSpec extends Specification with DefaultRuntime {
+abstract class BaseCrossPlatformSpec extends Specification with DefaultRuntime with TestUtils {
 
   override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
 
