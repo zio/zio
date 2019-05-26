@@ -14,7 +14,7 @@ import scalaz.zio.clock.Clock
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
-class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with TestUtils {
+class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def is = {
     s2"""
