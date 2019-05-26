@@ -112,7 +112,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio-interop-cats"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect"   % "1.3.0" % Optional,
+      "org.typelevel" %%% "cats-effect"   % "1.3.1" % Optional,
       "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
       "co.fs2"        %%% "fs2-core"      % "1.0.4" % Test
     )
@@ -157,7 +157,7 @@ lazy val interopCatsJVM = interopCats.jvm
     resolvers += Resolver
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.0"                              % Test,
+      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.1"                              % Test,
       "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
       "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
@@ -254,7 +254,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "io.monix"                 %% "monix"           % "3.0.0-RC2",
-        "org.typelevel"            %% "cats-effect"     % "1.3.0",
+        "org.typelevel"            %% "cats-effect"     % "1.3.1",
         "co.fs2"                   %% "fs2-core"        % "1.0.4",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.8",
