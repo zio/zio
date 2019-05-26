@@ -266,8 +266,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       race <- Ref.make[Int](0)
       c <- ZIO.uninterruptibleMask { restore =>
             for {
-              left  <- restore(self).fork
-              right <- restore(that).fork
+              left  <- ZIO.interruptible(self).fork
+              right <- ZIO.interruptible(that).fork
               _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
               _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
               c     <- restore(done.await).onInterrupt(left.interrupt *> right.interrupt)
@@ -1909,7 +1909,7 @@ object ZIO extends ZIO_R_Any {
       self
         .map(f)
         .sandboxWith[R with Clock, E, B1](
-          io => ZIO.absolve(io.either race ZIO.interruptible(ZIO.succeedRight(b).delay(duration)))
+          io => ZIO.absolve(io.either race ZIO.succeedRight(b).delay(duration))
         )
   }
 
