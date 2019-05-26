@@ -15,7 +15,7 @@ class StackBoolSpec extends Specification with ScalaCheck {
 
   import Arbitrary._
 
-  private val generator: Gen[List[Boolean]] = boolListGen(0, 400)
+  private val generator: Gen[List[Boolean]] = boolListGen(0, 200)
 
   def e0 =
     Prop.forAll(generator) { list: List[Boolean] =>
