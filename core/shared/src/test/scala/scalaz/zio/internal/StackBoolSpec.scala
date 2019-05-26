@@ -10,6 +10,7 @@ class StackBoolSpec extends Specification with ScalaCheck {
         From/to list identity         $e1
         Push/pop example              $e2
         Peek/pop identity             $e3
+        GetOrElse index out of bounds $e4
     """
 
   import Arbitrary._
@@ -52,6 +53,12 @@ class StackBoolSpec extends Specification with ScalaCheck {
           result and (peeked must_=== popped)
       }
     }
+
+  def e4 = {
+    val stack = StackBool()
+    val result = stack.getOrElse(100, true)
+    result must_=== true
+  }
 
   private def boolListGen(min: Int, max: Int) =
     for {

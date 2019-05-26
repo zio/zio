@@ -32,7 +32,7 @@ private[zio] final class StackBool private () {
     var ie  = ((64L - i0) + index) >> 6
     var cur = head
 
-    while (ie > 0) {
+    while (ie > 0 && (cur ne null)) {
       ie -= 1
       cur = cur.next
     }
