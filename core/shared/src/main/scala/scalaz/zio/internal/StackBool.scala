@@ -27,11 +27,11 @@ private[zio] final class StackBool private () {
   private[this] var _size = 0L
 
   final def getOrElse(index: Int, b: Boolean): Boolean = {
-    val i0  = _size & 63L
+    val i0   = _size & 63L
     val base = (64L - i0) + index
     val i    = base & 63L
     var ie   = base >> 6
-    var cur = head
+    var cur  = head
 
     while (ie > 0 && (cur ne null)) {
       ie -= 1
