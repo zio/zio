@@ -86,7 +86,7 @@ object Blocking extends Serializable {
      * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
-    def effectBlocking[E <: Throwable : ClassTag, A](effect: => A): ZIO[R, E, A] =
+    def effectBlocking[E <: Throwable: ClassTag, A](effect: => A): ZIO[R, E, A] =
       ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
         import java.util.concurrent.atomic.AtomicReference
