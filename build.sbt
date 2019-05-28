@@ -286,7 +286,7 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"             % "1.3.4"  % "provided",
+      "com.github.ghik"     %% "silencer-lib"             % "1.4.0"  % "provided",
       "commons-io"          % "commons-io"                % "2.6"    % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
       "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided"
