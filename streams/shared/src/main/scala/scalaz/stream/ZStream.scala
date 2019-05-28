@@ -396,7 +396,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             self.fold[R2, E1, A1, S].flatMap { f0 =>
               f0(s, cont, f).zip(schedule.update((), sched)).flatMap {
                 case (s, decision) =>
-                  if (decision.cont) IO.unit.delay(decision.delay) *> loop(s, decision.state)
+                  if (decision.cont && cont(s)) loop(s, decision.state).delay(decision.delay)
                   else IO.succeed(s)
               }
             }
@@ -408,16 +408,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Repeats elements of the stream using the provided schedule.
    */
-  def repeatElems[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
+  def spaced[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
     new ZStream[R1 with Clock, E, A] {
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
           def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
-            schedule.update(a, sched).flatMap { decision =>
-              if (decision.cont)
-                IO.unit.delay(decision.delay) *> f(s, a).flatMap(loop(_, decision.state, a))
-              else IO.succeed(s)
-            }
+            if (!cont(s)) ZIO.succeed(s)
+            else
+              f(s, a).zip(schedule.update(a, sched)).flatMap {
+                case (s, decision) =>
+                  if (decision.cont && cont(s))
+                    loop(s, decision.state, a).delay(decision.delay)
+                  else IO.succeed(s)
+              }
 
           schedule.initial.flatMap { sched =>
             self.fold[R2, E1, A, S].flatMap { f =>
@@ -480,7 +483,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Takes the specified number of elements from this stream.
    */
   final def take(n: Int): ZStream[R, E, A] =
-    self.zipWithIndex.collectWhile { case (v, i) if i < n => v }
+    if (n <= 0) Stream.empty
+    else
+      new ZStream[R, E, A] {
+        override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+          IO.succeedLazy { (s, cont, f) =>
+            self.zipWithIndex.fold[R1, E1, (A, Int), (S, Boolean)].flatMap { f0 =>
+              f0(s -> true, tp => cont(tp._1) && tp._2, {
+                case ((s, _), (a, i)) =>
+                  f(s, a).map((_, i < n - 1))
+              }).map(_._1)
+            }
+          }
+      }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate
@@ -660,6 +675,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
       }
   }
+
+  /**
+   * @note when possible, prefer capacities that are powers of 2 for better performance.
+   * Allow a faster producer to progress independently of a slower consumer by buffering
+   *   up to `capacity` elements in a queue.
+   */
+  final def buffer(capacity: Int): ZStream[R, E, A] =
+    ZStream.managed(self.toQueue(capacity)) { queue =>
+      Take.option(queue.take)
+    }
 }
 
 trait Stream_Functions extends Serializable {

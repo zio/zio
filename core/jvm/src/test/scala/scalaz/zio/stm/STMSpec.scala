@@ -34,6 +34,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         Using `Ref` perform the same concurrent test should return a wrong result
              increment `TRef` 100 times in 100 fibers. $e17
              compute a `TRef` from 2 variables, increment the first `TRef` and decrement the second `TRef` in different fibers. $e18
+
         Using `STM.atomically` perform concurrent computations that
           have a simple condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied $e19
@@ -59,6 +60,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values $e33
           Using `foreach` perform an action in each value and return a single transaction that contains the result $e34
           Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed $e35
+          
 
         Failure must
           rollback full transaction     $e36
@@ -66,6 +68,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         orElse must
           rollback left retry           $e37
           rollback left failure         $e38
+          local reset, not global       $e39
     """
 
   def e1 =
@@ -189,28 +192,26 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
   def e15 =
     unsafeRun(
-      unsafeRun(
-        for {
-          tVar  <- TRef.makeCommit(0)
-          fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
-          _     <- fiber.join
-        } yield tVar.get
-      ).commit
+      for {
+        tVar  <- TRef.makeCommit(0)
+        fiber <- ZIO.forkAll(List.fill(10)(incrementVarN(99, tVar)))
+        _     <- fiber.join
+        value <- tVar.get.commit
+      } yield value
     ) must_=== 1000
 
   def e16 =
     unsafeRun(
-      unsafeRun(
-        for {
-          tVars <- STM
-                    .atomically(
-                      TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
-                    )
-          tvar1 <*> tvar2 <*> tvar3 = tVars
-          fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
-          _                         <- fiber.join
-        } yield tvar3.get
-      ).commit
+      for {
+        tVars <- STM
+                  .atomically(
+                    TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
+                  )
+        tvar1 <*> tvar2 <*> tvar3 = tVars
+        fiber                     <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
+        _                         <- fiber.join
+        value                     <- tvar3.get.commit
+      } yield value
     ) must_=== 10000
 
   def e17 =
@@ -240,15 +241,12 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       for {
         tvar1 <- TRef.makeCommit(10)
         tvar2 <- TRef.makeCommit("Failed!")
-        fiber <- (
-                  for {
-                    v1 <- tvar1.get
-                    _  <- STM.check(v1 > 0)
-                    _  <- tvar2.set("Succeeded!")
-                    v2 <- tvar2.get
-                  } yield v2
-                ).commit.fork
-        join <- fiber.join
+        join <- (for {
+                 v1 <- tvar1.get
+                 _  <- STM.check(v1 > 0)
+                 _  <- tvar2.set("Succeeded!")
+                 v2 <- tvar2.get
+               } yield v2).commit
       } yield join must_=== "Succeeded!"
     }
 
@@ -256,10 +254,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun {
       for {
         tvar <- TRef.makeCommit(42)
-        fiber <- STM.atomically {
-                  tvar.get.filter(_ == 42)
-                }.fork
-        join <- fiber.join
+        join <- tvar.get.filter(_ == 42).commit
         _    <- tvar.set(9).commit
         v    <- tvar.get.commit
       } yield (v must_=== 9) and (join must_=== 42)
@@ -473,10 +468,9 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         leftV1  <- STM.succeed(1).orElseEither(STM.succeed("No me!")).commit
         leftV2  <- STM.succeed(2).orElseEither(STM.fail("No!")).commit
         failedV <- STM.fail(-1).orElseEither(STM.fail(-2)).commit.either
-      } yield
-        (rightV must beRight(42)) and (leftV1 must beLeft(1)) and (leftV2 must beLeft(2)) and (failedV must beLeft(
-          -2
-        ))
+      } yield (rightV must beRight(42)) and (leftV1 must beLeft(1)) and (leftV2 must beLeft(2)) and (failedV must beLeft(
+        -2
+      ))
     )
 
   def e36 =
@@ -488,19 +482,15 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
               _ <- STM.fail("Error!")
             } yield ()).commit.either
         v <- tvar.get.commit
-      } yield
-        (e must be left "Error!") and
-          (v must_=== 0)
+      } yield (e must be left "Error!") and
+        (v must_=== 0)
     )
 
   def e37 =
     unsafeRun(
       for {
-        tvar <- TRef.makeCommit(0)
-        left = for {
-          _ <- tvar.update(_ + 100)
-          _ <- STM.retry
-        } yield ()
+        tvar  <- TRef.makeCommit(0)
+        left  = tvar.update(_ + 100) *> STM.retry
         right = tvar.update(_ + 100).unit
         _     <- (left orElse right).commit
         v     <- tvar.get.commit
@@ -510,16 +500,24 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e38 =
     unsafeRun(
       for {
-        tvar <- TRef.makeCommit(0)
-        left = for {
-          _ <- tvar.update(_ + 100)
-          _ <- STM.fail("Uh oh!")
-        } yield ()
+        tvar  <- TRef.makeCommit(0)
+        left  = tvar.update(_ + 100) *> STM.fail("Uh oh!")
         right = tvar.update(_ + 100).unit
         _     <- (left orElse right).commit
         v     <- tvar.get.commit
       } yield v must_=== 100
     )
+
+  def e39 =
+    unsafeRun(for {
+      ref <- TRef.make(0).commit
+      result <- STM.atomically(for {
+                 _       <- ref.set(2)
+                 newVal1 <- ref.get
+                 _       <- STM.partial(throw new RuntimeException).orElse(STM.unit)
+                 newVal2 <- ref.get
+               } yield (newVal1, newVal2))
+    } yield result must_=== (2 -> 2))
 
   private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
     (for {
@@ -559,88 +557,4 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       _ <- tvar2.set(a)
     } yield ()
 
-}
-
-object Examples {
-  object mutex {
-    type Mutex = TRef[Boolean]
-    val makeMutex = TRef.make(false).commit
-    def acquire(mutex: Mutex): UIO[Unit] =
-      (for {
-        value <- mutex.get
-        _     <- STM.check(!value)
-        _     <- mutex.set(true)
-      } yield ()).commit
-    def release(mutex: Mutex): UIO[Unit] =
-      mutex.set(false).commit.unit
-    def withMutex[R, E, A](mutex: Mutex)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      acquire(mutex).bracket_[R, E].apply[R](release(mutex))[R, E, A](zio)
-  }
-  object semaphore {
-    type Semaphore = TRef[Int]
-    def makeSemaphore(n: Int): UIO[Semaphore] = TRef.makeCommit(n)
-    def acquire(semaphore: Semaphore, n: Int): UIO[Unit] =
-      (for {
-        value <- semaphore.get
-        _     <- STM.check(value >= n)
-        _     <- semaphore.set(value - n)
-      } yield ()).commit
-    def release(semaphore: Semaphore, n: Int): UIO[Unit] =
-      semaphore.update(_ + n).commit.unit
-  }
-  object promise {
-    type Promise[A] = TRef[Option[A]]
-    def makePromise[A]: UIO[Promise[A]] = TRef.makeCommit(None)
-    def complete[A](promise: Promise[A], v: A): UIO[Boolean] =
-      (for {
-        value <- promise.get
-        change <- value match {
-                   case Some(_) => STM.succeed(false)
-                   case None =>
-                     promise.set(Some(v)) *>
-                       STM.succeed(true)
-                 }
-      } yield change).commit
-    def await[A](promise: Promise[A]): UIO[A] =
-      promise.get.collect {
-        case Some(a) => a
-      }.commit
-  }
-  object queue {
-    import scala.collection.immutable.{ Queue => ScalaQueue }
-
-    case class Queue[A](capacity: Int, tvar: TRef[ScalaQueue[A]])
-    def makeQueue[A](capacity: Int): UIO[Queue[A]] =
-      TRef.makeCommit(ScalaQueue.empty[A]).map(Queue(capacity, _))
-    def offer[A](queue: Queue[A], a: A): UIO[Unit] =
-      (for {
-        q <- queue.tvar.get
-        _ <- STM.check(q.length < queue.capacity)
-        _ <- queue.tvar.update(_ enqueue a)
-      } yield ()).commit
-    def take[A](queue: Queue[A]): UIO[A] =
-      (for {
-        q <- queue.tvar.get
-        a <- q.dequeueOption match {
-              case Some((a, as)) =>
-                queue.tvar.set(as) *> STM.succeed(a)
-              case _ => STM.retry
-            }
-      } yield a).commit
-  }
-  object fun {
-    case class Phone(value: String)
-    case class Developer(name: String, phone: Phone)
-    def page(phone: Phone, message: String): UIO[Unit] = ???
-    def pager(sysErrors: TRef[Int], onDuty: TRef[Set[Developer]]): UIO[Unit] =
-      (for {
-        errors <- sysErrors.get
-        _      <- STM.check(errors > 100)
-        devs   <- onDuty.get
-        any <- devs.headOption match {
-                case Some(dev) => STM.succeed(dev)
-                case _         => STM.retry
-              }
-      } yield any).commit.flatMap(dev => page(dev.phone, "Wake up, too many bugs!"))
-  }
 }

@@ -42,6 +42,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `supervise` returns same value as IO.supervise. $testSupervise
    Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
+   Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
+   Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
@@ -151,10 +153,9 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         failure   = new Exception("expected")
         _         <- IO.fail(failure).when(false)
         failed    <- IO.fail(failure).when(true).either
-      } yield
-        (val1 must_=== 0) and
-          (val2 must_=== 2) and
-          (failed must beLeft(failure))
+      } yield (val1 must_=== 0) and
+        (val2 must_=== 2) and
+        (failed must beLeft(failure))
     )
 
   def testWhenM =
@@ -173,12 +174,11 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         failure        = new Exception("expected")
         _              <- IO.fail(failure).whenM(conditionFalse)
         failed         <- IO.fail(failure).whenM(conditionTrue).either
-      } yield
-        (val1 must_=== 0) and
-          (conditionVal1 must_=== 1) and
-          (val2 must_=== 2) and
-          (conditionVal2 must_=== 2) and
-          (failed must beLeft(failure))
+      } yield (val1 must_=== 0) and
+        (conditionVal1 must_=== 1) and
+        (val2 must_=== 2) and
+        (conditionVal2 must_=== 2) and
+        (failed must beLeft(failure))
     )
 
   def testUnsandbox = {
@@ -213,6 +213,23 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     } yield abs1 must ===(abs2))
   }
 
+  def testNonMemoizationRT = forAll(Gen.alphaStr) { str =>
+    val io: UIO[Option[String]] = IO.succeedLazy(Some(str)) // using `Some` for object allocation
+    unsafeRun(
+      (io <*> io)
+        .map(tuple => tuple._1 must not beTheSameAs (tuple._2))
+    )
+  }
+
+  def testMemoization = forAll(Gen.alphaStr) { str =>
+    val ioMemo: UIO[UIO[Option[String]]] = IO.succeedLazy(Some(str)).memoize // using `Some` for object allocation
+    unsafeRun(
+      ioMemo
+        .flatMap(io => io <*> io)
+        .map(tuple => tuple._1 must beTheSameAs(tuple._2))
+    )
+  }
+
   def testRaceAll = {
     val io  = IO.effectTotal("supercalifragilisticexpialadocious")
     val ios = List.empty[UIO[String]]
@@ -241,11 +258,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         both  <- (ZIO.halt(Cause.Both(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
         thn   <- (ZIO.halt(Cause.Then(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
         fail  <- (ZIO.fail(ex) <> IO.unit).run
-      } yield
-        (plain must_=== Exit.die(ex))
-          .and(both must_=== Exit.die(ex))
-          .and(thn must_=== Exit.die(ex))
-          .and(fail must_=== Exit.succeed(()))
+      } yield (plain must_=== Exit.die(ex))
+        .and(both must_=== Exit.die(ex))
+        .and(thn must_=== Exit.die(ex))
+        .and(fail must_=== Exit.succeed(()))
     }
   }
 

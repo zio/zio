@@ -15,7 +15,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   import ArbitraryChunk._
 
-  def is = "StreamSpec".title ^ s2"""
+  def is =
+    "StreamSpec".title ^
+      s2"""
   Stream.filter             $filter
   Stream.dropWhile          $dropWhile
   Stream.map                $map
@@ -26,10 +28,19 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
   Stream.range              $range
+  Stream.repeat             
+    repeat                  $repeat
+    short circuits          $repeatShortCircuits
+  
+  Stream.spaced
+    spaced                  $spaced
+    short circuits          $spacedShortCircuits
 
   Stream.take
     take                     $take
     take short circuits      $takeShortCircuits
+    take(0) short circuits   $take0ShortCircuitsStreamNever
+    take(1) short circuits   $take1ShortCircuitsStreamNever
     takeWhile                $takeWhile
     takeWhile short circuits $takeWhileShortCircuits
 
@@ -84,6 +95,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream combinators
     unTake happy path       $unTake
     unTake with error       $unTakeError
+    buffer the Stream                      $bufferStream
+    buffer the Stream with Error           $bufferStreamError
+    fast producer progress independently   $fastProducerSlowConsumer
   """
 
   import ArbitraryStream._
@@ -202,6 +216,20 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       } yield result must_=== false
     )
 
+  private def take0ShortCircuitsStreamNever =
+    unsafeRun(
+      for {
+        units <- Stream.never.take(0).run(Sink.collect[Unit])
+      } yield units must_=== List()
+    )
+
+  private def take1ShortCircuitsStreamNever =
+    unsafeRun(
+      for {
+        ints <- (Stream(1) ++ Stream.never).take(1).run(Sink.collect[Int])
+      } yield ints must_=== List(1)
+    )
+
   private def foreach0 = {
     var sum = 0
     val s   = Stream(1, 1, 1, 1, 1, 1)
@@ -271,7 +299,8 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val s = Stream(1).forever.foreachWhile[Any, Nothing](
       a =>
         IO.effectTotal {
-          sum += a; if (sum >= 9) false else true
+          sum += a;
+          if (sum >= 9) false else true
         }
     )
 
@@ -529,4 +558,81 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         }
     ) must_== Failure(Cause.Fail(e))
   }
+
+  private def bufferStream = prop { list: List[Int] =>
+    unsafeRunSync(
+      Stream
+        .fromIterable(list)
+        .buffer(2)
+        .run(Sink.collect[Int])
+    ) must_== (Success(list))
+  }
+
+  private def bufferStreamError = {
+    val e = new RuntimeException("boom")
+    unsafeRunSync(
+      (Stream.range(0, 10) ++ Stream.fail(e))
+        .buffer(2)
+        .run(Sink.collect[Int])
+    ) must_== Failure(Cause.Fail(e))
+  }
+
+  private def fastProducerSlowConsumer =
+    unsafeRun(
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        ref     <- Ref.make(List[Int]())
+        _ <- Stream
+              .range(1, 4)
+              .mapM(i => ref.update(i :: _) <* promise.succeed(()))
+              .buffer(2)
+              .mapM(_ => IO.never)
+              .run(Sink.drain)
+              .fork
+        _    <- promise.await
+        list <- ref.get
+      } yield {
+        list.reverse must_=== (1 to 4).toList
+      }
+    )
+
+  import scalaz.zio.duration._
+
+  private def repeat =
+    unsafeRun(
+      Stream(1)
+        .repeat(Schedule.recurs(4))
+        .run(Sink.collect[Int])
+        .map(_ must_=== List(1, 1, 1, 1, 1))
+    )
+
+  private def repeatShortCircuits =
+    unsafeRun(
+      for {
+        ref <- Ref.make[List[Int]](Nil)
+        _ <- Stream
+              .fromEffect(ref.update(1 :: _))
+              .repeat(Schedule.spaced(10.millis))
+              .take(2)
+              .run(Sink.drain)
+        result <- ref.get
+      } yield result must_=== List(1, 1)
+    )
+
+  private def spaced =
+    unsafeRun(
+      Stream(1, 2, 3)
+        .spaced(Schedule.recurs(1))
+        .run(Sink.collect[Int])
+        .map(_ must_=== List(1, 1, 2, 2, 3, 3))
+    )
+
+  private def spacedShortCircuits =
+    unsafeRun(
+      Stream(1, 2, 3)
+        .spaced(Schedule.recurs(1))
+        .take(3)
+        .run(Sink.collect[Int])
+        .map(_ must_=== List(1, 1, 2))
+    )
 }

@@ -25,9 +25,8 @@ import scalaz.zio.stm.STM.internal._
  * A variable that can be modified as part of a transactional effect.
  */
 class TRef[A] private (
-  private[stm] val id: Long,
   @volatile private[stm] var versioned: Versioned[A],
-  private[stm] val todo: AtomicReference[Map[Long, Todo]]
+  private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
 ) {
   self =>
 
@@ -48,13 +47,13 @@ class TRef[A] private (
     new STM(journal => {
       val entry = getOrMakeEntry(journal)
 
-      entry unsafeSet newValue
+      entry.unsafeSet(newValue)
 
       succeedUnit
     })
 
   override final def toString =
-    s"TRef(id = $id, versioned.value = ${versioned.value}, todo = ${todo.get})"
+    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
 
   /**
    * Updates the value of the variable.
@@ -65,7 +64,7 @@ class TRef[A] private (
 
       val newValue = f(entry.unsafeGet[A])
 
-      entry unsafeSet newValue
+      entry.unsafeSet(newValue)
 
       TRez.Succeed(newValue)
     })
@@ -86,7 +85,7 @@ class TRef[A] private (
 
       val (retValue, newValue) = f(entry.unsafeGet[A])
 
-      entry unsafeSet newValue
+      entry.unsafeSet(newValue)
 
       TRez.Succeed(retValue)
     })
@@ -96,16 +95,13 @@ class TRef[A] private (
    * value or the default.
    */
   final def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): STM[Nothing, B] =
-    modify { a =>
-      f.lift(a).getOrElse((default, a))
-    }
+    modify(a => f.lift(a).getOrElse((default, a)))
 
   private final def getOrMakeEntry(journal: Journal): Entry =
-    if (journal containsKey id) journal.get(id)
+    if (journal.containsKey(self)) journal.get(self)
     else {
-      val expected = versioned
-      val entry    = Entry(self, expected.value, expected)
-      journal put (id, entry)
+      val entry = Entry(self, false)
+      journal.put(self, entry)
       entry
     }
 }
@@ -117,18 +113,16 @@ object TRef {
    */
   final def make[A](a: => A): STM[Nothing, TRef[A]] =
     new STM(journal => {
-      val id = makeTRefId()
-
       val value     = a
       val versioned = new Versioned(value)
 
-      val todo = new AtomicReference[Map[Long, Todo]](Map())
+      val todo = new AtomicReference[Map[TxnId, Todo]](Map())
 
-      val tvar = new TRef(id, versioned, todo)
+      val tref = new TRef(versioned, todo)
 
-      journal.put(id, Entry(tvar, value, versioned))
+      journal.put(tref, Entry(tref, true))
 
-      TRez.Succeed(tvar)
+      TRez.Succeed(tref)
     })
 
   /**

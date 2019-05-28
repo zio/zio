@@ -25,7 +25,7 @@ import scalaz.zio.clock.Clock
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS, TimeUnit }
 
-abstract class CatsPlatform extends CatsInstances {
+abstract class CatsPlatform extends CatsInstances with CatsZManagedInstances with CatsZManagedSyntax {
   val console = interop.console.cats
 
   trait CatsApp extends App {
@@ -50,6 +50,7 @@ abstract class CatsPlatform extends CatsInstances {
 }
 
 abstract class CatsInstances extends CatsInstances1 {
+
   implicit def zioContextShift[R, E]: ContextShift[ZIO[R, E, ?]] = new ContextShift[ZIO[R, E, ?]] {
     override def shift: ZIO[R, E, Unit] =
       ZIO.yieldNow

@@ -10,7 +10,7 @@ import BuildInfoKeys._
 
 object Scalaz {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.3.3"  % "provided")
+  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.3.4"  % "provided")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -105,8 +105,8 @@ object Scalaz {
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.spire-math"  %% "kind-projector"  % "0.9.10"),
-      compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.3.3")
+      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.1"),
+      compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.3.4")
     ),
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),

@@ -1,0 +1,75 @@
+{
+  "overview-sidebar": {
+    "Overview": [
+      "overview/overview_index",
+      "overview/overview_creating_effects",
+      "overview/overview_basic_operations",
+      "overview/overview_handling_errors",
+      "overview/overview_handling_resources",
+      "overview/overview_basic_concurrency",
+      "overview/overview_testing_effects",
+      "overview/overview_running_effects",
+      "overview/overview_background"
+    ]
+  },
+  "datatypes-sidebar": {
+    "Data Types": [
+      "datatypes/datatypes_index",
+      "datatypes/datatypes_fiber",
+      "datatypes/datatypes_fiberlocal",
+      "datatypes/datatypes_io",
+      "datatypes/datatypes_managed",
+      "datatypes/datatypes_promise",
+      "datatypes/datatypes_queue",
+      "datatypes/datatypes_ref",
+      "datatypes/datatypes_schedule",
+      "datatypes/datatypes_semaphore",
+      "datatypes/datatypes_sink",
+      "datatypes/datatypes_stream"
+    ]
+  },
+  "interop-sidebar": {
+    "Interop": [
+      "interop/interop_index",
+      "interop/interop_catseffect",
+      "interop/interop_future",
+      "interop/interop_java",
+      "interop/interop_javascript",
+      "interop/interop_monix",
+      "interop/interop_scalaz7x",
+      "interop/interop_scalaz_8",
+      "interop/interop_reactivestreams",
+      "interop/interop_twitter"
+    ]
+  },
+  "usecases-sidebar": {
+    "Use Cases": [
+      "usecases/usecases_index",
+      "usecases/usecases_asynchronous",
+      "usecases/usecases_concurrency",
+      "usecases/usecases_parallelism",
+      "usecases/usecases_queuing",
+      "usecases/usecases_scheduling",
+      "usecases/usecases_streaming"
+    ]
+  },
+  "advanced-sidebar": {
+    "Advanced": [
+      "advanced/advanced_index",
+      "advanced/advanced_error_model",
+      "advanced/advanced_performance",
+      "advanced/advanced_rts",
+      "advanced/advanced_system"
+    ]
+  },
+  "resources-sidebar": {
+    "Resources": [
+      "resources/resources"
+    ]
+  },
+  "ecosystem-sidebar": {
+    "Ecosystem": [
+      "ecosystem/ecosystem"
+    ]
+  }
+}

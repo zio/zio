@@ -22,8 +22,8 @@ import scalaz.zio.internal.{ Scheduler => IScheduler }
 
 import scala.scalajs.js
 
-trait SchedulerLive extends Scheduler {
-  private[this] val scheduler0 = new IScheduler {
+private[scheduler] object internal {
+  private[scheduler] val GlobalScheduler = new IScheduler {
     import IScheduler.CancelToken
 
     private[this] val ConstFalse = () => false
@@ -65,9 +65,11 @@ trait SchedulerLive extends Scheduler {
      */
     override def shutdown(): Unit = ()
   }
+}
 
+trait SchedulerLive extends Scheduler {
   val scheduler: Scheduler.Service[Any] = new Scheduler.Service[Any] {
-    val scheduler = ZIO.succeed(scheduler0)
+    val scheduler = ZIO.succeed(internal.GlobalScheduler)
   }
 }
 object SchedulerLive extends SchedulerLive
