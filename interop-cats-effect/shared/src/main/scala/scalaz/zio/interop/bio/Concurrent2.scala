@@ -18,9 +18,9 @@ package scalaz.zio
 package interop
 package bio
 
+import cats.Monad
 import cats.kernel.Semigroup
-import cats.syntax.flatMap.{ catsSyntaxFlatMapOps, catsSyntaxFlatten }
-import scalaz.zio.interop.bio.data.{ Deferred2, Ref2 }
+import scalaz.zio.interop.bio.data.{Deferred2, Ref2}
 
 import scala.concurrent.ExecutionContext
 
@@ -99,8 +99,12 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    */
   @inline def race[E, EE >: E: Semigroup, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
     implicit ev: ConcurrentData2[F]
-  ): F[EE, AA] =
-    monad.map(raceEither(fa1, fa2))(_.merge)
+  ): F[EE, AA] = {
+
+    implicit val _: Monad[F[EE, ?]] = self.monad
+
+    raceEither(fa1, fa2) map (_.merge)
+  }
 
   /**
    * Returns an effect that races `fa1` with `fa2` returning the result of
@@ -122,7 +126,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
     import cats.syntax.either._
 
-    implicit val _: Errorful2[F] = self
+    implicit val _: Concurrent2[F] = self
 
     def arbiter[E1 <: EE, E2 <: EE, A1, B1](
       winner: Option[Either[E1, A1]],
@@ -166,7 +170,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit CD: ConcurrentData2[F]
   ): F[E3, C] = {
 
-    implicit val ev: Errorful2[F] = self
+    implicit val ev: Concurrent2[F] = self
 
     def arbiter[EE0, EE1, AA, BB](
       f: (Option[Either[EE0, AA]], Fiber2[F, EE1, BB]) => F[E3, C],
@@ -230,7 +234,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     SG: Semigroup[EE]
   ): F[EE, C] = {
 
-    implicit val _: Errorful2[F] = self
+    implicit val _: Concurrent2[F] = self
 
     def coordinate[E1 <: EE, E2 <: EE, AA, BB](f: (AA, BB) => C)(
       winner: Option[Either[E1, AA]],
@@ -241,7 +245,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
           loser.cancel >>= {
             case Some(Right(_)) => raiseError(we)
             case Some(Left(le)) => raiseError(SG.combine(le, we))
-            case None           => monad[EE].unit *> interrupted
+            case None           => monad.unit *> interrupted
           }
 
         case Some(Right(wa)) =>
@@ -321,18 +325,18 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit CD: ConcurrentData2[F]
   ): F[E, B] = {
 
-    implicit val _: Errorful2[F] = self
+    implicit val _: Concurrent2[F] = self
 
     CD.ref(monad.unit) >>= { m =>
       guarantee(
         uninterruptible(
           acquire >>= { a =>
-            (use andThen start)(a) tap { useFiber =>
+            start(use(a)) tap { useFiber =>
               m set (useFiber.cancel >>= (release(a, _)))
             }
           }
         ) >>= (_.join),
-        monad.flatten(m.get)
+        m.get.flatten
       )
     }
   }
