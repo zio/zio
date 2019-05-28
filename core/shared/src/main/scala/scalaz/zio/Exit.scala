@@ -174,7 +174,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Effectfully folds over the value or cause.
    */
-  final def foldM[E1, B](failed: Cause[E] => IO[E1, B], completed: A => IO[E1, B]): IO[E1, B] =
+  final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B]): ZIO[R, E1, B] =
     self match {
       case Failure(cause) => failed(cause)
       case Success(v)     => completed(v)

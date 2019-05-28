@@ -193,8 +193,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testSupervise = {
     val io = IO.effectTotal("supercalifragilisticexpialadocious")
     unsafeRun(for {
-      supervise1 <- io.supervise
-      supervise2 <- IO.supervise(io)
+      supervise1 <- io.interruptChildren
+      supervise2 <- IO.interruptChildren(io)
     } yield supervise1 must ===(supervise2))
   }
 

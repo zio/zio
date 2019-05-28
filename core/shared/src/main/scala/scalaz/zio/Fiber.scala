@@ -201,7 +201,7 @@ trait Fiber[+E, +A] { self =>
       def success(value: A): UIO[p.type]             = UIO(p.success(value))
 
       UIO.effectTotal(p.future) <* self.await
-        .flatMap[Any, Nothing, p.type](_.foldM[Nothing, p.type](failure, success))
+        .flatMap[Any, Nothing, p.type](_.foldM[Any, Nothing, p.type](failure, success))
         .fork
 
     }.flatten
@@ -226,7 +226,8 @@ object Fiber {
   final case class Descriptor(
     id: FiberId,
     interrupted: Boolean,
-    interruptible: Boolean,
+    interruptStatus: InterruptStatus,
+    superviseStatus: SuperviseStatus,
     executor: Executor,
     children: UIO[IndexedSeq[Fiber[_, _]]]
   )
