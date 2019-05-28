@@ -295,7 +295,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
               _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
               step   <- loop(false, false, s, queue)
-            } yield step).supervise
+            } yield step).interruptChildren
           } else IO.succeed(s)
         }
     }
