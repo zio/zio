@@ -465,14 +465,15 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
                 )
             }, {
               case (_, leftFiber) =>
-                leftFiber.interrupt
+                val cleanup = leftFiber.await
                   .flatMap(
                     _.foldM(
                       _ => ZIO.unit,
                       _.release
                     )
                   )
-                  .const(None)
+                  .uninterruptible
+                cleanup.fork.const(None).uninterruptible
             }
           )
       }
@@ -481,6 +482,8 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
       timeoutReservation(reserve, d).map {
         case Some((spentTime, Reservation(acquire, release))) if spentTime < d =>
           Reservation(acquire.timeout(Duration.fromNanos(d.toNanos - spentTime.toNanos)), release)
+        case Some((_, Reservation(_, release))) =>
+          Reservation(ZIO.succeed(None), release)
         case _ => Reservation(ZIO.succeed(None), ZIO.unit)
       }
     }
