@@ -355,8 +355,9 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val io: ZIO[Any, Nothing, Unit] = for {
       _                <- ZIO.unit
       _                <- ZIO.unit
-      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.unit).fork).untraced
-      _                <- untraceableFiber.join
+      untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.checkTraced(ZIO.succeed)).fork).untraced
+      tracingStatus    <- untraceableFiber.join
+      _                <- ZIO.when(tracingStatus.isTraced) { ZIO.dieMessage("Expected disabled tracing") }
     } yield ()
 
     io causeMust { cause =>

@@ -363,15 +363,20 @@ private[zio] final class FiberContext[E, A](
 
                   curZio = zio.zio
 
-                case ZIO.Tags.TracingStatus =>
-                  val zio = curZio.asInstanceOf[ZIO.TracingStatus[Any, E, Any]]
-
-                  curZio = tracingRegion(zio.flag).bracket_(endTracingRegion, zio.zio)
-
                 case ZIO.Tags.CheckInterrupt =>
                   val zio = curZio.asInstanceOf[ZIO.CheckInterrupt[Any, E, Any]]
 
                   curZio = zio.k(InterruptStatus.fromBoolean(interruptible))
+
+                case ZIO.Tags.TracingStatus =>
+                  val zio = curZio.asInstanceOf[ZIO.TracingStatus[Any, E, Any]]
+
+                  curZio = tracingRegion(zio.flag.toBoolean).bracket_(endTracingRegion, zio.zio)
+
+                case ZIO.Tags.CheckTracing =>
+                  val zio = curZio.asInstanceOf[ZIO.CheckTracing[Any, E, Any]]
+
+                  curZio = zio.k(TracingStatus.fromBoolean(inTracingRegion))
 
                 case ZIO.Tags.EffectPartial =>
                   val zio    = curZio.asInstanceOf[ZIO.EffectPartial[Any]]

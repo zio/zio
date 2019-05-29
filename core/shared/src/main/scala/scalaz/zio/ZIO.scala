@@ -1124,7 +1124,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * hash map lookup per flatMap). As such, using `untraced` sections
    * is not guaranteed to result in a noticeable performance increase.
    */
-  final def untraced: ZIO[R, E, A] = tracingStatus(false)
+  final def untraced: ZIO[R, E, A] = tracingStatus(TracingStatus.Untraced)
 
   /**
    * Enables ZIO tracing for this effect. Because this is the default, this
@@ -1132,7 +1132,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * an `untraced` section, or the current fiber has been spawned by a parent
    * inside an `untraced` section.
    */
-  final def traced: ZIO[R, E, A] = tracingStatus(true)
+  final def traced: ZIO[R, E, A] = tracingStatus(TracingStatus.Traced)
 
   /**
    * Toggles ZIO tracing support for this effect. If `true` is used, then the
@@ -1140,7 +1140,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * is disabled. These changes are compositional, so they only affect regions
    * of the effect.
    */
-  final def tracingStatus(flag: Boolean): ZIO[R, E, A] = new ZIO.TracingStatus(self, flag)
+  final def tracingStatus(flag: TracingStatus): ZIO[R, E, A] = new ZIO.TracingStatus(self, flag)
 
   /**
    * An integer that identifies the term in the `ZIO` sum type to which this
@@ -1808,6 +1808,13 @@ private[zio] trait ZIOFunctions extends Serializable {
     new ZIO.CheckInterrupt(f)
 
   /**
+   * Checks the ZIO Tracing status, and produces the effect returned by the
+   * specified callback.
+   */
+  final def checkTraced[R >: LowerR, E <: UpperE, A](f: TracingStatus => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.CheckTracing(f)
+
+  /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
    * so, performs self-interruption.
    */
@@ -1861,7 +1868,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Capture ZIO trace at the current point
    * */
-  final def trace: UIO[ZTrace] = new ZIO.Trace
+  final def trace: UIO[ZTrace] = ZIO.Trace
 
   /**
    * Provides access to the list of child fibers supervised by this fiber.
@@ -1987,12 +1994,12 @@ object ZIO extends ZIO_R_Any {
       new ZIO.BracketExitAcquire(self)
   }
 
-  class InterruptStatusRestore(private val flag: scalaz.zio.InterruptStatus) extends AnyVal {
+  final class InterruptStatusRestore(private val flag: scalaz.zio.InterruptStatus) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.interruptStatus(flag)
   }
 
-  class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
+  final class TimeoutTo[R, E, A, B](self: ZIO[R, E, A], b: B) {
     def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
       self
         .map(f)
@@ -2005,7 +2012,7 @@ object ZIO extends ZIO_R_Any {
     def apply[R1 <: R](release: ZIO[R1, Nothing, _]): BracketRelease_[R1, E] =
       new BracketRelease_(acquire, release)
   }
-  class BracketRelease_[R, E](acquire: ZIO[R, E, _], release: ZIO[R, Nothing, _]) {
+  final class BracketRelease_[R, E](acquire: ZIO[R, E, _], release: ZIO[R, Nothing, _]) {
     def apply[R1 <: R, E1 >: E, B](use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
   }
@@ -2136,6 +2143,7 @@ object ZIO extends ZIO_R_Any {
     final val FiberRefModify  = 18
     final val Trace           = 19
     final val TracingStatus   = 20
+    final val CheckTracing    = 21
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -2234,11 +2242,16 @@ object ZIO extends ZIO_R_Any {
   private[zio] final class FiberRefModify[A, B](val fiberRef: FiberRef[A], val f: A => (B, A)) extends UIO[B] {
     override def tag = Tags.FiberRefModify
   }
-  private[zio] final class Trace[R] extends ZIO[R, Nothing, ZTrace] {
+
+  private[zio] object Trace extends UIO[ZTrace] {
     override def tag = Tags.Trace
   }
 
-  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: Boolean) extends ZIO[R, E, A] {
+  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: scalaz.zio.TracingStatus) extends ZIO[R, E, A] {
     override def tag = Tags.TracingStatus
+  }
+
+  private[zio] final class CheckTracing[R, E, A](val k: scalaz.zio.TracingStatus => ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.CheckTracing
   }
 }
