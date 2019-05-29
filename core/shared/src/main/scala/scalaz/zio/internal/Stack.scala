@@ -19,7 +19,7 @@ package scalaz.zio.internal
 /**
  * A very fast, growable/shrinkable, mutable stack.
  */
-final class Stack[A <: AnyRef]() {
+private[zio] final class Stack[A <: AnyRef]() {
   private[this] var array   = new Array[AnyRef](13)
   private[this] var size    = 0
   private[this] var nesting = 0
@@ -59,5 +59,27 @@ final class Stack[A <: AnyRef]() {
       size = idx
     }
     a.asInstanceOf[A]
+  }
+
+  /**
+   * Peeks the item on the head of the stack, or returns `null` if empty.
+   */
+  final def peek(): A = {
+    val idx = size - 1
+    var a   = array(idx)
+    if (idx == 0 && nesting > 0) a = (a.asInstanceOf[Array[AnyRef]])(12)
+    a.asInstanceOf[A]
+  }
+
+  final def peekOrElse(a: A): A = if (size <= 0) a else peek()
+}
+
+private[zio] object Stack {
+  def apply[A <: AnyRef](as: A*): Stack[A] = {
+    val stack = new Stack[A]
+
+    as.foreach(stack.push)
+
+    stack
   }
 }

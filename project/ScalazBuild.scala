@@ -5,29 +5,33 @@ import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport.CrossType
 
 import sbtbuildinfo._
+import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
 object Scalaz {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.3.1"  % "provided")
+  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.0"  % "provided")
 
   private val stdOptions = Seq(
     "-deprecation",
     "-encoding",
     "UTF-8",
-    "-explaintypes",
-    "-Yrangepos",
     "-feature",
-    "-Xfuture",
+    "-unchecked"
+  )
+
+  private val std2xOptions = Seq(
+    "-Xfatal-warnings",
     "-language:higherKinds",
     "-language:existentials",
-    "-unchecked",
-    "-Xlint:_,-type-parameter-shadow",
+    "-explaintypes",
+    "-Yrangepos",
+    "-Xfuture",
     "-Xsource:2.13",
+    "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
-    "-Ywarn-value-discard",
-    "-Xfatal-warnings"
+    "-Ywarn-value-discard"
   )
 
   val buildInfoSettings = Seq(
@@ -55,7 +59,6 @@ object Scalaz {
                                                |import scalaz._
                                                |import scalaz.zio._
                                                |import scalaz.zio.console._
-                                               |import scalaz.zio.stream._
                                                |object replRTS extends DefaultRuntime {}
                                                |import replRTS._
                                                |implicit class RunSyntax[E, A](io: IO[E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
@@ -65,7 +68,7 @@ object Scalaz {
   def extraOptions(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, 13)) =>
-        Seq()
+        std2xOptions
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -80,7 +83,7 @@ object Scalaz {
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit"
-        )
+        ) ++ std2xOptions
       case Some((2, 11)) =>
         Seq(
           "-Ypartial-unification",
@@ -91,7 +94,7 @@ object Scalaz {
           "-Ywarn-nullary-unit",
           "-Xexperimental",
           "-Ywarn-unused-import"
-        )
+        ) ++ std2xOptions
       case _ => Seq.empty
     }
 
@@ -102,8 +105,8 @@ object Scalaz {
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.spire-math"  %% "kind-projector"  % "0.9.9"),
-      compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.3.1")
+      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.1"),
+      compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.0")
     ),
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
@@ -115,8 +118,25 @@ object Scalaz {
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11"))
         case Some((2, x)) if x >= 12 =>
           CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
-        case _ => Nil
+        case _ =>
+          if (isDotty.value)
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")) ++
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+          else
+            Nil
       }
+    },
+    Test / scalacOptions ++= {
+      if (isDotty.value)
+        Seq("-language:implicitConversions")
+      else
+        Nil
+    },
+    Test / unmanagedSourceDirectories ++= {
+      if (isDotty.value)
+        CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+      else
+        Nil
     }
   )
 

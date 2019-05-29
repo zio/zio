@@ -19,18 +19,39 @@ package interop
 
 import cats.effect.{ Concurrent, ContextShift, ExitCase }
 import cats.{ effect, _ }
-import scalaz.zio.{ clock => zioClock, ZIO }
+import scalaz.zio.{ clock => zioClock }
 import scalaz.zio.clock.Clock
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS, TimeUnit }
 
-abstract class CatsPlatform extends CatsInstances {
+abstract class CatsPlatform extends CatsInstances with CatsZManagedInstances with CatsZManagedSyntax {
   val console = interop.console.cats
+
+  trait CatsApp extends App {
+    implicit val runtime: Runtime[Environment] = this
+  }
+
+  object implicits {
+    implicit def ioTimer[E]: effect.Timer[IO[E, ?]] =
+      new effect.Timer[IO[E, ?]] {
+        override def clock: effect.Clock[IO[E, ?]] = new effect.Clock[IO[E, ?]] {
+          override def monotonic(unit: TimeUnit): IO[E, Long] =
+            Clock.Live.clock.nanoTime.map(unit.convert(_, NANOSECONDS))
+
+          override def realTime(unit: TimeUnit): IO[E, Long] =
+            Clock.Live.clock.currentTime(unit)
+        }
+
+        override def sleep(duration: FiniteDuration): IO[E, Unit] =
+          Clock.Live.clock.sleep(scalaz.zio.duration.Duration.fromNanos(duration.toNanos))
+      }
+  }
 }
 
 abstract class CatsInstances extends CatsInstances1 {
-  implicit def ioContextShift[R, E]: ContextShift[ZIO[R, E, ?]] = new ContextShift[ZIO[R, E, ?]] {
+
+  implicit def zioContextShift[R, E]: ContextShift[ZIO[R, E, ?]] = new ContextShift[ZIO[R, E, ?]] {
     override def shift: ZIO[R, E, Unit] =
       ZIO.yieldNow
 
@@ -38,7 +59,7 @@ abstract class CatsInstances extends CatsInstances1 {
       fa.on(ec)
   }
 
-  implicit def ioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
+  implicit def zioTimer[R <: Clock, E]: effect.Timer[ZIO[R, E, ?]] = new effect.Timer[ZIO[R, E, ?]] {
     override def clock: cats.effect.Clock[ZIO[R, E, ?]] = new effect.Clock[ZIO[R, E, ?]] {
       override def monotonic(unit: TimeUnit): ZIO[R, E, Long] =
         zioClock.nanoTime.map(unit.convert(_, NANOSECONDS))
@@ -99,7 +120,7 @@ private class CatsConcurrentEffect[R](rts: Runtime[R])
           f.await
             .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
-            .const(f.interrupt.void)
+            .const(f.interrupt.unit)
         }
       }
     }
@@ -112,7 +133,7 @@ private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[TaskR[R, ?
 
   private[this] final def toFiber[A](f: Fiber[Throwable, A]): effect.Fiber[TaskR[R, ?], A] =
     new effect.Fiber[TaskR[R, ?], A] {
-      override final val cancel: TaskR[R, Unit] = f.interrupt.void
+      override final val cancel: TaskR[R, Unit] = f.interrupt.unit
 
       override final val join: TaskR[R, A] = f.join
     }
@@ -181,10 +202,8 @@ private class CatsEffect[R]
     TaskR.never
 
   override final def async[A](k: (Either[Throwable, A] => Unit) => Unit): TaskR[R, A] =
-    ZIO.accessM { r =>
-      TaskR.effectAsync { (kk: Task[A] => Unit) =>
-        k(e => kk(eitherToIO(e).provide(r)))
-      }
+    TaskR.effectAsync { (kk: TaskR[R, A] => Unit) =>
+      k(e => kk(eitherToIO(e)))
     }
 
   override final def asyncF[A](k: (Either[Throwable, A] => Unit) => TaskR[R, Unit]): TaskR[R, A] =
@@ -227,7 +246,7 @@ private class CatsMonad[R, E] extends Monad[ZIO[R, E, ?]] {
   override final def map[A, B](fa: ZIO[R, E, A])(f: A => B): ZIO[R, E, B]                = fa.map(f)
   override final def flatMap[A, B](fa: ZIO[R, E, A])(f: A => ZIO[R, E, B]): ZIO[R, E, B] = fa.flatMap(f)
   override final def tailRecM[A, B](a: A)(f: A => ZIO[R, E, Either[A, B]]): ZIO[R, E, B] =
-    f(a).flatMap {
+    ZIO.suspend(f(a)).flatMap {
       case Left(l)  => tailRecM(l)(f)
       case Right(r) => ZIO.succeed(r)
     }

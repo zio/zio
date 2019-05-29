@@ -18,9 +18,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
     s2"""
   fs2 parJoin must
     work if `F` is `cats.effect.IO`          ${simpleJoin(fIsCats)}
-    DOES NOT work currently on fs2-1.0.3 if `F` is `scalaz.zio.interop.Task` - ${expectTimeoutFailure(
-      simpleJoin(fIsZio)
-    )}
+    work if `F` is `scalaz.zio.interop.Task` ${simpleJoin(fIsZio)}
 
   fs2 resource handling must
     work when fiber is failed                $bracketFail
@@ -58,7 +56,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         released <- Promise.make[Nothing, Unit]
         fail     <- Promise.make[Nothing, Unit]
         _ <- Stream
-              .bracket(started.succeed(()).void)(_ => released.succeed(()).void)
+              .bracket(started.succeed(()).unit)(_ => released.succeed(()).unit)
               .evalMap[Task, Unit] { _ =>
                 fail.await *> IO.fail(new Exception())
               }
@@ -79,7 +77,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         released  <- Promise.make[Nothing, Unit]
         terminate <- Promise.make[Nothing, Unit]
         _ <- Stream
-              .bracket(started.succeed(()).void)(_ => released.succeed(()).void)
+              .bracket(started.succeed(()).unit)(_ => released.succeed(()).unit)
               .evalMap[Task, Unit] { _ =>
                 terminate.await *> IO.die(new Exception())
               }
@@ -99,7 +97,7 @@ class ZioWithFs2Spec(implicit ee: ExecutionEnv) extends Specification with Aroun
         started  <- Promise.make[Nothing, Unit]
         released <- Promise.make[Nothing, Unit]
         f <- Stream
-              .bracket(IO.unit)(_ => released.succeed(()).void)
+              .bracket(IO.unit)(_ => released.succeed(()).unit)
               .evalMap[Task, Unit](_ => started.succeed(()) *> IO.never)
               .compile
               .drain

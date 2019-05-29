@@ -1,10 +1,8 @@
-package scalaz.zio
-package internal
+package scalaz.zio.internal
 
 import java.util.concurrent.RejectedExecutionException
 
 import scala.concurrent.ExecutionContext
-
 import org.specs2.Specification
 
 final class TestExecutor(val submitResult: Boolean) extends Executor {

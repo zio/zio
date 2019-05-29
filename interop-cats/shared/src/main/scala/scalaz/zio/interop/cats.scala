@@ -16,4 +16,6 @@
 
 package scalaz.zio.interop
 
-object catz extends CatsPlatform
+object catz extends CatsPlatform {
+  object mtl extends CatsMtlPlatform
+}

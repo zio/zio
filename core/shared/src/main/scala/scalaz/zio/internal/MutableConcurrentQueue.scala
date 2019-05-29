@@ -41,7 +41,7 @@ object MutableConcurrentQueue {
  * @note this is declared as `abstract class` since `invokevirtual`
  * is slightly cheaper than `invokeinterface`.
  */
-abstract class MutableConcurrentQueue[A] {
+protected[zio] abstract class MutableConcurrentQueue[A] {
 
   /**
    * The '''maximum''' number of elements that a queue can hold.

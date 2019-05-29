@@ -19,10 +19,10 @@ package scalaz.zio.clock
 import java.util.concurrent.TimeUnit
 
 import scalaz.zio.duration.Duration
-import scalaz.zio.scheduler.{ Scheduler, SchedulerLive }
+import scalaz.zio.scheduler.SchedulerLive
 import scalaz.zio.{ IO, UIO, ZIO }
 
-trait Clock extends Scheduler with Serializable {
+trait Clock extends Serializable {
   val clock: Clock.Service[Any]
 }
 

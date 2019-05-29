@@ -16,7 +16,6 @@
 
 package scalaz.zio
 
-import scalaz.zio.internal.Platform
 import scalaz.zio.ZQueue.internal._
 import scalaz.zio.internal.MutableConcurrentQueue
 
@@ -339,13 +338,13 @@ object ZQueue {
       } else None
 
     @tailrec
-    private final def unsafeCompleteTakers(platform: Platform): Unit =
+    private final def unsafeCompleteTakers(): Unit =
       pollTakersThenQueue() match {
         case None =>
         case Some((p, a)) =>
-          unsafeCompletePromise(p, a, platform)
-          strategy.unsafeOnQueueEmptySpace(queue, platform)
-          unsafeCompleteTakers(platform)
+          unsafeCompletePromise(p, a)
+          strategy.unsafeOnQueueEmptySpace(queue)
+          unsafeCompleteTakers()
       }
 
     private final def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.effectTotal(unsafeRemove(takers, taker))
@@ -355,38 +354,39 @@ object ZQueue {
     final def offer(a: A): UIO[Boolean] = offerAll(List(a))
 
     final def offerAll(as: Iterable[A]): UIO[Boolean] =
-      for {
-        _ <- checkShutdownState
+      ZIO.suspend {
+        for {
+          _ <- checkShutdownState
 
-        remaining <- IO.effectTotalWith { platform =>
-                      val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
-                      val (forTakers, remaining) = as.splitAt(pTakers.size)
-                      (pTakers zip forTakers).foreach {
-                        case (taker, item) => unsafeCompletePromise(taker, item, platform)
+          remaining <- IO.effectTotal {
+                        val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
+                        val (forTakers, remaining) = as.splitAt(pTakers.size)
+                        (pTakers zip forTakers).foreach {
+                          case (taker, item) => unsafeCompletePromise(taker, item)
+                        }
+                        remaining
                       }
-                      remaining
-                    }
 
-        added <- if (remaining.nonEmpty) {
-                  // not enough takers, offer to the queue
-                  for {
-                    surplus <- IO.effectTotalWith { platform =>
-                                val as = unsafeOfferAll(queue, remaining.toList)
-                                unsafeCompleteTakers(platform)
-                                as
-                              }
-                    res <- if (surplus.isEmpty) IO.succeed(true)
-                          else
-                            strategy.handleSurplus(surplus, queue) <* IO.effectTotalWith(
-                              platform => unsafeCompleteTakers(platform)
-                            )
-                  } yield res
-                } else IO.succeed(true)
-      } yield added
+          added <- if (remaining.nonEmpty) {
+                    // not enough takers, offer to the queue
+                    for {
+                      surplus <- IO.effectTotal {
+                                  val as = unsafeOfferAll(queue, remaining.toList)
+                                  unsafeCompleteTakers()
+                                  as
+                                }
+                      res <- if (surplus.isEmpty) IO.succeed(true)
+                            else
+                              strategy.handleSurplus(surplus, queue) <*
+                                IO.effectTotal(unsafeCompleteTakers())
+                    } yield res
+                  } else IO.succeed(true)
+        } yield added
+      }
 
     final val awaitShutdown: UIO[Unit] = shutdownHook.await
 
-    final val size: UIO[Int] = checkShutdownState.map(_ => queue.size - takers.size + strategy.surplusSize)
+    final val size: UIO[Int] = checkShutdownState.map(_ => queue.size() - takers.size() + strategy.surplusSize)
 
     final val shutdown: UIO[Unit] =
       IO.whenM(shutdownHook.succeed(()))(
@@ -397,51 +397,57 @@ object ZQueue {
     final val isShutdown: UIO[Boolean] = shutdownHook.poll.map(_.isDefined)
 
     final val take: UIO[A] =
-      for {
-        _ <- checkShutdownState
+      ZIO.suspend {
+        for {
+          _ <- checkShutdownState
 
-        item <- IO.effectTotalWith { platform =>
-                 val item = queue.poll(null.asInstanceOf[A])
-                 if (item != null) strategy.unsafeOnQueueEmptySpace(queue, platform)
-                 item
-               }
+          item <- IO.effectTotal {
+                   val item = queue.poll(null.asInstanceOf[A])
+                   if (item != null) strategy.unsafeOnQueueEmptySpace(queue)
+                   item
+                 }
 
-        a <- if (item != null) IO.succeedLazy(item)
-            else
-              for {
-                p <- Promise.make[Nothing, A]
-                // add the promise to takers, then:
-                // - try take again in case a value was added since
-                // - wait for the promise to be completed
-                // - clean up resources in case of interruption
-                a <- (IO.effectTotalWith { platform =>
-                      takers.offer(p)
-                      unsafeCompleteTakers(platform)
-                    } *> p.await).onInterrupt(removeTaker(p))
-              } yield a
-      } yield a
+          a <- if (item != null) IO.succeed(item)
+              else
+                for {
+                  p <- Promise.make[Nothing, A]
+                  // add the promise to takers, then:
+                  // - try take again in case a value was added since
+                  // - wait for the promise to be completed
+                  // - clean up resources in case of interruption
+                  a <- (IO.effectTotal {
+                        takers.offer(p)
+                        unsafeCompleteTakers()
+                      } *> p.await).onInterrupt(removeTaker(p))
+                } yield a
+        } yield a
+      }
 
     final val takeAll: UIO[List[A]] =
-      for {
-        _ <- checkShutdownState
+      ZIO.suspend {
+        for {
+          _ <- checkShutdownState
 
-        as <- IO.effectTotalWith { platform =>
-               val as = unsafePollAll(queue)
-               strategy.unsafeOnQueueEmptySpace(queue, platform)
-               as
-             }
-      } yield as
+          as <- IO.effectTotal {
+                 val as = unsafePollAll(queue)
+                 strategy.unsafeOnQueueEmptySpace(queue)
+                 as
+               }
+        } yield as
+      }
 
     final def takeUpTo(max: Int): UIO[List[A]] =
-      for {
-        _ <- checkShutdownState
+      ZIO.suspend {
+        for {
+          _ <- checkShutdownState
 
-        as <- IO.effectTotalWith { platform =>
-               val as = unsafePollN(queue, max)
-               strategy.unsafeOnQueueEmptySpace(queue, platform)
-               as
-             }
-      } yield as
+          as <- IO.effectTotal {
+                 val as = unsafePollN(queue, max)
+                 strategy.unsafeOnQueueEmptySpace(queue)
+                 as
+               }
+        } yield as
+      }
   }
 
   private[zio] object internal {
@@ -495,13 +501,13 @@ object ZQueue {
       ()
     }
 
-    final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A, platform: Platform): Unit =
-      p.unsafeDone(IO.succeed(a), platform.executor)
+    final def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
+      p.unsafeDone(IO.succeed(a))
 
     sealed trait Strategy[A] {
       def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean]
 
-      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit
+      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit
 
       def surplusSize: Int
 
@@ -524,7 +530,7 @@ object ZQueue {
         IO.effectTotal(unsafeSlidingOffer(as)).map(_ => !loss)
       }
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit = ()
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
 
       final def surplusSize: Int = 0
 
@@ -535,7 +541,7 @@ object ZQueue {
       // do nothing, drop the surplus
       final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = IO.succeed(false)
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit = ()
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
 
       final def surplusSize: Int = 0
 
@@ -553,29 +559,30 @@ object ZQueue {
         ()
       }
 
-      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] = {
-        @tailrec
-        def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
-          as match {
-            case Nil =>
-            case head :: tail if tail.isEmpty =>
-              putters.offer((head, p, true))
-              ()
-            case head :: tail =>
-              putters.offer((head, p, false))
-              unsafeOffer(tail, p)
-          }
+      final def handleSurplus(as: List[A], queue: MutableConcurrentQueue[A]): UIO[Boolean] =
+        ZIO.suspend {
+          @tailrec
+          def unsafeOffer(as: List[A], p: Promise[Nothing, Boolean]): Unit =
+            as match {
+              case Nil =>
+              case head :: tail if tail.isEmpty =>
+                putters.offer((head, p, true))
+                ()
+              case head :: tail =>
+                putters.offer((head, p, false))
+                unsafeOffer(tail, p)
+            }
 
-        for {
-          p <- Promise.make[Nothing, Boolean]
-          _ <- (IO.effectTotalWith { platform =>
-                unsafeOffer(as, p)
-                unsafeOnQueueEmptySpace(queue, platform)
-              } *> p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
-        } yield true
-      }
+          for {
+            p <- Promise.make[Nothing, Boolean]
+            _ <- (IO.effectTotal {
+                  unsafeOffer(as, p)
+                  unsafeOnQueueEmptySpace(queue)
+                } *> p.await).onInterrupt(IO.effectTotal(unsafeRemove(p)))
+          } yield true
+        }
 
-      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A], platform: Platform): Unit = {
+      final def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
         @tailrec
         def unsafeMovePutters(): Unit =
           if (!queue.isFull()) {
@@ -583,7 +590,7 @@ object ZQueue {
               case null =>
               case putter @ (a, p, lastItem) =>
                 if (queue.offer(a)) {
-                  if (lastItem) unsafeCompletePromise(p, true, platform)
+                  if (lastItem) unsafeCompletePromise(p, true)
                   unsafeMovePutters()
                 } else {
                   unsafeOfferAll(putters, putter :: unsafePollAll(putters))

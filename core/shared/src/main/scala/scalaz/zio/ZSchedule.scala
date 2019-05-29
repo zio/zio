@@ -235,6 +235,17 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     self <* that
 
   /**
+   * Returns a new schedule that continues only as long as both schedules
+   * continue, using the maximum of the delays of the two schedules.
+   */
+  final def <*>[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self zip that
+
+  /**
+   * Named alias for `<*>`.
+   */
+  final def zip[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self && that
+
+  /**
    * Returns a new schedule that continues as long as either schedule continues,
    * using the minimum of the delays of the two schedules.
    */
@@ -292,7 +303,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   /**
    * Returns a new schedule that maps this schedule to a Unit output.
    */
-  final def void: ZSchedule[R, A, Unit] = const(())
+  @deprecated("use unit", "1.0.0")
+  final def void: ZSchedule[R, A, Unit] = unit
+
+  /**
+   * Returns a new schedule that maps this schedule to a Unit output.
+   */
+  final def unit: ZSchedule[R, A, Unit] = const(())
 
   /**
    * Returns a new schedule that effectfully reconsiders the decision made by
@@ -506,7 +523,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
 }
 
-trait Schedule_Functions extends Serializable {
+private[zio] trait Schedule_Functions extends Serializable {
 
   type ConformsR[A]
   implicit val ConformsAnyProof: ConformsR[Any]
@@ -558,14 +575,16 @@ trait Schedule_Functions extends Serializable {
   /**
    * A schedule that executes once.
    */
-  final val once: Schedule[Any, Unit] = recurs(1).void
+  final val once: Schedule[Any, Unit] = recurs(1).unit
 
   /**
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */
-  final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] =
-    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
+  final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] = {
+    val delayed = s.modifyDelay((b, d) => IO.succeed(b + d))
+    delayed.reconsider((_, step) => step.copy(finish = () => step.delay)) // TODO: Dotty doesn't infer this properly
+  }
 
   /**
    * A schedule that recurs forever, collecting all inputs into a list.
@@ -583,6 +602,19 @@ trait Schedule_Functions extends Serializable {
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
     identity[A].untilInput(f)
+
+  /**
+   * A schedule that recurs for until the input value becomes applicable to partial function
+   * and then map that value with given function.
+   * */
+  final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] = {
+    val idSchedule: Schedule[A, A] = identity[A] // TODO: Dotty doesn't infer this properly
+    idSchedule.reconsider { (a, decision) =>
+      pf.lift(a).fold(Decision.cont(decision.delay, decision.state, Option.empty[B])) { b =>
+        Decision.done(decision.delay, decision.state, Some(b))
+      }
+    }
+  }
 
   /**
    * A schedule that recurs forever, dumping input values to the specified
@@ -721,9 +753,7 @@ object ZSchedule extends Schedule_Functions {
     ZSchedule[Clock, Long, Any, Duration](
       clock.nanoTime,
       (_, start) =>
-        for {
-          duration <- clock.nanoTime.map(_ - start).map(Duration.fromNanos)
-        } yield Decision.cont(Duration.Zero, start, duration)
+        clock.nanoTime.map(currentTime => Decision.cont(Duration.Zero, start, Duration.fromNanos(currentTime - start)))
     )
   }
 

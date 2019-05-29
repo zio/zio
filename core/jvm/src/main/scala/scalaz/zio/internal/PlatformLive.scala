@@ -17,37 +17,47 @@
 package scalaz.zio.internal
 
 import java.util.concurrent.{ Executor => _, _ }
-import java.util.{ WeakHashMap, Map => JMap }
-import scala.concurrent.ExecutionContext
+import java.util.{ Collections, WeakHashMap, Map => JMap }
 
+import scala.concurrent.ExecutionContext
 import scalaz.zio.Exit.Cause
 
 object PlatformLive {
   lazy val Default = makeDefault()
   lazy val Global  = fromExecutionContext(ExecutionContext.global)
 
-  final def makeDefault(): Platform = fromExecutor(ExecutorUtil.makeDefault())
+  final def makeDefault(yieldOpCount: Int = 2048): Platform = fromExecutor(ExecutorUtil.makeDefault(yieldOpCount))
 
   final def fromExecutor(executor0: Executor) =
     new Platform {
       val executor = executor0
 
-      def nonFatal(t: Throwable): Boolean =
-        !t.isInstanceOf[VirtualMachineError]
+      def fatal(t: Throwable): Boolean =
+        t.isInstanceOf[VirtualMachineError]
+
+      def reportFatal(t: Throwable): Nothing = {
+        t.printStackTrace()
+        try {
+          System.exit(-1)
+          throw t
+        } catch { case _: Throwable => throw t }
+      }
 
       def reportFailure(cause: Cause[_]): Unit =
-        if (!cause.interrupted) println(cause.toString)
+        if (!cause.interrupted)
+          System.err.println(cause.prettyPrint)
 
       def newWeakHashMap[A, B](): JMap[A, B] =
-        new WeakHashMap[A, B]()
+        Collections.synchronizedMap(new WeakHashMap[A, B]())
+
     }
 
   final def fromExecutionContext(ec: ExecutionContext): Platform =
     fromExecutor(Executor.fromExecutionContext(1024)(ec))
 
   object ExecutorUtil {
-    final def makeDefault(): Executor =
-      fromThreadPoolExecutor(_ => 1024) {
+    final def makeDefault(yieldOpCount: Int): Executor =
+      fromThreadPoolExecutor(_ => yieldOpCount) {
         val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
         val maxPoolSize   = corePoolSize
         val keepAliveTime = 1000L

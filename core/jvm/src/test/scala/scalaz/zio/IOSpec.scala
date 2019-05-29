@@ -2,6 +2,7 @@ package scalaz.zio
 
 import org.scalacheck._
 import org.specs2.ScalaCheck
+import org.specs2.matcher.describe.Diffable
 import scalaz.zio.Exit.Cause
 
 import scala.collection.mutable
@@ -41,6 +42,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `supervise` returns same value as IO.supervise. $testSupervise
    Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
+   Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
+   Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
@@ -48,6 +51,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check uncurried `bracket`. $testUncurriedBracket
    Check uncurried `bracket_`. $testUncurriedBracket_
    Check uncurried `bracketExit`. $testUncurriedBracketExit
+   Check `foreach_` runs effects in order. $testForeach_Order
+   Check `foreach_` can be run twice. $testForeach_Twice
+   Check `foreachPar_` runs all effects. $testForeachPar_Full
+   Check `foreachParN_` runs all effects. $testForeachParN_Full
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -81,6 +88,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     res must be_===(List(1, 2, 3))
   }
 
+  implicit val d
+    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def t5 = forAll { (i: Int) =>
     val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).either)
     res must_=== Left(i.toString)
@@ -110,13 +119,14 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     res must be_===(List("1", "2", "3"))
   }
 
-  def t10 = forAll { (l: List[Int]) =>
+  def t10: Prop = forAll { (l: List[Int]) =>
     unsafeRun(IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))) must_=== unsafeRun(IO.succeed(l.sum))
   }
 
-  def t11 = forAll { (l: List[Int]) =>
-    l.size > 0 ==>
-      (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
+  val ig = Gen.chooseNum(Int.MinValue, Int.MaxValue)
+  val g  = Gen.nonEmptyListOf(ig) //    TODO: Dotty has ambiguous implicits
+  def t11: Prop = forAll(g) { (l: List[Int]) =>
+    (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
   }
 
   def testDone = {
@@ -143,10 +153,9 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         failure   = new Exception("expected")
         _         <- IO.fail(failure).when(false)
         failed    <- IO.fail(failure).when(true).either
-      } yield
-        (val1 must_=== 0) and
-          (val2 must_=== 2) and
-          (failed must beLeft(failure))
+      } yield (val1 must_=== 0) and
+        (val2 must_=== 2) and
+        (failed must beLeft(failure))
     )
 
   def testWhenM =
@@ -165,12 +174,11 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         failure        = new Exception("expected")
         _              <- IO.fail(failure).whenM(conditionFalse)
         failed         <- IO.fail(failure).whenM(conditionTrue).either
-      } yield
-        (val1 must_=== 0) and
-          (conditionVal1 must_=== 1) and
-          (val2 must_=== 2) and
-          (conditionVal2 must_=== 2) and
-          (failed must beLeft(failure))
+      } yield (val1 must_=== 0) and
+        (conditionVal1 must_=== 1) and
+        (val2 must_=== 2) and
+        (conditionVal2 must_=== 2) and
+        (failed must beLeft(failure))
     )
 
   def testUnsandbox = {
@@ -185,8 +193,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testSupervise = {
     val io = IO.effectTotal("supercalifragilisticexpialadocious")
     unsafeRun(for {
-      supervise1 <- io.supervise
-      supervise2 <- IO.supervise(io)
+      supervise1 <- io.interruptChildren
+      supervise2 <- IO.interruptChildren(io)
     } yield supervise1 must ===(supervise2))
   }
 
@@ -203,6 +211,23 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       abs1 <- ioEither.absolve
       abs2 <- IO.absolve(ioEither)
     } yield abs1 must ===(abs2))
+  }
+
+  def testNonMemoizationRT = forAll(Gen.alphaStr) { str =>
+    val io: UIO[Option[String]] = IO.succeedLazy(Some(str)) // using `Some` for object allocation
+    unsafeRun(
+      (io <*> io)
+        .map(tuple => tuple._1 must not beTheSameAs (tuple._2))
+    )
+  }
+
+  def testMemoization = forAll(Gen.alphaStr) { str =>
+    val ioMemo: UIO[UIO[Option[String]]] = IO.succeedLazy(Some(str)).memoize // using `Some` for object allocation
+    unsafeRun(
+      ioMemo
+        .flatMap(io => io <*> io)
+        .map(tuple => tuple._1 must beTheSameAs(tuple._2))
+    )
   }
 
   def testRaceAll = {
@@ -233,11 +258,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         both  <- (ZIO.halt(Cause.Both(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
         thn   <- (ZIO.halt(Cause.Then(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
         fail  <- (ZIO.fail(ex) <> IO.unit).run
-      } yield
-        (plain must_=== Exit.die(ex))
-          .and(both must_=== Exit.die(ex))
-          .and(thn must_=== Exit.die(ex))
-          .and(fail must_=== Exit.succeed(()))
+      } yield (plain must_=== Exit.die(ex))
+        .and(both must_=== Exit.die(ex))
+        .and(thn must_=== Exit.die(ex))
+        .and(fail must_=== Exit.succeed(()))
     }
   }
 
@@ -317,4 +341,55 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     }
   }
 
+  def testForeach_Order = {
+    val as = List(1, 2, 3, 4, 5)
+    val r = unsafeRun {
+      for {
+        ref <- Ref.make(List.empty[Int])
+        _   <- ZIO.foreach_(as)(a => ref.update(_ :+ a))
+        rs  <- ref.get
+      } yield rs
+    }
+    r must_== as
+  }
+
+  def testForeach_Twice = {
+    val as = List(1, 2, 3, 4, 5)
+    val r = unsafeRun {
+      for {
+        ref <- Ref.make(0)
+        zio = ZIO.foreach_(as)(a => ref.update(_ + a))
+        _   <- zio
+        _   <- zio
+        sum <- ref.get
+      } yield sum
+    }
+    r must_=== 30
+  }
+
+  def testForeachPar_Full = {
+    val as = Seq(1, 2, 3, 4, 5)
+    val r = unsafeRun {
+      for {
+        ref <- Ref.make(Seq.empty[Int])
+        _   <- ZIO.foreachPar_(as)(a => ref.update(_ :+ a))
+        rs  <- ref.get
+      } yield rs
+    }
+    r must have length as.length
+    r must containTheSameElementsAs(as)
+  }
+
+  def testForeachParN_Full = {
+    val as = Seq(1, 2, 3, 4, 5)
+    val r = unsafeRun {
+      for {
+        ref <- Ref.make(Seq.empty[Int])
+        _   <- ZIO.foreachParN_(2)(as)(a => ref.update(_ :+ a))
+        rs  <- ref.get
+      } yield rs
+    }
+    r must have length as.length
+    r must containTheSameElementsAs(as)
+  }
 }

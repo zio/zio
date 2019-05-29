@@ -37,13 +37,25 @@ trait Platform { self =>
     }
 
   /**
-   * Determines if a throwable is non-fatal or not.
+   * Determines if a throwable is fatal or not. It is important to identify
+   * these as it is not recommended to catch, and try to recover from, any
+   * fatal error.
    */
-  def nonFatal(t: Throwable): Boolean
+  def fatal(t: Throwable): Boolean
 
   def withNonFatal(f: Throwable => Boolean): Platform =
     new Platform.Proxy(self) {
-      override def nonFatal(t: Throwable): Boolean = f(t)
+      override def fatal(t: Throwable): Boolean = f(t)
+    }
+
+  /**
+   * Reports a fatal error.
+   */
+  def reportFatal(t: Throwable): Nothing
+
+  def withReportFatal(f: Throwable => Nothing): Platform =
+    new Platform.Proxy(self) {
+      override def reportFatal(t: Throwable): Nothing = f(t)
     }
 
   /**
@@ -57,7 +69,7 @@ trait Platform { self =>
     }
 
   /**
-   * Creates a new java.util.WeakHashMap if supported by the platform,
+   * Creates a new thread safe java.util.WeakHashMap if supported by the platform,
    * otherwise any implementation of Map.
    */
   def newWeakHashMap[A, B](): JMap[A, B]
@@ -65,7 +77,8 @@ trait Platform { self =>
 object Platform {
   class Proxy(self: Platform) extends Platform {
     def executor: Executor                   = self.executor
-    def nonFatal(t: Throwable): Boolean      = self.nonFatal(t)
+    def fatal(t: Throwable): Boolean         = self.fatal(t)
+    def reportFatal(t: Throwable): Nothing   = self.reportFatal(t)
     def reportFailure(cause: Cause[_]): Unit = self.reportFailure(cause)
     def newWeakHashMap[A, B](): JMap[A, B]   = self.newWeakHashMap[A, B]()
   }

@@ -15,12 +15,6 @@ before_install:
 - git fetch --tags
 - export PATH=${PATH}:./vendor/bundle
 
-install:
-- rvm use 2.4.4 --install --fuzzy
-- gem update --system
-- gem install sass
-- gem install jekyll -v 3.8.3
-
 stages:
 - name: test
 - name: microsite
@@ -35,18 +29,18 @@ jobs:
       stage: test
       name: "Lint"
       script: sbt ++$TRAVIS_SCALA_VERSION scalafmtCheck test:scalafmtCheck scalafmtSbtCheck unusedCompileDependenciesTest
-    - &test
+    - &package
       stage: test
-      name: "Test for Scala"
-      script: sbt ++$TRAVIS_SCALA_VERSION test package packageSrc publishLocal
+      name: "Package"
+      script: sbt ++$TRAVIS_SCALA_VERSION package packageSrc publishLocal
     - &scaladoc
       stage: microsite
       name: "Generate Scaladoc"
-      script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopFutureJS/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc interopJavaJVM/doc interopReactiveStreamsJVM/doc
+      script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc interopJavaJVM/doc interopReactiveStreamsJVM/doc interopTwitterJVM/doc
     - &microsite
       stage: microsite
       name: "Generate microsite"
-      script: sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
+      script: sbt ++$TRAVIS_SCALA_VERSION docs/docusaurusCreateSite
     - &release
       stage: release
       name: "Release artifacts"
@@ -67,19 +61,22 @@ jobs:
       - git config --global user.email "tim@nequissimus.com"
       - git config --global user.name "Tim Steinbach"
       - git config --global push.default simple
-      - sbt ++$TRAVIS_SCALA_VERSION microsite/publishMicrosite
+      - cd website && yarn install && yarn run publish-gh-pages
 
     # Cross-build
-    # - <<: *test
-    #  scala: 2.13.0-M5
-    #  name: "Test for 2.13"
+    - stage: test
+      scala: 0.13.0-RC1
+      name: "Test for dotty 0.13.0-RC1"
+      script: sbt ++$TRAVIS_SCALA_VERSION coreJVM/test:compile coreJVM/package coreJVM/packageSrc coreJVM/publishLocal
 
 cache:
+  yarn: true
   directories:
   - $HOME/.sbt/1.0/dependency
   - $HOME/.sbt/boot/scala*
   - $HOME/.sbt/launchers
   - $HOME/.rvm
+  - website/node_modules
 
 before_cache:
 - find $HOME/.sbt -name "*.lock" -type f -delete
