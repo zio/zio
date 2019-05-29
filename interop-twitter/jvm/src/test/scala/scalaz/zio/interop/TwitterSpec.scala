@@ -2,9 +2,8 @@ package scalaz.zio.interop
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.twitter.util.{ Future, JavaTimer, Duration => TwitterDuration }
+import com.twitter.util.{ Await, Future, Promise }
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.duration._
 import scalaz.zio.clock
 import scalaz.zio.interop.twitter._
 import scalaz.zio.{ Exit, Task, TestRuntime }
@@ -16,6 +15,11 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       return failing `Task` if future failed.          $propagateFailures
       return successful `Task` if future succeeded.    $propagateResults
       ensure future is interrupted together with task. $propagateInterrupts
+
+    `Runtime.unsafeRunToTwitterFuture` must
+      return successful `Future` if Task evaluation succeeded.    $evaluateToSuccessfulFuture
+      return failed `Future` if Task evaluation failed.           $evaluateToFailedFuture
+      ensure Task evaluation is interrupted together with Future. $evaluateToInterruptedFuture
     """
 
   private def propagateFailures = {
@@ -35,16 +39,45 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   private def propagateInterrupts = {
-    implicit val timer = new JavaTimer(true)
+    val value = new AtomicInteger(0)
 
-    val value       = new AtomicInteger(0)
-    val futureDelay = TwitterDuration.fromSeconds(1)
-    val future      = Task.succeed(Future.sleep(futureDelay).map(_ => value.incrementAndGet()))
+    val promise = new Promise[Unit] with Promise.InterruptHandler {
+      override protected def onInterrupt(t: Throwable): Unit = setException(t)
+    }
 
-    val taskTimeout = 100.millis
-    val task        = Task.fromTwitterFuture(future).timeout(taskTimeout)
+    val future = Task(promise.flatMap(_ => Future(value.incrementAndGet())))
 
-    unsafeRun(task <* clock.sleep(3.seconds)) must beNone
-    value.get() ==== 0
+    unsafeRun {
+      for {
+        fiber <- Task.fromTwitterFuture(future).fork
+        _     <- fiber.interrupt
+        _     <- Task.effect(promise.setDone())
+        a     <- fiber.await
+      } yield (a.toEither must beLeft) and (value.get ==== 0)
+    }
+  }
+
+  private def evaluateToSuccessfulFuture =
+    Await.result(this.unsafeRunToTwitterFuture(Task.succeed(2))) ==== 2
+
+  private def evaluateToFailedFuture = {
+    val e    = new Exception
+    val task = Task.fail(e).unit
+
+    Await.result(this.unsafeRunToTwitterFuture(task)) must throwAn(e)
+  }
+
+  private def evaluateToInterruptedFuture = {
+    val value = new AtomicInteger(0)
+
+    val task: ZIO[Any, Throwable, Future[Int]] = for {
+      promise <- scalaz.zio.Promise.make[Throwable, Int]
+      t       = promise.await.flatMap(_ => Task.effectTotal(value.incrementAndGet()))
+      future  = this.unsafeRunToTwitterFuture(t)
+      _       = future.raise(new Exception)
+      _       <- promise.succeed(1)
+    } yield future
+
+    (Await.result(unsafeRun(task)) must throwAn[InterruptedException]) and (value.get ==== 0)
   }
 }

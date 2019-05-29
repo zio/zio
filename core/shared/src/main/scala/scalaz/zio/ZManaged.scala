@@ -453,42 +453,37 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     ): ZIO[R with Clock, E, Option[(Duration, Reservation[R, E, A])]] =
       clock.nanoTime.flatMap { start =>
         zio
-          .raceWith(ZIO.unit.delay(d))(
+          .raceWith(ZIO.sleep(d))(
             {
               case (leftDone, rightFiber) =>
-                for {
-                  _   <- rightFiber.interrupt
-                  env <- ZIO.environment[Clock]
-                  result <- leftDone.foldM(
-                             ZIO.halt,
-                             succ =>
-                               clock.nanoTime.map(end => Some((Duration.fromNanos(end - start), succ))).provide(env)
-                           )
-
-                } yield result
+                rightFiber.interrupt.flatMap(
+                  _ =>
+                    leftDone.foldM(
+                      ZIO.halt,
+                      succ => clock.nanoTime.map(end => Some((Duration.fromNanos(end - start), succ)))
+                    )
+                )
             }, {
               case (_, leftFiber) =>
-                (for {
-                  env <- ZIO.environment[R]
-                  cleanup = leftFiber.await
-                    .flatMap(
-                      _.foldM[Nothing, Any](
-                        _ => ZIO.unit,
-                        _.release.provide(env)
-                      )
+                val cleanup = leftFiber.await
+                  .flatMap(
+                    _.foldM(
+                      _ => ZIO.unit,
+                      _.release
                     )
-                    .uninterruptible
-                  _ <- cleanup.fork
-                } yield None).uninterruptible
+                  )
+                  .uninterruptible
+                cleanup.fork.const(None).uninterruptible
             }
           )
-          .uninterruptible
       }
 
     ZManaged {
       timeoutReservation(reserve, d).map {
         case Some((spentTime, Reservation(acquire, release))) if spentTime < d =>
           Reservation(acquire.timeout(Duration.fromNanos(d.toNanos - spentTime.toNanos)), release)
+        case Some((_, Reservation(_, release))) =>
+          Reservation(ZIO.succeed(None), release)
         case _ => Reservation(ZIO.succeed(None), ZIO.unit)
       }
     }
@@ -519,6 +514,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    */
   final def use_[R1 <: R, E1 >: E, B](f: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     use(_ => f)
+
+  /**
+   * Use the resource until interruption.
+   * Useful for resources that you want to acquire and use as long as the application is running, like a HTTP server.
+   */
+  final val useForever: ZIO[R, E, Nothing] = use(_ => ZIO.never)
 
   /**
    * The moral equivalent of `if (p) exp`
