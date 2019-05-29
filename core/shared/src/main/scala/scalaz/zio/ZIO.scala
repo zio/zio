@@ -597,6 +597,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def interruptStatus(flag: InterruptStatus): ZIO[R, E, A] = new ZIO.InterruptStatus(self, flag)
 
   /**
+    * Ignores any failure and return `Unit`
+    */
+  final def ignore: ZIO[R, Nothing, Unit] = self.either.unit
+
+  /**
    * Recovers from all errors.
    *
    * {{{

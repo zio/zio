@@ -186,6 +186,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     foreachWhile(f.andThen(_.const(true)))
 
   /**
+   * Ignores a stream failure and return `Unit`
+   */
+  final def ignore: ZIO[R, Nothing, Unit] = self.run(Sink.drain).either.unit
+
+  /**
    * Repeats this stream forever.
    */
   def forever: ZStream[R, E, A] =
