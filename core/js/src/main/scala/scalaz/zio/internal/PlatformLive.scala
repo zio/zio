@@ -21,6 +21,7 @@ import java.util.{ HashMap, Map => JMap }
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.global
 import scalaz.zio.Exit.Cause
+import scalaz.zio.internal.stacktracer.Tracer
 import scalaz.zio.internal.tracing.TracingConfig
 
 object PlatformLive {
@@ -47,7 +48,7 @@ object PlatformLive {
       def newWeakHashMap[A, B](): JMap[A, B] =
         new HashMap[A, B]()
 
-      val tracing = Tracing(null, TracingConfig.disabled)
+      val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
     }
 
   final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
