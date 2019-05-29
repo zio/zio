@@ -34,12 +34,17 @@ Note that these articles reflect the state of ZIO at the time of their publicati
 ## Cheat Sheet
 
 - [ZIO Cheat Sheet](https://github.com/ghostdogpr/zio-cheatsheet)
+- [Helper functions to interop scala Future & scalaz Task](https://gist.github.com/ubourdon/7b7e929117343b2324cde6eab57674a6)
 
 ## Sample Projects
 
 - [ZIO Todo Backend](https://github.com/mschuwalow/zio-todo-backend) by [mschuwalow](https://github.com/mschuwalow)
 - [Event Driven Messenger](https://github.com/edvmorango/event-driven-messenger) by [edvmorango](https://github.com/edvmorango)
 - [Zorechka Bot](https://github.com/wix-incubator/zorechka-bot) by [wix-incubator](https://github.com/wix-incubator)
+
+## Projects using ZIO
+
+- [Rudder](https://github.com/normation/rudder): an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Also use queues, brackets, interrop with Java and historical code... [Context and references explained in that ticket](https://issues.rudder.io/issues/14870).
 
 ## Support
 

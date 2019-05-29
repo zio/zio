@@ -41,7 +41,6 @@ class HomeSplash extends React.Component {
     );
     const ProjectTitle = () => (
       <h2 className="projectTitle">
-        {siteConfig.title}
         <small>{siteConfig.tagline}</small>
       </h2>
     );
@@ -81,7 +80,6 @@ class Index extends React.Component {
 
     const Block = props => (
       <Container
-        padding={['bottom', 'top']}
         id={props.id}
         background={props.background}>
         <GridBlock
@@ -93,7 +91,7 @@ class Index extends React.Component {
     );
 
     const Features = () => (
-      <Block layout="threeColumn">
+      <Block layout="fourColumn">
         {[
           {
             content: 'Build scalable applications with 100x the performance of Scala’s Future',
