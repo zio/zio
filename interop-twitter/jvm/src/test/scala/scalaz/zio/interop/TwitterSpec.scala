@@ -4,9 +4,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.twitter.util.{ Await, Future, Promise }
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.clock
 import scalaz.zio.interop.twitter._
-import scalaz.zio.{ Exit, Task, TestRuntime }
+import scalaz.zio.{ Exit, Task, TestRuntime, ZIO }
 
 class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is =

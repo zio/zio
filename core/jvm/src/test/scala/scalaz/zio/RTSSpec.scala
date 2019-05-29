@@ -960,10 +960,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testExecutorIsHeritable = unsafeRun {
     for {
-      ref  <- Ref.make(Option.empty[internal.Executor])
-      exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
-      _    <- IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e))).fork.lock(exec)
-      v    <- ref.get
+      latch <- Promise.make[Nothing, Unit]
+      ref   <- Ref.make(Option.empty[internal.Executor])
+      exec  = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
+      _ <- IO.descriptor
+            .map(_.executor)
+            .flatMap(e => ref.set(Some(e)) *> latch.succeed(()))
+            .fork
+            .lock(exec) *> latch.await
+      v <- ref.get
     } yield v must_=== Some(exec)
   }
 

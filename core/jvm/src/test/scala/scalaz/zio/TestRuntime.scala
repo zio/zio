@@ -1,10 +1,5 @@
 package scalaz.zio
 
-<<<<<<< HEAD
-import org.specs2.Specification
-=======
-import scala.concurrent.duration._
->>>>>>> 7342338332638109a631ac331df7a8d539cc24e2
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.execute.{ AsResult, Failure, Result, Skipped }
 import org.specs2.matcher.Expectations
