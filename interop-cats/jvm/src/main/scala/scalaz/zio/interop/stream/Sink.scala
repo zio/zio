@@ -29,92 +29,176 @@ final class Sink[F[+ _], +A0, -A, +B] private[stream] (private[stream] val under
   import ZSink.Step
   import Stream.{ liftF, liftZIO }
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#initial]]
+   */
   def initial(implicit R: Runtime[Any], E: Effect[F]): F[Step[State, Nothing]] =
     liftF[F, Any, Step[State, Nothing]](underlying.initial)
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#step]]
+   */
   def step(state: State, a: A)(implicit R: Runtime[Any], E: Effect[F]): F[Step[State, A0]] =
     liftF(underlying.step(state, a))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#extract]]
+   */
   def extract(state: State)(implicit R: Runtime[Any], E: Effect[F]): F[B] =
     liftF(underlying.extract(state))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#stepChunk]]
+   */
   def stepChunk[A1 <: A](state: State, as: Chunk[A1])(implicit R: Runtime[Any], E: Effect[F]): F[Step[State, A0]] =
     liftF(underlying.stepChunk(state, as))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#update]]
+   */
   def update(state: Step[State, Nothing]): Sink[F, A0, A, B] =
     new Sink(underlying.update(state))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#chunked]]
+   */
   def chunked[A1 >: A0, A2 <: A]: Sink[F, A1, Chunk[A2], B] =
     new Sink(underlying.chunked)
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#mapM]]
+   */
   def mapM[C](f: B => F[C])(implicit E: Effect[F]): Sink[F, A0, A, C] =
     new Sink(underlying.mapM(f.andThen(liftZIO(_))))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#map]]
+   */
   def map[C](f: B => C): Sink[F, A0, A, C] =
     new Sink(underlying.map(f))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#filter]]
+   */
   def filter[A1 <: A](f: A1 => Boolean): Sink[F, A0, A1, B] =
     new Sink(underlying.filter(f))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#filterM]]
+   */
   def filterM[A1 <: A](f: A1 => F[Boolean])(implicit E: Effect[F]): Sink[F, A0, A1, B] =
     new Sink(underlying.filterM(f.andThen(liftZIO(_))))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#filterNot]]
+   */
   def filterNot[A1 <: A](f: A1 => Boolean): Sink[F, A0, A1, B] =
     new Sink(underlying.filterNot(f))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#filterNotM]]
+   */
   def filterNotM[A1 <: A](f: A1 => F[Boolean])(implicit E: Effect[F]): Sink[F, A0, A1, B] =
     new Sink(underlying.filterNotM(f.andThen(liftZIO(_))))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#contramap]]
+   */
   def contramap[C](f: C => A): Sink[F, A0, C, B] =
     new Sink(underlying.contramap(f))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#contramapM]]
+   */
   def contramapM[C](f: C => F[A])(implicit E: Effect[F]): Sink[F, A0, C, B] =
     new Sink(underlying.contramapM(f.andThen(liftZIO(_))))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#dimap]]
+   */
   def dimap[C, D](f: C => A)(g: B => D): Sink[F, A0, C, D] =
     new Sink(underlying.dimap(f)(g))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#mapError]]
+   */
   def mapError[E1 <: Throwable](f: Throwable => E1): Sink[F, A0, A, B] =
     new Sink(underlying.mapError(f))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#mapRemainder]]
+   */
   def mapRemainder[A1](f: A0 => A1): Sink[F, A1, A, B] =
     new Sink(underlying.mapRemainder(f))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#provideSome]]
+   */
   // TODO Not sure this is useful for cats interop, probably should be deleted
   def provideSome(f: Any => Any): Sink[F, A0, A, B] =
     new Sink(underlying.provideSome(f))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#const]]
+   */
   def const[C](c: => C): Sink[F, A0, A, C] =
     new Sink(underlying.const(c))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#unit]]
+   */
   def unit: Sink[F, A0, A, Unit] =
     new Sink(underlying.unit)
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#untilOutput]]
+   */
   def untilOutput(f: B => Boolean): Sink[F, A0, A, B] =
     new Sink(underlying.untilOutput(f))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#?]]
+   */
   def ? : Sink[F, A0, A, Option[B]] =
     new Sink(underlying.?)
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#optional]]
+   */
   def optional: Sink[F, A0, A, Option[B]] = ?
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#race]]
+   */
   def race[A2 >: A0, A1 <: A, B1 >: B](
     that: Sink[F, A2, A1, B1]
   ): Sink[F, A2, A1, B1] =
     new Sink(underlying.race(that.underlying))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#|]]
+   */
   def |[A2 >: A0, A1 <: A, B1 >: B](
     that: Sink[F, A2, A1, B1]
   ): Sink[F, A2, A1, B1] = race(that)
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#raceBoth]]
+   */
   def raceBoth[A2 >: A0, A1 <: A, C](
     that: Sink[F, A2, A1, C]
   ): Sink[F, A2, A1, Either[B, C]] =
     new Sink(underlying.raceBoth(that.underlying))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#takeWhile]]
+   */
   def takeWhile[A1 <: A](pred: A1 => Boolean): Sink[F, A0, A1, B] =
     new Sink(underlying.takeWhile(pred))
 
+  /**
+   * See [[scalaz.zio.stream.ZSink#dropWhile]]
+   */
   def dropWhile[A1 <: A](pred: A1 => Boolean): Sink[F, A0, A1, B] =
     new Sink(underlying.dropWhile(pred))
 

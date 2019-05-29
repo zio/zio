@@ -19,7 +19,6 @@ package scalaz.zio.interop.stream
 import cats.effect.{ Effect, Sync }
 import cats.implicits._
 import scalaz.zio.clock.Clock
-import scalaz.zio.stream.Stream.ConformsR
 import scalaz.zio._
 import scalaz.zio.stream.{ Take, ZStream }
 
@@ -175,9 +174,8 @@ final class Stream[F[+ _], +A] private[stream] (private[stream] val underlying: 
    *  - Managed
    * See [[scalaz.zio.stream.ZStream#peel]]
    */
-  def peel[A1 >: A, B](sink: Sink[F, A1, A1, B]): ZManaged[Any, Throwable, (B, Stream[F, A1])] =
-    ???
-  // underlying.peel(sink.underlying)
+  def peel[A1 >: A, B](sink: Sink[F, A1, A1, B]): ZManaged[Any, Throwable, (B, ZStream[Any, Throwable, A1])] =
+    underlying.peel(sink.underlying)
 
   /**
    * TODO
@@ -233,7 +231,8 @@ final class Stream[F[+ _], +A] private[stream] (private[stream] val underlying: 
    *  - ZManaged
    * See [[scalaz.zio.stream.ZStream#toQueue]]
    */
-  def toQueue[A1 >: A](capacity: Int = 1): ZManaged[Any, Nothing, Queue[Take[Throwable, A1]]] = ???
+  def toQueue[A1 >: A](capacity: Int = 1): ZManaged[Any, Nothing, Queue[Take[Throwable, A1]]] =
+    underlying.toQueue(capacity)
 
   /**
    * See [[scalaz.zio.stream.ZStream#transduce]]
@@ -306,16 +305,19 @@ object Stream {
       )
     )
 
-  final def managed[F[+ _], R: ConformsR, E, A, B](
-    m: ZManaged[R, E, A]
-  )(read: A => ZIO[R, E, Option[B]]): Stream[F, B] =
-    ???
+  final def managed[F[+ _], R, E, A, B](
+    m: ZManaged[Any, Throwable, A]
+  )(read: A => ZIO[Any, Throwable, Option[B]]): Stream[F, B] =
+    new Stream(ZStream.managed[Any, Throwable, A, B](m)(read))
 
-  final def fromQueue[F[+ _], A](queue: Queue[A]): Stream[F, A] =
-    new Stream(ZStream.fromQueue(queue))
+  // TODO Adding both of those leads to "have same type after erasure"
+  //  Should we add one of them, or both? Is it possible?
 
-  final def fromQueue[RB: ConformsR, EB, B](queue: ZQueue[_, _, RB, EB, _, B]): ZStream[RB, EB, B] =
-    ???
+  //final def fromQueue[F[+ _], A](queue: Queue[A]): Stream[F, A] =
+  //  new Stream(ZStream.fromQueue(queue))
+
+  //final def fromQueue[F[+ _], B](queue: ZQueue[_, _, Any, Throwable, _, B]): Stream[F, B] =
+  //  new Stream(ZStream.fromQueue(queue))
 
   final def unfold[F[+ _], S, A](s: S)(f0: S => Option[(A, S)]): Stream[F, A] =
     new Stream[F, A](ZStream.unfold(s)(f0))
