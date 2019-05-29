@@ -86,7 +86,7 @@ object Blocking extends Serializable {
      */
     def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
       // Reference user's lambda for the tracer
-      ZIOFn.recordTrace(() => effect) *>
+      ZIOFn.recordTrace(() => effect) {
         ZIO.flatten(ZIO.effectTotal {
           import java.util.concurrent.atomic.AtomicReference
           import java.util.concurrent.locks.ReentrantLock
@@ -146,6 +146,7 @@ object Blocking extends Serializable {
                 } yield a).ensuring(interruptThread *> awaitInterruption)
           } yield a
         })
+      }
   }
 
   trait Live extends Blocking {

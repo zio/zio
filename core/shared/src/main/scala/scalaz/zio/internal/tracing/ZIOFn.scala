@@ -47,5 +47,6 @@ private[zio] object ZIOFn {
   }
 
   @noinline
-  final def recordTrace(lambda: AnyRef): UIO[Unit] = UIO.unit.flatMap(ZIOFn(lambda)(ZIO.succeed))
+  final def recordTrace[R, E, A](lambda: AnyRef)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    UIO.unit.flatMap(ZIOFn(lambda)(_ => zio))
 }

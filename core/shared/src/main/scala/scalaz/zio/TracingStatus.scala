@@ -13,7 +13,7 @@ object TracingStatus {
   def traced: TracingStatus   = Traced
   def untraced: TracingStatus = Untraced
 
-  case object Traced extends TracingStatus
+  case object Traced   extends TracingStatus
   case object Untraced extends TracingStatus
 
   private[zio] def fromBoolean(b: Boolean): TracingStatus = if (b) Traced else Untraced

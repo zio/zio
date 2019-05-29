@@ -2247,7 +2247,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Trace
   }
 
-  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: scalaz.zio.TracingStatus) extends ZIO[R, E, A] {
+  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: scalaz.zio.TracingStatus)
+      extends ZIO[R, E, A] {
     override def tag = Tags.TracingStatus
   }
 
