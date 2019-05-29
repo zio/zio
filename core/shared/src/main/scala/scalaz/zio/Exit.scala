@@ -16,8 +16,6 @@
 
 package scalaz.zio
 
-import scalaz.zio.Exit.Cause.Interrupt
-
 /**
  * An `Exit[E, A]` describes the result of executing an `IO` value. The
  * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
@@ -476,22 +474,43 @@ object Exit extends Serializable {
     final val interrupt: Cause[Nothing]                            = Interrupt
     final def traced[E](cause: Cause[E], trace: ZTrace): Traced[E] = Traced(cause, trace)
 
-    final case class Fail[E](value: E)     extends Cause[E]
-    final case class Die(value: Throwable) extends Cause[Nothing]
-    case object Interrupt                  extends Cause[Nothing]
+    final case class Fail[E](value: E) extends Cause[E] {
+      override final def equals(that: Any): Boolean = that match {
+        case fail: Fail[_]     => value == fail.value
+        case traced: Traced[_] => this == traced.cause
+        case _                 => false
+      }
+    }
+
+    final case class Die(value: Throwable) extends Cause[Nothing] {
+      override final def equals(that: Any): Boolean = that match {
+        case die: Die          => value == die.value
+        case traced: Traced[_] => this == traced.cause
+        case _                 => false
+      }
+    }
+
+    case object Interrupt extends Cause[Nothing] {
+      override final def equals(that: Any): Boolean = (this eq that.asInstanceOf[AnyRef]) || (that match {
+        case traced: Traced[_] => this == traced.cause
+        case _                 => false
+      })
+    }
+
+    // Traced is excluded completely from equals & hashCode
     final case class Traced[E](cause: Cause[E], trace: ZTrace) extends Cause[E] {
-      // Traced is excluded completely from equals & hashCode
-      override final def hashCode(): Int = cause.hashCode()
+      override final def hashCode: Int = cause.hashCode()
       override final def equals(obj: Any): Boolean = obj match {
-        case Traced(thatCause, _) => cause == thatCause
-        case _                    => cause == obj
+        case traced: Traced[_] => cause == traced.cause
+        case _                 => cause == obj
       }
     }
 
     final case class Then[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
       override final def equals(that: Any): Boolean = that match {
-        case other: Cause[_] => eq(other) || sym(assoc)(other, self) || sym(dist)(self, other)
-        case _               => false
+        case traced: Traced[_] => that.equals(traced.cause)
+        case other: Cause[_]   => eq(other) || sym(assoc)(other, self) || sym(dist)(self, other)
+        case _                 => false
       }
       override final def hashCode: Int = flatten(self).hashCode
 
@@ -518,8 +537,9 @@ object Exit extends Serializable {
 
     final case class Both[E](left: Cause[E], right: Cause[E]) extends Cause[E] { self =>
       override final def equals(that: Any): Boolean = that match {
-        case other: Cause[_] => eq(other) || sym(assoc)(self, other) || comm(other)
-        case _               => false
+        case traced: Traced[_] => that.equals(traced.cause)
+        case other: Cause[_]   => eq(other) || sym(assoc)(self, other) || comm(other)
+        case _                 => false
       }
       override final def hashCode: Int = flatten(self).hashCode
 
