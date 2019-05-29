@@ -204,11 +204,6 @@ private[zio] final class FiberContext[E, A](
     // Put the maximum operation count on the stack for fast access:
     val maxopcount = executor.yieldOpCount
 
-    // Put tracing configuration on the stack:
-//    val traceExec    = this.traceExec
-//    val traceStack   = this.traceStack
-//    val traceEffects = this.traceEffects
-
     // Store the trace of the immediate future flatMap during evaluation
     // of a 1-hop left bind, to show a stack trace closer to the point of failure
     var fastPathFlatMapContinuationTrace: ZTraceElement = null
