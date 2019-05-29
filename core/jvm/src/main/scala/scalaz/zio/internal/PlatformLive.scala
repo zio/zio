@@ -20,7 +20,7 @@ import java.util.concurrent.{ Executor => _, _ }
 import java.util.{ Collections, WeakHashMap, Map => JMap }
 import scalaz.zio.Exit.Cause
 import scalaz.zio.internal.stacktracer.Tracer
-import scalaz.zio.internal.stacktracer.impl.AkkaTracer
+import scalaz.zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import scalaz.zio.internal.tracing.TracingConfig
 
 import scala.concurrent.ExecutionContext
@@ -37,7 +37,7 @@ object PlatformLive {
     new Platform {
       val executor = executor0
 
-      val tracing = Tracing(Tracer.globallyCached(new AkkaTracer), TracingConfig.enabled)
+      val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
 
       def fatal(t: Throwable): Boolean =
         t.isInstanceOf[VirtualMachineError]

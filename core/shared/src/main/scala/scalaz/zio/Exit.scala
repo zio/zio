@@ -491,10 +491,11 @@ object Exit extends Serializable {
     }
 
     case object Interrupt extends Cause[Nothing] {
-      override final def equals(that: Any): Boolean = (this eq that.asInstanceOf[AnyRef]) || (that match {
-        case traced: Traced[_] => this == traced.cause
-        case _                 => false
-      })
+      override final def equals(that: Any): Boolean =
+        (this eq that.asInstanceOf[AnyRef]) || (that match {
+          case traced: Traced[_] => this == traced.cause
+          case _                 => false
+        })
     }
 
     // Traced is excluded completely from equals & hashCode

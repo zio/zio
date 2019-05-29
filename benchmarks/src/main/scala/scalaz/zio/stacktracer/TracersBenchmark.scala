@@ -3,7 +3,7 @@ package scalaz.zio.stacktracer
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
-import scalaz.zio.internal.stacktracer.impl.{ AkkaLineNumbers, AkkaTracer }
+import scalaz.zio.internal.stacktracer.impl.{ AkkaLineNumbers, AkkaLineNumbersTracer }
 import scalaz.zio.stacktracer.TracersBenchmark.{ akkaTracer, asmTracer }
 import scalaz.zio.stacktracer.impls.AsmTracer
 
@@ -44,6 +44,6 @@ class TracersBenchmark {
 }
 
 object TracersBenchmark {
-  val akkaTracer = new AkkaTracer
+  val akkaTracer = new AkkaLineNumbersTracer
   val asmTracer  = new AsmTracer
 }
