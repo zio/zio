@@ -115,20 +115,20 @@ class RetrySpec extends BaseCrossPlatformSpec {
 
   def retryNUnitIntervalJittered = {
     val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis.relative).jittered
-    val scheduled: UIO[List[(Delay, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
+    val scheduled: UIO[List[(Delay, Int)]]    = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
 
     val expected = List(1, 2, 3, 4, 5).map((250.millis, _))
 
-    val result = scheduled.map(_.map{ case (dl, res) => dl.run.map(dur => (dur, res))}).flatMap(accumulateDelays)
+    val result = scheduled.map(_.map { case (dl, res) => dl.run.map(dur => (dur, res)) }).flatMap(accumulateDelays)
 
     result must_=== expected
   }
 
   def retryNCustomIntervalJittered = {
     val schedule: ZSchedule[Random, Int, Int] = Schedule.recurs(5).delayed(_ => 500.millis.relative).jittered(2, 4)
-    val scheduled: UIO[List[(Delay, Int)]] = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
+    val scheduled: UIO[List[(Delay, Int)]]    = schedule.run(List(1, 2, 3, 4, 5)).provide(TestRandom)
 
-    val result = scheduled.map(_.map{ case (dl, res) => dl.run.map(dur => (dur, res))}).flatMap(accumulateDelays)
+    val result = scheduled.map(_.map { case (dl, res) => dl.run.map(dur => (dur, res)) }).flatMap(accumulateDelays)
 
     val expected = List(1, 2, 3, 4, 5).map((1500.millis, _))
     result must_=== expected
@@ -146,14 +146,13 @@ class RetrySpec extends BaseCrossPlatformSpec {
     val retried  = retryCollect(io, strategy)
     val expected = (Left("GiveUpError"), List(1, 2, 3, 4, 5).map((200.millis, _)))
 
-    val result = retried
-      .map { case (left, lst) =>
+    val result = retried.map {
+      case (left, lst) =>
         (left, lst.map { case (dl, res) => dl.run.map(dur => (dur, res)) })
-      }
-      .flatMap{
-        case (left, lst) =>
-          accumulateDelays(lst).map(l => (left, l))
-      }
+    }.flatMap {
+      case (left, lst) =>
+        accumulateDelays(lst).map(l => (left, l))
+    }
 
     result must_=== expected
   }
@@ -189,15 +188,13 @@ class RetrySpec extends BaseCrossPlatformSpec {
 
     val retried = retryCollect(io, strategy)
 
-    val result = retried
-      .map { case (left, lst) =>
+    val result = retried.map {
+      case (left, lst) =>
         (left, lst.map { case (dl, res) => dl.run.map(dur => (dur, res)) })
-      }
-      .flatMap{
-        case (left, lst) =>
-          accumulateDelays(lst).map(l => (left, l))
-      }
-
+    }.flatMap {
+      case (left, lst) =>
+        accumulateDelays(lst).map(l => (left, l))
+    }
 
     result must_=== expected
   }

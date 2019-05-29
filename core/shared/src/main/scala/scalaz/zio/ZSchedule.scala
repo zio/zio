@@ -443,12 +443,6 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     fold(List.empty[B])((xs, x) => x :: xs).map(_.reverse)
 
   /**
-   * Returns this schedule capable of running immediately, without initial delay
-   */
-  final def immediately: ZSchedule[R, A, (Delay, B)] =
-    self.map(res => (Delay.none, res))
-
-  /**
    * Returns a new schedule that folds over the outputs of this one.
    */
   final def fold[Z](z: Z)(f: (Z, B) => Z): ZSchedule[R, A, Z] =
@@ -553,6 +547,18 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
           case Right(c) => that.update(c, s._2).map(_.leftMap((s._1, _)).rightMap(Right(_)))
         }
     }
+
+  /**
+   * Introduce an initial delay on this Schedule, making it delaying its first execution
+   */
+  final def startingOn(initialDelay: Delay): ZSchedule[R, A, (Delay, B)] =
+    self.map(res => (initialDelay, res))
+
+  /**
+   * Shorthand for startingOn with no initial delay
+   */
+  final def immediately: ZSchedule[R, A, (Delay, B)] =
+    self.startingOn(Delay.none)
 }
 
 private[zio] trait Schedule_Functions extends Serializable {
@@ -681,8 +687,8 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A schedule that will recur forever with no delay, taking a Delay as input
    * and returning its representation as Duration
    */
-  final val duration: ZSchedule[Clock, Delay, Duration] =
-    forever.reconsider[Delay, Delay]((s, d) => d.rightMap(_ => s)).mapM(_.run)
+  final val duration: ZSchedule[Clock, Delay, (Delay, Duration)] =
+    forever.reconsider[Delay, Delay]((s, d) => d.rightMap(_ => s)).mapM(_.run).immediately
 
   /**
    * A schedule that will recur forever with no delay, returning the decision
@@ -722,7 +728,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * preceding two delays (similar to the fibonacci sequence). Returns the
    * current duration between recurrences.
    */
-  final def fibonacci(one: Duration): ZSchedule[Clock, Any, Duration] =
+  final def fibonacci(one: Duration): ZSchedule[Clock, Any, (Delay, Duration)] =
     delayed[Any, Any](
       unfold[(Duration, Duration)]((Duration.Zero, one)) {
         case (a1, a2) => (a2, a1 + a2)
@@ -734,7 +740,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * interval, given by `base * n` where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def linear(base: Duration): ZSchedule[Clock, Any, Duration] =
+  final def linear(base: Duration): ZSchedule[Clock, Any, (Delay, Duration)] =
     delayed[Any, Any](forever.map(i => (base * i.doubleValue()).relative)) >>> duration
 
   /**
@@ -742,7 +748,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, Duration] =
+  final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, (Delay, Duration)] =
     delayed[Any, Any](forever.map(i => (base * math.pow(factor, i.doubleValue)).relative)) >>> duration
 
 }
