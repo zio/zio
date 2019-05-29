@@ -98,7 +98,6 @@ private[zio] final class FiberContext[E, A](
       case _ => lambda
     }
 
-  // FIXME: bench
   @noinline
   private[this] final def traceLocation(lambda: AnyRef): ZTraceElement =
     tracer.traceLocation(unwrap(lambda))
@@ -815,7 +814,7 @@ private[zio] object FiberContext {
     }
   }
   object SuperviseStatus {
-    case class Supervised(value: java.util.Set[Fiber[_, _]]) extends SuperviseStatus
-    case object Unsupervised                                 extends SuperviseStatus
+    final case class Supervised(value: java.util.Set[Fiber[_, _]]) extends SuperviseStatus
+    case object Unsupervised                                       extends SuperviseStatus
   }
 }
