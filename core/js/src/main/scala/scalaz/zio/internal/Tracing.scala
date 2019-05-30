@@ -20,3 +20,7 @@ import scalaz.zio.internal.stacktracer.Tracer
 import scalaz.zio.internal.tracing.TracingConfig
 
 final case class Tracing(tracer: Tracer, tracingConfig: TracingConfig)
+
+object Tracing {
+  def disabled = Tracing(Tracer.Empty, TracingConfig.disabled)
+}

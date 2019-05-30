@@ -27,7 +27,12 @@ class IODeepLeftBindBenchmark {
   }
 
   @Benchmark
-  def scalazDeepLeftBindBenchmark(): Int = {
+  def scalazDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(IOBenchmarks)
+
+  @Benchmark
+  def scalazTracedDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(TracedRuntime)
+
+  def zioDeepLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     var i  = 0
     var io = IO.succeedLazy(i)
     while (i < depth) {
@@ -35,7 +40,7 @@ class IODeepLeftBindBenchmark {
       i += 1
     }
 
-    unsafeRun(io)
+    runtime.unsafeRun(io)
   }
 
   @Benchmark
