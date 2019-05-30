@@ -17,6 +17,17 @@
 package scalaz.zio.internal
 
 import scalaz.zio.internal.stacktracer.Tracer
+import scalaz.zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import scalaz.zio.internal.tracing.TracingConfig
 
 final case class Tracing(tracer: Tracer, tracingConfig: TracingConfig)
+
+object Tracing {
+  def enabled =
+    Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
+
+  def enabledWith(tracingConfig: TracingConfig) =
+    Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), tracingConfig)
+
+  def disabled = Tracing(Tracer.Empty, TracingConfig.disabled)
+}

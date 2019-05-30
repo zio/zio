@@ -2,13 +2,20 @@ package scalaz.zio
 
 import cats._
 import cats.effect.{ Fiber => CFiber }
+
 import scala.concurrent.ExecutionContext
 import cats.effect.{ ContextShift, IO => CIO }
 import monix.eval.{ Task => MTask }
 import scalaz.zio.internal._
 
 object IOBenchmarks extends DefaultRuntime {
-  override val Platform: Platform = PlatformLive.makeDefault(Int.MaxValue)
+  override val Platform: Platform = PlatformLive
+    .makeDefault(Int.MaxValue)
+    .withTracing(Tracing.disabled)
+
+  val TracedRuntime = new DefaultRuntime {
+    override val Platform = PlatformLive.makeDefault(Int.MaxValue).withTracing(Tracing.enabled)
+  }
 
   import monix.execution.Scheduler
   implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)

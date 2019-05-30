@@ -105,12 +105,17 @@ class IONarrowFlatMapBenchmark {
   }
 
   @Benchmark
-  def scalazNarrowFlatMap(): Int = {
+  def scalazNarrowFlatMap(): Int = zioNarrowFlatMap(IOBenchmarks)
+
+  @Benchmark
+  def scalazTracedNarrowFlatMap(): Int = zioNarrowFlatMap(TracedRuntime)
+
+  private[this] def zioNarrowFlatMap(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =
       if (i < size) IO.succeedLazy[Int](i + 1).flatMap(loop)
       else IO.succeedLazy(i)
 
-    unsafeRun(IO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
+    runtime.unsafeRun(IO.succeedLazy(0).flatMap[Any, Nothing, Int](loop))
   }
 
   @Benchmark
