@@ -1,6 +1,6 @@
 package scalaz.zio.stream
 
-import java.io.{ InputStream, OutputStream }
+import java.io.{ IOException, InputStream, OutputStream }
 
 import scalaz.zio._
 import scalaz.zio.blocking._
@@ -24,8 +24,10 @@ trait ZStreamPlatformSpecific {
             val bytesRead = is.read(buf)
 
             if (bytesRead < 0) None
-            else if (0 < bytesRead && bytesRead < buf.size) Some((Chunk.fromArray(buf).take(buf.size), ()))
+            else if (0 < bytesRead && bytesRead < buf.length) Some((Chunk.fromArray(buf).take(buf.length), ()))
             else Some((Chunk.fromArray(buf), ()))
+          } refineOrDie {
+            case e: IOException => e
           }
         }
       }
@@ -42,12 +44,14 @@ trait ZSinkPlatformSpecific {
    */
   def fromOutputStream(
     os: OutputStream
-  ): ZSink[Blocking, Throwable, Nothing, Chunk[Byte], Int] =
+  ): ZSink[Blocking, IOException, Nothing, Chunk[Byte], Int] =
     ZSink.foldM(0) { (bytesWritten, byteChunk: Chunk[Byte]) =>
       effectBlocking {
         val bytes = byteChunk.toArray
         os.write(bytes)
-        ZSink.Step.more(bytesWritten + bytes.size)
+        ZSink.Step.more(bytesWritten + bytes.length)
+      }.refineOrDie {
+        case e: IOException => e
       }
     }
 }
