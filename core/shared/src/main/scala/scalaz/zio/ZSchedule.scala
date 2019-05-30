@@ -207,7 +207,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   )(
     g: (Boolean, Boolean) => Boolean,
     f: (Delay, Delay) => Delay,
-    h: (Delay, Delay) => Delay,
+    h: (Delay, Delay) => Delay
   ): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)

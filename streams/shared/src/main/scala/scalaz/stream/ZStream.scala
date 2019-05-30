@@ -396,7 +396,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             self.fold[R2, E1, A1, S].flatMap { f0 =>
               f0(s, cont, f).zip(schedule.update((), sched)).flatMap {
                 case (s, decision) =>
-                  decision.delay.run.flatMap{ delay =>
+                  decision.delay.run.flatMap { delay =>
                     if (decision.cont && cont(s)) clock.sleep(delay) *> loop(s, decision.state)
                     else IO.succeed(s)
                   }
@@ -423,7 +423,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             else
               f(s, a).zip(schedule.update(a, sched)).flatMap {
                 case (s, decision) =>
-                  decision.delay.run.flatMap{ delay =>
+                  decision.delay.run.flatMap { delay =>
                     if (decision.cont && cont(s))
                       clock.sleep(delay) *> loop(s, decision.state, a)
                     else IO.succeed(s)
