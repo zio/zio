@@ -206,11 +206,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     that: ZSchedule[R1, A1, C]
   )(
     g: (Boolean, Boolean) => Boolean,
-    f: (Delay, Delay) => Delay
+    f: (Delay, Delay) => Delay,
+    h: (Delay, Delay) => Delay,
   ): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)
-      val initial = self.initial.zip(that.initial).map { case (s1, s2) => (s1._1 max s2._1, (s1._2, s2._2)) }
+      val initial = self.initial.zip(that.initial).map { case (s1, s2) => (h(s1._1, s2._1), (s1._2, s2._2)) }
       val update  = (a: A1, s: State) => self.update(a, s._1).zipWith(that.update(a, s._2))(_.combineWith(_)(g, f))
     }
 
@@ -219,7 +220,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * continue, using the maximum of the delays of the two schedules.
    */
   final def &&[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
-    combineWith(that)(_ && _, _ max _)
+    combineWith(that)(_ && _, _ max _, _ max _)
 
   /**
    * A named alias for `&&`.
@@ -272,7 +273,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * using the minimum of the delays of the two schedules.
    */
   final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
-    combineWith(that)(_ || _, _ min _)
+    combineWith(that)(_ || _, _ min _, _ min _)
 
   /**
    * A named alias for `||`.

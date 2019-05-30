@@ -178,7 +178,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
   def exponentialWithFactor =
     checkErrorWithPredicate(Schedule.exponential(100.millis, 3.0), List(3, 9, 27, 81, 243))
 
-  def checkErrorWithPredicate(schedule: ZSchedule[Clock, Any, Duration], expectedSteps: List[Int]) = {
+  def checkErrorWithPredicate(schedule: ZSchedule[Clock, Any, (Delay, Duration)], expectedSteps: List[Int]) = {
     var i = 0
     val io = IO.effectTotal[Unit](i += 1).flatMap[Any, String, Unit] { _ =>
       if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
@@ -190,7 +190,7 @@ class RetrySpec extends BaseCrossPlatformSpec {
 
     val result = retried.map {
       case (left, lst) =>
-        (left, lst.map { case (dl, res) => dl.run.map(dur => (dur, res)) })
+        (left, lst.map { case (dl, res) => dl.run.map(dur => (dur, res._2)) })
     }.flatMap {
       case (left, lst) =>
         accumulateDelays(lst).map(l => (left, l))

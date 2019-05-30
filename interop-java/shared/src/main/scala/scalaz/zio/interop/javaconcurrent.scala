@@ -109,6 +109,8 @@ object javaconcurrent {
 
         def interrupt: UIO[Exit[Throwable, A]] =
           join.fold(Exit.fail, Exit.succeed)
+
+        def inheritFiberRefs: UIO[Unit] = UIO.unit
       }
     }
   }

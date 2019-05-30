@@ -295,7 +295,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               _      <- (self.foreach(putL) *> endL).catchAll(catchL).fork
               _      <- (that.foreach(putR) *> endR).catchAll(catchR).fork
               step   <- loop(false, false, s, queue)
-            } yield step).supervise
+            } yield step).interruptChildren
           } else IO.succeed(s)
         }
     }
@@ -396,16 +396,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             self.fold[R2, E1, A1, S].flatMap { f0 =>
               f0(s, cont, f).zip(schedule.update((), sched)).flatMap {
                 case (s, decision) =>
-                  decision.delay.run.flatMap { delay =>
-                    if (decision.cont) IO.unit.delay(delay) *> loop(s, decision.state)
+                  decision.delay.run.flatMap{ delay =>
+                    if (decision.cont && cont(s)) clock.sleep(delay) *> loop(s, decision.state)
                     else IO.succeed(s)
                   }
+
               }
             }
 
           schedule.initial.flatMap {
             case (dl, state) =>
-              dl.run.flatMap(dur => ZIO.succeed(state).delay(dur).flatMap(st => loop(s, st)))
+              dl.run.flatMap(dur => clock.sleep(dur) *> loop(s, state))
           }
         }
     }
@@ -413,32 +414,30 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Repeats elements of the stream using the provided schedule.
    */
-  def repeatElems[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
+  def spaced[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
     new ZStream[R1 with Clock, E, A] {
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
         IO.succeedLazy { (s, cont, f) =>
           def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
-            schedule.update(a, sched).flatMap { decision =>
-              decision.delay.run.flatMap { delay =>
-                if (decision.cont)
-                  IO.unit.delay(delay) *> f(s, a).flatMap(loop(_, decision.state, a))
-                else IO.succeed(s)
+            if (!cont(s)) ZIO.succeed(s)
+            else
+              f(s, a).zip(schedule.update(a, sched)).flatMap {
+                case (s, decision) =>
+                  decision.delay.run.flatMap{ delay =>
+                    if (decision.cont && cont(s))
+                      clock.sleep(delay) *> loop(s, decision.state, a)
+                    else IO.succeed(s)
+                  }
+
               }
-            }
 
           schedule.initial.flatMap {
             case (dl, state) =>
               dl.run.flatMap(
                 dur =>
-                  ZIO
-                    .succeed(state)
-                    .delay(dur)
-                    .flatMap(
-                      st =>
-                        self.fold[R2, E1, A, S].flatMap { f =>
-                          f(s, cont, (s, a) => loop(s, st, a))
-                        }
-                    )
+                  clock.sleep(dur) *> self.fold[R2, E1, A, S].flatMap { f =>
+                    f(s, cont, (s, a) => loop(s, state, a))
+                  }
               )
           }
         }
@@ -497,7 +496,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Takes the specified number of elements from this stream.
    */
   final def take(n: Int): ZStream[R, E, A] =
-    self.zipWithIndex.collectWhile { case (v, i) if i < n => v }
+    if (n <= 0) Stream.empty
+    else
+      new ZStream[R, E, A] {
+        override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+          IO.succeedLazy { (s, cont, f) =>
+            self.zipWithIndex.fold[R1, E1, (A, Int), (S, Boolean)].flatMap { f0 =>
+              f0(s -> true, tp => cont(tp._1) && tp._2, {
+                case ((s, _), (a, i)) =>
+                  f(s, a).map((_, i < n - 1))
+              }).map(_._1)
+            }
+          }
+      }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate

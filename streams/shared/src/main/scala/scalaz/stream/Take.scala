@@ -23,7 +23,7 @@ import scalaz.zio.IO
  * values. A `Take` may be a failure value `E`, an element value `A`, or end-of-
  * stream marker.
  */
-sealed trait Take[+E, +A] { self =>
+sealed trait Take[+E, +A] extends Product with Serializable { self =>
   final def map[B](f: A => B): Take[E, B] = self match {
     case t @ Take.Fail(_) => t
     case Take.Value(a)    => Take.Value(f(a))

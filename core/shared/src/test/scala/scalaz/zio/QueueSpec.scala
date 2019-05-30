@@ -162,7 +162,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
       refSuspended <- Ref.make[Boolean](true)
       _            <- (queue.offer(2).repeat(ZSchedule.recurs(9).immediately) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
-    } yield isSuspended must beTrue).supervise
+    } yield isSuspended must beTrue).interruptChildren
 
   def e6 =
     for {
@@ -321,7 +321,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
       _      <- queue.offer(5).fork
       _      <- waitForSize(queue, 5)
       l      <- queue.takeUpTo(5)
-    } yield l must_=== List(1, 2, 3, 4)).supervise
+    } yield l must_=== List(1, 2, 3, 4)).interruptChildren
 
   def e23 =
     for {
