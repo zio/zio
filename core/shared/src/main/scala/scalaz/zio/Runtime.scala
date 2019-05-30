@@ -17,7 +17,7 @@
 package scalaz.zio
 
 import scalaz.zio.Exit.Cause
-import scalaz.zio.internal.{ Executor, FiberContext, Platform }
+import scalaz.zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -84,6 +84,8 @@ trait Runtime[+R] {
       Platform.executor,
       InitialInterruptStatus,
       FiberContext.SuperviseStatus.Unsupervised,
+      None,
+      PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()
     )
 

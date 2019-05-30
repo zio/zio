@@ -7,7 +7,7 @@ import scalaz.zio.Exit.Cause
 
 import scala.collection.mutable
 import scala.util.Try
-import scalaz.zio.Exit.Cause.{ Both, Die, Fail, Interrupt }
+import scalaz.zio.Exit.Cause.{ die, fail, interrupt, Both }
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -137,9 +137,9 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     val failed: Exit[Error, Int]      = Exit.fail(error)
 
     unsafeRun(IO.done(completed)) must_=== 1
-    unsafeRun(IO.done(interrupted)) must throwA(FiberFailure(Interrupt))
-    unsafeRun(IO.done(terminated)) must throwA(FiberFailure(Die(error)))
-    unsafeRun(IO.done(failed)) must throwA(FiberFailure(Fail(error)))
+    unsafeRunSync(IO.done(interrupted)) must_=== Exit.interrupt
+    unsafeRunSync(IO.done(terminated)) must_=== Exit.die(error)
+    unsafeRunSync(IO.done(failed)) must_=== Exit.fail(error)
   }
 
   def testWhen =
@@ -182,7 +182,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
 
   def testUnsandbox = {
-    val failure: IO[Exit.Cause[Exception], String] = IO.fail(Cause.fail(new Exception("fail")))
+    val failure: IO[Exit.Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
     val success: IO[Exit.Cause[Any], Int]          = IO.succeed(100)
     unsafeRun(for {
       message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
@@ -241,7 +241,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testZipParInterupt = {
     val io = ZIO.interrupt.zipPar(IO.interrupt)
-    unsafeRun(io) must throwA(FiberFailure(Both(Interrupt, Interrupt)))
+    unsafeRunSync(io) must_=== Exit.Failure(Both(interrupt, interrupt))
   }
 
   def testZipParSucceed = {
@@ -255,8 +255,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun {
       for {
         plain <- (ZIO.die(ex) <> IO.unit).run
-        both  <- (ZIO.halt(Cause.Both(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
-        thn   <- (ZIO.halt(Cause.Then(Cause.Interrupt, Cause.die(ex))) <> IO.unit).run
+        both  <- (ZIO.halt(Cause.Both(interrupt, die(ex))) <> IO.unit).run
+        thn   <- (ZIO.halt(Cause.Then(interrupt, die(ex))) <> IO.unit).run
         fail  <- (ZIO.fail(ex) <> IO.unit).run
       } yield (plain must_=== Exit.die(ex))
         .and(both must_=== Exit.die(ex))

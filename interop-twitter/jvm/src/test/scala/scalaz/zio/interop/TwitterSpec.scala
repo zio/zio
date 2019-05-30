@@ -4,9 +4,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.twitter.util.{ Await, Future, Promise }
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.Exit.Cause.Fail
 import scalaz.zio.interop.twitter._
-import scalaz.zio.{ FiberFailure, Task, TestRuntime, ZIO }
+import scalaz.zio.{ Exit, Task, TestRuntime, ZIO }
 
 class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is =
@@ -27,7 +26,7 @@ class TwitterSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val future = Task(Future.exception[Int](error))
     val task   = Task.fromTwitterFuture(future)
 
-    unsafeRun(task) must throwAn(FiberFailure(Fail(error)))
+    unsafeRunSync(task) must_=== Exit.fail(error)
   }
 
   private def propagateResults = {

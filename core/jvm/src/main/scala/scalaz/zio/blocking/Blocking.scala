@@ -18,10 +18,9 @@ package scalaz.zio.blocking
 
 import java.util.concurrent._
 
-import scalaz.zio.{ Exit, UIO, ZIO }
-import Exit.Cause
-import scalaz.zio.internal.{ Executor, NamedThreadFactory }
-import scalaz.zio.internal.PlatformLive
+import scalaz.zio.internal.tracing.ZIOFn
+import scalaz.zio.internal.{ Executor, NamedThreadFactory, PlatformLive }
+import scalaz.zio.{ IO, UIO, ZIO }
 
 private[blocking] object internal {
   private[blocking] val blockingExecutor0 =
@@ -86,62 +85,68 @@ object Blocking extends Serializable {
      * will be interrupted via `Thread.interrupt`.
      */
     def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
-      ZIO.flatten(ZIO.effectTotal {
-        import java.util.concurrent.locks.ReentrantLock
-        import java.util.concurrent.atomic.AtomicReference
-        import scalaz.zio.internal.OneShot
+      // Reference user's lambda for the tracer
+      ZIOFn.recordTrace(() => effect) {
+        ZIO.flatten(ZIO.effectTotal {
+          import java.util.concurrent.atomic.AtomicReference
+          import java.util.concurrent.locks.ReentrantLock
 
-        val lock    = new ReentrantLock()
-        val thread  = new AtomicReference[Option[Thread]](None)
-        val barrier = OneShot.make[Unit]
+          import scalaz.zio.internal.OneShot
 
-        def withMutex[B](b: => B): B =
-          try {
-            lock.lock(); b
-          } finally lock.unlock()
+          val lock    = new ReentrantLock()
+          val thread  = new AtomicReference[Option[Thread]](None)
+          val barrier = OneShot.make[Unit]
 
-        val interruptThread: UIO[Unit] =
-          ZIO.effectTotal {
-            var looping = true
-            var n       = 0L
-            val base    = 2L
-            while (looping) {
-              withMutex(thread.get match {
-                case None         => looping = false; ()
-                case Some(thread) => thread.interrupt()
-              })
+          def withMutex[B](b: => B): B =
+            try {
+              lock.lock(); b
+            } finally lock.unlock()
 
-              if (looping) {
-                n += 1
-                Thread.sleep(math.min(50, base * n))
+          val interruptThread: UIO[Unit] =
+            ZIO.effectTotal {
+              var looping = true
+              var n       = 0L
+              val base    = 2L
+              while (looping) {
+                withMutex(thread.get match {
+                  case None         => looping = false; ()
+                  case Some(thread) => thread.interrupt()
+                })
+
+                if (looping) {
+                  n += 1
+                  Thread.sleep(math.min(50, base * n))
+                }
               }
             }
-          }
 
-        val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
+          val awaitInterruption: UIO[Unit] = ZIO.effectTotal(barrier.get())
 
-        for {
-          a <- (for {
-                fiber <- blocking(ZIO.effectTotal[Either[Cause[Throwable], A]] {
-                          val current = Some(Thread.currentThread)
+          for {
+            a <- (for {
+                  fiber <- blocking(ZIO.effectTotal[IO[Throwable, A]] {
+                            val current = Some(Thread.currentThread)
 
-                          withMutex(thread.set(current))
+                            withMutex(thread.set(current))
 
-                          try Right(effect)
-                          catch {
-                            case _: InterruptedException =>
-                              Thread.interrupted // Clear interrupt status
-                              Left(Cause.interrupt)
-                            case t: Throwable =>
-                              Left(Cause.fail(t))
-                          } finally {
-                            withMutex { thread.set(None); barrier.set(()) }
-                          }
-                        }).fork
-                a <- fiber.join.absolve.unsandbox
-              } yield a).ensuring(interruptThread *> awaitInterruption)
-        } yield a
-      })
+                            try {
+                              val a = effect
+                              ZIO.succeed(a)
+                            } catch {
+                              case _: InterruptedException =>
+                                Thread.interrupted // Clear interrupt status
+                                ZIO.interrupt
+                              case t: Throwable =>
+                                ZIO.fail(t)
+                            } finally {
+                              withMutex { thread.set(None); barrier.set(()) }
+                            }
+                          }).fork
+                  a <- fiber.join.flatten
+                } yield a).ensuring(interruptThread *> awaitInterruption)
+          } yield a
+        })
+      }
   }
 
   trait Live extends Blocking {
