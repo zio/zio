@@ -533,17 +533,17 @@ object ZSink extends ZSinkPlatformSpecific {
       def extractPure(s: S): Either[Nothing, S] = Right(s)
     }
 
-  def foldM[R, R1 <: R, E, A0, A, S](z: ZIO[R, E, S])(f: (S, A) => ZIO[R1, E, Step[S, A0]]): ZSink[R1, E, A0, A, S] =
-    new ZSink[R1, E, A0, A, S] {
+  def foldM[R, E, A0, A, S](z: S)(f: (S, A) => ZIO[R, E, Step[S, A0]]): ZSink[R, E, A0, A, S] =
+    new ZSink[R, E, A0, A, S] {
       type State = S
-      val initial                                   = z.map(Step.more)
-      def step(s: S, a: A): ZIO[R1, E, Step[S, A0]] = f(s, a)
-      def extract(s: S): ZIO[R1, E, S]              = ZIO.succeed(s)
+      val initial                                  = UIO.succeed(Step.more(z))
+      def step(s: S, a: A): ZIO[R, E, Step[S, A0]] = f(s, a)
+      def extract(s: S): ZIO[R, E, S]              = ZIO.succeed(s)
     }
 
   def readWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
     ZSink
-      .foldM[R, R, E, A, A, List[A]](ZIO.succeed(List.empty[A])) { (s, a: A) =>
+      .foldM[R, E, A, A, List[A]](List.empty[A]) { (s, a: A) =>
         p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
       }
       .map(_.reverse)

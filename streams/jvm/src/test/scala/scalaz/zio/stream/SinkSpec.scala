@@ -68,7 +68,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     prop { (s: Stream[String, Int], f: (String, Int) => IO[String, String], z: IO[String, String]) =>
       val ff         = (acc: String, el: Int) => f(acc, el).map(Step.more)
-      val sinkResult = unsafeRunSync(s.run(ZSink.foldM(z)(ff)))
+      val sinkResult = unsafeRunSync(z.flatMap(z => s.run(ZSink.foldM(z)(ff))))
       val foldResult = unsafeRunSync {
         s.foldLeft(List[Int]())((acc, el) => el :: acc)
           .use(IO.succeed)
@@ -88,7 +88,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = ZSink.foldM[Any, Any, E, Int, Int, Int](IO.succeed(0)) { (_, a) =>
+      val sink = ZSink.foldM[Any, E, Int, Int, Int](0) { (_, a) =>
         effects ::= a
         IO.succeed(Step.done(30, Chunk.empty))
       }
@@ -122,7 +122,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     val numArrayParser =
       ZSink
-        .foldM(IO.succeed((ParserState.Start: ParserState, List.empty[Int]))) { (s, a: Char) =>
+        .foldM((ParserState.Start: ParserState, List.empty[Int])) { (s, a: Char) =>
           s match {
             case (ParserState.Start, acc) =>
               a match {

@@ -43,7 +43,7 @@ trait ZSinkPlatformSpecific {
   def fromOutputStream(
     os: OutputStream
   ): ZSink[Blocking, Throwable, Nothing, Chunk[Byte], Int] =
-    ZSink.foldM(Task.succeed(0)) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+    ZSink.foldM(0) { (bytesWritten, byteChunk: Chunk[Byte]) =>
       effectBlocking {
         val bytes = byteChunk.toArray
         os.write(bytes)
