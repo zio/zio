@@ -1228,6 +1228,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * instance belongs (e.g. `IO.Tags.Succeed`).
    */
   def tag: Int
+
+  /**
+   * Exposes all parallel errors in a single call
+   *
+   */
+  final def parallelErrors: ZIO[R, List[E], A] =
+    self.foldCauseM(
+      cause =>
+        cause.failures match {
+          case Nil            => ZIO.halt(cause.asInstanceOf[Cause[Nothing]])
+          case ::(head, tail) => ZIO.fail(::(head, tail))
+        },
+      ZIO.succeed
+    )
 }
 
 private[zio] trait ZIOFunctions extends Serializable {
