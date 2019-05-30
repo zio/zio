@@ -549,6 +549,11 @@ private[zio] final class FiberContext[E, A](
     val childFiberRefLocals: FiberRefLocals = platform.newWeakHashMap()
     childFiberRefLocals.putAll(fiberRefLocals)
 
+    val childSupervised = supervised.peek() match {
+      case SuperviseStatus.Unsupervised  => SuperviseStatus.Unsupervised
+      case SuperviseStatus.Supervised(_) => SuperviseStatus.Supervised(newWeakSet[Fiber[_, _]])
+    }
+
     val tracingRegion = inTracingRegion
     val ancestry =
       if ((traceExec || traceStack) && tracingRegion) Some(cutAncestryTrace(captureTrace(null)))
@@ -559,7 +564,7 @@ private[zio] final class FiberContext[E, A](
       environments.peek(),
       executors.peek(),
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
-      supervised.peek(),
+      childSupervised,
       ancestry,
       tracingRegion,
       childFiberRefLocals
@@ -601,11 +606,12 @@ private[zio] final class FiberContext[E, A](
       }
   }
 
+  private[this] final def newWeakSet[A]: Set[A] =
+    Collections.newSetFromMap[A](platform.newWeakHashMap[A, java.lang.Boolean]())
+
   private[this] final def changeSupervision(status: scalaz.zio.SuperviseStatus): IO[E, Unit] = ZIO.effectTotal {
     status match {
       case scalaz.zio.SuperviseStatus.Supervised =>
-        def newWeakSet[A]: Set[A] = Collections.newSetFromMap[A](platform.newWeakHashMap[A, java.lang.Boolean]())
-
         val set = newWeakSet[Fiber[_, _]]
 
         supervised.push(SuperviseStatus.Supervised(set))

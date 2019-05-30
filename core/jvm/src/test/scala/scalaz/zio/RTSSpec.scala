@@ -949,7 +949,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield result must_=== 10
   }
 
-  def testInterruptStatusIsHeritable = unsafeRun {
+  def testInterruptStatusIsHeritable = nonFlaky {
     for {
       latch <- Promise.make[Nothing, Unit]
       ref   <- Ref.make(InterruptStatus.interruptible)
@@ -958,21 +958,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield v must_=== InterruptStatus.uninterruptible
   }
 
-  def testExecutorIsHeritable = unsafeRun {
-    for {
-      latch <- Promise.make[Nothing, Unit]
-      ref   <- Ref.make(Option.empty[internal.Executor])
-      exec  = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
-      _ <- IO.descriptor
-            .map(_.executor)
-            .flatMap(e => ref.set(Some(e)) *> latch.succeed(()))
-            .fork
-            .lock(exec) *> latch.await
-      v <- ref.get
-    } yield v must_=== Some(exec)
-  }
+  def testExecutorIsHeritable =
+    nonFlaky(for {
+      ref  <- Ref.make(Option.empty[internal.Executor])
+      exec = internal.Executor.fromExecutionContext(100)(scala.concurrent.ExecutionContext.Implicits.global)
+      _    <- withLatch(release => IO.descriptor.map(_.executor).flatMap(e => ref.set(Some(e)) *> release).fork.lock(exec))
+      v    <- ref.get
+    } yield v must_=== Some(exec))
 
-  def testSupervisionIsHeritable = unsafeRun {
+  def testSupervisionIsHeritable = nonFlaky {
     for {
       latch <- Promise.make[Nothing, Unit]
       ref   <- Ref.make(SuperviseStatus.unsupervised)
@@ -982,18 +976,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testSupervisingInheritance = {
-    def forkAwaitStart[A](io: UIO[A]) =
-      for {
-        latch <- Promise.make[Nothing, Unit]
-        _     <- (latch.succeed(()) *> io).fork
-        _     <- latch.await
-      } yield ()
+    def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
+      withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
 
-    unsafeRun(
+    nonFlaky(
       (for {
-        _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()))))
+        ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
+        _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
         fibs <- ZIO.children
-      } yield fibs must have size 3).supervised
+      } yield fibs must have size 1).supervised
     )
   }
 
@@ -1421,4 +1412,10 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(
       IO.mergeAll(List.empty[UIO[Int]])(0)(_ + _)
     ) must_=== 0
+
+  def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[_]]): org.specs2.matcher.MatchResult[_] =
+    (1 to 50).foldLeft[org.specs2.matcher.MatchResult[_]](true must_=== true) {
+      case (acc, _) =>
+        acc and unsafeRun(v)
+    }
 }
