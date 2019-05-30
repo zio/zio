@@ -62,7 +62,7 @@ class PublisherToStreamSpec(implicit ee: ExecutionEnv) extends TestRuntime with 
 
   private val e1 = publish(seq, None) should_=== Exit.Success(seq)
 
-  private val e2 = publish(Nil, Some(e)) should_=== Exit.Failure(Cause.Fail(`e`))
+  private val e2 = publish(Nil, Some(e)) should_=== Exit.Failure(Cause.fail(e))
 
-  private val e3 = publish(seq, Some(e)) should_=== Exit.Failure(Cause.Fail(`e`))
+  private val e3 = publish(seq, Some(e)) should_=== Exit.Failure(Cause.fail(e))
 }
