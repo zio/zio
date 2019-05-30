@@ -106,9 +106,10 @@ private[zio] final class FiberContext[E, A](
   private[this] final def addTrace(lambda: AnyRef): Unit =
     execTrace.put(traceLocation(lambda))
 
-  @noinline
-  private[this] final def addStackTrace(lambda: AnyRef): Unit =
-    stackTrace.put(traceLocation(lambda))
+  @noinline private[this] final def pushContinuation(k: Any => IO[Any, Any]): Unit = {
+    if (traceStack && inTracingRegion) stackTrace.put(traceLocation(k))
+    stack.push(k)
+  }
 
   private[this] final def popStackTrace(): Unit =
     stackTrace.dropLast()
@@ -170,10 +171,8 @@ private[zio] final class FiberContext[E, A](
           // Push error handler back onto the stack and halt iteration:
           val k = fold.failure.asInstanceOf[Any => ZIO[Any, Any, Any]]
 
-          if (traceStack && inTracingRegion) {
-            popStackTrace(); addStackTrace(k)
-          }
-          stack.push(k)
+          if (traceStack && inTracingRegion) popStackTrace()
+          pushContinuation(k)
 
           unwinding = false
 
@@ -301,8 +300,7 @@ private[zio] final class FiberContext[E, A](
                       // Fallback case. We couldn't evaluate the LHS so we have to
                       // use the stack:
                       curZio = nested
-                      if (traceStack && inTracingRegion) addStackTrace(k)
-                      stack.push(k)
+                      pushContinuation(k)
                   }
 
                 case ZIO.Tags.Succeed =>
@@ -350,8 +348,7 @@ private[zio] final class FiberContext[E, A](
                   val zio = curZio.asInstanceOf[ZIO.Fold[Any, E, Any, Any, Any]]
 
                   curZio = zio.value
-                  if (traceStack && inTracingRegion) addStackTrace(zio)
-                  stack.push(zio)
+                  pushContinuation(zio)
 
                 case ZIO.Tags.InterruptStatus =>
                   val zio = curZio.asInstanceOf[ZIO.InterruptStatus[Any, E, Any]]
