@@ -56,6 +56,13 @@ class DurationSpec extends Specification {
           A negative s.c.d.Duration converts to Zero                           $dur1
           The infinite s.c.d.Duration converts to Infinity                     $dur2
           A positive s.c.d.Duration converts to a Finite                       $dur3
+
+        Make a Java stdlib j.t.Duration and check that:
+          A negative j.t.Duration converts to Zero                             $jdur1
+          The infinite j.t.Duration converts to Infinity                       $jdur2
+          The infinite j.t.Duration with adjustment converts to Infinity       $jdur3
+          A positive j.t.Duration converts to a Finite                         $jdur4
+
         Check multiplication with finite durations:
           Zero multiplied with zero                                            $mul0
           Zero multiplied with one                                             $mul1
@@ -178,6 +185,18 @@ class DurationSpec extends Specification {
 
   def dur3 =
     Duration.fromScala(ScalaDuration(1L, TimeUnit.NANOSECONDS)) must_=== Duration.fromNanos(1L)
+
+  def jdur1 =
+    Duration.fromJava(JavaDuration.ofNanos(-1L)) must_=== Duration.Zero
+
+  def jdur2 =
+    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue)) must_=== Duration.Infinity
+
+  def jdur3 =
+    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue, 1L)) must_=== Duration.Infinity
+
+  def jdur4 =
+    Duration.fromJava(JavaDuration.ofNanos(1L)) must_=== Duration.fromNanos(1L)
 
   def mul0 =
     Duration.Zero * 0 must_=== Duration.Zero

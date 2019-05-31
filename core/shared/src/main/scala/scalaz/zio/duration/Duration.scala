@@ -135,6 +135,10 @@ object Duration {
     case _                      => Infinity
   }
 
+  final def fromJava(duration: JavaDuration): Duration =
+    if (duration.getSeconds == Long.MaxValue) Infinity
+    else fromNanos(duration.toNanos)
+
   final val Zero: Duration = Finite(0)
 
 }
