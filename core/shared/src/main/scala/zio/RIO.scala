@@ -165,6 +165,28 @@ object RIO {
     ZIO.effectAsyncInterrupt(register)
 
   /**
+   * Returns a lazily constructed effect, whose construction may itself require effects.
+   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+   */
+  final def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(_ => rio)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotal]]
+   */
+  final def effectSuspendTotal[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendTotalWith(_ => rio)
+
+  /**
+   * @see See [[zio.ZIO.effectSuspendTotalWith]]
+   */
+  final def effectSuspendTotalWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendTotalWith(p)
+
+  /**
+   * Returns a lazily constructed effect, whose construction may itself require effects.
+   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+   */
+  final def effectSuspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith(p)
+
+  /**
    * @see See [[zio.ZIO.effectTotal]]
    */
   final def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
@@ -472,17 +494,11 @@ object RIO {
   final def superviseStatus[R, A](status: SuperviseStatus)(taskr: RIO[R, A]): RIO[R, A] =
     ZIO.superviseStatus(status)(taskr)
 
-  /**
-   * @see See [[zio.ZIO.suspend]]
-   */
-  final def suspend[R, A](taskr: => RIO[R, A]): RIO[R, A] =
-    ZIO.suspend(taskr)
+  @deprecated("use effectSuspendTotal", "1.0.0")
+  final def suspend[R, A](rio: => RIO[R, A]): RIO[R, A] = effectSuspendTotalWith(_ => rio)
 
-  /**
-   * [[zio.ZIO.suspendWith]]
-   */
-  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(io)
+  @deprecated("use effectSuspendTotalWith", "1.0.0")
+  final def suspendWith[R, A](p: Platform => RIO[R, A]): RIO[R, A] = effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.swap]]

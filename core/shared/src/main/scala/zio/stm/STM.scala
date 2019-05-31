@@ -659,7 +659,7 @@ object STM {
    * Atomically performs a batch of operations in a single transaction.
    */
   final def atomically[E, A](stm: STM[E, A]): IO[E, A] =
-    IO.suspendWith { platform =>
+    IO.effectSuspendTotalWith { platform =>
       tryCommit(platform, stm) match {
         case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
         case TryCommit.Suspend(journal) =>
