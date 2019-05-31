@@ -17,7 +17,7 @@
 package scalaz.zio
 
 import scalaz.zio.Exit.Cause
-import scalaz.zio.internal.{ Executor, FiberContext, Platform }
+import scalaz.zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -76,7 +76,18 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
-    val context = new FiberContext[E, A](Platform, Environment.asInstanceOf[AnyRef], Platform.newWeakHashMap())
+    val InitialInterruptStatus = InterruptStatus.Interruptible
+
+    val context = new FiberContext[E, A](
+      Platform,
+      Environment.asInstanceOf[AnyRef],
+      Platform.executor,
+      InitialInterruptStatus,
+      FiberContext.SuperviseStatus.Unsupervised,
+      None,
+      PlatformConstants.tracingSupported,
+      Platform.newWeakHashMap()
+    )
 
     context.evaluateNow(zio.asInstanceOf[IO[E, A]])
     context.runAsync(k)

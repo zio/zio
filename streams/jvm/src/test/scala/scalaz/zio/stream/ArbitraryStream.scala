@@ -20,12 +20,7 @@ object ArbitraryStream {
     Arbitrary.arbitrary[Iterable[T]].map(StreamPure.fromIterable)
 
   def genSucceededStream[T: ClassTag: Arbitrary]: Gen[Stream[Nothing, T]] =
-    Arbitrary.arbitrary[List[T]].map { xs =>
-      ZStream.unfoldM[Any, List[T], Nothing, T](xs) {
-        case head :: tail => IO.succeed(Some(head -> tail))
-        case _            => IO.succeed(None)
-      }
-    }
+    Arbitrary.arbitrary[List[T]].map(ZStream.fromIterable)
 
   def genFailingStream[T: ClassTag: Arbitrary]: Gen[Stream[String, T]] =
     for {

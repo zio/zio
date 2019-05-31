@@ -70,6 +70,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       val sinkResult = unsafeRunSync(s.run(ZSink.foldM(z)(ff)))
       val foldResult = unsafeRunSync {
         s.foldLeft(List[Int]())((acc, el) => el :: acc)
+          .use(IO.succeed)
           .map(_.reverse)
           .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
       }

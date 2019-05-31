@@ -409,7 +409,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
         _       <- f.interrupt
         observe <- f.poll
-      } yield observe must be some Exit.Failure(Cause.Interrupt)
+      } yield observe must be some Exit.Failure(Cause.interrupt)
     )
 
   def e30 =
