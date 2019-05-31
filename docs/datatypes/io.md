@@ -60,7 +60,7 @@ The resulting effect may fail for any `Throwable`.
 If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
 
 ```scala mdoc:silent
-def readFile(name: String): IO[String, Array[Byte]] =
+def readFile(name: String): IO[IOException, Array[Byte]] =
   IO.effect(FileUtils.readFileToByteArray(new File(name))).refineOrDie[IOException]
 ```
 
