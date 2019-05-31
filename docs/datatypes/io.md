@@ -61,9 +61,7 @@ If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain on
 
 ```scala mdoc:silent
 def readFile(name: String): IO[String, Array[Byte]] =
-  IO.effect(FileUtils.readFileToByteArray(new File(name))).refineOrDie {
-    case e : IOException => "Could not read file"
-  }
+  IO.effect(FileUtils.readFileToByteArray(new File(name))).refineOrDie[IOException]
 ```
 
 You can use the `effectAsync` method of `IO` to import effectful asynchronous code into your purely functional program:

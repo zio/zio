@@ -35,10 +35,6 @@ package object zio extends EitherCompat {
   type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
   val Queue = ZQueue
 
-  val JustExceptions: PartialFunction[Throwable, Exception] = {
-    case e: Exception => e
-  }
-
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))
