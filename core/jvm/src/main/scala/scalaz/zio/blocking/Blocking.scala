@@ -22,7 +22,6 @@ import scalaz.zio.{ Exit, UIO, ZIO }
 import Exit.Cause
 import scalaz.zio.internal.{ Executor, NamedThreadFactory }
 import scalaz.zio.internal.PlatformLive
-import scala.reflect.ClassTag
 
 private[blocking] object internal {
   private[blocking] val blockingExecutor0 =
@@ -86,7 +85,7 @@ object Blocking extends Serializable {
      * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
-    def effectBlocking[E <: Throwable: ClassTag, A](effect: => A): ZIO[R, E, A] =
+    def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
       ZIO.flatten(ZIO.effectTotal {
         import java.util.concurrent.locks.ReentrantLock
         import java.util.concurrent.atomic.AtomicReference
@@ -123,7 +122,7 @@ object Blocking extends Serializable {
 
         for {
           a <- (for {
-                fiber <- blocking(ZIO.effectTotal[Either[Cause[E], A]] {
+                fiber <- blocking(ZIO.effectTotal[Either[Cause[Throwable], A]] {
                           val current = Some(Thread.currentThread)
 
                           withMutex(thread.set(current))
@@ -133,10 +132,8 @@ object Blocking extends Serializable {
                             case _: InterruptedException =>
                               Thread.interrupted // Clear interrupt status
                               Left(Cause.interrupt)
-                            case t: E =>
-                              Left(Cause.fail(t.asInstanceOf[E]))
                             case t: Throwable =>
-                              Left(Cause.die(t))
+                              Left(Cause.fail(t))
                           } finally {
                             withMutex { thread.set(None); barrier.set(()) }
                           }
