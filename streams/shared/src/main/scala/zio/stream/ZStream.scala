@@ -296,16 +296,29 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     foreachWhile(f.andThen(_.const(true)))
 
   /**
+   * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZManaged[R1, E1, Unit] =
+    foreachWhileManaged(f.andThen(_.const(true)))
+
+  /**
    * Consumes elements of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
   final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+    foreachWhileManaged(f).use_(ZIO.unit)
+
+  /**
+   * Like [[ZStream#foreachWhile]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  final def foreachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
     self
       .fold[R1, E1, A, Boolean]
       .flatMap { fold =>
-        fold(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
+        fold(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont)).unit
       }
-      .use_(ZIO.unit)
 
   /**
    * Repeats this stream forever.
