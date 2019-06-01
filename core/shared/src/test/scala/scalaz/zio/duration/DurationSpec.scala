@@ -58,13 +58,14 @@ class DurationSpec extends Specification {
           A positive s.c.d.Duration converts to a Finite                       $dur3
 
         Make a Java stdlib j.t.Duration and check that:
-          A negative j.t.Duration converts to Zero                               $jdur1
-          A Long.MaxValue second j.t.Duration converts to Infinity               $jdur2
-          A nano-adjusted Long.MaxValue second j.t.Duration converts to Infinity $jdur3
-          A j.t.Duration construted from Infinity converts to Infinity           $jdur4
-          A Long.MaxValue - 1 second j.t.Duration converts to Infinity           $jdur5
-          A j.t.Duration whose nano conversion overflows converts to Infinity    $jdur6
-          A positive j.t.Duration converts to a Finite                           $jdur7
+          A negative j.t.Duration converts to Zero                                $jdur1
+          A Long.MaxValue second j.t.Duration converts to Infinity                $jdur2
+          A nano-adjusted Long.MaxValue second j.t.Duration converts to Infinity  $jdur3
+          A j.t.Duration construted from Infinity converts to Infinity            $jdur4
+          A Long.MaxValue - 1 second j.t.Duration converts to Infinity            $jdur5
+          A +ve j.t.Duration whose nano conversion overflows converts to Infinity $jdur6
+          A -ve j.t.Duration whose nano conversion overflows converts to Zero     $jdur7
+          A positive j.t.Duration converts to a Finite                            $jdur8
 
         Check multiplication with finite durations:
           Zero multiplied with zero                                            $mul0
@@ -208,6 +209,9 @@ class DurationSpec extends Specification {
     Duration.fromJava(JavaDuration.ofNanos(Long.MaxValue).plus(JavaDuration.ofNanos(1L))) must_=== Duration.Infinity
 
   def jdur7 =
+    Duration.fromJava(JavaDuration.ofNanos(Long.MinValue).minus(JavaDuration.ofNanos(1L))) must_=== Duration.Zero
+
+  def jdur8 =
     Duration.fromJava(JavaDuration.ofNanos(1L)) must_=== Duration.fromNanos(1L)
 
   def mul0 =
