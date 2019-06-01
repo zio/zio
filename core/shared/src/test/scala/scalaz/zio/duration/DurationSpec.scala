@@ -62,7 +62,9 @@ class DurationSpec extends Specification {
           A Long.MaxValue second j.t.Duration converts to Infinity               $jdur2
           A nano-adjusted Long.MaxValue second j.t.Duration converts to Infinity $jdur3
           A j.t.Duration construted from Infinity converts to Infinity           $jdur4
-          A positive j.t.Duration converts to a Finite                           $jdur5
+          A Long.MaxValue - 1 second j.t.Duration converts to Infinity           $jdur5
+          A j.t.Duration whose nano conversion overflows converts to Infinity    $jdur6
+          A positive j.t.Duration converts to a Finite                           $jdur7
 
         Check multiplication with finite durations:
           Zero multiplied with zero                                            $mul0
@@ -200,6 +202,12 @@ class DurationSpec extends Specification {
     Duration.fromJava(Duration.Infinity.asJava) must_=== Duration.Infinity
 
   def jdur5 =
+    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue - 1)) must_=== Duration.Infinity
+
+  def jdur6 =
+    Duration.fromJava(JavaDuration.ofNanos(Long.MaxValue).plus(JavaDuration.ofNanos(1L))) must_=== Duration.Infinity
+
+  def jdur7 =
     Duration.fromJava(JavaDuration.ofNanos(1L)) must_=== Duration.fromNanos(1L)
 
   def mul0 =

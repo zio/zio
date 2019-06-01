@@ -136,7 +136,7 @@ object Duration {
   }
 
   final def fromJava(duration: JavaDuration): Duration =
-    if (duration.getSeconds == Long.MaxValue) Infinity
+    if (duration.compareTo(JavaDuration.ofNanos(Long.MaxValue)) >= 0) Infinity
     else fromNanos(duration.toNanos)
 
   final val Zero: Duration = Finite(0)
