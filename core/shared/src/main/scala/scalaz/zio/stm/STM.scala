@@ -195,8 +195,8 @@ final class STM[+E, +A] private[stm] (
     )
 
   /**
-    * Ignores any failure and return `Unit`
-    */
+   * Returns a new effect that ignores the success or failure of this effect.
+   */
   final def ignore: STM[Nothing, Unit] = self.either.unit
 
   /**
