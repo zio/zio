@@ -728,24 +728,44 @@ object ZSink {
       }
       .map(_.reverse)
 
+  /**
+   * TODO I don't understand why these combinators are invariant in all types
+   */
   implicit class InvariantOps[R, E, A0, A, B](self: ZSink[R, E, A, A, B]) {
+    /**
+     * Operator alias for `orElse` for two sinks consuming and producing values of the same type.
+     */
     final def <|[R1 <: R, E1, B1 >: B](
       that: ZSink[R1, E1, A, A, B1]
     ): ZSink[R1, E1, A, A, B1] =
       (self orElse that).map(_.merge)
 
+    @deprecated("use <*>", "1.0.0")
     final def ~[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
       zip(that)
 
+    /**
+     * Operator alias for `zipRight`
+     */
     final def *>[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, C] =
       zip(that).map(_._2)
 
+    /**
+     * Operator alias for `zipLeft`
+     */
     final def <*[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, B] =
       zip(that).map(_._1)
 
+    /**
+     * Operator alias for `zip`
+     */
     final def <*>[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
       self zip that
 
+    /**
+     * Creates a sink producing values of type `C` obtained by each produced value of type `B`
+     * transformed into a sink by `f`.
+     */
     final def flatMap[R1 <: R, E1 >: E, C](
       f: B => ZSink[R1, E1, A, A, C]
     ): ZSink[R1, E1, A, A, C] =
@@ -923,12 +943,27 @@ object ZSink {
         }
       }
 
+    /**
+     * Accumulates the output into a list.
+     *
+     * TODO rename `accumOutput`?
+     */
     final def repeat: ZSink[R, E, A, A, List[B]] =
       repeatWith(List.empty[B])((bs, b) => b :: bs).map(_.reverse)
 
+    /**
+     * Accumulates the output into a list of maximum size `i`.
+     * 
+     * TODO rename `accumOutputN`?
+     */
     final def repeatN(i: Int): ZSink[R, E, A, A, List[B]] =
       repeatWith[(Int, List[B])]((0, Nil))((s, b) => (s._1 + 1, b :: s._2)).untilOutput(_._1 >= i).map(_._2.reverse)
 
+    /**
+     * Accumulates the output into a value of type `S`.
+     * 
+     * TODO rename `accumWith`?
+     */
     final def repeatWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       new ZSink[R, E, A, A, S] {
         type State = (Option[E], S, self.State)
@@ -963,10 +998,16 @@ object ZSink {
           IO.succeed(state._2)
       }
 
+    /**
+     * Accumulates into a list for as long as incoming values verify predicate `p`.
+     */
     final def repeatWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] =
       repeatWhileWith(p)(List.empty[B])((bs, b) => b :: bs)
         .map(_.reverse)
 
+    /**
+     * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
+     */
     final def repeatWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
       new ZSink[R, E, A, A, S] {
         type State = (S, self.State)
@@ -994,15 +1035,27 @@ object ZSink {
           IO.succeed(state._1)
       }
 
+    /**
+     * Runs two sinks in unison and matches produces values pair-wise.
+     */
     final def zip[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
       flatMap(b => that.map(c => (b, c)))
 
+    /**
+     * Runs two sinks in unison and drops values on the right.
+     */
     final def zipLeft[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, B] =
       self <* that
 
+    /**
+     * Runs two sinks in unison and drops values on the left.
+     */
     final def zipRight[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, C] =
       self *> that
 
+    /**
+     * Runs two sinks in unison and merges values pair-wise.
+     */
     final def zipWith[R1 <: R, E1 >: E, C, D](that: ZSink[R1, E1, A, A, C])(f: (B, C) => D): ZSink[R1, E1, A, A, D] =
       zip(that).map(f.tupled)
 
