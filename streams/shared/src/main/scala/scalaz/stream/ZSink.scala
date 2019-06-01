@@ -383,7 +383,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-   * Creates a sink that drops all produced elements on the floor.
+   * Creates a sink that ignores all produced elements.
    */
   final def unit: ZSink[R, E, A0, A, Unit] = const(())
 
