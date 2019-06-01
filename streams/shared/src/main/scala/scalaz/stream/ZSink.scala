@@ -297,8 +297,6 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
   /**
    * The initial state of the sink.
-   *
-   * TODO I don't understand what I just wrote 😅
    */
   def initial: ZIO[R, E, Step[State, Nothing]]
 
@@ -917,9 +915,6 @@ object ZSink extends ZSinkPlatformSpecific {
 
   /**
    * Creates a sink by folding over a structure of type `S`.
-   *
-   * TODO Hum, should this one be called `unfold` instead? `Step` is a bit like `Option`
-   * after all.
    */
   def fold[A0, A, S](z: S)(f: (S, A) => Step[S, A0]): ZSink[Any, Nothing, A0, A, S] =
     new SinkPure[Nothing, A0, A, S] {
