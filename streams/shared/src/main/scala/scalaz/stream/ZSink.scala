@@ -70,6 +70,44 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     self.race(that)
 
   /**
+   * Operator alias for `orElse` for two sinks consuming and producing values of the same type.
+   */
+  final def <|[R1 <: R, E1, B1 >: B, A00 >: A0, A1 <: A](
+    that: ZSink[R1, E1, A00, A1, B1]
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, B1] =
+    (self orElse that).map(_.merge)
+
+  @deprecated("use <*>", "1.0.0")
+  final def ~[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, (B, C)] =
+    zip(that)
+
+  /**
+   * Operator alias for `zipRight`
+   */
+  final def *>[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, C] =
+    zip(that).map(_._2)
+
+  /**
+   * Operator alias for `zipLeft`
+   */
+  final def <*[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, B] =
+    zip(that).map(_._1)
+
+  /**
+   * Operator alias for `zip`
+   */
+  final def <*>[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, (B, C)] =
+    self zip that
+
+  /**
    * Takes a `Sink`, and lifts it to be chunked in its input and output. This
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
@@ -158,6 +196,55 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    * of type `B`
    */
   def extract(state: State): ZIO[R, E, B]
+
+  /**
+   * Creates a sink producing values of type `C` obtained by each produced value of type `B`
+   * transformed into a sink by `f`.
+   */
+  final def flatMap[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+    f: B => ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, C] =
+    new ZSink[R1, E1, A00, A1, C] {
+      type State = Either[self.State, (ZSink[R1, E1, A00, A1, C], Any)]
+
+      val initial: ZIO[R1, E1, Step[State, Nothing]] = self.initial.map(Step.leftMap(_)(Left(_)))
+
+      def step(state: State, a: A1): ZIO[R1, E1, Step[State, A00]] = state match {
+        case Left(s1) =>
+          self.step(s1, a) flatMap { s1 =>
+            if (Step.cont(s1)) IO.succeed(Step.more(Left(Step.state(s1))))
+            else {
+              val as = Step.leftover(s1)
+
+              self.extract(Step.state(s1)).flatMap { b =>
+                val that = f(b)
+
+                that.initial.flatMap(
+                  s2 =>
+                    that
+                      .stepChunk[A1](Step.state(s2), as.map(ev))
+                      .map(Step.leftMap(_)(s2 => Right((that, s2)))): ZIO[R1, E1, Step[State, A00]] // TODO: Dotty doesn't infer this properly
+                )
+              }
+            }
+          }
+
+        case Right((that, s2)) =>
+          that.step(s2.asInstanceOf[that.State], a).map(Step.leftMap(_)(s2 => Right((that, s2))))
+      }
+
+      def extract(state: State): ZIO[R1, E1, C] =
+        state match {
+          case Left(s1) =>
+            self.extract(s1).flatMap { b =>
+              val that = f(b)
+
+              that.initial.flatMap(s2 => that.extract(Step.state(s2)))
+            }
+
+          case Right((that, s2)) => that.extract(s2.asInstanceOf[that.State])
+        }
+    }
 
   /**
    * Filters the inputs fed to this sink.
@@ -280,6 +367,138 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self ?
 
   /**
+   * Runs both sinks in parallel on the same input. If the left one succeeds,
+   * its value will be produced. Otherwise, whatever the right one produces
+   * will be produced. If the right one succeeds before the left one, it
+   * accumulates the full input until the left one fails, so it can return
+   * it as the remainder. This allows this combinator to function like `choice`
+   * in parser combinator libraries.
+   *
+   * Left:  ============== FAIL!
+   * Right: ===== SUCCEEDS!
+   *             xxxxxxxxx <- Should NOT be consumed
+   */
+  final def orElse[R1 <: R, E1, A00 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R1, E1, A00, A1, Either[B, C]] =
+    new ZSink[R1, E1, A00, A1, Either[B, C]] {
+      import ZSink.internal._
+
+      type State = (Side[E, self.State, B], Side[E1, that.State, (Chunk[A1], C)])
+
+      val l: ZIO[R, Nothing, Step[Either[E, self.State], Nothing]]   = self.initial.either.map(sequence)
+      val r: ZIO[R1, Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.either.map(sequence)
+      val initial: ZIO[R1, E1, Step[State, Nothing]] =
+        l.zipWithPar(r) { (l, r) =>
+          Step.both(Step.leftMap(l)(eitherToSide), Step.leftMap(r)(eitherToSide))
+        }
+
+      def eitherToSide[E, A, B](e: Either[E, A]): Side[E, A, B] =
+        e match {
+          case Left(e)  => Side.Error(e)
+          case Right(s) => Side.State(s)
+        }
+
+      def extract(state: State): ZIO[R1, E1, Either[B, C]] = {
+        def fromRight: ZIO[R1, E1, Either[B, C]] = state._2 match {
+          case Side.Value((_, c)) => IO.succeed(Right(c))
+          case Side.State(s)      => that.extract(s).map(Right(_))
+          case Side.Error(e)      => IO.fail(e)
+        }
+
+        state match {
+          case (Side.Value(b), _) => IO.succeed(Left(b))
+          case (Side.State(s), _) => self.extract(s).foldM(_ => fromRight, b => IO.succeed(Left(b)))
+          case _                  => fromRight
+        }
+      }
+
+      def sequence[E, S, A0](e: Either[E, Step[S, A0]]): Step[Either[E, S], A0] =
+        e match {
+          case Left(e)                   => Step.done(Left(e), Chunk.empty)
+          case Right(s) if Step.cont(s)  => Step.more(Right(Step.state(s)))
+          case Right(s) if !Step.cont(s) => Step.done(Right(Step.state(s)), Step.leftover(s))
+        }
+
+      def step(state: State, a: A1): ZIO[R1, E1, Step[State, A00]] = {
+        val leftStep: ZIO[R, Nothing, Step[Side[E, self.State, B], A00]] =
+          state._1 match {
+            case Side.State(s) =>
+              self
+                .step(s, a)
+                .foldM[R, Nothing, Step[Side[E, self.State, B], A00]]( // TODO: Dotty doesn't infer this properly
+                  e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
+                  s =>
+                    if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
+                    else
+                      self
+                        .extract(Step.state(s))
+                        .fold[Step[Side[E, Nothing, B], A00]]( // TODO: Dotty doesn't infer this properly
+                          e => Step.done(Side.Error(e), Step.leftover(s)),
+                          b => Step.done(Side.Value(b), Step.leftover(s))
+                        )
+                )
+            case s => IO.succeed(Step.done(s, Chunk.empty))
+          }
+        val rightStep: ZIO[R1, Nothing, Step[Side[E1, that.State, (Chunk[A1], C)], A00]] =
+          state._2 match {
+            case Side.State(s) =>
+              that
+                .step(s, a)
+                .foldM[R1, Nothing, Step[Side[E1, that.State, (Chunk[A1], C)], A00]]( // TODO: Dotty doesn't infer this properly
+                  e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
+                  s =>
+                    if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
+                    else {
+                      that
+                        .extract(Step.state(s))
+                        .fold[Step[Side[E1, Nothing, (Chunk[A1], C)], A00]]( // TODO: Dotty doesn't infer this properly
+                          e => Step.done(Side.Error(e), Step.leftover(s)),
+                          c => Step.done(Side.Value((Step.leftover(s).map(ev), c)), Step.leftover(s))
+                        )
+                    }
+                )
+            case Side.Value((a0, c)) =>
+              val a3 = a0 ++ Chunk(a)
+
+              IO.succeed(Step.done(Side.Value((a3, c)), a3.map(ev2)))
+
+            case s => IO.succeed(Step.done(s, Chunk.empty))
+          }
+
+        leftStep.zip(rightStep).flatMap {
+          case (s1, s2) =>
+            if (Step.cont(s1) && Step.cont(s2))
+              IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
+            else if (!Step.cont(s1) && !Step.cont(s2)) {
+              // Step.Done(s1, a1), Step.Done(s2, a2)
+              Step.state(s1) match {
+                case Side.Error(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s2)))
+                case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
+                case Side.State(s) =>
+                  self
+                    .extract(s)
+                    .fold[Step[State, A00]]( // TODO: Dotty doesn't infer this properly
+                      e => Step.done((Side.Error(e), Step.state(s2)), Step.leftover(s2)),
+                      b => Step.done((Side.Value(b), Step.state(s2)), Step.leftover(s1))
+                    )
+              }
+            } else if (Step.cont(s1) && !Step.cont(s2)) IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
+            else {
+              // Step.Done(s1, a1), Step.More(s2)
+              Step.state(s1) match {
+                case Side.Error(_) => IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
+                case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
+                case Side.State(s) =>
+                  self.extract(s).fold(Side.Error(_), Side.Value(_)).map(s1 => Step.more((s1, Step.state(s2))))
+              }
+
+            }
+        }
+      }
+    }
+
+  /**
    * Narrows the environment by partially building it with `f`
    */
   def provideSome[R1](f: R1 => R): ZSink[R1, E, A0, A, B] =
@@ -303,6 +522,104 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     that: ZSink[R1, E1, A2, A1, B1]
   ): ZSink[R1, E1, A2, A1, B1] =
     self.raceBoth(that).map(_.merge)
+
+  /**
+   * Accumulates the output into a list.
+   *
+   * TODO rename `accumOutput`?
+   */
+  final def repeat[A00 >: A0, A1 <: A](implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, List[B]] =
+    repeatWith[List[B], A00, A1](List.empty[B])((bs, b) => b :: bs).map(_.reverse)
+
+  /**
+   * Accumulates the output into a list of maximum size `i`.
+   *
+   * TODO rename `accumOutputN`?
+   */
+  final def repeatN[A00 >: A0, A1 <: A](i: Int)(implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, List[B]] =
+    repeatWith[(Int, List[B]), A00, A1]((0, Nil))((s, b) => (s._1 + 1, b :: s._2))
+      .untilOutput(_._1 >= i)
+      .map(_._2.reverse)
+
+  /**
+   * Accumulates the output into a value of type `S`.
+   *
+   * TODO rename `accumWith`?
+   */
+  final def repeatWith[S, A00 >: A0, A1 <: A](z: S)(f: (S, B) => S)(implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, S] =
+    new ZSink[R, E, A00, A1, S] {
+      type State = (Option[E], S, self.State)
+
+      val initial = self.initial.map(step => Step.leftMap(step)((None, z, _)))
+
+      def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
+        self
+          .step(state._3, a)
+          .foldM(
+            e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
+            step =>
+              if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
+              else {
+                val s  = Step.state(step)
+                val as = Step.leftover(step)
+
+                self.extract(s).flatMap { b =>
+                  self.initial.flatMap { init =>
+                    self
+                      .stepChunk(Step.state(init), as.map(ev))
+                      .fold(
+                        e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
+                        s => Step.leftMap(s)((state._1, f(state._2, b), _))
+                      )
+                  }
+                }
+              }
+          )
+
+      def extract(state: State): IO[E, S] =
+        IO.succeed(state._2)
+    }
+
+  /**
+   * Accumulates into a list for as long as incoming values verify predicate `p`.
+   */
+  final def repeatWhile[A00 >: A0, A1 <: A](
+    p: A00 => Boolean
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, List[B]] =
+    repeatWhileWith[List[B], A00, A1](p)(List.empty[B])((bs, b) => b :: bs)
+      .map(_.reverse)
+
+  /**
+   * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
+   */
+  final def repeatWhileWith[S, A00 >: A0, A1 <: A](
+    p: A00 => Boolean
+  )(z: S)(f: (S, B) => S)(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, S] =
+    new ZSink[R, E, A00, A1, S] {
+      type State = (S, self.State)
+
+      val initial = self.initial.map(Step.leftMap(_)((z, _)))
+
+      def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
+        if (!p(a)) self.extract(state._2).map(b => Step.done((f(state._1, b), state._2), Chunk(ev2(a))))
+        else
+          self.step(state._2, a).flatMap { step =>
+            if (Step.cont(step)) IO.succeed(Step.more((state._1, Step.state(step))))
+            else {
+              val s  = Step.state(step)
+              val as = Step.leftover(step)
+
+              self.extract(s).flatMap { b =>
+                self.initial.flatMap { init =>
+                  self.stepChunk[A1](Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
+                }
+              }
+            }
+          }
+
+      def extract(state: State): IO[E, S] =
+        IO.succeed(state._1)
+    }
 
   /**
    * Steps through one iteration of the sink
@@ -421,6 +738,39 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
   @deprecated("use unit", "1.0.0")
   final def void: ZSink[R, E, A0, A, Unit] = unit
+
+  /**
+   * Runs two sinks in unison and matches produced values pair-wise.
+   */
+  final def zip[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, (B, C)] =
+    flatMap(b => that.map(c => (b, c)))
+
+  /**
+   * Runs two sinks in unison and keeps only values on the left.
+   */
+  final def zipLeft[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, B] =
+    self <* that
+
+  /**
+   * Runs two sinks in unison and keeps only values on the right.
+   */
+  final def zipRight[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, C] =
+    self *> that
+
+  /**
+   * Runs two sinks in unison and merges values pair-wise.
+   */
+  final def zipWith[R1 <: R, E1 >: E, A00 >: A0, A1 <: A, C, D](
+    that: ZSink[R1, E1, A00, A1, C]
+  )(f: (B, C) => D)(implicit ev: A00 =:= A1): ZSink[R1, E1, A00, A1, D] =
+    zip(that).map(f.tupled)
+
 }
 
 object ZSink {
@@ -721,338 +1071,4 @@ object ZSink {
           case Left(e)        => Left(e)
         }
     }
-
-  /**
-   * TODO I don't understand why these combinators are invariant in all types
-   */
-  implicit class InvariantOps[R, E, A0, A, B](self: ZSink[R, E, A, A, B]) {
-
-    /**
-     * Operator alias for `orElse` for two sinks consuming and producing values of the same type.
-     */
-    final def <|[R1 <: R, E1, B1 >: B](
-      that: ZSink[R1, E1, A, A, B1]
-    ): ZSink[R1, E1, A, A, B1] =
-      (self orElse that).map(_.merge)
-
-    @deprecated("use <*>", "1.0.0")
-    final def ~[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
-      zip(that)
-
-    /**
-     * Operator alias for `zipRight`
-     */
-    final def *>[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, C] =
-      zip(that).map(_._2)
-
-    /**
-     * Operator alias for `zipLeft`
-     */
-    final def <*[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, B] =
-      zip(that).map(_._1)
-
-    /**
-     * Operator alias for `zip`
-     */
-    final def <*>[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
-      self zip that
-
-    /**
-     * Creates a sink producing values of type `C` obtained by each produced value of type `B`
-     * transformed into a sink by `f`.
-     */
-    final def flatMap[R1 <: R, E1 >: E, C](
-      f: B => ZSink[R1, E1, A, A, C]
-    ): ZSink[R1, E1, A, A, C] =
-      new ZSink[R1, E1, A, A, C] {
-        type State = Either[self.State, (ZSink[R1, E1, A, A, C], Any)]
-
-        val initial: ZIO[R1, E1, Step[State, Nothing]] = self.initial.map(Step.leftMap(_)(Left(_)))
-
-        def step(state: State, a: A): ZIO[R1, E1, Step[State, A]] = state match {
-          case Left(s1) =>
-            self.step(s1, a) flatMap { s1 =>
-              if (Step.cont(s1)) IO.succeed(Step.more(Left(Step.state(s1))))
-              else {
-                val as = Step.leftover(s1)
-
-                self.extract(Step.state(s1)).flatMap { b =>
-                  val that = f(b)
-
-                  that.initial.flatMap(
-                    s2 =>
-                      that
-                        .stepChunk(Step.state(s2), as)
-                        .map(Step.leftMap(_)(s2 => Right((that, s2)))): ZIO[R1, E1, Step[State, A]] // TODO: Dotty doesn't infer this properly
-                  )
-                }
-              }
-            }
-
-          case Right((that, s2)) =>
-            that.step(s2.asInstanceOf[that.State], a).map(Step.leftMap(_)(s2 => Right((that, s2))))
-        }
-
-        def extract(state: State): ZIO[R1, E1, C] =
-          state match {
-            case Left(s1) =>
-              self.extract(s1).flatMap { b =>
-                val that = f(b)
-
-                that.initial.flatMap(s2 => that.extract(Step.state(s2)))
-              }
-
-            case Right((that, s2)) => that.extract(s2.asInstanceOf[that.State])
-          }
-      }
-
-    /**
-     * Runs both sinks in parallel on the same input. If the left one succeeds,
-     * its value will be produced. Otherwise, whatever the right one produces
-     * will be produced. If the right one succeeds before the left one, it
-     * accumulates the full input until the left one fails, so it can return
-     * it as the remainder. This allows this combinator to function like `choice`
-     * in parser combinator libraries.
-     *
-     * Left:  ============== FAIL!
-     * Right: ===== SUCCEEDS!
-     *             xxxxxxxxx <- Should NOT be consumed
-     */
-    final def orElse[R1 <: R, E1, C](
-      that: ZSink[R1, E1, A, A, C]
-    ): ZSink[R1, E1, A, A, Either[B, C]] =
-      new ZSink[R1, E1, A, A, Either[B, C]] {
-        import ZSink.internal._
-
-        type State = (Side[E, self.State, B], Side[E1, that.State, (Chunk[A], C)])
-
-        val l: ZIO[R, Nothing, Step[Either[E, self.State], Nothing]]   = self.initial.either.map(sequence)
-        val r: ZIO[R1, Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.either.map(sequence)
-        val initial: ZIO[R1, E1, Step[State, Nothing]] =
-          l.zipWithPar(r) { (l, r) =>
-            Step.both(Step.leftMap(l)(eitherToSide), Step.leftMap(r)(eitherToSide))
-          }
-
-        def eitherToSide[E, A, B](e: Either[E, A]): Side[E, A, B] =
-          e match {
-            case Left(e)  => Side.Error(e)
-            case Right(s) => Side.State(s)
-          }
-
-        def extract(state: State): ZIO[R1, E1, Either[B, C]] = {
-          def fromRight: ZIO[R1, E1, Either[B, C]] = state._2 match {
-            case Side.Value((_, c)) => IO.succeed(Right(c))
-            case Side.State(s)      => that.extract(s).map(Right(_))
-            case Side.Error(e)      => IO.fail(e)
-          }
-
-          state match {
-            case (Side.Value(b), _) => IO.succeed(Left(b))
-            case (Side.State(s), _) => self.extract(s).foldM(_ => fromRight, b => IO.succeed(Left(b)))
-            case _                  => fromRight
-          }
-        }
-
-        def sequence[E, S, A0](e: Either[E, Step[S, A0]]): Step[Either[E, S], A0] =
-          e match {
-            case Left(e)                   => Step.done(Left(e), Chunk.empty)
-            case Right(s) if Step.cont(s)  => Step.more(Right(Step.state(s)))
-            case Right(s) if !Step.cont(s) => Step.done(Right(Step.state(s)), Step.leftover(s))
-          }
-
-        def step(state: State, a: A): ZIO[R1, E1, Step[State, A]] = {
-          val leftStep: ZIO[R, Nothing, Step[Side[E, self.State, B], A]] =
-            state._1 match {
-              case Side.State(s) =>
-                self
-                  .step(s, a)
-                  .foldM[R, Nothing, Step[Side[E, self.State, B], A]]( // TODO: Dotty doesn't infer this properly
-                    e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
-                    s =>
-                      if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
-                      else
-                        self
-                          .extract(Step.state(s))
-                          .fold[Step[Side[E, Nothing, B], A]]( // TODO: Dotty doesn't infer this properly
-                            e => Step.done(Side.Error(e), Step.leftover(s)),
-                            b => Step.done(Side.Value(b), Step.leftover(s))
-                          )
-                  )
-              case s => IO.succeed(Step.done(s, Chunk.empty))
-            }
-          val rightStep: ZIO[R1, Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]] =
-            state._2 match {
-              case Side.State(s) =>
-                that
-                  .step(s, a)
-                  .foldM[R1, Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]]( // TODO: Dotty doesn't infer this properly
-                    e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
-                    s =>
-                      if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
-                      else {
-                        that
-                          .extract(Step.state(s))
-                          .fold[Step[Side[E1, Nothing, (Chunk[A], C)], A]]( // TODO: Dotty doesn't infer this properly
-                            e => Step.done(Side.Error(e), Step.leftover(s)),
-                            c => Step.done(Side.Value((Step.leftover(s), c)), Step.leftover(s))
-                          )
-                      }
-                  )
-              case Side.Value((a0, c)) =>
-                val a3 = a0 ++ Chunk(a)
-
-                IO.succeed(Step.done(Side.Value((a3, c)), a3))
-
-              case s => IO.succeed(Step.done(s, Chunk.empty))
-            }
-
-          leftStep.zip(rightStep).flatMap {
-            case (s1, s2) =>
-              if (Step.cont(s1) && Step.cont(s2))
-                IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
-              else if (!Step.cont(s1) && !Step.cont(s2)) {
-                // Step.Done(s1, a1), Step.Done(s2, a2)
-                Step.state(s1) match {
-                  case Side.Error(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s2)))
-                  case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
-                  case Side.State(s) =>
-                    self
-                      .extract(s)
-                      .fold[Step[State, A]]( // TODO: Dotty doesn't infer this properly
-                        e => Step.done((Side.Error(e), Step.state(s2)), Step.leftover(s2)),
-                        b => Step.done((Side.Value(b), Step.state(s2)), Step.leftover(s1))
-                      )
-                }
-              } else if (Step.cont(s1) && !Step.cont(s2)) IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
-              else {
-                // Step.Done(s1, a1), Step.More(s2)
-                Step.state(s1) match {
-                  case Side.Error(_) => IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
-                  case Side.Value(_) => IO.succeed(Step.done((Step.state(s1), Step.state(s2)), Step.leftover(s1)))
-                  case Side.State(s) =>
-                    self.extract(s).fold(Side.Error(_), Side.Value(_)).map(s1 => Step.more((s1, Step.state(s2))))
-                }
-
-              }
-          }
-        }
-      }
-
-    /**
-     * Accumulates the output into a list.
-     *
-     * TODO rename `accumOutput`?
-     */
-    final def repeat: ZSink[R, E, A, A, List[B]] =
-      repeatWith(List.empty[B])((bs, b) => b :: bs).map(_.reverse)
-
-    /**
-     * Accumulates the output into a list of maximum size `i`.
-     *
-     * TODO rename `accumOutputN`?
-     */
-    final def repeatN(i: Int): ZSink[R, E, A, A, List[B]] =
-      repeatWith[(Int, List[B])]((0, Nil))((s, b) => (s._1 + 1, b :: s._2)).untilOutput(_._1 >= i).map(_._2.reverse)
-
-    /**
-     * Accumulates the output into a value of type `S`.
-     *
-     * TODO rename `accumWith`?
-     */
-    final def repeatWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
-      new ZSink[R, E, A, A, S] {
-        type State = (Option[E], S, self.State)
-
-        val initial = self.initial.map(step => Step.leftMap(step)((None, z, _)))
-
-        def step(state: State, a: A): ZIO[R, E, Step[State, A]] =
-          self
-            .step(state._3, a)
-            .foldM(
-              e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
-              step =>
-                if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
-                else {
-                  val s  = Step.state(step)
-                  val as = Step.leftover(step)
-
-                  self.extract(s).flatMap { b =>
-                    self.initial.flatMap { init =>
-                      self
-                        .stepChunk(Step.state(init), as)
-                        .fold(
-                          e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
-                          s => Step.leftMap(s)((state._1, f(state._2, b), _))
-                        )
-                    }
-                  }
-                }
-            )
-
-        def extract(state: State): IO[E, S] =
-          IO.succeed(state._2)
-      }
-
-    /**
-     * Accumulates into a list for as long as incoming values verify predicate `p`.
-     */
-    final def repeatWhile(p: A => Boolean): ZSink[R, E, A, A, List[B]] =
-      repeatWhileWith(p)(List.empty[B])((bs, b) => b :: bs)
-        .map(_.reverse)
-
-    /**
-     * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
-     */
-    final def repeatWhileWith[S](p: A => Boolean)(z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
-      new ZSink[R, E, A, A, S] {
-        type State = (S, self.State)
-
-        val initial = self.initial.map(Step.leftMap(_)((z, _)))
-
-        def step(state: State, a: A): ZIO[R, E, Step[State, A]] =
-          if (!p(a)) self.extract(state._2).map(b => Step.done((f(state._1, b), state._2), Chunk(a)))
-          else
-            self.step(state._2, a).flatMap { step =>
-              if (Step.cont(step)) IO.succeed(Step.more((state._1, Step.state(step))))
-              else {
-                val s  = Step.state(step)
-                val as = Step.leftover(step)
-
-                self.extract(s).flatMap { b =>
-                  self.initial.flatMap { init =>
-                    self.stepChunk(Step.state(init), as).map(Step.leftMap(_)((f(state._1, b), _)))
-                  }
-                }
-              }
-            }
-
-        def extract(state: State): IO[E, S] =
-          IO.succeed(state._1)
-      }
-
-    /**
-     * Runs two sinks in unison and matches produced values pair-wise.
-     */
-    final def zip[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
-      flatMap(b => that.map(c => (b, c)))
-
-    /**
-     * Runs two sinks in unison and keeps only values on the left.
-     */
-    final def zipLeft[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, B] =
-      self <* that
-
-    /**
-     * Runs two sinks in unison and keeps only values on the right.
-     */
-    final def zipRight[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, C] =
-      self *> that
-
-    /**
-     * Runs two sinks in unison and merges values pair-wise.
-     */
-    final def zipWith[R1 <: R, E1 >: E, C, D](that: ZSink[R1, E1, A, A, C])(f: (B, C) => D): ZSink[R1, E1, A, A, D] =
-      zip(that).map(f.tupled)
-
-  }
 }
