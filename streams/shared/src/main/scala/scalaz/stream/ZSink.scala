@@ -1037,7 +1037,7 @@ object ZSink {
       }
 
     /**
-     * Runs two sinks in unison and matches produces values pair-wise.
+     * Runs two sinks in unison and matches produced values pair-wise.
      */
     final def zip[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
       flatMap(b => that.map(c => (b, c)))
