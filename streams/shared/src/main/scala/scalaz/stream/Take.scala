@@ -24,17 +24,25 @@ import scalaz.zio.IO
  * stream marker.
  */
 sealed trait Take[+E, +A] extends Product with Serializable { self =>
+  final def flatMap[E1 >: E, B](f: A => Take[E1, B]): Take[E1, B] = self match {
+    case t @ Take.Fail(_) => t
+    case Take.Value(a)    => f(a)
+    case Take.End         => Take.End
+  }
+
+  final def isFailure: Boolean = self match {
+    case Take.Fail(_) => true
+    case _            => false
+  }
+
   final def map[B](f: A => B): Take[E, B] = self match {
     case t @ Take.Fail(_) => t
     case Take.Value(a)    => Take.Value(f(a))
     case Take.End         => Take.End
   }
 
-  final def flatMap[E1 >: E, B](f: A => Take[E1, B]): Take[E1, B] = self match {
-    case t @ Take.Fail(_) => t
-    case Take.Value(a)    => f(a)
-    case Take.End         => Take.End
-  }
+  final def zip[E1 >: E, B](that: Take[E1, B]): Take[E1, (A, B)] =
+    self.zipWith(that)(_ -> _)
 
   final def zipWith[E1 >: E, B, C](that: Take[E1, B])(f: (A, B) => C): Take[E1, C] = (self, that) match {
     case (Take.Value(a), Take.Value(b)) => Take.Value(f(a, b))
@@ -43,16 +51,8 @@ sealed trait Take[+E, +A] extends Product with Serializable { self =>
     case (_, Take.End)                  => Take.End
     case (_, t @ Take.Fail(_))          => t
   }
-
-  final def zip[E1 >: E, B](that: Take[E1, B]): Take[E1, (A, B)] =
-    self.zipWith(that)(_ -> _)
-
-  final def isFailure: Boolean = self match {
-    case Take.Fail(_) => true
-    case _            => false
-  }
-
 }
+
 object Take {
   final case class Fail[E](value: E)  extends Take[E, Nothing]
   final case class Value[A](value: A) extends Take[Nothing, A]
