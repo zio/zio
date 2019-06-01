@@ -48,18 +48,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Concatenates with another stream in strict order
    */
   final def ++[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
-    new ZStream[R1, E1, A1] {
-      def fold[R2 <: R1, E2 >: E1, A2 >: A1, S]: Fold[R2, E2, A2, S] =
-        ZManaged.succeedLazy { (s, cont, f) =>
-          self.fold[R2, E2, A2, S].flatMap { foldLeft =>
-            foldLeft(s, cont, f).flatMap { s =>
-              if (!cont(s)) ZManaged.succeed(s)
-              else
-                other.fold[R2, E2, A2, S].flatMap(foldRight => foldRight(s, cont, f))
-            }
-          }
-        }
-    }
+    concat(other)
 
   /**
    * Allow a faster producer to progress independently of a slower consumer by buffering
@@ -103,6 +92,24 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
       }
   }
+
+  /**
+   * Appends another stream to this stream. The concatenated stream will first emit the
+   * elements of this stream, and then emit the elements of the `other` stream.
+   */
+  final def concat[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+    new ZStream[R1, E1, A1] {
+      def fold[R2 <: R1, E2 >: E1, A2 >: A1, S]: Fold[R2, E2, A2, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.fold[R2, E2, A2, S].flatMap { foldLeft =>
+            foldLeft(s, cont, f).flatMap { s =>
+              if (!cont(s)) ZManaged.succeed(s)
+              else
+                other.fold[R2, E2, A2, S].flatMap(foldRight => foldRight(s, cont, f))
+            }
+          }
+        }
+    }
 
   /**
    * Converts this stream to a stream that executes its effects but emits no
