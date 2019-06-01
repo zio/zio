@@ -184,6 +184,17 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     fold(Left[E, A], Right[E, A])
 
   /**
+   * Ensures that `f` is executed when this ZManaged is finalized, after
+   * the existing finalizer.
+   */
+  final def ensuring[R1 <: R](f: ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
+    ZManaged {
+      reserve.map { r =>
+        r.copy(release = r.release.ensuring(f))
+      }
+    }
+
+  /**
    * Zips this effect with its environment
    */
   final def first[R1 <: R, A1 >: A]: ZManaged[R1, E, (A1, R1)] = self &&& ZManaged.identity
