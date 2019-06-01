@@ -177,33 +177,25 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def filterNot(pred: A => Boolean): ZStream[R, E, A] = filter(a => !pred(a))
 
   /**
-   * Executes an effectful fold over the stream of values.
+   * Returns a stream made of the concatenation in strict order of all the streams
+   * produced by passing each element of this stream to `f0`
    */
-  def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S]
-
-  /**
-   * Reduces the elements in the stream to a value of type `S`
-   */
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
-    fold[R, E, A1, S].flatMap(fold => fold(s, _ => true, (s, a) => ZIO.succeed(f(s, a))))
-
-  /**
-   * Consumes all elements of the stream, passing them to the specified callback.
-   */
-  final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
-    foreachWhile(f.andThen(_.const(true)))
-
-  /**
-   * Consumes elements of the stream, passing them to the specified callback,
-   * and terminating consumption when the callback returns `false`.
-   */
-  final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
-    self
-      .fold[R1, E1, A, Boolean]
-      .flatMap { fold =>
-        fold(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
-      }
-      .use_(ZIO.unit)
+  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+    new ZStream[R1, E1, B] {
+      def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.fold[R2, E2, A, S].flatMap { foldOuter =>
+            foldOuter(s, cont, (s, a) => {
+              f0(a)
+                .fold[R2, E2, B1, S]
+                .flatMap { foldInner =>
+                  foldInner(s, cont, f)
+                }
+                .use(ZIO.succeed)
+            })
+          }
+        }
+    }
 
   /**
    * Maps each element of this stream to another stream and returns the
@@ -280,6 +272,35 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Executes an effectful fold over the stream of values.
+   */
+  def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S]
+
+  /**
+   * Reduces the elements in the stream to a value of type `S`
+   */
+  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
+    fold[R, E, A1, S].flatMap(fold => fold(s, _ => true, (s, a) => ZIO.succeed(f(s, a))))
+
+  /**
+   * Consumes all elements of the stream, passing them to the specified callback.
+   */
+  final def foreach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZIO[R1, E1, Unit] =
+    foreachWhile(f.andThen(_.const(true)))
+
+  /**
+   * Consumes elements of the stream, passing them to the specified callback,
+   * and terminating consumption when the callback returns `false`.
+   */
+  final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+    self
+      .fold[R1, E1, A, Boolean]
+      .flatMap { fold =>
+        fold(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
+      }
+      .use_(ZIO.unit)
+
+  /**
    * Repeats this stream forever.
    */
   def forever: ZStream[R, E, A] =
@@ -292,27 +313,6 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             }
 
           loop(s)
-        }
-    }
-
-  /**
-   * Returns a stream made of the concatenation in strict order of all the streams
-   * produced by passing each element of this stream to `f0`
-   */
-  final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
-    new ZStream[R1, E1, B] {
-      def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
-        ZManaged.succeedLazy { (s, cont, f) =>
-          self.fold[R2, E2, A, S].flatMap { foldOuter =>
-            foldOuter(s, cont, (s, a) => {
-              f0(a)
-                .fold[R2, E2, B1, S]
-                .flatMap { foldInner =>
-                  foldInner(s, cont, f)
-                }
-                .use(ZIO.succeed)
-            })
-          }
         }
     }
 
