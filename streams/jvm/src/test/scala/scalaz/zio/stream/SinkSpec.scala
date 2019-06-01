@@ -19,7 +19,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Sink.fold short circuits    $foldShortCircuits
     Sink.foldM                  $foldM
     Sink.foldM short circuits   $foldMShortCircuits
-    Sink.readWhile              $readWhile
+    Sink.accumWhile              $accumWhile
     ZSink.fromOutputStream      $sinkFromOutputStream
 
   Usecases
@@ -104,9 +104,9 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     run(failed) must_=== ((Exit.fail("Ouch"), Nil))
   }
 
-  private def readWhile =
+  private def accumWhile =
     prop { (s: Stream[String, String], f: String => Boolean) =>
-      val sinkResult = unsafeRunSync(s.run(ZSink.readWhile(f)))
+      val sinkResult = unsafeRunSync(s.run(ZSink.accumWhile(f)))
       val listResult = slurp(s).map(_.takeWhile(f))
 
       listResult.succeeded ==> (sinkResult must_=== listResult)
@@ -156,12 +156,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def jsonNumArrayParsingSinkWithCombinators = {
-    val comma: ZSink[Any, Nothing, Char, Char, List[Char]] = ZSink.readWhile[Char](_ == ',')
+    val comma: ZSink[Any, Nothing, Char, Char, List[Char]] = ZSink.accumWhile[Char](_ == ',')
     val brace: ZSink[Any, String, Char, Char, Char] =
       ZSink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
     val number: ZSink[Any, String, Char, Char, Int] =
-      ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt)
-    val numbers = (number ~ (comma *> number).repeatWhile(_ != ']'))
+      ZSink.accumWhile[Char](_.isDigit).map(_.mkString.toInt)
+    val numbers = (number <*> (comma *> number).repeatWhile[Char, Char](_ != ']'))
       .map(tp => tp._1 :: tp._2)
 
     val elements = numbers <* brace
