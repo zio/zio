@@ -209,7 +209,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     filterM(a => f(a).map(!_))
 
   /**
-   * Ignites the sink by producing the initial step.
+   * The initial state of the sink.
    *
    * TODO I don't understand what I just wrote 😅
    */
@@ -383,7 +383,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-   * Creates a sink that drops all produced elements on the floor.
+   * Creates a sink that ignores all produced elements.
    */
   final def unit: ZSink[R, E, A0, A, Unit] = const(())
 
@@ -1031,19 +1031,19 @@ object ZSink {
       }
 
     /**
-     * Runs two sinks in unison and matches produces values pair-wise.
+     * Runs two sinks in unison and matches produced values pair-wise.
      */
     final def zip[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, (B, C)] =
       flatMap(b => that.map(c => (b, c)))
 
     /**
-     * Runs two sinks in unison and drops values on the right.
+     * Runs two sinks in unison and keeps only values on the left.
      */
     final def zipLeft[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, B] =
       self <* that
 
     /**
-     * Runs two sinks in unison and drops values on the left.
+     * Runs two sinks in unison and keeps only values on the right.
      */
     final def zipRight[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, C] =
       self *> that
