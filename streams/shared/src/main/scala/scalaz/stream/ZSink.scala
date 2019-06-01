@@ -1049,7 +1049,7 @@ object ZSink {
       self <* that
 
     /**
-     * Runs two sinks in unison and drops values on the left.
+     * Runs two sinks in unison and keeps only values on the right.
      */
     final def zipRight[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, C] =
       self *> that
