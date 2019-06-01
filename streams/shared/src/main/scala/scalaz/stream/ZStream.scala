@@ -39,14 +39,6 @@ import scala.annotation.implicitNotFound
 trait ZStream[-R, +E, +A] extends Serializable { self =>
   import ZStream.Fold
 
-  /**
-   * Executes an effectful fold over the stream of values.
-   */
-  def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S]
-
-  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
-    fold[R, E, A1, S].flatMap(fold => fold(s, _ => true, (s, a) => ZIO.succeed(f(s, a))))
-
   final def ++[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     new ZStream[R1, E1, A1] {
       def fold[R2 <: R1, E2 >: E1, A2 >: A1, S]: Fold[R2, E2, A2, S] =
@@ -180,6 +172,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * which the predicate evaluates to true.
    */
   final def filterNot(pred: A => Boolean): ZStream[R, E, A] = filter(a => !pred(a))
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   */
+  def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S]
+
+  def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[R, E, S] =
+    fold[R, E, A1, S].flatMap(fold => fold(s, _ => true, (s, a) => ZIO.succeed(f(s, a))))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -576,31 +576,6 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
-   * Repeats elements of the stream using the provided schedule.
-   */
-  def spaced[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
-    new ZStream[R1 with Clock, E, A] {
-      override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
-        ZManaged.succeedLazy { (s, cont, f) =>
-          def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
-            if (!cont(s)) ZIO.succeed(s)
-            else
-              f(s, a).zip(schedule.update(a, sched)).flatMap {
-                case (s, decision) =>
-                  if (decision.cont && cont(s))
-                    loop(s, decision.state, a).delay(decision.delay)
-                  else IO.succeed(s)
-              }
-
-          schedule.initial.toManaged_.flatMap { sched =>
-            self.fold[R2, E1, A, S].flatMap { f =>
-              f(s, cont, (s, a) => loop(s, sched, a))
-            }
-          }
-        }
-    }
-
-  /**
    * Runs the sink on the stream to produce either the sink's result or an error.
    */
   def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
@@ -628,6 +603,31 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Equivalent to `run(Sink.drain)`.
    */
   def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
+
+  /**
+   * Repeats elements of the stream using the provided schedule.
+   */
+  def spaced[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
+    new ZStream[R1 with Clock, E, A] {
+      override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
+            if (!cont(s)) ZIO.succeed(s)
+            else
+              f(s, a).zip(schedule.update(a, sched)).flatMap {
+                case (s, decision) =>
+                  if (decision.cont && cont(s))
+                    loop(s, decision.state, a).delay(decision.delay)
+                  else IO.succeed(s)
+              }
+
+          schedule.initial.toManaged_.flatMap { sched =>
+            self.fold[R2, E1, A, S].flatMap { f =>
+              f(s, cont, (s, a) => loop(s, sched, a))
+            }
+          }
+        }
+    }
 
   /**
    * Takes the specified number of elements from this stream.
@@ -844,6 +844,16 @@ trait Stream_Functions {
   final def flatten[R: ConformsR, E, A](fa: ZStream[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     fa.flatMap(identity)
 
+  /**
+   * Flattens a stream of streams into a stream by executing a non-deterministic
+   * concurrent merge. Up to `n` streams may be consumed in parallel and up to
+   * `outputBuffer` elements may be buffered by this operator.
+   */
+  final def flattenPar[R: ConformsR, E, A](n: Long, outputBuffer: Int = 16)(
+    fa: ZStream[R, E, ZStream[R, E, A]]
+  ): ZStream[R, E, A] =
+    fa.flatMapPar(n, outputBuffer)(identity)
+
   final def fromChunk[@specialized A](c: Chunk[A]): ZStream[Any, Nothing, A] =
     new ZStream[Any, Nothing, A] {
       def fold[R1, E1, A1 >: A, S]: Fold[R1, E1, A1, S] =
@@ -878,21 +888,6 @@ trait Stream_Functions {
         )
     }
 
-  /**
-   * Flattens a stream of streams into a stream by executing a non-deterministic
-   * concurrent merge. Up to `n` streams may be consumed in parallel and up to
-   * `outputBuffer` elements may be buffered by this operator.
-   */
-  final def flattenPar[R: ConformsR, E, A](n: Long, outputBuffer: Int = 16)(
-    fa: ZStream[R, E, ZStream[R, E, A]]
-  ): ZStream[R, E, A] =
-    fa.flatMapPar(n, outputBuffer)(identity)
-
-  final def mergeAll[R: ConformsR, E, A](n: Long, outputBuffer: Int = 16)(
-    streams: ZStream[R, E, A]*
-  ): ZStream[R, E, A] =
-    flattenPar(n, outputBuffer)(Stream.fromIterable(streams))
-
   final def managed[R: ConformsR, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
@@ -901,6 +896,11 @@ trait Stream_Functions {
           else managed.mapM(f(s, _))
         }
     }
+
+  final def mergeAll[R: ConformsR, E, A](n: Long, outputBuffer: Int = 16)(
+    streams: ZStream[R, E, A]*
+  ): ZStream[R, E, A] =
+    flattenPar(n, outputBuffer)(Stream.fromIterable(streams))
 
   final val never: ZStream[Any, Nothing, Nothing] =
     new ZStream[Any, Nothing, Nothing] {
@@ -923,9 +923,6 @@ trait Stream_Functions {
   final def succeedLazy[A](a: => A): ZStream[Any, Nothing, A] =
     StreamPure.succeedLazy(a)
 
-  final def unwrap[R: ConformsR, E, A](fa: ZIO[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
-    flatten(fromEffect(fa))
-
   final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
     unfoldM(s)(s => ZIO.succeed(f0(s)))
 
@@ -945,6 +942,9 @@ trait Stream_Functions {
           ZManaged.fromEffect(loop(s, s2).map(_._2))
         }
     }
+
+  final def unwrap[R: ConformsR, E, A](fa: ZIO[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
+    flatten(fromEffect(fa))
 }
 
 object Stream extends Stream_Functions {
