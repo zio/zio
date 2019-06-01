@@ -425,9 +425,42 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
       ZManaged.succeedLazy { (s, cont, g) =>
         self.fold[R2, E2, A, S].flatMap(fold => fold(s, cont, (s, a) => f(a).flatMap(g(s, _))))
-
       }
   }
+
+  final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
+    new ZStream[R1, E1, B] {
+      def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            out <- Queue.bounded[Take[E1, IO[E1, B]]](n).toManaged(_.shutdown)
+            _ <- self.foreachManaged { a =>
+                  for {
+                    p <- Promise.make[E1, B]
+                    _ <- out.offer(Take.Value(p.await))
+                    _ <- f(a).foldCauseM(p.halt, p.succeed).fork
+                  } yield ()
+                }.foldCauseM(
+                    c =>
+                      (c.failureOrCause.fold(
+                        e => out.offer(Take.Fail(e)).unit,
+                        _ => out.shutdown.unit
+                      ) *> ZIO.halt(c)).toManaged_,
+                    _ => out.offer(Take.End).unit.toManaged_
+                  )
+                  .fork
+            s <- Stream
+                  .fromQueue(out)
+                  .unTake
+                  .mapM(identity)
+                  .fold[R2, E2, B1, S]
+                  .flatMap(fold => fold(s, cont, g))
+          } yield s
+        }
+    }
+
+  final def mapMParUnordered[R1 <: R, E1 >: E, B](n: Long)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
+    self.flatMapPar[R1, E1, B](n)(a => ZStream.fromEffect(f(a)))
 
   /**
    * Merges this stream and the specified stream together.
