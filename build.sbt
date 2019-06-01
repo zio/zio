@@ -24,15 +24,13 @@ inThisBuild(
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
-addCommandAlias("testall", "package packageSrc publishLocal")
-addCommandAlias("dottybuild", "coreJVM/compile coreJVM/package coreJVM/packageSrc coreJVM/publishLocal")
 
 pgpPublicRing := file("/tmp/public.asc")
- pgpSecretRing := file("/tmp/secret.asc")
- releaseEarlyWith := SonatypePublisher
- scmInfo := Some(
-   ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
- )
+pgpSecretRing := file("/tmp/secret.asc")
+releaseEarlyWith := SonatypePublisher
+scmInfo := Some(
+  ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
+)
 
 lazy val root = project
   .in(file("."))

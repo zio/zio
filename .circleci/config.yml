@@ -14,6 +14,7 @@ jobs:
             - "~/.ivy2/cache"
             - "~/.sbt"
             - "~/.m2"
+            - "~/website/node_modules"
   lint212_jdk11:
     docker:
       - image: hseeberger/scala-sbt:11.0.2_2.12.8_1.2.8
@@ -28,6 +29,7 @@ jobs:
             - "~/.ivy2/cache"
             - "~/.sbt"
             - "~/.m2"
+            - "~/website/node_modules"
   test212_jdk8:
     docker:
       - image: hseeberger/scala-sbt:8u181_2.12.8_1.2.8
@@ -35,13 +37,14 @@ jobs:
       - checkout
       - restore_cache:
           key: sbt-cache
-      - run: sbt ++2.12.8! test:run
+      - run: sbt ++2.12.8! package packageSrc publishLocal
       - save_cache:
           key: sbt-cache
           paths:
             - "~/.ivy2/cache"
             - "~/.sbt"
             - "~/.m2"
+            - "~/website/node_modules"
   test212_jdk11:
     docker:
       - image: hseeberger/scala-sbt:11.0.2_2.12.8_1.2.8
@@ -49,13 +52,44 @@ jobs:
       - checkout
       - restore_cache:
           key: sbt-cache
-      - run: sbt ++2.12.8! test:run
+      - run: sbt ++2.12.8! package packageSrc publishLocal
       - save_cache:
           key: sbt-cache
           paths:
             - "~/.ivy2/cache"
             - "~/.sbt"
             - "~/.m2"
+            - "~/website/node_modules"
+  testdotty_jdk8:
+    docker:
+      - image: hseeberger/scala-sbt:8u181_2.12.8_1.2.8
+    steps:
+      - checkout
+      - restore_cache:
+          key: sbt-cache
+      - run: sbt ++0.13.0-RC1 coreJVM/compile coreJVM/package coreJVM/packageSrc coreJVM/publishLocal
+      - save_cache:
+          key: sbt-cache
+          paths:
+            - "~/.ivy2/cache"
+            - "~/.sbt"
+            - "~/.m2"
+            - "~/website/node_modules"
+  testdotty_jdk11:
+    docker:
+      - image: hseeberger/scala-sbt:11.0.2_2.12.8_1.2.8
+    steps:
+      - checkout
+      - restore_cache:
+          key: sbt-cache
+      - run: sbt ++0.13.0-RC1 coreJVM/compile coreJVM/package coreJVM/packageSrc coreJVM/publishLocal
+      - save_cache:
+          key: sbt-cache
+          paths:
+            - "~/.ivy2/cache"
+            - "~/.sbt"
+            - "~/.m2"
+            - "~/website/node_modules"
   release:
     docker:
       - image: hseeberger/scala-sbt:8u181_2.12.8_1.2.8
@@ -69,23 +103,25 @@ jobs:
       - run: sbt releaseEarly
   microsite:
     docker:
-      - image: hseeberger/scala-sbt:8u181_2.12.8_1.2.8
+      - image: circleci/node:8.11.1
     steps:
       - add_ssh_keys:
           fingerprints:
             - "11:2c:fa:98:69:d8:a1:d5:76:2e:38:d0:91:39:85:ce"
       - checkout
       - restore_cache:
-          key: sbt-cache
-      - run: sbt ++2.12.8! doc
-      - run: sbt ++2.12.8! microsite/makeMicrosite
-      - run: sbt ++2.12.8! microsite/publishMicrosite
+          key: node-cache
+      - run:
+          name: Deploying to Netlify
+          command: |
+            git config --global user.email "${GH_NAME}@users.noreply.github.com"
+            git config --global user.name "${GH_NAME}"
+            echo "machine github.com login ${GH_NAME} password ${GH_TOKEN}" > ~/.netrc
+            cd website && yarn install && GIT_USER=${GH_NAME} yarn run publish-gh-pages
       - save_cache:
-          key: sbt-cache
+          key: node-cache
           paths:
-            - "~/.ivy2/cache"
-            - "~/.sbt"
-            - "~/.m2"
+            - "~/website/node_modules"
 
 workflows:
   version: 2
@@ -111,17 +147,32 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - testdotty_jdk8:
+          requires:
+            - lint212_jdk8
+          filters:
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - testdotty_jdk11:
+          requires:
+            - lint212_jdk11
+          filters:
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - release:
           context: Sonatype
           requires:
             - test212_jdk8
             - test212_jdk11
+            - testdotty_jdk8
+            - testdotty_jdk11
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - microsite:
+          context: Website
           requires:
             - release
           filters:
