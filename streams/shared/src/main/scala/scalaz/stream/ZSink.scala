@@ -732,6 +732,7 @@ object ZSink {
    * TODO I don't understand why these combinators are invariant in all types
    */
   implicit class InvariantOps[R, E, A0, A, B](self: ZSink[R, E, A, A, B]) {
+
     /**
      * Operator alias for `orElse` for two sinks consuming and producing values of the same type.
      */
@@ -953,7 +954,7 @@ object ZSink {
 
     /**
      * Accumulates the output into a list of maximum size `i`.
-     * 
+     *
      * TODO rename `accumOutputN`?
      */
     final def repeatN(i: Int): ZSink[R, E, A, A, List[B]] =
@@ -961,7 +962,7 @@ object ZSink {
 
     /**
      * Accumulates the output into a value of type `S`.
-     * 
+     *
      * TODO rename `accumWith`?
      */
     final def repeatWith[S](z: S)(f: (S, B) => S): ZSink[R, E, A, A, S] =
