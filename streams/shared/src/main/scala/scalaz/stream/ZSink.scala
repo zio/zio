@@ -83,6 +83,10 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R, E, B] = self.extract(state)
     }
 
+  /**
+   * Creates a sink where every element of type `A` entering the sink is first
+   * transformed by `f`
+   */
   def contramap[C](f: C => A): ZSink[R, E, A0, C, B] =
     new ZSink[R, E, A0, C, B] {
       type State = self.State
@@ -94,6 +98,10 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R, E, B] = self.extract(state)
     }
 
+  /**
+   * Creates a sink where every element of type `A` entering the sink is first
+   * transformed by the effectful `f`
+   */
   final def contramapM[R1 <: R, E1 >: E, C](f: C => ZIO[R1, E1, A]): ZSink[R1, E1, A0, C, B] =
     new ZSink[R1, E1, A0, C, B] {
       type State = self.State
@@ -105,8 +113,15 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R1, E1, B] = self.extract(state)
     }
 
+  /**
+   * Creates a sink that always produces `c`
+   */
   final def const[C](c: => C): ZSink[R, E, A0, A, C] = self.map(_ => c)
 
+  /**
+   * Creates a sink that transforms entering values with `f` and
+   * outgoing values with `g`
+   */
   def dimap[C, D](f: C => A)(g: B => D): ZSink[R, E, A0, C, D] =
     new ZSink[R, E, A0, C, D] {
       type State = self.State
@@ -118,6 +133,10 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R, E, D] = self.extract(state).map(g)
     }
 
+  /**
+   * Drops all elements entering the sink for as long as the specified predicate
+   * evaluates to `true`.
+   */
   final def dropWhile[A1 <: A](pred: A1 => Boolean): ZSink[R, E, A0, A1, B] =
     new ZSink[R, E, A0, A1, B] {
       type State = (self.State, Boolean)
@@ -134,6 +153,10 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State) = self.extract(state._1)
     }
 
+  /**
+   * Runs the sink from an initial state and produces a final value
+   * of type `B`
+   */
   def extract(state: State): ZIO[R, E, B]
 
   /**
@@ -171,12 +194,25 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State) = self.extract(state)
     }
 
+  /**
+   * Filters this sink by the specified predicate, dropping all elements for
+   * which the predicate evaluates to true.
+   */
   final def filterNot[A1 <: A](f: A1 => Boolean): ZSink[R, E, A0, A1, B] =
     filter(a => !f(a))
 
+  /**
+   * Effectfully ilters this sink by the specified predicate, dropping all elements for
+   * which the predicate evaluates to true.
+   */
   final def filterNotM[E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R, E1, A0, A1, B] =
     filterM(a => f(a).map(!_))
 
+  /**
+   * Ignites the sink by producing the initial step.
+   *
+   * TODO I don't understand what I just wrote 😅
+   */
   def initial: ZIO[R, E, Step[State, Nothing]]
 
   /**
@@ -193,6 +229,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R, E, C] = self.extract(state).map(f)
     }
 
+  /**
+   * Maps any error produced by this sink.
+   */
   def mapError[E1](f: E => E1): ZSink[R, E1, A0, A, B] =
     new ZSink[R, E1, A0, A, B] {
       type State = self.State
@@ -220,6 +259,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State): ZIO[R1, E1, C] = self.extract(state).flatMap(f)
     }
 
+  /**
+   * Maps the remainder produced after this sink is done.
+   */
   def mapRemainder[A1](f: A0 => A1): ZSink[R, E, A1, A, B] =
     new ZSink[R, E, A1, A, B] {
       type State = self.State
@@ -237,6 +279,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
    */
   final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self ?
 
+  /**
+   * Narrows the environment by partially building it with `f`
+   */
   def provideSome[R1](f: R1 => R): ZSink[R1, E, A0, A, B] =
     new ZSink[R1, E, A0, A, B] {
       type State = self.State
@@ -259,8 +304,14 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   ): ZSink[R1, E1, A2, A1, B1] =
     self.raceBoth(that).map(_.merge)
 
+  /**
+   * Steps through one iteration of the sink
+   */
   def step(state: State, a: A): ZIO[R, E, Step[State, A0]]
 
+  /**
+   * Steps through a chunk of iterations of the sink
+   */
   def stepChunk[A1 <: A](state: State, as: Chunk[A1]): ZIO[R, E, Step[State, A0]] = {
     val len = as.length
 
@@ -314,6 +365,10 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
         }
     }
 
+  /**
+   * Produces a sink consuming all the elements of type `A` as long as
+   * they verify the predicate `pred`.
+   */
   final def takeWhile[A1 <: A](pred: A1 => Boolean): ZSink[R, E, A0, A1, B] =
     new ZSink[R, E, A0, A1, B] {
       type State = self.State
@@ -327,8 +382,15 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
       def extract(state: State) = self.extract(state)
     }
 
+  /**
+   * Creates a sink that drops all produced elements on the floor.
+   */
   final def unit: ZSink[R, E, A0, A, Unit] = const(())
 
+  /**
+   * Creates a sink that produces values until one verifies
+   * the predicate `f`.
+   */
   final def untilOutput(f: B => Boolean): ZSink[R, E, A0, A, B] =
     new ZSink[R, E, A0, A, B] {
       type State = self.State
@@ -448,6 +510,9 @@ object ZSink {
 
   type Step[+S, +A0] = Step.Step[S, A0]
 
+  /**
+   * Creates a sink that waits for a single value to be produced.
+   */
   def await[A]: ZSink[Any, Unit, Nothing, A, A] =
     new SinkPure[Unit, Nothing, A, A] {
       type State = Either[Unit, A]
@@ -461,12 +526,23 @@ object ZSink {
         state
     }
 
+  /**
+   * Creates a sink accumulating incoming values into a list.
+   *
+   * TODO rename `accum`? `collect` usually implies a `PartialFunction[A, B]`.
+   */
   final def collect[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
     fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
 
+  /**
+   * Creates a sink consuming all incoming values until completion.
+   */
   final def drain: ZSink[Any, Nothing, Nothing, Any, Unit] =
     fold(())((s, _) => Step.more(s))
 
+  /**
+   * Creates a sink failing with a value of type `E`.
+   */
   final def fail[E](e: E): ZSink[Any, E, Nothing, Any, Nothing] =
     new SinkPure[E, Nothing, Any, Nothing] {
       type State = Unit
@@ -475,6 +551,12 @@ object ZSink {
       def extractPure(state: State): Either[E, Nothing]        = Left(e)
     }
 
+  /**
+   * Creates a sink by folding over a structure of type `S`.
+   *
+   * TODO Hum, should this one be called `unfold` instead? `Step` is a bit like `Option`
+   * after all.
+   */
   def fold[A0, A, S](z: S)(f: (S, A) => Step[S, A0]): ZSink[Any, Nothing, A0, A, S] =
     new SinkPure[Nothing, A0, A, S] {
       type State = S
@@ -483,6 +565,9 @@ object ZSink {
       def extractPure(s: S): Either[Nothing, S] = Right(s)
     }
 
+  /**
+   * Creates a sink by folding over a structure of type `S`.
+   */
   def foldLeft[A0, A, S](z: S)(f: (S, A) => S): ZSink[Any, Nothing, A0, A, S] =
     new SinkPure[Nothing, A0, A, S] {
       type State = S
@@ -491,6 +576,9 @@ object ZSink {
       def extractPure(s: S): Either[Nothing, S] = Right(s)
     }
 
+  /**
+   * Creates a sink by effectfully folding over a structure of type `S`.
+   */
   def foldM[R, E, A0, A, S](z: ZIO[R, E, S])(f: (S, A) => ZIO[R, E, Step[S, A0]]): ZSink[R, E, A0, A, S] =
     new ZSink[R, E, A0, A, S] {
       type State = S
@@ -499,6 +587,9 @@ object ZSink {
       def extract(s: S): ZIO[R, E, S]              = ZIO.succeed(s)
     }
 
+  /**
+   * Creates a single-value sink produced from an effect
+   */
   final def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
     new ZSink[R, E, Nothing, Any, B] {
       type State = Unit
@@ -507,6 +598,9 @@ object ZSink {
       def extract(state: State): ZIO[R, E, B]                         = b
     }
 
+  /**
+   * Creates a sink that purely transforms incoming values.
+   */
   final def fromFunction[A, B](f: A => B): ZSink[Any, Unit, Nothing, A, B] =
     new SinkPure[Unit, Nothing, A, B] {
       type State = Option[A]
@@ -515,6 +609,9 @@ object ZSink {
       def extractPure(state: State): Either[Unit, B]         = state.fold[Either[Unit, B]](Left(()))(a => Right(f(a)))
     }
 
+  /**
+   * Creates a sink by that merely passes on incoming values.
+   */
   final def identity[A]: ZSink[Any, Unit, A, A, A] =
     new SinkPure[Unit, A, A, A] {
       type State = Option[A]
@@ -523,6 +620,9 @@ object ZSink {
       def extractPure(state: State): Either[Unit, A]   = state.fold[Either[Unit, A]](Left(()))(a => Right(a))
     }
 
+  /**
+   * Creates a single-value sink from a lazily-evaluated value.
+   */
   final def succeedLazy[B](b: => B): ZSink[Any, Nothing, Nothing, Any, B] =
     new SinkPure[Nothing, Nothing, Any, B] {
       type State = Unit
@@ -531,9 +631,17 @@ object ZSink {
       def extractPure(state: State): Either[Nothing, B]        = Right(b)
     }
 
+  /**
+   * Creates a sink by starts consuming value as soon as one verifies
+   * the predicate `p`.
+   */
   def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
     ignoreWhileM(a => IO.succeed(p(a)))
 
+  /**
+   * Creates a sink by starts consuming value as soon as one verifies
+   * the effectful predicate `p`.
+   */
   def ignoreWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, Unit] =
     new ZSink[R, E, A, A, Unit] {
       type State = Unit
@@ -546,6 +654,9 @@ object ZSink {
       def extract(state: State) = IO.succeed(())
     }
 
+  /**
+   * 🤔???
+   */
   final def more[R, R1 <: R, E, A0, A, B](
     end: ZIO[R1, E, B]
   )(input: A => ZSink[R, E, A0, A, B]): ZSink[R1, E, A0, A, B] =
@@ -570,6 +681,10 @@ object ZSink {
       }
     }
 
+  /**
+   * Creates a sink that consumes the first value verifying the predicate `p`
+   * or fails as soon as the sink won't make any more progress.
+   */
   def read1[E, A](e: Option[A] => E)(p: A => Boolean): ZSink[Any, E, A, A, A] =
     new SinkPure[E, A, A, A] {
       type State = Either[E, Option[A]]
@@ -593,9 +708,19 @@ object ZSink {
         }
     }
 
+  /**
+   * Collects incoming elements into a list as long as they verify predicate `p`.
+   *
+   * TODO rename to `collectWhile`/`accumWhile`?
+   */
   def readWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
     readWhileM(a => IO.succeed(p(a)))
 
+  /**
+   * Collects incoming elements into a list as long as they verify effectful predicate `p`.
+   *
+   * TODO rename to `collectWhileM`/`accumWhileM`?
+   */
   def readWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
     ZSink
       .foldM[R, E, A, A, List[A]](ZIO.succeed(List.empty[A])) { (s, a: A) =>
