@@ -1,0 +1,75 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>FiberRef · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;p&gt;&lt;code&gt;FiberRef[A]&lt;/code&gt; models a mutable reference to a value of type &lt;code&gt;A&lt;/code&gt;. The two basic operations are &lt;code&gt;set&lt;/code&gt;, which fills the &lt;code&gt;Ref&lt;/code&gt; with a new value, and &lt;code&gt;get&lt;/code&gt;, which retrieves its current content. As opposed to &lt;code&gt;Ref[A]&lt;/code&gt;, a value is bound to an executing &lt;code&gt;Fiber&lt;/code&gt; only.  You can think of it as Java&#x27;s &lt;code&gt;ThreadLocal&lt;/code&gt; on steroids.&lt;/p&gt;
+"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="FiberRef · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="&lt;p&gt;&lt;code&gt;FiberRef[A]&lt;/code&gt; models a mutable reference to a value of type &lt;code&gt;A&lt;/code&gt;. The two basic operations are &lt;code&gt;set&lt;/code&gt;, which fills the &lt;code&gt;Ref&lt;/code&gt; with a new value, and &lt;code&gt;get&lt;/code&gt;, which retrieves its current content. As opposed to &lt;code&gt;Ref[A]&lt;/code&gt;, a value is bound to an executing &lt;code&gt;Fiber&lt;/code&gt; only.  You can think of it as Java&#x27;s &lt;code&gt;ThreadLocal&lt;/code&gt; on steroids.&lt;/p&gt;
+"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+        document.addEventListener('DOMContentLoaded', function() {
+          addBackToTop(
+            {"zIndex":100,"cornerOffset":100}
+          )
+        });
+        </script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/advanced/advanced_index" target="_self">Advanced</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">FiberRef</h1></header><article><div><span><p><code>FiberRef[A]</code> models a mutable reference to a value of type <code>A</code>. The two basic operations are <code>set</code>, which fills the <code>Ref</code> with a new value, and <code>get</code>, which retrieves its current content. As opposed to <code>Ref[A]</code>, a value is bound to an executing <code>Fiber</code> only.  You can think of it as Java's <code>ThreadLocal</code> on steroids.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scalaz.zio._
+
+<span class="hljs-keyword">for</span> {
+  fiberRef &lt;- <span class="hljs-type">FiberRef</span>.make[<span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)
+  _        &lt;- fiberRef.set(<span class="hljs-number">10</span>)
+  v        &lt;- fiberRef.get
+} <span class="hljs-keyword">yield</span> v == <span class="hljs-number">10</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="operations"></a><a href="#operations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Operations</h2>
+<p><code>FiberRef[A]</code> has almost identical API as <code>Ref[A]</code>. It includes well known methods such as:</p>
+<ul>
+<li><code>get</code> returns the current, possibly non-existent, fiber-bound <code>A</code></li>
+<li><code>set</code> binds an <code>A</code> to the current fiber</li>
+<li><code>update</code> / <code>updateSome</code> modifies the value with the specified function</li>
+<li><code>modify</code>/ <code>modifySome</code> modifies the value with the specified function, which computes a return value for the modification</li>
+</ul>
+<p>You can also use <code>locally</code> to scope <code>FiberRef</code> value only for a given effect:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  correlationId &lt;- <span class="hljs-type">FiberRef</span>.make[<span class="hljs-type">String</span>](<span class="hljs-string">""</span>)
+  v             &lt;- correlationId.locally(<span class="hljs-string">"my-correlation-id"</span>)(correlationId.get)
+  v2            &lt;- correlationId.get
+} <span class="hljs-keyword">yield</span> v == <span class="hljs-string">"my-correlation-id"</span> &amp;&amp; v2 == <span class="hljs-string">""</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="propagation"></a><a href="#propagation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Propagation</h2>
+<p><code>FiberRef[A]</code> has <em>copy-on-fork</em> semantics regarding <code>fork</code>. This essentially means that a child <code>Fiber</code> starts with <code>FiberRef</code> values of its parent. When the child set a new value of <code>FiberRef</code>, the change is visible only to the child itself. Parent still gets its own value.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiberRef &lt;- <span class="hljs-type">FiberRef</span>.make[<span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)
+  _        &lt;- fiberRef.set(<span class="hljs-number">10</span>)
+  child    &lt;- fiberRef.get.fork
+  v        &lt;- child.join
+ 
+} <span class="hljs-keyword">yield</span> v == <span class="hljs-number">10</span>
+</code></pre>
+<p>But it goes other way as well. You can also inherit values from all <code>FiberRef</code>s from an already running <code>Fiber</code>.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiberRef &lt;- <span class="hljs-type">FiberRef</span>.make[<span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)
+  latch    &lt;- <span class="hljs-type">Promise</span>.make[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>]
+  fiber    &lt;- (fiberRef.set(<span class="hljs-number">10</span>) *&gt; latch.succeed(())).fork
+  _        &lt;- latch.await
+  _        &lt;- fiber.inheritFiberRefs
+  v        &lt;- fiberRef.get
+} <span class="hljs-keyword">yield</span> v == <span class="hljs-number">10</span>
+</code></pre>
+<p>Method <code>inheritFiberRefs</code> is also automatically called on <code>join</code>. This effectively means that both pieces of code below behave identically.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiberRef &lt;- <span class="hljs-type">FiberRef</span>.make[<span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)
+  fiber    &lt;- fiberRef.set(<span class="hljs-number">10</span>).fork
+  _        &lt;- fiber.join
+  v        &lt;- fiberRef.get
+} <span class="hljs-keyword">yield</span> v == <span class="hljs-number">10</span>
+</code></pre>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiberRef &lt;- <span class="hljs-type">FiberRef</span>.make[<span class="hljs-type">Int</span>](<span class="hljs-number">0</span>)
+  fiber    &lt;- fiberRef.set(<span class="hljs-number">10</span>)
+  v        &lt;- fiberRef.get
+} <span class="hljs-keyword">yield</span> v == <span class="hljs-number">10</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="memory-safety"></a><a href="#memory-safety" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Memory safety</h2>
+<p>Value is automatically garbage collected once the <code>Fiber</code> owning it is finished. <code>FiberRef</code> that is no longer reachable (has no reference to it in user code) will cause all values related to it to be garbage collected (even if they were used in a <code>Fiber</code> that is still executing.)</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#operations">Operations</a></li><li><a href="#propagation">Propagation</a></li><li><a href="#memory-safety">Memory safety</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
+        ((window.gitter = {}).chat = {}).options = {
+          showChatByDefault: false,
+          activationElement: '.gitter-open-chat-button',
+          room: 'scalaz/scalaz-zio'
+        };
+      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>Github</h5><a class="github-button" href="https://github.com/scalaz/scalaz-zio" data-icon="octicon-star" data-count-href="/scalaz/scalaz-zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/">Scaladoc of scalaz-zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>

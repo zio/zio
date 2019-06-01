@@ -1,0 +1,97 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Future · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;h2&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; id=&quot;stdlib-future&quot;&gt;&lt;/a&gt;&lt;a href=&quot;#stdlib-future&quot; aria-hidden=&quot;true&quot; class=&quot;hash-link&quot;&gt;&lt;svg class=&quot;hash-link-icon&quot; aria-hidden=&quot;true&quot; height=&quot;16&quot; version=&quot;1.1&quot; viewBox=&quot;0 0 16 16&quot; width=&quot;16&quot;&gt;&lt;path fill-rule=&quot;evenodd&quot; d=&quot;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&quot;&gt;&lt;/path&gt;&lt;/svg&gt;&lt;/a&gt;Stdlib &lt;code&gt;Future&lt;/code&gt;&lt;/h2&gt;
+"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Future · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="&lt;h2&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; id=&quot;stdlib-future&quot;&gt;&lt;/a&gt;&lt;a href=&quot;#stdlib-future&quot; aria-hidden=&quot;true&quot; class=&quot;hash-link&quot;&gt;&lt;svg class=&quot;hash-link-icon&quot; aria-hidden=&quot;true&quot; height=&quot;16&quot; version=&quot;1.1&quot; viewBox=&quot;0 0 16 16&quot; width=&quot;16&quot;&gt;&lt;path fill-rule=&quot;evenodd&quot; d=&quot;M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z&quot;&gt;&lt;/path&gt;&lt;/svg&gt;&lt;/a&gt;Stdlib &lt;code&gt;Future&lt;/code&gt;&lt;/h2&gt;
+"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+        document.addEventListener('DOMContentLoaded', function() {
+          addBackToTop(
+            {"zIndex":100,"cornerOffset":100}
+          )
+        });
+        </script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class="siteNavGroupActive"><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/advanced/advanced_index" target="_self">Advanced</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Interop</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Interop</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/interop/interop_index">Summary</a></li><li class="navListItem"><a class="navItem" href="/docs/interop/interop_catseffect">Cats Effect</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/interop/interop_future">Future</a></li><li class="navListItem"><a class="navItem" href="/docs/interop/interop_java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/interop/interop_javascript">Javascript</a></li><li class="navListItem"><a class="navItem" href="/docs/interop/interop_monix">Monix</a></li><li class="navListItem"><a class="navItem" href="/docs/interop/interop_scalaz7x">Scalaz 7.x</a></li><li class="navListItem"><a class="navItem" href="/docs/interop/interop_scalaz_8">Scalaz 8</a></li><li class="navListItem"><a class="navItem" href="/docs/interop/interop_reactivestreams">Reactive Streams</a></li><li class="navListItem"><a class="navItem" href="/docs/interop/interop_twitter">Twitter</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              const headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                if (event.target.tagName === 'A') {
+                  document.body.classList.remove('tocActive');
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">Future</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="stdlib-future"></a><a href="#stdlib-future" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stdlib <code>Future</code></h2>
+<p>Checkout <code>interop-future</code> module for inter-operation support.</p>
+<h3><a class="anchor" aria-hidden="true" id="from-future"></a><a href="#from-future" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>From <code>Future</code></h3>
+<p>This is the extension method added to <code>IO</code> companion object:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fromFuture</span></span>[<span class="hljs-type">A</span>](ftr: () =&gt; <span class="hljs-type">Future</span>[<span class="hljs-type">A</span>])(ec: <span class="hljs-type">ExecutionContext</span>): <span class="hljs-type">Task</span>[<span class="hljs-type">A</span>] =
+</code></pre>
+<p>There are a few things to clarify here:</p>
+<ul>
+<li><code>ftr</code>, the expression producing the <code>Future</code> value, is a <em>thunk</em> (or <code>Function0</code>). The reason for that is, <code>Future</code> is eager, it means as soon as you call <code>Future.apply</code> the effect has started performing, that's not a desired behavior in Pure FP (which ZIO encourages). So it's recommended to declare expressions creating <code>Future</code>s using <code>def</code> instead of <code>val</code>.</li>
+<li>Also you have to be explicit on which EC you want to use, having it implicit, as in the standard library, is a bad practice.</li>
+<li>Finally, as you can see, the <code>IO</code> returned fixes the error type to <code>Throwable</code> since that's the only possible cause for a failed <code>Future</code>.</li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// EC is not implicit</span>
+<span class="hljs-keyword">val</span> myEC: <span class="hljs-type">ExecutionContext</span> = ...
+
+<span class="hljs-comment">// future defined in thunk using def</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">myFuture</span></span>: <span class="hljs-type">Future</span>[<span class="hljs-type">ALotOfData</span>] = myLegacyHeavyJobReturningFuture(...)
+<span class="hljs-keyword">val</span> myIO: <span class="hljs-type">Task</span>[<span class="hljs-type">ALotOfData</span>] = <span class="hljs-type">IO</span>.fromFuture(myFuture _)(myEC)
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="to-future"></a><a href="#to-future" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>To <code>Future</code></h3>
+<p>This extension method is added to values of type <code>Task[A]</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">toFuture</span></span>: <span class="hljs-type">UIO</span>[<span class="hljs-type">Future</span>[<span class="hljs-type">A</span>]]
+</code></pre>
+<p>Notice that we don't actually return a <code>Future</code> but an infallible <code>IO</code> producing the <code>Future</code> when it's performed, that's again because as soon as we have a <code>Future</code> in our hands, whatever it does is already happening.</p>
+<p>As an alternative, a more flexible extension method is added to any <code>IO[E, A]</code> to convert to <code>Future</code> as long as you can provide a function to convert from <code>E</code> to <code>Throwable</code>.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">toFutureE</span></span>(f: <span class="hljs-type">E</span> =&gt; <span class="hljs-type">Throwable</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Future</span>[<span class="hljs-type">A</span>]]
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="example-1"></a><a href="#example-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> safeFuture: <span class="hljs-type">UIO</span>[<span class="hljs-type">Future</span>[<span class="hljs-type">MoarData</span>]] = myShinyNewApiBasedOnZio(...).toFuture(<span class="hljs-type">MyError</span>.toThrowable)
+<span class="hljs-keyword">val</span> itsHappening: <span class="hljs-type">Future</span>[<span class="hljs-type">MoarData</span>] = unsafeRun(safeFuture)
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/interop/interop_catseffect"><span class="arrow-prev">← </span><span>Cats Effect</span></a><a class="docs-next button" href="/docs/interop/interop_java"><span>Java</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#stdlib-future">Stdlib <code>Future</code></a><ul class="toc-headings"><li><a href="#from-future">From <code>Future</code></a></li><li><a href="#to-future">To <code>Future</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
+        ((window.gitter = {}).chat = {}).options = {
+          showChatByDefault: false,
+          activationElement: '.gitter-open-chat-button',
+          room: 'scalaz/scalaz-zio'
+        };
+      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>Github</h5><a class="github-button" href="https://github.com/scalaz/scalaz-zio" data-icon="octicon-star" data-count-href="/scalaz/scalaz-zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/">Scaladoc of scalaz-zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>

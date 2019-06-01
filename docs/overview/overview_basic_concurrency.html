@@ -1,0 +1,176 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Basic Concurrency · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;p&gt;ZIO has low-level support for concurrency using &lt;em&gt;fibers&lt;/em&gt;. While fibers are very powerful, they are low-level. To improve productivity, ZIO provides high-level operations built on fibers.&lt;/p&gt;
+"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Basic Concurrency · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="&lt;p&gt;ZIO has low-level support for concurrency using &lt;em&gt;fibers&lt;/em&gt;. While fibers are very powerful, they are low-level. To improve productivity, ZIO provides high-level operations built on fibers.&lt;/p&gt;
+"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+        document.addEventListener('DOMContentLoaded', function() {
+          addBackToTop(
+            {"zIndex":100,"cornerOffset":100}
+          )
+        });
+        </script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/advanced/advanced_index" target="_self">Advanced</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Overview</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Overview</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/overview/overview_index">Summary</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_creating_effects">Creating Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_basic_operations">Basic Operations</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_handling_errors">Handling Errors</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_handling_resources">Handling Resources</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/overview/overview_basic_concurrency">Basic Concurrency</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_testing_effects">Testing Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_running_effects">Running Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_background">Background</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              const headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                if (event.target.tagName === 'A') {
+                  document.body.classList.remove('tocActive');
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">Basic Concurrency</h1></header><article><div><span><p>ZIO has low-level support for concurrency using <em>fibers</em>. While fibers are very powerful, they are low-level. To improve productivity, ZIO provides high-level operations built on fibers.</p>
+<p>If you are able to do so, you should always use higher-level operations, rather than working with fibers directly. For the sake of completeness, this section introduces both fibers and some of the higher-level operations built on them.</p>
+<h2><a class="anchor" aria-hidden="true" id="fibers"></a><a href="#fibers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fibers</h2>
+<p>ZIO's concurrency is built on <em>fibers</em>, which are lightweight &quot;green threads&quot; implemented by the ZIO runtime.</p>
+<p>Unlike operating system threads, fibers consume almost no memory, have growable and shrinkable stacks, don't waste resources blocking, and will be garbage collected automatically if they are inactive and unreachable.</p>
+<p>Fibers are scheduled by the ZIO runtime and will cooperatively yield to each other, which enables multitasking even when operating in a single-threaded environment (like Javascript, or even the JVM when configured with one thread).</p>
+<p>All effects in ZIO are executed by <em>some</em> fiber. If you did not create the fiber, then the fiber was created by some operation you are using (if the operation is concurrent or parallel), or by the runtime system.</p>
+<p>Even if you only write &quot;single-threaded&quot; code, with no parallel or concurrent operations, then there will be at least one fiber: the &quot;main&quot; fiber that executes your effect.</p>
+<h3><a class="anchor" aria-hidden="true" id="the-fiber-data-type"></a><a href="#the-fiber-data-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Fiber Data Type</h3>
+<p>The <code>Fiber[E, A]</code> data type in ZIO has two type parameters:</p>
+<ul>
+<li><strong><code>E</code> Failure Type</strong>. This is the type of value the effect being executed by the fiber may fail with.</li>
+<li><strong><code>A</code> Success Type</strong>. This is the type of value the effect being executed by the fiber may succeed with.</li>
+</ul>
+<p>Fibers do not have an <code>R</code> type parameter, because they model effects that are already being executed, and which therefore have already had their required environment provided to them.</p>
+<h3><a class="anchor" aria-hidden="true" id="forking-effects"></a><a href="#forking-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Forking Effects</h3>
+<p>The most primitive way of creating a fiber is to take an effect and <em>fork</em> it. Conceptually, <em>forking</em> an effect immediately begins executing the effect on a new fiber, giving you the new fiber.</p>
+<p>The following code creates a single fiber, which executes <code>fib(100)</code>:</p>
+<pre><code class="hljs css language-scala">
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fib</span></span>(n: <span class="hljs-type">Long</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Long</span>] = 
+  <span class="hljs-keyword">if</span> (n &lt;= <span class="hljs-number">1</span>) {
+    <span class="hljs-type">UIO</span>.succeed(n)
+  } <span class="hljs-keyword">else</span> {
+    fib(n - <span class="hljs-number">1</span>).zipWith(fib(n - <span class="hljs-number">2</span>))(_ + _)
+  }
+
+<span class="hljs-keyword">val</span> z: <span class="hljs-type">UIO</span>[<span class="hljs-type">Fiber</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Long</span>]] = 
+  <span class="hljs-keyword">for</span> {
+    fiber &lt;- fib(<span class="hljs-number">100</span>).fork
+  } <span class="hljs-keyword">yield</span> fiber
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="joining-effects"></a><a href="#joining-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Joining Effects</h3>
+<p>One of the methods on <code>Fiber</code> is <code>join</code>, which allows another fiber to obtain the result of the fiber being joined. This is similar to awaiting the final result of the fiber, whether that is failure or success.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiber   &lt;- <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Hi!"</span>).fork
+  message &lt;- fiber.join
+} <span class="hljs-keyword">yield</span> message
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="awaiting-fibers"></a><a href="#awaiting-fibers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Awaiting Fibers</h3>
+<p>Another method on <code>Fiber</code> is <code>await</code>, which allows for inspecting the result of a completed <code>Fiber</code>. This provides access to full details on how the fiber completed, represented by the <code>Exit</code> data type.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiber &lt;- <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Hi!"</span>).fork
+  exit  &lt;- fiber.await
+} <span class="hljs-keyword">yield</span> exit
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="interrupting-fibers"></a><a href="#interrupting-fibers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Interrupting Fibers</h3>
+<p>A fiber whose result is no longer needed may be <em>interrupted</em>, which immediately terminates the fiber, safely releasing all resources and running all finalizers.</p>
+<p>Like <code>await</code>, <code>Fiber#interrupt</code> returns an <code>Exit</code> describing how the fiber terminated.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiber &lt;- <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Hi!"</span>).forever.fork
+  exit  &lt;- fiber.interrupt
+} <span class="hljs-keyword">yield</span> exit
+</code></pre>
+<p>By design, <code>interrupt</code> does not resume until the fiber has terminated. If this behavior is not desired, you can <code>fork</code> the interruption itself:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiber &lt;- <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Hi!"</span>).forever.fork
+  _     &lt;- fiber.interrupt.fork
+} <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="composing-fibers"></a><a href="#composing-fibers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Composing Fibers</h3>
+<p>Fibers may be composed in several ways.</p>
+<p>One way fibers may be composed is with <code>Fiber#zip</code> or <code>Fiber#zipWith</code>. These methods combine two fibers into a single fiber that produces the results of both. If either fiber fails, then the composed fiber will fail.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiber1 &lt;- <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Hi!"</span>).fork
+  fiber2 &lt;- <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Bye!"</span>).fork
+  fiber   = fiber1 zip fiber2
+  tuple  &lt;- fiber.join
+} <span class="hljs-keyword">yield</span> tuple
+</code></pre>
+<p>The second way fibers can be composed is with <code>orElse</code>. If the first fiber succeeds, the composed fiber will succeed with that result; otherwise, the composed fiber will complete with the exit of the second fiber.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  fiber1 &lt;- <span class="hljs-type">IO</span>.fail(<span class="hljs-string">"Uh oh!"</span>).fork
+  fiber2 &lt;- <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Hurray!"</span>).fork
+  fiber   = fiber1 orElse fiber2
+  tuple  &lt;- fiber.join
+} <span class="hljs-keyword">yield</span> tuple
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="parallelism"></a><a href="#parallelism" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Parallelism</h2>
+<p>ZIO provides many operations for performing effects in parallel. These methods are all named with a <code>Par</code> suffix that helps you more easily identify opportunities to parallelize your code.</p>
+<p>For example, the ordinary <code>ZIO#zip</code> method zips two effects together, sequentially. But there is also a <code>ZIO#zipPar</code> method, which zips two effects together in parallel.</p>
+<p>The following table summarizes some of the sequential operations and their corresponding parallel versions:</p>
+<table>
+<thead>
+<tr><th style="text-align:right"><strong>Description</strong></th><th style="text-align:center"><strong>Sequential</strong></th><th style="text-align:center"><strong>Parallel</strong></th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:right">Zips two effects into one</td><td style="text-align:center"><code>ZIO#zip</code></td><td style="text-align:center"><code>ZIO#zipPar</code></td></tr>
+<tr><td style="text-align:right">Zips two effects into one</td><td style="text-align:center"><code>ZIO#zipWith</code></td><td style="text-align:center"><code>ZIO#zipWithPar</code></td></tr>
+<tr><td style="text-align:right">Collects from many effects</td><td style="text-align:center"><code>ZIO.collectAll</code></td><td style="text-align:center"><code>ZIO.collectAllPar</code></td></tr>
+<tr><td style="text-align:right">Effectfully loop over values</td><td style="text-align:center"><code>ZIO.foreach</code></td><td style="text-align:center"><code>ZIO.foreachPar</code></td></tr>
+<tr><td style="text-align:right">Reduces many values</td><td style="text-align:center"><code>ZIO.reduceAll</code></td><td style="text-align:center"><code>ZIO.reduceAllPar</code></td></tr>
+<tr><td style="text-align:right">Merges many values</td><td style="text-align:center"><code>ZIO.mergeAll</code></td><td style="text-align:center"><code>ZIO.mergeAllPar</code></td></tr>
+</tbody>
+</table>
+<p>For all the parallel operations, if one effect fails, then others will be interrupted, to minimize unnecessary computation. If this behavior is not desired, the potentially failing effects can be converted into infallible effects using the <code>ZIO#either</code> or <code>ZIO#option</code> methods.</p>
+<h2><a class="anchor" aria-hidden="true" id="racing"></a><a href="#racing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Racing</h2>
+<p>ZIO allows you to race multiple effects in parallel, returning the first successful result:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  winner &lt;- <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Hello"</span>) race <span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Goodbye"</span>)
+} <span class="hljs-keyword">yield</span> winner
+</code></pre>
+<p>If you want the first success or failure, rather than the first success, then you can use <code>left.either race right.either</code>, for any effects <code>left</code> and <code>right</code>.</p>
+<h2><a class="anchor" aria-hidden="true" id="timeout"></a><a href="#timeout" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Timeout</h2>
+<p>ZIO lets you timeout any effect using the <code>ZIO#timeout</code> method, which succeeds with an <code>Option</code>, where a value of <code>None</code> indicates the effect timed out before producing the result.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scalaz.zio.duration._
+
+<span class="hljs-type">IO</span>.succeed(<span class="hljs-string">"Hello"</span>).timeout(<span class="hljs-number">10.</span>seconds)
+</code></pre>
+<p>If an effect is timed out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.</p>
+<h2><a class="anchor" aria-hidden="true" id="next-steps"></a><a href="#next-steps" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Next Steps</h2>
+<p>If you are comfortable with basic concurrency, then the next step is to learn about <a href="/docs/overview/overview_testing_effects">testing effects</a>.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/overview/overview_handling_resources"><span class="arrow-prev">← </span><span>Handling Resources</span></a><a class="docs-next button" href="/docs/overview/overview_testing_effects"><span>Testing Effects</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#fibers">Fibers</a><ul class="toc-headings"><li><a href="#the-fiber-data-type">The Fiber Data Type</a></li><li><a href="#forking-effects">Forking Effects</a></li><li><a href="#joining-effects">Joining Effects</a></li><li><a href="#awaiting-fibers">Awaiting Fibers</a></li><li><a href="#interrupting-fibers">Interrupting Fibers</a></li><li><a href="#composing-fibers">Composing Fibers</a></li></ul></li><li><a href="#parallelism">Parallelism</a></li><li><a href="#racing">Racing</a></li><li><a href="#timeout">Timeout</a></li><li><a href="#next-steps">Next Steps</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
+        ((window.gitter = {}).chat = {}).options = {
+          showChatByDefault: false,
+          activationElement: '.gitter-open-chat-button',
+          room: 'scalaz/scalaz-zio'
+        };
+      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>Github</h5><a class="github-button" href="https://github.com/scalaz/scalaz-zio" data-icon="octicon-star" data-count-href="/scalaz/scalaz-zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/">Scaladoc of scalaz-zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
