@@ -228,6 +228,11 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
 object ZStreamChunk {
 
   /**
+   * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].
+   */
+  final val DefaultChunkSize: Int = 4096
+
+  /**
    * Creates a `ZStreamChunk` from a stream of chunks
    */
   final def apply[R, E, A](chunkStream: ZStream[R, E, Chunk[A]]): ZStreamChunk[R, E, A] =

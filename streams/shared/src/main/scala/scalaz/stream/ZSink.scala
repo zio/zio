@@ -773,7 +773,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
 
 }
 
-object ZSink {
+object ZSink extends ZSinkPlatformSpecific {
   private[ZSink] object internal {
     sealed trait Side[+E, +S, +A]
     object Side {
@@ -877,7 +877,7 @@ object ZSink {
    */
   def accumWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
     ZSink
-      .foldM[R, E, A, A, List[A]](ZIO.succeed(List.empty[A])) { (s, a: A) =>
+      .foldM[R, E, A, A, List[A]](List.empty[A]) { (s, a: A) =>
         p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
       }
       .map(_.reverse)
@@ -943,10 +943,10 @@ object ZSink {
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
    */
-  def foldM[R, E, A0, A, S](z: ZIO[R, E, S])(f: (S, A) => ZIO[R, E, Step[S, A0]]): ZSink[R, E, A0, A, S] =
+  def foldM[R, E, A0, A, S](z: S)(f: (S, A) => ZIO[R, E, Step[S, A0]]): ZSink[R, E, A0, A, S] =
     new ZSink[R, E, A0, A, S] {
       type State = S
-      val initial                                  = z.map(Step.more)
+      val initial                                  = UIO.succeed(Step.more(z))
       def step(s: S, a: A): ZIO[R, E, Step[S, A0]] = f(s, a)
       def extract(s: S): ZIO[R, E, S]              = ZIO.succeed(s)
     }
@@ -982,17 +982,6 @@ object ZSink {
       val initialPure                                  = Step.more(None)
       def stepPure(state: State, a: A): Step[State, A] = Step.done(Some(a), Chunk.empty)
       def extractPure(state: State): Either[Unit, A]   = state.fold[Either[Unit, A]](Left(()))(a => Right(a))
-    }
-
-  /**
-   * Creates a single-value sink from a lazily-evaluated value.
-   */
-  final def succeedLazy[B](b: => B): ZSink[Any, Nothing, Nothing, Any, B] =
-    new SinkPure[Nothing, Nothing, Any, B] {
-      type State = Unit
-      val initialPure                                          = Step.done((), Chunk.empty)
-      def stepPure(state: State, a: Any): Step[State, Nothing] = Step.done(state, Chunk.empty)
-      def extractPure(state: State): Either[Nothing, B]        = Right(b)
     }
 
   /**
@@ -1070,5 +1059,16 @@ object ZSink {
           case Right(None)    => Left(e(None))
           case Left(e)        => Left(e)
         }
+    }
+
+  /**
+   * Creates a single-value sink from a lazily-evaluated value.
+   */
+  final def succeedLazy[B](b: => B): ZSink[Any, Nothing, Nothing, Any, B] =
+    new SinkPure[Nothing, Nothing, Any, B] {
+      type State = Unit
+      val initialPure                                          = Step.done((), Chunk.empty)
+      def stepPure(state: State, a: Any): Step[State, Nothing] = Step.done(state, Chunk.empty)
+      def extractPure(state: State): Either[Nothing, B]        = Right(b)
     }
 }

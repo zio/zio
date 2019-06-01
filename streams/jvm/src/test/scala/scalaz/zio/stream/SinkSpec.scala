@@ -3,7 +3,7 @@ package scalaz.zio.stream
 import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
-import scalaz.zio.{ Chunk, Exit, GenIO, IO, TestRuntime }
+import scalaz.zio._
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -20,6 +20,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Sink.foldM                  $foldM
     Sink.foldM short circuits   $foldMShortCircuits
     Sink.readWhile              $readWhile
+    ZSink.fromOutputStream      $sinkFromOutputStream
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -67,7 +68,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     prop { (s: Stream[String, Int], f: (String, Int) => IO[String, String], z: IO[String, String]) =>
       val ff         = (acc: String, el: Int) => f(acc, el).map(Step.more)
-      val sinkResult = unsafeRunSync(s.run(ZSink.foldM(z)(ff)))
+      val sinkResult = unsafeRunSync(z.flatMap(z => s.run(ZSink.foldM(z)(ff))))
       val foldResult = unsafeRunSync {
         s.foldLeft(List[Int]())((acc, el) => el :: acc)
           .use(IO.succeed)
@@ -87,7 +88,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     def run[E](stream: Stream[E, Int]) = {
       var effects: List[Int] = Nil
-      val sink = ZSink.foldM[Any, E, Int, Int, Int](IO.succeed(0)) { (_, a) =>
+      val sink = ZSink.foldM[Any, E, Int, Int, Int](0) { (_, a) =>
         effects ::= a
         IO.succeed(Step.done(30, Chunk.empty))
       }
@@ -121,7 +122,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     val numArrayParser =
       ZSink
-        .foldM(IO.succeed((ParserState.Start: ParserState, List.empty[Int]))) { (s, a: Char) =>
+        .foldM((ParserState.Start: ParserState, List.empty[Int])) { (s, a: Char) =>
           s match {
             case (ParserState.Start, acc) =>
               a match {
@@ -179,5 +180,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     (partialParse must_=== (Exit.fail("Expected closing brace; instead: None"))) and
       (fullParse must_=== (Exit.Success(List(123, 4))))
+  }
+
+  private def sinkFromOutputStream = unsafeRun {
+    import java.io.ByteArrayOutputStream
+
+    val output = new ByteArrayOutputStream()
+    val data   = "0123456789"
+    val stream = Stream(Chunk.fromArray(data.take(5).getBytes), Chunk.fromArray(data.drop(5).getBytes))
+
+    stream.run(ZSink.fromOutputStream(output)) map { bytesWritten =>
+      (bytesWritten must_=== 10) and (new String(output.toByteArray, "UTF-8") must_=== data)
+    }
   }
 }
