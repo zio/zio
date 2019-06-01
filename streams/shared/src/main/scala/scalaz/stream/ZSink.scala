@@ -209,7 +209,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     filterM(a => f(a).map(!_))
 
   /**
-   * Ignites the sink by producing the initial step.
+   * The initial state of the sink.
    *
    * TODO I don't understand what I just wrote 😅
    */
