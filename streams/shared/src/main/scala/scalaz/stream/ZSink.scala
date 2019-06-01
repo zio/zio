@@ -530,7 +530,7 @@ object ZSink {
       def stepPure(state: State, a: Any): Step[State, Nothing] = Step.done(state, Chunk.empty)
       def extractPure(state: State): Either[Nothing, B]        = Right(b)
     }
-    
+
   def ignoreWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, Unit] =
     ignoreWhileM(a => IO.succeed(p(a)))
 
@@ -686,6 +686,13 @@ object ZSink {
 
         type State = (Side[E, self.State, B], Side[E1, that.State, (Chunk[A], C)])
 
+        val l: ZIO[R, Nothing, Step[Either[E, self.State], Nothing]]   = self.initial.either.map(sequence)
+        val r: ZIO[R1, Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.either.map(sequence)
+        val initial: ZIO[R1, E1, Step[State, Nothing]] =
+          l.zipWithPar(r) { (l, r) =>
+            Step.both(Step.leftMap(l)(eitherToSide), Step.leftMap(r)(eitherToSide))
+          }
+
         def eitherToSide[E, A, B](e: Either[E, A]): Side[E, A, B] =
           e match {
             case Left(e)  => Side.Error(e)
@@ -705,15 +712,6 @@ object ZSink {
             case _                  => fromRight
           }
         }
-
-        val initial: ZIO[R1, E1, Step[State, Nothing]] =
-          l.zipWithPar(r) { (l, r) =>
-            Step.both(Step.leftMap(l)(eitherToSide), Step.leftMap(r)(eitherToSide))
-          }
-
-        val l: ZIO[R, Nothing, Step[Either[E, self.State], Nothing]] = self.initial.either.map(sequence)
-
-        val r: ZIO[R1, Nothing, Step[Either[E1, that.State], Nothing]] = that.initial.either.map(sequence)
 
         def sequence[E, S, A0](e: Either[E, Step[S, A0]]): Step[Either[E, S], A0] =
           e match {
