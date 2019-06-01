@@ -511,6 +511,28 @@ object ZSink {
   type Step[+S, +A0] = Step.Step[S, A0]
 
   /**
+   * Creates a sink accumulating incoming values into a list.
+   */
+  final def accum[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
+    fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
+
+  /**
+   * Accumulates incoming elements into a list as long as they verify predicate `p`.
+   */
+  def accumWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
+    readWhileM(a => IO.succeed(p(a)))
+
+  /**
+   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
+   */
+  def accumWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
+    ZSink
+      .foldM[R, E, A, A, List[A]](ZIO.succeed(List.empty[A])) { (s, a: A) =>
+        p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
+      }
+      .map(_.reverse)
+
+  /**
    * Creates a sink that waits for a single value to be produced.
    */
   def await[A]: ZSink[Any, Unit, Nothing, A, A] =
@@ -525,14 +547,6 @@ object ZSink {
       def extractPure(state: State): Either[Unit, A] =
         state
     }
-
-  /**
-   * Creates a sink accumulating incoming values into a list.
-   *
-   * TODO rename `accum`? `collect` usually implies a `PartialFunction[A, B]`.
-   */
-  final def collect[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
-    fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
 
   /**
    * Creates a sink consuming all incoming values until completion.
@@ -707,26 +721,6 @@ object ZSink {
           case Left(e)        => Left(e)
         }
     }
-
-  /**
-   * Collects incoming elements into a list as long as they verify predicate `p`.
-   *
-   * TODO rename to `collectWhile`/`accumWhile`?
-   */
-  def readWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
-    readWhileM(a => IO.succeed(p(a)))
-
-  /**
-   * Collects incoming elements into a list as long as they verify effectful predicate `p`.
-   *
-   * TODO rename to `collectWhileM`/`accumWhileM`?
-   */
-  def readWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
-    ZSink
-      .foldM[R, E, A, A, List[A]](ZIO.succeed(List.empty[A])) { (s, a: A) =>
-        p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
-      }
-      .map(_.reverse)
 
   /**
    * TODO I don't understand why these combinators are invariant in all types
