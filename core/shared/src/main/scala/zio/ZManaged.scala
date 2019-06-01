@@ -730,7 +730,7 @@ object ZManaged {
    * Creates an effect that only executes the `UIO` value as its
    * release action.
    */
-  final def finalizer(f: UIO[_]): ZManaged[Any, Nothing, Unit] =
+  final def finalizer[R](f: ZIO[R, Nothing, _]): ZManaged[R, Nothing, Unit] =
     ZManaged.reserve(Reservation(ZIO.unit, f))
 
   /**
