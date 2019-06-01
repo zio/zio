@@ -1043,7 +1043,7 @@ object ZSink {
       flatMap(b => that.map(c => (b, c)))
 
     /**
-     * Runs two sinks in unison and drops values on the right.
+     * Runs two sinks in unison and keeps only values on the left.
      */
     final def zipLeft[R1 <: R, E1 >: E, C](that: ZSink[R1, E1, A, A, C]): ZSink[R1, E1, A, A, B] =
       self <* that
