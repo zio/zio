@@ -157,6 +157,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Executes the provided finalizer after this stream's finalizers run.
+   */
+  def ensuring[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
+    new ZStream[R1, E, A] {
+      def fold[R2 <: R1, E1 >: E, A1 >: A, S]: ZStream.Fold[R2, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.fold[R2, E1, A1, S].flatMap { fold =>
+            ZManaged.finalizer(fin) *> fold(s, cont, f)
+          }
+        }
+    }
+
+  /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
@@ -896,6 +909,18 @@ trait Stream_Functions {
         ZManaged.succeedLazy { (s, cont, _) =>
           if (cont(s)) ZManaged.fail(error)
           else ZManaged.succeed(s)
+        }
+    }
+
+  /**
+   * Creates a stream that emits no elements, never fails and executes
+   * the finalizer before it ends.
+   */
+  final def finalizer[R: ConformsR](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
+    new ZStream[R, Nothing, Nothing] {
+      def fold[R1 <: R, E1, A1, S]: ZStream.Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, _, _) =>
+          ZManaged.reserve(Reservation(UIO.succeed(s), finalizer))
         }
     }
 
