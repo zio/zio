@@ -607,7 +607,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    *
    * Equivalent to `run(Sink.collect[A])`.
    */
-  def runCollect: ZIO[R, E, List[A]] = run(Sink.collect[A])
+  def runCollect: ZIO[R, E, List[A]] = run(Sink.accum[A])
 
   /**
    * Runs the stream purely for its effects. Any elements emitted by

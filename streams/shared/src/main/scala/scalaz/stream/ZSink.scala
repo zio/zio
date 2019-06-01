@@ -520,7 +520,7 @@ object ZSink {
    * Accumulates incoming elements into a list as long as they verify predicate `p`.
    */
   def accumWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
-    readWhileM(a => IO.succeed(p(a)))
+    accumWhileM(a => IO.succeed(p(a)))
 
   /**
    * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
