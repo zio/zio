@@ -12,23 +12,21 @@ trait ZStreamPlatformSpecific {
    * the resulting `InputStream`. When data from the `InputStream` is exhausted,
    * the stream will close it.
    */
-  def fromInputStream[R](
-    is: TaskR[R, InputStream],
+  def fromInputStream(
+    is: InputStream,
     chunkSize: Int = ZStreamChunk.DefaultChunkSize
-  ): ZStreamChunk[R with Blocking, Throwable, Byte] =
+  ): ZStreamChunk[Blocking, IOException, Byte] =
     ZStreamChunk {
-      ZStream.managed(is.toManaged(is => effectBlocking(is.close()).orDie)).flatMap { is =>
-        ZStream.unfoldM(()) { _ =>
-          effectBlocking {
-            val buf       = Array.ofDim[Byte](chunkSize)
-            val bytesRead = is.read(buf)
+      ZStream.unfoldM(()) { _ =>
+        effectBlocking {
+          val buf       = Array.ofDim[Byte](chunkSize)
+          val bytesRead = is.read(buf)
 
-            if (bytesRead < 0) None
-            else if (0 < bytesRead && bytesRead < buf.length) Some((Chunk.fromArray(buf).take(buf.length), ()))
-            else Some((Chunk.fromArray(buf), ()))
-          } refineOrDie {
-            case e: IOException => e
-          }
+          if (bytesRead < 0) None
+          else if (0 < bytesRead && bytesRead < buf.length) Some((Chunk.fromArray(buf).take(buf.length), ()))
+          else Some((Chunk.fromArray(buf), ()))
+        } refineOrDie {
+          case e: IOException => e
         }
       }
     }

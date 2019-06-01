@@ -769,7 +769,7 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val data = List.fill(4096)("0123456789").mkString.getBytes
     val is   = new ByteArrayInputStream(data)
 
-    ZStream.fromInputStream(ZIO.succeed(is)).run(Sink.collect[Chunk[Byte]]) map { chunks =>
+    ZStream.fromInputStream(is).run(Sink.collect[Chunk[Byte]]) map { chunks =>
       chunks.flatMap(_.toArray[Byte]).toArray must_=== data
     }
   }
