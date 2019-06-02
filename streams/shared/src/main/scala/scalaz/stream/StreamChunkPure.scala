@@ -21,19 +21,19 @@ import zio._
 private[stream] trait StreamChunkPure[@specialized +A] extends ZStreamChunk[Any, Nothing, A] { self =>
   val chunks: StreamPure[Chunk[A]]
 
+  override def filter(pred: A => Boolean): StreamChunkPure[A] =
+    StreamChunkPure(chunks.map(_.filter(pred)))
+
+  override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[Any, Nothing, S] =
+    ZManaged.succeedLazy(foldPureLazy(s)(_ => true)(f))
+
   def foldPureLazy[A1 >: A, S](s: S)(cont: S => Boolean)(f: (S, A1) => S): S =
     chunks.foldPureLazy(s)(cont) { (s, as) =>
       as.foldLeftLazy(s)(cont)(f)
     }
 
-  override def foldLeft[A1 >: A, S](s: S)(f: (S, A1) => S): ZManaged[Any, Nothing, S] =
-    ZManaged.succeedLazy(foldPureLazy(s)(_ => true)(f))
-
   override def map[@specialized B](f: A => B): StreamChunkPure[B] =
     StreamChunkPure(chunks.map(_.map(f)))
-
-  override def filter(pred: A => Boolean): StreamChunkPure[A] =
-    StreamChunkPure(chunks.map(_.filter(pred)))
 
   override def mapConcat[B](f: A => Chunk[B]): StreamChunkPure[B] =
     StreamChunkPure(chunks.map(_.flatMap(f)))
