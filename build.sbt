@@ -334,6 +334,7 @@ lazy val docs = project.module
   )
   .dependsOn(
     coreJVM,
+    streamsJVM,
     interopCatsJVM,
     interopFutureJVM,
     interopMonixJVM,
