@@ -16,14 +16,13 @@
 
 package scalaz.zio
 package interop
-package runtime
+package bio
 
-import scalaz.zio.internal.PlatformLive
+sealed trait FailedWith[+E] extends Product with Serializable
 
-private[interop] trait TestRuntime {
+object FailedWith {
 
-  implicit final val testRuntime: DefaultRuntime =
-    new DefaultRuntime {
-      override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
-    }
+  final case class Single[E](failure: E)          extends FailedWith[E]
+  final case class Multiple[E](failures: List[E]) extends FailedWith[E]
+  final case object Interrupted                   extends FailedWith[Nothing]
 }

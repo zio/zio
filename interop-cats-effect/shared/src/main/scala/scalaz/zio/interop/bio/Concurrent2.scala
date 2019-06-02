@@ -20,7 +20,7 @@ package bio
 
 import cats.Monad
 import cats.kernel.Semigroup
-import scalaz.zio.interop.bio.data.{Deferred2, Ref2}
+import scalaz.zio.interop.bio.data.{ Deferred2, Ref2 }
 
 import scala.concurrent.ExecutionContext
 
@@ -176,10 +176,10 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
       f: (Option[Either[EE0, AA]], Fiber2[F, EE1, BB]) => F[E3, C],
       loser: Fiber2[F, EE1, BB],
       race: Ref2[F, Int],
-      whenDone: Deferred2[F, E3, C]
+      oneStatus: Deferred2[F, E3, C]
     )(res: Option[Either[EE0, AA]]): F[Nothing, Unit] =
       race.modify { c =>
-        (if (c > 0) monad.unit else whenDone.done(f(res, loser)) *> monad.unit) -> (c + 1)
+        (if (c > 0) monad.unit else oneStatus.done(f(res, loser)) *> monad.unit) -> (c + 1)
       }.flatten
 
     for {

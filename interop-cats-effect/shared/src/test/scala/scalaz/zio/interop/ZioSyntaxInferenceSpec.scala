@@ -18,9 +18,10 @@ package scalaz.zio
 package interop
 
 import com.github.ghik.silencer.silent
+import org.specs2.Specification
 import scalaz.zio.interop.runtime.TestRuntime
 
-final class ZioSyntaxInferenceSpec extends TestRuntime {
+final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
 
   def is = "ZioTestDefaultsSpec".title ^ s2"""
     The type-class syntax:

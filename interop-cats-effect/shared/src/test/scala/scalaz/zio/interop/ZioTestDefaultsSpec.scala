@@ -18,9 +18,10 @@ package scalaz.zio
 package interop
 
 import com.github.ghik.silencer.silent
+import org.specs2.Specification
 import scalaz.zio.interop.runtime.TestRuntime
 
-final class ZioTestDefaultsSpec extends TestRuntime {
+final class ZioTestDefaultsSpec extends Specification with TestRuntime {
 
   def is = "ZioTestDefaultsSpec".title ^ s2"""
     The default test type-class instances for Zio:
@@ -30,7 +31,7 @@ final class ZioTestDefaultsSpec extends TestRuntime {
   private[this] def unifyAll = {
 
     import default.testZioInstances._
-    import scalaz.zio.interop.bio.{ Async2, Concurrent2, Errorful2, Guaranteed2, RunAsync2, RunSync2, Sync2, Temporal2 }
+    import scalaz.zio.interop.bio.{Async2, Concurrent2, Errorful2, Guaranteed2, RunAsync2, RunSync2, Sync2, Temporal2}
 
     @silent def f[F[+ _, + _]](
       implicit

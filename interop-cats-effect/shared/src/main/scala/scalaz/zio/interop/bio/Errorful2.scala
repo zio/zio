@@ -20,7 +20,7 @@ package bio
 
 import cats.Monad
 
-abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
+abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] { self =>
 
   def monad[E]: Monad[F[E, ?]]
 
@@ -159,6 +159,23 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] {
    */
   @inline def flip[E, A](fa: F[E, A]): F[A, E] =
     redeemWith(fa)(monad.pure, raiseError)
+
+  /**
+   * Gives an effect that runs `fa` but ignores
+   * the error or the result from it.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def ignore[E, A](fa: F[E, A]): F[Nothing, Unit] = {
+
+    implicit val ev: Errorful2[F] = self
+
+    monad.unit tap (_ => attempt(fa))
+  }
 
   /**
    * Lifts an `Option` into `F`

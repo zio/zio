@@ -22,6 +22,7 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 import cats.{ Applicative, Monad }
+import scalaz.zio.Exit.{ Failure, Success }
 import scalaz.zio.clock.Clock
 import scalaz.zio.duration.{ Duration => zioDuration }
 import scalaz.zio.interop.bio.instances.ZioFiber2
@@ -91,7 +92,7 @@ private[default] object ZioDefaultInstances {
           fa >>= f
 
         def tailRecM[A, B](a: A)(f: A => IO[E, Either[A, B]]): IO[E, B] =
-          f(a) >>= {
+          IO.suspend(f(a)) >>= {
             case Left(x)  => tailRecM(x)(f)
             case Right(b) => IO.succeed(b)
           }
@@ -148,12 +149,10 @@ private[default] object ZioDefaultInstances {
 
     override def runSync[G[+ _, + _], E, A](fa: IO[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A] =
       SG.suspend(
-        runtime
-          .unsafeRunSync(fa.either)
-          .fold(
-            _ => CG.interrupted,
-            ea => ea.fold(SG.raiseError, SG.monad.pure(_))
-          )
+        runtime.unsafeRunSync(fa.either) match {
+          case Success(ea) => ea.fold(SG.raiseError, SG.monad.pure(_))
+          case Failure(_)  => CG.interrupted
+        }
       )
   }
 
@@ -176,12 +175,10 @@ private[default] object ZioDefaultInstances {
       CG: Concurrent2[G]
     ): G[Nothing, Unit] =
       AG.async { cb =>
-        runtime
-          .unsafeRunSync(fa.either)
-          .fold(
-            _ => cb(CG.interrupted),
-            ea => cb(k(ea))
-          )
+        runtime.unsafeRunSync(fa.either) match {
+          case Success(ea) => cb(k(ea))
+          case Failure(_)  => cb(CG.interrupted)
+        }
       }
   }
 }
