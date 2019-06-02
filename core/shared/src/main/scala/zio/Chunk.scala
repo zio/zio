@@ -27,6 +27,11 @@ import scala.reflect._
 sealed trait Chunk[@specialized +A] { self =>
 
   /**
+   * The number of elements in the chunk.
+   */
+  def length: Int
+
+  /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
   final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
@@ -231,11 +236,6 @@ sealed trait Chunk[@specialized +A] { self =>
    * Determines if the chunk is empty.
    */
   final def isEmpty: Boolean = length == 0
-
-  /**
-   * The number of elements in the chunk.
-   */
-  def length: Int
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
