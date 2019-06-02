@@ -10,7 +10,7 @@ import BuildInfoKeys._
 
 object Scalaz {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
-  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.0"  % "provided")
+  val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.1"  % "provided")
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -30,7 +30,6 @@ object Scalaz {
     "-Xsource:2.13",
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard",
     "-Ywarn-value-discard"
   )
 
@@ -59,9 +58,10 @@ object Scalaz {
                                                |import scalaz._
                                                |import scalaz.zio._
                                                |import scalaz.zio.console._
+                                               |import scalaz.zio.duration._
                                                |object replRTS extends DefaultRuntime {}
                                                |import replRTS._
-                                               |implicit class RunSyntax[E, A](io: IO[E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
+                                               |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   )
 
@@ -76,7 +76,7 @@ object Scalaz {
           "-Ywarn-unused:_,imports",
           "-Ywarn-unused:imports",
           "-opt:l:inline",
-          "-opt-inline-from:<source>",
+          "-opt-inline-from:scalaz.zio.internal.**",
           "-Ypartial-unification",
           "-Yno-adapted-args",
           "-Ywarn-inaccessible",
@@ -105,8 +105,8 @@ object Scalaz {
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.1"),
-      compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.0")
+      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.2"),
+      compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.1")
     ),
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
@@ -115,13 +115,16 @@ object Scalaz {
     Compile / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
-          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11"))
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")) ++
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11"))
         case Some((2, x)) if x >= 12 =>
-          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
         case _ =>
           if (isDotty.value)
             Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")) ++
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
           else
             Nil
       }
@@ -133,10 +136,21 @@ object Scalaz {
         Nil
     },
     Test / unmanagedSourceDirectories ++= {
-      if (isDotty.value)
-        CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+"))
-      else
-        Nil
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, x)) if x <= 11 =>
+          Seq(file(sourceDirectory.value.getPath + "/test/scala-2.11"))
+        case Some((2, x)) if x >= 12 =>
+          Seq(
+            file(sourceDirectory.value.getPath + "/test/scala-2.12"),
+            file(sourceDirectory.value.getPath + "/test/scala-2.12+")
+          )
+        case _ =>
+          if (isDotty.value)
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
+              Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+"))
+          else
+            Nil
+      }
     }
   )
 

@@ -3,9 +3,9 @@ package scalaz.zio.interop
 import _root_.monix.eval
 import _root_.monix.execution.Scheduler
 import org.specs2.concurrent.ExecutionEnv
-import scalaz.zio.Exit.Cause.Fail
-import scalaz.zio.{ FiberFailure, IO, TestRuntime }
+import scalaz.zio.Exit.Cause.fail
 import scalaz.zio.interop.monix._
+import scalaz.zio.{ Exit, IO, TestRuntime }
 
 class MonixSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def is = s2"""
@@ -37,7 +37,7 @@ class MonixSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val task  = eval.Task.raiseError[Int](error)
     val io    = IO.fromTask(task)
 
-    unsafeRun(io) must throwAn(FiberFailure(Fail(error)))
+    unsafeRunSync(io) must_=== Exit.Failure(fail(error))
   }
 
   def propagateTaskResult = {
@@ -72,7 +72,7 @@ class MonixSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val coeval = eval.Coeval.raiseError[Int](error)
     val io     = IO.fromCoeval(coeval)
 
-    unsafeRun(io) must throwAn(FiberFailure(Fail(error)))
+    unsafeRunSync(io) must_=== Exit.Failure(fail(error))
   }
 
   def propagateCoevalResult = {

@@ -16,11 +16,13 @@
 
 package scalaz.zio.internal
 
-import java.util.{ Map => JMap, HashMap }
+import java.util.{ HashMap, Map => JMap }
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.global
-
 import scalaz.zio.Exit.Cause
+import scalaz.zio.internal.stacktracer.Tracer
+import scalaz.zio.internal.tracing.TracingConfig
 
 object PlatformLive {
   lazy val Default = Global
@@ -45,6 +47,8 @@ object PlatformLive {
 
       def newWeakHashMap[A, B](): JMap[A, B] =
         new HashMap[A, B]()
+
+      val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
     }
 
   final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =

@@ -102,13 +102,18 @@ class IOMapBenchmark {
   }
 
   @Benchmark
-  def scalazMap(): BigInt = {
+  def scalazMap(): BigInt = zioMap(IOBenchmarks)
+
+  @Benchmark
+  def scalazTracedMap(): BigInt = zioMap(TracedRuntime)
+
+  private[this] def zioMap(runtime: Runtime[Any]): BigInt = {
     @tailrec
     def sumTo(t: UIO[BigInt], n: Int): UIO[BigInt] =
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    unsafeRun(sumTo(IO.succeedLazy(0), depth))
+    runtime.unsafeRun(sumTo(IO.succeedLazy(0), depth))
   }
 
   @Benchmark

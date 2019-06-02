@@ -33,7 +33,17 @@ trait Platform { self =>
 
   def withExecutor(e: Executor): Platform =
     new Platform.Proxy(self) {
-      override def executor = e
+      override def executor: Executor = e
+    }
+
+  /**
+   * ZIO Tracing configuration.
+   */
+  def tracing: Tracing
+
+  def withTracing(t: Tracing): Platform =
+    new Platform.Proxy(self) {
+      override def tracing: Tracing = t
     }
 
   /**
@@ -77,6 +87,7 @@ trait Platform { self =>
 object Platform {
   class Proxy(self: Platform) extends Platform {
     def executor: Executor                   = self.executor
+    def tracing: Tracing                     = self.tracing
     def fatal(t: Throwable): Boolean         = self.fatal(t)
     def reportFatal(t: Throwable): Nothing   = self.reportFatal(t)
     def reportFailure(cause: Cause[_]): Unit = self.reportFailure(cause)
