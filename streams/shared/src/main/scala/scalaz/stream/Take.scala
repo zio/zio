@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package scalaz.zio.stream
+package zio.stream
 
-import scalaz.zio.IO
+import zio.IO
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of
  * values. A `Take` may be a failure value `E`, an element value `A`, or end-of-
  * stream marker.
  */
-sealed trait Take[+E, +A] { self =>
+sealed trait Take[+E, +A] extends Product with Serializable { self =>
   final def map[B](f: A => B): Take[E, B] = self match {
     case t @ Take.Fail(_) => t
     case Take.Value(a)    => Take.Value(f(a))

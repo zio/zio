@@ -24,20 +24,20 @@ To begin contributing, please follow these steps:
 
 ### Get The Project
 
-If you don't already have one, sign up for a free [Github Account](https://github.com/join?source=header-home).
+If you don't already have one, sign up for a free [GitHub Account](https://github.com/join?source=header-home).
 
-After you [log into](https://github.com/login) Github using your account, go to the [ZIO Project Page](https://github.com/scalaz/scalaz-zio), and click on [Fork](https://github.com/scalaz/scalaz-zio/fork) to fork the ZIO repository into your own account.
+After you [log into](https://github.com/login) GitHub using your account, go to the [ZIO Project Page](https://github.com/zio/zio), and click on [Fork](https://github.com/zio/zio/fork) to fork the ZIO repository into your own account.
 
 You will make _all_ contributions from your own account. No one contributes _directly_ to the main repository. Contributors only ever merge code from other people's forks into the main repository.
 
 Once you have forked the repository, you can now clone your forked repository to your own machine, so you have a complete copy of the project and can begin safely making your modifications (even without an Internet connection).
 
-To clone your forked repository, first make sure you have installed [Git](https://git-scm.com/downloads), the version control system used by Github. Then open a Terminal and type the following commands:
+To clone your forked repository, first make sure you have installed [Git](https://git-scm.com/downloads), the version control system used by GitHub. Then open a Terminal and type the following commands:
 
 ```bash
-mkdir scalaz-zio
-cd scalaz-zio
-git clone git@github.com:scalaz/scalaz-zio.git .
+mkdir zio
+cd zio
+git clone git@github.com:zio/zio.git .
 ```
 
 If these steps were successful, then congratulations, you now have a complete copy of the ZIO project!
@@ -80,9 +80,9 @@ project coreJVM
 
 ### Find an Issue
 
-You may have your own idea about what contributions to make to ZIO, which is great! If you want to make sure the ZIO contributors are open to your idea, you can [open an issue](https://github.com/scalaz/scalaz-zio/issues/new) first on the ZIO project site.
+You may have your own idea about what contributions to make to ZIO, which is great! If you want to make sure the ZIO contributors are open to your idea, you can [open an issue](https://github.com/zio/zio/issues/new) first on the ZIO project site.
 
-Otherwise, if you have no ideas about what to contribute, you can find a large supply of feature requests and bugs on the project's [issue tracker](https://github.com/scalaz/scalaz-zio/issues).
+Otherwise, if you have no ideas about what to contribute, you can find a large supply of feature requests and bugs on the project's [issue tracker](https://github.com/zio/zio/issues).
 
 Issues are tagged with various labels, such as `good first issue`, which help you find issues that are a fit for you.
 
@@ -98,7 +98,7 @@ The only thing you have to worry about is if you take too long, especially for a
 
 If you shoot for 2-3 weeks for most issues, this should give you plenty of time without having to worry about having your issue stolen.
 
-If you get stuck, please consider [opening a pull request](https://github.com/scalaz/scalaz-zio/compare) for your incomplete work, and asking for help (just prefix the pull request by _WIP_). In addition, you can comment on the original issue, pointing people to your own fork. Both of these are great ways to get outside help from people more familiar with the project.
+If you get stuck, please consider [opening a pull request](https://github.com/zio/zio/compare) for your incomplete work, and asking for help (just prefix the pull request by _WIP_). In addition, you can comment on the original issue, pointing people to your own fork. Both of these are great ways to get outside help from people more familiar with the project.
 
 ### Prepare Your Code
 
@@ -113,7 +113,7 @@ git status
 If you see new files, you will have to tell `git` to add them to the repository using `git add`:
 
 ```bash
-git add core/src/shared/scalaz/zio/NewFile.scala
+git add core/src/shared/zio/zio/NewFile.scala
 ```
 
 Then you can commit all your changes at once with the following command:
@@ -133,7 +133,7 @@ Now while you were working on this great improvement, it's quite likely that oth
 To do that, use the `git pull` command:
 
 ```bash
-git pull git@github.com:scalaz/scalaz-zio.git master 
+git pull git@github.com:zio/zio.git master 
 ```
 
 You may get a warning from Git that some files conflicted. Don't worry! That just means you and another contributor edited the same parts of the same files. 
@@ -176,7 +176,7 @@ To create a pull request, first push all your changes to your fork of the projec
 git push
 ```
 
-Next, [open a new pull request](https://github.com/scalaz/scalaz-zio/compare) on Github, and select _Compare Across Forks_. On the right hand side, choose your own fork of the ZIO repository, in which you've been making your contribution.
+Next, [open a new pull request](https://github.com/zio/zio/compare) on GitHub, and select _Compare Across Forks_. On the right hand side, choose your own fork of the ZIO repository, in which you've been making your contribution.
 
 Provide a description for the pull request, which details the issue it is fixing, and has other information that may be helpful to developers reviewing the pull request.
 

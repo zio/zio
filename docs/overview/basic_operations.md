@@ -4,8 +4,8 @@ title:  "Basic Operations"
 ---
 
 ```scala mdoc:invisible
-import scalaz.zio._
-import scalaz.zio.console._
+import zio._
+import zio.console._
 ```
 
 ## Mapping
@@ -13,7 +13,7 @@ import scalaz.zio.console._
 You can map over the success channel of an effect by calling the `ZIO#map` method. This lets you transform the success values of effects into other values.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 
 val succeded: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```

@@ -21,15 +21,15 @@ Powered by highly-scalable, non-blocking fibers that never waste or leak resourc
 
 To learn more about ZIO, see the following references:
 
- - [Microsite](https://scalaz.github.io/scalaz-zio/)
+ - [Homepage](https://zio.dev/)
  - [Contributor's Guide](CONTRIBUTING.md)
  - [License](LICENSE)
- - [Issues](https://github.com/scalaz/scalaz-zio/issues)
- - [Pull Requests](https://github.com/scalaz/scalaz-zio/pulls)
+ - [Issues](https://github.com/zio/zio/issues)
+ - [Pull Requests](https://github.com/zio/zio/pulls)
 
 ---
 
-# [Learn More on the ZIO Microsite](https://scalaz.github.io/scalaz-zio/)
+# [Learn More on the ZIO Homepage](https://zio.dev/)
 
 ---
 
