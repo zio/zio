@@ -9,9 +9,9 @@ title: "Twitter"
 
 ```scala
 import com.twitter.util.Future
-import scalaz.zio.{ App, Task }
-import scalaz.zio.console._
-import scalaz.zio.interop.twitter._
+import zio.{ App, Task }
+import zio.console._
+import zio.interop.twitter._
 
 object Example extends App {
   def run(args: List[String]) = {

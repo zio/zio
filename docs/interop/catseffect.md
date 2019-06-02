@@ -22,7 +22,7 @@ Therefore, we provide an instance of `ConcurrentEffect[Task]`.
 In order to get a `cats.effect.Timer[Task]` instance we need an extra import:
 
 ```scala
-import scalaz.zio.interop.catz.implicits._
+import zio.interop.catz.implicits._
 ```
 
 The reason it is not provided by the default "interop" import is that it makes testing programs that require timing capabilities hard so an extra import wherever needed makes reasoning about it much easier.
@@ -34,8 +34,8 @@ The following example shows how to use ZIO with Doobie (a library for JDBC acces
 ```scala
 import doobie.imports._
 import fs2.Stream
-import scalaz.zio.Task
-import scalaz.zio.interop.catz._
+import zio.Task
+import zio.interop.catz._
 
 val xa: Transactor[Task] = Transactor.fromDriverManager[Task](...)
 

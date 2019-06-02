@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
 // This cannot extend Random.Service[Random] because of Scala 2.11 support
 package object random {

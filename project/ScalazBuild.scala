@@ -35,7 +35,7 @@ object Scalaz {
 
   val buildInfoSettings = Seq(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-    buildInfoPackage := "scalaz.zio",
+    buildInfoPackage := "zio",
     buildInfoObject := "BuildInfo"
   )
 
@@ -55,10 +55,9 @@ object Scalaz {
       "-Yrepl-class-based"
     ),
     initialCommands in Compile in console := """
-                                               |import scalaz._
-                                               |import scalaz.zio._
-                                               |import scalaz.zio.console._
-                                               |import scalaz.zio.duration._
+                                               |import zio._
+                                               |import zio.console._
+                                               |import zio.duration._
                                                |object replRTS extends DefaultRuntime {}
                                                |import replRTS._
                                                |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
@@ -76,7 +75,7 @@ object Scalaz {
           "-Ywarn-unused:_,imports",
           "-Ywarn-unused:imports",
           "-opt:l:inline",
-          "-opt-inline-from:scalaz.zio.internal.**",
+          "-opt-inline-from:zio.internal.**",
           "-Ypartial-unification",
           "-Yno-adapted-args",
           "-Ywarn-inaccessible",

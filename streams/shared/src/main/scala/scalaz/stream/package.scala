@@ -1,4 +1,4 @@
-package scalaz.zio
+package zio
 
 package object stream {
 

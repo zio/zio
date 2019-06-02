@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package scalaz.zio.stream
+package zio.stream
 
-import scalaz.zio._
-import scalaz.zio.clock.Clock
+import zio._
+import zio.clock.Clock
 import scala.annotation.implicitNotFound
 
 /**
