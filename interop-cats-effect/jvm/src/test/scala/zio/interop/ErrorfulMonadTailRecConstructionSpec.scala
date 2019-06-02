@@ -17,38 +17,37 @@
 package zio
 package interop
 
-import com.github.ghik.silencer.silent
+import cats.Monad
+import cats.syntax.either._
 import org.specs2.Specification
 import org.specs2.execute.Result
-import zio.interop.bio.{ Async2, Concurrent2, Errorful2, Guaranteed2, RunAsync2, RunSync2, Sync2, Temporal2 }
+import zio.interop.bio.Errorful2
 import zio.interop.runtime.TestRuntime
 
-final class ZioTestDefaultsSpec extends Specification with TestRuntime {
+final class ErrorfulMonadTailRecConstructionSpec extends Specification with TestRuntime {
 
-  def is = "ZioTestDefaultsSpec".title ^ s2"""
-    The default test type-class instances for Zio:
-      don't give conflict when unified all together. $unifyAll
+  def is = "ErrorfulMonadTailRecConstructionSpec".title ^ s2"""
+    Errorful2's Monad `tailRecM`:
+      can be constructed in a tail recursive manner. $tailRecMSafe
   """
 
-  private[this] def unifyAll: Result = {
+  def tailRecMSafe: Result = {
 
-    import default.testZioInstances._
+    val n = 100000
 
-    @silent def f[F[+ _, + _]](
-      implicit
-      A: Guaranteed2[F],
-      B: Errorful2[F],
-      C: Sync2[F],
-      D: Temporal2[F],
-      E: Concurrent2[F],
-      F: RunSync2[F],
-      G: Async2[F],
-      H: RunAsync2[F]
-    ): Unit = ()
+    val ion = testRuntime.unsafeRun {
+      import default.testZioInstances._
 
-    val _ = f[IO]
+      def M[E]: Monad[IO[E, ?]] =
+        Errorful2[IO[+?, +?]].monad
 
-    success
+      def f[E](i: Int): IO[E, Either[Int, Int]] =
+        if (i < n) M.tailRecM(i + 1)(f).map(Either.left)
+        else M.pure(Either.right(i))
+
+      M.tailRecM(0)(f)
+    }
+
+    ion should_=== n
   }
-
 }

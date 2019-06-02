@@ -19,12 +19,13 @@ package interop
 
 import com.github.ghik.silencer.silent
 import org.specs2.Specification
+import org.specs2.execute.Result
 import zio.interop.bio.{ Async2, Concurrent2, Errorful2, RunAsync2, RunSync2, Sync2, Temporal2, _ }
 import zio.interop.runtime.TestRuntime
 
 final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
 
-  def is = "ZioTestDefaultsSpec".title ^ s2"""
+  def is = "ZioSyntaxInferenceSpec".title ^ s2"""
     The type-class syntax:
       can summon Monad[F[E, ?]] when evidence of Errorful2 is provided. $summonErrorful2Syntax
       can summon Monad[F[E, ?]] when evidence of Concurrent2 is provided. $summonConcurrent2Syntax
@@ -32,7 +33,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
       can summon Monad[F[E, ?]] when multiple evidences are provided. $summonManySyntax
   """
 
-  private[this] def summonErrorful2Syntax = {
+  private[this] def summonErrorful2Syntax: Result = {
 
     @silent def f[F[+ _, + _], E, A](fa: F[E, A])(
       implicit A: Errorful2[F]
@@ -44,7 +45,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
     success
   }
 
-  private[this] def summonConcurrent2Syntax = {
+  private[this] def summonConcurrent2Syntax: Result = {
 
     @silent def f[F[+ _, + _], E, A](fa: F[E, A])(
       implicit A: Concurrent2[F]
@@ -56,7 +57,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
     success
   }
 
-  private[this] def summonTemporal2Syntax = {
+  private[this] def summonTemporal2Syntax: Result = {
 
     @silent def f[F[+ _, + _], E, A](fa: F[E, A])(
       implicit A: Temporal2[F]
@@ -68,7 +69,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
     success
   }
 
-  private[this] def summonManySyntax = {
+  private[this] def summonManySyntax: Result = {
 
     @silent def f1[F[+ _, + _], E, A](fa: F[E, A])(
       implicit
