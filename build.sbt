@@ -4,12 +4,12 @@ import Scalaz._
 import xerial.sbt.Sonatype._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 
-name := "scalaz-zio"
+name := "zio"
 
 inThisBuild(
   List(
-    organization := "org.scalaz",
-    homepage := Some(url("https://zio.dev/")),
+    organization := "dev.zio",
+    homepage := Some(url("https://zio.dev")),
     licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
       Developer(
@@ -24,6 +24,13 @@ inThisBuild(
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+
+pgpPublicRing := file("/tmp/public.asc")
+pgpSecretRing := file("/tmp/secret.asc")
+releaseEarlyWith := SonatypePublisher
+scmInfo := Some(
+  ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
+)
 
 lazy val root = project
   .in(file("."))
@@ -328,10 +335,10 @@ lazy val benchmarks = project.module
   )
 
 lazy val docs = project.module
-  .in(file("scalaz-zio-docs"))
+  .in(file("zio-docs"))
   .settings(
     skip.in(publish) := true,
-    moduleName := "scalaz-zio-docs",
+    moduleName := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
