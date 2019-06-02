@@ -730,7 +730,7 @@ object ZSchedule extends Schedule_Functions {
 
   implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
 
-  sealed case class Decision[+A, +B] private (cont: Boolean, delay: Duration, state: A, finish: () => B) { self =>
+  sealed case class Decision[+A, +B] private[zio] (cont: Boolean, delay: Duration, state: A, finish: () => B) { self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
     final def leftMap[C](f: A => C): Decision[C, B]             = copy(state = f(state))
     final def rightMap[C](f: B => C): Decision[A, C]            = copy(finish = () => f(finish()))
