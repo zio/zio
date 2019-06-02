@@ -24,39 +24,39 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   import Exit._
 
   /**
-   * Retrieves the `A` if succeeded, or else returns the specified default `A`.
+   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def getOrElse[A1 >: A](orElse: Cause[E] => A1): A1 = self match {
-    case Success(value) => value
-    case Failure(cause) => orElse(cause)
-  }
+  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
   /**
-   * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the
-   * cause in `FiberFailure` (if the result is failed).
+   * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def toEither: Either[Throwable, A] = self match {
-    case Success(value) => Right(value)
-    case Failure(cause) => Left(FiberFailure(cause))
-  }
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
 
   /**
-   * Maps over the error type.
+   * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def mapError[E1](f: E => E1): Exit[E1, A] =
-    self match {
-      case e @ Success(_) => e
-      case Failure(c)     => halt(c.map(f))
-    }
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
 
   /**
-   * Maps over the value type.
+   * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def map[A1](f: A => A1): Exit[E, A1] =
-    self match {
-      case Success(v)     => Exit.succeed(f(v))
-      case e @ Failure(_) => e
-    }
+  final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+
+  /**
+   * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
+
+  /**
+   * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
+
+  /**
+   * Maps over both the error and value type.
+   */
+  final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
 
   /**
    * Flat maps over the value type.
@@ -66,101 +66,6 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
       case Success(a)     => f(a)
       case e @ Failure(_) => e
     }
-
-  /**
-   * Maps over both the error and value type.
-   */
-  final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
-
-  /**
-   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
-   */
-  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
-
-  /**
-   * Named alias for `<*>`.
-   */
-  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
-
-  /**
-   * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
-   */
-  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
-
-  /**
-   * Named alias for `<*`.
-   */
-  final def zipLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <* that
-
-  /**
-   * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
-   */
-  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
-
-  /**
-   * Named alias for `*>`.
-   */
-  final def zipRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self *> that
-
-  /**
-   * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
-   */
-  final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
-
-  /**
-   * Named alias for `<&>`.
-   */
-  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <&> that
-
-  /**
-   * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
-   */
-  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
-
-  /**
-   * Named alias for `<&`.
-   */
-  final def zipParLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <& that
-
-  /**
-   * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
-   */
-  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
-
-  /**
-   * Named alias for `&>`.
-   */
-  final def zipParRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self &> that
-
-  /**
-   * Zips this together with the specified result using the combination functions.
-   */
-  final def zipWith[E1 >: E, B, C](that: Exit[E1, B])(
-    f: (A, B) => C,
-    g: (Cause[E], Cause[E1]) => Cause[E1]
-  ): Exit[E1, C] =
-    (self, that) match {
-      case (Success(a), Success(b)) => Exit.succeed(f(a, b))
-      case (Failure(l), Failure(r)) => Exit.halt(g(l, r))
-      case (e @ Failure(_), _)      => e
-      case (_, e @ Failure(_))      => e
-    }
-
-  /**
-   * Determines if the result is a success.
-   */
-  final def succeeded: Boolean = self match {
-    case Success(_) => true
-    case _          => false
-  }
-
-  /**
-   * Determines if the result is interrupted.
-   */
-  final def interrupted: Boolean = self match {
-    case Success(_) => false
-    case Failure(c) => c.interrupted
-  }
 
   /**
    * Folds over the value or cause.
@@ -179,6 +84,101 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
       case Failure(cause) => failed(cause)
       case Success(v)     => completed(v)
     }
+
+  /**
+   * Retrieves the `A` if succeeded, or else returns the specified default `A`.
+   */
+  final def getOrElse[A1 >: A](orElse: Cause[E] => A1): A1 = self match {
+    case Success(value) => value
+    case Failure(cause) => orElse(cause)
+  }
+
+  /**
+   * Determines if the result is interrupted.
+   */
+  final def interrupted: Boolean = self match {
+    case Success(_) => false
+    case Failure(c) => c.interrupted
+  }
+
+  /**
+   * Maps over the value type.
+   */
+  final def map[A1](f: A => A1): Exit[E, A1] =
+    self match {
+      case Success(v)     => Exit.succeed(f(v))
+      case e @ Failure(_) => e
+    }
+
+  /**
+   * Maps over the error type.
+   */
+  final def mapError[E1](f: E => E1): Exit[E1, A] =
+    self match {
+      case e @ Success(_) => e
+      case Failure(c)     => halt(c.map(f))
+    }
+
+  /**
+   * Determines if the result is a success.
+   */
+  final def succeeded: Boolean = self match {
+    case Success(_) => true
+    case _          => false
+  }
+
+  /**
+   * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the
+   * cause in `FiberFailure` (if the result is failed).
+   */
+  final def toEither: Either[Throwable, A] = self match {
+    case Success(value) => Right(value)
+    case Failure(cause) => Left(FiberFailure(cause))
+  }
+
+  /**
+   * Named alias for `<*>`.
+   */
+  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <* that
+
+  /**
+   * Named alias for `<&>`.
+   */
+  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <&> that
+
+  /**
+   * Named alias for `<&`.
+   */
+  final def zipParLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <& that
+
+  /**
+   * Named alias for `&>`.
+   */
+  final def zipParRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self &> that
+
+  /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self *> that
+
+  /**
+   * Zips this together with the specified result using the combination functions.
+   */
+  final def zipWith[E1 >: E, B, C](that: Exit[E1, B])(
+    f: (A, B) => C,
+    g: (Cause[E], Cause[E1]) => Cause[E1]
+  ): Exit[E1, C] =
+    (self, that) match {
+      case (Success(a), Success(b)) => Exit.succeed(f(a, b))
+      case (Failure(l), Failure(r)) => Exit.halt(g(l, r))
+      case (e @ Failure(_), _)      => e
+      case (_, e @ Failure(_))      => e
+    }
 }
 
 object Exit extends Serializable {
@@ -186,18 +186,18 @@ object Exit extends Serializable {
   final case class Success[A](value: A)        extends Exit[Nothing, A]
   final case class Failure[E](cause: Cause[E]) extends Exit[E, Nothing]
 
-  final def succeed[A](a: A): Exit[Nothing, A]         = Success(a)
-  final def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
-
-  final def fail[E](error: E): Exit[E, Nothing]       = halt(Cause.fail(error))
-  final val interrupt: Exit[Nothing, Nothing]         = halt(Cause.interrupt)
   final def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
 
-  final def fromOption[A](o: Option[A]): Exit[Unit, A] =
-    o.fold[Exit[Unit, A]](fail(()))(succeed)
+  final def fail[E](error: E): Exit[E, Nothing] = halt(Cause.fail(error))
+
+  final def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
+    exit.flatMap(identity)
 
   final def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
     e.fold(fail, succeed)
+
+  final def fromOption[A](o: Option[A]): Exit[Unit, A] =
+    o.fold[Exit[Unit, A]](fail(()))(succeed)
 
   final def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
     t match {
@@ -205,8 +205,11 @@ object Exit extends Serializable {
       case scala.util.Failure(t) => fail(t)
     }
 
-  final def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
-    exit.flatMap(identity)
+  final def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
+
+  final val interrupt: Exit[Nothing, Nothing] = halt(Cause.interrupt)
+
+  final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
   sealed trait Cause[+E] extends Product with Serializable { self =>
     import Cause._
@@ -216,51 +219,12 @@ object Exit extends Serializable {
     final def &&[E1 >: E](that: Cause[E1]): Cause[E1] =
       Both(self, that)
 
-    final def map[E1](f: E => E1): Cause[E1] = self match {
-      case Fail(value) => Fail(f(value))
-      case c @ Die(_)  => c
-      case Interrupt   => Interrupt
-
-      case Then(left, right)    => Then(left.map(f), right.map(f))
-      case Both(left, right)    => Both(left.map(f), right.map(f))
-      case Traced(cause, trace) => Traced(cause.map(f), trace)
-    }
-
-    /**
-     * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-     * "most important" `Throwable`.
-     */
-    final def squash(implicit ev: E <:< Throwable): Throwable =
-      squashWith(ev)
-
-    /**
-     * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-     * "most important" `Throwable`.
-     */
-    final def squashWith(f: E => Throwable): Throwable =
-      failures.headOption.map(f) orElse
-        (if (interrupted) Some(new InterruptedException) else None) orElse
-        defects.headOption getOrElse (new InterruptedException)
-
-    final def failed: Boolean =
-      self match {
-        case Fail(_)           => true
-        case Then(left, right) => left.failed || right.failed
-        case Both(left, right) => left.failed || right.failed
-        case Traced(cause, _)  => cause.failed
-        case _                 => false
-      }
-
-    final def succeeded: Boolean = !failed
-
-    final def interrupted: Boolean =
-      self match {
-        case Interrupt         => true
-        case Then(left, right) => left.interrupted || right.interrupted
-        case Both(left, right) => left.interrupted || right.interrupted
-        case Traced(cause, _)  => cause.interrupted
-        case _                 => false
-      }
+    final def defects: List[Throwable] =
+      self
+        .fold(List.empty[Throwable]) {
+          case (z, Die(v)) => v :: z
+        }
+        .reverse
 
     final def died: Boolean =
       self match {
@@ -271,35 +235,21 @@ object Exit extends Serializable {
         case _                 => false
       }
 
+    final def failed: Boolean =
+      self match {
+        case Fail(_)           => true
+        case Then(left, right) => left.failed || right.failed
+        case Both(left, right) => left.failed || right.failed
+        case Traced(cause, _)  => cause.failed
+        case _                 => false
+      }
+
     final def failures[E1 >: E]: List[E1] =
       self
         .fold(List.empty[E1]) {
           case (z, Fail(v)) => v :: z
         }
         .reverse
-
-    final def defects: List[Throwable] =
-      self
-        .fold(List.empty[Throwable]) {
-          case (z, Die(v)) => v :: z
-        }
-        .reverse
-
-    final def traces: List[ZTrace] =
-      self
-        .fold(List.empty[ZTrace]) {
-          case (z, Traced(_, trace)) => trace :: z
-        }
-        .reverse
-
-    final def fold[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z =
-      (f.lift(z -> self).getOrElse(z), self) match {
-        case (z, Then(left, right)) => right.fold(left.fold(z)(f))(f)
-        case (z, Both(left, right)) => right.fold(left.fold(z)(f))(f)
-        case (z, Traced(cause, _))  => cause.fold(z)(f)
-
-        case (z, _) => z
-      }
 
     /**
      * Retrieve the first checked error on the `Left` if available,
@@ -311,35 +261,33 @@ object Exit extends Serializable {
       case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
     }
 
-    /**
-     * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
-     * return only `Die` cause/finalizer defects.
-     */
-    final def stripFailures: Option[Cause[Nothing]] =
-      self match {
-        case Interrupt => None
-        case Fail(_)   => None
+    final def fold[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z =
+      (f.lift(z -> self).getOrElse(z), self) match {
+        case (z, Then(left, right)) => right.fold(left.fold(z)(f))(f)
+        case (z, Both(left, right)) => right.fold(left.fold(z)(f))(f)
+        case (z, Traced(cause, _))  => cause.fold(z)(f)
 
-        case d @ Die(_) => Some(d)
-
-        case Both(l, r) =>
-          (l.stripFailures, r.stripFailures) match {
-            case (Some(l), Some(r)) => Some(Both(l, r))
-            case (Some(l), None)    => Some(l)
-            case (None, Some(r))    => Some(r)
-            case (None, None)       => None
-          }
-
-        case Then(l, r) =>
-          (l.stripFailures, r.stripFailures) match {
-            case (Some(l), Some(r)) => Some(Then(l, r))
-            case (Some(l), None)    => Some(l)
-            case (None, Some(r))    => Some(r)
-            case (None, None)       => None
-          }
-
-        case Traced(c, trace) => c.stripFailures.map(Traced(_, trace))
+        case (z, _) => z
       }
+
+    final def interrupted: Boolean =
+      self match {
+        case Interrupt         => true
+        case Then(left, right) => left.interrupted || right.interrupted
+        case Both(left, right) => left.interrupted || right.interrupted
+        case Traced(cause, _)  => cause.interrupted
+        case _                 => false
+      }
+
+    final def map[E1](f: E => E1): Cause[E1] = self match {
+      case Fail(value) => Fail(f(value))
+      case c @ Die(_)  => c
+      case Interrupt   => Interrupt
+
+      case Then(left, right)    => Then(left.map(f), right.map(f))
+      case Both(left, right)    => Both(left.map(f), right.map(f))
+      case Traced(cause, trace) => Traced(cause.map(f), trace)
+    }
 
     final def prettyPrint: String = {
       sealed trait Segment
@@ -465,12 +413,68 @@ object Exit extends Serializable {
         }
       }).mkString("\n")
     }
+
+    /**
+     * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+     * "most important" `Throwable`.
+     */
+    final def squash(implicit ev: E <:< Throwable): Throwable =
+      squashWith(ev)
+
+    /**
+     * Squashes a `Cause` down to a single `Throwable`, chosen to be the
+     * "most important" `Throwable`.
+     */
+    final def squashWith(f: E => Throwable): Throwable =
+      failures.headOption.map(f) orElse
+        (if (interrupted) Some(new InterruptedException) else None) orElse
+        defects.headOption getOrElse (new InterruptedException)
+
+    /**
+     * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
+     * return only `Die` cause/finalizer defects.
+     */
+    final def stripFailures: Option[Cause[Nothing]] =
+      self match {
+        case Interrupt => None
+        case Fail(_)   => None
+
+        case d @ Die(_) => Some(d)
+
+        case Both(l, r) =>
+          (l.stripFailures, r.stripFailures) match {
+            case (Some(l), Some(r)) => Some(Both(l, r))
+            case (Some(l), None)    => Some(l)
+            case (None, Some(r))    => Some(r)
+            case (None, None)       => None
+          }
+
+        case Then(l, r) =>
+          (l.stripFailures, r.stripFailures) match {
+            case (Some(l), Some(r)) => Some(Then(l, r))
+            case (Some(l), None)    => Some(l)
+            case (None, Some(r))    => Some(r)
+            case (None, None)       => None
+          }
+
+        case Traced(c, trace) => c.stripFailures.map(Traced(_, trace))
+      }
+
+    final def succeeded: Boolean = !failed
+
+    final def traces: List[ZTrace] =
+      self
+        .fold(List.empty[ZTrace]) {
+          case (z, Traced(_, trace)) => trace :: z
+        }
+        .reverse
+
   }
 
   object Cause extends Serializable {
 
-    final def fail[E](error: E): Cause[E]                          = Fail(error)
     final def die(defect: Throwable): Cause[Nothing]               = Die(defect)
+    final def fail[E](error: E): Cause[E]                          = Fail(error)
     final val interrupt: Cause[Nothing]                            = Interrupt
     final def traced[E](cause: Cause[E], trace: ZTrace): Traced[E] = Traced(cause, trace)
 
