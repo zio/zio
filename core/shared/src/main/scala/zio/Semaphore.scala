@@ -73,7 +73,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
 
   /**
    * Releases a specified number of permits.
-   * 
+   *
    * If fibers are currently suspended until enough permits are available,
    * they will be woken up (in FIFO order) if this action releases enough
    * of them.

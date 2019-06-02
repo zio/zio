@@ -40,7 +40,7 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
 
   /**
    * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
-   */ 
+   */
   final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
 
   /**
@@ -52,7 +52,6 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
   final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
-
 
   /**
    * Maps over both the error and value type.
