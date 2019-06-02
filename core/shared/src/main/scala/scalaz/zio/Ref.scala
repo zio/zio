@@ -39,6 +39,51 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
   final def get: UIO[A] = IO.effectTotal(value.get)
 
   /**
+   * Atomically modifies the `Ref` with the specified function, which computes
+   * a return value for the modification. This is a more powerful version of
+   * `update`.
+   */
+  final def modify[B](f: A => (B, A)): UIO[B] = IO.effectTotal {
+    var loop = true
+    var b: B = null.asInstanceOf[B]
+
+    while (loop) {
+      val current = value.get
+
+      val tuple = f(current)
+
+      b = tuple._1
+
+      loop = !value.compareAndSet(current, tuple._2)
+    }
+
+    b
+  }
+
+  /**
+   * Atomically modifies the `Ref` with the specified partial function, which computes
+   * a return value for the modification if the function is defined in the current value
+   * otherwise it returns a default value.
+   * This is a more powerful version of `updateSome`.
+   */
+  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = IO.effectTotal {
+    var loop = true
+    var b: B = null.asInstanceOf[B]
+
+    while (loop) {
+      val current = value.get
+
+      val tuple = pf.applyOrElse(current, (_: A) => (default, current))
+
+      b = tuple._1
+
+      loop = !value.compareAndSet(current, tuple._2)
+    }
+
+    b
+  }
+
+  /**
    * Writes a new value to the `Ref`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
@@ -86,51 +131,6 @@ final class Ref[A] private (private val value: AtomicReference[A]) extends AnyVa
     }
 
     next
-  }
-
-  /**
-   * Atomically modifies the `Ref` with the specified function, which computes
-   * a return value for the modification. This is a more powerful version of
-   * `update`.
-   */
-  final def modify[B](f: A => (B, A)): UIO[B] = IO.effectTotal {
-    var loop = true
-    var b: B = null.asInstanceOf[B]
-
-    while (loop) {
-      val current = value.get
-
-      val tuple = f(current)
-
-      b = tuple._1
-
-      loop = !value.compareAndSet(current, tuple._2)
-    }
-
-    b
-  }
-
-  /**
-   * Atomically modifies the `Ref` with the specified partial function, which computes
-   * a return value for the modification if the function is defined in the current value
-   * otherwise it returns a default value.
-   * This is a more powerful version of `updateSome`.
-   */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = IO.effectTotal {
-    var loop = true
-    var b: B = null.asInstanceOf[B]
-
-    while (loop) {
-      val current = value.get
-
-      val tuple = pf.applyOrElse(current, (_: A) => (default, current))
-
-      b = tuple._1
-
-      loop = !value.compareAndSet(current, tuple._2)
-    }
-
-    b
   }
 }
 
