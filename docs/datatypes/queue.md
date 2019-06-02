@@ -8,7 +8,7 @@ title:  "Queue"
 A `Queue[A]` contains values of type `A` and has two basic operations: `offer`, which places an `A` in the `Queue`, and `take` which removes and returns the oldest value in the `Queue`.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 
 val res: UIO[Int] = for {
   queue <- Queue.bounded[Int](100)
@@ -188,7 +188,7 @@ we could annotate each element with the timestamp at which it was dequeued:
 
 ```scala mdoc:silent
 import java.util.concurrent.TimeUnit
-import scalaz.zio.clock._
+import zio.clock._
 
 val currentTimeMillis = currentTime(TimeUnit.MILLISECONDS)
 
@@ -225,7 +225,7 @@ To complete this example, we could combine this queue with `mapM` to
 compute the time that the elements stayed in the queue:
 
 ```scala mdoc:silent
-import scalaz.zio.duration._
+import zio.duration._
 
 val timeQueued: UIO[ZQueue[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] =
   for {

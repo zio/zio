@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
-import scalaz.zio.duration.Duration
+import zio.duration.Duration
 
 import java.util.concurrent.TimeUnit
 

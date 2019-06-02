@@ -6,7 +6,7 @@ title:  "Ref"
 `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 
 for {
   ref <- Ref.make(100)
@@ -99,10 +99,10 @@ object S {
 Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
 
 ```scala mdoc:silent
-import scalaz.zio.duration.Duration
-import scalaz.zio.clock._
-import scalaz.zio.console._
-import scalaz.zio.random._
+import zio.duration.Duration
+import zio.clock._
+import zio.console._
+import zio.random._
 
 val party = for {
   dancefloor <- S(10)

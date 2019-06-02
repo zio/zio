@@ -8,7 +8,7 @@ To perform an effect without blocking the current process, you can use fibers, w
 You can `fork` any `IO[E, A]` to immediately yield an `UIO[Fiber[E, A]]`. The provided `Fiber` can be used to `join` the fiber, which will resume on production of the fiber's value, or to `interrupt` the fiber, which immediately terminates the fiber and safely releases all resources acquired by the fiber.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 ```
 
 ```scala mdoc:invisible
