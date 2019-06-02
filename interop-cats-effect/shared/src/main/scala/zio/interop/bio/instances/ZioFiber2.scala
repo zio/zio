@@ -21,7 +21,7 @@ package instances
 
 import cats.syntax.either._
 import cats.syntax.option._
-import zio.Exit.{Failure, Success}
+import zio.Exit.{ Failure, Success }
 
 object ZioFiber2 {
 

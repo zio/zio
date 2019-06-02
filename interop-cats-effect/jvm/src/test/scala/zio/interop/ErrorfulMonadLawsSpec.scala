@@ -20,10 +20,10 @@ package interop
 import cats.instances.int._
 import cats.instances.tuple._
 import cats.laws.discipline.MonadTests
-import cats.{Eq, Monad}
+import cats.{ Eq, Monad }
 import org.scalacheck.Arbitrary.arbInt
 import org.scalacheck.Cogen.cogenInt
-import org.scalacheck.{Arbitrary, Cogen}
+import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.FunSuite
 import org.typelevel.discipline.scalatest.Discipline
 import zio.interop.catz._

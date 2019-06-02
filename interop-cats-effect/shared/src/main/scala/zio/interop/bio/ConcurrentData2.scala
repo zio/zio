@@ -18,7 +18,7 @@ package zio
 package interop
 package bio
 
-import zio.interop.bio.data.{Deferred2, Ref2}
+import zio.interop.bio.data.{ Deferred2, Ref2 }
 
 abstract class ConcurrentData2[F[+ _, + _]] {
 

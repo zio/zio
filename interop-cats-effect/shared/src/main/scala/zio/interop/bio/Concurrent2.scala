@@ -20,7 +20,7 @@ package bio
 
 import cats.Monad
 import cats.kernel.Semigroup
-import zio.interop.bio.data.{Deferred2, Ref2}
+import zio.interop.bio.data.{ Deferred2, Ref2 }
 
 import scala.concurrent.ExecutionContext
 

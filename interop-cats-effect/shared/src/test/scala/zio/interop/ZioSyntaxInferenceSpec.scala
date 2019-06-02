@@ -19,7 +19,7 @@ package interop
 
 import com.github.ghik.silencer.silent
 import org.specs2.Specification
-import zio.interop.bio.{Async2, Concurrent2, Errorful2, RunAsync2, RunSync2, Sync2, Temporal2, _}
+import zio.interop.bio.{ Async2, Concurrent2, Errorful2, RunAsync2, RunSync2, Sync2, Temporal2, _ }
 import zio.interop.runtime.TestRuntime
 
 final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {

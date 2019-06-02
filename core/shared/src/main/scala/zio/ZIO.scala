@@ -60,7 +60,7 @@ import zio.{ InterruptStatus => InterruptS }
  * complex, rich, interactive aRTSSpecpplications. See the methods on `ZIO` for more
  * details about how to compose `ZIO` values.
  *
- * 
+ *
  * In order to integrate with Scala, `ZIO` values must be interpreted into the
  * Scala runtime. This process of interpretation executes the effects described
  * by a given immutable `ZIO` value. For more information on interpreting `ZIO`

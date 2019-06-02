@@ -21,12 +21,12 @@ package default
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import cats.{Applicative, Monad}
-import zio.Exit.{Failure, Success}
+import cats.{ Applicative, Monad }
+import zio.Exit.{ Failure, Success }
 import zio.clock.Clock
-import zio.duration.{Duration => zioDuration}
+import zio.duration.{ Duration => zioDuration }
 import zio.interop.bio.instances.ZioFiber2
-import zio.interop.bio.{Async2, Concurrent2, Errorful2, Fiber2, Guaranteed2, RunAsync2, RunSync2, Sync2, Temporal2}
+import zio.interop.bio.{ Async2, Concurrent2, Errorful2, Fiber2, Guaranteed2, RunAsync2, RunSync2, Sync2, Temporal2 }
 import zio.interop.default.ZioDefaultInstances._
 
 import scala.concurrent.ExecutionContext

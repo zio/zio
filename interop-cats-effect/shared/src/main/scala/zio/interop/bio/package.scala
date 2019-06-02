@@ -19,7 +19,7 @@ package interop
 
 import cats.Monad
 import com.github.ghik.silencer.silent
-import zio.interop.bio.{Concurrent2, Errorful2, RunAsync2, RunSync2}
+import zio.interop.bio.{ Concurrent2, Errorful2, RunAsync2, RunSync2 }
 
 package object bio extends SyntaxInstances0 {
 
