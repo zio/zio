@@ -27,6 +27,8 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Runs on successes $ensuringSuccess
     Runs on failures $ensuringFailure
     Works when finalizers have defects $ensuringWorksWithDefects
+  ZManaged.flatMap
+    All finalizers run even when finalizers have defects $flatMapFinalizersWithDefects
   ZManaged.foldM
     Runs onFailure on failure $foldMFailure
     Runs onSucess on success $foldMSuccess
@@ -185,9 +187,24 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def ensuringWorksWithDefects = unsafeRun {
     for {
       effects <- Ref.make[List[String]](Nil)
-      _       <- ZManaged.finalizer(ZIO.dieMessage("Boom")).ensuring(effects.update("Ensured" :: _)).use_(ZIO.unit).sandbox
+      _       <- ZManaged.finalizer(ZIO.dieMessage("Boom")).ensuring(effects.update("Ensured" :: _)).use_(ZIO.unit).run
       result  <- effects.get
     } yield result must_=== List("Ensured")
+  }
+
+  private def flatMapFinalizersWithDefects = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _ <- (for {
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("First" :: _))
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("Second" :: _))
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("Third" :: _))
+          } yield ()).use_(ZIO.unit).run
+      result <- effects.get
+    } yield (result must_=== List("First", "Second", "Third"))
   }
 
   private def foldMFailure = {

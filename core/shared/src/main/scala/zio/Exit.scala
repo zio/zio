@@ -77,7 +77,17 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
-   * Effectfully folds over the value or cause.
+   * Replaces the value with the one provided.
+   */
+  final def const[B](b: B): Exit[E, B] = map(_ => b)
+
+  /**
+   * Discards the value.
+   */
+  final def unit: Exit[E, Unit] = const(())
+
+  /**
+   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
   final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B]): ZIO[R, E1, B] =
     self match {
@@ -210,6 +220,24 @@ object Exit extends Serializable {
   final def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
 
   final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
+
+  final def unit: Exit[Nothing, Unit] = succeed(())
+
+  final def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    exits.headOption.map { head =>
+      exits
+        .drop(1)
+        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
+        .map(_.reverse)
+    }
+
+  final def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    exits.headOption.map { head =>
+      exits
+        .drop(1)
+        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
+        .map(_.reverse)
+    }
 
   sealed trait Cause[+E] extends Product with Serializable { self =>
     import Cause._
