@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
-import scalaz.zio.internal.Executor
+import zio.internal.Executor
 
 // This cannot extend Blocking.Service[Blocking] because of Scala 2.11 support
 package object blocking {

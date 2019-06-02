@@ -8,8 +8,8 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```scala mdoc:passthrough
 println(s"""```""")
 println("""scalaJSUseMainModuleInitializer := true""")
-if (scalaz.zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
-println(s"""libraryDependencies += "org.scalaz" %%% "scalaz-zio" % "${scalaz.zio.BuildInfo.version}"""")
+if (zio.BuildInfo.isSnapshot) println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
+println(s"""libraryDependencies += "org.scalaz" %%% "scalaz-zio" % "${zio.BuildInfo.version}"""")
 println(s"""```""")
 ```
 
@@ -21,7 +21,7 @@ will need to add that library as a dependency to your `build.sbt`.
 
 ```scala
 import org.scalajs.dom.document
-import scalaz.zio.{App, IO}
+import zio.{App, IO}
 
 object MyApp extends App {
 

@@ -6,7 +6,7 @@ title: "System"
 Sometimes, environment variables are relevant information to an application. ZIO provides a `system` package to interface with this functionality.
 
 ```scala mdoc:silent
-import scalaz.zio.system
+import zio.system
 ```
 
 ## Environment Variables

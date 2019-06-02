@@ -8,7 +8,7 @@ This section looks at some of the common ways to safely handle resources using Z
 ZIO's resource management features work across synchronous, asynchronous, concurrent, and other effect types, and provide strong guarantees even in the presence of unexpected errors or defects in the application.
 
 ```scala mdoc:invisible
-import scalaz.zio._
+import zio._
 ```
 
 ## Finalizing
@@ -48,7 +48,7 @@ ZIO provides encapsulates this common pattern with `ZIO#bracket`, which allows y
 The release effect is guaranteed to be executed by the runtime system, even in the presence of errors or interruption.
 
 ```scala mdoc:invisible
-import scalaz.zio._
+import zio._
 import java.io.{ File, IOException }
 
 def openFile(s: String): IO[IOException, File] = IO.succeedLazy(???)
