@@ -20,6 +20,7 @@ package bio
 
 import cats.Monad
 import cats.kernel.Semigroup
+import zio.interop.bio.FailedWith.{ Errors, Interrupted }
 import zio.interop.bio.data.{ Deferred2, Ref2 }
 
 import scala.concurrent.ExecutionContext
@@ -129,22 +130,22 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit val _: Concurrent2[F] = self
 
     def arbiter[E1 <: EE, E2 <: EE, A1, B1](
-      winner: Option[Either[E1, A1]],
+      winner: Either[FailedWith[E1], A1],
       loser: Fiber2[F, E2, B1]
     ): F[EE, Either[A1, B1]] =
       winner match {
-        case Some(Left(we)) =>
+        case Left(Errors(wes)) =>
           loser.await >>= {
-            case Some(Left(le)) => raiseError(SG.combine(we, le))
-            case Some(Right(b)) => monad.pure(b.asRight)
-            case None           => raiseError(we)
+            case Right(l)          => monad.pure(l.asRight)
+            case Left(Interrupted) => raiseError(wes.reduce(SG.combine))
+            case Left(Errors(les)) => raiseError(SG.combine(wes.reduce(SG.combine), les.reduce(SG.combine)))
           }
 
-        case Some(Right(a)) =>
-          monad.pure(a.asLeft) <* loser.cancel
+        case Left(Interrupted) =>
+          loser.join >>= (l => monad.pure(l.asRight))
 
-        case None =>
-          loser.join >>= (b1 => monad.pure(b1.asRight))
+        case Right(w) =>
+          monad.pure(w.asLeft) <* loser.cancel
       }
 
     raceWith(fa1, fa2)(
@@ -164,8 +165,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   @inline def raceWith[E1, E2, E3, A, B, C](fa1: F[E1, A], fa2: F[E2, B])(
-    leftDone: (Option[Either[E1, A]], Fiber2[F, E2, B]) => F[E3, C],
-    rightDone: (Option[Either[E2, B]], Fiber2[F, E1, A]) => F[E3, C]
+    leftDone: (Either[FailedWith[E1], A], Fiber2[F, E2, B]) => F[E3, C],
+    rightDone: (Either[FailedWith[E2], B], Fiber2[F, E1, A]) => F[E3, C]
   )(
     implicit CD: ConcurrentData2[F]
   ): F[E3, C] = {
@@ -173,11 +174,11 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit val ev: Concurrent2[F] = self
 
     def arbiter[EE0, EE1, AA, BB](
-      f: (Option[Either[EE0, AA]], Fiber2[F, EE1, BB]) => F[E3, C],
+      f: (Either[FailedWith[EE0], AA], Fiber2[F, EE1, BB]) => F[E3, C],
       loser: Fiber2[F, EE1, BB],
       race: Ref2[F, Int],
       oneStatus: Deferred2[F, E3, C]
-    )(res: Option[Either[EE0, AA]]): F[Nothing, Unit] =
+    )(res: Either[FailedWith[EE0], AA]): F[Nothing, Unit] =
       race.modify { c =>
         (if (c > 0) monad.unit else oneStatus.done(f(res, loser)) *> monad.unit) -> (c + 1)
       }.flatten
@@ -192,7 +193,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
               _     <- start[Nothing, Unit](left.await >>= arbiter(leftDone, right, race, done))
               _     <- start[Nothing, Unit](right.await >>= arbiter(rightDone, left, race, done))
             } yield (left, right),
-            (_: (Fiber2[F, E1, A], Fiber2[F, E2, B]), _: Option[Either[_, C]]) => monad.unit
+            (_: (Fiber2[F, E1, A], Fiber2[F, E2, B]), _: Either[FailedWith[_], C]) => monad.unit
           ) {
             case (left, right) => onInterrupt(done.await)(left.cancel *> right.cancel *> monad.unit)
           }
@@ -237,22 +238,24 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit val _: Concurrent2[F] = self
 
     def coordinate[E1 <: EE, E2 <: EE, AA, BB](f: (AA, BB) => C)(
-      winner: Option[Either[E1, AA]],
+      winner: Either[FailedWith[E1], AA],
       loser: Fiber2[F, E2, BB]
     ): F[EE, C] =
       winner match {
-        case Some(Left(we)) =>
+        case Left(Errors(wes)) =>
           loser.cancel >>= {
-            case Some(Right(_)) => raiseError(we)
-            case Some(Left(le)) => raiseError(SG.combine(le, we))
-            case None           => monad.unit *> interrupted
+            case Right(_) | Left(Interrupted) => raiseError(wes.reduce(SG.combine))
+            case Left(Errors(les))            => raiseError(SG.combine(wes.reduce(SG.combine), les.reduce(SG.combine)))
           }
 
-        case Some(Right(wa)) =>
-          loser.join map (f(wa, _))
+        case Left(Interrupted) =>
+          loser.cancel >>= {
+            case Right(_) | Left(Interrupted) => interrupted
+            case Left(Errors(les))            => raiseError(les.reduce(SG.combine))
+          }
 
-        case None =>
-          loser.cancel *> interrupted
+        case Right(wa) =>
+          loser.join map (f(wa, _))
       }
 
     val g = (b: B, a: A) => f(a, b)
@@ -319,7 +322,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  final def bracket[E, A, B](acquire: F[E, A], release: (A, Option[Either[E, B]]) => F[Nothing, Unit])(
+  final def bracket[E, A, B](acquire: F[E, A], release: (A, Either[FailedWith[E], B]) => F[Nothing, Unit])(
     use: A => F[E, B]
   )(
     implicit CD: ConcurrentData2[F]
@@ -354,12 +357,12 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
     implicit CD: ConcurrentData2[F]
   ): F[E, A] = {
 
-    def maybeCleanup[AA]: (AA, Option[Either[_, A]]) => F[Nothing, Unit] = {
-      case (_, None) => cleanup
-      case _         => monad.unit
+    def onRelease[AA]: (AA, Either[FailedWith[_], A]) => F[Nothing, Unit] = {
+      case (_, Left(Interrupted)) => cleanup
+      case _                      => monad.unit
     }
 
-    bracket(monad.unit, maybeCleanup)(_ => fa)
+    bracket(monad.unit, onRelease)(_ => fa)
   }
 }
 

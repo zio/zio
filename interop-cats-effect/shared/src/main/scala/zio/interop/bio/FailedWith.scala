@@ -18,11 +18,12 @@ package zio
 package interop
 package bio
 
+import cats.data.NonEmptyList
+
 sealed trait FailedWith[+E] extends Product with Serializable
 
 object FailedWith {
 
-  final case class Single[E](failure: E)          extends FailedWith[E]
-  final case class Multiple[E](failures: List[E]) extends FailedWith[E]
-  final case object Interrupted                   extends FailedWith[Nothing]
+  final case class Errors[E](failures: NonEmptyList[E]) extends FailedWith[E]
+  final case object Interrupted                         extends FailedWith[Nothing]
 }

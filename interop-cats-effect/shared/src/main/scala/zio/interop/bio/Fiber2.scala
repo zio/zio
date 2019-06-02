@@ -20,9 +20,9 @@ package bio
 
 abstract class Fiber2[F[+ _, + _], E, A] { self =>
 
-  def await: F[Nothing, Option[Either[E, A]]]
+  def await: F[Nothing, Either[FailedWith[E], A]]
 
-  def cancel: F[Nothing, Option[Either[E, A]]]
+  def cancel: F[Nothing, Either[FailedWith[E], A]]
 
   /**
    * The fiber running the invocation to `join` will suspend waiting for the result of the
