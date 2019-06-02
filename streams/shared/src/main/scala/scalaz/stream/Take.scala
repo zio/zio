@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio.stream
+package zio.stream
 
-import scalaz.zio.IO
+import zio.IO
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of

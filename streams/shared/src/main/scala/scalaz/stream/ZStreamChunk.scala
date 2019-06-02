@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio.stream
+package zio.stream
 
-import scalaz.zio._
+import zio._
 
 /**
  * A `ZStreamChunk[R, E, A]` represents an effectful stream that can produce values of

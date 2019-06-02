@@ -7,13 +7,13 @@ Once you have constructed an effect, you have a choice about how to run it.
 
 ## App
 
-If you construct a single effect for your whole program, then the most natural way to run the effect is to extend `scalaz.zio.App`. 
+If you construct a single effect for your whole program, then the most natural way to run the effect is to extend `zio.App`. 
 
 This class provides Scala with a main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method, which will be passed command-line arguments in a `List`:
 
 ```scala mdoc:silent
-import scalaz.zio._
-import scalaz.zio.console._
+import zio._
+import zio.console._
 
 object MyApp extends App {
 
@@ -63,7 +63,7 @@ A custom `Runtime[R]` can be created with two values:
 For example, the following creates a `Runtime` that can provide an `Int` to effects, using the default `Platform` provided by ZIO:
 
 ```scala mdoc:silent
-import scalaz.zio.internal.PlatformLive
+import zio.internal.PlatformLive
 
 val myRuntime: Runtime[Int] = Runtime(42, PlatformLive.Default)
 ```
