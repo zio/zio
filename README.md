@@ -2,7 +2,8 @@
 
 | CI | Coverage | Snapshot | Release | Issues | Users |
 | --- | --- | --- | --- | --- | --- |
-| [![Build Status][Badge-Travis]][Link-Travis] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Scaladex dependencies badge][Badge-Scaladex]][Link-Scaladex] |
+| [![Build Status][Badge-Circle]][Link-Circle] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Scaladex dependencies badge][Badge-Scaladex]][Link-Scaladex] |
+
 # Welcome to ZIO
 
 
@@ -43,11 +44,11 @@ Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reser
 [Link-Scaladex]: https://index.scala-lang.org/search?q=dependencies:scalaz/scalaz-zio "Scaladex"
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/org/scalaz/scalaz-zio_2.12/ "Sonatype Releases"
 [Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/staging/org/scalaz/scalaz-zio_2.12/ "Sonatype Snapshots"
-[Link-Travis]: https://travis-ci.org/scalaz/scalaz-zio "Travis CI"
+[Link-Circle]: https://circleci.com/gh/zio/zio "circleci"
 
 [Badge-Codecov]: https://codecov.io/gh/scalaz/scalaz-zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/scalaz/scalaz-zio.svg "Average time to resolve an issue"
 [Badge-Scaladex]: https://index.scala-lang.org/count.svg?q=dependencies:scalaz/scalaz-zio&subject=scaladex "Scaladex"
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/org.scalaz/scalaz-zio_2.12.svg "Sonatype Releases"
 [Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/org.scalaz/scalaz-zio_2.12.svg "Sonatype Snapshots"
-[Badge-Travis]: https://travis-ci.org/scalaz/scalaz-zio.svg?branch=master "Travis CI"
+[Badge-Circle]: https://circleci.com/gh/zio/zio.svg?style=svg "circleci"
