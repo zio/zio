@@ -34,7 +34,7 @@ object System extends Serializable {
       import java.lang.{ System => JSystem }
 
       def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
-        ZIO.effect(Option(JSystem.getenv(variable))).refineOrDie[SecurityException]
+        ZIO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
       def property(prop: String): ZIO[Any, Throwable, Option[String]] =
         ZIO.effect(Option(JSystem.getProperty(prop)))

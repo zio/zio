@@ -99,7 +99,7 @@ object javaconcurrent {
           IO.suspend {
             if (ftr.isDone) {
               IO.effect(ftr.get())
-                .refineOrDie[Exception]
+                .refineToOrDie[Exception]
                 .fold(Exit.fail, Exit.succeed)
                 .map(Some(_))
             } else {

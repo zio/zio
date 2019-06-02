@@ -653,7 +653,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  final def refineOrDie[E1: ClassTag](implicit ev: E <:< Throwable): ZIO[R, E1, A] =
+  final def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] =
+    refineOrDieWith(pf)(ev)
+
+  /**
+   * Keeps some of the errors, and terminates the fiber with the rest.
+   */
+  final def refineToOrDie[E1: ClassTag](implicit ev: E <:< Throwable): ZIO[R, E1, A] =
     refineOrDieWith { case e: E1 => e }(ev)
 
   /**
