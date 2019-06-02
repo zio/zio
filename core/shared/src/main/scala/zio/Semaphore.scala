@@ -35,14 +35,6 @@ import scala.collection.immutable.{ Queue => IQueue }
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
   /**
-   * The number of permits currently available.
-   */
-  final def available: UIO[Long] = state.get.map {
-    case Left(_)  => 0
-    case Right(n) => n
-  }
-
-  /**
    * Acquires a single permit. This must be paired with `release` in a safe
    * fashion in order to avoid leaking permits.
    *
@@ -50,14 +42,6 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * suspended until a permit is available.
    */
   final def acquire: UIO[Unit] = acquireN(1)
-
-  /**
-   * Releases a single permit.
-   */
-  final def release: UIO[Unit] = releaseN(1)
-
-  final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
-    prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
 
   /**
    * Acquires a specified number of permits.
@@ -73,6 +57,59 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     val i1: UIO[Unit]                                                        = i0(_.awaitAcquire)
     assertNonNegative(n) *> i1
   }
+
+  /**
+   * The number of permits currently available.
+   */
+  final def available: UIO[Long] = state.get.map {
+    case Left(_)  => 0
+    case Right(n) => n
+  }
+
+  /**
+   * Releases a single permit.
+   */
+  final def release: UIO[Unit] = releaseN(1)
+
+  /**
+   * Releases a specified number of permits.
+   *
+   * If fibers are currently suspended until enough permits are available,
+   * they will be woken up (in FIFO order) if this action releases enough
+   * of them.
+   */
+  final def releaseN(toRelease: Long): UIO[Unit] = {
+
+    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
+      case Right(m) => acc -> Right(n + m)
+      case Left(q) =>
+        q.dequeueOption match {
+          case None => acc -> Right(n)
+          case Some(((p, m), q)) =>
+            if (n > m)
+              loop(n - m, Left(q), acc <* p.succeed(()))
+            else if (n == m)
+              (acc <* p.succeed(())) -> Left(q)
+            else
+              acc -> Left((p -> (m - n)) +: q)
+        }
+    }
+
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
+
+  }
+
+  /**
+   * Acquires a permit, executes the action and releases the permits right after.
+   */
+  final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
+    prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
+
+  final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): UIO[Unit] =
+    res match {
+      case Exit.Failure(c) if c.interrupted => ops.release
+      case _                                => IO.unit
+    }
 
   /**
    * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
@@ -97,33 +134,6 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
       }
   }
 
-  final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): UIO[Unit] =
-    res match {
-      case Exit.Failure(c) if c.interrupted => ops.release
-      case _                                => IO.unit
-    }
-
-  final def releaseN(toRelease: Long): UIO[Unit] = {
-
-    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
-      case Right(m) => acc -> Right(n + m)
-      case Left(q) =>
-        q.dequeueOption match {
-          case None => acc -> Right(n)
-          case Some(((p, m), q)) =>
-            if (n > m)
-              loop(n - m, Left(q), acc <* p.succeed(()))
-            else if (n == m)
-              (acc <* p.succeed(())) -> Left(q)
-            else
-              acc -> Left((p -> (m - n)) +: q)
-        }
-    }
-
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
-
-  }
-
 }
 
 object Semaphore extends Serializable {
@@ -136,7 +146,7 @@ object Semaphore extends Serializable {
 
 private object internals {
 
-  final case class Acquisition(awaitAcquire: UIO[Unit], release: UIO[Unit])
+  final case class Acquisition private[zio] (awaitAcquire: UIO[Unit], release: UIO[Unit])
 
   type Entry = (Promise[Nothing, Unit], Long)
 
