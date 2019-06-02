@@ -146,7 +146,7 @@ object Semaphore extends Serializable {
 
 private object internals {
 
-  final case class Acquisition private (awaitAcquire: UIO[Unit], release: UIO[Unit])
+  final case class Acquisition private[zio] (awaitAcquire: UIO[Unit], release: UIO[Unit])
 
   type Entry = (Promise[Nothing, Unit], Long)
 
