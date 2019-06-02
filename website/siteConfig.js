@@ -23,14 +23,13 @@ const users = [
 ];
 
 const siteConfig = {
-  title: 'scalaz-zio', // Title for your website.
+  title: 'ZIO',
   tagline: 'Type-safe, composable asynchronous and concurrent programming for Scala',
-  url: 'https://scalaz.github.io',
-  baseUrl: '/scalaz-zio/',
-
+  url: 'https://zio.dev',
+  baseUrl: '/',
   // Used for publishing and more
-  projectName: 'scalaz-zio',
-  organizationName: 'scalaz',
+  projectName: 'zio',
+  organizationName: 'zio',
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [

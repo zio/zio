@@ -33,8 +33,8 @@ needs to be available.
 ```scala
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import scalaz.zio.{ IO, DefaultRuntime }
-import scalaz.zio.interop.monix._
+import zio.{ IO, DefaultRuntime }
+import zio.interop.monix._
 
 object UnsafeExample extends DefaultRuntime {
   def main(args: Array[String]): Unit = {
@@ -70,8 +70,8 @@ def fromCoeval[A](coeval: eval.Coeval[A]): Task[A]
 
 ```scala
 import monix.eval.Coeval
-import scalaz.zio.{ IO, DefaultRuntime }
-import scalaz.zio.interop.monix._
+import zio.{ IO, DefaultRuntime }
+import zio.interop.monix._
 
 object UnsafeExample extends DefaultRuntime {
   def main(args: Array[String]): Unit = {

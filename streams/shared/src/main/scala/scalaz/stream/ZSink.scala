@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio.stream
+package zio.stream
 
-import scalaz.zio._
+import zio._
 import scala.language.postfixOps
 
 /**
