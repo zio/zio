@@ -164,7 +164,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       def fold[R2 <: R1, E1 >: E, A1 >: A, S]: ZStream.Fold[R2, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
           self.fold[R2, E1, A1, S].flatMap { fold =>
-            ZManaged.finalizer(fin) *> fold(s, cont, f)
+            fold(s, cont, f).ensuring(fin)
           }
         }
     }
