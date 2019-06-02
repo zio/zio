@@ -34,26 +34,26 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
     fold[R, E, A1, S].flatMap(fold => fold(s, _ => true, (s, a) => ZIO.succeed(f(s, a))))
 
   /**
-    * Executes an effectful fold over the stream of chunks.
-    */
+   * Executes an effectful fold over the stream of chunks.
+   */
   def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
-                                                s: S
-                                              )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    s: S
+  )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
     chunks.fold[R1, E1, Chunk[A1], S].flatMap(fold => fold(s, cont, f))
 
   def flattenChunks: ZStream[R, E, A] =
     chunks.flatMap(ZStream.fromChunk)
 
   /**
-    * Runs the sink on the stream to produce either the sink's result or an error.
-    */
+   * Runs the sink on the stream to produce either the sink's result or an error.
+   */
   final def run[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSink[R1, E1, A0, Chunk[A1], B]): ZIO[R1, E1, B] =
     chunks.run(sink)
 
   /**
-    * Filters this stream by the specified predicate, retaining all elements for
-    * which the predicate evaluates to true.
-    */
+   * Filters this stream by the specified predicate, retaining all elements for
+   * which the predicate evaluates to true.
+   */
   def filter(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk[R, E, A](self.chunks.map(_.filter(pred)))
 
@@ -81,13 +81,13 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
         ZManaged.succeedLazy { (s, cont, f) =>
           self
             .foldChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => cont(tp._2)) {
-            case ((true, s), as) =>
-              val remaining = as.dropWhile(pred)
+              case ((true, s), as) =>
+                val remaining = as.dropWhile(pred)
 
-              if (remaining.length > 0) f(s, remaining).map(false -> _)
-              else IO.succeed(true                                -> s)
-            case ((false, s), as) => f(s, as).map(false -> _)
-          }
+                if (remaining.length > 0) f(s, remaining).map(false -> _)
+                else IO.succeed(true                                -> s)
+              case ((false, s), as) => f(s, as).map(false -> _)
+            }
             .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
         }
     })
@@ -98,11 +98,11 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
         ZManaged.succeedLazy { (s, cont, f) =>
           self
             .foldChunks[R1, E1, A, (Boolean, S)](true -> s)(tp => tp._1 && cont(tp._2)) { (s, as) =>
-            val remaining = as.takeWhile(pred)
+              val remaining = as.takeWhile(pred)
 
-            if (remaining.length == as.length) f(s._2, as).map(true -> _)
-            else f(s._2, remaining).map(false                       -> _)
-          }
+              if (remaining.length == as.length) f(s._2, as).map(true -> _)
+              else f(s._2, remaining).map(false                       -> _)
+            }
             .map(_._2.asInstanceOf[S]) // Cast is redundant but unfortunately necessary to appease Scala 2.11
         }
     })
@@ -148,17 +148,17 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
     chunks.toQueue(capacity)
 
   final def toQueueWith[R1 <: R, E1 >: E, A1 >: A, Z](
-                                                       f: Queue[Take[E1, Chunk[A1]]] => ZIO[R1, E1, Z],
-                                                       capacity: Int = 1
-                                                     ): ZIO[R1, E1, Z] =
+    f: Queue[Take[E1, Chunk[A1]]] => ZIO[R1, E1, Z],
+    capacity: Int = 1
+  ): ZIO[R1, E1, Z] =
     toQueue[E1, A1](capacity).use(f)
 }
 
 object ZStreamChunk {
 
   /**
-    * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].
-    */
+   * The default chunk size used by the various combinators and constructors of [[ZStreamChunk]].
+   */
   final val DefaultChunkSize: Int = 4096
 
   final def apply[R, E, A](chunkStream: ZStream[R, E, Chunk[A]]): ZStreamChunk[R, E, A] =

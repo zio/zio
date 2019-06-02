@@ -23,8 +23,8 @@ import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
-import zio.{TracingStatus => TrasingS}
-import zio.{InterruptStatus=>InterruptS}
+import zio.{ TracingStatus => TrasingS }
+import zio.{ InterruptStatus => InterruptS }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -2193,13 +2193,11 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Fork
   }
 
-  private[zio] final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: InterruptS)
-      extends ZIO[R, E, A] {
+  private[zio] final class InterruptStatus[R, E, A](val zio: ZIO[R, E, A], val flag: InterruptS) extends ZIO[R, E, A] {
     override def tag = Tags.InterruptStatus
   }
 
-  private[zio] final class CheckInterrupt[R, E, A](val k: zio.InterruptStatus => ZIO[R, E, A])
-      extends ZIO[R, E, A] {
+  private[zio] final class CheckInterrupt[R, E, A](val k: zio.InterruptStatus => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.CheckInterrupt
   }
 
@@ -2254,8 +2252,7 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.Trace
   }
 
-  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: TrasingS)
-      extends ZIO[R, E, A] {
+  private[zio] final class TracingStatus[R, E, A](val zio: ZIO[R, E, A], val flag: TrasingS) extends ZIO[R, E, A] {
     override def tag = Tags.TracingStatus
   }
 

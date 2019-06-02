@@ -224,12 +224,12 @@ object Fiber {
    * @param children The fiber's forked children. This will only be populated if the fiber is supervised (via [[ZIO#supervised]]).
    */
   final case class Descriptor(
-                               id: FiberId,
-                               interrupted: Boolean,
-                               interruptStatus: InterruptStatus,
-                               superviseStatus: SuperviseStatus,
-                               executor: Executor,
-                               children: UIO[IndexedSeq[Fiber[_, _]]]
+    id: FiberId,
+    interrupted: Boolean,
+    interruptStatus: InterruptStatus,
+    superviseStatus: SuperviseStatus,
+    executor: Executor,
+    children: UIO[IndexedSeq[Fiber[_, _]]]
   )
 
   /**

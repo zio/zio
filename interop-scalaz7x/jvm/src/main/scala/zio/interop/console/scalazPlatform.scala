@@ -16,10 +16,11 @@
 package zio
 package interop
 package console
-import zio.{console => c}
+import zio.{ console => c }
 import scalaz._
 
 object scalazPlatform {
+
   /**
    * Prints the string representation of an object to the console.
    */

@@ -8,14 +8,14 @@ import zio.blocking._
 trait ZStreamPlatformSpecific {
 
   /**
-    * Uses the provided `TaskR` value to create a [[ZStream]] of byte chunks, backed by
-    * the resulting `InputStream`. When data from the `InputStream` is exhausted,
-    * the stream will close it.
-    */
+   * Uses the provided `TaskR` value to create a [[ZStream]] of byte chunks, backed by
+   * the resulting `InputStream`. When data from the `InputStream` is exhausted,
+   * the stream will close it.
+   */
   def fromInputStream(
-                       is: InputStream,
-                       chunkSize: Int = ZStreamChunk.DefaultChunkSize
-                     ): ZStreamChunk[Blocking, IOException, Byte] =
+    is: InputStream,
+    chunkSize: Int = ZStreamChunk.DefaultChunkSize
+  ): ZStreamChunk[Blocking, IOException, Byte] =
     ZStreamChunk {
       ZStream.unfoldM(()) { _ =>
         effectBlocking {
@@ -35,14 +35,14 @@ trait ZStreamPlatformSpecific {
 trait ZSinkPlatformSpecific {
 
   /**
-    * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
-    * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
-    *
-    * The caller of this function is responsible for closing the `OutputStream`.
-    */
+   * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
+   * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
+   *
+   * The caller of this function is responsible for closing the `OutputStream`.
+   */
   def fromOutputStream(
-                        os: OutputStream
-                      ): ZSink[Blocking, IOException, Nothing, Chunk[Byte], Int] =
+    os: OutputStream
+  ): ZSink[Blocking, IOException, Nothing, Chunk[Byte], Int] =
     ZSink.foldM(0) { (bytesWritten, byteChunk: Chunk[Byte]) =>
       effectBlocking {
         val bytes = byteChunk.toArray

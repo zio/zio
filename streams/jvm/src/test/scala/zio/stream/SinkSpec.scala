@@ -6,7 +6,7 @@ import scala.{ Stream => _ }
 import zio._
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-  extends TestRuntime
+    extends TestRuntime
     with StreamTestUtils
     with GenIO
     with ScalaCheck {

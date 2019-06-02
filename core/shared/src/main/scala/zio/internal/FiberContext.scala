@@ -31,14 +31,14 @@ import scala.annotation.{ switch, tailrec }
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-                                             platform: Platform,
-                                             startEnv: AnyRef,
-                                             startExec: Executor,
-                                             startIStatus: InterruptStatus,
-                                             startSStatus: SuperviseStatus,
-                                             parentTrace: Option[ZTrace],
-                                             initialTracingStatus: Boolean,
-                                             fiberRefLocals: FiberRefLocals
+  platform: Platform,
+  startEnv: AnyRef,
+  startExec: Executor,
+  startIStatus: InterruptStatus,
+  startSStatus: SuperviseStatus,
+  parentTrace: Option[ZTrace],
+  initialTracingStatus: Boolean,
+  fiberRefLocals: FiberRefLocals
 ) extends Fiber[E, A] {
   import java.util.{ Collections, Set }
 

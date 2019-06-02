@@ -19,7 +19,7 @@ package zio
 import zio.ZSchedule.Decision
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.random.{Random, nextDouble}
+import zio.random.{ nextDouble, Random }
 import zio.random.Random
 
 import scala.annotation.implicitNotFound

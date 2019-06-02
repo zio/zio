@@ -20,12 +20,12 @@ import zio._
 import scala.language.postfixOps
 
 /**
-  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
-  * either an error of type `E`, or a value of type `B` together with a remainder
-  * of type `A0`.
-  *
-  * Sinks form monads and combine in the usual ways.
-  */
+ * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
+ * either an error of type `E`, or a value of type `B` together with a remainder
+ * of type `A0`.
+ *
+ * Sinks form monads and combine in the usual ways.
+ */
 trait ZSink[-R, +E, +A0, -A, +B] { self =>
   import ZSink.Step
 
@@ -57,10 +57,10 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-    * Takes a `Sink`, and lifts it to be chunked in its input and output. This
-    * will not improve performance, but can be used to adapt non-chunked sinks
-    * wherever chunked sinks are required.
-    */
+   * Takes a `Sink`, and lifts it to be chunked in its input and output. This
+   * will not improve performance, but can be used to adapt non-chunked sinks
+   * wherever chunked sinks are required.
+   */
   final def chunked[A1 >: A0, A2 <: A]: ZSink[R, E, A1, Chunk[A2], B] =
     new ZSink[R, E, A1, Chunk[A2], B] {
       type State = self.State
@@ -71,8 +71,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-    * Effectfully maps the value produced by this sink.
-    */
+   * Effectfully maps the value produced by this sink.
+   */
   final def mapM[R1 <: R, E1 >: E, C](f: B => ZIO[R1, E1, C]): ZSink[R1, E1, A0, A, C] =
     new ZSink[R1, E1, A0, A, C] {
       type State = self.State
@@ -85,8 +85,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-    * Maps the value produced by this sink.
-    */
+   * Maps the value produced by this sink.
+   */
   def map[C](f: B => C): ZSink[R, E, A0, A, C] =
     new ZSink[R, E, A0, A, C] {
       type State = self.State
@@ -99,8 +99,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-    * Effectfully filters the inputs fed to this sink.
-    */
+   * Effectfully filters the inputs fed to this sink.
+   */
   final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
     new ZSink[R1, E1, A0, A1, B] {
       type State = self.State
@@ -118,8 +118,8 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-    * Filters the inputs fed to this sink.
-    */
+   * Filters the inputs fed to this sink.
+   */
   def filter[A1 <: A](f: A1 => Boolean): ZSink[R, E, A0, A1, B] =
     new ZSink[R, E, A0, A1, B] {
       type State = self.State
@@ -238,9 +238,9 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-    * Returns a new sink that tries to produce the `B`, but if there is an
-    * error in stepping or extraction, produces `None`.
-    */
+   * Returns a new sink that tries to produce the `B`, but if there is an
+   * error in stepping or extraction, produces `None`.
+   */
   final def ? : ZSink[R, Nothing, A0, A, Option[B]] =
     new ZSink[R, Nothing, A0, A, Option[B]] {
       type State = Option[self.State]
@@ -268,34 +268,34 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
-    * A named alias for `?`.
-    */
+   * A named alias for `?`.
+   */
   final def optional: ZSink[R, Nothing, A0, A, Option[B]] = self ?
 
   /**
-    * Runs both sinks in parallel on the input, returning the result from the
-    * one that finishes successfully first.
-    */
+   * Runs both sinks in parallel on the input, returning the result from the
+   * one that finishes successfully first.
+   */
   final def race[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, B1 >: B](
-                                                                that: ZSink[R1, E1, A2, A1, B1]
-                                                              ): ZSink[R1, E1, A2, A1, B1] =
+    that: ZSink[R1, E1, A2, A1, B1]
+  ): ZSink[R1, E1, A2, A1, B1] =
     self.raceBoth(that).map(_.merge)
 
   /**
-    * A named alias for `race`.
-    */
+   * A named alias for `race`.
+   */
   final def |[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, B1 >: B](
-                                                             that: ZSink[R1, E1, A2, A1, B1]
-                                                           ): ZSink[R1, E1, A2, A1, B1] =
+    that: ZSink[R1, E1, A2, A1, B1]
+  ): ZSink[R1, E1, A2, A1, B1] =
     self.race(that)
 
   /**
-    * Runs both sinks in parallel on the input, returning the result from the
-    * one that finishes successfully first.
-    */
+   * Runs both sinks in parallel on the input, returning the result from the
+   * one that finishes successfully first.
+   */
   final def raceBoth[R1 <: R, E1 >: E, A2 >: A0, A1 <: A, C](
-                                                              that: ZSink[R1, E1, A2, A1, C]
-                                                            ): ZSink[R1, E1, A2, A1, Either[B, C]] =
+    that: ZSink[R1, E1, A2, A1, C]
+  ): ZSink[R1, E1, A2, A1, Either[B, C]] =
     new ZSink[R1, E1, A2, A1, Either[B, C]] {
       type State = (Either[E1, self.State], Either[E1, that.State])
 
@@ -448,8 +448,8 @@ object ZSink extends ZSinkPlatformSpecific {
   type Step[+S, +A0] = Step.Step[S, A0]
 
   final def more[R, R1 <: R, E, A0, A, B](
-                                           end: ZIO[R1, E, B]
-                                         )(input: A => ZSink[R, E, A0, A, B]): ZSink[R1, E, A0, A, B] =
+    end: ZIO[R1, E, B]
+  )(input: A => ZSink[R, E, A0, A, B]): ZSink[R1, E, A0, A, B] =
     new ZSink[R1, E, A0, A, B] {
       type State = Option[(ZSink[R1, E, A0, A, B], Any)]
 
@@ -544,8 +544,8 @@ object ZSink extends ZSinkPlatformSpecific {
   def readWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
     ZSink
       .foldM[R, E, A, A, List[A]](List.empty[A]) { (s, a: A) =>
-      p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
-    }
+        p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
+      }
       .map(_.reverse)
 
   def readWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
@@ -604,25 +604,25 @@ object ZSink extends ZSinkPlatformSpecific {
 
   implicit class InvariantOps[R, E, A0, A, B](self: ZSink[R, E, A, A, B]) {
     final def <|[R1 <: R, E1, B1 >: B](
-                                        that: ZSink[R1, E1, A, A, B1]
-                                      ): ZSink[R1, E1, A, A, B1] =
+      that: ZSink[R1, E1, A, A, B1]
+    ): ZSink[R1, E1, A, A, B1] =
       (self orElse that).map(_.merge)
 
     /**
-      * Runs both sinks in parallel on the same input. If the left one succeeds,
-      * its value will be produced. Otherwise, whatever the right one produces
-      * will be produced. If the right one succeeds before the left one, it
-      * accumulates the full input until the left one fails, so it can return
-      * it as the remainder. This allows this combinator to function like `choice`
-      * in parser combinator libraries.
-      *
-      * Left:  ============== FAIL!
-      * Right: ===== SUCCEEDS!
-      *             xxxxxxxxx <- Should NOT be consumed
-      */
+     * Runs both sinks in parallel on the same input. If the left one succeeds,
+     * its value will be produced. Otherwise, whatever the right one produces
+     * will be produced. If the right one succeeds before the left one, it
+     * accumulates the full input until the left one fails, so it can return
+     * it as the remainder. This allows this combinator to function like `choice`
+     * in parser combinator libraries.
+     *
+     * Left:  ============== FAIL!
+     * Right: ===== SUCCEEDS!
+     *             xxxxxxxxx <- Should NOT be consumed
+     */
     final def orElse[R1 <: R, E1, C](
-                                      that: ZSink[R1, E1, A, A, C]
-                                    ): ZSink[R1, E1, A, A, Either[B, C]] =
+      that: ZSink[R1, E1, A, A, C]
+    ): ZSink[R1, E1, A, A, Either[B, C]] =
       new ZSink[R1, E1, A, A, Either[B, C]] {
         import ZSink.internal._
 
@@ -656,17 +656,17 @@ object ZSink extends ZSinkPlatformSpecific {
                 self
                   .step(s, a)
                   .foldM[R, Nothing, Step[Side[E, self.State, B], A]]( // TODO: Dotty doesn't infer this properly
-                  e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
-                  s =>
-                    if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
-                    else
-                      self
-                        .extract(Step.state(s))
-                        .fold[Step[Side[E, Nothing, B], A]]( // TODO: Dotty doesn't infer this properly
-                        e => Step.done(Side.Error(e), Step.leftover(s)),
-                        b => Step.done(Side.Value(b), Step.leftover(s))
-                      )
-                )
+                    e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
+                    s =>
+                      if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
+                      else
+                        self
+                          .extract(Step.state(s))
+                          .fold[Step[Side[E, Nothing, B], A]]( // TODO: Dotty doesn't infer this properly
+                            e => Step.done(Side.Error(e), Step.leftover(s)),
+                            b => Step.done(Side.Value(b), Step.leftover(s))
+                          )
+                  )
               case s => IO.succeed(Step.done(s, Chunk.empty))
             }
           val rightStep: ZIO[R1, Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]] =
@@ -675,18 +675,18 @@ object ZSink extends ZSinkPlatformSpecific {
                 that
                   .step(s, a)
                   .foldM[R1, Nothing, Step[Side[E1, that.State, (Chunk[A], C)], A]]( // TODO: Dotty doesn't infer this properly
-                  e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
-                  s =>
-                    if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
-                    else {
-                      that
-                        .extract(Step.state(s))
-                        .fold[Step[Side[E1, Nothing, (Chunk[A], C)], A]]( // TODO: Dotty doesn't infer this properly
-                        e => Step.done(Side.Error(e), Step.leftover(s)),
-                        c => Step.done(Side.Value((Step.leftover(s), c)), Step.leftover(s))
-                      )
-                    }
-                )
+                    e => IO.succeed(Step.done(Side.Error(e), Chunk.empty)),
+                    s =>
+                      if (Step.cont(s)) IO.succeed(Step.more(Side.State(Step.state(s))))
+                      else {
+                        that
+                          .extract(Step.state(s))
+                          .fold[Step[Side[E1, Nothing, (Chunk[A], C)], A]]( // TODO: Dotty doesn't infer this properly
+                            e => Step.done(Side.Error(e), Step.leftover(s)),
+                            c => Step.done(Side.Value((Step.leftover(s), c)), Step.leftover(s))
+                          )
+                      }
+                  )
               case Side.Value((a0, c)) =>
                 val a3 = a0 ++ Chunk(a)
 
@@ -708,9 +708,9 @@ object ZSink extends ZSinkPlatformSpecific {
                     self
                       .extract(s)
                       .fold[Step[State, A]]( // TODO: Dotty doesn't infer this properly
-                      e => Step.done((Side.Error(e), Step.state(s2)), Step.leftover(s2)),
-                      b => Step.done((Side.Value(b), Step.state(s2)), Step.leftover(s1))
-                    )
+                        e => Step.done((Side.Error(e), Step.state(s2)), Step.leftover(s2)),
+                        b => Step.done((Side.Value(b), Step.state(s2)), Step.leftover(s1))
+                      )
                 }
               } else if (Step.cont(s1) && !Step.cont(s2)) IO.succeed(Step.more((Step.state(s1), Step.state(s2))))
               else {
@@ -742,8 +742,8 @@ object ZSink extends ZSinkPlatformSpecific {
       }
 
     final def flatMap[R1 <: R, E1 >: E, C](
-                                            f: B => ZSink[R1, E1, A, A, C]
-                                          ): ZSink[R1, E1, A, A, C] =
+      f: B => ZSink[R1, E1, A, A, C]
+    ): ZSink[R1, E1, A, A, C] =
       new ZSink[R1, E1, A, A, C] {
         type State = Either[self.State, (ZSink[R1, E1, A, A, C], Any)]
 

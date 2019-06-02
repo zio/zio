@@ -17,7 +17,6 @@
 package zio
 package interop
 
-
 import cats.effect.{ Concurrent, ContextShift, ExitCase }
 import cats.{ effect, _ }
 import zio.{ clock => zioClock }

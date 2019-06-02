@@ -9,7 +9,7 @@ import zio.duration._
 import zio.QueueSpec.waitForSize
 
 class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
-  extends TestRuntime
+    extends TestRuntime
     with StreamTestUtils
     with GenIO
     with ScalaCheck {
@@ -384,11 +384,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       substreamCancelled <- Ref.make[Boolean](false)
       latch              <- Promise.make[Nothing, Unit]
       fiber <- Stream(())
-        .flatMapPar(1)(
-          _ => Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
-        )
-        .run(Sink.collect[Unit])
-        .fork
+                .flatMapPar(1)(
+                  _ => Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
+                )
+                .run(Sink.collect[Unit])
+                .fork
       _         <- latch.await
       _         <- fiber.interrupt
       cancelled <- substreamCancelled.get
@@ -400,11 +400,11 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       substreamCancelled <- Ref.make[Boolean](false)
       latch              <- Promise.make[Nothing, Unit]
       result <- Stream(
-        Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
-        Stream.fromEffect(latch.await *> ZIO.fail("Ouch"))
-      ).flatMapPar(2)(identity)
-        .run(Sink.drain)
-        .either
+                 Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
+                 Stream.fromEffect(latch.await *> ZIO.fail("Ouch"))
+               ).flatMapPar(2)(identity)
+                 .run(Sink.drain)
+                 .either
       cancelled <- substreamCancelled.get
     } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
   }
@@ -415,9 +415,9 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       inner = Stream
         .bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
       _ <- Stream
-        .bracket(execution.update("OuterAcquire" :: _).const(inner))(_ => execution.update("OuterRelease" :: _))
-        .flatMapPar(2)(identity)
-        .runDrain
+            .bracket(execution.update("OuterAcquire" :: _).const(inner))(_ => execution.update("OuterRelease" :: _))
+            .flatMapPar(2)(identity)
+            .runDrain
       results <- execution.get
     } yield results must_=== List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")
   }
@@ -597,14 +597,14 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         queue <- Queue.unbounded[Int]
         _     <- queue.offerAll(c.toSeq)
         fiber <- Stream
-          .fromQueue(queue)
-          .fold[Any, Nothing, Int, List[Int]]
-          .flatMap { fold =>
-            fold(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
-          }
-          .use(ZIO.succeed)
-          .map(_.reverse)
-          .fork
+                  .fromQueue(queue)
+                  .fold[Any, Nothing, Int, List[Int]]
+                  .flatMap { fold =>
+                    fold(List[Int](), _ => true, (acc, el) => IO.succeed(el :: acc))
+                  }
+                  .use(ZIO.succeed)
+                  .map(_.reverse)
+                  .fork
         _     <- waitForSize(queue, -1)
         _     <- queue.shutdown
         items <- fiber.join
@@ -706,18 +706,18 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def fastProducerSlowConsumer =
-  // TODO: flaky
+    // TODO: flaky
     unsafeRun(
       for {
         promise <- Promise.make[Nothing, Unit]
         ref     <- Ref.make(List[Int]())
         _ <- Stream
-          .range(1, 4)
-          .mapM(i => ref.update(i :: _) <* promise.succeed(()))
-          .buffer(2)
-          .mapM(_ => IO.never)
-          .run(Sink.drain)
-          .fork
+              .range(1, 4)
+              .mapM(i => ref.update(i :: _) <* promise.succeed(()))
+              .buffer(2)
+              .mapM(_ => IO.never)
+              .run(Sink.drain)
+              .fork
         _    <- promise.await
         list <- ref.get
       } yield {
@@ -738,10 +738,10 @@ class StreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         ref <- Ref.make[List[Int]](Nil)
         _ <- Stream
-          .fromEffect(ref.update(1 :: _))
-          .repeat(Schedule.spaced(10.millis))
-          .take(2)
-          .run(Sink.drain)
+              .fromEffect(ref.update(1 :: _))
+              .repeat(Schedule.spaced(10.millis))
+              .take(2)
+              .run(Sink.drain)
         result <- ref.get
       } yield result must_=== List(1, 1)
     )

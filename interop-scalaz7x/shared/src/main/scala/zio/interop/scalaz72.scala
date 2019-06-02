@@ -17,8 +17,8 @@
 package zio.interop
 
 import scalaz.Tags.Parallel
-import scalaz.{@@, Applicative, Bifunctor, BindRec, Monad, MonadError, MonadPlus, Monoid, Plus, Tag, \/}
-import zio.{Task, TaskR, ZIO}
+import scalaz.{ @@, \/, Applicative, Bifunctor, BindRec, Monad, MonadError, MonadPlus, Monoid, Plus, Tag }
+import zio.{ Task, TaskR, ZIO }
 
 object scalaz72 extends ZIOInstances with Scalaz72Platform {
   type ParIO[R, E, A] = ZIO[R, E, A] @@ Parallel

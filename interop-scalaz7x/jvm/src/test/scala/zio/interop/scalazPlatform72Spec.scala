@@ -8,7 +8,10 @@ import scalaz.scalacheck.ScalazProperties._
 import zio.interop.scalaz72._
 import scalaz._
 
-class scalazPlatform72Spec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with ScalaCheck with GenIO {
+class scalazPlatform72Spec(implicit ee: org.specs2.concurrent.ExecutionEnv)
+    extends TestRuntime
+    with ScalaCheck
+    with GenIO {
 
   def is = s2"""
     laws must hold for
