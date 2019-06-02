@@ -1,4 +1,4 @@
-package scalaz.zio
+package zio
 
 trait EitherCompat {
   implicit class EitherOps[L, R](e: Either[L, R]) {
