@@ -6,7 +6,7 @@ title:  "Creating Effects"
 This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.
 
 ```scala mdoc:invisible
-import scalaz.zio.{ ZIO, Task, UIO, IO }
+import zio.{ ZIO, Task, UIO, IO }
 ```
 
 ## From Success Values
@@ -185,12 +185,12 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from an application's main thread pool.
 
-ZIO provides the `scalaz.zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
+ZIO provides the `zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
 
 A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
 
 ```scala mdoc:silent
-import scalaz.zio.blocking._
+import zio.blocking._
 
 val sleeping = 
   effectBlocking(Thread.sleep(Long.MaxValue))

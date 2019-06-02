@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package scalaz.zio.stream
+package zio.stream
 
-import scalaz.zio._
-import scalaz.zio.clock.Clock
+import zio._
+import zio.clock.Clock
 import scala.annotation.implicitNotFound
 
 /**
@@ -957,7 +957,7 @@ object Stream extends Stream_Functions {
   implicit val ConformsAnyProof: ConformsR1[Any] = new ConformsR1[Any] {}
 }
 
-object ZStream extends Stream_Functions {
+object ZStream extends Stream_Functions with ZStreamPlatformSpecific {
   sealed trait ConformsR1[A]
 
   private val _ConformsR1: ConformsR1[Any] = new ConformsR1[Any] {}

@@ -30,7 +30,7 @@ Fibers do not have an `R` type parameter, because they model effects that are al
 
 ```scala mdoc:invisible
 
-import scalaz.zio._
+import zio._
 ```
 
 ### Forking Effects
@@ -160,7 +160,7 @@ If you want the first success or failure, rather than the first success, then yo
 ZIO lets you timeout any effect using the `ZIO#timeout` method, which succeeds with an `Option`, where a value of `None` indicates the effect timed out before producing the result.
 
 ```scala mdoc:silent
-import scalaz.zio.duration._
+import zio.duration._
 
 IO.succeed("Hello").timeout(10.seconds)
 ```
