@@ -27,21 +27,6 @@ import scala.reflect._
 sealed trait Chunk[@specialized +A] { self =>
 
   /**
-   * The number of elements in the chunk.
-   */
-  def length: Int
-
-  /**
-   * Determines if the chunk is empty.
-   */
-  final def isEmpty: Boolean = length == 0
-
-  /**
-   * Determines if the chunk is not empty.
-   */
-  final def notEmpty: Boolean = length > 0
-
-  /**
    * Returns the concatenation of this chunk with the specified chunk.
    */
   final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
@@ -176,30 +161,6 @@ sealed trait Chunk[@specialized +A] { self =>
     }
   }
 
-  final def foldMLazy[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
-    val len = length
-
-    def loop(s: S, i: Int): ZIO[R, E, S] =
-      if (i >= len) IO.succeed(s)
-      else {
-        if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
-        else IO.succeed(s)
-      }
-
-    loop(z, 0)
-  }
-
-  final def foldLeftLazy[S](z: S)(pred: S => Boolean)(f: (S, A) => S): S = {
-    val len = length
-    var s   = z
-    var i   = 0
-    while (i < len && pred(s)) {
-      s = f(s, self(i))
-      i += 1
-    }
-    s
-  }
-
   /**
    * Folds over the elements in this chunk from the left.
    */
@@ -216,6 +177,17 @@ sealed trait Chunk[@specialized +A] { self =>
     s
   }
 
+  final def foldLeftLazy[S](z: S)(pred: S => Boolean)(f: (S, A) => S): S = {
+    val len = length
+    var s   = z
+    var i   = 0
+    while (i < len && pred(s)) {
+      s = f(s, self(i))
+      i += 1
+    }
+    s
+  }
+
   /**
    * Effectfully folds over the elements in this chunk from the left.
    */
@@ -223,6 +195,19 @@ sealed trait Chunk[@specialized +A] { self =>
     foldLeft[ZIO[R, E, S]](IO.succeed(s)) { (s, a) =>
       s.flatMap(f(_, a))
     }
+
+  final def foldMLazy[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
+    val len = length
+
+    def loop(s: S, i: Int): ZIO[R, E, S] =
+      if (i >= len) IO.succeed(s)
+      else {
+        if (pred(s)) f(s, self(i)).flatMap(loop(_, i + 1))
+        else IO.succeed(s)
+      }
+
+    loop(z, 0)
+  }
 
   /**
    * Folds over the elements in this chunk from the right.
@@ -241,6 +226,16 @@ sealed trait Chunk[@specialized +A] { self =>
   }
 
   override final def hashCode: Int = toArray.toSeq.hashCode
+
+  /**
+   * Determines if the chunk is empty.
+   */
+  final def isEmpty: Boolean = length == 0
+
+  /**
+   * The number of elements in the chunk.
+   */
+  def length: Int
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
@@ -266,6 +261,38 @@ sealed trait Chunk[@specialized +A] { self =>
 
     if (dest != null) Chunk.Arr(dest)
     else Chunk.Empty
+  }
+
+  /**
+   * Statefully maps over the chunk, producing new elements of type `B`.
+   */
+  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, Chunk[B]) = {
+    var s: S1          = s1
+    var i              = 0
+    var dest: Array[B] = null.asInstanceOf[Array[B]]
+    val len            = self.length
+
+    while (i < len) {
+      val a = self(i)
+      val t = f1(s, a)
+
+      s = t._1
+      val b = t._2
+
+      if (dest == null) {
+        implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
+
+        dest = Array.ofDim(len)
+      }
+
+      dest(i) = b
+
+      i += 1
+    }
+
+    s ->
+      (if (dest == null) Chunk.empty
+       else Chunk.Arr(dest))
   }
 
   /**
@@ -309,36 +336,15 @@ sealed trait Chunk[@specialized +A] { self =>
   final def mkString: String = mkString("")
 
   /**
-   * Statefully maps over the chunk, producing new elements of type `B`.
+   * Determines if the chunk is not empty.
    */
-  final def mapAccum[@specialized S1, @specialized B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, Chunk[B]) = {
-    var s: S1          = s1
-    var i              = 0
-    var dest: Array[B] = null.asInstanceOf[Array[B]]
-    val len            = self.length
+  final def notEmpty: Boolean = length > 0
 
-    while (i < len) {
-      val a = self(i)
-      val t = f1(s, a)
-
-      s = t._1
-      val b = t._2
-
-      if (dest == null) {
-        implicit val B: ClassTag[B] = Chunk.Tags.fromValue(b)
-
-        dest = Array.ofDim(len)
-      }
-
-      dest(i) = b
-
-      i += 1
-    }
-
-    s ->
-      (if (dest == null) Chunk.empty
-       else Chunk.Arr(dest))
-  }
+  /**
+   * Returns two splits of this chunk at the specified index.
+   */
+  final def splitAt(n: Int): (Chunk[A], Chunk[A]) =
+    (take(n), drop(n))
 
   /**
    * Takes the first `n` elements of the chunk.
@@ -446,12 +452,6 @@ sealed trait Chunk[@specialized +A] { self =>
   }
 
   /**
-   * Returns two splits of this chunk at the specified index.
-   */
-  final def splitAt(n: Int): (Chunk[A], Chunk[A]) =
-    (take(n), drop(n))
-
-  /**
    * Zips this chunk with the specified chunk using the specified combiner.
    */
   final def zipWith[@specialized B, @specialized C](that: Chunk[B])(f: (A, B) => C): Chunk[C] = {
@@ -480,6 +480,11 @@ sealed trait Chunk[@specialized +A] { self =>
   }
 
   /**
+   * Zips this chunk with the index of every element.
+   */
+  final def zipWithIndex: Chunk[(A, Int)] = zipWithIndexFrom(0)
+
+  /**
    * Zips this chunk with the index of every element, starting from the initial
    * index value.
    */
@@ -497,11 +502,6 @@ sealed trait Chunk[@specialized +A] { self =>
 
     Chunk.Arr(dest)
   }
-
-  /**
-   * Zips this chunk with the index of every element.
-   */
-  final def zipWithIndex: Chunk[(A, Int)] = zipWithIndexFrom(0)
 
   protected[zio] def apply(n: Int): A
   protected[zio] def foreach(f: A => Unit): Unit
