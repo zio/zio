@@ -40,6 +40,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   import ZStream.Fold
 
   /**
+   * Executes an effectful fold over the stream of values.
+   */
+  def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S]
+
+  /**
    * Concatenates with another stream in strict order
    */
   final def ++[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
@@ -270,11 +275,6 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           } yield s
         }
     }
-
-  /**
-   * Executes an effectful fold over the stream of values.
-   */
-  def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S]
 
   /**
    * Reduces the elements in the stream to a value of type `S`
@@ -838,6 +838,24 @@ trait Stream_Functions {
   implicit val ConformsAnyProof: ConformsR[Any]
 
   /**
+   * The empty stream
+   */
+  final val empty: ZStream[Any, Nothing, Nothing] =
+    StreamPure.empty
+
+  /**
+   * The stream that never produces any value or fails with any error.
+   */
+  final val never: ZStream[Any, Nothing, Nothing] =
+    new ZStream[Any, Nothing, Nothing] {
+      def fold[R1, E1, A1, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, _) =>
+          if (!cont(s)) ZManaged.succeed(s)
+          else ZManaged.never
+        }
+    }
+
+  /**
    * Creates a pure stream from a variable list of values
    */
   final def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
@@ -848,12 +866,6 @@ trait Stream_Functions {
    */
   final def bracket[R: ConformsR, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZStream[R, E, A] =
     managed(ZManaged.make(acquire)(release))
-
-  /**
-   * The empty stream
-   */
-  final val empty: ZStream[Any, Nothing, Nothing] =
-    StreamPure.empty
 
   /**
    * The stream that always fails with `error`
@@ -950,18 +962,6 @@ trait Stream_Functions {
     streams: ZStream[R, E, A]*
   ): ZStream[R, E, A] =
     flattenPar(n, outputBuffer)(Stream.fromIterable(streams))
-
-  /**
-   * The stream that never produces any value or fails with any error.
-   */
-  final val never: ZStream[Any, Nothing, Nothing] =
-    new ZStream[Any, Nothing, Nothing] {
-      def fold[R1, E1, A1, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeedLazy { (s, cont, _) =>
-          if (!cont(s)) ZManaged.succeed(s)
-          else ZManaged.never
-        }
-    }
 
   /**
    * Constructs a stream from a range of integers (inclusive).

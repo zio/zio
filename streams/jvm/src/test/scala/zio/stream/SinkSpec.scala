@@ -167,7 +167,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val elements = numbers <* brace
 
     lazy val start: ZSink[Any, String, Char, Char, List[Int]] =
-      ZSink.atLeastOne(IO.fail("Input was empty")) {
+      ZSink.pull1(IO.fail("Input was empty")) {
         case a if a.isWhitespace => start
         case '['                 => elements
         case _                   => ZSink.fail("Expected '['")

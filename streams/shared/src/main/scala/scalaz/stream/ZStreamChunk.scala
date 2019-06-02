@@ -33,21 +33,21 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   import ZStream.Fold
 
   /**
+   * The stream of chunks underlying this stream
+   */
+  val chunks: ZStream[R, E, Chunk[A]]
+
+  /**
    * Concatenates with another stream in strict order
    */
   final def ++[R1 <: R, E1 >: E, A1 >: A](that: ZStreamChunk[R1, E1, A1]): ZStreamChunk[R1, E1, A1] =
     ZStreamChunk(chunks ++ that.chunks)
 
   /**
-   * The stream of chunks underlying this stream
-   */
-  val chunks: ZStream[R, E, Chunk[A]]
-
-  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  final def dropWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
       override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
@@ -75,7 +75,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * Filters this stream by the specified predicate, removing all elements for
    * which the predicate evaluates to true.
    */
-  def filterNot(pred: A => Boolean): ZStreamChunk[R, E, A] = filter(!pred(_))
+  final def filterNot(pred: A => Boolean): ZStreamChunk[R, E, A] = filter(!pred(_))
 
   /**
    * Returns a stream made of the concatenation in strict order of all the streams
@@ -89,13 +89,12 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   /**
    * Returns a stream made of the concatenation of all the chunks in this stream
    */
-  def flattenChunks: ZStream[R, E, A] =
-    chunks.flatMap(ZStream.fromChunk)
+  final def flattenChunks: ZStream[R, E, A] = chunks.flatMap(ZStream.fromChunk)
 
   /**
    * Executes an effectful fold over the stream of values.
    */
-  def fold[R1 <: R, E1 >: E, A1 >: A, S]: ZStream.Fold[R1, E1, A1, S] =
+  final def fold[R1 <: R, E1 >: E, A1 >: A, S]: ZStream.Fold[R1, E1, A1, S] =
     ZManaged.succeedLazy { (s, cont, f) =>
       chunks.fold[R1, E1, Chunk[A1], S].flatMap { fold =>
         fold(s, cont, (s, as) => as.foldMLazy(s)(cont)(f))
@@ -105,7 +104,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   /**
    * Executes an effectful fold over the stream of chunks.
    */
-  def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
+  final def foldChunks[R1 <: R, E1 >: E, A1 >: A, S](
     s: S
   )(cont: S => Boolean)(f: (S, Chunk[A1]) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
     chunks.fold[R1, E1, Chunk[A1], S].flatMap(fold => fold(s, cont, f))
@@ -169,7 +168,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
+  final def takeWhile(pred: A => Boolean): ZStreamChunk[R, E, A] =
     ZStreamChunk(new ZStream[R, E, Chunk[A]] {
       override def fold[R1 <: R, E1 >: E, A1 >: Chunk[A], S]: Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
@@ -212,7 +211,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   /**
    * Zips this stream together with the index of elements of the stream across chunks.
    */
-  def zipWithIndex: ZStreamChunk[R, E, (A, Int)] =
+  final def zipWithIndex: ZStreamChunk[R, E, (A, Int)] =
     ZStreamChunk(
       new ZStream[R, E, Chunk[(A, Int)]] {
         override def fold[R1 <: R, E1 >: E, A1 >: Chunk[(A, Int)], S]: Fold[R1, E1, A1, S] =
@@ -238,17 +237,17 @@ object ZStreamChunk {
   final val DefaultChunkSize: Int = 4096
 
   /**
+   * The empty stream of chunks
+   */
+  final val empty: StreamChunk[Nothing, Nothing] = StreamChunkPure(StreamPure.empty)
+
+  /**
    * Creates a `ZStreamChunk` from a stream of chunks
    */
   final def apply[R, E, A](chunkStream: ZStream[R, E, Chunk[A]]): ZStreamChunk[R, E, A] =
     new ZStreamChunk[R, E, A] {
       val chunks = chunkStream
     }
-
-  /**
-   * The empty stream of chunks
-   */
-  final val empty: StreamChunk[Nothing, Nothing] = StreamChunkPure(StreamPure.empty)
 
   /**
    * Creates a `ZStreamChunk` from a variable list of chunks
