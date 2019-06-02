@@ -207,6 +207,10 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def collectAll: ZSchedule[R, A, List[B]] =
     fold(List.empty[B])((xs, x) => x :: xs).map(_.reverse)
 
+  /**
+   * Creates a new schedule that outputs elements of both underlying schedules pair-wie.
+   * The decision to continue is a function of the two underlying decisions, as is the delay.
+   */
   final def combineWith[R1 <: R, A1 <: A, C](
     that: ZSchedule[R1, A1, C]
   )(g: (Boolean, Boolean) => Boolean, f: (Duration, Duration) => Duration): ZSchedule[R1, A1, (B, C)] =
