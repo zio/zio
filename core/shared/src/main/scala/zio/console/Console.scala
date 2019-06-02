@@ -78,9 +78,7 @@ object Console extends Serializable {
               throw new EOFException("There is no more input left to read")
             } else line
           })
-          .refineOrDie {
-            case e: IOException => e
-          }
+          .refineToOrDie[IOException]
 
     }
   }

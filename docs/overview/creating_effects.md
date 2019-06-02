@@ -152,9 +152,7 @@ If a side-effect is known to throw some specific subtype of `Throwable`, then th
 import java.io.IOException
 
 val getStrLn2: IO[IOException, String] =
-  ZIO.effect(StdIn.readLine()).refineOrDie {
-    case e : IOException => e
-  }
+  ZIO.effect(StdIn.readLine()).refineToOrDie[IOException]
 ```
 
 ### Asynchronous Side-Effects

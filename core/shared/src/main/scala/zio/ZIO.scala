@@ -23,6 +23,7 @@ import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
+import scala.reflect.ClassTag
 import zio.{ TracingStatus => TrasingS }
 import zio.{ InterruptStatus => InterruptS }
 
@@ -655,6 +656,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] =
     refineOrDieWith(pf)(ev)
+
+  /**
+   * Keeps some of the errors, and terminates the fiber with the rest.
+   */
+  final def refineToOrDie[E1: ClassTag](implicit ev: E <:< Throwable): ZIO[R, E1, A] =
+    refineOrDieWith { case e: E1 => e }(ev)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
