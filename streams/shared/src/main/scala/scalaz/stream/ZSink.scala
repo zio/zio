@@ -122,6 +122,100 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     }
 
   /**
+   * Accumulates the output into a list.
+   */
+  final def collectAll[A00 >: A0, A1 <: A](implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, List[B]] =
+    collectAllWith[List[B], A00, A1](List.empty[B])((bs, b) => b :: bs).map(_.reverse)
+
+  /**
+   * Accumulates the output into a list of maximum size `i`.
+   */
+  final def collectAllN[A00 >: A0, A1 <: A](i: Int)(implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, List[B]] =
+    collectAllWith[(Int, List[B]), A00, A1]((0, Nil))((s, b) => (s._1 + 1, b :: s._2))
+      .untilOutput(_._1 >= i)
+      .map(_._2.reverse)
+
+  /**
+   * Accumulates the output into a value of type `S`.
+   */
+  final def collectAllWith[S, A00 >: A0, A1 <: A](
+    z: S
+  )(f: (S, B) => S)(implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, S] =
+    new ZSink[R, E, A00, A1, S] {
+      type State = (Option[E], S, self.State)
+
+      val initial = self.initial.map(step => Step.leftMap(step)((None, z, _)))
+
+      def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
+        self
+          .step(state._3, a)
+          .foldM(
+            e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
+            step =>
+              if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
+              else {
+                val s  = Step.state(step)
+                val as = Step.leftover(step)
+
+                self.extract(s).flatMap { b =>
+                  self.initial.flatMap { init =>
+                    self
+                      .stepChunk(Step.state(init), as.map(ev))
+                      .fold(
+                        e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
+                        s => Step.leftMap(s)((state._1, f(state._2, b), _))
+                      )
+                  }
+                }
+              }
+          )
+
+      def extract(state: State): IO[E, S] =
+        IO.succeed(state._2)
+    }
+
+  /**
+   * Accumulates into a list for as long as incoming values verify predicate `p`.
+   */
+  final def collectAllWhile[A00 >: A0, A1 <: A](
+    p: A00 => Boolean
+  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, List[B]] =
+    collectAllWhileWith[List[B], A00, A1](p)(List.empty[B])((bs, b) => b :: bs)
+      .map(_.reverse)
+
+  /**
+   * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
+   */
+  final def collectAllWhileWith[S, A00 >: A0, A1 <: A](
+    p: A00 => Boolean
+  )(z: S)(f: (S, B) => S)(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, S] =
+    new ZSink[R, E, A00, A1, S] {
+      type State = (S, self.State)
+
+      val initial = self.initial.map(Step.leftMap(_)((z, _)))
+
+      def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
+        if (!p(a)) self.extract(state._2).map(b => Step.done((f(state._1, b), state._2), Chunk(ev2(a))))
+        else
+          self.step(state._2, a).flatMap { step =>
+            if (Step.cont(step)) IO.succeed(Step.more((state._1, Step.state(step))))
+            else {
+              val s  = Step.state(step)
+              val as = Step.leftover(step)
+
+              self.extract(s).flatMap { b =>
+                self.initial.flatMap { init =>
+                  self.stepChunk[A1](Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
+                }
+              }
+            }
+          }
+
+      def extract(state: State): IO[E, S] =
+        IO.succeed(state._1)
+    }
+
+  /**
    * Creates a sink where every element of type `A` entering the sink is first
    * transformed by `f`
    */
@@ -522,104 +616,6 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     self.raceBoth(that).map(_.merge)
 
   /**
-   * Accumulates the output into a list.
-   *
-   * TODO rename `accumOutput`?
-   */
-  final def repeat[A00 >: A0, A1 <: A](implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, List[B]] =
-    repeatWith[List[B], A00, A1](List.empty[B])((bs, b) => b :: bs).map(_.reverse)
-
-  /**
-   * Accumulates the output into a list of maximum size `i`.
-   *
-   * TODO rename `accumOutputN`?
-   */
-  final def repeatN[A00 >: A0, A1 <: A](i: Int)(implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, List[B]] =
-    repeatWith[(Int, List[B]), A00, A1]((0, Nil))((s, b) => (s._1 + 1, b :: s._2))
-      .untilOutput(_._1 >= i)
-      .map(_._2.reverse)
-
-  /**
-   * Accumulates the output into a value of type `S`.
-   *
-   * TODO rename `accumWith`?
-   */
-  final def repeatWith[S, A00 >: A0, A1 <: A](z: S)(f: (S, B) => S)(implicit ev: A00 =:= A1): ZSink[R, E, A00, A1, S] =
-    new ZSink[R, E, A00, A1, S] {
-      type State = (Option[E], S, self.State)
-
-      val initial = self.initial.map(step => Step.leftMap(step)((None, z, _)))
-
-      def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
-        self
-          .step(state._3, a)
-          .foldM(
-            e => IO.succeed(Step.done((Some(e), state._2, state._3), Chunk.empty)),
-            step =>
-              if (Step.cont(step)) IO.succeed(Step.more((state._1, state._2, Step.state(step))))
-              else {
-                val s  = Step.state(step)
-                val as = Step.leftover(step)
-
-                self.extract(s).flatMap { b =>
-                  self.initial.flatMap { init =>
-                    self
-                      .stepChunk(Step.state(init), as.map(ev))
-                      .fold(
-                        e => Step.done((Some(e), f(state._2, b), Step.state(init)), Chunk.empty),
-                        s => Step.leftMap(s)((state._1, f(state._2, b), _))
-                      )
-                  }
-                }
-              }
-          )
-
-      def extract(state: State): IO[E, S] =
-        IO.succeed(state._2)
-    }
-
-  /**
-   * Accumulates into a list for as long as incoming values verify predicate `p`.
-   */
-  final def repeatWhile[A00 >: A0, A1 <: A](
-    p: A00 => Boolean
-  )(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, List[B]] =
-    repeatWhileWith[List[B], A00, A1](p)(List.empty[B])((bs, b) => b :: bs)
-      .map(_.reverse)
-
-  /**
-   * Accumulates into a value of type `S` for as long as incoming values verify predicate `p`.
-   */
-  final def repeatWhileWith[S, A00 >: A0, A1 <: A](
-    p: A00 => Boolean
-  )(z: S)(f: (S, B) => S)(implicit ev: A00 =:= A1, ev2: A1 =:= A00): ZSink[R, E, A00, A1, S] =
-    new ZSink[R, E, A00, A1, S] {
-      type State = (S, self.State)
-
-      val initial = self.initial.map(Step.leftMap(_)((z, _)))
-
-      def step(state: State, a: A1): ZIO[R, E, Step[State, A00]] =
-        if (!p(a)) self.extract(state._2).map(b => Step.done((f(state._1, b), state._2), Chunk(ev2(a))))
-        else
-          self.step(state._2, a).flatMap { step =>
-            if (Step.cont(step)) IO.succeed(Step.more((state._1, Step.state(step))))
-            else {
-              val s  = Step.state(step)
-              val as = Step.leftover(step)
-
-              self.extract(s).flatMap { b =>
-                self.initial.flatMap { init =>
-                  self.stepChunk[A1](Step.state(init), as.map(ev)).map(Step.leftMap(_)((f(state._1, b), _)))
-                }
-              }
-            }
-          }
-
-      def extract(state: State): IO[E, S] =
-        IO.succeed(state._1)
-    }
-
-  /**
    * Steps through one iteration of the sink
    */
   def step(state: State, a: A): ZIO[R, E, Step[State, A0]]
@@ -859,26 +855,32 @@ object ZSink extends ZSinkPlatformSpecific {
   type Step[+S, +A0] = Step.Step[S, A0]
 
   /**
-   * Creates a sink accumulating incoming values into a list.
+   * Returns a sink that must at least perform one extraction or else
+   * will "fail" with `end`.
    */
-  final def accum[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
-    fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
+  final def atLeastOne[R, R1 <: R, E, A0, A, B](
+    end: ZIO[R1, E, B]
+  )(input: A => ZSink[R, E, A0, A, B]): ZSink[R1, E, A0, A, B] =
+    new ZSink[R1, E, A0, A, B] {
+      type State = Option[(ZSink[R1, E, A0, A, B], Any)]
 
-  /**
-   * Accumulates incoming elements into a list as long as they verify predicate `p`.
-   */
-  def accumWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
-    accumWhileM(a => IO.succeed(p(a)))
+      val initial = IO.succeed(Step.more(None))
 
-  /**
-   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
-   */
-  def accumWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
-    ZSink
-      .foldM[R, E, A, A, List[A]](List.empty[A]) { (s, a: A) =>
-        p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
+      def step(state: State, a: A): ZIO[R1, E, Step[State, A0]] = state match {
+        case None =>
+          val sink = input(a)
+
+          sink.initial.map(state => Step.more(Some((sink, state))))
+
+        case Some((sink, state)) =>
+          sink.step(state.asInstanceOf[sink.State], a).map(Step.leftMap(_)(state => Some(sink -> state)))
       }
-      .map(_.reverse)
+
+      def extract(state: State): ZIO[R1, E, B] = state match {
+        case None                => end
+        case Some((sink, state)) => sink.extract(state.asInstanceOf[sink.State])
+      }
+    }
 
   /**
    * Creates a sink that waits for a single value to be produced.
@@ -895,6 +897,28 @@ object ZSink extends ZSinkPlatformSpecific {
       def extractPure(state: State): Either[Unit, A] =
         state
     }
+
+  /**
+   * Creates a sink accumulating incoming values into a list.
+   */
+  final def collectAll[A]: ZSink[Any, Nothing, Nothing, A, List[A]] =
+    fold[Nothing, A, List[A]](List.empty[A])((as, a) => Step.more(a :: as)).map(_.reverse)
+
+  /**
+   * Accumulates incoming elements into a list as long as they verify predicate `p`.
+   */
+  def collectAllWhile[A](p: A => Boolean): ZSink[Any, Nothing, A, A, List[A]] =
+    collectAllWhileM(a => IO.succeed(p(a)))
+
+  /**
+   * Accumulates incoming elements into a list as long as they verify effectful predicate `p`.
+   */
+  def collectAllWhileM[R, E, A](p: A => ZIO[R, E, Boolean]): ZSink[R, E, A, A, List[A]] =
+    ZSink
+      .foldM[R, E, A, A, List[A]](List.empty[A]) { (s, a: A) =>
+        p(a).map(if (_) Step.more(a :: s) else Step.done(s, Chunk(a)))
+      }
+      .map(_.reverse)
 
   /**
    * Creates a sink consuming all incoming values until completion.
@@ -1000,33 +1024,6 @@ object ZSink extends ZSinkPlatformSpecific {
         p(a).map(if (_) Step.more(()) else Step.done((), Chunk(a)))
 
       def extract(state: State) = IO.succeed(())
-    }
-
-  /**
-   * 🤔???
-   */
-  final def more[R, R1 <: R, E, A0, A, B](
-    end: ZIO[R1, E, B]
-  )(input: A => ZSink[R, E, A0, A, B]): ZSink[R1, E, A0, A, B] =
-    new ZSink[R1, E, A0, A, B] {
-      type State = Option[(ZSink[R1, E, A0, A, B], Any)]
-
-      val initial = IO.succeed(Step.more(None))
-
-      def step(state: State, a: A): ZIO[R1, E, Step[State, A0]] = state match {
-        case None =>
-          val sink = input(a)
-
-          sink.initial.map(state => Step.more(Some((sink, state))))
-
-        case Some((sink, state)) =>
-          sink.step(state.asInstanceOf[sink.State], a).map(Step.leftMap(_)(state => Some(sink -> state)))
-      }
-
-      def extract(state: State): ZIO[R1, E, B] = state match {
-        case None                => end
-        case Some((sink, state)) => sink.extract(state.asInstanceOf[sink.State])
-      }
     }
 
   /**

@@ -19,10 +19,15 @@ package scalaz.zio.stream
 import scalaz.zio._
 
 /**
- * A `ZStreamChunk[R, E, A]` represents an effectful stream that can produces
- * primitive values of type `A` in chunks, or potentially fail with a value of type `E`.
+ * A `ZStreamChunk[R, E, A]` represents an effectful stream that can produce values of
+ * type `A`, or potentially fail with a value of type `E`.
  *
- * TODO add description for primary use cases
+ * `ZStreamChunk` differs from `ZStream` in that elements in the stream are processed
+ * in batches, which is orders of magnitude more efficient than dealing with each
+ * element individually.
+ *
+ * `ZStreamChunk` is particularly suited for situations where you are dealing with values
+ * of primitive types, e.g. those coming off a `java.io.InputStream` (see [[ZStreamPlatformSpecific.fromInputStream]])
  */
 trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   import ZStream.Fold
