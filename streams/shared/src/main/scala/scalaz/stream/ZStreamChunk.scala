@@ -27,7 +27,7 @@ import zio._
  * element individually.
  *
  * `ZStreamChunk` is particularly suited for situations where you are dealing with values
- * of primitive types, e.g. those coming off a `java.io.InputStream` (see [[ZStreamPlatformSpecific.fromInputStream]])
+ * of primitive types, e.g. those coming off a `java.io.InputStream`
  */
 trait ZStreamChunk[-R, +E, @specialized +A] { self =>
   import ZStream.Fold
