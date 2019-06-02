@@ -67,17 +67,35 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     combineWith(that)(_ && _, _ max _)
 
   /**
-   * Returns a new schedule that continues as long as either schedule continues,
-   * using the minimum of the delays of the two schedules.
+   * Split the input
    */
-  final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
-    combineWith(that)(_ || _, _ min _)
+  final def ***[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, (A, C), (B, D)] =
+    new ZSchedule[R1, (A, C), (B, D)] {
+      type State = (self.State, that.State)
+      val initial = self.initial.zip(that.initial)
+      val update = (a: (A, C), s: State) =>
+        self.update(a._1, s._1).zipWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, _ max _))
+    }
 
   /**
    * The same as `&&`, but ignores the left output.
    */
   final def *>[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, C] =
     (self && that).map(_._2)
+
+  /**
+   * Chooses between two schedules with different outputs.
+   */
+  final def +++[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, Either[A, C], Either[B, D]] =
+    new ZSchedule[R1, Either[A, C], Either[B, D]] {
+      type State = (self.State, that.State)
+      val initial = self.initial.zip(that.initial)
+      val update = (a: Either[A, C], s: State) =>
+        a match {
+          case Left(a)  => self.update(a, s._1).map(_.leftMap((_, s._2)).rightMap(Left(_)))
+          case Right(c) => that.update(c, s._2).map(_.leftMap((s._1, _)).rightMap(Right(_)))
+        }
+    }
 
   /**
    * The same as `&&`, but ignores the right output.
@@ -90,6 +108,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    * continue, using the maximum of the delays of the two schedules.
    */
   final def <*>[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] = self zip that
+
+  /**
+   * A backwards version of `>>>`.
+   */
+  final def <<<[R1 <: R, C](that: ZSchedule[R1, C, A]): ZSchedule[R1, C, B] = that >>> self
 
   /**
    * Returns the composition of this schedule and the specified schedule,
@@ -109,20 +132,11 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
 
   /**
-   * A backwards version of `>>>`.
+   * Returns a new schedule that continues as long as either schedule continues,
+   * using the minimum of the delays of the two schedules.
    */
-  final def <<<[R1 <: R, C](that: ZSchedule[R1, C, A]): ZSchedule[R1, C, B] = that >>> self
-
-  /**
-   * Split the input
-   */
-  final def ***[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, (A, C), (B, D)] =
-    new ZSchedule[R1, (A, C), (B, D)] {
-      type State = (self.State, that.State)
-      val initial = self.initial.zip(that.initial)
-      val update = (a: (A, C), s: State) =>
-        self.update(a._1, s._1).zipWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, _ max _))
-    }
+  final def ||[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, (B, C)] =
+    combineWith(that)(_ || _, _ min _)
 
   /**
    * Chooses between two schedules with a common output.
@@ -131,18 +145,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     (self +++ that).map(_.merge)
 
   /**
-   * Chooses between two schedules with different outputs.
+   * Returns a new schedule that inverts the decision to continue.
    */
-  final def +++[R1 <: R, C, D](that: ZSchedule[R1, C, D]): ZSchedule[R1, Either[A, C], Either[B, D]] =
-    new ZSchedule[R1, Either[A, C], Either[B, D]] {
-      type State = (self.State, that.State)
-      val initial = self.initial.zip(that.initial)
-      val update = (a: Either[A, C], s: State) =>
-        a match {
-          case Left(a)  => self.update(a, s._1).map(_.leftMap((_, s._2)).rightMap(Left(_)))
-          case Right(c) => that.update(c, s._2).map(_.leftMap((s._1, _)).rightMap(Right(_)))
-        }
-    }
+  final def unary_! : ZSchedule[R, A, B] =
+    updated(update => (a, s) => update(a, s).map(!_))
+
+  ////
+  // Concrete members
 
   /**
    * The same as `andThenEither`, but merges the output.
@@ -467,12 +476,6 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule that inverts the decision to continue.
-   */
-  final def unary_! : ZSchedule[R, A, B] =
-    updated(update => (a, s) => update(a, s).map(!_))
-
-  /**
    * Returns a new schedule that maps this schedule to a Unit output.
    */
   final def unit: ZSchedule[R, A, Unit] = const(())
@@ -543,11 +546,6 @@ private[zio] trait Schedule_Functions extends Serializable {
     }
 
   /**
-   * A schedule that recurs forever, collecting all inputs into a list.
-   */
-  final def collectAll[A]: Schedule[A, List[A]] = identity[A].collectAll
-
-  /**
    * A schedule that will recur forever with no delay, returning the decision
    * from the steps. You can chain this onto the end of schedules to find out
    * what their decision is, e.g. `Schedule.recurs(5) >>> Schedule.decision`.
@@ -562,6 +560,23 @@ private[zio] trait Schedule_Functions extends Serializable {
    */
   final val delay: Schedule[Any, Duration] =
     forever.reconsider[Any, Duration]((_, d) => d.copy(finish = () => d.delay))
+
+  /**
+   * A schedule that never executes. Note that negating this schedule does not
+   * produce a schedule that executes.
+   */
+  final val never: Schedule[Any, Nothing] =
+    ZSchedule[Any, Nothing, Any, Nothing](UIO.never, (_, _) => UIO.never)
+
+  /**
+   * A schedule that executes once.
+   */
+  final val once: Schedule[Any, Unit] = recurs(1).unit
+
+  /**
+   * A schedule that recurs forever, collecting all inputs into a list.
+   */
+  final def collectAll[A]: Schedule[A, List[A]] = identity[A].collectAll
 
   /**
    * A new schedule derived from the specified schedule which adds the delay
@@ -646,18 +661,6 @@ private[zio] trait Schedule_Functions extends Serializable {
    */
   final def logInput[R: ConformsR, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
     identity[A].logInput(f)
-
-  /**
-   * A schedule that never executes. Note that negating this schedule does not
-   * produce a schedule that executes.
-   */
-  final val never: Schedule[Any, Nothing] =
-    ZSchedule[Any, Nothing, Any, Nothing](UIO.never, (_, _) => UIO.never)
-
-  /**
-   * A schedule that executes once.
-   */
-  final val once: Schedule[Any, Unit] = recurs(1).unit
 
   /**
    * A schedule that recurs the specified number of times. Returns the number
