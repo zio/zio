@@ -536,15 +536,11 @@ private[zio] trait Schedule_Functions extends Serializable {
   type ConformsR[A]
   implicit val ConformsAnyProof: ConformsR[Any]
 
-  final def apply[R: ConformsR, S, A, B](
-    initial0: ZIO[R, Nothing, S],
-    update0: (A, S) => ZIO[R, Nothing, ZSchedule.Decision[S, B]]
-  ): ZSchedule[R, A, B] =
-    new ZSchedule[R, A, B] {
-      type State = S
-      val initial = initial0
-      val update  = update0
-    }
+  /**
+   * A schedule that recurs forever, producing a count of inputs.
+   * Not in alphabetic order because other vals below depend on it.
+   */
+  final val forever: Schedule[Any, Int] = Schedule.unfold(0)(_ + 1)
 
   /**
    * A schedule that will recur forever with no delay, returning the decision
@@ -573,6 +569,16 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A schedule that executes once.
    */
   final val once: Schedule[Any, Unit] = recurs(1).unit
+
+  final def apply[R: ConformsR, S, A, B](
+    initial0: ZIO[R, Nothing, S],
+    update0: (A, S) => ZIO[R, Nothing, ZSchedule.Decision[S, B]]
+  ): ZSchedule[R, A, B] =
+    new ZSchedule[R, A, B] {
+      type State = S
+      val initial = initial0
+      val update  = update0
+    }
 
   /**
    * A schedule that recurs forever, collecting all inputs into a list.
@@ -620,11 +626,6 @@ private[zio] trait Schedule_Functions extends Serializable {
    */
   final def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Duration] =
     delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
-
-  /**
-   * A schedule that recurs forever, producing a count of inputs.
-   */
-  final val forever: Schedule[Any, Int] = Schedule.unfold(0)(_ + 1)
 
   /**
    * A schedule that always recurs, increasing delays by summing the
@@ -754,13 +755,6 @@ object ZSchedule extends Schedule_Functions {
   }
 
   /**
-   * A schedule that will recur until the specified duration elapses. Returns
-   * the total elapsed time.
-   */
-  final def duration(duration: Duration): ZSchedule[Clock, Any, Duration] =
-    elapsed.untilOutput(_ >= duration)
-
-  /**
    * A schedule that recurs forever without delay. Returns the elapsed time
    * since the schedule began.
    */
@@ -771,6 +765,13 @@ object ZSchedule extends Schedule_Functions {
         clock.nanoTime.map(currentTime => Decision.cont(Duration.Zero, start, Duration.fromNanos(currentTime - start)))
     )
   }
+
+  /**
+   * A schedule that will recur until the specified duration elapses. Returns
+   * the total elapsed time.
+   */
+  final def duration(duration: Duration): ZSchedule[Clock, Any, Duration] =
+    elapsed.untilOutput(_ >= duration)
 
   /**
    * A schedule that recurs on a fixed interval. Returns the number of
