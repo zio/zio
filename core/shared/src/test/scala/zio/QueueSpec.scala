@@ -151,7 +151,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
       values = Range.inclusive(1, 10).toList
       f      <- IO.forkAll(values.map(queue.offer))
       _      <- waitForSize(queue, 10)
-      l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
+      l      <- queue.take.repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collectAll)
       _      <- f.join
     } yield l must containTheSameElementsAs(values)
 
@@ -171,7 +171,7 @@ class QueueSpec extends BaseCrossPlatformSpec {
       _      <- IO.forkAll(values.map(queue.offer))
       _      <- waitForSize(queue, 10)
       l <- queue.take
-            .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collect)
+            .repeat(ZSchedule.recurs(9) *> ZSchedule.identity[Int].collectAll)
     } yield l must containTheSameElementsAs(values)
 
   def e7 =
