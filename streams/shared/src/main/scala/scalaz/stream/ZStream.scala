@@ -896,7 +896,7 @@ trait Stream_Functions {
     fa.flatMapPar(n, outputBuffer)(identity)
 
   /**
-   * Creates a stream from a [[scalaz.zio.Chunk]] of values
+   * Creates a stream from a [[zio.Chunk]] of values
    */
   final def fromChunk[@specialized A](c: Chunk[A]): ZStream[Any, Nothing, A] =
     new ZStream[Any, Nothing, A] {
@@ -925,7 +925,7 @@ trait Stream_Functions {
     StreamPure.fromIterable(as)
 
   /**
-   * Creates a stream from a [[scalaz.zio.ZQueue]] of values
+   * Creates a stream from a [[zio.ZQueue]] of values
    */
   final def fromQueue[R: ConformsR, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
     unfoldM(()) { _ =>

@@ -1,4 +1,4 @@
-package scalaz.zio.stream
+package zio.stream
 
 trait ZStreamPlatformSpecific
 trait ZSinkPlatformSpecific
