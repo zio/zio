@@ -42,32 +42,6 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
   final def get: UIO[A] = value.get
 
   /**
-   * Writes a new value to the `Ref`, with a guarantee of immediate
-   * consistency (at some cost to performance).
-   */
-  final def set(a: A): UIO[Unit] = value.set(a)
-
-  /**
-   * Writes a new value to the `Ref` without providing a guarantee of
-   * immediate consistency.
-   */
-  final def setAsync(a: A): UIO[Unit] = value.setAsync(a)
-
-  /**
-   * Atomically modifies the `RefM` with the specified function, returning the
-   * value immediately after modification.
-   */
-  final def update[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
-    modify(a => f(a).map(a => (a, a)))
-
-  /**
-   * Atomically modifies the `RefM` with the specified partial function.
-   * if the function is undefined in the current value it returns the old value without changing it.
-   */
-  final def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
-    modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
-
-  /**
    * Atomically modifies the `RefM` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
@@ -105,6 +79,32 @@ final class RefM[A] private (value: Ref[A], queue: Queue[RefM.Bundle[_, A, _]]) 
             b <- promise.await
           } yield b).onTermination(cause => bundle.interrupted.set(Some(cause)))
     } yield b
+
+  /**
+   * Writes a new value to the `Ref`, with a guarantee of immediate
+   * consistency (at some cost to performance).
+   */
+  final def set(a: A): UIO[Unit] = value.set(a)
+
+  /**
+   * Writes a new value to the `Ref` without providing a guarantee of
+   * immediate consistency.
+   */
+  final def setAsync(a: A): UIO[Unit] = value.setAsync(a)
+
+  /**
+   * Atomically modifies the `RefM` with the specified function, returning the
+   * value immediately after modification.
+   */
+  final def update[R, E](f: A => ZIO[R, E, A]): ZIO[R, E, A] =
+    modify(a => f(a).map(a => (a, a)))
+
+  /**
+   * Atomically modifies the `RefM` with the specified partial function.
+   * if the function is undefined in the current value it returns the old value without changing it.
+   */
+  final def updateSome[R, E](pf: PartialFunction[A, ZIO[R, E, A]]): ZIO[R, E, A] =
+    modify(a => pf.applyOrElse(a, (_: A) => IO.succeed(a)).map(a => (a, a)))
 }
 
 object RefM extends Serializable {
