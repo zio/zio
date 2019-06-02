@@ -513,14 +513,14 @@ sealed trait Chunk[@specialized +A] { self =>
 object Chunk {
 
   /**
-   * Returns a chunk from a number of values.
-   */
-  final def apply[A](as: A*): Chunk[A] = fromIterable(as)
-
-  /**
    * Returns the empty chunk.
    */
   final val empty: Chunk[Nothing] = Empty
+
+  /**
+   * Returns a chunk from a number of values.
+   */
+  final def apply[A](as: A*): Chunk[A] = fromIterable(as)
 
   /**
    * Returns a chunk backed by an array.

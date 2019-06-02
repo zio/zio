@@ -66,6 +66,45 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     case Right(n) => n
   }
 
+  /**
+   * Releases a single permit.
+   */
+  final def release: UIO[Unit] = releaseN(1)
+
+  /**
+   * Releases a specified number of permits.
+   * 
+   * If fibers are currently suspended until enough permits are available,
+   * they will be woken up (in FIFO order) if this action releases enough
+   * of them.
+   */
+  final def releaseN(toRelease: Long): UIO[Unit] = {
+
+    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
+      case Right(m) => acc -> Right(n + m)
+      case Left(q) =>
+        q.dequeueOption match {
+          case None => acc -> Right(n)
+          case Some(((p, m), q)) =>
+            if (n > m)
+              loop(n - m, Left(q), acc <* p.succeed(()))
+            else if (n == m)
+              (acc <* p.succeed(())) -> Left(q)
+            else
+              acc -> Left((p -> (m - n)) +: q)
+        }
+    }
+
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
+
+  }
+
+  /**
+   * Acquires a permit, executes the action and releases the permits right after.
+   */
+  final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
+    prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
+
   final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): UIO[Unit] =
     res match {
       case Exit.Failure(c) if c.interrupted => ops.release
@@ -94,35 +133,6 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
         }
       }
   }
-
-  /**
-   * Releases a single permit.
-   */
-  final def release: UIO[Unit] = releaseN(1)
-
-  final def releaseN(toRelease: Long): UIO[Unit] = {
-
-    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
-      case Right(m) => acc -> Right(n + m)
-      case Left(q) =>
-        q.dequeueOption match {
-          case None => acc -> Right(n)
-          case Some(((p, m), q)) =>
-            if (n > m)
-              loop(n - m, Left(q), acc <* p.succeed(()))
-            else if (n == m)
-              (acc <* p.succeed(())) -> Left(q)
-            else
-              acc -> Left((p -> (m - n)) +: q)
-        }
-    }
-
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
-
-  }
-
-  final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
-    prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
 
 }
 

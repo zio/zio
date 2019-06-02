@@ -145,6 +145,24 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def succeed(a: A): UIO[Boolean] = done(IO.succeed(a))
 
+  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
+    var retry = true
+
+    while (retry) {
+      val oldState = state.get
+
+      val newState = oldState match {
+        case Pending(joiners) =>
+          Pending(joiners.filter(j => !j.eq(joiner)))
+
+        case Done(_) =>
+          oldState
+      }
+
+      retry = !state.compareAndSet(oldState, newState)
+    }
+  }
+
   private[zio] final def unsafeDone(io: IO[E, A]): Unit = {
     var retry: Boolean                  = true
     var joiners: List[IO[E, A] => Unit] = null
@@ -165,23 +183,6 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     if (joiners ne null) joiners.reverse.foreach(_(io))
   }
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
-    var retry = true
-
-    while (retry) {
-      val oldState = state.get
-
-      val newState = oldState match {
-        case Pending(joiners) =>
-          Pending(joiners.filter(j => !j.eq(joiner)))
-
-        case Done(_) =>
-          oldState
-      }
-
-      retry = !state.compareAndSet(oldState, newState)
-    }
-  }
 }
 object Promise {
   private val ConstFalse: () => Boolean = () => false

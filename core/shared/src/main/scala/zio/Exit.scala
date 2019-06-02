@@ -24,14 +24,9 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   import Exit._
 
   /**
-   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
+   * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
-
-  /**
-   * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
-   */
-  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
 
   /**
    * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
@@ -39,19 +34,25 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ ++ _).map(_._2)
 
   /**
-   * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
-   */
-  final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
-
-  /**
    * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
   final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ && _).map(_._1)
 
   /**
-   * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
+   * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
+   */ 
+  final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+
+  /**
+   * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, _), _ && _).map(_._2)
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((_, _), _ ++ _).map(_._1)
+
+  /**
+   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
+   */
+  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+
 
   /**
    * Maps over both the error and value type.
@@ -186,6 +187,8 @@ object Exit extends Serializable {
   final case class Success[A](value: A)        extends Exit[Nothing, A]
   final case class Failure[E](cause: Cause[E]) extends Exit[E, Nothing]
 
+  final val interrupt: Exit[Nothing, Nothing] = halt(Cause.interrupt)
+
   final def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
 
   final def fail[E](error: E): Exit[E, Nothing] = halt(Cause.fail(error))
@@ -207,17 +210,14 @@ object Exit extends Serializable {
 
   final def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
 
-  final val interrupt: Exit[Nothing, Nothing] = halt(Cause.interrupt)
-
   final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
   sealed trait Cause[+E] extends Product with Serializable { self =>
     import Cause._
-    final def ++[E1 >: E](that: Cause[E1]): Cause[E1] =
-      Then(self, that)
 
-    final def &&[E1 >: E](that: Cause[E1]): Cause[E1] =
-      Both(self, that)
+    final def &&[E1 >: E](that: Cause[E1]): Cause[E1] = Both(self, that)
+
+    final def ++[E1 >: E](that: Cause[E1]): Cause[E1] = Then(self, that)
 
     final def defects: List[Throwable] =
       self
@@ -244,13 +244,6 @@ object Exit extends Serializable {
         case _                 => false
       }
 
-    final def failures[E1 >: E]: List[E1] =
-      self
-        .fold(List.empty[E1]) {
-          case (z, Fail(v)) => v :: z
-        }
-        .reverse
-
     /**
      * Retrieve the first checked error on the `Left` if available,
      * if there are no checked errors return the rest of the `Cause`
@@ -260,6 +253,13 @@ object Exit extends Serializable {
       case Some(error) => Left(error)
       case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
     }
+
+    final def failures[E1 >: E]: List[E1] =
+      self
+        .fold(List.empty[E1]) {
+          case (z, Fail(v)) => v :: z
+        }
+        .reverse
 
     final def fold[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z =
       (f.lift(z -> self).getOrElse(z), self) match {
