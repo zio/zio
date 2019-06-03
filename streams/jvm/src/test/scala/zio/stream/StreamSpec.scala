@@ -4,9 +4,9 @@ import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 
 import scala.{ Stream => _ }
-import scalaz.zio._
-import scalaz.zio.duration._
-import scalaz.zio.QueueSpec.waitForSize
+import zio._
+import zio.duration._
+import zio.QueueSpec.waitForSize
 
 class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -145,7 +145,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         done           <- Ref.make(false)
         iteratorStream = Stream.bracket(UIO(0 to 2))(_ => done.set(true)).flatMap(Stream.fromIterable)
-        result         <- iteratorStream.run(Sink.collect[Int])
+        result         <- iteratorStream.run(Sink.collectAll[Int])
         released       <- done.get
       } yield (result must_=== List(0, 1, 2)) and (released must_=== true)
     )
@@ -158,7 +158,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
           .bracket(UIO(0 to 3))(_ => done.set(true))
           .flatMap(Stream.fromIterable)
           .take(2)
-        result   <- iteratorStream.run(Sink.collect[Int])
+        result   <- iteratorStream.run(Sink.collectAll[Int])
         released <- done.get
       } yield (result must_=== List(0, 1)) and (released must_=== true)
     )
@@ -178,7 +178,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       Stream
         .fromIterable(list)
         .buffer(2)
-        .run(Sink.collect[Int])
+        .run(Sink.collectAll[Int])
     ) must_== (Success(list))
   }
 
@@ -187,7 +187,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRunSync(
       (Stream.range(0, 10) ++ Stream.fail(e))
         .buffer(2)
-        .run(Sink.collect[Int])
+        .run(Sink.collectAll[Int])
     ) must_== Failure(Cause.Fail(e))
   }
 
@@ -493,7 +493,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val data = List.fill(4096)("0123456789").mkString.getBytes
     val is   = new ByteArrayInputStream(data)
 
-    ZStream.fromInputStream(is).run(Sink.collect[Chunk[Byte]]) map { chunks =>
+    ZStream.fromInputStream(is).run(Sink.collectAll[Chunk[Byte]]) map { chunks =>
       chunks.flatMap(_.toArray[Byte]).toArray must_=== data
     }
   }
@@ -633,7 +633,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def peel = {
     val s      = Stream('1', '2', ',', '3', '4')
-    val parser = ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.readWhile(_ == ',')
+    val parser = ZSink.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.collectAllWhile[Char](_ == ',')
     val peeled = s.peel(parser).use[Any, Int, (Int, Exit[Nothing, List[Char]])] {
       case (n, rest) =>
         IO.succeed((n, slurp(rest)))
@@ -651,7 +651,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(
       Stream(1)
         .repeat(Schedule.recurs(4))
-        .run(Sink.collect[Int])
+        .run(Sink.collectAll[Int])
         .map(_ must_=== List(1, 1, 1, 1, 1))
     )
 
@@ -672,7 +672,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(
       Stream(1, 2, 3)
         .spaced(Schedule.recurs(1))
-        .run(Sink.collect[Int])
+        .run(Sink.collectAll[Int])
         .map(_ must_=== List(1, 1, 2, 2, 3, 3))
     )
 
@@ -681,7 +681,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       Stream(1, 2, 3)
         .spaced(Schedule.recurs(1))
         .take(3)
-        .run(Sink.collect[Int])
+        .run(Sink.collectAll[Int])
         .map(_ must_=== List(1, 1, 2))
     )
 
@@ -705,14 +705,14 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def take0ShortCircuitsStreamNever =
     unsafeRun(
       for {
-        units <- Stream.never.take(0).run(Sink.collect[Unit])
+        units <- Stream.never.take(0).run(Sink.collectAll[Unit])
       } yield units must_=== List()
     )
 
   private def take1ShortCircuitsStreamNever =
     unsafeRun(
       for {
-        ints <- (Stream(1) ++ Stream.never).take(1).run(Sink.collect[Int])
+        ints <- (Stream(1) ++ Stream.never).take(1).run(Sink.collectAll[Int])
       } yield ints must_=== List(1)
     )
 
@@ -752,7 +752,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def transduce = {
     val s          = Stream('1', '2', ',', '3', '4')
-    val parser     = ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.readWhile(_ == ',')
+    val parser     = ZSink.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt) <* ZSink.collectAllWhile[Char](_ == ',')
     val transduced = s.transduce(parser)
 
     slurp(transduced) must_=== Success(List(12, 34))
