@@ -84,7 +84,7 @@ sealed trait CatsInstances1 extends CatsInstances2 {
     : MonadError[ZIO[R, E, ?], E] with Bifunctor[ZIO[R, ?, ?]] with Alternative[ZIO[R, E, ?]] =
     new CatsAlternative[R, E] with CatsBifunctor[R]
 
-  implicit def taskConcurrentInstances[R]: effect.Concurrent[TaskR[R, ?]] with SemigroupK[TaskR[R, ?]] =
+  implicit def ZIOtaskConcurrentInstances[R]: effect.Concurrent[TaskR[R, ?]] with SemigroupK[TaskR[R, ?]] =
     new CatsConcurrent[R]
 
   implicit def parallelInstance[R, E](implicit M: Monad[ZIO[R, E, ?]]): Parallel[ZIO[R, E, ?], ParIO[R, E, ?]] =
