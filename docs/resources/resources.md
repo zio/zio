@@ -45,6 +45,7 @@ Note that these articles reflect the state of ZIO at the time of their publicati
 ## Projects using ZIO
 
 - [Rudder](https://github.com/normation/rudder): an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Also use queues, brackets, interrop with Java and historical code... [Context and references explained in that ticket](https://issues.rudder.io/issues/14870).
+- [ZIO AI Platform Backend](https://github.com/Clover-Group/zio_front): Clover Group AI Platform backend, which deploys ZIO, Doobie and Kafka 
 
 ## Support
 
