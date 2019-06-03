@@ -18,7 +18,7 @@ In case you want to have ZIO streams at your disposal, the following dependency 
 println(s"""```""")
 if (zio.BuildInfo.isSnapshot)
   println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
-println(s"""libraryDependencies += "org.scalaz" %% "calaz-zio-streams" % "${zio.BuildInfo.version}"""")
+println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio-streams" % "${zio.BuildInfo.version}"""")
 println(s"""```""")
 ```
 
