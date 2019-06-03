@@ -48,18 +48,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Concatenates with another stream in strict order
    */
   final def ++[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
-    new ZStream[R1, E1, A1] {
-      def fold[R2 <: R1, E2 >: E1, A2 >: A1, S]: Fold[R2, E2, A2, S] =
-        ZManaged.succeedLazy { (s, cont, f) =>
-          self.fold[R2, E2, A2, S].flatMap { foldLeft =>
-            foldLeft(s, cont, f).flatMap { s =>
-              if (!cont(s)) ZManaged.succeed(s)
-              else
-                other.fold[R2, E2, A2, S].flatMap(foldRight => foldRight(s, cont, f))
-            }
-          }
-        }
-    }
+    concat(other)
 
   /**
    * Allow a faster producer to progress independently of a slower consumer by buffering
@@ -105,6 +94,24 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 
   /**
+   * Appends another stream to this stream. The concatenated stream will first emit the
+   * elements of this stream, and then emit the elements of the `other` stream.
+   */
+  final def concat[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
+    new ZStream[R1, E1, A1] {
+      def fold[R2 <: R1, E2 >: E1, A2 >: A1, S]: Fold[R2, E2, A2, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.fold[R2, E2, A2, S].flatMap { foldLeft =>
+            foldLeft(s, cont, f).flatMap { s =>
+              if (!cont(s)) ZManaged.succeed(s)
+              else
+                other.fold[R2, E2, A2, S].flatMap(foldRight => foldRight(s, cont, f))
+            }
+          }
+        }
+    }
+
+  /**
    * Converts this stream to a stream that executes its effects but emits no
    * elements. Useful for sequencing effects using streams:
    *
@@ -148,6 +155,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
       }
   }
+
+  /**
+   * Executes the provided finalizer after this stream's finalizers run.
+   */
+  def ensuring[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
+    new ZStream[R1, E, A] {
+      def fold[R2 <: R1, E1 >: E, A1 >: A, S]: ZStream.Fold[R2, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.fold[R2, E1, A1, S].flatMap { fold =>
+            fold(s, cont, f).ensuring(fin)
+          }
+        }
+    }
 
   /**
    * Filters this stream by the specified predicate, retaining all elements for
@@ -289,16 +309,29 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     foreachWhile(f.andThen(_.const(true)))
 
   /**
+   * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Unit]): ZManaged[R1, E1, Unit] =
+    foreachWhileManaged(f.andThen(_.const(true)))
+
+  /**
    * Consumes elements of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
   final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+    foreachWhileManaged(f).use_(ZIO.unit)
+
+  /**
+   * Like [[ZStream#foreachWhile]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  final def foreachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
     self
       .fold[R1, E1, A, Boolean]
       .flatMap { fold =>
-        fold(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont))
+        fold(true, identity, (cont, a) => if (cont) f(a) else IO.succeed(cont)).unit
       }
-      .use_(ZIO.unit)
 
   /**
    * Repeats this stream forever.
@@ -392,9 +425,52 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
       ZManaged.succeedLazy { (s, cont, g) =>
         self.fold[R2, E2, A, S].flatMap(fold => fold(s, cont, (s, a) => f(a).flatMap(g(s, _))))
-
       }
   }
+
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. Transformed elements
+   * will be emitted in the original order.
+   */
+  final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
+    new ZStream[R1, E1, B] {
+      def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            out <- Queue.bounded[Take[E1, IO[E1, B]]](n).toManaged(_.shutdown)
+            _ <- self.foreachManaged { a =>
+                  for {
+                    p <- Promise.make[E1, B]
+                    _ <- out.offer(Take.Value(p.await))
+                    _ <- f(a).to(p).fork
+                  } yield ()
+                }.foldCauseM(
+                    c =>
+                      (c.failureOrCause.fold(
+                        e => out.offer(Take.Fail(e)).unit,
+                        _ => out.shutdown.unit
+                      ) *> ZIO.halt(c)).toManaged_,
+                    _ => out.offer(Take.End).unit.toManaged_
+                  )
+                  .fork
+            s <- Stream
+                  .fromQueue(out)
+                  .unTake
+                  .mapM(identity)
+                  .fold[R2, E2, B1, S]
+                  .flatMap(fold => fold(s, cont, g))
+          } yield s
+        }
+    }
+
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. The element order
+   * is not enforced by this combinator, and elements may be reordered.
+   */
+  final def mapMParUnordered[R1 <: R, E1 >: E, B](n: Long)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
+    self.flatMapPar[R1, E1, B](n)(a => ZStream.fromEffect(f(a)))
 
   /**
    * Merges this stream and the specified stream together.
@@ -876,6 +952,18 @@ trait Stream_Functions {
         ZManaged.succeedLazy { (s, cont, _) =>
           if (cont(s)) ZManaged.fail(error)
           else ZManaged.succeed(s)
+        }
+    }
+
+  /**
+   * Creates a stream that emits no elements, never fails and executes
+   * the finalizer before it ends.
+   */
+  final def finalizer[R: ConformsR](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
+    new ZStream[R, Nothing, Nothing] {
+      def fold[R1 <: R, E1, A1, S]: ZStream.Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, _, _) =>
+          ZManaged.reserve(Reservation(UIO.succeed(s), finalizer))
         }
     }
 

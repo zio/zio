@@ -16,7 +16,7 @@ class SinkToSubscriberTest(env: TestEnvironment)
   }
 
   override def createSubscriber(): Subscriber[Int] =
-    unsafeRun(Sink.collect[Int].toSubscriber())._1
+    unsafeRun(Sink.collectAll[Int].toSubscriber())._1
 
   override def createElement(element: Int): Int = element
 }
