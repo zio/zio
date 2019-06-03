@@ -428,6 +428,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       }
   }
 
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. Transformed elements
+   * will be emitted in the original order.
+   */
   final def mapMPar[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
       def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] =
@@ -459,6 +464,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
     }
 
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. The element order
+   * is not enforced by this combinator, and elements may be reordered.
+   */
   final def mapMParUnordered[R1 <: R, E1 >: E, B](n: Long)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     self.flatMapPar[R1, E1, B](n)(a => ZStream.fromEffect(f(a)))
 
