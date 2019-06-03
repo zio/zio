@@ -94,7 +94,7 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       for {
         subStr               <- QueueSubscriber.make[Int](10)
         (subscriber, stream) = subStr
-        fiber                <- stream.run(Sink.collect[Int]).fork
+        fiber                <- stream.run(Sink.collectAll[Int]).fork
         _                    <- ZIO.sleep(Duration(100, MILLISECONDS))
         _                    <- fiber.interrupt
         canceled             <- Promise.make[Nothing, Result]
@@ -114,7 +114,7 @@ class QueueSubscriberSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       for {
         subStr               <- QueueSubscriber.make[Int](10)
         (subscriber, stream) = subStr
-        fiber                <- stream.drop(10).run(Sink.collect[Int]).fork
+        fiber                <- stream.drop(10).run(Sink.collectAll[Int]).fork
         canceled             <- Promise.make[Nothing, Result]
         delivered            <- Promise.make[Nothing, Unit]
         runtime              <- ZIO.runtime[Any]

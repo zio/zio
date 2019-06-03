@@ -184,6 +184,17 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     fold(Left[E, A], Right[E, A])
 
   /**
+   * Ensures that `f` is executed when this ZManaged is finalized, after
+   * the existing finalizer.
+   */
+  final def ensuring[R1 <: R](f: ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
+    ZManaged {
+      reserve.map { r =>
+        r.copy(release = r.release.ensuring(f))
+      }
+    }
+
+  /**
    * Zips this effect with its environment
    */
   final def first[R1 <: R, A1 >: A]: ZManaged[R1, E, (A1, R1)] = self &&& ZManaged.identity
@@ -195,19 +206,23 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    */
   final def flatMap[R1 <: R, E1 >: E, B](f0: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     ZManaged[R1, E1, B] {
-      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[List[ZIO[R1, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
           acquire = for {
             resR <- reserve
-                     .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                     .flatMap(res => finalizers.update(res.release :: _).const(res))
                      .uninterruptible
             r <- resR.acquire
             resR1 <- f0(r).reserve
-                      .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                      .flatMap(res => finalizers.update(res.release :: _).const(res))
                       .uninterruptible
             r1 <- resR1.acquire
           } yield r1,
-          release = ZIO.flatten(finalizers.get)
+          release = for {
+            fs    <- finalizers.get
+            exits <- ZIO.foreach(fs)(_.run)
+            _     <- ZIO.done(Exit.collectAll(exits).getOrElse(Exit.unit))
+          } yield ()
         )
       }
     }
@@ -265,30 +280,34 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     success: A => ZManaged[R1, E2, B]
   ): ZManaged[R1, E2, B] =
     ZManaged[R1, E2, B] {
-      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[List[ZIO[R1, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
           acquire = {
             val direct =
               ZIO.uninterruptibleMask { restore =>
                 reserve
-                  .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                  .flatMap(res => finalizers.update(res.release :: _).const(res))
                   .flatMap(res => restore(res.acquire))
               }
             val onFailure = (e: E) =>
               ZIO.uninterruptibleMask { restore =>
                 failure(e).reserve
-                  .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                  .flatMap(res => finalizers.update(res.release :: _).const(res))
                   .flatMap(res => restore(res.acquire))
               }
             val onSuccess = (a: A) =>
               ZIO.uninterruptibleMask { restore =>
                 success(a).reserve
-                  .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                  .flatMap(res => finalizers.update(res.release :: _).const(res))
                   .flatMap(res => restore(res.acquire))
               }
             direct.foldM(onFailure, onSuccess)
           },
-          release = ZIO.flatten(finalizers.get)
+          release = for {
+            fs    <- finalizers.get
+            exits <- ZIO.foreach(fs)(_.run)
+            _     <- ZIO.done(Exit.collectAll(exits).getOrElse(Exit.unit))
+          } yield ()
         )
       }
     }
@@ -627,22 +646,26 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    */
   final def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: ZManaged[R1, E1, A1])(f0: (A, A1) => A2): ZManaged[R1, E1, A2] =
     ZManaged[R1, E1, A2] {
-      Ref.make[ZIO[R1, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[List[ZIO[R1, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
           acquire = {
             val left = ZIO.uninterruptibleMask { restore =>
               reserve
-                .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                .flatMap(res => finalizers.update(fs => res.release :: fs).const(res))
                 .flatMap(res => restore(res.acquire))
             }
             val right = ZIO.uninterruptibleMask { restore =>
               that.reserve
-                .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                .flatMap(res => finalizers.update(fs => res.release :: fs).const(res))
                 .flatMap(res => restore(res.acquire))
             }
             left.zipWithPar(right)(f0)
           },
-          release = ZIO.flatten(finalizers.get)
+          release = for {
+            fs    <- finalizers.get
+            exits <- ZIO.foreachPar(fs)(_.run)
+            _     <- ZIO.done(Exit.collectAllPar(exits).getOrElse(Exit.unit))
+          } yield ()
         )
       }
     }
@@ -730,7 +753,7 @@ object ZManaged {
    * Creates an effect that only executes the `UIO` value as its
    * release action.
    */
-  final def finalizer(f: UIO[_]): ZManaged[Any, Nothing, Unit] =
+  final def finalizer[R](f: ZIO[R, Nothing, _]): ZManaged[R, Nothing, Unit] =
     ZManaged.reserve(Reservation(ZIO.unit, f))
 
   /**

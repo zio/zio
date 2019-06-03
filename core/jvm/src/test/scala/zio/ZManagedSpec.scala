@@ -3,6 +3,7 @@ package zio
 import java.util.concurrent.CountDownLatch
 
 import org.scalacheck.{ Gen, _ }
+
 import org.specs2.ScalaCheck
 import org.specs2.matcher.MatchResult
 import org.specs2.matcher.describe.Diffable
@@ -22,6 +23,12 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Constructs an uninterruptible Managed value. $uninterruptible
   ZManaged.reserve
     Interruption is possible when using this form. $interruptible
+  ZManaged.ensuring
+    Runs on successes $ensuringSuccess
+    Runs on failures $ensuringFailure
+    Works when finalizers have defects $ensuringWorksWithDefects
+  ZManaged.flatMap
+    All finalizers run even when finalizers have defects $flatMapFinalizersWithDefects
   ZManaged.foldM
     Runs onFailure on failure $foldMFailure
     Runs onSucess on success $foldMSuccess
@@ -159,6 +166,45 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     implicit val d: Diffable[Right[Nothing, Option[Exit[Nothing, Unit]]]] =
       Diffable.eitherRightDiffable[Option[Exit[Nothing, Unit]]] //    TODO: Dotty has ambiguous implicits
     unsafeRun(program) must be_===(Right(expected))
+  }
+
+  private def ensuringSuccess = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.finalizer(effects.update("First" :: _)).ensuring(effects.update("Second" :: _)).use_(ZIO.unit)
+      result  <- effects.get
+    } yield result must_=== List("Second", "First")
+  }
+
+  private def ensuringFailure = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.fromEffect(ZIO.fail(())).ensuring(effects.update("Ensured" :: _)).use_(ZIO.unit).either
+      result  <- effects.get
+    } yield result must_=== List("Ensured")
+  }
+
+  private def ensuringWorksWithDefects = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.finalizer(ZIO.dieMessage("Boom")).ensuring(effects.update("Ensured" :: _)).use_(ZIO.unit).run
+      result  <- effects.get
+    } yield result must_=== List("Ensured")
+  }
+
+  private def flatMapFinalizersWithDefects = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _ <- (for {
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("First" :: _))
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("Second" :: _))
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("Third" :: _))
+          } yield ()).use_(ZIO.unit).run
+      result <- effects.get
+    } yield (result must_=== List("First", "Second", "Third"))
   }
 
   private def foldMFailure = {
