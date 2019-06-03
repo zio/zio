@@ -59,6 +59,11 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
 
   /**
+   * Replaces the value with the one provided.
+   */
+  final def const[B](b: B): Exit[E, B] = map(_ => b)
+
+  /**
    * Flat maps over the value type.
    */
   final def flatMap[E1 >: E, A1](f: A => Exit[E1, A1]): Exit[E1, A1] =
@@ -75,16 +80,6 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
       case Success(v)     => completed(v)
       case Failure(cause) => failed(cause)
     }
-
-  /**
-   * Replaces the value with the one provided.
-   */
-  final def const[B](b: B): Exit[E, B] = map(_ => b)
-
-  /**
-   * Discards the value.
-   */
-  final def unit: Exit[E, Unit] = const(())
 
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
@@ -147,6 +142,11 @@ sealed trait Exit[+E, +A] extends Product with Serializable { self =>
   }
 
   /**
+   * Discards the value.
+   */
+  final def unit: Exit[E, Unit] = const(())
+
+  /**
    * Named alias for `<*>`.
    */
   final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
@@ -198,6 +198,22 @@ object Exit extends Serializable {
 
   final val interrupt: Exit[Nothing, Nothing] = halt(Cause.interrupt)
 
+  final def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    exits.headOption.map { head =>
+      exits
+        .drop(1)
+        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
+        .map(_.reverse)
+    }
+
+  final def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    exits.headOption.map { head =>
+      exits
+        .drop(1)
+        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
+        .map(_.reverse)
+    }
+
   final def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
 
   final def fail[E](error: E): Exit[E, Nothing] = halt(Cause.fail(error))
@@ -222,22 +238,6 @@ object Exit extends Serializable {
   final def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
   final def unit: Exit[Nothing, Unit] = succeed(())
-
-  final def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
-    exits.headOption.map { head =>
-      exits
-        .drop(1)
-        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
-        .map(_.reverse)
-    }
-
-  final def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
-    exits.headOption.map { head =>
-      exits
-        .drop(1)
-        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
-        .map(_.reverse)
-    }
 
   sealed trait Cause[+E] extends Product with Serializable { self =>
     import Cause._
