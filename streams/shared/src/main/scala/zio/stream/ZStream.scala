@@ -438,7 +438,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                   for {
                     p <- Promise.make[E1, B]
                     _ <- out.offer(Take.Value(p.await))
-                    _ <- f(a).foldCauseM(p.halt, p.succeed).fork
+                    _ <- f(a).to(p).fork
                   } yield ()
                 }.foldCauseM(
                     c =>
