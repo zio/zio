@@ -63,6 +63,8 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   ZManaged.fork
     Runs finalizers properly $forkFinalizer
     Acquires interruptibly   $forkAcquisitionIsInterruptible
+  ZManaged.fromAutoCloseable
+    Runs finalizers properly $fromAutoCloseable
   ZManaged.mergeAll
     Merges elements in the correct order $mergeAllOrder
     Runs finalizers $mergeAllFinalizers
@@ -280,6 +282,19 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     effects must be_===(List(1, 2, 2, 1))
   }
+
+  private def fromAutoCloseable =
+    unsafeRun {
+      for {
+        runtime <- ZIO.runtime[Any]
+        effects <- Ref.make(List[String]())
+        closeable = UIO(new AutoCloseable {
+          def close(): Unit = runtime.unsafeRun(effects.update("Closed" :: _).unit)
+        })
+        _      <- ZManaged.fromAutoCloseable(closeable).use_(ZIO.unit)
+        result <- effects.get
+      } yield result must_=== List("Closed")
+    }
 
   private def retryReservation = {
     var retries = 0
