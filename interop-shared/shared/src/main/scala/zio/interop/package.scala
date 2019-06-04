@@ -17,24 +17,5 @@
 package zio
 
 package object interop {
-
   type ParIO[-R, +E, +A] = Par.T[R, E, A]
-
-  implicit final class AutoCloseableOps(private val a: AutoCloseable) extends AnyVal {
-
-    /**
-     * Returns an `IO` action which closes this `AutoCloseable` resource.
-     */
-    def closeIO(): UIO[Unit] = ZIO.effectTotal(a.close())
-  }
-
-  implicit final class IOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
-
-    /**
-     * Like `bracket`, safely wraps a use and release of a resource.
-     * This resource will get automatically closed, because it implements `AutoCloseable`.
-     */
-    def bracketAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      io.bracket(_.closeIO())(use)
-  }
 }
