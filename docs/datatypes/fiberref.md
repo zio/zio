@@ -7,7 +7,7 @@ title:  "FiberRef"
 
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 
 for {
   fiberRef <- FiberRef.make[Int](0)
