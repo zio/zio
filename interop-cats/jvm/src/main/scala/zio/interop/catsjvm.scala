@@ -116,7 +116,7 @@ private class CatsConcurrentEffect[R](rts: Runtime[R])
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[TaskR[R, ?]]] =
     effect.SyncIO {
       rts.unsafeRun {
-        fa.fork.flatMap { f =>
+        ZIO.interruptible(fa).fork.flatMap { f =>
           f.await
             .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
@@ -161,7 +161,7 @@ private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[TaskR[R, ?
     }
 
   override final def start[A](fa: TaskR[R, A]): TaskR[R, effect.Fiber[TaskR[R, ?], A]] =
-    fa.fork.map(toFiber)
+    ZIO.interruptible(fa).fork.map(toFiber)
 
   override final def racePair[A, B](
     fa: TaskR[R, A],
