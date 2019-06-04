@@ -2008,6 +2008,21 @@ object ZIO extends ZIO_R_Any {
       new ZIO.BracketExitAcquire(self)
   }
 
+  implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
+
+    /**
+     * Like `bracket`, safely wraps a use and release of a resource.
+     * This resource will get automatically closed, because it implements `AutoCloseable`.
+     */
+    def bracketAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+      io.bracket(a => UIO(a.close()))(use)
+
+    /**
+     * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].
+     */
+    def toManaged: ZManaged[R, E, A] = ZManaged.fromAutoCloseable(io)
+  }
+
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       zio.interruptStatus(flag)
