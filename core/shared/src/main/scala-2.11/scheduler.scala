@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
-import scalaz.zio.internal.{ Scheduler => IScheduler }
+import zio.internal.{ Scheduler => IScheduler }
 
 // This cannot extend Scheduler.Service[Scheduler] because of Scala 2.11 support
 package object scheduler {

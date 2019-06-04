@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
-import scalaz.zio.internal.Executor
+import zio.internal.Executor
 
 package object blocking extends Blocking.Service[Blocking] {
   def blockingExecutor: ZIO[Blocking, Nothing, Executor] =

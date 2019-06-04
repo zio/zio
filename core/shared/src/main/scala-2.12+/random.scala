@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
 package object random extends Random.Service[Random] {
   final val randomService: ZIO[Random, Nothing, Random.Service[Any]] =

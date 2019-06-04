@@ -8,8 +8,8 @@ There are many approaches to testing functional effects, including using free mo
 This section introduces environmental effects and shows how to write testable functional code using them.
 
 ```scala mdoc:invisible
-import scalaz.zio._
-import scalaz.zio.console._
+import zio._
+import zio.console._
 ```
 
 ## Environments
