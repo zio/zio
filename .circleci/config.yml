@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   lint211_jdk8:
     docker:
-      - image: hseeberger/scala-sbt:8u181_2.11.12_1.2.8
+      - image: hseeberger/scala-sbt:8u181_2.12.8_1.2.8
     steps:
       - checkout
       - restore_cache:
@@ -47,7 +47,7 @@ jobs:
             - "~/website/node_modules"
   test211_jdk8:
     docker:
-      - image: hseeberger/scala-sbt:8u181_2.11.12_1.2.8
+      - image: hseeberger/scala-sbt:8u181_2.12.8_1.2.8
     steps:
       - checkout
       - restore_cache:
