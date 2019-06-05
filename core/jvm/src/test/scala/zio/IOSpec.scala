@@ -55,6 +55,9 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `foreach_` can be run twice. $testForeach_Twice
    Check `foreachPar_` runs all effects. $testForeachPar_Full
    Check `foreachParN_` runs all effects. $testForeachParN_Full
+   Check `filterOrElse` returns checked failure from held value $testFilterOrElse
+   Check `filterOrElse_` returns checked failure ignoring value $testFilterOrElse_
+   Check `filterOrFail` returns failure ignoring value $testFilterOrFail
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -391,5 +394,41 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     }
     r must have length as.length
     r must containTheSameElementsAs(as)
+  }
+
+  def testFilterOrElse = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.filterOrElse(_ == 0)(a => ZIO.fail(s"$a was not 0"))).sandbox.either
+    ) must_=== Right(0)
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.filterOrElse(_ == 0)(a => ZIO.fail(s"$a was not 0"))).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("1 was not 0"))
+
+    goodCase and badCase
+  }
+
+  def testFilterOrElse_ = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.filterOrElse_(_ == 0)(ZIO.fail("Predicate failed!"))).sandbox.either
+    ) must_=== Right(0)
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.filterOrElse_(_ == 0)(ZIO.fail("Predicate failed!"))).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Predicate failed!"))
+
+    goodCase and badCase
+  }
+
+  def testFilterOrFail = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.filterOrFail(_ == 0)("Predicate failed!")).sandbox.either
+    ) must_=== Right(0)
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.filterOrFail(_ == 0)("Predicate failed!")).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Predicate failed!"))
+
+    goodCase and badCase
   }
 }

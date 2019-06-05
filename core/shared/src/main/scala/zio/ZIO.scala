@@ -1169,6 +1169,27 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def tracingStatus(flag: TracingStatus): ZIO[R, E, A] = new ZIO.TracingStatus(self, flag)
 
   /**
+   * Applies `f` if the predicate fails.
+   */
+  final def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
+    self.flatMap {
+      case v if !p(v) => f(v)
+      case v          => ZIO.succeed(v)
+    }
+
+  /**
+   * Supplies `zio` if the predicate fails.
+   */
+  final def filterOrElse_[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(zio: => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
+    filterOrElse[R1, E1, A1](p)(_ => zio)
+
+  /**
+   * Fails with `e` if the predicate fails.
+   */
+  final def filterOrFail[E1 >: E](p: A => Boolean)(e: => E1): ZIO[R, E1, A] =
+    filterOrElse_[R, E1, A](p)(ZIO.fail(e))
+
+  /**
    * An integer that identifies the term in the `ZIO` sum type to which this
    * instance belongs (e.g. `IO.Tags.Succeed`).
    */
