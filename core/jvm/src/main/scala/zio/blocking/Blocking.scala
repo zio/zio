@@ -81,7 +81,7 @@ object Blocking extends Serializable {
     /**
      * Imports a synchronous effect that does blocking IO into a pure value.
      *
-     * If the returned `IO` is interrupted, the blocked thread running the synchronous effect
+     * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
      * will be interrupted via `Thread.interrupt`.
      */
     def effectBlocking[A](effect: => A): ZIO[R, Throwable, A] =
@@ -147,6 +147,15 @@ object Blocking extends Serializable {
           } yield a
         })
       }
+
+    /**
+     * Imports a synchronous effect that does blocking IO into a pure value, with a custom cancel effect.
+     *
+     * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect
+     * will be interrupted via the cancel effect.
+     */
+    def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[R, Throwable, A] =
+      blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
   }
 
   trait Live extends Blocking {
