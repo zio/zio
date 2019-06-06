@@ -68,6 +68,8 @@ jobs:
       - restore_cache:
           key: sbt-cache
       - run: sbt ++2.12.8! package packageSrc publishLocal
+      # mdoc is run in a separate step to lessen the Metaspace pressure in sbt
+      - run: sbt ++2.12.8! mdoc
       - save_cache:
           key: sbt-cache
           paths:

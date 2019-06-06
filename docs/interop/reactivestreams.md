@@ -44,7 +44,7 @@ a power of two for best performance. The default is 16.
 ```scala mdoc
 val streamFromPublisher = publisher.toStream(qSize = 16)
 runtime.unsafeRun(
-  streamFromPublisher.run(Sink.collect[Integer])
+  streamFromPublisher.run(Sink.collectAll[Integer])
 )
 ```
 
@@ -83,7 +83,7 @@ A `Sink` used as a `Subscriber` buffers up to `qSize` elements. If possible, `qS
 a power of two for best performance. The default is 16.
 
 ```scala mdoc
-val sink = Sink.collect[Integer]
+val sink = Sink.collectAll[Integer]
 runtime.unsafeRun(
   sink.toSubscriber(qSize = 16).flatMap { case (subscriber, result) => 
     UIO(publisher.subscribe(subscriber)) *> result
