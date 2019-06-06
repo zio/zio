@@ -54,8 +54,8 @@ class Footer extends React.Component {
           <div>
             <h5>Additional resources</h5>
             <a
-              href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/">          
-              Scaladoc of scalaz-zio
+              href="https://javadoc.io/doc/dev.zio/zio_2.12/">
+              Scaladoc of zio
             </a>
           </div>
         </section>
