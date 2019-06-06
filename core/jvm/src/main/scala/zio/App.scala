@@ -50,7 +50,7 @@ trait App extends DefaultRuntime {
    */
   // $COVERAGE-OFF$ Bootstrap to `Unit`
   final def main(args0: Array[String]): Unit =
-    sys.exit(
+    try sys.exit(
       unsafeRun(
         for {
           fiber <- run(args0.toList).fork
@@ -63,5 +63,6 @@ trait App extends DefaultRuntime {
         } yield result
       )
     )
+    catch { case _: SecurityException => }
   // $COVERAGE-ON$
 }

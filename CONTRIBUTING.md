@@ -37,7 +37,7 @@ To clone your forked repository, first make sure you have installed [Git](https:
 ```bash
 mkdir zio
 cd zio
-git clone git@github.com:zio/zio.git .
+git clone git@github.com:your-user-name/zio.git .
 ```
 
 If these steps were successful, then congratulations, you now have a complete copy of the ZIO project!
@@ -67,7 +67,7 @@ compile
 You can compile the test source code with the following SBT command:
 
 ```bash
-compile:test
+test:compile
 ```
 
 [Learn more](https://www.scala-sbt.org) about SBT to understand how you can list projects, switch projects, and otherwise manage an SBT project.
