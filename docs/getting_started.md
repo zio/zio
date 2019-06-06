@@ -8,7 +8,7 @@ Include ZIO in your project by adding the following to your `build.sbt` file:
 println(s"""```""")
 if (zio.BuildInfo.isSnapshot)
   println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
-println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio" % "${zio.BuildInfo.version}"""")
+println(s"""libraryDependencies += "dev.zio" %% "zio" % "${zio.BuildInfo.version}"""")
 println(s"""```""")
 ```
 
@@ -18,7 +18,7 @@ In case you want to have ZIO streams at your disposal, the following dependency 
 println(s"""```""")
 if (zio.BuildInfo.isSnapshot)
   println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
-println(s"""libraryDependencies += "org.scalaz" %% "scalaz-zio-streams" % "${zio.BuildInfo.version}"""")
+println(s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${zio.BuildInfo.version}"""")
 println(s"""```""")
 ```
 
