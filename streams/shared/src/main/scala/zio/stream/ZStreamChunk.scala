@@ -256,7 +256,7 @@ object ZStreamChunk {
     StreamChunkPure(StreamPure.fromIterable(as))
 
   /**
-   * Creates a `ZStreamChunk` from a lazily-eavaluated chunk
+   * Creates a `ZStreamChunk` from a lazily-evaluated chunk
    */
   final def succeedLazy[A](as: => Chunk[A]): StreamChunk[Nothing, A] =
     StreamChunkPure(StreamPure.succeedLazy(as))

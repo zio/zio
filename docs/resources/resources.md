@@ -49,4 +49,4 @@ Note that these articles reflect the state of ZIO at the time of their publicati
 
 ## Support
 
-- [Official gitter channel](https://gitter.im/ZIO/Core)
+- [Official Gitter channel](https://gitter.im/ZIO/Core)
