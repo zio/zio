@@ -201,22 +201,11 @@ The resulting effect will be executed on a separate thread pool designed specifi
 Some side-effects can only be interrupted by invoking an cancellation effect. The blocking API supports these type of effects via the `effectBlockingCancelable` method:
 
 ```scala mdoc:silent
-import zio.blocking._
-import java.util.concurrent.atomic.AtomicBoolean
+import java.net.ServerSocket
+import zio.UIO
 
-def blocksUntil(aborted:AtomicBoolean) =
- while(!aborted.get()) {
-    try {
-        Thread.sleep(10)
-    } catch {
-        case _:InterruptedException => ()
-    }
- }
-
-val cancelable = {
-  val aborted = new AtomicBoolean(false)
-  effectBlockingCancelable(blocksUntil(aborted))(UIO.effectTotal(aborted.set(false)))
-}
+def accept(l:ServerSocket) =
+    effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to shift the effect onto the blocking thread pool:
