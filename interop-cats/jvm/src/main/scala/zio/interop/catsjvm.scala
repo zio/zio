@@ -292,7 +292,7 @@ private class CatsParallel[R, E](final override val monad: Monad[ZIO[R, E, ?]])
     }
 }
 
-private class CatsParApplicative[R, E] extends Applicative[ParIO[R, E, ?]] {
+private class CatsParApplicative[R, E] extends CommutativeApplicative[ParIO[R, E, ?]] {
 
   final override def pure[A](x: A): ParIO[R, E, A] =
     Par(ZIO.succeed(x))
