@@ -89,6 +89,9 @@ sealed trait CatsInstances1 extends CatsInstances2 {
 
   implicit def parallelInstance[R, E](implicit M: Monad[ZIO[R, E, ?]]): Parallel[ZIO[R, E, ?], ParIO[R, E, ?]] =
     new CatsParallel[R, E](M)
+
+  implicit def commutativeApplicativeInstance[R, E]: CommutativeApplicative[ParIO[R, E, ?]] =
+    new CatsParApplicative[R, E]
 }
 
 sealed trait CatsInstances2 {
