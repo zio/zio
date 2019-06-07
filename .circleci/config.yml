@@ -132,7 +132,8 @@ jobs:
           key: sbt-cache
       - run: echo -n "${PGP_PUBLIC}" | base64 -d > /tmp/public.asc
       - run: echo -n "${PGP_SECRET}" | base64 -d > /tmp/secret.asc
-      - run: sbt releaseEarly
+      - run: sbt ++2.11.12 releaseEarly
+      - run: sbt ++2.12.8 releaseEarly
   documentation:
     docker:
       - image: hseeberger/scala-sbt:8u181_2.12.8_1.2.8
