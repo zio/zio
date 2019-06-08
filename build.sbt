@@ -213,8 +213,8 @@ lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("zio-interop-scalaz7x"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core"               % "7.2.+" % Optional,
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.+" % Test
+      "org.scalaz" %%% "scalaz-core"               % "7.3.0-M30" % Optional,
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.3.0-M30" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
