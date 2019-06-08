@@ -221,7 +221,7 @@ lazy val interopJava = crossProject(JVMPlatform)
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
-val akkaVersion = "2.5.22"
+val akkaVersion = "2.5.23"
 lazy val interopReactiveStreams = crossProject(JVMPlatform)
   .in(file("interop-reactiveStreams"))
   .settings(stdSettings("zio-interop-reactiveStreams"))
