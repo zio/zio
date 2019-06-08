@@ -561,9 +561,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def mapMPar = {
-    implicit val arb: Arbitrary[IO[String, Byte]] = Arbitrary(genIO[String, Byte])
+    implicit val arb: Arbitrary[IO[Unit, Byte]] = Arbitrary(genIO[Unit, Byte])
 
-    prop { (data: List[Byte], f: Byte => IO[String, Byte]) =>
+    prop { (data: List[Byte], f: Byte => IO[Unit, Byte]) =>
       unsafeRun {
         val s = Stream.fromIterable(data)
 

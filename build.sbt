@@ -24,6 +24,14 @@ inThisBuild(
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+addCommandAlias(
+  "testJVM",
+  ";coreJVM/test;interopCatsJVM/test;interopFutureJVM/test;interopJavaJVM/test;interopMonixJVM/test;interopReactiveStreamsJVM/test;interopScalaz7xJVM/test;interopSharedJVM/test;interopTwitterJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test"
+)
+addCommandAlias(
+  "testJS",
+  ";coreJS/test;interopCatsJS/test;interopFutureJS/test;interopMonixJS/test;interopScalaz7xJS/test;interopSharedJS/test;interopTwitterJS/test;stacktracerJS/test;streamsJS/test"
+)
 
 pgpPublicRing := file("/tmp/public.asc")
 pgpSecretRing := file("/tmp/secret.asc")
