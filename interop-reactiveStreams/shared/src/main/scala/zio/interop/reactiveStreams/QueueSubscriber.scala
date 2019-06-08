@@ -10,7 +10,7 @@ private[reactiveStreams] object QueueSubscriber {
 
   def make[A](capacity: Int): ZIO[Any, Nothing, (Subscriber[A], ZStream[Any, Throwable, A])] =
     for {
-      runtime      <- UIO.runtime[Any]
+      runtime      <- UIO.runtime
       q            <- Queue.bounded[A](capacity)
       subscription <- Promise.make[Nothing, Subscription]
       completion   <- Promise.make[Throwable, Unit]
