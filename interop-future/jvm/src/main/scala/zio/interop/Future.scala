@@ -1,7 +1,7 @@
 package zio
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 import scala.reflect.ClassTag
 import zio.internal.PlatformLive
 import zio.internal.tracing.TracingConfig
