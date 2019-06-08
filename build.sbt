@@ -170,7 +170,7 @@ lazy val interopCatsJVM = interopCats.jvm
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.1"                              % Test,
-      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
+      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.1"                              % Test,
       "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
     ),
