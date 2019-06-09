@@ -61,7 +61,7 @@ class DurationSpec extends Specification {
           A negative j.t.Duration converts to Zero                                $jdur1
           A Long.MaxValue second j.t.Duration converts to Infinity                $jdur2
           A nano-adjusted Long.MaxValue second j.t.Duration converts to Infinity  $jdur3
-          A j.t.Duration construted from Infinity converts to Infinity            $jdur4
+          A j.t.Duration constructed from Infinity converts to Infinity           $jdur4
           A Long.MaxValue - 1 second j.t.Duration converts to Infinity            $jdur5
           A +ve j.t.Duration whose nano conversion overflows converts to Infinity $jdur6
           A -ve j.t.Duration whose nano conversion overflows converts to Zero     $jdur7

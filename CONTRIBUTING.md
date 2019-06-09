@@ -46,33 +46,33 @@ The next step is to build the project on your machine, to ensure you know how to
 
 ### Build the Project
 
-The official way to build the project is with SBT. An SBT build file is included in the project, so if you choose to build the project this way, you won't have to do any additional configuration or setup (others choose to build the project using IntelliJ IDEA, Gradle, Maven, Mill, or Fury).
+The official way to build the project is with sbt. An sbt build file is included in the project, so if you choose to build the project this way, you won't have to do any additional configuration or setup (others choose to build the project using IntelliJ IDEA, Gradle, Maven, Mill, or Fury).
 
-We use a custom SBT script, which is included in the repository, in order to ensure settings are uniform across all development machines, and the continuous integration service (Circle CI).
+We use a custom sbt script, which is included in the repository, in order to ensure settings are uniform across all development machines, and the continuous integration service (Circle CI).
 
-The SBT script is in the root of the repository. To launch this script from your Terminal window, simply type:
+The sbt script is in the root of the repository. To launch this script from your Terminal window, simply type:
 
 ```bash
 ./sbt
 ```
 
-SBT will launch, read the project build file, and download dependencies as required.
+Sbt will launch, read the project build file, and download dependencies as required.
 
-You can now compile the production source code with the following SBT command:
+You can now compile the production source code with the following sbt command:
 
 ```bash
 compile
 ```
 
-You can compile the test source code with the following SBT command:
+You can compile the test source code with the following sbt command:
 
 ```bash
 compile:test
 ```
 
-[Learn more](https://www.scala-sbt.org) about SBT to understand how you can list projects, switch projects, and otherwise manage an SBT project.
+[Learn more](https://www.scala-sbt.org) about sbt to understand how you can list projects, switch projects, and otherwise manage an sbt project.
 
-The main project in ZIO is `coreJVM` (the core project on the JVM; there is also `coreJS` for the core project on Scala.js), which you can focus on using SBT by issuing the following command:
+The main project in ZIO is `coreJVM` (the core project on the JVM; there is also `coreJS` for the core project on Scala.js), which you can focus on using sbt by issuing the following command:
 
 ```bash
 project coreJVM
