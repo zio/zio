@@ -24,25 +24,14 @@ inThisBuild(
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
-addCommandAlias(
-  "testJVM",
-  ";coreJVM/test;interopCatsJVM/test;interopFutureJVM/test;interopJavaJVM/test;interopMonixJVM/test;interopReactiveStreamsJVM/test;interopScalaz7xJVM/test;interopSharedJVM/test;interopTwitterJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test"
-)
-addCommandAlias(
-  "compileJVM",
-  ";coreJVM/compile;stacktracerJVM/compile"
-)
-addCommandAlias(
-  "testJS",
-  ";coreJS/test;interopCatsJS/test;interopFutureJS/test;interopMonixJS/test;interopScalaz7xJS/test;interopSharedJS/test;interopTwitterJS/test;stacktracerJS/test;streamsJS/test"
-)
+addCommandAlias("compileJVM", ";coreJVM/compile;stacktracerJVM/compile")
+addCommandAlias("testJVM", ";coreJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test")
+addCommandAlias("testJS", ";coreJS/test;stacktracerJS/test;streamsJS/test")
 
 pgpPublicRing := file("/tmp/public.asc")
 pgpSecretRing := file("/tmp/secret.asc")
 releaseEarlyWith := SonatypePublisher
-scmInfo := Some(
-  ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
-)
+scmInfo := Some(ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git"))
 
 lazy val root = project
   .in(file("."))
@@ -57,18 +46,6 @@ lazy val root = project
     docs,
     streamsJVM,
     streamsJS,
-    interopSharedJVM,
-    interopSharedJS,
-    interopCatsJVM,
-    interopCatsJS,
-    interopFutureJVM,
-    interopMonixJVM,
-    interopMonixJS,
-    interopScalaz7xJVM,
-    interopScalaz7xJS,
-    interopJavaJVM,
-    interopReactiveStreamsJVM,
-    interopTwitterJVM,
     benchmarks,
     testkitJVM,
     stacktracerJS,
@@ -114,152 +91,13 @@ lazy val coreJS = core.js
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
   .settings(stdSettings("zio-streams"))
-  .settings(replSettings)
   .settings(buildInfoSettings)
   .settings(replSettings)
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val streamsJVM = streams.jvm
-
 lazy val streamsJS = streams.js
-
-lazy val interopShared = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-shared"))
-  .settings(stdSettings("zio-interop-shared"))
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopSharedJVM = interopShared.jvm
-lazy val interopSharedJS  = interopShared.js
-
-lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-cats"))
-  .settings(stdSettings("zio-interop-cats"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect"   % "1.3.1" % Optional,
-      "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
-      "co.fs2"        %%% "fs2-core"      % "1.0.5" % Test
-    )
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
-val CatsScalaCheckVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "1.13"
-    case _ =>
-      "1.14"
-  }
-}
-
-val ScalaCheckVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "1.13.5"
-    case _ =>
-      "1.14.0"
-  }
-}
-
-def majorMinor(version: String) = version.split('.').take(2).mkString(".")
-
-val CatsScalaCheckShapelessVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "1.1.8"
-    case _ =>
-      "1.2.0-1+7-a4ed6f38-SNAPSHOT" // TODO: Stable version
-  }
-}
-
-lazy val interopCatsJVM = interopCats.jvm
-  .dependsOn(interopSharedJVM)
-  // Below is for the cats law spec
-  // Separated due to binary incompatibility in scalacheck 1.13 vs 1.14
-  // TODO remove it when https://github.com/typelevel/discipline/issues/52 is closed
-  .settings(
-    resolvers += Resolver
-      .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
-    libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.1"                              % Test,
-      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.1"                              % Test,
-      "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
-      "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
-    ),
-    dependencyOverrides += "org.scalacheck" %% "scalacheck" % ScalaCheckVersion.value % Test
-  )
-  .dependsOn(interopSharedJVM)
-
-lazy val interopCatsJS = interopCats.js.dependsOn(interopSharedJS)
-
-lazy val interopFuture = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-future"))
-  .settings(stdSettings("zio-interop-future"))
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopFutureJVM = interopFuture.jvm.dependsOn(interopSharedJVM)
-
-lazy val interopMonix = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-monix"))
-  .settings(stdSettings("zio-interop-monix"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "io.monix" %%% "monix" % "3.0.0-RC2" % Optional
-    )
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopMonixJVM = interopMonix.jvm.dependsOn(interopSharedJVM)
-lazy val interopMonixJS  = interopMonix.js.dependsOn(interopSharedJS)
-
-lazy val interopScalaz7x = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-scalaz7x"))
-  .settings(stdSettings("zio-interop-scalaz7x"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core"               % "7.2.+" % Optional,
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.+" % Test
-    )
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopScalaz7xJVM = interopScalaz7x.jvm.dependsOn(interopSharedJVM)
-lazy val interopScalaz7xJS  = interopScalaz7x.js.dependsOn(interopSharedJS)
-
-lazy val interopJava = crossProject(JVMPlatform)
-  .in(file("interop-java"))
-  .settings(stdSettings("zio-interop-java"))
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
-
-val akkaVersion = "2.5.23"
-lazy val interopReactiveStreams = crossProject(JVMPlatform)
-  .in(file("interop-reactiveStreams"))
-  .settings(stdSettings("zio-interop-reactiveStreams"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.reactivestreams" % "reactive-streams"     % "1.0.2",
-      "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest"       %% "scalatest"           % "3.0.8" % "test",
-      "com.typesafe.akka"   %% "akka-stream"         % akkaVersion % "test",
-      "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
-    )
-  )
-  .dependsOn(streams % "test->test;compile->compile")
-
-lazy val interopReactiveStreamsJVM = interopReactiveStreams.jvm.dependsOn(interopSharedJVM)
-
-lazy val interopTwitter = crossProject(JSPlatform, JVMPlatform)
-  .in(file("interop-twitter"))
-  .settings(stdSettings("zio-interop-twitter"))
-  .settings(
-    libraryDependencies += "com.twitter" %% "util-core" % "19.6.0"
-  )
-  .dependsOn(core % "test->test;compile->compile")
-
-lazy val interopTwitterJVM = interopTwitter.jvm.dependsOn(interopSharedJVM)
 
 lazy val testkit = crossProject(JVMPlatform)
   .in(file("testkit"))
@@ -342,18 +180,18 @@ lazy val docs = project.module
       "com.github.ghik"     %% "silencer-lib"             % "1.4.1"  % "provided",
       "commons-io"          % "commons-io"                % "2.6"    % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
-      "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided"
-    )
+      "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided",
+      "org.scalaz" %% "scalaz-zio-interop-cats" % "1.0.0-RC5",
+      "org.scalaz" %% "scalaz-zio-interop-future" % "1.0.0-RC5",
+      "org.scalaz" %% "scalaz-zio-interop-monix" % "1.0.0-RC5",
+      "org.scalaz" %% "scalaz-zio-interop-scalaz7x" % "1.0.0-RC5",
+      "org.scalaz" %% "scalaz-zio-interop-java" % "1.0.0-RC5",
+      "org.scalaz" %% "scalaz-zio-interop-reactivestreams" % "1.0.0-RC5",
+      "org.scalaz" %% "scalaz-zio-interop-twitter" % "1.0.0-RC5"
+      )
   )
   .dependsOn(
     coreJVM,
     streamsJVM,
-    interopCatsJVM,
-    interopFutureJVM,
-    interopMonixJVM,
-    interopScalaz7xJVM,
-    interopJavaJVM,
-    interopReactiveStreamsJVM,
-    interopTwitterJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
