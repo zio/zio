@@ -97,7 +97,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val streamsJVM = streams.jvm
-lazy val streamsJS = streams.js
+lazy val streamsJS  = streams.js
 
 lazy val testkit = crossProject(JVMPlatform)
   .in(file("testkit"))
@@ -177,21 +177,21 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"             % "1.4.1"  % "provided",
-      "commons-io"          % "commons-io"                % "2.6"    % "provided",
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
-      "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided",
-      "org.scalaz" %% "scalaz-zio-interop-cats" % "1.0.0-RC5",
-      "org.scalaz" %% "scalaz-zio-interop-future" % "1.0.0-RC5",
-      "org.scalaz" %% "scalaz-zio-interop-monix" % "1.0.0-RC5",
-      "org.scalaz" %% "scalaz-zio-interop-scalaz7x" % "1.0.0-RC5",
-      "org.scalaz" %% "scalaz-zio-interop-java" % "1.0.0-RC5",
-      "org.scalaz" %% "scalaz-zio-interop-reactivestreams" % "1.0.0-RC5",
-      "org.scalaz" %% "scalaz-zio-interop-twitter" % "1.0.0-RC5"
-      )
+      "com.github.ghik"     %% "silencer-lib"                       % "1.4.1" % "provided",
+      "commons-io"          % "commons-io"                          % "2.6" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples"           % "1.0.2" % "provided",
+      "org.jsoup"           % "jsoup"                               % "1.12.1" % "provided",
+      "org.scalaz"          %% "scalaz-zio-interop-cats"            % "1.0-RC5",
+      "org.scalaz"          %% "scalaz-zio-interop-future"          % "1.0-RC5",
+      "org.scalaz"          %% "scalaz-zio-interop-monix"           % "1.0-RC5",
+      "org.scalaz"          %% "scalaz-zio-interop-scalaz7x"        % "1.0-RC5",
+      "org.scalaz"          %% "scalaz-zio-interop-java"            % "1.0-RC5",
+      "org.scalaz"          %% "scalaz-zio-interop-reactivestreams" % "1.0-RC5",
+      "org.scalaz"          %% "scalaz-zio-interop-twitter"         % "1.0-RC5"
+    )
   )
   .dependsOn(
     coreJVM,
-    streamsJVM,
+    streamsJVM
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
