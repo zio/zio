@@ -37,7 +37,7 @@ To clone your forked repository, first make sure you have installed [Git](https:
 ```bash
 mkdir zio
 cd zio
-git clone git@github.com:zio/zio.git .
+git clone git@github.com:your-user-name/zio.git .
 ```
 
 If these steps were successful, then congratulations, you now have a complete copy of the ZIO project!
