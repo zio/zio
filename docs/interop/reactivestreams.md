@@ -8,7 +8,7 @@ Checkout the `interop-reactiveStreams` module for inter-operation support.
 ## Reactive Streams `Producer` and `Subscriber`
 
 **ZIO** integrates with [Reactive Streams](http://reactivestreams.org) by providing conversions from `zio.stream.Stream` to `org.reactivestreams.Publisher`
-and from `zio.stream.Sink` to `org.reactivestreams.Subscriber` and vice versa. Simply import `import scalaz.zio.interop.reactiveStreams._` to make the 
+and from `zio.stream.Sink` to `org.reactivestreams.Subscriber` and vice versa. Simply import `import zio.interop.reactiveStreams._` to make the 
 conversions available.
 
 ## Examples
@@ -17,9 +17,9 @@ First, let's get a few imports out of the way.
 
 ```scala mdoc:silent
 import org.reactivestreams.example.unicast._
-import scalaz.zio._
-import scalaz.zio.interop.reactiveStreams._
-import scalaz.zio.stream._
+import zio._
+import zio.interop.reactiveStreams._
+import zio.stream._
 
 val runtime = new DefaultRuntime {}
 ```
@@ -44,7 +44,7 @@ a power of two for best performance. The default is 16.
 ```scala mdoc
 val streamFromPublisher = publisher.toStream(qSize = 16)
 runtime.unsafeRun(
-  streamFromPublisher.run(Sink.collect[Integer])
+  streamFromPublisher.run(Sink.collectAll[Integer])
 )
 ```
 
@@ -83,7 +83,7 @@ A `Sink` used as a `Subscriber` buffers up to `qSize` elements. If possible, `qS
 a power of two for best performance. The default is 16.
 
 ```scala mdoc
-val sink = Sink.collect[Integer]
+val sink = Sink.collectAll[Integer]
 runtime.unsafeRun(
   sink.toSubscriber(qSize = 16).flatMap { case (subscriber, result) => 
     UIO(publisher.subscribe(subscriber)) *> result

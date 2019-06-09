@@ -6,7 +6,7 @@ title:  "Creating Effects"
 This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.
 
 ```scala mdoc:invisible
-import scalaz.zio.{ ZIO, Task, UIO, IO }
+import zio.{ ZIO, Task, UIO, IO }
 ```
 
 ## From Success Values
@@ -152,9 +152,7 @@ If a side-effect is known to throw some specific subtype of `Throwable`, then th
 import java.io.IOException
 
 val getStrLn2: IO[IOException, String] =
-  ZIO.effect(StdIn.readLine()).refineOrDie {
-    case e : IOException => e
-  }
+  ZIO.effect(StdIn.readLine()).refineToOrDie[IOException]
 ```
 
 ### Asynchronous Side-Effects
@@ -187,18 +185,39 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from an application's main thread pool.
 
-ZIO provides the `scalaz.zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
+ZIO provides the `zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
 
 A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
 
 ```scala mdoc:silent
-import scalaz.zio.blocking._
+import zio.blocking._
 
 val sleeping = 
   effectBlocking(Thread.sleep(Long.MaxValue))
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
+
+Some side-effects can only be interrupted by invoking an cancellation effect. The blocking API supports these type of effects via the `effectBlockingCancelable` method:
+
+```scala mdoc:silent
+import zio.blocking._
+import java.util.concurrent.atomic.AtomicBoolean
+
+def blocksUntil(aborted:AtomicBoolean) =
+ while(!aborted.get()) {
+    try {
+        Thread.sleep(10)
+    } catch {
+        case _:InterruptedException => ()
+    }
+ }
+
+val cancelable = {
+  val aborted = new AtomicBoolean(false)
+  effectBlockingCancelable(blocksUntil(aborted))(UIO.effectTotal(aborted.set(false)))
+}
+```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to shift the effect onto the blocking thread pool:
 

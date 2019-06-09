@@ -10,7 +10,7 @@ A `Managed[E, A]` is a managed resource of type `A`, which may be used by invoki
 Resources do not survive the scope of `use`, meaning that if you attempt to capture the resource, leak it from `use`, and then use it after the resource has been consumed, the resource will not be valid anymore and may fail with some checked error, as per the type of the functions provided by the resource.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 def doSomething(queue: Queue[Int]): UIO[Unit] = IO.unit
 
 val managedResource = Managed.make(Queue.unbounded[Int])(_.shutdown)
@@ -25,7 +25,7 @@ As shown in the previous example, a `Managed` can be created by passing an `acqu
 
 It can also be created from an effect. In this case the release function will do nothing.
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 def acquire: IO[String, Int] = IO.succeedLazy(???)
 
 val managedFromEffect: Managed[String, Int] = Managed.fromEffect(acquire)
@@ -33,7 +33,7 @@ val managedFromEffect: Managed[String, Int] = Managed.fromEffect(acquire)
 
 You can create a `Managed` from a pure value as well.
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 val managedFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 ```
 
@@ -42,8 +42,8 @@ val managedFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 `Managed[E, A]` is actually an alias for `ZManaged[Any, E, A]`. If you'd like your `acquire`, `release` or `use` functions to require an environment R, just use `ZManaged` instead of `Managed`.
 
 ```scala mdoc:silent
-import scalaz.zio._
-import scalaz.zio.console._
+import zio._
+import zio.console._
 
 val zManagedResource: ZManaged[Console, Nothing, Unit] = ZManaged.make(console.putStrLn("acquiring"))(_ => console.putStrLn("releasing"))
 val zUsedResource: ZIO[Console, Nothing, Unit] = zManagedResource.use { _ => console.putStrLn("running") }
@@ -54,7 +54,7 @@ val zUsedResource: ZIO[Console, Nothing, Unit] = zManagedResource.use { _ => con
 It is possible to combine multiple `Managed` using `flatMap` to obtain a single `Managed` that will acquire and release all the resources.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 ```
 
 ```scala mdoc:invisible
@@ -92,7 +92,7 @@ def readFile(file: File): IO[IOException, String] = IO.succeedLazy("Don't forget
 ```
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 ```
 
 Whilst having more control, a concurrency primitive such as `Promise` may be needed to help properly manage resource state and clean up.
