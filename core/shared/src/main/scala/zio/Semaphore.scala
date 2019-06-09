@@ -49,7 +49,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * If the specified number of permits are not available, the fiber invoking
    * this method will be suspended until the permits are available.
    *
-   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
    */
   final def acquireN(n: Long): UIO[Unit] = {
     // TODO: Dotty doesn't infer this properly
@@ -112,7 +112,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     }
 
   /**
-   * Ported from @mpilquist work in cats-effects (https://github.com/typelevel/cats-effect/pull/403)
+   * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
    */
   final private def prepare(n: Long): UIO[Acquisition] = {
     def restore(p: Promise[Nothing, Unit], n: Long): UIO[Unit] =

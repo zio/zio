@@ -9,8 +9,8 @@ class FunctionIOSpec extends Specification with DefaultRuntime {
    Check if the functions in `FunctionIO` work correctly
      `fromFunction` lifts from A => B into effectful function $e1
      `identity` returns the identity of the input without modification $e2
-     `>>>` is a symbolic operator of `andThen`which does a Backwards composition of effectul functions $e3
-     `<<<` is a symbolic operator of `compose` which compses two effectful functions $e4
+     `>>>` is a symbolic operator of `andThen`which does a Backwards composition of effectful functions $e3
+     `<<<` is a symbolic operator of `compose` which compose two effectful functions $e4
      `zipWith` zips the output of two effectful functions $e5
      `&&&` zips the output of two effectful functions and returns a tuple of their result $e6
      `|||` computes two effectful functions left and right from from an Either input $e7

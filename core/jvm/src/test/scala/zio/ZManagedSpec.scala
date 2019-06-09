@@ -31,7 +31,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     All finalizers run even when finalizers have defects $flatMapFinalizersWithDefects
   ZManaged.foldM
     Runs onFailure on failure $foldMFailure
-    Runs onSucess on success $foldMSuccess
+    Runs onSuccess on success $foldMSuccess
     Invokes cleanups $foldMCleanup
     Invokes cleanups on interrupt 1 $foldMCleanupInterrupt1
     Invokes cleanups on interrupt 2 $foldMCleanupInterrupt2

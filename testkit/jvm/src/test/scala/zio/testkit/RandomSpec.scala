@@ -41,19 +41,19 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         default      $nextCharWithDefault
         sequence     $nextCharWithSequence
       Returns next string when data is:
-        single value                                     $nextStringWithSingleValue
-        empty                                            $nextStringWithEmptyData
-        default                                          $nextStringWithDefault
-        sequence                                         $nextStringWithSequence
-        single value - respect length                    $nextStringWithLength
-        single value - ength > length of the next string $nextStringLengthIsOver
+        single value                                      $nextStringWithSingleValue
+        empty                                             $nextStringWithEmptyData
+        default                                           $nextStringWithDefault
+        sequence                                          $nextStringWithSequence
+        single value - respect length                     $nextStringWithLength
+        single value - length > length of the next string $nextStringLengthIsOver
       Returns next bytes when data is:
-        single value                                     $nextBytesWithSingleValue
-        empty                                            $nextBytesWithEmptyData
-        default                                          $nextBytesWithDefault
-        sequence                                         $nextBytesWithSequence
-        single value - length < number of bytes          $nextBytesWithLength
-        single value - length > length of the next array $nextBytesLengthIsOver
+        single value                                      $nextBytesWithSingleValue
+        empty                                             $nextBytesWithEmptyData
+        default                                           $nextBytesWithDefault
+        sequence                                          $nextBytesWithSequence
+        single value - length < number of bytes           $nextBytesWithLength
+        single value - length > length of the next array  $nextBytesLengthIsOver
      """
 
   def nextIntWithEmptyData =
