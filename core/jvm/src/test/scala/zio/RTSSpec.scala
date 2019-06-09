@@ -154,6 +154,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   RTS environment
     provide is modular                      $testProvideIsModular
+    provideManaged is modular               $testProvideManagedIsModular
     effectAsync can use environment         $testAsyncCanUseEnvironment
 
   RTS forking inheritability
@@ -937,6 +938,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         v3 <- ZIO.environment[Int]
       } yield (v1, v2, v3)).provide(4)
     unsafeRun(zio) must_=== ((4, 2, 4))
+  }
+
+  def testProvideManagedIsModular = {
+    def managed(v: Int): ZManaged[Any, Nothing, Int] =
+      ZManaged.make(IO.succeed(v))(_ => IO.effectTotal {()})
+    val zio = (for {
+      v1 <- ZIO.environment[Int]
+      v2 <- ZIO.environment[Int].provideManaged(managed(2))
+      v3 <- ZIO.environment[Int]
+    }yield (v1, v2, v3)).provideManaged(managed(4))
+
+    unsafeRun(zio) must_===((4, 2, 4))
   }
 
   def testAsyncCanUseEnvironment = unsafeRun {
