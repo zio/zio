@@ -104,8 +104,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R]): ZIO[R0, E1, A] =
     r0.flatMap(self.provide)
 
+  /**
+   * Uses the given Managed[E1, R] to the environment required to run this effect,
+   * leaving no outstanding environments and returning IO[E1, A]
+   */
   final def provideManaged[E1 >: E](r0: Managed[E1, R]): IO[E1, A] = provideSomeManaged(r0)
 
+  /**
+   * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
+   * leaving the remainder `R0`.
+   */
   final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R]): ZIO[R0, E1, A] = r0.use(self.provide)
 
   /**
