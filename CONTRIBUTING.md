@@ -67,7 +67,7 @@ compile
 You can compile the test source code with the following sbt command:
 
 ```bash
-compile:test
+test:compile
 ```
 
 [Learn more](https://www.scala-sbt.org) about sbt to understand how you can list projects, switch projects, and otherwise manage an sbt project.
