@@ -21,7 +21,7 @@ import zio.stm.{ TPromise => ZTPromise }
 /**
  * See [[zio.stm.TPromise]]
  */
-class TPromise[F[+ _], E <: Throwable, A] private (underlying: ZTPromise[E, A]) {
+class TPromise[F[+_], E <: Throwable, A] private (underlying: ZTPromise[E, A]) {
 
   /**
    * See [[zio.stm.TPromise#await]]
@@ -42,7 +42,7 @@ class TPromise[F[+ _], E <: Throwable, A] private (underlying: ZTPromise[E, A]) 
   /**
    * Switch from effect F to effect G.
    */
-  def mapK[G[+ _]]: TPromise[G, E, A] = new TPromise(underlying)
+  def mapK[G[+_]]: TPromise[G, E, A] = new TPromise(underlying)
 
   /**
    * See [[zio.stm.TPromise#poll]]
@@ -57,6 +57,6 @@ class TPromise[F[+ _], E <: Throwable, A] private (underlying: ZTPromise[E, A]) 
 }
 
 object TPromise {
-  final def make[F[+ _], E <: Throwable, A]: STM[F, TPromise[F, E, A]] =
+  final def make[F[+_], E <: Throwable, A]: STM[F, TPromise[F, E, A]] =
     new STM(ZTPromise.make[E, A].map(new TPromise(_)))
 }

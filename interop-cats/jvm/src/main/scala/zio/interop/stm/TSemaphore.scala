@@ -21,7 +21,7 @@ import zio.stm.{ TSemaphore => ZTSemaphore }
 /**
  * See [[zio.stm.TSemaphore]]
  */
-class TSemaphore[F[+ _]] private (underlying: ZTSemaphore) {
+class TSemaphore[F[+_]] private (underlying: ZTSemaphore) {
 
   /**
    * See [[zio.stm.TSemaphore#acquire]]
@@ -41,7 +41,7 @@ class TSemaphore[F[+ _]] private (underlying: ZTSemaphore) {
   /**
    * Switch from effect F to effect G.
    */
-  def mapK[G[+ _]]: TSemaphore[G] = new TSemaphore(underlying)
+  def mapK[G[+_]]: TSemaphore[G] = new TSemaphore(underlying)
 
   /**
    * See [[zio.stm.TSemaphore#release]]
@@ -61,6 +61,6 @@ class TSemaphore[F[+ _]] private (underlying: ZTSemaphore) {
 }
 
 object TSemaphore {
-  final def make[F[+ _]](n: Long): STM[F, TSemaphore[F]] =
+  final def make[F[+_]](n: Long): STM[F, TSemaphore[F]] =
     new STM(ZTSemaphore.make(n).map(new TSemaphore(_)))
 }
