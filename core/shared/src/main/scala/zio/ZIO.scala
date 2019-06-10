@@ -250,7 +250,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def raceAttempt[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     raceWith(that)(
-      { case (l, f) => f.interrupt *>  l.fold(ZIO.halt, ZIO.succeed) },
+      { case (l, f) => f.interrupt *> l.fold(ZIO.halt, ZIO.succeed) },
       { case (r, f) => f.interrupt *> r.fold(ZIO.halt, ZIO.succeed) }
     ).refailWithTrace
 
