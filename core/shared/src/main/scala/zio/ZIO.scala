@@ -1190,6 +1190,40 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     filterOrElse_[R, E1, A](p)(ZIO.fail(e))
 
   /**
+   * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
+   * succeed with the returned value.
+   */
+  final def collect[E1 >: E, B](e: E1)(pf: PartialFunction[A, B]): ZIO[R, E1, B] =
+    collectM(e)(pf.andThen(ZIO.succeed))
+
+  /**
+   * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
+   * continue with the returned value.
+   */
+  final def collectM[R1 <: R, E1 >: E, B](e: E1)(pf: PartialFunction[A, ZIO[R1, E1, B]]): ZIO[R1, E1, B] =
+    self.flatMap { v =>
+      pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e))
+    }
+
+  /**
+   * Fail with the returned value if the `PartialFunction` matches, otherwise
+   * continue with our held value.
+   */
+  final def reject[R1 <: R, E1 >: E](pf: PartialFunction[A, E1]): ZIO[R1, E1, A] =
+    rejectM(pf.andThen(ZIO.fail))
+
+  /**
+   * Continue with the returned computation if the `PartialFunction` matches,
+   * translating the successful match into a failure, otherwise continue with
+   * our held value.
+   */
+  final def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, E1]]): ZIO[R1, E1, A] =
+    self.flatMap { v =>
+      pf.andThen[ZIO[R1, E1, A]](_.flatMap(ZIO.fail))
+        .applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeed)
+    }
+
+  /**
    * An integer that identifies the term in the `ZIO` sum type to which this
    * instance belongs (e.g. `IO.Tags.Succeed`).
    */
