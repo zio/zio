@@ -82,7 +82,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
       "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
       "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
-    )
+    ),
+    publishArtifact in (Test, packageBin) := true
   )
   .enablePlugins(BuildInfoPlugin)
 
