@@ -1233,7 +1233,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Exposes all parallel errors in a single call
    *
    */
-  final def parallelErrors: ZIO[R, List[E], A] =
+  final def parallelErrors[E1 >: E]: ZIO[R, ::E1, A] =
     self.foldCauseM(
       cause =>
         cause.failures match {
