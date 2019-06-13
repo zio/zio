@@ -3,9 +3,9 @@ id: overview_testing_effects
 title:  "Testing Effects"
 ---
 
-There are many approaches to testing functional effects, including using free monads, using tagless-final, and using environmental effects. Although all of these approaches are compatible with ZIO, the simplest and most natural is _environmental effects_.
+There are many approaches to testing functional effects, including using free monads, using tagless-final, and using environmental effects. Although all of these approaches are compatible with ZIO, the simplest and most ergonomic is _environmental effects_.
 
-This section introduces environmental effects and shows how to write testable functional code using them.
+This section introduces environmental effects and shows you how to write testable functional code using them.
 
 ```scala mdoc:invisible
 import zio._
@@ -25,12 +25,12 @@ for {
 } yield env
 ```
 
-The environment does not have to be a primitive value like an integer. It can be much more complex. 
+The environment does not have to be a primitive value like an integer. It can be much more complex, like a `trait` or `case class`.
 
-When the environment is a type with fields, then the `ZIO.access` method can be used to access a given part of the environment in a single method call.
+When the environment is a type with fields, then the `ZIO.access` method can be used to access a given part of the environment in a single method call:
 
 ```scala mdoc:silent
-case class Config(server: String, port: Int)
+final case class Config(server: String, port: Int)
 
 val configString: ZIO[Config, Nothing, String] = 
   for {
@@ -39,27 +39,30 @@ val configString: ZIO[Config, Nothing, String] =
   } yield s"Server: $server, port: $port"
 ```
 
-Effects themselves can be stored in the environment. In this case, to access and execute an effect, the `ZIO.accessM` method can be used.
+Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the `ZIO.accessM` method can be used.
 
 ```scala mdoc:silent
 trait DatabaseOps {
-  def tableNames: Task[List[String]]
-  def columnNames(table: String): Task[List[String]]
+  def getTableNames: Task[List[String]]
+  def getColumnNames(table: String): Task[List[String]]
 }
 
 val tablesAndColumns: ZIO[DatabaseOps, Throwable, (List[String], List[String])] = 
   for {
-    tables  <- ZIO.accessM[DatabaseOps](_.tableNames)
-    columns <- ZIO.accessM[DatabaseOps](_.columnNames("user_table"))
+    tables  <- ZIO.accessM[DatabaseOps](_.getTableNames)
+    columns <- ZIO.accessM[DatabaseOps](_.getColumnNames("user_table"))
   } yield (tables, columns)
 ```
 
-When an effect is accessed from the environment, the effect is called an _environmental effect_. Later, we'll see how environmental effects provide an easy way to test ZIO applications.
+When an effect is accessed from the environment, as in the preceding example, the effect is called an _environmental effect_.
 
-Effects that require any type of environment cannot be run without first _providing_ their environment to them.
+Later, we'll see how environmental effects provide an easy way to test ZIO applications.
+
+### Providing Environments
+
+Effects that require an environment cannot be run without first _providing_ their environment to them.
 
 The simplest way to provide an effect the environment that it requires is to use the `ZIO#provide` method:
-
 
 ```scala mdoc:silent
 val square: ZIO[Int, Nothing, Int] = 
@@ -70,13 +73,17 @@ val square: ZIO[Int, Nothing, Int] =
 val result: UIO[Int] = square.provide(42)
 ```
 
+Once you provide an effect with the environment it requires, then you get back an effect whose environment type is `Any`, indicating its requirements have been fully satisfied.
+
 The combination of `ZIO.accessM` and `ZIO#provide` are all that is necessary to fully use environmental effects for easy testability.
 
 ## Environmental Effects
 
-The fundamental idea behind environmental effect is to _program to an interface, not an implementation_. Rather than passing around interfaces manually, or injecting them using dependency injection, we take advantage of ZIO environment to automatically pass interfaces wherever they are required.
+The fundamental idea behind environmental effects is to _program to an interface, not an implementation_. In the case of functional Scala, interfaces do not contain any methods that perform side-effects, although they may contain methods that return _functional effects_.
 
-In this section, we'll explore environmental effects by developing a testable database service.
+Rather than passing interfaces throughout our code base manually, injecting them using dependency injection, or threading them using incoherent implicits, we use _ZIO Environment_ to do the heavy lifting, which results in elegant, inferrable, and painless code.
+
+In this section, we'll explore how to use environmental effects by developing a testable database service.
 
 ### Define the Service
 
@@ -100,7 +107,7 @@ trait Database {
 }
 ```
 
-In this example, the type `Database` is the _module_, which contains the `Database.Service` _service_. The _service_ is just an ordinary interface, placed inside the companion object of the module, which contains effectful functions that represent the _capabilities_ of the database service.
+In this example,  `Database` is the _module_, which contains the `Database.Service` _service_. The _service_ is just an ordinary interface, placed inside the companion object of the module, which contains functions provide the _capabilities_ of the service.
 
 ### Provide Helpers
 
@@ -116,9 +123,11 @@ object db {
 }
 ```
 
+While these helpers are not required, because we can access the database module directly through `ZIO.accessM`, the helpers are easy to write and make use-site code simpler.
+
 ### Use the Service
 
-We're now ready to build an example that uses the database service:
+Now that we have defined a module and helper functions, we are now ready to build an example that uses the database service:
 
 ```scala mdoc:silent
 val lookedupProfile: ZIO[Database, Throwable, UserProfile] = 
@@ -129,22 +138,28 @@ val lookedupProfile: ZIO[Database, Throwable, UserProfile] =
 
 The effect in this example interacts with the database solely through the environment, which in this case, is a module that provides access to the database service.
 
-To actually run such an effect, we need to implement the database module.
+To actually run such an effect, we need to provide an implementation of the database module.
 
 ### Implement Live Service
 
-Now we can implement a live database module, which will actually interact with our production database:
+Now we will implement a live database module, which will actually interact with our production database:
 
 ```scala mdoc:silent
 trait DatabaseLive extends Database {
-  def database: Database.Service = ???
+  def database: Database.Service = 
+    new Database.Service {
+      def lookup(id: UserID): Task[UserProfile] = ???
+      def update(id: UserID, profile: UserProfile): Task[Unit] = ???
+    }
 }
 object DatabaseLive extends DatabaseLive
 ```
 
-(The real implementation is not provided because that would require details beyond the scope of this section.)
+In the preceding snippet, the implementation of the two database methods is not provided, because that would require details beyond the scope of this tutorial.
 
 ### Run the Database Effect
+
+We now have a database module, helpers to interact with the database module, and a live implementation of the database module. 
 
 We can now provide the live database module to our application, using `ZIO.provide`:
 
@@ -155,13 +170,13 @@ def main2: ZIO[Any, Throwable, Unit] =
   main.provide(DatabaseLive)
 ```
 
-The resulting effect has no requirements, so it can now be executed.
+The resulting effect has no requirements, so it can now be executed with a ZIO runtime.
 
 ### Implement Test Service
 
-To test code that interacts with the database, we would like to not interact with a real database, because that will make our test slow and brittle, and fail randomly even when our application logic is correct.
+To test code that interacts with the database, we don't want to interact with a real database, because our tests would be slow and brittle, and fail randomly even when our application logic is correct.
 
-Although you can use mocking libraries to do this, in this section, we will simply create a test service:
+Although you can use mocking libraries to create test modules, in this section, we will simply create a test module directly, to show that no magic is involved:
 
 ```scala mdoc:silent
 class TestService extends Database.Service {
@@ -185,9 +200,11 @@ trait TestDatabase extends Database {
 object TestDatabase extends TestDatabase
 ```
 
+Because this module will only be used in tests, it simulates interaction with a database by extracting and updating data in a hard-coded map. To make this module fiber-safe, you could instead use a `Ref` and not a `var` to hold the map.
+
 ### Test Database Code
 
-To test code that requires the database, we need only provide it with our test database service.
+To test code that requires the database, we need only provide it with our test database module:
 
 ```scala mdoc:silent
 def code: ZIO[Database, Throwable, Unit] = ???
@@ -196,7 +213,7 @@ def code2: ZIO[Any, Throwable, Unit] =
   code.provide(TestDatabase)
 ```
 
-The same code can work with either our production database module, or our test database module.
+Our application code can work with either our production database module, or the test database module.
 
 ## Next Steps
 

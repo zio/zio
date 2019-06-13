@@ -5,10 +5,9 @@ title:  "Summary"
 
 ZIO provides the ability to interoperate with other parts of the broader ecosystem, including:
 
- - **Cats Effect** — In a separate module that is not part of core, ZIO has instances for the Cats Effect library, which allow you to use ZIO with any libraries that rely on Cats Effect (including FS2, Doobie, Http4s).
- - **Future** — In a separate module that is not part of core, ZIO has conversion between ZIO data types (like `IO` and `Fiber`) and Scala concurrent data types like `Future`.
- — **Java** — ZIO has an in-development Java facade that allows Java developers to write ZIO-powered applications in a way that's more idiomatic for Java development.
- - **JavaScript** — ZIO has full compatibility with Scala.js.
+ - **Cats & Cats Effect** — In a separate module that is not part of core, ZIO has instances for the Cats and Cats Effect libraries, which allow you to use ZIO with any libraries that rely on Cats and Cats Effect (including FS2, Doobie, Http4s).
+ - **Future** — ZIO has built-in conversion between ZIO data types (like `ZIO` and `Fiber`) and Scala concurrent data types like `Future`.
+ - **JavaScript** — ZIO has first-class support for Scala.js.
  - **Monix** — In a separate module that is not part of core, ZIO has conversion between ZIO data types and Monix data types.
  - **Reactive Streams** - In a separate module that is not part of core, ZIO has conversion from ZIO Streams and Sinks to Reactive Streams Producers and Consumers.
  - **Scalaz 7.x** — In a separate module that is not part of core, ZIO has instances of `Monad` and other type classes for the ZIO data types.
