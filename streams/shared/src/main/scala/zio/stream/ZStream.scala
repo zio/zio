@@ -240,6 +240,13 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             permits         <- Semaphore.make(n).toManaged_
             innerFailure    <- Promise.make[Exit.Cause[E1], Nothing].toManaged_
             interruptInners <- Promise.make[Nothing, Unit].toManaged_
+
+            // This finalizer makes sure that when the consuming stream ends before the driver stream,
+            // the inner fibers would be interrupted. It's important for this to be *before* the
+            // driver stream so that the driver gets interrupted before the inners, and no additional
+            // inners are forked between the driver's interruption and the inner interruption.
+            _ <- ZManaged.finalizer(interruptInners.succeed(()))
+
             // - The driver stream forks an inner fiber for each stream created
             //   by f, with an upper bound of n concurrent fibers, enforced by the semaphore.
             //   - On completion, the driver stream tries to acquire all permits to verify
@@ -291,8 +298,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                         )
                         .toManaged_
                   )
+                  // Forking the ZManaged value means that on the finalization step, the fiber would
+                  // be interrupted, so we don't have to worry that the driver would keep spawning
+                  // more inner fibers when the consuming stream is short circuited
                   .fork
-            _ <- ZManaged.finalizer(interruptInners.succeed(()))
+
             s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
         }
