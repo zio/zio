@@ -23,7 +23,7 @@ trait ZStreamPlatformSpecific {
           val bytesRead = is.read(buf)
 
           if (bytesRead < 0) None
-          else if (0 < bytesRead && bytesRead < buf.length) Some((Chunk.fromArray(buf).take(buf.length), ()))
+          else if (0 < bytesRead && bytesRead < buf.length) Some((Chunk.fromArray(buf).take(bytesRead), ()))
           else Some((Chunk.fromArray(buf), ()))
         } refineOrDie {
           case e: IOException => e

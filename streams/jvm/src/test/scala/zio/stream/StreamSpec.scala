@@ -489,11 +489,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def fromInputStream = unsafeRun {
     import java.io.ByteArrayInputStream
-
-    val data = List.fill(4096)("0123456789").mkString.getBytes
-    val is   = new ByteArrayInputStream(data)
-
-    ZStream.fromInputStream(is).run(Sink.collectAll[Chunk[Byte]]) map { chunks =>
+    val chunkSize = ZStreamChunk.DefaultChunkSize
+    val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+    val is        = new ByteArrayInputStream(data)
+    ZStream.fromInputStream(is, chunkSize).run(Sink.collectAll[Chunk[Byte]]) map { chunks =>
       chunks.flatMap(_.toArray[Byte]).toArray must_=== data
     }
   }
