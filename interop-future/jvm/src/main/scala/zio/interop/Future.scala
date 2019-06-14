@@ -3,8 +3,8 @@ package zio
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success, Try }
 import scala.reflect.ClassTag
-
 import zio.internal.PlatformLive
+import zio.internal.tracing.TracingConfig
 
 package object interop {
 
@@ -17,7 +17,7 @@ package object interop {
   private val Global = ExecutionContext.Implicits.global
 
   private final def unsafeRun[E, A](ec: ExecutionContext, io: IO[E, A]): A =
-    Runtime[Any]((), PlatformLive.fromExecutionContext(ec)).unsafeRun(io)
+    Runtime[Any]((), PlatformLive.fromExecutionContext(ec).withTracingConfig(TracingConfig.disabled)).unsafeRun(io)
 
   private final def toTry[A](e: Either[Throwable, A]): Try[A] =
     e.fold(Failure(_), Success(_))

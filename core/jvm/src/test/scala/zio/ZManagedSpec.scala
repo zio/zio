@@ -3,6 +3,7 @@ package zio
 import java.util.concurrent.CountDownLatch
 
 import org.scalacheck.{ Gen, _ }
+
 import org.specs2.ScalaCheck
 import org.specs2.matcher.MatchResult
 import org.specs2.matcher.describe.Diffable
@@ -22,9 +23,15 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Constructs an uninterruptible Managed value. $uninterruptible
   ZManaged.reserve
     Interruption is possible when using this form. $interruptible
+  ZManaged.ensuring
+    Runs on successes $ensuringSuccess
+    Runs on failures $ensuringFailure
+    Works when finalizers have defects $ensuringWorksWithDefects
+  ZManaged.flatMap
+    All finalizers run even when finalizers have defects $flatMapFinalizersWithDefects
   ZManaged.foldM
     Runs onFailure on failure $foldMFailure
-    Runs onSucess on success $foldMSuccess
+    Runs onSuccess on success $foldMSuccess
     Invokes cleanups $foldMCleanup
     Invokes cleanups on interrupt 1 $foldMCleanupInterrupt1
     Invokes cleanups on interrupt 2 $foldMCleanupInterrupt2
@@ -56,6 +63,8 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   ZManaged.fork
     Runs finalizers properly $forkFinalizer
     Acquires interruptibly   $forkAcquisitionIsInterruptible
+  ZManaged.fromAutoCloseable
+    Runs finalizers properly $fromAutoCloseable
   ZManaged.mergeAll
     Merges elements in the correct order $mergeAllOrder
     Runs finalizers $mergeAllFinalizers
@@ -123,18 +132,14 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
 
-  private def parallelAcquireAndRelease = {
-    val cleanups = new mutable.ListBuffer[String]
-
-    def managed(v: String): ZManaged[Any, Nothing, String] =
-      ZManaged.make(IO.succeed(v))(_ => IO.effectTotal { cleanups += v; () })
-
-    val program = managed("A").zipWithPar(managed("B"))(_ + _).use[Any, Nothing, String](IO.succeed)
-
-    val result = unsafeRun(program)
-
-    result must haveSize(2)
-    result.size === cleanups.size
+  private def parallelAcquireAndRelease = unsafeRun {
+    for {
+      log      <- Ref.make[List[String]](Nil)
+      a        = ZManaged.make(UIO.succeed("A"))(_ => log.update("A" :: _))
+      b        = ZManaged.make(UIO.succeed("B"))(_ => log.update("B" :: _))
+      result   <- a.zipWithPar(b)(_ + _).use(ZIO.succeed)
+      cleanups <- log.get
+    } yield (result must haveSize(2)) and (cleanups must haveSize(2))
   }
 
   private def uninterruptible =
@@ -159,6 +164,45 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     implicit val d: Diffable[Right[Nothing, Option[Exit[Nothing, Unit]]]] =
       Diffable.eitherRightDiffable[Option[Exit[Nothing, Unit]]] //    TODO: Dotty has ambiguous implicits
     unsafeRun(program) must be_===(Right(expected))
+  }
+
+  private def ensuringSuccess = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.finalizer(effects.update("First" :: _)).ensuring(effects.update("Second" :: _)).use_(ZIO.unit)
+      result  <- effects.get
+    } yield result must_=== List("Second", "First")
+  }
+
+  private def ensuringFailure = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.fromEffect(ZIO.fail(())).ensuring(effects.update("Ensured" :: _)).use_(ZIO.unit).either
+      result  <- effects.get
+    } yield result must_=== List("Ensured")
+  }
+
+  private def ensuringWorksWithDefects = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.finalizer(ZIO.dieMessage("Boom")).ensuring(effects.update("Ensured" :: _)).use_(ZIO.unit).run
+      result  <- effects.get
+    } yield result must_=== List("Ensured")
+  }
+
+  private def flatMapFinalizersWithDefects = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _ <- (for {
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("First" :: _))
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("Second" :: _))
+            _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+            _ <- ZManaged.finalizer(effects.update("Third" :: _))
+          } yield ()).use_(ZIO.unit).run
+      result <- effects.get
+    } yield (result must_=== List("First", "Second", "Third"))
   }
 
   private def foldMFailure = {
@@ -234,6 +278,19 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     effects must be_===(List(1, 2, 2, 1))
   }
+
+  private def fromAutoCloseable =
+    unsafeRun {
+      for {
+        runtime <- ZIO.runtime[Any]
+        effects <- Ref.make(List[String]())
+        closeable = UIO(new AutoCloseable {
+          def close(): Unit = runtime.unsafeRun(effects.update("Closed" :: _).unit)
+        })
+        _      <- ZManaged.fromAutoCloseable(closeable).use_(ZIO.unit)
+        result <- effects.get
+      } yield result must_=== List("Closed")
+    }
 
   private def retryReservation = {
     var retries = 0

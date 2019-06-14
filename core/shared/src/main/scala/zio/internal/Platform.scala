@@ -19,6 +19,7 @@ package zio.internal
 import java.util.{ Map => JMap }
 
 import zio.Exit.Cause
+import zio.internal.tracing.TracingConfig
 
 /**
  * A `Platform` provides the minimum capabilities necessary to bootstrap
@@ -44,6 +45,11 @@ trait Platform { self =>
   def withTracing(t: Tracing): Platform =
     new Platform.Proxy(self) {
       override def tracing: Tracing = t
+    }
+
+  def withTracingConfig(config: TracingConfig): Platform =
+    new Platform.Proxy(self) {
+      override def tracing: Tracing = self.tracing.copy(tracingConfig = config)
     }
 
   /**

@@ -17,6 +17,8 @@
 package zio
 
 import zio.Exit.Cause
+import zio.internal.Tracing
+import zio.internal.tracing.TracingConfig
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
 
 /**
@@ -133,6 +135,17 @@ trait Runtime[+R] {
    * Constructs a new `Runtime` with the specified error reporter.
    */
   final def withReportFailure(f: Cause[_] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
+
+  /**
+   * Constructs a new `Runtime` with the specified tracer and tracing configuration.
+   */
+  final def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.withTracing(t))
+
+  /**
+   * Constructs a new `Runtime` with the specified tracing configuration.
+   */
+  final def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
+
 }
 
 object Runtime {

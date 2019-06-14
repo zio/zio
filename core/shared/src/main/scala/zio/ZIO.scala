@@ -23,6 +23,7 @@ import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
+import scala.reflect.ClassTag
 import zio.{ TracingStatus => TrasingS }
 import zio.{ InterruptStatus => InterruptS }
 
@@ -103,6 +104,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def provideSomeM[R0, E1 >: E](r0: ZIO[R0, E1, R]): ZIO[R0, E1, A] =
     r0.flatMap(self.provide)
+
+  /**
+   * Uses the given Managed[E1, R] to the environment required to run this effect,
+   * leaving no outstanding environments and returning IO[E1, A]
+   */
+  final def provideManaged[E1 >: E](r0: Managed[E1, R]): IO[E1, A] = provideSomeManaged(r0)
+
+  /**
+   * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
+   * leaving the remainder `R0`.
+   */
+  final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R]): ZIO[R0, E1, A] = r0.use(self.provide)
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -250,8 +263,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def raceAttempt[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     raceWith(that)(
-      { case (l, f) => l.fold(f.interrupt *> ZIO.halt(_), ZIO.succeed) },
-      { case (r, f) => r.fold(f.interrupt *> ZIO.halt(_), ZIO.succeed) }
+      { case (l, f) => f.interrupt *> l.fold(ZIO.halt, ZIO.succeed) },
+      { case (r, f) => f.interrupt *> r.fold(ZIO.halt, ZIO.succeed) }
     ).refailWithTrace
 
   /**
@@ -656,6 +669,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] =
     refineOrDieWith(pf)(ev)
+
+  /**
+   * Keeps some of the errors, and terminates the fiber with the rest.
+   */
+  final def refineToOrDie[E1: ClassTag](implicit ev: E <:< Throwable): ZIO[R, E1, A] =
+    refineOrDieWith { case e: E1 => e }(ev)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
@@ -2000,6 +2019,21 @@ object ZIO extends ZIO_R_Any {
 
     final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
       new ZIO.BracketExitAcquire(self)
+  }
+
+  implicit final class ZIOAutocloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
+
+    /**
+     * Like `bracket`, safely wraps a use and release of a resource.
+     * This resource will get automatically closed, because it implements `AutoCloseable`.
+     */
+    def bracketAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+      io.bracket(a => UIO(a.close()))(use)
+
+    /**
+     * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].
+     */
+    def toManaged: ZManaged[R, E, A] = ZManaged.fromAutoCloseable(io)
   }
 
   final class InterruptStatusRestore(private val flag: zio.InterruptStatus) extends AnyVal {

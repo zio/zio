@@ -19,7 +19,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Sink.fold short circuits    $foldShortCircuits
     Sink.foldM                  $foldM
     Sink.foldM short circuits   $foldMShortCircuits
-    Sink.readWhile              $readWhile
+    Sink.collectAllWhile        $collectAllWhile
     ZSink.fromOutputStream      $sinkFromOutputStream
 
   Usecases
@@ -104,9 +104,9 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     run(failed) must_=== ((Exit.fail("Ouch"), Nil))
   }
 
-  private def readWhile =
+  private def collectAllWhile =
     prop { (s: Stream[String, String], f: String => Boolean) =>
-      val sinkResult = unsafeRunSync(s.run(ZSink.readWhile(f)))
+      val sinkResult = unsafeRunSync(s.run(ZSink.collectAllWhile(f)))
       val listResult = slurp(s).map(_.takeWhile(f))
 
       listResult.succeeded ==> (sinkResult must_=== listResult)
@@ -156,18 +156,18 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def jsonNumArrayParsingSinkWithCombinators = {
-    val comma: ZSink[Any, Nothing, Char, Char, List[Char]] = ZSink.readWhile[Char](_ == ',')
+    val comma: ZSink[Any, Nothing, Char, Char, List[Char]] = ZSink.collectAllWhile[Char](_ == ',')
     val brace: ZSink[Any, String, Char, Char, Char] =
-      ZSink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
+      ZSink.read1[String, Char](a => s"Expected closing brace; instead: $a")((_: Char) == ']')
     val number: ZSink[Any, String, Char, Char, Int] =
-      ZSink.readWhile[Char](_.isDigit).map(_.mkString.toInt)
-    val numbers = (number ~ (comma *> number).repeatWhile(_ != ']'))
+      ZSink.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt)
+    val numbers = (number <*> (comma *> number).collectAllWhile[Char, Char](_ != ']'))
       .map(tp => tp._1 :: tp._2)
 
     val elements = numbers <* brace
 
     lazy val start: ZSink[Any, String, Char, Char, List[Int]] =
-      ZSink.more(IO.fail("Input was empty")) {
+      ZSink.pull1(IO.fail("Input was empty")) {
         case a if a.isWhitespace => start
         case '['                 => elements
         case _                   => ZSink.fail("Expected '['")

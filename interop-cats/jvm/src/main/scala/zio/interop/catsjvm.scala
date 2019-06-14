@@ -89,6 +89,9 @@ sealed trait CatsInstances1 extends CatsInstances2 {
 
   implicit def parallelInstance[R, E](implicit M: Monad[ZIO[R, E, ?]]): Parallel[ZIO[R, E, ?], ParIO[R, E, ?]] =
     new CatsParallel[R, E](M)
+
+  implicit def commutativeApplicativeInstance[R, E]: CommutativeApplicative[ParIO[R, E, ?]] =
+    new CatsParApplicative[R, E]
 }
 
 sealed trait CatsInstances2 {
@@ -116,7 +119,7 @@ private class CatsConcurrentEffect[R](rts: Runtime[R])
   )(cb: Either[Throwable, A] => effect.IO[Unit]): effect.SyncIO[effect.CancelToken[TaskR[R, ?]]] =
     effect.SyncIO {
       rts.unsafeRun {
-        fa.fork.flatMap { f =>
+        ZIO.interruptible(fa).fork.flatMap { f =>
           f.await
             .flatMap(exit => IO.effect(cb(exitToEither(exit)).unsafeRunAsync(_ => ())))
             .fork
@@ -161,7 +164,7 @@ private class CatsConcurrent[R] extends CatsEffect[R] with Concurrent[TaskR[R, ?
     }
 
   override final def start[A](fa: TaskR[R, A]): TaskR[R, effect.Fiber[TaskR[R, ?], A]] =
-    fa.fork.map(toFiber)
+    ZIO.interruptible(fa).fork.map(toFiber)
 
   override final def racePair[A, B](
     fa: TaskR[R, A],
@@ -292,7 +295,7 @@ private class CatsParallel[R, E](final override val monad: Monad[ZIO[R, E, ?]])
     }
 }
 
-private class CatsParApplicative[R, E] extends Applicative[ParIO[R, E, ?]] {
+private class CatsParApplicative[R, E] extends CommutativeApplicative[ParIO[R, E, ?]] {
 
   final override def pure[A](x: A): ParIO[R, E, A] =
     Par(ZIO.succeed(x))

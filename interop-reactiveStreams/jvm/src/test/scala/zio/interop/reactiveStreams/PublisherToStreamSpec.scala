@@ -52,7 +52,7 @@ class PublisherToStreamSpec(implicit ee: ExecutionEnv) extends TestRuntime with 
       for {
         pp                 <- Task(probePublisherGraph.run())
         (probe, publisher) = pp
-        fiber              <- publisher.toStream(bufferSize).run(Sink.collect[Int]).fork
+        fiber              <- publisher.toStream(bufferSize).run(Sink.collectAll[Int]).fork
         _                  <- Task(probe.ensureSubscription())
         _                  <- loop(probe, seq, 0)
         r                  <- fiber.join
