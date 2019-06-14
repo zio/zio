@@ -38,65 +38,53 @@ private[syntax] object Concurrent2Syntax {
     @inline def start(implicit C: Concurrent2[F]): F[Nothing, Fiber2[F, E, A]] =
       C.start(fa)
 
-    @inline def uninterruptible(implicit C: Concurrent2[F]): F[E, A] =
-      C.uninterruptible(fa)
-
-    @inline def onInterrupt(cleanup: F[Nothing, Unit])(
-      implicit
-      C: Concurrent2[F],
-      ev: ConcurrentData2[F]
-    ): F[E, A] =
-      C.onInterrupt(fa)(cleanup)
-
     @inline def yieldTo(implicit C: Concurrent2[F]): F[E, A] =
       C.yieldTo(fa)
 
     @inline def evalOn(ec: ExecutionContext)(implicit C: Concurrent2[F]): F[E, A] =
       C.evalOn(fa, ec)
 
-    @inline def race[EE >: E, AA >: A](fa2: F[EE, AA])(
-      implicit
-      C: Concurrent2[F],
-      ev1: ConcurrentData2[F],
-      ev2: Semigroup[EE]
-    ): F[EE, AA] =
+    @inline def race[EE >: E: Semigroup, AA >: A](fa2: F[EE, AA])(implicit C: Concurrent2[F]): F[EE, AA] =
       C.race(fa, fa2)
 
-    @inline def raceEither[EE >: E, B](fa2: F[EE, B])(
-      implicit
-      C: Concurrent2[F],
-      ev1: ConcurrentData2[F],
-      ev2: Semigroup[EE]
-    ): F[EE, Either[A, B]] =
+    @inline def raceEither[EE >: E: Semigroup, B](fa2: F[EE, B])(implicit C: Concurrent2[F]): F[EE, Either[A, B]] =
       C.raceEither(fa, fa2)
 
-    @inline def raceAll[EE >: E, AA >: A](xs: Iterable[F[EE, AA]])(
-      implicit
-      C: Concurrent2[F],
-      ev1: ConcurrentData2[F],
-      ev2: Semigroup[EE]
-    ): F[EE, AA] =
+    @inline def raceWith[E2, E3, B, C](fa2: F[E2, B])(
+      leftDone: (Either[FailedWith[E], A], Fiber2[F, E2, B]) => F[E3, C],
+      rightDone: (Either[FailedWith[E2], B], Fiber2[F, E, A]) => F[E3, C]
+    )(implicit C: Concurrent2[F]): F[E3, C] =
+      C.raceWith(fa, fa2)(leftDone, rightDone)
+
+    @inline def raceAll[EE >: E: Semigroup, AA >: A](xs: Iterable[F[EE, AA]])(implicit C: Concurrent2[F]): F[EE, AA] =
       C.raceAll[E, EE, A, AA](fa)(xs)
 
-    @inline def <&>[EE >: E: Semigroup, B](fa1: F[E, A], fa2: F[EE, B])(
-      implicit
-      C: Concurrent2[F],
-      ev: ConcurrentData2[F]
-    ): F[EE, (A, B)] =
-      C.zipPar(fa1, fa2)
+    @inline def zipWithPar[EE >: E: Semigroup, B, C](
+      fa2: F[EE, B]
+    )(f: (A, B) => C)(implicit C: Concurrent2[F]): F[EE, C] =
+      C.zipWithPar(fa, fa2)(f)
 
-    @inline def <&[EE >: E: Semigroup, B](fa1: F[E, A], fa2: F[EE, B])(
-      implicit
-      C: Concurrent2[F],
-      ev: ConcurrentData2[F]
-    ): F[EE, A] =
-      C.zipParLeft(fa1, fa2)
+    @inline def zipPar[EE >: E: Semigroup, B](fa2: F[EE, B])(implicit C: Concurrent2[F]): F[EE, (A, B)] =
+      C.zipPar(fa, fa2)
 
-    @inline def &>[EE >: E: Semigroup, B](fa1: F[E, A], fa2: F[EE, B])(
-      implicit
-      C: Concurrent2[F],
-      ev: ConcurrentData2[F]
-    ): F[EE, B] =
-      C.zipParRight(fa1, fa2)
+    @inline def zipParLeft[EE >: E: Semigroup, B](fa2: F[EE, B])(implicit C: Concurrent2[F]): F[EE, A] =
+      C.zipParLeft(fa, fa2)
+
+    @inline def zipParRight[EE >: E: Semigroup, B](fa2: F[EE, B])(implicit C: Concurrent2[F]): F[EE, B] =
+      C.zipParRight(fa, fa2)
+
+    @inline def bracket[B](
+      release: (A, Either[FailedWith[E], B]) => F[Nothing, Unit]
+    )(use: A => F[E, B])(implicit C: Concurrent2[F]): F[E, B] =
+      C.bracket(fa, release)(use)
+
+    @inline def <&>[EE >: E: Semigroup, B](fa2: F[EE, B])(implicit C: Concurrent2[F]): F[EE, (A, B)] =
+      C.zipPar(fa, fa2)
+
+    @inline def <&[EE >: E: Semigroup, B](fa2: F[EE, B])(implicit C: Concurrent2[F]): F[EE, A] =
+      C.zipParLeft(fa, fa2)
+
+    @inline def &>[EE >: E: Semigroup, B](fa2: F[EE, B])(implicit C: Concurrent2[F]): F[EE, B] =
+      C.zipParRight(fa, fa2)
   }
 }

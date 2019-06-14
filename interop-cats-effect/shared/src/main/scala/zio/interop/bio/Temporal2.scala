@@ -22,7 +22,7 @@ import java.time.Instant
 
 import scala.concurrent.duration.Duration
 
-abstract class Temporal2[F[+ _, + _]] extends Errorful2[F] {
+abstract class Temporal2[F[+ _, + _]] extends Bracket2[F] {
 
   /**
    * Creates an effect that succeeds with the `Instant`

@@ -57,7 +57,7 @@ import zio.{ InterruptStatus => InterruptS }
  * high performance with large numbers of concurrently executing fibers.
  *
  * `ZIO` values compose with other `ZIO` values in a variety of ways to build
- * complex, rich, interactive aRTSSpecpplications. See the methods on `ZIO` for more
+ * complex, rich, interactive applications. See the methods on `ZIO` for more
  * details about how to compose `ZIO` values.
  *
  *

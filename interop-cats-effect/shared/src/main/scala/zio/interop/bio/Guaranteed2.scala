@@ -18,9 +18,9 @@ package zio
 package interop
 package bio
 
-import cats.{ Applicative, Bifunctor }
+import cats.Applicative
 
-abstract class Guaranteed2[F[+ _, + _]] extends Bifunctor[F] {
+trait Guaranteed2[F[+ _, + _]] {
 
   def applicative[E]: Applicative[F[E, ?]]
 
@@ -36,6 +36,19 @@ abstract class Guaranteed2[F[+ _, + _]] extends Bifunctor[F] {
    *
    */
   def guarantee[E, A](fa: F[E, A], finalizer: F[Nothing, Unit]): F[E, A]
+
+  /**
+   * Performs `fa` uninterruptedly. This will prevent it from
+   * being terminated externally, but it may still fail for internal
+   * reasons.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def uninterruptible[E, A](fa: F[E, A]): F[E, A]
 }
 
 object Guaranteed2 {

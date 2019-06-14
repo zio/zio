@@ -21,12 +21,28 @@ package default
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
+import cats.data.NonEmptyList
+import cats.syntax.either._
 import cats.{ Applicative, Monad }
-import zio.Exit.{ Failure, Success }
+import zio.Exit.{ Cause, Failure, Success }
 import zio.clock.Clock
 import zio.duration.{ Duration => zioDuration }
-import zio.interop.bio.instances.ZioFiber2
-import zio.interop.bio.{ Async2, Concurrent2, Errorful2, Fiber2, Guaranteed2, RunAsync2, RunSync2, Sync2, Temporal2 }
+import zio.interop.bio.FailedWith.{ Dead, Errors, Interrupted }
+import zio.interop.bio.data.{ Deferred2, Ref2 }
+import zio.interop.bio.{
+  Async2,
+  Bracket2,
+  Concurrent2,
+  ConcurrentData2,
+  Errorful2,
+  FailedWith,
+  Fiber2,
+  Guaranteed2,
+  RunAsync2,
+  RunSync2,
+  Sync2,
+  Temporal2
+}
 import zio.interop.default.ZioDefaultInstances._
 
 import scala.concurrent.ExecutionContext
@@ -67,8 +83,8 @@ private[default] object ZioDefaultInstances {
     override def guarantee[E, A](fa: IO[E, A], finalizer: IO[Nothing, Unit]): IO[E, A] =
       fa.ensuring(finalizer)
 
-    override def bimap[A, B, C, D](fab: IO[A, B])(f: A => C, g: B => D): IO[C, D] =
-      fab.bimap(f, g)
+    override def uninterruptible[E, A](fa: IO[E, A]): IO[E, A] =
+      fa.uninterruptible
   }
 
   private[default] sealed trait ZioErrorful2 extends Errorful2[IO] with ZioGuaranteed2 {
@@ -88,8 +104,13 @@ private[default] object ZioDefaultInstances {
           }
       }
 
-    override def raiseError[E](e: E): IO[E, Nothing] =
-      IO.fail(e)
+    override def unsuccessfulWith[E, A](e: FailedWith[E]): IO[E, Nothing] =
+      e match {
+        case Errors(fs) =>
+          IO.halt(fs map Cause.fail reduceLeft (_ && _))
+        case Dead(th)    => IO.die(th)
+        case Interrupted => IO.interrupt
+      }
 
     override def redeemWith[E1, E2, A, B](fa: IO[E1, A])(
       failure: E1 => IO[E2, B],
@@ -98,7 +119,9 @@ private[default] object ZioDefaultInstances {
       fa.foldM(failure, success)
   }
 
-  private[default] sealed trait ZioTemporal2 extends Temporal2[IO] with ZioErrorful2 {
+  private[default] sealed trait ZioBracket2 extends Bracket2[IO] with ZioGuaranteed2 with ZioErrorful2 {}
+
+  private[default] sealed trait ZioTemporal2 extends Temporal2[IO] with ZioBracket2 {
 
     implicit def runtime: Runtime[Clock]
 
@@ -111,20 +134,40 @@ private[default] object ZioDefaultInstances {
 
   private[default] sealed trait ZioConcurrent2 extends Concurrent2[IO] with ZioTemporal2 {
 
+    override def concurrentData: ConcurrentData2[IO] =
+      new ZioConcurrentData2 {}
+
     override def start[E, A](fa: IO[E, A]): IO[Nothing, Fiber2[IO, E, A]] =
-      fa.fork map ZioFiber2.fromFiber
-
-    override def uninterruptible[E, A](fa: IO[E, A]): IO[E, A] =
-      fa.uninterruptible
-
-    override def interrupted: IO[Nothing, Nothing] =
-      IO.interrupt
+      fa.fork map fromFiber
 
     override def yieldTo[E, A](fa: IO[E, A]): IO[E, A] =
       IO.yieldNow *> fa
 
     override def evalOn[E, A](fa: IO[E, A], ec: ExecutionContext): IO[E, A] =
       fa.on(ec)
+
+    private[this] def fromFiber[E, A](fiber: Fiber[E, A]): Fiber2[IO, E, A] =
+      new Fiber2[IO, E, A] {
+
+        def await: IO[Nothing, Either[FailedWith[E], A]] =
+          fiber.await >>= fromExit
+
+        def cancel: IO[Nothing, Either[FailedWith[E], A]] =
+          fiber.await >>= fromExit
+
+        def join: IO[E, A] =
+          fiber.join
+      }
+
+    private[this] def fromExit[E, A](exit: Exit[E, A]): IO[Nothing, Either[FailedWith[E], A]] =
+      exit match {
+        case Success(a) =>
+          IO.succeed(a.asRight)
+
+        case Failure(cause) =>
+          if (cause.died || cause.interrupted || cause.failures.isEmpty) IO.succeed(Interrupted.asLeft)
+          else IO.succeed(Errors(NonEmptyList.fromListUnsafe(cause.failures)).asLeft)
+      }
   }
 
   private[default] sealed trait ZioSync2 extends Sync2[IO] with ZioErrorful2 {
@@ -141,7 +184,7 @@ private[default] object ZioDefaultInstances {
       SG.suspend(
         runtime.unsafeRunSync(fa.either) match {
           case Success(ea) => ea.fold(SG.raiseError, SG.monad.pure(_))
-          case Failure(_)  => CG.interrupted
+          case Failure(_)  => CG.interrupt
         }
       )
   }
@@ -167,7 +210,38 @@ private[default] object ZioDefaultInstances {
       AG.async { cb =>
         runtime.unsafeRunSync(fa.either) match {
           case Success(ea) => cb(k(ea))
-          case Failure(_)  => cb(CG.interrupted)
+          case Failure(_)  => cb(CG.interrupt)
+        }
+      }
+  }
+
+  private[default] sealed trait ZioConcurrentData2 extends ConcurrentData2[IO] {
+
+    def ref[A](a: A): IO[Nothing, Ref2[IO, A]] =
+      Ref.make(a) map { r =>
+        new Ref2[IO, A] {
+          def get: IO[Nothing, A] = r.get
+
+          def set(a: A): IO[Nothing, Unit] = r set a
+
+          def setAsync(a: A): IO[Nothing, Unit] = r setAsync a
+
+          def update(f: A => A): IO[Nothing, A] = r update f
+
+          def updateSome(pf: PartialFunction[A, A]): IO[Nothing, A] = r updateSome pf
+
+          def modify[B](f: A => (B, A)): IO[Nothing, B] = r modify f
+
+          def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): IO[Nothing, B] = r.modifySome(default)(pf)
+        }
+      }
+
+    def deferred[E, A]: IO[Nothing, Deferred2[IO, E, A]] =
+      Promise.make[E, A] map { p =>
+        new Deferred2[IO, E, A] {
+          def await: IO[E, A] = p.await
+
+          def done(fa: IO[E, A]): IO[Nothing, Boolean] = p.done(fa)
         }
       }
   }

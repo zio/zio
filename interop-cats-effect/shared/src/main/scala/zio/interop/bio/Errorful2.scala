@@ -18,22 +18,13 @@ package zio
 package interop
 package bio
 
-import cats.Monad
+import cats.data.NonEmptyList
+import cats.{ Bifunctor, Monad }
+import zio.interop.bio.FailedWith.{ Dead, Errors, Interrupted }
 
-abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] { self =>
+abstract class Errorful2[F[+ _, + _]] extends Bifunctor[F] { self =>
 
   def monad[E]: Monad[F[E, ?]]
-
-  /**
-   * Returns an effect `F` that will fail with an error of type `E`.
-   *
-   * TODO: Example:
-   * {{{
-   *
-   * }}}
-   *
-   */
-  def raiseError[E](e: E): F[E, Nothing]
 
   /**
    * Allows to recover from the error, accepting effects that handle both
@@ -49,6 +40,53 @@ abstract class Errorful2[F[+ _, + _]] extends Guaranteed2[F] { self =>
    *
    */
   def redeemWith[E1, E2, A, B](fa: F[E1, A])(failure: E1 => F[E2, B], success: A => F[E2, B]): F[E2, B]
+
+  /**
+   * Returns an effect that completes with the provided exit case.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  def unsuccessfulWith[E, A](e: FailedWith[E]): F[E, Nothing]
+
+  /**
+   * Returns an effect `F` that will fail with an error of type `E`.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def raiseError[E](e: E): F[E, Nothing] =
+    unsuccessfulWith(Errors(NonEmptyList.one(e)))
+
+  /**
+   * Returns an interrupted effect `F`.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def interrupt: F[Nothing, Nothing] =
+    unsuccessfulWith(Interrupted)
+
+  /**
+   * Returns an dead effect `F`.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def dieWith(t: Throwable): F[Nothing, Nothing] =
+    unsuccessfulWith(Dead(t))
 
   /**
    * Allows to recover from the error in a non failing way.

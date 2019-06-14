@@ -18,10 +18,14 @@ package zio
 package interop
 package bio
 
-abstract class Sync2[F[+ _, + _]] extends Errorful2[F] with Guaranteed2[F] {
+import zio.interop.bio.FailedWith.Interrupted
+
+abstract class Bracket2[F[+ _, + _]] extends Errorful2[F] with Guaranteed2[F] { self =>
 
   /**
-   * Lazily lifts a pure value into the effect `F`.
+   * Returns an effect that will acquire a resource and will release
+   * it after the execution of `use` regardless the fact that `use`
+   * succeed or fail.
    *
    * TODO: Example:
    * {{{
@@ -29,11 +33,13 @@ abstract class Sync2[F[+ _, + _]] extends Errorful2[F] with Guaranteed2[F] {
    * }}}
    *
    */
-  def delay[A](a: => A): F[Nothing, A]
+  def bracket[E, A, B](
+    acquire: F[E, A],
+    release: (A, Either[FailedWith[E], B]) => F[Nothing, Unit]
+  )(use: A => F[E, B]): F[E, B]
 
   /**
-   * Allows to construct an effect from a lazily provided value
-   * that can be itself effectful.
+   * Executes the `cleanup` effect if `fa` is interrupted
    *
    * TODO: Example:
    * {{{
@@ -41,11 +47,13 @@ abstract class Sync2[F[+ _, + _]] extends Errorful2[F] with Guaranteed2[F] {
    * }}}
    *
    */
-  @inline def suspend[E, A](fa: => F[E, A]): F[E, A] =
-    monad flatten delay(fa)
-}
+  def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, Unit]): F[E, A] = {
 
-object Sync2 {
+    def onRelease[AA]: (AA, Either[FailedWith[_], A]) => F[Nothing, Unit] = {
+      case (_, Left(Interrupted)) => cleanup
+      case _                      => monad.unit
+    }
 
-  @inline def apply[F[+ _, + _]: Sync2]: Sync2[F] = implicitly
+    bracket(monad.unit, onRelease)(_ => fa)
+  }
 }

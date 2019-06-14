@@ -20,12 +20,14 @@ package bio
 
 import cats.Monad
 import cats.kernel.Semigroup
-import zio.interop.bio.FailedWith.{ Errors, Interrupted }
+import zio.interop.bio.FailedWith.{ Dead, Errors, Interrupted }
 import zio.interop.bio.data.{ Deferred2, Ref2 }
 
 import scala.concurrent.ExecutionContext
 
 abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
+
+  def concurrentData: ConcurrentData2[F]
 
   /**
    * Returns an effect that runs `fa` into its own separate `Fiber2`
@@ -38,30 +40,6 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   def start[E, A](fa: F[E, A]): F[Nothing, Fiber2[F, E, A]]
-
-  /**
-   * Performs `fa` uninterruptedly. This will prevent it from
-   * being terminated externally, but it may still fail for internal
-   * reasons.
-   *
-   * TODO: Example:
-   * {{{
-   *
-   * }}}
-   *
-   */
-  def uninterruptible[E, A](fa: F[E, A]): F[E, A]
-
-  /**
-   * Returns an interrupted effect `F`.
-   *
-   * TODO: Example:
-   * {{{
-   *
-   * }}}
-   *
-   */
-  def interrupted: F[Nothing, Nothing]
 
   /**
    *
@@ -98,9 +76,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def race[E, EE >: E: Semigroup, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA])(
-    implicit ev: ConcurrentData2[F]
-  ): F[EE, AA] = {
+  @inline def race[E, EE >: E: Semigroup, A, AA >: A](fa1: F[E, A], fa2: F[EE, AA]): F[EE, AA] = {
 
     implicit val _: Monad[F[EE, ?]] = self.monad
 
@@ -111,7 +87,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * Returns an effect that races `fa1` with `fa2` returning the result of
    * one or the other depending on the winner. If both of them fail it will
    * return the combined error. If both are interrupted it will return an
-   * interrupted effect.
+   * interrupted effect. if both die, it will return a dead effect.
    *
    * TODO: Example:
    * {{{
@@ -120,9 +96,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   @inline def raceEither[E, EE >: E, A, B](fa1: F[E, A], fa2: F[EE, B])(
-    implicit
-    ev: ConcurrentData2[F],
-    SG: Semigroup[EE]
+    implicit SG: Semigroup[EE]
   ): F[EE, Either[A, B]] = {
 
     import cats.syntax.either._
@@ -139,9 +113,10 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
             case Right(l)          => monad.pure(l.asRight)
             case Left(Interrupted) => raiseError(wes.reduce(SG.combine))
             case Left(Errors(les)) => raiseError(SG.combine(wes.reduce(SG.combine), les.reduce(SG.combine)))
+            case Left(Dead(th))    => dieWith(th)
           }
 
-        case Left(Interrupted) =>
+        case Left(Interrupted) | Left(Dead(_)) =>
           loser.join >>= (l => monad.pure(l.asRight))
 
         case Right(w) =>
@@ -167,8 +142,6 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
   @inline def raceWith[E1, E2, E3, A, B, C](fa1: F[E1, A], fa2: F[E2, B])(
     leftDone: (Either[FailedWith[E1], A], Fiber2[F, E2, B]) => F[E3, C],
     rightDone: (Either[FailedWith[E2], B], Fiber2[F, E1, A]) => F[E3, C]
-  )(
-    implicit CD: ConcurrentData2[F]
   ): F[E3, C] = {
 
     implicit val ev: Concurrent2[F] = self
@@ -184,8 +157,8 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
       }.flatten
 
     for {
-      done <- CD.deferred[E3, C]
-      race <- CD.ref(0)
+      done <- concurrentData.deferred[E3, C]
+      race <- concurrentData.ref(0)
       c <- bracket(
             for {
               left  <- start(fa1)
@@ -211,9 +184,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def raceAll[E, EE >: E: Semigroup, A, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]])(
-    implicit ev: ConcurrentData2[F]
-  ): F[EE, AA] =
+  @inline def raceAll[E, EE >: E: Semigroup, A, AA >: A](fa: F[E, A])(xs: Iterable[F[EE, AA]]): F[EE, AA] =
     xs.foldLeft(fa.widenBoth[EE, AA]) { (acc, curr) =>
       race(acc, curr)
     }
@@ -230,9 +201,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    *
    */
   @inline def zipWithPar[E, EE >: E, A, B, C](fa1: F[E, A], fa2: F[EE, B])(f: (A, B) => C)(
-    implicit
-    ev: ConcurrentData2[F],
-    SG: Semigroup[EE]
+    implicit SG: Semigroup[EE]
   ): F[EE, C] = {
 
     implicit val _: Concurrent2[F] = self
@@ -246,13 +215,17 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
           loser.cancel >>= {
             case Right(_) | Left(Interrupted) => raiseError(wes.reduce(SG.combine))
             case Left(Errors(les))            => raiseError(SG.combine(wes.reduce(SG.combine), les.reduce(SG.combine)))
+            case Left(Dead(th))               => dieWith(th)
           }
 
         case Left(Interrupted) =>
           loser.cancel >>= {
-            case Right(_) | Left(Interrupted) => interrupted
+            case Right(_) | Left(Interrupted) => interrupt
             case Left(Errors(les))            => raiseError(les.reduce(SG.combine))
+            case Left(Dead(th))               => dieWith(th)
           }
+
+        case Left(Dead(th)) => dieWith(th)
 
         case Right(wa) =>
           loser.join map (f(wa, _))
@@ -274,9 +247,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipPar[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B])(
-    implicit ev: ConcurrentData2[F]
-  ): F[EE, (A, B)] =
+  @inline def zipPar[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, (A, B)] =
     zipWithPar(fa1, fa2)((a, b) => (a, b))
 
   /**
@@ -290,9 +261,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipParLeft[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B])(
-    implicit ev: ConcurrentData2[F]
-  ): F[EE, A] =
+  @inline def zipParLeft[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, A] =
     zipWithPar(fa1, fa2)((a, _) => a)
 
   /**
@@ -306,9 +275,7 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  @inline def zipParRight[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B])(
-    implicit ev: ConcurrentData2[F]
-  ): F[EE, B] =
+  @inline def zipParRight[E, EE >: E: Semigroup, A, B](fa1: F[E, A], fa2: F[EE, B]): F[EE, B] =
     zipWithPar(fa1, fa2)((_, b) => b)
 
   /**
@@ -322,15 +289,14 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
    * }}}
    *
    */
-  final def bracket[E, A, B](acquire: F[E, A], release: (A, Either[FailedWith[E], B]) => F[Nothing, Unit])(
-    use: A => F[E, B]
-  )(
-    implicit CD: ConcurrentData2[F]
-  ): F[E, B] = {
+  @inline override def bracket[E, A, B](
+    acquire: F[E, A],
+    release: (A, Either[FailedWith[E], B]) => F[Nothing, Unit]
+  )(use: A => F[E, B]): F[E, B] = {
 
     implicit val _: Concurrent2[F] = self
 
-    CD.ref(monad.unit) >>= { m =>
+    concurrentData.ref(monad.unit) >>= { m =>
       guarantee(
         uninterruptible(
           acquire >>= { a =>
@@ -342,27 +308,6 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
         m.get.flatten
       )
     }
-  }
-
-  /**
-   * Executes the `cleanup` effect if `fa` is interrupted
-   *
-   * TODO: Example:
-   * {{{
-   *
-   * }}}
-   *
-   */
-  def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, Unit])(
-    implicit CD: ConcurrentData2[F]
-  ): F[E, A] = {
-
-    def onRelease[AA]: (AA, Either[FailedWith[_], A]) => F[Nothing, Unit] = {
-      case (_, Left(Interrupted)) => cleanup
-      case _                      => monad.unit
-    }
-
-    bracket(monad.unit, onRelease)(_ => fa)
   }
 }
 

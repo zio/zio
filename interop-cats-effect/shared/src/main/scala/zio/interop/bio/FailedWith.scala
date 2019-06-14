@@ -25,5 +25,6 @@ sealed trait FailedWith[+E] extends Product with Serializable
 object FailedWith {
 
   final case class Errors[E](failures: NonEmptyList[E]) extends FailedWith[E]
+  final case class Dead(th: Throwable)                  extends FailedWith[Nothing]
   final case object Interrupted                         extends FailedWith[Nothing]
 }
