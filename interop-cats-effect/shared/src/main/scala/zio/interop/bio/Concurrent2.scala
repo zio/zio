@@ -25,7 +25,7 @@ import zio.interop.bio.data.{ Deferred2, Ref2 }
 
 import scala.concurrent.ExecutionContext
 
-abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
+abstract class Concurrent2[F[+_, +_]] extends Temporal2[F] { self =>
 
   def concurrentData: ConcurrentData2[F]
 
@@ -313,5 +313,5 @@ abstract class Concurrent2[F[+ _, + _]] extends Temporal2[F] { self =>
 
 object Concurrent2 {
 
-  @inline def apply[F[+ _, + _]: Concurrent2]: Concurrent2[F] = implicitly
+  @inline def apply[F[+_, +_]: Concurrent2]: Concurrent2[F] = implicitly
 }

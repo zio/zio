@@ -27,13 +27,13 @@ import scala.language.implicitConversions
 
 private[syntax] trait Concurrent2Syntax {
 
-  @inline implicit def concurrent2Syntax[F[+ _, + _], E, A](fa: F[E, A]): Concurrent2Ops[F, E, A] =
+  @inline implicit def concurrent2Syntax[F[+_, +_], E, A](fa: F[E, A]): Concurrent2Ops[F, E, A] =
     new Concurrent2Ops(fa)
 }
 
 private[syntax] object Concurrent2Syntax {
 
-  final class Concurrent2Ops[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
+  final class Concurrent2Ops[F[+_, +_], E, A](private val fa: F[E, A]) extends AnyVal {
 
     @inline def start(implicit C: Concurrent2[F]): F[Nothing, Fiber2[F, E, A]] =
       C.start(fa)

@@ -20,7 +20,7 @@ package bio
 
 import zio.interop.bio.FailedWith.Interrupted
 
-abstract class Bracket2[F[+ _, + _]] extends Errorful2[F] with Guaranteed2[F] { self =>
+abstract class Bracket2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] { self =>
 
   /**
    * Returns an effect that will acquire a resource and will release

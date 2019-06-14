@@ -18,9 +18,9 @@ package zio
 package interop
 package bio
 
-abstract class RunAsync2[F[+ _, + _]] extends Async2[F] {
+abstract class RunAsync2[F[+_, +_]] extends Async2[F] {
 
-  def runAsync[G[+ _, + _], E, A](fa: F[E, A], k: Either[E, A] => G[Nothing, Unit])(
+  def runAsync[G[+_, +_], E, A](fa: F[E, A], k: Either[E, A] => G[Nothing, Unit])(
     implicit
     AG: Async2[G],
     CG: Concurrent2[G]
@@ -29,5 +29,5 @@ abstract class RunAsync2[F[+ _, + _]] extends Async2[F] {
 
 object RunAsync2 {
 
-  @inline def apply[F[+ _, + _]: RunAsync2]: RunAsync2[F] = implicitly
+  @inline def apply[F[+_, +_]: RunAsync2]: RunAsync2[F] = implicitly
 }

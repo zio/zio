@@ -20,7 +20,7 @@ package bio
 
 import zio.interop.bio.data.{ Deferred2, Ref2 }
 
-abstract class ConcurrentData2[F[+ _, + _]] {
+abstract class ConcurrentData2[F[+_, +_]] {
 
   /**
    * Creates a `Ref2[F, A]` where the value is set to `a`.

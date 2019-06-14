@@ -19,7 +19,7 @@ package interop
 package bio
 package data
 
-abstract class Ref2[F[+ _, + _], A] {
+abstract class Ref2[F[+_, +_], A] {
 
   /**
    * Reads the `Ref` value.

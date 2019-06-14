@@ -34,7 +34,7 @@ final class ZioTestDefaultsSpec extends Specification with TestRuntime {
 
     import default.testZioInstances._
 
-    @silent def f[F[+ _, + _]](
+    @silent def f[F[+_, +_]](
       implicit
       A: Guaranteed2[F],
       B: Errorful2[F],

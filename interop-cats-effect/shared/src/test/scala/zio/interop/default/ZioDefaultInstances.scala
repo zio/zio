@@ -180,7 +180,7 @@ private[default] object ZioDefaultInstances {
 
     implicit def runtime: DefaultRuntime
 
-    override def runSync[G[+ _, + _], E, A](fa: IO[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A] =
+    override def runSync[G[+_, +_], E, A](fa: IO[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A] =
       SG.suspend(
         runtime.unsafeRunSync(fa.either) match {
           case Success(ea) => ea.fold(SG.raiseError, SG.monad.pure(_))
@@ -202,7 +202,7 @@ private[default] object ZioDefaultInstances {
 
     implicit def runtime: DefaultRuntime
 
-    override def runAsync[G[+ _, + _], E, A](fa: IO[E, A], k: Either[E, A] => G[Nothing, Unit])(
+    override def runAsync[G[+_, +_], E, A](fa: IO[E, A], k: Either[E, A] => G[Nothing, Unit])(
       implicit
       AG: Async2[G],
       CG: Concurrent2[G]

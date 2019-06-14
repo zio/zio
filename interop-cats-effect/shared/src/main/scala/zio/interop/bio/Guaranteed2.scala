@@ -20,7 +20,7 @@ package bio
 
 import cats.Applicative
 
-trait Guaranteed2[F[+ _, + _]] {
+trait Guaranteed2[F[+_, +_]] {
 
   def applicative[E]: Applicative[F[E, ?]]
 
@@ -53,5 +53,5 @@ trait Guaranteed2[F[+ _, + _]] {
 
 object Guaranteed2 {
 
-  @inline def apply[F[+ _, + _]: Guaranteed2]: Guaranteed2[F] = implicitly
+  @inline def apply[F[+_, +_]: Guaranteed2]: Guaranteed2[F] = implicitly
 }

@@ -22,7 +22,7 @@ import cats.data.NonEmptyList
 import cats.{ Bifunctor, Monad }
 import zio.interop.bio.FailedWith.{ Dead, Errors, Interrupted }
 
-abstract class Errorful2[F[+ _, + _]] extends Bifunctor[F] { self =>
+abstract class Errorful2[F[+_, +_]] extends Bifunctor[F] { self =>
 
   def monad[E]: Monad[F[E, ?]]
 
@@ -281,5 +281,5 @@ abstract class Errorful2[F[+ _, + _]] extends Bifunctor[F] { self =>
 
 object Errorful2 {
 
-  @inline def apply[F[+ _, + _]: Errorful2]: Errorful2[F] = implicitly
+  @inline def apply[F[+_, +_]: Errorful2]: Errorful2[F] = implicitly
 }

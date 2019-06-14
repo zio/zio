@@ -18,7 +18,7 @@ package zio
 package interop
 package bio
 
-abstract class Async2[F[+ _, + _]] extends Sync2[F] {
+abstract class Async2[F[+_, +_]] extends Sync2[F] {
 
   /**
    * Imports into `F` an asynchronous effect with the possibility to
@@ -74,5 +74,5 @@ abstract class Async2[F[+ _, + _]] extends Sync2[F] {
 
 object Async2 {
 
-  @inline def apply[F[+ _, + _]: Async2]: Async2[F] = implicitly
+  @inline def apply[F[+_, +_]: Async2]: Async2[F] = implicitly
 }

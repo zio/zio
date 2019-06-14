@@ -18,7 +18,7 @@ package zio
 package interop
 package bio
 
-abstract class Fiber2[F[+ _, + _], E, A] { self =>
+abstract class Fiber2[F[+_, +_], E, A] { self =>
 
   def await: F[Nothing, Either[FailedWith[E], A]]
 

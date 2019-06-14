@@ -18,12 +18,12 @@ package zio
 package interop
 package bio
 
-abstract class RunSync2[F[+ _, + _]] extends Sync2[F] {
+abstract class RunSync2[F[+_, +_]] extends Sync2[F] {
 
-  def runSync[G[+ _, + _], E, A](fa: F[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A]
+  def runSync[G[+_, +_], E, A](fa: F[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A]
 }
 
 object RunSync2 {
 
-  @inline def apply[F[+ _, + _]: RunSync2]: RunSync2[F] = implicitly
+  @inline def apply[F[+_, +_]: RunSync2]: RunSync2[F] = implicitly
 }

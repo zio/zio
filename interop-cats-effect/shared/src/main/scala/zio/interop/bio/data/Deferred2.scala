@@ -19,7 +19,7 @@ package interop
 package bio
 package data
 
-abstract class Deferred2[F[+ _, + _], E, A] {
+abstract class Deferred2[F[+_, +_], E, A] {
 
   /**
    * Retrieves the value of the `Deferred` waiting if the status

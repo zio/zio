@@ -18,7 +18,7 @@ package zio
 package interop
 package bio
 
-abstract class Sync2[F[+ _, + _]] extends Errorful2[F] with Guaranteed2[F] {
+abstract class Sync2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] {
 
   /**
    * Lazily lifts a pure value into the effect `F`.
@@ -47,5 +47,5 @@ abstract class Sync2[F[+ _, + _]] extends Errorful2[F] with Guaranteed2[F] {
 
 object Sync2 {
 
-  @inline def apply[F[+ _, + _]: Sync2]: Sync2[F] = implicitly
+  @inline def apply[F[+_, +_]: Sync2]: Sync2[F] = implicitly
 }

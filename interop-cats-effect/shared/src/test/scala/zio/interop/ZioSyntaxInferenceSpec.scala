@@ -35,7 +35,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
 
   private[this] def summonErrorful2Syntax: Result = {
 
-    @silent def f[F[+ _, + _], E, A](fa: F[E, A])(
+    @silent def f[F[+_, +_], E, A](fa: F[E, A])(
       implicit A: Errorful2[F]
     ): Unit =
       fa >>= { _ =>
@@ -47,7 +47,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
 
   private[this] def summonConcurrent2Syntax: Result = {
 
-    @silent def f[F[+ _, + _], E, A](fa: F[E, A])(
+    @silent def f[F[+_, +_], E, A](fa: F[E, A])(
       implicit A: Concurrent2[F]
     ): Unit =
       fa >>= { _ =>
@@ -59,7 +59,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
 
   private[this] def summonTemporal2Syntax: Result = {
 
-    @silent def f[F[+ _, + _], E, A](fa: F[E, A])(
+    @silent def f[F[+_, +_], E, A](fa: F[E, A])(
       implicit A: Temporal2[F]
     ): Unit =
       fa >>= { _ =>
@@ -71,7 +71,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
 
   private[this] def summonManySyntax: Result = {
 
-    @silent def f1[F[+ _, + _], E, A](fa: F[E, A])(
+    @silent def f1[F[+_, +_], E, A](fa: F[E, A])(
       implicit
       A: Concurrent2[F],
       B: Sync2[F]
@@ -80,7 +80,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
         A.monad.unit
       }
 
-    @silent def f2[F[+ _, + _], E, A](fa: F[E, A])(
+    @silent def f2[F[+_, +_], E, A](fa: F[E, A])(
       implicit
       A: Concurrent2[F],
       B: Async2[F]
@@ -89,7 +89,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
         A.monad.unit
       }
 
-    @silent def f3[F[+ _, + _], E, A](fa: F[E, A])(
+    @silent def f3[F[+_, +_], E, A](fa: F[E, A])(
       implicit
       A: Errorful2[F],
       B: Concurrent2[F],
@@ -99,7 +99,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
         A.monad.unit
       }
 
-    @silent def f4[F[+ _, + _], E, A](fa: F[E, A])(
+    @silent def f4[F[+_, +_], E, A](fa: F[E, A])(
       implicit
       A: RunAsync2[F],
       B: RunSync2[F]

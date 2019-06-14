@@ -22,7 +22,7 @@ import java.time.Instant
 
 import scala.concurrent.duration.Duration
 
-abstract class Temporal2[F[+ _, + _]] extends Bracket2[F] {
+abstract class Temporal2[F[+_, +_]] extends Bracket2[F] {
 
   /**
    * Creates an effect that succeeds with the `Instant`
@@ -50,5 +50,5 @@ abstract class Temporal2[F[+ _, + _]] extends Bracket2[F] {
 
 object Temporal2 {
 
-  @inline def apply[F[+ _, + _]: Temporal2]: Temporal2[F] = implicitly
+  @inline def apply[F[+_, +_]: Temporal2]: Temporal2[F] = implicitly
 }

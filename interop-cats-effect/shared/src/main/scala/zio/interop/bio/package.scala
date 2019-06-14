@@ -23,7 +23,7 @@ import zio.interop.bio.{ Concurrent2, Errorful2, RunAsync2, RunSync2 }
 
 package object bio extends SyntaxInstances0 {
 
-  implicit private[interop] final class FaSyntax[F[+ _, + _], E, A](private val fa: F[E, A]) extends AnyVal {
+  implicit private[interop] final class FaSyntax[F[+_, +_], E, A](private val fa: F[E, A]) extends AnyVal {
 
     @inline def map[B](f: A => B)(implicit m: Monad[F[E, ?]]): F[E, B] =
       (m map fa)(f)
@@ -47,7 +47,7 @@ package object bio extends SyntaxInstances0 {
       fa.asInstanceOf[F[EE, AA]]
   }
 
-  implicit private[interop] final class FFaSyntax[F[+ _, + _], E, EE >: E, A](private val ffa: F[E, F[EE, A]])
+  implicit private[interop] final class FFaSyntax[F[+_, +_], E, EE >: E, A](private val ffa: F[E, F[EE, A]])
       extends AnyVal {
 
     def flatten[B](implicit m: Monad[F[EE, ?]]): F[EE, A] =
@@ -56,17 +56,17 @@ package object bio extends SyntaxInstances0 {
 }
 
 private[interop] sealed abstract class SyntaxInstances0 extends SyntaxInstances1 {
-  @inline implicit def runAsync2ImpliesMonad[F[+ _, + _], E](implicit ev: RunAsync2[F]): Monad[F[E, ?]] = ev.monad
+  @inline implicit def runAsync2ImpliesMonad[F[+_, +_], E](implicit ev: RunAsync2[F]): Monad[F[E, ?]] = ev.monad
 }
 
 private[interop] sealed abstract class SyntaxInstances1 extends SyntaxInstances2 {
-  @inline implicit def runSync2ImpliesMonad[F[+ _, + _], E](implicit ev: RunSync2[F]): Monad[F[E, ?]] = ev.monad
+  @inline implicit def runSync2ImpliesMonad[F[+_, +_], E](implicit ev: RunSync2[F]): Monad[F[E, ?]] = ev.monad
 }
 
 private[interop] sealed abstract class SyntaxInstances2 extends SyntaxInstances3 {
-  @inline implicit def concurrent2ImpliesMonad[F[+ _, + _], E](implicit ev: Concurrent2[F]): Monad[F[E, ?]] = ev.monad
+  @inline implicit def concurrent2ImpliesMonad[F[+_, +_], E](implicit ev: Concurrent2[F]): Monad[F[E, ?]] = ev.monad
 }
 
 private[interop] sealed abstract class SyntaxInstances3 {
-  @inline implicit def errorful2ImpliesMonad[F[+ _, + _], E](implicit ev: Errorful2[F]): Monad[F[E, ?]] = ev.monad
+  @inline implicit def errorful2ImpliesMonad[F[+_, +_], E](implicit ev: Errorful2[F]): Monad[F[E, ?]] = ev.monad
 }
