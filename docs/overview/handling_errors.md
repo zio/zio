@@ -110,7 +110,7 @@ def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldM(
-    error   => IO.succeedLazy(NoContent(err)), 
+    error   => IO.succeedLazy(NoContent(error)), 
     success => fetchContent(success)
   )
 ```

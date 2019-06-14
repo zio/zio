@@ -42,9 +42,10 @@ The most fundamental way of creating a fiber is to take an existing effect and _
 The following code creates a single fiber, which executes `fib(100)`:
 
 ```scala mdoc:silent
-def fib(n: Long): UIO[Long] = 
+def fib(n: Long): UIO[Long] = UIO {
   if (n <= 1) UIO.succeed(n)
   else fib(n - 1).zipWith(fib(n - 2))(_ + _)
+}.flatten
 
 val fib100Fiber: UIO[Fiber[Nothing, Long]] = 
   for {
