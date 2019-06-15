@@ -105,6 +105,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     r0.flatMap(self.provide)
 
   /**
+   * Uses the given Managed[E1, R] to the environment required to run this effect,
+   * leaving no outstanding environments and returning IO[E1, A]
+   */
+  final def provideManaged[E1 >: E](r0: Managed[E1, R]): IO[E1, A] = provideSomeManaged(r0)
+
+  /**
+   * Uses the given ZManaged[R0, E1, R] to provide some of the environment required to run this effect,
+   * leaving the remainder `R0`.
+   */
+  final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R]): ZIO[R0, E1, A] = r0.use(self.provide)
+
+  /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, new ZIO.MapFn(f))
@@ -250,8 +262,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    */
   final def raceAttempt[R1 <: R, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     raceWith(that)(
-      { case (l, f) => l.fold(f.interrupt *> ZIO.halt(_), ZIO.succeed) },
-      { case (r, f) => r.fold(f.interrupt *> ZIO.halt(_), ZIO.succeed) }
+      { case (l, f) => f.interrupt *> l.fold(ZIO.halt, ZIO.succeed) },
+      { case (r, f) => f.interrupt *> r.fold(ZIO.halt, ZIO.succeed) }
     ).refailWithTrace
 
   /**

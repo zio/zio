@@ -370,17 +370,17 @@ object TaskR {
    */
   final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
 
-  // /**
-  //  * See [[scalaz.zio.ZIO.supervise]]
-  //  */
-  // final def supervise[R, A](taskr: TaskR[R, A]): TaskR[R, A] =
-  //   ZIO.supervise(taskr)
-  //
-  // /**
-  //  * See [[scalaz.zio.ZIO.superviseWith]]
-  //  */
-  // final def superviseWith[R, A](taskr: TaskR[R, A])(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): TaskR[R, A] =
-  //   ZIO.superviseWith(taskr)(supervisor)
+  /**
+   * See [[scalaz.zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[R, A](taskr: TaskR[R, A]): TaskR[R, A] =
+    ZIO.interruptChildren(taskr)
+  
+  /**
+   * See [[scalaz.zio.ZIO.handleChildrenWith]]
+   */
+  final def handleChildrenWith[R, A](taskr: TaskR[R, A])(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): TaskR[R, A] =
+    ZIO.handleChildrenWith(taskr)(supervisor)
 
   /**
    * See [[scalaz.zio.ZIO.supervised]]

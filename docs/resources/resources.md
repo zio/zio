@@ -5,17 +5,17 @@ title:  "Resources"
 
 ## Blog Articles
 
-Note that these articles reflect the state of ZIO at the time of their publication, so the code samples might be outdated considering ZIO was under active development at the time they were written.
-- [Performant Functional Programming to the max with ZIO](https://cloudmark.github.io/A-Journey-To-Zio/) by Mark Galea (May 2019)
+_These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
+
+- [Performant Functional Programming to the Max with ZIO](https://cloudmark.github.io/A-Journey-To-Zio/) by Mark Galea (May 2019)
 - [Using 47 Degree's Fetch library with ZIO](http://justinhj.github.io/2019/05/05/using-47degs-fetch-with-zio.html) by Justin Heyes-Jones (May 2019)
 - [ZIO & Cats Effect: A Match Made in Heaven](http://degoes.net/articles/zio-cats-effect) by John De Goes (April 2019)
 - [Hacker News API Part 5](http://justinhj.github.io/2019/04/07/hacker-news-api-5.html) by Justin Heyes-Jones (April 2019)
 - [Testing Incrementally with ZIO Environment](http://degoes.net/articles/testable-zio) by John De Goes (March 2019)
-- [Testing Incrementally with ZIO Environment](http://degoes.net/articles/testable-zio) by John De Goes (March 2019)
 - [Beautiful, Simple, Testable Functional Effects for Scala](http://degoes.net/articles/zio-environment) (introducing ZIO Environment) by John De Goes (February 2019)
 - [Building the Hangman Game using ScalaZ ZIO](https://abhsrivastava.github.io/2018/11/03/Hangman-Game-Using-ZIO/) by Abhishek Srivastava (November 2018)
 - [Elevator Control System using ZIO](https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58) by Wiem Zine Elabadine (September 2018)
-- [Scalaz 8 IO vs Akka (typed) actors vs Monix (part 1)](https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1) + [part 2](https://blog.softwaremill.com/akka-vs-zio-vs-monix-part-2-communication-9ce7261aa08c) + [part 3](https://blog.softwaremill.com/supervision-error-handling-in-zio-akka-and-monix-part-3-series-summary-abe75f964c2a) by Adam Warski (June 2018)
+- [Scalaz 8 IO vs Akka (typed) Actors vs Monix (part 1)](https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1) + [part 2](https://blog.softwaremill.com/akka-vs-zio-vs-monix-part-2-communication-9ce7261aa08c) + [part 3](https://blog.softwaremill.com/supervision-error-handling-in-zio-akka-and-monix-part-3-series-summary-abe75f964c2a) by Adam Warski (June 2018)
 - [Bifunctor IO: A Step Away from Dynamically-Typed Error Handling](http://degoes.net/articles/bifunctor-io) by John De Goes (May 2018)
 
 ## Talks
@@ -34,7 +34,7 @@ Note that these articles reflect the state of ZIO at the time of their publicati
 ## Cheat Sheet
 
 - [ZIO Cheat Sheet](https://github.com/ghostdogpr/zio-cheatsheet)
-- [Helper functions to interop scala Future & scalaz Task](https://gist.github.com/ubourdon/7b7e929117343b2324cde6eab57674a6)
+- [Snippets for Future/Scalaz Task](https://gist.github.com/ubourdon/7b7e929117343b2324cde6eab57674a6)
 
 ## Sample Projects
 
@@ -44,9 +44,9 @@ Note that these articles reflect the state of ZIO at the time of their publicati
 
 ## Projects using ZIO
 
-- [Rudder](https://github.com/normation/rudder): an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Also use queues, brackets, interrop with Java and historical code... [Context and references explained in that ticket](https://issues.rudder.io/issues/14870).
-- [ZIO AI Platform Backend](https://github.com/Clover-Group/zio_front): Clover Group AI Platform backend, which deploys ZIO, Doobie, http4s and Kafka 
+- [Rudder](https://github.com/normation/rudder): an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Uses queues, brackets, interop with Java, and historical code. See [context and references](https://issues.rudder.io/issues/14870).
+- [ZIO AI Platform Backend](https://github.com/Clover-Group/zio_front): Clover Group AI Platform backend, which employs ZIO, Doobie, http4s and Kafka .
 
 ## Support
 
-- [Official gitter channel](https://gitter.im/ZIO/Core)
+- [Official Gitter Channel](https://gitter.im/ZIO/Core)

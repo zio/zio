@@ -326,17 +326,17 @@ object Task {
   final def supervised[A](task: Task[A]): Task[A] =
     ZIO.supervised(task)
 
-  // /**
-  //  * See [[scalaz.zio.ZIO.supervise]]
-  //  */
-  // final def supervise[A](task: Task[A]): Task[A] =
-  //   ZIO.supervise(task)
+  /**
+   * See [[scalaz.zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[A](task: Task[A]): Task[A] =
+    ZIO.interruptChildren(task)
 
-  // /**
-  //  * See [[scalaz.zio.ZIO.superviseWith]]
-  //  */
-  // final def superviseWith[A](task: Task[A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): Task[A] =
-  //   ZIO.superviseWith(task)(supervisor)
+  /**
+   * See [[scalaz.zio.ZIO.handleChildrenWith]]
+   */
+  final def handleChildrenWith[A](task: Task[A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): Task[A] =
+    ZIO.handleChildrenWith(task)(supervisor)
 
   /**
    * See [[scalaz.zio.ZIO.suspend]]

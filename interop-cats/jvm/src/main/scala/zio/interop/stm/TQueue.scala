@@ -21,12 +21,12 @@ import zio.stm.{ TQueue => ZTQueue }
 /**
  * See [[zio.stm.TQueue]]
  */
-class TQueue[F[+ _], A] private (val underlying: ZTQueue[A]) extends AnyVal {
+class TQueue[F[+_], A] private (val underlying: ZTQueue[A]) extends AnyVal {
 
   /**
    * Switch from effect F to effect G.
    */
-  def mapK[G[+ _]]: TQueue[G, A] = new TQueue(underlying)
+  def mapK[G[+_]]: TQueue[G, A] = new TQueue(underlying)
 
   /**
    * See [[zio.stm.TQueue#offer]]
@@ -65,6 +65,6 @@ class TQueue[F[+ _], A] private (val underlying: ZTQueue[A]) extends AnyVal {
 }
 
 object TQueue {
-  final def make[F[+ _], A](capacity: Int): STM[F, TQueue[F, A]] =
+  final def make[F[+_], A](capacity: Int): STM[F, TQueue[F, A]] =
     new STM(ZTQueue.make[A](capacity).map(new TQueue(_)))
 }

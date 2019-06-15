@@ -301,17 +301,17 @@ object UIO {
    */
   final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
 
-  // /**
-  //  * See [[scalaz.zio.ZIO.supervise]]
-  //  */
-  // final def supervise[A](uio: UIO[A]): UIO[A] =
-  //   ZIO.supervise(uio)
+  /**
+   * See [[scalaz.zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[A](uio: UIO[A]): UIO[A] =
+    ZIO.interruptChildren(uio)
 
-  // /**
-  //  * See [[scalaz.zio.ZIO.superviseWith]]
-  //  */
-  // final def superviseWith[A](uio: UIO[A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): UIO[A] =
-  // ZIO.superviseWith(uio)(supervisor)
+  /**
+   * See [[scalaz.zio.ZIO.handleChildrenWith]]
+   */
+  final def handleChildrenWith[A](uio: UIO[A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): UIO[A] =
+  ZIO.handleChildrenWith(uio)(supervisor)
 
   /**
    * See [[scalaz.zio.ZIO.supervised]]

@@ -252,10 +252,6 @@ object IO {
    */
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
-  /**
-   * See [[scalaz.zio.ZIO.interruptChildren]]
-   */
-  final def interruptChildren[E , A](zio: IO[E, A]): IO[E, A] =ZIO.interruptChildren(zio)
 
   /**
    * See [[scalaz.zio.ZIO.interruptible]]
@@ -336,11 +332,11 @@ object IO {
    */
   final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
 
-  // /**
-  //  * See [[scalaz.zio.ZIO.supervise]]
-  //  */
-  // final def supervise[E, A](io: IO[E, A]): IO[E, A] =
-  //   ZIO.supervise(io)
+  /**
+   * See [[scalaz.zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[E, A](io: IO[E, A]): IO[E, A] =
+    ZIO.interruptChildren(io)
 
   /**
    * See [[scalaz.zio.ZIO.supervised]]
@@ -348,11 +344,11 @@ object IO {
   def supervised[E, A](io: IO[E, A]): IO[E, A] =
     ZIO.supervised(io)
 
-  // /**
-  //  * See [[scalaz.zio.ZIO.superviseWith]]
-  //  */
-  // final def superviseWith[E, A](io: IO[E, A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): IO[E, A] =
-  //   ZIO.superviseWith(io)(supervisor)
+  /**
+   * See [[scalaz.zio.ZIO.handleChildrenWith]]
+   */
+  final def handleChildrenWith[E, A](io: IO[E, A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): IO[E, A] =
+    ZIO.handleChildrenWith(io)(supervisor)
 
   /**
    * See [[scalaz.zio.ZIO.suspend]]

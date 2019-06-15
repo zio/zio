@@ -47,7 +47,7 @@ protected[zio] abstract class MutableConcurrentQueue[A] {
    * The '''maximum''' number of elements that a queue can hold.
    *
    * @note that unbounded queues can still implement this interface
-   * with `capaciy = MAX_INT`.
+   * with `capacity = MAX_INT`.
    */
   val capacity: Int
 
