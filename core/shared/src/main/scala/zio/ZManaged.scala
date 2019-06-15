@@ -467,12 +467,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
         succ => ZIO.succeed((state, succ))
       )
     ZManaged {
-      policy.initial.flatMap {
-        case (delay, initial) =>
-          delay.run.flatMap { dur =>
-            clock.sleep(dur) *> loop(reserve, initial)
-          }
-      }.map {
+      policy.initial.map(_._2).flatMap(initial => loop(reserve, initial)).map {
         case (policyState, Reservation(acquire, release)) =>
           Reservation(loop(acquire, policyState).map(_._2), release)
       }
