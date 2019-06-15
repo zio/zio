@@ -451,19 +451,22 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         ZManaged.succeedLazy { (s, cont, g) =>
           for {
             out              <- Queue.bounded[Take[E1, IO[E1, B]]](n).toManaged(_.shutdown)
+            permits          <- Semaphore.make(n.toLong).toManaged_
             interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
-            _                <- ZManaged.finalizer(interruptWorkers.succeed(()))
-            _ <- self.foreachManaged { a =>
-                  for {
-                    p <- Promise.make[E1, B]
-                    _ <- out.offer(Take.Value(p.await))
-                    _ <- (f(a).to(p) race interruptWorkers.await).fork
-                  } yield ()
-                }.foldCauseM(
-                    c => (out.offer(Take.Fail(c)) *> ZIO.halt(c)).toManaged_,
-                    _ => out.offer(Take.End).unit.toManaged_
-                  )
-                  .fork
+            driver <- self.foreachManaged { a =>
+                       for {
+                         p <- Promise.make[E1, B]
+                         _ <- out.offer(Take.Value(p.await))
+                         _ <- (permits.withPermit(f(a).to(p)) race interruptWorkers.await).fork
+                       } yield ()
+                     }.foldCauseM(
+                         c => (out.offer(Take.Fail(c)) *> ZIO.halt(c)).toManaged_,
+                         _ => out.offer(Take.End).unit.toManaged_
+                       )
+                       .fork
+            _ <- ZManaged.finalizer(
+                  driver.interrupt *> interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit)
+                )
             s <- Stream
                   .fromQueue(out)
                   .unTake
