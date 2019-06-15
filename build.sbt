@@ -4,12 +4,12 @@ import Scalaz._
 import xerial.sbt.Sonatype._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 
-name := "scalaz-zio"
+name := "zio"
 
 inThisBuild(
   List(
-    organization := "org.scalaz",
-    homepage := Some(url("https://scalaz.github.io/scalaz-zio/")),
+    organization := "dev.zio",
+    homepage := Some(url("https://zio.dev")),
     licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
       Developer(
@@ -24,6 +24,12 @@ inThisBuild(
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+
+pgpPublicRing := file("/tmp/public.asc")
+pgpSecretRing := file("/tmp/secret.asc")
+scmInfo := Some(
+  ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
+)
 
 lazy val root = project
   .in(file("."))
@@ -51,12 +57,15 @@ lazy val root = project
     interopReactiveStreamsJVM,
     interopTwitterJVM,
     benchmarks,
-    testkitJVM
+    testkitJVM,
+    stacktracerJS,
+    stacktracerJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
+  .dependsOn(stacktracer)
   .settings(stdSettings("zio"))
   .settings(buildInfoSettings)
   .settings(
@@ -91,7 +100,9 @@ lazy val coreJS = core.js
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
   .settings(stdSettings("zio-streams"))
+  .settings(replSettings)
   .settings(buildInfoSettings)
+  .settings(replSettings)
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile")
 
@@ -243,6 +254,33 @@ lazy val testkit = crossProject(JVMPlatform)
 
 lazy val testkitJVM = testkit.jvm
 
+lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
+  .in(file("stacktracer"))
+  .settings(stdSettings("zio-stacktracer"))
+  .settings(buildInfoSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
+    )
+  )
+
+lazy val stacktracerJS = stacktracer.js
+lazy val stacktracerJVM = stacktracer.jvm
+  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
+  .settings(
+    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
+    sources in (Compile, doc) := {
+      val old = (Compile / doc / sources).value
+      if (isDotty.value) {
+        Nil
+      } else {
+        old
+      }
+    }
+  )
+
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
   .enablePlugins(JmhPlugin)
@@ -260,7 +298,8 @@ lazy val benchmarks = project.module
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.8",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "io.projectreactor"        % "reactor-core"     % "3.2.9.RELEASE",
-        "com.google.code.findbugs" % "jsr305"           % "3.0.2"
+        "com.google.code.findbugs" % "jsr305"           % "3.0.2",
+        "org.ow2.asm"              % "asm"              % "7.1"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
@@ -276,17 +315,17 @@ lazy val benchmarks = project.module
   )
 
 lazy val docs = project.module
-  .in(file("scalaz-zio-docs"))
+  .in(file("zio-docs"))
   .settings(
     skip.in(publish) := true,
-    moduleName := "scalaz-zio-docs",
+    moduleName := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"             % "1.4.0"  % "provided",
+      "com.github.ghik"     %% "silencer-lib"             % "1.4.1"  % "provided",
       "commons-io"          % "commons-io"                % "2.6"    % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.2"  % "provided",
       "org.jsoup"           % "jsoup"                     % "1.12.1" % "provided"
@@ -294,6 +333,7 @@ lazy val docs = project.module
   )
   .dependsOn(
     coreJVM,
+    streamsJVM,
     interopCatsJVM,
     interopFutureJVM,
     interopMonixJVM,

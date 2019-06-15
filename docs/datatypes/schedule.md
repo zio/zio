@@ -4,8 +4,7 @@ title:  "Schedule"
 ---
 
 ```scala mdoc:silent
-import scalaz.zio._
-import scalaz.zio.delay._
+import zio._
 ```
 
 Schedules allow you to define and compose flexible recurrence schedules, which can be used to repeat actions, or retry actions in the event of errors. Schedules are used in the following functions:
@@ -26,7 +25,7 @@ A `Schedule[A, B]` consumes input values of type `A` (errors in the case of `ret
 ## Base Schedules
 
 ```scala mdoc:invisible
-import scalaz.zio.duration._
+import zio.duration._
 ```
 
 A schedule that always recurs:
