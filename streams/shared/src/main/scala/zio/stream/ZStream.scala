@@ -450,12 +450,14 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] =
         ZManaged.succeedLazy { (s, cont, g) =>
           for {
-            out <- Queue.bounded[Take[E1, IO[E1, B]]](n).toManaged(_.shutdown)
+            out              <- Queue.bounded[Take[E1, IO[E1, B]]](n).toManaged(_.shutdown)
+            interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
+            _                <- ZManaged.finalizer(interruptWorkers.succeed(()))
             _ <- self.foreachManaged { a =>
                   for {
                     p <- Promise.make[E1, B]
                     _ <- out.offer(Take.Value(p.await))
-                    _ <- f(a).to(p).fork
+                    _ <- (f(a).to(p) race interruptWorkers.await).fork
                   } yield ()
                 }.foldCauseM(
                     c => (out.offer(Take.Fail(c)) *> ZIO.halt(c)).toManaged_,
