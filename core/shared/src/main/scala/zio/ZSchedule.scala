@@ -17,14 +17,14 @@
 package zio
 
 import java.time.temporal.ChronoField
-import java.time.{LocalDate, LocalTime}
+import java.time.{ LocalDate, LocalTime }
 import java.util.concurrent.TimeUnit
 
 import zio.ZSchedule.Decision
 import zio.clock.Clock
 import zio.delay.Delay
 import zio.duration.Duration
-import zio.random.{Random, nextDouble}
+import zio.random.{ nextDouble, Random }
 import zio.random.Random
 
 import scala.annotation.implicitNotFound
@@ -79,20 +79,18 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R1, (A, C), (B, D)] {
       type State = (self.State, that.State)
       val initial = for {
-          selfInitial <- self.initial
-          thatInitial <- that.initial
-        } yield (selfInitial._1 max thatInitial._1, (selfInitial._2, thatInitial._2))
-        val update = (a: (A, C), s: State) =>
-          self.update(a._1, s._1).zipWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, _ max _))
-      }
+        selfInitial <- self.initial
+        thatInitial <- that.initial
+      } yield (selfInitial._1 max thatInitial._1, (selfInitial._2, thatInitial._2))
+      val update = (a: (A, C), s: State) =>
+        self.update(a._1, s._1).zipWith(that.update(a._2, s._2))(_.combineWith(_)(_ && _, _ max _))
+    }
 
   /**
    * The same as `&&`, but ignores the left output.
    */
-  final def *>[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, C] ={
+  final def *>[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, C] =
     (self && that).map(_._2)
-  }
-
 
   /**
    * Chooses between two schedules with different outputs.
@@ -239,14 +237,18 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
    */
   final def combineWith[R1 <: R, A1 <: A, C](
     that: ZSchedule[R1, A1, C]
-  )(g: (Boolean, Boolean) => Boolean, f: (Delay, Delay) => Delay, h: (Delay, Delay) => Delay): ZSchedule[R1, A1, (B, C)] =
+  )(
+    g: (Boolean, Boolean) => Boolean,
+    f: (Delay, Delay) => Delay,
+    h: (Delay, Delay) => Delay
+  ): ZSchedule[R1, A1, (B, C)] =
     new ZSchedule[R1, A1, (B, C)] {
       type State = (self.State, that.State)
       val initial = for {
-        selfInitial <- self.initial
+        selfInitial  <- self.initial
         otherInitial <- that.initial
       } yield (h(selfInitial._1, otherInitial._1), (selfInitial._2, otherInitial._2))
-      val update  = (a: A1, s: State) => self.update(a, s._1).zipWith(that.update(a, s._2))(_.combineWith(_)(g, f))
+      val update = (a: A1, s: State) => self.update(a, s._1).zipWith(that.update(a, s._2))(_.combineWith(_)(g, f))
     }
 
   /**
@@ -327,7 +329,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     new ZSchedule[R, A, Z] {
       type State = (self.State, Z)
 
-      val initial = self.initial.zip(z).map{ case (selfInitial, that) =>  (selfInitial._1, (selfInitial._2, that))}
+      val initial = self.initial.zip(z).map { case (selfInitial, that) => (selfInitial._1, (selfInitial._2, that)) }
 
       val update = (a: A, s0: State) =>
         for {
@@ -562,13 +564,12 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def zipRight[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, C] =
     self *> that
 
-
   final def startingOn(initialDelay: Delay): ZSchedule[R, A, (Delay, B)] =
     self.map(res => (initialDelay, res))
 
   /**
-    * Shorthand for startingOn with no initial delay
-    */
+   * Shorthand for startingOn with no initial delay
+   */
   final def immediately: ZSchedule[R, A, (Delay, B)] =
     self.startingOn(Delay.none)
 }
@@ -601,9 +602,12 @@ private[zio] trait Schedule_Functions extends Serializable {
     forever.reconsider[Any, Delay]((_, d) => d.copy(finish = () => d.delay))
 
   final val duration: ZSchedule[Clock, Delay, (Delay, Duration)] =
-    forever.reconsider[Delay, Delay]((s, d) => {
-      d.rightMap(_ => s)
-    }).mapM(_.run).immediately
+    forever
+      .reconsider[Delay, Delay]((s, d) => {
+        d.rightMap(_ => s)
+      })
+      .mapM(_.run)
+      .immediately
 
   /**
    * A schedule that never executes. Note that negating this schedule does not
@@ -671,10 +675,8 @@ private[zio] trait Schedule_Functions extends Serializable {
    * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, (Delay, Duration)] = {
+  final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, (Delay, Duration)] =
     (delayed(forever.map(i => base.relative * math.pow(factor, i.doubleValue))) >>> duration).contramap(_ => Delay.none)
-  }
-
 
   /**
    * A schedule that always recurs, increasing delays by summing the
@@ -696,7 +698,10 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A schedule that recurs forever, returning each input as the output.
    */
   final def identity[A]: Schedule[A, A] =
-    ZSchedule[Any, Unit, A, A](ZIO.unit.map(res => (Delay.none, res)), (a, s) => IO.succeed(Decision.cont(Delay.none, s, a)))
+    ZSchedule[Any, Unit, A, A](
+      ZIO.unit.map(res => (Delay.none, res)),
+      (a, s) => IO.succeed(Decision.cont(Delay.none, s, a))
+    )
 
   /**
    * A schedule that always recurs, but will repeat on a linear time

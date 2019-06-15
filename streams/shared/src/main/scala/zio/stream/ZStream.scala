@@ -673,8 +673,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               }
             }
 
-          schedule.initial.toManaged_.flatMap { case (dl, state) =>
-              ZManaged.fromEffect(dl.run).flatMap(dur => { sleep(dur).toManaged_ *> loop(s, state)})
+          schedule.initial.toManaged_.flatMap {
+            case (dl, state) =>
+              ZManaged.fromEffect(dl.run).flatMap(dur => { sleep(dur).toManaged_ *> loop(s, state) })
           }
         }
     }
@@ -720,7 +721,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             else
               f(s, a).zip(schedule.update(a, sched)).flatMap {
                 case (s, decision) =>
-                  decision.delay.run.flatMap{ delay =>
+                  decision.delay.run.flatMap { delay =>
                     if (decision.cont && cont(s))
                       loop(s, decision.state, a).delay(delay)
                     else IO.succeed(s)

@@ -20,14 +20,14 @@ import zio.Exit.Cause
 import zio.clock.Clock
 import zio.delay.Delay
 import zio.duration._
-import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
-import zio.internal.{Executor, Platform}
+import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
+import zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import scala.reflect.ClassTag
-import zio.{TracingStatus => TrasingS}
-import zio.{InterruptStatus => InterruptS}
+import zio.{ TracingStatus => TrasingS }
+import zio.{ InterruptStatus => InterruptS }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
