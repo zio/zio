@@ -24,6 +24,14 @@ inThisBuild(
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+addCommandAlias(
+  "testJVM",
+  ";coreJVM/test;interopCatsJVM/test;interopFutureJVM/test;interopJavaJVM/test;interopMonixJVM/test;interopReactiveStreamsJVM/test;interopScalaz7xJVM/test;interopSharedJVM/test;interopTwitterJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test"
+)
+addCommandAlias(
+  "testJS",
+  ";coreJS/test;interopCatsJS/test;interopFutureJS/test;interopMonixJS/test;interopScalaz7xJS/test;interopSharedJS/test;interopTwitterJS/test;stacktracerJS/test;streamsJS/test"
+)
 
 pgpPublicRing := file("/tmp/public.asc")
 pgpSecretRing := file("/tmp/secret.asc")
@@ -74,7 +82,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
       "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
       "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
-    )
+    ),
+    publishArtifact in (Test, packageBin) := true
   )
   .enablePlugins(BuildInfoPlugin)
 
@@ -170,7 +179,7 @@ lazy val interopCatsJVM = interopCats.jvm
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.1"                              % Test,
-      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
+      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.1"                              % Test,
       "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
     ),
@@ -221,7 +230,7 @@ lazy val interopJava = crossProject(JVMPlatform)
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
-val akkaVersion = "2.5.22"
+val akkaVersion = "2.5.23"
 lazy val interopReactiveStreams = crossProject(JVMPlatform)
   .in(file("interop-reactiveStreams"))
   .settings(stdSettings("zio-interop-reactiveStreams"))
@@ -229,7 +238,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams"     % "1.0.2",
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest"       %% "scalatest"           % "3.0.7" % "test",
+      "org.scalatest"       %% "scalatest"           % "3.0.8" % "test",
       "com.typesafe.akka"   %% "akka-stream"         % akkaVersion % "test",
       "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
@@ -298,7 +307,7 @@ lazy val benchmarks = project.module
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.9",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.2.9.RELEASE",
+        "io.projectreactor"        % "reactor-core"     % "3.2.10.RELEASE",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "org.ow2.asm"              % "asm"              % "7.1"
       ),

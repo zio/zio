@@ -39,7 +39,7 @@ class Footer extends React.Component {
             )}
           </a>
           <div>
-            <h5>Github</h5>
+            <h5>GitHub</h5>
             <a
               className="github-button"
               href="https://github.com/zio/zio"
@@ -54,8 +54,8 @@ class Footer extends React.Component {
           <div>
             <h5>Additional resources</h5>
             <a
-              href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/">          
-              Scaladoc of scalaz-zio
+              href="https://javadoc.io/doc/dev.zio/zio_2.12/">
+              Scaladoc of zio
             </a>
           </div>
         </section>

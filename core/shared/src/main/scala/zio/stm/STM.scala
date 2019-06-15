@@ -617,7 +617,7 @@ object STM {
       final def isChanged: Boolean = _isChanged
 
       override def toString: String =
-        s"Entry(expected.value = ${expected.value}, newValue = ${newValue}, tref = ${tref}, isChanged = ${isChanged})"
+        s"Entry(expected.value = ${expected.value}, newValue = $newValue, tref = $tref, isChanged = $isChanged)"
     }
 
     object Entry {

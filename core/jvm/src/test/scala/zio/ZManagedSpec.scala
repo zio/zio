@@ -31,7 +31,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     All finalizers run even when finalizers have defects $flatMapFinalizersWithDefects
   ZManaged.foldM
     Runs onFailure on failure $foldMFailure
-    Runs onSucess on success $foldMSuccess
+    Runs onSuccess on success $foldMSuccess
     Invokes cleanups $foldMCleanup
     Invokes cleanups on interrupt 1 $foldMCleanupInterrupt1
     Invokes cleanups on interrupt 2 $foldMCleanupInterrupt2
@@ -132,18 +132,14 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
 
-  private def parallelAcquireAndRelease = {
-    val cleanups = new mutable.ListBuffer[String]
-
-    def managed(v: String): ZManaged[Any, Nothing, String] =
-      ZManaged.make(IO.succeed(v))(_ => IO.effectTotal { cleanups += v; () })
-
-    val program = managed("A").zipWithPar(managed("B"))(_ + _).use[Any, Nothing, String](IO.succeed)
-
-    val result = unsafeRun(program)
-
-    result must haveSize(2)
-    result.size === cleanups.size
+  private def parallelAcquireAndRelease = unsafeRun {
+    for {
+      log      <- Ref.make[List[String]](Nil)
+      a        = ZManaged.make(UIO.succeed("A"))(_ => log.update("A" :: _))
+      b        = ZManaged.make(UIO.succeed("B"))(_ => log.update("B" :: _))
+      result   <- a.zipWithPar(b)(_ + _).use(ZIO.succeed)
+      cleanups <- log.get
+    } yield (result must haveSize(2)) and (cleanups must haveSize(2))
   }
 
   private def uninterruptible =
