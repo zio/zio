@@ -676,7 +676,8 @@ private[zio] trait Schedule_Functions extends Serializable {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, (Delay, Duration)] =
-    (delayed(forever.map(i => base.relative * math.pow(factor, i.doubleValue))) >>> duration).contramap(_ => Delay.none)
+    (delayed[Any, Any](forever.map(i => base.relative * math.pow(factor, i.doubleValue))) >>> duration)
+      .contramap(_ => Delay.none)
 
   /**
    * A schedule that always recurs, increasing delays by summing the
@@ -684,7 +685,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * current duration between recurrences.
    */
   final def fibonacci(one: Duration): ZSchedule[Clock, Any, (Delay, Duration)] =
-    (delayed(unfold[(Duration, Duration)]((Duration.Zero, one)) {
+    (delayed[Any, Any](unfold[(Duration, Duration)]((Duration.Zero, one)) {
       case (a1, a2) => (a2, a1 + a2)
     }.map(_._1.relative)) >>> duration).contramap(_ => Delay.none)
 
@@ -709,7 +710,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def linear(base: Duration): ZSchedule[Clock, Any, (Delay, Duration)] =
-    (delayed(forever.map(i => base.relative * i.doubleValue())) >>> duration).contramap(_ => Delay.none)
+    (delayed[Any, Any](forever.map(i => base.relative * i.doubleValue())) >>> duration).contramap(_ => Delay.none)
 
   /**
    * A schedule that recurs forever, dumping input values to the specified
