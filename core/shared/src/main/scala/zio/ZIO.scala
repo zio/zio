@@ -1028,7 +1028,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * Returns an effect that is delayed from this effect by the specified
    * [[zio.duration.Duration]].
    */
-  final def delay(duration: Duration): ZIO[R with Clock, E, A] =
+  final def delay[R1 <: R with Clock](duration: Duration): ZIO[R1, E, A] =
     clock.sleep(duration) *> self
 
   /**

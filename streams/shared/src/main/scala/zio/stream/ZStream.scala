@@ -302,8 +302,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                   // be interrupted, so we don't have to worry that the driver would keep spawning
                   // more inner fibers when the consuming stream is short circuited
                   .fork
-            s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
 
+            s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
         }
     }
@@ -673,10 +673,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               }
             }
 
-          schedule.initial.toManaged_.flatMap {
-            case (dl, state) =>
-              ZManaged.fromEffect(dl.run).flatMap(dur => { sleep(dur).toManaged_ *> loop(s, state) })
-          }
+          schedule.initial.map(_._2).toManaged_.flatMap(loop(s, _))
         }
     }
 
@@ -723,14 +720,15 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                 case (s, decision) =>
                   decision.delay.run.flatMap { delay =>
                     if (decision.cont && cont(s))
-                      loop(s, decision.state, a).delay(delay)
+                      loop(s, decision.state, a).delay[R2](delay)
                     else IO.succeed(s)
                   }
+
               }
 
-          schedule.initial.toManaged_.flatMap { sched =>
+          schedule.initial.map(_._2).toManaged_.flatMap { sched =>
             self.fold[R2, E1, A, S].flatMap { f =>
-              f(s, cont, (s, a) => loop(s, sched._2, a))
+              f(s, cont, (s, a) => loop(s, sched, a))
             }
           }
         }
