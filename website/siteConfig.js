@@ -105,7 +105,7 @@ const siteConfig = {
     cornerOffset: 100,
   },
 
-  customDocsPath: 'scalaz-zio-docs/target/mdoc',
+  customDocsPath: 'zio-docs/target/mdoc',
 };
 
 module.exports = siteConfig;

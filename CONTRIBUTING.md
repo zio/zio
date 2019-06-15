@@ -37,7 +37,7 @@ To clone your forked repository, first make sure you have installed [Git](https:
 ```bash
 mkdir zio
 cd zio
-git clone git@github.com:zio/zio.git .
+git clone git@github.com:your-user-name/zio.git .
 ```
 
 If these steps were successful, then congratulations, you now have a complete copy of the ZIO project!
@@ -46,33 +46,33 @@ The next step is to build the project on your machine, to ensure you know how to
 
 ### Build the Project
 
-The official way to build the project is with SBT. An SBT build file is included in the project, so if you choose to build the project this way, you won't have to do any additional configuration or setup (others choose to build the project using IntelliJ IDEA, Gradle, Maven, Mill, or Fury).
+The official way to build the project is with sbt. An sbt build file is included in the project, so if you choose to build the project this way, you won't have to do any additional configuration or setup (others choose to build the project using IntelliJ IDEA, Gradle, Maven, Mill, or Fury).
 
-We use a custom SBT script, which is included in the repository, in order to ensure settings are uniform across all development machines, and the continuous integration service (Travis).
+We use a custom sbt script, which is included in the repository, in order to ensure settings are uniform across all development machines, and the continuous integration service (Circle CI).
 
-The SBT script is in the root of the repository. To launch this script from your Terminal window, simply type:
+The sbt script is in the root of the repository. To launch this script from your Terminal window, simply type:
 
 ```bash
 ./sbt
 ```
 
-SBT will launch, read the project build file, and download dependencies as required.
+Sbt will launch, read the project build file, and download dependencies as required.
 
-You can now compile the production source code with the following SBT command:
+You can now compile the production source code with the following sbt command:
 
 ```bash
 compile
 ```
 
-You can compile the test source code with the following SBT command:
+You can compile the test source code with the following sbt command:
 
 ```bash
-compile:test
+test:compile
 ```
 
-[Learn more](https://www.scala-sbt.org) about SBT to understand how you can list projects, switch projects, and otherwise manage an SBT project.
+[Learn more](https://www.scala-sbt.org) about sbt to understand how you can list projects, switch projects, and otherwise manage an sbt project.
 
-The main project in ZIO is `coreJVM` (the core project on the JVM; there is also `coreJS` for the core project on Scala.js), which you can focus on using SBT by issuing the following command:
+The main project in ZIO is `coreJVM` (the core project on the JVM; there is also `coreJS` for the core project on Scala.js), which you can focus on using sbt by issuing the following command:
 
 ```bash
 project coreJVM
@@ -133,10 +133,10 @@ Now while you were working on this great improvement, it's quite likely that oth
 To do that, use the `git pull` command:
 
 ```bash
-git pull git@github.com:zio/zio.git master 
+git pull git@github.com:zio/zio.git master
 ```
 
-You may get a warning from Git that some files conflicted. Don't worry! That just means you and another contributor edited the same parts of the same files. 
+You may get a warning from Git that some files conflicted. Don't worry! That just means you and another contributor edited the same parts of the same files.
 
 Using a text editor, open up the conflicted files, and try to merge them together, preserving your changes and the other changes (both are important!).
 
@@ -194,7 +194,7 @@ Once you receive a review, you will probably have to go back and make minor chan
 
 After you make changes, you may need to remind reviewers to check out the code again. If they give a final approval, it means your code is ready for merge! Usually this will happen at the same time, though for controversial changes, a contributor may wait for someone more senior to merge.
 
-If you don't get a merge in a day after your review is successful, then please gently remind folks that your code is ready to be merged. 
+If you don't get a merge in a day after your review is successful, then please gently remind folks that your code is ready to be merged.
 
 Sit back, relax, and enjoy being a ZIO contributor!
 

@@ -862,6 +862,13 @@ object ZManaged {
     }
 
   /**
+   * Creates a [[ZManaged]] from an `AutoCloseable` resource. The resource's `close`
+   * method will be used as the release action.
+   */
+  final def fromAutoCloseable[R, E, A <: AutoCloseable](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
+    ZManaged.make(fa)(a => UIO(a.close()))
+
+  /**
    * Lifts a ZIO[R, E, R] into ZManaged[R, E, R] with no release action. Use
    * with care.
    */

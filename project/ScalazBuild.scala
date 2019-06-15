@@ -98,13 +98,13 @@ object Scalaz {
     }
 
   def stdSettings(prjName: String) = Seq(
-    name := s"scalaz-$prjName",
+    name := s"$prjName",
     scalacOptions := stdOptions,
     crossScalaVersions := Seq("2.12.8", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.2"),
+      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.3"),
       compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.1")
     ),
     parallelExecution in Test := true,

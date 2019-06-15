@@ -108,7 +108,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     raceAll of values                       $testRaceAllOfValues
     raceAll of failures                     $testRaceAllOfFailures
     raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
-    raceAttempt interrupts loser            $testRaceAttemptInterruptsLoser
+    raceAttempt interrupts loser on success $testRaceAttemptInterruptsLoserOnSuccess
+    raceAttempt interrupts loser on failure $testRaceAttemptInterruptsLoserOnFailure
     par regression                          $testPar
     par of now values                       $testRepeatedPar
     mergeAll                                $testMergeAll
@@ -154,6 +155,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   RTS environment
     provide is modular                      $testProvideIsModular
+    provideManaged is modular               $testProvideManagedIsModular
     effectAsync can use environment         $testAsyncCanUseEnvironment
 
   RTS forking inheritability
@@ -940,6 +942,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(zio) must_=== ((4, 2, 4))
   }
 
+  def testProvideManagedIsModular = {
+    def managed(v: Int): ZManaged[Any, Nothing, Int] =
+      ZManaged.make(IO.succeed(v))(_ => IO.effectTotal { () })
+    val zio = (for {
+      v1 <- ZIO.environment[Int]
+      v2 <- ZIO.environment[Int].provideManaged(managed(2))
+      v3 <- ZIO.environment[Int]
+    } yield (v1, v2, v3)).provideManaged(managed(4))
+
+    unsafeRun(zio) must_=== ((4, 2, 4))
+  }
+
   def testAsyncCanUseEnvironment = unsafeRun {
     for {
       result <- ZIO
@@ -1209,7 +1223,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(countdown(50)) must_=== 150
   }
 
-  def testRaceAttemptInterruptsLoser =
+  def testRaceAttemptInterruptsLoserOnSuccess =
+    unsafeRun(for {
+      s      <- Promise.make[Nothing, Unit]
+      effect <- Promise.make[Nothing, Int]
+      winner = s.await *> IO.fromEither(Right(()))
+      loser  = IO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => IO.never)
+      race   = winner raceAttempt loser
+      _      <- race.either
+      b      <- effect.await
+    } yield b) must_=== 42
+
+  def testRaceAttemptInterruptsLoserOnFailure =
     unsafeRun(for {
       s      <- Promise.make[Nothing, Unit]
       effect <- Promise.make[Nothing, Int]
