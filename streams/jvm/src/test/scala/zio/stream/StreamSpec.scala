@@ -93,7 +93,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.mapAccumM          $mapAccumM
   Stream.mapConcat          $mapConcat
   Stream.mapM               $mapM
-  Stream.mapMPar            $mapMPar
+
+  Stream.mapMPar
+    foreachParN equivalence       $mapMPar
+    interruption propagation      $mapMParInterruptionPropagation
 
   Stream merging
     merge                         $merge
@@ -634,6 +637,22 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         } yield l must_=== r
       }
     }
+  }
+
+  private def mapMParInterruptionPropagation = unsafeRun {
+    for {
+      interrupted <- Ref.make(false)
+      latch       <- Promise.make[Nothing, Unit]
+      fib <- Stream(())
+              .mapMPar(1) { _ =>
+                (latch.succeed(()) *> ZIO.never).onInterrupt(interrupted.set(true))
+              }
+              .runDrain
+              .fork
+      _      <- latch.await
+      _      <- fib.interrupt
+      result <- interrupted.get
+    } yield result must_=== true
   }
 
   private def merge =
