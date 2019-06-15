@@ -56,6 +56,17 @@ class DurationSpec extends Specification {
           A negative s.c.d.Duration converts to Zero                           $dur1
           The infinite s.c.d.Duration converts to Infinity                     $dur2
           A positive s.c.d.Duration converts to a Finite                       $dur3
+
+        Make a Java stdlib j.t.Duration and check that:
+          A negative j.t.Duration converts to Zero                                $jdur1
+          A Long.MaxValue second j.t.Duration converts to Infinity                $jdur2
+          A nano-adjusted Long.MaxValue second j.t.Duration converts to Infinity  $jdur3
+          A j.t.Duration constructed from Infinity converts to Infinity           $jdur4
+          A Long.MaxValue - 1 second j.t.Duration converts to Infinity            $jdur5
+          A +ve j.t.Duration whose nano conversion overflows converts to Infinity $jdur6
+          A -ve j.t.Duration whose nano conversion overflows converts to Zero     $jdur7
+          A positive j.t.Duration converts to a Finite                            $jdur8
+
         Check multiplication with finite durations:
           Zero multiplied with zero                                            $mul0
           Zero multiplied with one                                             $mul1
@@ -178,6 +189,30 @@ class DurationSpec extends Specification {
 
   def dur3 =
     Duration.fromScala(ScalaDuration(1L, TimeUnit.NANOSECONDS)) must_=== Duration.fromNanos(1L)
+
+  def jdur1 =
+    Duration.fromJava(JavaDuration.ofNanos(-1L)) must_=== Duration.Zero
+
+  def jdur2 =
+    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue)) must_=== Duration.Infinity
+
+  def jdur3 =
+    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue, 1L)) must_=== Duration.Infinity
+
+  def jdur4 =
+    Duration.fromJava(Duration.Infinity.asJava) must_=== Duration.Infinity
+
+  def jdur5 =
+    Duration.fromJava(JavaDuration.ofSeconds(Long.MaxValue - 1)) must_=== Duration.Infinity
+
+  def jdur6 =
+    Duration.fromJava(JavaDuration.ofNanos(Long.MaxValue).plus(JavaDuration.ofNanos(1L))) must_=== Duration.Infinity
+
+  def jdur7 =
+    Duration.fromJava(JavaDuration.ofNanos(Long.MinValue).minus(JavaDuration.ofNanos(1L))) must_=== Duration.Zero
+
+  def jdur8 =
+    Duration.fromJava(JavaDuration.ofNanos(1L)) must_=== Duration.fromNanos(1L)
 
   def mul0 =
     Duration.Zero * 0 must_=== Duration.Zero

@@ -20,7 +20,7 @@ import cats.effect.Async
 import zio.Runtime
 import zio.stm.{ TRef => ZTRef }
 
-class TRef[F[+ _], A] private (val underlying: ZTRef[A]) extends AnyVal {
+class TRef[F[+_], A] private (val underlying: ZTRef[A]) extends AnyVal {
   self =>
 
   /**
@@ -31,7 +31,7 @@ class TRef[F[+ _], A] private (val underlying: ZTRef[A]) extends AnyVal {
   /**
    * Switch from effect F to effect G.
    */
-  def mapK[G[+ _]]: TRef[G, A] = new TRef(underlying)
+  def mapK[G[+_]]: TRef[G, A] = new TRef(underlying)
 
   /**
    * See [[zio.stm.TRef#modify]]
@@ -64,9 +64,9 @@ class TRef[F[+ _], A] private (val underlying: ZTRef[A]) extends AnyVal {
 
 object TRef {
 
-  final def make[F[+ _], A](a: => A): STM[F, TRef[F, A]] =
+  final def make[F[+_], A](a: => A): STM[F, TRef[F, A]] =
     new STM(ZTRef.make(a).map(new TRef(_)))
 
-  final def makeCommit[F[+ _], A](a: => A)(implicit R: Runtime[Any], A: Async[F]): F[TRef[F, A]] =
+  final def makeCommit[F[+_], A](a: => A)(implicit R: Runtime[Any], A: Async[F]): F[TRef[F, A]] =
     STM.atomically(make(a))
 }

@@ -18,7 +18,7 @@ class MonixSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   `IO.toTask` must
     produce a successful `IO` of `Task`. $toTaskAlwaysSucceeds
     returns a `Task` that fails if `IO` fails. $propagateFailureToTask
-    returns a `Task` that procudes the value from `IO`. $propagateResultToTask
+    returns a `Task` that produces the value from `IO`. $propagateResultToTask
 
   `IO.fromCoeval` must
     return an `IO` that fails if `Coeval` failed. $propagateCoevalFailure
