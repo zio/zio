@@ -24,8 +24,8 @@ object IO {
   /**
    * See [[scalaz.zio.ZIO.bracket]]
    */
-  final def bracket[E, A](acquire: IO[E, A]): ZIO.BracketAcquire[Any, E, A] =
-    ZIO.bracket(acquire)
+  final def bracket[E, A](acquire: IO[E, A]): BracketAcquire[E, A] =
+    new BracketAcquire(acquire)
 
   /**
    * See [[scalaz.zio.ZIO.bracket]]
@@ -253,6 +253,11 @@ object IO {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
+   * See [[scalaz.zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[E , A](zio: IO[E, A]): IO[E, A] =ZIO.interruptChildren(zio)
+
+  /**
    * See [[scalaz.zio.ZIO.interruptible]]
    */
   final def interruptible[E, A](io: IO[E, A]): IO[E, A] =
@@ -358,7 +363,7 @@ object IO {
   /**
    * [[scalaz.zio.ZIO.suspendWith]]
    */
-  final def suspendWith[R, E, A](io: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
+  final def suspendWith[E, A](io: Platform => IO[E, A]): IO[E, A] =
     new ZIO.SuspendWith(io)
 
   /**
@@ -414,5 +419,24 @@ object IO {
    * See [[scalaz.zio.ZIO.yieldNow]]
    */
   final val yieldNow: UIO[Unit] = ZIO.yieldNow
+
+
+  final class BracketAcquire_[E](private val acquire: IO[E, _]) extends AnyVal {
+    def apply(release: IO[Nothing, _]): BracketRelease_[E] =
+      new BracketRelease_(acquire, release)
+  }
+  final class BracketRelease_[E](acquire: IO[E, _], release: IO[Nothing, _]) {
+    def apply[E1 >: E, B](use: IO[E1, B]): IO[E1, B] =
+      ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
+  }
+
+  final class BracketAcquire[E, A](private val acquire: IO[E, A]) extends AnyVal {
+    def apply(release: A => IO[Nothing, _]): BracketRelease[E, A] =
+      new BracketRelease[E, A](acquire, release)
+  }
+  class BracketRelease[E, A](acquire: IO[E, A], release: A => IO[Nothing, _]) {
+    def apply[E1 >: E, B](use: A => IO[E1, B]): IO[E1, B] =
+      ZIO.bracket(acquire, release, use)
+  }
 
 }

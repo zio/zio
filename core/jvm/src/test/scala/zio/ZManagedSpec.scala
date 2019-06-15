@@ -211,12 +211,12 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   private def foldMFailure = {
     val effects = new mutable.ListBuffer[Int]
-    def res(x: Int): ZManaged[Any, Unit, Unit] =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+    def res(x: Int): Managed[Unit, Unit] =
+      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
-    val resource = ZManaged.fromEffect(ZIO.fail(())).foldM(_ => res(1), _ => ZManaged.unit)
+    val resource = Managed.fromEffect(IO.fail(())).foldM(_ => res(1), _ => Managed.unit)
 
-    unsafeRun(resource.use(_ => IO.unit))
+    unsafeRun(resource.use[Any, Unit, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 1))
   }
@@ -228,7 +228,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val resource = ZManaged.succeed(()).foldM(_ => ZManaged.unit, _ => res(1))
 
-    unsafeRun(resource.use(_ => IO.unit))
+    unsafeRun(resource.use[Any, Unit, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 1))
   }
@@ -478,7 +478,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val resources = ZManaged.foreach(List(1, 2, 3))(res)
 
-    unsafeRun(resources.use(_ => IO.unit))
+    unsafeRun(resources.use[Any, Nothing, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
