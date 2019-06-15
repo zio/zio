@@ -302,7 +302,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                    // be interrupted, so we don't have to worry that the driver would keep spawning
                    // more inner fibers when the consuming stream is short circuited
                    .fork
-            _ = em.join
+            _ = em.await
             s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
 
           } yield s
@@ -465,7 +465,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                      _ => out.offer(Take.End).unit.toManaged_
                    )
                    .fork
-            _ = em.join
+            _ = em.await
             s <- Stream
                   .fromQueue(out)
                   .unTake
