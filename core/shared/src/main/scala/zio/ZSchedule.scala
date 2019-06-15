@@ -564,6 +564,9 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
   final def zipRight[R1 <: R, A1 <: A, C](that: ZSchedule[R1, A1, C]): ZSchedule[R1, A1, C] =
     self *> that
 
+  /**
+   * Returns a new schedule with an initial delay
+   */
   final def startingOn(initialDelay: Delay): ZSchedule[R, A, (Delay, B)] =
     self.map(res => (initialDelay, res))
 
