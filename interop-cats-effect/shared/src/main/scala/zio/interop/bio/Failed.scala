@@ -20,11 +20,11 @@ package bio
 
 import cats.data.NonEmptyList
 
-sealed trait FailedWith[+E] extends Product with Serializable
+sealed trait Failed[+E] extends Product with Serializable
 
-object FailedWith {
+object Failed {
 
-  final case class Errors[E](failures: NonEmptyList[E]) extends FailedWith[E]
-  final case class Dead(th: Throwable)                  extends FailedWith[Nothing]
-  final case object Interrupted                         extends FailedWith[Nothing]
+  final case class Errors[E](failures: NonEmptyList[E])         extends Failed[E]
+  final case class Defects(throwables: NonEmptyList[Throwable]) extends Failed[Nothing]
+  final case object Interrupt                                   extends Failed[Nothing]
 }

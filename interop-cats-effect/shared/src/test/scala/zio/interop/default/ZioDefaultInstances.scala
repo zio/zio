@@ -27,7 +27,7 @@ import cats.{ Applicative, Monad }
 import zio.Exit.{ Cause, Failure, Success }
 import zio.clock.Clock
 import zio.duration.{ Duration => zioDuration }
-import zio.interop.bio.FailedWith.{ Dead, Errors, Interrupted }
+import zio.interop.bio.Failed.{ Defects, Errors, Interrupt }
 import zio.interop.bio.data.{ Deferred2, Ref2 }
 import zio.interop.bio.{
   Async2,
@@ -35,7 +35,7 @@ import zio.interop.bio.{
   Concurrent2,
   ConcurrentData2,
   Errorful2,
-  FailedWith,
+  Failed,
   Fiber2,
   Guaranteed2,
   RunAsync2,
@@ -104,12 +104,11 @@ private[default] object ZioDefaultInstances {
           }
       }
 
-    override def unsuccessfulWith[E, A](e: FailedWith[E]): IO[E, Nothing] =
+    override def unsuccessful[E, A](e: Failed[E]): IO[E, Nothing] =
       e match {
-        case Errors(fs) =>
-          IO.halt(fs map Cause.fail reduceLeft (_ && _))
-        case Dead(th)    => IO.die(th)
-        case Interrupted => IO.interrupt
+        case Errors(fs)  => IO.halt(fs map Cause.fail reduceLeft (_ && _))
+        case Defects(ts) => IO.halt(ts map Cause.die reduceLeft (_ && _))
+        case Interrupt   => IO.interrupt
       }
 
     override def redeemWith[E1, E2, A, B](fa: IO[E1, A])(
@@ -119,7 +118,7 @@ private[default] object ZioDefaultInstances {
       fa.foldM(failure, success)
   }
 
-  private[default] sealed trait ZioBracket2 extends Bracket2[IO] with ZioGuaranteed2 with ZioErrorful2 {}
+  private[default] sealed trait ZioBracket2 extends Bracket2[IO] with ZioGuaranteed2 with ZioErrorful2
 
   private[default] sealed trait ZioTemporal2 extends Temporal2[IO] with ZioBracket2 {
 
@@ -149,23 +148,23 @@ private[default] object ZioDefaultInstances {
     private[this] def fromFiber[E, A](fiber: Fiber[E, A]): Fiber2[IO, E, A] =
       new Fiber2[IO, E, A] {
 
-        def await: IO[Nothing, Either[FailedWith[E], A]] =
+        def await: IO[Nothing, Either[Failed[E], A]] =
           fiber.await >>= fromExit
 
-        def cancel: IO[Nothing, Either[FailedWith[E], A]] =
+        def cancel: IO[Nothing, Either[Failed[E], A]] =
           fiber.await >>= fromExit
 
         def join: IO[E, A] =
           fiber.join
       }
 
-    private[this] def fromExit[E, A](exit: Exit[E, A]): IO[Nothing, Either[FailedWith[E], A]] =
+    private[this] def fromExit[E, A](exit: Exit[E, A]): IO[Nothing, Either[Failed[E], A]] =
       exit match {
         case Success(a) =>
           IO.succeed(a.asRight)
 
         case Failure(cause) =>
-          if (cause.died || cause.interrupted || cause.failures.isEmpty) IO.succeed(Interrupted.asLeft)
+          if (cause.died || cause.interrupted || cause.failures.isEmpty) IO.succeed(Interrupt.asLeft)
           else IO.succeed(Errors(NonEmptyList.fromListUnsafe(cause.failures)).asLeft)
       }
   }
@@ -180,11 +179,11 @@ private[default] object ZioDefaultInstances {
 
     implicit def runtime: DefaultRuntime
 
-    override def runSync[G[+_, +_], E, A](fa: IO[E, A])(implicit SG: Sync2[G], CG: Concurrent2[G]): G[E, A] =
-      SG.suspend(
-        runtime.unsafeRunSync(fa.either) match {
-          case Success(ea) => ea.fold(SG.raiseError, SG.monad.pure(_))
-          case Failure(_)  => CG.interrupt
+    override def runSync[G[+_, +_], E, A](fa: IO[E, A])(implicit sync: Sync2[G]): G[E, A] =
+      sync.suspend(
+        runtime.unsafeRunSync(fa) match {
+          case Success(a) => sync.monad pure a
+          case Failure(c) => sync.unsuccessful(failedCause(c))
         }
       )
   }
@@ -203,14 +202,12 @@ private[default] object ZioDefaultInstances {
     implicit def runtime: DefaultRuntime
 
     override def runAsync[G[+_, +_], E, A](fa: IO[E, A], k: Either[E, A] => G[Nothing, Unit])(
-      implicit
-      AG: Async2[G],
-      CG: Concurrent2[G]
+      implicit async: Async2[G]
     ): G[Nothing, Unit] =
-      AG.async { cb =>
+      async.async { cb =>
         runtime.unsafeRunSync(fa.either) match {
-          case Success(ea) => cb(k(ea))
-          case Failure(_)  => cb(CG.interrupt)
+          case Success(a) => cb(k(a))
+          case Failure(c) => cb(async.unsuccessful(failedCause(c)))
         }
       }
   }
@@ -245,4 +242,10 @@ private[default] object ZioDefaultInstances {
         }
       }
   }
+
+  private[this] def failedCause[E](c: Cause[E]): Failed[E] =
+    if (c.died) Defects(NonEmptyList.fromListUnsafe(c.defects))
+    else if (c.interrupted) Interrupt
+    else if (c.failed) Errors(NonEmptyList.fromListUnsafe(c.failures))
+    else Defects(NonEmptyList.one(new RuntimeException("Inconsistent error state"))) // This failure message can be improved
 }

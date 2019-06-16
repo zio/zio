@@ -18,7 +18,7 @@ package zio
 package interop
 package bio
 
-import zio.interop.bio.FailedWith.Interrupted
+import zio.interop.bio.Failed.Interrupt
 
 abstract class Bracket2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] { self =>
 
@@ -35,7 +35,7 @@ abstract class Bracket2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] { se
    */
   def bracket[E, A, B](
     acquire: F[E, A],
-    release: (A, Either[FailedWith[E], B]) => F[Nothing, Unit]
+    release: (A, Either[Failed[E], B]) => F[Nothing, Unit]
   )(use: A => F[E, B]): F[E, B]
 
   /**
@@ -49,9 +49,9 @@ abstract class Bracket2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] { se
    */
   def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, Unit]): F[E, A] = {
 
-    def onRelease[AA]: (AA, Either[FailedWith[_], A]) => F[Nothing, Unit] = {
-      case (_, Left(Interrupted)) => cleanup
-      case _                      => monad.unit
+    def onRelease[AA]: (AA, Either[Failed[_], A]) => F[Nothing, Unit] = {
+      case (_, Left(Interrupt)) => cleanup
+      case _                    => monad.unit
     }
 
     bracket(monad.unit, onRelease)(_ => fa)

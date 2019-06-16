@@ -20,7 +20,7 @@ package bio
 
 import cats.data.NonEmptyList
 import cats.{ Bifunctor, Monad }
-import zio.interop.bio.FailedWith.{ Dead, Errors, Interrupted }
+import zio.interop.bio.Failed.{ Defects, Errors, Interrupt }
 
 abstract class Errorful2[F[+_, +_]] extends Bifunctor[F] { self =>
 
@@ -50,7 +50,7 @@ abstract class Errorful2[F[+_, +_]] extends Bifunctor[F] { self =>
    * }}}
    *
    */
-  def unsuccessfulWith[E, A](e: FailedWith[E]): F[E, Nothing]
+  def unsuccessful[E, A](failure: Failed[E]): F[E, Nothing]
 
   /**
    * Returns an effect `F` that will fail with an error of type `E`.
@@ -62,7 +62,7 @@ abstract class Errorful2[F[+_, +_]] extends Bifunctor[F] { self =>
    *
    */
   @inline def raiseError[E](e: E): F[E, Nothing] =
-    unsuccessfulWith(Errors(NonEmptyList.one(e)))
+    unsuccessful(Errors(NonEmptyList.one(e)))
 
   /**
    * Returns an interrupted effect `F`.
@@ -74,7 +74,7 @@ abstract class Errorful2[F[+_, +_]] extends Bifunctor[F] { self =>
    *
    */
   @inline def interrupt: F[Nothing, Nothing] =
-    unsuccessfulWith(Interrupted)
+    unsuccessful(Interrupt)
 
   /**
    * Returns an dead effect `F`.
@@ -86,7 +86,10 @@ abstract class Errorful2[F[+_, +_]] extends Bifunctor[F] { self =>
    *
    */
   @inline def dieWith(t: Throwable): F[Nothing, Nothing] =
-    unsuccessfulWith(Dead(t))
+    unsuccessful(Defects(NonEmptyList.one(t)))
+
+  @inline def dieWithMany(ts: NonEmptyList[Throwable]): F[Nothing, Nothing] =
+    unsuccessful(Defects(ts))
 
   /**
    * Allows to recover from the error in a non failing way.

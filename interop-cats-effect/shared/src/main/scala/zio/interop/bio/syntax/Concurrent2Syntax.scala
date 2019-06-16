@@ -51,8 +51,8 @@ private[syntax] object Concurrent2Syntax {
       C.raceEither(fa, fa2)
 
     @inline def raceWith[E2, E3, B, C](fa2: F[E2, B])(
-      leftDone: (Either[FailedWith[E], A], Fiber2[F, E2, B]) => F[E3, C],
-      rightDone: (Either[FailedWith[E2], B], Fiber2[F, E, A]) => F[E3, C]
+      leftDone: (Either[Failed[E], A], Fiber2[F, E2, B]) => F[E3, C],
+      rightDone: (Either[Failed[E2], B], Fiber2[F, E, A]) => F[E3, C]
     )(implicit C: Concurrent2[F]): F[E3, C] =
       C.raceWith(fa, fa2)(leftDone, rightDone)
 
@@ -74,7 +74,7 @@ private[syntax] object Concurrent2Syntax {
       C.zipParRight(fa, fa2)
 
     @inline def bracket[B](
-      release: (A, Either[FailedWith[E], B]) => F[Nothing, Unit]
+      release: (A, Either[Failed[E], B]) => F[Nothing, Unit]
     )(use: A => F[E, B])(implicit C: Concurrent2[F]): F[E, B] =
       C.bracket(fa, release)(use)
 

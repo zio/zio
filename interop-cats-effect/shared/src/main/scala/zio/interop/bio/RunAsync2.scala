@@ -20,10 +20,20 @@ package bio
 
 abstract class RunAsync2[F[+_, +_]] extends Async2[F] {
 
+  /**
+   * Returns an effect that runs asynchronously `fa` and completes with
+   * the call back k if `fa` succeeds or fails. If fa is interrupted or
+   * dead the callback will not be executed and the resulting effect `G`
+   * will also be interrupted or dead.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
   def runAsync[G[+_, +_], E, A](fa: F[E, A], k: Either[E, A] => G[Nothing, Unit])(
-    implicit
-    AG: Async2[G],
-    CG: Concurrent2[G]
+    implicit AG: Async2[G]
   ): G[Nothing, Unit]
 }
 
