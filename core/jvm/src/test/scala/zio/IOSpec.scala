@@ -55,6 +55,13 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `foreach_` can be run twice. $testForeach_Twice
    Check `foreachPar_` runs all effects. $testForeachPar_Full
    Check `foreachParN_` runs all effects. $testForeachParN_Full
+   Check `filterOrElse` returns checked failure from held value $testFilterOrElse
+   Check `filterOrElse_` returns checked failure ignoring value $testFilterOrElse_
+   Check `filterOrFail` returns failure ignoring value $testFilterOrFail
+   Check `collect` returns failure ignoring value $testCollect
+   Check `collectM` returns failure ignoring value $testCollectM
+   Check `reject` returns failure ignoring value $testReject
+   Check `rejectM` returns failure ignoring value $testRejectM
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -391,5 +398,97 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     }
     r must have length as.length
     r must containTheSameElementsAs(as)
+  }
+
+  def testFilterOrElse = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.filterOrElse(_ == 0)(a => ZIO.fail(s"$a was not 0"))).sandbox.either
+    ) must_=== Right(0)
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.filterOrElse(_ == 0)(a => ZIO.fail(s"$a was not 0"))).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("1 was not 0"))
+
+    goodCase and badCase
+  }
+
+  def testFilterOrElse_ = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.filterOrElse_(_ == 0)(ZIO.fail("Predicate failed!"))).sandbox.either
+    ) must_=== Right(0)
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.filterOrElse_(_ == 0)(ZIO.fail("Predicate failed!"))).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Predicate failed!"))
+
+    goodCase and badCase
+  }
+
+  def testFilterOrFail = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.filterOrFail(_ == 0)("Predicate failed!")).sandbox.either
+    ) must_=== Right(0)
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.filterOrFail(_ == 0)("Predicate failed!")).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Predicate failed!"))
+
+    goodCase and badCase
+  }
+
+  def testCollect = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
+    ) must_=== Right(0)
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("value was not 0"))
+
+    goodCase and badCase
+  }
+
+  def testCollectM = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.collectM("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })).sandbox.either
+    ) must_=== Right(0)
+
+    val partialBadCase = unsafeRun(
+      exactlyOnce(0)(_.collectM("Predicate failed!")({ case v @ 0 => ZIO.fail("Partial failed!") })).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.collectM("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Predicate failed!"))
+
+    goodCase and partialBadCase and badCase
+  }
+
+  def testReject = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
+    ) must_=== Right(0)
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
+
+    goodCase and badCase
+  }
+
+  def testRejectM = {
+    val goodCase = unsafeRun(
+      exactlyOnce(0)(_.rejectM({ case v if v != 0 => ZIO.succeed("Partial failed!") })).sandbox.either
+    ) must_=== Right(0)
+
+    val partialBadCase = unsafeRun(
+      exactlyOnce(1)(_.rejectM({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
+
+    val badCase = unsafeRun(
+      exactlyOnce(1)(_.rejectM({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
+    ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
+
+    goodCase and partialBadCase and badCase
   }
 }
