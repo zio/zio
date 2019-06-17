@@ -49,7 +49,7 @@ trait Platform { self =>
 
   def withTracingConfig(config: TracingConfig): Platform =
     new Platform.Proxy(self) {
-      override def tracing: Tracing = self.tracing.copy(tracingConfig = config)
+      override val tracing: Tracing = self.tracing.copy(tracingConfig = config)
     }
 
   /**
