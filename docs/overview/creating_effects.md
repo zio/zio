@@ -176,7 +176,7 @@ object legacy {
 }
 
 val login: IO[AuthError, User] = 
-  IO.effectAsync[Any, AuthError, User] { callback =>
+  IO.effectAsync[AuthError, User] { callback =>
     legacy.login(
       user => callback(IO.succeed(user)),
       err  => callback(IO.fail(err))
