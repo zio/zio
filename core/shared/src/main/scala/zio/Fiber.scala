@@ -21,36 +21,36 @@ import zio.internal.Executor
 import scala.concurrent.Future
 
 /**
- * A fiber is a lightweight thread of execution that never consumes more than a
- * whole thread (but may consume much less, depending on contention). Fibers are
- * spawned by forking `IO` actions, which, conceptually at least, runs them
- * concurrently with the parent `IO` action.
- *
- * Fibers can be joined, yielding their result other fibers, or interrupted,
- * which terminates the fiber with a runtime error.
- *
- * Fork-Join Identity: fork >=> join = id
- *
- * {{{
- * for {
- *   fiber1 <- io1.fork
- *   fiber2 <- io2.fork
- *   _      <- fiber1.interrupt(e)
- *   a      <- fiber2.join
- * } yield a
- * }}}
- */
+  * A fiber is a lightweight thread of execution that never consumes more than a
+  * whole thread (but may consume much less, depending on contention). Fibers are
+  * spawned by forking `IO` actions, which, conceptually at least, runs them
+  * concurrently with the parent `IO` action.
+  *
+  * Fibers can be joined, yielding their result other fibers, or interrupted,
+  * which terminates the fiber with a runtime error.
+  *
+  * Fork-Join Identity: fork >=> join = id
+  *
+  * {{{
+  * for {
+  *   fiber1 <- io1.fork
+  *   fiber2 <- io2.fork
+  *   _      <- fiber1.interrupt(e)
+  *   a      <- fiber2.join
+  * } yield a
+  * }}}
+  */
 trait Fiber[+E, +A] { self =>
 
   /**
-   * Awaits the fiber, which suspends the awaiting fiber until the result of the
-   * fiber has been determined.
-   */
+    * Awaits the fiber, which suspends the awaiting fiber until the result of the
+    * fiber has been determined.
+    */
   def await: UIO[Exit[E, A]]
 
   /**
-   * Tentatively observes the fiber, but returns immediately if it is not already done.
-   */
+    * Tentatively observes the fiber, but returns immediately if it is not already done.
+    */
   def poll: UIO[Option[Exit[E, A]]]
 
   /**
@@ -61,10 +61,10 @@ trait Fiber[+E, +A] { self =>
   final def join: IO[E, A] = await.flatMap(IO.done) <* inheritFiberRefs
 
   /**
-   * Interrupts the fiber with no specified reason. If the fiber has already
-   * terminated, either successfully or with error, this will resume
-   * immediately. Otherwise, it will resume when the fiber terminates.
-   */
+    * Interrupts the fiber with no specified reason. If the fiber has already
+    * terminated, either successfully or with error, this will resume
+    * immediately. Otherwise, it will resume when the fiber terminates.
+    */
   def interrupt: UIO[Exit[E, A]]
 
   /**
@@ -98,10 +98,10 @@ trait Fiber[+E, +A] { self =>
     }
 
   /**
-   * Zips this fiber with the specified fiber, combining their results using
-   * the specified combiner function. Both joins and interruptions are performed
-   * in sequential order from left to right.
-   */
+    * Zips this fiber with the specified fiber, combining their results using
+    * the specified combiner function. Both joins and interruptions are performed
+    * in sequential order from left to right.
+    */
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber[E1, C] =
     new Fiber[E1, C] {
       def await: UIO[Exit[E1, C]] =
@@ -119,45 +119,45 @@ trait Fiber[+E, +A] { self =>
     }
 
   /**
-   * Zips this fiber and the specified fiber together, producing a tuple of their
-   * output.
-   */
+    * Zips this fiber and the specified fiber together, producing a tuple of their
+    * output.
+    */
   final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
     zipWith(that)((a, b) => (a, b))
 
   /**
-   * Named alias for `<*>`.
-   */
+    * Named alias for `<*>`.
+    */
   final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber[E1, (A, B)] =
     self <*> that
 
   /**
-   * Same as `zip` but discards the output of the left hand side.
-   */
+    * Same as `zip` but discards the output of the left hand side.
+    */
   final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
     (self zip that).map(_._2)
 
   /**
-   * Named alias for `*>`.
-   */
+    * Named alias for `*>`.
+    */
   final def zipRight[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, B] =
     self *> that
 
   /**
-   * Same as `zip` but discards the output of the right hand side.
-   */
+    * Same as `zip` but discards the output of the right hand side.
+    */
   final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
     zip(that).map(_._1)
 
   /**
-   * Named alias for `<*`.
-   */
+    * Named alias for `<*`.
+    */
   final def zipLeft[E1 >: E, B](that: Fiber[E1, B]): Fiber[E1, A] =
     self <* that
 
   /**
-   * Maps over the value the Fiber computes.
-   */
+    * Maps over the value the Fiber computes.
+    */
   final def map[B](f: A => B): Fiber[E, B] =
     new Fiber[E, B] {
       def await: UIO[Exit[E, B]]        = self.await.map(_.map(f))
@@ -167,32 +167,32 @@ trait Fiber[+E, +A] { self =>
     }
 
   /**
-   * Maps the output of this fiber to the specified constant.
-   */
+    * Maps the output of this fiber to the specified constant.
+    */
   final def const[B](b: => B): Fiber[E, B] =
     map(_ => b)
 
   /**
-   * Maps the output of this fiber to `()`.
-   */
+    * Maps the output of this fiber to `()`.
+    */
   @deprecated("use unit", "1.0.0")
   final def void: Fiber[E, Unit] = unit
 
   /**
-   * Maps the output of this fiber to `()`.
-   */
+    * Maps the output of this fiber to `()`.
+    */
   final def unit: Fiber[E, Unit] = const(())
 
   /**
-   * Converts this fiber into a [[scala.concurrent.Future]].
-   */
+    * Converts this fiber into a [[scala.concurrent.Future]].
+    */
   final def toFuture(implicit ev: E <:< Throwable): UIO[Future[A]] =
     toFutureWith(ev)
 
   /**
-   * Converts this fiber into a [[scala.concurrent.Future]], translating
-   * any errors to [[java.lang.Throwable]] with the specified conversion function.
-   */
+    * Converts this fiber into a [[scala.concurrent.Future]], translating
+    * any errors to [[java.lang.Throwable]] with the specified conversion function.
+    */
   final def toFutureWith(f: E => Throwable): UIO[Future[A]] =
     UIO.effectTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
@@ -207,8 +207,13 @@ trait Fiber[+E, +A] { self =>
     }.flatten
 
   /**
+<<<<<<< HEAD:core/shared/src/main/scala/zio/Fiber.scala
    * Converts this fiber into a [[zio.ZManaged]]. Fiber is interrupted on release.
    */
+=======
+    * Converts this fiber into a [[scalaz.zio.ZManaged]]. Fiber is interrupted on release.
+    */
+>>>>>>> 3192243950521cfc0616d55a1781fb465bd22805:core/shared/src/main/scala/scalaz/zio/Fiber.scala
   final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
     ZManaged.make(UIO.succeed(self))(_.interrupt)
 }
@@ -216,6 +221,7 @@ trait Fiber[+E, +A] { self =>
 object Fiber {
 
   /**
+<<<<<<< HEAD:core/shared/src/main/scala/zio/Fiber.scala
    * A record containing information about a [[Fiber]].
    *
    * @param id The fiber's unique identifier
@@ -231,15 +237,31 @@ object Fiber {
     executor: Executor,
     children: UIO[IndexedSeq[Fiber[_, _]]]
   )
+=======
+    * A record containing information about a [[Fiber]].
+    *
+    * @param id The fiber's unique identifier
+    * @param interrupted Indicates if this fiber was interrupted
+    * @param executor The [[scalaz.zio.internal.Executor]] executing this fiber
+    * @param children The fiber's forked children. This will only be populated if the fiber is supervised (via [[ZIO#supervised]]).
+    */
+  final case class Descriptor(
+                               id: FiberId,
+                               interrupted: Boolean,
+                               interruptible: Boolean,
+                               executor: Executor,
+                               children: UIO[IndexedSeq[Fiber[_, _]]]
+                             )
+>>>>>>> 3192243950521cfc0616d55a1781fb465bd22805:core/shared/src/main/scala/scalaz/zio/Fiber.scala
 
   /**
-   * A fiber that has already succeeded with unit.
-   */
+    * A fiber that has already succeeded with unit.
+    */
   final val unit: Fiber[Nothing, Unit] = Fiber.succeed(())
 
   /**
-   * A fiber that never fails or succeeds.
-   */
+    * A fiber that never fails or succeeds.
+    */
   final val never: Fiber[Nothing, Nothing] =
     new Fiber[Nothing, Nothing] {
       def await: UIO[Exit[Nothing, Nothing]]        = IO.never
@@ -249,8 +271,13 @@ object Fiber {
     }
 
   /**
+<<<<<<< HEAD:core/shared/src/main/scala/zio/Fiber.scala
    * A fiber that is done with the specified [[zio.Exit]] value.
    */
+=======
+    * A fiber that is done with the specified [[scalaz.zio.Exit]] value.
+    */
+>>>>>>> 3192243950521cfc0616d55a1781fb465bd22805:core/shared/src/main/scala/scalaz/zio/Fiber.scala
   final def done[E, A](exit: => Exit[E, A]): Fiber[E, A] =
     new Fiber[E, A] {
       def await: UIO[Exit[E, A]]        = IO.succeedLazy(exit)
@@ -261,47 +288,52 @@ object Fiber {
     }
 
   /**
-   * A fiber that has already failed with the specified value.
-   */
+    * A fiber that has already failed with the specified value.
+    */
   final def fail[E](e: E): Fiber[E, Nothing] = done(Exit.fail(e))
 
   /**
+<<<<<<< HEAD:core/shared/src/main/scala/zio/Fiber.scala
    * Lifts an [[zio.IO]] into a `Fiber`.
    */
+=======
+    * Lifts an [[scalaz.zio.IO]] into a `Fiber`.
+    */
+>>>>>>> 3192243950521cfc0616d55a1781fb465bd22805:core/shared/src/main/scala/scalaz/zio/Fiber.scala
   final def fromEffect[E, A](io: IO[E, A]): UIO[Fiber[E, A]] =
     io.run.map(done(_))
 
   /**
-   * A fiber that is already interrupted.
-   */
+    * A fiber that is already interrupted.
+    */
   final def interrupt: Fiber[Nothing, Nothing] = done(Exit.interrupt)
 
   /**
-   * Returns a fiber that has already succeeded with the specified value.
-   */
+    * Returns a fiber that has already succeeded with the specified value.
+    */
   final def succeed[E, A](a: A): Fiber[E, A] = done(Exit.succeed(a))
 
   /**
-   * Returns a fiber that is already succeeded with the specified lazily
-   * evaluated value.
-   */
+    * Returns a fiber that is already succeeded with the specified lazily
+    * evaluated value.
+    */
   final def succeedLazy[E, A](a: => A): Fiber[E, A] = done(Exit.succeed(a))
 
   /**
-   * Interrupts all fibers, awaiting their interruption.
-   */
+    * Interrupts all fibers, awaiting their interruption.
+    */
   final def interruptAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt)
 
   /**
-   * Joins all fibers, awaiting their completion.
-   */
+    * Joins all fibers, awaiting their completion.
+    */
   final def joinAll(fs: Iterable[Fiber[_, _]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io *> f.await.unit)
 
   /**
-   * Returns a `Fiber` that is backed by the specified `Future`.
-   */
+    * Returns a `Fiber` that is backed by the specified `Future`.
+    */
   final def fromFuture[A](thunk: => Future[A]): Fiber[Throwable, A] =
     new Fiber[Throwable, A] {
       lazy val ftr = thunk

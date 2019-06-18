@@ -22,20 +22,20 @@ import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => 
 import scala.math.Ordered
 
 /** Non-negative duration.
- * Operations that would result in negative value of nanoseconds return zero duration
- * and ones that would result in `Long.MaxValue` overflow return infinity.
- * `Infinity` has `Long.MaxValue` nanoseconds value, but for arithmetic operations behaviour is
- * mathematical infinity like-ish.
- */
+  * Operations that would result in negative value of nanoseconds return zero duration
+  * and ones that would result in `Long.MaxValue` overflow return infinity.
+  * `Infinity` has `Long.MaxValue` nanoseconds value, but for arithmetic operations behaviour is
+  * mathematical infinity like-ish.
+  */
 sealed trait Duration extends Ordered[Duration] with Serializable with Product {
 
   /** Adds other `Duration`. When nanoseconds overflow `Long.MaxValue` returns `Infinity`.
-   */
+    */
   def +(other: Duration): Duration
 
   /** Multiplies by factor, when nanoseconds overflow `Long.MaxValue` returns `Infinity`,
-   * if factor is negative returns `Duration.Zero`.
-   */
+    * if factor is negative returns `Duration.Zero`.
+    */
   def *(factor: Double): Duration
 
   final def max(other: Duration): Duration = if (this > other) this else other

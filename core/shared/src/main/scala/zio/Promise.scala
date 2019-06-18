@@ -29,11 +29,11 @@ import zio.Exit.Cause
  * require the coordinated action of multiple fibers, and for building
  * higher-level concurrent or asynchronous structures.
  * {{{
- * for {
+ *  for {
  *   promise <- Promise.make[Nothing, Int]
  *   _       <- promise.complete(42).delay(1.second).fork
  *   value   <- promise.get // Resumes when forked fiber completes promise
- * } yield value
+ *  } yield value
  * }}}
  */
 class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal {
@@ -145,22 +145,25 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
    */
   final def succeed(a: A): UIO[Boolean] = done(IO.succeed(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
-    var retry = true
+  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler =
+    IO.effectTotal {
+      var retry = true
 
-    while (retry) {
-      val oldState = state.get
+      while (retry) {
+        val oldState = state.get
 
-      val newState = oldState match {
-        case Pending(joiners) =>
-          Pending(joiners.filter(j => !j.eq(joiner)))
+        val newState = oldState match {
+          case Pending(joiners) =>
+            Pending(joiners.filter(j => !j.eq(joiner)))
 
-        case Done(_) =>
-          oldState
+          case Done(_) =>
+            oldState
+        }
+
+        retry = !state.compareAndSet(oldState, newState)
       }
-
-      retry = !state.compareAndSet(oldState, newState)
     }
+<<<<<<< HEAD:core/shared/src/main/scala/zio/Promise.scala
   }
 
   private[zio] final def unsafeDone(io: IO[E, A]): Unit = {
@@ -183,12 +186,26 @@ class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) ex
     if (joiners ne null) joiners.reverse.foreach(_(io))
   }
 
+=======
+>>>>>>> 3192243950521cfc0616d55a1781fb465bd22805:core/shared/src/main/scala/scalaz/zio/Promise.scala
 }
+
 object Promise {
   private val ConstFalse: () => Boolean = () => false
 
+<<<<<<< HEAD:core/shared/src/main/scala/zio/Promise.scala
+=======
+  /**
+   * Makes a new promise.
+   */
+  final def make[E, A]: UIO[Promise[E, A]] =
+    IO.effectTotal[Promise[E, A]](unsafeMake[E, A])
+
+>>>>>>> 3192243950521cfc0616d55a1781fb465bd22805:core/shared/src/main/scala/scalaz/zio/Promise.scala
   private final def unsafeMake[E, A]: Promise[E, A] =
-    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
+    new Promise[E, A](
+      new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil))
+    )
 
   private[zio] object internal {
     sealed trait State[E, A]                                        extends Serializable with Product
@@ -201,9 +218,7 @@ object Promise {
    * guarantees that if the resource is acquired (and the state changed), a
    * release action will be called.
    */
-  final def bracket[E, A, B, C](
-    ref: Ref[A]
-  )(
+  final def bracket[E, A, B, C](ref: Ref[A])(
     acquire: (Promise[E, B], A) => (UIO[C], A)
   )(release: (C, Promise[E, B]) => UIO[_]): IO[E, B] =
     for {
@@ -216,14 +231,30 @@ object Promise {
 
                   ((p, io), a2)
                 }.flatMap {
-                  case (p, io) => io.flatMap(c => pRef.set(Some((c, p))) *> IO.succeed(p))
+                  case (p, io) =>
+                    io.flatMap(c => pRef.set(Some((c, p))) *> IO.succeed(p))
                 }.uninterruptible
             b <- p.await
-          } yield b).ensuring(pRef.get.flatMap(_.map(t => release(t._1, t._2)).getOrElse(IO.unit)))
+          } yield b).ensuring(
+            pRef.get.flatMap(_.map(t => release(t._1, t._2)).getOrElse(IO.unit))
+          )
     } yield b
 
+<<<<<<< HEAD:core/shared/src/main/scala/zio/Promise.scala
   /**
    * Makes a new promise.
    */
   final def make[E, A]: UIO[Promise[E, A]] = IO.effectTotal[Promise[E, A]](unsafeMake[E, A])
+=======
+  private[zio] object internal {
+
+    sealed trait State[E, A] extends Serializable with Product
+
+    final case class Pending[E, A](joiners: List[IO[E, A] => Unit]) extends State[E, A]
+
+    final case class Done[E, A](value: IO[E, A]) extends State[E, A]
+
+  }
+
+>>>>>>> 3192243950521cfc0616d55a1781fb465bd22805:core/shared/src/main/scala/scalaz/zio/Promise.scala
 }
