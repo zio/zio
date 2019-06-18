@@ -3,7 +3,7 @@ package zio
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.Exit.Cause
-import zio.internal.{Executor, Platform}
+import zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
 
@@ -47,9 +47,11 @@ object TaskR {
   /**
    * See [[zio.ZIO.bracket]]
    */
-  final def bracket[R, A, B](acquire: TaskR[R, A],
-                             release: A => ZIO[R, Nothing, _],
-                             use:     A => TaskR[R, B]): TaskR[R, B] = ZIO.bracket(acquire, release, use)
+  final def bracket[R, A, B](
+    acquire: TaskR[R, A],
+    release: A => ZIO[R, Nothing, _],
+    use: A => TaskR[R, B]
+  ): TaskR[R, B] = ZIO.bracket(acquire, release, use)
 
   /**
    * See [[zio.ZIO.bracketExit]]
@@ -60,9 +62,11 @@ object TaskR {
   /**
    * See [[zio.ZIO.bracketExit]]
    */
-  final def bracketExit[R, A, B](acquire: TaskR[R, A],
-                                 release: (A, Exit[Throwable, B]) => ZIO[R, Nothing, _],
-                                 use:     A => TaskR[R, B]): TaskR[R, B] =
+  final def bracketExit[R, A, B](
+    acquire: TaskR[R, A],
+    release: (A, Exit[Throwable, B]) => ZIO[R, Nothing, _],
+    use: A => TaskR[R, B]
+  ): TaskR[R, B] =
     ZIO.bracketExit(acquire, release, use)
 
   /**
@@ -282,11 +286,6 @@ object TaskR {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
-   * See [[zio.ZIO.halt]] 
-   */
-  final def interruptChildren[R, A](taskr: TaskR[R, A]): TaskR[R, A] = ZIO.interruptChildren(taskr)
-
-  /**
    * See [[zio.ZIO.interruptible]]
    */
   final def interruptible[R, A](taskr: TaskR[R, A]): TaskR[R, A] =
@@ -378,17 +377,19 @@ object TaskR {
    */
   final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
 
-  // /**
-  //  * See [[zio.ZIO.supervise]]
-  //  */
-  // final def supervise[R, A](taskr: TaskR[R, A]): TaskR[R, A] =
-  //   ZIO.supervise(taskr)
-  //
-  // /**
-  //  * See [[zio.ZIO.superviseWith]]
-  //  */
-  // final def superviseWith[R, A](taskr: TaskR[R, A])(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): TaskR[R, A] =
-  //   ZIO.superviseWith(taskr)(supervisor)
+  /**
+   * See [[zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[R, A](taskr: TaskR[R, A]): TaskR[R, A] =
+    ZIO.interruptChildren(taskr)
+
+  /**
+   * See [[zio.ZIO.handleChildrenWith]]
+   */
+  final def handleChildrenWith[R, A](
+    taskr: TaskR[R, A]
+  )(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): TaskR[R, A] =
+    ZIO.handleChildrenWith(taskr)(supervisor)
 
   /**
    * See [[zio.ZIO.supervised]]

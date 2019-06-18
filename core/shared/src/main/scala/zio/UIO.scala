@@ -1,7 +1,7 @@
 package zio
 
 import zio.Exit.Cause
-import zio.internal.{Executor, Platform}
+import zio.internal.{ Executor, Platform }
 
 object UIO {
 
@@ -226,21 +226,9 @@ object UIO {
   final def halt(cause: Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
 
   /**
-   * See [[zio.ZIO.handleChildrenWith]]
-   */
-  final def handleChildrenWith[A](
-    uio: UIO[A]
-  )(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): UIO[A] = ZIO.handleChildrenWith(uio)(supervisor)
-
-  /**
    * See [[zio.ZIO.interrupt]]
    */
   final val interrupt: UIO[Nothing] = ZIO.interrupt
-
-  /**
-   * See [[zio.ZIO.halt]] 
-   */
-  final def interruptChildren[A](uio: UIO[A]): UIO[A] = ZIO.interruptChildren(uio)
 
   /**
    * See [[zio.ZIO.interruptible]]
@@ -316,17 +304,17 @@ object UIO {
    */
   final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
 
-  // /**
-  //  * See [[zio.ZIO.supervise]]
-  //  */
-  // final def supervise[A](uio: UIO[A]): UIO[A] =
-  //   ZIO.supervise(uio)
+  /**
+   * See [[zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[A](uio: UIO[A]): UIO[A] =
+    ZIO.interruptChildren(uio)
 
-  // /**
-  //  * See [[zio.ZIO.superviseWith]]
-  //  */
-  // final def superviseWith[A](uio: UIO[A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): UIO[A] =
-  // ZIO.superviseWith(uio)(supervisor)
+  /**
+   * See [[zio.ZIO.handleChildrenWith]]
+   */
+  final def handleChildrenWith[A](uio: UIO[A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): UIO[A] =
+    ZIO.handleChildrenWith(uio)(supervisor)
 
   /**
    * See [[zio.ZIO.supervised]]

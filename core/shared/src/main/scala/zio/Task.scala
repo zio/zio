@@ -1,7 +1,7 @@
 package zio
 
 import zio.Exit.Cause
-import zio.internal.{Executor, Platform}
+import zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
 
@@ -45,9 +45,11 @@ object Task {
   /**
    * See [[zio.ZIO.bracketExit]]
    */
-  final def bracketExit[A, B](acquire: Task[A],
-                              release: (A, Exit[Throwable, B]) => UIO[_],
-                              use:     A => Task[B]): Task[B] =
+  final def bracketExit[A, B](
+    acquire: Task[A],
+    release: (A, Exit[Throwable, B]) => UIO[_],
+    use: A => Task[B]
+  ): Task[B] =
     ZIO.bracketExit(acquire, release, use)
 
   /**
@@ -245,12 +247,7 @@ object Task {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
-   * See [[zio.ZIO.halt]] 
-   */
-  final def interruptChildren[A](task: Task[A]): Task[A] = ZIO.interruptChildren(task)
-
-  /**
-   * See [[zio.ZIO.interruptible]]
+  * See [[zio.ZIO.interruptible]]
    */
   final def interruptible[A](task: Task[A]): Task[A] =
     ZIO.interruptible(task)
@@ -335,17 +332,17 @@ object Task {
   final def supervised[A](task: Task[A]): Task[A] =
     ZIO.supervised(task)
 
-  // /**
-  //  * See [[zio.ZIO.supervise]]
-  //  */
-  // final def supervise[A](task: Task[A]): Task[A] =
-  //   ZIO.supervise(task)
+  /**
+   * See [[zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[A](task: Task[A]): Task[A] =
+    ZIO.interruptChildren(task)
 
-  // /**
-  //  * See [[zio.ZIO.superviseWith]]
-  //  */
-  // final def superviseWith[A](task: Task[A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): Task[A] =
-  //   ZIO.superviseWith(task)(supervisor)
+  /**
+   * See [[zio.ZIO.handleChildrenWith]]
+   */
+  final def handleChildrenWith[A](task: Task[A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): Task[A] =
+    ZIO.handleChildrenWith(task)(supervisor)
 
   /**
    * See [[zio.ZIO.suspend]]

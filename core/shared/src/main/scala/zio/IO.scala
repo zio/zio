@@ -1,7 +1,7 @@
 package zio
 
 import zio.Exit.Cause
-import zio.internal.{Executor, Platform}
+import zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
 
@@ -27,8 +27,8 @@ object IO {
   /**
    * See [[zio.ZIO.bracket]]
    */
-  final def bracket[E, A](acquire: IO[E, A]): ZIO.BracketAcquire[Any, E, A] =
-    ZIO.bracket(acquire)
+  final def bracket[E, A](acquire: IO[E, A]): BracketAcquire[E, A] =
+    new BracketAcquire(acquire)
 
   /**
    * See [[zio.ZIO.bracket]]
@@ -45,9 +45,7 @@ object IO {
   /**
    * See [[zio.ZIO.bracketExit]]
    */
-  final def bracketExit[E, A, B](acquire: IO[E, A],
-                                 release: (A, Exit[E, B]) => UIO[_],
-                                 use:     A => IO[E, B]): IO[E, B] =
+  final def bracketExit[E, A, B](acquire: IO[E, A], release: (A, Exit[E, B]) => UIO[_], use: A => IO[E, B]): IO[E, B] =
     ZIO.bracketExit(acquire, release, use)
 
   /**
@@ -256,11 +254,6 @@ object IO {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
-   * See [[zio.ZIO.halt]] 
-   */
-  final def interruptChildren[E, A](io: IO[E, A]): IO[E, A] = ZIO.interruptChildren(io)
-
-  /**
    * See [[zio.ZIO.interruptible]]
    */
   final def interruptible[E, A](io: IO[E, A]): IO[E, A] =
@@ -339,11 +332,11 @@ object IO {
    */
   final def succeedLazy[A](a: => A): UIO[A] = ZIO.succeedLazy(a)
 
-  // /**
-  //  * See [[zio.ZIO.supervise]]
-  //  */
-  // final def supervise[E, A](io: IO[E, A]): IO[E, A] =
-  //   ZIO.supervise(io)
+  /**
+   * See [[zio.ZIO.interruptChildren]]
+   */
+  final def interruptChildren[E, A](io: IO[E, A]): IO[E, A] =
+    ZIO.interruptChildren(io)
 
   /**
    * See [[zio.ZIO.supervised]]
@@ -351,11 +344,11 @@ object IO {
   def supervised[E, A](io: IO[E, A]): IO[E, A] =
     ZIO.supervised(io)
 
-  // /**
-  //  * See [[zio.ZIO.superviseWith]]
-  //  */
-  // final def superviseWith[E, A](io: IO[E, A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): IO[E, A] =
-  //   ZIO.superviseWith(io)(supervisor)
+  /**
+   * See [[zio.ZIO.handleChildrenWith]]
+   */
+  final def handleChildrenWith[E, A](io: IO[E, A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): IO[E, A] =
+    ZIO.handleChildrenWith(io)(supervisor)
 
   /**
    * See [[zio.ZIO.suspend]]
@@ -366,7 +359,7 @@ object IO {
   /**
    * [[zio.ZIO.suspendWith]]
    */
-  final def suspendWith[R, E, A](io: Platform => ZIO[R, E, A]): ZIO[R, E, A] =
+  final def suspendWith[E, A](io: Platform => IO[E, A]): IO[E, A] =
     new ZIO.SuspendWith(io)
 
   /**
@@ -377,7 +370,7 @@ object IO {
   /**
    * See [[zio.ZIO.traced]]
    */
-  final def traced[E , A](zio: IO[E, A]): IO[E, A] = ZIO.traced(zio)
+  final def traced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.traced(zio)
 
   /**
    * See [[zio.ZIO.unit]]
@@ -404,7 +397,7 @@ object IO {
   /**
    * See [[zio.ZIO.untraced]]
    */
-  final def untraced[E , A](zio: IO[E, A]): IO[E, A] = ZIO.untraced(zio)
+  final def untraced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.untraced(zio)
 
   /**
    * See [[zio.ZIO.when]]
@@ -422,5 +415,23 @@ object IO {
    * See [[zio.ZIO.yieldNow]]
    */
   final val yieldNow: UIO[Unit] = ZIO.yieldNow
+
+  final class BracketAcquire_[E](private val acquire: IO[E, _]) extends AnyVal {
+    def apply(release: IO[Nothing, _]): BracketRelease_[E] =
+      new BracketRelease_(acquire, release)
+  }
+  final class BracketRelease_[E](acquire: IO[E, _], release: IO[Nothing, _]) {
+    def apply[E1 >: E, B](use: IO[E1, B]): IO[E1, B] =
+      ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
+  }
+
+  final class BracketAcquire[E, A](private val acquire: IO[E, A]) extends AnyVal {
+    def apply(release: A => IO[Nothing, _]): BracketRelease[E, A] =
+      new BracketRelease[E, A](acquire, release)
+  }
+  class BracketRelease[E, A](acquire: IO[E, A], release: A => IO[Nothing, _]) {
+    def apply[E1 >: E, B](use: A => IO[E1, B]): IO[E1, B] =
+      ZIO.bracket(acquire, release, use)
+  }
 
 }
