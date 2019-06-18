@@ -2201,7 +2201,8 @@ object ZIO extends ZIO_R_Any {
     def apply(a: A): ZIO[R, E, A] = new ZIO.Succeed(a)
   }
 
-  final class MapErrorFn[R, E, E2, A](override val underlying: E => E2) extends ZIOFn1[Exit.Cause[E], ZIO[R, E2, Nothing]] {
+  final class MapErrorFn[R, E, E2, A](override val underlying: E => E2)
+      extends ZIOFn1[Exit.Cause[E], ZIO[R, E2, Nothing]] {
     def apply(a: Exit.Cause[E]): ZIO[R, E2, Nothing] =
       ZIO.halt(a.map(underlying))
   }
