@@ -665,7 +665,6 @@ object STM {
       }
     }
 
-
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
    */
