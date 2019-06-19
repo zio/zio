@@ -52,6 +52,28 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     concat(other)
 
   /**
+   * Like [[ZStream#batchWeighted]], but with an uniform weight of 1 for all elements.
+   */
+  def batch[B](max: Long, seed: A => B)(aggregate: (B, A) => B): ZStream[R, E, B] =
+    batchWeighted(max, _ => 1L, seed)(aggregate)
+
+  /**
+   * Convert this stream into a stream of type B by combining incoming elements until maximum
+   * weight is reached. The weight of each element is encoded in `costFn`.
+   */
+  def batchWeighted[B](max: Long, costFn: A => Long, seed: A => B)(aggregate: (B, A) => B): ZStream[R, E, B] =
+    self
+      .transduce(ZSink.fold[Nothing, A, (Long, Option[B])]((0L, None)) {
+        case ((acc, b), a) =>
+          val s = (acc + costFn(a), Some(b.fold(seed(a))(aggregate(_, a))))
+          if (s._1 >= max)
+            ZSink.Step.done(s, Chunk.empty)
+          else
+            ZSink.Step.more(s)
+      })
+      .collect { case (_, Some(b)) => b }
+
+  /**
    * Allow a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a queue.
    *

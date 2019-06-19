@@ -28,6 +28,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     no acquisition when short circuiting $bracketNoAcquisition
     releases when there are defects      $bracketWithDefects
 
+  Stream.batch                   $batch
+  Stream.batchWeighted
+    batchWeighted                $batchWeighted
+    batchWeighted short circuits $batchWeightedShortCircuits
+
   Stream.buffer
     buffer the Stream                      $bufferStream
     buffer the Stream with Error           $bufferStreamError
@@ -190,6 +195,36 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
             .run
       released <- ref.get
     } yield released must_=== true
+  }
+
+  private def batch = prop { (list: List[Int], n: Int) =>
+    (n > 0) ==>
+      unsafeRun(
+        Stream
+          .fromIterable(list)
+          .batch(n.toLong, a => List(a))((b, a) => a :: b)
+          .map(_.reverse)
+          .run(Sink.collectAll[List[Int]])
+          .map(_ must_=== list.grouped(n).toList)
+      )
+  }
+
+  private def batchWeighted = unsafeRun {
+    Stream
+      .fromIterable(1 to 7)
+      .batchWeighted(5L, _.toLong, a => List(a))((b, a) => a :: b)
+      .map(_.reverse)
+      .run(Sink.collectAll[List[Int]])
+      .map(_ must_=== List(List(1, 2, 3), List(4, 5), List(6), List(7)))
+  }
+
+  private def batchWeightedShortCircuits = unsafeRun {
+    Stream
+      .fromIterable(1 to 4)
+      .batchWeighted(20L, _.toLong, a => List(a))((b, a) => a :: b)
+      .map(_.reverse)
+      .run(Sink.collectAll[List[Int]])
+      .map(_ must_=== List(List(1, 2, 3, 4)))
   }
 
   private def bufferStream = prop { list: List[Int] =>
