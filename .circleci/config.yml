@@ -273,18 +273,18 @@ workflows:
       - test_212_jdk8_jvm:
           requires:
             - lint
-      - test_dotty_jdk8_jvm:
-          requires:
-            - lint
+#      - test_dotty_jdk8_jvm:
+#          requires:
+#            - lint
       - test_211_jdk11_jvm:
           requires:
             - lint
       - test_212_jdk11_jvm:
           requires:
             - lint
-      - test_dotty_jdk11_jvm:
-          requires:
-            - lint
+#      - test_dotty_jdk11_jvm:
+#          requires:
+#            - lint
       - test_211_jdk8_js:
           requires:
             - lint
