@@ -2165,8 +2165,10 @@ object ZIO extends ZIOFunctions {
     def apply(a: A): ZIO[R, E, A] = new ZIO.Succeed(a)
   }
 
-  final class MapErrorFn[R, E, E2, A](override val underlying: E => E2) extends ZIOFn1[E, ZIO[R, E2, Nothing]] {
-    def apply(a: E): ZIO[R, E2, Nothing] = ZIO.fail(underlying(a))
+  final class MapErrorFn[R, E, E2, A](override val underlying: E => E2)
+      extends ZIOFn1[Exit.Cause[E], ZIO[R, E2, Nothing]] {
+    def apply(a: Exit.Cause[E]): ZIO[R, E2, Nothing] =
+      ZIO.halt(a.map(underlying))
   }
 
   final class FoldCauseMFailureFn[R, E, E2, A](override val underlying: E => ZIO[R, E2, A])
