@@ -59,7 +59,7 @@ trait Platform { self =>
    */
   def fatal(t: Throwable): Boolean
 
-  def withNonFatal(f: Throwable => Boolean): Platform =
+  def withFatal(f: Throwable => Boolean): Platform =
     new Platform.Proxy(self) {
       override def fatal(t: Throwable): Boolean = f(t)
     }
