@@ -23,6 +23,7 @@ install_jdk: &install_jdk
   - run:
       name: Install JDK
       command: |
+        while $(ps aux | grep -i ' apt ' | grep -v grep > /dev/null); do sleep 1; done # Wait for apt to be ready
         sudo add-apt-repository ppa:openjdk-r/ppa -y
         sudo apt update
         sudo apt install openjdk-${JDK_VERSION}-jdk -y
