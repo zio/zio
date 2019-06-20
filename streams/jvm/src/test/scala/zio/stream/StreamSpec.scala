@@ -600,7 +600,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def mapAccumM = {
-    val stream = Stream(1, 1, 1).mapAccumM(0)((acc, el) => IO.succeed((acc + el, acc + el)))
+    val stream = Stream(1, 1, 1).mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
     (slurp(stream) must_=== Success(List(1, 2, 3))) and (slurp(stream) must_=== Success(List(1, 2, 3)))
   }
 
