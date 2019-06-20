@@ -18,7 +18,7 @@ object UIO {
     ZIO.allowInterrupt
 
   /**
-   * See [[zio.ZIO.apply]] 
+   * See [[zio.ZIO.apply]]
    */
   def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 

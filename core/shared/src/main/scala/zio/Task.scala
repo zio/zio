@@ -18,9 +18,9 @@ object Task {
    */
   final def allowInterrupt: UIO[Unit] =
     ZIO.allowInterrupt
-  
+
   /**
-   * See [[zio.ZIO.apply]] 
+   * See [[zio.ZIO.apply]]
    */
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
@@ -247,7 +247,7 @@ object Task {
   final val interrupt: UIO[Nothing] = ZIO.interrupt
 
   /**
-  * See [[zio.ZIO.interruptible]]
+   * See [[zio.ZIO.interruptible]]
    */
   final def interruptible[A](task: Task[A]): Task[A] =
     ZIO.interruptible(task)

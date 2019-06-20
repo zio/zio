@@ -20,7 +20,7 @@ object IO {
     ZIO.allowInterrupt
 
   /**
-   * See [[zio.ZIO.apply]] 
+   * See [[zio.ZIO.apply]]
    */
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 

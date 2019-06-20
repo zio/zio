@@ -395,7 +395,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * error.
    */
   final def mapError[E2](f: E => E2): ZIO[R, E2, A] =
-    self.foldM(new ZIO.MapErrorFn(f), new ZIO.SucceedFn(f))
+    self.foldCauseM(new ZIO.MapErrorFn(f), new ZIO.SucceedFn(f))
 
   /**
    * Returns an effect that, if evaluated, will return the lazily computed result
