@@ -135,7 +135,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect"   % "1.3.1" % Optional,
       "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
-      "co.fs2"        %%% "fs2-core"      % "1.0.4" % Test
+      "co.fs2"        %%% "fs2-core"      % "1.0.5" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -303,7 +303,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "io.monix"                 %% "monix"           % "3.0.0-RC2",
         "org.typelevel"            %% "cats-effect"     % "1.3.1",
-        "co.fs2"                   %% "fs2-core"        % "1.0.4",
+        "co.fs2"                   %% "fs2-core"        % "1.0.5",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
         "io.reactivex.rxjava2"     % "rxjava"           % "2.2.9",
         "com.twitter"              %% "util-collection" % "19.1.0",
