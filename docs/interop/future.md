@@ -3,54 +3,51 @@ id: interop_future
 title:  "Future"
 ---
 
-## Stdlib `Future`
+## Scala Future
 
-Checkout `interop-future` module for inter-operation support.
+Basic interoperability with Scala's `Future` is now provided by ZIO, and does not require a separate module. However, additional functionality can be located in the `interop-future` module.
 
-### From `Future`
+### From Future
 
-This is the extension method added to `IO` companion object:
-
-```scala
-def fromFuture[A](ftr: () => Future[A])(ec: ExecutionContext): Task[A] =
-```
-
-There are a few things to clarify here:
-
-- `ftr`, the expression producing the `Future` value, is a *thunk* (or `Function0`). The reason for that is, `Future` is eager, it means as soon as you call `Future.apply` the effect has started performing, that's not a desired behavior in Pure FP (which ZIO encourages). So it's recommended to declare expressions creating `Future`s using `def` instead of `val`.
-- Also you have to be explicit on which EC you want to use, having it implicit, as in the standard library, is a bad practice.
-- Finally, as you can see, the `IO` returned fixes the error type to `Throwable` since that's the only possible cause for a failed `Future`.
-
-#### Example
+Scala's `Future` can be converted into a ZIO effect with `ZIO.fromFuture`:
 
 ```scala
-// EC is not implicit
-val myEC: ExecutionContext = ...
-
-// future defined in thunk using def
-def myFuture: Future[ALotOfData] = myLegacyHeavyJobReturningFuture(...)
-val myIO: Task[ALotOfData] = IO.fromFuture(myFuture _)(myEC)
+def loggedFuture[A](future: ExecutionContext => Future[A]): UIO[Task[A]] = {
+  ZIO.fromFuture { implicit ec =>
+    future(ec).flatMap { result =>
+      Future("Future succeeded with " + result).map(_ => result)
+    }
+  }
+}
 ```
 
-### To `Future`
-
-This extension method is added to values of type `Task[A]`:
+Scala's `Future` can also be converted into a `Fiber` with `Fiber.fromFuture`:
 
 ```scala
-def toFuture: UIO[Future[A]]
+def futureToFiber[A](future: => Future[A]): Fiber[Throwable, A] = 
+  Fiber.fromFuture(future)
 ```
 
-Notice that we don't actually return a `Future` but an infallible `IO` producing the `Future` when it's performed, that's again because as soon as we have a `Future` in our hands, whatever it does is already happening.
+This is a pure operation, given any sensible notion of fiber equality.
 
-As an alternative, a more flexible extension method is added to any `IO[E, A]` to convert to `Future` as long as you can provide a function to convert from `E` to `Throwable`.
+### To Future
+
+A ZIO `Task` effect can be converted into a `Future` with `ZIO#toFuture`:
 
 ```scala
-def toFutureE(f: E => Throwable): UIO[Future[A]]
+def taskToFuture[A](task: Task[A]): UIO[Future[A]] = 
+  task.toFuture
 ```
 
-#### Example
+Because converting a `Task` into an (eager) `Future` is effectful, the return value of `ZIO#toFuture` is an effect. To actually begin the computation, and access the started `Future`, it is necessary to execute the effect with a runtime.
+
+A ZIO `Fiber` can be converted into a `Future` with `Fiber#toFuture`:
 
 ```scala
-val safeFuture: UIO[Future[MoarData]] = myShinyNewApiBasedOnZio(...).toFuture(MyError.toThrowable)
-val itsHappening: Future[MoarData] = unsafeRun(safeFuture)
+def fiberToFuture[A](fiber: Fiber[Throwable, A]): UIO[Future[A]] = 
+  fiber.toFuture
 ```
+
+## Run to Future
+
+The `Runtime` type has a method `unsafeRunToFuture`, which can execute a ZIO effect asynchronously, and return a `Future` that will be completed when the execution of the effect is complete.

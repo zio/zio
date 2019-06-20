@@ -158,7 +158,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def jsonNumArrayParsingSinkWithCombinators = {
     val comma: ZSink[Any, Nothing, Char, Char, List[Char]] = ZSink.collectAllWhile[Char](_ == ',')
     val brace: ZSink[Any, String, Char, Char, Char] =
-      ZSink.read1[String, Char](a => s"Expected closing brace; instead: ${a}")((_: Char) == ']')
+      ZSink.read1[String, Char](a => s"Expected closing brace; instead: $a")((_: Char) == ']')
     val number: ZSink[Any, String, Char, Char, Int] =
       ZSink.collectAllWhile[Char](_.isDigit).map(_.mkString.toInt)
     val numbers = (number <*> (comma *> number).collectAllWhile[Char, Char](_ != ']'))

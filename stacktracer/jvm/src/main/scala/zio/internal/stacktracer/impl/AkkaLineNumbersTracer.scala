@@ -18,6 +18,7 @@ package zio.internal.stacktracer.impl
 
 import zio.internal.stacktracer.ZTraceElement.{ NoLocation, SourceLocation }
 import zio.internal.stacktracer.{ Tracer, ZTraceElement }
+import AkkaLineNumbersTracer.lambdaNamePattern
 
 import scala.util.matching.Regex
 
@@ -25,7 +26,6 @@ import scala.util.matching.Regex
  * A [[Tracer]] implementation powered by Akka's `LineNumbers` bytecode parser (shipped with ZIO, no dependency on Akka)
  * */
 final class AkkaLineNumbersTracer extends Tracer {
-
   final def traceLocation(lambda: AnyRef): ZTraceElement =
     AkkaLineNumbers(lambda) match {
       case AkkaLineNumbers.NoSourceInfo =>
@@ -47,5 +47,8 @@ final class AkkaLineNumbersTracer extends Tracer {
         SourceLocation(filename.intern(), className.intern(), methodName.intern(), from)
     }
 
-  private[this] final val lambdaNamePattern: Regex = """\$anonfun\$(.+?)\$\d""".r
+}
+
+private object AkkaLineNumbersTracer {
+  private final val lambdaNamePattern: Regex = """\$anonfun\$(.+?)\$\d""".r
 }
