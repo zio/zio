@@ -66,6 +66,8 @@ object Scalaz {
 
   def extraOptions(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
+      case Some((0, _)) =>
+        Seq("-language:implicitConversions")
       case Some((2, 13)) =>
         std2xOptions
       case Some((2, 12)) =>
