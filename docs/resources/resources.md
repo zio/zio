@@ -7,6 +7,7 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Exploring the STM functionality in ZIO](https://freskog.github.io/blog/2019/05/30/explore-zio-stm/) by Fredrik Skogberg (May 2019)
 - [Performant Functional Programming to the Max with ZIO](https://cloudmark.github.io/A-Journey-To-Zio/) by Mark Galea (May 2019)
 - [Using 47 Degree's Fetch library with ZIO](http://justinhj.github.io/2019/05/05/using-47degs-fetch-with-zio.html) by Justin Heyes-Jones (May 2019)
 - [ZIO & Cats Effect: A Match Made in Heaven](http://degoes.net/articles/zio-cats-effect) by John De Goes (April 2019)
@@ -38,6 +39,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [STM Partitioning - Code for the 'Exploring the STM functionality in ZIO' blog post)(https://github.com/freskog/stm-partitioning)
 - [ZIO Todo Backend](https://github.com/mschuwalow/zio-todo-backend) by [mschuwalow](https://github.com/mschuwalow)
 - [Event Driven Messenger](https://github.com/edvmorango/event-driven-messenger) by [edvmorango](https://github.com/edvmorango)
 - [Zorechka Bot](https://github.com/wix-incubator/zorechka-bot) by [wix-incubator](https://github.com/wix-incubator)
