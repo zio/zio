@@ -153,6 +153,15 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
+  private object TracingRegionExit extends Function[Any, IO[E, Any]] {
+    final def apply(v: Any): IO[E, Any] = {
+      // don't use effectTotal to avoid TracingRegionExit appearing in execution trace twice with traceEffects=true
+      tracingStatus.popDrop(())
+
+      ZIO.succeed(v)
+    }
+  }
+
   /**
    * Unwinds the stack, looking for the first error handler, and exiting
    * interruptible / uninterruptible regions.
@@ -166,6 +175,10 @@ private[zio] final class FiberContext[E, A](
         case InterruptExit =>
           // do not remove InterruptExit from stack trace as it was not added
           interruptStatus.popDrop(())
+
+        case TracingRegionExit =>
+          // do not remove TracingRegionExit from stack trace as it was not added
+          tracingStatus.popDrop(())
 
         case fold: ZIO.Fold[_, _, _, _, _] if allowRecovery =>
           // Push error handler back onto the stack and halt iteration:
@@ -367,7 +380,11 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.TracingStatus =>
                   val zio = curZio.asInstanceOf[ZIO.TracingStatus[Any, E, Any]]
 
-                  curZio = tracingRegion(zio.flag.toBoolean).bracket_(endTracingRegion, zio.zio)
+                  tracingStatus.push(zio.flag.toBoolean)
+                  // do not add TracingRegionExit to the stack trace
+                  stack.push(TracingRegionExit)
+
+                  curZio = zio.zio
 
                 case ZIO.Tags.CheckTracing =>
                   val zio = curZio.asInstanceOf[ZIO.CheckTracing[Any, E, Any]]
@@ -513,12 +530,6 @@ private[zio] final class FiberContext[E, A](
 
   private[this] final def unlock: UIO[Unit] =
     ZIO.effectTotal { executors.pop() } *> ZIO.yieldNow
-
-  private[this] final def tracingRegion(trace: Boolean): UIO[Unit] =
-    IO.effectTotal { if (tracingStatus ne null) tracingStatus.push(trace) }
-
-  private[this] final def endTracingRegion: UIO[Unit] =
-    IO.effectTotal { if (tracingStatus ne null) tracingStatus.popDrop(()) }
 
   private[this] final def getDescriptor: Fiber.Descriptor =
     Fiber.Descriptor(
@@ -678,8 +689,8 @@ private[zio] final class FiberContext[E, A](
 
       if (inTracingRegion) {
         if (traceExec) addTrace(k)
-        // do not remove InterruptExit from stack trace as it was not added
-        if (traceStack && !k.isInstanceOf[InterruptExit.type]) popStackTrace()
+        // do not remove InterruptExit and TracingRegionExit from stack trace as they were not added
+        if (traceStack && (k ne InterruptExit) && (k ne TracingRegionExit)) popStackTrace()
       }
 
       k(value).asInstanceOf[IO[E, Any]]
