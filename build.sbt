@@ -251,7 +251,7 @@ lazy val interopTwitter = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-twitter"))
   .settings(stdSettings("zio-interop-twitter"))
   .settings(
-    libraryDependencies += "com.twitter" %% "util-core" % "19.5.1"
+    libraryDependencies += "com.twitter" %% "util-core" % "19.6.0"
   )
   .dependsOn(core % "test->test;compile->compile")
 
