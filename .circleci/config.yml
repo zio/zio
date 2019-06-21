@@ -82,9 +82,6 @@ testJVM: &testJVM
     - run:
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJVM
-    - run:
-        name: Package artifacts
-        command: ./sbt ++${SCALA_VERSION}! package packageSrc publishLocal
     - <<: *save_cache
 
 testJS: &testJS
