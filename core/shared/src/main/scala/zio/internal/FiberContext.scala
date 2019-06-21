@@ -380,9 +380,11 @@ private[zio] final class FiberContext[E, A](
                 case ZIO.Tags.TracingStatus =>
                   val zio = curZio.asInstanceOf[ZIO.TracingStatus[Any, E, Any]]
 
-                  tracingStatus.push(zio.flag.toBoolean)
-                  // do not add TracingRegionExit to the stack trace
-                  stack.push(TracingRegionExit)
+                  if (tracingStatus ne null) {
+                    tracingStatus.push(zio.flag.toBoolean)
+                    // do not add TracingRegionExit to the stack trace
+                    stack.push(TracingRegionExit)
+                  }
 
                   curZio = zio.zio
 
