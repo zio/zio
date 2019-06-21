@@ -2,6 +2,7 @@ package zio
 
 import org.scalacheck._
 import org.specs2.ScalaCheck
+import org.specs2.execute.Result
 import org.specs2.matcher.describe.Diffable
 import zio.Exit.Cause
 
@@ -51,6 +52,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check uncurried `bracket`. $testUncurriedBracket
    Check uncurried `bracket_`. $testUncurriedBracket_
    Check uncurried `bracketExit`. $testUncurriedBracketExit
+   Check `bracketExit` error handling. $testBracketExitErrorHandling
    Check `foreach_` runs effects in order. $testForeach_Order
    Check `foreach_` can be run twice. $testForeach_Twice
    Check `foreachPar_` runs all effects. $testForeachPar_Full
@@ -302,6 +304,22 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         released <- release.get
       } yield (result must_=== 0L) and (released must_=== true)
     }
+
+  def testBracketExitErrorHandling = {
+    val releaseDied = new RuntimeException("release died")
+    val exit: Exit[String, Int] = unsafeRunSync {
+      ZIO.bracketExit[Any, String, Int, Int](
+        ZIO.succeed(42),
+        (_, _) => ZIO.die(releaseDied),
+        _ => ZIO.fail("use failed")
+      )
+    }
+
+    exit.fold[Result](
+      cause => (cause.failures must_=== List("use failed")) and (cause.defects must_=== List(releaseDied)),
+      value => failure(s"unexpectedly completed with value $value")
+    )
+  }
 
   object UncurriedBracketCompilesRegardlessOrderOfEAndRTypes {
     class A
