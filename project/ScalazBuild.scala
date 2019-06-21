@@ -17,7 +17,9 @@ object Scalaz {
     "-encoding",
     "UTF-8",
     "-feature",
-    "-unchecked"
+    "-unchecked",
+    "-Xmax-classfile-name",
+    "242"
   )
 
   private val std2xOptions = Seq(
