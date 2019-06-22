@@ -748,9 +748,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       result <- release.await
     } yield result
 
-    (0 to 1000).map { _ =>
-      unsafeRun(io) must_=== 42
-    }.reduce(_ and _)
+    nonFlaky(io.map(_ must_=== 42))
   }
 
   def testInterruptionOfUnendingBracket = {
@@ -771,9 +769,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       exitValue  <- exitLatch.await
     } yield startValue + exitValue
 
-    (0 to 100).map { _ =>
-      unsafeRun(io) must_=== 42
-    }.reduce(_ and _)
+    nonFlaky(io.map(_ must_=== 42))
   }
 
   def testRecoveryOfErrorInFinalizer =
@@ -868,20 +864,17 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       value <- ref.get
     } yield value must_=== true)
 
-  def testCauseReflectsInterruption = {
-    val result = (1 to 100).map { _ =>
-      unsafeRun(for {
+  def testCauseReflectsInterruption =
+    nonFlaky {
+      for {
         finished <- Ref.make(false)
         fiber <- withLatch { release =>
                   (release *> ZIO.fail("foo")).catchAll(_ => finished.set(true)).fork
                 }
         exit     <- fiber.interrupt
         finished <- finished.get
-      } yield (exit.interrupted must_=== true) or (finished must_=== true))
-    }.reduce(_ and _)
-
-    result
-  }
+      } yield (exit.interrupted must_=== true) or (finished must_=== true)
+    }
 
   def testAsyncCanBeUninterruptible =
     unsafeRun(for {
@@ -1155,22 +1148,24 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield r) must_=== (1 -> 2)
 
   def testSupervised =
-    unsafeRun(for {
-      pa <- Promise.make[Nothing, Int]
-      pb <- Promise.make[Nothing, Int]
-      _ <- (for {
-            p1 <- Promise.make[Nothing, Unit]
-            p2 <- Promise.make[Nothing, Unit]
-            _ <- p1
-                  .succeed(())
-                  .bracket_[Any, Nothing]
-                  .apply[Any](pa.succeed(1).unit)(IO.never)
-                  .fork //    TODO: Dotty doesn't infer this properly
-            _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
-            _ <- p1.await *> p2.await
-          } yield ()).interruptChildren
-      r <- pa.await zip pb.await
-    } yield r) must_=== (1 -> 2)
+    nonFlaky {
+      for {
+        pa <- Promise.make[Nothing, Int]
+        pb <- Promise.make[Nothing, Int]
+        _ <- (for {
+              p1 <- Promise.make[Nothing, Unit]
+              p2 <- Promise.make[Nothing, Unit]
+              _ <- p1
+                    .succeed(())
+                    .bracket_[Any, Nothing]
+                    .apply[Any](pa.succeed(1).unit)(IO.never)
+                    .fork //    TODO: Dotty doesn't infer this properly
+              _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
+              _ <- p1.await *> p2.await
+            } yield ()).interruptChildren
+        r <- pa.await zip pb.await
+      } yield r must_=== (1 -> 2)
+    }
 
   def testRaceChoosesWinner =
     unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
@@ -1249,8 +1244,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield b) must_=== 42
 
   def testPar =
-    (0 to 1000).map { _ =>
-      unsafeRun(IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2))) must_=== 3
+    nonFlaky {
+      IO.succeed[Int](1).zipPar(IO.succeed[Int](2)).flatMap(t => IO.succeed(t._1 + t._2)).map(_ must_=== 3)
     }
 
   def testReduceAll =
@@ -1445,7 +1440,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     ) must_=== 0
 
   def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[_]]): org.specs2.matcher.MatchResult[_] =
-    (1 to 50).foldLeft[org.specs2.matcher.MatchResult[_]](true must_=== true) {
+    (1 to 100).foldLeft[org.specs2.matcher.MatchResult[_]](true must_=== true) {
       case (acc, _) =>
         acc and unsafeRun(v)
     }
