@@ -27,7 +27,7 @@ import zio.duration.Duration
  *
  * See [[ZManaged#reserve]] and [[ZIO#reserve]] for details of usage.
  */
-final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: ZIO[R, Nothing, _])
+final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: ZIO[R, Nothing, Any])
 
 /**
  * A `ZManaged[R, E, A]` is a managed resource of type `A`, which may be used by
@@ -320,7 +320,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   final def fork: ZManaged[R, Nothing, Fiber[E, A]] =
     ZManaged {
       for {
-        finalizer <- Ref.make[ZIO[R, Nothing, _]](UIO.unit)
+        finalizer <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit)
         // The reservation phase of the new `ZManaged` runs uninterruptibly;
         // so to make sure the acquire phase of the original `ZManaged` runs
         // interruptibly, we need to create an interruptible hole in the region.
@@ -848,7 +848,7 @@ object ZManaged {
   )(
     as: Iterable[A]
   )(
-    f: A => ZManaged[R, E, _]
+    f: A => ZManaged[R, E, Any]
   ): ZManaged[R, E, Unit] =
     mergeAllParN[R, E, Any, Unit](n)(as.map(f))(()) { (_, _) =>
       ()
