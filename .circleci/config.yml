@@ -48,14 +48,19 @@ install_yarn: &install_yarn
         curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
         sudo bash -c 'echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list'
         sudo apt update && sudo apt install yarn -y
+        yarn policies set-version
+        yarn -v
 
 install_nodejs: &install_nodejs
   - run:
       name: Install node.js
       command: |
-        curl -sL https://deb.nodesource.com/setup_12.x | sudo bash -
-        sudo apt install -y nodejs
-        sudo npm install -g npm@latest
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
+        export NVM_DIR="/opt/circleci/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install
+        nvm use
+        node -v
 
 lint: &lint
   steps:
