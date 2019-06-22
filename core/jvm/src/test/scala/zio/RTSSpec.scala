@@ -1078,7 +1078,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testSupervising = {
-    def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) = 
+    def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
       withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
 
     unsafeRun(
