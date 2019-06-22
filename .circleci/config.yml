@@ -55,6 +55,7 @@ install_nodejs: &install_nodejs
       command: |
         curl -sL https://deb.nodesource.com/setup_12.x | sudo bash -
         sudo apt install -y nodejs
+        sudo npm install -g npm@latest
 
 lint: &lint
   steps:
