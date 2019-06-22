@@ -62,7 +62,7 @@ install_nodejs: &install_nodejs
         nvm use
         node -v
 
-compile: &lint
+compile: &compile
   steps:
     - checkout
     - <<: *load_cache
