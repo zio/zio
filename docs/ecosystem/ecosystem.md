@@ -24,6 +24,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [idealingua](https://github.com/7mind/izumi): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
 - [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
+- [zio-saga](https://github.com/VladKopanev/zio-saga): Purely functional transaction management with Saga pattern
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
 
 ## ZIO Compatible Libraries
