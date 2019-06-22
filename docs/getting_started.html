@@ -6,18 +6,16 @@
             {"zIndex":100,"cornerOffset":100}
           )
         });
-        </script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/advanced/advanced_index" target="_self">Advanced</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">Getting Started</h1></header><article><div><span><p>Include ZIO in your project by adding the following to your <code>build.sbt</code> file:</p>
-<pre><code class="hljs">resolvers += Resolver.sonatypeRepo(<span class="hljs-string">"snapshots"</span>)
-libraryDependencies += <span class="hljs-string">"org.scalaz"</span> %% <span class="hljs-string">"scalaz-zio"</span> % <span class="hljs-string">"1.0-RC5+1-e5fc479f+20190601-2346-SNAPSHOT"</span>
+        </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/advanced/advanced_index" target="_self">Advanced</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">Getting Started</h1></header><article><div><span><p>Include ZIO in your project by adding the following to your <code>build.sbt</code> file:</p>
+<pre><code class="hljs">libraryDependencies += <span class="hljs-string">"dev.zio"</span> %% <span class="hljs-string">"zio"</span> % <span class="hljs-string">"1.0.0-RC8-12"</span>
 </code></pre>
-<p>In case you want to have ZIO streams at your disposal, the following dependency has to be included:</p>
-<pre><code class="hljs">resolvers += Resolver.sonatypeRepo(<span class="hljs-string">"snapshots"</span>)
-libraryDependencies += <span class="hljs-string">"org.scalaz"</span> %% <span class="hljs-string">"calaz-zio-streams"</span> % <span class="hljs-string">"1.0-RC5+1-e5fc479f+20190601-2346-SNAPSHOT"</span>
+<p>If you want to use ZIO streams, you should also include the following dependency:</p>
+<pre><code class="hljs">libraryDependencies += <span class="hljs-string">"dev.zio"</span> %% <span class="hljs-string">"zio-streams"</span> % <span class="hljs-string">"1.0.0-RC8-12"</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="main"></a><a href="#main" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Main</h2>
 <p>Your application can extend <code>App</code>, which provides a complete runtime system and allows you to write your whole program using ZIO:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scalaz.zio.<span class="hljs-type">App</span>
-<span class="hljs-keyword">import</span> scalaz.zio.console._
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.<span class="hljs-type">App</span>
+<span class="hljs-keyword">import</span> zio.console._
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> </span>{
 
@@ -26,15 +24,15 @@ libraryDependencies += <span class="hljs-string">"org.scalaz"</span> %% <span cl
 
   <span class="hljs-keyword">val</span> myAppLogic =
     <span class="hljs-keyword">for</span> {
-      _ &lt;- putStrLn(<span class="hljs-string">"Hello! What is your name?"</span>)
-      n &lt;- getStrLn
-      _ &lt;- putStrLn(<span class="hljs-string">s"Hello, <span class="hljs-subst">${n}</span>, welcome to ZIO!"</span>)
+      _    &lt;- putStrLn(<span class="hljs-string">"Hello! What is your name?"</span>)
+      name &lt;- getStrLn
+      _    &lt;- putStrLn(<span class="hljs-string">s"Hello, <span class="hljs-subst">${name}</span>, welcome to ZIO!"</span>)
     } <span class="hljs-keyword">yield</span> ()
 }
 </code></pre>
-<p>If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can use a custom runtime system in order to execute your ZIO programs:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scalaz.zio._
-<span class="hljs-keyword">import</span> scalaz.zio.console._
+<p>If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can create a runtime system in order to execute your ZIO programs:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.console._
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">IntegrationExample</span> </span>{
   <span class="hljs-keyword">val</span> runtime = <span class="hljs-keyword">new</span> <span class="hljs-type">DefaultRuntime</span> {}
@@ -42,32 +40,30 @@ libraryDependencies += <span class="hljs-string">"org.scalaz"</span> %% <span cl
   runtime.unsafeRun(putStrLn(<span class="hljs-string">"Hello World!"</span>))
 }
 </code></pre>
-<p>Ideally, your application should have a single runtime, because each runtime has its own resources (including thread pool and unhandled error reporter).</p>
+<p>Ideally, your application should have a <em>single</em> runtime, because each runtime has its own resources (including thread pool and unhandled error reporter).</p>
 <h2><a class="anchor" aria-hidden="true" id="console"></a><a href="#console" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Console</h2>
 <p>ZIO provides a module for interacting with the console. You can import the functions in this module with the following code snippet:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scalaz.zio.console._
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.console._
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="printing-output"></a><a href="#printing-output" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Printing Output</h3>
 <p>If you need to print text to the console, you can use <code>putStr</code> and <code>putStrLn</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-comment">// Print without trailing line break</span>
 putStr(<span class="hljs-string">"Hello World"</span>)
-<span class="hljs-comment">// res8: ZIO[Console, Nothing, Unit] = scalaz.zio.ZIO$Read@62343f4c</span>
+<span class="hljs-comment">// res8: ZIO[Console, Nothing, Unit] = zio.ZIO$Read@1f3ad36c</span>
 
 <span class="hljs-comment">// Print string and include trailing line break</span>
 putStrLn(<span class="hljs-string">"Hello World"</span>)
-<span class="hljs-comment">// res9: ZIO[Console, Nothing, Unit] = scalaz.zio.ZIO$Read@fe67b14</span>
+<span class="hljs-comment">// res9: ZIO[Console, Nothing, Unit] = zio.ZIO$Read@19f28d20</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="reading-input"></a><a href="#reading-input" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reading Input</h3>
 <p>If you need to read input from the console, you can use <code>getStrLn</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> echo = getStrLn flatMap putStrLn
-<span class="hljs-comment">// echo: ZIO[Console, java.io.IOException, Unit] = scalaz.zio.ZIO$FlatMap@1de55620</span>
+<span class="hljs-comment">// echo: ZIO[Console, java.io.IOException, Unit] = zio.ZIO$FlatMap@13ff1f56</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="learning-more"></a><a href="#learning-more" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Learning More</h2>
 <p>To learn more about ZIO, see the <a href="/docs/overview/overview_index">Overview</a>.</p>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#main">Main</a></li><li><a href="#console">Console</a><ul class="toc-headings"><li><a href="#printing-output">Printing Output</a></li><li><a href="#reading-input">Reading Input</a></li></ul></li><li><a href="#learning-more">Learning More</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#main">Main</a></li><li><a href="#console">Console</a></li><li><a href="#learning-more">Learning More</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
         ((window.gitter = {}).chat = {}).options = {
           showChatByDefault: false,
           activationElement: '.gitter-open-chat-button',
-          room: 'scalaz/scalaz-zio'
+          room: 'zio/core'
         };
-      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>Github</h5><a class="github-button" href="https://github.com/scalaz/scalaz-zio" data-icon="octicon-star" data-count-href="/scalaz/scalaz-zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/">Scaladoc of scalaz-zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
+      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>

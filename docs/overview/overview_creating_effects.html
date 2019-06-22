@@ -1,12 +1,12 @@
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Creating Effects · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;p&gt;This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.&lt;/p&gt;
-"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Creating Effects · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="&lt;p&gt;This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.&lt;/p&gt;
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Creating Effects · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;p&gt;This section explores some of the common ways to create ZIO effects from values, from common Scala types, and from both synchronous and asynchronous side-effects.&lt;/p&gt;
+"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Creating Effects · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="&lt;p&gt;This section explores some of the common ways to create ZIO effects from values, from common Scala types, and from both synchronous and asynchronous side-effects.&lt;/p&gt;
 "/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
         document.addEventListener('DOMContentLoaded', function() {
           addBackToTop(
             {"zIndex":100,"cornerOffset":100}
           )
         });
-        </script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/advanced/advanced_index" target="_self">Advanced</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Overview</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Overview</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/overview/overview_index">Summary</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/overview/overview_creating_effects">Creating Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_basic_operations">Basic Operations</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_handling_errors">Handling Errors</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_handling_resources">Handling Resources</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_basic_concurrency">Basic Concurrency</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_testing_effects">Testing Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_running_effects">Running Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_background">Background</a></li></ul></div></div></section></div><script>
+        </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/advanced/advanced_index" target="_self">Advanced</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Overview</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Overview</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/overview/overview_index">Summary</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/overview/overview_creating_effects">Creating Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_basic_operations">Basic Operations</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_handling_errors">Handling Errors</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_handling_resources">Handling Resources</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_basic_concurrency">Basic Concurrency</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_testing_effects">Testing Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_running_effects">Running Effects</a></li><li class="navListItem"><a class="navItem" href="/docs/overview/overview_background">Background</a></li></ul></div></div></section></div><script>
             var coll = document.getElementsByClassName('collapsible');
             var checkActiveCategory = true;
             for (var i = 0; i < coll.length; i++) {
@@ -34,10 +34,16 @@
               createToggler('#navToggler', '#docsNav', 'docsSliderActive');
               createToggler('#tocToggler', 'body', 'tocActive');
 
-              const headings = document.querySelector('.toc-headings');
+              var headings = document.querySelector('.toc-headings');
               headings && headings.addEventListener('click', function(event) {
-                if (event.target.tagName === 'A') {
-                  document.body.classList.remove('tocActive');
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
                 }
               }, false);
 
@@ -56,56 +62,57 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">Creating Effects</h1></header><article><div><span><p>This section explores some of the common ways to create ZIO effects from values, common Scala types, and both synchronous and asynchronous side-effects.</p>
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 class="postHeaderTitle">Creating Effects</h1></header><article><div><span><p>This section explores some of the common ways to create ZIO effects from values, from common Scala types, and from both synchronous and asynchronous side-effects.</p>
 <h2><a class="anchor" aria-hidden="true" id="from-success-values"></a><a href="#from-success-values" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>From Success Values</h2>
-<p>Using the <code>ZIO.succeed</code> method, you can create an effect that models success:</p>
+<p>Using the <code>ZIO.succeed</code> method, you can create an effect that succeeds with the specified value:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> s1 = <span class="hljs-type">ZIO</span>.succeed(<span class="hljs-number">42</span>)
 </code></pre>
-<p>You can also create effects using methods in the companion object of the <code>ZIO</code> type aliases:</p>
+<p>You can also create use methods in the companion objects of the <code>ZIO</code> type aliases:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> s2: <span class="hljs-type">Task</span>[<span class="hljs-type">Int</span>] = <span class="hljs-type">Task</span>.succeed(<span class="hljs-number">42</span>)
 </code></pre>
-<p>The <code>succeed</code> method is eager, which means the value will be constructed before the method is invoked.</p>
-<p>Although <code>succeed</code> is the most common way to construct a successful effect, you can achieve lazy construction using the <code>ZIO.succeedLazy</code> method:</p>
+<p>The <code>succeed</code> method is eager, which means the value passed to <code>succeed</code> will be constructed <em>before</em> the method is invoked. Although this is the most common way to construct a successful effect, you can achieve lazy construction using the <code>ZIO.succeedLazy</code> method:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">lazy</span> <span class="hljs-keyword">val</span> bigList = (<span class="hljs-number">0</span> to <span class="hljs-number">1000000</span>).toList
 <span class="hljs-keyword">lazy</span> <span class="hljs-keyword">val</span> bigString = bigList.map(_.toString).mkString(<span class="hljs-string">"\n"</span>)
 
 <span class="hljs-keyword">val</span> s3 = <span class="hljs-type">ZIO</span>.succeedLazy(bigString)
 </code></pre>
-<p>The successful effect constructed with <code>ZIO.succeedLazy</code> will only construct its value if the effect itself ends up being used.</p>
+<p>The value inside a successful effect constructed with <code>ZIO.succeedLazy</code> will only be constructed if absolutely required.</p>
 <h2><a class="anchor" aria-hidden="true" id="from-failure-values"></a><a href="#from-failure-values" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>From Failure Values</h2>
 <p>Using the <code>ZIO.fail</code> method, you can create an effect that models failure:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> f1 = <span class="hljs-type">ZIO</span>.fail(<span class="hljs-string">"Uh oh!"</span>)
 </code></pre>
 <p>For the <code>ZIO</code> data type, there is no restriction on the error type. You may use strings, exceptions, or custom data types appropriate for your application.</p>
-<p>Many applications will choose to model failures with classes that extend <code>Throwable</code> or <code>Exception</code>:</p>
+<p>Many applications will model failures with classes that extend <code>Throwable</code> or <code>Exception</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> f2 = <span class="hljs-type">Task</span>.fail(<span class="hljs-keyword">new</span> <span class="hljs-type">Exception</span>(<span class="hljs-string">"Uh oh!"</span>))
 </code></pre>
-<p>Note that the <code>UIO</code> companion object does not have <code>UIO.fail</code>, because <code>UIO</code> values cannot fail.</p>
+<p>Note that unlike the other effect companion objects, the <code>UIO</code> companion object does not have <code>UIO.fail</code>, because <code>UIO</code> values cannot fail.</p>
 <h2><a class="anchor" aria-hidden="true" id="from-scala-values"></a><a href="#from-scala-values" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>From Scala Values</h2>
 <p>Scala's standard library contains a number of data types that can be converted into ZIO effects.</p>
 <h3><a class="anchor" aria-hidden="true" id="option"></a><a href="#option" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Option</h3>
 <p>An <code>Option</code> can be converted into a ZIO effect using <code>ZIO.fromOption</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> zoption: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Unit</span>, <span class="hljs-type">Int</span>] = <span class="hljs-type">ZIO</span>.fromOption(<span class="hljs-type">Some</span>(<span class="hljs-number">2</span>))
 </code></pre>
-<p>The error type of the resulting effect is <code>Unit</code>, because the <code>None</code> case of <code>Option</code> provides no information on why the value is not there. You can change that <code>Unit</code> into a more specific error type using <code>ZIO#mapError</code>.</p>
+<p>The error type of the resulting effect is <code>Unit</code>, because the <code>None</code> case of <code>Option</code> provides no information on why the value is not there. You can change the <code>Unit</code> into a more specific error type using <code>ZIO#mapError</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> zoption2: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">String</span>, <span class="hljs-type">Int</span>] = zoption.mapError(_ =&gt; <span class="hljs-string">"It wasn't there!"</span>)
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="either"></a><a href="#either" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Either</h3>
-<p>An <code>Either</code> can be converted in to a ZIO effect using <code>ZIO.fromEither</code>:</p>
+<p>An <code>Either</code> can be converted into a ZIO effect using <code>ZIO.fromEither</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> zeither = <span class="hljs-type">ZIO</span>.fromEither(<span class="hljs-type">Right</span>(<span class="hljs-string">"Success!"</span>))
 </code></pre>
-<p>Unlike <code>ZIO.fromOption</code>, the error type of the resulting effect will be whatever type the <code>Left</code> case has, while the success type will be whatever type the <code>Right</code> case has.</p>
+<p>The error type of the resulting effect will be whatever type the <code>Left</code> case has, while the success type will be whatever type the <code>Right</code> case has.</p>
 <h3><a class="anchor" aria-hidden="true" id="try"></a><a href="#try" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Try</h3>
 <p>A <code>Try</code> value can be converted into a ZIO effect using <code>ZIO.fromTry</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.util.<span class="hljs-type">Try</span>
 
 <span class="hljs-keyword">val</span> ztry = <span class="hljs-type">ZIO</span>.fromTry(<span class="hljs-type">Try</span>(<span class="hljs-number">42</span> / <span class="hljs-number">0</span>))
 </code></pre>
-<p>The error type of the resulting effect will always be <code>Throwable</code>, because a <code>Try</code> can fail with any value of type <code>Throwable</code>.</p>
+<p>The error type of the resulting effect will always be <code>Throwable</code>, because <code>Try</code> can only fail with values of type <code>Throwable</code>.</p>
 <h3><a class="anchor" aria-hidden="true" id="function"></a><a href="#function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function</h3>
 <p>A function <code>A =&gt; B</code> can be converted into a ZIO effect with <code>ZIO.fromFunction</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> zfun: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Int</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Int</span>] = 
   <span class="hljs-type">ZIO</span>.fromFunction((i: <span class="hljs-type">Int</span>) =&gt; i * i)
 </code></pre>
-<p>The environment type of the effect is <code>A</code> (the input type of the function), because in order to run the effect, it must first be supplied with such a value.</p>
+<p>The environment type of the effect is <code>A</code> (the input type of the function), because in order to run the effect, it must be supplied with a value of this type.</p>
 <h3><a class="anchor" aria-hidden="true" id="future"></a><a href="#future" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Future</h3>
 <p>A <code>Future</code> can be converted into a ZIO effect using <code>ZIO.fromFuture</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">Future</span>
@@ -117,11 +124,11 @@
     future.map(_ =&gt; <span class="hljs-string">"Goodbye!"</span>)
   }
 </code></pre>
-<p>The function passed to <code>fromFuture</code> is passed an <code>ExecutionContext</code>, which will confine the execution of the future to the appropriate context.</p>
-<p>The error type of the resulting effect will always be <code>Throwable</code>, because a <code>Future</code> can fail with any value of type <code>Throwable</code>.</p>
+<p>The function passed to <code>fromFuture</code> is passed an <code>ExecutionContext</code>, which allows ZIO to manage where the <code>Future</code> runs (of course, you can ignore this <code>ExecutionContext</code>).</p>
+<p>The error type of the resulting effect will always be <code>Throwable</code>, because <code>Future</code> can only fail with values of type <code>Throwable</code>.</p>
 <h2><a class="anchor" aria-hidden="true" id="from-side-effects"></a><a href="#from-side-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>From Side-Effects</h2>
 <p>ZIO can convert both synchronous and asynchronous side-effects into ZIO effects (pure values).</p>
-<p>These functions can be used to wrap non-functional code, allowing you to seamlessly use all features of ZIO with legacy Scala and Java code, as well as third-party libraries.</p>
+<p>These functions can be used to wrap procedural code, allowing you to seamlessly use all features of ZIO with legacy Scala and Java code, as well as third-party libraries.</p>
 <h3><a class="anchor" aria-hidden="true" id="synchronous-side-effects"></a><a href="#synchronous-side-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Synchronous Side-Effects</h3>
 <p>A synchronous side-effect can be converted into a ZIO effect using <code>ZIO.effect</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.io.<span class="hljs-type">StdIn</span>
@@ -130,23 +137,23 @@
   <span class="hljs-type">ZIO</span>.effect(<span class="hljs-type">StdIn</span>.readLine())
 </code></pre>
 <p>The error type of the resulting effect will always be <code>Throwable</code>, because side-effects may throw exceptions with any value of type <code>Throwable</code>.</p>
-<p>If a given side-effect is known not to throw any exceptions, then the side-effect can be converted into a ZIO effect using <code>ZIO.effectTotal</code>:</p>
+<p>If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using <code>ZIO.effectTotal</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">putStrLn</span></span>(line: <span class="hljs-type">String</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>] =
   <span class="hljs-type">ZIO</span>.effectTotal(println(line))
 </code></pre>
-<p>If a side-effect is known to throw some specific subtype of <code>Throwable</code>, then the <code>ZIO#refineOrDie</code> method may be used:</p>
+<p>You should be careful when using <code>ZIO.effectTotal</code>—when in doubt about whether or not a side-effect is total, prefer <code>ZIO.effect</code> to convert the effect.</p>
+<p>If you wish to refine the error type of an effect (by treating other errors as fatal), then you can use the <code>ZIO#refineToOrDie</code> method:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.io.<span class="hljs-type">IOException</span>
 
 <span class="hljs-keyword">val</span> getStrLn2: <span class="hljs-type">IO</span>[<span class="hljs-type">IOException</span>, <span class="hljs-type">String</span>] =
-  <span class="hljs-type">ZIO</span>.effect(<span class="hljs-type">StdIn</span>.readLine()).refineOrDie {
-    <span class="hljs-keyword">case</span> e : <span class="hljs-type">IOException</span> =&gt; e
-  }
+  <span class="hljs-type">ZIO</span>.effect(<span class="hljs-type">StdIn</span>.readLine()).refineToOrDie[<span class="hljs-type">IOException</span>]
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="asynchronous-side-effects"></a><a href="#asynchronous-side-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Asynchronous Side-Effects</h3>
 <p>An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using <code>ZIO.effectAsync</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">legacy</span> </span>{
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">login</span></span>(
-    onSuccess: <span class="hljs-type">User</span>      =&gt; <span class="hljs-type">Unit</span>, onFailure: <span class="hljs-type">AuthError</span> =&gt; <span class="hljs-type">Unit</span>): <span class="hljs-type">Unit</span> = ???
+    onSuccess: <span class="hljs-type">User</span> =&gt; <span class="hljs-type">Unit</span>, 
+    onFailure: <span class="hljs-type">AuthError</span> =&gt; <span class="hljs-type">Unit</span>): <span class="hljs-type">Unit</span> = ???
 }
 
 <span class="hljs-keyword">val</span> login: <span class="hljs-type">IO</span>[<span class="hljs-type">AuthError</span>, <span class="hljs-type">User</span>] = 
@@ -159,16 +166,23 @@
 </code></pre>
 <p>Asynchronous ZIO effects are much easier to use than callback-based APIs, and they benefit from ZIO features like interruption, resource-safety, and superior error handling.</p>
 <h2><a class="anchor" aria-hidden="true" id="blocking-synchronous-side-effects"></a><a href="#blocking-synchronous-side-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Blocking Synchronous Side-Effects</h2>
-<p>Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from an application's main thread pool.</p>
-<p>ZIO provides the <code>scalaz.zio.blocking</code> package, which can be used to safely convert such blocking side-effects into ZIO effects.</p>
+<p>Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from your application's main thread pool, resulting in work starvation.</p>
+<p>ZIO provides the <code>zio.blocking</code> package, which can be used to safely convert such blocking side-effects into ZIO effects.</p>
 <p>A blocking side-effect can be converted directly into a ZIO effect blocking with the <code>effectBlocking</code> method:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scalaz.zio.blocking._
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.blocking._
 
 <span class="hljs-keyword">val</span> sleeping = 
   effectBlocking(<span class="hljs-type">Thread</span>.sleep(<span class="hljs-type">Long</span>.<span class="hljs-type">MaxValue</span>))
 </code></pre>
 <p>The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.</p>
-<p>If a side-effect has already been converted into a ZIO effect, then instead of <code>effectBlocking</code>, the <code>blocking</code> method can be used to shift the effect onto the blocking thread pool:</p>
+<p>Some blocking side-effects can only be interrupted by invoking a cancellation effect. You can convert these side-effects using the <code>effectBlockingCancelable</code> method:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.net.<span class="hljs-type">ServerSocket</span>
+<span class="hljs-keyword">import</span> zio.<span class="hljs-type">UIO</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">accept</span></span>(l: <span class="hljs-type">ServerSocket</span>) =
+  effectBlockingCancelable(l.accept())(<span class="hljs-type">UIO</span>.effectTotal(l.close()))
+</code></pre>
+<p>If a side-effect has already been converted into a ZIO effect, then instead of <code>effectBlocking</code>, the <code>blocking</code> method can be used to ensure the effect will be executed on the blocking thread pool:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.io.{ <span class="hljs-type">Codec</span>, <span class="hljs-type">Source</span> }
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">download</span></span>(url: <span class="hljs-type">String</span>) =
@@ -179,10 +193,12 @@
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">safeDownload</span></span>(url: <span class="hljs-type">String</span>) = 
   blocking(download(url))
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/overview/overview_index"><span class="arrow-prev">← </span><span>Summary</span></a><a class="docs-next button" href="/docs/overview/overview_basic_operations"><span>Basic Operations</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#from-success-values">From Success Values</a></li><li><a href="#from-failure-values">From Failure Values</a></li><li><a href="#from-scala-values">From Scala Values</a><ul class="toc-headings"><li><a href="#option">Option</a></li><li><a href="#either">Either</a></li><li><a href="#try">Try</a></li><li><a href="#function">Function</a></li><li><a href="#future">Future</a></li></ul></li><li><a href="#from-side-effects">From Side-Effects</a><ul class="toc-headings"><li><a href="#synchronous-side-effects">Synchronous Side-Effects</a></li><li><a href="#asynchronous-side-effects">Asynchronous Side-Effects</a></li></ul></li><li><a href="#blocking-synchronous-side-effects">Blocking Synchronous Side-Effects</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
+<h2><a class="anchor" aria-hidden="true" id="next-steps"></a><a href="#next-steps" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Next Steps</h2>
+<p>If you are comfortable creating effects from values, Scala data data types, and side-effects, the next step is learning <a href="/docs/overview/overview_basic_operations">basic operations</a> on effects.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/overview/overview_index"><span class="arrow-prev">← </span><span>Summary</span></a><a class="docs-next button" href="/docs/overview/overview_basic_operations"><span>Basic Operations</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#from-success-values">From Success Values</a></li><li><a href="#from-failure-values">From Failure Values</a></li><li><a href="#from-scala-values">From Scala Values</a><ul class="toc-headings"><li><a href="#option">Option</a></li><li><a href="#either">Either</a></li><li><a href="#try">Try</a></li><li><a href="#function">Function</a></li><li><a href="#future">Future</a></li></ul></li><li><a href="#from-side-effects">From Side-Effects</a><ul class="toc-headings"><li><a href="#synchronous-side-effects">Synchronous Side-Effects</a></li><li><a href="#asynchronous-side-effects">Asynchronous Side-Effects</a></li></ul></li><li><a href="#blocking-synchronous-side-effects">Blocking Synchronous Side-Effects</a></li><li><a href="#next-steps">Next Steps</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section><div><div class="gitter-open-chat-button">Open Chat</div><script type="text/javascript">
         ((window.gitter = {}).chat = {}).options = {
           showChatByDefault: false,
           activationElement: '.gitter-open-chat-button',
-          room: 'scalaz/scalaz-zio'
+          room: 'zio/core'
         };
-      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>Github</h5><a class="github-button" href="https://github.com/scalaz/scalaz-zio" data-icon="octicon-star" data-count-href="/scalaz/scalaz-zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/">Scaladoc of scalaz-zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
+      </script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js" async="" defer=""></script></div></section><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a class="github-button" href="https://github.com/zio/zio" data-icon="octicon-star" data-count-href="/zio/zio/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div></section><section class="copyright">Copyright © 2019 ZIO Maintainers</section></footer></div></body></html>
