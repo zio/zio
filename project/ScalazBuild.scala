@@ -77,7 +77,10 @@ object Scalaz {
   def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((0, _)) =>
-        Seq("-language:implicitConversions")
+        Seq(
+          "-language:implicitConversions",
+          "-Xignore-scala2-macros"
+        )
       case Some((2, 13)) =>
         std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>
