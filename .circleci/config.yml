@@ -55,6 +55,7 @@ install_nodejs: &install_nodejs
   - run:
       name: Install node.js
       command: |
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
         nvm install
         nvm use
         node -v
