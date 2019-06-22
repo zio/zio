@@ -1438,8 +1438,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       IO.mergeAll(List.empty[UIO[Int]])(0)(_ + _)
     ) must_=== 0
 
-  def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[_]]): org.specs2.matcher.MatchResult[_] =
-    (1 to 50).foldLeft[org.specs2.matcher.MatchResult[_]](true must_=== true) {
+  def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
+    (1 to 50).foldLeft[org.specs2.matcher.MatchResult[Any]](true must_=== true) {
       case (acc, _) =>
         acc and unsafeRun(v)
     }
