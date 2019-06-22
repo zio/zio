@@ -17,8 +17,8 @@ To begin contributing, please follow these steps:
 3. [Find an Issue](#Find-an-Issue)
 4. [Fix an Issue](#Fix-an-Issue)
 5. [Prepare Your Code](#Prepare-Your-Code)
-6. [Create a Pull Request](#Createa-a-Pull-Request)
-7. [Get Your Request Merged](#Get-Your-Request-Merged)
+6. [Create a Pull Request](#Create-a-Pull-Request)
+7. [Get Your Pull Request Merged](#Get-Your-Pull-Request-Merged)
 
 ## Getting Started
 
