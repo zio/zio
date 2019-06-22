@@ -53,7 +53,7 @@ install_nodejs: &install_nodejs
   - run:
       name: Install node.js
       command: |
-        curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
+        curl -sL https://deb.nodesource.com/setup_12.x | sudo bash -
         sudo apt install -y nodejs
 
 lint: &lint
