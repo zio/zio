@@ -1078,14 +1078,16 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testSupervising = {
-    def forkAwaitStart = withLatch(release => (release *> UIO.never).fork)
+    def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) = 
+      withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
 
     unsafeRun(
       (for {
+        ref   <- Ref.make(List.empty[Fiber[_, _]])
         fibs0 <- ZIO.children
-        _     <- forkAwaitStart
+        _     <- forkAwaitStart(ref)
         fibs1 <- ZIO.children
-        _     <- forkAwaitStart
+        _     <- forkAwaitStart(ref)
         fibs2 <- ZIO.children
       } yield (fibs0 must have size (0)) and (fibs1 must have size (1)) and (fibs2 must have size (2))).supervised
     )
@@ -1094,7 +1096,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testSupervisingUnsupervised =
     unsafeRun(
       for {
-        _    <- withLatch(release => (release *> UIO.never).fork)
+        ref  <- Ref.make(Option.empty[Fiber[_, _]])
+        _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
         fibs <- ZIO.children
       } yield fibs must have size (0)
     )
@@ -1102,8 +1105,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testSupervise = {
     var counter = 0
     unsafeRun((for {
-      _ <- (clock.sleep(200.millis) *> IO.unit).fork
-      _ <- (clock.sleep(400.millis) *> IO.unit).fork
+      ref <- Ref.make(List.empty[Fiber[_, _]])
+      _   <- (clock.sleep(200.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
+      _   <- (clock.sleep(400.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
     } yield ()).handleChildrenWith { fs =>
       fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> IO.effectTotal(counter += 1))
     })
