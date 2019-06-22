@@ -552,7 +552,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Runs the specified effect if this effect is interrupted.
    */
-  final def onInterrupt[R1 <: R](cleanup: ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
+  final def onInterrupt[R1 <: R](cleanup: ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
     self.ensuring(
       ZIO.descriptorWith(descriptor => if (descriptor.interrupted) cleanup else ZIO.unit)
     )
