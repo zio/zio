@@ -62,6 +62,15 @@ install_nodejs: &install_nodejs
         nvm use
         node -v
 
+compile: &lint
+  steps:
+    - checkout
+    - <<: *load_cache
+    - run:
+        name: Compile code
+        command: ./sbt ++${SCALA_VERSION}! compile
+    - <<: *save_cache
+
 lint: &lint
   steps:
     - checkout
@@ -160,8 +169,8 @@ jobs:
       - <<: *scala_212
       - <<: *jdk_8
 
-  lint_dotty:
-    <<: *lint
+  compile_dotty:
+    <<: *compile
     <<: *machine_ubuntu
     environment:
       - <<: *scala_dotty
@@ -278,7 +287,7 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - lint_dotty:
+      - compile_dotty:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
