@@ -1333,17 +1333,19 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     )
   }
 
-  // FIXME: This is a flaky test!
   def testBlockingThreadCaching = {
-    val currentNumLiveWorkers =
-      blocking.blockingExecutor.map(_.metrics.get.workersCount)
+    import zio.blocking.Blocking
 
-    unsafeRunSync(for {
-      thread1  <- blocking.effectBlocking(Thread.currentThread())
-      workers1 <- currentNumLiveWorkers
-      thread2  <- blocking.effectBlocking(Thread.currentThread())
-      workers2 <- currentNumLiveWorkers
-    } yield workers1 == workers2 && thread1 == thread2) must_=== Exit.Success(true)
+    def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Blocking with Clock, Nothing, Boolean] =
+      blocking.blocking {
+        UIO(Thread.currentThread()).flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO
+          .sleep(1.millis)
+      }
+
+    unsafeRun(for {
+      accum <- Ref.make(Set.empty[Thread])
+      b     <- runAndTrack(accum).repeat(Schedule.doUntil[Boolean](_ == true))
+    } yield b must_=== true)
   }
 
   def testBlockingIOIsEffectBlocking = unsafeRun(
