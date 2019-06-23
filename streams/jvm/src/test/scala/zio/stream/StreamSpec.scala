@@ -132,6 +132,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     no remainder                         $transduceNoRemainder
     with remainder                       $transduceWithRemainder
     with a sink that always signals more $transduceSinkMore
+    managed                              $transduceManaged
 
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
@@ -871,6 +872,35 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val transduced = ZStream(1, 2, 3).transduce(sink)
 
     slurp(transduced) must_=== Success(List(1 + 2 + 3))
+  }
+
+  private def transduceManaged = {
+    def makeSink(res: Ref[Int]) =
+      (_: Unit) =>
+        new ZSink[Any, Throwable, Int, Int, List[Int]] {
+          override type State = List[Int]
+
+          override def extract(state: List[Int]): ZIO[Any, Throwable, List[Int]] = ZIO.succeed(state)
+
+          override def initial: ZIO[Any, Throwable, ZSink.Step[List[Int], Nothing]] = ZIO.succeed(ZSink.Step.more(Nil))
+
+          override def step(state: List[Int], a: Int): ZIO[Any, Throwable, ZSink.Step[List[Int], Int]] =
+            for {
+              i <- res.get
+              _ <- if (i != 500) IO.fail(new IllegalStateException(i.toString)) else IO.unit
+            } yield ZSink.Step.done(List(a, a), Chunk.empty)
+        }
+
+    val stream = ZStream(1, 2, 3, 4)
+    val test = for {
+      resource <- Ref.make(0)
+      result <- stream
+                 .transduceManaged(ZManaged.make(resource.set(500))(_ => resource.set(1000)))(makeSink(resource))
+                 .runCollect
+      i <- resource.get
+      _ <- if (i != 1000) IO.fail(new IllegalStateException(i.toString)) else IO.unit
+    } yield result
+    unsafeRunSync(test) must_=== Success(List(List(1, 1), List(2, 2), List(3, 3), List(4, 4)))
   }
 
   private def unfold = {
