@@ -634,7 +634,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     foldCauseM(c => ZIO.haltWith(trace => Cause.traced(c, trace())), ZIO.succeed)
 
   /**
-   * Keeps some of the errors, and terminates the fiber with the rest.
+   * Keeps some of the errors, and terminates the fiber with the rest
    */
   final def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev: E <:< Throwable): ZIO[R, E1, A] =
     refineOrDieWith(pf)(ev)
