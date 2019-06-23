@@ -17,14 +17,15 @@
 package zio
 package interop
 
+import cats.arrow.FunctionK
 import cats.effect.Resource.{ Allocate, Bind, Suspend }
-import cats.effect.{ ExitCase, LiftIO, Resource, Sync, IO => CIO }
+import cats.effect.{ ConcurrentEffect, ExitCase, LiftIO, Resource, Sync, IO => CIO }
 import cats.{ effect, Bifunctor, Monad, MonadError, Monoid, Semigroup, SemigroupK }
 
 trait CatsZManagedSyntax {
   import scala.language.implicitConversions
 
-  implicit final def catsIOResourceSyntax[A](resource: Resource[CIO, A]): CatsIOResourceSyntax[A] =
+  implicit final def catsIOResourceSyntax[F[_], A](resource: Resource[F, A]): CatsIOResourceSyntax[F, A] =
     new CatsIOResourceSyntax(resource)
 
   implicit final def zManagedSyntax[R, E, A](managed: ZManaged[R, E, A]): ZManagedSyntax[R, E, A] =
@@ -32,15 +33,13 @@ trait CatsZManagedSyntax {
 
 }
 
-final class CatsIOResourceSyntax[A](private val resource: Resource[CIO, A]) extends AnyVal {
+final class CatsIOResourceSyntax[F[_], A](private val resource: Resource[F, A]) extends AnyVal {
 
   /**
    * Convert a cats Resource into a ZManaged.
    * Beware that unhandled error during release of the resource will result in the fiber dying.
    */
-  def toManaged[R](
-    implicit l: LiftIO[ZIO[R, Throwable, ?]]
-  ): ZManaged[R, Throwable, A] = {
+  def toManaged[R](implicit l: LiftIO[ZIO[R, Throwable, ?]], ev: ConcurrentEffect[F]): ZManaged[R, Throwable, A] = {
     def convert[A1](resource: Resource[CIO, A1]): ZManaged[R, Throwable, A1] =
       resource match {
         case Allocate(res) =>
@@ -63,7 +62,8 @@ final class CatsIOResourceSyntax[A](private val resource: Resource[CIO, A]) exte
         case Suspend(res) =>
           ZManaged.unwrap(l.liftIO(res).map(convert))
       }
-    convert(resource)
+
+    convert(resource.mapK(FunctionK.lift(ev.toIO)))
   }
 }
 
