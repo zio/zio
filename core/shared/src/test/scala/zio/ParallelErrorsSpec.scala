@@ -12,7 +12,7 @@ class ParallelErrorsSpec extends BaseCrossPlatformSpec {
       f1     <- IO.fail("error1").fork
       f2     <- IO.fail("error2").fork
       errors <- f1.zip(f2).join.parallelErrors[String].flip
-    } yield errors must_=== ::("error1" , List("error2"))
+    } yield errors must_=== ::("error1", List("error2"))
 
   def oneFailure =
     for {
