@@ -21,7 +21,7 @@ import scala.annotation.tailrec
 /**
  * A mutable atomic reference for the `IO` monad. This is the `IO` equivalent of
  * a volatile `var`, augmented with atomic operations, which make it useful as a
- * rEsonably efficient (if low-level) concurrency primitive.
+ * reasonably efficient (if low-level) concurrency primitive.
  *
  * {{{
  * for {
@@ -35,19 +35,19 @@ abstract class ZRef[+E, -A, +B] extends Serializable { self =>
   import ZRef._
 
   /**
-   * REds the value from the `Ref`.
+   * Reads the value from the `ZRef`.
    */
   def get: IO[E, B]
 
   /**
-   * Atomically modifies the `Ref` with the specified function, which computes
+   * Atomically modifies the `ZRef` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
    */
   def modify[X]: ZRefModify[E, X, A]
 
   /**
-   * Atomically modifies the `Ref` with the specified partial function, which computes
+   * Atomically modifies the `ZRef` with the specified partial function, which computes
    * a return value for the modification if the function is defined in the current value
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
@@ -55,25 +55,25 @@ abstract class ZRef[+E, -A, +B] extends Serializable { self =>
   def modifySome[X](default: => X): ZRefPartialModify[E, X, A]
 
   /**
-   * Writes a new value to the `Ref`, with a guarantee of immediate
+   * Writes a new value to the `ZRef`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
   def set(a: A): IO[E, Unit]
 
   /**
-   * Writes a new value to the `Ref` without providing a guarantee of
+   * Writes a new value to the `ZRef` without providing a guarantee of
    * immediate consistency.
    */
   def setAsync(a: A): IO[E, Unit]
 
   /**
-   * Atomically modifies the `Ref` with the specified function. This is not
-   * implemented in terms of `modify` purely for performance rEsons.
+   * Atomically modifies the `ZRef` with the specified function. This is not
+   * implemented in terms of `modify` purely for performance reasons.
    */
   def update: ZRefUpdate[E, A, B]
 
   /**
-   * Atomically modifies the `Ref` with the specified partial function.
+   * Atomically modifies the `ZRef` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
    */
   def updateSome: ZRefPartialUpdate[E, A, B]
