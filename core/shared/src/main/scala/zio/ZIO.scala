@@ -270,7 +270,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       race: Ref[Int],
       done: Promise[E2, C]
     )(res: Exit[E0, A]): ZIO[R1, Nothing, _] =
-      ZIO.flatten(race.modify((c: Int) => (if (c > 0) ZIO.unit else f(res, loser).to(done).unit) -> (c + 1)))
+      ZIO.flatten(race.modify(c => (if (c > 0) ZIO.unit else f(res, loser).to(done).unit) -> (c + 1)))
 
     for {
       done <- Promise.make[E2, C]

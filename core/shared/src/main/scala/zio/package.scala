@@ -33,8 +33,8 @@ package object zio extends EitherCompat {
   type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
   val Queue = ZQueue
 
-  // type Ref[A] = ZRef[Nothing, Nothing, A, A]
-  // val Ref = ZRef
+  type Ref[A] = ZRef[Nothing, A, A]
+  val Ref = ZRef
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =

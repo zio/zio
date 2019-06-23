@@ -21,29 +21,30 @@ import scala.annotation.tailrec
 /**
  * A mutable atomic reference for the `IO` monad. This is the `IO` equivalent of
  * a volatile `var`, augmented with atomic operations, which make it useful as a
- * reasonably efficient (if low-level) concurrency primitive.
+ * rEsonably efficient (if low-level) concurrency primitive.
  *
  * {{{
  * for {
  *   ref <- Ref.make(2)
- *   v   <- ref.update(_ + 3)
+ *   v   <- ref.update[A0 <: A](_ + 3)
  *   _   <- console.putStrLn("Value = " + v) // Value = 5
  * } yield ()
  * }}}
  */
-abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
+abstract class ZRef[+E, -A, +B] extends Serializable { self =>
+  import ZRef._
 
   /**
-   * Reads the value from the `Ref`.
+   * REds the value from the `Ref`.
    */
-  def get: IO[EB, B]
+  def get: IO[E, B]
 
   /**
    * Atomically modifies the `Ref` with the specified function, which computes
    * a return value for the modification. This is a more powerful version of
    * `update`.
    */
-  def modify[X, A1 <: A](f: A => (X, A1)): IO[EA, X]
+  def modify[X]: ZRefModify[E, X, A]
 
   /**
    * Atomically modifies the `Ref` with the specified partial function, which computes
@@ -51,85 +52,131 @@ abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * otherwise it returns a default value.
    * This is a more powerful version of `updateSome`.
    */
-  def modifySome[X, A1 <: A](default: => X)(pf: PartialFunction[A, (X, A1)]): IO[EA, X]
+  def modifySome[X](default: => X): ZRefPartialModify[E, X, A]
 
   /**
    * Writes a new value to the `Ref`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
-  def set(a: A): IO[EA, Unit]
+  def set(a: A): IO[E, Unit]
 
   /**
    * Writes a new value to the `Ref` without providing a guarantee of
    * immediate consistency.
    */
-  def setAsync(a: A): IO[EA, Unit]
+  def setAsync(a: A): IO[E, Unit]
 
   /**
    * Atomically modifies the `Ref` with the specified function. This is not
-   * implemented in terms of `modify` purely for performance reasons.
+   * implemented in terms of `modify` purely for performance rEsons.
    */
-  def update[A1 <: A](f: A => A1): IO[EB, B]
+  def update: ZRefUpdate[E, A, B]
 
   /**
    * Atomically modifies the `Ref` with the specified partial function.
    * if the function is undefined in the current value it returns the old value without changing it.
    */
-  def updateSome[A1 <: A](pf: PartialFunction[A, A1]): IO[EB, B]
+  def updateSome: ZRefPartialUpdate[E, A, B]
+
+  final def const[X](x: X): ZRef[E, A, X] = map(_ => x)
+
+  final def map[C](g: B => C): ZRef[E, A, C] = new ZRef[E, A, C] {
+    def get: IO[E, C] = self.get map g
+
+    def modify[X]: ZRefModify[E, X, A] = self.modify[X]
+
+    def modifySome[X](default: => X): ZRefPartialModify[E, X, A] = self.modifySome(default)
+
+    def set(a: A): IO[E, Unit] = self.set(a)
+
+    def setAsync(a: A): IO[E, Unit] = self.setAsync(a)
+
+    def update: ZRefUpdate[E, A, C] = self.update map g
+
+    def updateSome: ZRefPartialUpdate[E, A, C] = self.updateSome map g
+  }
+
+  final def unit: ZRef[E, A, Unit] = const(())
+
 }
 
-private[zio] trait ZRef_Functions {
+object ZRef {
+  abstract class ZRefModify[E, X, A] { self =>
+    def apply(f: A => (X, A)): IO[E, X]
+  }
 
-}
+  abstract class ZRefUpdate[E, A, B] { self =>
+    def apply(f: A => A): IO[E, B]
 
-object Ref extends ZRef_Functions {
-  private def unsafeCreate[A](value: AtomicReference[A]): ZRef[Nothing, Nothing, A, A] =
-    new ZRef[Nothing, Nothing, A, A] {
+    def map[C](g: B => C): ZRefUpdate[E, A, C] = new ZRefUpdate[E, A, C] {
+      def apply(f: A => A): IO[E, C] = self.apply(f) map g
+    }
+  }
+
+  abstract class ZRefPartialModify[E, X, A] { self =>
+    def apply(pf: PartialFunction[A, (X, A)]): IO[E, X]
+  }
+
+  abstract class ZRefPartialUpdate[E, A, B] { self =>
+    def apply(pf: PartialFunction[A, A]): IO[E, B]
+
+    def map[C](g: B => C): ZRefPartialUpdate[E, A, C] = new ZRefPartialUpdate[E, A, C] {
+      def apply(pf: PartialFunction[A, A]): IO[E, C] = self.apply(pf) map g
+    }
+  }
+
+  private def unsafeCreate[A](value: AtomicReference[A]): ZRef[Nothing, A, A] =
+    new ZRef[Nothing, A, A] {
       def get: UIO[A] = UIO.effectTotal(value.get)
 
-      def modify[X, A1 <: A](f: A => (X, A1)): UIO[X] = UIO.effectTotal {
-        @tailrec def modify_in: X = {
-          val current = value.get
-          val (x, a1) = f(current)
-          if (value.compareAndSet(current, a1)) x else modify_in
+      def modify[X]: ZRefModify[Nothing, X, A] = new ZRefModify[Nothing, X, A] {
+        def apply(f: A => (X, A)): UIO[X] = UIO.effectTotal {
+          @tailrec def modify_in: X = {
+            val current = value.get
+            val (x, a1) = f(current)
+            if (value.compareAndSet(current, a1)) x else modify_in
+          }
+          modify_in
         }
-        modify_in
       }
 
-      def modifySome[X, A1 <: A](default: => X)(pf: PartialFunction[A, (X, A1)]): UIO[X] = UIO.effectTotal {
-        @tailrec def modifySome_in: X = {
-          val current = value.get
-          val (x, a1) = pf.applyOrElse(current, (_: A) => (default, current))
-          if (value.compareAndSet(current, a1)) x else modifySome_in
+      def modifySome[X](default: => X): ZRefPartialModify[Nothing, X, A] = new ZRefPartialModify[Nothing, X, A] {
+        def apply(pf: PartialFunction[A, (X, A)]): UIO[X] = UIO.effectTotal {
+          @tailrec def modifySome_in: X = {
+            val current = value.get
+            val (x, a1) = pf.applyOrElse(current, (_: A) => (default, current))
+            if (value.compareAndSet(current, a1)) x else modifySome_in
+          }
+          modifySome_in
         }
-        modifySome_in
       }
 
       def set(a: A): UIO[Unit] = UIO.effectTotal(value.set(a))
 
       def setAsync(a: A): UIO[Unit] = UIO.effectTotal(value.lazySet(a))
 
-      def update[A1 <: A](f: A => A1): UIO[A] = UIO.effectTotal {
-        @tailrec def update_in: A = {
-          val current = value.get
-          val a1      = f(current)
-          if (value.compareAndSet(current, a1)) a1 else update_in
+      def update: ZRefUpdate[Nothing, A, A] = new ZRefUpdate[Nothing, A, A] {
+        def apply(f: A => A): UIO[A] = UIO.effectTotal {
+          @tailrec def update_in: A = {
+            val current = value.get
+            val a1      = f(current)
+            if (value.compareAndSet(current, a1)) a1 else update_in
+          }
+          update_in
         }
-        update_in
       }
 
-      def updateSome[A1 <: A](pf: PartialFunction[A, A1]): UIO[A] = UIO.effectTotal {
-        @tailrec def updateSome_in: A = {
-          val current = value.get
-          val a1      = pf.applyOrElse(current, (_: A) => current)
-          if (value.compareAndSet(current, a1)) a1 else updateSome_in
+      def updateSome: ZRefPartialUpdate[Nothing, A, A] = new ZRefPartialUpdate[Nothing, A, A] {
+        def apply(pf: PartialFunction[A, A]): UIO[A] = UIO.effectTotal {
+          @tailrec def updateSome_in: A = {
+            val current = value.get
+            val a1      = pf.applyOrElse(current, (_: A) => current)
+            if (value.compareAndSet(current, a1)) a1 else updateSome_in
+          }
+          updateSome_in
         }
-        updateSome_in
       }
     }
 
-  def make[A](a: A): UIO[ZRef[Nothing, Nothing, A, A]] = UIO.effectTotal(new AtomicReference[A](a)).map(unsafeCreate)
-}
-
-object ZRef extends ZRef_Functions {
+  def make[A](a: A): UIO[ZRef[Nothing, A, A]] = UIO.effectTotal(new AtomicReference[A](a)).map(unsafeCreate)
 }

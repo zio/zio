@@ -209,7 +209,7 @@ object Promise {
     for {
       pRef <- Ref.make[Option[(C, Promise[E, B])]](None)
       b <- (for {
-            p <- ref.modify { a: A =>
+            p <- ref.modify { a =>
                   val p = Promise.unsafeMake[E, B]
 
                   val (io, a2) = acquire(p, a)
