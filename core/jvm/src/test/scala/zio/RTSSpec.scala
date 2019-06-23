@@ -676,23 +676,19 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(io.timeoutTo(42)(_ => 0)(1.second)) must_=== 0
   }
 
-  def testBracket0ReleaseOnInterrupt = {
-    val io =
-      for {
-        p1 <- Promise.make[Nothing, Unit]
-        p2 <- Promise.make[Nothing, Unit]
-        fiber <- IO
-                  .bracketExit(IO.unit)((_, _: Exit[_, _]) => p2.succeed(()) *> IO.unit)(
-                    _ => p1.succeed(()) *> IO.never
+  def testBracket0ReleaseOnInterrupt =
+    unsafeRun(for {
+      done <- Promise.make[Nothing, Unit]
+      fiber <- withLatch { release =>
+                IO.bracketExit(IO.unit)((_, _: Exit[_, _]) => done.succeed(()))(
+                    _ => release *> IO.never
                   )
                   .fork
-        _ <- p1.await
-        _ <- fiber.interrupt
-        _ <- p2.await
-      } yield ()
+              }
 
-    unsafeRun(io.timeoutTo(42)(_ => 0)(1.second)) must_=== 0
-  }
+      _ <- fiber.interrupt
+      r <- done.await.timeoutTo(42)(_ => 0)(60.second)
+    } yield r must_=== 0)
 
   def testRedeemEnsuringInterrupt = {
     val io = for {
