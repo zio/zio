@@ -36,159 +36,68 @@ import zio.Exit.Cause
  * } yield value
  * }}}
  */
-class Promise[E, A] private (private val state: AtomicReference[State[E, A]]) extends AnyVal {
+sealed trait Promise[E, A] {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
    * until the result is available.
    */
-  final def await: IO[E, A] =
-    IO.effectAsyncInterrupt[Any, E, A](k => {
-      var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
-      var retry  = true
-
-      while (retry) {
-        val oldState = state.get
-
-        val newState = oldState match {
-          case Pending(joiners) =>
-            result = Left(interruptJoiner(k))
-
-            Pending(k :: joiners)
-          case s @ Done(value) =>
-            result = Right(value)
-
-            s
-        }
-
-        retry = !state.compareAndSet(oldState, newState)
-      }
-
-      result
-    })
+  def await: IO[E, A]
 
   /**
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def die(e: Throwable): UIO[Boolean] = done(IO.die(e))
+  def die(e: Throwable): UIO[Boolean]
 
   /**
    * Completes the promise with the specified result. If the specified promise
    * has already been completed, the method will produce false.
    */
-  final def done(io: IO[E, A]): UIO[Boolean] =
-    IO.effectTotal {
-      var action: () => Boolean = null.asInstanceOf[() => Boolean]
-      var retry                 = true
-
-      while (retry) {
-        val oldState = state.get
-
-        val newState = oldState match {
-          case Pending(joiners) =>
-            action = () => { joiners.foreach(_(io)); true }
-
-            Done(io)
-
-          case Done(_) =>
-            action = Promise.ConstFalse
-
-            oldState
-        }
-
-        retry = !state.compareAndSet(oldState, newState)
-      }
-
-      action()
-    }
+  def done(io: IO[E, A]): UIO[Boolean]
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def fail(e: E): UIO[Boolean] = done(IO.fail(e))
+  def fail(e: E): UIO[Boolean]
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  final def halt(e: Cause[E]): UIO[Boolean] = done(IO.halt(e))
+  def halt(e: Cause[E]): UIO[Boolean]
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise.
    */
-  final def interrupt: UIO[Boolean] = done(IO.interrupt)
+  def interrupt: UIO[Boolean]
 
   /**
    * Checks for completion of this Promise. Produces true if this promise has
    * already been completed with a value or an error and false otherwise.
    */
-  final def isDone: UIO[Boolean] =
-    IO.effectTotal(state.get() match {
-      case Done(_)    => true
-      case Pending(_) => false
-    })
+  def isDone: UIO[Boolean]
 
   /**
    * Completes immediately this promise and returns optionally it's result.
    */
-  final def poll: UIO[Option[IO[E, A]]] =
-    IO.effectTotal(state.get).flatMap {
-      case Pending(_) => IO.succeed(None)
-      case Done(io)   => IO.succeed(Some(io))
-    }
+  def poll: UIO[Option[IO[E, A]]]
 
   /**
    * Completes the promise with the specified value.
    */
-  final def succeed(a: A): UIO[Boolean] = done(IO.succeed(a))
+  def succeed(a: A): UIO[Boolean]
 
-  private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
-    var retry = true
-
-    while (retry) {
-      val oldState = state.get
-
-      val newState = oldState match {
-        case Pending(joiners) =>
-          Pending(joiners.filter(j => !j.eq(joiner)))
-
-        case Done(_) =>
-          oldState
-      }
-
-      retry = !state.compareAndSet(oldState, newState)
-    }
-  }
-
-  private[zio] final def unsafeDone(io: IO[E, A]): Unit = {
-    var retry: Boolean                  = true
-    var joiners: List[IO[E, A] => Unit] = null
-
-    while (retry) {
-      val oldState = state.get
-
-      val newState = oldState match {
-        case Pending(js) =>
-          joiners = js
-          Done(io)
-        case _ => oldState
-      }
-
-      retry = !state.compareAndSet(oldState, newState)
-    }
-
-    if (joiners ne null) joiners.reverse.foreach(_(io))
-  }
-
+  private[zio] def unsafeDone(io: IO[E, A]): Unit
 }
+
 object Promise {
   private val ConstFalse: () => Boolean = () => false
 
   private final def unsafeMake[E, A]: Promise[E, A] =
-    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)))
+    new PromiseImpl[E, A](new internal.Pending[E, A](Nil))
 
   private[zio] object internal {
     sealed trait State[E, A]                                        extends Serializable with Product
@@ -226,4 +135,119 @@ object Promise {
    * Makes a new promise.
    */
   final def make[E, A]: UIO[Promise[E, A]] = IO.effectTotal[Promise[E, A]](unsafeMake[E, A])
+
+  private final class PromiseImpl[E, A](initialState: State[E, A])
+      extends AtomicReference[State[E, A]](initialState)
+      with Promise[E, A] {
+    def await: IO[E, A] =
+      IO.effectAsyncInterrupt[Any, E, A](k => {
+        var result = null.asInstanceOf[Either[Canceler, IO[E, A]]]
+        var retry  = true
+
+        while (retry) {
+          val oldState = get
+
+          val newState = oldState match {
+            case Pending(joiners) =>
+              result = Left(interruptJoiner(k))
+
+              Pending(k :: joiners)
+            case s @ Done(value) =>
+              result = Right(value)
+
+              s
+          }
+
+          retry = !compareAndSet(oldState, newState)
+        }
+
+        result
+      })
+
+    def die(e: Throwable): UIO[Boolean] = done(IO.die(e))
+
+    def done(io: IO[E, A]): UIO[Boolean] =
+      IO.effectTotal {
+        var action: () => Boolean = null.asInstanceOf[() => Boolean]
+        var retry                 = true
+
+        while (retry) {
+          val oldState = get
+
+          val newState = oldState match {
+            case Pending(joiners) =>
+              action = () => { joiners.foreach(_(io)); true }
+
+              Done(io)
+
+            case Done(_) =>
+              action = Promise.ConstFalse
+
+              oldState
+          }
+
+          retry = !compareAndSet(oldState, newState)
+        }
+
+        action()
+      }
+
+    def fail(e: E): UIO[Boolean] = done(IO.fail(e))
+
+    def halt(e: Cause[E]): UIO[Boolean] = done(IO.halt(e))
+
+    def interrupt: UIO[Boolean] = done(IO.interrupt)
+
+    def isDone: UIO[Boolean] =
+      IO.effectTotal(get() match {
+        case Done(_)    => true
+        case Pending(_) => false
+      })
+
+    def poll: UIO[Option[IO[E, A]]] =
+      IO.effectTotal(get).flatMap {
+        case Pending(_) => IO.succeed(None)
+        case Done(io)   => IO.succeed(Some(io))
+      }
+
+    def succeed(a: A): UIO[Boolean] = done(IO.succeed(a))
+
+    private def interruptJoiner(joiner: IO[E, A] => Unit): Canceler = IO.effectTotal {
+      var retry = true
+
+      while (retry) {
+        val oldState = get
+
+        val newState = oldState match {
+          case Pending(joiners) =>
+            Pending(joiners.filter(j => !j.eq(joiner)))
+
+          case Done(_) =>
+            oldState
+        }
+
+        retry = !compareAndSet(oldState, newState)
+      }
+    }
+
+    private[zio] def unsafeDone(io: IO[E, A]): Unit = {
+      var retry: Boolean                  = true
+      var joiners: List[IO[E, A] => Unit] = null
+
+      while (retry) {
+        val oldState = get
+
+        val newState = oldState match {
+          case Pending(js) =>
+            joiners = js
+            Done(io)
+          case _ => oldState
+        }
+
+        retry = !compareAndSet(oldState, newState)
+      }
+
+      if (joiners ne null) joiners.reverse.foreach(_(io))
+    }
+  }
 }
