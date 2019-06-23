@@ -25,9 +25,7 @@ import cats.{ effect, Bifunctor, Monad, MonadError, Monoid, Semigroup, Semigroup
 trait CatsZManagedSyntax {
   import scala.language.implicitConversions
 
-  implicit final def catsIOResourceSyntax[F[_]: ConcurrentEffect, A](
-    resource: Resource[F, A]
-  ): CatsIOResourceSyntax[F, A] =
+  implicit final def catsIOResourceSyntax[F[_], A](resource: Resource[F, A]): CatsIOResourceSyntax[F, A] =
     new CatsIOResourceSyntax(resource)
 
   implicit final def zManagedSyntax[R, E, A](managed: ZManaged[R, E, A]): ZManagedSyntax[R, E, A] =
