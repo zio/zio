@@ -17,9 +17,7 @@ object Scalaz {
     "-encoding",
     "UTF-8",
     "-feature",
-    "-unchecked",
-    "-Xmax-classfile-name",
-    "242"
+    "-unchecked"
   )
 
   private val std2xOptions = Seq(
@@ -32,7 +30,9 @@ object Scalaz {
     "-Xsource:2.13",
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard"
+    "-Ywarn-value-discard",
+    "-Xmax-classfile-name",
+    "242"
   )
 
   private def optimizerOptions(optimize: Boolean) =
@@ -77,7 +77,10 @@ object Scalaz {
   def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((0, _)) =>
-        Seq("-language:implicitConversions")
+        Seq(
+          "-language:implicitConversions",
+          "-Xignore-scala2-macros"
+        )
       case Some((2, 13)) =>
         std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>

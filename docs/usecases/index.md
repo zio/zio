@@ -3,7 +3,7 @@ id: usecases_index
 title:  "Summary"
 ---
 
-The ZIO library lets you easily solve problems in aa variety of areas, including:
+The ZIO library lets you easily solve problems in a variety of areas, including:
 
  - **Asynchronous Programming** — Write asynchronous code as easily as synchronous code, handling all errors and never leaking resources.
  - **Concurrent Programming** — Write concurrent code that scales easily, without locks or deadlocks, with maximal laziness and resource safety.
