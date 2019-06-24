@@ -3,11 +3,14 @@ id: datatypes_fiberref
 title:  "FiberRef"
 ---
 
-`FiberRef[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
+`FiberRef[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which sets the reference to a new value, and `get`, which retrieves the current value of the reference.
 
+As opposed to `Ref[A]`, the value of a `FiberRef[A]` is bound to an executing fiber. Different fibers who hold the same `FiberRef[A]` can independently set and retrieve values of the reference, without collisions.
+
+You can think of `FiberRef` as Java's `ThreadLocal` on steroids.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 
 for {
   fiberRef <- FiberRef.make[Int](0)
@@ -18,27 +21,28 @@ for {
 
 ## Operations
 
-`FiberRef[A]` has almost identical API as `Ref[A]`. It includes well known methods such as:
+`FiberRef[A]` has an API almost identical to `Ref[A]`. It includes well-known methods such as:
 
-- `get` returns the current, possibly non-existent, fiber-bound `A`
-- `set` binds an `A` to the current fiber
-- `update` / `updateSome` modifies the value with the specified function
-- `modify`/ `modifySome` modifies the value with the specified function, which computes a return value for the modification
+- `FiberRef#get`. Returns the current value of the reference.
+- `FiberRef#set`. Sets the current value of the reference.
+- `FiberRef#update` / `FiberRef#updateSome` updates the value with the specified function.
+- `FiberRef#modify`/ `FiberRef#modifySome` modifies the value with the specified function, computing a return value for the operation.
 
 You can also use `locally` to scope `FiberRef` value only for a given effect:
 
 ```scala mdoc:silent
 for {
   correlationId <- FiberRef.make[String]("")
-  v             <- correlationId.locally("my-correlation-id")(correlationId.get)
+  v1            <- correlationId.locally("my-correlation-id")(correlationId.get)
   v2            <- correlationId.get
-} yield v == "my-correlation-id" && v2 == ""
+} yield v1 == "my-correlation-id" && v2 == ""
 ```
-
 
 ## Propagation
 
-`FiberRef[A]` has *copy-on-fork* semantics regarding `fork`. This essentially means that a child `Fiber` starts with `FiberRef` values of its parent. When the child set a new value of `FiberRef`, the change is visible only to the child itself. Parent still gets its own value.
+`FiberRef[A]` has *copy-on-fork* semantics for `ZIO#fork`. 
+
+This essentially means that a child `Fiber` starts with `FiberRef` values of its parent. When the child set a new value of `FiberRef`, the change is visible only to the child itself. The parent fiber still has its own value.
 
 ```scala mdoc:silent
 for {
@@ -46,11 +50,10 @@ for {
   _        <- fiberRef.set(10)
   child    <- fiberRef.get.fork
   v        <- child.join
- 
 } yield v == 10
 ```
 
-But it goes other way as well. You can also inherit values from all `FiberRef`s from an already running `Fiber`.
+You can inherit the values from all `FiberRef`s from an existing `Fiber` using the `Fiber#inheritFiberRefs` method:
 
 ```scala mdoc:silent
 for {
@@ -63,25 +66,27 @@ for {
 } yield v == 10
 ```
 
-Method `inheritFiberRefs` is also automatically called on `join`. This effectively means that both pieces of code below behave identically.
+Note that `inheritFiberRefs` is automatically called on `join`. This effectively means that both of the following effects behave identically:
 
- ```scala mdoc:silent
- for {
-   fiberRef <- FiberRef.make[Int](0)
-   fiber    <- fiberRef.set(10).fork
-   _        <- fiber.join
-   v        <- fiberRef.get
- } yield v == 10
- ```
+```scala mdoc:silent
+val withJoin =
+for {
+  fiberRef <- FiberRef.make[Int](0)
+  fiber    <- fiberRef.set(10).fork
+  _        <- fiber.join
+  v        <- fiberRef.get
+} yield v == 10
+```
  
-  ```scala mdoc:silent
+```scala mdoc:silent
+val withoutJoin = 
   for {
     fiberRef <- FiberRef.make[Int](0)
     fiber    <- fiberRef.set(10)
     v        <- fiberRef.get
   } yield v == 10
-  ```
+```
 
-## Memory safety
+## Memory Safety
 
-Value is automatically garbage collected once the `Fiber` owning it is finished. `FiberRef` that is no longer reachable (has no reference to it in user code) will cause all values related to it to be garbage collected (even if they were used in a `Fiber` that is still executing.)
+The value of a `FiberRef` is automatically garbage collected once the `Fiber` owning it is finished. A `FiberRef` that is no longer reachable (has no reference to it in user-code) will cause all fiber-specific values of the reference to be garbage collected, even if they were once used in a `Fiber` that is currently executing.

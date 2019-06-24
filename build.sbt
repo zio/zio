@@ -4,12 +4,12 @@ import Scalaz._
 import xerial.sbt.Sonatype._
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 
-name := "scalaz-zio"
+name := "zio"
 
 inThisBuild(
   List(
-    organization := "org.scalaz",
-    homepage := Some(url("https://scalaz.github.io/scalaz-zio/")),
+    organization := "dev.zio",
+    homepage := Some(url("https://zio.dev")),
     licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
       Developer(
@@ -24,6 +24,25 @@ inThisBuild(
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
+addCommandAlias(
+  "testJVM",
+  ";coreJVM/test;interopCatsJVM/test;interopFutureJVM/test;interopJavaJVM/test;interopMonixJVM/test;interopReactiveStreamsJVM/test;interopScalaz7xJVM/test;interopSharedJVM/test;interopTwitterJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test"
+)
+addCommandAlias(
+  "compileJVM",
+  ";coreJVM/compile;stacktracerJVM/compile"
+)
+addCommandAlias(
+  "testJS",
+  ";coreJS/test;interopCatsJS/test;interopFutureJS/test;interopMonixJS/test;interopScalaz7xJS/test;interopSharedJS/test;interopTwitterJS/test;stacktracerJS/test;streamsJS/test"
+)
+
+pgpPublicRing := file("/tmp/public.asc")
+pgpSecretRing := file("/tmp/secret.asc")
+releaseEarlyWith := SonatypePublisher
+scmInfo := Some(
+  ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
+)
 
 lazy val root = project
   .in(file("."))
@@ -67,13 +86,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
       "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
       "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
-    )
+    ),
+    publishArtifact in (Test, packageBin) := true
   )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
   .configure(_.enablePlugins(JCStressPlugin))
-  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
+  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.16.0-RC3")))
   .settings(
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
@@ -119,7 +139,7 @@ lazy val interopCats = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect"   % "1.3.1" % Optional,
       "org.typelevel" %%% "cats-mtl-core" % "0.5.0" % Optional,
-      "co.fs2"        %%% "fs2-core"      % "1.0.4" % Test
+      "co.fs2"        %%% "fs2-core"      % "1.0.5" % Test
     )
   )
   .dependsOn(core % "test->test;compile->compile")
@@ -163,7 +183,7 @@ lazy val interopCatsJVM = interopCats.jvm
       .sonatypeRepo("snapshots"), // TODO: Remove once scalacheck-shapeless has a stable version for 2.13.0-M5
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect-laws"                                                 % "1.3.1"                              % Test,
-      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.0"                              % Test,
+      "org.typelevel"              %% "cats-testkit"                                                     % "1.6.1"                              % Test,
       "org.typelevel"              %% "cats-mtl-laws"                                                    % "0.5.0"                              % Test,
       "com.github.alexarchambault" %% s"scalacheck-shapeless_${majorMinor(CatsScalaCheckVersion.value)}" % CatsScalaCheckShapelessVersion.value % Test
     ),
@@ -214,7 +234,7 @@ lazy val interopJava = crossProject(JVMPlatform)
 
 lazy val interopJavaJVM = interopJava.jvm.dependsOn(interopSharedJVM)
 
-val akkaVersion = "2.5.22"
+val akkaVersion = "2.5.23"
 lazy val interopReactiveStreams = crossProject(JVMPlatform)
   .in(file("interop-reactiveStreams"))
   .settings(stdSettings("zio-interop-reactiveStreams"))
@@ -222,7 +242,7 @@ lazy val interopReactiveStreams = crossProject(JVMPlatform)
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams"     % "1.0.2",
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
-      "org.scalatest"       %% "scalatest"           % "3.0.7" % "test",
+      "org.scalatest"       %% "scalatest"           % "3.0.8" % "test",
       "com.typesafe.akka"   %% "akka-stream"         % akkaVersion % "test",
       "com.typesafe.akka"   %% "akka-stream-testkit" % akkaVersion % "test"
     )
@@ -235,7 +255,7 @@ lazy val interopTwitter = crossProject(JSPlatform, JVMPlatform)
   .in(file("interop-twitter"))
   .settings(stdSettings("zio-interop-twitter"))
   .settings(
-    libraryDependencies += "com.twitter" %% "util-core" % "19.5.1"
+    libraryDependencies += "com.twitter" %% "util-core" % "19.6.0"
   )
   .dependsOn(core % "test->test;compile->compile")
 
@@ -287,11 +307,11 @@ lazy val benchmarks = project.module
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "io.monix"                 %% "monix"           % "3.0.0-RC2",
         "org.typelevel"            %% "cats-effect"     % "1.3.1",
-        "co.fs2"                   %% "fs2-core"        % "1.0.4",
+        "co.fs2"                   %% "fs2-core"        % "1.0.5",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.8",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.10",
         "com.twitter"              %% "util-collection" % "19.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.2.9.RELEASE",
+        "io.projectreactor"        % "reactor-core"     % "3.2.10.RELEASE",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "org.ow2.asm"              % "asm"              % "7.1"
       ),
@@ -309,10 +329,10 @@ lazy val benchmarks = project.module
   )
 
 lazy val docs = project.module
-  .in(file("scalaz-zio-docs"))
+  .in(file("zio-docs"))
   .settings(
     skip.in(publish) := true,
-    moduleName := "scalaz-zio-docs",
+    moduleName := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
@@ -327,6 +347,7 @@ lazy val docs = project.module
   )
   .dependsOn(
     coreJVM,
+    streamsJVM,
     interopCatsJVM,
     interopFutureJVM,
     interopMonixJVM,

@@ -30,12 +30,22 @@ object Scalaz {
     "-Xsource:2.13",
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard"
+    "-Ywarn-value-discard",
+    "-Xmax-classfile-name",
+    "242"
   )
+
+  private def optimizerOptions(optimize: Boolean) =
+    if (optimize)
+      Seq(
+        "-opt:l:inline",
+        "-opt-inline-from:zio.internal.**"
+      )
+    else Nil
 
   val buildInfoSettings = Seq(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-    buildInfoPackage := "scalaz.zio",
+    buildInfoPackage := "zio",
     buildInfoObject := "BuildInfo"
   )
 
@@ -55,35 +65,37 @@ object Scalaz {
       "-Yrepl-class-based"
     ),
     initialCommands in Compile in console := """
-                                               |import scalaz._
-                                               |import scalaz.zio._
-                                               |import scalaz.zio.console._
-                                               |import scalaz.zio.duration._
+                                               |import zio._
+                                               |import zio.console._
+                                               |import zio.duration._
                                                |object replRTS extends DefaultRuntime {}
                                                |import replRTS._
                                                |implicit class RunSyntax[R >: replRTS.Environment, E, A](io: ZIO[R, E, A]){ def unsafeRun: A = replRTS.unsafeRun(io) }
     """.stripMargin
   )
 
-  def extraOptions(scalaVersion: String) =
+  def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
+      case Some((0, _)) =>
+        Seq(
+          "-language:implicitConversions",
+          "-Xignore-scala2-macros"
+        )
       case Some((2, 13)) =>
-        std2xOptions
+        std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
           "-Ywarn-extra-implicit",
           "-Ywarn-unused:_,imports",
           "-Ywarn-unused:imports",
-          "-opt:l:inline",
-          "-opt-inline-from:scalaz.zio.internal.**",
           "-Ypartial-unification",
           "-Yno-adapted-args",
           "-Ywarn-inaccessible",
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit"
-        ) ++ std2xOptions
+        ) ++ std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 11)) =>
         Seq(
           "-Ypartial-unification",
@@ -99,13 +111,13 @@ object Scalaz {
     }
 
   def stdSettings(prjName: String) = Seq(
-    name := s"scalaz-$prjName",
+    name := s"$prjName",
     scalacOptions := stdOptions,
     crossScalaVersions := Seq("2.12.8", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
-    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
+    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.2"),
+      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.3"),
       compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.1")
     ),
     parallelExecution in Test := true,

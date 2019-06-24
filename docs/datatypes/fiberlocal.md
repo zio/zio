@@ -8,7 +8,7 @@ A `FiberLocal[A]` is a container for fiber-local storage that enables you to bin
 `FiberLocal` is the pure equivalent of thread-local storage (e.g. Java's `ThreadLocal`) on a fiber architecture.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 
 for {
   local <- FiberLocal.make[Int]

@@ -3,10 +3,10 @@ id: overview_handling_errors
 title:  "Handling Errors"
 ---
 
-This section looks at some of the common ways to detect and respond to effects that fail.
+This section looks at some of the common ways to detect and respond to failure.
 
 ```scala mdoc:invisible
-import scalaz.zio._
+import zio._
 ```
 
 ## Either
@@ -18,7 +18,7 @@ val zeither: UIO[Either[String, Int]] =
   IO.fail("Uh oh!").either
 ```
 
-You can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns an `ZIO[R, Nothing, Either[E, A]]` into an `ZIO[R, E, A]`:
+You can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns an `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
 
 ```scala mdoc:silent
 def sqrt(io: UIO[Double]): IO[String, Double] =
@@ -47,6 +47,8 @@ val z: IO[IOException, Array[Byte]] =
     openFile("backup.json"))
 ```
 
+In the callback passed to `catchAll`, you may return an effect with a different error type (or perhaps `Nothing`), which will be reflected in the type of effect returned by `catchAll`.
+
 ## Catching Some Errors
 
 If you want to catch and recover from only some types of exceptions and effectfully attempt recovery, you can use the `catchSome` method:
@@ -59,20 +61,22 @@ val data: IO[IOException, Array[Byte]] =
   }
 ```
 
+Unlike `catchAll`, `catchSome` cannot reduce or eliminate the error type, although it can widen the error type to a broader class of errors.
+
 ## Fallback
 
 You can try one effect, or, if it fails, try another effect, with the `orElse` combinator:
 
 ```scala mdoc:silent
 val primaryOrBackupData: IO[IOException, Array[Byte]] = 
-  openFile("primary.data") orElse openFile("backup.data")
+  openFile("primary.data").orElse(openFile("backup.data"))
 ```
 
 ## Folding
 
-Just like Scala's `Option` and `Either` data types have `fold`, which let you deal with both failure and success at the same time, `ZIO` effects also have several methods to fold over them.
+Scala's `Option` and `Either` data types have `fold`, which let you handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow you to handle both failure and success.
 
-The first fold method, `fold`, lets you non-effectfully handle both failure and success, by supplying a non-effectful function for each case:
+The first fold method, `fold`, lets you non-effectfully handle both failure and success, by supplying a non-effectful handler for each case:
 
 ```scala mdoc:silent
 lazy val DefaultData: Array[Byte] = Array(0, 0)
@@ -83,7 +87,7 @@ val primaryOrDefaultData: UIO[Array[Byte]] =
     data => data)
 ```
 
-The second fold method, `foldM`, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) function for each case:
+The second fold method, `foldM`, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
 
 ```scala mdoc:silent
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
@@ -106,8 +110,8 @@ def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldM(
-    err => IO.succeedLazy(NoContent(err)), 
-    fetchContent
+    error   => IO.succeedLazy(NoContent(error)), 
+    success => fetchContent(success)
   )
 ```
 
@@ -115,12 +119,12 @@ val urls: UIO[Content] =
 
 There are a number of useful methods on the ZIO data type for retrying failed effects. 
 
-The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first one if it fails, according to the specified policy:
+The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
 
 ```scala mdoc:silent
-import scalaz.zio.clock._
+import zio.clock._
 
-val primaryData: ZIO[Clock, IOException, Array[Byte]] = 
+val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
   openFile("primary.data").retry(Schedule.recurs(5))
 ```
 
@@ -138,4 +142,4 @@ For more information on how to build schedules, see the documentation on [Schedu
 
 ## Next Steps
 
-If you are comfortable with basic error handling, then the next step is to learn about [safe resource handling](handling_resources.md).
+If you are comfortable with basic error handling, then the next step is to learn about safe [resource handling](handling_resources.md).

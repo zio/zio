@@ -16,7 +16,7 @@ A value of type `IO[E, A]` describes an effect that may fail with an `E`, run fo
 You can lift pure values into `IO` with `IO.succeedLazy`:
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 
 val lazyValue: UIO[String] = IO.succeedLazy("Hello World")
 ```
@@ -60,10 +60,8 @@ The resulting effect may fail for any `Throwable`.
 If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
 
 ```scala mdoc:silent
-def readFile(name: String): IO[String, Array[Byte]] =
-  IO.effect(FileUtils.readFileToByteArray(new File(name))).refineOrDie {
-    case e : IOException => "Could not read file"
-  }
+def readFile(name: String): IO[IOException, Array[Byte]] =
+  IO.effect(FileUtils.readFileToByteArray(new File(name))).refineToOrDie[IOException]
 ```
 
 You can use the `effectAsync` method of `IO` to import effectful asynchronous code into your purely functional program:
@@ -91,7 +89,7 @@ In this example, it's assumed the `Http.req` method will invoke the specified ca
 You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets you transform values produced by actions into other values.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 
 val mappedLazyValue: UIO[Int] = IO.succeedLazy(21).map(_ * 2)
 ```
@@ -132,7 +130,7 @@ Brackets consist of an *acquire* action, a *utilize* action (which uses the acqu
 The release action is guaranteed to be executed by the runtime system, even if the utilize action throws an exception or the executing fiber is interrupted.
 
 ```scala mdoc:silent
-import scalaz.zio._
+import zio._
 ```
 
 ```scala mdoc:invisible

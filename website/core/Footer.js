@@ -27,7 +27,7 @@ class Footer extends React.Component {
     return (
       <footer className="nav-footer" id="footer">
         <section>
-          <Gitter room="scalaz/scalaz-zio" title="Open Chat" />
+          <Gitter room="zio/core" title="Open Chat" />
         </section>
         <section className="sitemap">
           <a href={this.props.config.baseUrl} className="nav-home">
@@ -39,12 +39,12 @@ class Footer extends React.Component {
             )}
           </a>
           <div>
-            <h5>Github</h5>
+            <h5>GitHub</h5>
             <a
               className="github-button"
-              href="https://github.com/scalaz/scalaz-zio"
+              href="https://github.com/zio/zio"
               data-icon="octicon-star"
-              data-count-href="/scalaz/scalaz-zio/stargazers"
+              data-count-href="/zio/zio/stargazers"
               data-show-count="true"
               data-count-aria-label="# stargazers on GitHub"
               aria-label="Star this project on GitHub">
@@ -54,8 +54,8 @@ class Footer extends React.Component {
           <div>
             <h5>Additional resources</h5>
             <a
-              href="https://javadoc.io/doc/org.scalaz/scalaz-zio_2.12/">          
-              Scaladoc of scalaz-zio
+              href="https://javadoc.io/doc/dev.zio/zio_2.12/">
+              Scaladoc of zio
             </a>
           </div>
         </section>

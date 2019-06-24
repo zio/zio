@@ -21,8 +21,8 @@ the `Boolean` represents whether the promise value has been set (`true`) or whet
 This is demonstrated below:
 
 ```scala mdoc:silent
-import scalaz.zio._
-import scalaz.zio.syntax._
+import zio._
+import zio.syntax._
 ```
 
 ```scala mdoc:silent
@@ -69,9 +69,9 @@ Here is a scenario where we use a `Promise` to hand-off a value between two `Fib
 
 ```scala mdoc:silent
 import java.io.IOException
-import scalaz.zio.console._
-import scalaz.zio.duration._
-import scalaz.zio.clock._
+import zio.console._
+import zio.duration._
+import zio.clock._
 
 val program: ZIO[Console with Clock, IOException, Unit] = 
   for {
