@@ -436,7 +436,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  final def ignore: ZIO[R, Nothing, Unit] = self.either.unit
+  final def ignore: ZIO[R, Nothing, Unit] = self.foldCauseM(_ => ZIO.unit, _ => ZIO.unit)
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
