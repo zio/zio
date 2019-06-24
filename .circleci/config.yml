@@ -7,7 +7,7 @@ scala_212: &scala_212
   SCALA_VERSION: 2.12.8
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.13.0-RC1
+  SCALA_VERSION: 0.16.0-RC3
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -61,6 +61,15 @@ install_nodejs: &install_nodejs
         nvm install
         nvm use
         node -v
+
+compile: &compile
+  steps:
+    - checkout
+    - <<: *load_cache
+    - run:
+        name: Compile code
+        command: ./sbt ++${SCALA_VERSION}! compileJVM
+    - <<: *save_cache
 
 lint: &lint
   steps:
@@ -158,6 +167,13 @@ jobs:
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
+      - <<: *jdk_8
+
+  compile_dotty:
+    <<: *compile
+    <<: *machine_ubuntu
+    environment:
+      - <<: *scala_dotty
       - <<: *jdk_8
 
   mdoc:
@@ -268,6 +284,10 @@ workflows:
   build:
     jobs:
       - lint:
+          filters:
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - compile_dotty:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
