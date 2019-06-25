@@ -99,7 +99,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   implicit val d
-  : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
+    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def t5 = forAll { (i: Int) =>
     val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).either)
     res must_=== Left(i.toString)
@@ -307,10 +307,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       for {
         release <- Ref.make(false)
         result <- ZIO.bracketExit(
-          IO.succeed(42),
-          (_: Int, _: Exit[_, _]) => release.set(true),
-          (_: Int) => IO.succeed(0L)
-        )
+                   IO.succeed(42),
+                   (_: Int, _: Exit[_, _]) => release.set(true),
+                   (_: Int) => IO.succeed(0L)
+                 )
         released <- release.get
       } yield (result must_=== 0L) and (released must_=== true)
     }
