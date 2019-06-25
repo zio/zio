@@ -1217,7 +1217,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testFirstSuccessOfFailures = {
     implicit val d
-    : Diffable[Left[Int, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
+      : Diffable[Left[Int, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
     unsafeRun(ZIO.firstSuccessOf(IO.fail(24).delay(10.millis), List(IO.fail(24))).either) must_=== Left(24)
   }
 
