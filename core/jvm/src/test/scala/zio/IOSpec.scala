@@ -46,6 +46,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
    Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
+   Check `firstSuccessOf` method returns the same IO[E, A] as `IO.firstSuccessOf` does. $testfirstSuccessOf
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
@@ -98,7 +99,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   }
 
   implicit val d
-    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
+  : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def t5 = forAll { (i: Int) =>
     val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).either)
     res must_=== Left(i.toString)
@@ -248,6 +249,15 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     } yield race1 must ===(race2))
   }
 
+  def testfirstSuccessOf = {
+    val io  = IO.effectTotal("supercalifragilisticexpialadocious")
+    val ios = List.empty[UIO[String]]
+    unsafeRun(for {
+      race1 <- io.firstSuccessOf(ios)
+      race2 <- IO.firstSuccessOf(io, ios)
+    } yield race1 must ===(race2))
+  }
+
   def testZipParInterupt = {
     val io = ZIO.interrupt.zipPar(IO.interrupt)
     unsafeRunSync(io) must_=== Exit.Failure(Both(interrupt, interrupt))
@@ -297,10 +307,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       for {
         release <- Ref.make(false)
         result <- ZIO.bracketExit(
-                   IO.succeed(42),
-                   (_: Int, _: Exit[_, _]) => release.set(true),
-                   (_: Int) => IO.succeed(0L)
-                 )
+          IO.succeed(42),
+          (_: Int, _: Exit[_, _]) => release.set(true),
+          (_: Int) => IO.succeed(0L)
+        )
         released <- release.get
       } yield (result must_=== 0L) and (released must_=== true)
     }
