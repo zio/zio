@@ -434,6 +434,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.absolve(self.mapError(ev1).map(ev2(_).toRight(())))
 
   /**
+   * Returns a new effect that ignores the success or failure of this effect.
+   */
+  final def ignore: ZIO[R, Nothing, Unit] = self.foldCauseM(_ => ZIO.unit, _ => ZIO.unit)
+
+  /**
    * Executes this effect, skipping the error but returning optionally the success.
    */
   final def option: ZIO[R, Nothing, Option[A]] =
