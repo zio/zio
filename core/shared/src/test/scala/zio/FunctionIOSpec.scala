@@ -1,10 +1,9 @@
 package zio
 
-import org.specs2.Specification
 import org.specs2.matcher.describe.Diffable
-import scalaz.zio.FunctionIO._
+import zio.FunctionIO._
 
-class FunctionIOSpec extends Specification with DefaultRuntime {
+class FunctionIOSpec extends BaseCrossPlatformSpec {
   def is = "FunctionIOSpec".title ^ s2"""
    Check if the functions in `FunctionIO` work correctly
      `fromFunction` lifts from A => B into effectful function $e1
