@@ -1259,7 +1259,7 @@ private[zio] trait ZIOFunctions extends Serializable {
 
   /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
-   * so, performs self-interruption.
+   * so, performs self-interruption
    */
   final def allowInterrupt: UIO[Unit] =
     descriptorWith(d => if (d.interrupted) interrupt else unit)
