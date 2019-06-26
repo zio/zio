@@ -70,7 +70,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
 
 lazy val coreJVM = core.jvm
   .configure(_.enablePlugins(JCStressPlugin))
-  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.16.0-RC3")))
+  .settings(dottySettings)
+  .settings(replSettings)
   .settings(
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
@@ -120,7 +121,8 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
 
 lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
-  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
+  .settings(dottySettings)
+  .settings(replSettings)
   .settings(
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
     sources in (Compile, doc) := {
