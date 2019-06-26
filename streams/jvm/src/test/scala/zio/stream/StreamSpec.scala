@@ -133,6 +133,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     with remainder                       $transduceWithRemainder
     with a sink that always signals more $transduceSinkMore
     managed                              $transduceManaged
+    propagate managed error              $transduceManagedError
 
   Stream.unfold             $unfold
   Stream.unfoldM            $unfoldM
@@ -898,6 +899,12 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       _        <- if (i != 2000) IO.fail(new IllegalStateException(i.toString)) else IO.unit
     } yield result
     unsafeRunSync(test) must_=== Success(List(List(1, 1), List(2, 2), List(3, 3), List(4, 4)))
+  }
+
+  private def transduceManagedError = unsafeRun {
+    val fail = "I'm such a failure!"
+    val sink = ZManaged.fail(fail)
+    ZStream(1, 2, 3).transduceManaged(sink).runCollect.either.map(_ must beLeft(fail))
   }
 
   private def unfold = {

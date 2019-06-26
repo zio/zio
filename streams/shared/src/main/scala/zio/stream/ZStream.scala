@@ -800,49 +800,45 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   ): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
       override def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] =
-        managedSink.either.flatMap {
-          case Left(e1) =>
-            ZManaged.succeed((_, _, _) => ZManaged.fail(e1))
-          case Right(sink) =>
-            ZManaged.succeed { (s: S, cont: S => Boolean, f: (S, C1) => ZIO[R2, E2, S]) =>
-              def feed(s1: sink.State, s2: S, a: Chunk[A1]): ZIO[R2, E2, (sink.State, S, Boolean)] =
-                sink.stepChunk(s1, a).flatMap { step =>
-                  if (ZSink.Step.cont(step)) {
-                    IO.succeed((ZSink.Step.state(step), s2, true))
-                  } else {
-                    sink.extract(ZSink.Step.state(step)).flatMap { c =>
-                      f(s2, c).flatMap { s2 =>
-                        val remaining = ZSink.Step.leftover(step)
-                        sink.initial.flatMap { initStep =>
-                          if (cont(s2) && !remaining.isEmpty) {
-                            feed(ZSink.Step.state(initStep), s2, remaining)
-                          } else {
-                            IO.succeed((ZSink.Step.state(initStep), s2, false))
-                          }
-                        }
+        ZManaged.succeedLazy { (s: S, cont: S => Boolean, f: (S, C1) => ZIO[R2, E2, S]) =>
+          def feed(
+            sink: ZSink[R1, E1, A1, A1, C]
+          )(s1: sink.State, s2: S, a: Chunk[A1]): ZIO[R2, E2, (sink.State, S, Boolean)] =
+            sink.stepChunk(s1, a).flatMap { step =>
+              if (ZSink.Step.cont(step)) {
+                IO.succeed((ZSink.Step.state(step), s2, true))
+              } else {
+                sink.extract(ZSink.Step.state(step)).flatMap { c =>
+                  f(s2, c).flatMap { s2 =>
+                    val remaining = ZSink.Step.leftover(step)
+                    sink.initial.flatMap { initStep =>
+                      if (cont(s2) && !remaining.isEmpty) {
+                        feed(sink)(ZSink.Step.state(initStep), s2, remaining)
+                      } else {
+                        IO.succeed((ZSink.Step.state(initStep), s2, false))
                       }
-                    }
-                  }
-                }
-
-              sink.initial.toManaged_.flatMap { initStep =>
-                val s1 = (ZSink.Step.state(initStep), s, false)
-
-                self.fold[R2, E2, A, (sink.State, S, Boolean)].flatMap { f0 =>
-                  f0(s1, stepState => cont(stepState._2), { (s, a) =>
-                    val (s1, s2, _) = s
-                    feed(s1, s2, Chunk(a))
-                  }).mapM { feedResult =>
-                    val (s1, s2, extractNeeded) = feedResult
-                    if (extractNeeded) {
-                      sink.extract(s1).flatMap(f(s2, _))
-                    } else {
-                      IO.succeed(s2)
                     }
                   }
                 }
               }
             }
+
+          for {
+            sink     <- managedSink
+            initStep <- sink.initial.toManaged_
+            f0       <- self.fold[R2, E2, A, (sink.State, S, Boolean)]
+            result <- f0((ZSink.Step.state(initStep), s, false), stepState => cont(stepState._2), { (s, a) =>
+                       val (s1, s2, _) = s
+                       feed(sink)(s1, s2, Chunk(a))
+                     }).mapM {
+                       case (s1, s2, extractNeeded) =>
+                         if (extractNeeded) {
+                           sink.extract(s1).flatMap(f(s2, _))
+                         } else {
+                           IO.succeed(s2)
+                         }
+                     }
+          } yield result
         }
     }
 
