@@ -145,12 +145,6 @@ object BuildHelper {
             Nil
       }
     },
-    Test / scalacOptions ++= {
-      if (isDotty.value)
-        Seq("-language:implicitConversions")
-      else
-        Nil
-    },
     Test / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
