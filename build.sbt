@@ -184,7 +184,7 @@ lazy val docs = project.module
       "dev.zio"             %% "zio-interop-cats"            % "1.3.1.0-RC2",
       "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC1",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC2",
-      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
+      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27-RC4",
       "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC1",
       "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC1",
       "dev.zio"             %% "zio-interop-twitter"         % "19.6.0.0-RC2"
