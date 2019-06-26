@@ -434,6 +434,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     ZIO.absolve(self.mapError(ev1).map(ev2(_).toRight(())))
 
   /**
+   * Returns a new effect that ignores the success or failure of this effect.
+   */
+  final def ignore: ZIO[R, Nothing, Unit] = self.foldCauseM(_ => ZIO.unit, _ => ZIO.unit)
+
+  /**
    * Executes this effect, skipping the error but returning optionally the success.
    */
   final def option: ZIO[R, Nothing, Option[A]] =
@@ -1228,6 +1233,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * instance belongs (e.g. `IO.Tags.Succeed`).
    */
   def tag: Int
+
+  /**
+   * Exposes all parallel errors in a single call
+   *
+   */
+  final def parallelErrors[E1 >: E]: ZIO[R, ::[E1], A] =
+    self.foldCauseM(
+      cause =>
+        cause.failures match {
+          case Nil            => ZIO.halt(cause.asInstanceOf[Cause[Nothing]])
+          case ::(head, tail) => ZIO.fail(::(head, tail))
+        },
+      ZIO.succeed
+    )
 }
 
 private[zio] trait ZIOFunctions extends Serializable {
