@@ -141,17 +141,17 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
-        "io.monix"                 %% "monix"           % "3.0.0-RC2",
-        "org.typelevel"            %% "cats-effect"     % "1.3.1",
         "co.fs2"                   %% "fs2-core"        % "1.0.5",
-        "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
-        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.10",
-        "com.twitter"              %% "util-collection" % "19.1.0",
-        "io.projectreactor"        % "reactor-core"     % "3.2.10.RELEASE",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
-        "org.ow2.asm"              % "asm"              % "7.1"
+        "com.twitter"              %% "util-collection" % "19.1.0",
+        "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
+        "io.monix"                 %% "monix"           % "3.0.0-RC2",
+        "io.projectreactor"        % "reactor-core"     % "3.2.10.RELEASE",
+        "io.reactivex.rxjava2"     % "rxjava"           % "2.2.10",
+        "org.ow2.asm"              % "asm"              % "7.1",
+        "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
+        "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
+        "org.typelevel"            %% "cats-effect"     % "1.3.1"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
@@ -177,17 +177,17 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "com.github.ghik"     %% "silencer-lib"                       % "1.4.1" % "provided",
-      "commons-io"          % "commons-io"                          % "2.6" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples"           % "1.0.2" % "provided",
-      "org.jsoup"           % "jsoup"                               % "1.12.1" % "provided",
-      "org.scalaz"          %% "scalaz-zio-interop-cats"            % "1.0-RC5",
-      "org.scalaz"          %% "scalaz-zio-interop-future"          % "1.0-RC5",
-      "org.scalaz"          %% "scalaz-zio-interop-monix"           % "1.0-RC5",
-      "org.scalaz"          %% "scalaz-zio-interop-scalaz7x"        % "1.0-RC5",
-      "org.scalaz"          %% "scalaz-zio-interop-java"            % "1.0-RC5",
-      "org.scalaz"          %% "scalaz-zio-interop-reactivestreams" % "1.0-RC5",
-      "org.scalaz"          %% "scalaz-zio-interop-twitter"         % "1.0-RC5"
+      "com.github.ghik"     %% "silencer-lib"                % "1.4.1" % "provided",
+      "commons-io"          % "commons-io"                   % "2.6" % "provided",
+      "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples"    % "1.0.2" % "provided",
+      "dev.zio"             %% "zio-interop-cats"            % "1.3.1.0-RC2",
+      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC1",
+      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC2",
+      "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC1",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC1",
+      "dev.zio"             %% "zio-interop-twitter"         % "19.6.0.0-RC2"
     )
   )
   .dependsOn(
