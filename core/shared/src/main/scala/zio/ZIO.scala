@@ -636,6 +636,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.foldM[R1, E2, A1](h, new ZIO.SucceedFn(h))
 
   /**
+   * Recovers from all errors with provided Cause.
+   *
+   * {{{
+   * openFile("config.json").catchAllCause(_ => IO.succeed(defaultConfig))
+   * }}}
+   */
+  final def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
+    self.foldCauseM[R1, E2, A1](h, new ZIO.SucceedFn(h))
+
+  /**
    * Recovers from some or all of the error cases.
    *
    * {{{
