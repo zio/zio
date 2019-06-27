@@ -20,13 +20,12 @@ package interop
 import cats.instances.int._
 import cats.instances.tuple._
 import cats.laws.discipline.MonadTests
-import cats.{ Eq, Monad }
+import cats.{Eq, Invariant, Monad}
 import org.scalacheck.Arbitrary.arbInt
 import org.scalacheck.Cogen.cogenInt
-import org.scalacheck.{ Arbitrary, Cogen }
+import org.scalacheck.{Arbitrary, Cogen}
 import org.scalatest.FunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import zio.interop.catz._
 import zio.interop.bio.Errorful2
 import zio.interop.runtime.TestRuntime
 
@@ -37,12 +36,18 @@ final class ErrorfulMonadLawsSpec extends FunSuite with TestRuntime with Discipl
 
     val ev: Monad[IO[String, ?]] = Errorful2[IO].monad[String]
 
+    implicitly[Invariant[ZIO[Any,String,?]]]
+
     checkAll(
       "Errorful2's Monad[IO[String, ?]]",
       MonadTests[IO[String, ?]](ev).monad[Int, Int, Int]
     )
 
-    //implicit def a[R, E]: Invariant[ZIO[R, E, ?]] = ???
+    implicit def zioInvariant[R, E]: Invariant[ZIO[R, E, ?]] =
+      new Invariant[ZIO[R, E, ?]] {
+        def imap[A, B](fa: ZIO[R, E, A])(f: A => B)(g: B => A): ZIO[R, E, B] =
+          fa map f
+      }
 
     implicit def ioArbitrary[E, A: Arbitrary: Cogen]: Arbitrary[IO[E, A]] =
       Arbitrary(genSuccess[E, A])
@@ -52,8 +57,8 @@ final class ErrorfulMonadLawsSpec extends FunSuite with TestRuntime with Discipl
         import zio.duration._
 
         def eqv(io1: IO[E, A], io2: IO[E, A]): Boolean = {
-          val v1  = testRuntime.unsafeRunSync(io1.timeout(20.seconds)).map(_.get)
-          val v2  = testRuntime.unsafeRunSync(io2.timeout(20.seconds)).map(_.get)
+          val v1  = testRuntime.unsafeRunSync(io1.timeout(20.seconds)) map (_.get)
+          val v2  = testRuntime.unsafeRunSync(io2.timeout(20.seconds)) map (_.get)
           val res = v1 === v2
           if (!res) {
             println(s"Mismatch: $v1 != $v2")

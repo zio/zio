@@ -35,6 +35,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   "execution trace example with conditional" >> executionTraceConditionalExample
 
+  "mapError fully preserves previous stack trace" >> mapErrorPreservesTrace
+
   "catchSome with optimized effect path" >> catchSomeWithOptimizedEffect
   "catchAll with optimized effect path" >> catchAllWithOptimizedEffect
   "foldM with optimized effect path" >> foldMWithOptimizedEffect
@@ -469,7 +471,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         (cause.traces.head.executionTrace must mentionMethod("fail")) and
         (cause.traces.head.stackTrace must have size 3) and
         (cause.traces.head.stackTrace.head must mentionMethod("badMethod")) and
-        (cause.traces.head.stackTrace(1) must mentionMethod("apply")) and
+        (cause.traces.head.stackTrace(1) must mentionMethod("apply")) and // PartialFunction.apply
         (cause.traces.head.stackTrace(2) must mentionMethod("catchSomeWithOptimizedEffect"))
     }
   }
@@ -503,6 +505,35 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val succ               = ZIO.succeed(_: ZTrace)
     val fail               = () => throw new Exception("error!")
     val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
+  }
+
+  def mapErrorPreservesTrace = {
+    import mapErrorPreservesTraceFixture._
+
+    val io = for {
+      t <- Task(fail())
+            .flatMap(succ)
+            .mapError(mapError)
+    } yield t
+
+    io causeMust { cause =>
+      // mapError does not change the trace in any way from its state during `fail()`
+      // as a consequence, `executionTrace` is not updated with finalizer info, etc...
+      // but overall it's a good thing since you're not losing traces at the border between your domain errors & Throwable
+      (cause.traces must have size 1) and
+        (cause.traces.head.executionTrace must have size 1) and
+        (cause.traces.head.executionTrace.head must mentionMethod("fail")) and
+        (cause.traces.head.stackTrace must have size 3) and
+        (cause.traces.head.stackTrace.head must mentionMethod("succ")) and
+        (cause.traces.head.stackTrace(1) must mentionMethod("mapError")) and
+        (cause.traces.head.stackTrace(2) must mentionMethod("mapErrorPreservesTrace"))
+    }
+  }
+
+  object mapErrorPreservesTraceFixture {
+    val succ     = ZIO.succeed(_: ZTrace)
+    val fail     = () => throw new Exception("error!")
+    val mapError = (_: Any) => ()
   }
 
   def foldMWithOptimizedEffect = {

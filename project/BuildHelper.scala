@@ -8,7 +8,7 @@ import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
-object Scalaz {
+object BuildHelper {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
   val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.1"  % "provided")
 
@@ -30,13 +30,27 @@ object Scalaz {
     "-Xsource:2.13",
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard"
+    "-Ywarn-value-discard",
+    "-Xmax-classfile-name",
+    "242"
   )
+
+  private def optimizerOptions(optimize: Boolean) =
+    if (optimize)
+      Seq(
+        "-opt:l:inline",
+        "-opt-inline-from:zio.internal.**"
+      )
+    else Nil
 
   val buildInfoSettings = Seq(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
     buildInfoPackage := "zio",
     buildInfoObject := "BuildInfo"
+  )
+
+  val dottySettings = Seq(
+    crossScalaVersions += "0.16.0-RC3"
   )
 
   val replSettings = Seq(
@@ -64,25 +78,28 @@ object Scalaz {
     """.stripMargin
   )
 
-  def extraOptions(scalaVersion: String) =
+  def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
+      case Some((0, _)) =>
+        Seq(
+          "-language:implicitConversions",
+          "-Xignore-scala2-macros"
+        )
       case Some((2, 13)) =>
-        std2xOptions
+        std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
           "-Ywarn-extra-implicit",
           "-Ywarn-unused:_,imports",
           "-Ywarn-unused:imports",
-          "-opt:l:inline",
-          "-opt-inline-from:zio.internal.**",
           "-Ypartial-unification",
           "-Yno-adapted-args",
           "-Ywarn-inaccessible",
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit"
-        ) ++ std2xOptions
+        ) ++ std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 11)) =>
         Seq(
           "-Ypartial-unification",
@@ -102,7 +119,7 @@ object Scalaz {
     scalacOptions := stdOptions,
     crossScalaVersions := Seq("2.12.8", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
-    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
+    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
       compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.3"),
       compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.1")
@@ -127,12 +144,6 @@ object Scalaz {
           else
             Nil
       }
-    },
-    Test / scalacOptions ++= {
-      if (isDotty.value)
-        Seq("-language:implicitConversions")
-      else
-        Nil
     },
     Test / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {

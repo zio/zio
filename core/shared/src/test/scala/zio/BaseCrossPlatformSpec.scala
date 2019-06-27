@@ -26,6 +26,19 @@ abstract class BaseCrossPlatformSpec extends Specification with DefaultRuntime {
   val DefaultTimeout: Duration = 60.seconds
   val timer                    = new Timer()
 
+  def exactlyOnce[R, A, A1](value: A)(func: UIO[A] => ZIO[R, String, A1]): ZIO[R, String, A1] =
+    Ref.make(0).flatMap { ref =>
+      for {
+        res   <- func(ref.update(_ + 1) *> ZIO.succeed(value))
+        count <- ref.get
+        _ <- if (count != 1) {
+              ZIO.fail("Accessed more than once")
+            } else {
+              ZIO.succeed(())
+            }
+      } yield res
+    }
+
   def withLatch[R, E, A](f: UIO[Unit] => ZIO[R, E, A]): ZIO[R, E, A] =
     Promise.make[Nothing, Unit] >>= (latch => f(latch.succeed(()).unit) <* latch.await)
 

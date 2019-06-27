@@ -60,15 +60,15 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
           Using `collectAll` collect a list of transactional effects to a single transaction that produces a list of values $e33
           Using `foreach` perform an action in each value and return a single transaction that contains the result $e34
           Using `orElseEither` tries 2 computations and returns either left if the left computation succeed or right if the right one succeed $e35
-          
+
 
         Failure must
           rollback full transaction     $e36
-
+          be ignored                    $e37
         orElse must
-          rollback left retry           $e37
-          rollback left failure         $e38
-          local reset, not global       $e39
+          rollback left retry           $e38
+          rollback left failure         $e39
+          local reset, not global       $e40
     """
 
   def e1 =
@@ -221,7 +221,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         fiber <- ZIO.forkAll(List.fill(10)(incrementRefN(99, ref)))
         _     <- fiber.join
         v     <- ref.get
-      } yield v must_!== 10000
+      } yield v must_!== 1000
     )
 
   def e18 =
@@ -489,6 +489,17 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
   def e37 =
     unsafeRun(
       for {
+        tvar <- TRef.makeCommit(0)
+        e <- (for {
+              _ <- tvar.update(_ + 10)
+              _ <- STM.fail("Error!")
+            } yield ()).commit.ignore
+        v <- tvar.get.commit
+      } yield (e must be_==(())) and (v must_=== 0)
+    )
+  def e38 =
+    unsafeRun(
+      for {
         tvar  <- TRef.makeCommit(0)
         left  = tvar.update(_ + 100) *> STM.retry
         right = tvar.update(_ + 100).unit
@@ -497,7 +508,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       } yield v must_=== 100
     )
 
-  def e38 =
+  def e39 =
     unsafeRun(
       for {
         tvar  <- TRef.makeCommit(0)
@@ -508,7 +519,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       } yield v must_=== 100
     )
 
-  def e39 =
+  def e40 =
     unsafeRun(for {
       ref <- TRef.make(0).commit
       result <- STM.atomically(for {
