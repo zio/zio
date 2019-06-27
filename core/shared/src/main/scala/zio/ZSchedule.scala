@@ -589,10 +589,8 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */
-  final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] = {
-    val delayed = s.modifyDelay((b, d) => IO.succeed(b + d))
-    delayed.reconsider((_, step) => step.copy(finish = () => step.delay)) // TODO: Dotty doesn't infer this properly
-  }
+  final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Duration]): ZSchedule[R, A, Duration] =
+    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
 
   /**
    * A schedule that recurs for as long as the predicate evaluates to true.
@@ -610,14 +608,12 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A schedule that recurs for until the input value becomes applicable to partial function
    * and then map that value with given function.
    * */
-  final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] = {
-    val idSchedule: Schedule[A, A] = identity[A] // TODO: Dotty doesn't infer this properly
-    idSchedule.reconsider { (a, decision) =>
+  final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] =
+    identity[A].reconsider { (a, decision) =>
       pf.lift(a).fold(Decision.cont(decision.delay, decision.state, Option.empty[B])) { b =>
         Decision.done(decision.delay, decision.state, Some(b))
       }
     }
-  }
 
   /**
    * A schedule that always recurs, but will wait a certain amount between
