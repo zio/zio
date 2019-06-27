@@ -107,8 +107,8 @@ lazy val interopCatsEffect =
     .settings(
       skip in publish := true,
       libraryDependencies ++= Seq(
-        "org.typelevel" %%% "cats-effect"            % "1.3.1"   % Optional,
-        "org.typelevel" %% "cats-testkit"            % "1.6.0"   % Test
+        "org.typelevel" %%% "cats-effect" % "1.3.1" % Optional,
+        "org.typelevel" %% "cats-testkit" % "1.6.0" % Test
       )
     )
     .dependsOn(core % "test->test;compile->compile")

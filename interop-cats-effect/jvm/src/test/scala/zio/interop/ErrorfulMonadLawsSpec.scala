@@ -20,10 +20,10 @@ package interop
 import cats.instances.int._
 import cats.instances.tuple._
 import cats.laws.discipline.MonadTests
-import cats.{Eq, Invariant, Monad}
+import cats.{ Eq, Invariant, Monad }
 import org.scalacheck.Arbitrary.arbInt
 import org.scalacheck.Cogen.cogenInt
-import org.scalacheck.{Arbitrary, Cogen}
+import org.scalacheck.{ Arbitrary, Cogen }
 import org.scalatest.FunSuite
 import org.typelevel.discipline.scalatest.Discipline
 import zio.interop.bio.Errorful2
@@ -35,8 +35,6 @@ final class ErrorfulMonadLawsSpec extends FunSuite with TestRuntime with Discipl
     import default.testZioInstances._
 
     val ev: Monad[IO[String, ?]] = Errorful2[IO].monad[String]
-
-    implicitly[Invariant[ZIO[Any,String,?]]]
 
     checkAll(
       "Errorful2's Monad[IO[String, ?]]",
