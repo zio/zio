@@ -49,6 +49,10 @@ object BuildHelper {
     buildInfoObject := "BuildInfo"
   )
 
+  val dottySettings = Seq(
+    crossScalaVersions += "0.16.0-RC3"
+  )
+
   val replSettings = Seq(
     // In the repl most warnings are useless or worse.
     // This is intentionally := as it's more direct to enumerate the few
@@ -140,12 +144,6 @@ object BuildHelper {
           else
             Nil
       }
-    },
-    Test / scalacOptions ++= {
-      if (isDotty.value)
-        Seq("-language:implicitConversions")
-      else
-        Nil
     },
     Test / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
