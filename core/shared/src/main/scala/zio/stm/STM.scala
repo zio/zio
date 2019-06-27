@@ -195,6 +195,11 @@ final class STM[+E, +A] private[stm] (
     )
 
   /**
+   * Returns a new effect that ignores the success or failure of this effect.
+   */
+  final def ignore: STM[Nothing, Unit] = self.either.unit
+
+  /**
    * Maps the value produced by the effect.
    */
   final def map[B](f: A => B): STM[E, B] =

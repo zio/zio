@@ -136,7 +136,7 @@ documentation: &documentation
       - run:
           name: Generating docs
           command: |
-            ./sbt coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc interopJavaJVM/doc interopReactiveStreamsJVM/doc interopTwitterJVM/doc streamsJVM/doc
+            ./sbt coreJVM/doc coreJS/doc streamsJVM/doc
             ./sbt docs/docusaurusCreateSite
       - <<: *save_cache
 
@@ -288,6 +288,8 @@ workflows:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - compile_dotty:
+          requires:
+            - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
