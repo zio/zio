@@ -7,7 +7,7 @@ import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.describe.Diffable
 import zio.Exit.Cause
-import zio.Exit.Cause.{ die, fail, Then }
+import zio.Exit.Cause.{ die, fail, Fail, Then }
 import zio.duration._
 import zio.clock.Clock
 
@@ -55,6 +55,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     run preserves interruption status       $testRunInterruptIsInterrupted
     run swallows inner interruption         $testRunSwallowsInnerInterrupt
     timeout a long computation              $testTimeoutOfLongComputation
+    catchAllCause                           $testCatchAllCause
 
   RTS finalizers
     fail ensuring                           $testEvalOfFailEnsuring
@@ -504,6 +505,12 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         )
       )
       .message must_== "TIMEOUT: 10000000 nanoseconds"
+
+  def testCatchAllCause =
+    unsafeRun((for {
+      _ <- ZIO succeed 42
+      f <- ZIO fail "Uh oh!"
+    } yield f) catchAllCause ZIO.succeed) must_=== Fail("Uh oh!")
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): Task[Int] =
