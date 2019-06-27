@@ -508,10 +508,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testCatchAllCause =
     unsafeRun((for {
-      _  <- ZIO succeed 42
-      _  <- ZIO fail "this"
-      f  <- ZIO fail "that"
-    } yield f) catchAllCause ZIO.succeed) must_=== Fail("this")
+      _ <- ZIO succeed 42
+      f <- ZIO fail "Uh oh!"
+    } yield f) catchAllCause ZIO.succeed) must_=== Fail("Uh oh!")
 
   def testEvalOfDeepSyncEffect = {
     def incLeft(n: Int, ref: Ref[Int]): Task[Int] =

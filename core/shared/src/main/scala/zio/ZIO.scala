@@ -636,7 +636,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.foldM[R1, E2, A1](h, new ZIO.SucceedFn(h))
 
   /**
-   * Recovers from all causes.
+   * Recovers from all errors with provided Cause.
    *
    * {{{
    * openFile("config.json").catchAllCause(_ => IO.succeed(defaultConfig))
