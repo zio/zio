@@ -38,6 +38,7 @@ import zio.interop.bio.{
   Failed,
   Fiber2,
   Guaranteed2,
+  Interruption2,
   RunAsync2,
   RunSync2,
   Sync2,
@@ -68,7 +69,13 @@ private[default] abstract class ZioDefaultInstances3 {
 
 private[default] object ZioDefaultInstances {
 
-  private[default] sealed trait ZioGuaranteed2 extends Guaranteed2[IO] {
+  private[default] sealed trait ZioInterruption2 extends Interruption2[IO] {
+
+    override def uninterruptible[E, A](fa: IO[E, A]): IO[E, A] =
+      fa.uninterruptible
+  }
+
+  private[default] sealed trait ZioGuaranteed2 extends Guaranteed2[IO] with ZioInterruption2 {
 
     override def applicative[E]: Applicative[IO[E, ?]] =
       new Applicative[IO[E, ?]] {
@@ -82,12 +89,9 @@ private[default] object ZioDefaultInstances {
 
     override def guarantee[E, A](fa: IO[E, A], finalizer: IO[Nothing, Unit]): IO[E, A] =
       fa.ensuring(finalizer)
-
-    override def uninterruptible[E, A](fa: IO[E, A]): IO[E, A] =
-      fa.uninterruptible
   }
 
-  private[default] sealed trait ZioErrorful2 extends Errorful2[IO] with ZioGuaranteed2 {
+  private[default] sealed trait ZioErrorful2 extends ZioGuaranteed2 with Errorful2[IO] {
 
     override def monad[E]: Monad[IO[E, ?]] =
       new Monad[IO[E, ?]] {

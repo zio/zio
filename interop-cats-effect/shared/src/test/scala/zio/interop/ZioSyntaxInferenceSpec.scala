@@ -28,9 +28,14 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
   def is = "ZioSyntaxInferenceSpec".title ^ s2"""
     The type-class syntax:
       can summon Monad[F[E, ?]] when evidence of Errorful2 is provided. $summonErrorful2Syntax
+      can summon Monad[F[E, ?]] when evidence of Bracket2 is provided. $summonBracket2Syntax
       can summon Monad[F[E, ?]] when evidence of Concurrent2 is provided. $summonConcurrent2Syntax
       can summon Monad[F[E, ?]] when evidence of Temporal2 is provided. $summonTemporal2Syntax
-      can summon Monad[F[E, ?]] when multiple evidences are provided. $summonManySyntax
+      can summon Monad[F[E, ?]] when evidence of Sync2 is provided. $summonSync2Syntax
+      can summon Monad[F[E, ?]] when evidence of Async2 is provided. $summonAsync2Syntax
+      can summon Monad[F[E, ?]] when evidence of RunSync2 is provided. $summonRunSync2Syntax
+      can summon Monad[F[E, ?]] when evidence of RunAsync2 is provided. $summonRunAsync2Syntax
+      can summon Monad[F[E, ?]] when multiple evidences are provided. $summonMultipleSyntax
   """
 
   private[this] def summonErrorful2Syntax: Result = {
@@ -45,10 +50,10 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
     success
   }
 
-  private[this] def summonConcurrent2Syntax: Result = {
+  private[this] def summonBracket2Syntax: Result = {
 
     @silent def f[F[+_, +_], E, A](fa: F[E, A])(
-      implicit A: Concurrent2[F]
+      implicit A: Bracket2[F]
     ): Unit =
       fa >>= { _ =>
         A.monad.unit
@@ -69,11 +74,71 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
     success
   }
 
-  private[this] def summonManySyntax: Result = {
+  private[this] def summonConcurrent2Syntax: Result = {
+
+    @silent def f[F[+_, +_], E, A](fa: F[E, A])(
+      implicit A: Concurrent2[F]
+    ): Unit =
+      fa >>= { _ =>
+        A.monad.unit
+      }
+
+    success
+  }
+
+  private[this] def summonSync2Syntax: Result = {
+
+    @silent def f[F[+_, +_], E, A](fa: F[E, A])(
+      implicit A: Sync2[F]
+    ): Unit =
+      fa >>= { _ =>
+        A.monad.unit
+      }
+
+    success
+  }
+
+  private[this] def summonAsync2Syntax: Result = {
+
+    @silent def f[F[+_, +_], E, A](fa: F[E, A])(
+      implicit A: Async2[F]
+    ): Unit =
+      fa >>= { _ =>
+        A.monad.unit
+      }
+
+    success
+  }
+
+  private[this] def summonRunSync2Syntax: Result = {
+
+    @silent def f[F[+_, +_], E, A](fa: F[E, A])(
+      implicit A: RunSync2[F]
+    ): Unit =
+      fa >>= { _ =>
+        A.monad.unit
+      }
+
+    success
+  }
+
+  private[this] def summonRunAsync2Syntax: Result = {
+
+    @silent def f[F[+_, +_], E, A](fa: F[E, A])(
+      implicit A: RunAsync2[F]
+    ): Unit =
+      fa >>= { _ =>
+        A.monad.unit
+      }
+
+    success
+  }
+
+  private[this] def summonMultipleSyntax: Result = {
 
     @silent def f1[F[+_, +_], E, A](fa: F[E, A])(
       implicit
-      A: Concurrent2[F],
+      A: Bracket2[F],
       B: Sync2[F]
     ): Unit =
       fa >>= { _ =>
@@ -83,13 +148,22 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
     @silent def f2[F[+_, +_], E, A](fa: F[E, A])(
       implicit
       A: Concurrent2[F],
-      B: Async2[F]
+      B: Sync2[F]
     ): Unit =
       fa >>= { _ =>
         A.monad.unit
       }
 
     @silent def f3[F[+_, +_], E, A](fa: F[E, A])(
+      implicit
+      A: Concurrent2[F],
+      B: Async2[F]
+    ): Unit =
+      fa >>= { _ =>
+        A.monad.unit
+      }
+
+    @silent def f4[F[+_, +_], E, A](fa: F[E, A])(
       implicit
       A: Errorful2[F],
       B: Concurrent2[F],
@@ -99,7 +173,7 @@ final class ZioSyntaxInferenceSpec extends Specification with TestRuntime {
         A.monad.unit
       }
 
-    @silent def f4[F[+_, +_], E, A](fa: F[E, A])(
+    @silent def f5[F[+_, +_], E, A](fa: F[E, A])(
       implicit
       A: RunAsync2[F],
       B: RunSync2[F]

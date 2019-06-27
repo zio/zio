@@ -18,7 +18,7 @@ package zio
 package interop
 package bio
 
-abstract class Sync2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] {
+abstract class Sync2[F[+_, +_]] extends Guaranteed2[F] with Errorful2[F] {
 
   /**
    * Lazily lifts a pure value into the effect `F`.

@@ -18,16 +18,12 @@ package zio
 package interop
 package bio
 
-import cats.Applicative
-
-abstract class Guaranteed2[F[+_, +_]] extends Interruption2[F] {
-
-  def applicative[E]: Applicative[F[E, ?]]
+abstract class Interruption2[F[+_, +_]] {
 
   /**
-   * Describes the guarantee that, if the effect `fa` starts,
-   * the finalizer `f` will begin execution after it, regardless
-   * the fact that the former fail or succeed.
+   * Performs `fa` uninterruptedly. This will prevent it from
+   * being terminated externally, but it may still fail for internal
+   * reasons.
    *
    * TODO: Example:
    * {{{
@@ -35,10 +31,5 @@ abstract class Guaranteed2[F[+_, +_]] extends Interruption2[F] {
    * }}}
    *
    */
-  def guarantee[E, A](fa: F[E, A], finalizer: F[Nothing, Unit]): F[E, A]
-}
-
-object Guaranteed2 {
-
-  @inline def apply[F[+_, +_]: Guaranteed2]: Guaranteed2[F] = implicitly
+  def uninterruptible[E, A](fa: F[E, A]): F[E, A]
 }

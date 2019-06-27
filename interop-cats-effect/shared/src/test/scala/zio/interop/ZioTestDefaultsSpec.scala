@@ -20,7 +20,18 @@ package interop
 import com.github.ghik.silencer.silent
 import org.specs2.Specification
 import org.specs2.execute.Result
-import zio.interop.bio.{ Async2, Concurrent2, Errorful2, Guaranteed2, RunAsync2, RunSync2, Sync2, Temporal2 }
+import zio.interop.bio.{
+  Async2,
+  Bracket2,
+  Concurrent2,
+  Errorful2,
+  Guaranteed2,
+  Interruption2,
+  RunAsync2,
+  RunSync2,
+  Sync2,
+  Temporal2
+}
 import zio.interop.runtime.TestRuntime
 
 final class ZioTestDefaultsSpec extends Specification with TestRuntime {
@@ -36,14 +47,16 @@ final class ZioTestDefaultsSpec extends Specification with TestRuntime {
 
     @silent def f[F[+_, +_]](
       implicit
-      A: Guaranteed2[F],
-      B: Errorful2[F],
-      C: Sync2[F],
-      D: Temporal2[F],
-      E: Concurrent2[F],
-      F: RunSync2[F],
-      G: Async2[F],
-      H: RunAsync2[F]
+      A: Interruption2[F],
+      B: Guaranteed2[F],
+      C: Errorful2[F],
+      D: Bracket2[F],
+      E: Sync2[F],
+      F: Temporal2[F],
+      G: Concurrent2[F],
+      H: RunSync2[F],
+      I: Async2[F],
+      L: RunAsync2[F]
     ): Unit = ()
 
     val _ = f[IO]

@@ -20,7 +20,7 @@ package bio
 
 import zio.interop.bio.Failed.Interrupt
 
-abstract class Bracket2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] { self =>
+abstract class Bracket2[F[+_, +_]] extends Guaranteed2[F] with Errorful2[F] { self =>
 
   /**
    * Returns an effect that will acquire a resource and will release
@@ -39,7 +39,7 @@ abstract class Bracket2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] { se
   )(use: A => F[E, B]): F[E, B]
 
   /**
-   * Executes the `cleanup` effect if `fa` is interrupted
+   * Executes the `cleanup` effect only if `fa` is interrupted
    *
    * TODO: Example:
    * {{{
@@ -47,7 +47,7 @@ abstract class Bracket2[F[+_, +_]] extends Errorful2[F] with Guaranteed2[F] { se
    * }}}
    *
    */
-  def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, Unit]): F[E, A] = {
+  @inline def onInterrupt[E, A](fa: F[E, A])(cleanup: F[Nothing, Unit]): F[E, A] = {
 
     def onRelease[AA]: (AA, Either[Failed[_], A]) => F[Nothing, Unit] = {
       case (_, Left(Interrupt)) => cleanup

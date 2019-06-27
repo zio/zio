@@ -19,7 +19,7 @@ package interop
 
 import cats.Monad
 import com.github.ghik.silencer.silent
-import zio.interop.bio.{ Concurrent2, Errorful2, RunAsync2, RunSync2 }
+import zio.interop.bio.{ Bracket2, Concurrent2, Errorful2, RunAsync2, RunSync2 }
 
 package object bio extends SyntaxInstances0 {
 
@@ -60,6 +60,7 @@ private[interop] sealed abstract class SyntaxInstances0 extends SyntaxInstances1
 }
 
 private[interop] sealed abstract class SyntaxInstances1 extends SyntaxInstances2 {
+
   @inline implicit def runSync2ImpliesMonad[F[+_, +_], E](implicit ev: RunSync2[F]): Monad[F[E, ?]] = ev.monad
 }
 
@@ -67,6 +68,10 @@ private[interop] sealed abstract class SyntaxInstances2 extends SyntaxInstances3
   @inline implicit def concurrent2ImpliesMonad[F[+_, +_], E](implicit ev: Concurrent2[F]): Monad[F[E, ?]] = ev.monad
 }
 
-private[interop] sealed abstract class SyntaxInstances3 {
+private[interop] sealed abstract class SyntaxInstances3 extends SyntaxInstances4 {
+  @inline implicit def bracket2ImpliesMonad[F[+_, +_], E](implicit ev: Bracket2[F]): Monad[F[E, ?]] = ev.monad
+}
+
+private[interop] sealed abstract class SyntaxInstances4 {
   @inline implicit def errorful2ImpliesMonad[F[+_, +_], E](implicit ev: Errorful2[F]): Monad[F[E, ?]] = ev.monad
 }

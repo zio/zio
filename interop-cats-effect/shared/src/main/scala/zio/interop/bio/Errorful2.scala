@@ -22,7 +22,7 @@ import cats.data.NonEmptyList
 import cats.{ Bifunctor, Monad }
 import zio.interop.bio.Failed.{ Defects, Errors, Interrupt }
 
-abstract class Errorful2[F[+_, +_]] extends Bifunctor[F] { self =>
+trait Errorful2[F[+_, +_]] extends Bifunctor[F] { self =>
 
   def monad[E]: Monad[F[E, ?]]
 
