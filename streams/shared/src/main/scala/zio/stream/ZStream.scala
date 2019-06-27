@@ -1020,6 +1020,21 @@ trait Stream_Functions {
     }
 
   /**
+   * Creates a stream from an effect producing a value of type `A` which repeats forever
+   */
+  final def repeatEffect[R: ConformsR, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
+    fromEffect(fa).forever
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   */
+  final def repeatEffectWith[R: ConformsR, E, A](
+    fa: ZIO[R, E, A],
+    schedule: ZSchedule[R, Unit, _]
+  ): ZStream[R with Clock, E, A] =
+    fromEffect(fa).repeat(schedule)
+
+  /**
    * Creates a stream from an iterable collection of values
    */
   final def fromIterable[A](as: Iterable[A]): ZStream[Any, Nothing, A] =

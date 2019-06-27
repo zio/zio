@@ -94,6 +94,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.mapConcat          $mapConcat
   Stream.mapM               $mapM
 
+  Stream.repeatEffect       $repeatEffect
+  Stream.repeatEffectWith   $repeatEffectWith
+
   Stream.mapMPar
     foreachParN equivalence       $mapMPar
     interruption propagation      $mapMParInterruptionPropagation
@@ -748,6 +751,26 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       } yield result must_=== List(1, 1)
     )
 
+  private def repeatEffect =
+    unsafeRun(
+      Stream
+        .repeatEffect(IO.succeed(1))
+        .take(2)
+        .run(Sink.collectAll[Int])
+        .map(_ must_=== List(1, 1))
+    )
+
+  private def repeatEffectWith =
+    unsafeRun(
+      for {
+        ref <- Ref.make[List[Int]](Nil)
+        _ <- Stream
+              .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+              .take(2)
+              .run(Sink.drain)
+        result <- ref.get
+      } yield result must_=== List(1, 1)
+    )
   private def spaced =
     unsafeRun(
       Stream(1, 2, 3)
