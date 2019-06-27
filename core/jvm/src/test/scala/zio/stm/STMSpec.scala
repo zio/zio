@@ -221,7 +221,7 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         fiber <- ZIO.forkAll(List.fill(10)(incrementRefN(99, ref)))
         _     <- fiber.join
         v     <- ref.get
-      } yield v must_!== 10000
+      } yield v must_!== 1000
     )
 
   def e18 =
