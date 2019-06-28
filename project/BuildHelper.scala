@@ -50,7 +50,16 @@ object BuildHelper {
   )
 
   val dottySettings = Seq(
-    crossScalaVersions += "0.16.0-RC3"
+    crossScalaVersions += "0.16.0-RC3",
+    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
+    sources in (Compile, doc) := {
+      val old = (Compile / doc / sources).value
+      if (isDotty.value) {
+        Nil
+      } else {
+        old
+      }
+    }
   )
 
   val replSettings = Seq(
@@ -120,10 +129,13 @@ object BuildHelper {
     crossScalaVersions := Seq("2.12.8", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
-    libraryDependencies ++= compileOnlyDeps ++ testDeps ++ Seq(
-      compilerPlugin("org.typelevel"   %% "kind-projector"  % "0.10.3"),
-      compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.1")
-    ),
+    libraryDependencies ++= compileOnlyDeps ++ testDeps,
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq()
+      else
+        Seq(compilerPlugin("com.github.ghik" %% "silencer-plugin" % "1.4.1"))
+    },
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
