@@ -72,17 +72,6 @@ lazy val coreJVM = core.jvm
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
-      val old = (Compile / doc / sources).value
-      if (isDotty.value) {
-        Nil
-      } else {
-        old
-      }
-    }
-  )
 
 lazy val coreJS = core.js
   .settings(
@@ -123,17 +112,6 @@ lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
-      val old = (Compile / doc / sources).value
-      if (isDotty.value) {
-        Nil
-      } else {
-        old
-      }
-    }
-  )
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
