@@ -45,18 +45,39 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
+   *
+   * @param timeout The maximum amount of time the thread will be blocked.
+   * @throws Error if the timeout is reached without the value being set.
    */
-  final def get(timeout: Long = Long.MaxValue): A = {
-    if (value == null) {
+  final def get(timeout: Long): A = {
+    var remaining = timeout
+    while (value == null && remaining > 0L) {
+      val start = System.currentTimeMillis()
       this.synchronized {
-        if (value == null) this.wait(timeout)
+        if (value == null) this.wait(remaining)
       }
-
-      if (value == null) throw new Error("Timed out waiting for variable to be set")
+      remaining -= System.currentTimeMillis() - start
     }
+
+    if (value == null) throw new Error("Timed out waiting for variable to be set")
 
     value
   }
+
+  /**
+   * Retrieves the value of the variable, blocking if necessary.
+   *
+   * This will block until the value is set or the thread is interrupted.
+   */
+  final def get(): A = {
+    while (value == null) {
+      this.synchronized {
+        if (value == null) this.wait()
+      }
+    }
+    value
+  }
+
 }
 
 object OneShot {
