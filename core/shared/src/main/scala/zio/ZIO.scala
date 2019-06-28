@@ -2135,31 +2135,31 @@ object ZIO extends ZIO_R_Any {
         )
   }
 
-  final class BracketAcquire_[R, E](private val acquire: ZIO[R, E, _]) extends AnyVal {
+  final class BracketAcquire_[-R, +E](private val acquire: ZIO[R, E, _]) extends AnyVal {
     def apply[R1 <: R](release: ZIO[R1, Nothing, _]): BracketRelease_[R1, E] =
       new BracketRelease_(acquire, release)
   }
-  final class BracketRelease_[R, E](acquire: ZIO[R, E, _], release: ZIO[R, Nothing, _]) {
+  final class BracketRelease_[-R, +E](acquire: ZIO[R, E, _], release: ZIO[R, Nothing, _]) {
     def apply[R1 <: R, E1 >: E, B](use: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.bracket(acquire, (_: Any) => release, (_: Any) => use)
   }
 
-  final class BracketAcquire[R, E, A](private val acquire: ZIO[R, E, A]) extends AnyVal {
+  final class BracketAcquire[-R, +E, +A](private val acquire: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R](release: A => ZIO[R1, Nothing, _]): BracketRelease[R1, E, A] =
       new BracketRelease[R1, E, A](acquire, release)
   }
-  class BracketRelease[R, E, A](acquire: ZIO[R, E, A], release: A => ZIO[R, Nothing, _]) {
+  class BracketRelease[-R, +E, +A](acquire: ZIO[R, E, A], release: A => ZIO[R, Nothing, _]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.bracket(acquire, release, use)
   }
 
-  final class BracketExitAcquire[R, E, A](private val acquire: ZIO[R, E, A]) extends AnyVal {
+  final class BracketExitAcquire[-R, +E, +A](private val acquire: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, B](
       release: (A, Exit[E1, B]) => ZIO[R1, Nothing, _]
     ): BracketExitRelease[R1, E, E1, A, B] =
       new BracketExitRelease(acquire, release)
   }
-  class BracketExitRelease[R, E, E1 >: E, A, B](
+  class BracketExitRelease[-R, +E, E1, +A, B](
     acquire: ZIO[R, E, A],
     release: (A, Exit[E1, B]) => ZIO[R, Nothing, _]
   ) {
