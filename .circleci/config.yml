@@ -136,7 +136,7 @@ documentation: &documentation
       - run:
           name: Generating docs
           command: |
-            ./sbt coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc interopJavaJVM/doc interopReactiveStreamsJVM/doc interopTwitterJVM/doc streamsJVM/doc
+            ./sbt coreJVM/doc coreJS/doc streamsJVM/doc
             ./sbt docs/docusaurusCreateSite
       - <<: *save_cache
 
@@ -152,13 +152,12 @@ microsite: &microsite
       - run:
           name: Publishing website
           command: |
-            git config --global user.email "${GH_NAME}@users.noreply.github.com"
-            git config --global user.name "${GH_NAME}"
-            echo "machine github.com login ${GH_NAME} password ${GH_TOKEN}" > ~/.netrc
-            export GITHUB_DEPLOY_KEY=`echo ${GH_TOKEN} | base64`
             export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
             export TRAVIS_COMMIT="${CIRCLE_SHA1}"
-            sbt docs/docusaurusPublishGhpages
+            sudo chown -R $USER:$USER /tmp
+            nvm use
+            node -v
+            ./sbt docs/docusaurusPublishGhpages
       - <<: *save_cache
 
 jobs:
@@ -288,6 +287,8 @@ workflows:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - compile_dotty:
+          requires:
+            - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/

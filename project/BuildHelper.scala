@@ -8,7 +8,7 @@ import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
 
-object Scalaz {
+object BuildHelper {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
   val compileOnlyDeps = Seq("com.github.ghik" %% "silencer-lib" % "1.4.1"  % "provided")
 
@@ -47,6 +47,10 @@ object Scalaz {
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
     buildInfoPackage := "zio",
     buildInfoObject := "BuildInfo"
+  )
+
+  val dottySettings = Seq(
+    crossScalaVersions += "0.16.0-RC3"
   )
 
   val replSettings = Seq(
@@ -140,12 +144,6 @@ object Scalaz {
           else
             Nil
       }
-    },
-    Test / scalacOptions ++= {
-      if (isDotty.value)
-        Seq("-language:implicitConversions")
-      else
-        Nil
     },
     Test / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
