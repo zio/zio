@@ -1,6 +1,5 @@
 package zio
 
-import org.specs2.matcher.describe.Diffable
 import zio.FunctionIO._
 
 class FunctionIOSpec extends BaseCrossPlatformSpec {
@@ -181,8 +180,6 @@ class FunctionIOSpec extends BaseCrossPlatformSpec {
       } yield v must_=== "hola"
     )
 
-  implicit val d
-    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def e18a =
     unsafeRun(
       for {
