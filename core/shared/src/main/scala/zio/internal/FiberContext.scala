@@ -548,10 +548,10 @@ private[zio] final class FiberContext[E, A](
   private[this] final def getFibers: UIO[IndexedSeq[Fiber[_, _]]] =
     UIO {
       supervised.peek() match {
-        case SuperviseStatus.Unsupervised => Array.empty[Fiber[_, _]]
+        case SuperviseStatus.Unsupervised => Array.empty[Fiber[_, _]].toIndexedSeq
         case SuperviseStatus.Supervised(set) =>
           val arr = Array.ofDim[Fiber[_, _]](set.size)
-          set.toArray[Fiber[_, _]](arr)
+          set.toArray[Fiber[_, _]](arr).toIndexedSeq
       }
     }
 
