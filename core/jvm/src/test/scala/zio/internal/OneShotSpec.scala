@@ -34,7 +34,9 @@ class OneShotSpec extends Specification {
 
   def getWithNoValue = {
     val oneShot = OneShot.make[Object]
+    val start = System.nanoTime()
     oneShot.get(10000L) must throwA[Error]
+    (System.nanoTime() - start) must be < 10200L * 1000000L
   }
 
   def setTwice = {
