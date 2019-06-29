@@ -1,5 +1,6 @@
 package zio
 
+@deprecated("use FiberRef", "1.0.0")
 class FiberLocalSpec extends BaseCrossPlatformSpec {
 
   def is =
