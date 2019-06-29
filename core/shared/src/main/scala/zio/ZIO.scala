@@ -1232,7 +1232,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * succeed with the returned value.
    */
   final def collect[E1 >: E, B](e: E1)(pf: PartialFunction[A, B]): ZIO[R, E1, B] =
-    collectM(e)(pf.andThen(ZIO.succeed))
+    collectM(e)(pf.andThen(ZIO.succeed(_)))
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
@@ -1248,7 +1248,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * continue with our held value.
    */
   final def reject[R1 <: R, E1 >: E](pf: PartialFunction[A, E1]): ZIO[R1, E1, A] =
-    rejectM(pf.andThen(ZIO.fail))
+    rejectM(pf.andThen(ZIO.fail(_)))
 
   /**
    * Continue with the returned computation if the `PartialFunction` matches,
