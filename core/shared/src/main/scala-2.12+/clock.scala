@@ -21,6 +21,7 @@ import zio.duration.Duration
 import java.util.concurrent.TimeUnit
 
 package object clock extends Clock.Service[Clock] {
+  import java.time.ZoneId
   final val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
     ZIO.access(_.clock)
 
@@ -41,4 +42,10 @@ package object clock extends Clock.Service[Clock] {
    */
   final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
     ZIO.accessM(_.clock sleep duration)
+
+  /**
+   * Returns the java.time.ZoneId corresponding to the System timeZone
+   */
+  val timeZone: ZIO[Clock, Nothing, ZoneId] =
+    ZIO.accessM(_.clock.timeZone)
 }

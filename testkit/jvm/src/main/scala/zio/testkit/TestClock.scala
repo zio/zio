@@ -17,6 +17,7 @@
 package zio.testkit
 
 import java.util.concurrent.TimeUnit
+import java.time.ZoneId
 
 import zio._
 import zio.duration.Duration
@@ -38,13 +39,15 @@ case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
 
   final def adjust(duration: Duration): UIO[Unit] =
     ref.update { data =>
-      Data(data.nanoTime + duration.toNanos, data.currentTimeMillis + duration.toMillis, data.sleeps0)
+      Data(data.nanoTime + duration.toNanos, data.currentTimeMillis + duration.toMillis, data.sleeps0, data.zoneId)
     }.unit
+  final val timeZone: UIO[ZoneId] =
+    ref.get.map(_.zoneId)
 
 }
 
 object TestClock {
-  val Zero = Data(0, 0, Nil)
+  val Zero = Data(0, 0, Nil, ZoneId.of("ACT"))
 
-  case class Data(nanoTime: Long, currentTimeMillis: Long, sleeps0: List[Duration])
+  case class Data(nanoTime: Long, currentTimeMillis: Long, sleeps0: List[Duration], zoneId: ZoneId)
 }
