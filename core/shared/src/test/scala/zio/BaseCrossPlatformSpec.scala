@@ -7,7 +7,6 @@ import org.specs2.execute.AsResult
 import org.specs2.matcher.MatchResult
 import org.specs2.matcher.describe.Diffable
 import org.specs2.specification.core.{ AsExecution, Execution }
-import zio.Exit.Cause
 import zio.internal.PlatformLive
 import zio.clock.Clock
 import zio.console.Console

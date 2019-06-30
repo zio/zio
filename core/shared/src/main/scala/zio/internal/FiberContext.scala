@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
 import scala.collection.JavaConverters._
 
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
-import zio.Exit.Cause
+import zio.Cause
 import zio._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn

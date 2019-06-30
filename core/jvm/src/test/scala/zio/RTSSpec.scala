@@ -6,8 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause
-import zio.Exit.Cause.{ die, fail, Fail, Then }
+import zio.Cause.{ die, fail, Fail, Then }
 import zio.duration._
 import zio.clock.Clock
 

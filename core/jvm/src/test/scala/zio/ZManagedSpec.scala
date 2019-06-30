@@ -7,8 +7,8 @@ import org.scalacheck.{ Gen, _ }
 import org.specs2.ScalaCheck
 import org.specs2.matcher.MatchResult
 import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause.Interrupt
-import zio.Exit.{ Cause, Failure }
+import zio.Cause.Interrupt
+import zio.Exit.Failure
 import zio.duration._
 
 import scala.collection.mutable

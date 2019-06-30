@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Exit.Cause
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
@@ -2248,15 +2247,14 @@ object ZIO extends ZIO_R_Any {
     def apply(a: A): ZIO[R, E, A] = new ZIO.Succeed(a)
   }
 
-  final class MapErrorFn[R, E, E2, A](override val underlying: E => E2)
-      extends ZIOFn1[Exit.Cause[E], ZIO[R, E2, Nothing]] {
-    def apply(a: Exit.Cause[E]): ZIO[R, E2, Nothing] =
+  final class MapErrorFn[R, E, E2, A](override val underlying: E => E2) extends ZIOFn1[Cause[E], ZIO[R, E2, Nothing]] {
+    def apply(a: Cause[E]): ZIO[R, E2, Nothing] =
       ZIO.halt(a.map(underlying))
   }
 
-  final class MapErrorCauseFn[R, E, E2, A](override val underlying: Exit.Cause[E] => Exit.Cause[E2])
-      extends ZIOFn1[Exit.Cause[E], ZIO[R, E2, Nothing]] {
-    def apply(a: Exit.Cause[E]): ZIO[R, E2, Nothing] =
+  final class MapErrorCauseFn[R, E, E2, A](override val underlying: Cause[E] => Cause[E2])
+      extends ZIOFn1[Cause[E], ZIO[R, E2, Nothing]] {
+    def apply(a: Cause[E]): ZIO[R, E2, Nothing] =
       ZIO.halt(underlying(a))
   }
 

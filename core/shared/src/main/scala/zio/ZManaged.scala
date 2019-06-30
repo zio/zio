@@ -17,7 +17,6 @@
 package zio
 
 import scala.reflect.ClassTag
-import zio.Exit.Cause
 import zio.clock.Clock
 import zio.duration.Duration
 
