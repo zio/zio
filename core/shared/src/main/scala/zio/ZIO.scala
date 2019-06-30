@@ -357,6 +357,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     self.foldCauseM(new ZIO.MapErrorFn(f), new ZIO.SucceedFn(f))
 
   /**
+   * Returns an effect with its full cause of failure mapped using the
+   * specified function. This can be used to transform errors while
+   * preserving the original structure of `Cause`.
+   *
+   * @see [[absorb]], [[sandbox]], [[catchAllCause]] - other functions for dealing with defects
+   */
+  final def mapErrorCause[E2](h: Cause[E] => Cause[E2]): ZIO[R, E2, A] =
+    self.foldCauseM(new ZIO.MapErrorCauseFn(h), new ZIO.SucceedFn(h))
+
+  /**
    * Creates a composite effect that represents this effect followed by another
    * one that may depend on the error produced by this one.
    *
@@ -641,6 +651,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * {{{
    * openFile("config.json").catchAllCause(_ => IO.succeed(defaultConfig))
    * }}}
+   *
+   * @see [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can recover from defects
    */
   final def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZIO[R1, E2, A1]): ZIO[R1, E2, A1] =
     self.foldCauseM[R1, E2, A1](h, new ZIO.SucceedFn(h))
@@ -1084,6 +1096,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    *    *
    *   }
    * }}}
+   *
+   * @see [[absorb]], [[catchAllCause]], [[mapErrorCause]] - other functions that can recover from defects
    */
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail, ZIO.succeed)
 
@@ -1122,6 +1136,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   /**
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
+   *
+   * @see [[sandbox]], [[catchAllCause]], [[mapErrorCause]] - other functions that can recover from defects
    */
   final def absorb(implicit ev: E <:< Throwable): ZIO[R, Throwable, A] =
     absorbWith(ev)
@@ -2236,6 +2252,12 @@ object ZIO extends ZIO_R_Any {
       extends ZIOFn1[Exit.Cause[E], ZIO[R, E2, Nothing]] {
     def apply(a: Exit.Cause[E]): ZIO[R, E2, Nothing] =
       ZIO.halt(a.map(underlying))
+  }
+
+  final class MapErrorCauseFn[R, E, E2, A](override val underlying: Exit.Cause[E] => Exit.Cause[E2])
+      extends ZIOFn1[Exit.Cause[E], ZIO[R, E2, Nothing]] {
+    def apply(a: Exit.Cause[E]): ZIO[R, E2, Nothing] =
+      ZIO.halt(underlying(a))
   }
 
   final class FoldCauseMFailureFn[R, E, E2, A](override val underlying: E => ZIO[R, E2, A])
