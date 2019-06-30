@@ -2,6 +2,7 @@ package zio
 package system
 
 import org.specs2.Specification
+import scala.reflect.io.File
 
 class SystemSpec extends Specification with DefaultRuntime {
   def is = s2"""
@@ -20,7 +21,7 @@ class SystemSpec extends Specification with DefaultRuntime {
   def env1 = {
     val io = unsafeRun(system.env("PATH"))
     io must beSome
-    io.get must contain("/bin")
+    io.get must contain(File.separator + "bin")
   }
 
   def env2 = {
