@@ -972,6 +972,128 @@ trait Stream_Functions {
     halt(Cause.die(new RuntimeException(msg)))
 
   /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   */
+  final def effectAsync[R: ConformsR, E, A](
+    register: (ZIO[R, E, A] => Unit) => Unit,
+    outputBuffer: Int = 64
+  ): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
+            runtime <- ZIO.runtime[R].toManaged_
+            _ <- ZManaged.succeedLazy {
+                  register(
+                    k =>
+                      runtime.unsafeRunAsync_(
+                        k.foldCauseM(
+                          cause => output.offer(Take.Fail(cause)).unit,
+                          b => output.offer(Take.Value(b)).unit
+                        )
+                      )
+                  )
+                }
+            s <- ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+          } yield s
+        }
+    }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback can possibly return the stream synchronously
+   */
+  final def effectAsyncMaybe[R: ConformsR, E, A](
+    register: (ZIO[R, E, A] => Unit) => Option[ZStream[R, E, A]],
+    outputBuffer: Int = 64
+  ): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
+            runtime <- ZIO.runtime[R].toManaged_
+            maybeStream <- ZManaged.succeedLazy {
+                            register(
+                              k =>
+                                runtime.unsafeRunAsync_(
+                                  k.foldCauseM(
+                                    cause => output.offer(Take.Fail(cause)).unit,
+                                    b => output.offer(Take.Value(b)).unit
+                                  )
+                                )
+                            )
+                          }
+            s <- maybeStream match {
+                  case Some(stream) => stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                  case None         => ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                }
+          } yield s
+        }
+    }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times, the registration of the callback itself returns an effect
+   */
+  final def effectAsyncM[R: ConformsR, E, A](
+    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _],
+    outputBuffer: Int = 64
+  ): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
+            runtime <- ZIO.runtime[R].toManaged_
+            _ <- register(
+                  k =>
+                    runtime.unsafeRunAsync_(
+                      k.foldCauseM(
+                        cause => output.offer(Take.Fail(cause)).unit,
+                        b => output.offer(Take.Value(b)).unit
+                      )
+                    )
+                ).toManaged_
+            s <- ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+          } yield s
+        }
+    }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * the registration of the callback returns either a canceler or synchronously returns a stream
+   *
+   */
+  final def effectAsyncInterrupt[R: ConformsR, E, A](
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
+    outputBuffer: Int = 64
+  ): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
+            runtime <- ZIO.runtime[R].toManaged_
+            eitherStream = register(
+              k =>
+                runtime.unsafeRunAsync_(
+                  k.foldCauseM(
+                    cause => output.offer(Take.Fail(cause)).unit,
+                    b => output.offer(Take.Value(b)).unit
+                  )
+                )
+            )
+            s <- eitherStream match {
+                  case Right(stream) =>
+                    stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                  case Left(_) => ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                }
+          } yield s
+        }
+    }
+
+  /**
    * The stream that always fails with `error`
    */
   final def fail[E](error: E): ZStream[Any, E, Nothing] =
