@@ -1088,8 +1088,12 @@ trait Stream_Functions {
                   case Right(stream) =>
                     stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
                   case Left(canceler) =>
-                    ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
-                    .ensuring(canceler)
+                    ZStream
+                      .fromQueue(output)
+                      .unTake
+                      .fold[R1, E1, A1, S]
+                      .flatMap(fold => fold(s, cont, g))
+                      .ensuring(canceler)
                 }
           } yield s
         }

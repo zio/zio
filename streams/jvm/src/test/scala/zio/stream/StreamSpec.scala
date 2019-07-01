@@ -996,56 +996,51 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       .map(_ must_=== Left("Ouch"))
   }
 
-  private def effectAsync = {
+  private def effectAsync =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsync[Any, Throwable, Int]{ k =>
+      val s = ZStream.effectAsync[Any, Throwable, Int] { k =>
         list.foreach(a => k(Task.succeed(a)))
       }
 
       slurp(s.take(list.size)) must_=== Success(list)
     }
-  }
 
-  private def effectAsyncM = {
+  private def effectAsyncM =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsyncM[Any, Throwable, Int]{ k =>
-        Task.succeedLazy{
+      val s = ZStream.effectAsyncM[Any, Throwable, Int] { k =>
+        Task.succeedLazy {
           list.foreach(a => k(Task.succeed(a)))
         }
       }
 
       slurp(s.take(list.size)) must_=== Success(list)
     }
-  }
 
-  private def effectAsyncMaybeSome = {
+  private def effectAsyncMaybeSome =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsyncMaybe[Any, Throwable, Int]{ _ =>
+      val s = ZStream.effectAsyncMaybe[Any, Throwable, Int] { _ =>
         Some(Stream.fromIterable(list))
       }
 
       slurp(s.take(list.size)) must_=== Success(list)
     }
-  }
 
-  private def effectAsyncMaybeNone = {
+  private def effectAsyncMaybeNone =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsyncMaybe[Any, Throwable, Int]{ k =>
+      val s = ZStream.effectAsyncMaybe[Any, Throwable, Int] { k =>
         list.foreach(a => k(Task.succeed(a)))
         None
       }
 
       slurp(s.take(list.size)) must_=== Success(list)
     }
-  }
 
-  private def effectAsyncInterruptRight = {
+  private def effectAsyncInterruptRight =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsyncInterrupt[Any, Throwable, Int]{ _ =>
+      val s = ZStream.effectAsyncInterrupt[Any, Throwable, Int] { _ =>
         Right(Stream.fromIterable(list))
       }
 
       slurp(s.take(list.size)) must_=== Success(list)
     }
-  }
 }
