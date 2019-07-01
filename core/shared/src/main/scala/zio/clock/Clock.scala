@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 import zio.duration.Duration
 import zio.scheduler.SchedulerLive
 import zio.{ IO, UIO, ZIO }
-import java.time.ZoneId
+import java.time.{ Instant, OffsetDateTime, ZoneId }
 
 trait Clock extends Serializable {
   val clock: Clock.Service[Any]
@@ -30,9 +30,9 @@ trait Clock extends Serializable {
 object Clock extends Serializable {
   trait Service[R] extends Serializable {
     def currentTime(unit: TimeUnit): ZIO[R, Nothing, Long]
+    def currentDateTime: ZIO[R, Nothing, OffsetDateTime]
     val nanoTime: ZIO[R, Nothing, Long]
     def sleep(duration: Duration): ZIO[R, Nothing, Unit]
-    val timeZone: ZIO[R,Nothing,ZoneId]
   }
 
   trait Live extends SchedulerLive with Clock {
@@ -52,7 +52,13 @@ object Clock extends Serializable {
               Left(ZIO.effectTotal(canceler()))
             }
         )
-      val timeZone: ZIO[Any,Nothing,ZoneId] = ZIO.effectTotal(ZoneId.systemDefault)
+
+      def currentDateTime: ZIO[Any, Nothing, OffsetDateTime] =
+        for {
+          millis <- currentTime(TimeUnit.MILLISECONDS)
+          zone   <- ZIO.effectTotal(ZoneId.systemDefault)
+        } yield OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), zone)
+
     }
   }
   object Live extends Live

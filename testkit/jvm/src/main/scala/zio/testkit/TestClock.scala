@@ -23,11 +23,16 @@ import zio._
 import zio.duration.Duration
 import zio.clock.Clock
 import zio.testkit.TestClock.Data
+import java.time.OffsetDateTime
+import java.time.Instant
 
 case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
 
   final def currentTime(unit: TimeUnit): UIO[Long] =
     ref.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
+
+  final def currentDateTime: UIO[OffsetDateTime] =
+    ref.get.map(_.currentDateTime)
 
   final val nanoTime: IO[Nothing, Long] =
     ref.get.map(_.nanoTime)
@@ -39,15 +44,26 @@ case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
 
   final def adjust(duration: Duration): UIO[Unit] =
     ref.update { data =>
-      Data(data.nanoTime + duration.toNanos, data.currentTimeMillis + duration.toMillis, data.sleeps0, data.zoneId)
+      Data(
+        data.nanoTime + duration.toNanos,
+        data.currentTimeMillis + duration.toMillis,
+        data.sleeps0,
+        TestClock.offset(data.currentDateTime.toInstant.toEpochMilli + duration.toMillis)
+      )
     }.unit
-  final val timeZone: UIO[ZoneId] =
-    ref.get.map(_.zoneId)
 
 }
 
 object TestClock {
-  val Zero = Data(0, 0, Nil, ZoneId.of("ACT"))
+  val Zero = Data(0, 0, Nil, offset(0))
 
-  case class Data(nanoTime: Long, currentTimeMillis: Long, sleeps0: List[Duration], zoneId: ZoneId)
+  def offset(millis: Long): OffsetDateTime =
+    OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.of("Z"))
+
+  case class Data(
+    nanoTime: Long,
+    currentTimeMillis: Long,
+    sleeps0: List[Duration],
+    currentDateTime: OffsetDateTime
+  )
 }
