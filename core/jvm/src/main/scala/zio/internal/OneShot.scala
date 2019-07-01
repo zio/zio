@@ -22,6 +22,8 @@ package zio.internal
  */
 private[zio] class OneShot[A] private (@volatile var value: A) {
 
+  import OneShot._
+
   /**
    * Sets the variable to the value. The behavior of this function
    * is undefined if the variable has already been set.
@@ -50,11 +52,11 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
    * @throws Error if the timeout is reached without the value being set.
    */
   final def get(timeout: Long): A = {
-    var remainingNano = math.min(timeout, Long.MaxValue/1000000L)*1000000L
+    var remainingNano = math.min(timeout, Long.MaxValue / nanosPerMilli) * nanosPerMilli
     while (value == null && remainingNano > 0L) {
-      val waitMilli = remainingNano / 1000000L
-      val waitNano = (remainingNano % 1000000L).toInt
-      val start = System.nanoTime()
+      val waitMilli = remainingNano / nanosPerMilli
+      val waitNano  = (remainingNano % nanosPerMilli).toInt
+      val start     = System.nanoTime()
       this.synchronized {
         if (value == null) this.wait(waitMilli, waitNano)
       }
@@ -83,6 +85,8 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
 }
 
 object OneShot {
+
+  private val nanosPerMilli = 1000000L
 
   /**
    * Makes a new (unset) variable.
