@@ -976,7 +976,7 @@ trait Stream_Functions {
    */
   final def effectAsync[R: ConformsR, E, A](
     register: (ZIO[R, E, A] => Unit) => Unit,
-    outputBuffer: Int = 64
+    outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
@@ -1006,7 +1006,7 @@ trait Stream_Functions {
    */
   final def effectAsyncMaybe[R: ConformsR, E, A](
     register: (ZIO[R, E, A] => Unit) => Option[ZStream[R, E, A]],
-    outputBuffer: Int = 64
+    outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
@@ -1038,7 +1038,7 @@ trait Stream_Functions {
    */
   final def effectAsyncM[R: ConformsR, E, A](
     register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _],
-    outputBuffer: Int = 64
+    outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
@@ -1067,7 +1067,7 @@ trait Stream_Functions {
    */
   final def effectAsyncInterrupt[R: ConformsR, E, A](
     register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
-    outputBuffer: Int = 64
+    outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
