@@ -978,27 +978,11 @@ trait Stream_Functions {
     register: (ZIO[R, E, A] => Unit) => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    new ZStream[R, E, A] {
-      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
-        ZManaged.succeedLazy { (s, cont, g) =>
-          for {
-            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
-            runtime <- ZIO.runtime[R].toManaged_
-            _ <- ZManaged.succeedLazy {
-                  register(
-                    k =>
-                      runtime.unsafeRunAsync_(
-                        k.foldCauseM(
-                          cause => output.offer(Take.Fail(cause)).unit,
-                          b => output.offer(Take.Value(b)).unit
-                        )
-                      )
-                  )
-                }
-            s <- ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
-          } yield s
-        }
-    }
+    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
+      register(callback)
+
+      None
+    }, outputBuffer)
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
