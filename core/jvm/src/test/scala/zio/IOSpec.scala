@@ -4,11 +4,10 @@ import org.scalacheck._
 import org.specs2.ScalaCheck
 import org.specs2.execute.Result
 import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause
 
 import scala.collection.mutable
 import scala.util.Try
-import zio.Exit.Cause.{ die, fail, interrupt, Both }
+import zio.Cause.{ die, fail, interrupt, Both }
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -191,8 +190,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
 
   def testUnsandbox = {
-    val failure: IO[Exit.Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
-    val success: IO[Exit.Cause[Any], Int]          = IO.succeed(100)
+    val failure: IO[Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
+    val success: IO[Cause[Any], Int]          = IO.succeed(100)
     unsafeRun(for {
       message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
       result  <- success.unsandbox

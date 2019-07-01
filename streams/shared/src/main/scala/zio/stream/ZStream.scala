@@ -18,7 +18,7 @@ package zio.stream
 
 import zio._
 import zio.clock.Clock
-import zio.Exit.Cause
+import zio.Cause
 import scala.annotation.implicitNotFound
 
 /**
@@ -238,7 +238,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           for {
             out             <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
             permits         <- Semaphore.make(n).toManaged_
-            innerFailure    <- Promise.make[Exit.Cause[E1], Nothing].toManaged_
+            innerFailure    <- Promise.make[Cause[E1], Nothing].toManaged_
             interruptInners <- Promise.make[Nothing, Unit].toManaged_
 
             // - The driver stream forks an inner fiber for each stream created

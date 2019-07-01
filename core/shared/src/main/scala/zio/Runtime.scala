@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Exit.Cause
 import zio.internal.Tracing
 import zio.internal.tracing.TracingConfig
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
