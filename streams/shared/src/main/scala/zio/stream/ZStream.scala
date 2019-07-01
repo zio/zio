@@ -1010,8 +1010,10 @@ trait Stream_Functions {
                             )
                           }
             s <- maybeStream match {
-                  case Some(stream) => stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
-                  case None         => ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                  case Some(stream) =>
+                    output.shutdown.toManaged_ *>
+                      stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                  case None => ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
                 }
           } yield s
         }
@@ -1047,7 +1049,7 @@ trait Stream_Functions {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
-   * the registration of the callback returns either a canceler or synchronously returns a stream
+   * The registration of the callback returns either a canceler or synchronously returns a stream
    */
   final def effectAsyncInterrupt[R: ConformsR, E, A](
     register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
@@ -1070,7 +1072,8 @@ trait Stream_Functions {
             )
             s <- eitherStream match {
                   case Right(stream) =>
-                    stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                    output.shutdown.toManaged_ *>
+                      stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
                   case Left(canceler) =>
                     ZStream
                       .fromQueue(output)
