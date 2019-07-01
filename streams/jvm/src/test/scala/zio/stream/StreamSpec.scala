@@ -16,7 +16,8 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   import ArbitraryChunk._
   import ArbitraryStream._
-  import Exit._
+  import Exit.{ Cause => _, _ }
+  import zio.Cause
 
   //in scala 2.11 the proof for Any in not found by the compiler
   import Stream.ConformsAnyProof
