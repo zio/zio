@@ -22,6 +22,8 @@ package zio.internal
  */
 private[zio] class OneShot[A] private (@volatile var value: A) {
 
+  import OneShot._
+
   /**
    * Sets the variable to the value. The behavior of this function
    * is undefined if the variable has already been set.
@@ -45,21 +47,46 @@ private[zio] class OneShot[A] private (@volatile var value: A) {
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
+   *
+   * @param timeout The maximum amount of time the thread will be blocked, in milliseconds.
+   * @throws Error if the timeout is reached without the value being set.
    */
-  final def get(timeout: Long = Long.MaxValue): A = {
-    if (value == null) {
+  final def get(timeout: Long): A = {
+    var remainingNano = math.min(timeout, Long.MaxValue / nanosPerMilli) * nanosPerMilli
+    while (value == null && remainingNano > 0L) {
+      val waitMilli = remainingNano / nanosPerMilli
+      val waitNano  = (remainingNano % nanosPerMilli).toInt
+      val start     = System.nanoTime()
       this.synchronized {
-        if (value == null) this.wait(timeout)
+        if (value == null) this.wait(waitMilli, waitNano)
       }
-
-      if (value == null) throw new Error("Timed out waiting for variable to be set")
+      remainingNano -= System.nanoTime() - start
     }
+
+    if (value == null) throw new Error("Timed out waiting for variable to be set")
 
     value
   }
+
+  /**
+   * Retrieves the value of the variable, blocking if necessary.
+   *
+   * This will block until the value is set or the thread is interrupted.
+   */
+  final def get(): A = {
+    while (value == null) {
+      this.synchronized {
+        if (value == null) this.wait()
+      }
+    }
+    value
+  }
+
 }
 
 object OneShot {
+
+  private val nanosPerMilli = 1000000L
 
   /**
    * Makes a new (unset) variable.

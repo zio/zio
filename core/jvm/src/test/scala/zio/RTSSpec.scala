@@ -1350,7 +1350,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     for {
       done  <- Ref.make(false)
       start <- IO.succeed(internal.OneShot.make[Unit])
-      fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
+      fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }.ensuring(done.set(true)).fork
       _     <- IO.succeed(start.get())
       res   <- fiber.interrupt
       value <- done.get
