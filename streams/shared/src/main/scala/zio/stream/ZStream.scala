@@ -1034,7 +1034,8 @@ trait Stream_Functions {
     }
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times, the registration of the callback itself returns an effect
+   * Creates a stream from an asynchronous callback that can be called multiple times
+   * The registration of the callback itself returns an effect
    */
   final def effectAsyncM[R: ConformsR, E, A](
     register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _],
@@ -1063,7 +1064,6 @@ trait Stream_Functions {
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
    * the registration of the callback returns either a canceler or synchronously returns a stream
-   *
    */
   final def effectAsyncInterrupt[R: ConformsR, E, A](
     register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
