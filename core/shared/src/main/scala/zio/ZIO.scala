@@ -1739,6 +1739,12 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
+   * Alias for [[ZIO.foreach]]
+   */
+  final def traverse[R >: LowerR, E <: UpperE, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+    foreach[R, E, A, B](in)(f)
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
    * and returns the results in a new `List[B]`.
    *
@@ -1749,6 +1755,12 @@ private[zio] trait ZIOFunctions extends Serializable {
         fn(a).zipWithPar(io)((b, bs) => b :: bs)
       }
       .refailWithTrace
+
+  /**
+   * Alias for [[ZIO.foreachPar]]
+   */
+  final def traversePar[R >: LowerR, E <: UpperE, A, B](as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+    foreachPar[R, E, A, B](as)(fn)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` in parallel,
@@ -1767,6 +1779,14 @@ private[zio] trait ZIOFunctions extends Serializable {
     } yield bs).refailWithTrace
 
   /**
+   * Alias for [[ZIO.foreachParN]]
+   */
+  final def traverseParN[R >: LowerR, E <: UpperE, A, B](
+    n: Long
+  )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
+    foreachParN[R, E, A, B](n)(as)(fn)
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects sequentially.
    *
@@ -1780,6 +1800,12 @@ private[zio] trait ZIOFunctions extends Serializable {
         else ZIO.unit
       loop
     }
+
+  /**
+   * Alias for [[ZIO.foreach_]]
+   */
+  final def traverse_[R >: LowerR, E <: UpperE, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    foreach_[R, E, A](as)(f)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -1800,6 +1826,12 @@ private[zio] trait ZIOFunctions extends Serializable {
       .refailWithTrace
 
   /**
+   * Alias for [[ZIO.foreachPar_]]
+   */
+  final def traversePar_[R >: LowerR, E <: UpperE, A](as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    foreachPar_[R, E, A](as)(f)
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects in parallel, discarding the results.
    *
@@ -1818,11 +1850,25 @@ private[zio] trait ZIOFunctions extends Serializable {
       .refailWithTrace
 
   /**
+   * Alias for [[ZIO.foreachParN_]]
+   */
+  final def traverseParN_[R >: LowerR, E <: UpperE, A](
+    n: Long
+  )(as: Iterable[A])(f: A => ZIO[R, E, _]): ZIO[R, E, Unit] =
+    foreachParN_[R, E, A](n)(as)(f)
+
+  /**
    * Evaluate each effect in the structure from left to right, and collect
    * the results. For a parallel version, see `collectAllPar`.
    */
   final def collectAll[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreach[R, E, ZIO[R, E, A], A](in)(ZIO.identityFn)
+
+  /**
+   *  Alias for [[ZIO.collectAll]]
+]] */
+  final def sequence[R >: LowerR, E <: UpperE, A](in: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    collectAll[R, E, A](in)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
@@ -1832,6 +1878,12 @@ private[zio] trait ZIOFunctions extends Serializable {
     foreachPar[R, E, ZIO[R, E, A], A](as)(ZIO.identityFn)
 
   /**
+   *  Alias for [[ZIO.collectAllPar]]
+   */
+  final def sequencePar[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    collectAllPar[R, E, A](as)
+
+  /**
    * Evaluate each effect in the structure in parallel, and collect
    * the results. For a sequential version, see `collectAll`.
    *
@@ -1839,6 +1891,12 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def collectAllParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
+
+  /**
+   *  Alias for [[ZIO.collectAllParN]]
+   */
+  final def sequenceParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
+    collectAllParN[R, E, A](n)(as)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the

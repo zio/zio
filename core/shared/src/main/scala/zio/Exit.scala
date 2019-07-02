@@ -206,6 +206,12 @@ object Exit extends Serializable {
         .map(_.reverse)
     }
 
+  /**
+   *  Alias for [[Exit.collectAll]]
+   */
+  final def sequence[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    collectAll[E, A](exits)
+
   final def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
       exits
@@ -213,6 +219,12 @@ object Exit extends Serializable {
         .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
         .map(_.reverse)
     }
+
+  /**
+   *  Alias for [[Exit.collectAllPar]]
+   */
+  final def sequencePar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    collectAllPar[E, A](exits)
 
   final def die(t: Throwable): Exit[Nothing, Nothing] = halt(zio.Cause.die(t))
 
