@@ -998,7 +998,7 @@ trait Stream_Functions {
           for {
             output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
             runtime <- ZIO.runtime[R].toManaged_
-            maybeStream <- ZManaged.succeedLazy {
+            maybeStream <- UIO(
                             register(
                               k =>
                                 runtime.unsafeRunAsync_(
@@ -1008,7 +1008,7 @@ trait Stream_Functions {
                                   )
                                 )
                             )
-                          }
+                          ).toManaged_
             s <- maybeStream match {
                   case Some(stream) =>
                     output.shutdown.toManaged_ *>
