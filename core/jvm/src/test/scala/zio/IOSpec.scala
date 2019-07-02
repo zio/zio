@@ -3,7 +3,6 @@ package zio
 import org.scalacheck._
 import org.specs2.ScalaCheck
 import org.specs2.execute.Result
-import org.specs2.matcher.describe.Diffable
 
 import scala.collection.mutable
 import scala.util.Try
@@ -96,8 +95,6 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     res must be_===(List(1, 2, 3))
   }
 
-  implicit val d
-    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def t5 = forAll { (i: Int) =>
     val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).either)
     res must_=== Left(i.toString)
@@ -127,14 +124,13 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     res must be_===(List("1", "2", "3"))
   }
 
-  def t10: Prop = forAll { (l: List[Int]) =>
+  def t10 = forAll { (l: List[Int]) =>
     unsafeRun(IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))) must_=== unsafeRun(IO.succeed(l.sum))
   }
 
-  val ig = Gen.chooseNum(Int.MinValue, Int.MaxValue)
-  val g  = Gen.nonEmptyListOf(ig) //    TODO: Dotty has ambiguous implicits
-  def t11: Prop = forAll(g) { (l: List[Int]) =>
-    (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
+  def t11 = forAll { (l: List[Int]) =>
+    l.size > 0 ==>
+      (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
   }
 
   def testDone = {
