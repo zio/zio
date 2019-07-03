@@ -32,7 +32,7 @@ case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
     ref.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
   final def currentDateTime: UIO[OffsetDateTime] =
-    ref.get.map(_.currentDateTime)
+    ref.get.map(data => TestClock.offset(data.currentTimeMillis, data.timeZone))
 
   final val nanoTime: IO[Nothing, Long] =
     ref.get.map(_.nanoTime)
@@ -48,22 +48,22 @@ case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
         data.nanoTime + duration.toNanos,
         data.currentTimeMillis + duration.toMillis,
         data.sleeps0,
-        TestClock.offset(data.currentDateTime.toInstant.toEpochMilli + duration.toMillis)
+        data.timeZone
       )
     }.unit
 
 }
 
 object TestClock {
-  val Zero = Data(0, 0, Nil, offset(0))
+  val Zero = Data(0, 0, Nil, ZoneId.of("UTC"))
 
-  def offset(millis: Long): OffsetDateTime =
-    OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.of("Z"))
+  def offset(millis: Long, timeZone: ZoneId): OffsetDateTime =
+    OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), timeZone)
 
   case class Data(
     nanoTime: Long,
     currentTimeMillis: Long,
     sleeps0: List[Duration],
-    currentDateTime: OffsetDateTime
+    timeZone: ZoneId
   )
 }
