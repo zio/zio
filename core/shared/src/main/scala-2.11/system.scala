@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
 // This cannot extend System.Service[System] because of Scala 2.11 support
 package object system {

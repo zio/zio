@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
-import scalaz.zio.internal.{ Scheduler => IScheduler }
+import zio.internal.{ Scheduler => IScheduler }
 
 package object scheduler extends Scheduler.Service[Scheduler] {
   final val schedulerService: ZIO[Scheduler, Nothing, Scheduler.Service[Any]] =
