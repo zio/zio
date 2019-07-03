@@ -1887,7 +1887,7 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Evaluate each effect in the structure in parallel, and collect
    * the results. For a sequential version, see `collectAll`.
    *
-   * Unlike `foreachAllPar`, this method will use at most `n` fibers.
+   * Unlike `collectAllPar`, this method will use at most up to `n` fibers.
    */
   final def collectAllParN[R >: LowerR, E <: UpperE, A](n: Long)(as: Iterable[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
     foreachParN[R, E, ZIO[R, E, A], A](n)(as)(ZIO.identityFn)
