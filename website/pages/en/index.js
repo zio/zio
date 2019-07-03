@@ -90,6 +90,20 @@ class Index extends React.Component {
       </Container>
     );
 
+    const Sponsors = () => (
+      <Block layout="twoColumn">
+        {[
+          {
+            content: 'ZIO is being supported by',
+            title: 'Sponsors'
+          },
+          {
+            content: `<a href="https://softwaremill.com/"><img src="${baseUrl}img/softwaremill.svg" /></a>&nbsp;Custom software by true engineers`
+          }
+        ]}
+      </Block>
+    );
+
     const Features = () => (
       <Block layout="fourColumn">
         {[
@@ -134,6 +148,8 @@ class Index extends React.Component {
         <HomeSplash siteConfig={siteConfig} language={language} />
         <div className="mainContainer">
           <Features />
+          <hr />
+          <Sponsors />
         </div>
       </div>
     );

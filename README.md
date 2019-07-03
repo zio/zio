@@ -6,7 +6,6 @@
 
 # Welcome to ZIO
 
-
 ZIO is a zero-dependency Scala library for asynchronous and concurrent programming.
 
 Powered by highly-scalable, non-blocking fibers that never waste or leak resources, ZIO lets you build scalable, resilient, and reactive applications that meet the needs of your business.
@@ -30,6 +29,14 @@ To learn more about ZIO, see the following references:
 
 ---
 
+# Sponsors
+
+[![SoftwareMill][Image-SoftwareMill]][Link-SoftwareMill]
+
+[SoftwareMill][Link-SoftwareMill] generously provides ZIO with paid-for CircleCI build infrastructure.
+
+---
+
 # [Learn More on the ZIO Homepage](https://zio.dev/)
 
 ---
@@ -45,6 +52,7 @@ Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reser
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_2.12/ "Sonatype Releases"
 [Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/staging/dev/zio/zio_2.12/ "Sonatype Snapshots"
 [Link-Circle]: https://circleci.com/gh/zio/zio "circleci"
+[Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
 
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
@@ -52,3 +60,5 @@ Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
 [Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Snapshots"
 [Badge-Circle]: https://circleci.com/gh/zio/zio.svg?style=svg "circleci"
+
+[Image-SoftwareMill]: ./website/static/img/softwaremill.svg "SoftwareMill"
