@@ -164,7 +164,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     zipWithIndex                $zipWithIndex
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
-
   """
 
   private def bracket =
