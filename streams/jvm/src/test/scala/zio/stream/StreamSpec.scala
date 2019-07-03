@@ -119,6 +119,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     spaced                  $spaced
     short circuits          $spacedShortCircuits
 
+  Stream splitting
+    split                   $split
+    split(5)                $splitWithCapacityOf5
+
   Stream.take
     take                     $take
     take short circuits      $takeShortCircuits
@@ -788,6 +792,32 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .take(3)
         .run(Sink.collectAll[Int])
         .map(_ must_=== List(1, 1, 2))
+    )
+
+  private def split =
+    unsafeRun(
+      Stream(1, 2, 3, 4, 5, 6, 7, 8)
+        .split(n => ZIO.succeed(n % 2 != 0))
+        .use { case (left,right) =>
+          for {
+            lefItems    <- left.run(Sink.collectAll[Int])
+            rightItems  <- right.run(Sink.collectAll[Int]) 
+          } yield (lefItems, rightItems)
+        }.map(_ must_=== (List(1, 3, 5, 7) -> List(2, 4, 6, 8)))
+
+    )
+
+  private def splitWithCapacityOf5 =
+    unsafeRun(
+      Stream(1, 2, 3, 4, 5, 6, 7, 8)
+        .split(5)(n => ZIO.succeed(n % 2 != 0))
+        .use { case (left,right) =>
+          for {
+            lefItems    <- left.run(Sink.collectAll[Int])
+            rightItems  <- right.run(Sink.collectAll[Int]) 
+          } yield (lefItems, rightItems)
+        }.map(_ must_=== (List(1, 3, 5, 7) -> List(2, 4, 6, 8)))
+
     )
 
   private def take =
