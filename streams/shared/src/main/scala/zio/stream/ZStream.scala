@@ -725,6 +725,37 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
     }
 
+  def split(p : A => UIO[Boolean]) : ZManaged[R, E, (ZStream[R,E,A],ZStream[R,E,A])] = 
+    split(2)(p)
+
+  def split[B1,B2](queueCapacity : Int)(p : A => UIO[Boolean]) : ZManaged[R, E, (ZStream[R,E,A],ZStream[R,E,A])] = {
+    for {
+      leftQueue   <- ZManaged.make(Queue.bounded[Take[E, A]](queueCapacity))(_.shutdown)
+      rightQueue  <- ZManaged.make(Queue.bounded[Take[E, A]](queueCapacity))(_.shutdown)
+      folder      = (_:Unit, item:A) => {
+        p(item).flatMap {
+          case true   => leftQueue.offer(Take.Value(item)).fork.unit
+          case false  => rightQueue.offer(Take.Value(item)).fork.unit
+        }
+      } 
+      _           <- self.fold[R, E, A, Unit].flatMap { fold =>
+        fold((), _ => true, folder)
+            .foldCauseM(
+              e => leftQueue.offer(Take.Fail(e)).fork.zipPar(rightQueue.offer(Take.Fail(e)).fork).unit.toManaged_,
+              _ => leftQueue.offer(Take.End).fork.zipPar(rightQueue.offer(Take.End).fork).unit.toManaged_
+            )
+            .unit
+            .fork
+      }
+      leftStream = ZStream.fromQueue[R,E,Take[E,A]](leftQueue).collectWhile {
+        case Take.Value(a) => a
+      }
+      rightStream = ZStream.fromQueue[R,E,Take[E,A]](rightQueue).collectWhile {
+        case Take.Value(a) => a
+      }
+    } yield (leftStream, rightStream)
+  }
+
   /**
    * Takes the specified number of elements from this stream.
    */
