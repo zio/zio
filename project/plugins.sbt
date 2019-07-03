@@ -4,7 +4,6 @@ addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                   %
 addSbtPlugin("pl.project13.scala"                % "sbt-jcstress"              % "0.2.0")
 addSbtPlugin("org.scala-js"                      % "sbt-scalajs"               % "0.6.28")
 addSbtPlugin("org.portable-scala"                % "sbt-scalajs-crossproject"  % "0.6.1")
-addSbtPlugin("com.47deg"                         % "sbt-microsites"            % "0.9.2" exclude ("org.scalameta", "mdoc"))
 addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"              % "2.0.2")
 addSbtPlugin("com.eed3si9n"                      % "sbt-buildinfo"             % "0.9.0")
 addSbtPlugin("org.scoverage"                     % "sbt-scoverage"             % "1.5.1")
