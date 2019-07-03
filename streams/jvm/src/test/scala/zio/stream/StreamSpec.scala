@@ -800,9 +800,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .split(n => ZIO.succeed(n % 2 != 0))
         .use { case (left,right) =>
           for {
-            lefItems    <- left.run(Sink.collectAll[Int])
-            rightItems  <- right.run(Sink.collectAll[Int]) 
-          } yield (lefItems, rightItems)
+            fstFib      <- left.run(Sink.collectAll[Int]).fork
+            sndFib      <- right.run(Sink.collectAll[Int]).fork 
+            fstItems    <- fstFib.join
+            sndItems    <- sndFib.join 
+          } yield (fstItems, sndItems)
         }.map(_ must_=== (List(1, 3, 5, 7) -> List(2, 4, 6, 8)))
 
     )
@@ -813,9 +815,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .split(5)(n => ZIO.succeed(n % 2 != 0))
         .use { case (left,right) =>
           for {
-            lefItems    <- left.run(Sink.collectAll[Int])
-            rightItems  <- right.run(Sink.collectAll[Int]) 
-          } yield (lefItems, rightItems)
+            fstFib      <- left.run(Sink.collectAll[Int]).fork
+            sndFib      <- right.run(Sink.collectAll[Int]).fork 
+            fstItems    <- fstFib.join
+            sndItems    <- sndFib.join 
+          } yield (fstItems, sndItems)
         }.map(_ must_=== (List(1, 3, 5, 7) -> List(2, 4, 6, 8)))
 
     )
