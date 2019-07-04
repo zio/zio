@@ -242,13 +242,13 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     flatMap(ev)
 
   /**
-   * Flip the environment and result
+   * Flip the error and result
     **/
   final def flip: ZManaged[R, A, E] =
     foldM(ZManaged.succeed, ZManaged.fail)
 
   /**
-   * Flip the environment and result and then apply an effectful function to the effect
+   * Flip the error and result, then apply an effectful function to the effect
     **/
   final def flipWith[R1, A1, E1](f: ZManaged[R, A, E] => ZManaged[R1, A1, E1]): ZManaged[R1, E1, A1] =
     f(flip).flip
