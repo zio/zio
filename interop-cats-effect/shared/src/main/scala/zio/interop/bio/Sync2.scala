@@ -18,6 +18,8 @@ package zio
 package interop
 package bio
 
+import scala.util.Try
+
 abstract class Sync2[F[+_, +_]] extends Guaranteed2[F] with Errorful2[F] {
 
   /**
@@ -43,6 +45,19 @@ abstract class Sync2[F[+_, +_]] extends Guaranteed2[F] with Errorful2[F] {
    */
   @inline def suspend[E, A](fa: => F[E, A]): F[E, A] =
     monad flatten delay(fa)
+
+  /**
+   * Lazily lifts a thunk into the effect `F` and translates
+   * any `NonFatal` into a `Throwable` failure of the effect.
+   *
+   * TODO: Example:
+   * {{{
+   *
+   * }}}
+   *
+   */
+  @inline def delayNonFatal[E, A](thunk: => A): F[Throwable, A] =
+    suspend((Try.apply[A] _ andThen fromTry[A])(thunk))
 }
 
 object Sync2 {

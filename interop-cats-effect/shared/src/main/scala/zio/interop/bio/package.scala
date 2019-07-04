@@ -60,7 +60,6 @@ private[interop] sealed abstract class SyntaxInstances0 extends SyntaxInstances1
 }
 
 private[interop] sealed abstract class SyntaxInstances1 extends SyntaxInstances2 {
-
   @inline implicit def runSync2ImpliesMonad[F[+_, +_], E](implicit ev: RunSync2[F]): Monad[F[E, ?]] = ev.monad
 }
 
