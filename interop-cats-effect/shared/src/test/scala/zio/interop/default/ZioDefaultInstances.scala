@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
 import cats.data.NonEmptyList
 import cats.syntax.either._
 import cats.{ Applicative, Monad }
-import zio.Exit.{ Cause, Failure, Success }
+import zio.Exit.{ Failure, Success }
 import zio.clock.Clock
 import zio.duration.{ Duration => zioDuration }
 import zio.interop.bio.Failed.{ Defects, Errors, Interrupt }

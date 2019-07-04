@@ -97,7 +97,8 @@ lazy val interopCatsEffect =
       skip in publish := true,
       libraryDependencies ++= Seq(
         "org.typelevel" %%% "cats-effect" % "1.3.1" % Optional,
-        "org.typelevel" %% "cats-testkit" % "1.6.0" % Test
+        compilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3"),
+        "org.typelevel" %% "cats-testkit" % "1.6.1" % Test
       )
     )
     .dependsOn(core % "test->test;compile->compile")
