@@ -98,8 +98,14 @@ class Index extends React.Component {
             title: 'Sponsors'
           },
           {
-            content: `<a href="https://softwaremill.com/"><img src="${baseUrl}img/softwaremill.svg" /></a>&nbsp;Custom software by true engineers`
-          }
+            content: `<a href="https://7mind.io/"><img src="${baseUrl}img/septimal_mind.svg" /></a><br/>&nbsp;Inventing productivity`,
+            title: 'Septimal Mind'
+          },
+          {},
+          {
+            content: `<a href="https://softwaremill.com/"><img src="${baseUrl}img/softwaremill.svg" /></a><br/>&nbsp;Custom software by true engineers`,
+            title: 'SoftwareMill'
+          },
         ]}
       </Block>
     );
