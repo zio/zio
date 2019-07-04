@@ -23,8 +23,7 @@ import zio._
 import zio.duration.Duration
 import zio.clock.Clock
 import zio.testkit.TestClock.Data
-import java.time.OffsetDateTime
-import java.time.Instant
+import java.time.{ Instant, OffsetDateTime }
 
 case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
 
