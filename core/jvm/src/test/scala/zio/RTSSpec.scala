@@ -5,9 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause
-import zio.Exit.Cause.{ die, fail, Fail, Then }
+import zio.Cause.{ die, fail, Fail, Then }
 import zio.duration._
 import zio.clock.Clock
 
@@ -238,9 +236,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testFlipValue = {
-    implicit val d
-      : Diffable[Right[Nothing, Int]] = Diffable.eitherRightDiffable[Int] //    TODO: Dotty has ambiguous implicits
-    val io                            = IO.succeed(100).flip
+    val io = IO.succeed(100).flip
     unsafeRun(io.either) must_=== Left(100)
   }
 
@@ -1173,17 +1169,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testRaceChoosesWinner =
     unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
 
-  def testRaceChoosesWinnerInTerminate = {
-    implicit val d
-      : Diffable[Right[Nothing, Int]] = Diffable.eitherRightDiffable[Int] //    TODO: Dotty has ambiguous implicits
+  def testRaceChoosesWinnerInTerminate =
     unsafeRun(IO.die(new Throwable {}).race(IO.succeed(24)).either) must_=== Right(24)
-  }
 
-  def testRaceChoosesFailure = {
-    implicit val d
-      : Diffable[Left[Int, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
+  def testRaceChoosesFailure =
     unsafeRun(IO.fail(42).race(IO.fail(42)).either) must_=== Left(42)
-  }
 
   def testRaceOfValueNever =
     unsafeRun(IO.succeedLazy(42).race(IO.never)) must_=== 42
@@ -1194,11 +1184,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testRaceAllOfValues =
     unsafeRun(IO.raceAll(IO.fail(42), List(IO.succeed(24))).either) must_=== Right(24)
 
-  def testRaceAllOfFailures = {
-    implicit val d
-      : Diffable[Left[Int, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
+  def testRaceAllOfFailures =
     unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).either) must_=== Left(24)
-  }
 
   def testRaceAllOfFailuresOneSuccess =
     unsafeRun(ZIO.raceAll(IO.fail(42), List(IO.succeed(24).delay(1.millis))).either) must_=== Right(
@@ -1350,7 +1337,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     for {
       done  <- Ref.make(false)
       start <- IO.succeed(internal.OneShot.make[Unit])
-      fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
+      fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }.ensuring(done.set(true)).fork
       _     <- IO.succeed(start.get())
       res   <- fiber.interrupt
       value <- done.get

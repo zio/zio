@@ -61,9 +61,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
     ),
     publishArtifact in (Test, packageBin) := true
   )
@@ -73,17 +73,6 @@ lazy val coreJVM = core.jvm
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
-      val old = (Compile / doc / sources).value
-      if (isDotty.value) {
-        Nil
-      } else {
-        old
-      }
-    }
-  )
 
 lazy val coreJS = core.js
   .settings(
@@ -131,9 +120,9 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
     )
   )
 
@@ -141,17 +130,6 @@ lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
-      val old = (Compile / doc / sources).value
-      if (isDotty.value) {
-        Nil
-      } else {
-        old
-      }
-    }
-  )
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)

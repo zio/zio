@@ -2,7 +2,7 @@ package zio.stm
 
 import java.util.concurrent.CountDownLatch
 
-import zio.Exit.Cause
+import zio.Cause
 import zio._
 
 final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
@@ -32,8 +32,8 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
             compute a `TRef` from 2 variables, increment the first `TRef` and decrement the second `TRef` in different fibers. $e16
 
         Using `Ref` perform the same concurrent test should return a wrong result
-             increment `TRef` 100 times in 100 fibers. $e17
-             compute a `TRef` from 2 variables, increment the first `TRef` and decrement the second `TRef` in different fibers. $e18
+             increment `Ref` 100 times in 100 fibers. $e17
+             compute a `Ref` from 2 variables, increment the first `Ref` and decrement the second `Ref` in different fibers. $e18
 
         Using `STM.atomically` perform concurrent computations that
           have a simple condition lock should suspend the whole transaction and:
@@ -218,10 +218,10 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
     unsafeRun(
       for {
         ref   <- Ref.make(0)
-        fiber <- ZIO.forkAll(List.fill(10)(incrementRefN(99, ref)))
+        fiber <- ZIO.forkAll(List.fill(100)(incrementRefN(99, ref)))
         _     <- fiber.join
         v     <- ref.get
-      } yield v must_!== 1000
+      } yield v must_!== 10000
     )
 
   def e18 =
