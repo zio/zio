@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
+import org.specs2.matcher.describe.Diffable
 import zio.Cause.{ die, fail, Fail, Then }
 import zio.duration._
 import zio.clock.Clock
@@ -1209,11 +1210,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testFirstSuccessOfValues =
     unsafeRun(IO.firstSuccessOf(IO.fail(0), List(IO.succeed(100))).either) must_=== Right(100)
 
-  def testFirstSuccessOfFailures = {
-    implicit val d
-      : Diffable[Left[Nothing, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
+  def testFirstSuccessOfFailures =
     unsafeRun(ZIO.firstSuccessOf(IO.fail(0).delay(10.millis), List(IO.fail(101))).either) must_=== Left(101)
-  }
 
   def testFirstSuccessOfFailuresOneSuccess =
     unsafeRun(ZIO.firstSuccessOf(IO.fail(0), List(IO.succeed(102).delay(1.millis))).either) must_=== Right(
