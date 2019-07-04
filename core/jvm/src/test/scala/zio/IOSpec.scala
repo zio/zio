@@ -44,6 +44,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
    Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
+   Check `firstSuccessOf` method returns the same IO[E, A] as `IO.firstSuccessOf` does. $testfirstSuccessOf
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
@@ -240,6 +241,15 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     unsafeRun(for {
       race1 <- io.raceAll(ios)
       race2 <- IO.raceAll(io, ios)
+    } yield race1 must ===(race2))
+  }
+
+  def testfirstSuccessOf = {
+    val io  = IO.effectTotal("supercalifragilisticexpialadocious")
+    val ios = List.empty[UIO[String]]
+    unsafeRun(for {
+      race1 <- io.firstSuccessOf(ios)
+      race2 <- IO.firstSuccessOf(io, ios)
     } yield race1 must ===(race2))
   }
 
