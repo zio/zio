@@ -107,6 +107,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     raceAll of values                       $testRaceAllOfValues
     raceAll of failures                     $testRaceAllOfFailures
     raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
+    firstSuccessOf of values                $testFirstSuccessOfValues
+    firstSuccessOf of failures              $testFirstSuccessOfFailures
+    firstSuccessOF of failures & 1 success  $testFirstSuccessOfFailuresOneSuccess
     raceAttempt interrupts loser on success $testRaceAttemptInterruptsLoserOnSuccess
     raceAttempt interrupts loser on failure $testRaceAttemptInterruptsLoserOnFailure
     par regression                          $testPar
@@ -1202,6 +1205,20 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _      <- race.either
       b      <- effect.await
     } yield b) must_=== 42
+
+  def testFirstSuccessOfValues =
+    unsafeRun(IO.firstSuccessOf(IO.fail(0), List(IO.succeed(100))).either) must_=== Right(100)
+
+  def testFirstSuccessOfFailures = {
+    implicit val d
+      : Diffable[Left[Nothing, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
+    unsafeRun(ZIO.firstSuccessOf(IO.fail(0).delay(10.millis), List(IO.fail(101))).either) must_=== Left(101)
+  }
+
+  def testFirstSuccessOfFailuresOneSuccess =
+    unsafeRun(ZIO.firstSuccessOf(IO.fail(0), List(IO.succeed(102).delay(1.millis))).either) must_=== Right(
+      102
+    )
 
   def testRepeatedPar = {
     def countdown(n: Int): UIO[Int] =

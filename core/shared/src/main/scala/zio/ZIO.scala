@@ -306,6 +306,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   def raceAll[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] = ZIO.raceAll(self, ios)
 
   /**
+   * Returns an effect that races this effect with all the specified effects,
+   * yielding the value of the first effect to succeed with a value.
+   * Losers of the race will be interrupted immediately
+   */
+  def firstSuccessOf[R1 <: R, E1 >: E, A1 >: A](rest: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] =
+    ZIO.firstSuccessOf(self, rest)
+
+  /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise executes the specified effect.
    */
@@ -1907,6 +1915,16 @@ private[zio] trait ZIOFunctions extends Serializable {
     ios: Iterable[ZIO[R1, E, A]]
   ): ZIO[R1, E, A] =
     ios.foldLeft[ZIO[R1, E, A]](zio)(_ race _).refailWithTrace
+
+  /**
+   * Races an `IO[E, A]` against zero or more other effects. Yields either the
+   * first success or the last failure.
+   */
+  final def firstSuccessOf[R >: LowerR, R1 >: LowerR <: R, E <: UpperE, A](
+    zio: ZIO[R, E, A],
+    rest: Iterable[ZIO[R1, E, A]]
+  ): ZIO[R1, E, A] =
+    rest.foldLeft[ZIO[R1, E, A]](zio)(_ orElse _).refailWithTrace
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
