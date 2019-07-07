@@ -18,6 +18,12 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
+    ),
+    pgpPublicRing := file("/tmp/public.asc"),
+    pgpSecretRing := file("/tmp/secret.asc"),
+    releaseEarlyWith := SonatypePublisher,
+    scmInfo := Some(
+      ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
     )
   )
 )
@@ -27,11 +33,6 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias("testJVM", ";coreJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test")
 addCommandAlias("testJS", ";coreJS/test;stacktracerJS/test;streamsJS/test")
-
-pgpPublicRing := file("/tmp/public.asc")
-pgpSecretRing := file("/tmp/secret.asc")
-releaseEarlyWith := SonatypePublisher
-scmInfo := Some(ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git"))
 
 lazy val root = project
   .in(file("."))
