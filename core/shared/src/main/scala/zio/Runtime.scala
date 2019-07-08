@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Exit.Cause
 import zio.internal.Tracing
 import zio.internal.tracing.TracingConfig
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
@@ -122,9 +121,9 @@ trait Runtime[+R] {
   final def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
 
   /**
-   * Constructs a new `Runtime` with the specified non-fatal predicate.
+   * Constructs a new `Runtime` with the specified fatal predicate.
    */
-  final def withNonFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withNonFatal(f))
+  final def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withFatal(f))
 
   /**
    * Constructs a new `Runtime` with the fatal error reporter.

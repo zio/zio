@@ -1,7 +1,6 @@
 package zio
 
 import org.scalacheck.{ Arbitrary, Gen }
-import Exit.Cause
 
 object ArbitraryCause {
   implicit def arbCause[T](implicit arbT: Arbitrary[T]): Arbitrary[Cause[T]] =

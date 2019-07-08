@@ -18,7 +18,7 @@ package zio.stream
 
 import zio._
 import zio.clock.Clock
-import zio.Exit.Cause
+import zio.Cause
 import scala.annotation.implicitNotFound
 
 /**
@@ -238,14 +238,8 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           for {
             out             <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
             permits         <- Semaphore.make(n).toManaged_
-            innerFailure    <- Promise.make[Exit.Cause[E1], Nothing].toManaged_
+            innerFailure    <- Promise.make[Cause[E1], Nothing].toManaged_
             interruptInners <- Promise.make[Nothing, Unit].toManaged_
-
-            // This finalizer makes sure that when the consuming stream ends before the driver stream,
-            // the inner fibers would be interrupted. It's important for this to be *before* the
-            // driver stream so that the driver gets interrupted before the inners, and no additional
-            // inners are forked between the driver's interruption and the inner interruption.
-            _ <- ZManaged.finalizer(interruptInners.succeed(()))
 
             // - The driver stream forks an inner fiber for each stream created
             //   by f, with an upper bound of n concurrent fibers, enforced by the semaphore.
@@ -255,53 +249,53 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             //     - If they all succeeded, Take.End is enqueued
             //   - On error, the driver stream interrupts all inner fibers and emits a
             //     Take.Fail value
-            //   - On interruption, the driver stream interrupts all inner fibers and
-            //     shuts down the queue
+            //   - Interruption is handled by running the finalizers which take care of cleanup
             // - Inner fibers enqueue Take values from their streams to the output queue
-            //   - On error, an inner fiber enqueues a Take.Error value and signals its failure
+            //   - On error, an inner fiber enqueues a Take.Fail value and signals its failure
             //     with a promise. The driver will pick that up and interrupt all other fibers.
             //   - On interruption, an inner fiber does nothing
             //   - On completion, an inner fiber does nothing
-            _ <- self.foreachManaged { a =>
-                  for {
-                    latch <- Promise.make[Nothing, Unit]
-                    innerStream = Stream
-                      .bracket(permits.acquire *> latch.succeed(()))(_ => permits.release)
-                      .flatMap(_ => f(a))
-                      .foreach(b => out.offer(Take.Value(b)).unit)
-                      .foldCauseM(
-                        cause => out.offer(Take.Fail(cause)) *> innerFailure.fail(cause),
-                        _ => ZIO.unit
-                      )
-                    _ <- (innerStream race interruptInners.await).fork
-                    // Make sure that the current inner stream has actually succeeded in acquiring
-                    // a permit before continuing. Otherwise, two bad things happen:
-                    // - we might needlessly fork inner streams without available permits
-                    // - worse, we could reach the end of the stream and acquire the permits ourselves
-                    //   before the inners had a chance to start
-                    _ <- latch.await
-                  } yield ()
-                }.foldCauseM(
-                    cause =>
-                      (interruptInners.succeed(()) *> permits.acquireN(n) *> out
-                        .offer(Take.Fail(cause))).unit.toManaged_,
-                    _ =>
-                      innerFailure.await
-                        .raceWith(permits.acquireN(n))(
-                          // One of the inner fibers failed. It already enqueued its failure, so we
-                          // just need to interrupt the inner fibers and acquire all permits to await
-                          // their termination
-                          leftDone = (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.join,
-                          // All fibers completed successfully, so we just need to signal that
-                          // we're done.
-                          rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt
-                        )
-                        .toManaged_
-                  )
-                  // Forking the ZManaged value means that on the finalization step, the fiber would
-                  // be interrupted, so we don't have to worry that the driver would keep spawning
-                  // more inner fibers when the consuming stream is short circuited
-                  .fork
+            driver <- self.foreachManaged { a =>
+                       for {
+                         latch <- Promise.make[Nothing, Unit]
+                         innerStream = Stream
+                           .bracket(permits.acquire *> latch.succeed(()))(_ => permits.release)
+                           .flatMap(_ => f(a))
+                           .foreach(b => out.offer(Take.Value(b)).unit)
+                           .foldCauseM(
+                             cause => out.offer(Take.Fail(cause)) *> innerFailure.fail(cause),
+                             _ => ZIO.unit
+                           )
+                         _ <- (innerStream race interruptInners.await).fork
+                         // Make sure that the current inner stream has actually succeeded in acquiring
+                         // a permit before continuing. Otherwise, two bad things happen:
+                         // - we might needlessly fork inner streams without available permits
+                         // - worse, we could reach the end of the stream and acquire the permits ourselves
+                         //   before the inners had a chance to start
+                         _ <- latch.await
+                       } yield ()
+                     }.foldCauseM(
+                         cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
+                         _ =>
+                           innerFailure.await
+                           // Important to use `withPermits` here because the finalizer below may interrupt
+                           // the driver, and we want the permits to be released in that case
+                             .raceWith(permits.withPermits(n)(ZIO.unit))(
+                               // One of the inner fibers failed. It already enqueued its failure, so we
+                               // signal the inner fibers to interrupt. The finalizer below will make sure
+                               // that they actually end.
+                               leftDone =
+                                 (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt,
+                               // All fibers completed successfully, so we signal that we're done.
+                               rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt
+                             )
+                             .toManaged_
+                       )
+                       .fork
+
+            // This finalizer makes sure that in all cases, the driver stops spawning new streams
+            // and the inner fibers are signalled to interrupt and actually exit.
+            _ <- ZManaged.finalizer(driver.interrupt *> interruptInners.succeed(()) *> permits.withPermits(n)(ZIO.unit))
 
             s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
@@ -395,11 +389,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
-  final def mapAccumM[E1 >: E, S1, B](s1: S1)(f1: (S1, A) => IO[E1, (S1, B)]): ZStream[R, E1, B] =
-    new ZStream[R, E1, B] {
-      override def fold[R1 <: R, E2 >: E1, B1 >: B, S]: Fold[R1, E2, B1, S] =
+  final def mapAccumM[R1 <: R, E1 >: E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R1, E1, (S1, B)]): ZStream[R1, E1, B] =
+    new ZStream[R1, E1, B] {
+      override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
-          self.fold[R1, E2, A, (S, S1)].flatMap { fold =>
+          self.fold[R2, E2, A, (S, S1)].flatMap { fold =>
             fold(s -> s1, tp => cont(tp._1), {
               case ((s, s1), a) =>
                 f1(s1, a).flatMap {
@@ -451,19 +445,22 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         ZManaged.succeedLazy { (s, cont, g) =>
           for {
             out              <- Queue.bounded[Take[E1, IO[E1, B]]](n).toManaged(_.shutdown)
+            permits          <- Semaphore.make(n.toLong).toManaged_
             interruptWorkers <- Promise.make[Nothing, Unit].toManaged_
-            _                <- ZManaged.finalizer(interruptWorkers.succeed(()))
-            _ <- self.foreachManaged { a =>
-                  for {
-                    p <- Promise.make[E1, B]
-                    _ <- out.offer(Take.Value(p.await))
-                    _ <- (f(a).to(p) race interruptWorkers.await).fork
-                  } yield ()
-                }.foldCauseM(
-                    c => (out.offer(Take.Fail(c)) *> ZIO.halt(c)).toManaged_,
-                    _ => out.offer(Take.End).unit.toManaged_
-                  )
-                  .fork
+            driver <- self.foreachManaged { a =>
+                       for {
+                         p <- Promise.make[E1, B]
+                         _ <- out.offer(Take.Value(p.await))
+                         _ <- (permits.withPermit(f(a).to(p)) race interruptWorkers.await).fork
+                       } yield ()
+                     }.foldCauseM(
+                         c => (out.offer(Take.Fail(c)) *> ZIO.halt(c)).toManaged_,
+                         _ => out.offer(Take.End).unit.toManaged_
+                       )
+                       .fork
+            _ <- ZManaged.finalizer(
+                  driver.interrupt *> interruptWorkers.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit)
+                )
             s <- Stream
                   .fromQueue(out)
                   .unTake
@@ -801,14 +798,18 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     } yield queue
 
   /**
-   * Applies a transducer to the stream, which converts one or more elements
-   * of type `A` into elements of type `C`.
+   * Applies a transducer to the stream, converting elements of type `A` into elements of type `C`, with a
+   * managed resource of type `D` available.
    */
-  final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+  final def transduceManaged[R1 <: R, E1 >: E, A1 >: A, C](
+    managedSink: ZManaged[R1, E1, ZSink[R1, E1, A1, A1, C]]
+  ): ZStream[R1, E1, C] =
     new ZStream[R1, E1, C] {
-      override def fold[R2 <: R1, E2 >: E1, C1 >: C, S2]: Fold[R2, E2, C1, S2] =
-        ZManaged.succeedLazy { (s2, cont, f) =>
-          def feed(s1: sink.State, s2: S2, a: Chunk[A1]): ZIO[R2, E2, (sink.State, S2, Boolean)] =
+      override def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] =
+        ZManaged.succeedLazy { (s: S, cont: S => Boolean, f: (S, C1) => ZIO[R2, E2, S]) =>
+          def feed(
+            sink: ZSink[R1, E1, A1, A1, C]
+          )(s1: sink.State, s2: S, a: Chunk[A1]): ZIO[R2, E2, (sink.State, S, Boolean)] =
             sink.stepChunk(s1, a).flatMap { step =>
               if (ZSink.Step.cont(step)) {
                 IO.succeed((ZSink.Step.state(step), s2, true))
@@ -818,7 +819,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                     val remaining = ZSink.Step.leftover(step)
                     sink.initial.flatMap { initStep =>
                       if (cont(s2) && !remaining.isEmpty) {
-                        feed(ZSink.Step.state(initStep), s2, remaining)
+                        feed(sink)(ZSink.Step.state(initStep), s2, remaining)
                       } else {
                         IO.succeed((ZSink.Step.state(initStep), s2, false))
                       }
@@ -828,26 +829,31 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
               }
             }
 
-          sink.initial.toManaged_.flatMap { initStep =>
-            val s1 = (ZSink.Step.state(initStep), s2, false)
-
-            self.fold[R2, E2, A, (sink.State, S2, Boolean)].flatMap { f0 =>
-              f0(s1, stepState => cont(stepState._2), { (s, a) =>
-                val (s1, s2, _) = s
-                feed(s1, s2, Chunk(a))
-              }).mapM { feedResult =>
-                val (s1, s2, extractNeeded) = feedResult
-                if (extractNeeded) {
-                  sink.extract(s1).flatMap(f(s2, _))
-                } else {
-                  IO.succeed(s2)
-                }
-              }
-            }
-          }
-
+          for {
+            sink     <- managedSink
+            initStep <- sink.initial.toManaged_
+            f0       <- self.fold[R2, E2, A, (sink.State, S, Boolean)]
+            result <- f0((ZSink.Step.state(initStep), s, false), stepState => cont(stepState._2), { (s, a) =>
+                       val (s1, s2, _) = s
+                       feed(sink)(s1, s2, Chunk(a))
+                     }).mapM {
+                       case (s1, s2, extractNeeded) =>
+                         if (extractNeeded) {
+                           sink.extract(s1).flatMap(f(s2, _))
+                         } else {
+                           IO.succeed(s2)
+                         }
+                     }
+          } yield result
         }
     }
+
+  /**
+   * Applies a transducer to the stream, which converts one or more elements
+   * of type `A` into elements of type `C`.
+   */
+  final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
+    transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
 
   /**
    * Zips this stream together with the specified stream.
@@ -1027,6 +1033,21 @@ trait Stream_Functions {
           else ZManaged.fromEffect(fa).mapM(f(s, _))
         }
     }
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` which repeats forever
+   */
+  final def repeatEffect[R: ConformsR, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
+    fromEffect(fa).forever
+
+  /**
+   * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
+   */
+  final def repeatEffectWith[R: ConformsR, E, A](
+    fa: ZIO[R, E, A],
+    schedule: ZSchedule[R, Unit, _]
+  ): ZStream[R with Clock, E, A] =
+    fromEffect(fa).repeat(schedule)
 
   /**
    * Creates a stream from an iterable collection of values

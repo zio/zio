@@ -51,12 +51,8 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    *
    * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
    */
-  final def acquireN(n: Long): UIO[Unit] = {
-    // TODO: Dotty doesn't infer this properly
-    val i0: ZIO.BracketExitRelease[Any, Nothing, Nothing, Acquisition, Unit] = IO.bracketExit(prepare(n))(cleanup)
-    val i1: UIO[Unit]                                                        = i0(_.awaitAcquire)
-    assertNonNegative(n) *> i1
-  }
+  final def acquireN(n: Long): UIO[Unit] =
+    assertNonNegative(n) *> IO.bracketExit(prepare(n))(cleanup)(_.awaitAcquire)
 
   /**
    * The number of permits currently available.
@@ -103,7 +99,13 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * Acquires a permit, executes the action and releases the permits right after.
    */
   final def withPermit[R, E, A](task: ZIO[R, E, A]): ZIO[R, E, A] =
-    prepare(1L).bracket(_.release)(_.awaitAcquire *> task)
+    withPermits(1L)(task)
+
+  /**
+   * Acquires `n` permits, executes the action and releases the permits right after.
+   */
+  final def withPermits[R, E, A](n: Long)(task: ZIO[R, E, A]): ZIO[R, E, A] =
+    prepare(n).bracket(_.release)(_.awaitAcquire *> task)
 
   final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): UIO[Unit] =
     res match {

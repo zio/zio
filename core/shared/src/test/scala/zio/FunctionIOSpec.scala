@@ -1,10 +1,8 @@
 package zio
 
-import FunctionIO._
-import org.specs2.Specification
-import org.specs2.matcher.describe.Diffable
+import zio.FunctionIO._
 
-class FunctionIOSpec extends Specification with DefaultRuntime {
+class FunctionIOSpec extends BaseCrossPlatformSpec {
   def is = "FunctionIOSpec".title ^ s2"""
    Check if the functions in `FunctionIO` work correctly
      `fromFunction` lifts from A => B into effectful function $e1
@@ -24,10 +22,11 @@ class FunctionIOSpec extends Specification with DefaultRuntime {
      `ifThenElse` check a pure condition if it is true then computes an effectful function `then0` else computes `else0` $e14b
      `whileDo` take a condition and run the body until the condition will be  false with impure function $e15a
      `whileDo` take a condition and run the body until the condition will be  false with pure function $e15b
-     `_1` extracts out the first element of a tupe $e16
-     `_2` extracts out the second element of a tupe $e17
+     `_1` extracts out the first element of a tuple $e16
+     `_2` extracts out the second element of a tuple $e17
      `fail` returns a failure  $e18a
      `effect` can translate an Exception to an error  $e18b
+     `ignore` ignores a effect failure $e19
     """
 
   def e1 =
@@ -181,19 +180,23 @@ class FunctionIOSpec extends Specification with DefaultRuntime {
       } yield v must_=== "hola"
     )
 
-  implicit val d
-    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def e18a =
     unsafeRun(
       for {
         a <- fail[String]("error").run(1).either
       } yield a must_=== Left("error")
     )
-
   def e18b =
     unsafeRun(
       for {
         a <- effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).either
       } yield a must_=== Left("error")
+    )
+
+  def e19 =
+    unsafeRun(
+      for {
+        a <- effect[String, Int, Int] { case _: Throwable => "error" }(_ => throw new Exception).run(9).ignore
+      } yield a must be_==(())
     )
 }

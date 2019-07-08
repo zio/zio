@@ -18,7 +18,7 @@ package zio.internal
 
 import java.util.concurrent.{ Executor => _, _ }
 import java.util.{ Collections, WeakHashMap, Map => JMap }
-import zio.Exit.Cause
+import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig

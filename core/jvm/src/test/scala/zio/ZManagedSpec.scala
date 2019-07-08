@@ -6,9 +6,8 @@ import org.scalacheck.{ Gen, _ }
 
 import org.specs2.ScalaCheck
 import org.specs2.matcher.MatchResult
-import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause.Interrupt
-import zio.Exit.{ Cause, Failure }
+import zio.Cause.Interrupt
+import zio.Exit.Failure
 import zio.duration._
 
 import scala.collection.mutable
@@ -161,8 +160,6 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       interruption       <- managedFiber.interrupt.timeout(5.seconds).either
     } yield interruption
 
-    implicit val d: Diffable[Right[Nothing, Option[Exit[Nothing, Unit]]]] =
-      Diffable.eitherRightDiffable[Option[Exit[Nothing, Unit]]] //    TODO: Dotty has ambiguous implicits
     unsafeRun(program) must be_===(Right(expected))
   }
 

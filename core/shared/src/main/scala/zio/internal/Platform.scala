@@ -18,7 +18,7 @@ package zio.internal
 
 import java.util.{ Map => JMap }
 
-import zio.Exit.Cause
+import zio.Cause
 import zio.internal.tracing.TracingConfig
 
 /**
@@ -49,7 +49,7 @@ trait Platform { self =>
 
   def withTracingConfig(config: TracingConfig): Platform =
     new Platform.Proxy(self) {
-      override def tracing: Tracing = self.tracing.copy(tracingConfig = config)
+      override val tracing: Tracing = self.tracing.copy(tracingConfig = config)
     }
 
   /**
@@ -59,7 +59,7 @@ trait Platform { self =>
    */
   def fatal(t: Throwable): Boolean
 
-  def withNonFatal(f: Throwable => Boolean): Platform =
+  def withFatal(f: Throwable => Boolean): Platform =
     new Platform.Proxy(self) {
       override def fatal(t: Throwable): Boolean = f(t)
     }
