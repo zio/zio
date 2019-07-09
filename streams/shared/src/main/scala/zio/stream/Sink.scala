@@ -16,8 +16,10 @@
 
 package zio.stream
 
+import zio._
+import zio.clock.Clock
+import zio.duration.Duration
 import zio.stream.ZSink.Step
-import zio.IO
 
 object Sink {
 
@@ -125,4 +127,16 @@ object Sink {
   final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
     ZSink.succeedLazy(b)
 
+  /**
+   * see [[ZSink.throttle]]
+   */
+  final def throttle[E, A](
+    bucketCapacity: Long,
+    initialTokens: Long,
+    refill: Long,
+    refillInterval: Duration
+  )(
+    costFn: A => IO[E, Long]
+  ): ZManaged[Any with Clock, E, Sink[E, Nothing, A, Option[A]]] =
+    ZSink.throttle(bucketCapacity, initialTokens, refill, refillInterval)(costFn)
 }
