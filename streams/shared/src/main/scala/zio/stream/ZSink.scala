@@ -1111,10 +1111,10 @@ object ZSink extends ZSinkPlatformSpecific {
     refillInterval: Duration
   )(
     costFn: A => ZIO[R, E, Long]
-  ): ZManaged[R with Clock, E, ZSink[R, E, A, A, Option[A]]] = {
+  ): ZManaged[R with Clock, E, ZSink[R, E, Nothing, A, Option[A]]] = {
     import ZSink.internal._
 
-    def bucketSink(bucket: Ref[Long]) = new ZSink[R, E, A, A, Option[A]] {
+    def bucketSink(bucket: Ref[Long]) = new ZSink[R, E, Nothing, A, Option[A]] {
       type State = (Ref[Long], Option[A])
       val initial = UIO.succeed(Step.more((bucket, None)))
       def step(state: State, a: A) =
