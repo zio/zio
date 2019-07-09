@@ -17,7 +17,7 @@
 package zio.stream
 
 import zio.IO
-import zio.Exit.Cause
+import zio.Cause
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of

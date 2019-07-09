@@ -2,7 +2,6 @@ package zio
 
 import org.scalacheck._
 import org.specs2.ScalaCheck
-import org.specs2.matcher.describe.Diffable
 import zio.syntax._
 
 class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
@@ -26,8 +25,6 @@ class IOCreationEagerSyntaxSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       b <- IO.succeed(str)
     } yield a must ===(b))
   }
-  implicit val d
-    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
 
   def t2 = forAll(Gen.alphaStr) { str =>
     unsafeRun(for {
