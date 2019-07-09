@@ -17,8 +17,10 @@
 package zio.internal
 
 import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
-import scala.collection.JavaConverters._
 
+import com.github.ghik.silencer.silent
+
+import scala.collection.JavaConverters._
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
 import zio.Cause
 import zio._
@@ -610,7 +612,7 @@ private[zio] final class FiberContext[E, A](
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
   final def inheritFiberRefs: UIO[Unit] = UIO.suspend {
-    val locals = fiberRefLocals.asScala
+    val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
       UIO.foreach_(locals) {

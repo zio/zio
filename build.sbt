@@ -119,10 +119,13 @@ lazy val benchmarks = project.module
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
+    // skip 2.13 benchmarks until monix & twitter-util publish for 2.13
+    crossScalaVersions -= "2.13.0",
+    //
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                   %% "fs2-core"        % "1.0.5",
+        "co.fs2"                   %% "fs2-core"        % "1.1.0-M1",
         "com.google.code.findbugs" % "jsr305"           % "3.0.2",
         "com.twitter"              %% "util-collection" % "19.1.0",
         "com.typesafe.akka"        %% "akka-stream"     % "2.5.23",
@@ -132,7 +135,7 @@ lazy val benchmarks = project.module
         "org.ow2.asm"              % "asm"              % "7.1",
         "org.scala-lang"           % "scala-compiler"   % scalaVersion.value % Provided,
         "org.scala-lang"           % "scala-reflect"    % scalaVersion.value,
-        "org.typelevel"            %% "cats-effect"     % "1.3.1"
+        "org.typelevel"            %% "cats-effect"     % "2.0.0-M4"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
@@ -150,6 +153,9 @@ lazy val benchmarks = project.module
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
+    // skip 2.13 mdoc until mdoc is available for 2.13
+    crossScalaVersions -= "2.13.0",
+    //
     skip.in(publish) := true,
     moduleName := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
