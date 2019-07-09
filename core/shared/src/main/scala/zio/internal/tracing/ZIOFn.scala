@@ -16,7 +16,7 @@
 
 package zio.internal.tracing
 
-import zio.{ UIO, ZIO }
+import zio.ZIO
 
 /**
  * Marks a ZIO utility function that wraps a user-supplied lambda.
@@ -46,7 +46,17 @@ private[zio] object ZIOFn {
     final def apply(a: A): B     = real(a)
   }
 
+  /**
+   * Adds the specified lambda to the execution trace before `zio` is evaluated
+   */
   @noinline
   final def recordTrace[R, E, A](lambda: AnyRef)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    UIO.unit.flatMap(ZIOFn(lambda)(_ => zio))
+    ZIO.unit.flatMap(ZIOFn(lambda)(_ => zio))
+
+  /**
+   * Adds the specified lambda to the stack trace during the evaluation of `zio`
+   * */
+  @noinline
+  final def recordStackTrace[R, E, A](lambda: AnyRef)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.map(ZIOFn(lambda)(ZIO.identityFn))
 }

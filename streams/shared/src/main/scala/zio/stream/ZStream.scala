@@ -19,7 +19,6 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
-import scala.annotation.implicitNotFound
 
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of
@@ -727,7 +726,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Takes the specified number of elements from this stream.
    */
   final def take(n: Int): ZStream[R, E, A] =
-    if (n <= 0) Stream.empty
+    if (n <= 0) ZStream.empty
     else
       new ZStream[R, E, A] {
         override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
@@ -937,23 +936,25 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   }
 }
 
-trait Stream_Functions {
-  import ZStream.Fold
+object ZStream extends ZStreamPlatformSpecific {
+  type Fold[R, E, +A, S] = ZManaged[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZManaged[R, E, S]]
 
-  type ConformsR[A]
-  implicit val ConformsAnyProof: ConformsR[Any]
+  implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
+    def unTake: ZStream[R, E, A] =
+      s.mapM(t => Take.option(UIO.succeed(t))).collectWhile { case Some(v) => v }
+  }
 
   /**
    * The empty stream
    */
-  final val empty: ZStream[Any, Nothing, Nothing] =
+  final val empty: Stream[Nothing, Nothing] =
     StreamPure.empty
 
   /**
    * The stream that never produces any value or fails with any error.
    */
-  final val never: ZStream[Any, Nothing, Nothing] =
-    new ZStream[Any, Nothing, Nothing] {
+  final val never: Stream[Nothing, Nothing] =
+    new Stream[Nothing, Nothing] {
       def fold[R1, E1, A1, S]: Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, _) =>
           if (!cont(s)) ZManaged.succeed(s)
@@ -964,38 +965,38 @@ trait Stream_Functions {
   /**
    * Creates a pure stream from a variable list of values
    */
-  final def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
+  final def apply[A](as: A*): Stream[Nothing, A] = fromIterable(as)
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
    */
-  final def bracket[R: ConformsR, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZStream[R, E, A] =
+  final def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZStream[R, E, A] =
     managed(ZManaged.make(acquire)(release))
 
   /**
    * The stream that always dies with `ex`.
    */
-  final def die(ex: Throwable): ZStream[Any, Nothing, Nothing] =
+  final def die(ex: Throwable): Stream[Nothing, Nothing] =
     halt(Cause.die(ex))
 
   /**
    * The stream that always dies with an exception described by `msg`.
    */
-  final def dieMessage(msg: String): ZStream[Any, Nothing, Nothing] =
+  final def dieMessage(msg: String): Stream[Nothing, Nothing] =
     halt(Cause.die(new RuntimeException(msg)))
 
   /**
    * The stream that always fails with `error`
    */
-  final def fail[E](error: E): ZStream[Any, E, Nothing] =
+  final def fail[E](error: E): Stream[E, Nothing] =
     halt(Cause.fail(error))
 
   /**
    * Creates a stream that emits no elements, never fails and executes
    * the finalizer before it ends.
    */
-  final def finalizer[R: ConformsR](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
+  final def finalizer[R](finalizer: ZIO[R, Nothing, _]): ZStream[R, Nothing, Nothing] =
     new ZStream[R, Nothing, Nothing] {
       def fold[R1 <: R, E1, A1, S]: ZStream.Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, _, _) =>
@@ -1006,7 +1007,7 @@ trait Stream_Functions {
   /**
    * Flattens nested streams.
    */
-  final def flatten[R: ConformsR, E, A](fa: ZStream[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
+  final def flatten[R, E, A](fa: ZStream[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     fa.flatMap(identity)
 
   /**
@@ -1014,7 +1015,7 @@ trait Stream_Functions {
    * concurrent merge. Up to `n` streams may be consumed in parallel and up to
    * `outputBuffer` elements may be buffered by this operator.
    */
-  final def flattenPar[R: ConformsR, E, A](n: Long, outputBuffer: Int = 16)(
+  final def flattenPar[R, E, A](n: Long, outputBuffer: Int = 16)(
     fa: ZStream[R, E, ZStream[R, E, A]]
   ): ZStream[R, E, A] =
     fa.flatMapPar(n, outputBuffer)(identity)
@@ -1022,8 +1023,8 @@ trait Stream_Functions {
   /**
    * Creates a stream from a [[zio.Chunk]] of values
    */
-  final def fromChunk[@specialized A](c: Chunk[A]): ZStream[Any, Nothing, A] =
-    new ZStream[Any, Nothing, A] {
+  final def fromChunk[@specialized A](c: Chunk[A]): Stream[Nothing, A] =
+    new Stream[Nothing, A] {
       def fold[R1, E1, A1 >: A, S]: Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
           ZManaged.fromEffect(c.foldMLazy(s)(cont)(f))
@@ -1033,7 +1034,7 @@ trait Stream_Functions {
   /**
    * Creates a stream from an effect producing a value of type `A`
    */
-  final def fromEffect[R: ConformsR, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
+  final def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
@@ -1045,13 +1046,13 @@ trait Stream_Functions {
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever
    */
-  final def repeatEffect[R: ConformsR, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
+  final def repeatEffect[R, E, A](fa: ZIO[R, E, A]): ZStream[R, E, A] =
     fromEffect(fa).forever
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats using the specified schedule
    */
-  final def repeatEffectWith[R: ConformsR, E, A](
+  final def repeatEffectWith[R, E, A](
     fa: ZIO[R, E, A],
     schedule: ZSchedule[R, Unit, _]
   ): ZStream[R with Clock, E, A] =
@@ -1060,13 +1061,13 @@ trait Stream_Functions {
   /**
    * Creates a stream from an iterable collection of values
    */
-  final def fromIterable[A](as: Iterable[A]): ZStream[Any, Nothing, A] =
+  final def fromIterable[A](as: Iterable[A]): Stream[Nothing, A] =
     StreamPure.fromIterable(as)
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
    */
-  final def fromQueue[R: ConformsR, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
+  final def fromQueue[R, E, A](queue: ZQueue[_, _, R, E, _, A]): ZStream[R, E, A] =
     unfoldM(()) { _ =>
       queue.take
         .map(a => Some((a, ())))
@@ -1088,7 +1089,7 @@ trait Stream_Functions {
   /**
    * Creates a single-valued stream from a managed resource
    */
-  final def managed[R: ConformsR, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
+  final def managed[R, E, A](managed: ZManaged[R, E, A]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
@@ -1102,10 +1103,10 @@ trait Stream_Functions {
    * Up to `n` streams may be consumed in parallel and up to
    * `outputBuffer` elements may be buffered by this operator.
    */
-  final def mergeAll[R: ConformsR, E, A](n: Long, outputBuffer: Int = 16)(
+  final def mergeAll[R, E, A](n: Long, outputBuffer: Int = 16)(
     streams: ZStream[R, E, A]*
   ): ZStream[R, E, A] =
-    flattenPar(n, outputBuffer)(Stream.fromIterable(streams))
+    flattenPar(n, outputBuffer)(fromIterable(streams))
 
   /**
    * Constructs a stream from a range of integers (inclusive).
@@ -1116,25 +1117,25 @@ trait Stream_Functions {
   /**
    * Creates a single-valued pure stream
    */
-  final def succeed[A](a: A): ZStream[Any, Nothing, A] =
+  final def succeed[A](a: A): Stream[Nothing, A] =
     StreamPure.succeed(a)
 
   /**
    * Creates a single, lazily-evaluated-valued pure stream
    */
-  final def succeedLazy[A](a: => A): ZStream[Any, Nothing, A] =
+  final def succeedLazy[A](a: => A): Stream[Nothing, A] =
     StreamPure.succeedLazy(a)
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`
    */
-  final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
+  final def unfold[S, A](s: S)(f0: S => Option[(A, S)]): Stream[Nothing, A] =
     unfoldM(s)(s => ZIO.succeed(f0(s)))
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
-  final def unfoldM[R: ConformsR, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
+  final def unfoldM[R, E, A, S](s: S)(f0: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
     new ZStream[R, E, A] {
       def fold[R1 <: R, E1 >: E, A1 >: A, S2]: Fold[R1, E1, A1, S2] =
         ZManaged.succeedLazy { (s2, cont, f) =>
@@ -1154,34 +1155,6 @@ trait Stream_Functions {
   /**
    * Creates a stream produced from an effect
    */
-  final def unwrap[R: ConformsR, E, A](fa: ZIO[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
+  final def unwrap[R, E, A](fa: ZIO[R, E, ZStream[R, E, A]]): ZStream[R, E, A] =
     flatten(fromEffect(fa))
-}
-
-object Stream extends Stream_Functions {
-  @implicitNotFound(
-    "The environment type of all Stream methods must be Any. If you want to use an environment, please use ZStream."
-  )
-  sealed trait ConformsR1[A]
-
-  type ConformsR[A] = ConformsR1[Any]
-  implicit val ConformsAnyProof: ConformsR1[Any] = new ConformsR1[Any] {}
-}
-
-object ZStream extends Stream_Functions with ZStreamPlatformSpecific {
-  sealed trait ConformsR1[A]
-
-  private val _ConformsR1: ConformsR1[Any] = new ConformsR1[Any] {}
-
-  type ConformsR[A] = ConformsR1[A]
-  implicit def ConformsRProof[A]: ConformsR[A] = _ConformsR1.asInstanceOf[ConformsR1[A]]
-
-  implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
-
-  type Fold[R, E, +A, S] = ZManaged[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZManaged[R, E, S]]
-
-  implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
-    def unTake: ZStream[R, E, A] =
-      s.mapM(t => Take.option(UIO.succeed(t))).collectWhile { case Some(v) => v }
-  }
 }

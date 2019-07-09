@@ -18,6 +18,12 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
+    ),
+    pgpPublicRing := file("/tmp/public.asc"),
+    pgpSecretRing := file("/tmp/secret.asc"),
+    releaseEarlyWith := SonatypePublisher,
+    scmInfo := Some(
+      ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
     )
   )
 )
@@ -27,11 +33,6 @@ addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck"
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias("testJVM", ";coreJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test")
 addCommandAlias("testJS", ";coreJS/test;stacktracerJS/test;streamsJS/test")
-
-pgpPublicRing := file("/tmp/public.asc")
-pgpSecretRing := file("/tmp/secret.asc")
-releaseEarlyWith := SonatypePublisher
-scmInfo := Some(ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git"))
 
 lazy val root = project
   .in(file("."))
@@ -161,12 +162,12 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.2" % "provided",
-      "dev.zio"             %% "zio-interop-cats"            % "1.3.1.0-RC2",
-      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC1",
+      "dev.zio"             %% "zio-interop-cats"            % "1.3.1.0-RC3",
+      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC2",
       "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC2",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
-      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC1",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC1",
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC2",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC2",
       "dev.zio"             %% "zio-interop-twitter"         % "19.6.0.0-RC2"
     )
   )
