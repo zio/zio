@@ -18,7 +18,7 @@ package zio.stream
 
 import zio._
 import zio.clock.Clock
-import zio.Cause
+import zio.duration.Duration
 import scala.annotation.implicitNotFound
 
 /**
@@ -770,6 +770,22 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           }
         }
     }
+
+  /**
+   * Throttles elements of type A according to the given bandwidth parameters using the token bucket
+   * algorithm. The weight of each element is determined by the `costFn` effectful function.
+   */
+  final def throttle[R1 <: R, E1 >: E](
+    bucketCapacity: Long,
+    initialTokens: Long,
+    refill: Long,
+    refillInterval: Duration
+  )(
+    costFn: A => ZIO[R1, E1, Long]
+  ): ZStream[R1 with Clock, E1, A] =
+    self
+      .transduceManaged(ZSink.throttle(bucketCapacity, initialTokens, refill, refillInterval)(costFn))
+      .collect { case Some(a) => a }
 
   /**
    * Converts the stream to a managed queue. After managed queue is used, the
