@@ -20,6 +20,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 import scala.language.postfixOps
+import java.util.concurrent.TimeUnit
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -778,34 +779,11 @@ object ZSink extends ZSinkPlatformSpecific {
       final case class Value[A](value: A) extends Side[Nothing, Nothing, A]
     }
 
-    def assertNonNegative(n: Long, message: String): UIO[Unit] =
-      if (n < 0) UIO.die(new NegativeArgument(message))
+    def assertNonNegative(n: Long): UIO[Unit] =
+      if (n < 0) UIO.die(new NegativeArgument(s"Unexpected negative unit value `$n`"))
       else UIO.unit
-
-    def assertBetween(n: Long, min: Long, max: Long, message: String): UIO[Unit] =
-      if (n < min || n > max) UIO.die(new IllegalBucketConfiguration(message))
-      else UIO.unit
-
-    def assertBucketConfiguration(bucketCapacity: Long, initialTokens: Long, refill: Long): UIO[Unit] =
-      for {
-        _ <- assertNonNegative(bucketCapacity, s"Unexpected negative bucket capacity value `$bucketCapacity`")
-        _ <- assertBetween(
-              initialTokens,
-              0,
-              bucketCapacity,
-              s"Initial token value `$initialTokens` not between 0 and `$bucketCapacity`"
-            )
-        _ <- assertBetween(
-              refill,
-              0,
-              bucketCapacity,
-              s"Refill token value `$refill` not between 0 and `$bucketCapacity`"
-            )
-      } yield ()
 
     class NegativeArgument(message: String) extends IllegalArgumentException(message)
-
-    class IllegalBucketConfiguration(message: String) extends IllegalArgumentException(message)
   }
 
   trait StepModule {
@@ -1100,44 +1078,39 @@ object ZSink extends ZSinkPlatformSpecific {
    * using the token bucket algorithm. The weight of each element is determined by the `costFn` effectful
    * function. Stream elements are mapped to `Option[A]`, and `None` denotes that a given element has
    * been throttled.
-   *
-   * The sink is returned as a managed resource in order to control the lifecycle of the fiber which
-   * concurrently refills the bucket with tokens.
    */
-  final def throttle[R, E, A](
-    bucketCapacity: Long,
-    initialTokens: Long,
-    refill: Long,
-    refillInterval: Duration
-  )(
+  final def throttle[R, E, A](units: Long, duration: Duration)(
     costFn: A => ZIO[R, E, Long]
-  ): ZManaged[R with Clock, E, ZSink[R, E, Nothing, A, Option[A]]] = {
-    import ZSink.internal._
+  ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
 
-    def bucketSink(bucket: Ref[Long]) = new ZSink[R, E, Nothing, A, Option[A]] {
-      type State = (Ref[Long], Option[A])
-      val initial = UIO.succeed(Step.more((bucket, None)))
+    def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, Option[A]] {
+      import ZSink.internal._
+
+      type State = (Ref[(Long, Long)], Option[A])
+
+      val initial = assertNonNegative(units) *> UIO.succeed(Step.more((bucket, None)))
+
       def step(state: State, a: A) =
         for {
-          weight <- costFn(a)
-          result <- bucket.modify { tokens =>
-                     if (weight <= tokens) (Step.done((state._1, Some(a)), Chunk.empty), tokens - weight)
-                     else (Step.done((state._1, None), Chunk.empty), tokens)
+          weight  <- costFn(a)
+          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          result <- state._1.modify {
+                     case (tokens, timestamp) =>
+                       val elapsed   = Duration.Finite(current - timestamp)
+                       val available = if (elapsed > duration) units else tokens
+                       if (weight <= available)
+                         (Step.done((state._1, Some(a)), Chunk.empty), (available - weight, current))
+                       else
+                         (Step.done((state._1, None), Chunk.empty), (available, current))
                    }
         } yield result
+
       def extract(state: State) = UIO.succeed(state._2)
     }
 
-    def refillFn(tokens: Long): Long = Math.min(bucketCapacity, tokens + refill)
-
-    def refillBucket(bucket: Ref[Long]) =
-      bucket.update(refillFn).unit.delay(refillInterval).repeat(ZSchedule.spaced(refillInterval))
-
     for {
-      _      <- ZManaged.fromEffect(assertBucketConfiguration(bucketCapacity, initialTokens, refill))
-      bucket <- ZManaged.fromEffect(Ref.make(initialTokens))
-      sink   <- ZManaged.succeed(bucketSink(bucket))
-      _      <- ZManaged.fromEffect(refillBucket(bucket)).fork
-    } yield sink
+      current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
+      bucket  <- Ref.make((units, current)).toManaged_
+    } yield bucketSink(bucket)
   }
 }
