@@ -18,7 +18,6 @@ package zio
 
 import java.util.concurrent.atomic.AtomicReference
 import Promise.internal._
-import zio.Exit.Cause
 
 /**
  * A promise represents an asynchronous variable that can be set exactly once,

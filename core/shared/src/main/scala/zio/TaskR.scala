@@ -2,7 +2,6 @@ package zio
 
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.Exit.Cause
 import zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext

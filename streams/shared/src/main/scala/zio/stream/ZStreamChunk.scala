@@ -156,7 +156,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    * Maps over elements of the stream with the specified effectful function.
    */
   final def mapM[R1 <: R, E1 >: E, B](f0: A => ZIO[R1, E1, B]): ZStreamChunk[R1, E1, B] =
-    ZStreamChunk(chunks.mapM(_.traverse(f0)))
+    ZStreamChunk(chunks.mapM(_.mapM(f0)))
 
   /**
    * Runs the sink on the stream to produce either the sink's result or an error.
@@ -188,7 +188,7 @@ trait ZStreamChunk[-R, +E, @specialized +A] { self =>
    */
   final def tap[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, _]): ZStreamChunk[R1, E1, A] =
     ZStreamChunk(chunks.tap[R1, E1] { as =>
-      as.traverse_(f0)
+      as.mapM_(f0)
     })
 
   /**

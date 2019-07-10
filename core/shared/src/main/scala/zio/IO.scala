@@ -1,6 +1,5 @@
 package zio
 
-import zio.Exit.Cause
 import zio.internal.{ Executor, Platform }
 
 import scala.concurrent.ExecutionContext
@@ -141,6 +140,14 @@ object IO {
    * See [[zio.ZIO.fail]]
    */
   final def fail[E](error: E): IO[E, Nothing] = ZIO.fail(error)
+
+  /**
+   * See [[zio.ZIO.firstSuccessOf]]
+   */
+  final def firstSuccessOf[E, A](
+    zio: IO[E, A],
+    rest: Iterable[IO[E, A]]
+  ): IO[E, A] = ZIO.firstSuccessOf(zio, rest)
 
   /**
    * See [[zio.ZIO.flatten]]

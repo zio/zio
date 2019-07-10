@@ -1,6 +1,5 @@
 package zio
 
-import zio.Exit.Cause
 import zio.internal.{ Executor, Platform }
 
 object UIO {

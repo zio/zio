@@ -18,20 +18,21 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
+    ),
+    pgpPublicRing := file("/tmp/public.asc"),
+    pgpSecretRing := file("/tmp/secret.asc"),
+    releaseEarlyWith := SonatypePublisher,
+    scmInfo := Some(
+      ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git")
     )
   )
 )
 
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
-addCommandAlias("compileJVM", ";coreJVM/compile;stacktracerJVM/compile")
+addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
 addCommandAlias("testJVM", ";coreJVM/test;stacktracerJVM/test;streamsJVM/test;testkitJVM/test")
 addCommandAlias("testJS", ";coreJS/test;stacktracerJS/test;streamsJS/test")
-
-pgpPublicRing := file("/tmp/public.asc")
-pgpSecretRing := file("/tmp/secret.asc")
-releaseEarlyWith := SonatypePublisher
-scmInfo := Some(ScmInfo(url("https://github.com/zio/zio/"), "scm:git:git@github.com:zio/zio.git"))
 
 lazy val root = project
   .in(file("."))
@@ -60,9 +61,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
     ),
     publishArtifact in (Test, packageBin) := true
   )
@@ -70,18 +71,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
 
 lazy val coreJVM = core.jvm
   .configure(_.enablePlugins(JCStressPlugin))
-  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.16.0-RC3")))
-  .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
-      val old = (Compile / doc / sources).value
-      if (isDotty.value) {
-        Nil
-      } else {
-        old
-      }
-    }
-  )
+  .settings(dottySettings)
+  .settings(replSettings)
 
 lazy val coreJS = core.js
   .settings(
@@ -112,26 +103,16 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.5.1" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.5.1" % Test
+      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
     )
   )
 
 lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
-  .settings(replSettings ++ Seq(crossScalaVersions ++= Seq("0.13.0-RC1")))
-  .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)),
-    sources in (Compile, doc) := {
-      val old = (Compile / doc / sources).value
-      if (isDotty.value) {
-        Nil
-      } else {
-        old
-      }
-    }
-  )
+  .settings(dottySettings)
+  .settings(replSettings)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM)
@@ -181,13 +162,13 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                   % "2.6" % "provided",
       "org.jsoup"           % "jsoup"                        % "1.12.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples"    % "1.0.2" % "provided",
-      "dev.zio"             %% "zio-interop-cats"            % "1.3.1.0-RC2",
-      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC1",
-      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC2",
+      "dev.zio"             %% "zio-interop-cats"            % "1.3.1.0-RC3",
+      "dev.zio"             %% "zio-interop-future"          % "2.12.8.0-RC2",
+      "dev.zio"             %% "zio-interop-monix"           % "3.0.0.0-RC3",
       "dev.zio"             %% "zio-interop-scalaz7x"        % "7.2.27.0-RC1",
-      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC1",
-      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC1",
-      "dev.zio"             %% "zio-interop-twitter"         % "19.6.0.0-RC2"
+      "dev.zio"             %% "zio-interop-java"            % "1.1.0.0-RC2",
+      "dev.zio"             %% "zio-interop-reactivestreams" % "1.0.2.0-RC2",
+      "dev.zio"             %% "zio-interop-twitter"         % "19.6.0.0-RC3"
     )
   )
   .dependsOn(

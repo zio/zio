@@ -22,6 +22,7 @@ import FiberLocal.internal._
  * A container for fiber-local storage. It is the pure equivalent to Java's `ThreadLocal`
  * on a fiber architecture.
  */
+@deprecated("use FiberRef", "1.0.0")
 final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Serializable {
 
   /**
@@ -60,6 +61,7 @@ final class FiberLocal[A] private (private val state: Ref[State[A]]) extends Ser
     set(value).bracket_[Any, Nothing].apply[Any](empty)(use) //    TODO: Dotty doesn't infer this properly
 }
 
+@deprecated("use FiberRef", "1.0.0")
 object FiberLocal {
 
   /**
