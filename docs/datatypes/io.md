@@ -161,3 +161,39 @@ val action: Task[String] = Task.effectTotal(i += 1) *> Task.fail(new Throwable("
 val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
+### A full working example on using brackets
+```scala mdoc:silent
+
+import zio.{ App, Task, UIO }
+import java.io.{ File, FileInputStream }
+import java.nio.charset.StandardCharsets
+
+object Main extends App {
+
+  // run my bracket
+  def run(args: List[String]) =
+    mybracket.orDie.const(0)
+
+  def closeStream(is: FileInputStream) =
+    UIO(is.close())
+
+  // helper method to work around in Java 8
+  def readAll(fis: FileInputStream, len: Long): Array[Byte] = {
+    val content: Array[Byte] = Array.ofDim(len.toInt)
+    fis.read(content)
+    content
+  }
+
+  def convertBytes(is: FileInputStream, len: Long) =
+    Task.effect(println(new String(readAll(is, len), StandardCharsets.UTF_8))) // Java 8
+  //Task.effect(println(new String(is.readAllBytes(), StandardCharsets.UTF_8))) // Java 11+
+
+  // mybracket is just a value. Won't execute anything here until interpreted
+  val mybracket: Task[Unit] = for {
+    file   <- Task(new File("/tmp/hello"))
+    len    = file.length
+    string <- Task(new FileInputStream(file)).bracket(closeStream)(convertBytes(_, len))
+  } yield string
+}
+
+```
