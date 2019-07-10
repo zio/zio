@@ -130,13 +130,8 @@ object Sink {
   /**
    * see [[ZSink.throttle]]
    */
-  final def throttle[E, A](
-    bucketCapacity: Long,
-    initialTokens: Long,
-    refill: Long,
-    refillInterval: Duration
-  )(
+  final def throttle[E, A](units: Long, duration: Duration)(
     costFn: A => IO[E, Long]
-  ): ZManaged[Any with Clock, E, Sink[E, Nothing, A, Option[A]]] =
-    ZSink.throttle(bucketCapacity, initialTokens, refill, refillInterval)(costFn)
+  ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, Option[A]]] =
+    ZSink.throttle[Any, E, A](units, duration)(costFn)
 }
