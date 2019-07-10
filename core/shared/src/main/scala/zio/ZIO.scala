@@ -1232,7 +1232,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * succeed with the returned value.
    */
   final def collect[E1 >: E, B](e: E1)(pf: PartialFunction[A, B]): ZIO[R, E1, B] =
-    collectM(e)(pf.andThen(ZIO.succeed))
+    collectM(e)(pf.andThen(ZIO.succeed(_)))
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
@@ -1248,7 +1248,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * continue with our held value.
    */
   final def reject[R1 <: R, E1 >: E](pf: PartialFunction[A, E1]): ZIO[R1, E1, A] =
-    rejectM(pf.andThen(ZIO.fail))
+    rejectM(pf.andThen(ZIO.fail(_)))
 
   /**
    * Continue with the returned computation if the `PartialFunction` matches,
@@ -1513,6 +1513,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Imports an asynchronous effect into a pure `ZIO` value. See `effectAsyncMaybe` for
    * the more expressive variant of this function that can return a value
    * synchronously.
+   *
+   * The callback function `ZIO[R, E, A] => Unit` must be called at most once.
    */
   final def effectAsync[R >: LowerR, E <: UpperE, A](register: (ZIO[R, E, A] => Unit) => Unit): ZIO[R, E, A] =
     effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
@@ -1524,6 +1526,10 @@ private[zio] trait ZIOFunctions extends Serializable {
   /**
    * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
    * the value synchronously.
+   *
+   * If the register function returns a value synchronously then the callback function
+   * `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback function must
+   * be called at most once.
    */
   final def effectAsyncMaybe[R >: LowerR, E <: UpperE, A](
     register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]
@@ -1557,6 +1563,10 @@ private[zio] trait ZIOFunctions extends Serializable {
    * until the effect is actually executed. The effect also has the option of
    * returning a canceler, which will be used by the runtime to cancel the
    * asynchronous effect if the fiber executing the effect is interrupted.
+   *
+   * If the register function returns a value synchronously then the callback
+   * function `ZIO[R, E, A] => Unit` must not be called. Otherwise the callback
+   * function must be called at most once.
    */
   final def effectAsyncInterrupt[R >: LowerR, E <: UpperE, A](
     register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZIO[R, E, A]]

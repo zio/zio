@@ -26,13 +26,9 @@ object BuildHelper {
     "-language:existentials",
     "-explaintypes",
     "-Yrangepos",
-    "-Xfuture",
-    "-Xsource:2.13",
     "-Xlint:_,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard",
-    "-Xmax-classfile-name",
-    "242"
+    "-Ywarn-value-discard"
   )
 
   private def optimizerOptions(optimize: Boolean) =
@@ -107,7 +103,11 @@ object BuildHelper {
           "-Ywarn-inaccessible",
           "-Ywarn-infer-any",
           "-Ywarn-nullary-override",
-          "-Ywarn-nullary-unit"
+          "-Ywarn-nullary-unit",
+          "-Xfuture",
+          "-Xsource:2.13",
+          "-Xmax-classfile-name",
+          "242"
         ) ++ std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 11)) =>
         Seq(
@@ -118,7 +118,11 @@ object BuildHelper {
           "-Ywarn-nullary-override",
           "-Ywarn-nullary-unit",
           "-Xexperimental",
-          "-Ywarn-unused-import"
+          "-Ywarn-unused-import",
+          "-Xfuture",
+          "-Xsource:2.13",
+          "-Xmax-classfile-name",
+          "242"
         ) ++ std2xOptions
       case _ => Seq.empty
     }
@@ -126,7 +130,7 @@ object BuildHelper {
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     scalacOptions := stdOptions,
-    crossScalaVersions := Seq("2.12.8", "2.11.12"),
+    crossScalaVersions := Seq("2.12.8", "2.13.0", "2.11.12"),
     scalaVersion in ThisBuild := crossScalaVersions.value.head,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= compileOnlyDeps ++ testDeps,
@@ -143,16 +147,25 @@ object BuildHelper {
     Compile / unmanagedSourceDirectories ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, x)) if x <= 11 =>
-          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")) ++
+          Seq(
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11"))
+          ).flatten
         case Some((2, x)) if x >= 12 =>
-          CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
+          Seq(
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
+            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
+            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
             CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
+          ).flatten
         case _ =>
           if (isDotty.value)
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")) ++
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")) ++
+            Seq(
+              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
+              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
+              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
               CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+"))
+            ).flatten
           else
             Nil
       }
