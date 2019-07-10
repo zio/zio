@@ -156,13 +156,13 @@ class QueueSpec extends BaseCrossPlatformSpec {
     } yield l must containTheSameElementsAs(values)
 
   def e5 =
-    (for {
+    for {
       queue        <- Queue.bounded[Int](10)
       _            <- queue.offer(1).repeat(ZSchedule.recurs(9))
       refSuspended <- Ref.make[Boolean](true)
       _            <- (queue.offer(2).repeat(ZSchedule.recurs(9)) *> refSuspended.set(false)).fork
       isSuspended  <- refSuspended.get
-    } yield isSuspended must beTrue).interruptChildren
+    } yield isSuspended must beTrue
 
   def e6 =
     for {
@@ -314,14 +314,14 @@ class QueueSpec extends BaseCrossPlatformSpec {
     } yield (list1, list2) must_=== ((List(10, 20), List(30, 40)))
 
   def e22 =
-    (for {
+    for {
       queue  <- Queue.bounded[Int](4)
       values = List(1, 2, 3, 4)
       _      <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
       _      <- queue.offer(5).fork
       _      <- waitForSize(queue, 5)
       l      <- queue.takeUpTo(5)
-    } yield l must_=== List(1, 2, 3, 4)).interruptChildren
+    } yield l must_=== List(1, 2, 3, 4)
 
   def e23 =
     for {

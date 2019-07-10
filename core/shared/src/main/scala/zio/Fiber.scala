@@ -227,9 +227,7 @@ object Fiber {
     id: FiberId,
     interrupted: Boolean,
     interruptStatus: InterruptStatus,
-    superviseStatus: SuperviseStatus,
-    executor: Executor,
-    children: UIO[IndexedSeq[Fiber[_, _]]]
+    executor: Executor
   )
 
   /**

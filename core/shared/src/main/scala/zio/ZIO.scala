@@ -293,7 +293,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
               right <- ZIO.interruptible(that).fork
               _     <- left.await.flatMap(arbiter(leftDone, right, race, done)).fork
               _     <- right.await.flatMap(arbiter(rightDone, left, race, done)).fork
-              c     <- restore(done.await).onInterrupt(left.interrupt *> right.interrupt)
+              c     <- restore(done.await) //.onInterrupt(left.interrupt *> right.interrupt)
             } yield c
           }
     } yield c
@@ -569,31 +569,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
           case _                   => ZIO.unit
         }
     )(_ => self)
-
-  /**
-   * Enables supervision for this effect. This will cause fibers forked by
-   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
-   */
-  final def supervised: ZIO[R, E, A] = ZIO.supervised(self)
-
-  /**
-   * Disables supervision for this effect. This will cause fibers forked by
-   * this effect to not be tracked or appear in the list returned by [[ZIO.children]].
-   */
-  final def unsupervised: ZIO[R, E, A] = ZIO.unsupervised(self)
-
-  /**
-   * Returns a new effect that ensures that any fibers that are forked by
-   * the effect are interrupted when this effect completes.
-   */
-  final def interruptChildren: ZIO[R, E, A] = ZIO.interruptChildren(self)
-
-  /**
-   * Supervises this effect, which ensures that any fibers that are forked by
-   * the effect are handled by the provided supervisor.
-   */
-  final def handleChildrenWith[R1 <: R](supervisor: Iterable[Fiber[_, _]] => ZIO[R1, Nothing, _]): ZIO[R1, E, A] =
-    ZIO.handleChildrenWith[R1, E, A](self)(supervisor)
 
   /**
    * Performs this effect uninterruptibly. This will prevent the effect from
@@ -1399,50 +1374,6 @@ private[zio] trait ZIOFunctions extends Serializable {
   }
 
   /**
-   * Enables supervision for this effect. This will cause fibers forked by
-   * this effect to be tracked and will enable their inspection via [[ZIO.children]].
-   */
-  final def supervised[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    superviseStatus[R, E, A](SuperviseStatus.Supervised)(zio)
-
-  /**
-   * Disables supervision for this effect. This will cause fibers forked by
-   * this effect to not be tracked or appear in the list returned by [[ZIO.children]].
-   */
-  final def unsupervised[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    superviseStatus[R, E, A](SuperviseStatus.Unsupervised)(zio)
-
-  /**
-   * Returns a new effect that has the same effects as this one, but with the
-   * supervision status changed as specified.
-   */
-  final def superviseStatus[R >: LowerR, E <: UpperE, A](status: SuperviseStatus)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.SuperviseStatus(zio, status)
-
-  /**
-   * Checks supervision status.
-   */
-  final def checkSupervised[R >: LowerR, E <: UpperE, A](f: SuperviseStatus => ZIO[R, E, A]): ZIO[R, E, A] =
-    descriptorWith(d => f(d.superviseStatus))
-
-  /**
-   * Returns a new effect that ensures that any fibers that are forked by
-   * the effect are interrupted when this effect completes.
-   */
-  final def interruptChildren[R >: LowerR, E <: UpperE, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    handleChildrenWith(zio)(Fiber.interruptAll)
-
-  /**
-   * Returns an effect that supervises the specified effect, ensuring that all
-   * fibers that it forks are passed to the specified supervisor as soon as the
-   * supervised effect completes.
-   */
-  final def handleChildrenWith[R >: LowerR, E <: UpperE, A](
-    zio: ZIO[R, E, A]
-  )(supervisor: IndexedSeq[Fiber[_, _]] => ZIO[R, Nothing, _]): ZIO[R, E, A] =
-    zio.ensuring(children.flatMap(supervisor(_))).supervised
-
-  /**
    * Returns an effect that first executes the outer effect, and then executes
    * the inner effect, returning the value from the inner effect, and effectively
    * flattening a nested effect.
@@ -1505,10 +1436,8 @@ private[zio] trait ZIOFunctions extends Serializable {
       a <- ZIO.uninterruptibleMask { restore =>
             restore(
               register(k => r.unsafeRunAsync_(k.to(p)))
-                .catchAll(p.fail)
-            ).fork.flatMap { f =>
-              restore(p.await).onInterrupt(f.interrupt)
-            }
+                .foldCauseM(p.halt, _ => ZIO.unit)
+            ).fork *> restore(p.await)
           }
     } yield a
 
@@ -1968,14 +1897,6 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def trace: UIO[ZTrace] = ZIO.Trace
 
   /**
-   * Provides access to the list of child fibers supervised by this fiber.
-   *
-   * '''Note:''' supervision must be enabled (via [[ZIO#supervised]]) on the
-   * current fiber for this operation to return non-empty lists.
-   */
-  final def children: UIO[IndexedSeq[Fiber[_, _]]] = descriptorWith(_.children)
-
-  /**
    * Acquires a resource, uses the resource, and then releases the resource.
    * However, unlike `bracket`, the separation of these phases allows
    * the acquisition to be interruptible.
@@ -2246,7 +2167,7 @@ object ZIO extends ZIO_R_Any {
     final val EffectPartial   = 7
     final val EffectAsync     = 8
     final val Fork            = 9
-    final val SuperviseStatus = 10
+    final val Daemon          = 10
     final val Descriptor      = 11
     final val Lock            = 12
     final val Yield           = 13
@@ -2308,9 +2229,8 @@ object ZIO extends ZIO_R_Any {
     override def tag = Tags.CheckInterrupt
   }
 
-  private[zio] final class SuperviseStatus[R, E, A](val value: ZIO[R, E, A], val status: zio.SuperviseStatus)
-      extends ZIO[R, E, A] {
-    override def tag = Tags.SuperviseStatus
+  private[zio] final class Daemon[R, E, A](val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
+    override def tag = Tags.Daemon
   }
 
   private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] { self =>

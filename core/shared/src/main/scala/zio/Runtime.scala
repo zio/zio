@@ -20,6 +20,7 @@ import zio.Exit.Cause
 import zio.internal.Tracing
 import zio.internal.tracing.TracingConfig
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
+import zio.internal.InterruptSignal
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -80,12 +81,15 @@ trait Runtime[+R] {
   final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
     val InitialInterruptStatus = InterruptStatus.Interruptible
 
-    val context = new FiberContext[E, A](
+    val fiberId = FiberContext.fiberCounter.getAndIncrement()
+
+    lazy val context: FiberContext[E, A] = new FiberContext[E, A](
+      fiberId,
       Platform,
       Environment.asInstanceOf[AnyRef],
       Platform.executor,
       InitialInterruptStatus,
-      FiberContext.SuperviseStatus.Unsupervised,
+      InterruptSignal.root(() => context),
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()

@@ -40,7 +40,6 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `when` executes correct branch only. $testWhen
    Check `whenM` executes condition effect and correct branch. $testWhenM
    Check `unsandbox` unwraps exception. $testUnsandbox
-   Check `supervise` returns same value as IO.supervise. $testSupervise
    Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
    Check `absolve` method on IO[E, Either[E, A]] returns the same IO[E, Either[E, String]] as `IO.absolve` does. $testAbsolve
    Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
@@ -197,14 +196,6 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
       result  <- success.unsandbox
     } yield (message must_=== "fail") and (result must_=== 100))
-  }
-
-  def testSupervise = {
-    val io = IO.effectTotal("supercalifragilisticexpialadocious")
-    unsafeRun(for {
-      supervise1 <- io.interruptChildren
-      supervise2 <- IO.interruptChildren(io)
-    } yield supervise1 must ===(supervise2))
   }
 
   def testFlatten = forAll(Gen.alphaStr) { str =>

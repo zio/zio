@@ -45,9 +45,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     fold . sandbox . terminate              $testSandboxFoldOfTerminate
     catch sandbox terminate                 $testSandboxTerminate
     uncaught fail                           $testEvalOfUncaughtFail
-    uncaught fail supervised                $testEvalOfUncaughtFailSupervised
     uncaught sync effect error              $testEvalOfUncaughtThrownSyncEffect
-    uncaught supervised sync effect error   $testEvalOfUncaughtThrownSupervisedSyncEffect
     deep uncaught sync effect error         $testEvalOfDeepUncaughtThrownSyncEffect
     deep uncaught fail                      $testEvalOfDeepUncaughtFail
     catch failing finalizers with fail      $testFailOfMultipleFailingFinalizers
@@ -95,12 +93,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     deep fork/join identity                 $testDeepForkJoinIsId
     asyncPure creation is interruptible     $testAsyncPureCreationIsInterruptible
     asyncInterrupt runs cancel token on interrupt   $testAsync0RunsCancelTokenOnInterrupt
-    supervising returns fiber refs          $testSupervising
-    supervising in unsupervised returns Nil $testSupervisingUnsupervised
-    supervise fibers                        $testSupervise
-    supervise fibers in supervised          $testSupervised
-    supervise fibers in race                $testSuperviseRace
-    supervise fibers in fork                $testSuperviseFork
     race of fail with success               $testRaceChoosesWinner
     race of terminate with success          $testRaceChoosesWinnerInTerminate
     race of fail with fail                  $testRaceChoosesFailure
@@ -161,8 +153,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   RTS forking inheritability
     interruption status is heritable        $testInterruptStatusIsHeritable
     executor is hereditble                  $testExecutorIsHeritable
-    supervision is heritable                $testSupervisionIsHeritable
-    supervision inheritance                 $testSupervisingInheritance
   """
   }
 
@@ -307,14 +297,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testEvalOfUncaughtFail =
     unsafeRunSync(Task.fail(ExampleError): Task[Any]) must_=== Exit.Failure(fail(ExampleError))
 
-  def testEvalOfUncaughtFailSupervised =
-    unsafeRunSync(Task.fail(ExampleError).interruptChildren: Task[Unit]) must_=== Exit.Failure(fail(ExampleError))
-
   def testEvalOfUncaughtThrownSyncEffect =
     unsafeRunSync(IO.effectTotal[Int](throw ExampleError)) must_=== Exit.Failure(die(ExampleError))
-
-  def testEvalOfUncaughtThrownSupervisedSyncEffect =
-    unsafeRunSync(IO.effectTotal[Int](throw ExampleError).interruptChildren) must_=== Exit.Failure(die(ExampleError))
 
   def testEvalOfDeepUncaughtThrownSyncEffect =
     unsafeRunSync(deepErrorEffect(100)) must_=== Exit.Failure(fail(ExampleError))
@@ -487,7 +471,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       _    <- p.await
       _    <- f.interrupt
       test <- f.await.map(_.interrupted)
-    } yield test) must_=== true
+    } yield test must_=== true)
 
   def testRunSwallowsInnerInterrupt =
     unsafeRun(for {
@@ -969,28 +953,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       v    <- ref.get
     } yield v must_=== Some(exec))
 
-  def testSupervisionIsHeritable = nonFlaky {
-    for {
-      latch <- Promise.make[Nothing, Unit]
-      ref   <- Ref.make(SuperviseStatus.unsupervised)
-      _     <- ((ZIO.checkSupervised(ref.set) *> latch.succeed(())).fork *> latch.await).supervised
-      v     <- ref.get
-    } yield v must_=== SuperviseStatus.Supervised
-  }
-
-  def testSupervisingInheritance = {
-    def forkAwaitStart[A](io: UIO[A], refs: Ref[List[Fiber[_, _]]]): UIO[Fiber[Nothing, A]] =
-      withLatch(release => (release *> io).fork.tap(f => refs.update(f :: _)))
-
-    nonFlaky(
-      (for {
-        ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
-        _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
-        fibs <- ZIO.children
-      } yield fibs must have size 1).supervised
-    )
-  }
-
   def testAsyncPureIsInterruptible = {
     val io =
       for {
@@ -1065,103 +1027,6 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       } yield res
     unsafeRun(io) must_=== 0
   }
-
-  def testSupervising = {
-    def forkAwaitStart(ref: Ref[List[Fiber[_, _]]]) =
-      withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.update(fiber :: _)))
-
-    unsafeRun(
-      (for {
-        ref   <- Ref.make(List.empty[Fiber[_, _]])
-        fibs0 <- ZIO.children
-        _     <- forkAwaitStart(ref)
-        fibs1 <- ZIO.children
-        _     <- forkAwaitStart(ref)
-        fibs2 <- ZIO.children
-      } yield (fibs0 must have size (0)) and (fibs1 must have size (1)) and (fibs2 must have size (2))).supervised
-    )
-  }
-
-  def testSupervisingUnsupervised =
-    unsafeRun(
-      for {
-        ref  <- Ref.make(Option.empty[Fiber[_, _]])
-        _    <- withLatch(release => (release *> UIO.never).fork.tap(fiber => ref.set(Some(fiber))))
-        fibs <- ZIO.children
-      } yield fibs must have size (0)
-    )
-
-  def testSupervise = {
-    var counter = 0
-    unsafeRun((for {
-      ref <- Ref.make(List.empty[Fiber[_, _]])
-      _   <- (clock.sleep(200.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
-      _   <- (clock.sleep(400.millis) *> IO.unit).fork.tap(fiber => ref.update(fiber :: _))
-    } yield ()).handleChildrenWith { fs =>
-      fs.foldLeft(IO.unit)((io, f) => io *> f.join.either *> IO.effectTotal(counter += 1))
-    })
-    counter must_=== 2
-  }
-
-  def testSuperviseRace =
-    unsafeRun(for {
-      pa <- Promise.make[Nothing, Int]
-      pb <- Promise.make[Nothing, Int]
-
-      p1 <- Promise.make[Nothing, Unit]
-      p2 <- Promise.make[Nothing, Unit]
-      f <- (
-            p1.succeed(())
-              .bracket_[Any, Nothing]
-              .apply[Any](pa.succeed(1).unit)(IO.never) race //    TODO: Dotty doesn't infer this properly
-              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never)
-          ).interruptChildren.fork
-      _ <- p1.await *> p2.await
-
-      _ <- f.interrupt
-      r <- pa.await zip pb.await
-    } yield r) must_=== (1 -> 2)
-
-  def testSuperviseFork =
-    unsafeRun(for {
-      pa <- Promise.make[Nothing, Int]
-      pb <- Promise.make[Nothing, Int]
-
-      p1 <- Promise.make[Nothing, Unit]
-      p2 <- Promise.make[Nothing, Unit]
-      f <- (
-            p1.succeed(())
-              .bracket_[Any, Nothing]
-              .apply[Any](pa.succeed(1).unit)(IO.never)
-              .fork *> //    TODO: Dotty doesn't infer this properly
-              p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork *>
-              IO.never
-          ).interruptChildren.fork
-      _ <- p1.await *> p2.await
-
-      _ <- f.interrupt
-      r <- pa.await zip pb.await
-    } yield r) must_=== (1 -> 2)
-
-  def testSupervised =
-    nonFlaky {
-      for {
-        pa <- Promise.make[Nothing, Int]
-        pb <- Promise.make[Nothing, Int]
-        _ <- (for {
-              p1 <- Promise.make[Nothing, Unit]
-              p2 <- Promise.make[Nothing, Unit]
-              _ <- p1
-                    .succeed(())
-                    .bracket_[Any, Nothing]
-                    .apply[Any](pa.succeed(1).unit)(IO.never)
-                    .fork //    TODO: Dotty doesn't infer this properly
-              _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
-              _ <- p1.await *> p2.await
-            } yield ()).interruptChildren
-        r <- pa.await zip pb.await
-      } yield r must_=== (1 -> 2)
-    }
 
   def testRaceChoosesWinner =
     unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
