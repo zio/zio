@@ -130,7 +130,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   Stream.throttle
     free elements           $throttleFreeElements
     no bandwidth            $throttleNoBandwidth
-    no refill               $throttleNoRefill
     throttle short circuits $throttleShortCircuits
 
   Stream.toQueue            $toQueue
@@ -852,20 +851,14 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def throttleFreeElements = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttle(0, 0, 0, 1.second)(_ => UIO.succeed(0))
+      .throttle(0, 1.second)(_ => UIO.succeed(0))
       .runCollect must_=== List(1, 2, 3, 4)
   }
 
   private def throttleNoBandwidth = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttle(0, 0, 0, 1.second)(_ => UIO.succeed(1))
+      .throttle(0, 1.second)(_ => UIO.succeed(1))
       .runCollect must_=== List()
-  }
-
-  private def throttleNoRefill = unsafeRun {
-    Stream(1, 2, 3, 4)
-      .throttle(3, 3, 0, 1.second)(_ => UIO.succeed(1))
-      .runCollect must_=== List(1, 2, 3)
   }
 
   private def throttleShortCircuits = {
@@ -874,7 +867,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun {
       Stream(1, 2, 3, 4, 5)
         .mapM(delay)
-        .throttle(5, 3, 1, 1.second)(_ => UIO.succeed(1))
+        .throttle(2, 1.second)(_ => UIO.succeed(1))
         .take(2)
         .runCollect must_=== List(1, 2)
     }
