@@ -45,7 +45,7 @@ class InterruptSignal private (
   }
 
   /**
-   * Returns an effect that semantically blocks until all children of the 
+   * Returns an effect that semantically blocks until all children of the
    * owner of this signal have been successfully interrupted.
    */
   final def interruptChildren: UIO[Unit] =
