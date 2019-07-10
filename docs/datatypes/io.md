@@ -164,8 +164,6 @@ val composite = action.ensuring(cleanupAction)
 ### A full working example on using brackets
 ```scala mdoc:silent
 
-package hello
-
 import zio.{ App, Task, UIO }
 import java.io.{ File, FileInputStream }
 import java.nio.charset.StandardCharsets
