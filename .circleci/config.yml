@@ -6,6 +6,9 @@ scala_211: &scala_211
 scala_212: &scala_212
   SCALA_VERSION: 2.12.8
 
+scala_213: &scala_213
+  SCALA_VERSION: 2.13.0
+
 scala_dotty: &scala_dotty
   SCALA_VERSION: 0.16.0-RC3
 
@@ -136,7 +139,7 @@ documentation: &documentation
       - run:
           name: Generating docs
           command: |
-            ./sbt coreJVM/doc coreJS/doc interopCatsJVM/doc interopCatsJS/doc interopFutureJVM/doc interopScalaz7xJVM/doc interopScalaz7xJS/doc interopMonixJVM/doc interopMonixJS/doc interopJavaJVM/doc interopReactiveStreamsJVM/doc interopTwitterJVM/doc streamsJVM/doc
+            ./sbt coreJVM/doc coreJS/doc streamsJVM/doc
             ./sbt docs/docusaurusCreateSite
       - <<: *save_cache
 
@@ -152,13 +155,12 @@ microsite: &microsite
       - run:
           name: Publishing website
           command: |
-            git config --global user.email "${GH_NAME}@users.noreply.github.com"
-            git config --global user.name "${GH_NAME}"
-            echo "machine github.com login ${GH_NAME} password ${GH_TOKEN}" > ~/.netrc
-            export GITHUB_DEPLOY_KEY=`echo ${GH_TOKEN} | base64`
             export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
             export TRAVIS_COMMIT="${CIRCLE_SHA1}"
-            sbt docs/docusaurusPublishGhpages
+            sudo chown -R $USER:$USER /tmp
+            nvm use
+            node -v
+            ./sbt docs/docusaurusPublishGhpages
       - <<: *save_cache
 
 jobs:
@@ -197,6 +199,13 @@ jobs:
       - <<: *scala_212
       - <<: *jdk_8
 
+  test_213_jdk8_jvm:
+    <<: *testJVM
+    <<: *machine_ubuntu
+    environment:
+      - <<: *scala_213
+      - <<: *jdk_8
+
   test_dotty_jdk8_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
@@ -216,6 +225,13 @@ jobs:
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
+      - <<: *jdk_11
+
+  test_213_jdk11_jvm:
+    <<: *testJVM
+    <<: *machine_ubuntu
+    environment:
+      - <<: *scala_213
       - <<: *jdk_11
 
   test_dotty_jdk11_jvm:
@@ -239,6 +255,20 @@ jobs:
       - <<: *scala_212
       - <<: *jdk_8
 
+  test_213_jdk8_js:
+    <<: *testJS
+    <<: *machine_ubuntu
+    environment:
+      - <<: *scala_213
+      - <<: *jdk_8
+
+  test_211_jdk11_js:
+    <<: *testJS
+    <<: *machine_ubuntu
+    environment:
+      - <<: *scala_211
+      - <<: *jdk_11
+
   test_212_jdk11_js:
     <<: *testJS
     <<: *machine_ubuntu
@@ -246,11 +276,11 @@ jobs:
       - <<: *scala_212
       - <<: *jdk_11
 
-  test_211_jdk11_js:
+  test_213_jdk11_js:
     <<: *testJS
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_211
+      - <<: *scala_213
       - <<: *jdk_11
 
   release_211:
@@ -265,6 +295,13 @@ jobs:
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
+      - <<: *jdk_8
+
+  release_213:
+    <<: *release
+    <<: *machine_ubuntu
+    environment:
+      - <<: *scala_213
       - <<: *jdk_8
 
   documentation:
@@ -288,6 +325,8 @@ workflows:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - compile_dotty:
+          requires:
+            - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
@@ -304,6 +343,12 @@ workflows:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - test_212_jdk8_jvm:
+          requires:
+            - lint
+          filters:
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - test_213_jdk8_jvm:
           requires:
             - lint
           filters:
@@ -327,6 +372,12 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - test_213_jdk11_jvm:
+          requires:
+            - lint
+          filters:
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
 #      - test_dotty_jdk11_jvm:
 #          requires:
 #            - lint
@@ -345,6 +396,12 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - test_213_jdk8_js:
+          requires:
+            - lint
+          filters:
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - test_211_jdk11_js:
           requires:
             - lint
@@ -352,6 +409,12 @@ workflows:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - test_212_jdk11_js:
+          requires:
+            - lint
+          filters:
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - test_213_jdk11_js:
           requires:
             - lint
           filters:
@@ -378,11 +441,22 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+      - release_213:
+          context: Sonatype
+          requires:
+            - release_212
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+
       - documentation:
           context: Sonatype
           requires:
             - release_211
             - release_212
+            - release_213
           filters:
             branches:
               ignore: /.*/
@@ -393,6 +467,7 @@ workflows:
           requires:
             - release_211
             - release_212
+            - release_213
           filters:
             branches:
               ignore: /.*/

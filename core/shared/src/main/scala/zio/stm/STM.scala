@@ -20,8 +20,10 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import zio.{ IO, UIO }
 import zio.internal.Platform
-
 import java.util.{ HashMap => MutableMap }
+
+import com.github.ghik.silencer.silent
+
 import scala.util.{ Failure, Success, Try }
 import scala.annotation.tailrec
 
@@ -193,6 +195,11 @@ final class STM[+E, +A] private[stm] (
           case TRez.Retry      => TRez.Retry
         }
     )
+
+  /**
+   * Returns a new effect that ignores the success or failure of this effect.
+   */
+  final def ignore: STM[Nothing, Unit] = self.either.unit
 
   /**
    * Maps the value produced by the effect.
@@ -396,7 +403,7 @@ object STM {
 
           loop = !todo.compareAndSet(oldTodo, emptyTodo)
 
-          if (!loop) allTodos.putAll(oldTodo.asJava)
+          if (!loop) allTodos.putAll(oldTodo.asJava): @silent("JavaConverters")
         }
       }
 

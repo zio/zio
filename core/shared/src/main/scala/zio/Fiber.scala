@@ -197,8 +197,8 @@ trait Fiber[+E, +A] { self =>
     UIO.effectTotal {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
-      def failure(cause: Exit.Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
-      def success(value: A): UIO[p.type]             = UIO(p.success(value))
+      def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashWith(f)))
+      def success(value: A): UIO[p.type]        = UIO(p.success(value))
 
       UIO.effectTotal(p.future) <* self.await
         .flatMap[Any, Nothing, p.type](_.foldM[Any, Nothing, p.type](failure, success))

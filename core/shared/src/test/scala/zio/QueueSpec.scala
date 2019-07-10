@@ -1,6 +1,5 @@
 package zio
 
-import zio.Exit.Cause
 import zio.QueueSpec.waitForSize
 import zio.clock.Clock
 import zio.duration._

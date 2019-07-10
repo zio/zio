@@ -16,9 +16,8 @@
 
 package zio
 
-import zio.Exit.Cause
 import zio.internal.Tracing
-import zio.internal.tracing.TracingConfig
+import zio.internal.tracing.{ TracingConfig, ZIOFn }
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
 import zio.internal.InterruptSignal
 
@@ -55,7 +54,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be done at the edges of your program.
    */
-  final def unsafeRun[E, A](zio: ZIO[R, E, A]): A =
+  final def unsafeRun[E, A](zio: => ZIO[R, E, A]): A =
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
@@ -64,7 +63,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunSync[E, A](zio: ZIO[R, E, A]): Exit[E, A] = {
+  final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
     unsafeRunAsync(zio)((x: Exit[E, A]) => result.set(x))
@@ -78,7 +77,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
+  final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Unit): Unit = {
     val InitialInterruptStatus = InterruptStatus.Interruptible
 
     val fiberId = FiberContext.fiberCounter.getAndIncrement()
@@ -95,7 +94,7 @@ trait Runtime[+R] {
       Platform.newWeakHashMap()
     )
 
-    context.evaluateNow(zio.asInstanceOf[IO[E, A]])
+    context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
   }
 

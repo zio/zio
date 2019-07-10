@@ -31,7 +31,6 @@ package object zio extends EitherCompat {
   type Schedule[-A, +B] = ZSchedule[Any, A, B]
 
   type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
-  val Queue = ZQueue
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
