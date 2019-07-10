@@ -774,16 +774,11 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
    * algorithm. The weight of each element is determined by the `costFn` effectful function.
    */
-  final def throttle[R1 <: R, E1 >: E](
-    bucketCapacity: Long,
-    initialTokens: Long,
-    refill: Long,
-    refillInterval: Duration
-  )(
+  final def throttle[R1 <: R, E1 >: E](units: Long, duration: Duration)(
     costFn: A => ZIO[R1, E1, Long]
   ): ZStream[R1 with Clock, E1, A] =
     self
-      .transduceManaged(ZSink.throttle(bucketCapacity, initialTokens, refill, refillInterval)(costFn))
+      .transduceManaged(ZSink.throttle(units, duration)(costFn))
       .collect { case Some(a) => a }
 
   /**
