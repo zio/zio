@@ -20,8 +20,10 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 
 import zio.{ IO, UIO }
 import zio.internal.Platform
-
 import java.util.{ HashMap => MutableMap }
+
+import com.github.ghik.silencer.silent
+
 import scala.util.{ Failure, Success, Try }
 import scala.annotation.tailrec
 
@@ -401,7 +403,7 @@ object STM {
 
           loop = !todo.compareAndSet(oldTodo, emptyTodo)
 
-          if (!loop) allTodos.putAll(oldTodo.asJava)
+          if (!loop) allTodos.putAll(oldTodo.asJava): @silent("JavaConverters")
         }
       }
 
