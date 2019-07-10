@@ -19,6 +19,7 @@ package zio
 import zio.duration.Duration
 
 import java.util.concurrent.TimeUnit
+import java.time.OffsetDateTime
 
 package object clock extends Clock.Service[Clock] {
   final val clockService: ZIO[Clock, Nothing, Clock.Service[Any]] =
@@ -31,6 +32,12 @@ package object clock extends Clock.Service[Clock] {
     ZIO.accessM(_.clock currentTime unit)
 
   /**
+   * Get the current time, represented in the current timezone.
+   */
+  def currentDateTime: ZIO[Clock, Nothing, OffsetDateTime] =
+    ZIO.accessM(_.clock.currentDateTime)
+
+  /**
    * Returns the system nano time, which is not relative to any date.
    */
   final val nanoTime: ZIO[Clock, Nothing, Long] =
@@ -41,4 +48,5 @@ package object clock extends Clock.Service[Clock] {
    */
   final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
     ZIO.accessM(_.clock sleep duration)
+
 }

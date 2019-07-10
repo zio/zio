@@ -26,6 +26,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
 - [zio-saga](https://github.com/VladKopanev/zio-saga): Purely functional transaction management with Saga pattern
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
+- [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
 
 ## ZIO Compatible Libraries
 
