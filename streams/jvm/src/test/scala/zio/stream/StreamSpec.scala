@@ -779,7 +779,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       Stream(1, 2, 3)
         .spaced(Schedule.recurs(1))
         .run(Sink.collectAll[Int])
-        .map(_ must_=== List(1, 1, 2, 2, 3, 3))
+        .map(_ must_=== List(1, 1, 2, 2, 2, 2, 3, 3, 2))
     )
 
   private def spacedShortCircuits =
