@@ -1370,8 +1370,10 @@ private[zio] trait ZIOFunctions extends Serializable {
       restore =>
         acquire.flatMap(ZIOFn(traceAs = use) { a =>
           restore(use(a)).run.flatMap(ZIOFn(traceAs = release) { e =>
-            release(a, e) *>
-              ZIO.done(e)
+            release(a, e).foldCauseM(
+              cause2 => ZIO.halt(e.fold(_ ++ cause2, _ => cause2)),
+              _ => ZIO.done(e)
+            )
           })
         })
     )

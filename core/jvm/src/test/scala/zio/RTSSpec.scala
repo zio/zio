@@ -993,6 +993,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
         _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
         fibs <- ZIO.children
+        _    <- ref.get.map(list => println(list.mkString(", ")))
       } yield fibs must have size 1).supervised
     )
   }
