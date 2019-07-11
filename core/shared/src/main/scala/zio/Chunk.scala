@@ -560,7 +560,12 @@ object Chunk {
   /**
    * Returns a singleton chunk, eagerly evaluated.
    */
-  final def succeed[@specialized A](a: A): Chunk[A] = Singleton(a)
+  final def single[@specialized A](a: A): Chunk[A] = Singleton(a)
+
+  /**
+   * Alias for [[Chunk.single]].
+   */
+  final def succeed[@specialized A](a: A): Chunk[A] = single(a)
 
   /**
    * Returns the `ClassTag` for the element type of the chunk.
