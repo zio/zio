@@ -20,6 +20,20 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import zio.Cause
 
   def is = "StreamSpec".title ^ s2"""
+  Stream.aggregate
+    aggregate                            $aggregate
+    error propagation                    $aggregateErrorPropagation1
+    error propagation                    $aggregateErrorPropagation2
+    interruption propagation             $aggregateInterruptionPropagation
+    interruption propagation             $aggregateInterruptionPropagation2
+
+  Stream.aggregateWithin
+    aggregateWithin                      $aggregateWithin
+    error propagation                    $aggregateWithinErrorPropagation1
+    error propagation                    $aggregateWithinErrorPropagation2
+    interruption propagation             $aggregateWithinInterruptionPropagation
+    interruption propagation             $aggregateWithinInterruptionPropagation2
+
   Stream.bracket
     bracket                              $bracket
     bracket short circuits               $bracketShortCircuits
@@ -176,6 +190,144 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
   """
+
+  def aggregate = unsafeRun {
+    Stream(1, 1, 1, 1)
+      .aggregate(ZSink.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc).map(_.reverse))
+      .runCollect
+      .map { result =>
+        (result.flatten must_=== List(1, 1, 1, 1)) and
+          (result.forall(_.length <= 3) must_=== true)
+      }
+  }
+
+  def aggregateErrorPropagation1 =
+    unsafeRun {
+      val e    = new RuntimeException("Boom")
+      val sink = ZSink.die(e)
+      Stream(1, 1, 1, 1)
+        .aggregate(sink)
+        .runCollect
+        .run
+        .map(_ must_=== Exit.Failure(Cause.Die(e)))
+    }
+
+  def aggregateErrorPropagation2 = unsafeRun {
+    val e = new RuntimeException("Boom")
+    val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]()) { (_, _) =>
+      ZIO.die(e)
+    }
+
+    Stream(1, 1)
+      .aggregate(sink)
+      .runCollect
+      .run
+      .map(_ must_=== Exit.Failure(Cause.Die(e)))
+  }
+
+  def aggregateInterruptionPropagation = unsafeRun {
+    for {
+      latch     <- Promise.make[Nothing, Unit]
+      cancelled <- Ref.make(false)
+      sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]()) { (acc, el) =>
+        if (el == 1) UIO.succeed(ZSink.Step.more(el :: acc))
+        else
+          (latch.succeed(()) *> UIO.never)
+            .onInterrupt(cancelled.set(true))
+      }
+      fiber  <- Stream(1, 1, 2).aggregate(sink).runCollect.untraced.fork
+      _      <- latch.await
+      _      <- fiber.interrupt
+      result <- cancelled.get
+    } yield result must_=== true
+  }
+
+  def aggregateInterruptionPropagation2 = unsafeRun {
+    for {
+      latch     <- Promise.make[Nothing, Unit]
+      cancelled <- Ref.make(false)
+      sink = Sink.fromEffect {
+        (latch.succeed(()) *> UIO.never)
+          .onInterrupt(cancelled.set(true))
+      }
+      fiber  <- Stream(1, 1, 2).aggregate(sink).runCollect.untraced.fork
+      _      <- latch.await
+      _      <- fiber.interrupt
+      result <- cancelled.get
+    } yield result must_=== true
+  }
+
+  def aggregateWithin = unsafeRun {
+    for {
+      result <- Stream(1, 1, 1, 1, 2)
+                 .aggregateWithin(
+                   Sink.fold(List[Int]())(
+                     (acc, el: Int) =>
+                       if (el == 1) ZSink.Step.more(el :: acc)
+                       else if (el == 2 && acc.isEmpty) ZSink.Step.done(el :: acc, Chunk.empty)
+                       else ZSink.Step.done(acc, Chunk.single(el))
+                   ),
+                   ZSchedule.spaced(30.minutes)
+                 )
+                 .runCollect
+    } yield result must_=== List(Right(List(1, 1, 1, 1)), Right(List(2)))
+  }
+
+  private def aggregateWithinErrorPropagation1 =
+    unsafeRun {
+      val e    = new RuntimeException("Boom")
+      val sink = ZSink.die(e)
+      Stream(1, 1, 1, 1)
+        .aggregateWithin(sink, Schedule.spaced(30.minutes))
+        .runCollect
+        .run
+        .map(_ must_=== Exit.Failure(Cause.Die(e)))
+    }
+
+  private def aggregateWithinErrorPropagation2 = unsafeRun {
+    val e = new RuntimeException("Boom")
+    val sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]()) { (_, _) =>
+      ZIO.die(e)
+    }
+
+    Stream(1, 1)
+      .aggregateWithin(sink, Schedule.spaced(30.minutes))
+      .runCollect
+      .run
+      .map(_ must_=== Exit.Failure(Cause.Die(e)))
+  }
+
+  private def aggregateWithinInterruptionPropagation = unsafeRun {
+    for {
+      latch     <- Promise.make[Nothing, Unit]
+      cancelled <- Ref.make(false)
+      sink = Sink.foldM[Nothing, Int, Int, List[Int]](List[Int]()) { (acc, el) =>
+        if (el == 1) UIO.succeed(ZSink.Step.more(el :: acc))
+        else
+          (latch.succeed(()) *> UIO.never)
+            .onInterrupt(cancelled.set(true))
+      }
+      fiber  <- Stream(1, 1, 2).aggregateWithin(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
+      _      <- latch.await
+      _      <- fiber.interrupt
+      result <- cancelled.get
+    } yield result must_=== true
+  }
+
+  private def aggregateWithinInterruptionPropagation2 = unsafeRun {
+    for {
+      latch     <- Promise.make[Nothing, Unit]
+      cancelled <- Ref.make(false)
+      sink = Sink.fromEffect {
+        (latch.succeed(()) *> UIO.never)
+          .onInterrupt(cancelled.set(true))
+      }
+      fiber  <- Stream(1, 1, 2).aggregateWithin(sink, Schedule.spaced(30.minutes)).runCollect.untraced.fork
+      _      <- latch.await
+      _      <- fiber.interrupt
+      result <- cancelled.get
+    } yield result must_=== true
+  }
 
   private def bracket =
     unsafeRun(
