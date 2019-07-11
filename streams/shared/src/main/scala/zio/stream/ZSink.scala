@@ -1096,12 +1096,16 @@ object ZSink extends ZSinkPlatformSpecific {
           current <- clock.currentTime(TimeUnit.NANOSECONDS)
           result <- state._1.modify {
                      case (tokens, timestamp) =>
-                       val elapsed   = Duration.Finite(current - timestamp)
-                       val available = if (elapsed > duration) units else tokens
+                       val elapsed = Duration.Finite(current - timestamp)
+                       val (available, refillTimestamp) =
+                         if (elapsed > duration)
+                           (units, timestamp + duration.toNanos)
+                         else
+                           (tokens, timestamp)
                        if (weight <= available)
-                         (Step.done((state._1, Some(a)), Chunk.empty), (available - weight, current))
+                         (Step.done((state._1, Some(a)), Chunk.empty), (available - weight, refillTimestamp))
                        else
-                         (Step.done((state._1, None), Chunk.empty), (available, current))
+                         (Step.done((state._1, None), Chunk.empty), (available, refillTimestamp))
                    }
         } yield result
 
