@@ -139,4 +139,47 @@ class ChunkSpec extends Specification with ScalaCheck {
 
     sum must_=== c.toSeq.sum
   }
+
+  def testTransitivity = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    val c3 = Chunk(1, 2, 3)
+    ((c1 == c2) && (c2 == c3) && (c1 == c3)) must beTrue
+  }
+
+  def testSymmetry = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    val c3 = Chunk(1, 2, 3)
+    ((c1 == c2) && (c2 == c1)) must beTrue
+  }
+
+  def testReflexivity = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    val c3 = Chunk(1, 2, 3)
+    ((c1 == c1)) must beTrue
+  }
+
+  def testNegation = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    val c3 = Chunk(1, 2, 3)
+    (c1 != c2 == !(c1 == c2)) must beTrue
+  }
+
+  def testSubstitutivity = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    val c3 = Chunk(1, 2, 3)
+    ((c1 == c2) && (c1.toString == c2.toString)) must beTrue
+  }
+
+  def testReflexivity = {
+    val c1 = (1, 2, 3)
+    val c2 = (1, 2, 3)
+    val c3 = (1, 2, 3)
+    ((c1 == c2) && (c1.hashCode == c2.hashCode)) must beTrue
+  }
+
 }
