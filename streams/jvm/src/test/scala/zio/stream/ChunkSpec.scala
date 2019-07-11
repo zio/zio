@@ -175,7 +175,7 @@ class ChunkSpec extends Specification with ScalaCheck {
     ((c1 == c2) && (c1.toString == c2.toString)) must beTrue
   }
 
-  def testReflexivity = {
+  def hashConsistency = {
     val c1 = (1, 2, 3)
     val c2 = (1, 2, 3)
     val c3 = (1, 2, 3)
