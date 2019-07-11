@@ -24,6 +24,12 @@ class ChunkSpec extends Specification with ScalaCheck {
   toArray $toArray
   foreach $foreach
   concat chunk $concat
+  chunk transitivity $testTransitivity
+  chunk symmetry $testSymmetry
+  chunk reflexivity $testReflexivity
+  chunk negation $testNegation
+  chunk substitutivity $testSubstitutivity
+  chunk consistency $hashConsistency
   An Array-based chunk that is filtered empty and mapped must not throw NPEs. $nullArrayBug
   toArray on concat of a slice must work properly. $toArrayOnConcatOfSlice
   toArray on concat of empty and integers must work properly. $toArrayOnConcatOfEmptyAndInts
