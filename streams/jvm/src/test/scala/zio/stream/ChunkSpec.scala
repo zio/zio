@@ -24,6 +24,12 @@ class ChunkSpec extends Specification with ScalaCheck {
   toArray $toArray
   foreach $foreach
   concat chunk $concat
+  chunk transitivity $testTransitivity
+  chunk symmetry $testSymmetry
+  chunk reflexivity $testReflexivity
+  chunk negation $testNegation
+  chunk substitutivity $testSubstitutivity
+  chunk consistency $hashConsistency
   An Array-based chunk that is filtered empty and mapped must not throw NPEs. $nullArrayBug
   toArray on concat of a slice must work properly. $toArrayOnConcatOfSlice
   toArray on concat of empty and integers must work properly. $toArrayOnConcatOfEmptyAndInts
@@ -139,4 +145,41 @@ class ChunkSpec extends Specification with ScalaCheck {
 
     sum must_=== c.toSeq.sum
   }
+
+  def testTransitivity = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    val c3 = Chunk(1, 2, 3)
+    ((c1 == c2) && (c2 == c3) && (c1 == c3)) must beTrue
+  }
+
+  def testSymmetry = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    ((c1 == c2) && (c2 == c1)) must beTrue
+  }
+
+  def testReflexivity = {
+    val c1 = Chunk(1, 2, 3)
+    ((c1 == c1)) must beTrue
+  }
+
+  def testNegation = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    (c1 != c2 == !(c1 == c2)) must beTrue
+  }
+
+  def testSubstitutivity = {
+    val c1 = Chunk(1, 2, 3)
+    val c2 = Chunk(1, 2, 3)
+    ((c1 == c2) && (c1.toString == c2.toString)) must beTrue
+  }
+
+  def hashConsistency = {
+    val c1 = (1, 2, 3)
+    val c2 = (1, 2, 3)
+    ((c1 == c2) && (c1.hashCode == c2.hashCode)) must beTrue
+  }
+
 }
