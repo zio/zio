@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
-import scalaz.zio.internal.Executor
+import zio.internal.Executor
 
 // This cannot extend Blocking.Service[Blocking] because of Scala 2.11 support
 package object blocking {
@@ -26,6 +26,13 @@ package object blocking {
   def blocking[R1 <: Blocking, E, A](zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
     ZIO.accessM(_.blocking.blocking(zio))
 
+  @deprecated("use effectBlocking()", "1.0.0")
   def interruptible[A](effect: => A): ZIO[Blocking, Throwable, A] =
-    ZIO.accessM(_.blocking.interruptible(effect))
+    effectBlocking(effect)
+
+  def effectBlocking[A](effect: => A): ZIO[Blocking, Throwable, A] =
+    ZIO.accessM(_.blocking.effectBlocking(effect))
+
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): ZIO[Blocking, Throwable, A] =
+    ZIO.accessM(_.blocking.effectBlockingCancelable(effect)(cancel))
 }

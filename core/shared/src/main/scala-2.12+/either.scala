@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
-trait EitherCompat {}
+private[zio] trait EitherCompat {}
