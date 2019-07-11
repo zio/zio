@@ -150,35 +150,29 @@ class ChunkSpec extends Specification with ScalaCheck {
   def testSymmetry = {
     val c1 = Chunk(1, 2, 3)
     val c2 = Chunk(1, 2, 3)
-    val c3 = Chunk(1, 2, 3)
     ((c1 == c2) && (c2 == c1)) must beTrue
   }
 
   def testReflexivity = {
     val c1 = Chunk(1, 2, 3)
-    val c2 = Chunk(1, 2, 3)
-    val c3 = Chunk(1, 2, 3)
     ((c1 == c1)) must beTrue
   }
 
   def testNegation = {
     val c1 = Chunk(1, 2, 3)
     val c2 = Chunk(1, 2, 3)
-    val c3 = Chunk(1, 2, 3)
     (c1 != c2 == !(c1 == c2)) must beTrue
   }
 
   def testSubstitutivity = {
     val c1 = Chunk(1, 2, 3)
     val c2 = Chunk(1, 2, 3)
-    val c3 = Chunk(1, 2, 3)
     ((c1 == c2) && (c1.toString == c2.toString)) must beTrue
   }
 
   def hashConsistency = {
     val c1 = (1, 2, 3)
     val c2 = (1, 2, 3)
-    val c3 = (1, 2, 3)
     ((c1 == c2) && (c1.hashCode == c2.hashCode)) must beTrue
   }
 
