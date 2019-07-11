@@ -355,6 +355,25 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Enqueues elements of this stream into a queue. Stream failure and ending will also be
+   * signalled.
+   */
+  def into[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]): ZIO[R1, E1, Unit] =
+    intoManaged(queue).use_(UIO.unit)
+
+  /**
+   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
+   * composition.
+   */
+  def intoManaged[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]): ZManaged[R1, E1, Unit] =
+    self
+      .foreachManaged(a => queue.offer(Take.Value(a)).unit)
+      .foldCauseM(
+        cause => queue.offer(Take.Fail(cause)).unit.toManaged_,
+        _ => queue.offer(Take.End).unit.toManaged_
+      )
+
+  /**
    * Returns a stream made of the elements of this stream transformed with `f0`
    */
   def map[B](f0: A => B): ZStream[R, E, B] =
@@ -829,15 +848,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, E1, Queue[Take[E1, A1]]] =
     for {
       queue <- ZManaged.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
-      _ <- self.fold[R, E, A, Unit].flatMap { fold =>
-            fold((), _ => true, (_, a) => queue.offer(Take.Value(a)).unit)
-              .foldCauseM(
-                e => queue.offer(Take.Fail(e)).toManaged_,
-                _ => queue.offer(Take.End).toManaged_
-              )
-              .unit
-              .fork
-          }
+      _     <- self.intoManaged(queue).fork
     } yield queue
 
   /**
