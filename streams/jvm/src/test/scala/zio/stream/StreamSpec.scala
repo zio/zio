@@ -320,25 +320,26 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       slurp(s.take(list.size)) must_=== Success(list)
     }
 
-  private def effectAsyncM =
-    prop { list: List[Int] =>
-      unsafeRun {
-        for {
-          latch <- Promise.make[Nothing, Unit]
-          fiber <- ZStream
-                    .effectAsyncM[Any, Throwable, Int] { k =>
-                      latch.succeed(()) *>
-                        Task.succeedLazy {
-                          list.foreach(a => k(Task.succeed(a)))
-                        }
-                    }
-                    .run(Sink.collectAll[Int])
-                    .fork
-          _ <- latch.await
-          s <- fiber.join
-        } yield s must_=== list
-      }
+  private def effectAsyncM = {
+    val list = List(1, 2, 3)
+    unsafeRun {
+      for {
+        latch <- Promise.make[Nothing, Unit]
+        fiber <- ZStream
+                  .effectAsyncM[Any, Throwable, Int] { k =>
+                    latch.succeed(()) *>
+                      Task.succeedLazy {
+                        list.foreach(a => k(Task.succeed(a)))
+                      }
+                  }
+                  .take(list.size)
+                  .run(Sink.collectAll[Int])
+                  .fork
+        _ <- latch.await
+        s <- fiber.join
+      } yield s must_=== list
     }
+  }
 
   private def effectAsyncMaybeSome =
     prop { list: List[Int] =>
