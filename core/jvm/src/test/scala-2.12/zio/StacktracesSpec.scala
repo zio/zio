@@ -27,6 +27,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   "fiber ancestry" >> fiberAncestry
   "fiber ancestry example with uploads" >> fiberAncestryUploadExample
+  "fiber ancestry has a limited size" >> fiberAncestryIsLimited
 
   "blocking trace" >> blockingTrace
 
@@ -312,6 +313,27 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       val _ = (destination, json)
       Task(throw new Exception("Expired credentials"))
     }
+  }
+
+  def fiberAncestryIsLimited = {
+    import fiberAncestryIsLimitedFixture._
+
+    recursiveFork(10000) causeMust { cause =>
+      (cause.traces must have size 1) and
+        (cause.traces.head.parents must have size 10) and
+        (cause.traces.head.executionTrace must mentionMethod("recursiveFork")) and
+        (cause.traces.head.parents.head.stackTrace must mentionMethod("recursiveFork"))
+    }
+  }
+
+  object fiberAncestryIsLimitedFixture {
+    def recursiveFork(i: Int): UIO[Unit] =
+      i match {
+        case 0 =>
+          UIO(throw new Exception("oops!"))
+        case _ =>
+          ZIO.suspend(recursiveFork(i - 1)).fork.flatMap(_.join)
+      }
   }
 
   def blockingTrace = {
