@@ -58,7 +58,6 @@ install_nodejs: &install_nodejs
   - run:
       name: Install node.js
       command: |
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
         export NVM_DIR="/opt/circleci/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
         nvm install
@@ -158,6 +157,9 @@ microsite: &microsite
             export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
             export TRAVIS_COMMIT="${CIRCLE_SHA1}"
             sudo chown -R $USER:$USER /tmp
+            export NVM_DIR="/opt/circleci/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm install
             nvm use
             node -v
             ./sbt docs/docusaurusPublishGhpages
