@@ -56,6 +56,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `rightOrFail` method fails when given a Left. $testRightOrFailWithLeft
    Check `rightOrFailException` method extracts the Right value. $testRightOrFailExceptionOnRightValue
    Check `rightOrFailException` method fails when given a Left. $testRightOrFailExceptionOnLeftValue
+   Check `leftOrFail` method extracts the Left value. $testLeftOrFailExtractsLeftValue
+   Check `leftOrFail` method fails when given a Right. $testLeftOrFailWithRight
+   Check `leftOrFailException` method extracts the Left value. $testLeftOrFailExceptionOnLeftValue
+   Check `leftOrFailException` method fails when given a Right. $testLeftOrFailExceptionOnRightValue
    Check uncurried `bracket`. $testUncurriedBracket
    Check uncurried `bracket_`. $testUncurriedBracket_
    Check uncurried `bracketExit`. $testUncurriedBracketExit
@@ -320,6 +324,23 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testRightOrFailWithLeft = {
     val task: Task[Int] = UIO(Left(1)).rightOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOrFailExceptionOnLeftValue = unsafeRun(ZIO.succeed(Left(42)).leftOrFailException) must_=== 42
+
+  def testLeftOrFailExceptionOnRightValue = {
+    val task: Task[Int] = ZIO.succeed(Right(2)).leftOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOrFailExtractsLeftValue = {
+    val task: Task[Int] = UIO(Left(42)).leftOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testLeftOrFailWithRight = {
+    val task: Task[Int] = UIO(Right(12)).leftOrFail(exampleError)
     unsafeRun(task) must throwA[FiberFailure]
   }
 

@@ -787,6 +787,27 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   final def left[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] = self +++ ZIO.identity[C]
 
+  /**
+   * Returns a successful effect if the value is `Left`, or fails with the error e.
+   */
+  def leftOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Right(_)    => ZIO.fail(e)
+      case Left(value) => ZIO.succeed(value)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Left`, or fails with a [[java.util.NoSuchElementException]].
+   */
+  def leftOrFailException[B, C, E1 >: NoSuchElementException](
+    implicit ev: A <:< Either[B, C],
+    ev2: E <:< E1
+  ): ZIO[R, E1, B] =
+    self.foldM(
+      e => ZIO.fail(ev2(e)),
+      a => ev(a).fold(ZIO.succeed(_), _ => ZIO.fail(new NoSuchElementException("Either.left.get on Right")))
+    )
+
   final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] = ZIO.identity[C] +++ self
 
   /**
