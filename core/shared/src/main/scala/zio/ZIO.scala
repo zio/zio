@@ -1109,6 +1109,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail, ZIO.succeed)
 
   /**
+   * Extracts the optional value, or fails with the given error 'e'.
+   */
+  def someOrFail[B, E1 >: E](e: E1)(implicit ev: A <:< Option[B]): ZIO[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZIO.succeed(value)
+      case None        => ZIO.fail(e)
+    })
+
+  /**
+   * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
+   */
+  def someOrFailException[B, E1 >: NoSuchElementException](implicit ev: A <:< Option[B], ev2: E <:< E1): ZIO[R, E1, B] =
+    self.foldM(e => ZIO.fail(ev2(e)), ev(_) match {
+      case Some(value) => ZIO.succeed(value)
+      case None        => ZIO.fail(new NoSuchElementException("None.get"))
+    })
+
+  /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
