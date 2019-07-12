@@ -714,21 +714,22 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
       override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: Either[B, A], S]: Fold[R2, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
-          def loop(s: S, schedSt: schedule.State, a: Either[B, A]): ZIO[R2, E1, S] =
+          def loop(s: S, schedSt: schedule.State, a: A): ZIO[R2, E1, S] =
             if (!cont(s)) ZIO.succeed(s)
             else
-              f(s, a).zip(schedule.update(a.right.get, schedSt)).flatMap {
-                case (s, decision) if !decision.cont => f(s, Left(decision.finish()))
-                case (s, decision) if (decision.cont && cont(s)) =>
-                  loop(s, decision.state, a).delay(decision.delay)
-                case _ => IO.succeed(s)
+              f(s, Right(a)).zip(schedule.update(a, schedSt)).flatMap {
+                case (su, decision) if !decision.cont && cont(su) => f(su, Left(decision.finish()))
+                case (su, decision) if decision.cont && cont(su) =>
+                  loop(su, decision.state, a).delay(decision.delay)
+                case (su, _) => IO.succeed(su)
               }
 
           schedule.initial.toManaged_.flatMap { schedSt =>
-            self.fold[R2, E1, A, S].flatMap { f =>
-              f(s, cont, (s, a) => loop(s, schedSt, Right(a)))
+            self.fold[R2, E1, A, S].flatMap { fl =>
+              fl(s, cont, (s, a) => loop(s, schedSt, a))
             }
           }
+
         }
 
     }
