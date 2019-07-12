@@ -88,7 +88,7 @@ trait Runtime[+R] {
       Environment.asInstanceOf[AnyRef],
       Platform.executor,
       InitialInterruptStatus,
-      InterruptSignal.root(() => context),
+      InterruptSignal.root(),
       None,
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap()

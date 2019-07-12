@@ -629,7 +629,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] final def daemonEnter: UIO[Unit] = ZIO.effectTotal {
-    interrupted.push(InterruptSignal.root(() => self))
+    interrupted.push(InterruptSignal.root())
   }
 
   private[this] final def daemonExit: UIO[Unit] = ZIO.effectTotal {
@@ -669,7 +669,7 @@ private[zio] final class FiberContext[E, A](
       case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]]) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Done(v))) done(v)
         else {
-          interrupted.peek.selfDone()
+          interrupted.peek.ownerDone()
           reportUnhandled(v)
           notifyObservers(v, observers)
           null
@@ -687,8 +687,7 @@ private[zio] final class FiberContext[E, A](
 
   @tailrec
   private[this] final def kill0: UIO[Exit[E, A]] = {
-    def awaitAll: UIO[Exit[E, A]] =
-      interrupted.peek.interruptChildren *> await
+    def interruptAndAwait: UIO[Exit[E, A]] = interrupted.peek.interruptChildren *> await
 
     val oldState = state.get
 
@@ -700,14 +699,14 @@ private[zio] final class FiberContext[E, A](
 
           evaluateLater(ZIO.interrupt)
 
-          awaitAll
+          interruptAndAwait
         }
 
       case Done(e) => ZIO.succeed(e)
 
       case _ =>
         setInterrupted(true)
-        awaitAll
+        interruptAndAwait
     }
   }
 

@@ -25,23 +25,22 @@ import zio.IO
  * Represents an interruption signal for a fiber. It keeps track of the
  * interruption status of the fiber, child fibers, and so forth.
  */
-class InterruptSignal private (
+private[internal] class InterruptSignal private (
   private var onDone: () => Unit,
   private var parent: InterruptSignal,
-  private var ownerFiber: () => FiberContext[_, _],
   private val children: AtomicReference[Set[FiberContext[_, _]]],
-  @volatile var ownerInterrupted: Boolean
+  @volatile private[this] var ownerInterrupted: Boolean
 ) { self =>
 
   /**
    * Records a new child, forked from the fiber that owns this signal.
    */
   @tailrec
-  final def forkChild(fiber: FiberContext[_, _]): InterruptSignal = {
+  final def forkChild(childFiber: FiberContext[_, _]): InterruptSignal = {
     val oldState = children.get
 
-    if (!children.compareAndSet(oldState, oldState + fiber)) forkChild(fiber)
-    else InterruptSignal.make(() => self.childDone(fiber), self, ownerFiber, new AtomicReference(Set()))
+    if (!children.compareAndSet(oldState, oldState + childFiber)) forkChild(childFiber)
+    else InterruptSignal.make(() => self.childDone(childFiber), self, new AtomicReference(Set()))
   }
 
   /**
@@ -55,16 +54,15 @@ class InterruptSignal private (
    * Determines if the fiber owning this signal has been ownerInterrupted.
    */
   final def isInterrupted: Boolean =
-    ownerInterrupted || parentInterrupted()
+    ownerInterrupted || ((parent ne null) && parent.isInterrupted)
 
   /**
    * Marks the fiber that owns this signal as done.
    */
-  final def selfDone(): Unit =
+  final def ownerDone(): Unit =
     if (onDone ne null) {
       onDone()
       onDone = null
-      ownerFiber = null
     }
 
   /**
@@ -82,32 +80,17 @@ class InterruptSignal private (
 
     if (!children.compareAndSet(oldState, oldState - fiber)) childDone(fiber)
   }
-
-  private final def parentInterrupted(): Boolean = {
-    var current     = parent
-    var interrupted = false
-
-    while (current ne null) {
-      if (current.isInterrupted) {
-        interrupted = true
-        current = null
-      } else current = current.parent
-    }
-
-    interrupted
-  }
 }
 private[zio] object InterruptSignal {
-  private[zio] final def root(fiber: () => FiberContext[_, _]): InterruptSignal =
-    make(() => (), null, fiber, new AtomicReference(Set()))
+  private[zio] final def root(): InterruptSignal =
+    make(() => (), null, new AtomicReference(Set()))
 
   private final def make(
     onDone: () => Unit,
     parentInterrupted: InterruptSignal,
-    fiber: () => FiberContext[_, _],
     children: AtomicReference[Set[FiberContext[_, _]]]
   ): InterruptSignal =
-    new InterruptSignal(onDone, parentInterrupted, fiber, children, false)
+    new InterruptSignal(onDone, parentInterrupted, children, false)
 
   private[zio] def garbageCollect(signal: InterruptSignal): InterruptSignal =
     if (signal eq null) signal
@@ -116,6 +99,6 @@ private[zio] object InterruptSignal {
       if (signal.parent eq null) null
       else garbageCollect(signal.parent)
     } else {
-      make(signal.onDone, garbageCollect(signal.parent), signal.ownerFiber, signal.children)
+      make(signal.onDone, garbageCollect(signal.parent), signal.children)
     }
 }

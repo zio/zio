@@ -127,6 +127,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     bracket is uninterruptible              $testBracketAcquireIsUninterruptible
     bracket0 is uninterruptible             $testBracket0AcquireIsUninterruptible
     bracket use is interruptible            $testBracketUseIsInterruptible
+    bracket acquire can be interrupted      $testBracketAcquireCanBeMadeInterruptible
     bracket0 use is interruptible           $testBracket0UseIsInterruptible
     bracket release called on interrupt     $testBracketReleaseOnInterrupt
     bracket0 release called on interrupt    $testBracket0ReleaseOnInterrupt
@@ -892,6 +893,23 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       } yield count must_=== 8
     )
 
+  def testNestedForkInterruption =
+    unsafeRun(
+      for {
+        ref <- Ref.make(0)
+        fiber <- withLatch(
+                  r1 =>
+                    withLatch(
+                      r2 =>
+                        ((r1 *> IO.never).ensuring(ref.update(_ + 1)).fork *> (r2 *> IO.never)
+                          .ensuring(ref.update(_ + 1))).fork
+                    )
+                )
+        exit  <- fiber.interrupt
+        count <- ref.get
+      } yield (exit.interrupted must beTrue) and (count must_=== 2)
+    )
+
   def testUseInheritsInterruptStatus =
     unsafeRun(
       for {
@@ -989,15 +1007,18 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(io) must_=== 42
   }
 
-  def testAsyncIsInterruptible = {
-    val io =
-      for {
-        fiber <- IO.effectAsync[Any, Nothing, Nothing](_ => ()).fork
-        _     <- fiber.interrupt
-      } yield 42
+  def testInterruptibleUninterruptible =
+    unsafeRun(for {
+      fiber <- withLatch(release => ZIO.uninterruptible(ZIO.interruptible(release *> ZIO.never)).fork)
+      exit  <- fiber.interrupt
+    } yield exit.interrupted must beTrue)
 
-    unsafeRun(io) must_=== 42
-  }
+  def testAsyncIsInterruptible =
+    nonFlaky(for {
+      fiber <- IO.effectAsync[Any, Nothing, Nothing](_ => ()).fork
+      _     <- fiber.interrupt
+      r     <- IO.succeed(42)
+    } yield r must_=== 42)
 
   def testAsyncPureCreationIsInterruptible = {
     val io = for {
@@ -1040,6 +1061,15 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val io =
       for {
         fiber <- IO.bracket(IO.unit)(_ => IO.unit)(_ => IO.never).fork
+        res   <- fiber.interrupt
+      } yield res
+    unsafeRun(io) must_=== Exit.interrupt
+  }
+
+  def testBracketAcquireCanBeMadeInterruptible = {
+    val io =
+      for {
+        fiber <- IO.bracket(IO.interruptible(IO.never))(_ => IO.unit)(_ => IO.unit).fork
         res   <- fiber.interrupt
       } yield res
     unsafeRun(io) must_=== Exit.interrupt

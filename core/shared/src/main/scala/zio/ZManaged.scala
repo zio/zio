@@ -318,24 +318,21 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    */
   final def fork: ZManaged[R, Nothing, Fiber[E, A]] =
     ZManaged {
+      //def log(text: String): UIO[Unit] = UIO(println(text))
+
       for {
         finalizer <- Ref.make[ZIO[R, Nothing, Any]](UIO.unit)
         // The reservation phase of the new `ZManaged` runs uninterruptibly;
         // so to make sure the acquire phase of the original `ZManaged` runs
         // interruptibly, we need to create an interruptible hole in the region.
-        fiber <- ZIO.interruptibleMask { restore =>
-                  restore {
-                    for {
-                      reservation <- self.reserve
-                      _           <- finalizer.set(reservation.release)
-                    } yield reservation
-                  } >>= (_.acquire)
-                }.fork
-        reservation = Reservation(
-          acquire = UIO.succeed(fiber),
-          release = fiber.interrupt *> finalizer.get.flatMap(identity(_))
-        )
-      } yield reservation
+        fiber <- self.reserve
+                  .tap(reservation => finalizer.set(reservation.release))
+                  .flatMap(reservation => ZIO.interruptible(reservation.acquire))
+                  .fork
+      } yield Reservation(
+        acquire = UIO.succeed(fiber),
+        release = fiber.interrupt *> ZIO.flatten(finalizer.get)
+      )
     }
 
   /**

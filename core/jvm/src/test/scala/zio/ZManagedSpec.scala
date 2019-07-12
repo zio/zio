@@ -21,7 +21,8 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Properly performs parallel acquire and release. $parallelAcquireAndRelease
     Constructs an uninterruptible Managed value. $uninterruptible
   ZManaged.reserve
-    Interruption is possible when using this form. $interruptible
+    Simple intreruption. $interruptible
+    Regression interruption. $interruptible2
   ZManaged.ensuring
     Runs on successes $ensuringSuccess
     Runs on failures $ensuringFailure
@@ -147,6 +148,17 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   // unlike make, reserve allows interruption
   private def interruptible =
     doInterrupt(io => ZManaged.reserve(Reservation(io, IO.unit)), Some(Failure(Interrupt)))
+
+  private def interruptible2 = unsafeRun {
+    for {
+      finalized <- Ref.make(false)
+      latch     <- Promise.make[Nothing, Unit]
+      fiber     <- ZManaged.reserve(Reservation(latch.succeed(()) *> ZIO.never, finalized.set(true))).use_(IO.never).fork
+      _         <- latch.await
+      _         <- fiber.interrupt
+      value     <- finalized.get
+    } yield value must beTrue
+  }
 
   private def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
