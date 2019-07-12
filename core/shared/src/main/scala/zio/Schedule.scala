@@ -40,7 +40,7 @@ object Schedule {
     ZSchedule.delay
 
   /**
-   * See [[ZSchedule.duration]]
+   * See [[ZSchedule.duration:*]]
    */
   final val duration: ZSchedule[Clock, Delay, Duration] =
     ZSchedule.duration
@@ -80,13 +80,13 @@ object Schedule {
     ZSchedule.doWhile(f)
 
   /**
-   * See [[ZSchedule.doUntil]]
+   * See [[ZSchedule.doUntil[A](*]]
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
     ZSchedule.doUntil(f)
 
   /**
-   * See [[ZSchedule.doUntil]]
+   * See [[ZSchedule.doUntil[A,B](*]]
    */
   final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] =
     ZSchedule.doUntil(pf)
