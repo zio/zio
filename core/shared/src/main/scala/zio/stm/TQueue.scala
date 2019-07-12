@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import com.github.ghik.silencer.silent
+
 import scala.collection.immutable.{ Queue => ScalaQueue }
 
 class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
@@ -27,6 +29,7 @@ class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     } yield ()
 
   // TODO: Scala doesn't allow Iterable???
+  @silent("enqueueAll")
   final def offerAll(as: List[A]): STM[Nothing, Unit] =
     ref.update(_.enqueue(as)).unit
 

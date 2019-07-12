@@ -120,9 +120,9 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         case _                         => causeToSequential(cause).all
       }
 
-    // Java 11 defines String#lines returning a Stream<String>, so the implicit conversion has to
-    // be requested explicitly
-    def lines(str: String): List[String] = augmentString(str).lines.toList
+    // Inline definition of `StringOps.lines` to avoid calling either of `.linesIterator` or `.lines`
+    // since both are deprecated in either 2.11 or 2.13 respectively.
+    def lines(str: String): List[String] = augmentString(str).linesWithSeparators.map(_.stripLineEnd).toList
 
     def renderThrowable(e: Throwable): List[String] = {
       import java.io.{ PrintWriter, StringWriter }

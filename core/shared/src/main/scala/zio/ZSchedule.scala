@@ -20,14 +20,11 @@ import java.time.temporal.ChronoField
 import java.time.{ LocalDate, LocalTime }
 import java.util.concurrent.TimeUnit
 
-import zio.ZSchedule.Decision
 import zio.clock.Clock
 import zio.delay.Delay
 import zio.duration.Duration
-import zio.random.{ nextDouble, Random }
+import zio.random.nextDouble
 import zio.random.Random
-
-import scala.annotation.implicitNotFound
 
 /**
  * Defines a stateful, possibly effectful, recurring schedule of actions.
@@ -577,16 +574,13 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     self.startingOn(Delay.none)
 }
 
-private[zio] trait Schedule_Functions extends Serializable {
-
-  type ConformsR[A]
-  implicit val ConformsAnyProof: ConformsR[Any]
+object ZSchedule {
 
   /**
    * A schedule that recurs forever, producing a count of inputs.
    * Not in alphabetic order because other vals below depend on it.
    */
-  final val forever: Schedule[Any, Int] = Schedule.unfold(0)(_ + 1)
+  final val forever: Schedule[Any, Int] = unfold(0)(_ + 1)
 
   /**
    * A schedule that will recur forever with no delay, returning the decision
@@ -604,13 +598,17 @@ private[zio] trait Schedule_Functions extends Serializable {
   final val delay: Schedule[Any, Delay] =
     forever.reconsider[Any, Delay]((_, d) => d.copy(finish = () => d.delay))
 
-  final val duration: ZSchedule[Clock, Delay, (Delay, Duration)] =
+  /**
+   * A schedule that will recur forever with no delay, receiving a delay as input
+   * returning the duration You can chain this onto the end of schedules to find out
+   * what their delay is, e.g. `Schedule.spaced(1.second) >>> Schedule.duration`.
+   */
+  final val duration: ZSchedule[Clock, Delay, Duration] =
     forever
       .reconsider[Delay, Delay]((s, d) => {
         d.rightMap(_ => s)
       })
       .mapM(_.run)
-      .immediately
 
   /**
    * A schedule that never executes. Note that negating this schedule does not
@@ -624,7 +622,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    */
   final val once: Schedule[Any, Unit] = recurs(1).unit
 
-  final def apply[R: ConformsR, S, A, B](
+  final def apply[R, S, A, B](
     initial0: ZIO[R, Nothing, (Delay, S)],
     update0: (A, S) => ZIO[R, Nothing, ZSchedule.Decision[S, B]]
   ): ZSchedule[R, A, B] =
@@ -643,10 +641,8 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A new schedule derived from the specified schedule which adds the delay
    * specified as output to the existing duration.
    */
-  final def delayed[R: ConformsR, A](s: ZSchedule[R, A, Delay]): ZSchedule[R, A, Delay] = {
-    val delayed = s.modifyDelay((b, d) => IO.succeed(b + d))
-    delayed.reconsider((_, step) => step.copy(finish = () => step.delay)) // TODO: Dotty doesn't infer this properly
-  }
+  final def delayed[R, A](s: ZSchedule[R, A, Delay]): ZSchedule[R, A, Delay] =
+    s.modifyDelay((b, d) => IO.succeed(b + d)).reconsider((_, step) => step.copy(finish = () => step.delay))
 
   /**
    * A schedule that recurs for as long as the predicate evaluates to true.
@@ -677,8 +673,7 @@ private[zio] trait Schedule_Functions extends Serializable {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def exponential(base: Duration, factor: Double = 2.0): ZSchedule[Clock, Any, (Delay, Duration)] =
-    (delayed[Any, Any](forever.map(i => base.relative * math.pow(factor, i.doubleValue))) >>> duration)
-      .contramap(_ => Delay.none)
+    (delayed[Any, Any](forever.map(i => base.relative * math.pow(factor, i.doubleValue))) >>> duration).immediately
 
   /**
    * A schedule that always recurs, increasing delays by summing the
@@ -688,7 +683,7 @@ private[zio] trait Schedule_Functions extends Serializable {
   final def fibonacci(one: Duration): ZSchedule[Clock, Any, (Delay, Duration)] =
     (delayed[Any, Any](unfold[(Duration, Duration)]((Duration.Zero, one)) {
       case (a1, a2) => (a2, a1 + a2)
-    }.map(_._1.relative)) >>> duration).contramap(_ => Delay.none)
+    }.map(_._1.relative)) >>> duration).immediately
 
   /**
    * A schedule that recurs forever, mapping input values through the
@@ -711,13 +706,13 @@ private[zio] trait Schedule_Functions extends Serializable {
    * repetitions so far. Returns the current duration between recurrences.
    */
   final def linear(base: Duration): ZSchedule[Clock, Any, (Delay, Duration)] =
-    (delayed[Any, Any](forever.map(i => base.relative * i.doubleValue())) >>> duration).contramap(_ => Delay.none)
+    (delayed[Any, Any](forever.map(i => base.relative * i.doubleValue())) >>> duration).immediately
 
   /**
    * A schedule that recurs forever, dumping input values to the specified
    * sink, and returning those same values unmodified.
    */
-  final def logInput[R: ConformsR, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
+  final def logInput[R, A](f: A => ZIO[R, Nothing, Unit]): ZSchedule[R, A, A] =
     identity[A].logInput(f)
 
   /**
@@ -761,31 +756,8 @@ private[zio] trait Schedule_Functions extends Serializable {
    * A schedule that always recurs without delay, and computes the output
    * through recured application of a function to a base value.
    */
-  final def unfoldM[R: ConformsR, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ZSchedule[R, Any, A] =
+  final def unfoldM[R, A](a: ZIO[R, Nothing, A])(f: A => ZIO[R, Nothing, A]): ZSchedule[R, Any, A] =
     ZSchedule[R, A, Any, A](a.map(res => (Delay.none, res)), (_, a) => f(a).map(a => Decision.cont(Delay.none, a, a)))
-}
-
-object Schedule extends Schedule_Functions {
-  @implicitNotFound(
-    "The environment type of all Schedule methods must be Any. If you want to use an environment, please use ZSchedule."
-  )
-  sealed trait ConformsR1[A]
-
-  type ConformsR[A] = ConformsR1[A]
-  implicit val ConformsAnyProof: ConformsR1[Any]     = new ConformsR1[Any]   {}
-  implicit val ConformsClockProof: ConformsR1[Clock] = new ConformsR1[Clock] {}
-
-}
-
-object ZSchedule extends Schedule_Functions {
-  sealed trait ConformsR1[A]
-
-  private val _ConformsR1: ConformsR1[Any] = new ConformsR1[Any] {}
-
-  type ConformsR[A] = ConformsR1[A]
-  implicit def ConformsRProof[A]: ConformsR[A] = _ConformsR1.asInstanceOf[ConformsR1[A]]
-
-  implicit val ConformsAnyProof: ConformsR[Any] = _ConformsR1
 
   sealed case class Decision[+A, +B] private[zio] (cont: Boolean, delay: Delay, state: A, finish: () => B) { self =>
     final def bimap[C, D](f: A => C, g: B => D): Decision[C, D] = copy(state = f(state), finish = () => g(finish()))
