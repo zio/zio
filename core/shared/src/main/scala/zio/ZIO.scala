@@ -790,6 +790,27 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] = ZIO.identity[C] +++ self
 
   /**
+   * Returns a successful effect if the value is `Right`, or fails with the given error 'e'.
+   */
+  def rightOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, C] =
+    self.flatMap(ev(_) match {
+      case Right(value) => ZIO.succeed(value)
+      case Left(_)      => ZIO.fail(e)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Right`, or fails with a [[java.util.NoSuchElementException]].
+   */
+  def rightOrFailException[B, C, E1 >: NoSuchElementException](
+    implicit ev: A <:< Either[B, C],
+    ev2: E <:< E1
+  ): ZIO[R, E1, C] =
+    self.foldM(
+      e => ZIO.fail(ev2(e)),
+      a => ev(a).fold(_ => ZIO.fail(new NoSuchElementException("Either.right.get on Left")), ZIO.succeed(_))
+    )
+
+  /**
    * A variant of `flatMap` that ignores the value produced by this effect.
    */
   final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
