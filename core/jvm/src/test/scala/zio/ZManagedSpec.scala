@@ -576,31 +576,28 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def forkFinalizer = unsafeRun {
     for {
       finalized <- Ref.make(false)
-      latch     <- Promise.make[Nothing, Unit]
       _ <- ZManaged
-            .reserve(Reservation(latch.succeed(()) *> ZIO.never, finalized.set(true)))
+            .reserve(Reservation(ZIO.never, finalized.set(true)))
             .fork
-            .use_(latch.await)
+            .use_(IO.unit)
       result <- finalized.get
     } yield result must_=== true
   }
 
   private def forkAcquisitionIsInterruptible = unsafeRun {
     for {
-      finalized    <- Ref.make(false)
-      acquireLatch <- Promise.make[Nothing, Unit]
-      useLatch     <- Promise.make[Nothing, Unit]
+      finalized <- Ref.make(false)
+      useLatch  <- Promise.make[Nothing, Unit]
       fib <- ZManaged
               .reserve(
                 Reservation(
-                  acquireLatch.succeed(()) *> ZIO.never,
+                  ZIO.never,
                   finalized.set(true)
                 )
               )
               .fork
               .use_(useLatch.succeed(()) *> ZIO.never)
               .fork
-      _      <- acquireLatch.await
       _      <- useLatch.await
       _      <- fib.interrupt
       result <- finalized.get
