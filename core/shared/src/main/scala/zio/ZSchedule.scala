@@ -843,7 +843,7 @@ object ZSchedule {
   /**
    * Builds an Schedule capable of running an effect at a given minute and hour, every day
    */
-  final def everyDay(minute: Int, hour: Int): ZSchedule[Clock, Nothing, (Long, Long)] = {
+  final def everyDay(minute: Int, hour: Int): ZSchedule[Clock, Any, (Delay, Long)] = {
     def calculateDelay: Delay = {
       val today        = LocalDate.now()
       val scheduleTime = LocalTime.of(hour, minute)
@@ -860,14 +860,14 @@ object ZSchedule {
       Delay.absolute(delay)
     }
 
-    ZSchedule[Clock, Long, Nothing, (Long, Long)](
+    ZSchedule[Clock, Long, Any, (Delay, Long)](
       initial0 = clock.currentTime(unit = TimeUnit.MILLISECONDS).map(_ => (calculateDelay, 0L)),
       update0 = (_, timesRan) =>
-        clock.currentTime(unit = TimeUnit.MILLISECONDS).map { now =>
+        clock.currentTime(unit = TimeUnit.MILLISECONDS).map { _ =>
           Decision.cont(
             calculateDelay,
             timesRan + 1,
-            (timesRan + 1, now)
+            (calculateDelay, timesRan + 1)
           )
         }
     )
