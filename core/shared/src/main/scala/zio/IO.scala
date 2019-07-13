@@ -24,25 +24,25 @@ object IO {
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
-   * See [[zio.ZIO$.bracket[R, E, A]]]
+   * See [[zio.ZIO$.bracket]]
    */
   final def bracket[E, A](acquire: IO[E, A]): BracketAcquire[E, A] =
     new BracketAcquire(acquire)
 
   /**
-   * See [[zio.ZIO$.bracket[R, E, A, B]]]
+   * See [[zio.ZIO$.bracket]]
    */
   final def bracket[E, A, B](acquire: IO[E, A], release: A => UIO[_], use: A => IO[E, B]): IO[E, B] =
     ZIO.bracket(acquire, release, use)
 
   /**
-   * See [[zio.ZIO$.bracketExit[R, E, A]]]
+   * See [[zio.ZIO$.bracketExit]]
    */
   final def bracketExit[E, A](acquire: IO[E, A]): ZIO.BracketExitAcquire[Any, E, A] =
     ZIO.bracketExit(acquire)
 
   /**
-   * See [[zio.ZIO$.bracketExit[R, E, A, B]]]
+   * See [[zio.ZIO$.bracketExit]]
    */
   final def bracketExit[E, A, B](acquire: IO[E, A], release: (A, Exit[E, B]) => UIO[_], use: A => IO[E, B]): IO[E, B] =
     ZIO.bracketExit(acquire, release, use)
