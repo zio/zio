@@ -38,13 +38,13 @@ object TaskR {
     ZIO.accessM
 
   /**
-   * See [[zio.ZIO.bracket]]
+   * See [[zio.ZIO.bracket[R, E, A](acquire: ZIO[R, E, A]):*]]
    */
   final def bracket[R, A](acquire: TaskR[R, A]): ZIO.BracketAcquire[R, Throwable, A] =
     ZIO.bracket(acquire)
 
   /**
-   * See [[zio.ZIO.bracket]]
+   * See [[zio.ZIO.bracket[R, E, A](acquire: ZIO[R, E, A],):*]]
    */
   final def bracket[R, A, B](
     acquire: TaskR[R, A],
@@ -53,13 +53,13 @@ object TaskR {
   ): TaskR[R, B] = ZIO.bracket(acquire, release, use)
 
   /**
-   * See [[zio.ZIO.bracketExit]]
+   * See [[zio.ZIO.zio.ZIO.bracketExit[R, E, A](acquire: ZIO[R, E, A]):*]]
    */
   final def bracketExit[R, A](acquire: TaskR[R, A]): ZIO.BracketExitAcquire[R, Throwable, A] =
     ZIO.bracketExit(acquire)
 
   /**
-   * See [[zio.ZIO.bracketExit]]
+   * See [[zio.ZIO.zio.ZIO.bracketExit[R, E, A](acquire: ZIO[R, E, A],):*]]
    */
   final def bracketExit[R, A, B](
     acquire: TaskR[R, A],
