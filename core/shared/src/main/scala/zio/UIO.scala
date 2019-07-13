@@ -22,25 +22,25 @@ object UIO {
   def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
-   * See [[zio.ZIO.bracket[R, E, A](acquire: zio.ZIO[R,E,A]): zio.ZIO.BracketAcquire[R,E,A]]]
+   * See [[zio.ZIO$.bracket[R, E, A](acquire: zio.ZIO[R,E,A]): zio.ZIO.BracketAcquire[R,E,A]]]
    */
   final def bracket[A](acquire: UIO[A]): ZIO.BracketAcquire[Any, Nothing, A] =
     ZIO.bracket(acquire)
 
   /**
-   * See [[zio.ZIO.bracket[R, E, A, B](acquire: zio.ZIO[R,E,A],release: A => zio.ZIO[R, Nothing, _],use: A => zio.ZIO[R,E,B]): zio.ZIO[R,E,B]]]
+   * See [[zio.ZIO$.bracket[R, E, A, B](acquire: zio.ZIO[R,E,A],release: A => zio.ZIO[R, Nothing, _],use: A => zio.ZIO[R,E,B]): zio.ZIO[R,E,B]]]
    */
   final def bracket[A, B](acquire: UIO[A], release: A => UIO[_], use: A => UIO[B]): UIO[B] =
     ZIO.bracket(acquire, release, use)
 
   /**
-   * See [[zio.ZIO.bracketExit[R, E, A](acquire: zio.ZIO[R,E,A]): zio.ZIO.BracketAcquire[R,E,A]]]
+   * See [[zio.ZIO$.bracketExit[R, E, A](acquire: zio.ZIO[R,E,A]): zio.ZIO.BracketAcquire[R,E,A]]]
    */
   final def bracketExit[A](acquire: UIO[A]): ZIO.BracketExitAcquire[Any, Nothing, A] =
     ZIO.bracketExit(acquire)
 
   /**
-   * See [[zio.ZIO.bracketExit[R, E, A, B](acquire: zio.ZIO[R,E,A],release: (A, zio.Exit[E,B]) => zio.ZIO[R, Nothing, _],use: A => zio.ZIO[R,E,B]): zio.ZIO[R,E,B]]]
+   * See [[zio.ZIO$.bracketExit[R, E, A, B](acquire: zio.ZIO[R,E,A],release: (A, zio.Exit[E,B]) => zio.ZIO[R, Nothing, _],use: A => zio.ZIO[R,E,B]): zio.ZIO[R,E,B]]]
    */
   final def bracketExit[A, B](acquire: UIO[A], release: (A, Exit[Nothing, B]) => UIO[_], use: A => UIO[B]): UIO[B] =
     ZIO.bracketExit(acquire, release, use)
