@@ -114,8 +114,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     short circuits          $repeatShortCircuits
 
   Stream.spaced
-    spaced                  $spaced
-    short circuits          $spacedShortCircuits
+    spaced                        $spaced
+    spacedEither                  $spacedEither
+    repeated and spaced           $repeatedAndSpaced
+    short circuits in schedule    $spacedShortCircuitsWhileInSchedule
+    short circuits after schedule $spacedShortCircuitsAfterScheduleFinished
 
   Stream.take
     take                     $take
@@ -771,21 +774,47 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         result <- ref.get
       } yield result must_=== List(1, 1)
     )
+
   private def spaced =
     unsafeRun(
-      Stream(1, 2, 3)
-        .spaced(Schedule.recurs(1))
-        .run(Sink.collectAll[Int])
-        .map(_ must_=== List(1, 1, 2, 2, 3, 3))
+      Stream("A", "B", "C")
+        .spaced(Schedule.recurs(0) *> Schedule.fromFunction((_) => "!"))
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "!", "B", "!", "C", "!"))
     )
 
-  private def spacedShortCircuits =
+  private def spacedEither =
     unsafeRun(
-      Stream(1, 2, 3)
-        .spaced(Schedule.recurs(1))
+      Stream("A", "B", "C")
+        .spacedEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+        .run(Sink.collectAll[Either[Int, String]])
+        .map(_ must_=== List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123)))
+    )
+
+  private def repeatedAndSpaced =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
+    )
+
+  private def spacedShortCircuitsAfterScheduleFinished =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
         .take(3)
-        .run(Sink.collectAll[Int])
-        .map(_ must_=== List(1, 1, 2))
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "A", "!"))
+    )
+
+  private def spacedShortCircuitsWhileInSchedule =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .take(4)
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "A", "!", "B"))
     )
 
   private def take =
