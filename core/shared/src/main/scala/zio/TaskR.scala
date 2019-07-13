@@ -75,6 +75,18 @@ object TaskR {
     ZIO.checkInterruptible(f)
 
   /**
+   * See [[zio.ZIO.checkSupervised]]
+   */
+  final def checkSupervised[R, A](f: SuperviseStatus => TaskR[R, A]): TaskR[R, A] =
+    ZIO.checkSupervised(f)
+
+  /**
+   * See [[zio.ZIO.checkTraced]]
+   */
+  final def checkTraced[R, A](f: TracingStatus => TaskR[R, A]): TaskR[R, A] =
+    ZIO.checkTraced(f)
+
+  /**
    * See [[zio.ZIO.children]]
    */
   final def children: UIO[IndexedSeq[Fiber[_, _]]] = ZIO.children
@@ -166,6 +178,14 @@ object TaskR {
    * See [[zio.ZIO.fail]]
    */
   final def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
+
+  /**
+   * See [[zio.ZIO.firstSuccessOf]]
+   */
+  final def firstSuccessOf[R, A](
+    taskR: TaskR[R, A],
+    rest: Iterable[TaskR[R, A]]
+  ): TaskR[R, A] = ZIO.firstSuccessOf(taskR, rest)
 
   /**
    * See [[zio.ZIO.flatten]]
@@ -275,6 +295,12 @@ object TaskR {
   final def halt(cause: Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
 
   /**
+   * See [[zio.ZIO.haltWith]]
+   */
+  final def haltWith[R](function: (() => ZTrace) => Cause[Throwable]): TaskR[R, Nothing] =
+    ZIO.haltWith(function)
+
+  /**
    * See [[zio.ZIO.identity]]
    */
   final def identity[R]: ZIO[R, Nothing, R] = ZIO.identity
@@ -352,7 +378,7 @@ object TaskR {
   /**
    * See [[zio.ZIO.reserve]]
    */
-  def reserve[R, A, B](reservation: TaskR[R, Reservation[R, Throwable, A]])(use: A => TaskR[R, B]): TaskR[R, B] =
+  final def reserve[R, A, B](reservation: TaskR[R, Reservation[R, Throwable, A]])(use: A => TaskR[R, B]): TaskR[R, B] =
     ZIO.reserve(reservation)(use)
 
   /**
@@ -391,10 +417,34 @@ object TaskR {
     ZIO.handleChildrenWith(taskr)(supervisor)
 
   /**
+   *  See [[zio.ZIO.sequence]]
+   */
+  final def sequence[R, A](in: Iterable[TaskR[R, A]]): TaskR[R, List[A]] =
+    ZIO.sequence(in)
+
+  /**
+   *  See [[zio.ZIO.sequencePar]]
+   */
+  final def sequencePar[R, A](as: Iterable[TaskR[R, A]]): TaskR[R, List[A]] =
+    ZIO.sequencePar(as)
+
+  /**
+   *  See [[zio.ZIO.sequenceParN]]
+   */
+  final def sequenceParN[R, A](n: Long)(as: Iterable[TaskR[R, A]]): TaskR[R, List[A]] =
+    ZIO.sequenceParN(n)(as)
+
+  /**
    * See [[zio.ZIO.supervised]]
    */
   final def supervised[R, A](taskr: TaskR[R, A]): TaskR[R, A] =
     ZIO.supervised(taskr)
+
+  /**
+   * See [[zio.ZIO.superviseStatus]]
+   */
+  final def superviseStatus[R, A](status: SuperviseStatus)(taskr: TaskR[R, A]): TaskR[R, A] =
+    ZIO.superviseStatus(status)(taskr)
 
   /**
    * See [[zio.ZIO.suspend]]
@@ -425,6 +475,46 @@ object TaskR {
   final def traced[R, A](zio: TaskR[R, A]): TaskR[R, A] = ZIO.traced(zio)
 
   /**
+   * See [[zio.ZIO.traverse]]
+   */
+  final def traverse[R, A, B](in: Iterable[A])(f: A => TaskR[R, B]): TaskR[R, List[B]] =
+    ZIO.traverse(in)(f)
+
+  /**
+   * See [[zio.ZIO.traversePar]]
+   */
+  final def traversePar[R, A, B](as: Iterable[A])(fn: A => TaskR[R, B]): TaskR[R, List[B]] =
+    ZIO.traversePar(as)(fn)
+
+  /**
+   * Alias for [[ZIO.foreachParN]]
+   */
+  final def traverseParN[R, A, B](
+    n: Long
+  )(as: Iterable[A])(fn: A => TaskR[R, B]): TaskR[R, List[B]] =
+    ZIO.traverseParN(n)(as)(fn)
+
+  /**
+   * See [[zio.ZIO.traverse_]]
+   */
+  final def traverse_[R, A](as: Iterable[A])(f: A => TaskR[R, _]): TaskR[R, Unit] =
+    ZIO.traverse_(as)(f)
+
+  /**
+   * See [[zio.ZIO.traversePar_]]
+   */
+  final def traversePar_[R, A](as: Iterable[A])(f: A => TaskR[R, _]): TaskR[R, Unit] =
+    ZIO.traversePar_(as)(f)
+
+  /**
+   * See [[zio.ZIO.traverseParN_]]
+   */
+  final def traverseParN_[R, A](
+    n: Long
+  )(as: Iterable[A])(f: A => TaskR[R, _]): TaskR[R, Unit] =
+    ZIO.traverseParN_(n)(as)(f)
+
+  /**
    * See [[zio.ZIO.unit]]
    */
   final val unit: UIO[Unit] = ZIO.unit
@@ -442,9 +532,32 @@ object TaskR {
     ZIO.uninterruptibleMask(k)
 
   /**
+   * See [[zio.ZIO.unsandbox]]
+   */
+  final def unsandbox[R, A](v: IO[Cause[Throwable], A]): TaskR[R, A] = ZIO.unsandbox(v)
+
+  /**
+   * See [[zio.ZIO.unsupervised]]
+   */
+  final def unsupervised[R, A](taskR: TaskR[R, A]): TaskR[R, A] =
+    ZIO.unsupervised(taskR)
+
+  /**
    * See [[zio.ZIO.untraced]]
    */
   final def untraced[R, A](zio: TaskR[R, A]): TaskR[R, A] = ZIO.untraced(zio)
+
+  /**
+   * See [[zio.ZIO.when]]
+   */
+  final def when[R](b: Boolean)(taskR: TaskR[R, _]): TaskR[R, Unit] =
+    ZIO.when(b)(taskR)
+
+  /**
+   * See [[zio.ZIO.whenM]]
+   */
+  final def whenM[R](b: TaskR[R, Boolean])(taskR: TaskR[R, _]): TaskR[R, Unit] =
+    ZIO.whenM(b)(taskR)
 
   /**
    * See [[zio.ZIO.yieldNow]]

@@ -58,6 +58,18 @@ object Task {
     ZIO.checkInterruptible(f)
 
   /**
+   * See [[zio.ZIO.checkSupervised]]
+   */
+  final def checkSupervised[A](f: SuperviseStatus => Task[A]): Task[A] =
+    ZIO.checkSupervised(f)
+
+  /**
+   * See [[zio.ZIO.checkTraced]]
+   */
+  final def checkTraced[A](f: TracingStatus => Task[A]): Task[A] =
+    ZIO.checkTraced(f)
+
+  /**
    * See [[zio.ZIO.children]]
    */
   final def children: UIO[IndexedSeq[Fiber[_, _]]] = ZIO.children
@@ -144,6 +156,15 @@ object Task {
    * See [[zio.ZIO.fail]]
    */
   final def fail(error: Throwable): Task[Nothing] = ZIO.fail(error)
+
+  /**
+   * See [[zio.ZIO.firstSuccessOf]]
+   */
+  final def firstSuccessOf[A](
+    task: Task[A],
+    rest: Iterable[Task[A]]
+  ): Task[A] =
+    ZIO.firstSuccessOf(task, rest)
 
   /**
    * See [[zio.ZIO.flatten]]
@@ -241,6 +262,12 @@ object Task {
   final def halt(cause: Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
 
   /**
+   * See [[zio.ZIO.haltWith]]
+   */
+  final def haltWith[E <: Throwable](function: (() => ZTrace) => Cause[E]): Task[Nothing] =
+    ZIO.haltWith(function)
+
+  /**
    * See [[zio.ZIO.interrupt]]
    */
   final val interrupt: UIO[Nothing] = ZIO.interrupt
@@ -307,7 +334,7 @@ object Task {
   /**
    * See [[zio.ZIO.reserve]]
    */
-  def reserve[A, B](reservation: Task[Reservation[Any, Throwable, A]])(use: A => Task[B]): Task[B] =
+  final def reserve[A, B](reservation: Task[Reservation[Any, Throwable, A]])(use: A => Task[B]): Task[B] =
     ZIO.reserve(reservation)(use)
 
   /**
@@ -332,6 +359,12 @@ object Task {
     ZIO.supervised(task)
 
   /**
+   * See [[zio.ZIO.superviseStatus]]
+   */
+  final def superviseStatus[A](status: SuperviseStatus)(task: Task[A]): Task[A] =
+    ZIO.superviseStatus(status)(task)
+
+  /**
    * See [[zio.ZIO.interruptChildren]]
    */
   final def interruptChildren[A](task: Task[A]): Task[A] =
@@ -344,16 +377,34 @@ object Task {
     ZIO.handleChildrenWith(task)(supervisor)
 
   /**
+   *  See [[zio.ZIO.sequence]]
+   */
+  final def sequence[A](in: Iterable[Task[A]]): Task[List[A]] =
+    ZIO.sequence(in)
+
+  /**
+   *  See [[zio.ZIO.sequencePar]]
+   */
+  final def sequencePar[A](as: Iterable[Task[A]]): Task[List[A]] =
+    ZIO.sequencePar(as)
+
+  /**
+   *  See [[zio.ZIO.sequenceParN]]
+   */
+  final def sequenceParN[A](n: Long)(as: Iterable[Task[A]]): Task[List[A]] =
+    ZIO.sequenceParN(n)(as)
+
+  /**
    * See [[zio.ZIO.suspend]]
    */
-  final def suspend[A](io: => Task[A]): Task[A] =
-    ZIO.suspend(io)
+  final def suspend[A](task: => Task[A]): Task[A] =
+    ZIO.suspend(task)
 
   /**
    * [[zio.ZIO.suspendWith]]
    */
-  final def suspendWith[A](io: Platform => UIO[A]): UIO[A] =
-    new ZIO.SuspendWith(io)
+  final def suspendWith[A](task: Platform => UIO[A]): UIO[A] =
+    new ZIO.SuspendWith(task)
 
   /**
    * See [[zio.ZIO.trace]]
@@ -363,7 +414,47 @@ object Task {
   /**
    * See [[zio.ZIO.traced]]
    */
-  final def traced[A](zio: Task[A]): Task[A] = ZIO.traced(zio)
+  final def traced[A](task: Task[A]): Task[A] = ZIO.traced(task)
+
+  /**
+   * See [[zio.ZIO.traverse]]
+   */
+  final def traverse[A, B](in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
+    ZIO.traverse(in)(f)
+
+  /**
+   * See [[zio.ZIO.traversePar]]
+   */
+  final def traversePar[A, B](as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
+    ZIO.traversePar(as)(fn)
+
+  /**
+   * Alias for [[ZIO.foreachParN]]
+   */
+  final def traverseParN[A, B](
+    n: Long
+  )(as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
+    ZIO.traverseParN(n)(as)(fn)
+
+  /**
+   * See [[zio.ZIO.traverse_]]
+   */
+  final def traverse_[A](as: Iterable[A])(f: A => Task[_]): Task[Unit] =
+    ZIO.traverse_(as)(f)
+
+  /**
+   * See [[zio.ZIO.traversePar_]]
+   */
+  final def traversePar_[A](as: Iterable[A])(f: A => Task[_]): Task[Unit] =
+    ZIO.traversePar_(as)(f)
+
+  /**
+   * See [[zio.ZIO.traverseParN_]]
+   */
+  final def traverseParN_[A](
+    n: Long
+  )(as: Iterable[A])(f: A => Task[_]): Task[Unit] =
+    ZIO.traverseParN_(n)(as)(f)
 
   /**
    * See [[zio.ZIO.unit]]
@@ -385,7 +476,7 @@ object Task {
   /**
    * See [[zio.ZIO.untraced]]
    */
-  final def untraced[A](zio: Task[A]): Task[A] = ZIO.untraced(zio)
+  final def untraced[A](task: Task[A]): Task[A] = ZIO.untraced(task)
 
   /**
    * See [[zio.ZIO.when]]

@@ -54,6 +54,18 @@ object IO {
     ZIO.checkInterruptible(f)
 
   /**
+   * See [[zio.ZIO.checkSupervised]]
+   */
+  final def checkSupervised[E, A](f: SuperviseStatus => IO[E, A]): IO[E, A] =
+    ZIO.checkSupervised(f)
+
+  /**
+   * See [[zio.ZIO.checkTraced]]
+   */
+  final def checkTraced[E, A](f: TracingStatus => IO[E, A]): IO[E, A] =
+    ZIO.checkTraced(f)
+
+  /**
    * See [[zio.ZIO.children]]
    */
   final def children: UIO[IndexedSeq[Fiber[_, _]]] = ZIO.children
@@ -145,9 +157,9 @@ object IO {
    * See [[zio.ZIO.firstSuccessOf]]
    */
   final def firstSuccessOf[E, A](
-    zio: IO[E, A],
+    io: IO[E, A],
     rest: Iterable[IO[E, A]]
-  ): IO[E, A] = ZIO.firstSuccessOf(zio, rest)
+  ): IO[E, A] = ZIO.firstSuccessOf(io, rest)
 
   /**
    * See [[zio.ZIO.flatten]]
@@ -228,12 +240,6 @@ object IO {
     ZIO.fromFiberM(fiber)
 
   /**
-   * See [[zio.ZIO.fromFunction]]
-   */
-  final def fromFunction[A](f: Any => A): UIO[A] =
-    ZIO.fromFunction(f)
-
-  /**
    * See [[zio.ZIO.fromFuture]]
    */
   final def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
@@ -254,6 +260,12 @@ object IO {
    * See [[zio.ZIO.halt]]
    */
   final def halt[E](cause: Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
+
+  /**
+   * See [[zio.ZIO.haltWith]]
+   */
+  final def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
+    ZIO.haltWith(function)
 
   /**
    * See See [[zio.ZIO.interrupt]]
@@ -321,13 +333,31 @@ object IO {
   /**
    * See [[zio.ZIO.reserve]]
    */
-  def reserve[E, A, B](reservation: IO[E, Reservation[Any, E, A]])(use: A => IO[E, B]): IO[E, B] =
+  final def reserve[E, A, B](reservation: IO[E, Reservation[Any, E, A]])(use: A => IO[E, B]): IO[E, B] =
     ZIO.reserve(reservation)(use)
 
   /**
    * See [[zio.ZIO.runtime]]
    */
   final def runtime: UIO[Runtime[Any]] = ZIO.runtime
+
+  /**
+   *  See [[zio.ZIO.sequence]]
+   */
+  final def sequence[E, A](in: Iterable[IO[E, A]]): IO[E, List[A]] =
+    ZIO.sequence(in)
+
+  /**
+   *  See [[zio.ZIO.sequencePar]]
+   */
+  final def sequencePar[E, A](as: Iterable[IO[E, A]]): IO[E, List[A]] =
+    ZIO.sequencePar(as)
+
+  /**
+   *  See [[zio.ZIO.sequenceParN]]
+   */
+  final def sequenceParN[E, A](n: Long)(as: Iterable[IO[E, A]]): IO[E, List[A]] =
+    ZIO.sequenceParN(n)(as)
 
   /**
    * See [[zio.ZIO.succeed]]
@@ -348,7 +378,7 @@ object IO {
   /**
    * See [[zio.ZIO.supervised]]
    */
-  def supervised[E, A](io: IO[E, A]): IO[E, A] =
+  final def supervised[E, A](io: IO[E, A]): IO[E, A] =
     ZIO.supervised(io)
 
   /**
@@ -356,6 +386,12 @@ object IO {
    */
   final def handleChildrenWith[E, A](io: IO[E, A])(supervisor: IndexedSeq[Fiber[_, _]] => UIO[_]): IO[E, A] =
     ZIO.handleChildrenWith(io)(supervisor)
+
+  /**
+   * See [[zio.ZIO.superviseStatus]]
+   */
+  final def superviseStatus[E, A](status: SuperviseStatus)(io: IO[E, A]): IO[E, A] =
+    ZIO.superviseStatus(status)(io)
 
   /**
    * See [[zio.ZIO.suspend]]
@@ -380,6 +416,46 @@ object IO {
   final def traced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.traced(zio)
 
   /**
+   * See [[zio.ZIO.traverse]]
+   */
+  final def traverse[E, A, B](in: Iterable[A])(f: A => IO[E, B]): IO[E, List[B]] =
+    ZIO.traverse(in)(f)
+
+  /**
+   * See [[zio.ZIO.traversePar]]
+   */
+  final def traversePar[E, A, B](as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    ZIO.traversePar(as)(fn)
+
+  /**
+   * Alias for [[ZIO.foreachParN]]
+   */
+  final def traverseParN[E, A, B](
+    n: Long
+  )(as: Iterable[A])(fn: A => IO[E, B]): IO[E, List[B]] =
+    ZIO.traverseParN(n)(as)(fn)
+
+  /**
+   * See [[zio.ZIO.traverse_]]
+   */
+  final def traverse_[E, A](as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+    ZIO.traverse_(as)(f)
+
+  /**
+   * See [[zio.ZIO.traversePar_]]
+   */
+  final def traversePar_[E, A](as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+    ZIO.traversePar_(as)(f)
+
+  /**
+   * See [[zio.ZIO.traverseParN_]]
+   */
+  final def traverseParN_[E, A](
+    n: Long
+  )(as: Iterable[A])(f: A => IO[E, _]): IO[E, Unit] =
+    ZIO.traverseParN_(n)(as)(f)
+
+  /**
    * See [[zio.ZIO.unit]]
    */
   final val unit: UIO[Unit] = ZIO.unit
@@ -400,6 +476,12 @@ object IO {
    * See [[zio.ZIO.unsandbox]]
    */
   final def unsandbox[E, A](v: IO[Cause[E], A]): IO[E, A] = ZIO.unsandbox(v)
+
+  /**
+   * See [[zio.ZIO.unsupervised]]
+   */
+  final def unsupervised[E, A](io: IO[E, A]): IO[E, A] =
+    ZIO.unsupervised(io)
 
   /**
    * See [[zio.ZIO.untraced]]

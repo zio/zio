@@ -207,7 +207,8 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     def res(x: Int): Managed[Unit, Unit] =
       Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
-    val resource = Managed.fromEffect(IO.fail(())).foldM(_ => res(1), _ => Managed.unit)
+    // foldM[Any, Unit, Unit] - if types were not specified, you get "type inferred to `Any`" compile error.
+    val resource = Managed.fromEffect(IO.fail(())).foldM[Any, Unit, Unit](_ => res(1), _ => Managed.unit)
 
     unsafeRun(resource.use[Any, Unit, Unit](_ => IO.unit))
 
