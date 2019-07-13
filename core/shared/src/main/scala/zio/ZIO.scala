@@ -1429,6 +1429,11 @@ private[zio] trait ZIOFunctions extends Serializable {
   final val interrupt: UIO[Nothing] = haltWith(trace => Cause.Traced(Cause.Interrupt, trace()))
 
   /**
+   * Returns an effect with the empty value.
+   */
+  final val none: UIO[Option[Nothing]] = succeed(None)
+
+  /**
    * Returns a effect that will never produce anything. The moral
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
@@ -1489,12 +1494,22 @@ private[zio] trait ZIOFunctions extends Serializable {
     as.foldRight[ZIO[R, Nothing, Unit]](ZIO.unit)(_.fork *> _)
 
   /**
+   *  Returns an effect with the value on the left part.
+   */
+  final def left[A](a: A): UIO[Either[A, Nothing]] = succeed(Left(a))
+
+  /**
    * Returns an effect from a [[zio.Exit]] value.
    */
   final def done[E <: UpperE, A](r: Exit[E, A]): IO[E, A] = r match {
     case Exit.Success(b)     => succeed(b)
     case Exit.Failure(cause) => halt(cause)
   }
+
+  /**
+   *  Returns an effect with the optional value.
+   */
+  def some[A](a: A): UIO[Option[A]] = succeed(Some(a))
 
   /**
    * Enables supervision for this effect. This will cause fibers forked by
@@ -1728,6 +1743,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def require[E <: UpperE, A](error: E): IO[E, Option[A]] => IO[E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
+
+  /**
+   *  Returns an effect with the value on the right part.
+   */
+  def right[B](b: B): UIO[Either[Nothing, B]] = succeed(Right(b))
 
   /**
    * When this effect represents acquisition of a resource (for example,
