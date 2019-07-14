@@ -257,9 +257,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
-   * Returns an effect that executes both this effect and the specified effect,
-   * in parallel, specified effect result returned. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
    * Applies `f` if the predicate fails.
    */
   final def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
