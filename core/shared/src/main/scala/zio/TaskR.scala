@@ -350,7 +350,7 @@ object TaskR {
    */
   final val never: UIO[Nothing] = ZIO.never
 
-    /**
+  /**
    * @see See [[zio.ZIO.none]]
    */
   final val none: UIO[Option[Nothing]] = ZIO.none
