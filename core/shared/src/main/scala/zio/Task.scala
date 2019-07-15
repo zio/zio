@@ -285,6 +285,11 @@ object Task {
     ZIO.interruptibleMask(k)
 
   /**
+   *  @see See [[zio.ZIO.left]]
+   */
+  final def left[A](a: A): Task[Either[A, Nothing]] = ZIO.left(a)
+
+  /**
    * @see See [[zio.ZIO.lock]]
    */
   final def lock[A](executor: Executor)(task: Task[A]): Task[A] =
@@ -306,6 +311,11 @@ object Task {
    * @see See [[zio.ZIO.never]]
    */
   final val never: UIO[Nothing] = ZIO.never
+
+  /**
+   * @see See [[zio.ZIO.none]]
+   */
+  final val none: Task[Option[Nothing]] = ZIO.none
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -336,6 +346,11 @@ object Task {
    */
   final def reserve[A, B](reservation: Task[Reservation[Any, Throwable, A]])(use: A => Task[B]): Task[B] =
     ZIO.reserve(reservation)(use)
+
+  /**
+   *  @see [[zio.ZIO.right]]
+   */
+  def right[B](b: B): Task[Either[Nothing, B]] = ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
@@ -393,6 +408,11 @@ object Task {
    */
   final def sequenceParN[A](n: Long)(as: Iterable[Task[A]]): Task[List[A]] =
     ZIO.sequenceParN(n)(as)
+
+  /**
+   *  @see [[zio.ZIO.some]]
+   */
+  def some[A](a: A): Task[Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.suspend]]

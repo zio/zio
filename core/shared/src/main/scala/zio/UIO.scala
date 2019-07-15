@@ -242,6 +242,11 @@ object UIO {
     ZIO.interruptibleMask(k)
 
   /**
+   *  @see See [[zio.ZIO.left]]
+   */
+  final def left[A](a: A): UIO[Either[A, Nothing]] = ZIO.left(a)
+
+  /**
    * @see See [[zio.ZIO.lock]]
    */
   final def lock[A](executor: Executor)(uio: UIO[A]): UIO[A] =
@@ -258,6 +263,11 @@ object UIO {
    */
   final def mergeAllPar[A, B](in: Iterable[UIO[A]])(zero: B)(f: (B, A) => B): UIO[B] =
     ZIO.mergeAllPar(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.none]]
+   */
+  final val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
    * @see See [[zio.ZIO.never]]
@@ -289,6 +299,11 @@ object UIO {
     ZIO.reserve(reservation)(use)
 
   /**
+   *  @see [[zio.ZIO.right]]
+   */
+  def right[B](b: B): UIO[Either[Nothing, B]] = ZIO.right(b)
+
+  /**
    * @see See [[zio.ZIO.runtime]]
    */
   final def runtime: UIO[Runtime[Any]] = ZIO.runtime
@@ -310,6 +325,11 @@ object UIO {
    */
   final def sequenceParN[A](n: Long)(as: Iterable[UIO[A]]): UIO[List[A]] =
     ZIO.sequenceParN(n)(as)
+
+  /**
+   *  @see [[zio.ZIO.some]]
+   */
+  def some[A](a: A): UIO[Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]

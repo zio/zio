@@ -48,6 +48,18 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
+   Check `someOrFail` method extracts the optional value. $testSomeOrFailExtractOptionalValue
+   Check `someOrFail` method fails when given a None. $testSomeOrFailWithNone
+   Check `someOrFailException` method extracts the optional value. $testSomeOrFailExceptionOnOptionalValue
+   Check `someOrFailException` method fails when given a None. $testSomeOrFailExceptionOnEmptyValue
+   Check `rightOrFail` method extracts the Right value. $testRightOrFailExtractsRightValue
+   Check `rightOrFail` method fails when given a Left. $testRightOrFailWithLeft
+   Check `rightOrFailException` method extracts the Right value. $testRightOrFailExceptionOnRightValue
+   Check `rightOrFailException` method fails when given a Left. $testRightOrFailExceptionOnLeftValue
+   Check `leftOrFail` method extracts the Left value. $testLeftOrFailExtractsLeftValue
+   Check `leftOrFail` method fails when given a Right. $testLeftOrFailWithRight
+   Check `leftOrFailException` method extracts the Left value. $testLeftOrFailExceptionOnLeftValue
+   Check `leftOrFailException` method fails when given a Right. $testLeftOrFailExceptionOnRightValue
    Check uncurried `bracket`. $testUncurriedBracket
    Check uncurried `bracket_`. $testUncurriedBracket_
    Check uncurried `bracketExit`. $testUncurriedBracketExit
@@ -134,8 +146,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
   }
 
+  private val exampleError = new Error("something went wrong")
+
   def testDone = {
-    val error                         = new Error("something went wrong")
+    val error                         = exampleError
     val completed                     = Exit.succeed(1)
     val interrupted: Exit[Error, Int] = Exit.interrupt
     val terminated: Exit[Error, Int]  = Exit.die(error)
@@ -277,6 +291,57 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         .and(thn must_=== Exit.die(ex))
         .and(fail must_=== Exit.succeed(()))
     }
+  }
+
+  def testSomeOrFailWithNone = {
+    val task: Task[Int] = UIO(Option.empty[Int]).someOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testSomeOrFailExtractOptionalValue = {
+    val task: Task[Int] = UIO(Some(42)).someOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testSomeOrFailExceptionOnOptionalValue = unsafeRun(ZIO.succeed(Some(42)).someOrFailException) must_=== 42
+
+  def testSomeOrFailExceptionOnEmptyValue = {
+    val task = ZIO.succeed(Option.empty[Int]).someOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testRightOrFailExceptionOnRightValue = unsafeRun(ZIO.succeed(Right(42)).rightOrFailException) must_=== 42
+
+  def testRightOrFailExceptionOnLeftValue = {
+    val task: Task[Int] = ZIO.succeed(Left(2)).rightOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testRightOrFailExtractsRightValue = {
+    val task: Task[Int] = UIO(Right(42)).rightOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testRightOrFailWithLeft = {
+    val task: Task[Int] = UIO(Left(1)).rightOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOrFailExceptionOnLeftValue = unsafeRun(ZIO.succeed(Left(42)).leftOrFailException) must_=== 42
+
+  def testLeftOrFailExceptionOnRightValue = {
+    val task: Task[Int] = ZIO.succeed(Right(2)).leftOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOrFailExtractsLeftValue = {
+    val task: Task[Int] = UIO(Left(42)).leftOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testLeftOrFailWithRight = {
+    val task: Task[Int] = UIO(Right(12)).leftOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
   }
 
   def testUncurriedBracket =

@@ -126,6 +126,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     check interruption regression 1         $testInterruptionRegression1
     manual sync interruption                $testManualSyncInterruption
 
+  RTS option tests
+    lifting a value to an option            $testLiftingOptionalValue
+    using the none value                    $testLiftingNoneValue
+
+  RTS either helper tests
+      lifting a value into right            $liftValueIntoRight
+      lifting a value into left             $liftValueIntoLeft
+
   RTS interruption
     blocking IO is effect blocking          $testBlockingIOIsEffectBlocking
     sync forever is interruptible           $testInterruptSyncForever
@@ -385,6 +393,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
     unsafeRunSync(nested) must_=== Exit.Failure(Then(fail(ExampleError), Then(die(e2), die(e3))))
   }
+
+  def testLiftingOptionalValue = unsafeRun(ZIO.some(42)) must_=== Some(42)
+
+  def testLiftingNoneValue = unsafeRun(ZIO.none) must_=== None
+
+  def liftValueIntoRight = unsafeRun(ZIO.right(42)) must_=== Right(42)
+
+  def liftValueIntoLeft = unsafeRun(ZIO.left(42)) must_=== Left(42)
 
   def testErrorInFinalizerIsReported = {
     @volatile var reported: Exit[Nothing, Int] = null

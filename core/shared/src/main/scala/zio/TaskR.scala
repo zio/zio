@@ -329,6 +329,11 @@ object TaskR {
     ZIO.lock(executor)(taskr)
 
   /**
+   *  @see See [[zio.ZIO.left]]
+   */
+  final def left[R, A](a: A): TaskR[R, Either[A, Nothing]] = ZIO.left(a)
+
+  /**
    * @see See [[zio.ZIO.mergeAll]]
    */
   final def mergeAll[R, A, B](in: Iterable[TaskR[R, A]])(zero: B)(f: (B, A) => B): TaskR[R, B] =
@@ -344,6 +349,11 @@ object TaskR {
    * @see See [[zio.ZIO.never]]
    */
   final val never: UIO[Nothing] = ZIO.never
+
+    /**
+   * @see See [[zio.ZIO.none]]
+   */
+  final val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
    * @see See [[zio.ZIO.provide]]
@@ -382,6 +392,11 @@ object TaskR {
     ZIO.reserve(reservation)(use)
 
   /**
+   *  @see [[zio.ZIO.right]]
+   */
+  def right[R, B](b: B): TaskR[R, Either[Nothing, B]] = ZIO.right(b)
+
+  /**
    * @see See [[zio.ZIO.runtime]]
    */
   final def runtime[R]: ZIO[R, Nothing, Runtime[R]] = ZIO.runtime
@@ -391,6 +406,11 @@ object TaskR {
    */
   final def sleep(duration: Duration): TaskR[Clock, Unit] =
     ZIO.sleep(duration)
+
+  /**
+   *  @see [[zio.ZIO.some]]
+   */
+  def some[R, A](a: A): TaskR[R, Option[A]] = ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]

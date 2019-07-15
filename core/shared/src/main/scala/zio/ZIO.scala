@@ -430,8 +430,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
 
-  final def left[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] = self +++ ZIO.identity[C]
-
   /**
    * Returns an effect whose execution is locked to the specified executor.
    * This is useful when an effect must be executued somewhere, for example:
@@ -621,6 +619,67 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * leaving the remainder `R0`.
    */
   final def provideSomeManaged[R0, E1 >: E](r0: ZManaged[R0, E1, R]): ZIO[R0, E1, A] = r0.use(self.provide)
+
+  final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
+    for {
+      r1 <- ZIO.environment[R]
+      r  <- self provide r1
+      a  <- that provide r
+    } yield a
+
+  final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
+    for {
+      either <- ZIO.environment[Either[R, R1]]
+      a1     <- either.fold(self.provide, that.provide)
+    } yield a1
+
+  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
+    for {
+      e <- ZIO.environment[Either[R, R1]]
+      r <- e.fold(self.map(Left(_)) provide _, that.map(Right(_)) provide _)
+    } yield r
+
+  /**
+   * Returns a successful effect if the value is `Left`, or fails with the error e.
+   */
+  def leftOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Right(_)    => ZIO.fail(e)
+      case Left(value) => ZIO.succeed(value)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Left`, or fails with a [[java.util.NoSuchElementException]].
+   */
+  def leftOrFailException[B, C, E1 >: NoSuchElementException](
+    implicit ev: A <:< Either[B, C],
+    ev2: E <:< E1
+  ): ZIO[R, E1, B] =
+    self.foldM(
+      e => ZIO.fail(ev2(e)),
+      a => ev(a).fold(ZIO.succeed(_), _ => ZIO.fail(new NoSuchElementException("Either.left.get on Right")))
+    )
+
+  /**
+   * Returns a successful effect if the value is `Right`, or fails with the given error 'e'.
+   */
+  def rightOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, C] =
+    self.flatMap(ev(_) match {
+      case Right(value) => ZIO.succeed(value)
+      case Left(_)      => ZIO.fail(e)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Right`, or fails with a [[java.util.NoSuchElementException]].
+   */
+  def rightOrFailException[B, C, E1 >: NoSuchElementException](
+    implicit ev: A <:< Either[B, C],
+    ev2: E <:< E1
+  ): ZIO[R, E1, C] =
+    self.foldM(
+      e => ZIO.fail(ev2(e)),
+      a => ev(a).fold(_ => ZIO.fail(new NoSuchElementException("Either.right.get on Left")), ZIO.succeed(_))
+    )
 
   /**
    * Returns an effect that races this effect with the specified effect,
@@ -882,6 +941,43 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail, ZIO.succeed)
 
   /**
+   *  Returns an effect with the optional value.
+   */
+  def some[A](a: A): UIO[Option[A]] = succeed(Some(a))
+
+  /**
+   * Extracts the optional value, or fails with the given error 'e'.
+   */
+  def someOrFail[B, E1 >: E](e: E1)(implicit ev: A <:< Option[B]): ZIO[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZIO.succeed(value)
+      case None        => ZIO.fail(e)
+    })
+
+  /**
+   * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
+   */
+  def someOrFailException[B, E1 >: NoSuchElementException](implicit ev: A <:< Option[B], ev2: E <:< E1): ZIO[R, E1, B] =
+    self.foldM(e => ZIO.fail(ev2(e)), ev(_) match {
+      case Some(value) => ZIO.succeed(value)
+      case None        => ZIO.fail(new NoSuchElementException("None.get"))
+    })
+
+  /**
+   * Returns an effect that models success with the specified strictly-
+   * evaluated value.
+   */
+  final def succeed[A](a: A): UIO[A] = new ZIO.Succeed(a)
+
+  /**
+   * Returns an effect that models success with the specified lazily-evaluated
+   * value. This method should not be used to capture effects. See
+   * `[[ZIO.effectTotal]]` for capturing total effects, and `[[ZIO.effect]]` for capturing
+   * partial effects.
+   */
+  final def succeedLazy[A](a: => A): UIO[A] = new ZIO.EffectTotal(() => a)
+
+  /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
    * errors and defects alike, as in:
    *
@@ -1078,6 +1174,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def uninterruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Uninterruptible)
 
   /**
+   *  Returns an effect with the value on the left part.
+   */
+  final def left[A](a: A): UIO[Either[A, Nothing]] = succeed(Left(a))
+
+  /**
    * Returns the effect resulting from mapping the success of this effect to unit.
    */
   final def unit: ZIO[R, E, Unit] = const(())
@@ -1231,25 +1332,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
       a  <- self provide r
     } yield a
 
-  final def >>>[R1 >: A, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R, E1, B] =
-    for {
-      r1 <- ZIO.environment[R]
-      r  <- self provide r1
-      a  <- that provide r
-    } yield a
-
-  final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
-    for {
-      either <- ZIO.environment[Either[R, R1]]
-      a1     <- either.fold(self.provide, that.provide)
-    } yield a1
-
-  final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
-    for {
-      e <- ZIO.environment[Either[R, R1]]
-      r <- e.fold(self.map(Left(_)) provide _, that.map(Right(_)) provide _)
-    } yield r
-
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
    */
@@ -1308,6 +1390,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def allowInterrupt: UIO[Unit] =
     descriptorWith(d => if (d.interrupted) interrupt else unit)
+
+  /**
+   *  Returns an effect with the value on the right part.
+   */
+  def right[B](b: B): UIO[Either[Nothing, B]] = succeed(Right(b))
 
   /**
    * When this effect represents acquisition of a resource (for example,
@@ -1847,6 +1934,11 @@ private[zio] trait ZIOFunctions extends Serializable {
     checkInterruptible(flag => k(new ZIO.InterruptStatusRestore(flag)).interruptible)
 
   /**
+   *  Returns an effect with the value on the left part.
+   */
+  final def left[A](a: A): UIO[Either[A, Nothing]] = succeed(Left(a))
+
+  /**
    * Returns an effect that will execute the specified effect fully on the
    * provided executor, before returning to the default executor.
    */
@@ -1869,6 +1961,11 @@ private[zio] trait ZIOFunctions extends Serializable {
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
     in.foldLeft[ZIO[R, E, B]](succeedLazy[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled)).refailWithTrace
+
+  /**
+   * Returns an effect with the empty value.
+   */
+  final val none: UIO[Option[Nothing]] = succeed(None)
 
   /**
    * Evaluate each effect in the structure in parallel, and collect
@@ -1969,6 +2066,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def sleep(duration: Duration): ZIO[Clock, Nothing, Unit] =
     clock.sleep(duration)
+
+  /**
+   *  Returns an effect with the optional value.
+   */
+  def some[A](a: A): UIO[Option[A]] = succeed(Some(a))
 
   /**
    * Returns an effect that models success with the specified strictly-
