@@ -24,7 +24,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Sink.foldM short circuits   $foldMShortCircuits
     Sink.collectAllWhile        $collectAllWhile
     ZSink.fromOutputStream      $sinkFromOutputStream
-    ZSink.throttle              $throttle
+    ZSink.throttleEnforce       $throttleEnforce
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -198,7 +198,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
   }
 
-  private def throttle = {
+  private def throttleEnforce = {
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
       for {
@@ -218,7 +218,10 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun {
       for {
         clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
-        test  <- ZSink.throttle[Any, Nothing, Int](1, 10.milliseconds)(_ => UIO.succeed(1)).use(sinkTest).provide(clock)
+        test <- ZSink
+                 .throttleEnforceM[Any, Nothing, Int](1, 10.milliseconds)(_ => UIO.succeed(1))
+                 .use(sinkTest)
+                 .provide(clock)
       } yield test
     }
   }

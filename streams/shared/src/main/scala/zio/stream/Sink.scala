@@ -130,8 +130,8 @@ object Sink {
   /**
    * see [[ZSink.throttle]]
    */
-  final def throttle[E, A](units: Long, duration: Duration)(
+  final def throttleEnforceM[E, A](units: Long, duration: Duration)(
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, Option[A]]] =
-    ZSink.throttle[Any, E, A](units, duration)(costFn)
+    ZSink.throttleEnforceM[Any, E, A](units, duration)(costFn)
 }

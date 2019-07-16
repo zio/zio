@@ -130,10 +130,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   Stream.tap                $tap
 
-  Stream.throttle
-    free elements           $throttleFreeElements
-    no bandwidth            $throttleNoBandwidth
-    throttle short circuits $throttleShortCircuits
+  Stream.throttleEnforce
+    free elements                   $throttleEnforceFreeElements
+    no bandwidth                    $throttleEnforceNoBandwidth
+    throttle enforce short circuits $throttleEnforceShortCircuits
 
   Stream.toQueue            $toQueue
 
@@ -878,25 +878,25 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)
   }
 
-  private def throttleFreeElements = unsafeRun {
+  private def throttleEnforceFreeElements = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttle(0, 1.second)(_ => UIO.succeed(0))
+      .throttleEnforceM(0, 1.second)(_ => UIO.succeed(0))
       .runCollect must_=== List(1, 2, 3, 4)
   }
 
-  private def throttleNoBandwidth = unsafeRun {
+  private def throttleEnforceNoBandwidth = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttle(0, 1.second)(_ => UIO.succeed(1))
+      .throttleEnforceM(0, 1.second)(_ => UIO.succeed(1))
       .runCollect must_=== List()
   }
 
-  private def throttleShortCircuits = {
+  private def throttleEnforceShortCircuits = {
     def delay(n: Int) = ZIO.sleep(5.milliseconds) *> UIO.succeed(n)
 
     unsafeRun {
       Stream(1, 2, 3, 4, 5)
         .mapM(delay)
-        .throttle(2, 1.second)(_ => UIO.succeed(1))
+        .throttleEnforceM(2, 1.second)(_ => UIO.succeed(1))
         .take(2)
         .runCollect must_=== List(1, 2)
     }
