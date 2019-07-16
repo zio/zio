@@ -106,7 +106,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     } yield a
 
   /**
-   * Symbolic alias for zipLeft
+   * Symbolic alias for zipLeft.
    */
   final def <*[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
     flatMap(r => that.map(_ => r))
