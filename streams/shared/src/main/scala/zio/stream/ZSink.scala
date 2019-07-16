@@ -783,7 +783,13 @@ object ZSink extends ZSinkPlatformSpecific {
       if (n < 0) UIO.die(new NegativeArgument(s"Unexpected negative unit value `$n`"))
       else UIO.unit
 
+    def assertPositive(n: Long): UIO[Unit] =
+      if (n <= 0) UIO.die(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
+      else UIO.unit
+
     class NegativeArgument(message: String) extends IllegalArgumentException(message)
+
+    class NonpositiveArgument(message: String) extends IllegalArgumentException(message)
   }
 
   trait StepModule {
@@ -1126,6 +1132,53 @@ object ZSink extends ZSinkPlatformSpecific {
       _       <- assertNonNegative(units).toManaged_
       current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
       bucket  <- Ref.make((units, current)).toManaged_
+    } yield bucketSink(bucket)
+  }
+
+  /**
+   * Creates a sink which delays input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The weight of each element is determined by the `costFn` effectful
+   * function.
+   */
+  final def throttleShapeM[R, E, A](units: Long, duration: Duration)(
+    costFn: A => ZIO[R, E, Long]
+  ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, A]] = {
+    import ZSink.internal._
+
+    def bucketSink(bucket: RefM[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, A] {
+      type State = (RefM[(Long, Long)], Promise[E, A])
+
+      val initial = Promise.make[E, A].map(promise => Step.more((bucket, promise)))
+
+      def step(state: State, a: A) =
+        for {
+          weight  <- costFn(a)
+          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          result <- state._1.modify {
+                     case (tokens, timestamp) =>
+                       val missing = weight - tokens
+                       val cycles =
+                         if (missing <= 0) 0
+                         else {
+                           val c = missing / units
+                           if (c * units < missing) c + 1 else c
+                         }
+                       val newTokens    = tokens + cycles * units - weight
+                       val newTimestamp = timestamp + cycles * duration.toNanos
+                       val delay        = Duration.Finite(newTimestamp - current)
+                       state._2.succeed(a).delay(delay) *> UIO.succeed(
+                         (Step.done(state, Chunk.empty), (newTokens, newTimestamp))
+                       )
+                   }
+        } yield result
+
+      def extract(state: State) = state._2.await
+    }
+
+    for {
+      _       <- assertPositive(units).toManaged_
+      current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
+      bucket  <- RefM.make((units, current)).toManaged_
     } yield bucketSink(bucket)
   }
 }
