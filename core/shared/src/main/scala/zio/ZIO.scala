@@ -25,6 +25,7 @@ import scala.util.{ Failure, Success }
 import scala.reflect.ClassTag
 import zio.{ TracingStatus => TrasingS }
 import zio.{ InterruptStatus => InterruptS }
+import java.{ util => ju }
 
 /**
  * A `ZIO[R, E, A]` ("Zee-Oh of Are Eeh Aye") is an immutable data structure
@@ -1411,7 +1412,50 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Returns an effect that forks all of the specified values, and returns a
    * composite fiber that produces a list of their results, in order.
    */
+  import collection.JavaConverters._
   final def forkAll[R >: LowerR, E <: UpperE, A](as: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, Fiber[E, List[A]]] =
+    as match {
+      case Nil          => succeed(Fiber.succeedLazy[E, List[A]](List()))
+      case first :: Nil => first.fork.map(fiber => fiber.map(List(_)))
+      case first :: second :: Nil =>
+        (first.fork &&& second.fork).map { case (fa, fb) => (fa zip fb).map(a => List(a._1, a._2)) }
+      case lst => {
+        // val arr = Array.ofDim[A](as.size)
+        val arr       = new ju.ArrayList[A](as.size)
+        val indexedAs = UIO.succeed(lst.zipWithIndex)
+        for {
+          refArr <- Ref.make(arr)
+          ll     <- indexedAs
+          forkedItems: Iterable[ZIO[R, Nothing, Fiber[E, UIO[ju.ArrayList[A]]]]] = ll.map {
+            case (fib, i) =>
+              fib.fork.map { fiber =>
+                fiber.map(
+                  (fiberResult: A) =>
+                    refArr.update { arr =>
+                      {
+                        arr.set(i, fiberResult)
+                        arr
+                      }
+                    }
+                )
+              }
+          }
+          joinedItems: Iterable[ZIO[R, E, ju.ArrayList[A]]] = forkedItems.map { zio =>
+            zio.flatMap { fiber =>
+              fiber.join
+            }.flatten
+          }
+          // how to get rid off the "pattern var forkedItems in value $anonfun is never used; `forkedItems@_' suppresses this warning"
+          _ <- UIO.succeed(joinedItems.size)
+          _ <- UIO.succeed(forkedItems.size)
+
+          // How to wait for all the fibers to join??? without using a fold... 
+          arr <- refArr.get
+        } yield Fiber.succeedLazy(arr.asScala.toList)
+      }
+    }
+
+  /*
     as.foldRight[ZIO[R, Nothing, Fiber[E, List[A]]]](succeed(Fiber.succeedLazy[E, List[A]](List()))) {
       (aIO, asFiberIO) =>
         asFiberIO.zip(aIO.fork).map {
@@ -1419,6 +1463,7 @@ private[zio] trait ZIOFunctions extends Serializable {
             asFiber.zipWith(aFiber)((as, a) => a :: as)
         }
     }
+   */
 
   /**
    * Returns an effect that forks all of the specified values, and returns a
