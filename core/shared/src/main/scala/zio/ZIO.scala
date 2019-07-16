@@ -787,7 +787,49 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
 
   final def left[R1 <: R, C]: ZIO[Either[R1, C], E, Either[A, C]] = self +++ ZIO.identity[C]
 
+  /**
+   * Returns a successful effect if the value is `Left`, or fails with the error e.
+   */
+  def leftOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Right(_)    => ZIO.fail(e)
+      case Left(value) => ZIO.succeed(value)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Left`, or fails with a [[java.util.NoSuchElementException]].
+   */
+  def leftOrFailException[B, C, E1 >: NoSuchElementException](
+    implicit ev: A <:< Either[B, C],
+    ev2: E <:< E1
+  ): ZIO[R, E1, B] =
+    self.foldM(
+      e => ZIO.fail(ev2(e)),
+      a => ev(a).fold(ZIO.succeed(_), _ => ZIO.fail(new NoSuchElementException("Either.left.get on Right")))
+    )
+
   final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] = ZIO.identity[C] +++ self
+
+  /**
+   * Returns a successful effect if the value is `Right`, or fails with the given error 'e'.
+   */
+  def rightOrFail[B, C, E1 >: E](e: E1)(implicit ev: A <:< Either[B, C]): ZIO[R, E1, C] =
+    self.flatMap(ev(_) match {
+      case Right(value) => ZIO.succeed(value)
+      case Left(_)      => ZIO.fail(e)
+    })
+
+  /**
+   * Returns a successful effect if the value is `Right`, or fails with a [[java.util.NoSuchElementException]].
+   */
+  def rightOrFailException[B, C, E1 >: NoSuchElementException](
+    implicit ev: A <:< Either[B, C],
+    ev2: E <:< E1
+  ): ZIO[R, E1, C] =
+    self.foldM(
+      e => ZIO.fail(ev2(e)),
+      a => ev(a).fold(_ => ZIO.fail(new NoSuchElementException("Either.right.get on Left")), ZIO.succeed(_))
+    )
 
   /**
    * A variant of `flatMap` that ignores the value produced by this effect.
@@ -1109,6 +1151,24 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def sandbox: ZIO[R, Cause[E], A] = foldCauseM(ZIO.fail, ZIO.succeed)
 
   /**
+   * Extracts the optional value, or fails with the given error 'e'.
+   */
+  def someOrFail[B, E1 >: E](e: E1)(implicit ev: A <:< Option[B]): ZIO[R, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZIO.succeed(value)
+      case None        => ZIO.fail(e)
+    })
+
+  /**
+   * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
+   */
+  def someOrFailException[B, E1 >: NoSuchElementException](implicit ev: A <:< Option[B], ev2: E <:< E1): ZIO[R, E1, B] =
+    self.foldM(e => ZIO.fail(ev2(e)), ev(_) match {
+      case Some(value) => ZIO.succeed(value)
+      case None        => ZIO.fail(new NoSuchElementException("None.get"))
+    })
+
+  /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[R1 <: R, E1, A1 >: A](implicit ev1: ZIO[R, E, A] <:< ZIO[R1, Cause[E1], A1]): ZIO[R1, E1, A1] =
@@ -1369,6 +1429,11 @@ private[zio] trait ZIOFunctions extends Serializable {
   final val interrupt: UIO[Nothing] = haltWith(trace => Cause.Traced(Cause.Interrupt, trace()))
 
   /**
+   * Returns an effect with the empty value.
+   */
+  final val none: UIO[Option[Nothing]] = succeed(None)
+
+  /**
    * Returns a effect that will never produce anything. The moral
    * equivalent of `while(true) {}`, only without the wasted CPU cycles.
    */
@@ -1429,12 +1494,22 @@ private[zio] trait ZIOFunctions extends Serializable {
     as.foldRight[ZIO[R, Nothing, Unit]](ZIO.unit)(_.fork *> _)
 
   /**
+   *  Returns an effect with the value on the left part.
+   */
+  final def left[A](a: A): UIO[Either[A, Nothing]] = succeed(Left(a))
+
+  /**
    * Returns an effect from a [[zio.Exit]] value.
    */
   final def done[E <: UpperE, A](r: Exit[E, A]): IO[E, A] = r match {
     case Exit.Success(b)     => succeed(b)
     case Exit.Failure(cause) => halt(cause)
   }
+
+  /**
+   *  Returns an effect with the optional value.
+   */
+  def some[A](a: A): UIO[Option[A]] = succeed(Some(a))
 
   /**
    * Enables supervision for this effect. This will cause fibers forked by
@@ -1668,6 +1743,11 @@ private[zio] trait ZIOFunctions extends Serializable {
    */
   final def require[E <: UpperE, A](error: E): IO[E, Option[A]] => IO[E, A] =
     (io: IO[E, Option[A]]) => io.flatMap(_.fold[IO[E, A]](fail[E](error))(succeed[A]))
+
+  /**
+   *  Returns an effect with the value on the right part.
+   */
+  def right[B](b: B): UIO[Either[Nothing, B]] = succeed(Right(b))
 
   /**
    * When this effect represents acquisition of a resource (for example,

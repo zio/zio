@@ -88,7 +88,9 @@ mdoc: &mdoc
     - <<: *load_cache
     - run:
         name: Generate documentation
-        command: ./sbt ++${SCALA_VERSION}! mdoc
+        command: |
+          ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc
+          ./sbt ++${SCALA_VERSION}! mdoc
     - <<: *save_cache
 
 testJVM: &testJVM
@@ -129,19 +131,6 @@ release: &release
           name: Release artifacts
           command: ./sbt ++${SCALA_VERSION}! releaseEarly
 
-documentation: &documentation
-  steps:
-      - checkout
-      - <<: *load_cache
-      - <<: *install_nodejs
-      - <<: *install_yarn
-      - run:
-          name: Generating docs
-          command: |
-            ./sbt coreJVM/doc coreJS/doc streamsJVM/doc
-            ./sbt docs/docusaurusCreateSite
-      - <<: *save_cache
-
 microsite: &microsite
   steps:
       - add_ssh_keys:
@@ -154,6 +143,9 @@ microsite: &microsite
       - run:
           name: Publishing website
           command: |
+            git config --global user.email "${GH_NAME}@users.noreply.github.com"
+            git config --global user.name "${GH_NAME}"
+            export GIT_USER=${GH_NAME}
             export TRAVIS_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
             export TRAVIS_COMMIT="${CIRCLE_SHA1}"
             sudo chown -R $USER:$USER /tmp
@@ -162,6 +154,8 @@ microsite: &microsite
             nvm install
             nvm use
             node -v
+            ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc
+            ./sbt docs/docusaurusCreateSite
             ./sbt docs/docusaurusPublishGhpages
       - <<: *save_cache
 
@@ -306,12 +300,6 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
-  documentation:
-    <<: *documentation
-    <<: *machine_ubuntu
-    environment:
-      - <<: *jdk_8
-
   microsite:
     <<: *microsite
     <<: *machine_ubuntu
@@ -453,17 +441,6 @@ workflows:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
 
-      - documentation:
-          context: Sonatype
-          requires:
-            - release_211
-            - release_212
-            - release_213
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
       - microsite:
           context: Website
           requires:
