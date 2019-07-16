@@ -28,6 +28,9 @@ package object zio extends EitherCompat {
   @deprecated("use RIO", "1.0.0")
   type TaskR[-R, +A] = RIO[R, A]
 
+  @deprecated("use RIO", "1.0.0")
+  val TaskR = RIO
+
   type Managed[+E, +A] = ZManaged[Any, E, A]
 
   type Schedule[-A, +B] = ZSchedule[Any, A, B]
