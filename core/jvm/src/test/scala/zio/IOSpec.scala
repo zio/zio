@@ -63,6 +63,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `collectM` returns failure ignoring value $testCollectM
    Check `reject` returns failure ignoring value $testReject
    Check `rejectM` returns failure ignoring value $testRejectM
+   Check `foreachParN` works on large lists $testForeachParN
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -513,5 +514,12 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
 
     goodCase and partialBadCase and badCase
+  }
+
+  def testForeachParN = {
+    val n   = 10L
+    val seq = 0 to 1000000
+    val res = unsafeRun(IO.foreachParN(n)(seq)(UIO.succeed))
+    res must be_===(seq)
   }
 }

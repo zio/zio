@@ -1789,12 +1789,16 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def foreachParN[R >: LowerR, E <: UpperE, A, B](
     n: Long
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    (for {
-      semaphore <- Semaphore.make(n)
-      bs <- foreachPar[R, E, A, B](as) { a =>
-             semaphore.withPermit(fn(a))
-           }
-    } yield bs).refailWithTrace
+    for {
+      q     <- Queue.bounded[(Promise[E, B], A)](n.toInt)
+      env   <- ZIO.environment[R]
+      pairs <- ZIO.foreach(as)(a => Promise.make[E, B].map(p => (p, a)))
+      _     <- ZIO.foreach(pairs)(pair => q.offer(pair)).fork
+      _ <- ZIO.collectAll(List.fill(n.toInt)(q.take.flatMap {
+            case (p, a) => p.done(fn(a).provide(env).onError(_ => q.shutdown))
+          }.forever.fork))
+      res <- ZIO.collectAll(pairs.map(_._1.await)).ensuring(q.shutdown)
+    } yield res
 
   /**
    * Alias for [[ZIO.foreachParN]]
