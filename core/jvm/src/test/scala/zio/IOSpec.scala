@@ -75,7 +75,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `collectM` returns failure ignoring value $testCollectM
    Check `reject` returns failure ignoring value $testReject
    Check `rejectM` returns failure ignoring value $testRejectM
-   Check `foreachParN` works on large lists $testForeachParN
+   Check `foreachParN` works on large lists $testForeachParN_Threads
+   Check `foreachParN` runs effects in parallel $testForeachParN_Parallel
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -581,10 +582,19 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     goodCase and partialBadCase and badCase
   }
 
-  def testForeachParN = {
+  def testForeachParN_Threads = {
     val n   = 10L
     val seq = 0 to 1000000
     val res = unsafeRun(IO.foreachParN(n)(seq)(UIO.succeed))
     res must be_===(seq)
+  }
+
+  def testForeachParN_Parallel = {
+    val io = for {
+      p <- Promise.make[Nothing, Unit]
+      _ <- UIO.foreachParN(2)(List(UIO.never, p.succeed(())))(a => a).fork
+      _ <- p.await
+    } yield true
+    unsafeRun(io)
   }
 }
