@@ -1763,9 +1763,6 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def foreachParN[R, E, A, B](
     n: Long
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-  final def foreachParN[R >: LowerR, E <: UpperE, A, B](
-    n: Long
-  )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
     for {
       q     <- Queue.bounded[(Promise[E, B], A)](n.toInt)
       pairs <- ZIO.foreach(as)(a => Promise.make[E, B].map(p => (p, a)))
