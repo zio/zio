@@ -698,28 +698,40 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
 
   /**
-   * Repeats elements of the stream using the provided schedule.
+   * Repeats each element of the stream using the provided schedule, additionally emitting schedule's output,
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that
+   * `spaced(Schedule.once)` means "emit element and if not short circuited, repeat element once".
    */
-  def spaced[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
-    new ZStream[R1 with Clock, E, A] {
-      override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
+  def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+    spacedEither(schedule).map(_.merge)
+
+  /**
+   * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
+   */
+  def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
+    new ZStream[R1 with Clock, E, Either[B, A]] {
+
+      override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: Either[B, A], S]: Fold[R2, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
-          def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
+          def loop(s: S, schedSt: schedule.State, a: A): ZIO[R2, E1, S] =
             if (!cont(s)) ZIO.succeed(s)
             else
-              f(s, a).zip(schedule.update(a, sched)).flatMap {
-                case (s, decision) =>
-                  if (decision.cont && cont(s))
-                    loop(s, decision.state, a).delay(decision.delay)
-                  else IO.succeed(s)
+              f(s, Right(a)).zip(schedule.update(a, schedSt)).flatMap {
+                case (su, decision) if !decision.cont && cont(su) => f(su, Left(decision.finish()))
+                case (su, decision) if decision.cont && cont(su) =>
+                  loop(su, decision.state, a).delay(decision.delay)
+                case (su, _) => IO.succeed(su)
               }
 
-          schedule.initial.toManaged_.flatMap { sched =>
-            self.fold[R2, E1, A, S].flatMap { f =>
-              f(s, cont, (s, a) => loop(s, sched, a))
+          schedule.initial.toManaged_.flatMap { schedSt =>
+            self.fold[R2, E1, A, S].flatMap { fl =>
+              fl(s, cont, (s, a) => loop(s, schedSt, a))
             }
           }
+
         }
+
     }
 
   /**

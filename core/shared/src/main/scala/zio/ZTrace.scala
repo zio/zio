@@ -18,6 +18,8 @@ package zio
 
 import zio.internal.stacktracer.ZTraceElement
 
+import scala.annotation.tailrec
+
 final case class ZTrace(
   fiberId: FiberId,
   executionTrace: List[ZTraceElement],
@@ -48,4 +50,41 @@ final case class ZTrace(
 
     (stackPrint ++ ("" :: execPrint) ++ ("" :: ancestry)).mkString("\n")
   }
+
+  /**
+   * Parent fiber traces flattened into a list.
+   *
+   * NOTE: `parentTrace` fields are still populated for members of this list,
+   * despite that the next trace in the list is equivalent to `parentTrace`
+   * */
+  final def parents: List[ZTrace] = {
+    val builder = List.newBuilder[ZTrace]
+    var parent  = parentTrace.orNull
+    while (parent ne null) {
+      builder += parent
+      parent = parent.parentTrace.orNull
+    }
+    builder.result()
+  }
+
+  final def ancestryLength: Int = {
+    @tailrec
+    def go(i: Int, trace: ZTrace): Int =
+      trace.parentTrace match {
+        case Some(parent) => go(i + 1, parent)
+        case None         => i
+      }
+
+    go(0, this)
+  }
+}
+
+object ZTrace {
+  final def truncatedParentTrace(trace: ZTrace, maxAncestors: Int): Option[ZTrace] =
+    if (trace.ancestryLength > maxAncestors)
+      trace.parents.iterator
+        .take(maxAncestors)
+        .foldRight(Option.empty[ZTrace])((trace, parent) => Some(trace.copy(parentTrace = parent)))
+    else
+      trace.parentTrace
 }
