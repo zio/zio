@@ -1082,13 +1082,12 @@ object ZSink extends ZSinkPlatformSpecific {
   final def throttle[R, E, A](units: Long, duration: Duration)(
     costFn: A => ZIO[R, E, Long]
   ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
+    import ZSink.internal._
 
     def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, Option[A]] {
-      import ZSink.internal._
-
       type State = (Ref[(Long, Long)], Option[A])
 
-      val initial = assertNonNegative(units) *> UIO.succeed(Step.more((bucket, None)))
+      val initial = UIO.succeed(Step.more((bucket, None)))
 
       def step(state: State, a: A) =
         for {
@@ -1113,6 +1112,7 @@ object ZSink extends ZSinkPlatformSpecific {
     }
 
     for {
+      _       <- assertNonNegative(units).toManaged_
       current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
       bucket  <- Ref.make((units, current)).toManaged_
     } yield bucketSink(bucket)
