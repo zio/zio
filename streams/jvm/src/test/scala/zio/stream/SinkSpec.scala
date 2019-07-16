@@ -18,15 +18,16 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "SinkSpec".title ^ s2"""
   Constructors
-    Sink.foldLeft               $foldLeft
-    Sink.fold                   $fold
-    Sink.fold short circuits    $foldShortCircuits
-    Sink.foldM                  $foldM
-    Sink.foldM short circuits   $foldMShortCircuits
-    Sink.collectAllWhile        $collectAllWhile
-    ZSink.fromOutputStream      $sinkFromOutputStream
-    ZSink.throttleEnforce       $throttleEnforce
-    ZSink.throttleShape         $throttleShape
+    Sink.foldLeft                   $foldLeft
+    Sink.fold                       $fold
+    Sink.fold short circuits        $foldShortCircuits
+    Sink.foldM                      $foldM
+    Sink.foldM short circuits       $foldMShortCircuits
+    Sink.collectAllWhile            $collectAllWhile
+    ZSink.fromOutputStream          $sinkFromOutputStream
+    ZSink.throttleEnforce           $throttleEnforce
+    ZSink.throttleShape             $throttleShape
+    ZSink.throttleShape no duration $throttleShapeNoDuration
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -249,6 +250,27 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
                  .throttleShapeM[Any, Nothing, Int](1, 1.second)(n => UIO.succeed(n.toLong))
+                 .use(sinkTest)
+                 .provide(clock)
+      } yield test
+    }
+  }
+
+  private def throttleShapeNoDuration = {
+
+    def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
+      for {
+        init1   <- sink.initial
+        step1   <- sink.step(Step.state(init1), 1)
+        res1    <- sink.extract(Step.state(step1))
+        elapsed <- clock.currentTime(TimeUnit.SECONDS)
+      } yield (elapsed must_=== 0) and (List(res1) must_=== List(1))
+
+    unsafeRun {
+      for {
+        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        test <- ZSink
+                 .throttleShapeM[Any, Nothing, Int](1, 0.seconds)(_ => UIO.succeed(1))
                  .use(sinkTest)
                  .provide(clock)
       } yield test
