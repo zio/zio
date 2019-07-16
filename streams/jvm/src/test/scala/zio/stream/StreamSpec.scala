@@ -880,13 +880,13 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def throttleEnforceFreeElements = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttleEnforceM(0, 1.second)(_ => UIO.succeed(0))
+      .throttleEnforce(0, 1.second)(_ => 0)
       .runCollect must_=== List(1, 2, 3, 4)
   }
 
   private def throttleEnforceNoBandwidth = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttleEnforceM(0, 1.second)(_ => UIO.succeed(1))
+      .throttleEnforce(0, 1.second)(_ => 1)
       .runCollect must_=== List()
   }
 
@@ -896,7 +896,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun {
       Stream(1, 2, 3, 4, 5)
         .mapM(delay)
-        .throttleEnforceM(2, 1.second)(_ => UIO.succeed(1))
+        .throttleEnforce(2, 1.second)(_ => 1)
         .take(2)
         .runCollect must_=== List(1, 2)
     }

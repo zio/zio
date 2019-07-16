@@ -128,7 +128,15 @@ object Sink {
     ZSink.succeedLazy(b)
 
   /**
-   * see [[ZSink.throttle]]
+   * see [[ZSink.throttleEnforce]]
+   */
+  final def throttleEnforce[A](units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
+    ZSink.throttleEnforce(units, duration)(costFn)
+
+  /**
+   * see [[ZSink.throttleEnforceM]]
    */
   final def throttleEnforceM[E, A](units: Long, duration: Duration)(
     costFn: A => IO[E, Long]

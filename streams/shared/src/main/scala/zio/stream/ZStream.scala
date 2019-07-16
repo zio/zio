@@ -785,6 +785,16 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
    * algorithm. Elements that do not meet the bandwidth constraints are dropped. The weight of each
+   * element is determined by the `costFn` function.
+   */
+  final def throttleEnforce(units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZStream[R with Clock, E, A] =
+    throttleEnforceM(units, duration)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Throttles elements of type A according to the given bandwidth parameters using the token bucket
+   * algorithm. Elements that do not meet the bandwidth constraints are dropped. The weight of each
    * element is determined by the `costFn` effectful function.
    */
   final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration)(

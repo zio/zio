@@ -1076,6 +1076,17 @@ object ZSink extends ZSinkPlatformSpecific {
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
    * using the token bucket algorithm. Elements that do not meet the bandwidth constraints are dropped.
+   * The weight of each element is determined by the `costFn` function. Elements are mapped to
+   * `Option[A]`, and `None` denotes that a given element has been dropped.
+   */
+  final def throttleEnforce[A](units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
+    throttleEnforceM[Any, Nothing, A](units, duration)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. Elements that do not meet the bandwidth constraints are dropped.
    * The weight of each element is determined by the `costFn` effectful function. Elements are mapped to
    * `Option[A]`, and `None` denotes that a given element has been dropped.
    */
