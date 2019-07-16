@@ -14,7 +14,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   // Using mutable Spec here to easily run individual tests from Intellij to inspect result traces
 
   // set to true to print traces
-  private val debug = true
+  private val debug = false
 
   "basic test" >> basicTest
 
