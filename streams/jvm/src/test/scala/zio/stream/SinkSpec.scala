@@ -4,6 +4,9 @@ import org.scalacheck.Arbitrary
 import org.specs2.ScalaCheck
 import scala.{ Stream => _ }
 import zio._
+import zio.clock.Clock
+import zio.duration._
+import zio.testkit.TestClock
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -21,6 +24,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Sink.foldM short circuits   $foldMShortCircuits
     Sink.collectAllWhile        $collectAllWhile
     ZSink.fromOutputStream      $sinkFromOutputStream
+    ZSink.throttleEnforce       $throttleEnforce
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -191,6 +195,34 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     stream.run(ZSink.fromOutputStream(output)) map { bytesWritten =>
       (bytesWritten must_=== 10) and (new String(output.toByteArray, "UTF-8") must_=== data)
+    }
+  }
+
+  private def throttleEnforce = {
+
+    def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
+      for {
+        init1 <- sink.initial
+        step1 <- sink.step(Step.state(init1), 1)
+        res1  <- sink.extract(Step.state(step1))
+        init2 <- sink.initial
+        _     <- clock.sleep(7.milliseconds)
+        step2 <- sink.step(Step.state(init2), 2)
+        res2  <- sink.extract(Step.state(step2))
+        init3 <- sink.initial
+        _     <- clock.sleep(7.milliseconds)
+        step3 <- sink.step(Step.state(init3), 3)
+        res3  <- sink.extract(Step.state(step3))
+      } yield (res1 must_=== Some(1)) and (res2 must_=== None) and (res3 must_=== Some(3))
+
+    unsafeRun {
+      for {
+        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        test <- ZSink
+                 .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
+                 .use(sinkTest)
+                 .provide(clock)
+      } yield test
     }
   }
 }

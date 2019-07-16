@@ -129,6 +129,12 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     takeWhile short circuits $takeWhileShortCircuits
 
   Stream.tap                $tap
+
+  Stream.throttleEnforce
+    free elements                   $throttleEnforceFreeElements
+    no bandwidth                    $throttleEnforceNoBandwidth
+    throttle enforce short circuits $throttleEnforceShortCircuits
+
   Stream.toQueue            $toQueue
 
   Stream.transduce
@@ -870,6 +876,30 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val slurped = slurp(s)
 
     (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)
+  }
+
+  private def throttleEnforceFreeElements = unsafeRun {
+    Stream(1, 2, 3, 4)
+      .throttleEnforce(0, 1.second)(_ => 0)
+      .runCollect must_=== List(1, 2, 3, 4)
+  }
+
+  private def throttleEnforceNoBandwidth = unsafeRun {
+    Stream(1, 2, 3, 4)
+      .throttleEnforce(0, 1.second)(_ => 1)
+      .runCollect must_=== List()
+  }
+
+  private def throttleEnforceShortCircuits = {
+    def delay(n: Int) = ZIO.sleep(5.milliseconds) *> UIO.succeed(n)
+
+    unsafeRun {
+      Stream(1, 2, 3, 4, 5)
+        .mapM(delay)
+        .throttleEnforce(2, 1.second)(_ => 1)
+        .take(2)
+        .runCollect must_=== List(1, 2)
+    }
   }
 
   private def toQueue = prop { c: Chunk[Int] =>

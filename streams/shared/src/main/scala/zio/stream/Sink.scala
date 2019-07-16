@@ -16,8 +16,10 @@
 
 package zio.stream
 
+import zio._
+import zio.clock.Clock
+import zio.duration.Duration
 import zio.stream.ZSink.Step
-import zio.IO
 
 object Sink {
 
@@ -125,4 +127,19 @@ object Sink {
   final def succeedLazy[B](b: => B): Sink[Nothing, Nothing, Any, B] =
     ZSink.succeedLazy(b)
 
+  /**
+   * see [[ZSink.throttleEnforce]]
+   */
+  final def throttleEnforce[A](units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
+    ZSink.throttleEnforce(units, duration)(costFn)
+
+  /**
+   * see [[ZSink.throttleEnforceM]]
+   */
+  final def throttleEnforceM[E, A](units: Long, duration: Duration)(
+    costFn: A => IO[E, Long]
+  ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, Option[A]]] =
+    ZSink.throttleEnforceM[Any, E, A](units, duration)(costFn)
 }
