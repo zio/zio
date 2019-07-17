@@ -249,7 +249,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
-                 .throttleShapeM[Any, Nothing, Int](1, 1.second)(n => UIO.succeed(n.toLong))
+                 .throttleShape[Int](1, 1.second)(_.toLong)
                  .use(sinkTest)
                  .provide(clock)
       } yield test
@@ -270,7 +270,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       for {
         clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
-                 .throttleShapeM[Any, Nothing, Int](1, 0.seconds)(_ => UIO.succeed(1))
+                 .throttleShape[Int](1, 0.seconds)(_ => 1)
                  .use(sinkTest)
                  .provide(clock)
       } yield test
