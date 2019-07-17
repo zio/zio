@@ -142,4 +142,12 @@ object Sink {
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, Option[A]]] =
     ZSink.throttleEnforceM[Any, E, A](units, duration)(costFn)
+
+  /**
+   * see [[ZSink.throttleShapeM]]
+   */
+  final def throttleShapeM[E, A](units: Long, duration: Duration)(
+    costFn: A => IO[E, Long]
+  ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, A]] =
+    ZSink.throttleShapeM[Any, E, A](units, duration)(costFn)
 }
