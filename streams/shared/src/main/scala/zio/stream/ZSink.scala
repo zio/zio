@@ -1175,9 +1175,10 @@ object ZSink extends ZSinkPlatformSpecific {
                        val newTokens    = tokens + cycles * units - weight
                        val newTimestamp = timestamp + cycles * duration.toNanos
                        val delay        = Duration.Finite(newTimestamp - current)
-                       state._2.succeed(a).delay(delay) *> UIO.succeed(
-                         (Step.done(state, Chunk.empty), (newTokens, newTimestamp))
-                       )
+                       state._2
+                         .succeed(a)
+                         .delay(delay)
+                         .const((Step.done(state, Chunk.empty), (newTokens, newTimestamp)))
                    }
         } yield result
 
