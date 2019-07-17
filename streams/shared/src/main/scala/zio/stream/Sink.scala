@@ -144,6 +144,14 @@ object Sink {
     ZSink.throttleEnforceM[Any, E, A](units, duration)(costFn)
 
   /**
+   * see [[ZSink.throttleShape]]
+   */
+  final def throttleShape[A](units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
+    ZSink.throttleShape(units, duration)(costFn)
+
+  /**
    * see [[ZSink.throttleShapeM]]
    */
   final def throttleShapeM[E, A](units: Long, duration: Duration)(
