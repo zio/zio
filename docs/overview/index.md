@@ -32,15 +32,16 @@ This function, which requires an `R`, might produce either an `E`, representing 
 The `ZIO` data type is the only effect type in ZIO. However, there are a family of type aliases and companion objects that simplify common cases:
 
  - `UIO[A]` — This is a type alias for `ZIO[Any, Nothing, A]`, which represents an effect that has no requirements, and cannot fail, but can succeed with an `A`.
+ - `URIO[R, A]` — This is a type alias for `ZIO[R, Nothing, A]`, which represents an effect that requires an `R`, and cannot fail, but can succeed with an `A`.
  - `Task[A]` — This is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.
- - `TaskR[R, A]` — This is a type alias for `ZIO[R, Throwable, A]`, which represents an effect that requires an `R`, and may fail with a `Throwable` value, or succeed with an `A`.
+ - `RIO[R, A]` — This is a type alias for `ZIO[R, Throwable, A]`, which represents an effect that requires an `R`, and may fail with a `Throwable` value, or succeed with an `A`.
  - `IO[E, A]` — This is a type alias for `ZIO[Any, E, A]`, which represents an effect that has no requirements, and may fail with an `E`, or succeed with an `A`.
 
 These type aliases all have companion objects, and these companion objects have methods that can be used to construct values of the appropriate type.
 
 If you are new to functional effects, we recommend starting with the `Task` type, which has a single type parameter, and corresponds most closely to the `Future` data type built into Scala's standard library.
 
-If you are using _Cats Effect_ libraries, you may find the `TaskR` type useful, since it allows you to thread environments through third-party libraries and your application.
+If you are using _Cats Effect_ libraries, you may find the `RIO` type useful, since it allows you to thread environments through third-party libraries and your application.
 
 No matter what type alias you use in your application, `UIO` can be useful for describing infallible effects, including those resulting from handling all errors.
 
