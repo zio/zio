@@ -1769,10 +1769,13 @@ private[zio] trait ZIOFunctions extends Serializable {
       _     <- ZIO.foreach(pairs)(pair => q.offer(pair)).fork
       _ <- ZIO.collectAll(
             List.fill(n.toInt)(
-              q.take.flatMap { case (p, a) => fn(a).onError(_ => q.shutdown).flatMap(p.succeed) }.forever.fork
+              q.take.flatMap {
+                case (p, a) =>
+                  fn(a).foldCauseM(e => p.halt(e) *> q.shutdown, b => p.succeed(b)).onError(_ => q.shutdown)
+              }.forever.fork
             )
           )
-      res <- ZIO.collectAll(pairs.map(_._1.await)).ensuring(q.shutdown)
+      res <- ZIO.foreach(pairs)(_._1.await).ensuring(q.shutdown)
     } yield res
 
   /**

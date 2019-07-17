@@ -77,6 +77,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `rejectM` returns failure ignoring value $testRejectM
    Check `foreachParN` works on large lists $testForeachParN_Threads
    Check `foreachParN` runs effects in parallel $testForeachParN_Parallel
+   Check `foreachParN` propogates error $testForeachParN_Error
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -596,5 +597,13 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       _ <- p.await
     } yield true
     unsafeRun(io)
+  }
+
+  def testForeachParN_Error = {
+    val ints = List(1, 2, 3, 4, 5, 6)
+    val odds = ZIO.foreachParN(4)(ints) { n =>
+      if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail(s"$n is not odd")
+    }
+    unsafeRun(odds.either) must_=== Left("2 is not odd")
   }
 }
