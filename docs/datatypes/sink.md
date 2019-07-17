@@ -31,25 +31,25 @@ Sink.await[Int]
 Collecting all elements into `List[A]`:
 
 ```scala mdoc:silent
-val sink2 = Sink.collectAll[Int]
+Sink.collectAll[Int]
 ```
 
 Collecting elements until the condition is not satisfied:
 
 ```scala mdoc:silent
-val sink3 = Sink.collectAllWhile[Int](_ > 2)
+Sink.collectAllWhile[Int](_ > 2)
 ```
 
 Ignoring incoming values unless some element satisfies the condition:
 
 ```scala mdoc:silent
-val sink4 = Sink.ignoreWhile[Int](_ > 2)
+Sink.ignoreWhile[Int](_ > 2)
 ```
 
 Ignoring all the input, used in implementation of `stream.runDrain`:
 
 ```scala mdoc:silent
-val sink5 = Sink.drain
+Sink.drain
 ```
 
 Sink that intentionally fails with given type:
@@ -57,26 +57,26 @@ Sink that intentionally fails with given type:
 ```scala mdoc:silent
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-val sink6 = Sink.fail[Exception](new NotImplementedException)
+Sink.fail[Exception](new NotImplementedException)
 ```
 
 Basic fold accumulation of received elements:
 
 ```scala mdoc:silent
-val sink7 = Sink.foldLeft[Nothing, Int, Int](0)(_ + _)
+Sink.foldLeft[Nothing, Int, Int](0)(_ + _)
 ```
 
 Fold where each fold step has to be described in sink `Step` API.
 A `foldLeft` uses `Step.more` in its implementation: 
 
 ```scala mdoc:silent
-val sink8 = Sink.fold[Nothing, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
+Sink.fold[Nothing, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
 ```
 
 Mapping over the received input elements:
 
 ```scala mdoc:silent
-val sink9 = Sink.fromFunction[Int, Int](_ * 2).collectAll[Int, Int]
+Sink.fromFunction[Int, Int](_ * 2).collectAll[Int, Int]
 ```
 
 `pull1` fails with given type in case of empty stream, otherwise continues with provided sink:
@@ -105,13 +105,13 @@ One of them already appeared in previous section - `collectAll` in `read1`.
 Sink that after collecting input - filters it:
 
 ```scala mdoc:silent
-val sink13 = Sink.collectAll[Int].filter[Int](_ > 100)
+Sink.collectAll[Int].filter[Int](_ > 100)
 ```
 
 Running two sinks in parallel and returning the one that completed earlier:
 
 ```scala mdoc:silent
-val sink12 = Sink.fold[Int, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
+Sink.fold[Int, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
   .race(Sink.identity[Int])
 ```
 
