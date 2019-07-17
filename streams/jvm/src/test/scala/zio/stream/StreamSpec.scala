@@ -908,13 +908,13 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def throttleShapeFreeElements = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttleShapeM(1, 1.second)(_ => UIO.succeed(0))
+      .throttleShape(1, 1.second)(_ => 0)
       .runCollect must_=== List(1, 2, 3, 4)
   }
 
   private def throttleShapeShortCircuits = unsafeRun {
     Stream(1, 2, 3, 4, 5)
-      .throttleShapeM(1, 10.milliseconds)(_ => UIO.succeed(1))
+      .throttleShape(1, 10.milliseconds)(_ => 1)
       .take(2)
       .runCollect must_=== List(1, 2)
   }
