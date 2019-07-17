@@ -14,7 +14,7 @@ import zio.stream._
 val stream: Stream[Nothing, Int] = Stream(1,2,3)
 ```
 
-Or from an Iterable : 
+Or from an Iterable :
 
 ```scala mdoc:silent
 import zio.stream._
@@ -38,7 +38,7 @@ import zio._
 import zio.console._
 import zio.stream._
 
-val result: TaskR[Console, Unit] = Stream.fromIterable(0 to 100).foreach(i => putStrLn(i.toString))
+val result: RIO[Console, Unit] = Stream.fromIterable(0 to 100).foreach(i => putStrLn(i.toString))
 ```
 
 ### Using a Sink
