@@ -1137,6 +1137,15 @@ object ZSink extends ZSinkPlatformSpecific {
 
   /**
    * Creates a sink which delays input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The weight of each element is determined by the `costFn` function.
+   */
+  final def throttleShape[A](units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
+    throttleShapeM[Any, Nothing, A](units, duration)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Creates a sink which delays input elements of type A according to the given bandwidth parameters
    * using the token bucket algorithm. The weight of each element is determined by the `costFn` effectful
    * function.
    */
