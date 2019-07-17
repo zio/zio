@@ -1154,8 +1154,8 @@ object ZSink extends ZSinkPlatformSpecific {
   ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, A]] = {
     import ZSink.internal._
 
-    def bucketSink(bucket: RefM[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, A] {
-      type State = (RefM[(Long, Long)], Promise[E, A])
+    def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, A] {
+      type State = (Ref[(Long, Long)], Promise[E, A])
 
       val initial = Promise.make[E, A].map(promise => Step.more((bucket, promise)))
 
@@ -1163,24 +1163,22 @@ object ZSink extends ZSinkPlatformSpecific {
         for {
           weight  <- costFn(a)
           current <- clock.currentTime(TimeUnit.NANOSECONDS)
-          result <- state._1.modify {
-                     case (tokens, timestamp) =>
-                       val missing = weight - tokens
-                       val cycles =
-                         if (missing <= 0) 0
-                         else {
-                           val c = missing / units
-                           if (c * units < missing) c + 1 else c
-                         }
-                       val newTokens    = tokens + cycles * units - weight
-                       val newTimestamp = timestamp + cycles * duration.toNanos
-                       val delay        = Duration.Finite(newTimestamp - current)
-                       state._2
-                         .succeed(a)
-                         .delay(delay)
-                         .const((Step.done(state, Chunk.empty), (newTokens, newTimestamp)))
-                   }
-        } yield result
+          delay <- state._1.modify {
+                    case (tokens, timestamp) =>
+                      val missing = weight - tokens
+                      val cycles =
+                        if (missing <= 0) 0
+                        else {
+                          val c = missing / units
+                          if (c * units < missing) c + 1 else c
+                        }
+                      val newTokens    = tokens + cycles * units - weight
+                      val newTimestamp = timestamp + cycles * duration.toNanos
+                      val delay        = Duration.Finite(newTimestamp - current)
+                      (delay, (newTokens, newTimestamp))
+                  }
+          _ <- state._2.succeed(a).delay(delay)
+        } yield Step.done(state, Chunk.empty)
 
       def extract(state: State) = state._2.await
     }
@@ -1188,7 +1186,7 @@ object ZSink extends ZSinkPlatformSpecific {
     for {
       _       <- assertPositive(units).toManaged_
       current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
-      bucket  <- RefM.make((units, current)).toManaged_
+      bucket  <- Ref.make((units, current)).toManaged_
     } yield bucketSink(bucket)
   }
 }
