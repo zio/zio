@@ -585,7 +585,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testForeachParN_Threads = {
     val n   = 10L
-    val seq = 0 to 1000000
+    val seq = 0 to 100000
     val res = unsafeRun(IO.foreachParN(n)(seq)(UIO.succeed))
     res must be_===(seq)
   }
