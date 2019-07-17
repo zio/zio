@@ -18,16 +18,16 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "SinkSpec".title ^ s2"""
   Constructors
-    Sink.foldLeft                   $foldLeft
-    Sink.fold                       $fold
-    Sink.fold short circuits        $foldShortCircuits
-    Sink.foldM                      $foldM
-    Sink.foldM short circuits       $foldMShortCircuits
-    Sink.collectAllWhile            $collectAllWhile
-    ZSink.fromOutputStream          $sinkFromOutputStream
-    ZSink.throttleEnforce           $throttleEnforce
-    ZSink.throttleShape             $throttleShape
-    ZSink.throttleShape no duration $throttleShapeNoDuration
+    Sink.foldLeft                          $foldLeft
+    Sink.fold                              $fold
+    Sink.fold short circuits               $foldShortCircuits
+    Sink.foldM                             $foldM
+    Sink.foldM short circuits              $foldMShortCircuits
+    Sink.collectAllWhile                   $collectAllWhile
+    ZSink.fromOutputStream                 $sinkFromOutputStream
+    ZSink.throttleEnforce                  $throttleEnforce
+    ZSink.throttleShape                    $throttleShape
+    ZSink.throttleShape infinite bandwidth $throttleShapeInfiniteBandwidth
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -256,21 +256,24 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
   }
 
-  private def throttleShapeNoDuration = {
+  private def throttleShapeInfiniteBandwidth = {
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
       for {
         init1   <- sink.initial
         step1   <- sink.step(Step.state(init1), 1)
         res1    <- sink.extract(Step.state(step1))
+        init2   <- sink.initial
+        step2   <- sink.step(Step.state(init2), 2)
+        res2    <- sink.extract(Step.state(step2))
         elapsed <- clock.currentTime(TimeUnit.SECONDS)
-      } yield (elapsed must_=== 0) and (List(res1) must_=== List(1))
+      } yield (elapsed must_=== 0) and (List(res1, res2) must_=== List(1, 2))
 
     unsafeRun {
       for {
         clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
-                 .throttleShape[Int](1, 0.seconds)(_ => 1)
+                 .throttleShape[Int](1, 0.seconds)(_ => 100000L)
                  .use(sinkTest)
                  .provide(clock)
       } yield test
