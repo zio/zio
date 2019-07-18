@@ -362,18 +362,16 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def effectAsyncInterruptLeft = unsafeRun {
     for {
-      streamCancelled <- Ref.make[Boolean](false)
-      latch           = internal.OneShot.make[Unit]
-      fiber <- ZStream
-                .effectAsyncInterrupt[Any, Nothing, Unit] { _ =>
-                  latch.set(()); Left(streamCancelled.set(true))
-                }
-                .run(Sink.collectAll[Unit])
-                .fork
-      _         <- IO.effectTotal(latch.get(1000))
-      _         <- fiber.interrupt
-      cancelled <- streamCancelled.get
-    } yield cancelled must_=== true
+      release <- zio.Promise.make[Nothing, Int]
+      latch   = internal.OneShot.make[Unit]
+      async = IO.effectAsyncInterrupt[Any, Nothing, Unit] { _ =>
+        latch.set(()); Left(release.succeed(42).unit)
+      }
+      fiber  <- async.fork
+      _      <- IO.effectTotal(latch.get(1000))
+      _      <- fiber.interrupt.fork
+      result <- release.await
+    } yield result must_=== 42
   }
 
   private def effectAsyncInterruptRight =
@@ -1076,4 +1074,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       .either
       .map(_ must_=== Left("Ouch"))
   }
+
+  def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
+    (1 to 100).foldLeft[org.specs2.matcher.MatchResult[Any]](true must_=== true) {
+      case (acc, _) =>
+        acc and unsafeRun(v)
+    }
 }
