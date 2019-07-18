@@ -1074,10 +1074,4 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       .either
       .map(_ must_=== Left("Ouch"))
   }
-
-  def nonFlaky(v: => ZIO[Environment, Any, org.specs2.matcher.MatchResult[Any]]): org.specs2.matcher.MatchResult[Any] =
-    (1 to 100).foldLeft[org.specs2.matcher.MatchResult[Any]](true must_=== true) {
-      case (acc, _) =>
-        acc and unsafeRun(v)
-    }
 }
