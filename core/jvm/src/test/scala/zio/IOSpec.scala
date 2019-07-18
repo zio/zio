@@ -78,6 +78,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `foreachParN` works on large lists $testForeachParN_Threads
    Check `foreachParN` runs effects in parallel $testForeachParN_Parallel
    Check `foreachParN` propogates error $testForeachParN_Error
+   Check `foreachParN` interrupts effects on first failure $testForeachParN_Interruption
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -602,8 +603,19 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testForeachParN_Error = {
     val ints = List(1, 2, 3, 4, 5, 6)
     val odds = ZIO.foreachParN(4)(ints) { n =>
-      if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail(s"$n is not odd")
+      if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail("not odd")
     }
-    unsafeRun(odds.either) must_=== Left("2 is not odd")
+    unsafeRun(odds.either) must_=== Left("not odd")
+  }
+
+  def testForeachParN_Interruption = {
+    import zio.duration._
+    val actions = List(
+      clock.sleep(10.millis) *> ZIO.fail("A"),
+      ZIO.succeed(1),
+      ZIO.fail("C")
+    )
+    val io = ZIO.foreachParN(4)(actions)(a => a).timeout(5.millis)
+    unsafeRun(io.either) must_=== Left("C")
   }
 }
