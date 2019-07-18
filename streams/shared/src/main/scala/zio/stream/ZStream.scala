@@ -805,6 +805,24 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
       .collect { case Some(a) => a }
 
   /**
+   * Delays elements of type A according to the given bandwidth parameters using the token bucket
+   * algorithm. The weight of each element is determined by the `costFn` function.
+   */
+  final def throttleShape(units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZStream[R with Clock, E, A] =
+    throttleShapeM(units, duration)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Delays elements of type A according to the given bandwidth parameters using the token bucket
+   * algorithm. The weight of each element is determined by the `costFn` effectful function.
+   */
+  final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration)(
+    costFn: A => ZIO[R1, E1, Long]
+  ): ZStream[R1 with Clock, E1, A] =
+    self.transduceManaged(ZSink.throttleShapeM(units, duration)(costFn))
+
+  /**
    * Converts the stream to a managed queue. After managed queue is used, the
    * queue will never again produce values and should be discarded.
    */
