@@ -7,6 +7,7 @@ import zio._
 import zio.clock.Clock
 import zio.duration._
 import zio.testkit.TestClock
+import java.util.concurrent.TimeUnit
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     extends TestRuntime
@@ -17,14 +18,16 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "SinkSpec".title ^ s2"""
   Constructors
-    Sink.foldLeft               $foldLeft
-    Sink.fold                   $fold
-    Sink.fold short circuits    $foldShortCircuits
-    Sink.foldM                  $foldM
-    Sink.foldM short circuits   $foldMShortCircuits
-    Sink.collectAllWhile        $collectAllWhile
-    ZSink.fromOutputStream      $sinkFromOutputStream
-    ZSink.throttleEnforce       $throttleEnforce
+    Sink.foldLeft                          $foldLeft
+    Sink.fold                              $fold
+    Sink.fold short circuits               $foldShortCircuits
+    Sink.foldM                             $foldM
+    Sink.foldM short circuits              $foldMShortCircuits
+    Sink.collectAllWhile                   $collectAllWhile
+    ZSink.fromOutputStream                 $sinkFromOutputStream
+    ZSink.throttleEnforce                  $throttleEnforce
+    ZSink.throttleShape                    $throttleShape
+    ZSink.throttleShape infinite bandwidth $throttleShapeInfiniteBandwidth
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -220,6 +223,57 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
                  .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
+                 .use(sinkTest)
+                 .provide(clock)
+      } yield test
+    }
+  }
+
+  private def throttleShape = {
+
+    def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
+      for {
+        init1   <- sink.initial
+        step1   <- sink.step(Step.state(init1), 1)
+        res1    <- sink.extract(Step.state(step1))
+        init2   <- sink.initial
+        step2   <- sink.step(Step.state(init2), 2)
+        res2    <- sink.extract(Step.state(step2))
+        init3   <- sink.initial
+        step3   <- sink.step(Step.state(init3), 3)
+        res3    <- sink.extract(Step.state(step3))
+        elapsed <- clock.currentTime(TimeUnit.SECONDS)
+      } yield (elapsed must_=== 5) and (List(res1, res2, res3) must_=== List(1, 2, 3))
+
+    unsafeRun {
+      for {
+        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        test <- ZSink
+                 .throttleShape[Int](1, 1.second)(_.toLong)
+                 .use(sinkTest)
+                 .provide(clock)
+      } yield test
+    }
+  }
+
+  private def throttleShapeInfiniteBandwidth = {
+
+    def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
+      for {
+        init1   <- sink.initial
+        step1   <- sink.step(Step.state(init1), 1)
+        res1    <- sink.extract(Step.state(step1))
+        init2   <- sink.initial
+        step2   <- sink.step(Step.state(init2), 2)
+        res2    <- sink.extract(Step.state(step2))
+        elapsed <- clock.currentTime(TimeUnit.SECONDS)
+      } yield (elapsed must_=== 0) and (List(res1, res2) must_=== List(1, 2))
+
+    unsafeRun {
+      for {
+        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        test <- ZSink
+                 .throttleShape[Int](1, 0.seconds)(_ => 100000L)
                  .use(sinkTest)
                  .provide(clock)
       } yield test
