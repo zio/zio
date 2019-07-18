@@ -1177,7 +1177,8 @@ object ZSink extends ZSinkPlatformSpecific {
                       val delay        = Duration.Finite(newTimestamp - current)
                       (delay, (newTokens, newTimestamp))
                   }
-          _ <- state._2.succeed(a).delay(delay)
+          _ <- if (delay <= Duration.Zero) UIO.unit else clock.sleep(delay)
+          _ <- state._2.succeed(a)
         } yield Step.done(state, Chunk.empty)
 
       def extract(state: State) = state._2.await
