@@ -1,6 +1,6 @@
 package zio
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.{ Arbitrary, Gen }
 import zio.Cause.Traced
 
 object ArbitraryCause {
