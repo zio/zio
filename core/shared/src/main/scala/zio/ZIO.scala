@@ -1763,7 +1763,7 @@ private[zio] trait ZIOFunctions extends Serializable {
   final def foreachParN[R, E, A, B](
     n: Long
   )(as: Iterable[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, List[B]] =
-    for {
+    (for {
       q     <- Queue.bounded[(Promise[E, B], A)](n.toInt)
       pairs <- ZIO.foreach(as)(a => Promise.make[E, B].map(p => (p, a)))
       _     <- ZIO.foreach(pairs)(pair => q.offer(pair)).fork
@@ -1771,7 +1771,7 @@ private[zio] trait ZIOFunctions extends Serializable {
             case (p, a) => fn(a).foldCauseM(c => ZIO.foreach(pairs)(_._1.halt(c)), b => p.succeed(b))
           }.forever.fork))
       res <- ZIO.foreach(pairs)(_._1.await).ensuring(q.shutdown)
-    } yield res
+    } yield res).refailWithTrace
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs

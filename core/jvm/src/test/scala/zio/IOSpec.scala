@@ -611,11 +611,11 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testForeachParN_Interruption = {
     import zio.duration._
     val actions = List(
-      clock.sleep(100.millis) *> ZIO.fail("A"),
+      clock.sleep(1000.millis) *> ZIO.fail("A"),
       ZIO.succeed(1),
       ZIO.fail("C")
     )
-    val io = ZIO.foreachParN(4)(actions)(a => a).timeout(50.millis)
+    val io = ZIO.foreachParN(4)(actions)(a => a).timeout(500.millis)
     unsafeRun(io.either) must_=== Left("C")
   }
 }
