@@ -135,6 +135,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     no bandwidth                    $throttleEnforceNoBandwidth
     throttle enforce short circuits $throttleEnforceShortCircuits
 
+  Stream.throttleShape
+    free elements                 $throttleShapeFreeElements
+    throttle shape short circuits $throttleShapeShortCircuits
+
   Stream.toQueue            $toQueue
 
   Stream.transduce
@@ -880,13 +884,13 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def throttleEnforceFreeElements = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttleEnforce(0, 1.second)(_ => 0)
+      .throttleEnforce(0, Duration.Infinity)(_ => 0)
       .runCollect must_=== List(1, 2, 3, 4)
   }
 
   private def throttleEnforceNoBandwidth = unsafeRun {
     Stream(1, 2, 3, 4)
-      .throttleEnforce(0, 1.second)(_ => 1)
+      .throttleEnforce(0, Duration.Infinity)(_ => 1)
       .runCollect must_=== List()
   }
 
@@ -896,10 +900,23 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun {
       Stream(1, 2, 3, 4, 5)
         .mapM(delay)
-        .throttleEnforce(2, 1.second)(_ => 1)
+        .throttleEnforce(2, Duration.Infinity)(_ => 1)
         .take(2)
         .runCollect must_=== List(1, 2)
     }
+  }
+
+  private def throttleShapeFreeElements = unsafeRun {
+    Stream(1, 2, 3, 4)
+      .throttleShape(1, Duration.Infinity)(_ => 0)
+      .runCollect must_=== List(1, 2, 3, 4)
+  }
+
+  private def throttleShapeShortCircuits = unsafeRun {
+    Stream(1, 2, 3, 4, 5)
+      .throttleShape(2, Duration.Infinity)(_ => 1)
+      .take(2)
+      .runCollect must_=== List(1, 2)
   }
 
   private def toQueue = prop { c: Chunk[Int] =>
