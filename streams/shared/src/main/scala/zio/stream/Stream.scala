@@ -58,6 +58,33 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.dieMessage(msg)
 
   /**
+   * See [[ZStream.effectAsync]]
+   */
+  final def effectAsync[E, A](
+    register: (IO[E, A] => Unit) => Unit,
+    outputBuffer: Int = 16
+  ): Stream[E, A] =
+    ZStream.effectAsync(register, outputBuffer)
+
+  /**
+   * See [[ZStream.effectAsyncMaybe]]
+   */
+  final def effectAsyncMaybe[E, A](
+    register: (IO[E, A] => Unit) => Option[Stream[E, A]],
+    outputBuffer: Int = 16
+  ): Stream[E, A] =
+    ZStream.effectAsyncMaybe(register, outputBuffer)
+
+  /**
+   * See [[ZStream.effectAsyncM]]
+   */
+  final def effectAsyncM[E, A](
+    register: (IO[E, A] => Unit) => IO[E, _],
+    outputBuffer: Int = 16
+  ): Stream[E, A] =
+    ZStream.effectAsyncM(register, outputBuffer)
+
+  /**
    * See [[ZStream.fail]]
    */
   final def fail[E](error: E): Stream[E, Nothing] =

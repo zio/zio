@@ -1025,7 +1025,7 @@ object ZStream extends ZStreamPlatformSpecific {
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
    */
-  final def effectAsync[R: ConformsR, E, A](
+  final def effectAsync[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
@@ -1039,7 +1039,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an asynchronous callback that can be called multiple times.
    * The registration of the callback can possibly return the stream synchronously
    */
-  final def effectAsyncMaybe[R: ConformsR, E, A](
+  final def effectAsyncMaybe[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
@@ -1074,7 +1074,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an asynchronous callback that can be called multiple times
    * The registration of the callback itself returns an effect
    */
-  final def effectAsyncM[R: ConformsR, E, A](
+  final def effectAsyncM[R, E, A](
     register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
@@ -1102,7 +1102,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an asynchronous callback that can be called multiple times.
    * The registration of the callback returns either a canceler or synchronously returns a stream
    */
-  final def effectAsyncInterrupt[R: ConformsR, E, A](
+  final def effectAsyncInterrupt[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
