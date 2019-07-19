@@ -46,6 +46,20 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     dropWhile         $dropWhile
     short circuits    $dropWhileShortCircuiting
 
+  Stream.effectAsync
+    effectAsync                 $effectAsync
+
+  Stream.effectAsyncMaybe
+    effectAsyncMaybe Some       $effectAsyncMaybeSome
+    effectAsyncMaybe None       $effectAsyncMaybeNone
+
+  Stream.effectAsyncM
+    effectAsyncM                $effectAsyncM
+
+  Stream.effectAsyncInterrupt
+    effectAsyncInterrupt Left   $effectAsyncInterruptLeft
+    effectAsyncInterrupt Right  $effectAsyncInterruptRight
+
   Stream.ensuring $ensuring
 
   Stream.finalizer $finalizer
@@ -306,6 +320,80 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .runDrain
         .either
         .map(_ must beRight(()))
+    }
+
+  private def effectAsync =
+    prop { list: List[Int] =>
+      val s = Stream.effectAsync[Throwable, Int] { k =>
+        list.foreach(a => k(Task.succeed(a)))
+      }
+
+      slurp(s.take(list.size)) must_=== Success(list)
+    }
+
+  private def effectAsyncM = {
+    val list = List(1, 2, 3)
+    unsafeRun {
+      for {
+        latch <- Promise.make[Nothing, Unit]
+        fiber <- ZStream
+                  .effectAsyncM[Any, Throwable, Int] { k =>
+                    latch.succeed(()) *>
+                      Task.succeedLazy {
+                        list.foreach(a => k(Task.succeed(a)))
+                      }
+                  }
+                  .take(list.size)
+                  .run(Sink.collectAll[Int])
+                  .fork
+        _ <- latch.await
+        s <- fiber.join
+      } yield s must_=== list
+    }
+  }
+
+  private def effectAsyncMaybeSome =
+    prop { list: List[Int] =>
+      val s = Stream.effectAsyncMaybe[Throwable, Int] { _ =>
+        Some(Stream.fromIterable(list))
+      }
+
+      slurp(s.take(list.size)) must_=== Success(list)
+    }
+
+  private def effectAsyncMaybeNone =
+    prop { list: List[Int] =>
+      val s = Stream.effectAsyncMaybe[Throwable, Int] { k =>
+        list.foreach(a => k(Task.succeed(a)))
+        None
+      }
+
+      slurp(s.take(list.size)) must_=== Success(list)
+    }
+
+  private def effectAsyncInterruptLeft = unsafeRun {
+    for {
+      release <- zio.Promise.make[Nothing, Int]
+      latch   = internal.OneShot.make[Unit]
+      async = Stream
+        .effectAsyncInterrupt[Nothing, Unit] { _ =>
+          latch.set(()); Left(release.succeed(42).unit)
+        }
+        .run(Sink.collectAll[Unit])
+      fiber  <- async.fork
+      _      <- IO.effectTotal(latch.get(1000))
+      _      <- fiber.interrupt.fork
+      result <- release.await
+    } yield result must_=== 42
+  }
+
+  private def effectAsyncInterruptRight =
+    prop { list: List[Int] =>
+      val s = Stream.effectAsyncInterrupt[Throwable, Int] { _ =>
+        Right(Stream.fromIterable(list))
+      }
+
+      slurp(s.take(list.size)) must_=== Success(list)
     }
 
   private def ensuring =
