@@ -1185,7 +1185,7 @@ object ZSink extends ZSinkPlatformSpecific {
    */
   final def throttleEnforceM[R, E, A](units: Long, duration: Duration)(
     costFn: A => ZIO[R, E, Long]
-  ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
+  ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
     import ZSink.internal._
 
     def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, Option[A]] {
@@ -1238,13 +1238,13 @@ object ZSink extends ZSinkPlatformSpecific {
    */
   final def throttleShapeM[R, E, A](units: Long, duration: Duration)(
     costFn: A => ZIO[R, E, Long]
-  ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, A]] = {
+  ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, A]] = {
     import ZSink.internal._
 
     def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, A] {
-      type State = (Ref[(Long, Long)], Promise[E, A])
+      type State = (Ref[(Long, Long)], Promise[Nothing, A])
 
-      val initial = Promise.make[E, A].map(promise => Step.more((bucket, promise)))
+      val initial = Promise.make[Nothing, A].map(promise => Step.more((bucket, promise)))
 
       def step(state: State, a: A) =
         for {
