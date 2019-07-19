@@ -372,7 +372,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Effectfully filters the inputs fed to this sink.
    */
-  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
+  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
     new ZSink[R1, E1, A0, A1, B] {
       type State = self.State
 
@@ -908,6 +908,19 @@ object ZSink extends ZSinkPlatformSpecific {
       .map(_.reverse)
 
   /**
+   * Creates a sink halting with the specified `Throwable`.
+   */
+  final def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(e))
+
+  /**
+   * Creates a sink halting with the specified message, wrapped in a
+   * `RuntimeException`.
+   */
+  final def dieMessage(m: String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(new RuntimeException(m)))
+
+  /**
    * Creates a sink consuming all incoming values until completion.
    */
   final def drain: ZSink[Any, Nothing, Nothing, Any, Unit] =
@@ -958,6 +971,69 @@ object ZSink extends ZSinkPlatformSpecific {
     }
 
   /**
+   * Creates a sink that effectfully folds elements of type `A` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   */
+  final def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
+    z: S
+  )(costFn: A => ZIO[R, E, Long], max: Long)(f: (S, A) => ZIO[R1, E1, S]): ZSink[R1, E1, A, A, S] =
+    new ZSink[R1, E1, A, A, S] {
+      type State = (S, Long)
+      val initial: UIO[Step[State, Nothing]] = UIO.succeed(Step.more(z -> 0))
+      def step(s: (S, Long), a: A): ZIO[R1, E1, Step[(S, Long), A]] =
+        costFn(a) flatMap { cost =>
+          val newCost = cost + s._2
+
+          if (newCost > max) UIO.succeed(Step.done(s, Chunk.single(a)))
+          else if (newCost == max) {
+            f(s._1, a).map(s => Step.done(s -> newCost, Chunk.empty))
+          } else f(s._1, a).map(s => Step.more(s -> newCost))
+        }
+      def extract(state: (S, Long)): ZIO[R1, E1, S] = UIO.succeed(state._1)
+    }
+
+  /**
+   * Creates a sink that folds elements of type `A` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`)
+   * have been folded.
+   */
+  final def foldWeighted[A, S](
+    z: S
+  )(costFn: A => Long, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
+    new SinkPure[Nothing, A, A, S] {
+      type State = (S, Long)
+      def initialPure: Step[(S, Long), Nothing] = Step.more(z -> 0)
+      def stepPure(s: (S, Long), a: A): Step[(S, Long), A] = {
+        val newCost = costFn(a) + s._2
+
+        if (newCost > max) Step.done(s, Chunk.single(a))
+        else if (newCost == max) {
+          Step.done(f(s._1, a) -> newCost, Chunk.empty)
+        } else Step.more((f(s._1, a), newCost))
+      }
+      def extractPure(s: (S, Long)): Either[Nothing, S] = Right(s._1)
+    }
+
+  /**
+   * Creates a sink that effectfully folds elements of type `A` into a structure
+   * of type `S` until `max` elements have been folded.
+   *
+   * Like [[ZSink.foldWeightedM]], but with a constant cost function of 1.
+   */
+  final def foldUntilM[R, E, S, A](z: S, max: Long)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, A, A, S] =
+    foldWeightedM[R, R, E, E, A, S](z)((_: A) => UIO.succeed(1), max)(f)
+
+  /**
+   * Creates a sink that folds elements of type `A` into a structure
+   * of type `S` until `max` elements have been folded.
+   *
+   * Like [[ZSink.foldWeighted]], but with a constant cost function of 1.
+   */
+  final def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
+    foldWeighted[A, S](z)((_: A) => 1, max)(f)
+
+  /**
    * Creates a single-value sink produced from an effect
    */
   final def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
@@ -977,6 +1053,17 @@ object ZSink extends ZSinkPlatformSpecific {
       val initialPure                                        = Step.more(None)
       def stepPure(state: State, a: A): Step[State, Nothing] = Step.done(Some(a), Chunk.empty)
       def extractPure(state: State): Either[Unit, B]         = state.fold[Either[Unit, B]](Left(()))(a => Right(f(a)))
+    }
+
+  /**
+   * Creates a sink halting with a specified cause.
+   */
+  final def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+    new Sink[E, Nothing, Any, Nothing] {
+      type State = Unit
+      val initial                                               = UIO.succeed(Step.done((), Chunk.empty))
+      def step(state: State, a: Any): UIO[Step[State, Nothing]] = UIO.succeed(Step.done(state, Chunk.empty))
+      def extract(state: State): IO[E, Nothing]                 = IO.halt(e)
     }
 
   /**
