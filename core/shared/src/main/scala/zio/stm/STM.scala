@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
+import java.util.concurrent.atomic.AtomicLong
 
 import zio.{ IO, UIO }
 import zio.internal.Platform
@@ -484,7 +484,7 @@ object STM {
       platform: Platform,
       stm: STM[E, A],
       txnId: TxnId,
-      done: AtomicBoolean
+      done: zio.internal.LockedRef[Boolean]
     )(
       k: IO[E, A] => Unit
     ): Unit = {
@@ -507,16 +507,17 @@ object STM {
         }
       }
 
-      done.synchronized {
-        if (!done.get) {
-          if (journal ne null) suspend(journal, journal)
-          else
-            tryCommit(platform, stm) match {
-              case TryCommit.Done(io)         => complete(io)
-              case TryCommit.Suspend(journal) => suspend(journal, journal)
-            }
-        }
+      done.lock()
+      if (!done.get) {
+        if (journal ne null) suspend(journal, journal)
+        else
+          tryCommit(platform, stm) match {
+            case TryCommit.Done(io)         => complete(io)
+            case TryCommit.Suspend(journal) => suspend(journal, journal)
+          }
       }
+      done.unlock()
+
     }
 
     final def tryCommit[E, A](platform: Platform, stm: STM[E, A]): TryCommit[E, A] = {
@@ -664,8 +665,8 @@ object STM {
         case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
         case TryCommit.Suspend(journal) =>
           val txnId     = makeTxnId()
-          val done      = new AtomicBoolean(false)
-          val interrupt = UIO(done.synchronized(done.set(true)))
+          val done      = new zio.internal.LockedRef(false)
+          val interrupt = UIO(done.exclusiveSet(true))
           val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, stm, txnId, done))
 
           async ensuring interrupt
