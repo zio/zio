@@ -85,6 +85,15 @@ object Stream extends ZStreamPlatformSpecific {
     ZStream.effectAsyncM(register, outputBuffer)
 
   /**
+   * See [[ZStream.effectAsyncInterrupt]]
+   */
+  final def effectAsyncInterrupt[E, A](
+    register: (IO[E, A] => Unit) => Either[Canceler, Stream[E, A]],
+    outputBuffer: Int = 16
+  ): Stream[E, A] =
+    ZStream.effectAsyncInterrupt(register, outputBuffer)
+
+  /**
    * See [[ZStream.fail]]
    */
   final def fail[E](error: E): Stream[E, Nothing] =
