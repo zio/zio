@@ -1232,19 +1232,22 @@ object ZSink extends ZSinkPlatformSpecific {
 
   /**
    * Creates a sink which delays input elements of type A according to the given bandwidth parameters
-   * using the token bucket algorithm. The weight of each element is determined by the `costFn` function.
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `max` threshold. The weight of each element is determined
+   * by the `costFn` function.
    */
-  final def throttleShape[A](units: Long, duration: Duration)(
+  final def throttleShape[A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
-    throttleShapeM[Any, Nothing, A](units, duration)(a => UIO.succeed(costFn(a)))
+    throttleShapeM[Any, Nothing, A](units, duration, max)(a => UIO.succeed(costFn(a)))
 
   /**
    * Creates a sink which delays input elements of type A according to the given bandwidth parameters
-   * using the token bucket algorithm. The weight of each element is determined by the `costFn` effectful
-   * function.
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `max` threshold. The weight of each element is determined
+   * by the `costFn` effectful function.
    */
-  final def throttleShapeM[R, E, A](units: Long, duration: Duration)(
+  final def throttleShapeM[R, E, A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
     costFn: A => ZIO[R, E, Long]
   ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, A]] = {
     import ZSink.internal._
@@ -1260,17 +1263,13 @@ object ZSink extends ZSinkPlatformSpecific {
           current <- clock.currentTime(TimeUnit.NANOSECONDS)
           delay <- state._1.modify {
                     case (tokens, timestamp) =>
-                      val missing = weight - tokens
-                      val cycles =
-                        if (missing <= 0) 0
-                        else {
-                          val c = missing / units
-                          if (c * units < missing) c + 1 else c
-                        }
-                      val newTokens    = tokens + cycles * units - weight
-                      val newTimestamp = timestamp + cycles * duration.toNanos
-                      val delay        = Duration.Finite(newTimestamp - current)
-                      (delay, (newTokens, newTimestamp))
+                      val elapsed    = current - timestamp
+                      val cycles     = elapsed.toDouble / duration.toNanos
+                      val available  = checkTokens(tokens + (cycles * units).toLong, max)
+                      val remaining  = available - weight
+                      val waitCycles = if (remaining >= 0) 0 else -remaining.toDouble / units
+                      val delay      = Duration.Finite((waitCycles * duration.toNanos).toLong)
+                      (delay, (remaining, current))
                   }
           _ <- if (delay <= Duration.Zero) UIO.unit else clock.sleep(delay)
           _ <- state._2.succeed(a)
@@ -1279,10 +1278,15 @@ object ZSink extends ZSinkPlatformSpecific {
       def extract(state: State) = state._2.await
     }
 
-    for {
-      _       <- assertPositive(units).toManaged_
-      current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
-      bucket  <- Ref.make((units, current)).toManaged_
+    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max else math.min(sum, max)
+
+    val sink = for {
+      _       <- assertPositive(units)
+      _       <- assertNotGreaterThan(units, max)
+      current <- clock.currentTime(TimeUnit.NANOSECONDS)
+      bucket  <- Ref.make((units, current))
     } yield bucketSink(bucket)
+
+    ZManaged.fromEffect(sink)
   }
 }
