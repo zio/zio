@@ -324,7 +324,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def effectAsync =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsync[Any, Throwable, Int] { k =>
+      val s = Stream.effectAsync[Throwable, Int] { k =>
         list.foreach(a => k(Task.succeed(a)))
       }
 
@@ -354,7 +354,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def effectAsyncMaybeSome =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsyncMaybe[Any, Throwable, Int] { _ =>
+      val s = Stream.effectAsyncMaybe[Throwable, Int] { _ =>
         Some(Stream.fromIterable(list))
       }
 
@@ -363,7 +363,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def effectAsyncMaybeNone =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsyncMaybe[Any, Throwable, Int] { k =>
+      val s = Stream.effectAsyncMaybe[Throwable, Int] { k =>
         list.foreach(a => k(Task.succeed(a)))
         None
       }
@@ -375,9 +375,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     for {
       release <- zio.Promise.make[Nothing, Int]
       latch   = internal.OneShot.make[Unit]
-      async = IO.effectAsyncInterrupt[Any, Nothing, Unit] { _ =>
-        latch.set(()); Left(release.succeed(42).unit)
-      }
+      async = Stream
+        .effectAsyncInterrupt[Nothing, Unit] { _ =>
+          latch.set(()); Left(release.succeed(42).unit)
+        }
+        .run(Sink.collectAll[Unit])
       fiber  <- async.fork
       _      <- IO.effectTotal(latch.get(1000))
       _      <- fiber.interrupt.fork
@@ -387,7 +389,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def effectAsyncInterruptRight =
     prop { list: List[Int] =>
-      val s = ZStream.effectAsyncInterrupt[Any, Throwable, Int] { _ =>
+      val s = Stream.effectAsyncInterrupt[Throwable, Int] { _ =>
         Right(Stream.fromIterable(list))
       }
 
