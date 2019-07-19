@@ -1,7 +1,6 @@
 package zio
 
 import zio.clock.Clock
-import zio.clock.Clock
 
 class RepeatSpec extends BaseCrossPlatformSpec {
   def is = "RepeatSpec".title ^ s2"""
@@ -11,6 +10,10 @@ class RepeatSpec extends BaseCrossPlatformSpec {
       for 'recurs(1)' does repeats 1 additional time $repeat1
       for 'once' does repeats 1 additional time $once
       for 'recurs(a positive given number)' repeats that additional number of time $repeatN
+      for 'doWhile(cond)' repeats while the cond still holds $repeatWhile
+      for 'doWhileM(cond)' repeats while the effectul cond still holds $repeatWhileM
+      for 'doUntil(cond)' repeats until the cond is satisfied $repeatUntil
+      for 'doUntilM(cond)' repeats until the effectful cond is satisfied $repeatUntilM
    Repeat on failure does not actually repeat $repeatFail
    Repeat a scheduled repeat repeats the whole number $repeatRepeat
 
@@ -84,6 +87,38 @@ class RepeatSpec extends BaseCrossPlatformSpec {
       )
 
     repeated.map(x => x must_=== "Error: 1")
+  }
+
+  def repeatUntil = {
+    def cond: Int => Boolean = _ < 10
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.doUntil(cond))
+    } yield i must_=== 1
+  }
+
+  def repeatUntilM = {
+    def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.doUntilM(cond))
+    } yield i must_=== 11
+  }
+
+  def repeatWhile = {
+    def cond: Int => Boolean = _ < 10
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.doWhile(cond))
+    } yield i must_=== 10
+  }
+
+  def repeatWhileM = {
+    def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
+    for {
+      ref <- Ref.make(0)
+      i   <- ref.update(_ + 1).repeat(Schedule.doWhileM(cond))
+    } yield i must_=== 1
   }
 
   def ensuring =
