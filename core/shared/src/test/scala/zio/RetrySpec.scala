@@ -263,6 +263,8 @@ class RetrySpec extends BaseCrossPlatformSpec {
         UIO.succeed('A')
       def nextString(length: Int): UIO[String] =
         UIO.succeed("")
+      def shuffle[A](list: List[A]): UIO[List[A]] =
+        UIO.succeed(list.reverse)
     }
   }
 }

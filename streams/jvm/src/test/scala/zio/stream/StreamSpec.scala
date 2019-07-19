@@ -16,10 +16,8 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   import ArbitraryChunk._
   import ArbitraryStream._
-  import Exit._
-
-  //in scala 2.11 the proof for Any in not found by the compiler
-  import Stream.ConformsAnyProof
+  import Exit.{ Cause => _, _ }
+  import zio.Cause
 
   def is = "StreamSpec".title ^ s2"""
   Stream.bracket
@@ -130,8 +128,11 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     short circuits          $repeatShortCircuits
 
   Stream.spaced
-    spaced                  $spaced
-    short circuits          $spacedShortCircuits
+    spaced                        $spaced
+    spacedEither                  $spacedEither
+    repeated and spaced           $repeatedAndSpaced
+    short circuits in schedule    $spacedShortCircuitsWhileInSchedule
+    short circuits after schedule $spacedShortCircuitsAfterScheduleFinished
 
   Stream.take
     take                     $take
@@ -142,6 +143,16 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     takeWhile short circuits $takeWhileShortCircuits
 
   Stream.tap                $tap
+
+  Stream.throttleEnforce
+    free elements                   $throttleEnforceFreeElements
+    no bandwidth                    $throttleEnforceNoBandwidth
+    throttle enforce short circuits $throttleEnforceShortCircuits
+
+  Stream.throttleShape
+    free elements                 $throttleShapeFreeElements
+    throttle shape short circuits $throttleShapeShortCircuits
+
   Stream.toQueue            $toQueue
 
   Stream.transduce
@@ -859,21 +870,47 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         result <- ref.get
       } yield result must_=== List(1, 1)
     )
+
   private def spaced =
     unsafeRun(
-      Stream(1, 2, 3)
-        .spaced(Schedule.recurs(1))
-        .run(Sink.collectAll[Int])
-        .map(_ must_=== List(1, 1, 2, 2, 3, 3))
+      Stream("A", "B", "C")
+        .spaced(Schedule.recurs(0) *> Schedule.fromFunction((_) => "!"))
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "!", "B", "!", "C", "!"))
     )
 
-  private def spacedShortCircuits =
+  private def spacedEither =
     unsafeRun(
-      Stream(1, 2, 3)
-        .spaced(Schedule.recurs(1))
+      Stream("A", "B", "C")
+        .spacedEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+        .run(Sink.collectAll[Either[Int, String]])
+        .map(_ must_=== List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123)))
+    )
+
+  private def repeatedAndSpaced =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
+    )
+
+  private def spacedShortCircuitsAfterScheduleFinished =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
         .take(3)
-        .run(Sink.collectAll[Int])
-        .map(_ must_=== List(1, 1, 2))
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "A", "!"))
+    )
+
+  private def spacedShortCircuitsWhileInSchedule =
+    unsafeRun(
+      Stream("A", "B", "C")
+        .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
+        .take(4)
+        .run(Sink.collectAll[String])
+        .map(_ must_=== List("A", "A", "!", "B"))
     )
 
   private def take =
@@ -929,6 +966,43 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     val slurped = slurp(s)
 
     (slurped must_=== Success(List(1, 1))) and (sum must_=== 2)
+  }
+
+  private def throttleEnforceFreeElements = unsafeRun {
+    Stream(1, 2, 3, 4)
+      .throttleEnforce(0, Duration.Infinity)(_ => 0)
+      .runCollect must_=== List(1, 2, 3, 4)
+  }
+
+  private def throttleEnforceNoBandwidth = unsafeRun {
+    Stream(1, 2, 3, 4)
+      .throttleEnforce(0, Duration.Infinity)(_ => 1)
+      .runCollect must_=== List()
+  }
+
+  private def throttleEnforceShortCircuits = {
+    def delay(n: Int) = ZIO.sleep(5.milliseconds) *> UIO.succeed(n)
+
+    unsafeRun {
+      Stream(1, 2, 3, 4, 5)
+        .mapM(delay)
+        .throttleEnforce(2, Duration.Infinity)(_ => 1)
+        .take(2)
+        .runCollect must_=== List(1, 2)
+    }
+  }
+
+  private def throttleShapeFreeElements = unsafeRun {
+    Stream(1, 2, 3, 4)
+      .throttleShape(1, Duration.Infinity)(_ => 0)
+      .runCollect must_=== List(1, 2, 3, 4)
+  }
+
+  private def throttleShapeShortCircuits = unsafeRun {
+    Stream(1, 2, 3, 4, 5)
+      .throttleShape(2, Duration.Infinity)(_ => 1)
+      .take(2)
+      .runCollect must_=== List(1, 2)
   }
 
   private def toQueue = prop { c: Chunk[Int] =>

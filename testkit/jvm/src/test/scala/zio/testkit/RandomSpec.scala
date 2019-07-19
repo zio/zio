@@ -54,6 +54,21 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         sequence                                          $nextBytesWithSequence
         single value - length < number of bytes           $nextBytesWithLength
         single value - length > length of the next array  $nextBytesLengthIsOver
+
+      Shuffle returns the same list in the same order
+        always when list contains:
+          no elements    $shuffleListWithNoElements
+          single element $shuffleListWithSingleElement
+        sometimes when list contains:
+          two elements   $shuffleListWithTwoElementsSame
+          three elements $shuffleListWithThreeElementsSame
+          many elements  $shuffleListWithManyElementsSame
+
+      Shuffle returns the same list in diffrent order
+        sometimes when list contains:
+          two elements   $shuffleListWithTwoElementsReversed
+          three elements $shuffleListWithThreeElementsReversed
+          many elements  $shuffleListWithManyElementsReversed
      """
 
   def nextIntWithEmptyData =
@@ -188,4 +203,57 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         randomResults <- IO.foreach(1 to expected.length)(_ => f(testRandom))
       } yield randomResults must_=== expected
     )
+
+  def shuffleListWithNoElements =
+    checkShuffleSame(List.empty[Int])
+
+  def shuffleListWithSingleElement =
+    checkShuffleSame(List(1))
+
+  def shuffleListWithTwoElementsSame =
+    checkShuffleSame(List(1, 2))
+
+  def shuffleListWithTwoElementsReversed =
+    checkShuffleReversed(List(1, 2))
+
+  def shuffleListWithThreeElementsSame =
+    checkShuffleSame(List(1, 2, 3))
+
+  def shuffleListWithThreeElementsReversed =
+    checkShuffleReversed(List(1, 2, 3))
+
+  def shuffleListWithManyElementsSame =
+    checkShuffleSame((1 to 100).toList)
+
+  def shuffleListWithManyElementsReversed =
+    checkShuffleReversed((1 to 100).toList)
+
+  def checkShuffleSame[A](input: List[A]) = {
+    val identitySwapIndexes =
+      ((input.length - 1) to 1 by -1).toList
+
+    unsafeRun(
+      for {
+        ref        <- Ref.make(Data(integers = identitySwapIndexes))
+        testRandom <- IO.succeed(TestRandom(ref))
+        shuffled   <- testRandom.shuffle(input)
+      } yield shuffled must_=== input
+    )
+  }
+
+  def checkShuffleReversed[A](input: List[A]) = {
+    val halfLength  = input.length / 2
+    val halfIndexes = (0 until halfLength).toList
+    val reverseSwapIndexes =
+      if (input.length % 2 == 0) halfIndexes ::: halfIndexes.reverse
+      else (halfIndexes :+ halfLength) ::: halfIndexes.reverse
+
+    unsafeRun(
+      for {
+        ref        <- Ref.make(Data(integers = reverseSwapIndexes))
+        testRandom <- IO.succeed(TestRandom(ref))
+        shuffled   <- testRandom.shuffle(input)
+      } yield shuffled must_=== input.reverse
+    )
+  }
 }

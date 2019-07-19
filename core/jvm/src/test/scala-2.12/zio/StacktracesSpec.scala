@@ -14,7 +14,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   // Using mutable Spec here to easily run individual tests from Intellij to inspect result traces
 
   // set to true to print traces
-  private val debug = true
+  private val debug = false
 
   "basic test" >> basicTest
 
@@ -27,6 +27,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   "fiber ancestry" >> fiberAncestry
   "fiber ancestry example with uploads" >> fiberAncestryUploadExample
+  "fiber ancestry has a limited size" >> fiberAncestryIsLimited
 
   "blocking trace" >> blockingTrace
 
@@ -45,8 +46,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   "single effectTotal for-comprehension" >> singleEffectTotalForComp
   "single suspendWith for-comprehension" >> singleSuspendWithForComp
 
-  private def show(trace: ZTrace): Unit        = if (debug) println(trace.prettyPrint)
-  private def show(cause: Exit.Cause[_]): Unit = if (debug) println(cause.prettyPrint)
+  private def show(trace: ZTrace): Unit   = if (debug) println(trace.prettyPrint)
+  private def show(cause: Cause[_]): Unit = if (debug) println(cause.prettyPrint)
 
   private def mentionsMethod(method: String, trace: ZTraceElement): Boolean =
     trace match {
@@ -79,7 +80,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def mentionedMethod(method: String): Matcher[List[ZTraceElement]] = mentionMethod(method)
 
   private implicit final class CauseMust[R >: Environment](io: ZIO[R, _, _]) {
-    def causeMust(check: Exit.Cause[_] => Result): Result =
+    def causeMust(check: Cause[_] => Result): Result =
       unsafeRunSync(io).fold[Result](
         cause => {
           show(cause)
@@ -100,7 +101,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
       (trace.executionTrace must have size 1) and
         (trace.executionTrace must mentionMethod("basicTest")) and
-        (trace.stackTrace must have size 1) and
+        (trace.stackTrace must have size 2) and
         (trace.stackTrace must mentionMethod("basicTest"))
     }
   }
@@ -117,7 +118,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(io) must { trace: ZTrace =>
       show(trace)
 
-      (trace.stackTrace must have size 1) and
+      (trace.stackTrace must have size 2) and
         (trace.stackTrace must mentionMethod("foreachTrace")) and
         (trace.executionTrace must mentionMethod("foreachTrace")) and
         (trace.executionTrace must mentionMethod("foreach_")) and
@@ -151,7 +152,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         (trace1.stackTrace must mentionMethod("foreachFail")) and
         (trace1.executionTrace must mentionMethod("foreach_")) and
         (trace1.executionTrace must mentionMethod("foreachFail")) and
-        (trace2.stackTrace must have size 1) and
+        (trace2.stackTrace must have size 2) and
         (trace2.stackTrace must mentionMethod("foreachFail")) and
         (trace2.executionTrace must mentionMethod("foreach_")) and
         (trace2.executionTrace must mentionMethod("foreachFail"))
@@ -166,7 +167,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     } yield ()
 
     io causeMust {
-      _.traces.head.stackTrace must have size 1 and contain {
+      _.traces.head.stackTrace must have size 2 and contain {
         (_: ZTraceElement) match {
           case s: SourceLocation => s.method contains "foreachParFail"
           case _                 => false
@@ -189,7 +190,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(io) must { trace: ZTrace =>
       show(trace)
 
-      (trace.stackTrace must beEmpty) and
+      (trace.stackTrace must have size 1) and
         (trace.executionTrace must forall[ZTraceElement](mentionMethod("leftAssociativeFold")))
     }
   }
@@ -206,11 +207,11 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       // but we haven't yet passed a single flatMap while going through
       // left binds, so our exec trace is empty.
       (trace1.executionTrace must beEmpty) and
-        (trace1.stackTrace must have size 4) and
+        (trace1.stackTrace must have size 5) and
         (trace1.stackTrace must mentionMethod("method2")) and
         (trace1.stackTrace must mentionMethod("method1")) and
         (trace1.stackTrace must mentionMethod("io")) and
-        (trace2.stackTrace must have size 1) and
+        (trace2.stackTrace must have size 2) and
         (trace2.stackTrace must mentionMethod("tuple")) and
         (trace2.executionTrace must mentionMethod("method2")) and
         (trace2.executionTrace must mentionMethod("method1")) and
@@ -287,7 +288,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     import fiberAncestryUploadExampleFixture._
 
     uploadUsers(List(new User)) causeMust { cause =>
-      (cause.traces.head.stackTrace must have size 1) and
+      (cause.traces.head.stackTrace must have size 2) and
         (cause.traces.head.stackTrace.head must mentionMethod("uploadUsers")) and
         (cause.traces(1).stackTrace must beEmpty) and
         (cause.traces(1).executionTrace must have size 1) and
@@ -314,6 +315,27 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
   }
 
+  def fiberAncestryIsLimited = {
+    import fiberAncestryIsLimitedFixture._
+
+    recursiveFork(10000) causeMust { cause =>
+      (cause.traces must have size 1) and
+        (cause.traces.head.parents must have size 10) and
+        (cause.traces.head.executionTrace must mentionMethod("recursiveFork")) and
+        (cause.traces.head.parents.head.stackTrace must mentionMethod("recursiveFork"))
+    }
+  }
+
+  object fiberAncestryIsLimitedFixture {
+    def recursiveFork(i: Int): UIO[Unit] =
+      i match {
+        case 0 =>
+          UIO(throw new Exception("oops!"))
+        case _ =>
+          ZIO.suspend(recursiveFork(i - 1)).fork.flatMap(_.join)
+      }
+  }
+
   def blockingTrace = {
     val io = for {
       _ <- blocking.effectBlocking { throw new Exception() }
@@ -323,7 +345,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       val trace = cause.traces.head
 
       // the bottom items on exec trace and stack trace refer to this line
-      (trace.stackTrace.last must mentionMethod("blockingTrace")) and
+      (trace.stackTrace must mentionMethod("blockingTrace")) and
         (trace.executionTrace.last must mentionMethod("blockingTrace"))
     }
 
@@ -345,7 +367,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       (cause.traces must have size 1) and
         (cause.traces.head.executionTrace must mentionMethod("traceThis")) and
         (cause.traces.head.executionTrace must not have mentionedMethod("tracingRegions")) and
-        (cause.traces.head.stackTrace must beEmpty)
+        (cause.traces.head.stackTrace must have size 1)
     }
   }
 
@@ -402,7 +424,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     selectHumans causeMust { cause =>
       (cause.traces must have size 1) and
-        (cause.traces.head.stackTrace must have size 1) and
+        (cause.traces.head.stackTrace must have size 2) and
         (cause.traces.head.stackTrace.head must mentionMethod("selectHumans"))
     }
   }
@@ -421,8 +443,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     selectHumans causeMust { cause =>
       (cause.traces must have size 1) and
-        (cause.traces.head.stackTrace must have size 1) and
-        (cause.traces.head.stackTrace.last must mentionMethod("selectHumans"))
+        (cause.traces.head.stackTrace must have size 2) and
+        (cause.traces.head.stackTrace must mentionMethod("selectHumans"))
     }
   }
 
@@ -440,8 +462,8 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     selectHumans causeMust { cause =>
       (cause.traces must have size 1) and
-        (cause.traces.head.stackTrace must have size 1) and
-        (cause.traces.head.stackTrace.last must mentionMethod("selectHumans"))
+        (cause.traces.head.stackTrace must have size 2) and
+        (cause.traces.head.stackTrace must mentionMethod("selectHumans"))
     }
   }
 
@@ -469,7 +491,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       (cause.traces must have size 1) and
         (cause.traces.head.executionTrace must have size 1) and
         (cause.traces.head.executionTrace must mentionMethod("fail")) and
-        (cause.traces.head.stackTrace must have size 3) and
+        (cause.traces.head.stackTrace must have size 4) and
         (cause.traces.head.stackTrace.head must mentionMethod("badMethod")) and
         (cause.traces.head.stackTrace(1) must mentionMethod("apply")) and // PartialFunction.apply
         (cause.traces.head.stackTrace(2) must mentionMethod("catchSomeWithOptimizedEffect"))
@@ -496,7 +518,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         (cause.traces.head.executionTrace must have size 2) and
         (cause.traces.head.executionTrace.head must mentionMethod("refailAndLoseTrace")) and
         (cause.traces.head.executionTrace.last must mentionMethod("fail")) and
-        (cause.traces.head.stackTrace must have size 1) and
+        (cause.traces.head.stackTrace must have size 2) and
         (cause.traces.head.stackTrace.head must mentionMethod("catchAllWithOptimizedEffect"))
     }
   }
@@ -523,7 +545,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       (cause.traces must have size 1) and
         (cause.traces.head.executionTrace must have size 1) and
         (cause.traces.head.executionTrace.head must mentionMethod("fail")) and
-        (cause.traces.head.stackTrace must have size 3) and
+        (cause.traces.head.stackTrace must have size 4) and
         (cause.traces.head.stackTrace.head must mentionMethod("succ")) and
         (cause.traces.head.stackTrace(1) must mentionMethod("mapError")) and
         (cause.traces.head.stackTrace(2) must mentionMethod("mapErrorPreservesTrace"))
@@ -548,7 +570,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(io) must { trace: ZTrace =>
       show(trace)
 
-      (trace.stackTrace must have size 1) and
+      (trace.stackTrace must have size 2) and
         (trace.stackTrace must mentionMethod("foldMWithOptimizedEffect")) and
         (trace.executionTrace must have size 2) and
         (trace.executionTrace.head must mentionMethod("mkTrace")) and

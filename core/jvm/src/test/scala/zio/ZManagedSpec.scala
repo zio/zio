@@ -6,9 +6,8 @@ import org.scalacheck.{ Gen, _ }
 
 import org.specs2.ScalaCheck
 import org.specs2.matcher.MatchResult
-import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause.Interrupt
-import zio.Exit.{ Cause, Failure }
+import zio.Cause.Interrupt
+import zio.Exit.Failure
 import zio.duration._
 
 import scala.collection.mutable
@@ -161,8 +160,6 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       interruption       <- managedFiber.interrupt.timeout(5.seconds).either
     } yield interruption
 
-    implicit val d: Diffable[Right[Nothing, Option[Exit[Nothing, Unit]]]] =
-      Diffable.eitherRightDiffable[Option[Exit[Nothing, Unit]]] //    TODO: Dotty has ambiguous implicits
     unsafeRun(program) must be_===(Right(expected))
   }
 
@@ -207,12 +204,13 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   private def foldMFailure = {
     val effects = new mutable.ListBuffer[Int]
-    def res(x: Int): ZManaged[Any, Unit, Unit] =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+    def res(x: Int): Managed[Unit, Unit] =
+      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
-    val resource = ZManaged.fromEffect(ZIO.fail(())).foldM(_ => res(1), _ => ZManaged.unit)
+    // foldM[Any, Unit, Unit] - if types were not specified, you get "type inferred to `Any`" compile error.
+    val resource = Managed.fromEffect(IO.fail(())).foldM[Any, Unit, Unit](_ => res(1), _ => Managed.unit)
 
-    unsafeRun(resource.use(_ => IO.unit))
+    unsafeRun(resource.use[Any, Unit, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 1))
   }
@@ -224,7 +222,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val resource = ZManaged.succeed(()).foldM(_ => ZManaged.unit, _ => res(1))
 
-    unsafeRun(resource.use(_ => IO.unit))
+    unsafeRun(resource.use[Any, Unit, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 1))
   }
@@ -474,7 +472,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val resources = ZManaged.foreach(List(1, 2, 3))(res)
 
-    unsafeRun(resources.use(_ => IO.unit))
+    unsafeRun(resources.use[Any, Nothing, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }

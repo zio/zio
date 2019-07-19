@@ -2,7 +2,7 @@ package zio.stm
 
 import java.util.concurrent.CountDownLatch
 
-import zio.Exit.Cause
+import zio.Cause
 import zio._
 
 final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {

@@ -17,7 +17,10 @@
 package zio.stream
 
 import zio._
+import zio.clock.Clock
+import zio.duration.Duration
 import scala.language.postfixOps
+import java.util.concurrent.TimeUnit
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -775,6 +778,18 @@ object ZSink extends ZSinkPlatformSpecific {
       final case class State[S](value: S) extends Side[Nothing, S, Nothing]
       final case class Value[A](value: A) extends Side[Nothing, Nothing, A]
     }
+
+    def assertNonNegative(n: Long): UIO[Unit] =
+      if (n < 0) UIO.die(new NegativeArgument(s"Unexpected negative unit value `$n`"))
+      else UIO.unit
+
+    def assertPositive(n: Long): UIO[Unit] =
+      if (n <= 0) UIO.die(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
+      else UIO.unit
+
+    class NegativeArgument(message: String) extends IllegalArgumentException(message)
+
+    class NonpositiveArgument(message: String) extends IllegalArgumentException(message)
   }
 
   trait StepModule {
@@ -1063,4 +1078,116 @@ object ZSink extends ZSinkPlatformSpecific {
       def stepPure(state: State, a: Any): Step[State, Nothing] = Step.done(state, Chunk.empty)
       def extractPure(state: State): Either[Nothing, B]        = Right(b)
     }
+
+  /**
+   * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. Elements that do not meet the bandwidth constraints are dropped.
+   * The weight of each element is determined by the `costFn` function. Elements are mapped to
+   * `Option[A]`, and `None` denotes that a given element has been dropped.
+   */
+  final def throttleEnforce[A](units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
+    throttleEnforceM[Any, Nothing, A](units, duration)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. Elements that do not meet the bandwidth constraints are dropped.
+   * The weight of each element is determined by the `costFn` effectful function. Elements are mapped to
+   * `Option[A]`, and `None` denotes that a given element has been dropped.
+   */
+  final def throttleEnforceM[R, E, A](units: Long, duration: Duration)(
+    costFn: A => ZIO[R, E, Long]
+  ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
+    import ZSink.internal._
+
+    def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, Option[A]] {
+      type State = (Ref[(Long, Long)], Option[A])
+
+      val initial = UIO.succeed(Step.more((bucket, None)))
+
+      def step(state: State, a: A) =
+        for {
+          weight  <- costFn(a)
+          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          result <- state._1.modify {
+                     case (tokens, timestamp) =>
+                       val elapsed = Duration.Finite(current - timestamp)
+                       val (available, refillTimestamp) =
+                         if (elapsed > duration)
+                           (units, timestamp + duration.toNanos)
+                         else
+                           (tokens, timestamp)
+                       if (weight <= available)
+                         (Step.done((state._1, Some(a)), Chunk.empty), (available - weight, refillTimestamp))
+                       else
+                         (Step.done((state._1, None), Chunk.empty), (available, refillTimestamp))
+                   }
+        } yield result
+
+      def extract(state: State) = UIO.succeed(state._2)
+    }
+
+    for {
+      _       <- assertNonNegative(units).toManaged_
+      current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
+      bucket  <- Ref.make((units, current)).toManaged_
+    } yield bucketSink(bucket)
+  }
+
+  /**
+   * Creates a sink which delays input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The weight of each element is determined by the `costFn` function.
+   */
+  final def throttleShape[A](units: Long, duration: Duration)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
+    throttleShapeM[Any, Nothing, A](units, duration)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Creates a sink which delays input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The weight of each element is determined by the `costFn` effectful
+   * function.
+   */
+  final def throttleShapeM[R, E, A](units: Long, duration: Duration)(
+    costFn: A => ZIO[R, E, Long]
+  ): ZManaged[R with Clock, E, ZSink[R with Clock, E, Nothing, A, A]] = {
+    import ZSink.internal._
+
+    def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, A] {
+      type State = (Ref[(Long, Long)], Promise[E, A])
+
+      val initial = Promise.make[E, A].map(promise => Step.more((bucket, promise)))
+
+      def step(state: State, a: A) =
+        for {
+          weight  <- costFn(a)
+          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          delay <- state._1.modify {
+                    case (tokens, timestamp) =>
+                      val missing = weight - tokens
+                      val cycles =
+                        if (missing <= 0) 0
+                        else {
+                          val c = missing / units
+                          if (c * units < missing) c + 1 else c
+                        }
+                      val newTokens    = tokens + cycles * units - weight
+                      val newTimestamp = timestamp + cycles * duration.toNanos
+                      val delay        = Duration.Finite(newTimestamp - current)
+                      (delay, (newTokens, newTimestamp))
+                  }
+          _ <- if (delay <= Duration.Zero) UIO.unit else clock.sleep(delay)
+          _ <- state._2.succeed(a)
+        } yield Step.done(state, Chunk.empty)
+
+      def extract(state: State) = state._2.await
+    }
+
+    for {
+      _       <- assertPositive(units).toManaged_
+      current <- clock.currentTime(TimeUnit.NANOSECONDS).toManaged_
+      bucket  <- Ref.make((units, current)).toManaged_
+    } yield bucketSink(bucket)
+  }
 }

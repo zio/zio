@@ -3,12 +3,10 @@ package zio
 import org.scalacheck._
 import org.specs2.ScalaCheck
 import org.specs2.execute.Result
-import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause
 
 import scala.collection.mutable
 import scala.util.Try
-import zio.Exit.Cause.{ die, fail, interrupt, Both }
+import zio.Cause.{ die, fail, interrupt, Both }
 
 class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime with GenIO with ScalaCheck {
   import Prop.forAll
@@ -46,9 +44,22 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check non-`memoize`d IO[E, A] returns new instances on repeated calls due to referential transparency. $testNonMemoizationRT
    Check `memoize` method on IO[E, A] returns the same instance on repeated calls. $testMemoization
    Check `raceAll` method returns the same IO[E, A] as `IO.raceAll` does. $testRaceAll
+   Check `firstSuccessOf` method returns the same IO[E, A] as `IO.firstSuccessOf` does. $testfirstSuccessOf
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
+   Check `someOrFail` method extracts the optional value. $testSomeOrFailExtractOptionalValue
+   Check `someOrFail` method fails when given a None. $testSomeOrFailWithNone
+   Check `someOrFailException` method extracts the optional value. $testSomeOrFailExceptionOnOptionalValue
+   Check `someOrFailException` method fails when given a None. $testSomeOrFailExceptionOnEmptyValue
+   Check `rightOrFail` method extracts the Right value. $testRightOrFailExtractsRightValue
+   Check `rightOrFail` method fails when given a Left. $testRightOrFailWithLeft
+   Check `rightOrFailException` method extracts the Right value. $testRightOrFailExceptionOnRightValue
+   Check `rightOrFailException` method fails when given a Left. $testRightOrFailExceptionOnLeftValue
+   Check `leftOrFail` method extracts the Left value. $testLeftOrFailExtractsLeftValue
+   Check `leftOrFail` method fails when given a Right. $testLeftOrFailWithRight
+   Check `leftOrFailException` method extracts the Left value. $testLeftOrFailExceptionOnLeftValue
+   Check `leftOrFailException` method fails when given a Right. $testLeftOrFailExceptionOnRightValue
    Check uncurried `bracket`. $testUncurriedBracket
    Check uncurried `bracket_`. $testUncurriedBracket_
    Check uncurried `bracketExit`. $testUncurriedBracketExit
@@ -97,8 +108,6 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     res must be_===(List(1, 2, 3))
   }
 
-  implicit val d
-    : Diffable[Either[String, Nothing]] = Diffable.eitherDiffable[String, Nothing] //    TODO: Dotty has ambiguous implicits
   def t5 = forAll { (i: Int) =>
     val res = unsafeRun(IO.fail[Int](i).bimap(_.toString, identity).either)
     res must_=== Left(i.toString)
@@ -128,18 +137,19 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     res must be_===(List("1", "2", "3"))
   }
 
-  def t10: Prop = forAll { (l: List[Int]) =>
+  def t10 = forAll { (l: List[Int]) =>
     unsafeRun(IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))) must_=== unsafeRun(IO.succeed(l.sum))
   }
 
-  val ig = Gen.chooseNum(Int.MinValue, Int.MaxValue)
-  val g  = Gen.nonEmptyListOf(ig) //    TODO: Dotty has ambiguous implicits
-  def t11: Prop = forAll(g) { (l: List[Int]) =>
-    (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
+  def t11 = forAll { (l: List[Int]) =>
+    l.size > 0 ==>
+      (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
   }
 
+  private val exampleError = new Error("something went wrong")
+
   def testDone = {
-    val error                         = new Error("something went wrong")
+    val error                         = exampleError
     val completed                     = Exit.succeed(1)
     val interrupted: Exit[Error, Int] = Exit.interrupt
     val terminated: Exit[Error, Int]  = Exit.die(error)
@@ -191,8 +201,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     )
 
   def testUnsandbox = {
-    val failure: IO[Exit.Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
-    val success: IO[Exit.Cause[Any], Int]          = IO.succeed(100)
+    val failure: IO[Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
+    val success: IO[Cause[Any], Int]          = IO.succeed(100)
     unsafeRun(for {
       message <- failure.unsandbox.foldM(e => IO.succeed(e.getMessage), _ => IO.succeed("unexpected"))
       result  <- success.unsandbox
@@ -248,6 +258,15 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     } yield race1 must ===(race2))
   }
 
+  def testfirstSuccessOf = {
+    val io  = IO.effectTotal("supercalifragilisticexpialadocious")
+    val ios = List.empty[UIO[String]]
+    unsafeRun(for {
+      race1 <- io.firstSuccessOf(ios)
+      race2 <- IO.firstSuccessOf(io, ios)
+    } yield race1 must ===(race2))
+  }
+
   def testZipParInterupt = {
     val io = ZIO.interrupt.zipPar(IO.interrupt)
     unsafeRunSync(io) must_=== Exit.Failure(Both(interrupt, interrupt))
@@ -272,6 +291,57 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         .and(thn must_=== Exit.die(ex))
         .and(fail must_=== Exit.succeed(()))
     }
+  }
+
+  def testSomeOrFailWithNone = {
+    val task: Task[Int] = UIO(Option.empty[Int]).someOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testSomeOrFailExtractOptionalValue = {
+    val task: Task[Int] = UIO(Some(42)).someOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testSomeOrFailExceptionOnOptionalValue = unsafeRun(ZIO.succeed(Some(42)).someOrFailException) must_=== 42
+
+  def testSomeOrFailExceptionOnEmptyValue = {
+    val task = ZIO.succeed(Option.empty[Int]).someOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testRightOrFailExceptionOnRightValue = unsafeRun(ZIO.succeed(Right(42)).rightOrFailException) must_=== 42
+
+  def testRightOrFailExceptionOnLeftValue = {
+    val task: Task[Int] = ZIO.succeed(Left(2)).rightOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testRightOrFailExtractsRightValue = {
+    val task: Task[Int] = UIO(Right(42)).rightOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testRightOrFailWithLeft = {
+    val task: Task[Int] = UIO(Left(1)).rightOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOrFailExceptionOnLeftValue = unsafeRun(ZIO.succeed(Left(42)).leftOrFailException) must_=== 42
+
+  def testLeftOrFailExceptionOnRightValue = {
+    val task: Task[Int] = ZIO.succeed(Right(2)).leftOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOrFailExtractsLeftValue = {
+    val task: Task[Int] = UIO(Left(42)).leftOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testLeftOrFailWithRight = {
+    val task: Task[Int] = UIO(Right(12)).leftOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
   }
 
   def testUncurriedBracket =

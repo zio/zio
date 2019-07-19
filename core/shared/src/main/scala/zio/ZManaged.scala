@@ -17,7 +17,6 @@
 package zio
 
 import scala.reflect.ClassTag
-import zio.Exit.Cause
 import zio.clock.Clock
 import zio.duration.Duration
 
@@ -69,7 +68,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   final def >>=[R1 <: R, E1 >: E, B](k: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     flatMap(k)
 
-  /***
+  /**
    * Symbolic alias for andThen
    */
   final def >>>[R1 >: A, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R, E1, B] =
@@ -107,7 +106,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     } yield a
 
   /**
-   * Symbolic alias for zipLeft
+   * Symbolic alias for zipLeft.
    */
   final def <*[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
     flatMap(r => that.map(_ => r))
@@ -243,13 +242,13 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
     flatMap(ev)
 
   /**
-   * Flip the environment and result
+   * Flip the error and result
     **/
   final def flip: ZManaged[R, A, E] =
     foldM(ZManaged.succeed, ZManaged.fail)
 
   /**
-   * Flip the environment and result and then apply an effectful function to the effect
+   * Flip the error and result, then apply an effectful function to the effect
     **/
   final def flipWith[R1, A1, E1](f: ZManaged[R, A, E] => ZManaged[R1, A1, E1]): ZManaged[R1, E1, A1] =
     f(flip).flip
@@ -374,7 +373,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Returns an effect whose failure is mapped by the specified `f` function.
    */
   final def mapError[E1](f: E => E1): ZManaged[R, E1, A] =
-    Managed(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
+    ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
@@ -422,7 +421,7 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * leaving the remainder `R0`.
    */
   final def provideSome[R0](f: R0 => R): ZManaged[R0, E, A] =
-    Managed(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), r.release.provideSome(f))))
+    ZManaged(reserve.provideSome(f).map(r => Reservation(r.acquire.provideSome(f), r.release.provideSome(f))))
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -897,6 +896,11 @@ object ZManaged {
   final def identity[R]: ZManaged[R, Nothing, R] = fromFunction(scala.Predef.identity)
 
   /**
+   * Returns an effect that is interrupted.
+   */
+  final val interrupt: ZManaged[Any, Nothing, Nothing] = halt(Cause.interrupt)
+
+  /**
    * Lifts a `ZIO[R, E, R]` into `ZManaged[R, E, R]` with a release action.
    */
   final def make[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, _]): ZManaged[R, E, A] =
@@ -1061,6 +1065,24 @@ object ZManaged {
     v.sandbox
 
   /**
+   *  Alias for [[ZManaged.collectAll]]
+   */
+  final def sequence[R, E, A1, A2](ms: Iterable[ZManaged[R, E, A2]]): ZManaged[R, E, List[A2]] =
+    collectAll[R, E, A1, A2](ms)
+
+  /**
+   *  Alias for [[ZManaged.collectAllPar]]
+   */
+  final def sequencePar[R, E, A](as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
+    collectAllPar[R, E, A](as)
+
+  /**
+   *  Alias for [[ZManaged.collectAllParN]]
+   */
+  final def sequenceParN[R, E, A](n: Long)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
+    collectAllParN[R, E, A](n)(as)
+
+  /**
    * Lifts a strict, pure value into a Managed.
    */
   final def succeed[R, A](r: A): ZManaged[R, Nothing, A] =
@@ -1082,6 +1104,64 @@ object ZManaged {
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
   final def swap[R, E, A, B](implicit ev: R <:< (A, B)): ZManaged[R, E, (B, A)] = fromFunction(_.swap)
+
+  /**
+   * Alias for [[ZManaged.foreach]]
+   */
+  final def traverse[R, E, A1, A2](as: Iterable[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, List[A2]] =
+    foreach[R, E, A1, A2](as)(f)
+
+  /**
+   * Alias for [[ZManaged.foreach_]]
+   */
+  final def traverse_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, _]): ZManaged[R, E, Unit] =
+    foreach_[R, E, A](as)(f)
+
+  /**
+   * Alias for [[ZManaged.foreachPar]]
+   */
+  final def traversePar[R, E, A1, A2](
+    as: Iterable[A1]
+  )(
+    f: A1 => ZManaged[R, E, A2]
+  ): ZManaged[R, E, List[A2]] =
+    foreachPar[R, E, A1, A2](as)(f)
+
+  /**
+   * Alias for [[ZManaged.foreachPar_]]
+   */
+  final def traversePar_[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, _]): ZManaged[R, E, Unit] =
+    foreachPar_[R, E, A](as)(f)
+
+  /**
+   * Alias for [[ZManaged.foreachParN]]
+   */
+  final def traverseParN[R, E, A1, A2](
+    n: Long
+  )(
+    as: Iterable[A1]
+  )(
+    f: A1 => ZManaged[R, E, A2]
+  ): ZManaged[R, E, List[A2]] =
+    foreachParN[R, E, A1, A2](n)(as)(f)
+
+  /**
+   * Alias for [[ZManaged.foreachParN_]]
+   */
+  final def traverseParN_[R, E, A](
+    n: Long
+  )(
+    as: Iterable[A]
+  )(
+    f: A => ZManaged[R, E, Any]
+  ): ZManaged[R, E, Unit] =
+    foreachParN_[R, E, A](n)(as)(f)
+
+  /**
+   * Returns the effect resulting from mapping the success of this effect to unit.
+   */
+  final val unit: ZManaged[Any, Nothing, Unit] =
+    ZManaged.succeed(())
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -1106,16 +1186,5 @@ object ZManaged {
    */
   final def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: ZManaged[R, E, _]): ZManaged[R, E, Unit] =
     b.flatMap(b => if (b) zManaged.unit else unit)
-
-  /**
-   * Returns an effect that is interrupted.
-   */
-  final val interrupt: ZManaged[Any, Nothing, Nothing] = halt(Cause.interrupt)
-
-  /**
-   * Returns the effect resulting from mapping the success of this effect to unit.
-   */
-  final val unit: ZManaged[Any, Nothing, Unit] =
-    ZManaged.succeed(())
 
 }

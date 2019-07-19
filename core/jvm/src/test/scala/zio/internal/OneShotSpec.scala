@@ -35,6 +35,7 @@ class OneShotSpec extends Specification {
   def getWithNoValue = {
     val oneShot = OneShot.make[Object]
     oneShot.get(10000L) must throwA[Error]
+
   }
 
   def setTwice = {
