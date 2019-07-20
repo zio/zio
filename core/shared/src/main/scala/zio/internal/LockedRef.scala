@@ -1,32 +1,39 @@
 package zio.internal
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 class LockedRef[A](var ref: A) {
-  var locked = false
+  var locked = new AtomicBoolean(false)
 
   def get: A = ref
+
   def set(a: A): A = {
     this.ref = a
     this.ref
   }
 
-  def exclusiveSet(a: A): A = {
+  def exclusiveSet(a: A): Unit = {
     lock()
-    set(a)
+    this.ref = a
     unlock()
-    a
   }
 
   def lock(): Unit = {
     var loop = true
     while (loop) {
-      if (!locked) {
-        locked = true
+      if (!locked.compareAndSet(false, true)) {
         loop = false
       }
     }
   }
 
-  def unlock(): Unit =
-    locked = false
+  def unlock(): Unit = {
+    var loop = true
+    while (loop) {
+      if (!locked.compareAndSet(true, false)) {
+        loop = false
+      }
+    }
+  }
 
 }
