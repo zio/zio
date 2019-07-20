@@ -13,22 +13,21 @@ const MarkdownBlock = CompLibrary.MarkdownBlock; /* Used to read markdown */
 const Container = CompLibrary.Container;
 const GridBlock = CompLibrary.GridBlock;
 
-const features = [
-  {
-    name: 'High-Performance',
-    description: 'Build scalable applications with 100x the performance of Scala’s Future'
-  },
-  {
-    name: '',
-    description: ''
-  },
+const features = [{
+        name: 'High-Performance',
+        description: 'Build scalable applications with 100x the performance of Scala’s Future'
+    },
+    {
+        name: '',
+        description: ''
+    },
 ];
 
 class HomeSplash extends React.Component {
-  render() {
-    const {siteConfig, language = ''} = this.props;
-    const {baseUrl, docsUrl} = siteConfig;
-    const docsPart = `${docsUrl ? `${docsUrl}/` : ''}`;
+        render() {
+                const { siteConfig, language = '' } = this.props;
+                const { baseUrl, docsUrl } = siteConfig;
+                const docsPart = `${docsUrl ? `${docsUrl}/` : ''}`;
     const langPart = `${language ? `${language}/` : ''}`;
     const docUrl = doc => `${baseUrl}${docsPart}${langPart}${doc}`;
 
@@ -91,23 +90,31 @@ class Index extends React.Component {
     );
 
     const Sponsors = () => (
-      <Block layout="twoColumn">
-        {[
-          {
-            content: 'ZIO is being supported by',
-            title: 'Sponsors'
-          },
-          {
-            content: `<a href="https://7mind.io/"><img src="${baseUrl}img/septimal_mind.svg" /></a><br/>&nbsp;Inventing productivity`,
-            title: 'Septimal Mind'
-          },
-          {},
-          {
-            content: `<a href="https://softwaremill.com/"><img src="${baseUrl}img/softwaremill.svg" /></a><br/>&nbsp;Custom software by true engineers`,
-            title: 'SoftwareMill'
-          },
-        ]}
-      </Block>
+      <section>
+        <GridBlock
+          align="center"
+          contents={
+            [
+              {
+                content: 'ZIO is being supported by',
+                title: 'Sponsors'
+              }
+            ]
+          }
+        />
+        <Block layout="twoColumn">
+          {[
+            {
+              content: `<a href="https://7mind.io/"><img src="${baseUrl}img/septimal_mind.svg" /></a><br/>&nbsp;Inventing productivity`,
+              title: 'Septimal Mind'
+            },
+            {
+              content: `<a href="https://softwaremill.com/"><img src="${baseUrl}img/softwaremill.svg" /></a><br/>&nbsp;Custom software by true engineers`,
+              title: 'SoftwareMill'
+            },
+          ]}
+        </Block>
+      </section>
     );
 
     const Features = () => (
