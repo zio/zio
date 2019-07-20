@@ -191,16 +191,16 @@ object Sink {
   /**
    * see [[ZSink.throttleShape]]
    */
-  final def throttleShape[A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
-    ZSink.throttleShape(units, duration, max)(costFn)
+    ZSink.throttleShape(units, duration, burst)(costFn)
 
   /**
    * see [[ZSink.throttleShapeM]]
    */
-  final def throttleShapeM[E, A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleShapeM[E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, A]] =
-    ZSink.throttleShapeM[Any, E, A](units, duration, max)(costFn)
+    ZSink.throttleShapeM[Any, E, A](units, duration, burst)(costFn)
 }

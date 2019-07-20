@@ -787,10 +787,6 @@ object ZSink extends ZSinkPlatformSpecific {
       if (n <= 0) UIO.die(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
       else UIO.unit
 
-    def assertNotGreaterThan(units: Long, max: Long) =
-      if (units > max) UIO.die(new IllegalArgumentException("Max burst value must be greater than the unit value"))
-      else UIO.unit
-
     class NegativeArgument(message: String) extends IllegalArgumentException(message)
 
     class NonpositiveArgument(message: String) extends IllegalArgumentException(message)
@@ -1220,7 +1216,7 @@ object ZSink extends ZSinkPlatformSpecific {
       def extract(state: State) = UIO.succeed(state._2)
     }
 
-    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max + sum else math.min(sum, max)
+    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max else math.min(sum, max)
 
     val sink = for {
       _       <- assertNonNegative(units)
@@ -1235,24 +1231,26 @@ object ZSink extends ZSinkPlatformSpecific {
   /**
    * Creates a sink which delays input elements of type A according to the given bandwidth parameters
    * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
-   * the token bucket to accumulate tokens up to a `max` threshold. The weight of each element is determined
-   * by the `costFn` function.
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
+   * determined by the `costFn` function.
    */
-  final def throttleShape[A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
-    throttleShapeM[Any, Nothing, A](units, duration, max)(a => UIO.succeed(costFn(a)))
+    throttleShapeM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
 
   /**
    * Creates a sink which delays input elements of type A according to the given bandwidth parameters
    * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
-   * the token bucket to accumulate tokens up to a `max` threshold. The weight of each element is determined
-   * by the `costFn` effectful function.
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
+   * determined by the `costFn` effectful function.
    */
-  final def throttleShapeM[R, E, A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleShapeM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R, E, Long]
   ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, A]] = {
     import ZSink.internal._
+
+    val maxTokens = if (units + burst < 0) Long.MaxValue else units + burst
 
     def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, A] {
       type State = (Ref[(Long, Long)], Promise[Nothing, A])
@@ -1267,7 +1265,7 @@ object ZSink extends ZSinkPlatformSpecific {
                     case (tokens, timestamp) =>
                       val elapsed    = current - timestamp
                       val cycles     = elapsed.toDouble / duration.toNanos
-                      val available  = checkTokens(tokens + (cycles * units).toLong, max)
+                      val available  = checkTokens(tokens + (cycles * units).toLong, maxTokens)
                       val remaining  = available - weight
                       val waitCycles = if (remaining >= 0) 0 else -remaining.toDouble / units
                       val delay      = Duration.Finite((waitCycles * duration.toNanos).toLong)
@@ -1284,7 +1282,7 @@ object ZSink extends ZSinkPlatformSpecific {
 
     val sink = for {
       _       <- assertPositive(units)
-      _       <- assertNotGreaterThan(units, max)
+      _       <- assertNonNegative(burst)
       current <- clock.currentTime(TimeUnit.NANOSECONDS)
       bucket  <- Ref.make((units, current))
     } yield bucketSink(bucket)
