@@ -175,18 +175,18 @@ object Sink {
   /**
    * see [[ZSink.throttleEnforce]]
    */
-  final def throttleEnforce[A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
-    ZSink.throttleEnforce(units, duration, max)(costFn)
+    ZSink.throttleEnforce(units, duration, burst)(costFn)
 
   /**
    * see [[ZSink.throttleEnforceM]]
    */
-  final def throttleEnforceM[E, A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleEnforceM[E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => IO[E, Long]
   ): ZManaged[Clock, E, ZSink[Clock, E, Nothing, A, Option[A]]] =
-    ZSink.throttleEnforceM[Any, E, A](units, duration, max)(costFn)
+    ZSink.throttleEnforceM[Any, E, A](units, duration, burst)(costFn)
 
   /**
    * see [[ZSink.throttleShape]]

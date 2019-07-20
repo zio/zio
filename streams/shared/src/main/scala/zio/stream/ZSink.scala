@@ -1173,26 +1173,28 @@ object ZSink extends ZSinkPlatformSpecific {
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
    * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
-   * the token bucket to accumulate tokens up to a `max` threshold. Elements that do not meet the bandwidth
-   * constraints are dropped. The weight of each element is determined by the `costFn` function.
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. Elements that do not meet the
+   * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` function.
    * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
    */
-  final def throttleEnforce[A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
-    throttleEnforceM[Any, Nothing, A](units, duration, max)(a => UIO.succeed(costFn(a)))
+    throttleEnforceM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
 
   /**
    * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
    * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
-   * the token bucket to accumulate tokens up to a `max` threshold. Elements that do not meet the bandwidth
-   * constraints are dropped. The weight of each element is determined by the `costFn` effectful function.
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. Elements that do not meet the
+   * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` effectful function.
    * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
    */
-  final def throttleEnforceM[R, E, A](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleEnforceM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R, E, Long]
   ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
     import ZSink.internal._
+
+    val maxTokens = if (units + burst < 0) Long.MaxValue else units + burst
 
     def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, Option[A]] {
       type State = (Ref[(Long, Long)], Option[A])
@@ -1207,7 +1209,7 @@ object ZSink extends ZSinkPlatformSpecific {
                      case (tokens, timestamp) =>
                        val elapsed   = current - timestamp
                        val cycles    = elapsed.toDouble / duration.toNanos
-                       val available = checkTokens(tokens + (cycles * units).toLong, max)
+                       val available = checkTokens(tokens + (cycles * units).toLong, maxTokens)
                        if (weight <= available)
                          (Step.done((state._1, Some(a)), Chunk.empty), (available - weight, current))
                        else
@@ -1218,11 +1220,11 @@ object ZSink extends ZSinkPlatformSpecific {
       def extract(state: State) = UIO.succeed(state._2)
     }
 
-    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max else math.min(sum, max)
+    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max + sum else math.min(sum, max)
 
     val sink = for {
       _       <- assertNonNegative(units)
-      _       <- assertNotGreaterThan(units, max)
+      _       <- assertNonNegative(burst)
       current <- clock.currentTime(TimeUnit.NANOSECONDS)
       bucket  <- Ref.make((units, current))
     } yield bucketSink(bucket)

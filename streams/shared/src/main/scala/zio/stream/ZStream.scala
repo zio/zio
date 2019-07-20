@@ -1217,24 +1217,24 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
    * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
-   * tokens up to a `max` threshold. Elements that do not meet the bandwidth constraints are dropped.
+   * tokens up to a `units + burst` threshold. Elements that do not meet the bandwidth constraints are dropped.
    * The weight of each element is determined by the `costFn` function.
    */
-  final def throttleEnforce(units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleEnforce(units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZStream[R with Clock, E, A] =
-    throttleEnforceM(units, duration, max)(a => UIO.succeed(costFn(a)))
+    throttleEnforceM(units, duration, burst)(a => UIO.succeed(costFn(a)))
 
   /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
    * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
-   * tokens up to a `max` threshold. Elements that do not meet the bandwidth constraints are dropped.
+   * tokens up to a `units + burst` threshold. Elements that do not meet the bandwidth constraints are dropped.
    * The weight of each element is determined by the `costFn` effectful function.
    */
-  final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, max: Long = Long.MaxValue)(
+  final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R1, E1, Long]
   ): ZStream[R1 with Clock, E1, A] =
-    transduceManaged(ZSink.throttleEnforceM(units, duration, max)(costFn)).collect { case Some(a) => a }
+    transduceManaged(ZSink.throttleEnforceM(units, duration, burst)(costFn)).collect { case Some(a) => a }
 
   /**
    * Delays elements of type A according to the given bandwidth parameters using the token bucket

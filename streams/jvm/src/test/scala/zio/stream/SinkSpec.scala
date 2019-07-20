@@ -30,7 +30,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Sink.foldUntilM                       $foldUntilM
     Sink.fromOutputStream                 $sinkFromOutputStream
     Sink.throttleEnforce                  $throttleEnforce
-    Sink.throttleEnforce no burst         $throttleEnforceNoBurst
+    Sink.throttleEnforce with burst       $throttleEnforceWithBurst
     Sink.throttleShape                    $throttleShape
     Sink.throttleShape infinite bandwidth $throttleShapeInfiniteBandwidth
 
@@ -259,7 +259,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         init5 <- sink.initial
         step5 <- sink.step(Step.state(init5), 5)
         res5  <- sink.extract(Step.state(step5))
-      } yield (List(res1, res2, res3, res4, res5) must_=== List(Some(1), Some(2), Some(3), None, Some(5)))
+      } yield (List(res1, res2, res3, res4, res5) must_=== List(Some(1), Some(2), None, None, Some(5)))
 
     unsafeRun {
       for {
@@ -272,7 +272,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
   }
 
-  private def throttleEnforceNoBurst = {
+  private def throttleEnforceWithBurst = {
 
     def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Option[Int]]) =
       for {
@@ -293,7 +293,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         init5 <- sink.initial
         step5 <- sink.step(Step.state(init5), 5)
         res5  <- sink.extract(Step.state(step5))
-      } yield (List(res1, res2, res3, res4, res5) must_=== List(Some(1), Some(2), None, None, Some(5)))
+      } yield (List(res1, res2, res3, res4, res5) must_=== List(Some(1), Some(2), Some(3), None, Some(5)))
 
     unsafeRun {
       for {
