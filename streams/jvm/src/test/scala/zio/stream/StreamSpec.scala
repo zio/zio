@@ -525,18 +525,19 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def effectAsyncInterruptLeft = unsafeRun {
     for {
-      release <- zio.Promise.make[Nothing, Int]
-      latch   = internal.OneShot.make[Unit]
-      async = Stream
-        .effectAsyncInterrupt[Nothing, Unit] { _ =>
-          latch.set(()); Left(release.succeed(42).unit)
-        }
-        .run(Sink.collectAll[Unit])
-      fiber  <- async.fork
-      _      <- IO.effectTotal(latch.get(1000))
-      _      <- fiber.interrupt.fork
-      result <- release.await
-    } yield result must_=== 42
+      cancelled <- Ref.make(false)
+      latch     <- Promise.make[Nothing, Unit]
+      fiber <- Stream
+                .effectAsyncInterrupt[Nothing, Unit] { offer =>
+                  offer(ZIO.succeed(())); Left(cancelled.set(true))
+                }
+                .tap(_ => latch.succeed(()))
+                .run(Sink.collectAll[Unit])
+                .fork
+      _      <- latch.await
+      _      <- fiber.interrupt
+      result <- cancelled.get
+    } yield result must_=== true
   }
 
   private def effectAsyncInterruptRight =
