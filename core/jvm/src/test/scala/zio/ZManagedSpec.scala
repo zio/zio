@@ -26,6 +26,10 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Runs on successes $ensuringSuccess
     Runs on failures $ensuringFailure
     Works when finalizers have defects $ensuringWorksWithDefects
+  ZManaged.ensuringFirst
+    Runs on successes $ensuringFirstSuccess
+    Runs on failures $ensuringFirstFailure
+    Works when finalizers have defects $ensuringFirstWorksWithDefects
   ZManaged.flatMap
     All finalizers run even when finalizers have defects $flatMapFinalizersWithDefects
   ZManaged.foldM
@@ -77,6 +81,10 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Uses at most n fibers for reservation $mergeAllParNReservePar
     Uses at most n fibers for acquisition $mergeAllParNAcquirePar
     Runs finalizers $mergeAllParNFinalizers
+  ZManaged.onExit
+    Calls the cleanup $onExit
+  ZManaged.onExitFirst
+    Calls the cleanup $onExitFirst
   ZManaged.reduceAll
     Reduces elements in the correct order $reduceAllOrder
     Runs finalizers $reduceAllFinalizers
@@ -183,6 +191,30 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     for {
       effects <- Ref.make[List[String]](Nil)
       _       <- ZManaged.finalizer(ZIO.dieMessage("Boom")).ensuring(effects.update("Ensured" :: _)).use_(ZIO.unit).run
+      result  <- effects.get
+    } yield result must_=== List("Ensured")
+  }
+
+  private def ensuringFirstSuccess = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.finalizer(effects.update("First" :: _)).ensuringFirst(effects.update("Second" :: _)).use_(ZIO.unit)
+      result  <- effects.get
+    } yield result must_=== List("First", "Second")
+  }
+
+  private def ensuringFirstFailure = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.fromEffect(ZIO.fail(())).ensuringFirst(effects.update("Ensured" :: _)).use_(ZIO.unit).either
+      result  <- effects.get
+    } yield result must_=== List("Ensured")
+  }
+
+  private def ensuringFirstWorksWithDefects = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.finalizer(ZIO.dieMessage("Boom")).ensuringFirst(effects.update("Ensured" :: _)).use_(ZIO.unit).run
       result  <- effects.get
     } yield result must_=== List("Ensured")
   }
@@ -779,4 +811,29 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       count    <- releases.get
     } yield count must be_===(n)
 
+  private def onExit = unsafeRun {
+    for {
+      finalizersRef <- Ref.make[List[String]](Nil)
+      resultRef     <- Ref.make[Option[Exit[Nothing, String]]](None)
+      _ <- ZManaged
+            .make(UIO.succeed("42"))(_ => finalizersRef.update("First" :: _))
+            .onExit(e => finalizersRef.update("Second" :: _) *> resultRef.set(Some(e)))
+            .use_(ZIO.unit)
+      finalizers <- finalizersRef.get
+      result     <- resultRef.get
+    } yield (finalizers must_=== List("Second", "First")) and (result must_=== Some(Exit.succeed("42")))
+  }
+
+  private def onExitFirst = unsafeRun {
+    for {
+      finalizersRef <- Ref.make[List[String]](Nil)
+      resultRef     <- Ref.make[Option[Exit[Nothing, String]]](None)
+      _ <- ZManaged
+            .make(UIO.succeed("42"))(_ => finalizersRef.update("First" :: _))
+            .onExitFirst(e => finalizersRef.update("Second" :: _) *> resultRef.set(Some(e)))
+            .use_(ZIO.unit)
+      finalizers <- finalizersRef.get
+      result     <- resultRef.get
+    } yield (finalizers must_=== List("First", "Second")) and (result must_=== Some(Exit.succeed("42")))
+  }
 }

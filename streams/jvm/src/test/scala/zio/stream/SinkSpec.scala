@@ -18,16 +18,20 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "SinkSpec".title ^ s2"""
   Constructors
-    Sink.foldLeft                          $foldLeft
-    Sink.fold                              $fold
-    Sink.fold short circuits               $foldShortCircuits
-    Sink.foldM                             $foldM
-    Sink.foldM short circuits              $foldMShortCircuits
-    Sink.collectAllWhile                   $collectAllWhile
-    ZSink.fromOutputStream                 $sinkFromOutputStream
-    ZSink.throttleEnforce                  $throttleEnforce
-    ZSink.throttleShape                    $throttleShape
-    ZSink.throttleShape infinite bandwidth $throttleShapeInfiniteBandwidth
+    Sink.foldLeft                         $foldLeft
+    Sink.fold                             $fold
+    Sink.fold short circuits              $foldShortCircuits
+    Sink.foldM                            $foldM
+    Sink.foldM short circuits             $foldMShortCircuits
+    Sink.collectAllWhile                  $collectAllWhile
+    Sink.foldWeighted                     $foldWeighted
+    Sink.foldWeightedM                    $foldWeightedM
+    Sink.foldUntil                        $foldUntil
+    Sink.foldUntilM                       $foldUntilM
+    Sink.fromOutputStream                 $sinkFromOutputStream
+    Sink.throttleEnforce                  $throttleEnforce
+    Sink.throttleShape                    $throttleShape
+    Sink.throttleShape infinite bandwidth $throttleShapeInfiniteBandwidth
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -118,6 +122,38 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
       listResult.succeeded ==> (sinkResult must_=== listResult)
     }
+
+  private def foldWeighted = unsafeRun {
+    Stream[Long](1, 5, 2, 3)
+      .transduce(Sink.foldWeighted(List[Long]())((_: Long) * 2, 12)((acc, el) => el :: acc).map(_.reverse))
+      .runCollect
+      .map(_ must_=== List(List(1, 5), List(2, 3)))
+  }
+
+  private def foldWeightedM = unsafeRun {
+    Stream[Long](1, 5, 2, 3)
+      .transduce(
+        Sink
+          .foldWeightedM(List[Long]())((a: Long) => UIO.succeed(a * 2), 12)((acc, el) => UIO.succeed(el :: acc))
+          .map(_.reverse)
+      )
+      .runCollect
+      .map(_ must_=== List(List(1, 5), List(2, 3)))
+  }
+
+  private def foldUntil = unsafeRun {
+    Stream[Long](1, 1, 1, 1, 1, 1)
+      .transduce(Sink.foldUntil(0L, 3)(_ + (_: Long)))
+      .runCollect
+      .map(_ must_=== List(3, 3))
+  }
+
+  private def foldUntilM = unsafeRun {
+    Stream[Long](1, 1, 1, 1, 1, 1)
+      .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
+      .runCollect
+      .map(_ must_=== List(3, 3))
+  }
 
   private def jsonNumArrayParsingSinkFoldM = {
     sealed trait ParserState
