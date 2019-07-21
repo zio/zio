@@ -1046,7 +1046,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         .spaced(Schedule.recurs(0) *> Schedule.fromFunction((_) => "!"))
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "!", "B", "!", "C", "!"))
-<<<<<<< HEAD
     )
 
   private def spacedEither =
@@ -1060,21 +1059,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def repeatedAndSpaced =
     unsafeRun(
       Stream("A", "B", "C")
-=======
-    )
-
-  private def spacedEither =
-    unsafeRun(
-      Stream("A", "B", "C")
-        .spacedEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
-        .run(Sink.collectAll[Either[Int, String]])
-        .map(_ must_=== List(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123)))
-    )
-
-  private def repeatedAndSpaced =
-    unsafeRun(
-      Stream("A", "B", "C")
->>>>>>> 58c4081e7a47bc3b3ba898515090d1fed87e2279
         .spaced(Schedule.recurs(1) *> Schedule.fromFunction((_) => "!"))
         .run(Sink.collectAll[String])
         .map(_ must_=== List("A", "A", "!", "B", "B", "!", "C", "C", "!"))
