@@ -1216,43 +1216,46 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
-   * algorithm. Elements that do not meet the bandwidth constraints are dropped. The weight of each
-   * element is determined by the `costFn` function.
+   * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
+   * tokens up to a `units + burst` threshold. Elements that do not meet the bandwidth constraints are dropped.
+   * The weight of each element is determined by the `costFn` function.
    */
-  final def throttleEnforce(units: Long, duration: Duration)(
+  final def throttleEnforce(units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZStream[R with Clock, E, A] =
-    throttleEnforceM(units, duration)(a => UIO.succeed(costFn(a)))
+    throttleEnforceM(units, duration, burst)(a => UIO.succeed(costFn(a)))
 
   /**
    * Throttles elements of type A according to the given bandwidth parameters using the token bucket
-   * algorithm. Elements that do not meet the bandwidth constraints are dropped. The weight of each
-   * element is determined by the `costFn` effectful function.
+   * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
+   * tokens up to a `units + burst` threshold. Elements that do not meet the bandwidth constraints are dropped.
+   * The weight of each element is determined by the `costFn` effectful function.
    */
-  final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration)(
+  final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R1, E1, Long]
   ): ZStream[R1 with Clock, E1, A] =
-    self
-      .transduceManaged(ZSink.throttleEnforceM(units, duration)(costFn))
-      .collect { case Some(a) => a }
+    transduceManaged(ZSink.throttleEnforceM(units, duration, burst)(costFn)).collect { case Some(a) => a }
 
   /**
    * Delays elements of type A according to the given bandwidth parameters using the token bucket
-   * algorithm. The weight of each element is determined by the `costFn` function.
+   * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
+   * tokens up to a `units + burst` threshold. The weight of each element is determined by the `costFn` function.
    */
-  final def throttleShape(units: Long, duration: Duration)(
+  final def throttleShape(units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => Long
   ): ZStream[R with Clock, E, A] =
-    throttleShapeM(units, duration)(a => UIO.succeed(costFn(a)))
+    throttleShapeM(units, duration, burst)(a => UIO.succeed(costFn(a)))
 
   /**
    * Delays elements of type A according to the given bandwidth parameters using the token bucket
-   * algorithm. The weight of each element is determined by the `costFn` effectful function.
+   * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
+   * tokens up to a `units + burst` threshold. The weight of each element is determined by the `costFn`
+   * effectful function.
    */
-  final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration)(
+  final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: A => ZIO[R1, E1, Long]
   ): ZStream[R1 with Clock, E1, A] =
-    self.transduceManaged(ZSink.throttleShapeM(units, duration)(costFn))
+    transduceManaged(ZSink.throttleShapeM(units, duration, burst)(costFn))
 
   /**
    * Converts the stream to a managed queue. After managed queue is used, the
