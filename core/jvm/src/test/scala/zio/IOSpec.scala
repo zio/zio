@@ -75,6 +75,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `collectM` returns failure ignoring value $testCollectM
    Check `reject` returns failure ignoring value $testReject
    Check `rejectM` returns failure ignoring value $testRejectM
+   Check `foreachParN` works on large lists $testForeachParN_Threads
+   Check `foreachParN` runs effects in parallel $testForeachParN_Parallel
+   Check `foreachParN` propogates error $testForeachParN_Error
+   Check `foreachParN` interrupts effects on first failure $testForeachParN_Interruption
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -578,5 +582,39 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
 
     goodCase and partialBadCase and badCase
+  }
+
+  def testForeachParN_Threads = {
+    val n   = 10L
+    val seq = 0 to 100000
+    val res = unsafeRun(IO.foreachParN(n)(seq)(UIO.succeed))
+    res must be_===(seq)
+  }
+
+  def testForeachParN_Parallel = {
+    val io = for {
+      p <- Promise.make[Nothing, Unit]
+      _ <- UIO.foreachParN(2)(List(UIO.never, p.succeed(())))(a => a).fork
+      _ <- p.await
+    } yield true
+    unsafeRun(io)
+  }
+
+  def testForeachParN_Error = {
+    val ints = List(1, 2, 3, 4, 5, 6)
+    val odds = ZIO.foreachParN(4)(ints) { n =>
+      if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail("not odd")
+    }
+    unsafeRun(odds.either) must_=== Left("not odd")
+  }
+
+  def testForeachParN_Interruption = {
+    val actions = List(
+      ZIO.never,
+      ZIO.succeed(1),
+      ZIO.fail("C")
+    )
+    val io = ZIO.foreachParN(4)(actions)(a => a)
+    unsafeRun(io.either) must_=== Left("C")
   }
 }
