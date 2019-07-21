@@ -317,10 +317,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         step2   <- sink.step(Step.state(init2), 2)
         res2    <- sink.extract(Step.state(step2))
         init3   <- sink.initial
+        _       <- clock.sleep(4.seconds)
         step3   <- sink.step(Step.state(init3), 3)
         res3    <- sink.extract(Step.state(step3))
         elapsed <- clock.currentTime(TimeUnit.SECONDS)
-      } yield (elapsed must_=== 5) and (List(res1, res2, res3) must_=== List(1, 2, 3))
+      } yield (elapsed must_=== 8) and (List(res1, res2, res3) must_=== List(1, 2, 3))
 
     unsafeRun {
       for {
