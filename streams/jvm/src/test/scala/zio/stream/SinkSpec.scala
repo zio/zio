@@ -33,6 +33,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Sink.throttleEnforce with burst       $throttleEnforceWithBurst
     Sink.throttleShape                    $throttleShape
     Sink.throttleShape infinite bandwidth $throttleShapeInfiniteBandwidth
+    Sink.throttleShape with burst         $throttleShapeWithBurst
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -352,6 +353,34 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
                  .throttleShape[Int](1, 0.seconds)(_ => 100000L)
+                 .use(sinkTest)
+                 .provide(clock)
+      } yield test
+    }
+  }
+
+  private def throttleShapeWithBurst = {
+
+    def sinkTest(sink: ZSink[Clock, Nothing, Nothing, Int, Int]) =
+      for {
+        init1   <- sink.initial
+        step1   <- sink.step(Step.state(init1), 1)
+        res1    <- sink.extract(Step.state(step1))
+        init2   <- sink.initial
+        step2   <- sink.step(Step.state(init2), 2)
+        res2    <- sink.extract(Step.state(step2))
+        init3   <- sink.initial
+        _       <- clock.sleep(4.seconds)
+        step3   <- sink.step(Step.state(init3), 3)
+        res3    <- sink.extract(Step.state(step3))
+        elapsed <- clock.currentTime(TimeUnit.SECONDS)
+      } yield (elapsed must_=== 6) and (List(res1, res2, res3) must_=== List(1, 2, 3))
+
+    unsafeRun {
+      for {
+        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        test <- ZSink
+                 .throttleShape[Int](1, 1.second, 2)(_.toLong)
                  .use(sinkTest)
                  .provide(clock)
       } yield test
