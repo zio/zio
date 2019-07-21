@@ -5,9 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.github.ghik.silencer.silent
 import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause
-import zio.Exit.Cause.{ die, fail, Fail, Then }
+import zio.Cause.{ die, fail, Fail, Then }
 import zio.duration._
 import zio.clock.Clock
 
@@ -109,6 +107,9 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     raceAll of values                       $testRaceAllOfValues
     raceAll of failures                     $testRaceAllOfFailures
     raceAll of failures & one success       $testRaceAllOfFailuresOneSuccess
+    firstSuccessOf of values                $testFirstSuccessOfValues
+    firstSuccessOf of failures              $testFirstSuccessOfFailures
+    firstSuccessOF of failures & 1 success  $testFirstSuccessOfFailuresOneSuccess
     raceAttempt interrupts loser on success $testRaceAttemptInterruptsLoserOnSuccess
     raceAttempt interrupts loser on failure $testRaceAttemptInterruptsLoserOnFailure
     par regression                          $testPar
@@ -124,6 +125,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     deadlock regression 1                   $testDeadlockRegression
     check interruption regression 1         $testInterruptionRegression1
     manual sync interruption                $testManualSyncInterruption
+
+  RTS option tests
+    lifting a value to an option            $testLiftingOptionalValue
+    using the none value                    $testLiftingNoneValue
+
+  RTS either helper tests
+      lifting a value into right            $liftValueIntoRight
+      lifting a value into left             $liftValueIntoLeft
 
   RTS interruption
     blocking IO is effect blocking          $testBlockingIOIsEffectBlocking
@@ -238,9 +247,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   }
 
   def testFlipValue = {
-    implicit val d
-      : Diffable[Right[Nothing, Int]] = Diffable.eitherRightDiffable[Int] //    TODO: Dotty has ambiguous implicits
-    val io                            = IO.succeed(100).flip
+    val io = IO.succeed(100).flip
     unsafeRun(io.either) must_=== Left(100)
   }
 
@@ -386,6 +393,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
     unsafeRunSync(nested) must_=== Exit.Failure(Then(fail(ExampleError), Then(die(e2), die(e3))))
   }
+
+  def testLiftingOptionalValue = unsafeRun(ZIO.some(42)) must_=== Some(42)
+
+  def testLiftingNoneValue = unsafeRun(ZIO.none) must_=== None
+
+  def liftValueIntoRight = unsafeRun(ZIO.right(42)) must_=== Right(42)
+
+  def liftValueIntoLeft = unsafeRun(ZIO.left(42)) must_=== Left(42)
 
   def testErrorInFinalizerIsReported = {
     @volatile var reported: Exit[Nothing, Int] = null
@@ -569,14 +584,14 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testDeepAsyncAbsolveAttemptIsIdentity =
     unsafeRun(
       (0 until 1000)
-        .foldLeft(IO.effectAsync[Any, Int, Int](k => k(IO.succeed(42))))((acc, _) => IO.absolve(acc.either))
+        .foldLeft(IO.effectAsync[Int, Int](k => k(IO.succeed(42))))((acc, _) => IO.absolve(acc.either))
     ) must_=== 42
 
   def testAsyncEffectReturns =
-    unsafeRun(IO.effectAsync[Any, Throwable, Int](k => k(IO.succeed(42)))) must_=== 42
+    unsafeRun(IO.effectAsync[Throwable, Int](k => k(IO.succeed(42)))) must_=== 42
 
   def testAsyncIOEffectReturns =
-    unsafeRun(IO.effectAsyncM[Any, Throwable, Int](k => IO.effectTotal(k(IO.succeed(42))))) must_=== 42
+    unsafeRun(IO.effectAsyncM[Throwable, Int](k => IO.effectTotal(k(IO.succeed(42))))) must_=== 42
 
   def testDeepAsyncIOThreadStarvation = {
     def stackIOs(clock: Clock.Service[Any], count: Int): UIO[Int] =
@@ -584,7 +599,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       else asyncIO(clock, stackIOs(clock, count - 1))
 
     def asyncIO(clock: Clock.Service[Any], cont: UIO[Int]): UIO[Int] =
-      IO.effectAsyncM[Any, Nothing, Int] { k =>
+      IO.effectAsyncM[Nothing, Int] { k =>
         clock.sleep(5.millis) *> cont *> IO.effectTotal(k(IO.succeed(42)))
       }
 
@@ -598,7 +613,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
       release <- Promise.make[Nothing, Unit]
       acquire <- Promise.make[Nothing, Unit]
       fiber <- IO
-                .effectAsyncM[Any, Nothing, Unit] { _ =>
+                .effectAsyncM[Nothing, Unit] { _ =>
                   IO.bracket(acquire.succeed(()))(_ => release.succeed(()))(_ => IO.never)
                 }
                 .fork
@@ -620,7 +635,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
   def testShallowBindOfAsyncChainIsCorrect = {
     val result = (0 until 10).foldLeft[Task[Int]](IO.succeedLazy[Int](0)) { (acc, _) =>
-      acc.flatMap(n => IO.effectAsync[Any, Throwable, Int](_(IO.succeed(n + 1))))
+      acc.flatMap(n => IO.effectAsync[Throwable, Int](_(IO.succeed(n + 1))))
     }
 
     unsafeRun(result) must_=== 10
@@ -742,7 +757,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val io = for {
       release <- zio.Promise.make[Nothing, Int]
       latch   = internal.OneShot.make[Unit]
-      async = IO.effectAsyncInterrupt[Any, Nothing, Unit] { _ =>
+      async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
         latch.set(()); Left(release.succeed(42).unit)
       }
       fiber  <- async.fork
@@ -994,6 +1009,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         ref  <- Ref.make[List[Fiber[_, _]]](Nil) // To make strong ref
         _    <- forkAwaitStart(forkAwaitStart(forkAwaitStart(IO.succeed(()), ref), ref), ref)
         fibs <- ZIO.children
+        _    <- ref.get.map(list => println(list.mkString(", ")))
       } yield fibs must have size 1).supervised
     )
   }
@@ -1001,7 +1017,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testAsyncPureIsInterruptible = {
     val io =
       for {
-        fiber <- IO.effectAsyncM[Any, Nothing, Nothing](_ => IO.never).fork
+        fiber <- IO.effectAsyncM[Nothing, Nothing](_ => IO.never).fork
         _     <- fiber.interrupt
       } yield 42
 
@@ -1011,7 +1027,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testAsyncIsInterruptible = {
     val io =
       for {
-        fiber <- IO.effectAsync[Any, Nothing, Nothing](_ => ()).fork
+        fiber <- IO.effectAsync[Nothing, Nothing](_ => ()).fork
         _     <- fiber.interrupt
       } yield 42
 
@@ -1022,7 +1038,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val io = for {
       release <- Promise.make[Nothing, Int]
       acquire <- Promise.make[Nothing, Unit]
-      task = IO.effectAsyncM[Any, Nothing, Unit] { _ =>
+      task = IO.effectAsyncM[Nothing, Unit] { _ =>
         IO.bracket(acquire.succeed(()))(_ => release.succeed(42).unit)(_ => IO.never)
       }
       fiber <- task.fork
@@ -1038,11 +1054,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     val io = for {
       release <- Promise.make[Nothing, Int]
       latch   = scala.concurrent.Promise[Unit]()
-      async = IO.effectAsyncInterrupt[Any, Nothing, Nothing] { _ =>
+      async = IO.effectAsyncInterrupt[Nothing, Nothing] { _ =>
         latch.success(()); Left(release.succeed(42).unit)
       }
       fiber <- async.fork
-      _ <- IO.effectAsync[Any, Throwable, Unit] { k =>
+      _ <- IO.effectAsync[Throwable, Unit] { k =>
             latch.future.onComplete {
               case Success(a) => k(IO.succeed(a))
               case Failure(t) => k(IO.fail(t))
@@ -1173,17 +1189,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testRaceChoosesWinner =
     unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
 
-  def testRaceChoosesWinnerInTerminate = {
-    implicit val d
-      : Diffable[Right[Nothing, Int]] = Diffable.eitherRightDiffable[Int] //    TODO: Dotty has ambiguous implicits
+  def testRaceChoosesWinnerInTerminate =
     unsafeRun(IO.die(new Throwable {}).race(IO.succeed(24)).either) must_=== Right(24)
-  }
 
-  def testRaceChoosesFailure = {
-    implicit val d
-      : Diffable[Left[Int, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
+  def testRaceChoosesFailure =
     unsafeRun(IO.fail(42).race(IO.fail(42)).either) must_=== Left(42)
-  }
 
   def testRaceOfValueNever =
     unsafeRun(IO.succeedLazy(42).race(IO.never)) must_=== 42
@@ -1194,11 +1204,8 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   def testRaceAllOfValues =
     unsafeRun(IO.raceAll(IO.fail(42), List(IO.succeed(24))).either) must_=== Right(24)
 
-  def testRaceAllOfFailures = {
-    implicit val d
-      : Diffable[Left[Int, Nothing]] = Diffable.eitherLeftDiffable[Int] //    TODO: Dotty has ambiguous implicits
+  def testRaceAllOfFailures =
     unsafeRun(ZIO.raceAll(IO.fail(24).delay(10.millis), List(IO.fail(24))).either) must_=== Left(24)
-  }
 
   def testRaceAllOfFailuresOneSuccess =
     unsafeRun(ZIO.raceAll(IO.fail(42), List(IO.succeed(24).delay(1.millis))).either) must_=== Right(
@@ -1209,12 +1216,23 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(for {
       s      <- Semaphore.make(0L)
       effect <- Promise.make[Nothing, Int]
-      winner = s.acquire *> IO.effectAsync[Any, Throwable, Unit](_(IO.unit))
+      winner = s.acquire *> IO.effectAsync[Throwable, Unit](_(IO.unit))
       loser  = IO.bracket(s.release)(_ => effect.succeed(42).unit)(_ => IO.never)
       race   = winner raceEither loser
       _      <- race.either
       b      <- effect.await
     } yield b) must_=== 42
+
+  def testFirstSuccessOfValues =
+    unsafeRun(IO.firstSuccessOf(IO.fail(0), List(IO.succeed(100))).either) must_=== Right(100)
+
+  def testFirstSuccessOfFailures =
+    unsafeRun(ZIO.firstSuccessOf(IO.fail(0).delay(10.millis), List(IO.fail(101))).either) must_=== Left(101)
+
+  def testFirstSuccessOfFailuresOneSuccess =
+    unsafeRun(ZIO.firstSuccessOf(IO.fail(0), List(IO.succeed(102).delay(1.millis))).either) must_=== Right(
+      102
+    )
 
   def testRepeatedPar = {
     def countdown(n: Int): UIO[Int] =
@@ -1281,7 +1299,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
 
     (0 until 10000).foreach { _ =>
       rts.unsafeRun {
-        IO.effectAsync[Any, Nothing, Int] { k =>
+        IO.effectAsync[Nothing, Int] { k =>
           val c: Callable[Unit] = () => k(IO.succeed(1))
           val _                 = e.submit(c)
         }
@@ -1350,7 +1368,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     for {
       done  <- Ref.make(false)
       start <- IO.succeed(internal.OneShot.make[Unit])
-      fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(Long.MaxValue) }.ensuring(done.set(true)).fork
+      fiber <- blocking.effectBlocking { start.set(()); Thread.sleep(60L * 60L * 1000L) }.ensuring(done.set(true)).fork
       _     <- IO.succeed(start.get())
       res   <- fiber.interrupt
       value <- done.get
@@ -1373,7 +1391,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
   val TaskExampleError: Task[Int] = IO.fail[Throwable](ExampleError)
 
   def asyncExampleError[A]: Task[A] =
-    IO.effectAsync[Any, Throwable, A](_(IO.fail(ExampleError)))
+    IO.effectAsync[Throwable, A](_(IO.fail(ExampleError)))
 
   def sum(n: Int): Int =
     if (n <= 0) 0
@@ -1428,7 +1446,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
         v2 <- f2.join
       } yield v1 + v2
 
-  def AsyncUnit[E] = IO.effectAsync[Any, E, Unit](_(IO.unit))
+  def AsyncUnit[E] = IO.effectAsync[E, Unit](_(IO.unit))
 
   def testMergeAll =
     unsafeRun(

@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.Exit.Cause
-
 /**
  * A mutable atomic reference for the `IO` monad. This is the `IO` equivalent of
  * a volatile `var`, augmented with atomic effectful operations, which make it

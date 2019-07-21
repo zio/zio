@@ -42,6 +42,8 @@ final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[An
 
   def nextString(length: Int): UIO[String] = nextRandom(shiftStrings(length))
 
+  def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
+
   private def nextRandom[T](shift: Data => (T, Data)) =
     for {
       data            <- ref.get

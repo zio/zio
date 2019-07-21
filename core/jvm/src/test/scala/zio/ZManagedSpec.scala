@@ -6,9 +6,8 @@ import org.scalacheck.{ Gen, _ }
 
 import org.specs2.ScalaCheck
 import org.specs2.matcher.MatchResult
-import org.specs2.matcher.describe.Diffable
-import zio.Exit.Cause.Interrupt
-import zio.Exit.{ Cause, Failure }
+import zio.Cause.Interrupt
+import zio.Exit.Failure
 import zio.duration._
 
 import scala.collection.mutable
@@ -27,6 +26,10 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Runs on successes $ensuringSuccess
     Runs on failures $ensuringFailure
     Works when finalizers have defects $ensuringWorksWithDefects
+  ZManaged.ensuringFirst
+    Runs on successes $ensuringFirstSuccess
+    Runs on failures $ensuringFirstFailure
+    Works when finalizers have defects $ensuringFirstWorksWithDefects
   ZManaged.flatMap
     All finalizers run even when finalizers have defects $flatMapFinalizersWithDefects
   ZManaged.foldM
@@ -78,6 +81,10 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Uses at most n fibers for reservation $mergeAllParNReservePar
     Uses at most n fibers for acquisition $mergeAllParNAcquirePar
     Runs finalizers $mergeAllParNFinalizers
+  ZManaged.onExit
+    Calls the cleanup $onExit
+  ZManaged.onExitFirst
+    Calls the cleanup $onExitFirst
   ZManaged.reduceAll
     Reduces elements in the correct order $reduceAllOrder
     Runs finalizers $reduceAllFinalizers
@@ -161,8 +168,6 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       interruption       <- managedFiber.interrupt.timeout(5.seconds).either
     } yield interruption
 
-    implicit val d: Diffable[Right[Nothing, Option[Exit[Nothing, Unit]]]] =
-      Diffable.eitherRightDiffable[Option[Exit[Nothing, Unit]]] //    TODO: Dotty has ambiguous implicits
     unsafeRun(program) must be_===(Right(expected))
   }
 
@@ -190,6 +195,30 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     } yield result must_=== List("Ensured")
   }
 
+  private def ensuringFirstSuccess = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.finalizer(effects.update("First" :: _)).ensuringFirst(effects.update("Second" :: _)).use_(ZIO.unit)
+      result  <- effects.get
+    } yield result must_=== List("First", "Second")
+  }
+
+  private def ensuringFirstFailure = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.fromEffect(ZIO.fail(())).ensuringFirst(effects.update("Ensured" :: _)).use_(ZIO.unit).either
+      result  <- effects.get
+    } yield result must_=== List("Ensured")
+  }
+
+  private def ensuringFirstWorksWithDefects = unsafeRun {
+    for {
+      effects <- Ref.make[List[String]](Nil)
+      _       <- ZManaged.finalizer(ZIO.dieMessage("Boom")).ensuringFirst(effects.update("Ensured" :: _)).use_(ZIO.unit).run
+      result  <- effects.get
+    } yield result must_=== List("Ensured")
+  }
+
   private def flatMapFinalizersWithDefects = unsafeRun {
     for {
       effects <- Ref.make[List[String]](Nil)
@@ -207,12 +236,13 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
   private def foldMFailure = {
     val effects = new mutable.ListBuffer[Int]
-    def res(x: Int): ZManaged[Any, Unit, Unit] =
-      ZManaged.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
+    def res(x: Int): Managed[Unit, Unit] =
+      Managed.make(IO.effectTotal { effects += x; () })(_ => IO.effectTotal { effects += x; () })
 
-    val resource = ZManaged.fromEffect(ZIO.fail(())).foldM(_ => res(1), _ => ZManaged.unit)
+    // foldM[Any, Unit, Unit] - if types were not specified, you get "type inferred to `Any`" compile error.
+    val resource = Managed.fromEffect(IO.fail(())).foldM[Any, Unit, Unit](_ => res(1), _ => Managed.unit)
 
-    unsafeRun(resource.use(_ => IO.unit))
+    unsafeRun(resource.use[Any, Unit, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 1))
   }
@@ -224,7 +254,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val resource = ZManaged.succeed(()).foldM(_ => ZManaged.unit, _ => res(1))
 
-    unsafeRun(resource.use(_ => IO.unit))
+    unsafeRun(resource.use[Any, Unit, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 1))
   }
@@ -474,7 +504,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
 
     val resources = ZManaged.foreach(List(1, 2, 3))(res)
 
-    unsafeRun(resources.use(_ => IO.unit))
+    unsafeRun(resources.use[Any, Nothing, Unit](_ => IO.unit))
 
     effects must be_===(List(1, 2, 3, 3, 2, 1))
   }
@@ -781,4 +811,29 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       count    <- releases.get
     } yield count must be_===(n)
 
+  private def onExit = unsafeRun {
+    for {
+      finalizersRef <- Ref.make[List[String]](Nil)
+      resultRef     <- Ref.make[Option[Exit[Nothing, String]]](None)
+      _ <- ZManaged
+            .make(UIO.succeed("42"))(_ => finalizersRef.update("First" :: _))
+            .onExit(e => finalizersRef.update("Second" :: _) *> resultRef.set(Some(e)))
+            .use_(ZIO.unit)
+      finalizers <- finalizersRef.get
+      result     <- resultRef.get
+    } yield (finalizers must_=== List("Second", "First")) and (result must_=== Some(Exit.succeed("42")))
+  }
+
+  private def onExitFirst = unsafeRun {
+    for {
+      finalizersRef <- Ref.make[List[String]](Nil)
+      resultRef     <- Ref.make[Option[Exit[Nothing, String]]](None)
+      _ <- ZManaged
+            .make(UIO.succeed("42"))(_ => finalizersRef.update("First" :: _))
+            .onExitFirst(e => finalizersRef.update("Second" :: _) *> resultRef.set(Some(e)))
+            .use_(ZIO.unit)
+      finalizers <- finalizersRef.get
+      result     <- resultRef.get
+    } yield (finalizers must_=== List("First", "Second")) and (result must_=== Some(Exit.succeed("42")))
+  }
 }

@@ -18,7 +18,7 @@ package zio.internal
 
 import java.util.{ Map => JMap }
 
-import zio.Exit.Cause
+import zio.Cause
 import zio.internal.tracing.TracingConfig
 
 /**

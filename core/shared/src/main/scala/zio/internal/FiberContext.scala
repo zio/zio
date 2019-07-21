@@ -17,10 +17,12 @@
 package zio.internal
 
 import java.util.concurrent.atomic.{ AtomicLong, AtomicReference }
-import scala.collection.JavaConverters._
 
+import com.github.ghik.silencer.silent
+
+import scala.collection.JavaConverters._
 import zio.internal.FiberContext.{ FiberRefLocals, SuperviseStatus }
-import zio.Exit.Cause
+import zio.Cause
 import zio._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
@@ -126,10 +128,15 @@ private[zio] final class FiberContext[E, A](
   private[this] final def cutAncestryTrace(trace: ZTrace): ZTrace = {
     val maxExecLength  = platform.tracing.tracingConfig.ancestorExecutionTraceLength
     val maxStackLength = platform.tracing.tracingConfig.ancestorStackTraceLength
+    val maxAncestors   = platform.tracing.tracingConfig.ancestryLength - 1
 
-    trace.copy(
+    val truncatedParentTrace = ZTrace.truncatedParentTrace(trace, maxAncestors)
+
+    ZTrace(
       executionTrace = trace.executionTrace.take(maxExecLength),
-      stackTrace = trace.stackTrace.take(maxStackLength)
+      stackTrace = trace.stackTrace.take(maxStackLength),
+      parentTrace = truncatedParentTrace,
+      fiberId = trace.fiberId
     )
   }
 
@@ -548,10 +555,10 @@ private[zio] final class FiberContext[E, A](
   private[this] final def getFibers: UIO[IndexedSeq[Fiber[_, _]]] =
     UIO {
       supervised.peek() match {
-        case SuperviseStatus.Unsupervised => Array.empty[Fiber[_, _]]
+        case SuperviseStatus.Unsupervised => Array.empty[Fiber[_, _]].toIndexedSeq
         case SuperviseStatus.Supervised(set) =>
           val arr = Array.ofDim[Fiber[_, _]](set.size)
-          set.toArray[Fiber[_, _]](arr)
+          set.toArray[Fiber[_, _]](arr).toIndexedSeq
       }
     }
 
@@ -610,7 +617,7 @@ private[zio] final class FiberContext[E, A](
   final def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
 
   final def inheritFiberRefs: UIO[Unit] = UIO.suspend {
-    val locals = fiberRefLocals.asScala
+    val locals = fiberRefLocals.asScala: @silent("JavaConverters")
     if (locals.isEmpty) UIO.unit
     else
       UIO.foreach_(locals) {
