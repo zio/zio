@@ -1536,15 +1536,17 @@ object ZStream extends ZStreamPlatformSpecific {
           for {
             output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
             runtime <- ZIO.runtime[R].toManaged_
-            eitherStream = register(
-              k =>
-                runtime.unsafeRunAsync_(
-                  k.foldCauseM(
-                    cause => output.offer(Take.Fail(cause)).unit,
-                    b => output.offer(Take.Value(b)).unit
-                  )
-                )
-            )
+            eitherStream <- UIO {
+                             register(
+                               k =>
+                                 runtime.unsafeRunAsync_(
+                                   k.foldCauseM(
+                                     cause => output.offer(Take.Fail(cause)).unit,
+                                     b => output.offer(Take.Value(b)).unit
+                                   )
+                                 )
+                             )
+                           }.toManaged_
             s <- eitherStream match {
                   case Right(stream) =>
                     output.shutdown.toManaged_ *>
