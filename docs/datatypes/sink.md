@@ -88,7 +88,7 @@ Sink
 ```
 
 `read1` tries to read head element from stream, 
-fails if isn't present or doesn't satisfy given condition
+fails if isn't present or doesn't satisfy given condition:
 
 ```scala mdoc:silent
 Sink.read1[String, Int] {
@@ -115,14 +115,15 @@ Sink.fold[Int, Int, Int](0)((acc, e) => ZSink.Step.more(acc + e))
   .race(Sink.identity[Int])
 ```
 
-Contramap:
+For transforming given input into some sink we can use `contramap` which
+is `C => A` where `C` is input type and `A` is sink elements type:
 
 ```scala mdoc:silent
-//TODO contramap
+Sink.collectAll[String].contramap[Int](_.toString + "id")
 ```
 
-Bimap:
+A `dimap` is an extended `contramap` that additionally transforms sink's output:
 
 ```scala mdoc:silent
-//TODO bimap
+Sink.collectAll[String].dimap[Int, List[String]](_.toString + "id")(_.take(10))
 ```
