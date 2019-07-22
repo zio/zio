@@ -76,6 +76,8 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   Stream.ensuring $ensuring
 
+  Stream.ensuringFirst $ensuringFirst
+
   Stream.finalizer $finalizer
 
   Stream.filter
@@ -559,6 +561,18 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
             } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
         execution <- log.get
       } yield execution must_=== List("Ensuring", "Release", "Use", "Acquire")
+    }
+
+  private def ensuringFirst =
+    unsafeRun {
+      for {
+        log <- Ref.make[List[String]](Nil)
+        _ <- (for {
+              _ <- Stream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+              _ <- Stream.fromEffect(log.update("Use" :: _))
+            } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
+        execution <- log.get
+      } yield execution must_=== List("Release", "Ensuring", "Use", "Acquire")
     }
 
   private def finalizer =
