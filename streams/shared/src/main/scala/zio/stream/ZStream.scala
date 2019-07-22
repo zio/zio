@@ -583,6 +583,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Executes the provided finalizer before this stream's finalizers run.
+   */
+  def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
+    new ZStream[R1, E, A] {
+      def fold[R2 <: R1, E1 >: E, A1 >: A, S]: ZStream.Fold[R2, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.fold[R2, E1, A1, S].flatMap { fold =>
+            fold(s, cont, f).ensuringFirst(fin)
+          }
+        }
+    }
+
+  /**
    * Filters this stream by the specified predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
