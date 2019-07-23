@@ -60,7 +60,7 @@ sealed trait Spec[-R, +E] {
    * Returns a new spec that times out each test by the specified duration.
    * This is merely implemented for convenience atop [[weave]].
    */
-  final def timeout[R, E](duration: Duration): Spec[R, E] = ???
+  final def timeout(duration: Duration): Spec[R, E] = ???
 
   /**
    * Weaves an aspect into this spec by replacing every result with its
