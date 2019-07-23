@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
 package object system extends System.Service[System] {
 

@@ -1,0 +1,68 @@
+/* your custom css */
+@media only screen and (min-device-width: 360px) and (max-device-width: 736px) {
+}
+
+@media only screen and (min-width: 1024px) {
+}
+
+@media only screen and (max-width: 1023px) {
+}
+
+@media only screen and (min-width: 1400px) {
+}
+
+@media only screen and (min-width: 1500px) {
+}
+
+.welcome {
+  padding-left: 30px
+}
+
+.gitter-chat-embed {
+  z-index: 10000;
+}
+
+a {
+  color: #bd271a
+}
+
+.blockContent h2 {
+  color: #bd271a
+}
+
+.homeContainer {
+  background: #000000 url("../img/jumbotron_pattern.png") no-repeat center bottom;
+  padding-top: 176px;
+  padding-bottom: 90px;
+}
+
+.projectTitle {
+  color: #ffffff
+}
+
+.promoSection .button {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.promoSection .button:hover {
+  color: #000000;
+  background-color: #ffffff;
+}
+
+.mainContainer {
+  padding-top: 0
+}
+
+.nav-footer .sitemap .nav-home {
+  width: 150px;
+}
+
+.fixedHeaderContainer header .headerTitleWithLogo {
+    display: none;
+    font-size: 1.25em;
+    line-height: 18px;
+    margin: 0;
+    position: relative;
+    z-index: 9999;
+}

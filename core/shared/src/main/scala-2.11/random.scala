@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
 // This cannot extend Random.Service[Random] because of Scala 2.11 support
 package object random {
@@ -31,4 +31,5 @@ package object random {
   val nextLong: ZIO[Random, Nothing, Long]                      = ZIO.accessM(_.random.nextLong)
   val nextPrintableChar: ZIO[Random, Nothing, Char]             = ZIO.accessM(_.random.nextPrintableChar)
   def nextString(length: Int): ZIO[Random, Nothing, String]     = ZIO.accessM(_.random.nextString(length))
+  def shuffle[A](list: List[A]): ZIO[Random, Nothing, List[A]]  = ZIO.accessM(_.random.shuffle(list))
 }

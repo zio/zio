@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package scalaz.zio
+package zio
 
 package object random extends Random.Service[Random] {
   final val randomService: ZIO[Random, Nothing, Random.Service[Any]] =
@@ -30,4 +30,5 @@ package object random extends Random.Service[Random] {
   val nextLong: ZIO[Random, Nothing, Long]                      = ZIO.accessM(_.random.nextLong)
   val nextPrintableChar: ZIO[Random, Nothing, Char]             = ZIO.accessM(_.random.nextPrintableChar)
   def nextString(length: Int): ZIO[Random, Nothing, String]     = ZIO.accessM(_.random.nextString(length))
+  def shuffle[A](list: List[A]): ZIO[Random, Nothing, List[A]]  = ZIO.accessM(_.random.shuffle(list))
 }
