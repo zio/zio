@@ -395,6 +395,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
   final def get[E1 >: E, B](implicit ev1: E1 =:= Nothing, ev2: A <:< Option[B]): ZIO[R, Unit, B] =
     ZIO.absolve(self.mapError(ev1).map(ev2(_).toRight(())))
 
+  final def some[B](implicit ev: A <:< Option[B]): ZIO[R, Option[E], B] = 
+    self.foldM(e => ZIO.fail(Some(e)), a => a.fold[ZIO[R, Option[E], B]](ZIO.fail(Option.empty[E]))(ZIO.succeed(_).mapError(_ => Option.empty[E])))
+
+  final def peelError[E1](implicit ev: E <:< Option[E1]): ZIO[R, E1, Option[A]] = 
+    self.foldM(e => e.fold[ZIO[R, E1, Option[A]]](ZIO.succeed(Option.empty[A]))(ZIO.fail(_)), a => ZIO.succeed(Some(a)))
+
   /**
    * Supervises this effect, which ensures that any fibers that are forked by
    * the effect are handled by the provided supervisor.
