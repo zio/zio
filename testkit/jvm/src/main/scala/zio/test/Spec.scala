@@ -20,8 +20,9 @@ import zio.{ Managed, ZIO }
 import zio.duration.Duration
 
 /**
- * A `Spec[R, E]` is the backbone of _ZIO Test_. Specs require an environment
- * of type `R` (which could be `Any`) and may fail with errors of type `E`.
+ * A `Spec[R, E, L]` is the backbone of _ZIO Test_. Specs require an environment
+ * of type `R` (which could be `Any`), may fail with errors of type `E`, and 
+ * are annotated with labels of type `L` (typically `String`).
  */
 sealed trait Spec[-R, +E, +L] {
 
