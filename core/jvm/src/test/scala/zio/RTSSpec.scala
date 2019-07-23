@@ -1023,11 +1023,11 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     unsafeRun(io) must_=== 42
   }
 
-def testInterruptibleUninterruptible =
-unsafeRun(for {
-  fiber <- withLatch(release => ZIO.uninterruptible(ZIO.interruptible(release *> ZIO.never)).fork)
-  exit  <- fiber.interrupt
-} yield exit.interrupted must beTrue)
+  def testInterruptibleUninterruptible =
+    unsafeRun(for {
+      fiber <- withLatch(release => ZIO.uninterruptible(ZIO.interruptible(release *> ZIO.never)).fork)
+      exit  <- fiber.interrupt
+    } yield exit.interrupted must beTrue)
 
   def testAsyncIsInterruptible =
     nonFlaky(for {
@@ -1085,7 +1085,7 @@ unsafeRun(for {
   def testBracketAcquireCanBeMadeInterruptible = {
     val io =
       for {
-        fiber <- IO.bracket(IO.interruptible(IO.never))(_ => IO.unit)(_ => IO.unit).fork
+        fiber <- IO.bracket(IO.interruptible(IO.never: UIO[Int]))(_ => IO.unit)(_ => IO.unit).fork
         res   <- fiber.interrupt
       } yield res
     unsafeRun(io) must_=== Exit.interrupt
