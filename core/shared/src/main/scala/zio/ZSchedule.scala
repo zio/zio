@@ -568,7 +568,7 @@ trait ZSchedule[-R, -A, +B] extends Serializable { self =>
     self.map(res => (initialDelay, res))
 
   /**
-   * Shorthand for startingOn with no initial delay
+   * Alias for startingOn with no initial delay
    */
   final def immediately: ZSchedule[R, A, (Delay, B)] =
     self.startingOn(Delay.none)
