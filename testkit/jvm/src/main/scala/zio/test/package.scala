@@ -16,7 +16,44 @@
 
 package zio
 
+/**
+ * _ZIO Test_ is a featherweight testing library for effectful programs.
+ *
+ * The library imagines every spec as an ordinary immutable value, providing
+ * tremendous potential for composition. Thanks to tight integration with ZIO,
+ * specs can use resources (including those requiring disposal), have well-
+ * defined linear and parallel semantics, and can benefit from a host of ZIO
+ * combinators.
+ *
+ * {{{
+ *  import zio.test._
+ *  import zio.clock._
+ *
+ *  class MyTest extends ZIOTestDefault[Throwable] {
+ *    val tests = suite("clock") {
+ *      test("time is non-zero") {
+ *        nanoTime.map(time => assert(time > 0, Predicate.isTrue))
+ *      }
+ *    }
+ *  }
+ * }}}
+ */
 package object test {
+
+  /**
+   * Asserts the given value satisfies the given predicate.
+   */
+  final def assert[A](value: => A, predicate: Predicate[A]): AssertResult = predicate.run(value)
+
+  /**
+   * Asserts the boolean value is false.
+   */
+  final def assertFalse(value: => Boolean): AssertResult = assert(value, Predicate.isFalse)
+
+  /**
+   * Asserts the boolean value is true.
+   */
+  final def assertTrue(value: => Boolean): AssertResult = assert(value, Predicate.isTrue)
 
   /**
    * Builds a suite containing a number of other specs.
@@ -33,9 +70,4 @@ package object test {
    */
   final def testPure(label: String)(assertion: => AssertResult): Spec[Any, Nothing] =
     test(label)(ZIO.succeedLazy(assertion))
-
-  /**
-   * Asserts the given value satisfies the given predicate.
-   */
-  final def assert[A](value: => A, predicate: Predicate[A]): AssertResult = predicate.run(value)
 }
