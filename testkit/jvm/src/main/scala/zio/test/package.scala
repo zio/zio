@@ -24,9 +24,15 @@ package object test {
   final def suite[R, E](label: String)(specs: Spec[R, E]*): Spec[R, E] = Spec.Suite(label, specs.toVector)
 
   /**
-   * Builds a spec with a single test.
+   * Builds a spec with a single effectful test.
    */
   final def test[R, E](label: String)(assertion: ZIO[R, E, AssertResult]): Spec[R, E] = Spec.Test(label, assertion)
+
+  /**
+   * Builds a spec with a single pure test.
+   */
+  final def testPure(label: String)(assertion: => AssertResult): Spec[Any, Nothing] =
+    test(label)(ZIO.succeedLazy(assertion))
 
   /**
    * Asserts the given value satisfies the given predicate.
