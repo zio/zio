@@ -1,8 +1,8 @@
 ![ZIO Logo](./ZIO.png)
 
-| CI | Coverage | Snapshot | Release | Issues | Users | Scaladex |
-| --- | --- | --- | --- | --- | --- | --- |
-| [![Build Status][Badge-Circle]][Link-Circle] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Scaladex dependencies badge][Badge-Scaladex]][Link-Scaladex] | [![Badge-Scaladex-page]][Link-Scaladex-page]
+| CI | Coverage | Release | Issues | Scaladex |
+| --- | --- | --- | --- | --- |
+| [![Build Status][Badge-Circle]][Link-Circle] | [![Coverage Status][Badge-Codecov]][Link-Codecov] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladex-page]][Link-Scaladex-page]
 
 # Welcome to ZIO
 
@@ -52,20 +52,16 @@ Copyright 2017 - 2019 John A. De Goes and the ZIO Contributors. All rights reser
 
 [Link-Codecov]: https://codecov.io/gh/zio/zio?branch=master "Codecov"
 [Link-IsItMaintained]: http://isitmaintained.com/project/zio/zio "Average time to resolve an issue"
-[Link-Scaladex]: https://index.scala-lang.org/search?q=dependencies:zio/zio "Scaladex"
 [Link-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio "Scaladex"
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_2.12/ "Sonatype Releases"
-[Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/staging/dev/zio/zio_2.12/ "Sonatype Snapshots"
 [Link-Circle]: https://circleci.com/gh/zio/zio "circleci"
 [Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
 [Link-SeptimalMind]: https://7mind.io "Septimal Mind"
 
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
-[Badge-Scaladex]: https://index.scala-lang.org/count.svg?q=dependencies:zio/zio&subject=scaladex "Scaladex"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
-[Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Snapshots"
 [Badge-Circle]: https://circleci.com/gh/zio/zio.svg?style=svg "circleci"
 
 [Image-SoftwareMill]: ./website/static/img/softwaremill.svg "SoftwareMill"

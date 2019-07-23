@@ -79,7 +79,7 @@ object Http {
 
 ```scala mdoc:silent
 def makeRequest(req: Request): IO[HttpException, Response] =
-  IO.effectAsync[Any, HttpException, Response](k => Http.req(req, k))
+  IO.effectAsync[HttpException, Response](k => Http.req(req, k))
 ```
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.

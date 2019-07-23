@@ -80,13 +80,13 @@ object Schedule {
     ZSchedule.doWhile(f)
 
   /**
-   * See [[ZSchedule.doUntil[A](*]]
+   * See [[[ZSchedule.doUntil[A](f:* ZSchedule.doUntil]]]
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
     ZSchedule.doUntil(f)
 
   /**
-   * See [[ZSchedule.doUntil[A,B](*]]
+   * See [[ZSchedule.doUntil[A,B](pf:* ZSchedule.doUntil]]]
    */
   final def doUntil[A, B](pf: PartialFunction[A, B]): Schedule[A, Option[B]] =
     ZSchedule.doUntil(pf)

@@ -18,7 +18,7 @@ package zio.stream
 
 import zio._
 import zio.clock.Clock
-import zio.Cause
+import zio.duration.Duration
 
 /**
  * A `Stream[E, A]` represents an effectful stream that can produce values of
@@ -49,6 +49,420 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    */
   final def ++[R1 <: R, E1 >: E, A1 >: A](other: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] =
     concat(other)
+
+  /**
+   * Aggregates elements of this stream using the provided sink for as long
+   * as the downstream operators on the stream are busy.
+   *
+   * This operator divides the stream into two asynchronous "islands". Operators upstream
+   * of this operator run on one fiber, while downstream operators run on another. Whenever
+   * the downstream fiber is busy processing elements, the upstream fiber will feed elements
+   * into the sink until it signals completion.
+   *
+   * Any sink can be used here, but see [[Sink.foldWeightedM]] and [[Sink.foldUntilM]] for
+   * sinks that cover the common usecases.
+   */
+  final def aggregate[R1 <: R, E1 >: E, A1 >: A, B](sink: ZSink[R1, E1, A1, A1, B]): ZStream[R1, E1, B] = {
+    /*
+     * How this works:
+     *
+     * One fiber reads from the `self` stream, and is responsible for aggregating the elements
+     * using the sink. Another fiber reads the aggregated elements as fast as possible.
+     *
+     * The two fibers share the sink's state in a Ref protected by a semaphore. The state machine
+     * is defined by the `State` type. See the comments on `producer` and `consumer` for more details
+     * on the transitions.
+     */
+    import ZSink.Step
+
+    sealed abstract class State
+    object State {
+      case class Empty(state: sink.State, notifyConsumer: Promise[Nothing, Unit])       extends State
+      case class BatchMiddle(state: sink.State, notifyProducer: Promise[Nothing, Unit]) extends State
+      case class BatchEnd(state: sink.State, notifyProducer: Promise[Nothing, Unit])    extends State
+      case class Error(e: Cause[E1])                                                    extends State
+      case object End                                                                   extends State
+    }
+
+    def withStateVar[R, E, A](ref: Ref[State], permits: Semaphore)(f: State => ZIO[R, E, (A, State)]): ZIO[R, E, A] =
+      permits.withPermit {
+        for {
+          s <- ref.get
+          a <- f(s).flatMap {
+                case (a, s2) => ref.set(s2).const(a)
+              }
+        } yield a
+      }
+
+    def produce(stateVar: Ref[State], permits: Semaphore, a: A1): ZIO[R1, E1, Boolean] =
+      withStateVar(stateVar, permits) {
+        case State.Empty(state, notifyConsumer) =>
+          for {
+            notifyProducer <- Promise.make[Nothing, Unit]
+            step           <- sink.step(state, a)
+            leftover       = Step.leftover(step)
+            result <- if (Step.cont(step))
+                       UIO.succeed(
+                         // Notify the consumer so they won't busy wait
+                         (notifyConsumer.succeed(()).const(true), State.BatchMiddle(Step.state(step), notifyProducer))
+                       )
+                     else
+                       UIO.succeed(
+                         (
+                           // Notify the consumer, wait for them to take the aggregate so we know
+                           // it's time to progress, and process the leftovers
+                           notifyConsumer.succeed(()) *> notifyProducer.await *>
+                             leftover.foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)),
+                           State.BatchEnd(Step.state(step), notifyProducer)
+                         )
+                       )
+          } yield result
+
+        case State.BatchMiddle(state, notifyProducer) =>
+          // The logic here is the same as the Empty state, except we don't need
+          // to notify the consumer on the transition
+          for {
+            step     <- sink.step(state, a)
+            leftover = Step.leftover(step)
+            result <- if (Step.cont(step))
+                       UIO.succeed((UIO.succeed(true), State.BatchMiddle(Step.state(step), notifyProducer)))
+                     else
+                       UIO.succeed(
+                         (
+                           notifyProducer.await *>
+                             leftover.foldMLazy(true)(identity)((_, a) => produce(stateVar, permits, a)),
+                           State.BatchEnd(Step.state(step), notifyProducer)
+                         )
+                       )
+          } yield result
+
+        // The producer shouldn't actually see these states, but we still use sane
+        // transitions here anyway.
+        case s @ State.BatchEnd(_, batchTaken) => UIO.succeed((batchTaken.await.const(true), s))
+        case State.Error(e)                    => ZIO.halt(e)
+        case State.End                         => UIO.succeed((UIO.succeed(true), State.End))
+      }.flatten
+
+    // This function is used in an unfold, so `None` means stop consuming
+    def consume(stateVar: Ref[State], permits: Semaphore): ZIO[R1, E1, Option[Chunk[B]]] =
+      withStateVar(stateVar, permits) {
+        // If the state is empty, wait for a notification from the producer
+        case s @ State.Empty(_, notify) => UIO.succeed((notify.await.const(Some(Chunk.empty)), s))
+
+        case State.BatchMiddle(state, notifyProducer) =>
+          for {
+            initial        <- sink.initial.map(Step.state(_))
+            notifyConsumer <- Promise.make[Nothing, Unit]
+          } yield (
+            // Inform the producer that we took the batch, extract the sink and emit the data
+            notifyProducer.succeed(()) *> sink.extract(state).map(b => Some(Chunk.single(b))),
+            State.Empty(initial, notifyConsumer)
+          )
+
+        case State.BatchEnd(state, notifyProducer) =>
+          for {
+            initial        <- sink.initial.map(Step.state(_))
+            notifyConsumer <- Promise.make[Nothing, Unit]
+          } yield (
+            notifyProducer.succeed(()) *> sink.extract(state).map(b => Some(Chunk.single(b))),
+            State.Empty(initial, notifyConsumer)
+          )
+
+        case State.Error(cause) => ZIO.halt(cause)
+        case State.End          => ZIO.succeed((UIO.succeed(None), State.End))
+      }.flatten
+
+    def drainAndSet(stateVar: Ref[State], permits: Semaphore, s: State): UIO[Unit] =
+      withStateVar(stateVar, permits) {
+        // If the state is empty, it's ok to overwrite it. We just need to notify the consumer.
+        case State.Empty(_, notifyNext) => UIO.succeed((notifyNext.succeed(()).unit, s))
+
+        // For these states (middle/end), we need to wait until the consumer notified us
+        // that they took the data. Then rerun.
+        case existing @ State.BatchMiddle(_, notifyProducer) =>
+          UIO.succeed((notifyProducer.await *> drainAndSet(stateVar, permits, s), existing))
+        case existing @ State.BatchEnd(_, notifyProducer) =>
+          UIO.succeed((notifyProducer.await *> drainAndSet(stateVar, permits, s), existing))
+
+        // For all other states, we just overwrite.
+        case _ => UIO.succeed((UIO.unit, s))
+      }.flatten
+
+    new ZStream[R1, E1, B] {
+      def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: ZStream.Fold[R2, E2, B1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          for {
+            initSink  <- sink.initial.map(Step.state(_)).toManaged_
+            initAwait <- Promise.make[Nothing, Unit].toManaged_
+            stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
+            permits   <- Semaphore.make(1).toManaged_
+            producer <- self
+                         .foreachWhileManaged(produce(stateVar, permits, _))
+                         .foldCauseM(
+                           // At this point, we're done working but we can't just overwrite the
+                           // state because the consumer might not have taken the last batch. So
+                           // we need to wait for the state to be drained.
+                           c => drainAndSet(stateVar, permits, State.Error(c)).toManaged_,
+                           _ => drainAndSet(stateVar, permits, State.End).toManaged_
+                         )
+                         .fork
+            s2 <- ZStream
+                   .unfoldM(())(_ => consume(stateVar, permits).map(_.map((_, ()))))
+                   .mapConcat(identity)
+                   .fold[R2, E2, B1, S]
+                   .flatMap(_.apply(s, cont, f))
+                   .ensuringFirst(producer.interrupt.fork)
+          } yield s2
+        }
+    }
+  }
+
+  /**
+   * Aggregates elements using the provided sink until it signals completion, or the
+   * delay signalled by the schedule has passed.
+   *
+   * This operator divides the stream into two asynchronous islands. Operators upstream
+   * of this operator run on one fiber, while downstream operators run on another. Elements
+   * will be aggregated by the sink until the downstream fiber pulls the aggregated value,
+   * or until the schedule's delay has passed.
+   *
+   * Aggregated elements will be fed into the schedule to determine the delays between
+   * pulls.
+   */
+  final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B, C](
+    sink: ZSink[R1, E1, A1, A1, B],
+    schedule: ZSchedule[R1, Option[B], C]
+  ): ZStream[R1 with Clock, E1, Either[C, B]] = {
+    /*
+     * How this works:
+     *
+     * One fiber reads from the `self` stream, and is responsible for aggregating the elements
+     * using the sink. Another fiber reads the aggregated elements when the sink has signalled
+     * completion or the delay from the schedule has expired. The delay for each iteartion of
+     * the consumer is derived from the the last aggregate pulled. When the schedule signals
+     * completion, its result is also emitted into the stream.
+     *
+     * The two fibers share the sink's state in a Ref protected by a semaphore. The state machine
+     * is defined by the `State` type. See the comments on `producer` and `consumer` for more details
+     * on the transitions.
+     */
+    import ZSink.Step
+
+    sealed abstract class State
+    object State {
+      case class Empty(state: sink.State, notifyConsumer: Promise[Nothing, Unit]) extends State
+      case class BatchMiddle(
+        state: sink.State,
+        notifyProducer: Promise[Nothing, Unit],
+        notifyConsumer: Promise[Nothing, Unit]
+      ) extends State
+      case class BatchEnd(state: sink.State, notifyProducer: Promise[Nothing, Unit]) extends State
+      case class Error(e: Cause[E1])                                                 extends State
+      case object End                                                                extends State
+    }
+
+    def withStateVar[R, E, A](ref: Ref[State], permits: Semaphore)(f: State => ZIO[R, E, (A, State)]): ZIO[R, E, A] =
+      permits.withPermit {
+        for {
+          s <- ref.get
+          a <- f(s).flatMap {
+                case (a, s2) => ref.set(s2).const(a)
+              }
+        } yield a
+      }
+
+    def produce(out: Ref[State], permits: Semaphore, a: A1): ZIO[R1, E1, Boolean] =
+      withStateVar(out, permits) {
+        case State.Empty(state, notifyConsumer) =>
+          for {
+            step           <- sink.step(state, a)
+            notifyProducer <- Promise.make[Nothing, Unit]
+            result <- if (Step.cont(step))
+                       // If the sink signals to continue, we move to BatchMiddle. The existing notifyConsumer
+                       // promise is copied along because the consumer is racing it against the schedule's timeout.
+                       UIO.succeed(
+                         (UIO.succeed(true), State.BatchMiddle(Step.state(step), notifyProducer, notifyConsumer))
+                       )
+                     else
+                       // If the sink signals to stop, we notify the consumer that we're done and wait for it
+                       // to take the data. Then we process the leftovers.
+                       UIO.succeed(
+                         (
+                           notifyConsumer.succeed(()) *> notifyProducer.await *> Step
+                             .leftover(step)
+                             .foldMLazy(true)(identity)((_, a) => produce(out, permits, a)),
+                           State.BatchEnd(Step.state(step), notifyProducer)
+                         )
+                       )
+          } yield result
+
+        case State.BatchMiddle(currentState, notifyProducer, notifyConsumer) =>
+          for {
+            step <- sink.step(currentState, a)
+            // Same logic here as in BatchEmpty: when the sink continues, we stay in this state;
+            // when the sink stops, we signal the consumer, wait for the data to be taken and
+            // process leftovers.
+            result <- if (Step.cont(step))
+                       UIO.succeed(
+                         (UIO.succeed(true), State.BatchMiddle(Step.state(step), notifyProducer, notifyConsumer))
+                       )
+                     else
+                       UIO.succeed(
+                         (
+                           notifyConsumer.succeed(()) *> notifyProducer.await *> Step
+                             .leftover(step)
+                             .foldMLazy(true)(identity)((_, a) => produce(out, permits, a)),
+                           State.BatchEnd(Step.state(step), notifyProducer)
+                         )
+                       )
+          } yield result
+
+        // The producer shouldn't actually see these states, but we do whatever is sensible anyway
+        case s @ State.BatchEnd(_, notifyProducer) =>
+          UIO.succeed(notifyProducer.await.const(true) -> s)
+
+        case s @ State.Error(c) =>
+          UIO.succeed(ZIO.halt(c) -> s)
+
+        case State.End =>
+          UIO.succeed(UIO.succeed(false) -> State.End)
+      }.flatten
+
+    case class UnfoldState(
+      lastBatch: Option[B],
+      scheduleState: schedule.State,
+      nextBatchCompleted: Promise[Nothing, Unit]
+    )
+
+    def consume(
+      unfoldState: UnfoldState,
+      stateVar: Ref[State],
+      permits: Semaphore
+    ): ZIO[R1 with Clock, E1, Option[(Chunk[Either[C, B]], UnfoldState)]] =
+      for {
+        decision <- schedule.update(unfoldState.lastBatch, unfoldState.scheduleState)
+        result <- if (!decision.cont)
+                   // When the schedule signals completion, we emit its result into the
+                   // stream and restart with the schedule's initial state
+                   schedule.initial.map(
+                     init => Some(Chunk.single(Left(decision.finish())) -> unfoldState.copy(scheduleState = init._2))
+                   )
+                 else
+                   for {
+                     delay <- decision.delay.run
+                     _     <- unfoldState.nextBatchCompleted.await.timeout(delay)
+                     r <- withStateVar(stateVar, permits) {
+                           case s @ State.Empty(_, notifyDone) =>
+                             // Empty state means the producer hasn't done anything yet, so nothing to do other
+                             // than restart with the provided promise
+                             UIO.succeed(
+                               UIO.succeed(Some(Chunk.empty -> UnfoldState(None, decision.state, notifyDone))) -> s
+                             )
+
+                           case State.BatchMiddle(sinkState, notifyProducer, _) =>
+                             // The schedule's delay expired before the sink signalled completion. So we extract
+                             // the sink anyway and empty the state.
+                             for {
+                               batch          <- sink.extract(sinkState)
+                               sinkInitial    <- sink.initial.map(Step.state(_))
+                               notifyConsumer <- Promise.make[Nothing, Unit]
+                               s              = State.Empty(sinkInitial, notifyConsumer)
+                               action = notifyProducer
+                                 .succeed(())
+                                 .const(
+                                   Some(
+                                     Chunk
+                                       .single(Right(batch)) -> UnfoldState(Some(batch), decision.state, notifyConsumer)
+                                   )
+                                 )
+                             } yield action -> s
+
+                           case State.BatchEnd(sinkState, notifyProducer) =>
+                             // The sink signalled completion, so we extract it and empty the state.
+                             for {
+                               batch          <- sink.extract(sinkState)
+                               sinkInitial    <- sink.initial.map(Step.state(_))
+                               notifyConsumer <- Promise.make[Nothing, Unit]
+                               s              = State.Empty(sinkInitial, notifyConsumer)
+                               action = notifyProducer
+                                 .succeed(())
+                                 .const(
+                                   Some(
+                                     Chunk
+                                       .single(Right(batch)) -> UnfoldState(Some(batch), decision.state, notifyConsumer)
+                                   )
+                                 )
+                             } yield action -> s
+
+                           case s @ State.Error(cause) =>
+                             UIO.succeed(ZIO.halt(cause) -> s)
+
+                           case State.End =>
+                             UIO.succeed(UIO.succeed(None) -> State.End)
+                         }.flatten
+                   } yield r
+      } yield result
+
+    def consumerStream[E2 >: E1](out: Ref[State], permits: Semaphore) =
+      ZStream.unwrap {
+        for {
+          scheduleInit <- schedule.initial.map(_._2)
+          notify <- out.get.flatMap {
+                     case State.Empty(_, notifyConsumer)          => UIO.succeed(notifyConsumer)
+                     case State.BatchMiddle(_, _, notifyConsumer) => UIO.succeed(notifyConsumer)
+                     // If we're at the end of the batch or the end of the stream, we start off with
+                     // an already completed promise to skip the schedule's delay.
+                     case State.BatchEnd(_, _) | State.End => Promise.make[Nothing, Unit].tap(_.succeed(()))
+                     // If we see an error, we don't even start the consumer stream.
+                     case State.Error(c) => ZIO.halt(c)
+                   }
+          stream = ZStream
+            .unfoldM(UnfoldState(None, scheduleInit, notify))(consume(_, out, permits))
+            .mapConcat(identity)
+        } yield stream
+      }
+
+    def drainAndSet(stateVar: Ref[State], permits: Semaphore, s: State): UIO[Unit] =
+      withStateVar(stateVar, permits) {
+        // It's ok to overwrite an empty state - we just need to notify the consumer
+        // so it'll take the data
+        case State.Empty(_, notifyNext) => UIO.succeed((notifyNext.succeed(()).unit, s))
+
+        // For these states, we wait for the consumer to take the data and retry
+        case existing @ State.BatchMiddle(_, notifyProducer, notifyConsumer) =>
+          UIO.succeed(
+            (notifyConsumer.succeed(()) *> notifyProducer.await *> drainAndSet(stateVar, permits, s), existing)
+          )
+        case existing @ State.BatchEnd(_, notifyProducer) =>
+          UIO.succeed((notifyProducer.await *> drainAndSet(stateVar, permits, s), existing))
+
+        // On all other states, we can just overwrite the state
+        case _ => UIO.succeed((UIO.unit, s))
+      }.flatten
+
+    new ZStream[R1 with Clock, E1, Either[C, B]] {
+      def fold[R2 <: R1 with Clock, E2 >: E1, B1 >: Either[C, B], S]: ZStream.Fold[R2, E2, B1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          for {
+            initSink  <- sink.initial.map(Step.state(_)).toManaged_
+            initAwait <- Promise.make[Nothing, Unit].toManaged_
+            permits   <- Semaphore.make(1).toManaged_
+            stateVar  <- Ref.make[State](State.Empty(initSink, initAwait)).toManaged_
+            producer <- self
+                         .foreachWhileManaged(produce(stateVar, permits, _))
+                         .foldCauseM(
+                           cause => drainAndSet(stateVar, permits, State.Error(cause)).toManaged_,
+                           _ => drainAndSet(stateVar, permits, State.End).toManaged_
+                         )
+                         .fork
+            s2 <- consumerStream(stateVar, permits)
+                   .fold[R2, E2, B1, S]
+                   .flatMap(_.apply(s, cont, f))
+                   .ensuringFirst(producer.interrupt.fork)
+          } yield s2
+        }
+    }
+  }
 
   /**
    * Allow a faster producer to progress independently of a slower consumer by buffering
@@ -165,6 +579,19 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         ZManaged.succeedLazy { (s, cont, f) =>
           self.fold[R2, E1, A1, S].flatMap { fold =>
             fold(s, cont, f).ensuring(fin)
+          }
+        }
+    }
+
+  /**
+   * Executes the provided finalizer before this stream's finalizers run.
+   */
+  def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, _]): ZStream[R1, E, A] =
+    new ZStream[R1, E, A] {
+      def fold[R2 <: R1, E1 >: E, A1 >: A, S]: ZStream.Fold[R2, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, f) =>
+          self.fold[R2, E1, A1, S].flatMap { fold =>
+            fold(s, cont, f).ensuringFirst(fin)
           }
         }
     }
@@ -353,6 +780,25 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
           loop(s)
         }
     }
+
+  /**
+   * Enqueues elements of this stream into a queue. Stream failure and ending will also be
+   * signalled.
+   */
+  def into[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]): ZIO[R1, E1, Unit] =
+    intoManaged(queue).use_(UIO.unit)
+
+  /**
+   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
+   * composition.
+   */
+  def intoManaged[R1 <: R, E1 >: E, A1 >: A](queue: ZQueue[R1, E1, _, _, Take[E1, A1], _]): ZManaged[R1, E1, Unit] =
+    self
+      .foreachManaged(a => queue.offer(Take.Value(a)).unit)
+      .foldCauseM(
+        cause => queue.offer(Take.Fail(cause)).unit.toManaged_,
+        _ => queue.offer(Take.End).unit.toManaged_
+      )
 
   /**
    * Returns a stream made of the elements of this stream transformed with `f0`
@@ -701,31 +1147,43 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
   def runDrain: ZIO[R, E, Unit] = run(Sink.drain)
 
   /**
-   * Repeats elements of the stream using the provided schedule.
+   * Repeats each element of the stream using the provided schedule, additionally emitting schedule's output,
+   * each time a schedule is completed.
+   * Repeats are done in addition to the first execution, so that
+   * `spaced(Schedule.once)` means "emit element and if not short circuited, repeat element once".
    */
-  def spaced[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, A] =
-    new ZStream[R1 with Clock, E, A] {
-      override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: A, S]: Fold[R2, E1, A1, S] =
+  def spaced[R1 <: R, A1 >: A](schedule: ZSchedule[R1, A, A1]): ZStream[R1 with Clock, E, A1] =
+    spacedEither(schedule).map(_.merge)
+
+  /**
+   * Analogical to `spaced` but with distinction of stream elements and schedule output represented by Either
+   */
+  def spacedEither[R1 <: R, B](schedule: ZSchedule[R1, A, B]): ZStream[R1 with Clock, E, Either[B, A]] =
+    new ZStream[R1 with Clock, E, Either[B, A]] {
+
+      override def fold[R2 <: R1 with Clock, E1 >: E, A1 >: Either[B, A], S]: Fold[R2, E1, A1, S] =
         ZManaged.succeedLazy { (s, cont, f) =>
-          def loop(s: S, sched: schedule.State, a: A): ZIO[R2, E1, S] =
+          def loop(s: S, schedSt: schedule.State, a: A): ZIO[R2, E1, S] =
             if (!cont(s)) ZIO.succeed(s)
             else
-              f(s, a).zip(schedule.update(a, sched)).flatMap {
-                case (s, decision) =>
+              f(s, Right(a)).zip(schedule.update(a, schedSt)).flatMap {
+                case (su, decision) if !decision.cont && cont(su) => f(su, Left(decision.finish()))
+                case (su, decision) if decision.cont && cont(su) =>
                   decision.delay.run.flatMap { delay =>
-                    if (decision.cont && cont(s))
-                      loop(s, decision.state, a).delay[R2](delay)
-                    else IO.succeed(s)
+                    loop(su, decision.state, a).delay[R2](delay)
                   }
 
+                case (su, _) => IO.succeed(su)
               }
 
-          schedule.initial.map(_._2).toManaged_.flatMap { sched =>
-            self.fold[R2, E1, A, S].flatMap { f =>
-              f(s, cont, (s, a) => loop(s, sched, a))
+          schedule.initial.toManaged_.map(_._2).flatMap { schedSt =>
+            self.fold[R2, E1, A, S].flatMap { fl =>
+              fl(s, cont, (s, a) => loop(s, schedSt, a))
             }
           }
+
         }
+
     }
 
   /**
@@ -777,21 +1235,56 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Throttles elements of type A according to the given bandwidth parameters using the token bucket
+   * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
+   * tokens up to a `units + burst` threshold. Elements that do not meet the bandwidth constraints are dropped.
+   * The weight of each element is determined by the `costFn` function.
+   */
+  final def throttleEnforce(units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => Long
+  ): ZStream[R with Clock, E, A] =
+    throttleEnforceM(units, duration, burst)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Throttles elements of type A according to the given bandwidth parameters using the token bucket
+   * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
+   * tokens up to a `units + burst` threshold. Elements that do not meet the bandwidth constraints are dropped.
+   * The weight of each element is determined by the `costFn` effectful function.
+   */
+  final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => ZIO[R1, E1, Long]
+  ): ZStream[R1 with Clock, E1, A] =
+    transduceManaged(ZSink.throttleEnforceM(units, duration, burst)(costFn)).collect { case Some(a) => a }
+
+  /**
+   * Delays elements of type A according to the given bandwidth parameters using the token bucket
+   * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
+   * tokens up to a `units + burst` threshold. The weight of each element is determined by the `costFn` function.
+   */
+  final def throttleShape(units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => Long
+  ): ZStream[R with Clock, E, A] =
+    throttleShapeM(units, duration, burst)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Delays elements of type A according to the given bandwidth parameters using the token bucket
+   * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
+   * tokens up to a `units + burst` threshold. The weight of each element is determined by the `costFn`
+   * effectful function.
+   */
+  final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => ZIO[R1, E1, Long]
+  ): ZStream[R1 with Clock, E1, A] =
+    transduceManaged(ZSink.throttleShapeM(units, duration, burst)(costFn))
+
+  /**
    * Converts the stream to a managed queue. After managed queue is used, the
    * queue will never again produce values and should be discarded.
    */
   final def toQueue[E1 >: E, A1 >: A](capacity: Int = 2): ZManaged[R, E1, Queue[Take[E1, A1]]] =
     for {
       queue <- ZManaged.make(Queue.bounded[Take[E1, A1]](capacity))(_.shutdown)
-      _ <- self.fold[R, E, A, Unit].flatMap { fold =>
-            fold((), _ => true, (_, a) => queue.offer(Take.Value(a)).unit)
-              .foldCauseM(
-                e => queue.offer(Take.Fail(e)).toManaged_,
-                _ => queue.offer(Take.End).toManaged_
-              )
-              .unit
-              .fork
-          }
+      _     <- self.intoManaged(queue).fork
     } yield queue
 
   /**
@@ -975,6 +1468,123 @@ object ZStream extends ZStreamPlatformSpecific {
    */
   final def dieMessage(msg: String): Stream[Nothing, Nothing] =
     halt(Cause.die(new RuntimeException(msg)))
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   */
+  final def effectAsync[R, E, A](
+    register: (ZIO[R, E, A] => Unit) => Unit,
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
+      register(callback)
+
+      None
+    }, outputBuffer)
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback can possibly return the stream synchronously
+   */
+  final def effectAsyncMaybe[R, E, A](
+    register: (ZIO[R, E, A] => Unit) => Option[ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
+            runtime <- ZIO.runtime[R].toManaged_
+            maybeStream <- UIO(
+                            register(
+                              k =>
+                                runtime.unsafeRunAsync_(
+                                  k.foldCauseM(
+                                    cause => output.offer(Take.Fail(cause)).unit,
+                                    b => output.offer(Take.Value(b)).unit
+                                  )
+                                )
+                            )
+                          ).toManaged_
+            s <- maybeStream match {
+                  case Some(stream) =>
+                    output.shutdown.toManaged_ *>
+                      stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                  case None => ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                }
+          } yield s
+        }
+    }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times
+   * The registration of the callback itself returns an effect
+   */
+  final def effectAsyncM[R, E, A](
+    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
+            runtime <- ZIO.runtime[R].toManaged_
+            _ <- register(
+                  k =>
+                    runtime.unsafeRunAsync_(
+                      k.foldCauseM(
+                        cause => output.offer(Take.Fail(cause)).unit,
+                        b => output.offer(Take.Value(b)).unit
+                      )
+                    )
+                ).toManaged_
+            s <- ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+          } yield s
+        }
+    }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback returns either a canceler or synchronously returns a stream
+   */
+  final def effectAsyncInterrupt[R, E, A](
+    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    new ZStream[R, E, A] {
+      override def fold[R1 <: R, E1 >: E, A1 >: A, S]: Fold[R1, E1, A1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            output  <- Queue.bounded[Take[E1, A1]](outputBuffer).toManaged(_.shutdown)
+            runtime <- ZIO.runtime[R].toManaged_
+            eitherStream <- UIO {
+                             register(
+                               k =>
+                                 runtime.unsafeRunAsync_(
+                                   k.foldCauseM(
+                                     cause => output.offer(Take.Fail(cause)).unit,
+                                     b => output.offer(Take.Value(b)).unit
+                                   )
+                                 )
+                             )
+                           }.toManaged_
+            s <- eitherStream match {
+                  case Right(stream) =>
+                    output.shutdown.toManaged_ *>
+                      stream.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
+                  case Left(canceler) =>
+                    ZStream
+                      .fromQueue(output)
+                      .unTake
+                      .fold[R1, E1, A1, S]
+                      .flatMap(fold => fold(s, cont, g))
+                      .ensuring(canceler)
+                }
+          } yield s
+        }
+    }
 
   /**
    * The stream that always fails with `error`
