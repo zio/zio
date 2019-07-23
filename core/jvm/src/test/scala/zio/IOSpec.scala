@@ -48,6 +48,27 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
+   Check `someOrFail` method extracts the optional value. $testSomeOrFailExtractOptionalValue
+   Check `someOrFail` method fails when given a None. $testSomeOrFailWithNone
+   Check `someOrFailException` method extracts the optional value. $testSomeOrFailExceptionOnOptionalValue
+   Check `someOrFailException` method fails when given a None. $testSomeOrFailExceptionOnEmptyValue
+   Check `right` method extracts the Right value. $testRightOnRightValue
+   Check `right` method fails with `None` when given a Left value. $testRightOnLeftValue
+   Check `right` method fails with `Some(exception)` when given an exception. $testRightOnException
+   Check `rightOrFail` method extracts the Right value. $testRightOrFailExtractsRightValue
+   Check `rightOrFail` method fails when given a Left. $testRightOrFailWithLeft
+   Check `rightOrFailException` method extracts the Right value. $testRightOrFailExceptionOnRightValue
+   Check `rightOrFailException` method fails when given a Left. $testRightOrFailExceptionOnLeftValue
+   Check `left` method extracts the Left value. $testLeftOnLeftValue
+   Check `left` method fails with `None` when given a Right value. $testLeftOnRightValue
+   Check `left` method fails with `Some(exception)` when given an exception. $testLeftOnException
+   Check `leftOrFail` method extracts the Left value. $testLeftOrFailExtractsLeftValue
+   Check `leftOrFail` method fails when given a Right. $testLeftOrFailWithRight
+   Check `leftOrFailException` method extracts the Left value. $testLeftOrFailExceptionOnLeftValue
+   Check `leftOrFailException` method fails when given a Right. $testLeftOrFailExceptionOnRightValue
+   Check `head` method extracts the head of a non-empty list. $testHeadOnNonEmptyList
+   Check `head` method fails with `None` when given an empty list. $testHeadOnEmptyList
+   Check `head` method fails with `Some(exception)` when given an exception. $testHeadOnException
    Check uncurried `bracket`. $testUncurriedBracket
    Check uncurried `bracket_`. $testUncurriedBracket_
    Check uncurried `bracketExit`. $testUncurriedBracketExit
@@ -63,6 +84,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `collectM` returns failure ignoring value $testCollectM
    Check `reject` returns failure ignoring value $testReject
    Check `rejectM` returns failure ignoring value $testRejectM
+   Check `foreachParN` works on large lists $testForeachParN_Threads
+   Check `foreachParN` runs effects in parallel $testForeachParN_Parallel
+   Check `foreachParN` propogates error $testForeachParN_Error
+   Check `foreachParN` interrupts effects on first failure $testForeachParN_Interruption
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -134,8 +159,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
       (unsafeRunSync(IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))) must_=== unsafeRunSync(IO.fail("fail")))
   }
 
+  private val exampleError = new Error("something went wrong")
+
   def testDone = {
-    val error                         = new Error("something went wrong")
+    val error                         = exampleError
     val completed                     = Exit.succeed(1)
     val interrupted: Exit[Error, Int] = Exit.interrupt
     val terminated: Exit[Error, Int]  = Exit.die(error)
@@ -277,6 +304,102 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         .and(thn must_=== Exit.die(ex))
         .and(fail must_=== Exit.succeed(()))
     }
+  }
+
+  def testSomeOrFailWithNone = {
+    val task: Task[Int] = UIO(Option.empty[Int]).someOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testSomeOrFailExtractOptionalValue = {
+    val task: Task[Int] = UIO(Some(42)).someOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testSomeOrFailExceptionOnOptionalValue = unsafeRun(ZIO.succeed(Some(42)).someOrFailException) must_=== 42
+
+  def testSomeOrFailExceptionOnEmptyValue = {
+    val task = ZIO.succeed(Option.empty[Int]).someOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testRightOnRightValue = {
+    val task = ZIO.succeed(Right("Right")).right.either
+    unsafeRun(task) must_=== Right("Right")
+  }
+
+  def testRightOnLeftValue = {
+    val task = ZIO.succeed(Left("Left")).right.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testRightOnException = {
+    val task = ZIO.fail("Fail").right.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
+  }
+
+  def testRightOrFailExceptionOnRightValue = unsafeRun(ZIO.succeed(Right(42)).rightOrFailException) must_=== 42
+
+  def testRightOrFailExceptionOnLeftValue = {
+    val task: Task[Int] = ZIO.succeed(Left(2)).rightOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testRightOrFailExtractsRightValue = {
+    val task: Task[Int] = UIO(Right(42)).rightOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testRightOrFailWithLeft = {
+    val task: Task[Int] = UIO(Left(1)).rightOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOnLeftValue = {
+    val task = ZIO.succeed(Left("Left")).left.either
+    unsafeRun(task) must_=== Right("Left")
+  }
+
+  def testLeftOnRightValue = {
+    val task = ZIO.succeed(Right("Right")).left.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testLeftOnException = {
+    val task = ZIO.fail("Fail").left.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
+  }
+
+  def testLeftOrFailExceptionOnLeftValue = unsafeRun(ZIO.succeed(Left(42)).leftOrFailException) must_=== 42
+
+  def testLeftOrFailExceptionOnRightValue = {
+    val task: Task[Int] = ZIO.succeed(Right(2)).leftOrFailException
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testLeftOrFailExtractsLeftValue = {
+    val task: Task[Int] = UIO(Left(42)).leftOrFail(exampleError)
+    unsafeRun(task) must_=== 42
+  }
+
+  def testLeftOrFailWithRight = {
+    val task: Task[Int] = UIO(Right(12)).leftOrFail(exampleError)
+    unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testHeadOnNonEmptyList = {
+    val task = ZIO.succeed(List(1, 2, 3)).head.either
+    unsafeRun(task) must_=== Right(1)
+  }
+
+  def testHeadOnEmptyList = {
+    val task = ZIO.succeed(List.empty).head.either
+    unsafeRun(task) must_=== Left(None)
+  }
+
+  def testHeadOnException = {
+    val task = ZIO.fail("Fail").head.either
+    unsafeRun(task) must_=== Left(Some("Fail"))
   }
 
   def testUncurriedBracket =
@@ -513,5 +636,39 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
 
     goodCase and partialBadCase and badCase
+  }
+
+  def testForeachParN_Threads = {
+    val n   = 10L
+    val seq = 0 to 100000
+    val res = unsafeRun(IO.foreachParN(n)(seq)(UIO.succeed))
+    res must be_===(seq)
+  }
+
+  def testForeachParN_Parallel = {
+    val io = for {
+      p <- Promise.make[Nothing, Unit]
+      _ <- UIO.foreachParN(2)(List(UIO.never, p.succeed(())))(a => a).fork
+      _ <- p.await
+    } yield true
+    unsafeRun(io)
+  }
+
+  def testForeachParN_Error = {
+    val ints = List(1, 2, 3, 4, 5, 6)
+    val odds = ZIO.foreachParN(4)(ints) { n =>
+      if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail("not odd")
+    }
+    unsafeRun(odds.either) must_=== Left("not odd")
+  }
+
+  def testForeachParN_Interruption = {
+    val actions = List(
+      ZIO.never,
+      ZIO.succeed(1),
+      ZIO.fail("C")
+    )
+    val io = ZIO.foreachParN(4)(actions)(a => a)
+    unsafeRun(io.either) must_=== Left("C")
   }
 }

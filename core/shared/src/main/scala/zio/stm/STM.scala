@@ -666,7 +666,7 @@ object STM {
           val txnId     = makeTxnId()
           val done      = new AtomicBoolean(false)
           val interrupt = UIO(done.synchronized(done.set(true)))
-          val async     = IO.effectAsync[Any, E, A](tryCommitAsync(journal, platform, stm, txnId, done))
+          val async     = IO.effectAsync[E, A](tryCommitAsync(journal, platform, stm, txnId, done))
 
           async ensuring interrupt
       }
