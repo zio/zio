@@ -29,7 +29,7 @@ abstract class ZIOTest[R, E] {
   /**
    * Place all your tests here.
    */
-  val tests: Spec[R, E]
+  val tests: Spec[R, E, String]
 
   /**
    * Override platform here.

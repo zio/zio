@@ -58,16 +58,16 @@ package object test {
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[R, E](label: String)(specs: Spec[R, E]*): Spec[R, E] = Spec.Suite(label, specs.toVector)
+  final def suite[R, E, L](label: L)(specs: Spec[R, E, L]*): Spec[R, E, L] = Spec.Suite(label, specs.toVector)
 
   /**
    * Builds a spec with a single effectful test.
    */
-  final def test[R, E](label: String)(assertion: ZIO[R, E, AssertResult]): Spec[R, E] = Spec.Test(label, assertion)
+  final def test[R, E, L](label: L)(assertion: ZIO[R, E, AssertResult]): Spec[R, E, L] = Spec.Test(label, assertion)
 
   /**
    * Builds a spec with a single pure test.
    */
-  final def testPure(label: String)(assertion: => AssertResult): Spec[Any, Nothing] =
+  final def testPure[L](label: L)(assertion: => AssertResult): Spec[Any, Nothing, L] =
     test(label)(ZIO.succeedLazy(assertion))
 }

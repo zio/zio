@@ -23,33 +23,43 @@ import zio.duration.Duration
  * A `Spec[R, E]` is the backbone of _ZIO Test_. Specs require an environment
  * of type `R` (which could be `Any`) and may fail with errors of type `E`.
  */
-sealed trait Spec[-R, +E] {
+sealed trait Spec[-R, +E, +L] {
 
   /**
    * Returns a pruned Spec that contains only the specs whose labels match the
    * specified predicate.
    */
-  final def filter(f: String => Boolean): Spec[R, E] = ???
+  final def filter(f: L => Boolean): Spec[R, E, L] = ???
+
+  /**
+   * Returns a new spec with a remapped error type.
+   */
+  final def mapError[E1](f: E => E1): Spec[R, E1, L] = ???
+
+  /**
+   * Returns a new spec with a remapped label type.
+   */
+  final def mapLabel[L1](f: L => L1): Spec[R, E, L1] = ???
 
   /**
    * Returns a new spec, where every test in this one is marked as pending.
    */
-  final def pending: Spec[R, E] = ???
+  final def pending: Spec[R, E, L] = ???
 
   /**
    * Provides a spec with the value it requires, eliminating its requirement.
    */
-  final def provide(r: R): Spec[Any, E] = ???
+  final def provide(r: R): Spec[Any, E, L] = ???
 
   /**
    * Provides each test with its own managed resource, eliminating their requirements.
    */
-  final def provideEach[E1 >: E](managed: Managed[E1, R]): Spec[Any, E1] = ???
+  final def provideEach[E1 >: E](managed: Managed[E1, R]): Spec[Any, E1, L] = ???
 
   /**
    * Provides a spec with part of the value it requires, eliminating its requirement.
    */
-  final def provideSome[R1](r: R1 => R): Spec[R1, E] = ???
+  final def provideSome[R1](r: R1 => R): Spec[R1, E, L] = ???
 
   /**
    * Returns the size of the spec, which is the number of tests that it contains.
@@ -60,15 +70,23 @@ sealed trait Spec[-R, +E] {
    * Returns a new spec that times out each test by the specified duration.
    * This is merely implemented for convenience atop [[weave]].
    */
-  final def timeout(duration: Duration): Spec[R, E] = ???
+  final def timeout(duration: Duration): Spec[R, E, L] = ???
 
   /**
    * Weaves an aspect into this spec by replacing every result with its
    * application using the specified function.
    */
-  final def weave[R1 <: R, E1 >: E](f: ZIO[R, E, AssertResult] => ZIO[R1, E1, AssertResult]): Spec[R1, E1] = ???
+  final def weaveAll[R1 <: R, E1 >: E](f: ZIO[R, E, AssertResult] => ZIO[R1, E1, AssertResult]): Spec[R1, E1, L] = ???
+
+  /**
+   * Weaves an aspect into this spec by replacing every result matching the
+   * predicate with its application using the specified function.
+   */
+  final def weaveSome[R1 <: R, E1 >: E](pred: L => Boolean)(
+    f: ZIO[R, E, AssertResult] => ZIO[R1, E1, AssertResult]
+  ): Spec[R1, E1, L] = ???
 }
 object Spec {
-  final case class Suite[-R, +E](label: String, specs: Vector[Spec[R, E]])         extends Spec[R, E]
-  final case class Test[-R, +E](label: String, assertion: ZIO[R, E, AssertResult]) extends Spec[R, E]
+  final case class Suite[-R, +E, +L](label: L, specs: Vector[Spec[R, E, L]])      extends Spec[R, E, L]
+  final case class Test[-R, +E, +L](label: L, assertion: ZIO[R, E, AssertResult]) extends Spec[R, E, L]
 }
