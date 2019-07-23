@@ -23,11 +23,11 @@ ZIO integrates with Typelevel libraries by providing instances of Cats Effect ty
 
 Due to limitations of Cats Effect, ZIO cannot provide instances for arbitrary error types. Instead, you can obtain instances only for effects whose error type extends `Throwable`.
 
-For convenience, ZIO includes the `Task` and `TaskR` type aliases, which fix the error type to `Throwable`, and may be useful for interop with Cats Effect:
+For convenience, ZIO includes the `Task` and `RIO` type aliases, which fix the error type to `Throwable`, and may be useful for interop with Cats Effect:
 
 ```scala
 type Task [    +A] = ZIO[Any, Throwable, A]
-type TaskR[-R, +A] = ZIO[  R, Throwable, A]
+type RIO[-R, +A]   = ZIO[  R, Throwable, A]
 ```
 
 In order to use Cats Effect instances for these types, you should have an implicit `Runtime[R]` in scope for the environment type of your effects. The following code snippet creates an implicit `Runtime` for all the modules built into ZIO:
@@ -36,7 +36,7 @@ In order to use Cats Effect instances for these types, you should have an implic
 implicit val runtime: Runtime[Environment] = new DefaultRuntime {}
 ```
 
-If you are using `TaskR` for a custom environment `R`, then you will have to create your own `Runtime[R]`, and ensure that implicit wherever you need Cats Effect instances.
+If you are using `RIO` for a custom environment `R`, then you will have to create your own `Runtime[R]`, and ensure that implicit wherever you need Cats Effect instances.
 
 ### Cats App
 

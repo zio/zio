@@ -17,7 +17,10 @@
 package zio.stream
 
 import zio._
+import zio.clock.Clock
+import zio.duration.Duration
 import scala.language.postfixOps
+import java.util.concurrent.TimeUnit
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -369,7 +372,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
   /**
    * Effectfully filters the inputs fed to this sink.
    */
-  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => IO[E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
+  final def filterM[R1 <: R, E1 >: E, A1 <: A](f: A1 => ZIO[R1, E1, Boolean]): ZSink[R1, E1, A0, A1, B] =
     new ZSink[R1, E1, A0, A1, B] {
       type State = self.State
 
@@ -775,6 +778,18 @@ object ZSink extends ZSinkPlatformSpecific {
       final case class State[S](value: S) extends Side[Nothing, S, Nothing]
       final case class Value[A](value: A) extends Side[Nothing, Nothing, A]
     }
+
+    def assertNonNegative(n: Long): UIO[Unit] =
+      if (n < 0) UIO.die(new NegativeArgument(s"Unexpected negative unit value `$n`"))
+      else UIO.unit
+
+    def assertPositive(n: Long): UIO[Unit] =
+      if (n <= 0) UIO.die(new NonpositiveArgument(s"Unexpected nonpositive unit value `$n`"))
+      else UIO.unit
+
+    class NegativeArgument(message: String) extends IllegalArgumentException(message)
+
+    class NonpositiveArgument(message: String) extends IllegalArgumentException(message)
   }
 
   trait StepModule {
@@ -893,6 +908,19 @@ object ZSink extends ZSinkPlatformSpecific {
       .map(_.reverse)
 
   /**
+   * Creates a sink halting with the specified `Throwable`.
+   */
+  final def die(e: Throwable): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(e))
+
+  /**
+   * Creates a sink halting with the specified message, wrapped in a
+   * `RuntimeException`.
+   */
+  final def dieMessage(m: String): ZSink[Any, Nothing, Nothing, Any, Nothing] =
+    ZSink.halt(Cause.die(new RuntimeException(m)))
+
+  /**
    * Creates a sink consuming all incoming values until completion.
    */
   final def drain: ZSink[Any, Nothing, Nothing, Any, Unit] =
@@ -943,6 +971,69 @@ object ZSink extends ZSinkPlatformSpecific {
     }
 
   /**
+   * Creates a sink that effectfully folds elements of type `A` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   */
+  final def foldWeightedM[R, R1 <: R, E, E1 >: E, A, S](
+    z: S
+  )(costFn: A => ZIO[R, E, Long], max: Long)(f: (S, A) => ZIO[R1, E1, S]): ZSink[R1, E1, A, A, S] =
+    new ZSink[R1, E1, A, A, S] {
+      type State = (S, Long)
+      val initial: UIO[Step[State, Nothing]] = UIO.succeed(Step.more(z -> 0))
+      def step(s: (S, Long), a: A): ZIO[R1, E1, Step[(S, Long), A]] =
+        costFn(a) flatMap { cost =>
+          val newCost = cost + s._2
+
+          if (newCost > max) UIO.succeed(Step.done(s, Chunk.single(a)))
+          else if (newCost == max) {
+            f(s._1, a).map(s => Step.done(s -> newCost, Chunk.empty))
+          } else f(s._1, a).map(s => Step.more(s -> newCost))
+        }
+      def extract(state: (S, Long)): ZIO[R1, E1, S] = UIO.succeed(state._1)
+    }
+
+  /**
+   * Creates a sink that folds elements of type `A` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`)
+   * have been folded.
+   */
+  final def foldWeighted[A, S](
+    z: S
+  )(costFn: A => Long, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
+    new SinkPure[Nothing, A, A, S] {
+      type State = (S, Long)
+      def initialPure: Step[(S, Long), Nothing] = Step.more(z -> 0)
+      def stepPure(s: (S, Long), a: A): Step[(S, Long), A] = {
+        val newCost = costFn(a) + s._2
+
+        if (newCost > max) Step.done(s, Chunk.single(a))
+        else if (newCost == max) {
+          Step.done(f(s._1, a) -> newCost, Chunk.empty)
+        } else Step.more((f(s._1, a), newCost))
+      }
+      def extractPure(s: (S, Long)): Either[Nothing, S] = Right(s._1)
+    }
+
+  /**
+   * Creates a sink that effectfully folds elements of type `A` into a structure
+   * of type `S` until `max` elements have been folded.
+   *
+   * Like [[ZSink.foldWeightedM]], but with a constant cost function of 1.
+   */
+  final def foldUntilM[R, E, S, A](z: S, max: Long)(f: (S, A) => ZIO[R, E, S]): ZSink[R, E, A, A, S] =
+    foldWeightedM[R, R, E, E, A, S](z)((_: A) => UIO.succeed(1), max)(f)
+
+  /**
+   * Creates a sink that folds elements of type `A` into a structure
+   * of type `S` until `max` elements have been folded.
+   *
+   * Like [[ZSink.foldWeighted]], but with a constant cost function of 1.
+   */
+  final def foldUntil[S, A](z: S, max: Long)(f: (S, A) => S): ZSink[Any, Nothing, A, A, S] =
+    foldWeighted[A, S](z)((_: A) => 1, max)(f)
+
+  /**
    * Creates a single-value sink produced from an effect
    */
   final def fromEffect[R, E, B](b: => ZIO[R, E, B]): ZSink[R, E, Nothing, Any, B] =
@@ -962,6 +1053,17 @@ object ZSink extends ZSinkPlatformSpecific {
       val initialPure                                        = Step.more(None)
       def stepPure(state: State, a: A): Step[State, Nothing] = Step.done(Some(a), Chunk.empty)
       def extractPure(state: State): Either[Unit, B]         = state.fold[Either[Unit, B]](Left(()))(a => Right(f(a)))
+    }
+
+  /**
+   * Creates a sink halting with a specified cause.
+   */
+  final def halt[E](e: Cause[E]): ZSink[Any, E, Nothing, Any, Nothing] =
+    new Sink[E, Nothing, Any, Nothing] {
+      type State = Unit
+      val initial                                               = UIO.succeed(Step.done((), Chunk.empty))
+      def step(state: State, a: Any): UIO[Step[State, Nothing]] = UIO.succeed(Step.done(state, Chunk.empty))
+      def extract(state: State): IO[E, Nothing]                 = IO.halt(e)
     }
 
   /**
@@ -1063,4 +1165,128 @@ object ZSink extends ZSinkPlatformSpecific {
       def stepPure(state: State, a: Any): Step[State, Nothing] = Step.done(state, Chunk.empty)
       def extractPure(state: State): Either[Nothing, B]        = Right(b)
     }
+
+  /**
+   * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. Elements that do not meet the
+   * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` function.
+   * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
+   */
+  final def throttleEnforce[A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, Option[A]]] =
+    throttleEnforceM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Creates a sink which throttles input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. Elements that do not meet the
+   * bandwidth constraints are dropped. The weight of each element is determined by the `costFn` effectful function.
+   * Elements are mapped to `Option[A]`, and `None` denotes that a given element has been dropped.
+   */
+  final def throttleEnforceM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => ZIO[R, E, Long]
+  ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, Option[A]]] = {
+    import ZSink.internal._
+
+    val maxTokens = if (units + burst < 0) Long.MaxValue else units + burst
+
+    def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, Option[A]] {
+      type State = (Ref[(Long, Long)], Option[A])
+
+      val initial = UIO.succeed(Step.more((bucket, None)))
+
+      def step(state: State, a: A) =
+        for {
+          weight  <- costFn(a)
+          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          result <- state._1.modify {
+                     case (tokens, timestamp) =>
+                       val elapsed   = current - timestamp
+                       val cycles    = elapsed.toDouble / duration.toNanos
+                       val available = checkTokens(tokens + (cycles * units).toLong, maxTokens)
+                       if (weight <= available)
+                         (Step.done((state._1, Some(a)), Chunk.empty), (available - weight, current))
+                       else
+                         (Step.done((state._1, None), Chunk.empty), (available, current))
+                   }
+        } yield result
+
+      def extract(state: State) = UIO.succeed(state._2)
+    }
+
+    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max else math.min(sum, max)
+
+    val sink = for {
+      _       <- assertNonNegative(units)
+      _       <- assertNonNegative(burst)
+      current <- clock.currentTime(TimeUnit.NANOSECONDS)
+      bucket  <- Ref.make((units, current))
+    } yield bucketSink(bucket)
+
+    ZManaged.fromEffect(sink)
+  }
+
+  /**
+   * Creates a sink which delays input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
+   * determined by the `costFn` function.
+   */
+  final def throttleShape[A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => Long
+  ): ZManaged[Clock, Nothing, ZSink[Clock, Nothing, Nothing, A, A]] =
+    throttleShapeM[Any, Nothing, A](units, duration, burst)(a => UIO.succeed(costFn(a)))
+
+  /**
+   * Creates a sink which delays input elements of type A according to the given bandwidth parameters
+   * using the token bucket algorithm. The sink allows for burst in the processing of elements by allowing
+   * the token bucket to accumulate tokens up to a `units + burst` threshold. The weight of each element is
+   * determined by the `costFn` effectful function.
+   */
+  final def throttleShapeM[R, E, A](units: Long, duration: Duration, burst: Long = 0)(
+    costFn: A => ZIO[R, E, Long]
+  ): ZManaged[Clock, Nothing, ZSink[R with Clock, E, Nothing, A, A]] = {
+    import ZSink.internal._
+
+    val maxTokens = if (units + burst < 0) Long.MaxValue else units + burst
+
+    def bucketSink(bucket: Ref[(Long, Long)]) = new ZSink[R with Clock, E, Nothing, A, A] {
+      type State = (Ref[(Long, Long)], Promise[Nothing, A])
+
+      val initial = Promise.make[Nothing, A].map(promise => Step.more((bucket, promise)))
+
+      def step(state: State, a: A) =
+        for {
+          weight  <- costFn(a)
+          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          delay <- state._1.modify {
+                    case (tokens, timestamp) =>
+                      val elapsed    = current - timestamp
+                      val cycles     = elapsed.toDouble / duration.toNanos
+                      val available  = checkTokens(tokens + (cycles * units).toLong, maxTokens)
+                      val remaining  = available - weight
+                      val waitCycles = if (remaining >= 0) 0 else -remaining.toDouble / units
+                      val delay      = Duration.Finite((waitCycles * duration.toNanos).toLong)
+                      (delay, (remaining, current))
+                  }
+          _ <- if (delay <= Duration.Zero) UIO.unit else clock.sleep(delay)
+          _ <- state._2.succeed(a)
+        } yield Step.done(state, Chunk.empty)
+
+      def extract(state: State) = state._2.await
+    }
+
+    def checkTokens(sum: Long, max: Long): Long = if (sum < 0) max else math.min(sum, max)
+
+    val sink = for {
+      _       <- assertPositive(units)
+      _       <- assertNonNegative(burst)
+      current <- clock.currentTime(TimeUnit.NANOSECONDS)
+      bucket  <- Ref.make((units, current))
+    } yield bucketSink(bucket)
+
+    ZManaged.fromEffect(sink)
+  }
 }

@@ -31,10 +31,6 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
             increment `TRef` 100 times in 100 fibers. $e15
             compute a `TRef` from 2 variables, increment the first `TRef` and decrement the second `TRef` in different fibers. $e16
 
-        Using `Ref` perform the same concurrent test should return a wrong result
-             increment `Ref` 100 times in 100 fibers. $e17
-             compute a `Ref` from 2 variables, increment the first `Ref` and decrement the second `Ref` in different fibers. $e18
-
         Using `STM.atomically` perform concurrent computations that
           have a simple condition lock should suspend the whole transaction and:
               resume directly when the condition is already satisfied $e19
@@ -213,28 +209,6 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
         value                     <- tvar3.get.commit
       } yield value
     ) must_=== 10000
-
-  def e17 =
-    unsafeRun(
-      for {
-        ref   <- Ref.make(0)
-        fiber <- ZIO.forkAll(List.fill(100)(incrementRefN(99, ref)))
-        _     <- fiber.join
-        v     <- ref.get
-      } yield v must_!== 10000
-    )
-
-  def e18 =
-    unsafeRun(
-      for {
-        ref1  <- Ref.make(10000)
-        ref2  <- Ref.make(0)
-        ref3  <- Ref.make(0)
-        fiber <- ZIO.forkAll(List.fill(100)(compute3RefN(99, ref1, ref2, ref3)))
-        _     <- fiber.join
-        v3    <- ref3.get
-      } yield v3 must_!== 10000
-    )
 
   def e19 =
     unsafeRun {
@@ -529,25 +503,6 @@ final class STMSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
                  newVal2 <- ref.get
                } yield (newVal1, newVal2))
     } yield result must_=== (2 -> 2))
-
-  private def incrementRefN(n: Int, ref: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
-    (for {
-      v <- ref.get
-      _ <- ref.set(v + 1)
-      v <- ref.get
-    } yield v)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
-
-  private def compute3RefN(n: Int, ref1: Ref[Int], ref2: Ref[Int], ref3: Ref[Int]): ZIO[clock.Clock, Nothing, Int] =
-    (for {
-      v1 <- ref1.get
-      v2 <- ref2.get
-      _  <- ref3.set(v1 + v2)
-      v3 <- ref3.get
-      _  <- ref1.set(v1 - 1)
-      _  <- ref2.set(v2 + 1)
-    } yield v3)
-      .repeat(Schedule.recurs(n) *> Schedule.identity)
 
   private def transfer(receiver: TRef[Int], sender: TRef[Int], much: Int): UIO[Int] =
     STM.atomically {
