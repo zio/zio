@@ -29,6 +29,14 @@ sealed trait AssertResult[+L] { self =>
   final def const[L2](l2: L2): AssertResult[L2] = self.map(_ => l2)
 
   /**
+   * Detemines if the result failed.
+   */
+  final def failure: Boolean = self match {
+    case Failure(_) => true
+    case _          => false
+  }
+
+  /**
    * Returns a new result, with the label mapped by the specified function.
    */
   final def map[L1](f: L => L1): AssertResult[L1] = self match {
@@ -45,6 +53,14 @@ sealed trait AssertResult[+L] { self =>
     case Pending        => Pending
     case Failure(label) => Success(f(label))
     case Success(label) => Failure(f(label))
+  }
+
+  /**
+   * Detemines if the result succeeded.
+   */
+  final def success: Boolean = self match {
+    case Success(_) => true
+    case _          => false
   }
 }
 object AssertResult {

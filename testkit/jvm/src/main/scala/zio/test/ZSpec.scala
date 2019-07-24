@@ -49,6 +49,12 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   }
 
   /**
+   * Determines if there exists a label satisfying the predicate.
+   */
+  final def exists(f: L => Boolean): Boolean =
+    labels.map(_._2).exists(f)
+
+  /**
    * Returns a pruned ZSpec that contains only the specs whose labels match the
    * specified predicate.
    */
@@ -63,6 +69,12 @@ sealed trait ZSpec[-R, +E, +L] { self =>
 
     loop(self)
   }
+
+  /**
+   * Determines if all labels satisfy the specified predicate.
+   */
+  final def forall(f: L => Boolean): Boolean =
+    labels.map(_._2).forall(f)
 
   /**
    * Returns all the labels, in a flattened form.
