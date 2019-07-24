@@ -106,6 +106,15 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     outer defects interrupt all fibers $flatMapParOuterDefectsInterruptAllFibers
     finalizer ordering                 $flatMapParFinalizerOrdering
 
+  Stream.flatMapParSwitch
+    short circuiting                   $flatMapParSwitchShortCircuiting
+    interruption propagation           $flatMapParSwitchInterruptionPropagation
+    inner errors interrupt all fibers  $flatMapParSwitchInnerErrorsInterruptAllFibers
+    outer errors interrupt all fibers  $flatMapParSwitchOuterErrorsInterruptAllFibers
+    inner defects interrupt all fibers $flatMapParSwitchInnerDefectsInterruptAllFibers
+    outer defects interrupt all fibers $flatMapParSwitchOuterDefectsInterruptAllFibers
+    finalizer ordering                 $flatMapParSwitchFinalizerOrdering
+
   Stream.foreach/foreachWhile
     foreach                     $foreach
     foreachWhile                $foreachWhile
@@ -761,6 +770,100 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       latch              <- Promise.make[Nothing, Unit]
       result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.die(ex)))
                  .flatMapPar(2) { _ =>
+                   Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
+                 }
+                 .run(Sink.drain)
+                 .run
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must_=== Exit.die(ex))
+  }
+
+  private def flatMapParSwitchShortCircuiting = unsafeRun {
+    Stream(Stream.never, Stream(1))
+      .flatMapParSwitch(2)(identity)
+      .take(1)
+      .runCollect
+      .map(_ must_=== List(1))
+  }
+
+  private def flatMapParSwitchInterruptionPropagation = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      fiber <- Stream(())
+                .flatMapParSwitch(1)(
+                  _ => Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true)))
+                )
+                .runCollect
+                .fork
+      _         <- latch.await
+      _         <- fiber.interrupt
+      cancelled <- substreamCancelled.get
+    } yield cancelled must_=== true
+  }
+
+  private def flatMapParSwitchInnerErrorsInterruptAllFibers = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- Stream(
+                 Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true))),
+                 Stream.fromEffect(latch.await *> IO.fail("Ouch"))
+               ).flatMapParSwitch(2)(identity).runDrain.either
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
+  }
+
+  private def flatMapParSwitchFinalizerOrdering = unsafeRun {
+    for {
+      execution <- Ref.make(List.empty[String])
+      inner     = Stream.bracket(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
+      _ <- Stream
+            .bracket(execution.update("OuterAcquire" :: _).const(inner))(_ => execution.update("OuterRelease" :: _))
+            .flatMapParSwitch(2)(identity)
+            .runDrain
+      results <- execution.get
+    } yield results must_=== List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire")
+  }
+
+  private def flatMapParSwitchOuterErrorsInterruptAllFibers = unsafeRun {
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- (Stream(()) ++ Stream.fromEffect(latch.await *> IO.fail("Ouch")))
+                 .flatMapParSwitch(2) { _ =>
+                   Stream.fromEffect((latch.succeed(()) *> UIO.never).onInterrupt(substreamCancelled.set(true)))
+                 }
+                 .runDrain
+                 .either
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must beLeft("Ouch"))
+  }
+
+  private def flatMapParSwitchInnerDefectsInterruptAllFibers = unsafeRun {
+    val ex = new RuntimeException("Ouch")
+
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- Stream(
+                 Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))),
+                 Stream.fromEffect(latch.await *> ZIO.die(ex))
+               ).flatMapParSwitch(2)(identity)
+                 .run(Sink.drain)
+                 .run
+      cancelled <- substreamCancelled.get
+    } yield (cancelled must_=== true) and (result must_=== Exit.die(ex))
+  }
+
+  private def flatMapParSwitchOuterDefectsInterruptAllFibers = unsafeRun {
+    val ex = new RuntimeException()
+
+    for {
+      substreamCancelled <- Ref.make[Boolean](false)
+      latch              <- Promise.make[Nothing, Unit]
+      result <- (Stream(()) ++ Stream.fromEffect(latch.await *> ZIO.die(ex)))
+                 .flatMapParSwitch(2) { _ =>
                    Stream.fromEffect((latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true)))
                  }
                  .run(Sink.drain)
