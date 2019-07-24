@@ -929,8 +929,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     policy.initial.flatMap(loop)
   }
 
-  final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] = ZIO.identity[C] +++ self
-
   /**
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
