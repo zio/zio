@@ -130,14 +130,8 @@ sealed trait Spec[-R, +E, +L] { self =>
    * Weaves an aspect into this spec by replacing every result with its
    * application using the specified function.
    */
-  final def weaveAll[R1 <: R, E1 >: E](f: ZIO[R, E, AssertResult] => ZIO[R1, E1, AssertResult]): Spec[R1, E1, L] = {
-    def loop(spec: Spec[R, E, L]): Spec[R1, E1, L] = spec match {
-      case Spec.Suite(label, specs) => Spec.Suite(label, specs.map(loop))
-      case Spec.Test(label, assert) => Spec.Test(label, f(assert))
-    }
-
-    loop(self)
-  }
+  final def weaveAll[R1 <: R, E1 >: E](f: ZIO[R, E, AssertResult] => ZIO[R1, E1, AssertResult]): Spec[R1, E1, L] =
+    weaveSome[R1, E1](_ => true)(f)
 
   /**
    * Weaves an aspect into this spec by replacing every result matching the
