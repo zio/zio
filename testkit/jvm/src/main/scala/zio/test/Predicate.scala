@@ -30,7 +30,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
    * Returns a new predicate that succeeds only if both predicates succeed.
    */
   final def &&[A1 <: A](that: => Predicate[A1]): Predicate[A1] =
-    Predicate.predicateDirect(s"${self} && ${that}") { actual =>
+    Predicate.predicateDirect(s"(${self} && ${that})") { actual =>
       self.run(actual) match {
         case Failure(l) => Failure(l)
         case Success(_) => that.run(actual)
@@ -42,7 +42,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
    * Returns a new predicate that succeeds if either predicates succeed.
    */
   final def ||[A1 <: A](that: => Predicate[A1]): Predicate[A1] =
-    Predicate.predicateDirect(s"${self} || ${that}") { actual =>
+    Predicate.predicateDirect(s"(${self} || ${that})") { actual =>
       self.run(actual) match {
         case Failure(_) => that.run(actual)
         case Success(l) => Success(l)
