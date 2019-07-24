@@ -23,18 +23,18 @@ import zio.Exit
  * proposition, predicates compose using logical conjuction and disjunction,
  * and can be negated.
  */
-class Predicate[-A] private (render: String, val run: A => AssertResult) extends (A => AssertResult) { self =>
+class Predicate[-A] private (render: String, val run: A => PredicateResult) extends (A => PredicateResult) { self =>
   import AssertResult._
 
   /**
    * Returns a new predicate that succeeds only if both predicates succeed.
    */
   final def &&[A1 <: A](that: => Predicate[A1]): Predicate[A1] =
-    Predicate.predicate(s"${self} && ${that}") { actual =>
+    Predicate.predicateDirect(s"${self} && ${that}") { actual =>
       self.run(actual) match {
-        case Failure(message) => Failure(message)
-        case Success(_)       => that.run(actual)
-        case Pending          => that.run(actual)
+        case Failure(l) => Failure(l)
+        case Success(_) => that.run(actual)
+        case Pending    => that.run(actual)
       }
     }
 
@@ -42,27 +42,34 @@ class Predicate[-A] private (render: String, val run: A => AssertResult) extends
    * Returns a new predicate that succeeds if either predicates succeed.
    */
   final def ||[A1 <: A](that: => Predicate[A1]): Predicate[A1] =
-    Predicate.predicate(s"${self} || ${that}") { actual =>
+    Predicate.predicateDirect(s"${self} || ${that}") { actual =>
       self.run(actual) match {
-        case Failure(_)       => that.run(actual)
-        case Success(message) => Success(message)
-        case Pending          => that.run(actual)
+        case Failure(_) => that.run(actual)
+        case Success(l) => Success(l)
+        case Pending    => that.run(actual)
       }
     }
 
   /**
    * Evaluates the predicate with the specified value.
    */
-  final def apply(a: A): AssertResult = run(a)
+  final def apply(a: A): PredicateResult = run(a)
+
+  override final def equals(that: Any): Boolean = that match {
+    case that: Predicate[_] => this.toString == that.toString
+  }
+
+  override final def hashCode: Int = toString.hashCode
+
+  /**
+   * Returns the negation of this predicate.
+   */
+  final def negate: Predicate[A] = Predicate.not(self)
 
   /**
    * Provides a meaningful string rendering of the predicate.
    */
   override final def toString: String = render
-
-  override final def equals(that: Any): Boolean = that match {
-    case that: Predicate[_] => this.toString == that.toString
-  }
 }
 
 object Predicate {
@@ -73,13 +80,8 @@ object Predicate {
    */
   final def contains[A](element: A): Predicate[Iterable[A]] =
     Predicate.predicate(s"contains(${element})") { actual =>
-      val message =
-        Message(s"Expected ${actual} to contain ${element}", s"Expected ${actual} to not contain ${element}")
-
-      val failed = AssertResult.Failure(message)
-
-      if (!actual.exists(_ == element)) failed
-      else failed.negate
+      if (!actual.exists(_ == element)) AssertResult.failureUnit
+      else AssertResult.successUnit
     }
 
   /**
@@ -87,47 +89,34 @@ object Predicate {
    */
   final def equals[A](expected: A): Predicate[A] =
     Predicate.predicate(s"equals(${expected})") { actual =>
-      val message =
-        Message(s"Expected ${expected} but found ${actual}", s"Expected any value other than ${actual}")
-
-      val failed = AssertResult.Failure(message)
-
-      if (actual != expected) failed else failed.negate
+      if (actual == expected) AssertResult.successUnit
+      else AssertResult.failureUnit
     }
 
   /**
    * Makes a new predicate that always fails.
    */
-  final def nothing: Predicate[Any] = Predicate.predicate("nothing") { actual =>
-    AssertResult.failure(s"Always fails: ${actual}", s"Always succeeds: ${actual}")
+  final def nothing: Predicate[Any] = Predicate.predicateRec[Any]("nothing") { (self, actual) =>
+    AssertResult.failure(PredicateValue(self, actual))
   }
 
   /**
    * Makes a new predicate that requires an exit value to fail.
    */
-  final def fails[E](predicate: Predicate[E]): Predicate[Exit[E, Any]] = Predicate.predicate(s"fails(${predicate})") {
-    actual =>
+  final def fails[E](predicate: Predicate[E]): Predicate[Exit[E, Any]] =
+    Predicate.predicateRec[Exit[E, Any]](s"fails(${predicate})") { (self, actual) =>
       actual match {
         case Exit.Failure(cause) if cause.failures.length > 0 => predicate.run(cause.failures.head)
 
-        case exit =>
-          AssertResult.failure(
-            s"Expected failure satisfying ${predicate} but found ${exit}",
-            s"<unreachable>"
-          )
+        case _ => AssertResult.failure(PredicateValue(self, actual))
       }
-  }
+    }
 
   /**
    * Makes a new predicate that requires a value be true.
    */
   final def isTrue: Predicate[Boolean] = Predicate.predicate(s"isTrue") { actual =>
-    val message = Message(s"Expected true but found false", s"Expected false but found true")
-
-    val failed = AssertResult.Failure(message)
-
-    if (actual != true) failed
-    else failed.negate
+    if (actual) AssertResult.successUnit else AssertResult.failureUnit
   }
 
   /**
@@ -140,14 +129,10 @@ object Predicate {
    * predicate.
    */
   final def left[A](predicate: Predicate[A]): Predicate[Either[A, Nothing]] =
-    Predicate.predicate(s"left(${predicate})") { actual =>
+    Predicate.predicateRec[Either[A, Nothing]](s"left(${predicate})") { (self, actual) =>
       actual match {
-        case Left(a) => predicate.run(a)
-        case Right(_) =>
-          AssertResult.failure(
-            s"Expected Left satisfying ${predicate} but found ${actual}",
-            s"<unreachable>"
-          )
+        case Left(a)  => predicate.run(a)
+        case Right(_) => AssertResult.failure(PredicateValue(self, actual))
       }
     }
 
@@ -157,10 +142,8 @@ object Predicate {
    */
   final val none: Predicate[Option[Any]] = Predicate.predicate(s"none") { actual =>
     actual match {
-      case None =>
-        AssertResult.success(s"<unreachable>", s"Expected Some but found ${actual}")
-      case Some(_) =>
-        AssertResult.failure(s"Expected None but found ${actual}", s"<unreachable>")
+      case None    => AssertResult.successUnit
+      case Some(_) => AssertResult.failureUnit
     }
   }
 
@@ -168,26 +151,40 @@ object Predicate {
    * Makes a new predicate that negates the specified predicate.
    */
   final def not[A](predicate: Predicate[A]): Predicate[A] =
-    Predicate.predicate(s"not(${predicate})")(actual => predicate.run(actual).negate)
+    Predicate.predicate(s"not(${predicate})")(actual => predicate.run(actual).negate(_ => ()))
 
   /**
    * Makes a new `Predicate` from a pretty-printing and a function.
    */
-  final def predicate[A](render: String)(run: A => AssertResult): Predicate[A] = new Predicate(render, run)
+  final def predicate[A](render: String)(run: A => AssertResult[Unit]): Predicate[A] =
+    predicateRec[A](render)((predicate, a) => run(a).map(_ => PredicateValue(predicate, a)))
+
+  /**
+   * Makes a new `Predicate` from a pretty-printing and a function.
+   */
+  final def predicateDirect[A](render: String)(run: A => PredicateResult): Predicate[A] =
+    new Predicate(render, run)
+
+  /**
+   * Makes a new `Predicate` from a pretty-printing and a function, passing
+   * the predicate itself to the specified function, so it can embed a
+   * recursive reference into the assert result.
+   */
+  final def predicateRec[A](render: String)(run: (Predicate[A], A) => PredicateResult): Predicate[A] = {
+    lazy val predicate: Predicate[A] = predicateDirect[A](render)((a: A) => run(predicate, a))
+
+    predicate
+  }
 
   /**
    * Makes a new predicate that requires a Right value satisfying a specified
    * predicate.
    */
   final def right[A](predicate: Predicate[A]): Predicate[Either[Nothing, A]] =
-    Predicate.predicate(s"right(${predicate})") { actual =>
+    Predicate.predicateRec[Either[Nothing, A]](s"right(${predicate})") { (self, actual) =>
       actual match {
         case Right(a) => predicate.run(a)
-        case Left(_) =>
-          AssertResult.failure(
-            s"Expected Right satisfying ${predicate} but found ${actual}",
-            s"<unreachable>"
-          )
+        case Left(_)  => AssertResult.failure(PredicateValue(self, actual))
       }
     }
 
@@ -195,38 +192,30 @@ object Predicate {
    * Makes a new predicate that requires a Some value satisfying the specified
    * predicate.
    */
-  final def some[A](predicate: Predicate[A]): Predicate[Option[A]] = Predicate.predicate(s"some(${predicate}") {
-    actual =>
+  final def some[A](predicate: Predicate[A]): Predicate[Option[A]] =
+    Predicate.predicateRec[Option[A]](s"some(${predicate}") { (self, actual) =>
       actual match {
         case Some(a) => predicate.run(a)
-        case None =>
-          AssertResult.failure(
-            s"Expected Some satisfying ${predicate} but found ${actual}",
-            s"<unreachable>"
-          )
+        case None    => AssertResult.failure(PredicateValue(self, actual))
       }
-  }
+    }
 
   /**
    * Makes a new predicate that requires an exit value to succeed.
    */
   final def succeeds[A](predicate: Predicate[A]): Predicate[Exit[Any, A]] =
-    Predicate.predicate(s"succeeds(${predicate})") { actual =>
+    Predicate.predicateRec[Exit[Any, A]](s"succeeds(${predicate})") { (self, actual) =>
       actual match {
         case Exit.Success(a) => predicate.run(a)
 
-        case exit =>
-          AssertResult.failure(
-            s"Expected success satisfying ${predicate} but found ${exit}",
-            s"<unreachable>"
-          )
+        case exit => AssertResult.failure(PredicateValue(self, exit))
       }
     }
 
   /**
    * Makes a new predicate that always succeeds.
    */
-  final def anything: Predicate[Any] = Predicate.predicate("anything") { actual =>
-    AssertResult.success(s"Always succeeds: ${actual}", s"Always fails: ${actual}")
+  final def anything: Predicate[Any] = Predicate.predicateRec[Any]("anything") { (self, actual) =>
+    AssertResult.success(PredicateValue(self, actual))
   }
 }

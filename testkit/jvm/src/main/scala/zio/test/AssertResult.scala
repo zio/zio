@@ -17,29 +17,46 @@
 package zio.test
 
 /**
- * An `AssertResult` is the result of running a test, which may be pending,
- * success, or failure.
+ * An `AssertResult[L]` is the result of running a test, which may be pending,
+ * success, or failure, with some label of type `L`.
  */
-sealed trait AssertResult { self =>
+sealed trait AssertResult[+L] { self =>
   import AssertResult._
 
   /**
-   * Negates the assertion.
+   * Returns a new result, with the label mapped to the specified constant.
    */
-  final def negate: AssertResult = self match {
-    case Pending          => Pending
-    case Failure(message) => Success(message.negate)
-    case Success(message) => Failure(message.negate)
+  final def const[L2](l2: L2): AssertResult[L2] = self.map(_ => l2)
+
+  /**
+   * Returns a new result, with the label mapped by the specified function.
+   */
+  final def map[L1](f: L => L1): AssertResult[L1] = self match {
+    case Pending        => Pending
+    case Failure(label) => Failure(f(label))
+    case Success(label) => Success(f(label))
+  }
+
+  /**
+   * Returns a new result, with success and failure inverted, and the label
+   * transformed by the specified function.
+   */
+  final def negate[L1](f: L => L1): AssertResult[L1] = self match {
+    case Pending        => Pending
+    case Failure(label) => Success(f(label))
+    case Success(label) => Failure(f(label))
   }
 }
 object AssertResult {
-  case object Pending                        extends AssertResult
-  final case class Success(message: Message) extends AssertResult
-  final case class Failure(message: Message) extends AssertResult
+  case object Pending                    extends AssertResult[Nothing]
+  final case class Success[+L](label: L) extends AssertResult[L]
+  final case class Failure[+L](label: L) extends AssertResult[L]
 
-  def success(message: String, negation: String): AssertResult =
-    Success(Message(message, negation))
+  def failure[L](l: L): AssertResult[L] = Failure(l)
 
-  def failure(message: String, negation: String): AssertResult =
-    Failure(Message(message, negation))
+  val failureUnit: AssertResult[Unit] = failure(())
+
+  val successUnit: AssertResult[Unit] = success(())
+
+  def success[L](l: L): AssertResult[L] = Success(l)
 }

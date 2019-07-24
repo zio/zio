@@ -16,22 +16,27 @@
 
 package zio.test
 
-import zio._
+import zio.UIO
 
-abstract class ZIOTest[R, E] {
+trait ZSpecRunner {
+  def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ZSpec[R, E, (L, TestResult)]]
+}
+
+object ZSpecRunner {
 
   /**
-   * Construct your environment here.
+   * Runs tests in parallel, up to the specified limit.
    */
-  val environment: Managed[Nothing, R]
+  def parallel(n: Int): ZSpecRunner = new ZSpecRunner {
+    val _ = n
+
+    def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ZSpec[R, E, (L, TestResult)]] = ???
+  }
 
   /**
-   * Place all your tests here.
+   * Runs tests sequentially.
    */
-  val tests: ZSpec[R, E, String]
-
-  final def main(args: Array[String]): Unit = {
-    // TODO: Parse arguments
-    // TODO: Test runner
+  val sequential: ZSpecRunner = new ZSpecRunner {
+    def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ZSpec[R, E, (L, TestResult)]] = ???
   }
 }

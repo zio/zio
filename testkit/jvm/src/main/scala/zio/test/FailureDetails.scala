@@ -17,13 +17,10 @@
 package zio.test
 
 /**
- * A `Message` is a human-readable message, defined by a proposition, as well
- * as its negation. Messages convey information on test results to users.
+ * `FailureDetails` keeps track of details relevant to failures.
  */
-final case class Message(default: String, negated: String) {
-
-  /**
-   * Negates the message.
-   */
-  final def negate: Message = Message(negated, default)
+sealed trait FailureDetails
+object FailureDetails {
+  final case class Predicate(fragment: PredicateValue, whole: PredicateValue) extends FailureDetails
+  final case class Other(message: String)                                     extends FailureDetails
 }

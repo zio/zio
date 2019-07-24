@@ -16,22 +16,28 @@
 
 package zio.test
 
-import zio._
+/**
+ * A `PredicateValue` keeps track of a predicate and a value, existentially
+ * hiding the type. This is used internally by the library to provide useful
+ * error messages in the event of test failures.
+ */
+sealed trait PredicateValue {
+  type Value
 
-abstract class ZIOTest[R, E] {
+  val value: Value
 
-  /**
-   * Construct your environment here.
-   */
-  val environment: Managed[Nothing, R]
+  val predicate: Predicate[Value]
 
-  /**
-   * Place all your tests here.
-   */
-  val tests: ZSpec[R, E, String]
+  def negate: PredicateValue = PredicateValue(predicate.negate, value)
+}
 
-  final def main(args: Array[String]): Unit = {
-    // TODO: Parse arguments
-    // TODO: Test runner
-  }
+object PredicateValue {
+  def apply[A](predicate0: Predicate[A], value0: A): PredicateValue =
+    new PredicateValue {
+      type Value = A
+
+      val value = value0
+
+      val predicate = predicate0
+    }
 }
