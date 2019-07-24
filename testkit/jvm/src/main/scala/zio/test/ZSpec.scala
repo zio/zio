@@ -26,6 +26,8 @@ import zio.duration.Duration
  * are annotated with labels of type `L` (typically `String`).
  */
 sealed trait ZSpec[-R, +E, +L] { self =>
+  final def ++[R1 <: R, E1 >: E, L1 >: L](that: ZSpec[R1, E1, L1]): ZSpec[R1, E1, L1] =
+    ZSpec.Concat(self, Vector(that))
 
   /**
    * Returns a new spec that decorates every test with the specified transformation function.
@@ -36,6 +38,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(label, managed.use(f => assert.flatMap(f)))
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
@@ -51,6 +54,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
       case ZSpec.Test(label, assert) =>
         if (f(label)) ZSpec.Test(label, assert)
         else ZSpec.Test(label, ZIO.succeed(AssertResult.Pending))
+      case ZSpec.Concat(head, tail) => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
@@ -63,6 +67,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(ancestors: Vector[L])(spec: ZSpec[R, E, L]): Vector[(Vector[L], L)] = spec match {
       case ZSpec.Suite(label, specs) => Vector((ancestors, label)) ++ specs.flatMap(loop(ancestors :+ label))
       case ZSpec.Test(label, _)      => Vector((ancestors, label))
+      case ZSpec.Concat(head, tail)  => loop(ancestors)(head) ++ tail.flatMap(loop(ancestors))
     }
 
     loop(Vector())(self)
@@ -75,6 +80,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(spec: ZSpec[R, E, L]): ZSpec[R, E1, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.mapError(f))
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
@@ -87,6 +93,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(spec: ZSpec[R, E, L]): ZSpec[R, E, L1] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(f(label), specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(f(label), assert)
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
@@ -104,6 +111,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(spec: ZSpec[R, E, L]): ZSpec[Any, E, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.provide(r))
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
@@ -116,6 +124,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(spec: ZSpec[R, E, L]): ZSpec[Any, E1, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(label, managed.use(r => assert.provide(r)))
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
@@ -128,6 +137,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.provideSome(f))
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
@@ -140,6 +150,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.flatMap(f))
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
@@ -150,8 +161,9 @@ sealed trait ZSpec[-R, +E, +L] { self =>
    */
   final def size: Int = {
     def loop(spec: ZSpec[R, E, L], acc: Int): Int = spec match {
-      case ZSpec.Suite(_, specs) => specs.foldLeft(acc)((acc, spec) => loop(spec, acc))
-      case ZSpec.Test(_, _)      => acc + 1
+      case ZSpec.Suite(_, specs)    => specs.foldLeft(acc)((acc, spec) => loop(spec, acc))
+      case ZSpec.Test(_, _)         => acc + 1
+      case ZSpec.Concat(head, tail) => (Vector(head) ++ tail).foldLeft(acc)((acc, spec) => loop(spec, acc))
     }
 
     loop(self, 0)
@@ -193,12 +205,14 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, if (predSuite(label)) specs.map(loop) else specs)
       case ZSpec.Test(label, assert) => ZSpec.Test(label, if (predTest(label)) f(assert) else assert)
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
   }
 }
 object ZSpec {
-  final case class Suite[-R, +E, +L](label: L, specs: Vector[ZSpec[R, E, L]])   extends ZSpec[R, E, L]
-  final case class Test[-R, +E, +L](label: L, assertion: ZIO[R, E, TestResult]) extends ZSpec[R, E, L]
+  final case class Suite[-R, +E, +L](label: L, specs: Vector[ZSpec[R, E, L]])             extends ZSpec[R, E, L]
+  final case class Test[-R, +E, +L](label: L, assertion: ZIO[R, E, TestResult])           extends ZSpec[R, E, L]
+  final case class Concat[-R, +E, +L](head: ZSpec[R, E, L], tail: Vector[ZSpec[R, E, L]]) extends ZSpec[R, E, L]
 }
