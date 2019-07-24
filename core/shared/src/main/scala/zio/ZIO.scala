@@ -1310,14 +1310,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * then the other side will be interrupted, interrupted the result.
    */
   final def <&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, A] =
-    self.zipWithPar(that)((a, b) => (a, b)).map(_._1)
+    self.zipWithPar(that)((a, _) => a)
 
   /**
-   * An integer that identifies the term in the `ZIO` sum type to which this
-   * instance belongs (e.g. `IO.Tags.Succeed`).
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel, returning result of provided effect. If either side fails,
+   * then the other side will be interrupted, interrupted the result.
    */
   final def &>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    self.zipWithPar(that)((a, b) => (a, b)).map(_._2)
+    self.zipWithPar(that)((_, b) => b)
 
   /**
    * Operator alias for `orElse`.
