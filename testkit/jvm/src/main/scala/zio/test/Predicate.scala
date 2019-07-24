@@ -23,7 +23,7 @@ import zio.Exit
  * proposition, predicates compose using logical conjuction and disjunction,
  * and can be negated.
  */
-class Predicate[-A] private (render: String, val run: A => AssertResult) { self =>
+class Predicate[-A] private (render: String, val run: A => AssertResult) extends (A => AssertResult) { self =>
   import AssertResult._
 
   /**
@@ -49,6 +49,11 @@ class Predicate[-A] private (render: String, val run: A => AssertResult) { self 
         case Pending          => that.run(actual)
       }
     }
+
+  /**
+   * Evaluates the predicate with the specified value.
+   */
+  final def apply(a: A): AssertResult = run(a)
 
   /**
    * Provides a meaningful string rendering of the predicate.
