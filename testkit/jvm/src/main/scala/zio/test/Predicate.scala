@@ -67,6 +67,14 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
   final def negate: Predicate[A] = Predicate.not(self)
 
   /**
+   * Tests the predicate to see if it would succeed on the given element.
+   */
+  final def test(a: A): Boolean = run(a) match {
+    case Success(_) => true
+    case _          => false
+  }
+
+  /**
    * Provides a meaningful string rendering of the predicate.
    */
   override final def toString: String = render
@@ -94,6 +102,16 @@ object Predicate {
     }
 
   /**
+   * Makes a new predicate that requires an iterable contain one element
+   * satisfying the given predicate.
+   */
+  final def exists[A](predicate: Predicate[A]): Predicate[Iterable[A]] =
+    Predicate.predicate(s"exists(${predicate})") { actual =>
+      if (!actual.exists(predicate.test(_))) AssertResult.failureUnit
+      else AssertResult.successUnit
+    }
+
+  /**
    * Makes a new predicate that always fails.
    */
   final def nothing: Predicate[Any] = Predicate.predicateRec[Any]("nothing") { (self, actual) =>
@@ -109,6 +127,22 @@ object Predicate {
         case Exit.Failure(cause) if cause.failures.length > 0 => predicate.run(cause.failures.head)
 
         case _ => AssertResult.failure(PredicateValue(self, actual))
+      }
+    }
+
+  /**
+   * Makes a new predicate that requires an iterable contain only elements
+   * satisfying the given predicate.
+   */
+  final def forall[A](predicate: Predicate[A]): Predicate[Iterable[A]] =
+    Predicate.predicateRec[Iterable[A]](s"forall(${predicate})") { (self, actual) =>
+      actual.map(predicate(_)).toList match {
+        case head :: tail =>
+          tail.foldLeft(head) {
+            case (AssertResult.Success(_), next) => next
+            case (acc, _)                        => acc
+          }
+        case Nil => AssertResult.success(PredicateValue(self, actual))
       }
     }
 
