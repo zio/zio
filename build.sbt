@@ -90,12 +90,13 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform)
 lazy val streamsJVM = streams.jvm.dependsOn(testJVM % "test->compile")
 lazy val streamsJS  = streams.js
 
-lazy val test = crossProject(JVMPlatform)
+lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
   .settings(stdSettings("zio-test"))
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val testJVM = test.jvm
+lazy val testJS  = test.js
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform)
   .in(file("stacktracer"))
