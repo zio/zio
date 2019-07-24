@@ -18,25 +18,10 @@ package zio.test
 
 import zio.UIO
 
-trait ZSpecRunner {
-  def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]]
-}
-
-object ZSpecRunner {
+trait ZSpecReporter {
 
   /**
-   * Runs tests in parallel, up to the specified limit.
+   * Reports the results of running a spec.
    */
-  def parallel(n: Int): ZSpecRunner = new ZSpecRunner {
-    val _ = n
-
-    def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]] = ???
-  }
-
-  /**
-   * Runs tests sequentially.
-   */
-  val sequential: ZSpecRunner = new ZSpecRunner {
-    def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]] = ???
-  }
+  def report[E](executedSpec: ExecutedSpec[Any, E, String]): UIO[Unit]
 }

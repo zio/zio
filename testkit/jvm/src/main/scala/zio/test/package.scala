@@ -42,6 +42,8 @@ package object test {
   type PredicateResult = AssertResult[PredicateValue]
   type TestResult      = AssertResult[FailureDetails]
 
+  type ExecutedSpec[-R, +E, +L] = ZSpec[R, E, (L, TestResult)]
+
   type TaskSpec[+L] = ZSpec[Any, Throwable, L]
   val TaskSpec = ZSpec
 

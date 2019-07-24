@@ -26,6 +26,10 @@ import zio.duration.Duration
  * are annotated with labels of type `L` (typically `String`).
  */
 sealed trait ZSpec[-R, +E, +L] { self =>
+
+  /**
+   * Concatenates this spec onto the specified spec.
+   */
   final def ++[R1 <: R, E1 >: E, L1 >: L](that: ZSpec[R1, E1, L1]): ZSpec[R1, E1, L1] =
     ZSpec.Concat(self, Vector(that))
 
