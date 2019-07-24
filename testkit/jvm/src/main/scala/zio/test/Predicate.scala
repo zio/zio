@@ -83,6 +83,13 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
 object Predicate {
 
   /**
+   * Makes a new predicate that always succeeds.
+   */
+  final val anything: Predicate[Any] = Predicate.predicateRec[Any]("anything") { (self, actual) =>
+    AssertResult.success(PredicateValue(self, actual))
+  }
+
+  /**
    * Makes a new predicate that requires an iterable contain the specified
    * element.
    */
@@ -110,13 +117,6 @@ object Predicate {
       if (!actual.exists(predicate.test(_))) AssertResult.failureUnit
       else AssertResult.successUnit
     }
-
-  /**
-   * Makes a new predicate that always fails.
-   */
-  final def nothing: Predicate[Any] = Predicate.predicateRec[Any]("nothing") { (self, actual) =>
-    AssertResult.failure(PredicateValue(self, actual))
-  }
 
   /**
    * Makes a new predicate that requires an exit value to fail.
@@ -147,6 +147,26 @@ object Predicate {
     }
 
   /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
+   */
+  final def gt[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"gt(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) > 0) AssertResult.successUnit
+      else AssertResult.failureUnit
+    }
+
+  /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * or equal to the specified reference value.
+   */
+  final def gte[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"gte(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) >= 0) AssertResult.successUnit
+      else AssertResult.failureUnit
+    }
+
+  /**
    * Makes a new predicate that requires a value be true.
    */
   final def isTrue: Predicate[Boolean] = Predicate.predicate(s"isTrue") { actual =>
@@ -156,7 +176,9 @@ object Predicate {
   /**
    * Makes a new predicate that requires a value be true.
    */
-  final def isFalse: Predicate[Boolean] = not(isTrue)
+  final def isFalse: Predicate[Boolean] = Predicate.predicate(s"isFalse") { actual =>
+    if (!actual) AssertResult.successUnit else AssertResult.failureUnit
+  }
 
   /**
    * Makes a new predicate that requires a Left value satisfying a specified
@@ -168,6 +190,26 @@ object Predicate {
         case Left(a)  => predicate.run(a)
         case Right(_) => AssertResult.failure(PredicateValue(self, actual))
       }
+    }
+
+  /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
+   */
+  final def lt[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"lt(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) < 0) AssertResult.successUnit
+      else AssertResult.failureUnit
+    }
+
+  /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
+   */
+  final def lte[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"lte(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) <= 0) AssertResult.successUnit
+      else AssertResult.failureUnit
     }
 
   /**
@@ -186,6 +228,13 @@ object Predicate {
    */
   final def not[A](predicate: Predicate[A]): Predicate[A] =
     Predicate.predicate(s"not(${predicate})")(actual => predicate.run(actual).negate(_ => ()))
+
+  /**
+   * Makes a new predicate that always fails.
+   */
+  final val nothing: Predicate[Any] = Predicate.predicateRec[Any]("nothing") { (self, actual) =>
+    AssertResult.failure(PredicateValue(self, actual))
+  }
 
   /**
    * Makes a new `Predicate` from a pretty-printing and a function.
@@ -247,9 +296,13 @@ object Predicate {
     }
 
   /**
-   * Makes a new predicate that always succeeds.
+   * Returns a new predicate that requires a numeric value to fall within a
+   * specified min and max (inclusive).
    */
-  final def anything: Predicate[Any] = Predicate.predicateRec[Any]("anything") { (self, actual) =>
-    AssertResult.success(PredicateValue(self, actual))
-  }
+  final def within[A: Numeric](min: A, max: A): Predicate[A] =
+    Predicate.predicate(s"within(${min}, ${max})") { actual =>
+      if (implicitly[Numeric[A]].compare(actual, min) < 0) AssertResult.failureUnit
+      else if (implicitly[Numeric[A]].compare(actual, max) > 0) AssertResult.failureUnit
+      else AssertResult.successUnit
+    }
 }
