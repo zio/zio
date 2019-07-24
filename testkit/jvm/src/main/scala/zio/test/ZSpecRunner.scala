@@ -19,7 +19,7 @@ package zio.test
 import zio.UIO
 
 trait ZSpecRunner {
-  def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]]
+  def run[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]]
 }
 
 object ZSpecRunner {
@@ -30,13 +30,13 @@ object ZSpecRunner {
   def parallel(n: Int): ZSpecRunner = new ZSpecRunner {
     val _ = n
 
-    def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]] = ???
+    def run[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]] = ???
   }
 
   /**
    * Runs tests sequentially.
    */
   val sequential: ZSpecRunner = new ZSpecRunner {
-    def apply[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]] = ???
+    def run[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]] = ???
   }
 }

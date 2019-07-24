@@ -19,7 +19,11 @@ package zio.test
 import zio._
 import zio.internal.{ Platform, PlatformLive }
 
-abstract class ZIOTest[R, E] { self =>
+/**
+ * A main function that allows you to run a spec, given the environment
+ * required by the spec.
+ */
+abstract class ZIOTestMain[R, E] { self =>
 
   /**
    * Construct your environment here.
@@ -29,13 +33,20 @@ abstract class ZIOTest[R, E] { self =>
   /**
    * Place all your tests here.
    */
-  val tests: ZSpec[R, E, String]
+  def tests: ZSpec[R, E, String]
 
   /**
    * The platform that will be used to run the tests if the tests are run
    * through the main function.
    */
   def makePlatform(): Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
+
+  /**
+   * The reporter for the results of a test run.
+   *
+   * TODO: Choose platform-appropriate default.
+   */
+  def reporter: ZSpecReporter = ???
 
   final def main(args: Array[String]): Unit = {
     val platform  = self.makePlatform()
@@ -45,11 +56,8 @@ abstract class ZIOTest[R, E] { self =>
       if (args.exists(_.contains("-par"))) ZSpecRunner.parallel(tests.size)
       else ZSpecRunner.sequential
 
-    // TODO: Choose platform-appropriate reporter:
-    val reporter: ZSpecReporter = ???
-
     bootstrap.unsafeRun(environment.use { env =>
-      runner(tests.provide(env)).flatMap { results =>
+      runner.run(tests.provide(env)).flatMap { results =>
         val exit = if (results.exists(_._2.failure)) 1 else 0
 
         reporter.report(results) *> ZIO.effect(System.exit(exit)).ignore

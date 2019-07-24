@@ -18,7 +18,7 @@ package zio.test
 
 import zio._
 
-abstract class ZIOTestDefault[E] extends ZIOTest[DefaultRuntime#Environment, E] {
+abstract class ZIOTestMainDefault[E] extends ZIOTestMain[DefaultRuntime#Environment, E] {
   // TODO: Use TestEnvironment
   final val environment: Managed[Nothing, DefaultRuntime#Environment] =
     Managed.succeed(???)
