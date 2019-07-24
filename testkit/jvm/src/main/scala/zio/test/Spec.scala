@@ -90,7 +90,14 @@ sealed trait Spec[-R, +E, +L] { self =>
   /**
    * Provides each test with its own managed resource, eliminating their requirements.
    */
-  final def provideEach[E1 >: E](managed: Managed[E1, R]): Spec[Any, E1, L] = ???
+  final def provideEach[E1 >: E](managed: Managed[E1, R]): Spec[Any, E1, L] = {
+    def loop(spec: Spec[R, E, L]): Spec[Any, E1, L] = spec match {
+      case Spec.Suite(label, specs) => Spec.Suite(label, specs.map(loop))
+      case Spec.Test(label, assert) => Spec.Test(label, managed.use(r => assert.provide(r)))
+    }
+
+    loop(self)
+  }
 
   /**
    * Provides a spec with part of the value it requires, eliminating its requirement.
