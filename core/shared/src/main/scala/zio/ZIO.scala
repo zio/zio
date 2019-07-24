@@ -929,6 +929,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     policy.initial.flatMap(loop)
   }
 
+  final def right[R1 <: R, C]: ZIO[Either[C, R1], E, Either[C, A]] =
+    ZIO.identity[C] +++ self
+
   /**
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
@@ -1198,6 +1201,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * interruption of an inner effect that has been made interruptible).
    */
   final def uninterruptible: ZIO[R, E, A] = interruptStatus(InterruptStatus.Uninterruptible)
+
+  /**	
+   *  Returns an effect with the value on the left part.	
+   */	
+  final def left[A](a: A): UIO[Either[A, Nothing]] = succeed(Left(a))
 
   /**
    * Returns the effect resulting from mapping the success of this effect to unit.
