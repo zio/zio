@@ -36,4 +36,10 @@ object AssertResult {
   case object Pending                        extends AssertResult
   final case class Success(message: Message) extends AssertResult
   final case class Failure(message: Message) extends AssertResult
+
+  def success(message: String, negation: String): AssertResult =
+    Success(Message(message, negation))
+
+  def failure(message: String, negation: String): AssertResult =
+    Failure(Message(message, negation))
 }

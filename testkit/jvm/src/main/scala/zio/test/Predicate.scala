@@ -93,11 +93,8 @@ object Predicate {
   /**
    * Makes a new predicate that always fails.
    */
-  final def failure: Predicate[Any] = Predicate.predicate("failure") { actual =>
-    val message =
-      Message(s"Always succeeds: ${actual}", s"Always fails: ${actual}")
-
-    AssertResult.Failure(message.negate)
+  final def nothing: Predicate[Any] = Predicate.predicate("nothing") { actual =>
+    AssertResult.failure(s"Always fails: ${actual}", s"Always succeeds: ${actual}")
   }
 
   /**
@@ -109,12 +106,10 @@ object Predicate {
         case Exit.Failure(cause) if cause.failures.length > 0 => predicate.run(cause.failures.head)
 
         case exit =>
-          val message = Message(
+          AssertResult.failure(
             s"Expected failure satisfying ${predicate} but found ${exit}",
             s"<unreachable>"
           )
-
-          AssertResult.Failure(message)
       }
   }
 
@@ -144,12 +139,10 @@ object Predicate {
       actual match {
         case Left(a) => predicate.run(a)
         case Right(_) =>
-          val message = Message(
+          AssertResult.failure(
             s"Expected Left satisfying ${predicate} but found ${actual}",
             s"<unreachable>"
           )
-
-          AssertResult.Failure(message)
       }
     }
 
@@ -160,13 +153,9 @@ object Predicate {
   final val none: Predicate[Option[Any]] = Predicate.predicate(s"none") { actual =>
     actual match {
       case None =>
-        val message = Message(s"<unreachable>", s"Expected Some but found ${actual}")
-
-        AssertResult.Success(message)
+        AssertResult.success(s"<unreachable>", s"Expected Some but found ${actual}")
       case Some(_) =>
-        val message = Message(s"Expected None but found ${actual}", s"<unreachable>")
-
-        AssertResult.Failure(message)
+        AssertResult.failure(s"Expected None but found ${actual}", s"<unreachable>")
     }
   }
 
@@ -190,12 +179,10 @@ object Predicate {
       actual match {
         case Right(a) => predicate.run(a)
         case Left(_) =>
-          val message = Message(
+          AssertResult.failure(
             s"Expected Right satisfying ${predicate} but found ${actual}",
             s"<unreachable>"
           )
-
-          AssertResult.Failure(message)
       }
     }
 
@@ -208,12 +195,10 @@ object Predicate {
       actual match {
         case Some(a) => predicate.run(a)
         case None =>
-          val message = Message(
+          AssertResult.failure(
             s"Expected Some satisfying ${predicate} but found ${actual}",
             s"<unreachable>"
           )
-
-          AssertResult.Failure(message)
       }
   }
 
@@ -226,22 +211,17 @@ object Predicate {
         case Exit.Success(a) => predicate.run(a)
 
         case exit =>
-          val message = Message(
+          AssertResult.failure(
             s"Expected success satisfying ${predicate} but found ${exit}",
             s"<unreachable>"
           )
-
-          AssertResult.Failure(message)
       }
     }
 
   /**
    * Makes a new predicate that always succeeds.
    */
-  final def success: Predicate[Any] = Predicate.predicate("success") { actual =>
-    val message =
-      Message(s"Always succeeds: ${actual}", s"Always fails: ${actual}")
-
-    AssertResult.Success(message)
+  final def anything: Predicate[Any] = Predicate.predicate("anything") { actual =>
+    AssertResult.success(s"Always succeeds: ${actual}", s"Always fails: ${actual}")
   }
 }
