@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Managed, ZIO }
+import zio.{ Managed, ZIO, ZManaged }
 import zio.clock.Clock
 import zio.duration.Duration
 
@@ -26,9 +26,19 @@ import zio.duration.Duration
  * are annotated with labels of type `L` (typically `String`).
  */
 sealed trait Spec[-R, +E, +L] { self =>
-  final def empty: Spec[R, E, L] = self match {
-    case Spec.Suite(label, _) => Spec.Suite[R, E, L](label, Vector())
-    case Spec.Test(label, _)  => Spec.Suite[R, E, L](label, Vector())
+
+  /**
+   * Returns a new spec that decorates every test with the specified transformation function.
+   */
+  final def around[R1 <: R, E1 >: E](
+    managed: ZManaged[R1, E1, AssertResult => ZIO[R1, E1, AssertResult]]
+  ): Spec[R1, E1, L] = {
+    def loop(spec: Spec[R, E, L]): Spec[R1, E1, L] = spec match {
+      case Spec.Suite(label, specs) => Spec.Suite(label, specs.map(loop))
+      case Spec.Test(label, assert) => Spec.Test(label, managed.use(f => assert.flatMap(f)))
+    }
+
+    loop(self)
   }
 
   /**
@@ -106,6 +116,18 @@ sealed trait Spec[-R, +E, +L] { self =>
     def loop(spec: Spec[R, E, L]): Spec[R1, E, L] = spec match {
       case Spec.Suite(label, specs) => Spec.Suite(label, specs.map(loop))
       case Spec.Test(label, assert) => Spec.Test(label, assert.provideSome(f))
+    }
+
+    loop(self)
+  }
+
+  /**
+   * Returns a new spec that effectfully maps every assert result.
+   */
+  final def reassert[R1 <: R, E1 >: E](f: AssertResult => ZIO[R1, E1, AssertResult]): Spec[R1, E1, L] = {
+    def loop(spec: Spec[R, E, L]): Spec[R1, E1, L] = spec match {
+      case Spec.Suite(label, specs) => Spec.Suite(label, specs.map(loop))
+      case Spec.Test(label, assert) => Spec.Test(label, assert.flatMap(f))
     }
 
     loop(self)
