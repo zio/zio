@@ -50,7 +50,7 @@ abstract class ZIOTest[R, E] { self =>
 
     bootstrap.unsafeRun(environment.use { env =>
       runner(tests.provide(env)).flatMap { results =>
-        val exit = if (results.forall(_._2.success)) 0 else 1
+        val exit = if (results.exists(_._2.failure)) 1 else 0
 
         reporter.report(results) *> ZIO.effect(System.exit(exit)).ignore
       }
