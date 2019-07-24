@@ -17,6 +17,7 @@
 package zio.test
 
 import zio._
+import zio.internal.{ Platform, PlatformLive }
 
 abstract class ZIOTest[R, E] {
 
@@ -29,6 +30,12 @@ abstract class ZIOTest[R, E] {
    * Place all your tests here.
    */
   val tests: ZSpec[R, E, String]
+
+  /**
+   * The platform that will be used to run the tests if the tests are run
+   * through the main function.
+   */
+  def platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
 
   final def main(args: Array[String]): Unit = {
     // TODO: Parse arguments
