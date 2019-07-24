@@ -17,7 +17,6 @@
 package zio.test
 
 import zio._
-import zio.internal.{ Platform, PlatformLive }
 
 abstract class ZIOTest[R, E] {
 
@@ -30,12 +29,6 @@ abstract class ZIOTest[R, E] {
    * Place all your tests here.
    */
   val tests: Spec[R, E, String]
-
-  /**
-   * Override platform here.
-   */
-  val platform: Platform =
-    PlatformLive.makeDefault().withReportFailure(_ => ())
 
   final def main(args: Array[String]): Unit = {
     // TODO: Parse arguments
