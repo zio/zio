@@ -141,7 +141,7 @@ sealed trait Spec[-R, +E, +L] { self =>
     weaveSome[R1, E1](_ => true)(f)
 
   /**
-   * Weaves an aspect into this spec by replacing every result matching the
+   * Weaves an aspect into this spec by replacing every test matching the
    * predicate with its application using the specified function.
    */
   final def weaveSome[R1 <: R, E1 >: E](predTest: L => Boolean)(
@@ -149,8 +149,9 @@ sealed trait Spec[-R, +E, +L] { self =>
   ): Spec[R1, E1, L] = weaveSomeSuite[R1, E1](predTest, _ => true)(f)
 
   /**
-   * Weaves an aspect into this spec by replacing every result matching the
-   * predicate with its application using the specified function.
+   * Weaves an aspect into this spec by replacing every test matching the
+   * predicate with its application using the specified function, but
+   * descending only into suites that match the specified suite predicate.
    */
   final def weaveSomeSuite[R1 <: R, E1 >: E](predTest: L => Boolean, predSuite: L => Boolean)(
     f: ZIO[R, E, AssertResult] => ZIO[R1, E1, AssertResult]
