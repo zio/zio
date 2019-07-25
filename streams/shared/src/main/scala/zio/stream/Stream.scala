@@ -79,7 +79,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncM]]
    */
   final def effectAsyncM[E, A](
-    register: (IO[E, A] => Unit) => IO[E, _],
+    register: (IO[Option[E], A] => Unit) => IO[E, _],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncM(register, outputBuffer)

@@ -69,6 +69,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   Stream.effectAsyncM
     effectAsyncM                $effectAsyncM
+    effectAsyncMEmptyStream     $effectAsyncMEmptyStream
 
   Stream.effectAsyncInterrupt
     effectAsyncInterruptEmptyStream $effectAsyncInterruptEmptyStream
@@ -505,6 +506,17 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
         s <- fiber.join
       } yield s must_=== list
     }
+  }
+
+  private def effectAsyncMEmptyStream = unsafeRun {
+    for {
+      result <- Stream
+                 .effectAsyncM[Nothing, Int] { k =>
+                   k(IO.fail(None))
+                   UIO.succeed(())
+                 }
+                 .runCollect
+    } yield result must_=== List()
   }
 
   private def effectAsyncMaybeSome =
