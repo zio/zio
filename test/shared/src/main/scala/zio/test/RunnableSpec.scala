@@ -15,13 +15,17 @@
  */
 
 package zio.test
+import scala.util.control.NonFatal
 
-import zio.UIO
-
-trait ZSpecReporter {
-
-  /**
-   * Reports the results of running a spec.
-   */
-  def report[E](executedSpec: ExecutedSpec[Any, E, String]): UIO[Unit]
+/**
+ * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
+ */
+abstract class RunnableSpec[R, E, L](runner: Runner[R, E, L])(spec: => ZSpec[R, E, L]) {
+  final def main(args: Array[String]): Unit =
+    runner.unsafeRunAsync(spec) { results =>
+      try {
+        if (results.labels.exists(_._2._2.failure)) System.exit(1)
+        else System.exit(0)
+      } catch { case NonFatal(_) => }
+    }
 }

@@ -17,8 +17,6 @@
 package zio.test
 
 import zio.{ Managed, ZIO, ZManaged }
-import zio.clock.Clock
-import zio.duration.Duration
 
 /**
  * A `ZSpec[R, E, L]` is the backbone of _ZIO Test_. ZSpecs require an environment
@@ -116,11 +114,6 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   }
 
   /**
-   * Returns a new spec, where every test in this one is marked as pending.
-   */
-  final def pending: ZSpec[R, E, L] = weaveAll(_ => ZIO.succeed(AssertResult.Pending))
-
-  /**
    * Provides a spec with the value it requires, eliminating its requirement.
    */
   final def provide(r: R): ZSpec[Any, E, L] = {
@@ -184,50 +177,32 @@ sealed trait ZSpec[-R, +E, +L] { self =>
 
     loop(self, 0)
   }
-
-  /**
-   * Returns a new spec that times out each test by the specified duration.
-   * This is merely implemented for convenience atop [[weave]].
-   */
-  final def timeout(duration: Duration): ZSpec[R with Clock, E, L] =
-    weaveAll(_.timeout(duration).map {
-      case None    => AssertResult.failure(FailureDetails.Other(s"Timeout of ${duration} exceeded"))
-      case Some(v) => v
-    })
-
-  /**
-   * Weaves an aspect into this spec by replacing every result with its
-   * application using the specified function.
-   */
-  final def weaveAll[R1 <: R, E1 >: E](f: ZIO[R, E, TestResult] => ZIO[R1, E1, TestResult]): ZSpec[R1, E1, L] =
-    weaveSome[R1, E1](_ => true)(f)
-
-  /**
-   * Weaves an aspect into this spec by replacing every test matching the
-   * predicate with its application using the specified function.
-   */
-  final def weaveSome[R1 <: R, E1 >: E](predTest: L => Boolean)(
-    f: ZIO[R, E, TestResult] => ZIO[R1, E1, TestResult]
-  ): ZSpec[R1, E1, L] = weaveSomeSuite[R1, E1](predTest, _ => true)(f)
-
-  /**
-   * Weaves an aspect into this spec by replacing every test matching the
-   * predicate with its application using the specified function, but
-   * descending only into suites that match the specified suite predicate.
-   */
-  final def weaveSomeSuite[R1 <: R, E1 >: E](predTest: L => Boolean, predSuite: L => Boolean)(
-    f: ZIO[R, E, TestResult] => ZIO[R1, E1, TestResult]
-  ): ZSpec[R1, E1, L] = {
-    def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
-      case ZSpec.Suite(label, specs) => ZSpec.Suite(label, if (predSuite(label)) specs.map(loop) else specs)
-      case ZSpec.Test(label, assert) => ZSpec.Test(label, if (predTest(label)) f(assert) else assert)
-      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
-    }
-
-    loop(self)
-  }
 }
 object ZSpec {
+  implicit class ZSpecInvariantSyntax[R, E, L](self: ZSpec[R, E, L]) {
+
+    /**
+     * Returns a new spec with the specified aspect woven into all tests.
+     */
+    final def weave[R1 >: R, R2 <: R, E1 <: E, E2 >: E](aspect: TestAspect[R2, R1, E1, E2]): ZSpec[R, E, L] =
+      weaveSome(_ => true)(aspect)
+
+    /**
+     * Returns a new spec with the specified aspect woven into the specified tests.
+     */
+    final def weaveSome[R1 >: R, R2 <: R, E1 <: E, E2 >: E](
+      pred: L => Boolean
+    )(aspect: TestAspect[R2, R1, E1, E2]): ZSpec[R, E, L] = {
+      def loop(spec: ZSpec[R, E, L]): ZSpec[R, E, L] = spec match {
+        case ZSpec.Suite(label, specs) => ZSpec.Suite(label, if (pred(label)) specs.map(loop) else specs)
+        case ZSpec.Test(label, assert) => ZSpec.Test(label, if (pred(label)) aspect(assert) else assert)
+        case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
+      }
+
+      loop(self)
+    }
+  }
+
   final case class Suite[-R, +E, +L](label: L, specs: Vector[ZSpec[R, E, L]])             extends ZSpec[R, E, L]
   final case class Test[-R, +E, +L](label: L, assertion: ZIO[R, E, TestResult])           extends ZSpec[R, E, L]
   final case class Concat[-R, +E, +L](head: ZSpec[R, E, L], tail: Vector[ZSpec[R, E, L]]) extends ZSpec[R, E, L]

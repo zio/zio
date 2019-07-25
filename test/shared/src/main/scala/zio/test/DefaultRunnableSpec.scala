@@ -16,10 +16,11 @@
 
 package zio.test
 
-import zio._
+import zio.DefaultRuntime
 
-abstract class ZIOTestMainDefault[E] extends ZIOTestMain[DefaultRuntime#Environment, E] {
-  // TODO: Use TestEnvironment
-  final val environment: Managed[Nothing, DefaultRuntime#Environment] =
-    Managed.succeed(???)
-}
+/**
+ * A default runnable spec that provides testable versions of all of the
+ * modules in ZIO (Clock, Random, etc).
+ */
+abstract class DefaultRunnableSpec[E](spec: => ZSpec[DefaultRuntime#Environment, Any, String])
+    extends RunnableSpec(DefaultRunner)(spec)
