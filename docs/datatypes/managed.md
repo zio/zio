@@ -100,7 +100,7 @@ Whilst having more control, a concurrency primitive such as `Promise` may be nee
 ```scala mdoc:silent
 val data: IO[IOException, String] = for {
   p <- Promise.make[IOException,File]
-  res = Reservation(openFile("x", p), closeFile(p))
+  res = Reservation(openFile("x", p), _ => closeFile(p))
   result <- (for {
       fiber  <- res.acquire.fork
       ex     <- fiber.interrupt

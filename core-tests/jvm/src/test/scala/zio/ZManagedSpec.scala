@@ -22,6 +22,9 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Constructs an uninterruptible Managed value. $uninterruptible
   ZManaged.reserve
     Interruption is possible when using this form. $interruptible
+  ZManaged.makeExit
+    Invokes with the failure of the use. $invokesWithUseFailure
+    Invokes with the failure of the subsequent acquire. $invokesWithAcquireFailure
   ZManaged.ensuring
     Runs on successes $ensuringSuccess
     Runs on failures $ensuringFailure
@@ -171,6 +174,39 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     } yield interruption
 
     unsafeRun(program) must be_===(Right(expected))
+  }
+
+  private def invokesWithUseFailure = unsafeRun {
+    val ex = new RuntimeException("Use died")
+
+    def res(exits: Ref[List[Exit[_, _]]]) =
+      for {
+        _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
+        _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
+      } yield ()
+
+    for {
+      exits  <- Ref.make[List[Exit[_, _]]](Nil)
+      _      <- res(exits).use_(ZIO.die(ex)).run
+      result <- exits.get
+    } yield result must_=== List(Exit.Failure(Cause.Die(ex)), Exit.Failure(Cause.Die(ex)))
+  }
+
+  private def invokesWithAcquireFailure = unsafeRun {
+    val useEx     = new RuntimeException("Use died")
+    val acquireEx = new RuntimeException("Acquire died")
+
+    def res(exits: Ref[List[Exit[_, _]]]) =
+      for {
+        _ <- ZManaged.makeExit(UIO.unit)((_, e) => exits.update(e :: _))
+        _ <- ZManaged.makeExit(ZIO.die(acquireEx))((_, e) => exits.update(e :: _))
+      } yield ()
+
+    for {
+      exits  <- Ref.make[List[Exit[_, _]]](Nil)
+      _      <- res(exits).use_(ZIO.die(useEx)).run
+      result <- exits.get
+    } yield result must_=== List(Exit.Failure(Cause.Die(acquireEx)))
   }
 
   private def ensuringSuccess = unsafeRun {
