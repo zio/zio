@@ -71,8 +71,9 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     effectAsyncM                $effectAsyncM
 
   Stream.effectAsyncInterrupt
-    effectAsyncInterrupt Left   $effectAsyncInterruptLeft
-    effectAsyncInterrupt Right  $effectAsyncInterruptRight
+    effectAsyncInterruptEmptyStream $effectAsyncInterruptEmptyStream
+    effectAsyncInterrupt Left       $effectAsyncInterruptLeft
+    effectAsyncInterrupt Right      $effectAsyncInterruptRight
 
   Stream.ensuring $ensuring
 
@@ -524,6 +525,17 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
       slurp(s.take(list.size)) must_=== Success(list)
     }
+
+  private def effectAsyncInterruptEmptyStream = unsafeRun {
+    for {
+      result <- Stream
+                 .effectAsyncInterrupt[Nothing, Int] { k =>
+                   k(IO.fail(None))
+                   Left(UIO.succeed(()))
+                 }
+                 .runCollect
+    } yield result must_=== List()
+  }
 
   private def effectAsyncInterruptLeft = unsafeRun {
     for {

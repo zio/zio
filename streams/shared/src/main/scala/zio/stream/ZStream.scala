@@ -1512,7 +1512,7 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times
-   * The registration of the callback itself returns an effect
+   * The registration of the callback itself returns an effect.
    */
   final def effectAsyncM[R, E, A](
     register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _],
@@ -1540,10 +1540,12 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback returns either a canceler or synchronously returns a stream
+   * The registration of the callback returns either a canceler or synchronously returns a stream.
+   * The optionality of the error type `E` can be used to signal the end of the stream, by
+   * setting it to `None`.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
+    register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler, ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
@@ -1556,10 +1558,14 @@ object ZStream extends ZStreamPlatformSpecific {
                              register(
                                k =>
                                  runtime.unsafeRunAsync_(
-                                   k.foldCauseM(
-                                     cause => output.offer(Take.Fail(cause)).unit,
-                                     b => output.offer(Take.Value(b)).unit
-                                   )
+                                   k.foldM[R, E, Option[A]](
+                                       _.fold[ZIO[R, E, Option[A]]](UIO.succeed(None))(e => IO.fail(e)),
+                                       a => UIO.succeed(Some(a))
+                                     )
+                                     .foldCauseM(
+                                       cause => output.offer(Take.Fail(cause)).unit,
+                                       _.fold(output.offer(Take.End).unit)(a => output.offer(Take.Value(a)).unit)
+                                     )
                                  )
                              )
                            }.toManaged_
