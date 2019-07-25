@@ -1,4 +1,4 @@
-package zio.testkit
+package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 

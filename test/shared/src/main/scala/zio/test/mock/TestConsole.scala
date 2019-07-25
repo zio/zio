@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.testkit
+package zio.test.mock
 
 import java.io.IOException
 import java.io.EOFException

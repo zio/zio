@@ -1,4 +1,4 @@
-package zio.testkit
+package zio.test.mock
 
 import zio.{ Ref, UIO, ZIO }
 import zio.system.System

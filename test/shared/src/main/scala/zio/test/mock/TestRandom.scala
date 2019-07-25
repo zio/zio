@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package zio.testkit
+package zio.test.mock
 
 import zio._
 import zio.random.Random
-import zio.testkit.TestRandom.Data
+import zio.test.mock.TestRandom.Data
 
 final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[Any] {
 

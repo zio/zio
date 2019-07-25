@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.testkit
+package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 import java.time.ZoneId
@@ -22,7 +22,7 @@ import java.time.ZoneId
 import zio._
 import zio.duration.Duration
 import zio.clock.Clock
-import zio.testkit.TestClock.Data
+import zio.test.mock.TestClock.Data
 import java.time.{ Instant, OffsetDateTime }
 
 case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
