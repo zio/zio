@@ -150,6 +150,12 @@ object Managed {
     ZManaged.make(acquire)(release)
 
   /**
+   * See [[zio.ZManaged.makeExit]]
+   */
+  final def makeExit[E, A](acquire: IO[E, A])(release: (A, Exit[_, _]) => UIO[_]): Managed[E, A] =
+    ZManaged.makeExit(acquire)(release)
+
+  /**
    * See [[zio.ZManaged.mergeAll]]
    */
   final def mergeAll[E, A, B](in: Iterable[Managed[E, A]])(zero: B)(f: (B, A) => B): Managed[E, B] =
