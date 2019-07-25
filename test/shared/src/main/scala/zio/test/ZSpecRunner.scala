@@ -19,7 +19,7 @@ package zio.test
 import zio._
 
 trait ZSpecRunner {
-  def run[E, L](spec: ZSpec[Any, E, L]): UIO[ExecutedSpec[Any, E, L]]
+  def run[R, E, L](spec: ZSpec[R, E, L]): RIO[R, ExecutedSpec[R, E, L]]
 }
 
 object ZSpecRunner {
@@ -28,11 +28,11 @@ object ZSpecRunner {
    * Runs tests in parallel, up to the specified limit.
    */
   def parallel(n: Int): ZSpecRunner = new ZSpecRunner {
-    def run[E, L](spec: ZSpec[Any, E, L]): UIO[ExecutedSpec[Any, E, L]] =
+    def run[R, E, L](spec: ZSpec[R, E, L]): RIO[R, ExecutedSpec[R, E, L]] =
       spec match {
         case ZSpec.Suite(label, specs) =>
-          ZIO
-            .foreachParN(n.toLong)(specs)(run)
+          RIO
+            .foreachParN(n.toLong)(specs)(run[R, E, L])
             .map { results =>
               if (results.exists(_.exists(_._2.failure)))
                 ZSpec.Suite((label, failure), results.toVector)
@@ -45,7 +45,7 @@ object ZSpecRunner {
             a => ZSpec.Test((label, a), assert)
           )
         case ZSpec.Concat(head, tail) =>
-          run(head).zipWithPar(ZIO.foreachParN(n.toLong)(tail)(run))((h, t) => ZSpec.Concat(h, t.toVector))
+          run(head).zipWithPar(RIO.foreachParN(n.toLong)(tail)(run[R, E, L]))((h, t) => ZSpec.Concat(h, t.toVector))
       }
   }
 
@@ -53,11 +53,11 @@ object ZSpecRunner {
    * Runs tests sequentially.
    */
   val sequential: ZSpecRunner = new ZSpecRunner {
-    def run[E, L](spec: ZSpec[Any, E, L]): UIO[ExecutedSpec[Any, E, L]] =
+    def run[R, E, L](spec: ZSpec[R, E, L]): RIO[R, ExecutedSpec[R, E, L]] =
       spec match {
         case ZSpec.Suite(label, specs) =>
-          ZIO
-            .foreach(specs)(run)
+          RIO
+            .foreach(specs)(run[R, E, L])
             .map { results =>
               if (results.exists(_.exists(_._2.failure)))
                 ZSpec.Suite((label, failure), results.toVector)
@@ -70,7 +70,7 @@ object ZSpecRunner {
             a => ZSpec.Test((label, a), assert)
           )
         case ZSpec.Concat(head, tail) =>
-          run(head).zipWith(ZIO.foreach(tail)(run))((h, t) => ZSpec.Concat(h, t.toVector))
+          run(head).zipWith(RIO.foreach(tail)(run[R, E, L]))((h, t) => ZSpec.Concat(h, t.toVector))
       }
   }
 
