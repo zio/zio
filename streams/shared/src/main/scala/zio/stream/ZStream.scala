@@ -1681,7 +1681,7 @@ object ZStream extends ZStreamPlatformSpecific {
     new ZStream[R, Nothing, Nothing] {
       def fold[R1 <: R, E1, A1, S]: ZStream.Fold[R1, E1, A1, S] =
         ZManaged.succeedLazy { (s, _, _) =>
-          ZManaged.reserve(Reservation(UIO.succeed(s), finalizer))
+          ZManaged.reserve(Reservation(UIO.succeed(s), _ => finalizer))
         }
     }
 
