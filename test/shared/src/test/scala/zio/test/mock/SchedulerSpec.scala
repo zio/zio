@@ -1,4 +1,4 @@
-package zio.testkit
+package zio.test.mock
 
 import org.specs2.specification.core.SpecStructure
 import zio._

@@ -1,7 +1,7 @@
-package zio.testkit
+package zio.test.mock
 
 import zio.random.Random
-import zio.testkit.TestRandom.Data
+import zio.test.mock.TestRandom.Data
 import zio.{ TestRuntime, UIO, _ }
 
 class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
