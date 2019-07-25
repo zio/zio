@@ -91,6 +91,7 @@ final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[An
 }
 
 object TestRandom {
+  val DefaultData: Data = Data()
 
   val defaultInteger = 1
   val randomIntegers = defaultInteger :: 2 :: 3 :: 4 :: 5 :: Nil
