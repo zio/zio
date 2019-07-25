@@ -16,10 +16,10 @@
 
 package zio.test
 
-import zio.UIO
+import zio._
 
 trait ZSpecRunner {
-  def run[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]]
+  def run[R, E, L](spec: ZSpec[R, E, L]): ZIO[R, Nothing, ExecutedSpec[R, E, L]]
 }
 
 object ZSpecRunner {
@@ -28,15 +28,55 @@ object ZSpecRunner {
    * Runs tests in parallel, up to the specified limit.
    */
   def parallel(n: Int): ZSpecRunner = new ZSpecRunner {
-    val _ = n
-
-    def run[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]] = ???
+    def run[R, E, L](spec: ZSpec[R, E, L]): ZIO[R, Nothing, ExecutedSpec[R, E, L]] =
+      spec match {
+        case ZSpec.Suite(label, specs) =>
+          ZIO
+            .foreachParN(n.toLong)(specs)(run[R, E, L])
+            .map { results =>
+              if (results.exists(_.exists(_._2.failure)))
+                ZSpec.Suite((label, failure), results.toVector)
+              else
+                ZSpec.Suite((label, success), results.toVector)
+            }
+        case ZSpec.Test(label, assert) =>
+          assert.fold(
+            e => ZSpec.Test((label, error(e)), assert),
+            a => ZSpec.Test((label, a), assert)
+          )
+        case ZSpec.Concat(head, tail) =>
+          run(head).zipWithPar(ZIO.foreachParN(n.toLong)(tail)(run[R, E, L]))((h, t) => ZSpec.Concat(h, t.toVector))
+      }
   }
 
   /**
    * Runs tests sequentially.
    */
   val sequential: ZSpecRunner = new ZSpecRunner {
-    def run[R, E, L](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[R, E, L]] = ???
+    def run[R, E, L](spec: ZSpec[R, E, L]): ZIO[R, Nothing, ExecutedSpec[R, E, L]] =
+      spec match {
+        case ZSpec.Suite(label, specs) =>
+          ZIO
+            .foreach(specs)(run[R, E, L])
+            .map { results =>
+              if (results.exists(_.exists(_._2.failure)))
+                ZSpec.Suite((label, failure), results.toVector)
+              else
+                ZSpec.Suite((label, success), results.toVector)
+            }
+        case ZSpec.Test(label, assert) =>
+          assert.fold(
+            e => ZSpec.Test((label, error(e)), assert),
+            a => ZSpec.Test((label, a), assert)
+          )
+        case ZSpec.Concat(head, tail) =>
+          run(head).zipWith(ZIO.foreach(tail)(run[R, E, L]))((h, t) => ZSpec.Concat(h, t.toVector))
+      }
   }
+
+  private val success = AssertResult.success(FailureDetails.Other(""))
+  private val failure = AssertResult.failure(FailureDetails.Other(""))
+
+  private def error[E](e: E): TestResult =
+    AssertResult.failure(FailureDetails.Other(e.toString))
 }
