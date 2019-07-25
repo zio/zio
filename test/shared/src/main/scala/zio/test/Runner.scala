@@ -53,4 +53,48 @@ abstract class Runner[R, E, L](
     ???
 
   private final def execute(spec: ZSpec[Any, E, L]): UIO[ExecutedSpec[Any, E, L]] = ???
+
+  /**
+   * Runs tests in parallel, up to the specified limit.
+   */
+  def parallel[R, E, L](n: Int)(spec: ZSpec[R, E, L]): ZIO[R, Nothing, ExecutedSpec[R, E, L]] =
+    spec match {
+      case ZSpec.Suite(label, specs) =>
+        ZIO
+          .foreachParN(n.toLong)(specs)(parallel[R, E, L](n)(_))
+          .map { results =>
+            ZSpec.Suite((label, AssertResult.Pending), results.toVector)
+          }
+      case ZSpec.Test(label, assert) =>
+        assert.foldCauseM(
+          e => ZIO.succeed(ZSpec.Test((label, error(e)), assert)),
+          a => ZIO.succeed(ZSpec.Test((label, a), assert))
+        )
+      case ZSpec.Concat(head, tail) =>
+        parallel(n)(head)
+          .zipWithPar(ZIO.foreachParN(n.toLong)(tail)(parallel[R, E, L](n)(_)))((h, t) => ZSpec.Concat(h, t.toVector))
+    }
+
+  /**
+   * Runs tests sequentially.
+   */
+  def sequential[R, E, L](spec: ZSpec[R, E, L]): ZIO[R, Nothing, ExecutedSpec[R, E, L]] =
+    spec match {
+      case ZSpec.Suite(label, specs) =>
+        ZIO
+          .foreach(specs)(sequential[R, E, L](_))
+          .map { results =>
+            ZSpec.Suite((label, AssertResult.Pending), results.toVector)
+          }
+      case ZSpec.Test(label, assert) =>
+        assert.foldCauseM(
+          e => ZIO.succeed(ZSpec.Test((label, error(e)), assert)),
+          a => ZIO.succeed(ZSpec.Test((label, a), assert))
+        )
+      case ZSpec.Concat(head, tail) =>
+        sequential(head).zipWith(ZIO.foreach(tail)(sequential[R, E, L]))((h, t) => ZSpec.Concat(h, t.toVector))
+    }
+
+  private def error[E](e: Cause[E]): TestResult =
+    AssertResult.failure(FailureDetails.Other(e.toString))
 }
