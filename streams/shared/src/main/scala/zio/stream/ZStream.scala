@@ -1558,7 +1558,7 @@ object ZStream extends ZStreamPlatformSpecific {
                              register(
                                k =>
                                  runtime.unsafeRunAsync_(
-                                   k.foldM[R, E, Option[A]](
+                                   k.foldM(
                                        _.fold[ZIO[R, E, Option[A]]](UIO.succeed(None))(e => IO.fail(e)),
                                        a => UIO.succeed(Some(a))
                                      )
