@@ -1464,6 +1464,8 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
    */
   final def effectAsync[R, E, A](
     register: (ZIO[R, Option[E], A] => Unit) => Unit,
@@ -1476,7 +1478,9 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback can possibly return the stream synchronously
+   * The registration of the callback can possibly return the stream synchronously.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
    */
   final def effectAsyncMaybe[R, E, A](
     register: (ZIO[R, Option[E], A] => Unit) => Option[ZStream[R, E, A]],
