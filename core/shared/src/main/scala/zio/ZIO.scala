@@ -336,8 +336,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * does not fail, but succeeds with the value returned by the left or right
    * function passed to `fold`.
    */
-  final def fold[B](err: E => B, succ: A => B): ZIO[R, Nothing, B] =
-    foldM(new ZIO.MapFn(err), new ZIO.MapFn(succ))
+  final def fold[B](failure: E => B, success: A => B): ZIO[R, Nothing, B] =
+    foldM(new ZIO.MapFn(failure), new ZIO.MapFn(success))
 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of failure except interruptions.
