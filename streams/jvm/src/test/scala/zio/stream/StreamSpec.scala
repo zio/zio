@@ -64,18 +64,18 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     effectAsync                 $effectAsync
 
   Stream.effectAsyncMaybe
-    effectAsyncMaybeEmptyStream $effectAsyncMaybeEmptyStream
-    effectAsyncMaybe Some       $effectAsyncMaybeSome
-    effectAsyncMaybe None       $effectAsyncMaybeNone
+    effectAsyncMaybe signal end stream $effectAsyncMaybeSignalEndStream
+    effectAsyncMaybe Some              $effectAsyncMaybeSome
+    effectAsyncMaybe None              $effectAsyncMaybeNone
 
   Stream.effectAsyncM
-    effectAsyncM                $effectAsyncM
-    effectAsyncMEmptyStream     $effectAsyncMEmptyStream
+    effectAsyncM                   $effectAsyncM
+    effectAsyncM signal end stream $effectAsyncMSignalEndStream
 
   Stream.effectAsyncInterrupt
-    effectAsyncInterruptEmptyStream $effectAsyncInterruptEmptyStream
-    effectAsyncInterrupt Left       $effectAsyncInterruptLeft
-    effectAsyncInterrupt Right      $effectAsyncInterruptRight
+    effectAsyncInterrupt Left              $effectAsyncInterruptLeft
+    effectAsyncInterrupt Right             $effectAsyncInterruptRight
+    effectAsyncInterrupt signal end stream $effectAsyncInterruptSignalEndStream
 
   Stream.ensuring $ensuring
 
@@ -509,7 +509,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     }
   }
 
-  private def effectAsyncMEmptyStream = unsafeRun {
+  private def effectAsyncMSignalEndStream = unsafeRun {
     for {
       result <- Stream
                  .effectAsyncM[Nothing, Int] { k =>
@@ -520,7 +520,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     } yield result must_=== List()
   }
 
-  private def effectAsyncMaybeEmptyStream = unsafeRun {
+  private def effectAsyncMaybeSignalEndStream = unsafeRun {
     for {
       result <- Stream
                  .effectAsyncMaybe[Nothing, Int] { k =>
@@ -550,17 +550,6 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       slurp(s.take(list.size)) must_=== Success(list)
     }
 
-  private def effectAsyncInterruptEmptyStream = unsafeRun {
-    for {
-      result <- Stream
-                 .effectAsyncInterrupt[Nothing, Int] { k =>
-                   k(IO.fail(None))
-                   Left(UIO.succeed(()))
-                 }
-                 .runCollect
-    } yield result must_=== List()
-  }
-
   private def effectAsyncInterruptLeft = unsafeRun {
     for {
       cancelled <- Ref.make(false)
@@ -586,6 +575,17 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
       slurp(s.take(list.size)) must_=== Success(list)
     }
+
+  private def effectAsyncInterruptSignalEndStream = unsafeRun {
+    for {
+      result <- Stream
+                 .effectAsyncInterrupt[Nothing, Int] { k =>
+                   k(IO.fail(None))
+                   Left(UIO.succeed(()))
+                 }
+                 .runCollect
+    } yield result must_=== List()
+  }
 
   private def ensuring =
     unsafeRun {
