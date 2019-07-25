@@ -128,10 +128,15 @@ private[zio] final class FiberContext[E, A](
   private[this] final def cutAncestryTrace(trace: ZTrace): ZTrace = {
     val maxExecLength  = platform.tracing.tracingConfig.ancestorExecutionTraceLength
     val maxStackLength = platform.tracing.tracingConfig.ancestorStackTraceLength
+    val maxAncestors   = platform.tracing.tracingConfig.ancestryLength - 1
 
-    trace.copy(
+    val truncatedParentTrace = ZTrace.truncatedParentTrace(trace, maxAncestors)
+
+    ZTrace(
       executionTrace = trace.executionTrace.take(maxExecLength),
-      stackTrace = trace.stackTrace.take(maxStackLength)
+      stackTrace = trace.stackTrace.take(maxStackLength),
+      parentTrace = truncatedParentTrace,
+      fiberId = trace.fiberId
     )
   }
 
