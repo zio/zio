@@ -264,7 +264,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRun {
       for {
-        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        clock <- Ref.make(TestClock.DefaultData).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
                  .throttleEnforce[Int](1, 10.milliseconds)(_ => 1)
                  .use(sinkTest)
@@ -298,7 +298,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRun {
       for {
-        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        clock <- Ref.make(TestClock.DefaultData).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
                  .throttleEnforce[Int](1, 10.milliseconds, 1)(_ => 1)
                  .use(sinkTest)
@@ -326,7 +326,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRun {
       for {
-        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        clock <- Ref.make(TestClock.DefaultData).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
                  .throttleShape[Int](1, 1.second)(_.toLong)
                  .use(sinkTest)
@@ -350,7 +350,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRun {
       for {
-        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        clock <- Ref.make(TestClock.DefaultData).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
                  .throttleShape[Int](1, 0.seconds)(_ => 100000L)
                  .use(sinkTest)
@@ -378,7 +378,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     unsafeRun {
       for {
-        clock <- Ref.make(TestClock.Zero).map(ref => new Clock { val clock = TestClock(ref) })
+        clock <- Ref.make(TestClock.DefaultData).map(ref => new Clock { val clock = TestClock(ref) })
         test <- ZSink
                  .throttleShape[Int](1, 1.second, 2)(_.toLong)
                  .use(sinkTest)
