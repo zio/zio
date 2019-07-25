@@ -187,7 +187,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
 
   /**
    * Returns a new spec that times out each test by the specified duration.
-   * This is merely implemented for convenience atop [[weave]].
+   * This is merely implemented for convenience atop [[ZSpec#weaveAll]].
    */
   final def timeout(duration: Duration): ZSpec[R with Clock, E, L] =
     weaveAll(_.timeout(duration).map {
