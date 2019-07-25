@@ -20,7 +20,6 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 import scala.language.postfixOps
-import java.util.concurrent.TimeUnit
 
 /**
  * A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
@@ -1200,7 +1199,7 @@ object ZSink extends ZSinkPlatformSpecific {
       def step(state: State, a: A) =
         for {
           weight  <- costFn(a)
-          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          current <- clock.nanoTime
           result <- state._1.modify {
                      case (tokens, timestamp) =>
                        val elapsed   = current - timestamp
@@ -1221,7 +1220,7 @@ object ZSink extends ZSinkPlatformSpecific {
     val sink = for {
       _       <- assertNonNegative(units)
       _       <- assertNonNegative(burst)
-      current <- clock.currentTime(TimeUnit.NANOSECONDS)
+      current <- clock.nanoTime
       bucket  <- Ref.make((units, current))
     } yield bucketSink(bucket)
 
@@ -1260,7 +1259,7 @@ object ZSink extends ZSinkPlatformSpecific {
       def step(state: State, a: A) =
         for {
           weight  <- costFn(a)
-          current <- clock.currentTime(TimeUnit.NANOSECONDS)
+          current <- clock.nanoTime
           delay <- state._1.modify {
                     case (tokens, timestamp) =>
                       val elapsed    = current - timestamp
@@ -1283,7 +1282,7 @@ object ZSink extends ZSinkPlatformSpecific {
     val sink = for {
       _       <- assertPositive(units)
       _       <- assertNonNegative(burst)
-      current <- clock.currentTime(TimeUnit.NANOSECONDS)
+      current <- clock.nanoTime
       bucket  <- Ref.make((units, current))
     } yield bucketSink(bucket)
 
