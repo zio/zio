@@ -1466,12 +1466,11 @@ object ZStream extends ZStreamPlatformSpecific {
    * Creates a stream from an asynchronous callback that can be called multiple times.
    */
   final def effectAsync[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Unit,
+    register: (ZIO[R, Option[E], A] => Unit) => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
+    effectAsyncMaybe(callback => {
       register(callback)
-
       None
     }, outputBuffer)
 
@@ -1480,7 +1479,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * The registration of the callback can possibly return the stream synchronously
    */
   final def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Option[ZStream[R, E, A]],
+    register: (ZIO[R, Option[E], A] => Unit) => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
@@ -1493,10 +1492,14 @@ object ZStream extends ZStreamPlatformSpecific {
                             register(
                               k =>
                                 runtime.unsafeRunAsync_(
-                                  k.foldCauseM(
-                                    cause => output.offer(Take.Fail(cause)).unit,
-                                    b => output.offer(Take.Value(b)).unit
-                                  )
+                                  k.foldM(
+                                      _.fold[ZIO[R, E, Option[A]]](UIO.succeed(None))(e => IO.fail(e)),
+                                      a => UIO.succeed(Some(a))
+                                    )
+                                    .foldCauseM(
+                                      cause => output.offer(Take.Fail(cause)).unit,
+                                      _.fold(output.offer(Take.End).unit)(a => output.offer(Take.Value(a)).unit)
+                                    )
                                 )
                             )
                           ).toManaged_

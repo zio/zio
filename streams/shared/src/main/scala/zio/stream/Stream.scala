@@ -61,7 +61,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsync]]
    */
   final def effectAsync[E, A](
-    register: (IO[E, A] => Unit) => Unit,
+    register: (IO[Option[E], A] => Unit) => Unit,
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsync(register, outputBuffer)
@@ -70,7 +70,7 @@ object Stream extends ZStreamPlatformSpecific {
    * See [[ZStream.effectAsyncMaybe]]
    */
   final def effectAsyncMaybe[E, A](
-    register: (IO[E, A] => Unit) => Option[Stream[E, A]],
+    register: (IO[Option[E], A] => Unit) => Option[Stream[E, A]],
     outputBuffer: Int = 16
   ): Stream[E, A] =
     ZStream.effectAsyncMaybe(register, outputBuffer)

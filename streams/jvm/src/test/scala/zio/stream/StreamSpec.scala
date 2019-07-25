@@ -64,6 +64,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     effectAsync                 $effectAsync
 
   Stream.effectAsyncMaybe
+    effectAsyncMaybeEmptyStream $effectAsyncMaybeEmptyStream
     effectAsyncMaybe Some       $effectAsyncMaybeSome
     effectAsyncMaybe None       $effectAsyncMaybeNone
 
@@ -514,6 +515,17 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
                  .effectAsyncM[Nothing, Int] { k =>
                    k(IO.fail(None))
                    UIO.succeed(())
+                 }
+                 .runCollect
+    } yield result must_=== List()
+  }
+
+  private def effectAsyncMaybeEmptyStream = unsafeRun {
+    for {
+      result <- Stream
+                 .effectAsyncMaybe[Nothing, Int] { k =>
+                   k(IO.fail(None))
+                   None
                  }
                  .runCollect
     } yield result must_=== List()
