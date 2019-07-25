@@ -340,6 +340,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     foldM(new ZIO.MapFn(err), new ZIO.MapFn(succ))
 
   /**
+   * A more powerful version of `fold` that allows recovering from any kind of failure except interruptions.
+   */
+  final def foldCause[B](failure: Cause[E] => B, success: A => B): ZIO[R, Nothing, B] =
+    foldCauseM(new ZIO.MapFn(failure), new ZIO.MapFn(success))
+
+  /**
    * A more powerful version of `foldM` that allows recovering from any kind of failure except interruptions.
    */
   def foldCauseM[R1 <: R, E2, B](failure: Cause[E] => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
