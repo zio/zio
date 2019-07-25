@@ -6,7 +6,7 @@ import scala.{ Stream => _ }
 import zio._
 import zio.clock.Clock
 import zio.duration._
-import zio.testkit.TestClock
+import zio.test.mock.TestClock
 import java.util.concurrent.TimeUnit
 
 class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)

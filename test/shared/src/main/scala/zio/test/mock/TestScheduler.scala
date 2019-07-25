@@ -1,4 +1,4 @@
-package zio.testkit
+package zio.test.mock
 
 import zio._
 import zio.clock._
@@ -6,7 +6,7 @@ import zio.duration.{ Duration, _ }
 import zio.internal.Scheduler.CancelToken
 import zio.internal.{ Scheduler => IScheduler }
 import zio.scheduler.Scheduler
-import zio.testkit.TestScheduler._
+import zio.test.mock.TestScheduler._
 
 /**
  * Implementation of Scheduler.Service for testing. The passed Ref[TestClock.Data] will be used to determine when

@@ -1,6 +1,6 @@
-package zio.testkit
+package zio.test.mock
 
-import zio.testkit.TestSystem.Data
+import zio.test.mock.TestSystem.Data
 import zio.{ IO, Ref, TestRuntime }
 
 class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {

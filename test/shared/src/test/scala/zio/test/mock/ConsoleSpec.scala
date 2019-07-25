@@ -1,10 +1,10 @@
-package zio.testkit
+package zio.test.mock
 
 import java.io.{ ByteArrayOutputStream, PrintStream }
 
 import zio._
 import zio.TestRuntime
-import zio.testkit.TestConsole.Data
+import zio.test.mock.TestConsole.Data
 
 class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
