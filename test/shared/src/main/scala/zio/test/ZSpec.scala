@@ -32,21 +32,6 @@ sealed trait ZSpec[-R, +E, +L] { self =>
     ZSpec.Concat(self, Vector(that))
 
   /**
-   * Returns a new spec that decorates every test with the specified transformation function.
-   */
-  final def around[R1 <: R, E1 >: E](
-    managed: ZManaged[R1, E1, TestResult => ZIO[R1, E1, TestResult]]
-  ): ZSpec[R1, E1, L] = {
-    def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
-      case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
-      case ZSpec.Test(label, assert) => ZSpec.Test(label, managed.use(f => assert.flatMap(f)))
-      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
-    }
-
-    loop(self)
-  }
-
-  /**
    * Returns a new spec with the suite labels distinguished by `Left`, and the
    * test labels distinguished by `Right`.
    */
@@ -102,19 +87,6 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   }
 
   /**
-   * Returns a new spec with a remapped error type.
-   */
-  final def mapError[E1](f: E => E1): ZSpec[R, E1, L] = {
-    def loop(spec: ZSpec[R, E, L]): ZSpec[R, E1, L] = spec match {
-      case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
-      case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.mapError(f))
-      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
-    }
-
-    loop(self)
-  }
-
-  /**
    * Returns a new spec with a remapped label type.
    */
   final def map[L1](f: L => L1): ZSpec[R, E, L1] = {
@@ -164,43 +136,54 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   }
 
   /**
-   * Provides a spec with the value it requires, eliminating its requirement.
+   * Returns a new spec with a remapped error type.
    */
-  final def provide(r: R): ZSpec[Any, E, L] = {
-    def loop(spec: ZSpec[R, E, L]): ZSpec[Any, E, L] = spec match {
+  final def mapError[E1](f: E => E1): ZSpec[R, E1, L] = mapTest(_.mapError(f))
+
+  /**
+   * Returns a new spec with remapped tests.
+   */
+  final def mapTest[R1, E1](f: ZIO[R, E, TestResult] => ZIO[R1, E1, TestResult]): ZSpec[R1, E1, L] = {
+    def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
-      case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.provide(r))
+      case ZSpec.Test(label, assert) => ZSpec.Test(label, f(assert))
       case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
     loop(self)
   }
+
+  /**
+   * Returns a new spec with effectfully remapped tests.
+   */
+  final def mapTestM[R1 <: R, E1 >: E, R2, E2](
+    f: ZIO[R, E, TestResult] => ZIO[R2, E2, ZIO[R1, E1, TestResult]]
+  ): ZIO[R2, E2, ZSpec[R1, E1, L]] = {
+    def loop(spec: ZSpec[R, E, L]): ZIO[R2, E2, ZSpec[R1, E1, L]] = spec match {
+      case ZSpec.Suite(label, specs) => ZIO.foreach(specs)(loop).map(specs => ZSpec.Suite(label, specs.toVector))
+      case ZSpec.Test(label, assert) => f(assert).map(assert => ZSpec.Test(label, assert))
+      case ZSpec.Concat(head, tail) =>
+        loop(head).zipWith(ZIO.foreach(tail)(loop))((head, tail) => ZSpec.Concat(head, tail.toVector))
+    }
+
+    loop(self)
+  }
+
+  /**
+   * Provides a spec with the value it requires, eliminating its requirement.
+   */
+  final def provide(r: R): ZSpec[Any, E, L] = mapTest(_.provide(r))
 
   /**
    * Provides each test with its own managed resource, eliminating their requirements.
    */
-  final def provideManaged[E1 >: E](managed: Managed[E1, R]): ZSpec[Any, E1, L] = {
-    def loop(spec: ZSpec[R, E, L]): ZSpec[Any, E1, L] = spec match {
-      case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
-      case ZSpec.Test(label, assert) => ZSpec.Test(label, managed.use(r => assert.provide(r)))
-      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
-    }
-
-    loop(self)
-  }
+  final def provideManaged[E1 >: E](managed: Managed[E1, R]): ZSpec[Any, E1, L] =
+    mapTest(test => managed.use(test.provide(_)))
 
   /**
    * Provides a spec with part of the value it requires, eliminating its requirement.
    */
-  final def provideSome[R1](f: R1 => R): ZSpec[R1, E, L] = {
-    def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E, L] = spec match {
-      case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
-      case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.provideSome(f))
-      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
-    }
-
-    loop(self)
-  }
+  final def provideSome[R1](f: R1 => R): ZSpec[R1, E, L] = mapTest(_.provideSome(f))
 
   /**
    * Returns a new spec that effectfully maps every assert result.
@@ -210,15 +193,8 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   /**
    * Returns a new spec that effectfully maps every assert result.
    */
-  final def reassertM[R1 <: R, E1 >: E](f: TestResult => ZIO[R1, E1, TestResult]): ZSpec[R1, E1, L] = {
-    def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
-      case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
-      case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.flatMap(f))
-      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
-    }
-
-    loop(self)
-  }
+  final def reassertM[R1 <: R, E1 >: E](f: TestResult => ZIO[R1, E1, TestResult]): ZSpec[R1, E1, L] =
+    mapTest(test => test.flatMap(f))
 
   /**
    * Returns the size of the spec, which is the number of tests that it contains.
@@ -238,9 +214,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
    * label and the index of the label in the tree.
    */
   final def zipWithIndex: ZSpec[R, E, (L, Int)] =
-    mapAccum(0) {
-      case (index, label) => (index + 1, label -> index)
-    }
+    mapAccum(0) { case (index, label) => (index + 1, label -> index) }
 }
 object ZSpec {
   implicit class ZSpecInvariantSyntax[R, E, L](self: ZSpec[R, E, L]) {

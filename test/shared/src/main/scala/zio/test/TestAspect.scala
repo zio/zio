@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ ZIO, ZSchedule }
+import zio.{ ZIO, ZManaged, ZSchedule }
 import zio.duration.Duration
 import zio.clock.Clock
 
@@ -47,12 +47,39 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
 object TestAspect {
 
   /**
+   * Constructs an aspect that runs the specified effect after every test.
+   */
+  def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+        test <* effect
+    }
+
+  /**
+   * Constructs an aspect that evaluates every test inside the context of the managed function.
+   */
+  def around[R0, E0](managed: ZManaged[R0, E0, TestResult => ZIO[R0, E0, TestResult]]) =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+        managed.use(f => test.flatMap(f))
+    }
+
+  /**
    * Constucts a simple monomorphic aspect that only works with the specified
    * environment and error type.
    */
   def aspect[R0, E0](f: ZIO[R0, E0, TestResult] => ZIO[R0, E0, TestResult]): TestAspect[R0, R0, E0, E0] =
     new TestAspect[R0, R0, E0, E0] {
       def apply[R >: R0 <: R0, E >: E0 <: E0](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] = f(test)
+    }
+
+  /**
+   * Constructs an aspect that runs the specified effect before every test.
+   */
+  def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+        effect *> test
     }
 
   /**
