@@ -39,6 +39,10 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
       def apply[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         that(self(test))
     }
+
+  final def andThen[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
+    that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
+  ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] = self >>> that
 }
 object TestAspect {
 
@@ -49,6 +53,19 @@ object TestAspect {
   def aspect[R0, E0](f: ZIO[R0, E0, TestResult] => ZIO[R0, E0, TestResult]): TestAspect[R0, R0, E0, E0] =
     new TestAspect[R0, R0, E0, E0] {
       def apply[R >: R0 <: R0, E >: E0 <: E0](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] = f(test)
+    }
+
+  /**
+   * An aspect that retries a test until success, without limit.
+   */
+  val eventually: TestAspectPoly =
+    new TestAspectPoly {
+      def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, Nothing, TestResult] = {
+        lazy val untilSuccess: ZIO[R, Nothing, TestResult] =
+          test.foldM(_ => untilSuccess, ZIO.succeed(_))
+
+        untilSuccess
+      }
     }
 
   /**

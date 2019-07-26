@@ -22,5 +22,5 @@ import zio.DefaultRuntime
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
  */
-abstract class DefaultRunnableSpec[E](spec: => ZSpec[DefaultRuntime#Environment, Any, String])
+abstract class DefaultRunnableSpec(spec: => ZSpec[DefaultRuntime#Environment, Any, String])
     extends RunnableSpec(DefaultRunner)(spec)

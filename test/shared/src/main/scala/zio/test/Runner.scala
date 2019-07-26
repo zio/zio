@@ -25,7 +25,7 @@ import zio.internal.{ Platform, PlatformLive }
  * type `L`. Runners have main functions, so if they are extended from
  * (non-abstract) classes, they can be run by the JVM / Scala.js.
  */
-abstract class Runner[R, E, L](
+abstract class Runner[+R, E, L](
   environment: Managed[E, R],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
   reporter: Reporter[L] = ???

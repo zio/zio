@@ -29,8 +29,8 @@ package zio
  *  import zio.test._
  *  import zio.clock._
  *
- *  class MyTest extends ZIOTestDefault[Throwable] {
- *    val tests = suite("clock") {
+ *  class MyTest extends DefaultRunnableSpec {
+ *    suite("clock") {
  *      testM("time is non-zero") {
  *        nanoTime.map(time => assert(time > 0, Predicate.isTrue))
  *      }
