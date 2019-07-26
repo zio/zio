@@ -2231,15 +2231,25 @@ private[zio] trait ZIOFunctions extends Serializable {
    * The moral equivalent of `if (p) exp`
    */
   final def when[R, E](b: Boolean)(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
-    if (b)
-      zio.const(())
-    else unit
+    if (b) zio.unit else unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    pf.applyOrElse(a, (_: A) => unit).unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
+   */
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    a.flatMap(whenCase(_)(pf))
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   final def whenM[R, E](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) zio.const(()) else unit)
+    b.flatMap(b => if (b) zio.unit else unit)
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh
