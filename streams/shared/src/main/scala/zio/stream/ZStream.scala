@@ -1125,17 +1125,17 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                     )
                   }
                   .foldCauseM(
-                    c => ZManaged.fromEffect(result.done(IO.halt(c)).unit *> ZIO.halt(c)),
+                    c => ZManaged.fromEffect(result.completeWith(IO.halt(c)).unit *> ZIO.halt(c)),
                     ZManaged.succeed(_)
                   )
                   .fork
         _ <- fiber.await.flatMap {
               case Exit.Success(Left(_)) =>
-                done.done(
+                done.completeWith(
                   IO.die(new Exception("Logic error: Stream.peel's inner stream ended with a Left"))
                 )
               case Exit.Success(Right((rstate, _, _))) => done.succeed(rstate)
-              case Exit.Failure(c)                     => done.done(IO.halt(c))
+              case Exit.Failure(c)                     => done.completeWith(IO.halt(c))
             }.fork.unit.toManaged_
       } yield (fiber, result)
 
