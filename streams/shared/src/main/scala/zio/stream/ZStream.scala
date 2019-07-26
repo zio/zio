@@ -1496,14 +1496,14 @@ object ZStream extends ZStreamPlatformSpecific {
                             register(
                               k =>
                                 runtime.unsafeRunAsync_(
-                                  k.foldM(
-                                      _.fold[ZIO[R, E, Option[A]]](UIO.succeed(None))(e => IO.fail(e)),
-                                      a => UIO.succeed(Some(a))
-                                    )
-                                    .foldCauseM(
-                                      cause => output.offer(Take.Fail(cause)).unit,
-                                      _.fold(output.offer(Take.End).unit)(a => output.offer(Take.Value(a)).unit)
-                                    )
+                                  k.foldCauseM(
+                                    _.failureOrCause match {
+                                      case Left(None)    => output.offer(Take.End).unit
+                                      case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                                      case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                                    },
+                                    a => output.offer(Take.Value(a)).unit
+                                  )
                                 )
                             )
                           ).toManaged_
@@ -1535,14 +1535,14 @@ object ZStream extends ZStreamPlatformSpecific {
             _ <- register(
                   k =>
                     runtime.unsafeRunAsync_(
-                      k.foldM(
-                          _.fold[ZIO[R, E, Option[A]]](UIO.succeed(None))(e => IO.fail(e)),
-                          a => UIO.succeed(Some(a))
-                        )
-                        .foldCauseM(
-                          cause => output.offer(Take.Fail(cause)).unit,
-                          _.fold(output.offer(Take.End).unit)(a => output.offer(Take.Value(a)).unit)
-                        )
+                      k.foldCauseM(
+                        _.failureOrCause match {
+                          case Left(None)    => output.offer(Take.End).unit
+                          case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                          case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                        },
+                        a => output.offer(Take.Value(a)).unit
+                      )
                     )
                 ).toManaged_
             s <- ZStream.fromQueue(output).unTake.fold[R1, E1, A1, S].flatMap(fold => fold(s, cont, g))
@@ -1570,14 +1570,14 @@ object ZStream extends ZStreamPlatformSpecific {
                              register(
                                k =>
                                  runtime.unsafeRunAsync_(
-                                   k.foldM(
-                                       _.fold[ZIO[R, E, Option[A]]](UIO.succeed(None))(e => IO.fail(e)),
-                                       a => UIO.succeed(Some(a))
-                                     )
-                                     .foldCauseM(
-                                       cause => output.offer(Take.Fail(cause)).unit,
-                                       _.fold(output.offer(Take.End).unit)(a => output.offer(Take.Value(a)).unit)
-                                     )
+                                   k.foldCauseM(
+                                     _.failureOrCause match {
+                                       case Left(None)    => output.offer(Take.End).unit
+                                       case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                                       case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                                     },
+                                     a => output.offer(Take.Value(a)).unit
+                                   )
                                  )
                              )
                            }.toManaged_
