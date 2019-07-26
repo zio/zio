@@ -17,7 +17,6 @@
 package zio.test
 
 import zio.Exit
-import scala.reflect.ClassTag
 
 /**
  * A `Predicate[A]` is capable of producing assertion results on an `A`. As a
