@@ -27,12 +27,13 @@ package zio
  *
  * {{{
  *  import zio.test._
- *  import zio.clock._
+ *  import zio.clock.nanoTime
+ *  import Predicate.gt
  *
- *  class MyTest extends DefaultRunnableSpec {
+ *  object MyTest extends DefaultRunnableSpec {
  *    suite("clock") {
  *      testM("time is non-zero") {
- *        nanoTime.map(time => assert(time > 0, Predicate.isTrue))
+ *        assertM(nanoTime, gt(0))
  *      }
  *    }
  *  }
@@ -58,18 +59,36 @@ package object test {
   /**
    * Asserts the given value satisfies the given predicate.
    */
-  final def assert[A](value: => A, predicate: Predicate[A]): TestResult =
-    predicate.run(value).map(fragment => FailureDetails.Predicate(fragment, PredicateValue(predicate, value)))
+  final def assert[A](value: A, predicate: Predicate[A]): TestResult =
+    predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
+
+  /**
+   * Asserts the given effectfully-computed value satisfies the given predicate.
+   */
+  final def assertM[R, A](value: ZIO[R, Nothing, A], predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+    value.map(assert(_, predicate))
 
   /**
    * Asserts the boolean value is false.
    */
-  final def assertFalse(value: => Boolean): TestResult = assert(value, Predicate.isFalse)
+  final def assertFalse(value: Boolean): TestResult = assert(value, Predicate.isFalse)
+
+  /**
+   * Asserts the effectfully-computed boolean value is false.
+   */
+  final def assertFalseM[R](value: ZIO[R, Nothing, Boolean]): ZIO[R, Nothing, TestResult] =
+    assertM(value, Predicate.isFalse)
 
   /**
    * Asserts the boolean value is true.
    */
-  final def assertTrue(value: => Boolean): TestResult = assert(value, Predicate.isTrue)
+  final def assertTrue(value: Boolean): TestResult = assert(value, Predicate.isTrue)
+
+  /**
+   * Asserts the effectfully-computed boolean value is true.
+   */
+  final def assertTrueM[R](value: ZIO[R, Nothing, Boolean]): ZIO[R, Nothing, TestResult] =
+    assertM(value, Predicate.isFalse)
 
   /**
    * Builds a suite containing a number of other specs.

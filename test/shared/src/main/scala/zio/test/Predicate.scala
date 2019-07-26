@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.Exit
+import scala.reflect.ClassTag
 
 /**
  * A `Predicate[A]` is capable of producing assertion results on an `A`. As a
@@ -164,6 +165,22 @@ object Predicate {
     Predicate.predicate(s"gte(${reference})") { actual =>
       if (implicitly[Numeric[A]].compare(reference, actual) >= 0) AssertResult.successUnit
       else AssertResult.failureUnit
+    }
+
+  /**
+   * Makes a new predicate that requires the sum type be a specified term.
+   *
+   * {{{
+   * isCase("Some", Some.unapply, anything)
+   * }}}
+   */
+  final def isCase[Sum, Proj](
+    termName: String,
+    term: Sum => Option[Proj],
+    predicate: Predicate[Proj]
+  ): Predicate[Sum] =
+    Predicate.predicateRec[Sum](s"isCase(${termName}(${predicate}))") { (self, actual) =>
+      term(actual).fold(AssertResult.failure(PredicateValue(self, actual)))(predicate)
     }
 
   /**
