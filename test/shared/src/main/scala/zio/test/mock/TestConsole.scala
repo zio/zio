@@ -23,41 +23,47 @@ import zio.console._
 import zio._
 import TestConsole.Data
 
-case class TestConsole(private val ref: Ref[TestConsole.Data]) extends Console.Service[Any] {
+case class TestConsole(consoleState: Ref[TestConsole.Data]) extends Console.Service[Any] {
 
   override def putStr(line: String): UIO[Unit] =
-    ref.update { data =>
+    consoleState.update { data =>
       Data(data.input, data.output :+ line)
     }.unit
 
   override def putStrLn(line: String): ZIO[Any, Nothing, Unit] =
-    ref.update { data =>
+    consoleState.update { data =>
       Data(data.input, data.output :+ s"$line\n")
     }.unit
 
   val getStrLn: ZIO[Any, IOException, String] = {
     for {
-      input <- ref.get.flatMap(
+      input <- consoleState.get.flatMap(
                 d =>
                   IO.fromOption(d.input.headOption)
                     .mapError(_ => new EOFException("There is no more input left to read"))
               )
-      _ <- ref.update { data =>
+      _ <- consoleState.update { data =>
             Data(data.input.tail, data.output)
           }
     } yield input
   }
 
-  def feedLine(line: String): UIO[Unit] =
-    ref.update(data => data.copy(input = line :: data.input)).unit
+  def feedLines(lines: String*): UIO[Unit] =
+    consoleState.update(data => data.copy(input = lines.toList ::: data.input)).unit
 
   val output: UIO[Vector[String]] =
-    ref.get.map(_.output)
+    consoleState.get.map(_.output)
+
+  val clearInput: UIO[Unit] =
+    consoleState.update(data => data.copy(input = List.empty)).unit
+
+  val clearOutput: UIO[Unit] =
+    consoleState.update(data => data.copy(output = Vector.empty)).unit
 }
 
 object TestConsole {
 
-  def apply(data: Data): UIO[TestConsole] =
+  def make(data: Data): UIO[TestConsole] =
     Ref.make(data).map(TestConsole(_))
 
   val DefaultData: Data = Data(Nil, Vector())
