@@ -70,7 +70,7 @@ object TestAspect {
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it
-   * is stable ("non-flaky").
+   * is stable ("non-flaky"). Stops at the first failure.
    */
   def nonFlaky(n0: Int): TestAspectPoly =
     new TestAspectPoly {
@@ -79,8 +79,8 @@ object TestAspect {
           if (n <= 1) test
           else
             test.flatMap { result =>
-              if (result.success) ZIO.succeed(result)
-              else repeat(n - 1)
+              if (result.success) repeat(n - 1)
+              else ZIO.succeed(result)
             }
 
         repeat(n0)
