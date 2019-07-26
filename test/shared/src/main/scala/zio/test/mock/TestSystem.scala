@@ -3,7 +3,7 @@ package zio.test.mock
 import zio.{ Ref, UIO, ZIO }
 import zio.system.System
 
-case class TestSystem(ref: Ref[TestSystem.Data]) extends System.Service[Any] {
+case class TestSystem(private val ref: Ref[TestSystem.Data]) extends System.Service[Any] {
 
   override def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
     ref.get.map(_.envs.get(variable))
@@ -13,6 +13,15 @@ case class TestSystem(ref: Ref[TestSystem.Data]) extends System.Service[Any] {
 
   override val lineSeparator: ZIO[Any, Nothing, String] =
     ref.get.map(_.lineSeparator)
+
+  def putEnv(name: String, value: String): UIO[Unit] =
+    ref.update(data => data.copy(envs = data.envs.updated(name, value))).unit
+
+  def putProperty(name: String, value: String): UIO[Unit] =
+    ref.update(data => data.copy(properties = data.properties.updated(name, value))).unit
+
+  def setLineSeperator(lineSep: String): UIO[Unit] =
+    ref.update(_.copy(lineSeparator = lineSep)).unit
 }
 
 object TestSystem {

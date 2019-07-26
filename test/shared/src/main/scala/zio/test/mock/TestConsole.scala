@@ -23,7 +23,8 @@ import zio.console._
 import zio._
 import TestConsole.Data
 
-case class TestConsole(ref: Ref[TestConsole.Data]) extends Console.Service[Any] {
+case class TestConsole(private val ref: Ref[TestConsole.Data]) extends Console.Service[Any] {
+
   override def putStr(line: String): UIO[Unit] =
     ref.update { data =>
       Data(data.input, data.output :+ line)
@@ -46,8 +47,18 @@ case class TestConsole(ref: Ref[TestConsole.Data]) extends Console.Service[Any] 
           }
     } yield input
   }
+
+  def feedLine(line: String): UIO[Unit] =
+    ref.update(data => data.copy(input = line :: data.input)).unit
+
+  def output: UIO[Vector[String]] =
+    ref.get.map(_.output)
 }
 
 object TestConsole {
+
+  def apply(data: Data): UIO[TestConsole] =
+    Ref.make(data).map(TestConsole(_))
+
   case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
 }

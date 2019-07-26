@@ -20,7 +20,7 @@ import zio._
 import zio.random.Random
 import zio.test.mock.TestRandom.Data
 
-final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[Any] {
+final case class TestRandom(private val ref: Ref[TestRandom.Data]) extends Random.Service[Any] {
 
   val nextBoolean: UIO[Boolean] = nextRandom(shiftBooleans)
 
@@ -43,6 +43,30 @@ final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[An
   def nextString(length: Int): UIO[String] = nextRandom(shiftStrings(length))
 
   def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
+
+  def feedInt(int: Int): UIO[Unit] =
+    ref.update(data => data.copy(integers = int :: data.integers)).unit
+
+  def feedBoolean(boolean: Boolean): UIO[Unit] =
+    ref.update(data => data.copy(booleans = boolean :: data.booleans)).unit
+
+  def feedDouble(double: Double): UIO[Unit] =
+    ref.update(data => data.copy(doubles = double :: data.doubles)).unit
+
+  def feedFloat(float: Float): UIO[Unit] =
+    ref.update(data => data.copy(floats = float :: data.floats)).unit
+
+  def feedLong(long: Long): UIO[Unit] =
+    ref.update(data => data.copy(longs = long :: data.longs)).unit
+
+  def feedChar(char: Char): UIO[Unit] =
+    ref.update(data => data.copy(chars = char :: data.chars)).unit
+
+  def feedString(string: String): UIO[Unit] =
+    ref.update(data => data.copy(strings = string :: data.strings)).unit
+
+  def feedBytes(bytes: Chunk[Byte]): UIO[Unit] =
+    ref.update(data => data.copy(bytes = bytes :: data.bytes)).unit
 
   private def nextRandom[T](shift: Data => (T, Data)) =
     for {
@@ -91,6 +115,9 @@ final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[An
 }
 
 object TestRandom {
+
+  def apply(data: Data): UIO[TestRandom] =
+    Ref.make(data).map(TestRandom(_))
 
   val defaultInteger = 1
   val randomIntegers = defaultInteger :: 2 :: 3 :: 4 :: 5 :: Nil

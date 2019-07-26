@@ -12,17 +12,20 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         empty         $nextIntWithEmptyData
         default       $nextIntWithDefault
         sequence      $nextIntWithSequence
+        feed          $nextIntWithFeed
         respect limit $nextIntWithLimit
       Returns next boolean when data is:
         single value $nextBooleanWithSingleValue
         empty        $nextBooleanWithEmptyData
         default      $nextBooleanWithDefault
         sequence     $nextBooleanWithSequence
+        feed         $nextBooleanWithFeed
       Returns next double when data is:
         single value $nextDoubleWithSingleValue
         empty        $nextDoubleWithEmptyData
         default      $nextDoubleWithDefault
         sequence     $nextDoubleWithSequence
+        feed         $nextDoubleWithFeed
       Returns next Gaussian:
         same as double $nextGaussian
       Returns next float when data is:
@@ -30,21 +33,25 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         empty        $nextFloatWithEmptyData
         default      $nextFloatWithDefault
         sequence     $nextFloatWithSequence
+        feed         $nextFloatWithFeed
       Returns next long when data is:
         single value $nextLongWithSingleValue
         empty        $nextLongWithEmptyData
         default      $nextLongWithDefault
         sequence     $nextLongWithSequence
+        feed         $nextLongWithFeed
       Returns next char when data is:
         single value $nextCharWithSingleValue
         empty        $nextCharWithEmptyData
         default      $nextCharWithDefault
         sequence     $nextCharWithSequence
+        feed         $nextCharWithFeed
       Returns next string when data is:
         single value                                      $nextStringWithSingleValue
         empty                                             $nextStringWithEmptyData
         default                                           $nextStringWithDefault
         sequence                                          $nextStringWithSequence
+        feed                                              $nextStringWithFeed
         single value - respect length                     $nextStringWithLength
         single value - length > length of the next string $nextStringLengthIsOver
       Returns next bytes when data is:
@@ -52,6 +59,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         empty                                             $nextBytesWithEmptyData
         default                                           $nextBytesWithDefault
         sequence                                          $nextBytesWithSequence
+        feed                                              $nextBytesWithFeed
         single value - length < number of bytes           $nextBytesWithLength
         single value - length > length of the next array  $nextBytesLengthIsOver
 
@@ -77,8 +85,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextIntWithLimit =
     unsafeRun(
       for {
-        ref        <- Ref.make(Data(integers = List(5, 6, 7)))
-        testRandom <- IO.succeed(TestRandom(ref))
+        testRandom <- TestRandom(Data(integers = List(5, 6, 7)))
         next1      <- testRandom.nextInt(2)
         next2      <- testRandom.nextInt(6)
         next3      <- testRandom.nextInt(99)
@@ -94,6 +101,9 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextIntWithSequence =
     checkWith(Data(integers = List(1, 2, 3)), List(1, 2, 3, 1, 2))(_.nextInt)
 
+  def nextIntWithFeed =
+    checkFeed(_.feedInt, 6)(_.nextInt)
+
   def nextBooleanWithEmptyData =
     checkWith(Data(booleans = Nil), List(TestRandom.defaultBoolean))(_.nextBoolean)
 
@@ -106,6 +116,9 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextBooleanWithSequence =
     checkWith(Data(booleans = List(true, true, false)), List(true, true, false, true, true))(_.nextBoolean)
 
+  def nextBooleanWithFeed =
+    checkFeed(_.feedBoolean, false)(_.nextBoolean)
+
   def nextDoubleWithEmptyData =
     checkWith(Data(doubles = Nil), List(TestRandom.defaultDouble))(_.nextDouble)
 
@@ -117,6 +130,9 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def nextDoubleWithSequence =
     checkWith(Data(doubles = List(0.1d, 0.2d, 0.3d)), List(0.1d, 0.2d, 0.3d, 0.1d, 0.2d))(_.nextDouble)
+
+  def nextDoubleWithFeed =
+    checkFeed(_.feedDouble, 0.6d)(_.nextDouble)
 
   def nextGaussian =
     checkWith(Data(doubles = List(0.1, 0.2)), List(0.1, 0.2, 0.1))(_.nextGaussian)
@@ -133,6 +149,9 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextFloatWithSequence =
     checkWith(Data(floats = List(0.1f, 0.2f, 0.3f)), List(0.1f, 0.2f, 0.3f, 0.1f, 0.2f))(_.nextFloat)
 
+  def nextFloatWithFeed =
+    checkFeed(_.feedFloat, 0.6f)(_.nextFloat)
+
   def nextLongWithEmptyData =
     checkWith(Data(longs = Nil), List(TestRandom.defaultLong))(_.nextLong)
 
@@ -145,6 +164,9 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextLongWithSequence =
     checkWith(Data(longs = List(1L, 2L, 3L)), List(1L, 2L, 3L, 1L, 2L))(_.nextLong)
 
+  def nextLongWithFeed =
+    checkFeed(_.feedLong, 6L)(_.nextLong)
+
   def nextCharWithEmptyData =
     checkWith(Data(chars = Nil), List(TestRandom.defaultChar))(_.nextPrintableChar)
 
@@ -156,6 +178,9 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def nextCharWithSequence =
     checkWith(Data(chars = List('a', 'b', 'c')), List('a', 'b', 'c', 'a', 'b'))(_.nextPrintableChar)
+
+  def nextCharWithFeed =
+    checkFeed(_.feedChar, 'f')(_.nextPrintableChar)
 
   def nextStringWithEmptyData =
     checkWith(Data(strings = Nil), List(TestRandom.defaultString))(_.nextString(1))
@@ -174,6 +199,9 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def nextStringWithSequence =
     checkWith(Data(strings = List("a", "b", "c")), List("a", "b", "c", "a", "b"))(_.nextString(1))
+
+  def nextStringWithFeed =
+    checkFeed(_.feedString, "f")(_.nextString(1))
 
   def nextBytesWithEmptyData =
     checkWith(Data(bytes = Nil), List(TestRandom.defaultBytes))(_.nextBytes(1))
@@ -195,11 +223,13 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       _.nextBytes(1)
     )
 
+  def nextBytesWithFeed =
+    checkFeed(_.feedBytes, Chunk(6.toByte))(_.nextBytes(1))
+
   def checkWith[A](data: Data, expected: List[A])(f: Random.Service[Any] => UIO[A]) =
     unsafeRun(
       for {
-        ref           <- Ref.make(data)
-        testRandom    <- IO.succeed(TestRandom(ref))
+        testRandom    <- TestRandom(data)
         randomResults <- IO.foreach(1 to expected.length)(_ => f(testRandom))
       } yield randomResults must_=== expected
     )
@@ -234,8 +264,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
     unsafeRun(
       for {
-        ref        <- Ref.make(Data(integers = identitySwapIndexes))
-        testRandom <- IO.succeed(TestRandom(ref))
+        testRandom <- TestRandom(Data(integers = identitySwapIndexes))
         shuffled   <- testRandom.shuffle(input)
       } yield shuffled must_=== input
     )
@@ -250,10 +279,18 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
     unsafeRun(
       for {
-        ref        <- Ref.make(Data(integers = reverseSwapIndexes))
-        testRandom <- IO.succeed(TestRandom(ref))
+        testRandom <- TestRandom(Data(integers = reverseSwapIndexes))
         shuffled   <- testRandom.shuffle(input)
       } yield shuffled must_=== input.reverse
     )
   }
+
+  def checkFeed[A](feed: TestRandom => A => UIO[Unit], expected: A)(f: Random.Service[Any] => UIO[A]) =
+    unsafeRun(
+      for {
+        testRandom <- TestRandom(Data())
+        _          <- feed(testRandom)(expected)
+        result     <- f(testRandom)
+      } yield result must_=== expected
+    )
 }
