@@ -718,7 +718,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                   )
                   // This finalizer makes sure that in all cases, the driver stops spawning new streams
                   // and the inner fibers are signalled to interrupt and actually exit.
-                  .ensuring(interruptInners.succeed(()) *> permits.withPermits(n)(ZIO.unit))
+                  .ensuringFirst(interruptInners.succeed(()) *> permits.withPermits(n)(ZIO.unit))
                   .fork
             s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
@@ -778,7 +778,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                         )
                         .toManaged_
                   )
-                  .ensuring(interruptInners.succeed(()) *> permits.withPermits(n.toLong)(UIO.unit))
+                  .ensuringFirst(interruptInners.succeed(()) *> permits.withPermits(n.toLong)(UIO.unit))
                   .fork
             s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
