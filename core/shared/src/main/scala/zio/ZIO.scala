@@ -1548,8 +1548,8 @@ private[zio] trait ZIOFunctions extends Serializable {
    * Unlike `collectAllSuccessesPar`, this method will use at most up to `n` fibers.
    */
   final def collectAllSuccessesParN[R, E, A](
-                                              n: Long
-                                            )(in: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, List[A]] =
+    n: Long
+  )(in: Iterable[ZIO[R, E, A]]): ZIO[R, Nothing, List[A]] =
     collectAllWithParN[R, Nothing, Exit[E, A], A](n)(in.map(_.run)) { case zio.Exit.Success(a) => a }
 
   /**
