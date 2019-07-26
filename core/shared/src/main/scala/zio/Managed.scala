@@ -306,6 +306,18 @@ object Managed {
     ZManaged.when(b)(managed)
 
   /**
+   * See [[zio.ZManaged.whenCase]]
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+    ZManaged.whenCase(a)(pf)
+
+  /**
+   * See [[zio.ZManaged.whenCaseM]]
+   */
+  final def whenCaseM[R, E, A](a: ZManaged[R, E, A])(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+    ZManaged.whenCaseM(a)(pf)
+
+  /**
    * See [[zio.ZManaged.whenM]]
    */
   final def whenM[E](b: Managed[E, Boolean])(managed: Managed[E, _]): Managed[E, Unit] =
