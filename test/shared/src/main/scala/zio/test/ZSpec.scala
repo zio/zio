@@ -220,15 +220,15 @@ object ZSpec {
   implicit class ZSpecInvariantSyntax[R, E, L](self: ZSpec[R, E, L]) {
 
     /**
-     * Returns a new spec with the specified aspect woven into all tests.
+     * Returns a new spec with the specified aspect used for all tests.
      */
-    final def weave[R1 >: R, R2 <: R, E1 <: E, E2 >: E](aspect: TestAspect[R2, R1, E1, E2]): ZSpec[R, E, L] =
-      weaveSome(_ => true)(aspect)
+    final def using[R1 >: R, R2 <: R, E1 <: E, E2 >: E](aspect: TestAspect[R2, R1, E1, E2]): ZSpec[R, E, L] =
+      usingSome(_ => true)(aspect)
 
     /**
-     * Returns a new spec with the specified aspect woven into the specified tests.
+     * Returns a new spec with the specified aspect used for the specified tests.
      */
-    final def weaveSome[R1 >: R, R2 <: R, E1 <: E, E2 >: E](
+    final def usingSome[R1 >: R, R2 <: R, E1 <: E, E2 >: E](
       pred: L => Boolean
     )(aspect: TestAspect[R2, R1, E1, E2]): ZSpec[R, E, L] = {
       def loop(spec: ZSpec[R, E, L]): ZSpec[R, E, L] = spec match {
