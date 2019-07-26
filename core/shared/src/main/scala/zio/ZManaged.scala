@@ -1239,6 +1239,18 @@ object ZManaged {
     if (b) zManaged.unit else unit
 
   /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+    pf.applyOrElse(a, (_: A) => unit).unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
+   */
+  final def whenCaseM[R, E, A](a: ZManaged[R, E, A])(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+    a.flatMap(whenCase(_)(pf))
+
+  /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   final def whenM[R, E](b: ZManaged[R, E, Boolean])(zManaged: ZManaged[R, E, _]): ZManaged[R, E, Unit] =

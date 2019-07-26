@@ -115,6 +115,7 @@ final case class TestRandom(private val ref: Ref[TestRandom.Data]) extends Rando
 }
 
 object TestRandom {
+  val DefaultData: Data = Data()
 
   def apply(data: Data): UIO[TestRandom] =
     Ref.make(data).map(TestRandom(_))

@@ -17,8 +17,6 @@
 package zio.test
 
 import zio.{ Managed, ZIO, ZManaged }
-import zio.clock.Clock
-import zio.duration.Duration
 
 /**
  * A `ZSpec[R, E, L]` is the backbone of _ZIO Test_. ZSpecs require an environment
@@ -49,14 +47,28 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   }
 
   /**
+   * Returns a new spec with the suite labels distinguished by `Left`, and the
+   * test labels distinguished by `Right`.
+   */
+  final def distinguish: ZSpec[R, E, Either[L, L]] = {
+    def loop(spec: ZSpec[R, E, L]): ZSpec[R, E, Either[L, L]] = spec match {
+      case ZSpec.Suite(label, specs) => ZSpec.Suite(Left(label), specs.map(loop))
+      case ZSpec.Test(label, assert) => ZSpec.Test(Right(label), assert)
+      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
+    }
+
+    loop(self)
+  }
+
+  /**
    * Determines if there exists a label satisfying the predicate.
    */
   final def exists(f: L => Boolean): Boolean =
     labels.map(_._2).exists(f)
 
   /**
-   * Returns a pruned ZSpec that contains only the specs whose labels match the
-   * specified predicate.
+   * Returns a filtered spec that marks any test not satisfying the predicate
+   * as pending.
    */
   final def filter(f: L => Boolean): ZSpec[R, E, L] = {
     def loop(spec: ZSpec[R, E, L]): ZSpec[R, E, L] = spec match {
@@ -105,7 +117,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   /**
    * Returns a new spec with a remapped label type.
    */
-  final def mapLabel[L1](f: L => L1): ZSpec[R, E, L1] = {
+  final def map[L1](f: L => L1): ZSpec[R, E, L1] = {
     def loop(spec: ZSpec[R, E, L]): ZSpec[R, E, L1] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(f(label), specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(f(label), assert)
@@ -116,9 +128,40 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   }
 
   /**
-   * Returns a new spec, where every test in this one is marked as pending.
+   * Returns a new spec with the labels computed by an stateful map function.
    */
-  final def pending: ZSpec[R, E, L] = weaveAll(_ => ZIO.succeed(AssertResult.Pending))
+  final def mapAccum[S, L1](s: S)(f: (S, L) => (S, L1)): ZSpec[R, E, L1] = {
+    def fold(s0: S, specs0: Iterable[ZSpec[R, E, L]]): (S, Vector[ZSpec[R, E, L1]]) =
+      specs0.foldLeft(s0 -> Vector.empty[ZSpec[R, E, L1]]) {
+        case ((s0, acc), spec0) =>
+          val (s, spec) = loop(spec0, s0)
+
+          s -> (acc ++ Vector(spec))
+      }
+
+    def loop(spec: ZSpec[R, E, L], s0: S): (S, ZSpec[R, E, L1]) = spec match {
+      case ZSpec.Suite(label, specs0) =>
+        val (s1, label2) = f(s0, label)
+
+        val (s2, specs) = fold(s1, specs0)
+
+        s2 -> ZSpec.Suite(label2, specs)
+
+      case ZSpec.Test(label, assert) =>
+        val (s1, label2) = f(s0, label)
+
+        s1 -> ZSpec.Test(label2, assert)
+
+      case ZSpec.Concat(head0, tail0) =>
+        val (s1, head) = loop(head0, s0)
+        val (s2, tail) = fold(s1, tail0)
+
+        s2 -> ZSpec.Concat(head, tail)
+
+    }
+
+    loop(self, s)._2
+  }
 
   /**
    * Provides a spec with the value it requires, eliminating its requirement.
@@ -136,7 +179,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   /**
    * Provides each test with its own managed resource, eliminating their requirements.
    */
-  final def provideEach[E1 >: E](managed: Managed[E1, R]): ZSpec[Any, E1, L] = {
+  final def provideManaged[E1 >: E](managed: Managed[E1, R]): ZSpec[Any, E1, L] = {
     def loop(spec: ZSpec[R, E, L]): ZSpec[Any, E1, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(label, managed.use(r => assert.provide(r)))
@@ -162,7 +205,12 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   /**
    * Returns a new spec that effectfully maps every assert result.
    */
-  final def reassert[R1 <: R, E1 >: E](f: TestResult => ZIO[R1, E1, TestResult]): ZSpec[R1, E1, L] = {
+  final def reassert(f: TestResult => TestResult): ZSpec[R, E, L] = reassertM(t => ZIO.succeed(f(t)))
+
+  /**
+   * Returns a new spec that effectfully maps every assert result.
+   */
+  final def reassertM[R1 <: R, E1 >: E](f: TestResult => ZIO[R1, E1, TestResult]): ZSpec[R1, E1, L] = {
     def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) => ZSpec.Test(label, assert.flatMap(f))
@@ -186,48 +234,39 @@ sealed trait ZSpec[-R, +E, +L] { self =>
   }
 
   /**
-   * Returns a new spec that times out each test by the specified duration.
-   * This is merely implemented for convenience atop [[ZSpec#weaveAll]].
+   * Returnrs a new spec with each label replaced by a tuple containing the
+   * label and the index of the label in the tree.
    */
-  final def timeout(duration: Duration): ZSpec[R with Clock, E, L] =
-    weaveAll(_.timeout(duration).map {
-      case None    => AssertResult.failure(FailureDetails.Other(s"Timeout of ${duration} exceeded"))
-      case Some(v) => v
-    })
-
-  /**
-   * Weaves an aspect into this spec by replacing every result with its
-   * application using the specified function.
-   */
-  final def weaveAll[R1 <: R, E1 >: E](f: ZIO[R, E, TestResult] => ZIO[R1, E1, TestResult]): ZSpec[R1, E1, L] =
-    weaveSome[R1, E1](_ => true)(f)
-
-  /**
-   * Weaves an aspect into this spec by replacing every test matching the
-   * predicate with its application using the specified function.
-   */
-  final def weaveSome[R1 <: R, E1 >: E](predTest: L => Boolean)(
-    f: ZIO[R, E, TestResult] => ZIO[R1, E1, TestResult]
-  ): ZSpec[R1, E1, L] = weaveSomeSuite[R1, E1](predTest, _ => true)(f)
-
-  /**
-   * Weaves an aspect into this spec by replacing every test matching the
-   * predicate with its application using the specified function, but
-   * descending only into suites that match the specified suite predicate.
-   */
-  final def weaveSomeSuite[R1 <: R, E1 >: E](predTest: L => Boolean, predSuite: L => Boolean)(
-    f: ZIO[R, E, TestResult] => ZIO[R1, E1, TestResult]
-  ): ZSpec[R1, E1, L] = {
-    def loop(spec: ZSpec[R, E, L]): ZSpec[R1, E1, L] = spec match {
-      case ZSpec.Suite(label, specs) => ZSpec.Suite(label, if (predSuite(label)) specs.map(loop) else specs)
-      case ZSpec.Test(label, assert) => ZSpec.Test(label, if (predTest(label)) f(assert) else assert)
-      case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
+  final def zipWithIndex: ZSpec[R, E, (L, Int)] =
+    mapAccum(0) {
+      case (index, label) => (index + 1, label -> index)
     }
-
-    loop(self)
-  }
 }
 object ZSpec {
+  implicit class ZSpecInvariantSyntax[R, E, L](self: ZSpec[R, E, L]) {
+
+    /**
+     * Returns a new spec with the specified aspect woven into all tests.
+     */
+    final def weave[R1 >: R, R2 <: R, E1 <: E, E2 >: E](aspect: TestAspect[R2, R1, E1, E2]): ZSpec[R, E, L] =
+      weaveSome(_ => true)(aspect)
+
+    /**
+     * Returns a new spec with the specified aspect woven into the specified tests.
+     */
+    final def weaveSome[R1 >: R, R2 <: R, E1 <: E, E2 >: E](
+      pred: L => Boolean
+    )(aspect: TestAspect[R2, R1, E1, E2]): ZSpec[R, E, L] = {
+      def loop(spec: ZSpec[R, E, L]): ZSpec[R, E, L] = spec match {
+        case ZSpec.Suite(label, specs) => ZSpec.Suite(label, if (pred(label)) specs.map(loop) else specs)
+        case ZSpec.Test(label, assert) => ZSpec.Test(label, if (pred(label)) aspect(assert) else assert)
+        case ZSpec.Concat(head, tail)  => ZSpec.Concat(loop(head), tail.map(loop))
+      }
+
+      loop(self)
+    }
+  }
+
   final case class Suite[-R, +E, +L](label: L, specs: Vector[ZSpec[R, E, L]])             extends ZSpec[R, E, L]
   final case class Test[-R, +E, +L](label: L, assertion: ZIO[R, E, TestResult])           extends ZSpec[R, E, L]
   final case class Concat[-R, +E, +L](head: ZSpec[R, E, L], tail: Vector[ZSpec[R, E, L]]) extends ZSpec[R, E, L]

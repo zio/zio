@@ -16,10 +16,12 @@
 
 package zio.test
 
-import zio._
+import zio.UIO
 
-abstract class ZIOTestMainDefault[E] extends ZIOTestMain[DefaultRuntime#Environment, E] {
-  // TODO: Use TestEnvironment
-  final val environment: Managed[Nothing, DefaultRuntime#Environment] =
-    Managed.succeed(???)
+trait Reporter[-L] {
+
+  /**
+   * Reports the results of running a spec.
+   */
+  def report[E](executedSpec: ExecutedSpec[Any, E, L]): UIO[Unit]
 }

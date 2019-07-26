@@ -60,5 +60,7 @@ object TestConsole {
   def apply(data: Data): UIO[TestConsole] =
     Ref.make(data).map(TestConsole(_))
 
+  val DefaultData: Data = Data(Nil, Vector())
+
   case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
 }
