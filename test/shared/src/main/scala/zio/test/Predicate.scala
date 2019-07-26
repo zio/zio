@@ -178,8 +178,9 @@ object Predicate {
     term: Sum => Option[Proj],
     predicate: Predicate[Proj]
   ): Predicate[Sum] =
-    Predicate.predicateRec[Sum](s"isCase(${termName}(${predicate}))") { (self, actual) =>
-      term(actual).fold(AssertResult.failure(PredicateValue(self, actual)))(predicate)
+    Predicate.predicateRec[Sum]("isCase(\"" + termName + "\", " + s"${termName}.unapply, ${predicate})") {
+      (self, actual) =>
+        term(actual).fold(AssertResult.failure(PredicateValue(self, actual)))(predicate)
     }
 
   /**
