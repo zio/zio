@@ -51,7 +51,7 @@ case class TestConsole(private val ref: Ref[TestConsole.Data]) extends Console.S
   def feedLine(line: String): UIO[Unit] =
     ref.update(data => data.copy(input = line :: data.input)).unit
 
-  def output: UIO[Vector[String]] =
+  val output: UIO[Vector[String]] =
     ref.get.map(_.output)
 }
 
