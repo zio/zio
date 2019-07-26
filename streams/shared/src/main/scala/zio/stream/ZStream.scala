@@ -1464,23 +1464,26 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
    */
   final def effectAsync[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Unit,
+    register: (ZIO[R, Option[E], A] => Unit) => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
+    effectAsyncMaybe(callback => {
       register(callback)
-
       None
     }, outputBuffer)
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback can possibly return the stream synchronously
+   * The registration of the callback can possibly return the stream synchronously.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
    */
   final def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Option[ZStream[R, E, A]],
+    register: (ZIO[R, Option[E], A] => Unit) => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
@@ -1494,8 +1497,12 @@ object ZStream extends ZStreamPlatformSpecific {
                               k =>
                                 runtime.unsafeRunAsync_(
                                   k.foldCauseM(
-                                    cause => output.offer(Take.Fail(cause)).unit,
-                                    b => output.offer(Take.Value(b)).unit
+                                    _.failureOrCause match {
+                                      case Left(None)    => output.offer(Take.End).unit
+                                      case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                                      case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                                    },
+                                    a => output.offer(Take.Value(a)).unit
                                   )
                                 )
                             )
@@ -1512,10 +1519,11 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times
-   * The registration of the callback itself returns an effect
+   * The registration of the callback itself returns an effect. The optionality of the
+   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
    */
   final def effectAsyncM[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _],
+    register: (ZIO[R, Option[E], A] => Unit) => ZIO[R, E, _],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
@@ -1528,8 +1536,12 @@ object ZStream extends ZStreamPlatformSpecific {
                   k =>
                     runtime.unsafeRunAsync_(
                       k.foldCauseM(
-                        cause => output.offer(Take.Fail(cause)).unit,
-                        b => output.offer(Take.Value(b)).unit
+                        _.failureOrCause match {
+                          case Left(None)    => output.offer(Take.End).unit
+                          case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                          case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                        },
+                        a => output.offer(Take.Value(a)).unit
                       )
                     )
                 ).toManaged_
@@ -1540,10 +1552,12 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback returns either a canceler or synchronously returns a stream
+   * The registration of the callback returns either a canceler or synchronously returns a stream.
+   * The optionality of the error type `E` can be used to signal the end of the stream, by
+   * setting it to `None`.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
+    register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler, ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
@@ -1557,8 +1571,12 @@ object ZStream extends ZStreamPlatformSpecific {
                                k =>
                                  runtime.unsafeRunAsync_(
                                    k.foldCauseM(
-                                     cause => output.offer(Take.Fail(cause)).unit,
-                                     b => output.offer(Take.Value(b)).unit
+                                     _.failureOrCause match {
+                                       case Left(None)    => output.offer(Take.End).unit
+                                       case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                                       case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                                     },
+                                     a => output.offer(Take.Value(a)).unit
                                    )
                                  )
                              )
