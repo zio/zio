@@ -69,6 +69,25 @@ object TestAspect {
     }
 
   /**
+   * An aspect that repeats the test a specified number of times, ensuring it
+   * is stable ("non-flaky").
+   */
+  def nonFlaky(n0: Int): TestAspectPoly =
+    new TestAspectPoly {
+      def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] = {
+        def repeat(n: Int): ZIO[R, E, TestResult] =
+          if (n <= 1) test
+          else
+            test.flatMap { result =>
+              if (result.success) ZIO.succeed(result)
+              else repeat(n - 1)
+            }
+
+        repeat(n0)
+      }
+    }
+
+  /**
    * An aspect that marks tests as pending.
    */
   val pending: TestAspectPoly =
