@@ -49,5 +49,7 @@ case class TestConsole(ref: Ref[TestConsole.Data]) extends Console.Service[Any] 
 }
 
 object TestConsole {
+  val DefaultData: Data = Data(Nil, Vector())
+
   case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
 }

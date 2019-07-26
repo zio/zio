@@ -87,7 +87,7 @@ object SchedulerSpec {
 
   def mkScheduler(runtime: Runtime[Clock]): UIO[(TestClock, TestScheduler)] =
     for {
-      clockData <- Ref.make(TestClock.Zero)
+      clockData <- Ref.make(TestClock.DefaultData)
       clock     = TestClock(clockData)
       scheduler = TestScheduler(clockData, runtime)
     } yield (clock, scheduler)
