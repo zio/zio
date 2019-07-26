@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ Managed, ZIO, ZManaged }
+import zio.{ Managed, ZIO }
 
 /**
  * A `ZSpec[R, E, L]` is the backbone of _ZIO Test_. ZSpecs require an environment
