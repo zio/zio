@@ -54,7 +54,7 @@ case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
 }
 
 object TestClock {
-  val Zero = Data(0, 0, Nil, ZoneId.of("UTC"))
+  val DefaultData = Data(0, 0, Nil, ZoneId.of("UTC"))
 
   def offset(millis: Long, timeZone: ZoneId): OffsetDateTime =
     OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), timeZone)

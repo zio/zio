@@ -16,6 +16,7 @@ case class TestSystem(ref: Ref[TestSystem.Data]) extends System.Service[Any] {
 }
 
 object TestSystem {
+  val DefaultData: Data = Data(Map(), Map(), "\n")
 
   def apply(data: Data): UIO[TestSystem] =
     Ref.make(data).map(TestSystem(_))

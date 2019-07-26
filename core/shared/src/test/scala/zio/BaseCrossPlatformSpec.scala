@@ -18,9 +18,10 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 abstract class BaseCrossPlatformSpec extends Specification with DefaultRuntime {
 
-  override val Platform = PlatformLive.makeDefault().withReportFailure(_ => ())
-
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
+
+  // FIXME: Use default platform and not created from EC!!!
+  override val Platform = PlatformLive.fromExecutionContext(ec).withReportFailure(_ => ())
 
   val DefaultTimeout: Duration = 60.seconds
   val timer                    = new Timer()

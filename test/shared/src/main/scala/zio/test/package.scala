@@ -53,6 +53,8 @@ package object test {
   type IOSpec[+E, +L] = ZSpec[Any, E, L]
   val IOSpec = ZSpec
 
+  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
+
   /**
    * Asserts the given value satisfies the given predicate.
    */
