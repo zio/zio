@@ -18,9 +18,9 @@ package zio.test.mock
 
 import zio._
 import zio.random.Random
-import zio.test.mock.TestRandom.Data
+import zio.test.mock.MockRandom.Data
 
-final case class TestRandom(randomState: Ref[TestRandom.Data]) extends Random.Service[Any] {
+final case class MockRandom(randomState: Ref[MockRandom.Data]) extends Random.Service[Any] {
 
   val nextBoolean: UIO[Boolean] = nextRandom(shiftBooleans)
 
@@ -100,35 +100,35 @@ final case class TestRandom(randomState: Ref[TestRandom.Data]) extends Random.Se
     } yield next
 
   private def shiftBooleans(data: Data) =
-    (data.booleans.headOption.fold(TestRandom.defaultBoolean)(identity), data.copy(booleans = shiftLeft(data.booleans)))
+    (data.booleans.headOption.fold(MockRandom.defaultBoolean)(identity), data.copy(booleans = shiftLeft(data.booleans)))
 
   private def shiftIntegers(data: Data) =
-    (data.integers.headOption.fold(TestRandom.defaultInteger)(identity), data.copy(integers = shiftLeft(data.integers)))
+    (data.integers.headOption.fold(MockRandom.defaultInteger)(identity), data.copy(integers = shiftLeft(data.integers)))
 
   private def shiftIntWithLimit(limit: Int)(data: Data) = {
-    val next = data.integers.headOption.fold(TestRandom.defaultInteger)(identity)
+    val next = data.integers.headOption.fold(MockRandom.defaultInteger)(identity)
     (Math.min(limit, next), data.copy(integers = shiftLeft(data.integers)))
   }
 
   private def shiftDoubles(data: Data) =
-    (data.doubles.headOption.fold(TestRandom.defaultDouble)(identity), data.copy(doubles = shiftLeft(data.doubles)))
+    (data.doubles.headOption.fold(MockRandom.defaultDouble)(identity), data.copy(doubles = shiftLeft(data.doubles)))
 
   private def shiftFloats(data: Data) =
-    (data.floats.headOption.fold(TestRandom.defaultFloat)(identity), data.copy(floats = shiftLeft(data.floats)))
+    (data.floats.headOption.fold(MockRandom.defaultFloat)(identity), data.copy(floats = shiftLeft(data.floats)))
 
   private def shiftLongs(data: Data) =
-    (data.longs.headOption.fold(TestRandom.defaultLong)(identity), data.copy(longs = shiftLeft(data.longs)))
+    (data.longs.headOption.fold(MockRandom.defaultLong)(identity), data.copy(longs = shiftLeft(data.longs)))
 
   private def shiftChars(data: Data) =
-    (data.chars.headOption.fold(TestRandom.defaultChar)(identity), data.copy(chars = shiftLeft(data.chars)))
+    (data.chars.headOption.fold(MockRandom.defaultChar)(identity), data.copy(chars = shiftLeft(data.chars)))
 
   private def shiftStrings(length: Int)(data: Data) = {
-    val next = data.strings.headOption.fold(TestRandom.defaultString)(identity)
+    val next = data.strings.headOption.fold(MockRandom.defaultString)(identity)
     (next.substring(0, Math.min(length, next.length)), data.copy(strings = shiftLeft(data.strings)))
   }
 
   private def shiftBytes(length: Int)(data: Data) = {
-    val next = data.bytes.headOption.fold(TestRandom.defaultBytes)(identity)
+    val next = data.bytes.headOption.fold(MockRandom.defaultBytes)(identity)
     (next.take(length), data.copy(bytes = shiftLeft(data.bytes)))
   }
 
@@ -138,11 +138,11 @@ final case class TestRandom(randomState: Ref[TestRandom.Data]) extends Random.Se
   }
 }
 
-object TestRandom {
+object MockRandom {
   val DefaultData: Data = Data()
 
-  def make(data: Data): UIO[TestRandom] =
-    Ref.make(data).map(TestRandom(_))
+  def make(data: Data): UIO[MockRandom] =
+    Ref.make(data).map(MockRandom(_))
 
   val defaultInteger = 1
   val randomIntegers = defaultInteger :: 2 :: 3 :: 4 :: 5 :: Nil

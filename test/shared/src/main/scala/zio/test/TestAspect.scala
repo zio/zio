@@ -16,9 +16,10 @@
 
 package zio.test
 
-import zio.{ ZIO, ZManaged, ZSchedule }
+import zio.{ Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration.Duration
 import zio.clock.Clock
+import java.util.concurrent.TimeoutException
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -96,6 +97,12 @@ object TestAspect {
     }
 
   /**
+   * An aspect that retries a test until success, without limit, for use with
+   * flaky tests.
+   */
+  val flaky: TestAspectPoly = eventually
+
+  /**
    * An aspect that repeats the test a specified number of times, ensuring it
    * is stable ("non-flaky"). Stops at the first failure.
    */
@@ -139,7 +146,9 @@ object TestAspect {
     new TestAspect[Nothing, Clock, Nothing, Any] {
       def apply[R >: Nothing <: Clock, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         test.timeout(duration).map {
-          case None    => AssertResult.failure(FailureDetails.Other(s"Timeout of ${duration} exceeded"))
+          case None =>
+            AssertResult
+              .failure(FailureDetails.Runtime(Cause.fail(new TimeoutException(s"Timeout of ${duration} exceeded"))))
           case Some(v) => v
         }
     }

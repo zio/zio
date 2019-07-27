@@ -6,13 +6,13 @@ import zio.duration.{ Duration, _ }
 import zio.internal.Scheduler.CancelToken
 import zio.internal.{ Scheduler => IScheduler }
 import zio.scheduler.Scheduler
-import zio.test.mock.TestScheduler._
+import zio.test.mock.MockScheduler._
 
 /**
  * Implementation of Scheduler.Service for testing. The passed Ref[TestClock.Data] will be used to determine when
  * to run the scheduled runnables. Make sure to call shutdown() to force execution of all remaining tasks.
  */
-final case class TestScheduler(ref: Ref[TestClock.Data], runtime: Runtime[Clock]) extends Scheduler.Service[Any] {
+final case class MockScheduler(ref: Ref[MockClock.Data], runtime: Runtime[Clock]) extends Scheduler.Service[Any] {
 
   private[this] val ConstFalse = () => false
 
@@ -69,7 +69,7 @@ final case class TestScheduler(ref: Ref[TestClock.Data], runtime: Runtime[Clock]
     } yield scheduler
 }
 
-object TestScheduler {
+object MockScheduler {
 
   trait TestIScheduler extends IScheduler {
 
@@ -77,7 +77,7 @@ object TestScheduler {
 
   }
 
-  private[TestScheduler] def runWhile(
+  private[MockScheduler] def runWhile(
     task: UIO[Unit],
     ref: Ref[Boolean],
     pause: Duration = 10.milliseconds

@@ -85,11 +85,11 @@ class SchedulerSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
 object SchedulerSpec {
 
-  def mkScheduler(runtime: Runtime[Clock]): UIO[(TestClock, TestScheduler)] =
+  def mkScheduler(runtime: Runtime[Clock]): UIO[(MockClock, MockScheduler)] =
     for {
-      clockData <- Ref.make(TestClock.DefaultData)
-      clock     = TestClock(clockData)
-      scheduler = TestScheduler(clockData, runtime)
+      clockData <- Ref.make(MockClock.DefaultData)
+      clock     = MockClock(clockData)
+      scheduler = MockScheduler(clockData, runtime)
     } yield (clock, scheduler)
 
 }

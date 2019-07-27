@@ -3,7 +3,7 @@ package zio.test.mock
 import zio.{ Ref, UIO, ZIO }
 import zio.system.System
 
-case class TestSystem(systemState: Ref[TestSystem.Data]) extends System.Service[Any] {
+case class MockSystem(systemState: Ref[MockSystem.Data]) extends System.Service[Any] {
 
   override def env(variable: String): ZIO[Any, SecurityException, Option[String]] =
     systemState.get.map(_.envs.get(variable))
@@ -30,11 +30,11 @@ case class TestSystem(systemState: Ref[TestSystem.Data]) extends System.Service[
     systemState.update(data => data.copy(properties = data.properties - prop)).unit
 }
 
-object TestSystem {
+object MockSystem {
   val DefaultData: Data = Data(Map(), Map(), "\n")
 
-  def make(data: Data): UIO[TestSystem] =
-    Ref.make(data).map(TestSystem(_))
+  def make(data: Data): UIO[MockSystem] =
+    Ref.make(data).map(MockSystem(_))
 
   case class Data(
     properties: Map[String, String] = Map.empty,
