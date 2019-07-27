@@ -12,17 +12,23 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         empty         $nextIntWithEmptyData
         default       $nextIntWithDefault
         sequence      $nextIntWithSequence
+        feed          $nextIntWithFeed
+        clear         $nextIntWithClear
         respect limit $nextIntWithLimit
       Returns next boolean when data is:
         single value $nextBooleanWithSingleValue
         empty        $nextBooleanWithEmptyData
         default      $nextBooleanWithDefault
         sequence     $nextBooleanWithSequence
+        feed         $nextBooleanWithFeed
+        clear        $nextBooleanWithClear
       Returns next double when data is:
         single value $nextDoubleWithSingleValue
         empty        $nextDoubleWithEmptyData
         default      $nextDoubleWithDefault
         sequence     $nextDoubleWithSequence
+        feed         $nextDoubleWithFeed
+        clear        $nextDoubleWithClear
       Returns next Gaussian:
         same as double $nextGaussian
       Returns next float when data is:
@@ -30,21 +36,29 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         empty        $nextFloatWithEmptyData
         default      $nextFloatWithDefault
         sequence     $nextFloatWithSequence
+        feed         $nextFloatWithFeed
+        clear        $nextFloatWithClear
       Returns next long when data is:
         single value $nextLongWithSingleValue
         empty        $nextLongWithEmptyData
         default      $nextLongWithDefault
         sequence     $nextLongWithSequence
+        feed         $nextLongWithFeed
+        clear        $nextLongWithClear
       Returns next char when data is:
         single value $nextCharWithSingleValue
         empty        $nextCharWithEmptyData
         default      $nextCharWithDefault
         sequence     $nextCharWithSequence
+        feed         $nextCharWithFeed
+        clear        $nextCharWithClear
       Returns next string when data is:
         single value                                      $nextStringWithSingleValue
         empty                                             $nextStringWithEmptyData
         default                                           $nextStringWithDefault
         sequence                                          $nextStringWithSequence
+        feed                                              $nextStringWithFeed
+        clear                                             $nextStringWithClear
         single value - respect length                     $nextStringWithLength
         single value - length > length of the next string $nextStringLengthIsOver
       Returns next bytes when data is:
@@ -52,6 +66,8 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         empty                                             $nextBytesWithEmptyData
         default                                           $nextBytesWithDefault
         sequence                                          $nextBytesWithSequence
+        feed                                              $nextBytesWithFeed
+        clear                                             $nextBytesWithClear
         single value - length < number of bytes           $nextBytesWithLength
         single value - length > length of the next array  $nextBytesLengthIsOver
 
@@ -77,8 +93,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextIntWithLimit =
     unsafeRun(
       for {
-        ref        <- Ref.make(Data(integers = List(5, 6, 7)))
-        testRandom <- IO.succeed(TestRandom(ref))
+        testRandom <- TestRandom.make(Data(integers = List(5, 6, 7)))
         next1      <- testRandom.nextInt(2)
         next2      <- testRandom.nextInt(6)
         next3      <- testRandom.nextInt(99)
@@ -94,6 +109,12 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextIntWithSequence =
     checkWith(Data(integers = List(1, 2, 3)), List(1, 2, 3, 1, 2))(_.nextInt)
 
+  def nextIntWithFeed =
+    checkFeed(_.feedInts, List(6, 7, 8, 9, 10))(_.nextInt)
+
+  def nextIntWithClear =
+    checkClear(_.clearInts, TestRandom.defaultInteger)(_.nextInt)
+
   def nextBooleanWithEmptyData =
     checkWith(Data(booleans = Nil), List(TestRandom.defaultBoolean))(_.nextBoolean)
 
@@ -106,6 +127,12 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextBooleanWithSequence =
     checkWith(Data(booleans = List(true, true, false)), List(true, true, false, true, true))(_.nextBoolean)
 
+  def nextBooleanWithFeed =
+    checkFeed(_.feedBooleans, List(false, true))(_.nextBoolean)
+
+  def nextBooleanWithClear =
+    checkClear(_.clearBooleans, TestRandom.defaultBoolean)(_.nextBoolean)
+
   def nextDoubleWithEmptyData =
     checkWith(Data(doubles = Nil), List(TestRandom.defaultDouble))(_.nextDouble)
 
@@ -117,6 +144,12 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def nextDoubleWithSequence =
     checkWith(Data(doubles = List(0.1d, 0.2d, 0.3d)), List(0.1d, 0.2d, 0.3d, 0.1d, 0.2d))(_.nextDouble)
+
+  def nextDoubleWithFeed =
+    checkFeed(_.feedDoubles, List(0.6d, 0.7d, 0.8d, 0.9d, 1.0d))(_.nextDouble)
+
+  def nextDoubleWithClear =
+    checkClear(_.clearDoubles, TestRandom.defaultDouble)(_.nextDouble)
 
   def nextGaussian =
     checkWith(Data(doubles = List(0.1, 0.2)), List(0.1, 0.2, 0.1))(_.nextGaussian)
@@ -133,6 +166,12 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextFloatWithSequence =
     checkWith(Data(floats = List(0.1f, 0.2f, 0.3f)), List(0.1f, 0.2f, 0.3f, 0.1f, 0.2f))(_.nextFloat)
 
+  def nextFloatWithFeed =
+    checkFeed(_.feedFloats, List(0.6f, 0.7f, 0.8f, 0.9f, 1.0f))(_.nextFloat)
+
+  def nextFloatWithClear =
+    checkClear(_.clearFloats, TestRandom.defaultFloat)(_.nextFloat)
+
   def nextLongWithEmptyData =
     checkWith(Data(longs = Nil), List(TestRandom.defaultLong))(_.nextLong)
 
@@ -145,6 +184,12 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextLongWithSequence =
     checkWith(Data(longs = List(1L, 2L, 3L)), List(1L, 2L, 3L, 1L, 2L))(_.nextLong)
 
+  def nextLongWithFeed =
+    checkFeed(_.feedLongs, List(6L, 7L, 8L, 9L, 10L))(_.nextLong)
+
+  def nextLongWithClear =
+    checkClear(_.clearLongs, TestRandom.defaultLong)(_.nextLong)
+
   def nextCharWithEmptyData =
     checkWith(Data(chars = Nil), List(TestRandom.defaultChar))(_.nextPrintableChar)
 
@@ -156,6 +201,12 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def nextCharWithSequence =
     checkWith(Data(chars = List('a', 'b', 'c')), List('a', 'b', 'c', 'a', 'b'))(_.nextPrintableChar)
+
+  def nextCharWithFeed =
+    checkFeed(_.feedChars, List('f', 'g', 'h', 'i', 'j'))(_.nextPrintableChar)
+
+  def nextCharWithClear =
+    checkClear(_.clearChars, TestRandom.defaultChar)(_.nextPrintableChar)
 
   def nextStringWithEmptyData =
     checkWith(Data(strings = Nil), List(TestRandom.defaultString))(_.nextString(1))
@@ -174,6 +225,12 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
   def nextStringWithSequence =
     checkWith(Data(strings = List("a", "b", "c")), List("a", "b", "c", "a", "b"))(_.nextString(1))
+
+  def nextStringWithFeed =
+    checkFeed(_.feedStrings, List("f", "g", "h", "i", "j"))(_.nextString(1))
+
+  def nextStringWithClear =
+    checkClear(_.clearStrings, TestRandom.defaultString)(_.nextString(1))
 
   def nextBytesWithEmptyData =
     checkWith(Data(bytes = Nil), List(TestRandom.defaultBytes))(_.nextBytes(1))
@@ -195,11 +252,16 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       _.nextBytes(1)
     )
 
+  def nextBytesWithFeed =
+    checkFeed(_.feedBytes, List(Chunk(6.toByte), Chunk(7.toByte), Chunk(8.toByte)))(_.nextBytes(1))
+
+  def nextBytesWithClear =
+    checkClear(_.clearBytes, TestRandom.defaultBytes)(_.nextBytes(1))
+
   def checkWith[A](data: Data, expected: List[A])(f: Random.Service[Any] => UIO[A]) =
     unsafeRun(
       for {
-        ref           <- Ref.make(data)
-        testRandom    <- IO.succeed(TestRandom(ref))
+        testRandom    <- TestRandom.make(data)
         randomResults <- IO.foreach(1 to expected.length)(_ => f(testRandom))
       } yield randomResults must_=== expected
     )
@@ -234,8 +296,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
     unsafeRun(
       for {
-        ref        <- Ref.make(Data(integers = identitySwapIndexes))
-        testRandom <- IO.succeed(TestRandom(ref))
+        testRandom <- TestRandom.make(Data(integers = identitySwapIndexes))
         shuffled   <- testRandom.shuffle(input)
       } yield shuffled must_=== input
     )
@@ -250,10 +311,27 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
     unsafeRun(
       for {
-        ref        <- Ref.make(Data(integers = reverseSwapIndexes))
-        testRandom <- IO.succeed(TestRandom(ref))
+        testRandom <- TestRandom.make(Data(integers = reverseSwapIndexes))
         shuffled   <- testRandom.shuffle(input)
       } yield shuffled must_=== input.reverse
     )
   }
+
+  def checkFeed[A](feed: TestRandom => Seq[A] => UIO[Unit], expected: List[A])(f: Random.Service[Any] => UIO[A]) =
+    unsafeRun(
+      for {
+        testRandom <- TestRandom.make(Data())
+        _          <- feed(testRandom)(expected)
+        results    <- UIO.foreach(1 to expected.length)(_ => f(testRandom))
+      } yield results must_=== expected
+    )
+
+  def checkClear[A](clear: TestRandom => UIO[Unit], default: A)(f: Random.Service[Any] => UIO[A]) =
+    unsafeRun(
+      for {
+        testRandom <- TestRandom.make(Data())
+        _          <- clear(testRandom)
+        result     <- f(testRandom)
+      } yield result must_=== default
+    )
 }

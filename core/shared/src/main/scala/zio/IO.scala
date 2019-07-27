@@ -515,6 +515,18 @@ object IO {
     ZIO.when(b)(io)
 
   /**
+   * @see See [[zio.ZIO.whenCase]]
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.ZIO.whenCaseM]]
+   */
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCaseM(a)(pf)
+
+  /**
    * @see See [[zio.ZIO.whenM]]
    */
   final def whenM[E](b: IO[E, Boolean])(io: IO[E, _]): IO[E, Unit] =
