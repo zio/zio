@@ -19,24 +19,20 @@ package zio.test.mock
 import scala.concurrent.ExecutionContext
 
 import zio._
-import zio.clock.Clock
-import zio.console.Console
 import zio.internal.PlatformLive
-import zio.random.Random
 import zio.scheduler.Scheduler
-import zio.system.System
 
 case class MockEnvironment(
-  clock: TestClock,
-  console: TestConsole,
-  random: TestRandom,
-  scheduler: TestScheduler,
-  system: TestSystem
-) extends Clock
-    with Console
-    with Random
+  clock: MockClock.Mock,
+  console: MockConsole.Mock,
+  random: MockRandom.Mock,
+  scheduler: MockScheduler,
+  system: MockSystem.Mock
+) extends MockClock
+    with MockConsole
+    with MockRandom
     with Scheduler
-    with System
+    with MockSystem
 
 object MockEnvironment {
 
@@ -44,15 +40,15 @@ object MockEnvironment {
     Managed.fromEffect {
       for {
         bootstrap <- ZIO.effectTotal(PlatformLive.fromExecutionContext(ExecutionContext.global))
-        clock     <- TestClock.make(TestClock.DefaultData)
-        console   <- TestConsole.make(TestConsole.DefaultData)
-        random    <- TestRandom.make(TestRandom.DefaultData)
-        scheduler = TestScheduler(clock.clockState, Runtime(Clock(clock), bootstrap))
-        system    <- TestSystem.make(TestSystem.DefaultData)
+        clock     <- MockClock.makeMock(MockClock.DefaultData)
+        console   <- MockConsole.makeMock(MockConsole.DefaultData)
+        random    <- MockRandom.makeMock(MockRandom.DefaultData)
+        scheduler = MockScheduler(clock.clockState, Runtime(Clock(clock), bootstrap))
+        system    <- MockSystem.makeMock(MockSystem.DefaultData)
       } yield new MockEnvironment(clock, console, random, scheduler, system)
     }
 
-  private def Clock(testClock: TestClock): Clock = new Clock {
-    val clock = testClock
+  private def Clock(mockClock: MockClock.Mock): MockClock = new MockClock {
+    val clock = mockClock
   }
 }

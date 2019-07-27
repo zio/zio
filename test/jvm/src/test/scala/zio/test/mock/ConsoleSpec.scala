@@ -24,7 +24,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def emptyOutput =
     unsafeRun(
       for {
-        mockConsole <- MockConsole.make(Data())
+        mockConsole <- MockConsole.makeMock(Data())
         output      <- mockConsole.output
       } yield output must beEmpty
     )
@@ -32,7 +32,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def putStr =
     unsafeRun(
       for {
-        mockConsole <- MockConsole.make(Data())
+        mockConsole <- MockConsole.makeMock(Data())
         _           <- mockConsole.putStr("First line")
         _           <- mockConsole.putStr("Second line")
         output      <- mockConsole.output
@@ -42,7 +42,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def putStrLn =
     unsafeRun(
       for {
-        mockConsole <- MockConsole.make(Data())
+        mockConsole <- MockConsole.makeMock(Data())
         _           <- mockConsole.putStrLn("First line")
         _           <- mockConsole.putStrLn("Second line")
         output      <- mockConsole.output
@@ -52,7 +52,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def getStr1 =
     unsafeRun(
       for {
-        mockConsole <- MockConsole.make(Data(List("Input 1", "Input 2"), Vector.empty))
+        mockConsole <- MockConsole.makeMock(Data(List("Input 1", "Input 2"), Vector.empty))
         input1      <- mockConsole.getStrLn
         input2      <- mockConsole.getStrLn
       } yield (input1 must_=== "Input 1") and (input2 must_=== "Input 2")
@@ -61,7 +61,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def getStr2 =
     unsafeRun(
       for {
-        mockConsole <- MockConsole.make(Data())
+        mockConsole <- MockConsole.makeMock(Data())
         failed      <- mockConsole.getStrLn.either
         message     = failed.fold(_.getMessage, identity)
       } yield (failed must beLeft) and (message must_=== "There is no more input left to read")
@@ -70,7 +70,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def feedLine =
     unsafeRun(
       for {
-        mockConsole <- MockConsole.make(Data())
+        mockConsole <- MockConsole.makeMock(Data())
         _           <- mockConsole.feedLines("Input 1", "Input 2")
         input1      <- mockConsole.getStrLn
         input2      <- mockConsole.getStrLn
@@ -80,7 +80,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def clearInput =
     unsafeRun(
       for {
-        mockConsole <- MockConsole.make(Data(List("Input 1", "Input 2"), Vector.empty))
+        mockConsole <- MockConsole.makeMock(Data(List("Input 1", "Input 2"), Vector.empty))
         _           <- mockConsole.clearInput
         failed      <- mockConsole.getStrLn.either
         message     = failed.fold(_.getMessage, identity)
@@ -90,7 +90,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
   def clearOutput =
     unsafeRun(
       for {
-        mockConsole <- MockConsole.make(Data(List.empty, Vector("First line", "Second line")))
+        mockConsole <- MockConsole.makeMock(Data(List.empty, Vector("First line", "Second line")))
         _           <- mockConsole.clearOutput
         output      <- mockConsole.output
       } yield output must_=== Vector.empty

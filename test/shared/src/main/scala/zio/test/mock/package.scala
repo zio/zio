@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
- package zio.test
+package zio.test
 
- import zio.Managed
+import zio.Managed
 
- package object mock{
+package object mock {
 
   val mockEnvironmentManaged: Managed[Nothing, MockEnvironment] = MockEnvironment.Value
- }
+}
