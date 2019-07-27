@@ -992,14 +992,14 @@ object ZManaged {
     f: (B, A) => B
   ): ZManaged[R, E, B] =
     ZManaged[R, E, B] {
-      Ref.make[ZIO[R, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[List[ZIO[R, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
           Queue.unbounded[(ZManaged[R, E, A], Promise[E, A])].flatMap { queue =>
             val worker = queue.take.flatMap {
               case (a, prom) =>
                 ZIO.uninterruptibleMask { restore =>
                   a.reserve
-                    .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                    .flatMap(res => finalizers.update(res.release :: _).const(res))
                     .flatMap(res => restore(res.acquire))
                 }.foldCauseM(
                   _.failureOrCause.fold(prom.fail, prom.halt),
@@ -1020,7 +1020,11 @@ object ZManaged {
               } yield b).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
-          ZIO.flatten(finalizers.get)
+          for {
+            fs    <- finalizers.get
+            exits <- ZIO.foreach(fs)(_.run)
+            _     <- ZIO.done(Exit.collectAll(exits).getOrElse(Exit.unit))
+          } yield ()
         )
       }
     }
@@ -1066,14 +1070,14 @@ object ZManaged {
     f: (A, A) => A
   ): ZManaged[R, E, A] =
     ZManaged[R, E, A] {
-      Ref.make[ZIO[R, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[List[ZIO[R, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
           Queue.unbounded[(ZManaged[R, E, A], Promise[E, A])].flatMap { queue =>
             val worker = queue.take.flatMap {
               case (a, prom) =>
                 ZIO.uninterruptibleMask { restore =>
                   a.reserve
-                    .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                    .flatMap(res => finalizers.update(res.release :: _).const(res))
                     .flatMap(res => restore(res.acquire))
                 }.foldCauseM(
                   _.failureOrCause.fold(prom.fail, prom.halt),
@@ -1091,7 +1095,7 @@ object ZManaged {
                           }
                   zero = ZIO.uninterruptibleMask { restore =>
                     a1.reserve
-                      .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                      .flatMap(res => finalizers.update(res.release :: _).const(res))
                       .flatMap(res => restore(res.acquire))
                   }
                   result <- proms.foldLeft[ZIO[R, E, A]](zero) { (acc, a) =>
@@ -1100,7 +1104,11 @@ object ZManaged {
                 } yield result).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
-          ZIO.flatten(finalizers.get)
+          for {
+            fs    <- finalizers.get
+            exits <- ZIO.foreach(fs)(_.run)
+            _     <- ZIO.done(Exit.collectAll(exits).getOrElse(Exit.unit))
+          } yield ()
         )
       }
     }

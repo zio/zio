@@ -81,6 +81,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Uses at most n fibers for reservation $mergeAllParNReservePar
     Uses at most n fibers for acquisition $mergeAllParNAcquirePar
     Runs finalizers $mergeAllParNFinalizers
+    All finalizers run even when finalizers have defects $mergeAllParNFinalizersWithDefects
   ZManaged.onExit
     Calls the cleanup $onExit
   ZManaged.onExitFirst
@@ -98,6 +99,7 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
     Uses at most n fibers for reservation $reduceAllParNReservePar
     Uses at most n fibers for acquisition $reduceAllParNAcquirePar
     Runs finalizers $reduceAllParNFinalizers
+    All finalizers run even when finalizers have defects $reduceAllParNFinalizersWithDefects
   ZManged.retry
     Should retry the reservation $retryReservation
     Should retry the acquisition $retryAcquisition
@@ -683,6 +685,27 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
       testFinalizersPar(4, res => ZManaged.mergeAllParN(2)(List.fill(4)(res))(0) { case (a, _) => a })
     }
 
+  private def mergeAllParNFinalizersWithDefects =
+    unsafeRun {
+      for {
+        releases <- Ref.make[Int](0)
+        _ <- ZManaged
+              .mergeAllParN(2)(
+                List(
+                  ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                  ZManaged.finalizer(releases.update(_ + 1)),
+                  ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                  ZManaged.finalizer(releases.update(_ + 1)),
+                  ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                  ZManaged.finalizer(releases.update(_ + 1))
+                )
+              )(())((_, _) => ())
+              .use_(ZIO.unit)
+              .run
+        count <- releases.get
+      } yield count must_=== 3
+    }
+
   private def mergeAllParNReservePar =
     unsafeRun {
       testReservePar(2, res => ZManaged.mergeAllParN(2)(List.fill(4)(res))(0) { case (a, _) => a })
@@ -721,6 +744,27 @@ class ZManagedSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Test
   private def reduceAllParFinalizers =
     unsafeRun {
       testFinalizersPar(4, res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a })
+    }
+
+  private def reduceAllParNFinalizersWithDefects =
+    unsafeRun {
+      for {
+        releases <- Ref.make[Int](0)
+        _ <- ZManaged
+              .reduceAllParN(2)(
+                ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                List(
+                  ZManaged.finalizer(releases.update(_ + 1)),
+                  ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                  ZManaged.finalizer(releases.update(_ + 1)),
+                  ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                  ZManaged.finalizer(releases.update(_ + 1))
+                )
+              )((_, _) => ())
+              .use_(ZIO.unit)
+              .run
+        count <- releases.get
+      } yield count must_=== 3
     }
 
   private def reduceAllParReservePar =
