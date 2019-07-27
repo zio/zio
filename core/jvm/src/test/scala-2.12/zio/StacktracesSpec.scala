@@ -21,6 +21,7 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   "foreach" >> foreachTrace
   "foreach fail" >> foreachFail
   "foreachPar fail" >> foreachParFail
+  "foreachParN fail" >> foreachParNFail
 
   "left-associative fold" >> leftAssociativeFold
   "nested left binds" >> nestedLeftBinds
@@ -170,6 +171,23 @@ class StacktracesSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       _.traces.head.stackTrace must have size 2 and contain {
         (_: ZTraceElement) match {
           case s: SourceLocation => s.method contains "foreachParFail"
+          case _                 => false
+        }
+      }
+    }
+  }
+
+  def foreachParNFail = {
+    val io = for {
+      _ <- ZIO.foreachParN(4)(1 to 10) { i =>
+            ZIO.sleep(1.second) *> (if (i >= 7) UIO(i / 0) else UIO(i / 10))
+          }
+    } yield ()
+
+    io causeMust {
+      _.traces.head.stackTrace must have size 2 and contain {
+        (_: ZTraceElement) match {
+          case s: SourceLocation => s.method contains "foreachParNFail"
           case _                 => false
         }
       }

@@ -185,11 +185,26 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
   /**
    * Ensures that `f` is executed when this ZManaged is finalized, after
    * the existing finalizer.
+   *
+   * For usecases that need access to the ZManaged's result, see [[ZManaged#onExit]].
    */
   final def ensuring[R1 <: R](f: ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
     ZManaged {
       reserve.map { r =>
         r.copy(release = r.release.ensuring(f))
+      }
+    }
+
+  /**
+   * Ensures that `f` is executed when this ZManaged is finalized, before
+   * the existing finalizer.
+   *
+   * For usecases that need access to the ZManaged's result, see [[ZManaged#onExitFirst]].
+   */
+  final def ensuringFirst[R1 <: R](f: ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
+    ZManaged {
+      reserve.map { r =>
+        r.copy(release = f.ensuring(r.release))
       }
     }
 
@@ -374,6 +389,48 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    */
   final def mapError[E1](f: E => E1): ZManaged[R, E1, A] =
     ZManaged(reserve.mapError(f).map(r => Reservation(r.acquire.mapError(f), r.release)))
+
+  /**
+   * Ensures that a cleanup function runs when this ZManaged is finalized, after
+   * the existing finalizers.
+   */
+  final def onExit[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
+    ZManaged {
+      Ref.make[ZIO[R1, Nothing, Any]](UIO.unit).map { finalizer =>
+        Reservation(
+          acquire = ZIO.uninterruptibleMask { restore =>
+            for {
+              res   <- self.reserve
+              exitA <- restore(res.acquire).run
+              _     <- finalizer.set(res.release.ensuring(cleanup(exitA)))
+              a     <- ZIO.done(exitA)
+            } yield a
+          },
+          release = finalizer.get.flatten
+        )
+      }
+    }
+
+  /**
+   * Ensures that a cleanup function runs when this ZManaged is finalized, before
+   * the existing finalizers.
+   */
+  final def onExitFirst[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, _]): ZManaged[R1, E, A] =
+    ZManaged {
+      Ref.make[ZIO[R1, Nothing, Any]](UIO.unit).map { finalizer =>
+        Reservation(
+          acquire = ZIO.uninterruptibleMask { restore =>
+            for {
+              res   <- self.reserve
+              exitA <- restore(res.acquire).run
+              _     <- finalizer.set(cleanup(exitA).ensuring(res.release))
+              a     <- ZIO.done(exitA)
+            } yield a
+          },
+          release = finalizer.get.flatten
+        )
+      }
+    }
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
@@ -1180,6 +1237,18 @@ object ZManaged {
    */
   final def when[R, E](b: Boolean)(zManaged: ZManaged[R, E, _]): ZManaged[R, E, Unit] =
     if (b) zManaged.unit else unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+    pf.applyOrElse(a, (_: A) => unit).unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
+   */
+  final def whenCaseM[R, E, A](a: ZManaged[R, E, A])(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+    a.flatMap(whenCase(_)(pf))
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects

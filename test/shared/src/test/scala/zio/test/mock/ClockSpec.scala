@@ -1,4 +1,4 @@
-package zio.testkit
+package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 
@@ -22,7 +22,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e1 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         result    <- testClock.sleep(10.hours).timeout(100.milliseconds)
       } yield result.nonEmpty must beTrue
@@ -31,7 +31,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e2 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         time1     <- testClock.nanoTime
         _         <- testClock.sleep(1.millis)
@@ -42,7 +42,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e3 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         time1     <- testClock.currentTime(TimeUnit.MILLISECONDS)
         _         <- testClock.sleep(1.millis)
@@ -53,7 +53,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e4 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         time1     <- testClock.currentDateTime
         _         <- testClock.sleep(1.millis)
@@ -64,7 +64,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e5 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         _         <- testClock.sleep(1.millis)
         sleeps    <- testClock.sleeps
@@ -74,7 +74,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e6 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         time1     <- testClock.nanoTime
         _         <- testClock.adjust(1.millis)
@@ -85,7 +85,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e7 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         time1     <- testClock.currentTime(TimeUnit.MILLISECONDS)
         _         <- testClock.adjust(1.millis)
@@ -96,7 +96,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e8 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         time1     <- testClock.currentDateTime
         _         <- testClock.adjust(1.millis)
@@ -107,7 +107,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e9 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.Zero)
+        ref       <- Ref.make(TestClock.DefaultData)
         testClock = TestClock(ref)
         _         <- testClock.adjust(1.millis)
         sleeps    <- testClock.sleeps

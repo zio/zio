@@ -37,6 +37,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check done lifts exit result into IO. $testDone
    Check `when` executes correct branch only. $testWhen
    Check `whenM` executes condition effect and correct branch. $testWhenM
+   Check `whenCase` executes correct branch only. $testWhenCase
+   Check `whenCaseM` executes condition effect and correct branch. $testWhenCaseM
    Check `unsandbox` unwraps exception. $testUnsandbox
    Check `supervise` returns same value as IO.supervise. $testSupervise
    Check `flatten` method on IO[E, IO[E, String] returns the same IO[E, String] as `IO.flatten` does. $testFlatten
@@ -75,6 +77,10 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `collectM` returns failure ignoring value $testCollectM
    Check `reject` returns failure ignoring value $testReject
    Check `rejectM` returns failure ignoring value $testRejectM
+   Check `foreachParN` works on large lists $testForeachParN_Threads
+   Check `foreachParN` runs effects in parallel $testForeachParN_Parallel
+   Check `foreachParN` propogates error $testForeachParN_Error
+   Check `foreachParN` interrupts effects on first failure $testForeachParN_Interruption
     """
 
   def functionIOGen: Gen[String => Task[Int]] =
@@ -199,6 +205,32 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         (conditionVal2 must_=== 2) and
         (failed must beLeft(failure))
     )
+
+  def testWhenCase =
+    unsafeRun {
+      val v1: Option[Int] = None
+      val v2: Option[Int] = Some(0)
+      for {
+        ref  <- Ref.make(false)
+        _    <- ZIO.whenCase(v1) { case Some(_) => ref.set(true) }
+        res1 <- ref.get
+        _    <- ZIO.whenCase(v2) { case Some(_) => ref.set(true) }
+        res2 <- ref.get
+      } yield (res1 must_=== false) and (res2 must_=== true)
+    }
+
+  def testWhenCaseM =
+    unsafeRun {
+      val v1: Option[Int] = None
+      val v2: Option[Int] = Some(0)
+      for {
+        ref  <- Ref.make(false)
+        _    <- ZIO.whenCaseM(IO.succeed(v1)) { case Some(_) => ref.set(true) }
+        res1 <- ref.get
+        _    <- ZIO.whenCaseM(IO.succeed(v2)) { case Some(_) => ref.set(true) }
+        res2 <- ref.get
+      } yield (res1 must_=== false) and (res2 must_=== true)
+    }
 
   def testUnsandbox = {
     val failure: IO[Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
@@ -578,5 +610,39 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
     ).left.map(_.failureOrCause) must_=== Left(Left("Partial failed!"))
 
     goodCase and partialBadCase and badCase
+  }
+
+  def testForeachParN_Threads = {
+    val n   = 10L
+    val seq = 0 to 100000
+    val res = unsafeRun(IO.foreachParN(n)(seq)(UIO.succeed))
+    res must be_===(seq)
+  }
+
+  def testForeachParN_Parallel = {
+    val io = for {
+      p <- Promise.make[Nothing, Unit]
+      _ <- UIO.foreachParN(2)(List(UIO.never, p.succeed(())))(a => a).fork
+      _ <- p.await
+    } yield true
+    unsafeRun(io)
+  }
+
+  def testForeachParN_Error = {
+    val ints = List(1, 2, 3, 4, 5, 6)
+    val odds = ZIO.foreachParN(4)(ints) { n =>
+      if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail("not odd")
+    }
+    unsafeRun(odds.either) must_=== Left("not odd")
+  }
+
+  def testForeachParN_Interruption = {
+    val actions = List(
+      ZIO.never,
+      ZIO.succeed(1),
+      ZIO.fail("C")
+    )
+    val io = ZIO.foreachParN(4)(actions)(a => a)
+    unsafeRun(io.either) must_=== Left("C")
   }
 }
