@@ -69,26 +69,9 @@ package object test {
     value.map(assert(_, predicate))
 
   /**
-   * Asserts the boolean value is false.
+   * Creates a failed test result with the specified runtime cause.
    */
-  final def assertFalse(value: Boolean): TestResult = assert(value, Predicate.isFalse)
-
-  /**
-   * Asserts the effectfully-computed boolean value is false.
-   */
-  final def assertFalseM[R](value: ZIO[R, Nothing, Boolean]): ZIO[R, Nothing, TestResult] =
-    assertM(value, Predicate.isFalse)
-
-  /**
-   * Asserts the boolean value is true.
-   */
-  final def assertTrue(value: Boolean): TestResult = assert(value, Predicate.isTrue)
-
-  /**
-   * Asserts the effectfully-computed boolean value is true.
-   */
-  final def assertTrueM[R](value: ZIO[R, Nothing, Boolean]): ZIO[R, Nothing, TestResult] =
-    assertM(value, Predicate.isFalse)
+  def fail[E](cause: Cause[E]): TestResult = AssertResult.failure(FailureDetails.Runtime(cause))
 
   /**
    * Builds a suite containing a number of other specs.
@@ -96,13 +79,13 @@ package object test {
   final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = ZSpec.Suite(label, specs.toVector)
 
   /**
-   * Builds a spec with a single effectful test.
-   */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = ZSpec.Test(label, assertion)
-
-  /**
    * Builds a spec with a single pure test.
    */
   final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
     testM(label)(ZIO.succeedLazy(assertion))
+
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = ZSpec.Test(label, assertion)
 }
