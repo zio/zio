@@ -167,6 +167,23 @@ object Predicate {
     }
 
   /**
+   * Makes a new predicate that requires the sum type be a specified term.
+   *
+   * {{{
+   * isCase("Some", Some.unapply, anything)
+   * }}}
+   */
+  final def isCase[Sum, Proj](
+    termName: String,
+    term: Sum => Option[Proj],
+    predicate: Predicate[Proj]
+  ): Predicate[Sum] =
+    Predicate.predicateRec[Sum]("isCase(\"" + termName + "\", " + s"${termName}.unapply, ${predicate})") {
+      (self, actual) =>
+        term(actual).fold(AssertResult.failure(PredicateValue(self, actual)))(predicate)
+    }
+
+  /**
    * Makes a new predicate that requires a value be true.
    */
   final def isTrue: Predicate[Boolean] = Predicate.predicate(s"isTrue") { actual =>
