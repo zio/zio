@@ -22,16 +22,16 @@ import java.time.ZoneId
 import zio._
 import zio.duration.Duration
 import zio.clock.Clock
-import zio.test.mock.TestClock.Data
+import zio.test.mock.MockClock.Data
 import java.time.{ Instant, OffsetDateTime }
 
-case class TestClock(clockState: Ref[TestClock.Data]) extends Clock.Service[Any] {
+case class MockClock(clockState: Ref[MockClock.Data]) extends Clock.Service[Any] {
 
   final def currentTime(unit: TimeUnit): UIO[Long] =
     clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
   final def currentDateTime: UIO[OffsetDateTime] =
-    clockState.get.map(data => TestClock.offset(data.currentTimeMillis, data.timeZone))
+    clockState.get.map(data => MockClock.offset(data.currentTimeMillis, data.timeZone))
 
   final val nanoTime: IO[Nothing, Long] =
     clockState.get.map(_.nanoTime)
@@ -61,10 +61,10 @@ case class TestClock(clockState: Ref[TestClock.Data]) extends Clock.Service[Any]
     clockState.get.map(_.timeZone)
 }
 
-object TestClock {
+object MockClock {
 
-  def make(data: Data): UIO[TestClock] =
-    Ref.make(data).map(TestClock(_))
+  def make(data: Data): UIO[MockClock] =
+    Ref.make(data).map(MockClock(_))
 
   val DefaultData = Data(0, 0, Nil, ZoneId.of("UTC"))
 

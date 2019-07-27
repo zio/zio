@@ -21,9 +21,9 @@ import java.io.EOFException
 
 import zio.console._
 import zio._
-import TestConsole.Data
+import MockConsole.Data
 
-case class TestConsole(consoleState: Ref[TestConsole.Data]) extends Console.Service[Any] {
+case class MockConsole(consoleState: Ref[MockConsole.Data]) extends Console.Service[Any] {
 
   override def putStr(line: String): UIO[Unit] =
     consoleState.update { data =>
@@ -61,10 +61,10 @@ case class TestConsole(consoleState: Ref[TestConsole.Data]) extends Console.Serv
     consoleState.update(data => data.copy(output = Vector.empty)).unit
 }
 
-object TestConsole {
+object MockConsole {
 
-  def make(data: Data): UIO[TestConsole] =
-    Ref.make(data).map(TestConsole(_))
+  def make(data: Data): UIO[MockConsole] =
+    Ref.make(data).map(MockConsole(_))
 
   val DefaultData: Data = Data(Nil, Vector())
 
