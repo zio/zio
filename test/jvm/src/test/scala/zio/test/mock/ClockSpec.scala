@@ -5,7 +5,7 @@ import java.time.ZoneId
 
 import zio._
 import zio.duration._
-import zio.test.mock.TestClock.DefaultData
+import zio.test.mock.MockClock.DefaultData
 
 class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
@@ -30,140 +30,140 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e1 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        result    <- testClock.sleep(10.hours).timeout(100.milliseconds)
+        mockClock <- MockClock.make(DefaultData)
+        result    <- mockClock.sleep(10.hours).timeout(100.milliseconds)
       } yield result.nonEmpty must beTrue
     )
 
   def e2 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        time1     <- testClock.nanoTime
-        _         <- testClock.sleep(1.millis)
-        time2     <- testClock.nanoTime
+        mockClock <- MockClock.make(DefaultData)
+        time1     <- mockClock.nanoTime
+        _         <- mockClock.sleep(1.millis)
+        time2     <- mockClock.nanoTime
       } yield (time2 - time1) must_== 1000000L
     )
 
   def e3 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        time1     <- testClock.currentTime(TimeUnit.MILLISECONDS)
-        _         <- testClock.sleep(1.millis)
-        time2     <- testClock.currentTime(TimeUnit.MILLISECONDS)
+        mockClock <- MockClock.make(DefaultData)
+        time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
+        _         <- mockClock.sleep(1.millis)
+        time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
       } yield (time2 - time1) must_== 1L
     )
 
   def e4 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        time1     <- testClock.currentDateTime
-        _         <- testClock.sleep(1.millis)
-        time2     <- testClock.currentDateTime
+        mockClock <- MockClock.make(DefaultData)
+        time1     <- mockClock.currentDateTime
+        _         <- mockClock.sleep(1.millis)
+        time2     <- mockClock.currentDateTime
       } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) must_== 1L
     )
 
   def e5 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        _         <- testClock.sleep(1.millis)
-        sleeps    <- testClock.sleeps
+        mockClock <- MockClock.make(DefaultData)
+        _         <- mockClock.sleep(1.millis)
+        sleeps    <- mockClock.sleeps
       } yield sleeps must_== List(1.milliseconds)
     )
 
   def e6 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        time1     <- testClock.nanoTime
-        _         <- testClock.adjust(1.millis)
-        time2     <- testClock.nanoTime
+        mockClock <- MockClock.make(DefaultData)
+        time1     <- mockClock.nanoTime
+        _         <- mockClock.adjust(1.millis)
+        time2     <- mockClock.nanoTime
       } yield (time2 - time1) must_== 1000000L
     )
 
   def e7 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        time1     <- testClock.currentTime(TimeUnit.MILLISECONDS)
-        _         <- testClock.adjust(1.millis)
-        time2     <- testClock.currentTime(TimeUnit.MILLISECONDS)
+        mockClock <- MockClock.make(DefaultData)
+        time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
+        _         <- mockClock.adjust(1.millis)
+        time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
       } yield (time2 - time1) must_== 1L
     )
 
   def e8 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        time1     <- testClock.currentDateTime
-        _         <- testClock.adjust(1.millis)
-        time2     <- testClock.currentDateTime
+        mockClock <- MockClock.make(DefaultData)
+        time1     <- mockClock.currentDateTime
+        _         <- mockClock.adjust(1.millis)
+        time2     <- mockClock.currentDateTime
       } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) must_== 1L
     )
 
   def e9 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        _         <- testClock.adjust(1.millis)
-        sleeps    <- testClock.sleeps
+        mockClock <- MockClock.make(DefaultData)
+        _         <- mockClock.adjust(1.millis)
+        sleeps    <- mockClock.sleeps
       } yield sleeps must_== Nil
     )
 
   def e10 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        _         <- testClock.setTime(1.millis)
-        time      <- testClock.nanoTime
+        mockClock <- MockClock.make(DefaultData)
+        _         <- mockClock.setTime(1.millis)
+        time      <- mockClock.nanoTime
       } yield time must_== 1000000L
     )
 
   def e11 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        _         <- testClock.setTime(1.millis)
-        time      <- testClock.currentTime(TimeUnit.MILLISECONDS)
+        mockClock <- MockClock.make(DefaultData)
+        _         <- mockClock.setTime(1.millis)
+        time      <- mockClock.currentTime(TimeUnit.MILLISECONDS)
       } yield time must_== 1L
     )
 
   def e12 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        _         <- testClock.setTime(1.millis)
-        time      <- testClock.currentDateTime
+        mockClock <- MockClock.make(DefaultData)
+        _         <- mockClock.setTime(1.millis)
+        time      <- mockClock.currentDateTime
       } yield time.toInstant.toEpochMilli must_== 1L
     )
 
   def e13 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        _         <- testClock.setTime(1.millis)
-        sleeps    <- testClock.sleeps
+        mockClock <- MockClock.make(DefaultData)
+        _         <- mockClock.setTime(1.millis)
+        sleeps    <- mockClock.sleeps
       } yield sleeps must_== Nil
     )
 
   def e14 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        _         <- testClock.setTimeZone(ZoneId.of("America/New_York"))
-        timeZone  <- testClock.timeZone
+        mockClock <- MockClock.make(DefaultData)
+        _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
+        timeZone  <- mockClock.timeZone
       } yield timeZone must_== ZoneId.of("America/New_York")
     )
 
   def e15 =
     unsafeRun(
       for {
-        testClock <- TestClock.make(DefaultData)
-        _         <- testClock.setTimeZone(ZoneId.of("America/New_York"))
-        sleeps    <- testClock.sleeps
+        mockClock <- MockClock.make(DefaultData)
+        _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
+        sleeps    <- mockClock.sleeps
       } yield sleeps must_== Nil
     )
 }
