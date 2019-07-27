@@ -20,7 +20,7 @@ import zio._
 import zio.random.Random
 import zio.test.mock.TestRandom.Data
 
-final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[Any] {
+final case class TestRandom(randomState: Ref[TestRandom.Data]) extends Random.Service[Any] {
 
   val nextBoolean: UIO[Boolean] = nextRandom(shiftBooleans)
 
@@ -44,11 +44,59 @@ final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[An
 
   def shuffle[A](list: List[A]): UIO[List[A]] = Random.shuffleWith(nextInt, list)
 
+  def feedInts(ints: Int*): UIO[Unit] =
+    randomState.update(data => data.copy(integers = ints.toList ::: data.integers)).unit
+
+  def feedBooleans(booleans: Boolean*): UIO[Unit] =
+    randomState.update(data => data.copy(booleans = booleans.toList ::: data.booleans)).unit
+
+  def feedDoubles(doubles: Double*): UIO[Unit] =
+    randomState.update(data => data.copy(doubles = doubles.toList ::: data.doubles)).unit
+
+  def feedFloats(floats: Float*): UIO[Unit] =
+    randomState.update(data => data.copy(floats = floats.toList ::: data.floats)).unit
+
+  def feedLongs(longs: Long*): UIO[Unit] =
+    randomState.update(data => data.copy(longs = longs.toList ::: data.longs)).unit
+
+  def feedChars(chars: Char*): UIO[Unit] =
+    randomState.update(data => data.copy(chars = chars.toList ::: data.chars)).unit
+
+  def feedStrings(strings: String*): UIO[Unit] =
+    randomState.update(data => data.copy(strings = strings.toList ::: data.strings)).unit
+
+  def feedBytes(bytes: Chunk[Byte]*): UIO[Unit] =
+    randomState.update(data => data.copy(bytes = bytes.toList ::: data.bytes)).unit
+
+  val clearInts: UIO[Unit] =
+    randomState.update(data => data.copy(integers = List.empty)).unit
+
+  val clearBooleans: UIO[Unit] =
+    randomState.update(data => data.copy(booleans = List.empty)).unit
+
+  val clearDoubles: UIO[Unit] =
+    randomState.update(data => data.copy(doubles = List.empty)).unit
+
+  val clearFloats: UIO[Unit] =
+    randomState.update(data => data.copy(floats = List.empty)).unit
+
+  val clearLongs: UIO[Unit] =
+    randomState.update(data => data.copy(longs = List.empty)).unit
+
+  val clearChars: UIO[Unit] =
+    randomState.update(data => data.copy(chars = List.empty)).unit
+
+  val clearStrings: UIO[Unit] =
+    randomState.update(data => data.copy(strings = List.empty)).unit
+
+  val clearBytes: UIO[Unit] =
+    randomState.update(data => data.copy(bytes = List.empty)).unit
+
   private def nextRandom[T](shift: Data => (T, Data)) =
     for {
-      data            <- ref.get
+      data            <- randomState.get
       (next, shifted) = shift(data)
-      _               <- ref.update(_ => shifted)
+      _               <- randomState.update(_ => shifted)
     } yield next
 
   private def shiftBooleans(data: Data) =
@@ -92,6 +140,9 @@ final case class TestRandom(ref: Ref[TestRandom.Data]) extends Random.Service[An
 
 object TestRandom {
   val DefaultData: Data = Data()
+
+  def make(data: Data): UIO[TestRandom] =
+    Ref.make(data).map(TestRandom(_))
 
   val defaultInteger = 1
   val randomIntegers = defaultInteger :: 2 :: 3 :: 4 :: 5 :: Nil
