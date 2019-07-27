@@ -1023,8 +1023,7 @@ object ZManaged {
           for {
             fs    <- finalizers.get
             exits <- ZIO.foreach(fs)(_.run)
-            _     <- ZIO.done(Exit.collectAll(exits).getOrElse(Exit.unit))
-          } yield ()
+          } yield Exit.collectAllPar(exits)
         )
       }
     }
@@ -1107,8 +1106,7 @@ object ZManaged {
           for {
             fs    <- finalizers.get
             exits <- ZIO.foreach(fs)(_.run)
-            _     <- ZIO.done(Exit.collectAll(exits).getOrElse(Exit.unit))
-          } yield ()
+          } yield Exit.collectAllPar(exits)
         )
       }
     }
