@@ -380,6 +380,12 @@ object RIO {
     ZIO.reduceAllPar(a, as)(f)
 
   /**
+   * @see See [[zio.ZIO.replicate]]
+   */
+  def replicate[R, A](n: Int)(effect: RIO[R, A]): Iterable[RIO[R, A]] =
+    ZIO.replicate(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.require]]
    */
   final def require[R, A](error: Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
