@@ -34,7 +34,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
       self.run(actual) match {
         case Failure(l) => Failure(l)
         case Success(_) => that.run(actual)
-        case Pending    => that.run(actual)
+        case Ignore     => that.run(actual)
       }
     }
 
@@ -46,7 +46,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
       self.run(actual) match {
         case Failure(_) => that.run(actual)
         case Success(l) => Success(l)
-        case Pending    => that.run(actual)
+        case Ignore     => that.run(actual)
       }
     }
 

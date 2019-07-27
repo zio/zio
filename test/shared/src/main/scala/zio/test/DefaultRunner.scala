@@ -22,4 +22,4 @@ import zio._
  * A `Runner` that provides a default testable environment.
  */
 // TODO: Provide test environment
-object DefaultRunner extends Runner[DefaultRuntime#Environment, Any, String](???) {}
+object DefaultRunner extends Runner[DefaultRuntime#Environment, String](???) {}

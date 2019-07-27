@@ -40,7 +40,7 @@ sealed trait AssertResult[+L] { self =>
    * Returns a new result, with the label mapped by the specified function.
    */
   final def map[L1](f: L => L1): AssertResult[L1] = self match {
-    case Pending        => Pending
+    case Ignore         => Ignore
     case Failure(label) => Failure(f(label))
     case Success(label) => Success(f(label))
   }
@@ -50,7 +50,7 @@ sealed trait AssertResult[+L] { self =>
    * transformed by the specified function.
    */
   final def negate[L1](f: L => L1): AssertResult[L1] = self match {
-    case Pending        => Pending
+    case Ignore         => Ignore
     case Failure(label) => Success(f(label))
     case Success(label) => Failure(f(label))
   }
@@ -64,7 +64,7 @@ sealed trait AssertResult[+L] { self =>
   }
 }
 object AssertResult {
-  case object Pending                    extends AssertResult[Nothing]
+  case object Ignore                     extends AssertResult[Nothing]
   final case class Success[+L](label: L) extends AssertResult[L]
   final case class Failure[+L](label: L) extends AssertResult[L]
 
