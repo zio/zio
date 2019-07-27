@@ -69,4 +69,10 @@ object TestConsole {
   val DefaultData: Data = Data(Nil, Vector())
 
   case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
+
+  def feedLines(lines: String*): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.console.feedLines(lines: _*))
+
+  val output: ZIO[TestEnvironment, Nothing, Vector[String]] =
+    ZIO.accessM(_.console.output)
 }

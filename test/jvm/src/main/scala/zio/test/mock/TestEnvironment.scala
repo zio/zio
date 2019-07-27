@@ -47,21 +47,14 @@ object TestEnvironment {
     Managed.fromEffect {
       for {
         bootstrap <- ZIO.effectTotal(PlatformLive.fromExecutionContext(ExecutionContext.global))
-        clock     <- Ref.make(TestClock.DefaultData).map(TestClock(_))
-        console   <- Ref.make(TestConsole.DefaultData).map(TestConsole(_))
-        random    <- Ref.make(TestRandom.DefaultData).map(TestRandom(_))
-        scheduler = TestScheduler(clock.ref, Runtime(Clock(clock), bootstrap))
-        system    <- Ref.make(TestSystem.DefaultData).map(TestSystem(_))
+        clock     <- TestClock.make(TestClock.DefaultData)
+        console   <- TestConsole.make(TestConsole.DefaultData)
+        random    <- TestRandom.make(TestRandom.DefaultData)
+        scheduler = TestScheduler(clock.clockState, Runtime(Clock(clock), bootstrap))
+        system    <- TestSystem.make(TestSystem.DefaultData)
         blocking  = Blocking.Live.blocking
       } yield new TestEnvironment(clock, console, random, scheduler, system, blocking)
     }
-
-  object testConsole {
-    def feedLines(lines: String*): ZIO[TestEnvironment, Nothing, Unit] =
-      ZIO.accessM(_.console.ref.update(data => data.copy(input = lines.toList ::: data.input)).unit)
-    val output: ZIO[TestEnvironment, Nothing, Vector[String]] =
-      ZIO.accessM(_.console.ref.get.map(_.output))
-  }
 
   private def Clock(testClock: TestClock): Clock = new Clock {
     val clock = testClock
