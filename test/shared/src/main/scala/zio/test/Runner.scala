@@ -25,7 +25,7 @@ import zio.internal.{ Platform, PlatformLive }
  * type `L`. Runners have main functions, so if they are extended from
  * (non-abstract) classes, they can be run by the JVM / Scala.js.
  */
-abstract class Runner[R, E, L](
+abstract class Runner[+R, E, L](
   environment: Managed[E, R],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
   reporter: Reporter[L] = ???
@@ -67,7 +67,7 @@ abstract class Runner[R, E, L](
           }
       case ZSpec.Test(label, assert) =>
         assert.foldCauseM(
-          e => ZIO.succeed(ZSpec.Test((label, error(e)), assert)),
+          e => ZIO.succeed(ZSpec.Test((label, fail(e)), assert)),
           a => ZIO.succeed(ZSpec.Test((label, a), assert))
         )
       case ZSpec.Concat(head, tail) =>
@@ -88,13 +88,10 @@ abstract class Runner[R, E, L](
           }
       case ZSpec.Test(label, assert) =>
         assert.foldCauseM(
-          e => ZIO.succeed(ZSpec.Test((label, error(e)), assert)),
+          e => ZIO.succeed(ZSpec.Test((label, fail(e)), assert)),
           a => ZIO.succeed(ZSpec.Test((label, a), assert))
         )
       case ZSpec.Concat(head, tail) =>
         sequential(head).zipWith(ZIO.foreach(tail)(sequential[R, E, L]))((h, t) => ZSpec.Concat(h, t.toVector))
     }
-
-  private def error[E](e: Cause[E]): TestResult =
-    AssertResult.failure(FailureDetails.Other(e.toString))
 }

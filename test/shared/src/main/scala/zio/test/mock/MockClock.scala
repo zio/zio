@@ -22,27 +22,27 @@ import java.time.ZoneId
 import zio._
 import zio.duration.Duration
 import zio.clock.Clock
-import zio.test.mock.TestClock.Data
+import zio.test.mock.MockClock.Data
 import java.time.{ Instant, OffsetDateTime }
 
-case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
+case class MockClock(clockState: Ref[MockClock.Data]) extends Clock.Service[Any] {
 
   final def currentTime(unit: TimeUnit): UIO[Long] =
-    ref.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
+    clockState.get.map(data => unit.convert(data.currentTimeMillis, TimeUnit.MILLISECONDS))
 
   final def currentDateTime: UIO[OffsetDateTime] =
-    ref.get.map(data => TestClock.offset(data.currentTimeMillis, data.timeZone))
+    clockState.get.map(data => MockClock.offset(data.currentTimeMillis, data.timeZone))
 
   final val nanoTime: IO[Nothing, Long] =
-    ref.get.map(_.nanoTime)
+    clockState.get.map(_.nanoTime)
 
   final def sleep(duration: Duration): UIO[Unit] =
-    adjust(duration) *> ref.update(data => data.copy(sleeps0 = duration :: data.sleeps0)).unit
+    adjust(duration) *> clockState.update(data => data.copy(sleeps0 = duration :: data.sleeps0)).unit
 
-  val sleeps: UIO[List[Duration]] = ref.get.map(_.sleeps0.reverse)
+  val sleeps: UIO[List[Duration]] = clockState.get.map(_.sleeps0.reverse)
 
   final def adjust(duration: Duration): UIO[Unit] =
-    ref.update { data =>
+    clockState.update { data =>
       Data(
         data.nanoTime + duration.toNanos,
         data.currentTimeMillis + duration.toMillis,
@@ -51,9 +51,21 @@ case class TestClock(ref: Ref[TestClock.Data]) extends Clock.Service[Any] {
       )
     }.unit
 
+  final def setTime(duration: Duration): UIO[Unit] =
+    clockState.update(_.copy(nanoTime = duration.toNanos, currentTimeMillis = duration.toMillis)).unit
+
+  final def setTimeZone(zone: ZoneId): UIO[Unit] =
+    clockState.update(_.copy(timeZone = zone)).unit
+
+  val timeZone: UIO[ZoneId] =
+    clockState.get.map(_.timeZone)
 }
 
-object TestClock {
+object MockClock {
+
+  def make(data: Data): UIO[MockClock] =
+    Ref.make(data).map(MockClock(_))
+
   val DefaultData = Data(0, 0, Nil, ZoneId.of("UTC"))
 
   def offset(millis: Long, timeZone: ZoneId): OffsetDateTime =
