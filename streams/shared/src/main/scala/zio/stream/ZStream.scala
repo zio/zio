@@ -680,48 +680,106 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             //     with a promise. The driver will pick that up and interrupt all other fibers.
             //   - On interruption, an inner fiber does nothing
             //   - On completion, an inner fiber does nothing
-            driver <- self.foreachManaged { a =>
-                       for {
-                         latch <- Promise.make[Nothing, Unit]
-                         innerStream = Stream
-                           .bracket(permits.acquire *> latch.succeed(()))(_ => permits.release)
-                           .flatMap(_ => f(a))
-                           .foreach(b => out.offer(Take.Value(b)).unit)
-                           .foldCauseM(
-                             cause => out.offer(Take.Fail(cause)) *> innerFailure.fail(cause),
-                             _ => ZIO.unit
-                           )
-                         _ <- (innerStream race interruptInners.await).fork
-                         // Make sure that the current inner stream has actually succeeded in acquiring
-                         // a permit before continuing. Otherwise, two bad things happen:
-                         // - we might needlessly fork inner streams without available permits
-                         // - worse, we could reach the end of the stream and acquire the permits ourselves
-                         //   before the inners had a chance to start
-                         _ <- latch.await
-                       } yield ()
-                     }.foldCauseM(
-                         cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
-                         _ =>
-                           innerFailure.await
-                           // Important to use `withPermits` here because the finalizer below may interrupt
-                           // the driver, and we want the permits to be released in that case
-                             .raceWith(permits.withPermits(n)(ZIO.unit))(
-                               // One of the inner fibers failed. It already enqueued its failure, so we
-                               // signal the inner fibers to interrupt. The finalizer below will make sure
-                               // that they actually end.
-                               leftDone =
-                                 (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt,
-                               // All fibers completed successfully, so we signal that we're done.
-                               rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt
-                             )
-                             .toManaged_
-                       )
-                       .fork
+            _ <- self.foreachManaged { a =>
+                  for {
+                    latch <- Promise.make[Nothing, Unit]
+                    innerStream = Stream
+                      .bracket(permits.acquire)(_ => permits.release)
+                      .flatMap(_ => ZStream.fromEffect(latch.succeed(())).flatMap(_ => f(a)))
+                      .foreach(b => out.offer(Take.Value(b)).unit)
+                      .foldCauseM(
+                        cause => out.offer(Take.Fail(cause)) *> innerFailure.fail(cause),
+                        _ => ZIO.unit
+                      )
+                    _ <- (innerStream race interruptInners.await).fork
+                    // Make sure that the current inner stream has actually succeeded in acquiring
+                    // a permit before continuing. Otherwise, two bad things happen:
+                    // - we might needlessly fork inner streams without available permits
+                    // - worse, we could reach the end of the stream and acquire the permits ourselves
+                    //   before the inners had a chance to start
+                    _ <- latch.await
+                  } yield ()
+                }.foldCauseM(
+                    cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
+                    _ =>
+                      innerFailure.await
+                      // Important to use `withPermits` here because the finalizer below may interrupt
+                      // the driver, and we want the permits to be released in that case
+                        .raceWith(permits.withPermits(n)(ZIO.unit))(
+                          // One of the inner fibers failed. It already enqueued its failure, so we
+                          // signal the inner fibers to interrupt. The finalizer below will make sure
+                          // that they actually end.
+                          leftDone =
+                            (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt,
+                          // All fibers completed successfully, so we signal that we're done.
+                          rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt
+                        )
+                        .toManaged_
+                  )
+                  // This finalizer makes sure that in all cases, the driver stops spawning new streams
+                  // and the inner fibers are signalled to interrupt and actually exit.
+                  .ensuringFirst(interruptInners.succeed(()) *> permits.withPermits(n)(ZIO.unit))
+                  .fork
+            s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
+          } yield s
+        }
+    }
 
-            // This finalizer makes sure that in all cases, the driver stops spawning new streams
-            // and the inner fibers are signalled to interrupt and actually exit.
-            _ <- ZManaged.finalizer(driver.interrupt *> interruptInners.succeed(()) *> permits.withPermits(n)(ZIO.unit))
-
+  /**
+   * Maps each element of this stream to another stream and returns the non-deterministic merge
+   * of those streams, executing up to `n` inner streams concurrently. When a new stream is created
+   * from an element of the source stream, the oldest executing stream is cancelled. Up to `bufferSize`
+   * elements of the produced streams may be buffered in memory by this operator.
+   */
+  final def flatMapParSwitch[R1 <: R, E1 >: E, B](n: Int, bufferSize: Int = 16)(
+    f: A => ZStream[R1, E1, B]
+  ): ZStream[R1, E1, B] =
+    new ZStream[R1, E1, B] {
+      override def fold[R2 <: R1, E2 >: E1, B1 >: B, S]: Fold[R2, E2, B1, S] =
+        ZManaged.succeedLazy { (s, cont, g) =>
+          for {
+            // Modeled after flatMapPar.
+            out             <- Queue.bounded[Take[E1, B]](bufferSize).toManaged(_.shutdown)
+            permits         <- Semaphore.make(n.toLong).toManaged_
+            innerFailure    <- Promise.make[Cause[E1], Nothing].toManaged_
+            interruptInners <- Promise.make[Nothing, Unit].toManaged_
+            cancelers       <- Queue.bounded[Promise[Nothing, Unit]](n).toManaged(_.shutdown)
+            cancelersGuard  <- Semaphore.make(1).toManaged_
+            _ <- self.foreachManaged { a =>
+                  for {
+                    latch    <- Promise.make[Nothing, Unit]
+                    canceler <- Promise.make[Nothing, Unit]
+                    innerStream = Stream
+                      .bracket(
+                        cancelersGuard.withPermit(
+                          cancelers.size.flatMap { size =>
+                            if (size < n) UIO.unit
+                            else cancelers.take.flatMap(_.succeed(()))
+                          } *> cancelers.offer(canceler) *> permits.acquire
+                        )
+                      )(_ => permits.release)
+                      .flatMap(_ => ZStream.fromEffect(latch.succeed(())).flatMap(_ => f(a)))
+                      .foreach(b => out.offer(Take.Value(b)).unit)
+                      .foldCauseM(
+                        cause => out.offer(Take.Fail(cause)) *> innerFailure.fail(cause).unit,
+                        _ => UIO.unit
+                      )
+                    _ <- innerStream.raceAll(List(canceler.await, interruptInners.await)).fork
+                    _ <- latch.await
+                  } yield ()
+                }.foldCauseM(
+                    cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
+                    _ =>
+                      innerFailure.await
+                        .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
+                          leftDone =
+                            (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt.unit,
+                          rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt.unit
+                        )
+                        .toManaged_
+                  )
+                  .ensuringFirst(interruptInners.succeed(()) *> permits.withPermits(n.toLong)(UIO.unit))
+                  .fork
             s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
         }
@@ -1464,23 +1522,26 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
    */
   final def effectAsync[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Unit,
+    register: (ZIO[R, Option[E], A] => Unit) => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    effectAsyncMaybe((callback: ZIO[R, E, A] => Unit) => {
+    effectAsyncMaybe(callback => {
       register(callback)
-
       None
     }, outputBuffer)
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback can possibly return the stream synchronously
+   * The registration of the callback can possibly return the stream synchronously.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
    */
   final def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Option[ZStream[R, E, A]],
+    register: (ZIO[R, Option[E], A] => Unit) => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
@@ -1494,8 +1555,12 @@ object ZStream extends ZStreamPlatformSpecific {
                               k =>
                                 runtime.unsafeRunAsync_(
                                   k.foldCauseM(
-                                    cause => output.offer(Take.Fail(cause)).unit,
-                                    b => output.offer(Take.Value(b)).unit
+                                    _.failureOrCause match {
+                                      case Left(None)    => output.offer(Take.End).unit
+                                      case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                                      case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                                    },
+                                    a => output.offer(Take.Value(a)).unit
                                   )
                                 )
                             )
@@ -1512,10 +1577,11 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times
-   * The registration of the callback itself returns an effect
+   * The registration of the callback itself returns an effect. The optionality of the
+   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
    */
   final def effectAsyncM[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, _],
+    register: (ZIO[R, Option[E], A] => Unit) => ZIO[R, E, _],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
@@ -1528,8 +1594,12 @@ object ZStream extends ZStreamPlatformSpecific {
                   k =>
                     runtime.unsafeRunAsync_(
                       k.foldCauseM(
-                        cause => output.offer(Take.Fail(cause)).unit,
-                        b => output.offer(Take.Value(b)).unit
+                        _.failureOrCause match {
+                          case Left(None)    => output.offer(Take.End).unit
+                          case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                          case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                        },
+                        a => output.offer(Take.Value(a)).unit
                       )
                     )
                 ).toManaged_
@@ -1540,10 +1610,12 @@ object ZStream extends ZStreamPlatformSpecific {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback returns either a canceler or synchronously returns a stream
+   * The registration of the callback returns either a canceler or synchronously returns a stream.
+   * The optionality of the error type `E` can be used to signal the end of the stream, by
+   * setting it to `None`.
    */
   final def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler, ZStream[R, E, A]],
+    register: (ZIO[R, Option[E], A] => Unit) => Either[Canceler, ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream[R, E, A] {
@@ -1557,8 +1629,12 @@ object ZStream extends ZStreamPlatformSpecific {
                                k =>
                                  runtime.unsafeRunAsync_(
                                    k.foldCauseM(
-                                     cause => output.offer(Take.Fail(cause)).unit,
-                                     b => output.offer(Take.Value(b)).unit
+                                     _.failureOrCause match {
+                                       case Left(None)    => output.offer(Take.End).unit
+                                       case Left(Some(e)) => output.offer(Take.Fail(Cause.fail(e))).unit
+                                       case Right(cause)  => output.offer(Take.Fail(cause)).unit
+                                     },
+                                     a => output.offer(Take.Value(a)).unit
                                    )
                                  )
                              )
