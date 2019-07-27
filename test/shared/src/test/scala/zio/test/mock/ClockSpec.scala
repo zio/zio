@@ -1,9 +1,11 @@
 package zio.test.mock
 
 import java.util.concurrent.TimeUnit
+import java.time.ZoneId
 
 import zio._
 import zio.duration._
+import zio.test.mock.TestClock.DefaultData
 
 class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
@@ -17,13 +19,18 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
       Adjust correctly advances currentTime             $e7
       Adjust correctly advances currentDateTime         $e8
       Adjust does not produce sleeps                    $e9
+      SetTime correctly sets nanotime                   $e10
+      SetTime correctly sets currentTime                $e11
+      SetTime correctly sets currentDateTime            $e12
+      SetTime does not produce sleeps                   $e13
+      SetTimeZone correctly sets timeZone               $e14
+      SetTimeZone does not produce sleeps               $e15
      """
 
   def e1 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         result    <- testClock.sleep(10.hours).timeout(100.milliseconds)
       } yield result.nonEmpty must beTrue
     )
@@ -31,8 +38,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e2 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         time1     <- testClock.nanoTime
         _         <- testClock.sleep(1.millis)
         time2     <- testClock.nanoTime
@@ -42,8 +48,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e3 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         time1     <- testClock.currentTime(TimeUnit.MILLISECONDS)
         _         <- testClock.sleep(1.millis)
         time2     <- testClock.currentTime(TimeUnit.MILLISECONDS)
@@ -53,8 +58,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e4 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         time1     <- testClock.currentDateTime
         _         <- testClock.sleep(1.millis)
         time2     <- testClock.currentDateTime
@@ -64,8 +68,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e5 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         _         <- testClock.sleep(1.millis)
         sleeps    <- testClock.sleeps
       } yield sleeps must_== List(1.milliseconds)
@@ -74,8 +77,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e6 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         time1     <- testClock.nanoTime
         _         <- testClock.adjust(1.millis)
         time2     <- testClock.nanoTime
@@ -85,8 +87,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e7 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         time1     <- testClock.currentTime(TimeUnit.MILLISECONDS)
         _         <- testClock.adjust(1.millis)
         time2     <- testClock.currentTime(TimeUnit.MILLISECONDS)
@@ -96,8 +97,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e8 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         time1     <- testClock.currentDateTime
         _         <- testClock.adjust(1.millis)
         time2     <- testClock.currentDateTime
@@ -107,11 +107,63 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
   def e9 =
     unsafeRun(
       for {
-        ref       <- Ref.make(TestClock.DefaultData)
-        testClock = TestClock(ref)
+        testClock <- TestClock.make(DefaultData)
         _         <- testClock.adjust(1.millis)
         sleeps    <- testClock.sleeps
       } yield sleeps must_== Nil
     )
 
+  def e10 =
+    unsafeRun(
+      for {
+        testClock <- TestClock.make(DefaultData)
+        _         <- testClock.setTime(1.millis)
+        time      <- testClock.nanoTime
+      } yield time must_== 1000000L
+    )
+
+  def e11 =
+    unsafeRun(
+      for {
+        testClock <- TestClock.make(DefaultData)
+        _         <- testClock.setTime(1.millis)
+        time      <- testClock.currentTime(TimeUnit.MILLISECONDS)
+      } yield time must_== 1L
+    )
+
+  def e12 =
+    unsafeRun(
+      for {
+        testClock <- TestClock.make(DefaultData)
+        _         <- testClock.setTime(1.millis)
+        time      <- testClock.currentDateTime
+      } yield time.toInstant.toEpochMilli must_== 1L
+    )
+
+  def e13 =
+    unsafeRun(
+      for {
+        testClock <- TestClock.make(DefaultData)
+        _         <- testClock.setTime(1.millis)
+        sleeps    <- testClock.sleeps
+      } yield sleeps must_== Nil
+    )
+
+  def e14 =
+    unsafeRun(
+      for {
+        testClock <- TestClock.make(DefaultData)
+        _         <- testClock.setTimeZone(ZoneId.of("America/New_York"))
+        timeZone  <- testClock.timeZone
+      } yield timeZone must_== ZoneId.of("America/New_York")
+    )
+
+  def e15 =
+    unsafeRun(
+      for {
+        testClock <- TestClock.make(DefaultData)
+        _         <- testClock.setTimeZone(ZoneId.of("America/New_York"))
+        sleeps    <- testClock.sleeps
+      } yield sleeps must_== Nil
+    )
 }
