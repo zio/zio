@@ -226,8 +226,6 @@ object MockRandom {
   val clearBytes: ZIO[MockRandom, Nothing, Unit] =
     ZIO.accessM(_.random.clearBytes)
 
-  val DefaultData: Data = Data()
-
   val defaultInteger = 1
   val randomIntegers = defaultInteger :: 2 :: 3 :: 4 :: 5 :: Nil
   val defaultBoolean = true
@@ -244,6 +242,17 @@ object MockRandom {
   val randomStrings  = randomChars.map(_.toString)
   val defaultBytes   = Chunk(defaultInteger.toByte)
   val randomBytes    = randomIntegers.map(i => Chunk(i.toByte))
+
+  val DefaultData: Data = Data(
+    randomIntegers,
+    randomBooleans,
+    randomDoubles,
+    randomFloats,
+    randomLongs,
+    randomChars,
+    randomStrings,
+    randomBytes
+  )
 
   final case class Data(
     integers: List[Int] = randomIntegers,
