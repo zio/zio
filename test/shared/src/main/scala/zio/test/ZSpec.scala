@@ -60,7 +60,7 @@ sealed trait ZSpec[-R, +E, +L] { self =>
       case ZSpec.Suite(label, specs) => ZSpec.Suite(label, specs.map(loop))
       case ZSpec.Test(label, assert) =>
         if (f(label)) ZSpec.Test(label, assert)
-        else ZSpec.Test(label, ZIO.succeed(AssertResult.Pending))
+        else ZSpec.Test(label, ZIO.succeed(AssertResult.Ignore))
       case ZSpec.Concat(head, tail) => ZSpec.Concat(loop(head), tail.map(loop))
     }
 
