@@ -16,10 +16,8 @@
 
 package zio.test
 
-import zio._
-
 /**
  * A `Runner` that provides a default testable environment.
  */
 // TODO: Provide test environment
-object DefaultRunner extends Runner[DefaultRuntime#Environment, String](???) {}
+object DefaultRunner extends Runner[zio.test.mock.MockEnvironment, String](zio.test.mock.mockEnvironmentManaged) {}
