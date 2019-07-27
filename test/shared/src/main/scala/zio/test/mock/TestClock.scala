@@ -77,4 +77,20 @@ object TestClock {
     sleeps0: List[Duration],
     timeZone: ZoneId
   )
+
+  val sleeps: ZIO[TestEnvironment, Nothing, List[Duration]] =
+    ZIO.accessM(_.clock.sleeps)
+
+  def adjust(duration: Duration): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.clock.adjust(duration))
+
+  def setTime(duration: Duration): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.clock.setTime(duration))
+
+  def setTimeZone(zone: ZoneId): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.clock.setTimeZone(zone))
+
+  val timeZone: ZIO[TestEnvironment, Nothing, ZoneId] =
+    ZIO.accessM(_.clock.timeZone)
+
 }

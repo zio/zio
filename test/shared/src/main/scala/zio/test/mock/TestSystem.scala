@@ -41,4 +41,19 @@ object TestSystem {
     envs: Map[String, String] = Map.empty,
     lineSeparator: String = "\n"
   )
+
+  def putEnv(name: String, value: String): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.system.putEnv(name, value))
+
+  def putProperty(name: String, value: String): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.system.putProperty(name, value))
+
+  def setLineSeparator(lineSep: String): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.system.setLineSeparator(lineSep))
+
+  def clearEnv(variable: String): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.system.clearEnv(variable))
+
+  def clearProperty(prop: String): ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.system.clearProperty(prop))
 }

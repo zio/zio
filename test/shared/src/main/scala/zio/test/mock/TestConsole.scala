@@ -75,4 +75,10 @@ object TestConsole {
 
   val output: ZIO[TestEnvironment, Nothing, Vector[String]] =
     ZIO.accessM(_.console.output)
+
+  val clearInput: ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.console.clearInput)
+
+  val clearOutput: ZIO[TestEnvironment, Nothing, Unit] =
+    ZIO.accessM(_.console.clearOutput)
 }
