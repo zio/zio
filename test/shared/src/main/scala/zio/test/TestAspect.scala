@@ -122,12 +122,12 @@ object TestAspect {
     }
 
   /**
-   * An aspect that marks tests as pending.
+   * An aspect that marks tests as ignored.
    */
-  val pending: TestAspectPoly =
+  val ignore: TestAspectPoly =
     new TestAspectPoly {
       def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
-        ZIO.succeed(AssertResult.Pending)
+        ZIO.succeed(AssertResult.Ignore)
     }
 
   /**
