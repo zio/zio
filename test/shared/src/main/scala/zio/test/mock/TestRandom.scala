@@ -172,51 +172,51 @@ object TestRandom {
     bytes: List[Chunk[Byte]] = randomBytes
   )
 
-  def feedInts(ints: Int*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedInts(ints: Int*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.feedInts(ints: _*))
 
-  def feedBooleans(booleans: Boolean*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedBooleans(booleans: Boolean*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.feedBooleans(booleans: _*))
 
-  def feedDoubles(doubles: Double*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedDoubles(doubles: Double*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.feedDoubles(doubles: _*))
 
-  def feedFloats(floats: Float*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedFloats(floats: Float*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.feedFloats(floats: _*))
 
-  def feedLongs(longs: Long*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedLongs(longs: Long*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.feedLongs(longs: _*))
 
-  def feedChars(chars: Char*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedChars(chars: Char*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.feedChars(chars: _*))
 
-  def feedStrings(strings: String*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedStrings(strings: String*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.feedStrings(strings: _*))
 
-  def feedBytes(bytes: Chunk[Byte]*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedBytes(bytes: Chunk[Byte]*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.feedBytes(bytes: _*))
 
-  val clearInts: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearInts: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.clearInts)
 
-  val clearBooleans: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearBooleans: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.clearBooleans)
 
-  val clearDoubles: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearDoubles: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.clearDoubles)
 
-  val clearFloats: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearFloats: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.clearFloats)
 
-  val clearLongs: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearLongs: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.clearLongs)
 
-  val clearChars: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearChars: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.clearChars)
 
-  val clearStrings: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearStrings: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.clearStrings)
 
-  val clearBytes: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearBytes: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.random.clearBytes)
 }

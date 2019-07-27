@@ -14,8 +14,8 @@ class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       System:
   """
 
-  def withEnvironment[E, A](zio: ZIO[TestEnvironment, E, A]): A =
-    unsafeRun(testEnvironmentManaged.use[Any, E, A](r => zio.provide(r)))
+  def withEnvironment[E, A](zio: ZIO[MockEnvironment, E, A]): A =
+    unsafeRun(mockEnvironmentManaged.use[Any, E, A](r => zio.provide(r)))
 
   def putStr =
     withEnvironment {

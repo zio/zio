@@ -26,7 +26,7 @@ import zio.random.Random
 import zio.scheduler.Scheduler
 import zio.system.System
 
-case class TestEnvironment(
+case class MockEnvironment(
   clock: TestClock,
   console: TestConsole,
   random: TestRandom,
@@ -38,9 +38,9 @@ case class TestEnvironment(
     with Scheduler
     with System
 
-object TestEnvironment {
+object MockEnvironment {
 
-  val Value: Managed[Nothing, TestEnvironment] =
+  val Value: Managed[Nothing, MockEnvironment] =
     Managed.fromEffect {
       for {
         bootstrap <- ZIO.effectTotal(PlatformLive.fromExecutionContext(ExecutionContext.global))
@@ -49,7 +49,7 @@ object TestEnvironment {
         random    <- TestRandom.make(TestRandom.DefaultData)
         scheduler = TestScheduler(clock.clockState, Runtime(Clock(clock), bootstrap))
         system    <- TestSystem.make(TestSystem.DefaultData)
-      } yield new TestEnvironment(clock, console, random, scheduler, system)
+      } yield new MockEnvironment(clock, console, random, scheduler, system)
     }
 
   private def Clock(testClock: TestClock): Clock = new Clock {

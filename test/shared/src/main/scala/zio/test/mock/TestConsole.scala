@@ -70,15 +70,15 @@ object TestConsole {
 
   case class Data(input: List[String] = List.empty, output: Vector[String] = Vector.empty)
 
-  def feedLines(lines: String*): ZIO[TestEnvironment, Nothing, Unit] =
+  def feedLines(lines: String*): ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.console.feedLines(lines: _*))
 
-  val output: ZIO[TestEnvironment, Nothing, Vector[String]] =
+  val output: ZIO[MockEnvironment, Nothing, Vector[String]] =
     ZIO.accessM(_.console.output)
 
-  val clearInput: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearInput: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.console.clearInput)
 
-  val clearOutput: ZIO[TestEnvironment, Nothing, Unit] =
+  val clearOutput: ZIO[MockEnvironment, Nothing, Unit] =
     ZIO.accessM(_.console.clearOutput)
 }

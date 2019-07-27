@@ -20,5 +20,5 @@
 
  package object mock{
 
-  val testEnvironmentManaged: Managed[Nothing, TestEnvironment] = TestEnvironment.Value
+  val mockEnvironmentManaged: Managed[Nothing, MockEnvironment] = MockEnvironment.Value
  }
