@@ -97,6 +97,12 @@ object TestAspect {
     }
 
   /**
+   * An aspect that retries a test until success, without limit, for use with
+   * flaky tests.
+   */
+  val flaky: TestAspectPoly = eventually
+
+  /**
    * An aspect that repeats the test a specified number of times, ensuring it
    * is stable ("non-flaky"). Stops at the first failure.
    */
