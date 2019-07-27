@@ -93,7 +93,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def nextIntWithLimit =
     unsafeRun(
       for {
-        mockRandom <- MockRandom.make(Data(integers = List(5, 6, 7)))
+        mockRandom <- MockRandom.makeMock(Data(integers = List(5, 6, 7)))
         next1      <- mockRandom.nextInt(2)
         next2      <- mockRandom.nextInt(6)
         next3      <- mockRandom.nextInt(99)
@@ -261,7 +261,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
   def checkWith[A](data: Data, expected: List[A])(f: Random.Service[Any] => UIO[A]) =
     unsafeRun(
       for {
-        mockRandom    <- MockRandom.make(data)
+        mockRandom    <- MockRandom.makeMock(data)
         randomResults <- IO.foreach(1 to expected.length)(_ => f(mockRandom))
       } yield randomResults must_=== expected
     )
@@ -296,7 +296,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
     unsafeRun(
       for {
-        mockRandom <- MockRandom.make(Data(integers = identitySwapIndexes))
+        mockRandom <- MockRandom.makeMock(Data(integers = identitySwapIndexes))
         shuffled   <- mockRandom.shuffle(input)
       } yield shuffled must_=== input
     )
@@ -311,25 +311,25 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
 
     unsafeRun(
       for {
-        mockRandom <- MockRandom.make(Data(integers = reverseSwapIndexes))
+        mockRandom <- MockRandom.makeMock(Data(integers = reverseSwapIndexes))
         shuffled   <- mockRandom.shuffle(input)
       } yield shuffled must_=== input.reverse
     )
   }
 
-  def checkFeed[A](feed: MockRandom => Seq[A] => UIO[Unit], expected: List[A])(f: Random.Service[Any] => UIO[A]) =
+  def checkFeed[A](feed: MockRandom.Mock => Seq[A] => UIO[Unit], expected: List[A])(f: Random.Service[Any] => UIO[A]) =
     unsafeRun(
       for {
-        mockRandom <- MockRandom.make(Data())
+        mockRandom <- MockRandom.makeMock(Data())
         _          <- feed(mockRandom)(expected)
         results    <- UIO.foreach(1 to expected.length)(_ => f(mockRandom))
       } yield results must_=== expected
     )
 
-  def checkClear[A](clear: MockRandom => UIO[Unit], default: A)(f: Random.Service[Any] => UIO[A]) =
+  def checkClear[A](clear: MockRandom.Mock => UIO[Unit], default: A)(f: Random.Service[Any] => UIO[A]) =
     unsafeRun(
       for {
-        mockRandom <- MockRandom.make(Data())
+        mockRandom <- MockRandom.makeMock(Data())
         _          <- clear(mockRandom)
         result     <- f(mockRandom)
       } yield result must_=== default
