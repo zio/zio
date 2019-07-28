@@ -44,7 +44,7 @@ class PromiseSpec extends BaseCrossPlatformSpec {
     unsafeRun(
       for {
         p <- Promise.make[Nothing, Int]
-        s <- p.done(IO.succeed(14))
+        s <- p.complete(IO.succeed(14))
         v <- p.await
       } yield s must beTrue and (v must_=== 14)
     )
@@ -62,7 +62,7 @@ class PromiseSpec extends BaseCrossPlatformSpec {
     unsafeRun(
       for {
         p <- Promise.make[String, Int]
-        s <- p.done(IO.fail("error in e4"))
+        s <- p.complete(IO.fail("error in e4"))
         v <- p.await.either
       } yield s must beTrue and (v must_=== Left("error in e4"))
     )
@@ -72,7 +72,7 @@ class PromiseSpec extends BaseCrossPlatformSpec {
       for {
         p <- Promise.make[Nothing, Int]
         _ <- p.succeed(1)
-        s <- p.done(IO.succeed(9))
+        s <- p.complete(IO.succeed(9))
         v <- p.await
       } yield s must beFalse and (v must_=== 1)
     )
@@ -149,6 +149,15 @@ class PromiseSpec extends BaseCrossPlatformSpec {
       for {
         p <- Promise.make[String, Int]
         _ <- p.fail("failure")
+        d <- p.isDone
+      } yield d must_== true
+    )
+
+  def e15 =
+    unsafeRun(
+      for {
+        p <- Promise.make[String, Int]
+        _ <- p.done(Exit.succeed(0))
         d <- p.isDone
       } yield d must_== true
     )
