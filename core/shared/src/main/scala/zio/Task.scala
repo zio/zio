@@ -336,6 +336,12 @@ object Task {
     ZIO.reduceAllPar(a, as)(f)
 
   /**
+   * @see See [[zio.ZIO.replicate]]
+   */
+  def replicate[A](n: Int)(effect: Task[A]): Iterable[Task[A]] =
+    ZIO.replicate(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.require]]
    */
   final def require[A](error: Throwable): Task[Option[A]] => Task[A] =

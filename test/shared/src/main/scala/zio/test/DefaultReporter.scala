@@ -23,15 +23,15 @@ import zio.console.{ putStrLn, Console }
 
 trait DefaultReporter extends Reporter[Console, String] {
 
-  def report[E](executedSpec: ExecutedSpec[Any, E, String]): ZIO[Console, Nothing, Unit] = {
-    def loop(executedSpec: ExecutedSpec[Any, E, String], offset: Int): ZIO[Console, Nothing, Unit] =
+  def report(executedSpec: ExecutedSpec[String]): ZIO[Console, Nothing, Unit] = {
+    def loop(executedSpec: ExecutedSpec[String], offset: Int): ZIO[Console, Nothing, Unit] =
       executedSpec match {
-        case ZSpec.Suite((label, _), executedSpecs) =>
+        case Spec.Suite(label, executedSpecs) =>
           val reportSuite =
-            if (executedSpecs.exists(_.exists(_._2.failure))) reportFailure(label, offset)
+            if (executedSpecs.exists(_.existsTest(_.failure))) reportFailure(label, offset)
             else reportSuccess(label, offset)
           reportSuite *> ZIO.foreach_(executedSpecs)(loop(_, offset + tabSize))
-        case ZSpec.Test((label, result), _) =>
+        case Spec.Test(label, result) =>
           result match {
             case AssertResult.Success(_) =>
               reportSuccess(label, offset)
@@ -40,8 +40,6 @@ trait DefaultReporter extends Reporter[Console, String] {
             case AssertResult.Ignore =>
               ZIO.unit
           }
-        case ZSpec.Concat(head, tail) =>
-          loop(head, offset) *> ZIO.foreach_(tail)(loop(_, offset))
       }
 
     loop(executedSpec, 0)

@@ -28,7 +28,7 @@ final case class MockScheduler(ref: Ref[MockClock.Data], runtime: Runtime[Clock]
                    }.map(_.map(x => (x._2, x._3)))
         _ <- ZIO.foreach(dequeued) { task =>
               task._1
-                .done(ZIO.succeed(()))
+                .complete(ZIO.succeed(()))
                 .flatMap { notInterupted =>
                   if (notInterupted) ZIO.effectTotal(task._2.run())
                   else ZIO.unit
@@ -53,7 +53,7 @@ final case class MockScheduler(ref: Ref[MockClock.Data], runtime: Runtime[Clock]
                 promise     <- Promise.make[Nothing, Unit]
                 _           <- tasksRef.update(tasks => (targetTime, promise, task) :: tasks)
               } yield promise)
-              () => runtime.unsafeRun(promise.done(ZIO.succeed(())))
+              () => runtime.unsafeRun(promise.complete(ZIO.succeed(())))
           }
 
         override def size: Int =

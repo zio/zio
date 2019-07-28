@@ -16,12 +16,10 @@
 
 package zio.test
 
-import zio.ZIO
-
-trait Reporter[-R, -L] {
-
-  /**
-   * Reports the results of running a spec.
-   */
-  def report(executedSpec: ExecutedSpec[L]): ZIO[R, Nothing, Unit]
+sealed trait SuiteExecutionStrategy
+object SuiteExecutionStrategy {
+  case object Inherit                extends SuiteExecutionStrategy
+  case object Sequential             extends SuiteExecutionStrategy
+  case object Parallel               extends SuiteExecutionStrategy
+  final case class ParallelN(n: Int) extends SuiteExecutionStrategy
 }

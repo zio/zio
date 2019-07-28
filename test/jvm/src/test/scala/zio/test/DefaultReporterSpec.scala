@@ -9,11 +9,9 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
     Correctly reports a successful test     $reportSuccess
     Correctly reports a failed test         $reportFailure
     Correctly reports an error in a test    $reportError
-    Correctly reports multiple tests        $reportTests
     Correctly reports successful test suite $reportSuite1
     Correctly reports failed test suite     $reportSuite2
     Correctly reports multiple test suites  $reportSuites
-    Correctly reports nested test suites    $reportNested
   """
 
   val test1 = test("Addition works fine") {
@@ -50,7 +48,7 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
       withOffset(2)("No ZIO Trace available.\n")
   )
 
-  val suite1 = suite("Suite1")(test1 ++ test2)
+  val suite1 = suite("Suite1")(test1, test2)
 
   val suite1Expected = Vector(
     expectedSuccess("Suite1"),
@@ -58,7 +56,7 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
     withOffset(2)(test2Expected)
   )
 
-  val suite2 = suite("Suite2")(test1 ++ test2 ++ test3)
+  val suite2 = suite("Suite2")(test1, test2, test3)
 
   val suite2Expected = Vector(
     expectedFailure("Suite2"),
@@ -75,12 +73,6 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
   def reportError =
     check(test4, test4Expected)
 
-  def reportTests =
-    check(
-      test1 ++ test2 ++ test3,
-      Vector(test1Expected, test2Expected) ++ test3Expected
-    )
-
   def reportSuite1 =
     check(suite1, suite1Expected)
 
@@ -88,11 +80,8 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
     check(suite2, suite2Expected)
 
   def reportSuites =
-    check(suite1 ++ suite2, suite1Expected ++ suite2Expected)
-
-  def reportNested =
     check(
-      suite("Suite3")(suite1 ++ test3),
+      suite("Suite3")(suite1, test3),
       Vector(expectedFailure("Suite3")) ++ suite1Expected.map(withOffset(2)) ++ test3Expected.map(withOffset(2))
     )
 

@@ -1114,7 +1114,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified promise will be interrupted, too.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): ZIO[R, Nothing, Boolean] =
-    self.run.flatMap(x => p.done(ZIO.done(x))).onInterrupt(p.interrupt)
+    self.run.flatMap(x => p.complete(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
@@ -2024,6 +2024,15 @@ private[zio] trait ZIOFunctions extends Serializable {
   ): ZIO[R1, E, A] =
     as.foldLeft[ZIO[R1, E, A]](a) { (l, r) =>
       l.zipPar(r).map(f.tupled)
+    }
+
+  /**
+   * Replicates the given effect n times.
+   * If 0 or negative numbers are given, an empty `Iterable` will return.
+   */
+  def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A]): Iterable[ZIO[R, E, A]] =
+    new Iterable[ZIO[R, E, A]] {
+      override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)
     }
 
   /**
