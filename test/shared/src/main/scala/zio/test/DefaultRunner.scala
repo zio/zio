@@ -16,8 +16,16 @@
 
 package zio.test
 
+import zio.Managed
+import zio.internal.{ Platform, PlatformLive }
+import zio.test.mock.{ mockEnvironmentManaged, MockConsole, MockEnvironment }
+
 /**
  * A `Runner` that provides a default testable environment.
  */
 // TODO: Provide test environment
-object DefaultRunner extends Runner[zio.test.mock.MockEnvironment, String](zio.test.mock.mockEnvironmentManaged) {}
+case class DefaultRunner(
+  environment: Managed[Nothing, MockEnvironment] = mockEnvironmentManaged,
+  platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
+  reporter: Reporter[MockConsole, String] = DefaultReporter.make
+) extends Runner[MockEnvironment, String](environment, platform, reporter)

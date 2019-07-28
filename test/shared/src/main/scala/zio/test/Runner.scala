@@ -28,7 +28,7 @@ import zio.internal.{ Platform, PlatformLive }
 abstract class Runner[+R, L](
   environment: Managed[Nothing, R],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: Reporter[L] = new Reporter[L] {
+  reporter: Reporter[R, L] = new Reporter[Any, L] {
     def report[E](executedSpec: ExecutedSpec[Any, E, L]): UIO[Unit] =
       UIO(println(executedSpec.toString))
   }
@@ -36,8 +36,10 @@ abstract class Runner[+R, L](
 
   // TODO: More fine-grained control / composable managed environments.
   final def run[E](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[Any, E, L]] =
-    execute(spec).flatMap { results =>
-      reporter.report(results) *> ZIO.succeed(results)
+    environment.use { r =>
+      execute(Managed.succeed(r))(spec).flatMap { results =>
+        reporter.report(results).provide(r) *> ZIO.succeed(results)
+      }
     }
 
   /**
@@ -53,7 +55,7 @@ abstract class Runner[+R, L](
     // TODO: Reflectively find and run all classes that use this runner?
     ???
 
-  private final def execute[E](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[Any, E, L]] =
+  private final def execute[R, E](environment: Managed[E, R])(spec: ZSpec[R, E, L]): UIO[ExecutedSpec[Any, E, L]] =
     parallel(environment, 5)(spec)
 
   /**
