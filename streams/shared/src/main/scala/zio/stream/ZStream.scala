@@ -1471,6 +1471,18 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
 }
 
 object ZStream extends ZStreamPlatformSpecific {
+
+  /**
+   * Describes an effectful fold over the elements of the stream. Conceptually it is an effectful state
+   * transformation function in the `R` environment that can fail with a checked error `E`. It consumes
+   * stream elements of type `A` and keeps state of type `S`. It consists of three main components:
+   *
+   *   1. The current state represented by `S`.
+   *   2. A continuation function (`S => Boolean`). Decides whether the fold should continue based
+   *      on the current state.
+   *   3. Effectful step function (`(S, A) => ZIO[R, E, S]`) which takes as arguments the current state,
+   *      the current stream element and effectfully produces the next state.
+   */
   type Fold[R, E, +A, S] = ZManaged[R, Nothing, (S, S => Boolean, (S, A) => ZIO[R, E, S]) => ZManaged[R, E, S]]
 
   implicit class unTake[-R, +E, +A](val s: ZStream[R, E, Take[E, A]]) extends AnyVal {
