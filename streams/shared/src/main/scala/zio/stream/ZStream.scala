@@ -682,9 +682,10 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             //   - On completion, an inner fiber does nothing
             _ <- self.foreachManaged { a =>
                   for {
-                    _ <- permits.acquire
+                    latch <- Promise.make[Nothing, Unit]
+                    _     <- permits.acquire
                     innerStream = Stream
-                      .bracket(UIO.unit)(_ => permits.release)
+                      .bracket(latch.succeed(()))(_ => permits.release)
                       .flatMap(_ => f(a))
                       .foreach(b => out.offer(Take.Value(b)).unit)
                       .foldCauseM(
@@ -692,6 +693,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                         _ => ZIO.unit
                       )
                     _ <- (innerStream race interruptInners.await).fork
+                    _ <- latch.await
                   } yield ()
                 }.foldCauseM(
                     cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
@@ -741,40 +743,35 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             _ <- self.foreachManaged { a =>
                   for {
                     canceler <- Promise.make[Nothing, Unit]
+                    latch    <- Promise.make[Nothing, Unit]
                     size     <- cancelers.size
                     _ <- if (size < n) UIO.unit
                         else cancelers.take.flatMap(_.succeed(())).unit
+                    _ <- cancelers.offer(canceler)
                     _ <- permits.acquire
                     innerStream = Stream
-                      .bracket(UIO.unit)(_ => permits.release)
+                      .bracket(latch.succeed(()))(_ => permits.release)
                       .flatMap(_ => f(a))
                       .foreach(b => out.offer(Take.Value(b)).unit)
                       .foldCauseM(
                         cause => out.offer(Take.Fail(cause)) *> innerFailure.fail(cause).unit,
                         _ => UIO.unit
                       )
-                    _ <- innerStream.race(interruptInners.await).race(canceler.await).fork
-                    _ <- cancelers.offer(canceler)
+                    _ <- innerStream.raceAll(List(canceler.await, interruptInners.await)).fork
+                    _ <- latch.await
                   } yield ()
                 }.foldCauseM(
-                    cause =>
-                      (interruptInners.succeed(()) *>
-                        cancelers.takeAll.flatMap(l => ZIO.foreach(l)(_.succeed(()))) *>
-                        out.offer(Take.Fail(cause))).unit.toManaged_,
+                    cause => (interruptInners.succeed(()) *> out.offer(Take.Fail(cause))).unit.toManaged_,
                     _ =>
                       innerFailure.await
                         .raceWith(permits.withPermits(n.toLong)(UIO.unit))(
-                          leftDone = (_, permitAcquisition) =>
-                            interruptInners.succeed(()) *> cancelers.takeAll
-                              .flatMap(l => ZIO.foreach(l)(_.succeed(()))) *> permitAcquisition.interrupt.unit,
+                          leftDone =
+                            (_, permitAcquisition) => interruptInners.succeed(()) *> permitAcquisition.interrupt.unit,
                           rightDone = (_, failureAwait) => out.offer(Take.End) *> failureAwait.interrupt.unit
                         )
                         .toManaged_
                   )
-                  .ensuringFirst(
-                    interruptInners.succeed(()) *> cancelers.takeAll
-                      .flatMap(l => ZIO.foreach(l)(_.succeed(()))) *> permits.withPermits(n.toLong)(UIO.unit)
-                  )
+                  .ensuringFirst(interruptInners.succeed(()) *> permits.withPermits(n.toLong)(UIO.unit))
                   .fork
             s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
