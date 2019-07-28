@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class LockedRef[A](var ref: A) {
   var locked = new AtomicBoolean(false)
 
-  def get: A = ref
+  def get: A = this.ref
 
   def set(a: A): A = {
     this.ref = a
@@ -21,7 +21,7 @@ class LockedRef[A](var ref: A) {
   def lock(): Unit = {
     var loop = true
     while (loop) {
-      if (!locked.compareAndSet(false, true)) {
+      if (locked.compareAndSet(false, true)) {
         loop = false
       }
     }
@@ -30,7 +30,7 @@ class LockedRef[A](var ref: A) {
   def unlock(): Unit = {
     var loop = true
     while (loop) {
-      if (!locked.compareAndSet(true, false)) {
+      if (locked.compareAndSet(true, false)) {
         loop = false
       }
     }
