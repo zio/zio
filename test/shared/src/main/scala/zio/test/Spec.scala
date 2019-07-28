@@ -27,20 +27,13 @@ sealed trait Spec[+T, +L] { self =>
    * Returns a new spec with the suite labels distinguished by `Left`, and the
    * test labels distinguished by `Right`.
    */
-  final def distinguish: Spec[T, Either[L, L]] = {
-    def loop(spec: Spec[T, L]): Spec[T, Either[L, L]] = spec match {
-      case Spec.Suite(label, specs) => Spec.Suite(Left(label), specs.map(loop))
-      case Spec.Test(label, assert) => Spec.Test(Right(label), assert)
-    }
-
-    loop(self)
-  }
+  final def distinguish: Spec[T, Either[L, L]] = map(Left(_), (l, t) => (Right(l), t))
 
   /**
    * Determines if there exists a label or test satisfying the predicate.
    */
-  final def exists(suite: L => Boolean, test: (T, L) => Boolean): Boolean =
-    fold(false)((acc, l) => acc || suite(l), (acc, l, t) => acc || test(t, l))
+  final def exists(ifSuite: L => Boolean, ifTest: (T, L) => Boolean): Boolean =
+    fold(false)((acc, l) => acc || ifSuite(l), (acc, l, t) => acc || ifTest(t, l))
 
   /**
    * Determines if there exists a label satisfying the predicate.
@@ -53,30 +46,39 @@ sealed trait Spec[+T, +L] { self =>
   final def existsTest(f: T => Boolean): Boolean = exists(_ => false, (t, _) => f(t))
 
   /**
-   * Returns a filtered spec that replaces any test not satisfied by the
-   * predicate by the given empty test.
+   * Returns a filtered spec that removes any suite or test not satisfied by
+   * the specified predicates.
    */
-  final def filter[T1 >: T](empty: T1)(f: L => Boolean): Spec[T1, L] = {
-    def loop(spec: Spec[T, L]): Spec[T1, L] = spec match {
-      case Spec.Suite(label, specs) => Spec.Suite(label, specs.map(loop))
-      case Spec.Test(label, assert) =>
-        if (f(label)) Spec.Test(label, assert)
-        else Spec.Test(label, empty)
+  final def filter(ifSuite: L => Boolean, ifTest: (L, T) => Boolean): Option[Spec[T, L]] = {
+    def loop(spec: Spec[T, L]): Option[Spec[T, L]] = spec match {
+      case Spec.Suite(label, specs) =>
+        if (ifSuite(label)) Some(Spec.Suite(label, specs.map(loop).flatMap(_.toVector))) else None
+      case Spec.Test(label, test) => if (ifTest(label, test)) Some(Spec.Test(label, test)) else None
     }
 
     loop(self)
   }
 
   /**
+   * Returns a filtered spec that removes any spec not satisfied by the specified predicates.
+   */
+  final def filterLabel(f: L => Boolean): Option[Spec[T, L]] = filter(f, (l, _) => f(l))
+
+  /**
+   * Returns a filtered spec that removes any test not satisfied by the specified predicates.
+   */
+  final def filterTest(f: (L, T) => Boolean): Option[Spec[T, L]] = filter(_ => true, f)
+
+  /**
    * Folds over the spec, accumulating a value over suites and tests.
    */
-  final def fold[Z](z: Z)(suite: (Z, L) => Z, test: (Z, L, T) => Z): Z = {
+  final def fold[Z](z: Z)(ifSuite: (Z, L) => Z, ifTest: (Z, L, T) => Z): Z = {
     def fold0(z: Z)(spec: Spec[T, L]): Z = spec match {
       case Spec.Suite(label, specs) =>
-        specs.foldLeft(suite(z, label)) {
+        specs.foldLeft(ifSuite(z, label)) {
           case (acc, spec) => fold0(acc)(spec)
         }
-      case Spec.Test(label, assert) => test(z, label, assert)
+      case Spec.Test(label, test) => ifTest(z, label, test)
     }
 
     fold0(z)(self)
@@ -95,8 +97,8 @@ sealed trait Spec[+T, +L] { self =>
   /**
    * Determines if all labels and tests satisfy the specified predicates.
    */
-  final def forall(suite: L => Boolean, test: (T, L) => Boolean): Boolean =
-    fold(true)((acc, l) => acc && suite(l), (acc, l, t) => acc && test(t, l))
+  final def forall(ifSuite: L => Boolean, ifTest: (T, L) => Boolean): Boolean =
+    fold(true)((acc, l) => acc && ifSuite(l), (acc, l, t) => acc && ifTest(t, l))
 
   /**
    * Determines if all labels satisfy the specified predicate.
@@ -112,7 +114,7 @@ sealed trait Spec[+T, +L] { self =>
    * Returns a new spec with the labels and tests computed by stateful map
    * functions.
    */
-  final def mapAccum[S, T1, L1](s: S)(suite: (S, L) => (S, L1), test: (S, L, T) => (S, L1, T1)): Spec[T1, L1] = {
+  final def mapAccum[S, T1, L1](s: S)(ifSuite: (S, L) => (S, L1), ifTest: (S, L, T) => (S, L1, T1)): Spec[T1, L1] = {
     def fold(s0: S, specs0: Iterable[Spec[T, L]]): (S, Vector[Spec[T1, L1]]) =
       specs0.foldLeft(s0 -> Vector.empty[Spec[T1, L1]]) {
         case ((s0, acc), spec0) =>
@@ -123,16 +125,16 @@ sealed trait Spec[+T, +L] { self =>
 
     def loop(spec: Spec[T, L], s0: S): (S, Spec[T1, L1]) = spec match {
       case Spec.Suite(label, specs0) =>
-        val (s1, label2) = suite(s0, label)
+        val (s1, label2) = ifSuite(s0, label)
 
         val (s2, specs) = fold(s1, specs0)
 
         s2 -> Spec.Suite(label2, specs)
 
-      case Spec.Test(label, assert) =>
-        val (s1, label2, assert2) = test(s0, label, assert)
+      case Spec.Test(label, test) =>
+        val (s1, label2, test2) = ifTest(s0, label, test)
 
-        s1 -> Spec.Test(label2, assert2)
+        s1 -> Spec.Test(label2, test2)
 
     }
 
@@ -152,10 +154,10 @@ sealed trait Spec[+T, +L] { self =>
   /**
    * Returns a new spec with remapped tests.
    */
-  final def map[T1, L1](suite: L => L1, test: (L, T) => (L1, T1)): Spec[T1, L1] = {
+  final def map[T1, L1](ifSuite: L => L1, ifTest: (L, T) => (L1, T1)): Spec[T1, L1] = {
     def loop(spec: Spec[T, L]): Spec[T1, L1] = spec match {
-      case Spec.Suite(label, specs) => Spec.Suite(suite(label), specs.map(loop))
-      case Spec.Test(label, assert) => (Spec.Test[T1, L1](_, _)).tupled(test(label, assert))
+      case Spec.Suite(label, specs) => Spec.Suite(ifSuite(label), specs.map(loop))
+      case Spec.Test(label, test)   => (Spec.Test[T1, L1](_, _)).tupled(ifTest(label, test))
     }
 
     loop(self)
