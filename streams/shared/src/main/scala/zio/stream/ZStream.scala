@@ -1478,7 +1478,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * stream elements of type `A` and keeps state of type `S`. It consists of three main components:
    *
    *   1. The current state represented by `S`.
-   *   2. A continuation function (`S => Boolean`). Decides whether the fold should continue based
+   *   2. A continuation signal function (`S => Boolean`). Decides whether the fold should continue based
    *      on the current state.
    *   3. Effectful step function (`(S, A) => ZIO[R, E, S]`) which takes as arguments the current state,
    *      the current stream element and effectfully produces the next state.
