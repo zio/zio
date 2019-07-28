@@ -2027,6 +2027,15 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
+   * Replicates the given effect n times.
+   * If 0 or negative numbers are given, an empty `Iterable` will return.
+   */
+  def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A]): Iterable[ZIO[R, E, A]] =
+    new Iterable[ZIO[R, E, A]] {
+      override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)
+    }
+
+  /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */

@@ -62,6 +62,8 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `leftOrFail` method fails when given a Right. $testLeftOrFailWithRight
    Check `leftOrFailException` method extracts the Left value. $testLeftOrFailExceptionOnLeftValue
    Check `leftOrFailException` method fails when given a Right. $testLeftOrFailExceptionOnRightValue
+   Check `replicate` method returns empty list when given non positive number. $testReplicateNonPositiveNumber
+   Check `replicate` method returns list of the same effect. $testReplicate
    Check uncurried `bracket`. $testUncurriedBracket
    Check uncurried `bracket_`. $testUncurriedBracket_
    Check uncurried `bracketExit`. $testUncurriedBracketExit
@@ -364,6 +366,19 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
   def testLeftOrFailExceptionOnRightValue = {
     val task: Task[Int] = ZIO.succeed(Right(2)).leftOrFailException
     unsafeRun(task) must throwA[FiberFailure]
+  }
+
+  def testReplicateNonPositiveNumber = {
+    val lst: Iterable[UIO[Int]] = ZIO.replicate(0)(ZIO.succeed(12))
+    unsafeRun(ZIO.sequence(lst)) must_=== List()
+
+    val anotherList: Iterable[UIO[Int]] = ZIO.replicate(-2)(ZIO.succeed(12))
+    unsafeRun(ZIO.sequence(anotherList)) must_=== List()
+  }
+
+  def testReplicate = {
+    val lst: Iterable[UIO[Int]] = ZIO.replicate(2)(ZIO.succeed(12))
+    unsafeRun(ZIO.sequence(lst)) must_=== List.fill(2)(12)
   }
 
   def testLeftOrFailExtractsLeftValue = {
