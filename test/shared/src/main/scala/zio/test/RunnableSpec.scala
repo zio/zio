@@ -26,7 +26,7 @@ abstract class RunnableSpec[R, L](runner: Runner[R, L])(spec: => ZSpec[R, Nothin
   final def main(args: Array[String]): Unit =
     runner.unsafeRunAsync(spec) { results =>
       try {
-        if (results.labels.exists(_._2._2.failure)) System.exit(1)
+        if (results.existsTest(_.failure)) System.exit(1)
         else System.exit(0)
       } catch { case NonFatal(_) => }
     }
@@ -34,13 +34,13 @@ abstract class RunnableSpec[R, L](runner: Runner[R, L])(spec: => ZSpec[R, Nothin
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final val run: UIO[ExecutedSpec[Any, Nothing, L]] =
+  final val run: UIO[ExecutedSpec[L]] =
     runner.run(spec)
 
   /**
    * Side-effectfully executes the spec, asynchronously passing results to the
    * specified callback.
    */
-  final def unsafeRunAsync(k: ExecutedSpec[Any, Nothing, L] => Unit): Unit =
+  final def unsafeRunAsync(k: ExecutedSpec[L] => Unit): Unit =
     runner.unsafeRunAsync(spec)(k)
 }
