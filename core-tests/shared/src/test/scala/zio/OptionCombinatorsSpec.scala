@@ -16,8 +16,8 @@ class OptionCombinatorsSpec extends BaseCrossPlatformSpec {
       val1 <- value1.some
       val2 <- value2.some
     } yield val1 + val2
-        
-    result.peelError must_=== Some(3)
+
+    result.optional must_=== Some(3)
   }
 
   def optionalValues2 = {
@@ -28,12 +28,12 @@ class OptionCombinatorsSpec extends BaseCrossPlatformSpec {
       val1 <- value1.some
       val2 <- value2.some
     } yield val1 + val2
-        
-    result.peelError must_=== None
+
+    result.optional must_=== None
   }
 
   def optionalValues3 = {
-    val ex = new RuntimeException("Failed Task")
+    val ex                        = new RuntimeException("Failed Task")
     val value1: Task[Option[Int]] = Task(Some(1))
     val value2: Task[Option[Int]] = Task.fail(ex)
 
@@ -42,6 +42,6 @@ class OptionCombinatorsSpec extends BaseCrossPlatformSpec {
       val2 <- value2.some
     } yield val1 + val2
 
-    result.peelError mustFailBecauseOf Cause.fail(ex)
+    result.optional mustFailBecauseOf Cause.fail(ex)
   }
 }
