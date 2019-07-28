@@ -43,7 +43,7 @@ package object test {
   type PredicateResult = AssertResult[PredicateValue]
   type TestResult      = AssertResult[FailureDetails]
 
-  type ExecutedSpec[-R, +E, +L] = ZSpec[R, E, (L, TestResult)]
+  type ExecutedSpec[+L] = Spec[TestResult, L]
 
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 

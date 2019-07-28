@@ -48,7 +48,7 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
   final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, L](
     predicate: L => Boolean
   )(spec: ZSpec[R, E, L]): ZSpec[R, E, L] =
-    spec.mapTestLabel((label, test) => if (predicate(label)) activate(test) else test)
+    spec.map(identity, (label, test) => label -> (if (predicate(label)) activate(test) else test))
 
   /**
    * Returns a new aspect that represents the sequential composition of this

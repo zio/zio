@@ -23,5 +23,5 @@ trait Reporter[-L] {
   /**
    * Reports the results of running a spec.
    */
-  def report[E](executedSpec: ExecutedSpec[Any, E, L]): UIO[Unit]
+  def report(executedSpec: ExecutedSpec[L]): UIO[Unit]
 }
