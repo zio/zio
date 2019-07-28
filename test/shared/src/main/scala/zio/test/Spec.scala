@@ -17,9 +17,9 @@
 package zio.test
 
 /**
- * A `Spec[T, L]` is the backbone of _ZIO Test_. ZSpecs require an environment
- * of type `R` (which could be `Any`), may fail with errors of type `E`, and
- * are annotated with labels of type `L` (typically `String`).
+ * A `Spec[T, L]` is the backbone of _ZIO Test_. Every spec is either a suite,
+ * which contains other specs, or a test of type `T`. All specs are annotated
+ * with labels of type `L`.
  */
 sealed trait Spec[+T, +L] { self =>
 
@@ -43,7 +43,7 @@ sealed trait Spec[+T, +L] { self =>
   /**
    * Determines if there exists a test satisfying the predicate.
    */
-  final def existsTest(f: T => Boolean): Boolean = exists(_ => false, (t, _) => f(t))
+  final def existsTest(f: (T, L) => Boolean): Boolean = exists(_ => false, f)
 
   /**
    * Returns a filtered spec that removes any suite or test not satisfied by
@@ -108,7 +108,7 @@ sealed trait Spec[+T, +L] { self =>
   /**
    * Determines if all labels satisfy the specified predicate.
    */
-  final def forallTest(f: T => Boolean): Boolean = forall(_ => true, (t, _) => f(t))
+  final def forallTest(f: (T, L) => Boolean): Boolean = forall(_ => true, f)
 
   /**
    * Returns a new spec with the labels and tests computed by stateful map

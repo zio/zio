@@ -50,7 +50,7 @@ package object test {
   /**
    * A `ZSpec[R, E, L]` is the canonical spec for testing ZIO programs. The
    * spec's test type is a ZIO effect that requires an `R`, might fail with
-   * an `E`, might succeed with a `TestResulot`, and whose nodes are
+   * an `E`, might succeed with a `TestResult`, and whose nodes are
    * annotated with labels `L`.
    */
   type ZSpec[-R, +E, +L] = Spec[ZIO[R, E, TestResult], L]

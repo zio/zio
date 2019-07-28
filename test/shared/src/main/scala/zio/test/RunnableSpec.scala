@@ -26,7 +26,7 @@ abstract class RunnableSpec[R, L](runner: Runner[R, L])(spec: => ZSpec[R, Nothin
   final def main(args: Array[String]): Unit =
     runner.unsafeRunAsync(spec) { results =>
       try {
-        if (results.existsTest(_.failure)) System.exit(1)
+        if (results.existsTest((t, _) => t.failure)) System.exit(1)
         else System.exit(0)
       } catch { case NonFatal(_) => }
     }
