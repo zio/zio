@@ -538,10 +538,10 @@ object STM {
           value match {
             case _: TRez.Succeed[_] =>
               if (analysis eq JournalAnalysis.ReadWrite) {
-                globalLock.acquire()
+                globalLock.lock()
 
                 try if (isValid(journal)) commitJournal(journal) else loop = true
-                finally globalLock.release()
+                finally globalLock.unlock()
               }
 
             case _ =>
@@ -562,7 +562,7 @@ object STM {
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()
 
-    final val globalLock = new java.util.concurrent.Semaphore(1)
+    final val globalLock = new zio.internal.LockedRef(1)
 
     sealed trait TRez[+A, +B] extends Serializable with Product
     object TRez {
