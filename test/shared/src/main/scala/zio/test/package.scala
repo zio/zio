@@ -27,12 +27,13 @@ package zio
  *
  * {{{
  *  import zio.test._
- *  import zio.clock._
+ *  import zio.clock.nanoTime
+ *  import Predicate.gt
  *
- *  class MyTest extends ZIOTestDefault[Throwable] {
- *    val tests = suite("clock") {
+ *  object MyTest extends DefaultRunnableSpec {
+ *    suite("clock") {
  *      testM("time is non-zero") {
- *        nanoTime.map(time => assert(time > 0, Predicate.isTrue))
+ *        assertM(nanoTime, gt(0))
  *      }
  *    }
  *  }
@@ -58,18 +59,19 @@ package object test {
   /**
    * Asserts the given value satisfies the given predicate.
    */
-  final def assert[A](value: => A, predicate: Predicate[A]): TestResult =
-    predicate.run(value).map(fragment => FailureDetails.Predicate(fragment, PredicateValue(predicate, value)))
+  final def assert[A](value: A, predicate: Predicate[A]): TestResult =
+    predicate.run(value).map(FailureDetails.Predicate(_, PredicateValue(predicate, value)))
 
   /**
-   * Asserts the boolean value is false.
+   * Asserts the given effectfully-computed value satisfies the given predicate.
    */
-  final def assertFalse(value: => Boolean): TestResult = assert(value, Predicate.isFalse)
+  final def assertM[R, A](value: ZIO[R, Nothing, A], predicate: Predicate[A]): ZIO[R, Nothing, TestResult] =
+    value.map(assert(_, predicate))
 
   /**
-   * Asserts the boolean value is true.
+   * Creates a failed test result with the specified runtime cause.
    */
-  final def assertTrue(value: => Boolean): TestResult = assert(value, Predicate.isTrue)
+  def fail[E](cause: Cause[E]): TestResult = AssertResult.failure(FailureDetails.Runtime(cause))
 
   /**
    * Builds a suite containing a number of other specs.
@@ -77,13 +79,13 @@ package object test {
   final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = ZSpec.Suite(label, specs.toVector)
 
   /**
-   * Builds a spec with a single effectful test.
-   */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = ZSpec.Test(label, assertion)
-
-  /**
    * Builds a spec with a single pure test.
    */
   final def test[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
     testM(label)(ZIO.succeedLazy(assertion))
+
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = ZSpec.Test(label, assertion)
 }

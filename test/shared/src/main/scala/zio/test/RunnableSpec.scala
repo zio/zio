@@ -15,12 +15,14 @@
  */
 
 package zio.test
+
+import zio.UIO
 import scala.util.control.NonFatal
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-abstract class RunnableSpec[R, E, L](runner: Runner[R, E, L])(spec: => ZSpec[R, E, L]) {
+abstract class RunnableSpec[R, L](runner: Runner[R, L])(spec: => ZSpec[R, Nothing, L]) {
   final def main(args: Array[String]): Unit =
     runner.unsafeRunAsync(spec) { results =>
       try {
@@ -28,4 +30,17 @@ abstract class RunnableSpec[R, E, L](runner: Runner[R, E, L])(spec: => ZSpec[R, 
         else System.exit(0)
       } catch { case NonFatal(_) => }
     }
+
+  /**
+   * Returns an effect that executes the spec, producing the results of the execution.
+   */
+  final val run: UIO[ExecutedSpec[Any, Nothing, L]] =
+    runner.run(spec)
+
+  /**
+   * Side-effectfully executes the spec, asynchronously passing results to the
+   * specified callback.
+   */
+  final def unsafeRunAsync(k: ExecutedSpec[Any, Nothing, L] => Unit): Unit =
+    runner.unsafeRunAsync(spec)(k)
 }

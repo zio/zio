@@ -34,7 +34,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
       self.run(actual) match {
         case Failure(l) => Failure(l)
         case Success(_) => that.run(actual)
-        case Pending    => that.run(actual)
+        case Ignore     => that.run(actual)
       }
     }
 
@@ -46,7 +46,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
       self.run(actual) match {
         case Failure(_) => that.run(actual)
         case Success(l) => Success(l)
-        case Pending    => that.run(actual)
+        case Ignore     => that.run(actual)
       }
     }
 
@@ -164,6 +164,23 @@ object Predicate {
     Predicate.predicate(s"gte(${reference})") { actual =>
       if (implicitly[Numeric[A]].compare(reference, actual) >= 0) AssertResult.successUnit
       else AssertResult.failureUnit
+    }
+
+  /**
+   * Makes a new predicate that requires the sum type be a specified term.
+   *
+   * {{{
+   * isCase("Some", Some.unapply, anything)
+   * }}}
+   */
+  final def isCase[Sum, Proj](
+    termName: String,
+    term: Sum => Option[Proj],
+    predicate: Predicate[Proj]
+  ): Predicate[Sum] =
+    Predicate.predicateRec[Sum]("isCase(\"" + termName + "\", " + s"${termName}.unapply, ${predicate})") {
+      (self, actual) =>
+        term(actual).fold(AssertResult.failure(PredicateValue(self, actual)))(predicate)
     }
 
   /**

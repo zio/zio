@@ -16,9 +16,10 @@
 
 package zio.test
 
-import zio.{ ZIO, ZSchedule }
+import zio.{ Cause, ZIO, ZManaged, ZSchedule }
 import zio.duration.Duration
 import zio.clock.Clock
+import java.util.concurrent.TimeoutException
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -39,8 +40,30 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
       def apply[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         that(self(test))
     }
+
+  final def andThen[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
+    that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
+  ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] = self >>> that
 }
 object TestAspect {
+
+  /**
+   * Constructs an aspect that runs the specified effect after every test.
+   */
+  def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+        test <* effect
+    }
+
+  /**
+   * Constructs an aspect that evaluates every test inside the context of the managed function.
+   */
+  def around[R0, E0](managed: ZManaged[R0, E0, TestResult => ZIO[R0, E0, TestResult]]) =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+        managed.use(f => test.flatMap(f))
+    }
 
   /**
    * Constucts a simple monomorphic aspect that only works with the specified
@@ -52,12 +75,59 @@ object TestAspect {
     }
 
   /**
-   * An aspect that marks tests as pending.
+   * Constructs an aspect that runs the specified effect before every test.
    */
-  val pending: TestAspectPoly =
+  def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+        effect *> test
+    }
+
+  /**
+   * An aspect that retries a test until success, without limit.
+   */
+  val eventually: TestAspectPoly =
+    new TestAspectPoly {
+      def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, Nothing, TestResult] = {
+        lazy val untilSuccess: ZIO[R, Nothing, TestResult] =
+          test.foldM(_ => untilSuccess, ZIO.succeed(_))
+
+        untilSuccess
+      }
+    }
+
+  /**
+   * An aspect that retries a test until success, without limit, for use with
+   * flaky tests.
+   */
+  val flaky: TestAspectPoly = eventually
+
+  /**
+   * An aspect that repeats the test a specified number of times, ensuring it
+   * is stable ("non-flaky"). Stops at the first failure.
+   */
+  def nonFlaky(n0: Int): TestAspectPoly =
+    new TestAspectPoly {
+      def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] = {
+        def repeat(n: Int): ZIO[R, E, TestResult] =
+          if (n <= 1) test
+          else
+            test.flatMap { result =>
+              if (result.success) repeat(n - 1)
+              else ZIO.succeed(result)
+            }
+
+        repeat(n0)
+      }
+    }
+
+  /**
+   * An aspect that marks tests as ignored.
+   */
+  val ignore: TestAspectPoly =
     new TestAspectPoly {
       def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
-        ZIO.succeed(AssertResult.Pending)
+        ZIO.succeed(AssertResult.Ignore)
     }
 
   /**
@@ -76,7 +146,9 @@ object TestAspect {
     new TestAspect[Nothing, Clock, Nothing, Any] {
       def apply[R >: Nothing <: Clock, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         test.timeout(duration).map {
-          case None    => AssertResult.failure(FailureDetails.Other(s"Timeout of ${duration} exceeded"))
+          case None =>
+            AssertResult
+              .failure(FailureDetails.Runtime(Cause.fail(new TimeoutException(s"Timeout of ${duration} exceeded"))))
           case Some(v) => v
         }
     }

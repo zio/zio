@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package zio.test
 
-/**
- * A `Runner` that provides a default testable environment.
- */
-// TODO: Provide test environment
-object DefaultRunner extends Runner[zio.test.mock.MockEnvironment, String](zio.test.mock.mockEnvironmentManaged) {}
+import zio.Managed
+
+package object mock {
+
+  val mockEnvironmentManaged: Managed[Nothing, MockEnvironment] = MockEnvironment.Value
+}
