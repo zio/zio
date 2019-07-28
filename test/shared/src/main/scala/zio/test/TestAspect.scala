@@ -27,7 +27,28 @@ import java.util.concurrent.TimeoutException
  * another, possibly enlarging the environment or error type.
  */
 trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
-  def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult]
+  def activate[R >: LowerR <: UpperR, E >: LowerE <: UpperE](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult]
+
+  /**
+   * An alias for [[all]].
+   */
+  final def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE, L](spec: ZSpec[R, E, L]): ZSpec[R, E, L] =
+    all(spec)
+
+  /**
+   * Applies the aspect to every test in the spec.
+   */
+  final def all[R >: LowerR <: UpperR, E >: LowerE <: UpperE, L](spec: ZSpec[R, E, L]): ZSpec[R, E, L] =
+    spec.mapTest(self.activate)
+
+  /**
+   * Applies the aspect to some tests in the spec, chosen by the provided
+   * predicate.
+   */
+  final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE, L](
+    predicate: L => Boolean
+  )(spec: ZSpec[R, E, L]): ZSpec[R, E, L] =
+    spec.mapTestLabel((label, test) => if (predicate(label)) activate(test) else test)
 
   /**
    * Returns a new aspect that represents the sequential composition of this
@@ -37,8 +58,10 @@ trait TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
     that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
     new TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] {
-      def apply[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
-        that(self(test))
+      def activate[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1](
+        test: ZIO[R, E, TestResult]
+      ): ZIO[R, E, TestResult] =
+        that.activate(self.activate(test))
     }
 
   final def andThen[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
@@ -52,7 +75,7 @@ object TestAspect {
    */
   def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
-      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+      def activate[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         test <* effect
     }
 
@@ -61,7 +84,7 @@ object TestAspect {
    */
   def around[R0, E0](managed: ZManaged[R0, E0, TestResult => ZIO[R0, E0, TestResult]]) =
     new TestAspect[Nothing, R0, E0, Any] {
-      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+      def activate[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         managed.use(f => test.flatMap(f))
     }
 
@@ -71,7 +94,7 @@ object TestAspect {
    */
   def aspect[R0, E0](f: ZIO[R0, E0, TestResult] => ZIO[R0, E0, TestResult]): TestAspect[R0, R0, E0, E0] =
     new TestAspect[R0, R0, E0, E0] {
-      def apply[R >: R0 <: R0, E >: E0 <: E0](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] = f(test)
+      def activate[R >: R0 <: R0, E >: E0 <: E0](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] = f(test)
     }
 
   /**
@@ -79,7 +102,7 @@ object TestAspect {
    */
   def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
-      def apply[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+      def activate[R >: Nothing <: R0, E >: E0 <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         effect *> test
     }
 
@@ -88,7 +111,9 @@ object TestAspect {
    */
   val eventually: TestAspectPoly =
     new TestAspectPoly {
-      def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, Nothing, TestResult] = {
+      def activate[R >: Nothing <: Any, E >: Nothing <: Any](
+        test: ZIO[R, E, TestResult]
+      ): ZIO[R, Nothing, TestResult] = {
         lazy val untilSuccess: ZIO[R, Nothing, TestResult] =
           test.foldM(_ => untilSuccess, ZIO.succeed(_))
 
@@ -108,7 +133,7 @@ object TestAspect {
    */
   def nonFlaky(n0: Int): TestAspectPoly =
     new TestAspectPoly {
-      def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] = {
+      def activate[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] = {
         def repeat(n: Int): ZIO[R, E, TestResult] =
           if (n <= 1) test
           else
@@ -126,7 +151,7 @@ object TestAspect {
    */
   val ignore: TestAspectPoly =
     new TestAspectPoly {
-      def apply[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+      def activate[R >: Nothing <: Any, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         ZIO.succeed(AssertResult.Ignore)
     }
 
@@ -135,7 +160,9 @@ object TestAspect {
    */
   def retry[R0, E0](schedule: ZSchedule[R0, E0, Any]): TestAspect[Nothing, R0 with Clock, Nothing, E0] =
     new TestAspect[Nothing, R0 with Clock, Nothing, E0] {
-      def apply[R >: Nothing <: R0 with Clock, E >: Nothing <: E0](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+      def activate[R >: Nothing <: R0 with Clock, E >: Nothing <: E0](
+        test: ZIO[R, E, TestResult]
+      ): ZIO[R, E, TestResult] =
         test.retry(schedule: ZSchedule[R0, E0, Any])
     }
 
@@ -144,7 +171,7 @@ object TestAspect {
    */
   def timeout(duration: Duration): TestAspect[Nothing, Clock, Nothing, Any] =
     new TestAspect[Nothing, Clock, Nothing, Any] {
-      def apply[R >: Nothing <: Clock, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
+      def activate[R >: Nothing <: Clock, E >: Nothing <: Any](test: ZIO[R, E, TestResult]): ZIO[R, E, TestResult] =
         test.timeout(duration).map {
           case None =>
             AssertResult

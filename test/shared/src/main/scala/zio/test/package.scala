@@ -45,16 +45,15 @@ package object test {
 
   type ExecutedSpec[-R, +E, +L] = ZSpec[R, E, (L, TestResult)]
 
-  type TaskSpec[+L] = ZSpec[Any, Throwable, L]
-  val TaskSpec = ZSpec
-
-  type RIOSpec[-R, +L] = ZSpec[R, Throwable, L]
-  val RIOSpec = ZSpec
-
-  type IOSpec[+E, +L] = ZSpec[Any, E, L]
-  val IOSpec = ZSpec
-
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
+
+  /**
+   * A `ZSpec[R, E, L]` is the canonical spec for testing ZIO programs. The
+   * spec's test type is a ZIO effect that requires an `R`, might fail with
+   * an `E`, might succeed with a `TestResulot`, and whose nodes are
+   * annotated with labels `L`.
+   */
+  type ZSpec[-R, +E, +L] = Spec[ZIO[R, E, TestResult], L]
 
   /**
    * Asserts the given value satisfies the given predicate.
@@ -76,7 +75,7 @@ package object test {
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = ZSpec.Suite(label, specs.toVector)
+  final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = Spec.Suite(label, specs.toVector)
 
   /**
    * Builds a spec with a single pure test.
@@ -87,5 +86,5 @@ package object test {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = ZSpec.Test(label, assertion)
+  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = Spec.Test(label, assertion)
 }

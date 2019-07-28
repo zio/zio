@@ -61,23 +61,23 @@ abstract class Runner[+R, L](
    */
   def parallel[R, E, L](managed: Managed[E, R], n: Int)(spec: ZSpec[R, E, L]): UIO[ExecutedSpec[Any, E, L]] =
     spec match {
-      case ZSpec.Suite(label, specs) =>
+      case Spec.Suite(label, specs) =>
         ZIO
           .foreachParN(n.toLong)(specs)(parallel[R, E, L](managed, n)(_))
           .map { results =>
-            ZSpec.Suite((label, AssertResult.Ignore), results.toVector)
+            Spec.Suite((label, AssertResult.Ignore), results.toVector)
           }
-      case ZSpec.Test(label, assert) =>
+      case Spec.Test(label, assert) =>
         val provided = assert.provideManaged(managed)
 
         provided.foldCauseM(
-          e => ZIO.succeed(ZSpec.Test((label, fail(e)), provided)),
-          a => ZIO.succeed(ZSpec.Test((label, a), provided))
+          e => ZIO.succeed(Spec.Test((label, fail(e)), provided)),
+          a => ZIO.succeed(Spec.Test((label, a), provided))
         )
-      case ZSpec.Concat(head, tail) =>
+      case Spec.Concat(head, tail) =>
         parallel(managed, n)(head)
           .zipWithPar(ZIO.foreachParN(n.toLong)(tail)(parallel[R, E, L](managed, n)(_)))(
-            (h, t) => ZSpec.Concat(h, t.toVector)
+            (h, t) => Spec.Concat(h, t.toVector)
           )
     }
 
@@ -86,21 +86,21 @@ abstract class Runner[+R, L](
    */
   def sequential[R, E, L](managed: Managed[E, R])(spec: ZSpec[R, E, L]): UIO[ExecutedSpec[Any, E, L]] =
     spec match {
-      case ZSpec.Suite(label, specs) =>
+      case Spec.Suite(label, specs) =>
         ZIO
           .foreach(specs)(sequential[R, E, L](managed)(_))
           .map { results =>
-            ZSpec.Suite((label, AssertResult.Ignore), results.toVector)
+            Spec.Suite((label, AssertResult.Ignore), results.toVector)
           }
-      case ZSpec.Test(label, assert) =>
+      case Spec.Test(label, assert) =>
         val provided = assert.provideManaged(managed)
 
         provided.foldCauseM(
-          e => ZIO.succeed(ZSpec.Test((label, fail(e)), provided)),
-          a => ZIO.succeed(ZSpec.Test((label, a), provided))
+          e => ZIO.succeed(Spec.Test((label, fail(e)), provided)),
+          a => ZIO.succeed(Spec.Test((label, a), provided))
         )
-      case ZSpec.Concat(head, tail) =>
+      case Spec.Concat(head, tail) =>
         sequential(managed)(head)
-          .zipWith(ZIO.foreach(tail)(sequential[R, E, L](managed)))((h, t) => ZSpec.Concat(h, t.toVector))
+          .zipWith(ZIO.foreach(tail)(sequential[R, E, L](managed)))((h, t) => Spec.Concat(h, t.toVector))
     }
 }
