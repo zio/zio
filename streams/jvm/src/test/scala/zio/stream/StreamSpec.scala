@@ -203,6 +203,10 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     zipWithIndex                $zipWithIndex
     zipWith ignore RHS          $zipWithIgnoreRhs
     zipWith prioritizes failure $zipWithPrioritizesFailure
+    zipWithLatest                     $zipWithLatest
+    zipWithLatest ignore RHS          $zipWithLatestIgnoreRhs
+    zipWithLatest prioritizes failure $zipWithLatestPrioritizesFailure
+
   """
 
   def aggregate = unsafeRun {
@@ -1452,6 +1456,41 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def zipWithPrioritizesFailure = unsafeRun {
     Stream.never
       .zipWith(Stream.fail("Ouch"))((_, _) => None)
+      .runCollect
+      .either
+      .map(_ must_=== Left("Ouch"))
+  }
+
+  private def zipWithLatest = unsafeRun {
+    import java.util.concurrent.CountDownLatch
+    val latch1 = new CountDownLatch(2)
+    val latch2 = new CountDownLatch(2)
+    val latch3 = new CountDownLatch(1)
+    // Merely awaiting the latch does not guarantee runCollect will collect elements in the emission order.
+    val s1 = Stream("s1").tap(_ => UIO { latch1.await(); ZIO.sleep(1000.milliseconds) }) ++ Stream("s2", "s3").tap(
+      _ => UIO(latch2.countDown())
+    ) ++ Stream("s4").tap(_ => UIO(latch3.await()))
+    val s2 = Stream("f1", "f2").tap(_ => UIO { latch1.countDown() }) ++ Stream("f3").tap(
+      _ => UIO { latch2.await(); ZIO.sleep(1000.milliseconds); latch3.countDown() }
+    )
+    val zipped = s1.zipWithLatest(s2)((a, b) => (a + ":" + b))
+    zipped.runCollect must_=== List("s1:f2", "s2:f2", "s3:f2", "s3:f3", "s4:f3")
+  }
+
+  private def zipWithLatestIgnoreRhs = {
+    val s1     = Stream(1, 2, 3)
+    val s2     = Stream(1, 2)
+    val zipped = s1.zipWithLatest(s2)((a, _) => a)
+    def removeConsecutivelyDuplicated[T](l: List[T]) =
+      l.foldLeft(Nil: List[T])((a, e) => if (a.length > 0 && a.last == e) a else a :+ e)
+    slurp(zipped)
+      .map(removeConsecutivelyDuplicated)
+      .map(List(List(1, 2, 3), List(2, 3), List(3)).contains(_)) must_=== Success(true)
+  }
+
+  private def zipWithLatestPrioritizesFailure = unsafeRun {
+    Stream.never
+      .zipWithLatest(Stream.fail("Ouch"))((_, _) => None)
       .runCollect
       .either
       .map(_ must_=== Left("Ouch"))

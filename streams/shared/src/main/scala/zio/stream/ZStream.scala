@@ -1456,6 +1456,47 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
+   * Zips two streams together with a specified function.
+   * Until both streams have emitted elements, no element with be emitted.
+   * Also until then, elements from faster stream are silently dropped except the late one.
+   * After that, any element from any stream will be zipped with the latest element from another stream.
+   */
+  final def zipWithLatest[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, B])(
+    f: (A, B) => C
+  ): ZStream[R1, E1, C] =
+    new ZStream[R1, E1, C] {
+      def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] = {
+        // Think NS as a new State which carries the original state and latest elements emitted.
+        type NS = ((S, Option[A], Option[B]))
+        ZManaged.succeedLazy { (s, cont, transition) =>
+          self.mergeEither(that).fold[R2, E2, Either[A, B], NS].flatMap { fold =>
+            val newS = (s, None, None)
+
+            def newCont(s: NS): Boolean = cont(s._1)
+
+            def newTransition(x: NS, v: Either[A, B]): ZIO[R2, E2, NS] = {
+              val (s, latestLeft, latestRight) = x
+              v match {
+                case Left(a) =>
+                  latestRight match {
+                    case None    => IO.succeed((s, Some(a), latestRight))
+                    case Some(b) => transition(s, f(a, b)).map(((_, Some(a), Some(b))))
+                  }
+                case Right(b) =>
+                  latestLeft match {
+                    case None    => IO.succeed((s, latestLeft, Some(b)))
+                    case Some(a) => transition(s, f(a, b)).map((_, Some(a), Some(b)))
+                  }
+              }
+            }
+
+            fold(newS, newCont, newTransition).map(_._1)
+          }
+        }
+      }
+    }
+
+  /**
    * Zips this stream together with the index of elements of the stream.
    */
   def zipWithIndex: ZStream[R, E, (A, Int)] = new ZStream[R, E, (A, Int)] {
