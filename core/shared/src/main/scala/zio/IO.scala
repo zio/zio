@@ -335,6 +335,12 @@ object IO {
     ZIO.reduceAllPar(a, as)(f)
 
   /**
+   * @see See [[zio.ZIO.replicate]]
+   */
+  def replicate[E, A](n: Int)(effect: IO[E, A]): Iterable[IO[E, A]] =
+    ZIO.replicate(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.require]]
    */
   final def require[E, A](error: E): IO[E, Option[A]] => IO[E, A] =
