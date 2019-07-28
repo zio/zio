@@ -39,8 +39,8 @@ abstract class Runner[+R, L](
     environment.use { r =>
       execute(Managed.succeed(r))(spec).flatMap { results =>
         reporter.report(results).provide(r) *> ZIO.succeed(results)
+      }
     }
-  }
 
   /**
    * An unsafe, asynchronous run of the specified spec.
