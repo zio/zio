@@ -21,7 +21,7 @@ import zio.clock.Clock
 import zio.duration.Duration
 
 /**
- * A `Reservation[-R, +E, +A]` encapsulates resource aquisition and disposal
+ * A `Reservation[-R, +E, +A]` encapsulates resource acquisition and disposal
  * without specifying when or how that resource might be used.
  *
  * See [[ZManaged#reserve]] and [[ZIO#reserve]] for details of usage.
@@ -545,6 +545,12 @@ final case class ZManaged[-R, +E, +A](reserve: ZIO[R, E, Reservation[R, E, A]]) 
    * Zips this effect with its environment
    */
   final def second[R1 <: R, A1 >: A]: ZManaged[R1, E, (R1, A1)] = ZManaged.identity[R1] &&& self
+
+  /**
+   * Constructs an inner `ZManaged` that will once, lazily acquire the resource, releasing in the outer scope.
+   */
+  final def shared: ZManaged[R, E, ZManaged[R, E, A]] =
+    map(r => ZManaged.make(ZIO.effectTotal(r))(_ => ZIO.unit))
 
   /**
    * Returns a new effect that executes this one and times the acquisition of the resource.
