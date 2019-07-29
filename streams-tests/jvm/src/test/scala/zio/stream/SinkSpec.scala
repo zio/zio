@@ -101,6 +101,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $mapStepError
       extract error $mapExtractError
 
+    mapError
+      init error    $mapErrorInitError
+      step error    $mapErrorStepError
+      extract error $mapErrorExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -440,6 +445,21 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def mapExtractError = {
     val sink = extractErrorSink.map(_.toString)
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def mapErrorInitError = {
+    val sink = initErrorSink.mapError(_ => "Error")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Error")))
+  }
+
+  private def mapErrorStepError = {
+    val sink = stepErrorSink.mapError(_ => "Error")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Error")))
+  }
+
+  private def mapErrorExtractError = {
+    val sink = extractErrorSink.mapError(_ => "Error")
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Error")))
   }
 
   private def foldLeft =
