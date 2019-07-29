@@ -106,6 +106,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $mapErrorStepError
       extract error $mapErrorExtractError
 
+    mapM
+      happy path    $mapMHappyPath
+      init error    $mapMInitError
+      step error    $mapMStepError
+      extract error $mapMExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -460,6 +466,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def mapErrorExtractError = {
     val sink = extractErrorSink.mapError(_ => "Error")
     unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Error")))
+  }
+
+  private def mapMHappyPath = {
+    val sink = ZSink.identity[Int].mapM[Any, Unit, String](n => UIO.succeed(n.toString))
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== "1"))
+  }
+
+  private def mapMInitError = {
+    val sink = initErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def mapMStepError = {
+    val sink = stepErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def mapMExtractError = {
+    val sink = extractErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
   private def foldLeft =
