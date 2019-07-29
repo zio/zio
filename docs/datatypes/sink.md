@@ -4,7 +4,7 @@ title:  "Sink"
 ---
 
 A `Sink[E, A0, A, B]` is used to consume elements produced by `stream`
-with `E` error in case of failure, `A0` reminder, `A` input elements and
+with `E` error in case of failure, `A0` remainder, `A` input elements and
 `B` result type. `Sink` is passed as `stream.run` argument:
 
 ```scala mdoc:silent
