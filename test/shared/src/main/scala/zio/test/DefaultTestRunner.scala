@@ -19,5 +19,7 @@ package zio.test
 /**
  * A `Runner` that provides a default testable environment.
  */
-// TODO: Provide test environment
-object DefaultRunner extends Runner[zio.test.mock.MockEnvironment, String](zio.test.mock.mockEnvironmentManaged) {}
+object DefaultTestRunner
+    extends TestRunner[ZTest[mock.MockEnvironment, Any], String](
+      TestExecutor.managed(zio.test.mock.mockEnvironmentManaged)
+    ) {}

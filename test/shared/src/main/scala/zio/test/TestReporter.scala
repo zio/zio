@@ -16,10 +16,12 @@
 
 package zio.test
 
-sealed trait SuiteExecutionStrategy
-object SuiteExecutionStrategy {
-  case object Inherit                extends SuiteExecutionStrategy
-  case object Sequential             extends SuiteExecutionStrategy
-  case object Parallel               extends SuiteExecutionStrategy
-  final case class ParallelN(n: Int) extends SuiteExecutionStrategy
+import zio.UIO
+
+trait TestReporter[-L] {
+
+  /**
+   * Reports the results of running a spec.
+   */
+  def report(executedSpec: ExecutedSpec[L]): UIO[Unit]
 }
