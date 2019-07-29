@@ -18,7 +18,7 @@ package zio.test
 
 import zio.UIO
 
-trait Reporter[-L] {
+trait TestReporter[-L] {
 
   /**
    * Reports the results of running a spec.

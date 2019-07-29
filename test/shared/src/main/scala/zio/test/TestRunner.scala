@@ -27,7 +27,7 @@ import zio.internal.{ Platform, PlatformLive }
 abstract class TestRunner[T, L](
   executor: TestExecutor[T, L],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: Reporter[L] = new Reporter[L] {
+  reporter: TestReporter[L] = new TestReporter[L] {
     // TODO: Delete me
     def report(executedSpec: ExecutedSpec[L]): UIO[Unit] = UIO(println(executedSpec.toString))
   }
