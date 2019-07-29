@@ -124,6 +124,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error      $takeWhileStepError
       extract error   $takeWhileExtractError
 
+    untilOutput
+      happy path      $untilOutputHappyPath
+      false predicate $untilOutputFalsePredicate
+      init error      $untilOutputInitError
+      step error      $untilOutputStepError
+      extract error   $untilOutputExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -537,6 +544,33 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def takeWhileExtractError = {
     val sink = extractErrorSink.takeWhile[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def untilOutputHappyPath = {
+    // This test needs to be verified for correctness.
+    val sink = ZSink.identity[Int].untilOutput(_ % 2 == 0)
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== 1))
+  }
+
+  private def untilOutputFalsePredicate = {
+    // This test needs to be verified for correctness.
+    val sink = ZSink.identity[Int].untilOutput(_ % 2 != 0)
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== 1))
+  }
+
+  private def untilOutputInitError = {
+    val sink = initErrorSink.untilOutput(_ == 0)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def untilOutputStepError = {
+    val sink = stepErrorSink.untilOutput(_ == 0)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def untilOutputExtractError = {
+    val sink = extractErrorSink.untilOutput(_ == 0)
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
