@@ -14,19 +14,22 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
     Correctly reports multiple test suites  $reportSuites
   """
 
-  val test1 = test("Addition works fine") {
+  def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
+    zio.test.test(label)(assertion)
+
+  val test1 = makeTest("Addition works fine") {
     assert(1 + 1, Predicate.equals(2))
   }
 
   val test1Expected = expectedSuccess("Addition works fine")
 
-  val test2 = test("Subtraction works fine") {
+  val test2 = makeTest("Subtraction works fine") {
     assert(1 - 1, Predicate.equals(0))
   }
 
   val test2Expected = expectedSuccess("Subtraction works fine")
 
-  val test3 = test("Value falls within range") {
+  val test3 = makeTest("Value falls within range") {
     assert(52, Predicate.equals(42) || (Predicate.gt(5) && Predicate.lt(10)))
   }
 
@@ -36,7 +39,7 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("gt(5)")}\n")
   )
 
-  val test4 = test("Failing test") {
+  val test4 = makeTest("Failing test") {
     fail(Cause.fail("Fail"))
   }
 
