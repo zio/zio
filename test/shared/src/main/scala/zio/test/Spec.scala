@@ -85,6 +85,24 @@ final case class Spec[+L, +T](caseValue: SpecCase[L, T, Spec[L, T]]) { self =>
     }
 
   /**
+   * Returns a new spec with remapped labels.
+   */
+  final def mapLabel[L1](f: L => L1): Spec[L1, T] =
+    transform[L1, T] {
+      case SuiteCase(label, specs, exec) => SuiteCase(f(label), specs, exec)
+      case TestCase(label, test)         => TestCase(f(label), test)
+    }
+
+  /**
+   * Returns a new spec with remapped tests.
+   */
+  final def mapTest[T1](f: T => T1): Spec[L, T1] =
+    transform[L, T1] {
+      case SuiteCase(label, specs, exec) => SuiteCase(label, specs, exec)
+      case TestCase(label, test)         => TestCase(label, f(test))
+    }
+
+  /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
    */
   final def size: Int = fold[Int] {
