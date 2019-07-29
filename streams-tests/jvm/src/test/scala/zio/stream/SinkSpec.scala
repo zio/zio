@@ -50,6 +50,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $contramapStepError
       extract error $contramapExtractError
 
+    Sink#contramapM
+      happy path    $contramapMHappyPath
+      init error    $contramapMInitError
+      step error    $contramapMStepError
+      extract error $contramapMExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -213,6 +219,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def contramapExtractError = {
     val sink = extractErrorSink.contramap[String](_.toInt)
+    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+  }
+
+  private def contramapMHappyPath = {
+    val sink = ZSink.identity[Int].contramapM[Any, Unit, String](s => UIO.succeed(s.toInt))
+    unsafeRun(sinkIteration(sink, "1").map(_ must_=== 1))
+  }
+
+  private def contramapMInitError = {
+    val sink = initErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
+    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+  }
+
+  private def contramapMStepError = {
+    val sink = stepErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
+    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+  }
+
+  private def contramapMExtractError = {
+    val sink = extractErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
     unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
   }
 
