@@ -16,12 +16,12 @@
 
 package zio.test
 
-import zio.ZIO
+import zio.UIO
 
 trait TestReporter[-L] {
 
   /**
    * Reports the results of running a spec.
    */
-  def report(executedSpec: ExecutedSpec[L]): ZIO[R, Nothing, Unit]
+  def report(executedSpec: ExecutedSpec[L]): UIO[Unit]
 }

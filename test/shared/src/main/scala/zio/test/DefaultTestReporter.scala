@@ -18,20 +18,21 @@ package zio.test
 
 import scala.{ Console => SConsole }
 
-import zio.{ Cause, ZIO }
+import zio.{ Cause, UIO, ZIO }
 import zio.console.{ putStrLn, Console }
 
-trait DefaultReporter extends Reporter[Console, String] {
+case class DefaultTestReporter(console: Console) extends TestReporter[String] {
 
-  def report(executedSpec: ExecutedSpec[String]): ZIO[Console, Nothing, Unit] = {
+  def report(executedSpec: ExecutedSpec[String]): UIO[Unit] = {
     def loop(executedSpec: ExecutedSpec[String], offset: Int): ZIO[Console, Nothing, Unit] =
-      executedSpec match {
-        case Spec.Suite(label, executedSpecs) =>
+      executedSpec.caseValue match {
+        case Spec.SuiteCase(label, executedSpecs, _) =>
           val reportSuite =
-            if (executedSpecs.exists(_.existsTest(_.failure))) reportFailure(label, offset)
+            if (executedSpecs.exists(_.exists { case Spec.TestCase(_, test) => test.failure; case _ => false }))
+              reportFailure(label, offset)
             else reportSuccess(label, offset)
           reportSuite *> ZIO.foreach_(executedSpecs)(loop(_, offset + tabSize))
-        case Spec.Test(label, result) =>
+        case Spec.TestCase(label, result) =>
           result match {
             case AssertResult.Success(_) =>
               reportSuccess(label, offset)
@@ -42,7 +43,7 @@ trait DefaultReporter extends Reporter[Console, String] {
           }
       }
 
-    loop(executedSpec, 0)
+    loop(executedSpec, 0).provide(console)
   }
 
   private def reportSuccess(label: String, offset: Int): ZIO[Console, Nothing, Unit] =
@@ -111,7 +112,7 @@ trait DefaultReporter extends Reporter[Console, String] {
   private val tabSize = 2
 }
 
-object DefaultReporter {
+object DefaultTestReporter {
 
-  def make: Reporter[Console, String] = new DefaultReporter {}
+  def make: TestReporter[String] = new DefaultTestReporter(Console.Live) {}
 }

@@ -16,10 +16,6 @@
 
 package zio.test
 
-import zio.Managed
-import zio.internal.{ Platform, PlatformLive }
-import zio.test.mock.{ mockEnvironmentManaged, MockConsole, MockEnvironment }
-
 /**
  * A `Runner` that provides a default testable environment.
  */

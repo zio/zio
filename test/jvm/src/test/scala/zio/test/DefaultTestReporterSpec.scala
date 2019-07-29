@@ -3,7 +3,7 @@ package zio.test
 import zio._
 import zio.test.mock._
 
-class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+class DefaultTestReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
   def is = "DefaultReporterSpec".title ^ s2"""
     Correctly reports a successful test     $reportSuccess
@@ -115,7 +115,7 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
   def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]) =
     unsafeRunWith(mockEnvironmentManaged) { r =>
       val zio = for {
-        _      <- DefaultRunner(Managed.succeed(r)).run(spec)
+        _      <- MockTestRunner(r).run(spec)
         output <- MockConsole.output
       } yield output must_=== expected
       zio.provide(r)
@@ -123,4 +123,10 @@ class DefaultReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) exten
 
   def unsafeRunWith[R, E, A](r: Managed[Nothing, R])(f: R => IO[E, A]): A =
     unsafeRun(r.use[Any, E, A](f))
+
+  case class MockTestRunner(mockEnvironment: MockEnvironment)
+      extends TestRunner[ZTest[MockEnvironment, Any], String](
+        executor = TestExecutor.managed(Managed.succeed(mockEnvironment)),
+        reporter = DefaultTestReporter(mockEnvironment)
+      )
 }
