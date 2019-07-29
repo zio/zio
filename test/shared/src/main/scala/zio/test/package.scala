@@ -47,13 +47,15 @@ package object test {
 
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
+  type ZTest[-R, +E] = ZIO[R, E, TestResult]
+
   /**
    * A `ZSpec[R, E, L]` is the canonical spec for testing ZIO programs. The
    * spec's test type is a ZIO effect that requires an `R`, might fail with
    * an `E`, might succeed with a `TestResult`, and whose nodes are
    * annotated with labels `L`.
    */
-  type ZSpec[-R, +E, +L] = Spec[L, ZIO[R, E, TestResult]]
+  type ZSpec[-R, +E, +L] = Spec[L, ZTest[R, E]]
 
   /**
    * Asserts the given value satisfies the given predicate.
