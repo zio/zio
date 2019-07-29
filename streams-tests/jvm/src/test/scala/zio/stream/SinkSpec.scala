@@ -81,6 +81,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $flatMapStepError
       extract error $flatMapExtractError
 
+    filter
+      happy path      $filterHappyPath
+      false predicate $filterFalsePredicate
+      init error      $filterInitError
+      step error      $filterStepError
+      extractError    $filterExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -349,6 +356,31 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def flatMapExtractError = {
     val sink = extractErrorSink.flatMap(n => ZSink.succeedLazy(n.toString))
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def filterHappyPath = {
+    val sink = ZSink.identity[Int].filter[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== 1))
+  }
+
+  private def filterFalsePredicate = {
+    val sink = ZSink.identity[Int].filter[Int](_ > 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def filterInitError = {
+    val sink = initErrorSink.filter[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def filterStepError = {
+    val sink = stepErrorSink.filter[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def filterExtractError = {
+    val sink = extractErrorSink.filter[Int](_ < 5)
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
