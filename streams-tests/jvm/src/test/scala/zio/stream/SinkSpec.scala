@@ -18,43 +18,49 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "SinkSpec".title ^ s2"""
   Combinators
-    Sink#? (Sink#optional)
+    ? (optional)
       happy path    $optionalHappyPath
       init error    $optionalInitError
       step error    $optionalStepError
       extract error $optionalExtractError
 
-    Sink#chunked
+    chunked
       happy path    $chunkedHappyPath
       empty         $chunkedEmpty
       init error    $chunkedInitError
       step error    $chunkedStepError
       extract error $chunkedExtractError
 
-    Sink#collectAll
+    collectAll
       happy path         $collectAllHappyPath
       init error         $collectAllInitError
       step error         $collectAllStepError
       extract error      $collectAllExtractError
 
-    Sink#collectAllWhile
+    collectAllWhile
       happy path      $collectAllWhileHappyPath
       false predicate $collectAllWhileFalsePredicate
       init error      $collectAllWhileInitError
       step error      $collectAllWhileStepError
       extract error   $collectAllWhileExtractError
 
-    Sink#contramap
+    contramap
       happy path    $contramapHappyPath
       init error    $contramapInitError
       step error    $contramapStepError
       extract error $contramapExtractError
 
-    Sink#contramapM
+    contramapM
       happy path    $contramapMHappyPath
       init error    $contramapMInitError
       step error    $contramapMStepError
       extract error $contramapMExtractError
+    
+    const
+      happy path    $constHappyPath
+      init error    $constInitError
+      step error    $constStepError
+      extract error $constExtractError
 
   Constructors
     Sink.foldLeft                         $foldLeft
@@ -240,6 +246,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def contramapMExtractError = {
     val sink = extractErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
     unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+  }
+
+  private def constHappyPath = {
+    val sink = ZSink.identity[Int].const("const")
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== "const"))
+  }
+
+  private def constInitError = {
+    val sink = initErrorSink.const("const")
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def constStepError = {
+    val sink = stepErrorSink.const("const")
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def constExtractError = {
+    val sink = extractErrorSink.const("const")
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
   private def foldLeft =
