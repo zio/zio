@@ -44,6 +44,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error      $collectAllWhileStepError
       extract error   $collectAllWhileExtractError
 
+    Sink#contramap
+      happy path    $contramapHappyPath
+      init error    $contramapInitError
+      step error    $contramapStepError
+      extract error $contramapExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -188,6 +194,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def collectAllWhileExtractError = {
     val sink = extractErrorSink.collectAllWhile[Int, Int](_ > 1)
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def contramapHappyPath = {
+    val sink = ZSink.identity[Int].contramap[String](_.toInt)
+    unsafeRun(sinkIteration(sink, "1").map(_ must_=== 1))
+  }
+
+  private def contramapInitError = {
+    val sink = initErrorSink.contramap[String](_.toInt)
+    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+  }
+
+  private def contramapStepError = {
+    val sink = stepErrorSink.contramap[String](_.toInt)
+    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+  }
+
+  private def contramapExtractError = {
+    val sink = extractErrorSink.contramap[String](_.toInt)
+    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
   }
 
   private def foldLeft =
