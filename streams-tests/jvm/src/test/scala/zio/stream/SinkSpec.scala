@@ -33,10 +33,16 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     Sink#collectAll
       happy path         $collectAllHappyPath
-      chunked happy path $collectAllChunkedHappyPath
       init error         $collectAllInitError
       step error         $collectAllStepError
       extract error      $collectAllExtractError
+
+    Sink#collectAllWhile
+      happy path      $collectAllWhileHappyPath
+      false predicate $collectAllWhileFalsePredicate
+      init error      $collectAllWhileInitError
+      step error      $collectAllWhileStepError
+      extract error   $collectAllWhileExtractError
 
   Constructors
     Sink.foldLeft                         $foldLeft
@@ -139,23 +145,48 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
   }
 
-  private def collectAllChunkedHappyPath = {
-    val sink = ZSink.identity[Int].collectAll.chunked
-    unsafeRun(sinkIteration(sink, Chunk(1, 2, 3, 4, 5)).map(_ must_=== List(1, 2, 3, 4, 5)))
-  }
-
   private def collectAllInitError = {
     val sink = initErrorSink.collectAll
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
   private def collectAllStepError = {
+    // This test needs to be verified for correctness.
     val sink = stepErrorSink.collectAll
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== Some(Nil)))
   }
 
   private def collectAllExtractError = {
     val sink = extractErrorSink.collectAll
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def collectAllWhileHappyPath = {
+    val sink = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 10)
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
+  }
+
+  private def collectAllWhileFalsePredicate = {
+    // This test needs to be verified for correctness.
+    // I find this behavior to be surprising.
+    val sink = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 0)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    // Fails instead of returning empty list.
+    // I would presume that sinkIteration(sink, 1).map(_ must_=== Nil) is the correct behavior.
+  }
+
+  private def collectAllWhileInitError = {
+    val sink = initErrorSink.collectAllWhile[Int, Int](_ > 1)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def collectAllWhileStepError = {
+    val sink = stepErrorSink.collectAllWhile[Int, Int](_ > 1)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def collectAllWhileExtractError = {
+    val sink = extractErrorSink.collectAllWhile[Int, Int](_ > 1)
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
