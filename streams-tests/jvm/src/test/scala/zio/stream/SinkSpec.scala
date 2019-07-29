@@ -17,6 +17,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   import ArbitraryStream._, ZSink.Step
 
   def is = "SinkSpec".title ^ s2"""
+  Combinators
+    Sink#? (Sink#optional)
+      happy path    $optionalHappyPath
+      init error    $optionalInitError
+      step error    $optionalStepError
+      extract error $optionalExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -39,6 +46,54 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
     Number array parsing with combinators $jsonNumArrayParsingSinkWithCombinators
   """
+
+  private def initErrorSink = new ZSink[Any, String, Nothing, Any, Nothing] {
+    type State = Unit
+    val initial                    = IO.fail("Ouch")
+    def step(state: State, a: Any) = IO.fail("Ouch")
+    def extract(state: State)      = IO.fail("Ouch")
+  }
+
+  private def stepErrorSink = new ZSink[Any, String, Nothing, Any, Nothing] {
+    type State = Unit
+    val initial                    = UIO.succeed(Step.more(()))
+    def step(state: State, a: Any) = IO.fail("Ouch")
+    def extract(state: State)      = IO.fail("Ouch")
+  }
+
+  private def extractErrorSink = new ZSink[Any, String, Nothing, Any, Nothing] {
+    type State = Unit
+    val initial                    = UIO.succeed(Step.more(()))
+    def step(state: State, a: Any) = UIO.succeed(Step.done((), Chunk.empty))
+    def extract(state: State)      = IO.fail("Ouch")
+  }
+
+  private def sinkIteration[R, E, A0, A, B](sink: ZSink[R, E, A0, A, B], a: A) =
+    for {
+      init   <- sink.initial
+      step   <- sink.step(Step.state(init), a)
+      result <- sink.extract(Step.state(step))
+    } yield result
+
+  private def optionalHappyPath = {
+    val sink = ZSink.identity[Int].?
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Some(1)))
+  }
+
+  private def optionalInitError = {
+    val sink = initErrorSink.?
+    unsafeRun(sinkIteration(sink, ()).map(_ must_=== None))
+  }
+
+  private def optionalStepError = {
+    val sink = stepErrorSink.?
+    unsafeRun(sinkIteration(sink, ()).map(_ must_=== None))
+  }
+
+  private def optionalExtractError = {
+    val sink = extractErrorSink.?
+    unsafeRun(sinkIteration(sink, ()).map(_ must_=== None))
+  }
 
   private def foldLeft =
     prop { (s: Stream[String, Int], f: (String, Int) => String, z: String) =>
