@@ -106,6 +106,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $mapMStepError
       extract error $mapMExtractError
 
+    mapRemainder
+      init error    $mapRemainderInitError
+      step error    $mapRemainderStepError
+      extract error $mapRemainderExtractError
+
     optional
       happy path    $optionalHappyPath
       init error    $optionalInitError
@@ -465,6 +470,21 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mapMExtractError = {
     val sink = extractErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def mapRemainderInitError = {
+    val sink = initErrorSink.mapRemainder(_.toLong)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def mapRemainderStepError = {
+    val sink = stepErrorSink.mapRemainder(_.toLong)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def mapRemainderExtractError = {
+    val sink = extractErrorSink.mapRemainder(_.toLong)
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
