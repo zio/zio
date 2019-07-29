@@ -24,6 +24,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $optionalStepError
       extract error $optionalExtractError
 
+    Sink#chunked
+      happy path    $chunkedHappyPath
+      empty         $chunkedEmpty
+      init error    $chunkedInitError
+      step error    $chunkedStepError
+      extract error $chunkedExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -93,6 +100,31 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def optionalExtractError = {
     val sink = extractErrorSink.?
     unsafeRun(sinkIteration(sink, ()).map(_ must_=== None))
+  }
+
+  private def chunkedHappyPath = {
+    val sink = ZSink.collectAll[Int].chunked
+    unsafeRun(sinkIteration(sink, Chunk(1, 2, 3, 4, 5)).map(_ must_=== List(1, 2, 3, 4, 5)))
+  }
+
+  private def chunkedEmpty = {
+    val sink = ZSink.collectAll[Int].chunked
+    unsafeRun(sinkIteration(sink, Chunk.empty).map(_ must_=== Nil))
+  }
+
+  private def chunkedInitError = {
+    val sink = initErrorSink.chunked
+    unsafeRun(sinkIteration(sink, Chunk.single(1)).option.map(_ must_=== None))
+  }
+
+  private def chunkedStepError = {
+    val sink = stepErrorSink.chunked
+    unsafeRun(sinkIteration(sink, Chunk.single(1)).option.map(_ must_=== None))
+  }
+
+  private def chunkedExtractError = {
+    val sink = extractErrorSink.chunked
+    unsafeRun(sinkIteration(sink, Chunk.single(1)).option.map(_ must_=== None))
   }
 
   private def foldLeft =

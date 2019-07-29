@@ -126,7 +126,7 @@ trait ZSink[-R, +E, +A0, -A, +B] { self =>
     zip(that)
 
   /**
-   * Takes a `Sink`, and lifts it to be chunked in its input and output. This
+   * Takes a `Sink`, and lifts it to be chunked in its input. This
    * will not improve performance, but can be used to adapt non-chunked sinks
    * wherever chunked sinks are required.
    */
