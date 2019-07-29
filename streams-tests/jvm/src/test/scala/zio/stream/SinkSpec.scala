@@ -62,6 +62,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $constStepError
       extract error $constExtractError
 
+    dimap
+      happy path    $dimapHappyPath
+      init error    $dimapInitError
+      step error    $dimapStepError
+      extract error $dimapExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -266,6 +272,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def constExtractError = {
     val sink = extractErrorSink.const("const")
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def dimapHappyPath = {
+    val sink = ZSink.identity[Int].dimap[String, String](_.toInt)(_.toString.reverse)
+    unsafeRun(sinkIteration(sink, "123").map(_ must_=== "321"))
+  }
+
+  private def dimapInitError = {
+    val sink = initErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
+    unsafeRun(sinkIteration(sink, "123").option.map(_ must_=== None))
+  }
+
+  private def dimapStepError = {
+    val sink = stepErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
+    unsafeRun(sinkIteration(sink, "123").option.map(_ must_=== None))
+  }
+
+  private def dimapExtractError = {
+    val sink = extractErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
+    unsafeRun(sinkIteration(sink, "123").option.map(_ must_=== None))
   }
 
   private def foldLeft =
