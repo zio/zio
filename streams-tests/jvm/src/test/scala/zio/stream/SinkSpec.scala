@@ -117,6 +117,19 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $optionalStepError
       extract error $optionalExtractError
 
+    orElse
+      left                $orElseLeft
+      right               $orElseRight
+      init error left     $orElseInitErrorLeft
+      init error right    $orElseInitErrorRight
+      init error both     $orElseInitErrorBoth
+      step error left     $orElseStepErrorLeft
+      step error right    $orElseStepErrorRight
+      step error both     $orElseStepErrorBoth
+      extract error left  $orElseExtractErrorLeft
+      extract error right $orElseExtractErrorRight
+      extract error both  $orElseExtractErrorBoth
+
     takeWhile
       happy path      $takeWhileHappyPath
       false predicate $takeWhileFalsePredicate
@@ -532,6 +545,61 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def optionalExtractError = {
     val sink = extractErrorSink.optional
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
+  }
+
+  private def orElseLeft = {
+    val sink = ZSink.identity[Int] orElse ZSink.fail("Ouch")
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Left(1)))
+  }
+
+  private def orElseRight = {
+    val sink = ZSink.fail("Ouch") orElse ZSink.succeedLazy("Hello")
+    unsafeRun(sinkIteration(sink, "whatever").map(_ must_=== Right("Hello")))
+  }
+
+  private def orElseInitErrorLeft = {
+    val sink = initErrorSink orElse ZSink.succeedLazy("Hello")
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Right("Hello")))
+  }
+
+  private def orElseInitErrorRight = {
+    val sink = ZSink.identity[Int] orElse initErrorSink
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Left(1)))
+  }
+
+  private def orElseInitErrorBoth = {
+    val sink = initErrorSink orElse initErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def orElseStepErrorLeft = {
+    val sink = stepErrorSink orElse ZSink.succeedLazy("Hello")
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Right("Hello")))
+  }
+
+  private def orElseStepErrorRight = {
+    val sink = ZSink.identity[Int] orElse stepErrorSink
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Left(1)))
+  }
+
+  private def orElseStepErrorBoth = {
+    val sink = stepErrorSink orElse stepErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def orElseExtractErrorLeft = {
+    val sink = extractErrorSink orElse ZSink.succeedLazy("Hello")
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Right("Hello")))
+  }
+
+  private def orElseExtractErrorRight = {
+    val sink = ZSink.identity[Int] orElse extractErrorSink
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Left(1)))
+  }
+
+  private def orElseExtractErrorBoth = {
+    val sink = extractErrorSink orElse extractErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
   private def takeWhileHappyPath = {
