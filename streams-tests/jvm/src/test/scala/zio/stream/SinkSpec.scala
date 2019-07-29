@@ -131,6 +131,9 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error      $untilOutputStepError
       extract error   $untilOutputExtractError
 
+    zip
+      happy path $zipHappyPath
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -572,6 +575,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def untilOutputExtractError = {
     val sink = extractErrorSink.untilOutput(_ == 0)
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipHappyPath = {
+    val sink = ZSink.identity[Int].zip(ZSink.succeedLazy("Hello"))
+    unsafeRun(sinkIteration(sink, 1).map(t => (t._1 must_=== 1) and (t._2 must_=== "Hello")))
   }
 
   private def foldLeft =
