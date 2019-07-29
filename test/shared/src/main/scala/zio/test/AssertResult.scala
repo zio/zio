@@ -17,7 +17,7 @@
 package zio.test
 
 /**
- * An `AssertResult[L]` is the result of running a test, which may be pending,
+ * An `AssertResult[L]` is the result of running a test, which may be ignore,
  * success, or failure, with some label of type `L`.
  */
 sealed trait AssertResult[+L] { self =>
@@ -27,6 +27,19 @@ sealed trait AssertResult[+L] { self =>
    * Returns a new result, with the label mapped to the specified constant.
    */
   final def const[L2](l2: L2): AssertResult[L2] = self.map(_ => l2)
+
+  /**
+   * Combines this result with the specified result.
+   */
+  final def combineWith[L1 >: L](that: AssertResult[L1])(f: (L1, L1) => L1): AssertResult[L1] =
+    (self, that) match {
+      case (Ignore, that)             => that
+      case (self, Ignore)             => self
+      case (Success(v1), Success(v2)) => Success(f(v1, v2))
+      case (Failure(v1), Failure(v2)) => Failure(f(v1, v2))
+      case (Success(_), that)         => that
+      case (self, Success(_))         => self
+    }
 
   /**
    * Detemines if the result failed.
