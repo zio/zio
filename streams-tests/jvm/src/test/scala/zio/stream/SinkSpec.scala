@@ -140,6 +140,9 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     zipRight (*>)
       happy path $zipRightHappyPath
 
+    zipWith
+      happy path $zipWithHappyPath
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -596,6 +599,11 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def zipRightHappyPath = {
     val sink = ZSink.identity[Int].zipRight(ZSink.succeedLazy("Hello"))
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== "Hello"))
+  }
+
+  private def zipWithHappyPath = {
+    val sink = ZSink.identity[Int].zipWith(ZSink.succeedLazy("Hello"))((x, y) => x.toString + y.toString)
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== "1Hello"))
   }
 
   private def foldLeft =
