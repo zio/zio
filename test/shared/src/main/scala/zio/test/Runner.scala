@@ -36,7 +36,7 @@ abstract class Runner[+R, L](
 
   // TODO: More fine-grained control / composable managed environments.
   final def run[E](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[L]] =
-    execute(spec).flatMap { results =>
+    execute(spec, ExecutionStrategy.ParallelN(4)).flatMap { results =>
       reporter.report(results) *> ZIO.succeed(results)
     }
 
@@ -53,46 +53,16 @@ abstract class Runner[+R, L](
     // TODO: Reflectively find and run all classes that use this runner?
     ???
 
-  private final def execute[E](spec: ZSpec[R, E, L]): UIO[ExecutedSpec[L]] =
-    parallel(environment, 5)(spec)
+  private final def execute[E](spec: ZSpec[R, E, L], defExec: ExecutionStrategy): UIO[ExecutedSpec[L]] =
+    spec.foldM[Any, Nothing, ExecutedSpec[L]](defExec) {
+      case Spec.SuiteCase(label, specs, exec) => ZIO.succeed(Spec.suite(label, specs, exec))
 
-  /**
-   * Runs tests in parallel, up to the specified limit.
-   */
-  def parallel[R, E, L](managed: Managed[E, R], n: Int)(spec: ZSpec[R, E, L]): UIO[ExecutedSpec[L]] =
-    spec match {
-      case Spec.Suite(label, specs) =>
-        ZIO
-          .foreachParN(n.toLong)(specs)(parallel[R, E, L](managed, n)(_))
-          .map { results =>
-            Spec.Suite(label, results.toVector)
-          }
-      case Spec.Test(label, assert) =>
-        val provided = assert.provideManaged(managed)
+      case Spec.TestCase(label, test) =>
+        val provided = test.provideManaged(environment)
 
         provided.foldCauseM(
-          e => ZIO.succeed(Spec.Test(label, fail(e))),
-          a => ZIO.succeed(Spec.Test(label, a))
-        )
-    }
-
-  /**
-   * Runs tests sequentially.
-   */
-  def sequential[R, E, L](managed: Managed[E, R])(spec: ZSpec[R, E, L]): UIO[ExecutedSpec[L]] =
-    spec match {
-      case Spec.Suite(label, specs) =>
-        ZIO
-          .foreach(specs)(sequential[R, E, L](managed)(_))
-          .map { results =>
-            Spec.Suite(label, results.toVector)
-          }
-      case Spec.Test(label, assert) =>
-        val provided = assert.provideManaged(managed)
-
-        provided.foldCauseM(
-          e => ZIO.succeed(Spec.Test(label, fail(e))),
-          a => ZIO.succeed(Spec.Test(label, a))
+          e => ZIO.succeed(Spec.test(label, fail(e))),
+          a => ZIO.succeed(Spec.test(label, a))
         )
     }
 }

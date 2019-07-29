@@ -43,7 +43,7 @@ package object test {
   type PredicateResult = AssertResult[PredicateValue]
   type TestResult      = AssertResult[FailureDetails]
 
-  type ExecutedSpec[+L] = Spec[TestResult, L]
+  type ExecutedSpec[+L] = Spec[L, TestResult]
 
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
@@ -53,7 +53,7 @@ package object test {
    * an `E`, might succeed with a `TestResult`, and whose nodes are
    * annotated with labels `L`.
    */
-  type ZSpec[-R, +E, +L] = Spec[ZIO[R, E, TestResult], L]
+  type ZSpec[-R, +E, +L] = Spec[L, ZIO[R, E, TestResult]]
 
   /**
    * Asserts the given value satisfies the given predicate.
@@ -75,7 +75,7 @@ package object test {
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = Spec.Suite(label, specs.toVector)
+  final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = Spec.suite(label, specs.toVector, None)
 
   /**
    * Builds a spec with a single pure test.
@@ -86,5 +86,5 @@ package object test {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = Spec.Test(label, assertion)
+  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = Spec.test(label, assertion)
 }

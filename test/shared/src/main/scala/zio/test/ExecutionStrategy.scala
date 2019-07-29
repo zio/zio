@@ -16,10 +16,9 @@
 
 package zio.test
 
-sealed trait SuiteExecutionStrategy
-object SuiteExecutionStrategy {
-  case object Inherit                extends SuiteExecutionStrategy
-  case object Sequential             extends SuiteExecutionStrategy
-  case object Parallel               extends SuiteExecutionStrategy
-  final case class ParallelN(n: Int) extends SuiteExecutionStrategy
+sealed trait ExecutionStrategy
+object ExecutionStrategy {
+  case object Sequential             extends ExecutionStrategy
+  case object Parallel               extends ExecutionStrategy
+  final case class ParallelN(n: Int) extends ExecutionStrategy
 }

@@ -121,6 +121,21 @@ object TestAspect {
     }
 
   /**
+   * An aspect that sets suites to the specified execution strategy, but only
+   * if their current strategy is inherited (undefined).
+   */
+  def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
+    new TestAspect[Nothing, Any, Nothing, Any] {
+      def some[R >: Nothing <: Any, E >: Nothing <: Any, L](
+        predicate: L => Boolean,
+        spec: ZSpec[R, E, L]
+      ): ZSpec[R, E, L] = spec.transform[L, ZIO[R, E, TestResult]] {
+        case Spec.SuiteCase(label, specs, None) => Spec.SuiteCase(label, specs, Some(exec))
+        case c                                  => c
+      }
+    }
+
+  /**
    * An aspect that retries a test until success, without limit, for use with
    * flaky tests.
    */
@@ -155,6 +170,17 @@ object TestAspect {
     }
 
   /**
+   * An aspect that executes the members of a suite in parallel.
+   */
+  val parallel: TestAspectPoly = executionStrategy(ExecutionStrategy.Parallel)
+
+  /**
+   * An aspect that executes the members of a suite in parallel, up to the
+   * specified number of concurent fibers.
+   */
+  def parallelN(n: Int): TestAspectPoly = executionStrategy(ExecutionStrategy.ParallelN(n))
+
+  /**
    * An aspect that retries failed tests according to a schedule.
    */
   def retry[R0, E0](schedule: ZSchedule[R0, E0, Any]): TestAspect[Nothing, R0 with Clock, Nothing, E0] =
@@ -164,6 +190,11 @@ object TestAspect {
       ): ZIO[R, E, TestResult] =
         test.retry(schedule: ZSchedule[R0, E0, Any])
     }
+
+  /**
+   * An aspect that executes the members of a suite sequentially.
+   */
+  val sequential: TestAspectPoly = executionStrategy(ExecutionStrategy.Sequential)
 
   /**
    * An aspect that times out tests using the specified duration.
@@ -186,7 +217,10 @@ object TestAspect {
       predicate: L => Boolean,
       spec: ZSpec[R, E, L]
     ): ZSpec[R, E, L] =
-      spec.map(identity, (label, test) => label -> (if (predicate(label)) perTest(test) else test))
+      spec.transform[L, ZIO[R, E, TestResult]] {
+        case c @ Spec.SuiteCase(_, _, _) => c
+        case Spec.TestCase(label, test)  => Spec.TestCase(label, if (predicate(label)) perTest(test) else test)
+      }
   }
 
 }
