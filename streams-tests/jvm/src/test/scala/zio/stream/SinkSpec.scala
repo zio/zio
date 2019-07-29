@@ -31,6 +31,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $chunkedStepError
       extract error $chunkedExtractError
 
+    Sink#collectAll
+      happy path         $collectAllHappyPath
+      chunked happy path $collectAllChunkedHappyPath
+      init error         $collectAllInitError
+      step error         $collectAllStepError
+      extract error      $collectAllExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -54,24 +61,24 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     Number array parsing with combinators $jsonNumArrayParsingSinkWithCombinators
   """
 
-  private def initErrorSink = new ZSink[Any, String, Nothing, Any, Nothing] {
+  private def initErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
     val initial                    = IO.fail("Ouch")
-    def step(state: State, a: Any) = IO.fail("Ouch")
+    def step(state: State, a: Int) = IO.fail("Ouch")
     def extract(state: State)      = IO.fail("Ouch")
   }
 
-  private def stepErrorSink = new ZSink[Any, String, Nothing, Any, Nothing] {
+  private def stepErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
     val initial                    = UIO.succeed(Step.more(()))
-    def step(state: State, a: Any) = IO.fail("Ouch")
+    def step(state: State, a: Int) = IO.fail("Ouch")
     def extract(state: State)      = IO.fail("Ouch")
   }
 
-  private def extractErrorSink = new ZSink[Any, String, Nothing, Any, Nothing] {
+  private def extractErrorSink = new ZSink[Any, String, Int, Int, Int] {
     type State = Unit
     val initial                    = UIO.succeed(Step.more(()))
-    def step(state: State, a: Any) = UIO.succeed(Step.done((), Chunk.empty))
+    def step(state: State, a: Int) = UIO.succeed(Step.done((), Chunk.empty))
     def extract(state: State)      = IO.fail("Ouch")
   }
 
@@ -89,17 +96,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def optionalInitError = {
     val sink = initErrorSink.?
-    unsafeRun(sinkIteration(sink, ()).map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
   }
 
   private def optionalStepError = {
     val sink = stepErrorSink.?
-    unsafeRun(sinkIteration(sink, ()).map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
   }
 
   private def optionalExtractError = {
     val sink = extractErrorSink.?
-    unsafeRun(sinkIteration(sink, ()).map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
   }
 
   private def chunkedHappyPath = {
@@ -125,6 +132,31 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def chunkedExtractError = {
     val sink = extractErrorSink.chunked
     unsafeRun(sinkIteration(sink, Chunk.single(1)).option.map(_ must_=== None))
+  }
+
+  private def collectAllHappyPath = {
+    val sink = ZSink.identity[Int].collectAll
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
+  }
+
+  private def collectAllChunkedHappyPath = {
+    val sink = ZSink.identity[Int].collectAll.chunked
+    unsafeRun(sinkIteration(sink, Chunk(1, 2, 3, 4, 5)).map(_ must_=== List(1, 2, 3, 4, 5)))
+  }
+
+  private def collectAllInitError = {
+    val sink = initErrorSink.collectAll
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def collectAllStepError = {
+    val sink = stepErrorSink.collectAll
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== Some(Nil)))
+  }
+
+  private def collectAllExtractError = {
+    val sink = extractErrorSink.collectAll
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
   private def foldLeft =
