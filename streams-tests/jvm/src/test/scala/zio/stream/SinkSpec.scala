@@ -68,6 +68,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $dimapStepError
       extract error $dimapExtractError
 
+    dropWhile
+      happy path      $dropWhileHappyPath
+      false predicate $dropWhileFalsePredicate
+      init error      $dropWhileInitError
+      step error      $dropWhileStepError
+      extract error   $dropWhileExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -292,6 +299,31 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def dimapExtractError = {
     val sink = extractErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
     unsafeRun(sinkIteration(sink, "123").option.map(_ must_=== None))
+  }
+
+  private def dropWhileHappyPath = {
+    val sink = ZSink.identity[Int].dropWhile[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def dropWhileFalsePredicate = {
+    val sink = ZSink.identity[Int].dropWhile[Int](_ > 5)
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== 1))
+  }
+
+  private def dropWhileInitError = {
+    val sink = initErrorSink.dropWhile[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def dropWhileStepError = {
+    val sink = stepErrorSink.dropWhile[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def dropWhileExtractError = {
+    val sink = extractErrorSink.dropWhile[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
   private def foldLeft =
