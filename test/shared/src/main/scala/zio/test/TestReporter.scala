@@ -16,16 +16,12 @@
 
 package zio.test
 
-import zio.Managed
-import zio.internal.{ Platform, PlatformLive }
-import zio.test.mock.{ mockEnvironmentManaged, MockConsole, MockEnvironment }
+import zio.ZIO
 
-/**
- * A `Runner` that provides a default testable environment.
- */
-// TODO: Provide test environment
-case class DefaultRunner(
-  environment: Managed[Nothing, MockEnvironment] = mockEnvironmentManaged,
-  platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
-  reporter: Reporter[MockConsole, String] = DefaultReporter.make
-) extends Runner[MockEnvironment, String](environment, platform, reporter)
+trait TestReporter[-L] {
+
+  /**
+   * Reports the results of running a spec.
+   */
+  def report(executedSpec: ExecutedSpec[L]): ZIO[R, Nothing, Unit]
+}

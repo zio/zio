@@ -16,10 +16,14 @@
 
 package zio.test
 
-sealed trait SuiteExecutionStrategy
-object SuiteExecutionStrategy {
-  case object Inherit                extends SuiteExecutionStrategy
-  case object Sequential             extends SuiteExecutionStrategy
-  case object Parallel               extends SuiteExecutionStrategy
-  final case class ParallelN(n: Int) extends SuiteExecutionStrategy
-}
+import zio.Managed
+import zio.internal.{ Platform, PlatformLive }
+import zio.test.mock.{ mockEnvironmentManaged, MockConsole, MockEnvironment }
+
+/**
+ * A `Runner` that provides a default testable environment.
+ */
+object DefaultTestRunner
+    extends TestRunner[ZTest[mock.MockEnvironment, Any], String](
+      TestExecutor.managed(zio.test.mock.mockEnvironmentManaged)
+    ) {}

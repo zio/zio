@@ -22,11 +22,17 @@ import scala.util.control.NonFatal
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-abstract class RunnableSpec[R, L](runner: Runner[R, L])(spec: => ZSpec[R, Nothing, L]) {
+abstract class RunnableSpec[R, L](runner: TestRunner[ZTest[R, Any], L])(spec: => ZSpec[R, Nothing, L]) {
+
+  /**
+   * A simple main function that can be used to run the spec.
+   *
+   * TODO: Parse command line options.
+   */
   final def main(args: Array[String]): Unit =
     runner.unsafeRunAsync(spec) { results =>
       try {
-        if (results.existsTest(_.failure)) System.exit(1)
+        if (results.exists { case Spec.TestCase(_, test) => test.failure; case _ => false }) System.exit(1)
         else System.exit(0)
       } catch { case NonFatal(_) => }
     }

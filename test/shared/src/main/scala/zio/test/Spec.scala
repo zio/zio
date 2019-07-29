@@ -16,159 +16,130 @@
 
 package zio.test
 
+import zio.ZIO
+
+import Spec._
+
 /**
- * A `Spec[T, L]` is the backbone of _ZIO Test_. ZSpecs require an environment
- * of type `R` (which could be `Any`), may fail with errors of type `E`, and
- * are annotated with labels of type `L` (typically `String`).
+ * A `Spec[T, L]` is the backbone of _ZIO Test_. Every spec is either a suite,
+ * which contains other specs, or a test of type `T`. All specs are annotated
+ * with labels of type `L`.
  */
-sealed trait Spec[+T, +L] { self =>
+final case class Spec[+L, +T](caseValue: SpecCase[L, T, Spec[L, T]]) { self =>
 
   /**
    * Returns a new spec with the suite labels distinguished by `Left`, and the
    * test labels distinguished by `Right`.
    */
-  final def distinguish: Spec[T, Either[L, L]] = map(Left(_), (l, t) => (Right(l), t))
-
-  /**
-   * Determines if there exists a label or test satisfying the predicate.
-   */
-  final def exists(ifSuite: L => Boolean, ifTest: (T, L) => Boolean): Boolean =
-    fold(false)((acc, l) => acc || ifSuite(l), (acc, l, t) => acc || ifTest(t, l))
-
-  /**
-   * Determines if there exists a label satisfying the predicate.
-   */
-  final def existsLabel(f: L => Boolean): Boolean = exists(f, (_, l) => f(l))
-
-  /**
-   * Determines if there exists a test satisfying the predicate.
-   */
-  final def existsTest(f: T => Boolean): Boolean = exists(_ => false, (t, _) => f(t))
-
-  /**
-   * Returns a filtered spec that removes any suite or test not satisfied by
-   * the specified predicates.
-   */
-  final def filter(ifSuite: L => Boolean, ifTest: (L, T) => Boolean): Option[Spec[T, L]] = {
-    def loop(spec: Spec[T, L]): Option[Spec[T, L]] = spec match {
-      case Spec.Suite(label, specs) =>
-        if (ifSuite(label)) Some(Spec.Suite(label, specs.map(loop).flatMap(_.toVector))) else None
-      case Spec.Test(label, test) => if (ifTest(label, test)) Some(Spec.Test(label, test)) else None
-    }
-
-    loop(self)
+  final def distinguish: Spec[Either[L, L], T] = transform[Either[L, L], T] {
+    case SuiteCase(label, specs, exec) => SuiteCase(Left(label), specs, exec)
+    case TestCase(label, test)         => TestCase(Right(label), test)
   }
 
   /**
-   * Returns a filtered spec that removes any spec not satisfied by the specified predicates.
+   * Determines if any node in the spec is satisfied by the given predicate.
    */
-  final def filterLabel(f: L => Boolean): Option[Spec[T, L]] = filter(f, (l, _) => f(l))
+  final def exists(f: SpecCase[L, T, Unit] => Boolean): Boolean =
+    fold[Boolean] {
+      case c @ SuiteCase(_, specs, _) => specs.exists(identity) || f(c.map(_ => ()))
+      case c @ TestCase(_, _)         => f(c)
+    }
 
   /**
-   * Returns a filtered spec that removes any test not satisfied by the specified predicates.
+   * Folds over all nodes to produce a final result.
    */
-  final def filterTest(f: (L, T) => Boolean): Option[Spec[T, L]] = filter(_ => true, f)
+  final def fold[Z](f: SpecCase[L, T, Z] => Z): Z =
+    caseValue match {
+      case SuiteCase(label, specs, exec) => f(SuiteCase(label, specs.map(_.fold(f)), exec))
+      case t @ TestCase(_, _)            => f(t)
+    }
 
   /**
-   * Folds over the spec, accumulating a value over suites and tests.
+   * Effectfully folds over all nodes according to the execution strategy of
+   * suites, utilizing the specified default for other cases.
    */
-  final def fold[Z](z: Z)(ifSuite: (Z, L) => Z, ifTest: (Z, L, T) => Z): Z = {
-    def fold0(z: Z)(spec: Spec[T, L]): Z = spec match {
-      case Spec.Suite(label, specs) =>
-        specs.foldLeft(ifSuite(z, label)) {
-          case (acc, spec) => fold0(acc)(spec)
+  final def foldM[R, E, Z](defExec: ExecutionStrategy)(f: SpecCase[L, T, Z] => ZIO[R, E, Z]): ZIO[R, E, Z] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        exec.getOrElse(defExec) match {
+          case ExecutionStrategy.Parallel =>
+            ZIO.foreachPar(specs)(_.foldM(defExec)(f)).flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
+          case ExecutionStrategy.ParallelN(n) =>
+            ZIO
+              .foreachParN(n.toLong)(specs)(_.foldM(defExec)(f))
+              .flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
+          case ExecutionStrategy.Sequential =>
+            ZIO.foreach(specs)(_.foldM(defExec)(f)).flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
         }
-      case Spec.Test(label, test) => ifTest(z, label, test)
+
+      case t @ TestCase(_, _) => f(t)
     }
 
-    fold0(z)(self)
+  /**
+   * Determines if all node in the spec are satisfied by the given predicate.
+   */
+  final def forall(f: SpecCase[L, T, Unit] => Boolean): Boolean =
+    fold[Boolean] {
+      case c @ SuiteCase(_, specs, _) => specs.forall(identity) && f(c.map(_ => ()))
+      case c @ TestCase(_, _)         => f(c)
+    }
+
+  /**
+   * Computes the size of the spec, i.e. the number of tests in the spec.
+   */
+  final def size: Int = fold[Int] {
+    case SuiteCase(_, counts, _) => counts.sum
+    case TestCase(_, _)          => 1
   }
 
   /**
-   * Folds over the labels in the spec spec, accumulating a value.
+   * Transforms the spec one layer at a time.
    */
-  final def foldLabel[Z](z: Z)(f: (Z, L) => Z): Z = fold(z)(f, (z, l, _) => f(z, l))
-
-  /**
-   * Folds over the tests in the spec spec, accumulating a value.
-   */
-  final def foldTest[Z](z: Z)(f: (Z, L, T) => Z): Z = fold(z)((z, _) => z, (z, l, t) => f(z, l, t))
-
-  /**
-   * Determines if all labels and tests satisfy the specified predicates.
-   */
-  final def forall(ifSuite: L => Boolean, ifTest: (T, L) => Boolean): Boolean =
-    fold(true)((acc, l) => acc && ifSuite(l), (acc, l, t) => acc && ifTest(t, l))
-
-  /**
-   * Determines if all labels satisfy the specified predicate.
-   */
-  final def forallLabel(f: L => Boolean): Boolean = forall(f, (_, l) => f(l))
-
-  /**
-   * Determines if all labels satisfy the specified predicate.
-   */
-  final def forallTest(f: T => Boolean): Boolean = forall(_ => true, (t, _) => f(t))
-
-  /**
-   * Returns a new spec with the labels and tests computed by stateful map
-   * functions.
-   */
-  final def mapAccum[S, T1, L1](s: S)(ifSuite: (S, L) => (S, L1), ifTest: (S, L, T) => (S, L1, T1)): Spec[T1, L1] = {
-    def fold(s0: S, specs0: Iterable[Spec[T, L]]): (S, Vector[Spec[T1, L1]]) =
-      specs0.foldLeft(s0 -> Vector.empty[Spec[T1, L1]]) {
-        case ((s0, acc), spec0) =>
-          val (s, spec) = loop(spec0, s0)
-
-          s -> (acc ++ Vector(spec))
-      }
-
-    def loop(spec: Spec[T, L], s0: S): (S, Spec[T1, L1]) = spec match {
-      case Spec.Suite(label, specs0) =>
-        val (s1, label2) = ifSuite(s0, label)
-
-        val (s2, specs) = fold(s1, specs0)
-
-        s2 -> Spec.Suite(label2, specs)
-
-      case Spec.Test(label, test) =>
-        val (s1, label2, test2) = ifTest(s0, label, test)
-
-        s1 -> Spec.Test(label2, test2)
-
+  final def transform[L1, T1](f: SpecCase[L, T, Spec[L1, T1]] => SpecCase[L1, T1, Spec[L1, T1]]): Spec[L1, T1] =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        Spec(f(SuiteCase(label, specs.map(_.transform(f)), exec)))
+      case t @ TestCase(_, _) => Spec(f(t))
     }
 
-    loop(self, s)._2
-  }
-
   /**
-   * Returns a new spec with a remapped label type.
+   * Transforms the spec statefully, one layer at a time.
    */
-  final def mapLabel[L1](f: L => L1): Spec[T, L1] = map(f, (l, t) => (f(l), t))
+  final def transformAccum[L1, T1, Z](
+    z0: Z
+  )(f: (Z, SpecCase[L, T, Spec[L1, T1]]) => (Z, SpecCase[L1, T1, Spec[L1, T1]])): (Z, Spec[L1, T1]) =
+    caseValue match {
+      case SuiteCase(label, specs, exec) =>
+        val (z, specs1) =
+          specs.foldLeft(z0 -> Vector.empty[Spec[L1, T1]]) {
+            case ((z, vector), spec) =>
+              val (z1, spec1) = spec.transformAccum(z)(f)
 
-  /**
-   * Returns a new spec with a remapped label type.
-   */
-  final def mapTest[T1](f: T => T1): Spec[T1, L] = map(l => l, (l, t) => (l, f(t)))
+              z1 -> (vector :+ spec1)
+          }
 
-  /**
-   * Returns a new spec with remapped tests.
-   */
-  final def map[T1, L1](ifSuite: L => L1, ifTest: (L, T) => (L1, T1)): Spec[T1, L1] = {
-    def loop(spec: Spec[T, L]): Spec[T1, L1] = spec match {
-      case Spec.Suite(label, specs) => Spec.Suite(ifSuite(label), specs.map(loop))
-      case Spec.Test(label, test)   => (Spec.Test[T1, L1](_, _)).tupled(ifTest(label, test))
+        val (z1, caseValue) = f(z, SuiteCase(label, specs1, exec))
+
+        z1 -> Spec(caseValue)
+      case t @ TestCase(_, _) =>
+        val (z, caseValue) = f(z0, t)
+        z -> Spec(caseValue)
     }
-
-    loop(self)
-  }
-
-  /**
-   * Returns the size of the spec, which is the number of tests that it contains.
-   */
-  final def size: Int = fold(0)((count, _) => count + 1, (count, _, _) => count + 1)
 }
 object Spec {
-  final case class Suite[+T, +L](label: L, specs: Vector[Spec[T, L]]) extends Spec[T, L]
-  final case class Test[+T, +L](label: L, test: T)                    extends Spec[T, L]
+  sealed trait SpecCase[+L, +T, +A] { self =>
+    final def map[B](f: A => B): SpecCase[L, T, B] = self match {
+      case SuiteCase(label, specs, exec) => SuiteCase(label, specs.map(f), exec)
+      case TestCase(label, test)         => TestCase(label, test)
+    }
+  }
+  final case class SuiteCase[+L, +A](label: L, specs: Vector[A], exec: Option[ExecutionStrategy])
+      extends SpecCase[L, Nothing, A]
+  final case class TestCase[+T, +L](label: L, test: T) extends SpecCase[L, T, Nothing]
+
+  final def suite[T, L](label: L, specs: Vector[Spec[L, T]], exec: Option[ExecutionStrategy]): Spec[L, T] =
+    Spec(SuiteCase(label, specs, exec))
+
+  final def test[T, L](label: L, test: T): Spec[L, T] =
+    Spec(TestCase(label, test))
 }
