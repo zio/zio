@@ -75,6 +75,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error      $dropWhileStepError
       extract error   $dropWhileExtractError
 
+    flatMap
+      happy path    $flatMapHappyPath
+      init error    $flatMapInitError
+      step error    $flatMapStepError
+      extract error $flatMapExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -323,6 +329,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def dropWhileExtractError = {
     val sink = extractErrorSink.dropWhile[Int](_ < 5)
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def flatMapHappyPath = {
+    val sink = ZSink.identity[Int].flatMap(n => ZSink.succeedLazy(n.toString))
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== "1"))
+  }
+
+  private def flatMapInitError = {
+    val sink = initErrorSink.flatMap(n => ZSink.succeedLazy(n.toString))
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def flatMapStepError = {
+    val sink = stepErrorSink.flatMap(n => ZSink.succeedLazy(n.toString))
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def flatMapExtractError = {
+    val sink = extractErrorSink.flatMap(n => ZSink.succeedLazy(n.toString))
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
