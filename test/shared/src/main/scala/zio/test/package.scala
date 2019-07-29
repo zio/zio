@@ -43,10 +43,12 @@ package object test {
   type PredicateResult = AssertResult[PredicateValue]
   type TestResult      = AssertResult[FailureDetails]
 
-  type ExecutedSpec[+L] = Spec[L, TestResult]
-
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
+  /**
+   * A `ZTest[R, E]` is an effectfully produced test that requires an `R`
+   * and may fail with an `E`.
+   */
   type ZTest[-R, +E] = ZIO[R, E, TestResult]
 
   /**
@@ -56,6 +58,11 @@ package object test {
    * annotated with labels `L`.
    */
   type ZSpec[-R, +E, +L] = Spec[L, ZTest[R, E]]
+
+  /**
+   * An `ExecutedSpec` is a spec that has been run to produce test rresults.
+   */
+  type ExecutedSpec[+L] = Spec[L, TestResult]
 
   /**
    * Asserts the given value satisfies the given predicate.
