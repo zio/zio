@@ -18,12 +18,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   def is = "SinkSpec".title ^ s2"""
   Combinators
-    ? (optional)
-      happy path    $optionalHappyPath
-      init error    $optionalInitError
-      step error    $optionalStepError
-      extract error $optionalExtractError
-
     chunked
       happy path    $chunkedHappyPath
       empty         $chunkedEmpty
@@ -112,6 +106,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step error    $mapMStepError
       extract error $mapMExtractError
 
+    optional
+      happy path    $optionalHappyPath
+      init error    $optionalInitError
+      step error    $optionalStepError
+      extract error $optionalExtractError
+
   Constructors
     Sink.foldLeft                         $foldLeft
     Sink.fold                             $fold
@@ -162,26 +162,6 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       step   <- sink.step(Step.state(init), a)
       result <- sink.extract(Step.state(step))
     } yield result
-
-  private def optionalHappyPath = {
-    val sink = ZSink.identity[Int].?
-    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Some(1)))
-  }
-
-  private def optionalInitError = {
-    val sink = initErrorSink.?
-    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
-  }
-
-  private def optionalStepError = {
-    val sink = stepErrorSink.?
-    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
-  }
-
-  private def optionalExtractError = {
-    val sink = extractErrorSink.?
-    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
-  }
 
   private def chunkedHappyPath = {
     val sink = ZSink.collectAll[Int].chunked
@@ -486,6 +466,26 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def mapMExtractError = {
     val sink = extractErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def optionalHappyPath = {
+    val sink = ZSink.identity[Int].optional
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Some(1)))
+  }
+
+  private def optionalInitError = {
+    val sink = initErrorSink.optional
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
+  }
+
+  private def optionalStepError = {
+    val sink = stepErrorSink.optional
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
+  }
+
+  private def optionalExtractError = {
+    val sink = extractErrorSink.optional
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== None))
   }
 
   private def foldLeft =
