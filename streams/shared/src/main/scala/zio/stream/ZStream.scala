@@ -654,7 +654,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * concurrently. Up to `outputBuffer` elements of the produced streams may be
    * buffered in memory by this operator.
    */
-  final def flatMapPar[R1 <: R, E1 >: E, B](n: Long, outputBuffer: Int = 16)(
+  final def flatMapPar[R1 <: R, E1 >: E, B](n: Int, outputBuffer: Int = 16)(
     f: A => ZStream[R1, E1, B]
   ): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B] {
@@ -662,7 +662,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         ZManaged.succeedLazy { (s, cont, g) =>
           for {
             out             <- Queue.bounded[Take[E1, B]](outputBuffer).toManaged(_.shutdown)
-            permits         <- Semaphore.make(n).toManaged_
+            permits         <- Semaphore.make(n.toLong).toManaged_
             innerFailure    <- Promise.make[Cause[E1], Nothing].toManaged_
             interruptInners <- Promise.make[Nothing, Unit].toManaged_
 
@@ -705,7 +705,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                       innerFailure.await
                       // Important to use `withPermits` here because the finalizer below may interrupt
                       // the driver, and we want the permits to be released in that case
-                        .raceWith(permits.withPermits(n)(ZIO.unit))(
+                        .raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
                           // One of the inner fibers failed. It already enqueued its failure, so we
                           // signal the inner fibers to interrupt. The finalizer below will make sure
                           // that they actually end.
@@ -718,7 +718,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                   )
                   // This finalizer makes sure that in all cases, the driver stops spawning new streams
                   // and the inner fibers are signalled to interrupt and actually exit.
-                  .ensuringFirst(interruptInners.succeed(()) *> permits.withPermits(n)(ZIO.unit))
+                  .ensuringFirst(interruptInners.succeed(()) *> permits.withPermits(n.toLong)(ZIO.unit))
                   .fork
             s <- ZStream.fromQueue(out).unTake.fold[R2, E2, B1, S].flatMap(fold => fold(s, cont, g))
           } yield s
@@ -976,7 +976,7 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
    * executing up to `n` invocations of `f` concurrently. The element order
    * is not enforced by this combinator, and elements may be reordered.
    */
-  final def mapMParUnordered[R1 <: R, E1 >: E, B](n: Long)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
+  final def mapMParUnordered[R1 <: R, E1 >: E, B](n: Int)(f: A => ZIO[R1, E1, B]): ZStream[R1, E1, B] =
     self.flatMapPar[R1, E1, B](n)(a => ZStream.fromEffect(f(a)))
 
   /**
@@ -1696,7 +1696,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * concurrent merge. Up to `n` streams may be consumed in parallel and up to
    * `outputBuffer` elements may be buffered by this operator.
    */
-  final def flattenPar[R, E, A](n: Long, outputBuffer: Int = 16)(
+  final def flattenPar[R, E, A](n: Int, outputBuffer: Int = 16)(
     fa: ZStream[R, E, ZStream[R, E, A]]
   ): ZStream[R, E, A] =
     fa.flatMapPar(n, outputBuffer)(identity)
@@ -1784,7 +1784,7 @@ object ZStream extends ZStreamPlatformSpecific {
    * Up to `n` streams may be consumed in parallel and up to
    * `outputBuffer` elements may be buffered by this operator.
    */
-  final def mergeAll[R, E, A](n: Long, outputBuffer: Int = 16)(
+  final def mergeAll[R, E, A](n: Int, outputBuffer: Int = 16)(
     streams: ZStream[R, E, A]*
   ): ZStream[R, E, A] =
     flattenPar(n, outputBuffer)(fromIterable(streams))
