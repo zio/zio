@@ -26,10 +26,10 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       extract error $chunkedExtractError
 
     collectAll
-      happy path         $collectAllHappyPath
-      init error         $collectAllInitError
-      step error         $collectAllStepError
-      extract error      $collectAllExtractError
+      happy path    $collectAllHappyPath
+      init error    $collectAllInitError
+      step error    $collectAllStepError
+      extract error $collectAllExtractError
 
     collectAllWhile
       happy path      $collectAllWhileHappyPath
@@ -157,7 +157,16 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       extract error   $untilOutputExtractError
 
     zip (<*>)
-      happy path $zipHappyPath
+      happy path          $zipHappyPath
+      init error left     $zipInitErrorLeft
+      init error right    $zipInitErrorRight
+      init error both     $zipInitErrorBoth
+      step error left     $zipStepErrorLeft
+      step error right    $zipStepErrorRight
+      step error both     $zipStepErrorBoth
+      extract error left  $zipExtractErrorLeft
+      extract error right $zipExtractErrorRight
+      extract error both  $zipExtractErrorBoth
 
     zipLeft (<*)
       happy path $zipLeftHappyPath
@@ -257,7 +266,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   }
 
   private def collectAllHappyPath = {
-    val sink = ZSink.identity[Int].collectAll
+    val sink = ZSink.identity[Int].collectAll[Int, Int]
     unsafeRun(sinkIteration(sink, 1).map(_ must_=== List(1)))
   }
 
@@ -731,6 +740,51 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
   private def zipHappyPath = {
     val sink = ZSink.identity[Int] <*> ZSink.succeedLazy("Hello")
     unsafeRun(sinkIteration(sink, 1).map(t => (t._1 must_=== 1) and (t._2 must_=== "Hello")))
+  }
+
+  private def zipInitErrorLeft = {
+    val sink = initErrorSink <*> ZSink.identity[Int]
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipInitErrorRight = {
+    val sink = ZSink.identity[Int] <*> initErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipInitErrorBoth = {
+    val sink = initErrorSink <*> initErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipStepErrorLeft = {
+    val sink = stepErrorSink <*> ZSink.identity[Int]
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipStepErrorRight = {
+    val sink = ZSink.identity[Int] <*> stepErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipStepErrorBoth = {
+    val sink = stepErrorSink <*> stepErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipExtractErrorLeft = {
+    val sink = extractErrorSink <*> ZSink.identity[Int]
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipExtractErrorRight = {
+    val sink = ZSink.identity[Int] <*> extractErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def zipExtractErrorBoth = {
+    val sink = extractErrorSink <*> extractErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
   private def zipLeftHappyPath = {
