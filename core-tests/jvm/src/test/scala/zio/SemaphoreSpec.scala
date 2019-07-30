@@ -84,12 +84,12 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
 
   private def e8 = {
     val test = for {
-      s       <- Semaphore.make(0).toManaged_
-      _       <- s.withPermitManaged(s.release).timeout(1.millisecond).either
-      permits <- (s.release *> clock.sleep(10.milliseconds) *> s.available).toManaged_
+      s       <- Semaphore.make(0)
+      _       <- s.withPermitManaged.use(_ => s.release).timeout(1.millisecond).either
+      permits <- (s.release *> clock.sleep(10.milliseconds) *> s.available)
     } yield permits must_=== 1L
 
-    unsafeRun(test.use(UIO.succeed(_)))
+    unsafeRun(test)
   }
 
   def offsettingReleasesAcquires(

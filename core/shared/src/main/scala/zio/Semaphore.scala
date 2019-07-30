@@ -105,8 +105,8 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * Acquires a permit in a [[zio.ZManaged]], executes the action and releases the
    * permit in the finalizer.
    */
-  final def withPermitManaged[R, E, A](task: ZIO[R, E, A]): ZManaged[R, E, A] =
-    withPermitsManaged(1)(task)
+  final def withPermitManaged[R, E]: ZManaged[R, E, Unit] =
+    withPermitsManaged(1)
 
   /**
    * Acquires `n` permits, executes the action and releases the permits right after.
@@ -118,8 +118,8 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * Acquires `n` permits in a [[zio.ZManaged]], executes the action and releases the
    * permits in the finalizer.
    */
-  final def withPermitsManaged[R, E, A](n: Long)(task: ZIO[R, E, A]): ZManaged[R, E, A] =
-    ZManaged.make(prepare(n))(_.release).flatMap(a => (a.awaitAcquire *> task).toManaged_)
+  final def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
+    ZManaged(prepare(n).map(a => Reservation(a.awaitAcquire, a.release)))
 
   final private def cleanup[E, A](ops: Acquisition, res: Exit[E, A]): UIO[Unit] =
     res match {
