@@ -131,6 +131,18 @@ object Predicate {
     }
 
   /**
+   * Makes a new predicate that focuses in on a field in a case class.
+   *
+   * {{{
+   * field("age", _.age, within(0, 10))
+   * }}}
+   */
+  final def field[A, B](name: String, proj: A => B, predicate: Predicate[B]): Predicate[A] =
+    Predicate.predicateDirect[A]("field(\"" + name + "\"" + s", _.${name}, ${predicate})") { actual =>
+      predicate(proj(actual))
+    }
+
+  /**
    * Makes a new predicate that requires an iterable contain only elements
    * satisfying the given predicate.
    */

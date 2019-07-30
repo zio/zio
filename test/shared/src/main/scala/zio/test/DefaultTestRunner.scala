@@ -16,12 +16,10 @@
 
 package zio.test
 
-import zio.UIO
-
-trait Reporter[-L] {
-
-  /**
-   * Reports the results of running a spec.
-   */
-  def report[E](executedSpec: ExecutedSpec[Any, E, L]): UIO[Unit]
-}
+/**
+ * A `Runner` that provides a default testable environment.
+ */
+object DefaultTestRunner
+    extends TestRunner[ZTest[mock.MockEnvironment, Any], String](
+      TestExecutor.managed(zio.test.mock.mockEnvironmentManaged)
+    ) {}

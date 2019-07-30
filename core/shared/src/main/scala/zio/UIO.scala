@@ -293,6 +293,12 @@ object UIO {
     ZIO.reduceAllPar(a, as)(f)
 
   /**
+   * @see See [[zio.ZIO.replicate]]
+   */
+  def replicate[A](n: Int)(effect: UIO[A]): Iterable[UIO[A]] =
+    ZIO.replicate(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.reserve]]
    */
   final def reserve[A, B](reservation: UIO[Reservation[Any, Nothing, A]])(use: A => UIO[B]): UIO[B] =

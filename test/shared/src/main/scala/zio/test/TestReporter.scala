@@ -16,10 +16,12 @@
 
 package zio.test
 
-import zio._
+import zio.UIO
 
-/**
- * A `Runner` that provides a default testable environment.
- */
-// TODO: Provide test environment
-object DefaultRunner extends Runner[DefaultRuntime#Environment, String](???) {}
+trait TestReporter[-L] {
+
+  /**
+   * Reports the results of running a spec.
+   */
+  def report(executedSpec: ExecutedSpec[L]): UIO[Unit]
+}
