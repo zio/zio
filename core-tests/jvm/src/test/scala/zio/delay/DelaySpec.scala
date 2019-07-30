@@ -3,8 +3,8 @@ package zio.delay
 import java.util.concurrent.TimeUnit
 
 import zio.TestRuntime
-import zio.duration.Duration
 import zio.clock._
+import zio.duration.Duration
 
 class DelaySpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
 
