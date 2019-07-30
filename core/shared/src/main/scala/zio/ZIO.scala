@@ -336,8 +336,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * does not fail, but succeeds with the value returned by the left or right
    * function passed to `fold`.
    */
-  final def fold[B](err: E => B, succ: A => B): ZIO[R, Nothing, B] =
-    foldM(new ZIO.MapFn(err), new ZIO.MapFn(succ))
+  final def fold[B](failure: E => B, success: A => B): ZIO[R, Nothing, B] =
+    foldM(new ZIO.MapFn(failure), new ZIO.MapFn(success))
+
+  /**
+   * A more powerful version of `fold` that allows recovering from any kind of failure except interruptions.
+   */
+  final def foldCause[B](failure: Cause[E] => B, success: A => B): ZIO[R, Nothing, B] =
+    foldCauseM(new ZIO.MapFn(failure), new ZIO.MapFn(success))
 
   /**
    * A more powerful version of `foldM` that allows recovering from any kind of failure except interruptions.
@@ -1108,7 +1114,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * the specified promise will be interrupted, too.
    */
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): ZIO[R, Nothing, Boolean] =
-    self.run.flatMap(x => p.done(ZIO.done(x))).onInterrupt(p.interrupt)
+    self.run.flatMap(x => p.complete(ZIO.done(x))).onInterrupt(p.interrupt)
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
@@ -1310,14 +1316,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
    * then the other side will be interrupted, interrupted the result.
    */
   final def <&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, A] =
-    self.zipWithPar(that)((a, b) => (a, b)).map(_._1)
+    self.zipWithPar(that)((a, _) => a)
 
   /**
-   * An integer that identifies the term in the `ZIO` sum type to which this
-   * instance belongs (e.g. `IO.Tags.Succeed`).
+   * Returns an effect that executes both this effect and the specified effect,
+   * in parallel, returning result of provided effect. If either side fails,
+   * then the other side will be interrupted, interrupted the result.
    */
   final def &>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    self.zipWithPar(that)((a, b) => (a, b)).map(_._2)
+    self.zipWithPar(that)((_, b) => b)
 
   /**
    * Operator alias for `orElse`.
@@ -2020,6 +2027,15 @@ private[zio] trait ZIOFunctions extends Serializable {
     }
 
   /**
+   * Replicates the given effect n times.
+   * If 0 or negative numbers are given, an empty `Iterable` will return.
+   */
+  def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A]): Iterable[ZIO[R, E, A]] =
+    new Iterable[ZIO[R, E, A]] {
+      override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)
+    }
+
+  /**
    * Requires that the given `IO[E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
@@ -2224,15 +2240,25 @@ private[zio] trait ZIOFunctions extends Serializable {
    * The moral equivalent of `if (p) exp`
    */
   final def when[R, E](b: Boolean)(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
-    if (b)
-      zio.const(())
-    else unit
+    if (b) zio.unit else unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    pf.applyOrElse(a, (_: A) => unit).unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
+   */
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    a.flatMap(whenCase(_)(pf))
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   final def whenM[R, E](b: ZIO[R, E, Boolean])(zio: ZIO[R, E, _]): ZIO[R, E, Unit] =
-    b.flatMap(b => if (b) zio.const(()) else unit)
+    b.flatMap(b => if (b) zio.unit else unit)
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh
