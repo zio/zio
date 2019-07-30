@@ -130,6 +130,18 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       extract error right $orElseExtractErrorRight
       extract error both  $orElseExtractErrorBoth
 
+    raceBoth
+      left                $raceBothLeft
+      init error left     $raceBothInitErrorLeft
+      init error right    $raceBothInitErrorRight
+      init error both     $raceBothInitErrorBoth
+      step error left     $raceBothStepErrorLeft
+      step error right    $raceBothStepErrorRight
+      step error both     $raceBothStepErrorBoth
+      extract error left  $raceBothExtractErrorLeft
+      extract error right $raceBothExtractErrorRight
+      extract error both  $raceBothExtractErrorBoth
+
     takeWhile
       happy path      $takeWhileHappyPath
       false predicate $takeWhileFalsePredicate
@@ -599,6 +611,56 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def orElseExtractErrorBoth = {
     val sink = extractErrorSink orElse extractErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def raceBothLeft = {
+    val sink = ZSink.identity[Int] raceBoth ZSink.succeedLazy("Hello")
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Left(1)))
+  }
+
+  private def raceBothInitErrorLeft = {
+    val sink = initErrorSink raceBoth ZSink.identity[Int]
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Right(1)))
+  }
+
+  private def raceBothInitErrorRight = {
+    val sink = ZSink.identity[Int] raceBoth initErrorSink
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Left(1)))
+  }
+
+  private def raceBothInitErrorBoth = {
+    val sink = initErrorSink race initErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def raceBothStepErrorLeft = {
+    val sink = stepErrorSink raceBoth ZSink.identity[Int]
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def raceBothStepErrorRight = {
+    val sink = ZSink.identity[Int] raceBoth stepErrorSink
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Left(1)))
+  }
+
+  private def raceBothStepErrorBoth = {
+    val sink = stepErrorSink race stepErrorSink
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def raceBothExtractErrorLeft = {
+    val sink = extractErrorSink raceBoth ZSink.identity[Int]
+    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+  }
+
+  private def raceBothExtractErrorRight = {
+    val sink = ZSink.identity[Int] raceBoth extractErrorSink
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Left(1)))
+  }
+
+  private def raceBothExtractErrorBoth = {
+    val sink = extractErrorSink race extractErrorSink
     unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
   }
 
