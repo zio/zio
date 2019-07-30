@@ -252,17 +252,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def chunkedInitError = {
     val sink = initErrorSink.chunked
-    unsafeRun(sinkIteration(sink, Chunk.single(1)).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, Chunk.single(1)).either.map(_ must_=== Left("Ouch")))
   }
 
   private def chunkedStepError = {
     val sink = stepErrorSink.chunked
-    unsafeRun(sinkIteration(sink, Chunk.single(1)).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, Chunk.single(1)).either.map(_ must_=== Left("Ouch")))
   }
 
   private def chunkedExtractError = {
     val sink = extractErrorSink.chunked
-    unsafeRun(sinkIteration(sink, Chunk.single(1)).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, Chunk.single(1)).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllHappyPath = {
@@ -272,18 +272,18 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def collectAllInitError = {
     val sink = initErrorSink.collectAll
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllStepError = {
     // This test needs to be verified for correctness.
     val sink = stepErrorSink.collectAll
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== Some(Nil)))
+    unsafeRun(sinkIteration(sink, 1).map(_ must_=== Nil))
   }
 
   private def collectAllExtractError = {
     val sink = extractErrorSink.collectAll
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllWhileHappyPath = {
@@ -295,24 +295,24 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
     // This test needs to be verified for correctness.
     // I find this behavior to be surprising.
     val sink = ZSink.identity[Int].collectAllWhile[Int, Int](_ < 0)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(())))
     // Fails instead of returning empty list.
     // I would presume that sinkIteration(sink, 1).map(_ must_=== Nil) is the correct behavior.
   }
 
   private def collectAllWhileInitError = {
     val sink = initErrorSink.collectAllWhile[Int, Int](_ > 1)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllWhileStepError = {
     val sink = stepErrorSink.collectAllWhile[Int, Int](_ > 1)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def collectAllWhileExtractError = {
     val sink = extractErrorSink.collectAllWhile[Int, Int](_ > 1)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def contramapHappyPath = {
@@ -322,17 +322,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def contramapInitError = {
     val sink = initErrorSink.contramap[String](_.toInt)
-    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "1").either.map(_ must_=== Left("Ouch")))
   }
 
   private def contramapStepError = {
     val sink = stepErrorSink.contramap[String](_.toInt)
-    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "1").either.map(_ must_=== Left("Ouch")))
   }
 
   private def contramapExtractError = {
     val sink = extractErrorSink.contramap[String](_.toInt)
-    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "1").either.map(_ must_=== Left("Ouch")))
   }
 
   private def contramapMHappyPath = {
@@ -342,17 +342,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def contramapMInitError = {
     val sink = initErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
-    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "1").either.map(_ must_=== Left("Ouch")))
   }
 
   private def contramapMStepError = {
     val sink = stepErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
-    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "1").either.map(_ must_=== Left("Ouch")))
   }
 
   private def contramapMExtractError = {
     val sink = extractErrorSink.contramapM[Any, String, String](s => UIO.succeed(s.toInt))
-    unsafeRun(sinkIteration(sink, "1").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "1").either.map(_ must_=== Left("Ouch")))
   }
 
   private def constHappyPath = {
@@ -362,17 +362,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def constInitError = {
     val sink = initErrorSink.const("const")
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def constStepError = {
     val sink = stepErrorSink.const("const")
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def constExtractError = {
     val sink = extractErrorSink.const("const")
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def dimapHappyPath = {
@@ -382,22 +382,22 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def dimapInitError = {
     val sink = initErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
-    unsafeRun(sinkIteration(sink, "123").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "123").either.map(_ must_=== Left("Ouch")))
   }
 
   private def dimapStepError = {
     val sink = stepErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
-    unsafeRun(sinkIteration(sink, "123").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "123").either.map(_ must_=== Left("Ouch")))
   }
 
   private def dimapExtractError = {
     val sink = extractErrorSink.dimap[String, String](_.toInt)(_.toString.reverse)
-    unsafeRun(sinkIteration(sink, "123").option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, "123").either.map(_ must_=== Left("Ouch")))
   }
 
   private def dropWhileHappyPath = {
     val sink = ZSink.identity[Int].dropWhile[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(())))
   }
 
   private def dropWhileFalsePredicate = {
@@ -407,17 +407,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def dropWhileInitError = {
     val sink = initErrorSink.dropWhile[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def dropWhileStepError = {
     val sink = stepErrorSink.dropWhile[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def dropWhileExtractError = {
     val sink = extractErrorSink.dropWhile[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def flatMapHappyPath = {
@@ -427,17 +427,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def flatMapInitError = {
     val sink = initErrorSink.flatMap(n => ZSink.succeedLazy(n.toString))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def flatMapStepError = {
     val sink = stepErrorSink.flatMap(n => ZSink.succeedLazy(n.toString))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def flatMapExtractError = {
     val sink = extractErrorSink.flatMap(n => ZSink.succeedLazy(n.toString))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def filterHappyPath = {
@@ -447,22 +447,22 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def filterFalsePredicate = {
     val sink = ZSink.identity[Int].filter[Int](_ > 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(())))
   }
 
   private def filterInitError = {
     val sink = initErrorSink.filter[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def filterStepError = {
     val sink = stepErrorSink.filter[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def filterExtractError = {
     val sink = extractErrorSink.filter[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def filterMHappyPath = {
@@ -472,22 +472,22 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def filterMFalsePredicate = {
     val sink = ZSink.identity[Int].filterM[Any, Unit, Int](n => UIO.succeed(n > 5))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(())))
   }
 
   private def filterMInitError = {
     val sink = initErrorSink.filterM[Any, String, Int](n => UIO.succeed(n < 5))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def filterMStepError = {
     val sink = stepErrorSink.filterM[Any, String, Int](n => UIO.succeed(n < 5))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def filterMExtractError = {
     val sink = extractErrorSink.filterM[Any, String, Int](n => UIO.succeed(n < 5))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapHappyPath = {
@@ -497,17 +497,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mapInitError = {
     val sink = initErrorSink.map(_.toString)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapStepError = {
     val sink = stepErrorSink.map(_.toString)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapExtractError = {
     val sink = extractErrorSink.map(_.toString)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapErrorInitError = {
@@ -532,32 +532,32 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def mapMInitError = {
     val sink = initErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapMStepError = {
     val sink = stepErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapMExtractError = {
     val sink = extractErrorSink.mapM[Any, String, String](n => UIO.succeed(n.toString))
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapRemainderInitError = {
     val sink = initErrorSink.mapRemainder(_.toLong)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapRemainderStepError = {
     val sink = stepErrorSink.mapRemainder(_.toLong)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def mapRemainderExtractError = {
     val sink = extractErrorSink.mapRemainder(_.toLong)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def optionalHappyPath = {
@@ -602,7 +602,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def orElseInitErrorBoth = {
     val sink = initErrorSink orElse initErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def orElseStepErrorLeft = {
@@ -617,7 +617,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def orElseStepErrorBoth = {
     val sink = stepErrorSink orElse stepErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def orElseExtractErrorLeft = {
@@ -632,7 +632,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def orElseExtractErrorBoth = {
     val sink = extractErrorSink orElse extractErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def raceBothLeft = {
@@ -652,12 +652,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def raceBothInitErrorBoth = {
     val sink = initErrorSink race initErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def raceBothStepErrorLeft = {
     val sink = stepErrorSink raceBoth ZSink.identity[Int]
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def raceBothStepErrorRight = {
@@ -667,12 +667,12 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def raceBothStepErrorBoth = {
     val sink = stepErrorSink race stepErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def raceBothExtractErrorLeft = {
     val sink = extractErrorSink raceBoth ZSink.identity[Int]
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def raceBothExtractErrorRight = {
@@ -682,7 +682,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def raceBothExtractErrorBoth = {
     val sink = extractErrorSink race extractErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def takeWhileHappyPath = {
@@ -692,22 +692,22 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def takeWhileFalsePredicate = {
     val sink = ZSink.identity[Int].takeWhile[Int](_ > 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left(())))
   }
 
   private def takeWhileInitError = {
     val sink = initErrorSink.takeWhile[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def takeWhileStepError = {
     val sink = stepErrorSink.takeWhile[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def takeWhileExtractError = {
     val sink = extractErrorSink.takeWhile[Int](_ < 5)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def untilOutputHappyPath = {
@@ -724,17 +724,17 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def untilOutputInitError = {
     val sink = initErrorSink.untilOutput(_ == 0)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def untilOutputStepError = {
     val sink = stepErrorSink.untilOutput(_ == 0)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def untilOutputExtractError = {
     val sink = extractErrorSink.untilOutput(_ == 0)
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipHappyPath = {
@@ -744,47 +744,47 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
   private def zipInitErrorLeft = {
     val sink = initErrorSink <*> ZSink.identity[Int]
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipInitErrorRight = {
     val sink = ZSink.identity[Int] <*> initErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipInitErrorBoth = {
     val sink = initErrorSink <*> initErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipStepErrorLeft = {
     val sink = stepErrorSink <*> ZSink.identity[Int]
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipStepErrorRight = {
     val sink = ZSink.identity[Int] <*> stepErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipStepErrorBoth = {
     val sink = stepErrorSink <*> stepErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipExtractErrorLeft = {
     val sink = extractErrorSink <*> ZSink.identity[Int]
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipExtractErrorRight = {
     val sink = ZSink.identity[Int] <*> extractErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipExtractErrorBoth = {
     val sink = extractErrorSink <*> extractErrorSink
-    unsafeRun(sinkIteration(sink, 1).option.map(_ must_=== None))
+    unsafeRun(sinkIteration(sink, 1).either.map(_ must_=== Left("Ouch")))
   }
 
   private def zipLeftHappyPath = {
