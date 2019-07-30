@@ -130,8 +130,8 @@ object TestAspect {
         predicate: L => Boolean,
         spec: ZSpec[R, E, L]
       ): ZSpec[R, E, L] = spec.transform[L, ZIO[R, E, TestResult]] {
-        case Spec.SuiteCase(label, specs, None) => Spec.SuiteCase(label, specs, Some(exec))
-        case c                                  => c
+        case Spec.SuiteCase(label, specs, None) if (predicate(label)) => Spec.SuiteCase(label, specs, Some(exec))
+        case c                                                        => c
       }
     }
 

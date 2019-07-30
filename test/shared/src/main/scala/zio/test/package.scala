@@ -96,4 +96,15 @@ package object test {
    * Builds a spec with a single effectful test.
    */
   final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = Spec.test(label, assertion)
+
+  /**
+   * Adds syntax for adding aspects.
+   * {{{
+   * test("foo") { assert(42, equals(42)) } @@ ignore
+   * }}}
+   */
+  implicit class ZSpecSyntax[R, E, L](spec: ZSpec[R, E, L]) {
+    def @@ [LowerR <: R, UpperR >: R, LowerE <: E, UpperE >: E](aspect: TestAspect[LowerR, UpperR, LowerE, UpperE]): ZSpec[R, E, L] = 
+      aspect(spec)
+  }
 }
