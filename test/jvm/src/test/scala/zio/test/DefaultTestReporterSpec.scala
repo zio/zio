@@ -125,7 +125,7 @@ class DefaultTestReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) e
     unsafeRun(r.use[Any, E, A](f))
 
   case class MockTestRunner(mockEnvironment: MockEnvironment)
-      extends TestRunner[ZTest[MockEnvironment, Any], String](
+      extends TestRunner[String, ZTest[MockEnvironment, Any]](
         executor = TestExecutor.managed(Managed.succeed(mockEnvironment)),
         reporter = DefaultTestReporter(mockEnvironment)
       )
