@@ -22,7 +22,7 @@ import scala.util.control.NonFatal
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-abstract class RunnableSpec[R, L](runner: TestRunner[ZTest[R, Any], L])(spec: => ZSpec[R, Nothing, L]) {
+abstract class RunnableSpec[R, L](runner: TestRunner[L, ZTest[R, Any]])(spec: => ZSpec[R, Nothing, L]) {
 
   /**
    * A simple main function that can be used to run the spec.

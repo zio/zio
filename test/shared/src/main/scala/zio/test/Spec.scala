@@ -21,7 +21,7 @@ import zio.ZIO
 import Spec._
 
 /**
- * A `Spec[T, L]` is the backbone of _ZIO Test_. Every spec is either a suite,
+ * A `Spec[L, T]` is the backbone of _ZIO Test_. Every spec is either a suite,
  * which contains other specs, or a test of type `T`. All specs are annotated
  * with labels of type `L`.
  */
@@ -153,11 +153,11 @@ object Spec {
   }
   final case class SuiteCase[+L, +A](label: L, specs: Vector[A], exec: Option[ExecutionStrategy])
       extends SpecCase[L, Nothing, A]
-  final case class TestCase[+T, +L](label: L, test: T) extends SpecCase[L, T, Nothing]
+  final case class TestCase[+L, +T](label: L, test: T) extends SpecCase[L, T, Nothing]
 
-  final def suite[T, L](label: L, specs: Vector[Spec[L, T]], exec: Option[ExecutionStrategy]): Spec[L, T] =
+  final def suite[L, T](label: L, specs: Vector[Spec[L, T]], exec: Option[ExecutionStrategy]): Spec[L, T] =
     Spec(SuiteCase(label, specs, exec))
 
-  final def test[T, L](label: L, test: T): Spec[L, T] =
+  final def test[L, T](label: L, test: T): Spec[L, T] =
     Spec(TestCase(label, test))
 }
