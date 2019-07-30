@@ -169,22 +169,32 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       happy path $zipWithHappyPath
 
   Constructors
-    Sink.foldLeft                         $foldLeft
-    Sink.fold                             $fold
-    Sink.fold short circuits              $foldShortCircuits
-    Sink.foldM                            $foldM
-    Sink.foldM short circuits             $foldMShortCircuits
-    Sink.collectAllWhile                  $collectAllWhile
-    Sink.foldWeighted                     $foldWeighted
-    Sink.foldWeightedM                    $foldWeightedM
-    Sink.foldUntil                        $foldUntil
-    Sink.foldUntilM                       $foldUntilM
-    Sink.fromOutputStream                 $sinkFromOutputStream
-    Sink.throttleEnforce                  $throttleEnforce
-    Sink.throttleEnforce with burst       $throttleEnforceWithBurst
-    Sink.throttleShape                    $throttleShape
-    Sink.throttleShape infinite bandwidth $throttleShapeInfiniteBandwidth
-    Sink.throttleShape with burst         $throttleShapeWithBurst
+    foldLeft $foldLeft
+    
+    fold             $fold
+      short circuits $foldShortCircuits
+
+    foldM            $foldM
+      short circuits $foldMShortCircuits
+
+    collectAllWhile $collectAllWhile
+
+    foldWeighted $foldWeighted
+
+    foldWeightedM $foldWeightedM
+
+    foldUntil $foldUntil
+
+    foldUntilM $foldUntilM
+
+    fromOutputStream $fromOutputStream
+
+    throttleEnforce $throttleEnforce
+      with burst    $throttleEnforceWithBurst
+
+    throttleShape        $throttleShape
+      infinite bandwidth $throttleShapeInfiniteBandwidth
+      with burst         $throttleShapeWithBurst
 
   Usecases
     Number array parsing with Sink.foldM  $jsonNumArrayParsingSinkFoldM
@@ -923,7 +933,7 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       (fullParse must_=== (Exit.Success(List(123, 4))))
   }
 
-  private def sinkFromOutputStream = unsafeRun {
+  private def fromOutputStream = unsafeRun {
     import java.io.ByteArrayOutputStream
 
     val output = new ByteArrayOutputStream()
