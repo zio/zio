@@ -84,7 +84,7 @@ package object test {
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = Spec.suite(label, specs.toVector, None)
+  final def suite[L, T](label: L)(specs: Spec[L, T]*): Spec[L, T] = Spec.suite(label, specs.toVector, None)
 
   /**
    * Builds a spec with a single pure test.
