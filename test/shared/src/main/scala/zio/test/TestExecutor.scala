@@ -18,12 +18,12 @@ package zio.test
 
 import zio.{ Managed, UIO, ZIO }
 
-trait TestExecutor[-T, L] {
+trait TestExecutor[L, -T] {
   def execute(spec: Spec[L, T], defExec: ExecutionStrategy): UIO[ExecutedSpec[L]]
 }
 object TestExecutor {
-  def managed[R, E, L](environment: Managed[E, R]): TestExecutor[ZTest[R, E], L] =
-    new TestExecutor[ZTest[R, E], L] {
+  def managed[R, E, L](environment: Managed[E, R]): TestExecutor[L, ZTest[R, E]] =
+    new TestExecutor[L, ZTest[R, E]] {
       def execute(spec: ZSpec[R, E, L], defExec: ExecutionStrategy): UIO[ExecutedSpec[L]] =
         spec.foldM[Any, Nothing, ExecutedSpec[L]](defExec) {
           case Spec.SuiteCase(label, specs, exec) => ZIO.succeed(Spec.suite(label, specs, exec))
