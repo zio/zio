@@ -25,8 +25,8 @@ import zio.internal.{ Platform, PlatformLive }
  * require an environment `R` and may fail with an error `E`, using labels of
  * type `L`. Test runners require a test executor, a platform, and a reporter.
  */
-abstract class TestRunner[T, L](
-  executor: TestExecutor[T, L],
+abstract class TestRunner[L, T](
+  executor: TestExecutor[L, T],
   platform: Platform = PlatformLive.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[L] = DefaultTestReporter(Console.Live)
 ) { self =>
