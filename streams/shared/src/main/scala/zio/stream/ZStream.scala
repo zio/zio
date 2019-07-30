@@ -683,9 +683,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
             _ <- self.foreachManaged { a =>
                   for {
                     latch <- Promise.make[Nothing, Unit]
-                    _     <- permits.acquire
                     innerStream = Stream
-                      .bracket(latch.succeed(()))(_ => permits.release)
+                      .managed(permits.withPermitManaged)
+                      .flatMap(_ => Stream.bracket(latch.succeed(()))(_ => UIO.unit))
                       .flatMap(_ => f(a))
                       .foreach(b => out.offer(Take.Value(b)).unit)
                       .foldCauseM(
@@ -751,9 +751,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                     _ <- if (size < n) UIO.unit
                         else cancelers.take.flatMap(_.succeed(())).unit
                     _ <- cancelers.offer(canceler)
-                    _ <- permits.acquire
                     innerStream = Stream
-                      .bracket(latch.succeed(()))(_ => permits.release)
+                      .managed(permits.withPermitManaged)
+                      .flatMap(_ => Stream.bracket(latch.succeed(()))(_ => UIO.unit))
                       .flatMap(_ => f(a))
                       .foreach(b => out.offer(Take.Value(b)).unit)
                       .foldCauseM(
