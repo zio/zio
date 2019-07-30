@@ -380,6 +380,12 @@ object RIO {
     ZIO.reduceAllPar(a, as)(f)
 
   /**
+   * @see See [[zio.ZIO.replicate]]
+   */
+  def replicate[R, A](n: Int)(effect: RIO[R, A]): Iterable[RIO[R, A]] =
+    ZIO.replicate(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.require]]
    */
   final def require[R, A](error: Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
@@ -572,6 +578,18 @@ object RIO {
    */
   final def when[R](b: Boolean)(rio: RIO[R, _]): RIO[R, Unit] =
     ZIO.when(b)(rio)
+
+  /**
+   * @see See [[zio.ZIO.whenCase]]
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.ZIO.whenCaseM]]
+   */
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenM]]

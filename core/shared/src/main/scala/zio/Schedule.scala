@@ -80,10 +80,22 @@ object Schedule {
     ZSchedule.doWhile(f)
 
   /**
+   * See [[ZSchedule.doWhileM]]
+   */
+  final def doWhileM[A](f: A => UIO[Boolean]): Schedule[A, A] =
+    ZSchedule.doWhileM(f)
+
+  /**
    * See [[[ZSchedule.doUntil[A](f:* ZSchedule.doUntil]]]
    */
   final def doUntil[A](f: A => Boolean): Schedule[A, A] =
     ZSchedule.doUntil(f)
+
+  /**
+   * See [[ZSchedule.doUntilM]]
+   */
+  final def doUntilM[A](f: A => UIO[Boolean]): Schedule[A, A] =
+    ZSchedule.doUntilM(f)
 
   /**
    * See [[ZSchedule.doUntil[A,B](pf:* ZSchedule.doUntil]]]

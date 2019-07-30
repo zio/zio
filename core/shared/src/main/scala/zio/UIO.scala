@@ -293,6 +293,12 @@ object UIO {
     ZIO.reduceAllPar(a, as)(f)
 
   /**
+   * @see See [[zio.ZIO.replicate]]
+   */
+  def replicate[A](n: Int)(effect: UIO[A]): Iterable[UIO[A]] =
+    ZIO.replicate(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.reserve]]
    */
   final def reserve[A, B](reservation: UIO[Reservation[Any, Nothing, A]])(use: A => UIO[B]): UIO[B] =
@@ -460,6 +466,18 @@ object UIO {
    */
   final def when(b: Boolean)(uio: UIO[_]): UIO[Unit] =
     ZIO.when(b)(uio)
+
+  /**
+   * @see See [[zio.ZIO.whenCase]]
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCase(a)(pf)
+
+  /**
+   * @see See [[zio.ZIO.whenCaseM]]
+   */
+  final def whenCaseM[R, E, A](a: ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, _]]): ZIO[R, E, Unit] =
+    ZIO.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenM]]

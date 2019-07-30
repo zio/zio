@@ -994,14 +994,14 @@ object ZManaged {
     f: (B, A) => B
   ): ZManaged[R, E, B] =
     ZManaged[R, E, B] {
-      Ref.make[ZIO[R, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[List[ZIO[R, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
           Queue.unbounded[(ZManaged[R, E, A], Promise[E, A])].flatMap { queue =>
             val worker = queue.take.flatMap {
               case (a, prom) =>
                 ZIO.uninterruptibleMask { restore =>
                   a.reserve
-                    .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                    .flatMap(res => finalizers.update(res.release :: _).const(res))
                     .flatMap(res => restore(res.acquire))
                 }.foldCauseM(
                   _.failureOrCause.fold(prom.fail, prom.halt),
@@ -1022,7 +1022,10 @@ object ZManaged {
               } yield b).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
-          ZIO.flatten(finalizers.get)
+          for {
+            fs    <- finalizers.get
+            exits <- ZIO.foreach(fs)(_.run)
+          } yield Exit.collectAllPar(exits)
         )
       }
     }
@@ -1068,14 +1071,14 @@ object ZManaged {
     f: (A, A) => A
   ): ZManaged[R, E, A] =
     ZManaged[R, E, A] {
-      Ref.make[ZIO[R, Nothing, Any]](IO.unit).map { finalizers =>
+      Ref.make[List[ZIO[R, Nothing, Any]]](Nil).map { finalizers =>
         Reservation(
           Queue.unbounded[(ZManaged[R, E, A], Promise[E, A])].flatMap { queue =>
             val worker = queue.take.flatMap {
               case (a, prom) =>
                 ZIO.uninterruptibleMask { restore =>
                   a.reserve
-                    .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                    .flatMap(res => finalizers.update(res.release :: _).const(res))
                     .flatMap(res => restore(res.acquire))
                 }.foldCauseM(
                   _.failureOrCause.fold(prom.fail, prom.halt),
@@ -1093,7 +1096,7 @@ object ZManaged {
                           }
                   zero = ZIO.uninterruptibleMask { restore =>
                     a1.reserve
-                      .flatMap(res => finalizers.update(fs => res.release *> fs).const(res))
+                      .flatMap(res => finalizers.update(res.release :: _).const(res))
                       .flatMap(res => restore(res.acquire))
                   }
                   result <- proms.foldLeft[ZIO[R, E, A]](zero) { (acc, a) =>
@@ -1102,7 +1105,10 @@ object ZManaged {
                 } yield result).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
-          ZIO.flatten(finalizers.get)
+          for {
+            fs    <- finalizers.get
+            exits <- ZIO.foreach(fs)(_.run)
+          } yield Exit.collectAllPar(exits)
         )
       }
     }
@@ -1239,6 +1245,18 @@ object ZManaged {
    */
   final def when[R, E](b: Boolean)(zManaged: ZManaged[R, E, _]): ZManaged[R, E, Unit] =
     if (b) zManaged.unit else unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
+   */
+  final def whenCase[R, E, A](a: A)(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+    pf.applyOrElse(a, (_: A) => unit).unit
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
+   */
+  final def whenCaseM[R, E, A](a: ZManaged[R, E, A])(pf: PartialFunction[A, ZManaged[R, E, _]]): ZManaged[R, E, Unit] =
+    a.flatMap(whenCase(_)(pf))
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
