@@ -693,6 +693,9 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                         _ => ZIO.unit
                       )
                     _ <- (innerStream race interruptInners.await).fork
+                    // Make sure that the current inner stream has actually succeeded in acquiring
+                    // a permit before continuing. Otherwise we could reach the end of the stream and
+                    // acquire the permits ourselves before the inners had a chance to start.
                     _ <- latch.await
                   } yield ()
                 }.foldCauseM(
