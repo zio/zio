@@ -84,7 +84,7 @@ package object test {
   /**
    * Builds a suite containing a number of other specs.
    */
-  final def suite[R, E, L](label: L)(specs: ZSpec[R, E, L]*): ZSpec[R, E, L] = Spec.suite(label, specs.toVector, None)
+  final def suite[L, T](label: L)(specs: Spec[L, T]*): Spec[L, T] = Spec.suite(label, specs.toVector, None)
 
   /**
    * Builds a spec with a single pure test.
@@ -95,5 +95,5 @@ package object test {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = Spec.test(label, assertion)
+  final def testM[L, T](label: L)(assertion: T): Spec[L, T] = Spec.test(label, assertion)
 }
