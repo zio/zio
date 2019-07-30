@@ -95,5 +95,5 @@ package object test {
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM[R, E, L](label: L)(assertion: ZIO[R, E, TestResult]): ZSpec[R, E, L] = Spec.test(label, assertion)
+  final def testM[L, T](label: L)(assertion: T): Spec[L, T] = Spec.test(label, assertion)
 }
