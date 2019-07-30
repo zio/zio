@@ -18,6 +18,7 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       semaphores and fibers play ball together $e5
       `acquire` doesn't leak permits upon cancellation $e6
       `withPermit` does not leak fibers or permits upon cancellation $e7
+      `withPermitManaged` does not leak fibers or permits upon cancellation $e8
     """
 
   def e1 = {
@@ -79,6 +80,16 @@ class SemaphoreSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends Tes
       _       <- s.withPermit(s.release).timeout(1.milli).either
       permits <- s.release *> clock.sleep(10.millis) *> s.available
     } yield permits must_=== 1L)
+  }
+
+  private def e8 = {
+    val test = for {
+      s       <- Semaphore.make(0).toManaged_
+      _       <- s.withPermitManaged(s.release).timeout(1.millisecond).either
+      permits <- (s.release *> clock.sleep(10.milliseconds) *> s.available).toManaged_
+    } yield permits must_=== 1L
+
+    unsafeRun(test.use(UIO.succeed(_)))
   }
 
   def offsettingReleasesAcquires(
