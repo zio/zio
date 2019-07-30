@@ -83,7 +83,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  final def collectAllParN[A](n: Long)(as: Iterable[UIO[A]]): UIO[List[A]] =
+  final def collectAllParN[A](n: Int)(as: Iterable[UIO[A]]): UIO[List[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
@@ -192,13 +192,13 @@ object UIO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  final def foreachParN[A, B](n: Long)(as: Iterable[A])(fn: A => UIO[B]): UIO[List[B]] =
+  final def foreachParN[A, B](n: Int)(as: Iterable[A])(fn: A => UIO[B]): UIO[List[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[A](n: Long)(as: Iterable[A])(f: A => UIO[_]): UIO[Unit] =
+  final def foreachParN_[A](n: Int)(as: Iterable[A])(f: A => UIO[_]): UIO[Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -329,7 +329,7 @@ object UIO {
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
-  final def sequenceParN[A](n: Long)(as: Iterable[UIO[A]]): UIO[List[A]] =
+  final def sequenceParN[A](n: Int)(as: Iterable[UIO[A]]): UIO[List[A]] =
     ZIO.sequenceParN(n)(as)
 
   /**
@@ -421,7 +421,7 @@ object UIO {
    * @see See [[zio.ZIO.traverseParN]]
    */
   final def traverseParN[A, B](
-    n: Long
+    n: Int
   )(as: Iterable[A])(fn: A => UIO[B]): UIO[List[B]] =
     ZIO.traverseParN(n)(as)(fn)
 
@@ -429,7 +429,7 @@ object UIO {
    * @see See [[zio.ZIO.traverseParN_]]
    */
   final def traverseParN_[A](
-    n: Long
+    n: Int
   )(as: Iterable[A])(f: A => UIO[_]): UIO[Unit] =
     ZIO.traverseParN_(n)(as)(f)
 

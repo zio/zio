@@ -769,7 +769,7 @@ object ZManaged {
    *
    * Unlike `CollectAllPar`, this method will use at most `n` fibers.
    */
-  final def collectAllParN[R, E, A](n: Long)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
+  final def collectAllParN[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
     foreachParN(n)(as)(scala.Predef.identity)
 
   /**
@@ -856,7 +856,7 @@ object ZManaged {
    *
    */
   final def foreachParN[R, E, A1, A2](
-    n: Long
+    n: Int
   )(
     as: Iterable[A1]
   )(
@@ -900,7 +900,7 @@ object ZManaged {
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
   final def foreachParN_[R, E, A](
-    n: Long
+    n: Int
   )(
     as: Iterable[A]
   )(
@@ -983,7 +983,7 @@ object ZManaged {
    * This is not implemented in terms of ZIO.foreach / ZManaged.zipWithPar as otherwise all reservation phases would always run, causing unnecessary work
    */
   final def mergeAllParN[R, E, A, B](
-    n: Long
+    n: Int
   )(
     in: Iterable[ZManaged[R, E, A]]
   )(
@@ -1006,7 +1006,7 @@ object ZManaged {
                   prom.succeed
                 )
             }
-            ZIO.foreach(1L to n)(_ => worker.forever.fork).flatMap { fibers =>
+            ZIO.foreach(1 to n)(_ => worker.forever.fork).flatMap { fibers =>
               (for {
                 proms <- ZIO.foreach(in) { a =>
                           for {
@@ -1142,7 +1142,7 @@ object ZManaged {
   /**
    *  Alias for [[ZManaged.collectAllParN]]
    */
-  final def sequenceParN[R, E, A](n: Long)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
+  final def sequenceParN[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, List[A]] =
     collectAllParN[R, E, A](n)(as)
 
   /**
@@ -1200,7 +1200,7 @@ object ZManaged {
    * Alias for [[ZManaged.foreachParN]]
    */
   final def traverseParN[R, E, A1, A2](
-    n: Long
+    n: Int
   )(
     as: Iterable[A1]
   )(
@@ -1212,7 +1212,7 @@ object ZManaged {
    * Alias for [[ZManaged.foreachParN_]]
    */
   final def traverseParN_[R, E, A](
-    n: Long
+    n: Int
   )(
     as: Iterable[A]
   )(

@@ -89,7 +89,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  final def collectAllParN[A](n: Long)(as: Iterable[Task[A]]): Task[List[A]] =
+  final def collectAllParN[A](n: Int)(as: Iterable[Task[A]]): Task[List[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
@@ -193,7 +193,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  final def foreachParN[A, B](n: Long)(as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
+  final def foreachParN[A, B](n: Int)(as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
@@ -211,7 +211,7 @@ object Task {
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[A, B](n: Long)(as: Iterable[A])(f: A => Task[_]): Task[Unit] =
+  final def foreachParN_[A, B](n: Int)(as: Iterable[A])(f: A => Task[_]): Task[Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -412,7 +412,7 @@ object Task {
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
-  final def sequenceParN[A](n: Long)(as: Iterable[Task[A]]): Task[List[A]] =
+  final def sequenceParN[A](n: Int)(as: Iterable[Task[A]]): Task[List[A]] =
     ZIO.sequenceParN(n)(as)
 
   /**
@@ -458,7 +458,7 @@ object Task {
    * Alias for [[ZIO.foreachParN]]
    */
   final def traverseParN[A, B](
-    n: Long
+    n: Int
   )(as: Iterable[A])(fn: A => Task[B]): Task[List[B]] =
     ZIO.traverseParN(n)(as)(fn)
 
@@ -478,7 +478,7 @@ object Task {
    * @see See [[zio.ZIO.traverseParN_]]
    */
   final def traverseParN_[A](
-    n: Long
+    n: Int
   )(as: Iterable[A])(f: A => Task[_]): Task[Unit] =
     ZIO.traverseParN_(n)(as)(f)
 
