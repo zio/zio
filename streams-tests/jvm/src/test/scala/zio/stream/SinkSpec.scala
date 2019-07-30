@@ -187,6 +187,8 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
 
     foldUntilM $foldUntilM
 
+    fromFunction $fromFunction
+
     fromOutputStream $fromOutputStream
 
     throttleEnforce $throttleEnforce
@@ -861,6 +863,13 @@ class SinkSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       .transduce(Sink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeed(s + a)))
       .runCollect
       .map(_ must_=== List(3, 3))
+  }
+
+  private def fromFunction = unsafeRun {
+    Stream(1, 2, 3, 4, 5)
+      .transduce(Sink.fromFunction[Int, String](_.toString))
+      .runCollect
+      .map(_ must_=== List("1", "2", "3", "4", "5"))
   }
 
   private def jsonNumArrayParsingSinkFoldM = {
