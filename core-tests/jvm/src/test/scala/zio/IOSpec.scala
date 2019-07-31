@@ -50,6 +50,7 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
    Check `zipPar` method does not swallow exit causes of loser. $testZipParInterupt
    Check `zipPar` method does not report failure when interrupting loser after it succeeded. $testZipParSucceed
    Check `orElse` method does not recover from defects. $testOrElseDefectHandling
+   Check `eventually` method succeeds eventually. $testEventually
    Check `someOrFail` method extracts the optional value. $testSomeOrFailExtractOptionalValue
    Check `someOrFail` method fails when given a None. $testSomeOrFailWithNone
    Check `someOrFailException` method extracts the optional value. $testSomeOrFailExceptionOnOptionalValue
@@ -325,6 +326,18 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
         .and(thn must_=== Exit.die(ex))
         .and(fail must_=== Exit.succeed(()))
     }
+  }
+
+  def testEventually = {
+    def effect(ref: Ref[Int]) =
+      ref.get.flatMap(n => if (n < 10) ref.update(_ + 1) *> IO.fail("Ouch") else UIO.succeed(n))
+
+    val test = for {
+      ref <- Ref.make(0)
+      n   <- effect(ref).eventually
+    } yield n
+
+    unsafeRun(test) must_=== 10
   }
 
   def testSomeOrFailWithNone = {
