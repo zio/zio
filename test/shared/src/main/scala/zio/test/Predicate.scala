@@ -18,13 +18,16 @@ package zio.test
 
 import zio.Exit
 
+import scala.reflect.ClassTag
+
 /**
  * A `Predicate[A]` is capable of producing assertion results on an `A`. As a
  * proposition, predicates compose using logical conjuction and disjunction,
  * and can be negated.
  */
-class Predicate[-A] private (render: String, val run: A => PredicateResult) extends (A => PredicateResult) { self =>
-  import AssertResult._
+class Predicate[-A] private (render: String, val run: (=> A) => PredicateResult) extends ((=> A) => PredicateResult) {
+  self =>
+  import Assertion._
 
   /**
    * Returns a new predicate that succeeds only if both predicates succeed.
@@ -33,7 +36,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
     Predicate.predicateDirect(s"(${self} && ${that})") { actual =>
       self.run(actual) match {
         case Failure(l) => Failure(l)
-        case Success(_) => that.run(actual)
+        case Success    => that.run(actual)
         case Ignore     => that.run(actual)
       }
     }
@@ -45,7 +48,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
     Predicate.predicateDirect(s"(${self} || ${that})") { actual =>
       self.run(actual) match {
         case Failure(_) => that.run(actual)
-        case Success(l) => Success(l)
+        case Success    => Success
         case Ignore     => that.run(actual)
       }
     }
@@ -53,7 +56,7 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
   /**
    * Evaluates the predicate with the specified value.
    */
-  final def apply(a: A): PredicateResult = run(a)
+  final def apply(a: => A): PredicateResult = run(a)
 
   override final def equals(that: Any): Boolean = that match {
     case that: Predicate[_] => this.toString == that.toString
@@ -70,8 +73,8 @@ class Predicate[-A] private (render: String, val run: A => PredicateResult) exte
    * Tests the predicate to see if it would succeed on the given element.
    */
   final def test(a: A): Boolean = run(a) match {
-    case Success(_) => true
-    case _          => false
+    case Success => true
+    case _       => false
   }
 
   /**
@@ -85,9 +88,7 @@ object Predicate {
   /**
    * Makes a new predicate that always succeeds.
    */
-  final val anything: Predicate[Any] = Predicate.predicateRec[Any]("anything") { (self, actual) =>
-    AssertResult.success(PredicateValue(self, actual))
-  }
+  final val anything: Predicate[Any] = Predicate.predicate[Any]("anything")(_ => Assertion.success)
 
   /**
    * Makes a new predicate that requires an iterable contain the specified
@@ -95,8 +96,8 @@ object Predicate {
    */
   final def contains[A](element: A): Predicate[Iterable[A]] =
     Predicate.predicate(s"contains(${element})") { actual =>
-      if (!actual.exists(_ == element)) AssertResult.failureUnit
-      else AssertResult.successUnit
+      if (!actual.exists(_ == element)) Assertion.failure(())
+      else Assertion.success
     }
 
   /**
@@ -104,8 +105,8 @@ object Predicate {
    */
   final def equals[A](expected: A): Predicate[A] =
     Predicate.predicate(s"equals(${expected})") { actual =>
-      if (actual == expected) AssertResult.successUnit
-      else AssertResult.failureUnit
+      if (actual == expected) Assertion.success
+      else Assertion.failure(())
     }
 
   /**
@@ -114,8 +115,8 @@ object Predicate {
    */
   final def exists[A](predicate: Predicate[A]): Predicate[Iterable[A]] =
     Predicate.predicate(s"exists(${predicate})") { actual =>
-      if (!actual.exists(predicate.test(_))) AssertResult.failureUnit
-      else AssertResult.successUnit
+      if (!actual.exists(predicate.test(_))) Assertion.failure(())
+      else Assertion.success
     }
 
   /**
@@ -126,7 +127,7 @@ object Predicate {
       actual match {
         case Exit.Failure(cause) if cause.failures.length > 0 => predicate.run(cause.failures.head)
 
-        case _ => AssertResult.failure(PredicateValue(self, actual))
+        case _ => Assertion.failure(PredicateValue(self, actual))
       }
     }
 
@@ -147,14 +148,14 @@ object Predicate {
    * satisfying the given predicate.
    */
   final def forall[A](predicate: Predicate[A]): Predicate[Iterable[A]] =
-    Predicate.predicateRec[Iterable[A]](s"forall(${predicate})") { (self, actual) =>
+    Predicate.predicateDirect[Iterable[A]](s"forall(${predicate})") { actual =>
       actual.map(predicate(_)).toList match {
         case head :: tail =>
           tail.foldLeft(head) {
-            case (AssertResult.Success(_), next) => next
-            case (acc, _)                        => acc
+            case (Assertion.Success, next) => next
+            case (acc, _)                  => acc
           }
-        case Nil => AssertResult.success(PredicateValue(self, actual))
+        case Nil => Assertion.success
       }
     }
 
@@ -164,8 +165,8 @@ object Predicate {
    */
   final def gt[A: Numeric](reference: A): Predicate[A] =
     Predicate.predicate(s"gt(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) > 0) AssertResult.successUnit
-      else AssertResult.failureUnit
+      if (implicitly[Numeric[A]].compare(reference, actual) > 0) Assertion.success
+      else Assertion.failure(())
     }
 
   /**
@@ -174,8 +175,17 @@ object Predicate {
    */
   final def gte[A: Numeric](reference: A): Predicate[A] =
     Predicate.predicate(s"gte(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) >= 0) AssertResult.successUnit
-      else AssertResult.failureUnit
+      if (implicitly[Numeric[A]].compare(reference, actual) >= 0) Assertion.success
+      else Assertion.failure(())
+    }
+
+  /**
+   * Makes a predicate that requires a value have the specified type.
+   */
+  final def instanceOf[A](predicate: Predicate[A])(implicit C: ClassTag[A]): Predicate[Any] =
+    Predicate.predicateRec[Any](s"hasType[${C.runtimeClass.getSimpleName()}]") { (self, actual) =>
+      if (C.runtimeClass.isAssignableFrom(actual.getClass())) predicate(actual.asInstanceOf[A])
+      else Assertion.failure(PredicateValue(self, actual))
     }
 
   /**
@@ -192,21 +202,21 @@ object Predicate {
   ): Predicate[Sum] =
     Predicate.predicateRec[Sum]("isCase(\"" + termName + "\", " + s"${termName}.unapply, ${predicate})") {
       (self, actual) =>
-        term(actual).fold(AssertResult.failure(PredicateValue(self, actual)))(predicate)
+        term(actual).fold(Assertion.failure(PredicateValue(self, actual)))(predicate(_))
     }
 
   /**
    * Makes a new predicate that requires a value be true.
    */
   final def isTrue: Predicate[Boolean] = Predicate.predicate(s"isTrue") { actual =>
-    if (actual) AssertResult.successUnit else AssertResult.failureUnit
+    if (actual) Assertion.success else Assertion.failure(())
   }
 
   /**
    * Makes a new predicate that requires a value be true.
    */
   final def isFalse: Predicate[Boolean] = Predicate.predicate(s"isFalse") { actual =>
-    if (!actual) AssertResult.successUnit else AssertResult.failureUnit
+    if (!actual) Assertion.success else Assertion.failure(())
   }
 
   /**
@@ -217,7 +227,7 @@ object Predicate {
     Predicate.predicateRec[Either[A, Nothing]](s"left(${predicate})") { (self, actual) =>
       actual match {
         case Left(a)  => predicate.run(a)
-        case Right(_) => AssertResult.failure(PredicateValue(self, actual))
+        case Right(_) => Assertion.failure(PredicateValue(self, actual))
       }
     }
 
@@ -227,8 +237,8 @@ object Predicate {
    */
   final def lt[A: Numeric](reference: A): Predicate[A] =
     Predicate.predicate(s"lt(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) < 0) AssertResult.successUnit
-      else AssertResult.failureUnit
+      if (implicitly[Numeric[A]].compare(reference, actual) < 0) Assertion.success
+      else Assertion.failure(())
     }
 
   /**
@@ -237,8 +247,8 @@ object Predicate {
    */
   final def lte[A: Numeric](reference: A): Predicate[A] =
     Predicate.predicate(s"lte(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) <= 0) AssertResult.successUnit
-      else AssertResult.failureUnit
+      if (implicitly[Numeric[A]].compare(reference, actual) <= 0) Assertion.success
+      else Assertion.failure(())
     }
 
   /**
@@ -247,8 +257,8 @@ object Predicate {
    */
   final val none: Predicate[Option[Any]] = Predicate.predicate(s"none") { actual =>
     actual match {
-      case None    => AssertResult.successUnit
-      case Some(_) => AssertResult.failureUnit
+      case None    => Assertion.success
+      case Some(_) => Assertion.failure(())
     }
   }
 
@@ -256,25 +266,31 @@ object Predicate {
    * Makes a new predicate that negates the specified predicate.
    */
   final def not[A](predicate: Predicate[A]): Predicate[A] =
-    Predicate.predicate(s"not(${predicate})")(actual => predicate.run(actual).negate(_ => ()))
+    Predicate.predicateRec[A](s"not(${predicate})") { (self, actual) =>
+      predicate.run(actual) match {
+        case Assertion.Success    => Assertion.Failure(PredicateValue(self, actual))
+        case Assertion.Failure(_) => Assertion.Success
+        case Assertion.Ignore     => Assertion.Ignore
+      }
+    }
 
   /**
    * Makes a new predicate that always fails.
    */
   final val nothing: Predicate[Any] = Predicate.predicateRec[Any]("nothing") { (self, actual) =>
-    AssertResult.failure(PredicateValue(self, actual))
+    Assertion.failure(PredicateValue(self, actual))
   }
 
   /**
    * Makes a new `Predicate` from a pretty-printing and a function.
    */
-  final def predicate[A](render: String)(run: A => AssertResult[Unit]): Predicate[A] =
+  final def predicate[A](render: String)(run: (=> A) => Assertion[Unit]): Predicate[A] =
     predicateRec[A](render)((predicate, a) => run(a).map(_ => PredicateValue(predicate, a)))
 
   /**
    * Makes a new `Predicate` from a pretty-printing and a function.
    */
-  final def predicateDirect[A](render: String)(run: A => PredicateResult): Predicate[A] =
+  final def predicateDirect[A](render: String)(run: (=> A) => PredicateResult): Predicate[A] =
     new Predicate(render, run)
 
   /**
@@ -282,8 +298,8 @@ object Predicate {
    * the predicate itself to the specified function, so it can embed a
    * recursive reference into the assert result.
    */
-  final def predicateRec[A](render: String)(run: (Predicate[A], A) => PredicateResult): Predicate[A] = {
-    lazy val predicate: Predicate[A] = predicateDirect[A](render)((a: A) => run(predicate, a))
+  final def predicateRec[A](render: String)(run: (Predicate[A], => A) => PredicateResult): Predicate[A] = {
+    lazy val predicate: Predicate[A] = predicateDirect[A](render)(a => run(predicate, a))
 
     predicate
   }
@@ -296,7 +312,7 @@ object Predicate {
     Predicate.predicateRec[Either[Nothing, A]](s"right(${predicate})") { (self, actual) =>
       actual match {
         case Right(a) => predicate.run(a)
-        case Left(_)  => AssertResult.failure(PredicateValue(self, actual))
+        case Left(_)  => Assertion.failure(PredicateValue(self, actual))
       }
     }
 
@@ -308,7 +324,7 @@ object Predicate {
     Predicate.predicateRec[Option[A]](s"some(${predicate}") { (self, actual) =>
       actual match {
         case Some(a) => predicate.run(a)
-        case None    => AssertResult.failure(PredicateValue(self, actual))
+        case None    => Assertion.failure(PredicateValue(self, actual))
       }
     }
 
@@ -320,8 +336,22 @@ object Predicate {
       actual match {
         case Exit.Success(a) => predicate.run(a)
 
-        case exit => AssertResult.failure(PredicateValue(self, exit))
+        case exit => Assertion.failure(PredicateValue(self, exit))
       }
+    }
+
+  /**
+   * Returns a new predicate that requires the expression to throw.
+   */
+  final def throws[A](predicate: Predicate[Throwable]): Predicate[A] =
+    Predicate.predicateRec[A](s"throws(${predicate})") { (self, actual) =>
+      try {
+        val _ = actual
+      } catch {
+        case t: Throwable => predicate(t)
+      }
+
+      Assertion.failure(PredicateValue(self, actual))
     }
 
   /**
@@ -330,8 +360,8 @@ object Predicate {
    */
   final def within[A: Numeric](min: A, max: A): Predicate[A] =
     Predicate.predicate(s"within(${min}, ${max})") { actual =>
-      if (implicitly[Numeric[A]].compare(actual, min) < 0) AssertResult.failureUnit
-      else if (implicitly[Numeric[A]].compare(actual, max) > 0) AssertResult.failureUnit
-      else AssertResult.successUnit
+      if (implicitly[Numeric[A]].compare(actual, min) < 0) Assertion.failure(())
+      else if (implicitly[Numeric[A]].compare(actual, max) > 0) Assertion.failure(())
+      else Assertion.success
     }
 }
