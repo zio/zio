@@ -1181,6 +1181,15 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
                  }
     } yield result
 
+  final def runStepless[R1 <: R, E1 >: E, A0, A1 >: A, B](sink: ZSteplessSink[R1, E1, A0, A1, B]): ZIO[R1, E1, B] =
+    for {
+      state <- sink.initial
+      result <- self
+                 .fold[R1, E1, A1, sink.State]
+                 .flatMap(fold => fold(state, sink.cont, (s, a) => sink.step(s, a)))
+                 .use(step => sink.extract(step))
+    } yield result
+
   /**
    * Runs the stream and collects all of its elements in a list.
    *
@@ -1385,12 +1394,64 @@ trait ZStream[-R, +E, +A] extends Serializable { self =>
         }
     }
 
+  final def transduceManagedStepless[R1 <: R, E1 >: E, A1 >: A, C](
+    managedSink: ZManaged[R1, E1, ZSteplessSink[R1, E1, A1, A1, C]]
+  ): ZStream[R1, E1, C] =
+    new ZStream[R1, E1, C] {
+      override def fold[R2 <: R1, E2 >: E1, C1 >: C, S]: Fold[R2, E2, C1, S] =
+        ZManaged.succeedLazy { (s: S, cont: S => Boolean, f: (S, C1) => ZIO[R2, E2, S]) =>
+          def feed(
+            sink: ZSteplessSink[R1, E1, A1, A1, C]
+          )(s1: sink.State, s2: S, a: Chunk[A1]): ZIO[R2, E2, (sink.State, S, Boolean)] =
+            sink.stepChunk(s1, a).flatMap { step =>
+              if (sink.cont(step)) {
+                IO.succeed((step, s2, true))
+              } else {
+                sink.extract(step).flatMap { c =>
+                  f(s2, c).flatMap { s2 =>
+                    val remaining = sink.leftover(step)
+                    sink.initial.flatMap { initStep =>
+                      if (cont(s2) && !remaining.isEmpty) {
+                        feed(sink)(initStep, s2, remaining)
+                      } else {
+                        IO.succeed((initStep, s2, false))
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+          for {
+            sink     <- managedSink
+            initStep <- sink.initial.toManaged_
+            f0       <- self.fold[R2, E2, A, (sink.State, S, Boolean)]
+            result <- f0((initStep, s, false), stepState => cont(stepState._2), { (s, a) =>
+                       val (s1, s2, _) = s
+                       feed(sink)(s1, s2, Chunk(a))
+                     }).mapM {
+                       case (s1, s2, extractNeeded) =>
+                         if (extractNeeded) {
+                           sink.extract(s1).flatMap(f(s2, _))
+                         } else {
+                           IO.succeed(s2)
+                         }
+                     }
+          } yield result
+        }
+    }
+
   /**
    * Applies a transducer to the stream, which converts one or more elements
    * of type `A` into elements of type `C`.
    */
   final def transduce[R1 <: R, E1 >: E, A1 >: A, C](sink: ZSink[R1, E1, A1, A1, C]): ZStream[R1, E1, C] =
     transduceManaged[R1, E1, A1, C](ZManaged.succeed(sink))
+
+  final def transduceStepless[R1 <: R, E1 >: E, A1 >: A, C](
+    sink: ZSteplessSink[R1, E1, A1, A1, C]
+  ): ZStream[R1, E1, C] =
+    transduceManagedStepless[R1, E1, A1, C](ZManaged.succeed(sink))
 
   /**
    * Zips this stream together with the specified stream.
