@@ -1,18 +1,20 @@
 package zio.test
 
+import scala.Predef.{ assert => SAssert, _ }
+
 import zio._
 import zio.test.mock._
 
-class DefaultTestReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+object DefaultTestReporterSpec extends DefaultRuntime {
 
-  def is = "DefaultReporterSpec".title ^ s2"""
-    Correctly reports a successful test     $reportSuccess
-    Correctly reports a failed test         $reportFailure
-    Correctly reports an error in a test    $reportError
-    Correctly reports successful test suite $reportSuite1
-    Correctly reports failed test suite     $reportSuite2
-    Correctly reports multiple test suites  $reportSuites
-  """
+  def run(): Unit = {
+    SAssert(reportSuccess, "DefaultTestReporter correctly reports a successful test")
+    SAssert(reportFailure, "DefaultTestReporter correctly reports a failed test")
+    SAssert(reportError, "DefaultTestReporter correctly reports an error in a test")
+    SAssert(reportSuite1, "DefaultTestReporter correctly reports successful test suite")
+    SAssert(reportSuite2, "DefaultTestReporter correctly reports failed test suite")
+    SAssert(reportSuites, "DefaultTestReporter correctly reports multiple test suites")
+  }
 
   def makeTest[L](label: L)(assertion: => TestResult): ZSpec[Any, Nothing, L] =
     zio.test.test(label)(assertion)
@@ -112,12 +114,12 @@ class DefaultTestReporterSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) e
   def yellow(s: String): String =
     Console.YELLOW + s + Console.CYAN
 
-  def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]) =
+  def check[E](spec: ZSpec[MockEnvironment, E, String], expected: Vector[String]): Boolean =
     unsafeRunWith(mockEnvironmentManaged) { r =>
       val zio = for {
         _      <- MockTestRunner(r).run(spec)
         output <- MockConsole.output
-      } yield output must_=== expected
+      } yield output == expected
       zio.provide(r)
     }
 

@@ -1,91 +1,117 @@
 package zio.test.mock
 
+import scala.Predef.{ assert => SAssert, _ }
+
 import zio.random.Random
 import zio.test.mock.MockRandom.Data
-import zio.{ TestRuntime, UIO, _ }
+import zio.{ UIO, _ }
 
-class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+object RandomSpec extends DefaultRuntime {
 
-  def is = "RandomSpec".title ^ s2"""
-      Returns next int when data is:
-        single value  $nextIntWithSingleValue
-        empty         $nextIntWithEmptyData
-        default       $nextIntWithDefault
-        sequence      $nextIntWithSequence
-        feed          $nextIntWithFeed
-        clear         $nextIntWithClear
-        respect limit $nextIntWithLimit
-      Returns next boolean when data is:
-        single value $nextBooleanWithSingleValue
-        empty        $nextBooleanWithEmptyData
-        default      $nextBooleanWithDefault
-        sequence     $nextBooleanWithSequence
-        feed         $nextBooleanWithFeed
-        clear        $nextBooleanWithClear
-      Returns next double when data is:
-        single value $nextDoubleWithSingleValue
-        empty        $nextDoubleWithEmptyData
-        default      $nextDoubleWithDefault
-        sequence     $nextDoubleWithSequence
-        feed         $nextDoubleWithFeed
-        clear        $nextDoubleWithClear
-      Returns next Gaussian:
-        same as double $nextGaussian
-      Returns next float when data is:
-        single value $nextFloatWithSingleValue
-        empty        $nextFloatWithEmptyData
-        default      $nextFloatWithDefault
-        sequence     $nextFloatWithSequence
-        feed         $nextFloatWithFeed
-        clear        $nextFloatWithClear
-      Returns next long when data is:
-        single value $nextLongWithSingleValue
-        empty        $nextLongWithEmptyData
-        default      $nextLongWithDefault
-        sequence     $nextLongWithSequence
-        feed         $nextLongWithFeed
-        clear        $nextLongWithClear
-      Returns next char when data is:
-        single value $nextCharWithSingleValue
-        empty        $nextCharWithEmptyData
-        default      $nextCharWithDefault
-        sequence     $nextCharWithSequence
-        feed         $nextCharWithFeed
-        clear        $nextCharWithClear
-      Returns next string when data is:
-        single value                                      $nextStringWithSingleValue
-        empty                                             $nextStringWithEmptyData
-        default                                           $nextStringWithDefault
-        sequence                                          $nextStringWithSequence
-        feed                                              $nextStringWithFeed
-        clear                                             $nextStringWithClear
-        single value - respect length                     $nextStringWithLength
-        single value - length > length of the next string $nextStringLengthIsOver
-      Returns next bytes when data is:
-        single value                                      $nextBytesWithSingleValue
-        empty                                             $nextBytesWithEmptyData
-        default                                           $nextBytesWithDefault
-        sequence                                          $nextBytesWithSequence
-        feed                                              $nextBytesWithFeed
-        clear                                             $nextBytesWithClear
-        single value - length < number of bytes           $nextBytesWithLength
-        single value - length > length of the next array  $nextBytesLengthIsOver
+  def run(): Unit = {
+    SAssert(nextIntWithSingleValue, "MockRandom returns next int when data is single value")
+    SAssert(nextIntWithEmptyData, "MockRandom returns next int when data is empty")
+    SAssert(nextIntWithDefault, "MockRandom returns next int when data is default")
+    SAssert(nextIntWithSequence, "MockRandom returns next int when data is sequence")
+    SAssert(nextIntWithFeed, "MockRandom returns next int when data is feed")
+    SAssert(nextIntWithClear, "MockRandom returns next int when data is clear")
+    SAssert(nextIntWithLimit, "MockRandom returns next int when data is respect limit")
 
-      Shuffle returns the same list in the same order
-        always when list contains:
-          no elements    $shuffleListWithNoElements
-          single element $shuffleListWithSingleElement
-        sometimes when list contains:
-          two elements   $shuffleListWithTwoElementsSame
-          three elements $shuffleListWithThreeElementsSame
-          many elements  $shuffleListWithManyElementsSame
+    SAssert(nextBooleanWithSingleValue, "MockRandom returns next boolean when data is single value")
+    SAssert(nextBooleanWithEmptyData, "MockRandom returns next boolean when data is empty")
+    SAssert(nextBooleanWithDefault, "MockRandom returns next boolean when data is default")
+    SAssert(nextBooleanWithSequence, "MockRandom returns next boolean when data is sequence")
+    SAssert(nextBooleanWithFeed, "MockRandom returns next boolean when data is feed")
+    SAssert(nextBooleanWithClear, "MockRandom returns next boolean when data is clear")
 
-      Shuffle returns the same list in diffrent order
-        sometimes when list contains:
-          two elements   $shuffleListWithTwoElementsReversed
-          three elements $shuffleListWithThreeElementsReversed
-          many elements  $shuffleListWithManyElementsReversed
-     """
+    SAssert(nextDoubleWithSingleValue, "MockRandom returns next double when data is single value")
+    SAssert(nextDoubleWithEmptyData, "MockRandom returns next double when data is empty")
+    SAssert(nextDoubleWithDefault, "MockRandom returns next double when data is default")
+    SAssert(nextDoubleWithSequence, "MockRandom returns next double when data is sequence")
+    SAssert(nextDoubleWithFeed, "MockRandom returns next double when data is feed")
+    SAssert(nextDoubleWithClear, "MockRandom returns next double when data is clear")
+
+    SAssert(nextGaussian, "MockRandom returns next Gaussian same as double")
+
+    SAssert(nextFloatWithSingleValue, "MockRandom returns next float when data is single value")
+    SAssert(nextFloatWithEmptyData, "MockRandom returns next float when data is empty")
+    SAssert(nextFloatWithDefault, "MockRandom returns next float when data is default")
+    SAssert(nextFloatWithSequence, "MockRandom returns next float when data is sequence")
+    SAssert(nextFloatWithFeed, "MockRandom returns next float when data is feed")
+    SAssert(nextFloatWithClear, "MockRandom returns next float when data is clear")
+
+    SAssert(nextLongWithSingleValue, "MockRandom returns next long when data is single value")
+    SAssert(nextLongWithEmptyData, "MockRandom returns next long when data is empty")
+    SAssert(nextLongWithDefault, "MockRandom returns next long when data is default")
+    SAssert(nextLongWithSequence, "MockRandom returns next long when data is sequence")
+    SAssert(nextLongWithFeed, "MockRandom returns next long when data is feed")
+    SAssert(nextLongWithClear, "MockRandom returns next long when data is clear")
+
+    SAssert(nextCharWithSingleValue, "MockRandom returns next char when data is single value")
+    SAssert(nextCharWithEmptyData, "MockRandom returns next char when data is empty")
+    SAssert(nextCharWithDefault, "MockRandom returns next char when data is default")
+    SAssert(nextCharWithSequence, "MockRandom returns next char when data is sequence")
+    SAssert(nextCharWithFeed, "MockRandom returns next char when data is feed")
+    SAssert(nextCharWithClear, "MockRandom returns next char when data is clear")
+
+    SAssert(nextStringWithSingleValue, "MockRandom returns next string when data is single value")
+    SAssert(nextStringWithEmptyData, "MockRandom returns next string when data is empty")
+    SAssert(nextStringWithDefault, "MockRandom returns next string when data is default")
+    SAssert(nextStringWithSequence, "MockRandom returns next string when data is sequence")
+    SAssert(nextStringWithFeed, "MockRandom returns next string when data is feed")
+    SAssert(nextStringWithClear, "MockRandom returns next string when data is clear")
+    SAssert(nextStringWithLength, "MockRandom returns next string when data is single value - respect length")
+    SAssert(
+      nextStringLengthIsOver,
+      "MockRandom returns next string when data is single value - length > length of the next string"
+    )
+
+    SAssert(nextBytesWithSingleValue, "MockRandom returns next bytes when data is single value")
+    SAssert(nextBytesWithEmptyData, "MockRandom returns next bytes when data is empty")
+    SAssert(nextBytesWithDefault, "MockRandom returns next bytes when data is default")
+    SAssert(nextBytesWithSequence, "MockRandom returns next bytes when data is sequence")
+    SAssert(nextBytesWithFeed, "MockRandom returns next bytes when data is feed")
+    SAssert(nextBytesWithClear, "MockRandom returns next bytes when data is clear")
+    SAssert(nextBytesWithLength, "MockRandom returns next bytes when data is single value - length < number of bytes")
+    SAssert(
+      nextBytesLengthIsOver,
+      "MockRandom returns next bytes when data is single value - length > length of the next array"
+    )
+
+    SAssert(
+      shuffleListWithNoElements,
+      "MockRandom shuffle returns the same list in the same order always when list contains no elements"
+    )
+    SAssert(
+      shuffleListWithSingleElement,
+      "MockRandom shuffle returns the same list in the same order always when list contains single element"
+    )
+    SAssert(
+      shuffleListWithTwoElementsSame,
+      "MockRandom shuffle returns the same list in the same order sometimes when list contains two elements"
+    )
+    SAssert(
+      shuffleListWithThreeElementsSame,
+      "MockRandom shuffle returns the same list in the same order sometimes when list contains three elements"
+    )
+    SAssert(
+      shuffleListWithManyElementsSame,
+      "MockRandom shuffle returns the same list in the same order sometimes when list contains many elements"
+    )
+
+    SAssert(
+      shuffleListWithTwoElementsReversed,
+      "MockRandom shuffle returns the same list in different order sometimes when list contains two elements"
+    )
+    SAssert(
+      shuffleListWithThreeElementsReversed,
+      "MockRandom shuffle returns the same list in different order sometimes when list contains three elements"
+    )
+    SAssert(
+      shuffleListWithManyElementsReversed,
+      "MockRandom shuffle returns the same list in different order sometimes when list contains many elements"
+    )
+  }
 
   def nextIntWithEmptyData =
     checkWith(Data(integers = Nil), List(MockRandom.defaultInteger))(_.nextInt)
@@ -97,7 +123,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         next1      <- mockRandom.nextInt(2)
         next2      <- mockRandom.nextInt(6)
         next3      <- mockRandom.nextInt(99)
-      } yield List(next1, next2, next3) must_=== List(2, 6, 7)
+      } yield List(next1, next2, next3) == List(2, 6, 7)
     )
 
   def nextIntWithDefault =
@@ -263,7 +289,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       for {
         mockRandom    <- MockRandom.makeMock(data)
         randomResults <- IO.foreach(1 to expected.length)(_ => f(mockRandom))
-      } yield randomResults must_=== expected
+      } yield randomResults == expected
     )
 
   def shuffleListWithNoElements =
@@ -298,7 +324,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       for {
         mockRandom <- MockRandom.makeMock(Data(integers = identitySwapIndexes))
         shuffled   <- mockRandom.shuffle(input)
-      } yield shuffled must_=== input
+      } yield shuffled == input
     )
   }
 
@@ -313,7 +339,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       for {
         mockRandom <- MockRandom.makeMock(Data(integers = reverseSwapIndexes))
         shuffled   <- mockRandom.shuffle(input)
-      } yield shuffled must_=== input.reverse
+      } yield shuffled == input.reverse
     )
   }
 
@@ -323,7 +349,7 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         mockRandom <- MockRandom.makeMock(Data())
         _          <- feed(mockRandom)(expected)
         results    <- UIO.foreach(1 to expected.length)(_ => f(mockRandom))
-      } yield results must_=== expected
+      } yield results == expected
     )
 
   def checkClear[A](clear: MockRandom.Mock => UIO[Unit], default: A)(f: Random.Service[Any] => UIO[A]) =
@@ -332,6 +358,6 @@ class RandomSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         mockRandom <- MockRandom.makeMock(Data())
         _          <- clear(mockRandom)
         result     <- f(mockRandom)
-      } yield result must_=== default
+      } yield result == default
     )
 }

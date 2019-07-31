@@ -2,22 +2,23 @@ package zio.test.mock
 
 import java.io.{ ByteArrayOutputStream, PrintStream }
 
+import scala.Predef.{ assert => SAssert, _ }
+
 import zio._
-import zio.TestRuntime
 import zio.test.mock.MockConsole.Data
 
-class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+object ConsoleSpec extends DefaultRuntime {
 
-  def is = "ConsoleSpec".title ^ s2"""
-      Outputs nothing           $emptyOutput
-      Writes to output          $putStr
-      Writes line to output     $putStrLn
-      Reads from input          $getStr1
-      Fails on empty input      $getStr2
-      Feeds lines to input      $feedLine
-      Clears lines from input   $clearInput
-      Clears lines from output  $clearOutput
-     """
+  def run(): Unit = {
+    SAssert(emptyOutput, "MockConsole outputs nothing")
+    SAssert(putStr, "MockConsole writes to output")
+    SAssert(putStrLn, "MockConsole writes line to output")
+    SAssert(getStr1, "MockConsole reads from input")
+    SAssert(getStr2, "MockConsole fails on empty input")
+    SAssert(feedLine, "MockConsole feeds lines to input")
+    SAssert(clearInput, "MockConsole clears lines from input")
+    SAssert(clearOutput, "MockConsole clears lines from output")
+  }
 
   def stream(): PrintStream = new PrintStream(new ByteArrayOutputStream())
 
@@ -26,7 +27,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
       for {
         mockConsole <- MockConsole.makeMock(Data())
         output      <- mockConsole.output
-      } yield output must beEmpty
+      } yield output.isEmpty
     )
 
   def putStr =
@@ -36,7 +37,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         _           <- mockConsole.putStr("First line")
         _           <- mockConsole.putStr("Second line")
         output      <- mockConsole.output
-      } yield output must_=== Vector("First line", "Second line")
+      } yield output == Vector("First line", "Second line")
     )
 
   def putStrLn =
@@ -46,7 +47,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         _           <- mockConsole.putStrLn("First line")
         _           <- mockConsole.putStrLn("Second line")
         output      <- mockConsole.output
-      } yield output must_=== Vector("First line\n", "Second line\n")
+      } yield output == Vector("First line\n", "Second line\n")
     )
 
   def getStr1 =
@@ -55,7 +56,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         mockConsole <- MockConsole.makeMock(Data(List("Input 1", "Input 2"), Vector.empty))
         input1      <- mockConsole.getStrLn
         input2      <- mockConsole.getStrLn
-      } yield (input1 must_=== "Input 1") and (input2 must_=== "Input 2")
+      } yield (input1 == "Input 1") && (input2 == "Input 2")
     )
 
   def getStr2 =
@@ -64,7 +65,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         mockConsole <- MockConsole.makeMock(Data())
         failed      <- mockConsole.getStrLn.either
         message     = failed.fold(_.getMessage, identity)
-      } yield (failed must beLeft) and (message must_=== "There is no more input left to read")
+      } yield (failed.isLeft) && (message == "There is no more input left to read")
     )
 
   def feedLine =
@@ -74,7 +75,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         _           <- mockConsole.feedLines("Input 1", "Input 2")
         input1      <- mockConsole.getStrLn
         input2      <- mockConsole.getStrLn
-      } yield (input1 must_=== "Input 1") and (input2 must_=== "Input 2")
+      } yield (input1 == "Input 1") && (input2 == "Input 2")
     )
 
   def clearInput =
@@ -84,7 +85,7 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         _           <- mockConsole.clearInput
         failed      <- mockConsole.getStrLn.either
         message     = failed.fold(_.getMessage, identity)
-      } yield (failed must beLeft) and (message must_=== "There is no more input left to read")
+      } yield (failed.isLeft) && (message == "There is no more input left to read")
     )
 
   def clearOutput =
@@ -93,6 +94,6 @@ class ConsoleSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestR
         mockConsole <- MockConsole.makeMock(Data(List.empty, Vector("First line", "Second line")))
         _           <- mockConsole.clearOutput
         output      <- mockConsole.output
-      } yield output must_=== Vector.empty
+      } yield output == Vector.empty
     )
 }
