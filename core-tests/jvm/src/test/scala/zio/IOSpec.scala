@@ -330,13 +330,11 @@ class IOSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntim
 
   def testEventually = {
     def effect(ref: Ref[Int]) =
-      ref.get.flatMap(n => if (n < 10) IO.fail("Ouch") else UIO.succeed(n))
+      ref.get.flatMap(n => if (n < 10) ref.update(_ + 1) *> IO.fail("Ouch") else UIO.succeed(n))
 
     val test = for {
-      ref   <- Ref.make(0)
-      fiber <- effect(ref).eventually.fork
-      _     <- ref.update(_ + 1).repeat(Schedule.recurs(9)).fork
-      n     <- fiber.join
+      ref <- Ref.make(0)
+      n   <- effect(ref).eventually
     } yield n
 
     unsafeRun(test) must_=== 10
