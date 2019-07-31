@@ -1,34 +1,34 @@
 package zio.test.mock
 
+import scala.Predef.{ assert => SAssert, _ }
+
+import zio.DefaultRuntime
 import zio.test.mock.MockSystem.Data
-import zio.TestRuntime
 
-class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+object SystemSpec extends DefaultRuntime {
 
-  def is = "SystemSpec".title ^ s2"""
-    Fetch an environment variable and check that:
-      If it exists, return a reasonable value                         $env1
-      If it does not exist, return None                               $env2
-      If it is set, return the set value                              $env3
-      If it is cleared, return None                                   $env4
-
-    Fetch a VM property and check that:
-      If it exists, return a reasonable value                         $prop1
-      If it does not exist, return None                               $prop2
-      If it is set, return the set value                              $prop3
-      If it is cleared, return None                                   $prop4
-
-    Fetch the system's line separator and check that:
-      It is identical to Data.lineSeparator                           $lineSep1
-      If it is set, return the set value                              $lineSep2
-  """
+  def run(): Unit = {
+    SAssert(env1, "MockSystem fetch an environment variable and check that if it exists, return a reasonable value")
+    SAssert(env2, "MockSystem fetch an environment variable and check that if it does not exist, return None")
+    SAssert(env3, "MockSystem fetch an environment variable and check that if it is set, return the set value")
+    SAssert(env4, "MockSystem fetch an environment variable and check that if it is cleared, return None")
+    SAssert(prop1, "MockSystem fetch a VM property and check that if it exists, return a reasonable value")
+    SAssert(prop2, "MockSystem fetch a VM property and check that if it does not exist, return None")
+    SAssert(prop3, "MockSystem fetch a VM property and check that if it is set, return the set value")
+    SAssert(prop4, "MockSystem fetch a VM property and check that if it is cleared, return None")
+    SAssert(
+      lineSep1,
+      "MockSystem fetch the system's line separator and check that it is identical to Data.lineSeparator"
+    )
+    SAssert(lineSep2, "MockSystem fetch the system's line separator and check that if it is set, return the set value")
+  }
 
   def env1 =
     unsafeRun(
       for {
         mockSystem <- MockSystem.makeMock(Data(envs = Map("k1" -> "v1")))
         env        <- mockSystem.env("k1")
-      } yield env must_=== Option("v1")
+      } yield env == Option("v1")
     )
 
   def env2 =
@@ -36,7 +36,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       for {
         mockSystem <- MockSystem.makeMock(Data())
         env        <- mockSystem.env("k1")
-      } yield env must_=== Option.empty
+      } yield env == Option.empty
     )
 
   def env3 =
@@ -45,7 +45,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         mockSystem <- MockSystem.makeMock(Data())
         _          <- mockSystem.putEnv("k1", "v1")
         env        <- mockSystem.env("k1")
-      } yield env must_=== Option("v1")
+      } yield env == Option("v1")
     )
 
   def env4 =
@@ -54,7 +54,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         mockSystem <- MockSystem.makeMock(Data(envs = Map("k1" -> "v1")))
         _          <- mockSystem.clearEnv("k1")
         env        <- mockSystem.env("k1")
-      } yield env must_=== None
+      } yield env == None
     )
 
   def prop1 =
@@ -62,7 +62,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       for {
         mockSystem <- MockSystem.makeMock(Data(properties = Map("k1" -> "v1")))
         prop       <- mockSystem.property("k1")
-      } yield prop must_=== Option("v1")
+      } yield prop == Option("v1")
     )
 
   def prop2 =
@@ -70,7 +70,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       for {
         mockSystem <- MockSystem.makeMock(Data())
         prop       <- mockSystem.property("k1")
-      } yield prop must_=== Option.empty
+      } yield prop == Option.empty
     )
 
   def prop3 =
@@ -79,7 +79,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         mockSystem <- MockSystem.makeMock(Data())
         _          <- mockSystem.putProperty("k1", "v1")
         prop       <- mockSystem.property("k1")
-      } yield prop must_=== Option("v1")
+      } yield prop == Option("v1")
     )
 
   def prop4 =
@@ -88,7 +88,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         mockSystem <- MockSystem.makeMock(Data(properties = Map("k1" -> "v1")))
         _          <- mockSystem.clearProperty("k1")
         prop       <- mockSystem.property(("k1"))
-      } yield prop must_=== None
+      } yield prop == None
     )
 
   def lineSep1 =
@@ -96,7 +96,7 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
       for {
         mockSystem <- MockSystem.makeMock(Data(lineSeparator = ","))
         lineSep    <- mockSystem.lineSeparator
-      } yield lineSep must_=== ","
+      } yield lineSep == ","
     )
 
   def lineSep2 =
@@ -105,6 +105,6 @@ class SystemSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRu
         mockSystem <- MockSystem.makeMock(Data())
         _          <- mockSystem.setLineSeparator(",")
         lineSep    <- mockSystem.lineSeparator
-      } yield lineSep must_=== ","
+      } yield lineSep == ","
     )
 }

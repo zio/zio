@@ -3,36 +3,38 @@ package zio.test.mock
 import java.util.concurrent.TimeUnit
 import java.time.ZoneId
 
+import scala.Predef.{ assert => SAssert }
+
 import zio._
 import zio.duration._
 import zio.test.mock.MockClock.DefaultData
 
-class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+object ClockSpec extends DefaultRuntime {
 
-  def is = "ClockSpec".title ^ s2"""
-      Sleep does sleep instantly                        $e1
-      Sleep passes nanotime correctly                   $e2
-      Sleep passes currentTime correctly                $e3
-      Sleep passes currentDateTime correctly            $e4
-      Sleep correctly records sleeps                    $e5
-      Adjust correctly advances nanotime                $e6
-      Adjust correctly advances currentTime             $e7
-      Adjust correctly advances currentDateTime         $e8
-      Adjust does not produce sleeps                    $e9
-      SetTime correctly sets nanotime                   $e10
-      SetTime correctly sets currentTime                $e11
-      SetTime correctly sets currentDateTime            $e12
-      SetTime does not produce sleeps                   $e13
-      SetTimeZone correctly sets timeZone               $e14
-      SetTimeZone does not produce sleeps               $e15
-     """
+  def run(): Unit = {
+    SAssert(e1, "MockClock sleep does sleep instantly")
+    SAssert(e2, "MockClock sleep passes nanotime correctly")
+    SAssert(e3, "MockClock sleep passes currentTime correctly")
+    SAssert(e4, "MockClock sleep passes currentDateTime correctly")
+    SAssert(e5, "MockClock sleep correctly records sleeps")
+    SAssert(e6, "MockClock adjust correctly advances nanotime")
+    SAssert(e7, "MockClock adjust correctly advances currentTime")
+    SAssert(e8, "MockClock adjust correctly advances currentDateTime")
+    SAssert(e9, "MockClock adjust does not produce sleeps ")
+    SAssert(e10, "MockClock setTime correctly sets nanotime")
+    SAssert(e11, "MockClock setTime correctly sets currentTime")
+    SAssert(e12, "MockClock setTime correctly sets currentDateTime")
+    SAssert(e13, "MockClock setTime does not produce sleeps ")
+    SAssert(e14, "MockClock setTimeZone correctly sets timeZone")
+    SAssert(e15, "MockClock setTimeZone does not produce sleeps ")
+  }
 
   def e1 =
     unsafeRun(
       for {
         mockClock <- MockClock.makeMock(DefaultData)
         result    <- mockClock.sleep(10.hours).timeout(100.milliseconds)
-      } yield result.nonEmpty must beTrue
+      } yield result.nonEmpty
     )
 
   def e2 =
@@ -42,7 +44,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         time1     <- mockClock.nanoTime
         _         <- mockClock.sleep(1.millis)
         time2     <- mockClock.nanoTime
-      } yield (time2 - time1) must_== 1000000L
+      } yield (time2 - time1) == 1000000L
     )
 
   def e3 =
@@ -52,7 +54,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
         _         <- mockClock.sleep(1.millis)
         time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-      } yield (time2 - time1) must_== 1L
+      } yield (time2 - time1) == 1L
     )
 
   def e4 =
@@ -62,7 +64,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         time1     <- mockClock.currentDateTime
         _         <- mockClock.sleep(1.millis)
         time2     <- mockClock.currentDateTime
-      } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) must_== 1L
+      } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) == 1L
     )
 
   def e5 =
@@ -71,7 +73,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.sleep(1.millis)
         sleeps    <- mockClock.sleeps
-      } yield sleeps must_== List(1.milliseconds)
+      } yield sleeps == List(1.milliseconds)
     )
 
   def e6 =
@@ -81,7 +83,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         time1     <- mockClock.nanoTime
         _         <- mockClock.adjust(1.millis)
         time2     <- mockClock.nanoTime
-      } yield (time2 - time1) must_== 1000000L
+      } yield (time2 - time1) == 1000000L
     )
 
   def e7 =
@@ -91,7 +93,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
         _         <- mockClock.adjust(1.millis)
         time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-      } yield (time2 - time1) must_== 1L
+      } yield (time2 - time1) == 1L
     )
 
   def e8 =
@@ -101,7 +103,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         time1     <- mockClock.currentDateTime
         _         <- mockClock.adjust(1.millis)
         time2     <- mockClock.currentDateTime
-      } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) must_== 1L
+      } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) == 1L
     )
 
   def e9 =
@@ -110,7 +112,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.adjust(1.millis)
         sleeps    <- mockClock.sleeps
-      } yield sleeps must_== Nil
+      } yield sleeps == Nil
     )
 
   def e10 =
@@ -119,7 +121,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTime(1.millis)
         time      <- mockClock.nanoTime
-      } yield time must_== 1000000L
+      } yield time == 1000000L
     )
 
   def e11 =
@@ -128,7 +130,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTime(1.millis)
         time      <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-      } yield time must_== 1L
+      } yield time == 1L
     )
 
   def e12 =
@@ -137,7 +139,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTime(1.millis)
         time      <- mockClock.currentDateTime
-      } yield time.toInstant.toEpochMilli must_== 1L
+      } yield time.toInstant.toEpochMilli == 1L
     )
 
   def e13 =
@@ -146,7 +148,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTime(1.millis)
         sleeps    <- mockClock.sleeps
-      } yield sleeps must_== Nil
+      } yield sleeps == Nil
     )
 
   def e14 =
@@ -155,7 +157,7 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
         timeZone  <- mockClock.timeZone
-      } yield timeZone must_== ZoneId.of("America/New_York")
+      } yield timeZone == ZoneId.of("America/New_York")
     )
 
   def e15 =
@@ -164,6 +166,6 @@ class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRun
         mockClock <- MockClock.makeMock(DefaultData)
         _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
         sleeps    <- mockClock.sleeps
-      } yield sleeps must_== Nil
+      } yield sleeps == Nil
     )
 }

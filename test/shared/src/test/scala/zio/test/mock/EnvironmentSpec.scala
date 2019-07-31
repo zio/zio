@@ -2,24 +2,22 @@ package zio.test.mock
 
 import java.util.concurrent.TimeUnit
 
+import scala.Predef.{ assert => SAssert }
+
 import zio._
 import zio.duration._
 
-class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+object EnvironmentSpec extends DefaultRuntime {
 
-  def is = "EnvironmentSpec".title ^ s2"""
-      Clock:
-        returns time when it is set                     $currentTime
-      Console:
-        writes line to output                           $putStrLn
-        reads line from input                           $getStrLn
-      Random:
-        returns next integer when data is fed           $nextInt
-      System:
-        returns an environment variable when it is set  $env
-        returns a property when it is set               $property
-        returns the line separator when it is set       $lineSeparator
-  """
+  def run(): Unit = {
+    SAssert(currentTime, "MockEnvironment Clock returns time when it is set")
+    SAssert(putStrLn, "MockEnvironment Console writes line to output")
+    SAssert(getStrLn, "MockEnvironment Console reads line from input")
+    SAssert(nextInt, "MockEnvironment Random returns next integer when data is fed")
+    SAssert(env, "MockEnvironment System returns an environment variable when it is set")
+    SAssert(property, "MockEnvironment System returns a property when it is set ")
+    SAssert(lineSeparator, "MockEnvironment System returns the line separator when it is set ")
+  }
 
   def withEnvironment[E, A](zio: ZIO[MockEnvironment, E, A]): A =
     unsafeRun(mockEnvironmentManaged.use[Any, E, A](r => zio.provide(r)))
@@ -29,7 +27,7 @@ class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       for {
         _    <- MockClock.setTime(1.millis)
         time <- clock.currentTime(TimeUnit.MILLISECONDS)
-      } yield time must_=== 1L
+      } yield time == 1L
     }
 
   def putStrLn =
@@ -38,7 +36,7 @@ class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
         _      <- console.putStrLn("First line")
         _      <- console.putStrLn("Second line")
         output <- MockConsole.output
-      } yield output must_=== Vector("First line\n", "Second line\n")
+      } yield output == Vector("First line\n", "Second line\n")
     }
 
   def getStrLn =
@@ -47,7 +45,7 @@ class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
         _      <- MockConsole.feedLines("Input 1", "Input 2")
         input1 <- console.getStrLn
         input2 <- console.getStrLn
-      } yield (input1 must_=== "Input 1") and (input2 must_=== "Input 2")
+      } yield (input1 == "Input 1") && (input2 == "Input 2")
     }
 
   def nextInt =
@@ -55,7 +53,7 @@ class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       for {
         _ <- MockRandom.feedInts(6)
         n <- random.nextInt
-      } yield n must_=== 6
+      } yield n == 6
     }
 
   def env =
@@ -63,7 +61,7 @@ class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       for {
         _   <- MockSystem.putEnv("k1", "v1")
         env <- system.env("k1")
-      } yield env must_=== Some("v1")
+      } yield env == Some("v1")
     }
 
   def property =
@@ -71,7 +69,7 @@ class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       for {
         _   <- MockSystem.putProperty("k1", "v1")
         env <- system.property("k1")
-      } yield env must_=== Some("v1")
+      } yield env == Some("v1")
     }
 
   def lineSeparator =
@@ -79,6 +77,6 @@ class EnvironmentSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends T
       for {
         _       <- MockSystem.setLineSeparator(",")
         lineSep <- system.lineSeparator
-      } yield lineSep must_=== ","
+      } yield lineSep == ","
     }
 }

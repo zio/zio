@@ -31,8 +31,8 @@ inThisBuild(
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt")
 addCommandAlias("check", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck")
 addCommandAlias("compileJVM", ";coreJVM/test:compile;stacktracerJVM/test:compile")
-addCommandAlias("testJVM", ";coreTestsJVM/test;stacktracerJVM/test;streamsJVM/test;testJVM/test")
-addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsJS/test")
+addCommandAlias("testJVM", ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testJVM/test")
+addCommandAlias("testJS", ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test")
 
 lazy val root = project
   .in(file("."))
@@ -49,6 +49,8 @@ lazy val root = project
     docs,
     streamsJVM,
     streamsJS,
+    streamsTestsJVM,
+    streamsTestsJS,
     benchmarks,
     testJVM,
     stacktracerJS,
@@ -76,6 +78,13 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("core-tests"))
   .settings(buildInfoSettings)
   .settings(publishArtifact in (Test, packageBin) := true)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
+    )
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
@@ -89,26 +98,31 @@ lazy val coreTestsJS = coreTests.js
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams"))
+  .dependsOn(core)
   .settings(stdSettings("zio-streams"))
   .settings(buildInfoSettings)
   .settings(replSettings)
   .enablePlugins(BuildInfoPlugin)
-  .dependsOn(coreTests % "test->test;compile->compile")
 
-lazy val streamsJVM = streams.jvm.dependsOn(coreTestsJVM % "test->compile")
+lazy val streamsJVM = streams.jvm
 lazy val streamsJS  = streams.js
+
+lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
+  .in(file("streams-tests"))
+  .dependsOn(streams)
+  .dependsOn(coreTests % "test->test;compile->compile")
+  .settings(stdSettings("zio-streams-tests"))
+  .settings(buildInfoSettings)
+  .settings(replSettings)
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
+lazy val streamsTestsJS  = streamsTests.js
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
   .dependsOn(core)
   .settings(stdSettings("zio-test"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
-    )
-  )
 
 lazy val testJVM = test.jvm
 lazy val testJS  = test.js
