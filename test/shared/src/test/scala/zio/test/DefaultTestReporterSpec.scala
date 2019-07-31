@@ -32,13 +32,13 @@ object DefaultTestReporterSpec extends DefaultRuntime {
   val test2Expected = expectedSuccess("Subtraction works fine")
 
   val test3 = makeTest("Value falls within range") {
-    assert(52, Predicate.equals(42) || (Predicate.gt(5) && Predicate.lt(10)))
+    assert(52, Predicate.equals(42) || (Predicate.isGreaterThan(5) && Predicate.isLessThan(10)))
   }
 
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("(equals(42) || (" + yellow("gt(5)") + " && lt(10)))")}\n"),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("gt(5)")}\n")
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("(equals(42) || (" + yellow("isGreaterThan(5)") + " && isLessThan(10)))")}\n"),
+    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isGreaterThan(5)")}\n")
   )
 
   val test4 = makeTest("Failing test") {
