@@ -66,7 +66,7 @@ final case class Spec[+L, +T](caseValue: SpecCase[L, T, Spec[L, T]]) { self =>
             ZIO.foreachPar(specs)(_.foldM(defExec)(f)).flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
           case ExecutionStrategy.ParallelN(n) =>
             ZIO
-              .foreachParN(n.toLong)(specs)(_.foldM(defExec)(f))
+              .foreachParN(n)(specs)(_.foldM(defExec)(f))
               .flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
           case ExecutionStrategy.Sequential =>
             ZIO.foreach(specs)(_.foldM(defExec)(f)).flatMap(specs => f(SuiteCase(label, specs.toVector, exec)))
