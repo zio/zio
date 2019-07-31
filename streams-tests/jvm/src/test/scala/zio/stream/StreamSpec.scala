@@ -707,7 +707,7 @@ class ZStreamSpec(implicit ee: org.specs2.concurrent.ExecutionEnv)
       slurp(leftStream) must_=== slurp(rightStream)
     }
 
-  private def flatMapParConsistency = prop { (n: Long, m: List[Int]) =>
+  private def flatMapParConsistency = prop { (n: Int, m: List[Int]) =>
     val flatMap    = Stream.fromIterable(m).flatMap(i => Stream(i, i))
     val flatMapPar = Stream.fromIterable(m).flatMapPar(n)(i => Stream(i, i))
 
