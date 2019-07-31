@@ -1,169 +1,171 @@
-// package zio.test.mock
+package zio.test.mock
 
-// import java.util.concurrent.TimeUnit
-// import java.time.ZoneId
+import java.util.concurrent.TimeUnit
+import java.time.ZoneId
 
-// import zio._
-// import zio.duration._
-// import zio.test.mock.MockClock.DefaultData
+import scala.Predef.{ assert => SAssert }
 
-// class ClockSpec(implicit ee: org.specs2.concurrent.ExecutionEnv) extends TestRuntime {
+import zio._
+import zio.duration._
+import zio.test.mock.MockClock.DefaultData
 
-//   def is = "ClockSpec".title ^ s2"""
-//       Sleep does sleep instantly                        $e1
-//       Sleep passes nanotime correctly                   $e2
-//       Sleep passes currentTime correctly                $e3
-//       Sleep passes currentDateTime correctly            $e4
-//       Sleep correctly records sleeps                    $e5
-//       Adjust correctly advances nanotime                $e6
-//       Adjust correctly advances currentTime             $e7
-//       Adjust correctly advances currentDateTime         $e8
-//       Adjust does not produce sleeps                    $e9
-//       SetTime correctly sets nanotime                   $e10
-//       SetTime correctly sets currentTime                $e11
-//       SetTime correctly sets currentDateTime            $e12
-//       SetTime does not produce sleeps                   $e13
-//       SetTimeZone correctly sets timeZone               $e14
-//       SetTimeZone does not produce sleeps               $e15
-//      """
+object ClockSpec extends DefaultRuntime {
 
-//   def e1 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         result    <- mockClock.sleep(10.hours).timeout(100.milliseconds)
-//       } yield result.nonEmpty must beTrue
-//     )
+  def run(): Unit = {
+    SAssert(e1, "MockClock sleep does sleep instantly")
+    SAssert(e2, "MockClock sleep passes nanotime correctly")
+    SAssert(e3, "MockClock sleep passes currentTime correctly")
+    SAssert(e4, "MockClock sleep passes currentDateTime correctly")
+    SAssert(e5, "MockClock sleep correctly records sleeps")
+    SAssert(e6, "MockClock adjust correctly advances nanotime")
+    SAssert(e7, "MockClock adjust correctly advances currentTime")
+    SAssert(e8, "MockClock adjust correctly advances currentDateTime")
+    SAssert(e9, "MockClock adjust does not produce sleeps ")
+    SAssert(e10, "MockClock setTime correctly sets nanotime")
+    SAssert(e11, "MockClock setTime correctly sets currentTime")
+    SAssert(e12, "MockClock setTime correctly sets currentDateTime")
+    SAssert(e13, "MockClock setTime does not produce sleeps ")
+    SAssert(e14, "MockClock setTimeZone correctly sets timeZone")
+    SAssert(e15, "MockClock setTimeZone does not produce sleeps ")
+  }
 
-//   def e2 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         time1     <- mockClock.nanoTime
-//         _         <- mockClock.sleep(1.millis)
-//         time2     <- mockClock.nanoTime
-//       } yield (time2 - time1) must_== 1000000L
-//     )
+  def e1 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        result    <- mockClock.sleep(10.hours).timeout(100.milliseconds)
+      } yield result.nonEmpty
+    )
 
-//   def e3 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-//         _         <- mockClock.sleep(1.millis)
-//         time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-//       } yield (time2 - time1) must_== 1L
-//     )
+  def e2 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        time1     <- mockClock.nanoTime
+        _         <- mockClock.sleep(1.millis)
+        time2     <- mockClock.nanoTime
+      } yield (time2 - time1) == 1000000L
+    )
 
-//   def e4 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         time1     <- mockClock.currentDateTime
-//         _         <- mockClock.sleep(1.millis)
-//         time2     <- mockClock.currentDateTime
-//       } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) must_== 1L
-//     )
+  def e3 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
+        _         <- mockClock.sleep(1.millis)
+        time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
+      } yield (time2 - time1) == 1L
+    )
 
-//   def e5 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         _         <- mockClock.sleep(1.millis)
-//         sleeps    <- mockClock.sleeps
-//       } yield sleeps must_== List(1.milliseconds)
-//     )
+  def e4 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        time1     <- mockClock.currentDateTime
+        _         <- mockClock.sleep(1.millis)
+        time2     <- mockClock.currentDateTime
+      } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) == 1L
+    )
 
-//   def e6 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         time1     <- mockClock.nanoTime
-//         _         <- mockClock.adjust(1.millis)
-//         time2     <- mockClock.nanoTime
-//       } yield (time2 - time1) must_== 1000000L
-//     )
+  def e5 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        _         <- mockClock.sleep(1.millis)
+        sleeps    <- mockClock.sleeps
+      } yield sleeps == List(1.milliseconds)
+    )
 
-//   def e7 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-//         _         <- mockClock.adjust(1.millis)
-//         time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-//       } yield (time2 - time1) must_== 1L
-//     )
+  def e6 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        time1     <- mockClock.nanoTime
+        _         <- mockClock.adjust(1.millis)
+        time2     <- mockClock.nanoTime
+      } yield (time2 - time1) == 1000000L
+    )
 
-//   def e8 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         time1     <- mockClock.currentDateTime
-//         _         <- mockClock.adjust(1.millis)
-//         time2     <- mockClock.currentDateTime
-//       } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) must_== 1L
-//     )
+  def e7 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        time1     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
+        _         <- mockClock.adjust(1.millis)
+        time2     <- mockClock.currentTime(TimeUnit.MILLISECONDS)
+      } yield (time2 - time1) == 1L
+    )
 
-//   def e9 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         _         <- mockClock.adjust(1.millis)
-//         sleeps    <- mockClock.sleeps
-//       } yield sleeps must_== Nil
-//     )
+  def e8 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        time1     <- mockClock.currentDateTime
+        _         <- mockClock.adjust(1.millis)
+        time2     <- mockClock.currentDateTime
+      } yield (time2.toInstant.toEpochMilli - time1.toInstant.toEpochMilli) == 1L
+    )
 
-//   def e10 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         _         <- mockClock.setTime(1.millis)
-//         time      <- mockClock.nanoTime
-//       } yield time must_== 1000000L
-//     )
+  def e9 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        _         <- mockClock.adjust(1.millis)
+        sleeps    <- mockClock.sleeps
+      } yield sleeps == Nil
+    )
 
-//   def e11 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         _         <- mockClock.setTime(1.millis)
-//         time      <- mockClock.currentTime(TimeUnit.MILLISECONDS)
-//       } yield time must_== 1L
-//     )
+  def e10 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        _         <- mockClock.setTime(1.millis)
+        time      <- mockClock.nanoTime
+      } yield time == 1000000L
+    )
 
-//   def e12 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         _         <- mockClock.setTime(1.millis)
-//         time      <- mockClock.currentDateTime
-//       } yield time.toInstant.toEpochMilli must_== 1L
-//     )
+  def e11 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        _         <- mockClock.setTime(1.millis)
+        time      <- mockClock.currentTime(TimeUnit.MILLISECONDS)
+      } yield time == 1L
+    )
 
-//   def e13 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         _         <- mockClock.setTime(1.millis)
-//         sleeps    <- mockClock.sleeps
-//       } yield sleeps must_== Nil
-//     )
+  def e12 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        _         <- mockClock.setTime(1.millis)
+        time      <- mockClock.currentDateTime
+      } yield time.toInstant.toEpochMilli == 1L
+    )
 
-//   def e14 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
-//         timeZone  <- mockClock.timeZone
-//       } yield timeZone must_== ZoneId.of("America/New_York")
-//     )
+  def e13 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        _         <- mockClock.setTime(1.millis)
+        sleeps    <- mockClock.sleeps
+      } yield sleeps == Nil
+    )
 
-//   def e15 =
-//     unsafeRun(
-//       for {
-//         mockClock <- MockClock.makeMock(DefaultData)
-//         _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
-//         sleeps    <- mockClock.sleeps
-//       } yield sleeps must_== Nil
-//     )
-// }
+  def e14 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
+        timeZone  <- mockClock.timeZone
+      } yield timeZone == ZoneId.of("America/New_York")
+    )
+
+  def e15 =
+    unsafeRun(
+      for {
+        mockClock <- MockClock.makeMock(DefaultData)
+        _         <- mockClock.setTimeZone(ZoneId.of("America/New_York"))
+        sleeps    <- mockClock.sleeps
+      } yield sleeps == Nil
+    )
+}

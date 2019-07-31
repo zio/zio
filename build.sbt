@@ -117,7 +117,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsTestsJVM = streamsTests.jvm.dependsOn(coreTestsJVM % "test->compile")
-lazy val streamsTestsJS = streamsTests.js
+lazy val streamsTestsJS  = streamsTests.js
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
