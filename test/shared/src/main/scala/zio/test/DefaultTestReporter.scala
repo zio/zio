@@ -34,11 +34,11 @@ case class DefaultTestReporter(console: Console) extends TestReporter[String] {
           reportSuite *> ZIO.foreach_(executedSpecs)(loop(_, offset + tabSize))
         case Spec.TestCase(label, result) =>
           result match {
-            case AssertResult.Success(_) =>
+            case Assertion.Success =>
               reportSuccess(label, offset)
-            case AssertResult.Failure(failureDetails) =>
-              reportFailure(label, offset) *> reportFailureDetails(failureDetails, offset)
-            case AssertResult.Ignore =>
+            case Assertion.Failure(details) =>
+              reportFailure(label, offset) *> reportFailureDetails(details, offset)
+            case Assertion.Ignore =>
               ZIO.unit
           }
       }

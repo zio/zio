@@ -121,7 +121,7 @@ lazy val streamsTestsJS  = streamsTests.js
 
 lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
-  .dependsOn(core)
+  .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
 
 lazy val testJVM = test.jvm

@@ -12,7 +12,7 @@ import zio.clock.Clock
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success }
 
-class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
+class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.matcher.EventuallyMatchers {
 
   def is = {
     s2"""
@@ -1167,24 +1167,22 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime {
     } yield r) must_=== (1 -> 2)
 
   def testSupervised =
-    nonFlaky {
-      for {
-        pa <- Promise.make[Nothing, Int]
-        pb <- Promise.make[Nothing, Int]
-        _ <- (for {
-              p1 <- Promise.make[Nothing, Unit]
-              p2 <- Promise.make[Nothing, Unit]
-              _ <- p1
-                    .succeed(())
-                    .bracket_[Any, Nothing]
-                    .apply[Any](pa.succeed(1).unit)(IO.never)
-                    .fork //    TODO: Dotty doesn't infer this properly
-              _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
-              _ <- p1.await *> p2.await
-            } yield ()).interruptChildren
-        r <- pa.await zip pb.await
-      } yield r must_=== (1 -> 2)
-    }
+    eventually(unsafeRun((for {
+      pa <- Promise.make[Nothing, Int]
+      pb <- Promise.make[Nothing, Int]
+      _ <- (for {
+            p1 <- Promise.make[Nothing, Unit]
+            p2 <- Promise.make[Nothing, Unit]
+            _ <- p1
+                  .succeed(())
+                  .bracket_[Any, Nothing]
+                  .apply[Any](pa.succeed(1).unit)(IO.never)
+                  .fork //    TODO: Dotty doesn't infer this properly
+            _ <- p2.succeed(()).bracket_[Any, Nothing].apply[Any](pb.succeed(2).unit)(IO.never).fork
+            _ <- p1.await *> p2.await
+          } yield ()).interruptChildren
+      r <- pa.await zip pb.await
+    } yield r).timeoutFail(new RuntimeException)(1.second)) must_=== (1 -> 2))
 
   def testRaceChoosesWinner =
     unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
