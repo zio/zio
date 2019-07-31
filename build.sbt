@@ -78,6 +78,13 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(stdSettings("core-tests"))
   .settings(buildInfoSettings)
   .settings(publishArtifact in (Test, packageBin) := true)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
+      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
+    )
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
@@ -116,13 +123,6 @@ lazy val test = crossProject(JSPlatform, JVMPlatform)
   .in(file("test"))
   .dependsOn(core)
   .settings(stdSettings("zio-test"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.specs2" %%% "specs2-core"          % "4.6.0" % Test,
-      "org.specs2" %%% "specs2-scalacheck"    % "4.6.0" % Test,
-      "org.specs2" %%% "specs2-matcher-extra" % "4.6.0" % Test
-    )
-  )
 
 lazy val testJVM = test.jvm
 lazy val testJS  = test.js
