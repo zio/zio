@@ -1167,7 +1167,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
     } yield r) must_=== (1 -> 2)
 
   def testSupervised =
-    eventually(unsafeRun(for {
+    eventually(unsafeRun((for {
       pa <- Promise.make[Nothing, Int]
       pb <- Promise.make[Nothing, Int]
       _ <- (for {
@@ -1182,7 +1182,7 @@ class RTSSpec(implicit ee: ExecutionEnv) extends TestRuntime with org.specs2.mat
             _ <- p1.await *> p2.await
           } yield ()).interruptChildren
       r <- pa.await zip pb.await
-    } yield r) must_=== (1 -> 2))
+    } yield r).timeoutFail(new RuntimeException)(1.second)) must_=== (1 -> 2))
 
   def testRaceChoosesWinner =
     unsafeRun(IO.fail(42).race(IO.succeed(24)).either) must_=== Right(24)
