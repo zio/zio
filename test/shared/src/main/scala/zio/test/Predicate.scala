@@ -132,18 +132,6 @@ object Predicate {
     }
 
   /**
-   * Makes a new predicate that focuses in on a field in a case class.
-   *
-   * {{{
-   * field("age", _.age, within(0, 10))
-   * }}}
-   */
-  final def field[A, B](name: String, proj: A => B, predicate: Predicate[B]): Predicate[A] =
-    Predicate.predicateDirect[A]("field(\"" + name + "\"" + s", _.${name}, ${predicate})") { actual =>
-      predicate(proj(actual))
-    }
-
-  /**
    * Makes a new predicate that requires an iterable contain only elements
    * satisfying the given predicate.
    */
@@ -160,32 +148,24 @@ object Predicate {
     }
 
   /**
-   * Makes a new predicate that requires the numeric value be greater than
-   * the specified reference value.
+   * Makes a new predicate that focuses in on a field in a case class.
+   *
+   * {{{
+   * hasField("age", _.age, within(0, 10))
+   * }}}
    */
-  final def gt[A: Numeric](reference: A): Predicate[A] =
-    Predicate.predicate(s"gt(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) > 0) Assertion.success
-      else Assertion.failure(())
+  final def hasField[A, B](name: String, proj: A => B, predicate: Predicate[B]): Predicate[A] =
+    Predicate.predicateDirect[A]("hasField(\"" + name + "\"" + s", _.${name}, ${predicate})") { actual =>
+      predicate(proj(actual))
     }
 
   /**
-   * Makes a new predicate that requires the numeric value be greater than
-   * or equal to the specified reference value.
+   * Makes a new predicate that requires the size of an iterable be satisfied
+   * by the specified predicate.
    */
-  final def gte[A: Numeric](reference: A): Predicate[A] =
-    Predicate.predicate(s"gte(${reference})") { actual =>
-      if (implicitly[Numeric[A]].compare(reference, actual) >= 0) Assertion.success
-      else Assertion.failure(())
-    }
-
-  /**
-   * Makes a predicate that requires a value have the specified type.
-   */
-  final def instanceOf[A](predicate: Predicate[A])(implicit C: ClassTag[A]): Predicate[Any] =
-    Predicate.predicateRec[Any](s"hasType[${C.runtimeClass.getSimpleName()}]") { (self, actual) =>
-      if (C.runtimeClass.isAssignableFrom(actual.getClass())) predicate(actual.asInstanceOf[A])
-      else Assertion.failure(PredicateValue(self, actual))
+  final def hasSize[A](predicate: Predicate[Int]): Predicate[Iterable[A]] =
+    Predicate.predicate[Iterable[A]](s"hasSize(${predicate})") { actual =>
+      predicate.run(actual.size).map(_ => ())
     }
 
   /**
@@ -208,23 +188,36 @@ object Predicate {
   /**
    * Makes a new predicate that requires a value be true.
    */
-  final def isTrue: Predicate[Boolean] = Predicate.predicate(s"isTrue") { actual =>
-    if (actual) Assertion.success else Assertion.failure(())
-  }
-
-  /**
-   * Makes a new predicate that requires a value be true.
-   */
   final def isFalse: Predicate[Boolean] = Predicate.predicate(s"isFalse") { actual =>
     if (!actual) Assertion.success else Assertion.failure(())
   }
 
   /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * the specified reference value.
+   */
+  final def isGreaterThan[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"isGreaterThan(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) > 0) Assertion.success
+      else Assertion.failure(())
+    }
+
+  /**
+   * Makes a new predicate that requires the numeric value be greater than
+   * or equal to the specified reference value.
+   */
+  final def isGreaterThanEqual[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"isGreaterThanEqual(${reference})") { actual =>
+      if (implicitly[Numeric[A]].compare(reference, actual) >= 0) Assertion.success
+      else Assertion.failure(())
+    }
+
+  /**
    * Makes a new predicate that requires a Left value satisfying a specified
    * predicate.
    */
-  final def left[A](predicate: Predicate[A]): Predicate[Either[A, Nothing]] =
-    Predicate.predicateRec[Either[A, Nothing]](s"left(${predicate})") { (self, actual) =>
+  final def isLeft[A](predicate: Predicate[A]): Predicate[Either[A, Nothing]] =
+    Predicate.predicateRec[Either[A, Nothing]](s"isLeft(${predicate})") { (self, actual) =>
       actual match {
         case Left(a)  => predicate.run(a)
         case Right(_) => Assertion.failure(PredicateValue(self, actual))
@@ -235,8 +228,8 @@ object Predicate {
    * Makes a new predicate that requires the numeric value be greater than
    * the specified reference value.
    */
-  final def lt[A: Numeric](reference: A): Predicate[A] =
-    Predicate.predicate(s"lt(${reference})") { actual =>
+  final def isLessThan[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"isLessThan(${reference})") { actual =>
       if (implicitly[Numeric[A]].compare(reference, actual) < 0) Assertion.success
       else Assertion.failure(())
     }
@@ -245,8 +238,8 @@ object Predicate {
    * Makes a new predicate that requires the numeric value be greater than
    * the specified reference value.
    */
-  final def lte[A: Numeric](reference: A): Predicate[A] =
-    Predicate.predicate(s"lte(${reference})") { actual =>
+  final def isLessThanEqual[A: Numeric](reference: A): Predicate[A] =
+    Predicate.predicate(s"isLessThanEqual(${reference})") { actual =>
       if (implicitly[Numeric[A]].compare(reference, actual) <= 0) Assertion.success
       else Assertion.failure(())
     }
@@ -255,12 +248,63 @@ object Predicate {
    * Makes a new predicate that requires a Some value satisfying the specified
    * predicate.
    */
-  final val none: Predicate[Option[Any]] = Predicate.predicate(s"none") { actual =>
+  final val isNone: Predicate[Option[Any]] = Predicate.predicate(s"isNone") { actual =>
     actual match {
       case None    => Assertion.success
       case Some(_) => Assertion.failure(())
     }
   }
+
+  /**
+   * Makes a new predicate that requires a Right value satisfying a specified
+   * predicate.
+   */
+  final def isRight[A](predicate: Predicate[A]): Predicate[Either[Nothing, A]] =
+    Predicate.predicateRec[Either[Nothing, A]](s"isRight(${predicate})") { (self, actual) =>
+      actual match {
+        case Right(a) => predicate.run(a)
+        case Left(_)  => Assertion.failure(PredicateValue(self, actual))
+      }
+    }
+
+  /**
+   * Makes a new predicate that requires a Some value satisfying the specified
+   * predicate.
+   */
+  final def isSome[A](predicate: Predicate[A]): Predicate[Option[A]] =
+    Predicate.predicateRec[Option[A]](s"isSome(${predicate}") { (self, actual) =>
+      actual match {
+        case Some(a) => predicate.run(a)
+        case None    => Assertion.failure(PredicateValue(self, actual))
+      }
+    }
+
+  /**
+   * Makes a predicate that requires a value have the specified type.
+   */
+  final def isSubtype[A](predicate: Predicate[A])(implicit C: ClassTag[A]): Predicate[Any] =
+    Predicate.predicateRec[Any](s"isSubtype[${C.runtimeClass.getSimpleName()}]") { (self, actual) =>
+      if (C.runtimeClass.isAssignableFrom(actual.getClass())) predicate(actual.asInstanceOf[A])
+      else Assertion.failure(PredicateValue(self, actual))
+    }
+
+  /**
+   * Makes a new predicate that requires a value be true.
+   */
+  final def isTrue: Predicate[Boolean] = Predicate.predicate(s"isTrue") { actual =>
+    if (actual) Assertion.success else Assertion.failure(())
+  }
+
+  /**
+   * Returns a new predicate that requires a numeric value to fall within a
+   * specified min and max (inclusive).
+   */
+  final def isWithin[A: Numeric](min: A, max: A): Predicate[A] =
+    Predicate.predicate(s"isWithin(${min}, ${max})") { actual =>
+      if (implicitly[Numeric[A]].compare(actual, min) < 0) Assertion.failure(())
+      else if (implicitly[Numeric[A]].compare(actual, max) > 0) Assertion.failure(())
+      else Assertion.success
+    }
 
   /**
    * Makes a new predicate that negates the specified predicate.
@@ -305,30 +349,6 @@ object Predicate {
   }
 
   /**
-   * Makes a new predicate that requires a Right value satisfying a specified
-   * predicate.
-   */
-  final def right[A](predicate: Predicate[A]): Predicate[Either[Nothing, A]] =
-    Predicate.predicateRec[Either[Nothing, A]](s"right(${predicate})") { (self, actual) =>
-      actual match {
-        case Right(a) => predicate.run(a)
-        case Left(_)  => Assertion.failure(PredicateValue(self, actual))
-      }
-    }
-
-  /**
-   * Makes a new predicate that requires a Some value satisfying the specified
-   * predicate.
-   */
-  final def some[A](predicate: Predicate[A]): Predicate[Option[A]] =
-    Predicate.predicateRec[Option[A]](s"some(${predicate}") { (self, actual) =>
-      actual match {
-        case Some(a) => predicate.run(a)
-        case None    => Assertion.failure(PredicateValue(self, actual))
-      }
-    }
-
-  /**
    * Makes a new predicate that requires an exit value to succeed.
    */
   final def succeeds[A](predicate: Predicate[A]): Predicate[Exit[Any, A]] =
@@ -352,16 +372,5 @@ object Predicate {
       }
 
       Assertion.failure(PredicateValue(self, actual))
-    }
-
-  /**
-   * Returns a new predicate that requires a numeric value to fall within a
-   * specified min and max (inclusive).
-   */
-  final def within[A: Numeric](min: A, max: A): Predicate[A] =
-    Predicate.predicate(s"within(${min}, ${max})") { actual =>
-      if (implicitly[Numeric[A]].compare(actual, min) < 0) Assertion.failure(())
-      else if (implicitly[Numeric[A]].compare(actual, max) > 0) Assertion.failure(())
-      else Assertion.success
     }
 }
