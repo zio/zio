@@ -1031,10 +1031,11 @@ object ZManaged {
               } yield b).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
-          exitU => for {
-            fs    <- finalizers.get
-            exits <- ZIO.foreach(fs)(_(exitU).run)
-          } yield Exit.collectAllPar(exits)
+          exitU =>
+            for {
+              fs    <- finalizers.get
+              exits <- ZIO.foreach(fs)(_(exitU).run)
+            } yield Exit.collectAllPar(exits)
         )
       }
     }
@@ -1114,10 +1115,11 @@ object ZManaged {
                 } yield result).ensuring((queue.shutdown *> ZIO.foreach_(fibers)(_.interrupt)).uninterruptible)
             }
           },
-          exitU => for {
-            fs    <- finalizers.get
-            exits <- ZIO.foreach(fs)(_(exitU).run)
-          } yield Exit.collectAllPar(exits)
+          exitU =>
+            for {
+              fs    <- finalizers.get
+              exits <- ZIO.foreach(fs)(_(exitU).run)
+            } yield Exit.collectAllPar(exits)
         )
       }
     }
