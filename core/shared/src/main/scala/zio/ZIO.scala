@@ -257,6 +257,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
+   * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
+   */
+  final def eventually: ZIO[R, Nothing, A] = self orElse eventually
+
+  /**
    * Applies `f` if the predicate fails.
    */
   final def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
