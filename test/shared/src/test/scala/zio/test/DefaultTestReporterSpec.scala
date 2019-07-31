@@ -37,7 +37,9 @@ object DefaultTestReporterSpec extends DefaultRuntime {
 
   val test3Expected = Vector(
     expectedFailure("Value falls within range"),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("(equals(42) || (" + yellow("isGreaterThan(5)") + " && isLessThan(10)))")}\n"),
+    withOffset(2)(
+      s"${blue("52")} did not satisfy ${cyan("(equals(42) || (" + yellow("isGreaterThan(5)") + " && isLessThan(10)))")}\n"
+    ),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isGreaterThan(5)")}\n")
   )
 
