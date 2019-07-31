@@ -74,6 +74,12 @@ object Gen {
     )
 
   /**
+   * A sized generator, whose size falls within the specified bounds.
+   */
+  final def sized[R <: Random, A](min: Int, max: Int)(f: Int => Gen[R, A]): Gen[R, A] =
+    integral[Int](min to max).flatMap(f)
+
+  /**
    * A generator of uniformly distributed doubles between [0, 1].
    */
   final def uniform: Gen[Random, Double] = Gen(ZStream.fromEffect(nextDouble.map(Sample(_))))
