@@ -52,7 +52,7 @@ object RandomSpec extends DefaultRuntime {
         actual     <- UIO.foreach(List.range(0, 100))(mockRandom.nextBytes(_))
         expected = List.range(0, 100).map(new Array[Byte](_)).map { arr =>
           sRandom.nextBytes(arr)
-          Chunk(arr: _*)
+          Chunk(arr.toIndexedSeq)
         }
       } yield actual == expected
     }
