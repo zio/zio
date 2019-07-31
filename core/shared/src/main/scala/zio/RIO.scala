@@ -106,7 +106,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  final def collectAllParN[R, A](n: Long)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
+  final def collectAllParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
@@ -214,7 +214,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  final def foreachParN[R, A, B](n: Long)(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
+  final def foreachParN[R, A, B](n: Int)(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
@@ -232,7 +232,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  final def foreachParN_[R, A, B](n: Long)(as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
+  final def foreachParN_[R, A, B](n: Int)(as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -457,7 +457,7 @@ object RIO {
   /**
    *  See [[zio.ZIO.sequenceParN]]
    */
-  final def sequenceParN[R, A](n: Long)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
+  final def sequenceParN[R, A](n: Int)(as: Iterable[RIO[R, A]]): RIO[R, List[A]] =
     ZIO.sequenceParN(n)(as)
 
   /**
@@ -516,7 +516,7 @@ object RIO {
    * Alias for [[ZIO.foreachParN]]
    */
   final def traverseParN[R, A, B](
-    n: Long
+    n: Int
   )(as: Iterable[A])(fn: A => RIO[R, B]): RIO[R, List[B]] =
     ZIO.traverseParN(n)(as)(fn)
 
@@ -536,7 +536,7 @@ object RIO {
    * @see See [[zio.ZIO.traverseParN_]]
    */
   final def traverseParN_[R, A](
-    n: Long
+    n: Int
   )(as: Iterable[A])(f: A => RIO[R, _]): RIO[R, Unit] =
     ZIO.traverseParN_(n)(as)(f)
 
