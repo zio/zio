@@ -12,5 +12,6 @@ object TestMain {
     RandomSpec.run()
     SchedulerSpec.run()
     SystemSpec.run()
+    PredicateSpec.run()
   }
 }
