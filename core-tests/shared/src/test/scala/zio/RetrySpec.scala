@@ -259,6 +259,8 @@ class RetrySpec extends BaseCrossPlatformSpec {
         UIO.succeed(0)
       val nextLong: UIO[Long] =
         UIO.succeed(0L)
+      def nextLong(n: Long): UIO[Long] =
+        UIO.succeed(0L)
       val nextPrintableChar: UIO[Char] =
         UIO.succeed('A')
       def nextString(length: Int): UIO[String] =

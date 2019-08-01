@@ -3,6 +3,7 @@ package zio.test.mock
 import java.util.concurrent.TimeUnit
 
 import scala.Predef.{ assert => SAssert }
+import scala.util.{ Random => SRandom }
 
 import zio._
 import zio.duration._
@@ -51,9 +52,9 @@ object EnvironmentSpec extends DefaultRuntime {
   def nextInt =
     withEnvironment {
       for {
-        _ <- MockRandom.feedInts(6)
+        _ <- MockRandom.setSeed(4491842685265857478L)
         n <- random.nextInt
-      } yield n == 6
+      } yield n == new SRandom(4491842685265857478L).nextInt()
     }
 
   def env =
