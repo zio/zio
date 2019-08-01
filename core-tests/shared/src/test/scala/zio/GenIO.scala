@@ -39,7 +39,7 @@ trait GenIO {
   /**
    * Randomly uses either `genSuccess` or `genFailure` with equal probability.
    */
-  def genIO[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Gen[IO[E, A]] =
+  def genIO[E: Arbitrary, A: Arbitrary]: Gen[IO[E, A]] =
     Gen.oneOf(genSuccess[E, A], genFailure[E, A])
 
   /**
@@ -63,7 +63,7 @@ trait GenIO {
    * Given a generator for `IO[E, A]`, produces a sized generator for `IO[E, A]` which represents a transformation,
    * by using methods that can have no effect on the resulting value (e.g. `map(identity)`, `io.race(never)`, `io.par(io2).map(_._1)`).
    */
-  def genIdentityTrans[E: Arbitrary: Cogen, A: Arbitrary: Cogen](gen: Gen[IO[E, A]]): Gen[IO[E, A]] = {
+  def genIdentityTrans[E, A: Arbitrary](gen: Gen[IO[E, A]]): Gen[IO[E, A]] = {
     val functions: IO[E, A] => Gen[IO[E, A]] = io =>
       Gen.oneOf(
         genOfIdentityFlatMaps[E, A](io),
@@ -75,7 +75,7 @@ trait GenIO {
     gen.flatMap(io => genTransformations(functions)(io))
   }
 
-  private def genTransformations[E: Arbitrary: Cogen, A: Arbitrary: Cogen](
+  private def genTransformations[E, A](
     functionGen: IO[E, A] => Gen[IO[E, A]]
   )(io: IO[E, A]): Gen[IO[E, A]] =
     Gen.sized { size =>
