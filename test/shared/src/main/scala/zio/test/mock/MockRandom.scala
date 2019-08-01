@@ -16,9 +16,8 @@
 
 package zio.test.mock
 
-import java.lang.StrictMath.{ log, sqrt }
-
 import scala.collection.immutable.Queue
+import scala.math.{ log, sqrt }
 
 import zio.{ Chunk, Ref, UIO, ZIO }
 import zio.random.Random
@@ -31,6 +30,7 @@ object MockRandom {
 
   trait Service[R] extends Random.Service[R] {
     def setSeed(seed: Long): UIO[Unit]
+    def nextLong(n: Long): UIO[Long]
   }
 
   case class Mock(randomState: Ref[Data]) extends MockRandom.Service[Any] {
@@ -57,7 +57,7 @@ object MockRandom {
         else
           loop(i, nextInt, (length - i) min 4, acc)
 
-      loop(0, nextInt, length min 4, UIO.succeed(List.empty[Byte])).map(Chunk(_: _*))
+      loop(0, nextInt, length min 4, UIO.succeed(List.empty[Byte])).map(Chunk.fromIterable)
     }
 
     val nextFloat: UIO[Float] =
@@ -76,13 +76,12 @@ object MockRandom {
         case Some(nextNextGaussian) => UIO.succeed(nextNextGaussian)
         case None =>
           def loop: UIO[(Double, Double, Double)] =
-            nextDouble.flatMap { d1 =>
-              nextDouble.flatMap { d2 =>
+            nextDouble.zip(nextDouble).flatMap {
+              case (d1, d2) =>
                 val v1 = 2 * d1 - 1
                 val v2 = 2 * d2 - 1
                 val s  = v1 * v1 + v2 * v2
                 if (s >= 1 || s == 0) loop else UIO.succeed((v1, v2, s))
-              }
             }
           loop.flatMap {
             case (v1, v2, s) =>
@@ -117,6 +116,23 @@ object MockRandom {
         i1 <- next(32)
         i2 <- next(32)
       } yield ((i1.toLong << 32) + i2)
+
+    def nextLong(n: Long): UIO[Long] =
+      if (n <= 0)
+        UIO.die(new IllegalArgumentException("bound must be positive"))
+      else {
+        nextLong.flatMap { r =>
+          val m = n - 1
+          if ((n & m) == 0L)
+            UIO.succeed(r & m)
+          else {
+            def loop(u: Long): UIO[Long] =
+              if (u + m - u % m < 0L) nextLong.flatMap(r => loop(r >>> 1))
+              else UIO.succeed(u % n)
+            loop(r >>> 1)
+          }
+        }
+      }
 
     val nextPrintableChar: UIO[Char] =
       nextInt(127 - 33).map(i => (i + 33).toChar)
@@ -179,6 +195,9 @@ object MockRandom {
 
   def setSeed(seed: Long): ZIO[MockRandom, Nothing, Unit] =
     ZIO.accessM(_.random.setSeed(seed))
+
+  def nextLong(n: Long): ZIO[MockRandom, Nothing, Long] =
+    ZIO.accessM(_.random.nextLong(n))
 
   val DefaultData: Data = Data(7505117374955035541L)
 

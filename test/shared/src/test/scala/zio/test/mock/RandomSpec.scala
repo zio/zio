@@ -1,5 +1,7 @@
 package zio.test.mock
 
+import java.util.{ Random => JRandom }
+
 import scala.Predef.{ assert => SAssert, _ }
 import scala.util.{ Random => SRandom }
 
@@ -14,13 +16,17 @@ object RandomSpec extends DefaultRuntime {
     SAssert(forAllEqualBytes, "MockRandom nextBytes")
     SAssert(forAllEqual(_.nextDouble)(_.nextDouble()), "MockRandom nextDouble")
     SAssert(forAllEqual(_.nextFloat)(_.nextFloat()), "MockRandom nextFloat")
-    SAssert(forAllEqual(_.nextGaussian)(_.nextGaussian()), "MockRandom nextGaussian")
+    SAssert(forAllEqualGaussian, "MockRandom nextGaussian")
     SAssert(forAllEqual(_.nextInt)(_.nextInt()), "MockRandom nextInt")
-    SAssert(forAllEqualN(_.nextInt(_))(_.nextInt(_)), "MockRandom nextIntN")
+    SAssert(forAllEqualN(_.nextInt(_))(_.nextInt(_)), "MockRandom bounded nextInt")
     SAssert(forAllEqual(_.nextLong)(_.nextLong()), "MockRandom nextLong")
+    SAssert(forAllEqualLong, "MockRandom bounded nextLong")
     SAssert(forAllEqual(_.nextPrintableChar)(_.nextPrintableChar()), "MockRandom nextPrintableChar")
     SAssert(forAllEqualN(_.nextString(_))(_.nextString(_)), "MockRandom nextString")
     SAssert(forAllEqualShuffle(_.shuffle(_))(_.shuffle(_)), "MockRandom shuffle")
+
+    SAssert(forAllBounded(_.nextInt)(_.nextInt(_)), "MockRandom bounded nextInt generates values within the bounds")
+    SAssert(forAllBounded(_.nextLong)(_.nextLong(_)), "MockRandom bounded nextLong generates values within the bounds")
   }
 
   def referentiallyTransparent: Boolean = {
@@ -52,9 +58,21 @@ object RandomSpec extends DefaultRuntime {
         actual     <- UIO.foreach(List.range(0, 100))(mockRandom.nextBytes(_))
         expected = List.range(0, 100).map(new Array[Byte](_)).map { arr =>
           sRandom.nextBytes(arr)
-          Chunk(arr.toIndexedSeq)
+          Chunk.fromArray(arr)
         }
       } yield actual == expected
+    }
+  }
+
+  def forAllEqualGaussian: Boolean = {
+    val seed    = SRandom.nextLong()
+    val sRandom = new SRandom(seed)
+    unsafeRun {
+      for {
+        mockRandom <- MockRandom.makeMock(Data(seed))
+        actual     <- UIO.foreach(List.fill(100)(()))(_ => mockRandom.nextGaussian)
+        expected   = List.fill(100)(sRandom.nextGaussian)
+      } yield actual.zip(expected).forall { case (x, y) => math.abs(x - y) < 0.01 }
     }
   }
 
@@ -70,6 +88,20 @@ object RandomSpec extends DefaultRuntime {
     }
   }
 
+  def forAllEqualLong: Boolean = {
+    val jRandom = new JRandom
+    val seed    = jRandom.nextLong()
+    unsafeRun {
+      for {
+        mockRandom <- MockRandom.makeMock(Data(seed))
+        bounds     = List.fill(100)(math.abs(jRandom.nextLong()) max 1)
+        actual     <- UIO.foreach(bounds)(mockRandom.nextLong(_))
+        _          = jRandom.setSeed(seed)
+        expected   = bounds.map(jRandom.longs(0, _).findFirst.getAsLong)
+      } yield actual == expected
+    }
+  }
+
   def forAllEqualShuffle(f: (Mock, List[Int]) => UIO[List[Int]])(g: (SRandom, List[Int]) => List[Int]): Boolean = {
     val seed    = SRandom.nextLong()
     val sRandom = new SRandom(seed)
@@ -79,6 +111,20 @@ object RandomSpec extends DefaultRuntime {
         actual     <- UIO.foreach(List.range(0, 100).map(List.range(0, _)))(f(mockRandom, _))
         expected   = List.range(0, 100).map(List.range(0, _)).map(g(sRandom, _))
       } yield actual == expected
+    }
+  }
+
+  def forAllBounded[A: Numeric](bound: SRandom => A)(f: (Mock, A) => UIO[A]): Boolean = {
+    val num = implicitly[Numeric[A]]
+    import num._
+    val seed    = SRandom.nextLong()
+    val sRandom = new SRandom(seed)
+    unsafeRun {
+      for {
+        mockRandom <- MockRandom.makeMock(Data(seed))
+        bounds     = List.fill(100)(num.abs(bound(sRandom)) max one)
+        actual     <- UIO.foreach(bounds)(f(mockRandom, _))
+      } yield actual.zip(bounds).forall { case (a, n) => zero <= a && a < n }
     }
   }
 }
